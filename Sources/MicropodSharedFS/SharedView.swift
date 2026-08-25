@@ -18,11 +18,15 @@ public final class SharedView: @unchecked Sendable {
         self.createdAt = createdAt
     }
 
-    /// Build a new view: recursively clone every regular file from `source`
-    /// into `root` (preserving relative paths). Hardlinks/clones share
-    /// blocks on APFS; we use `clonefile(2)` so writes inside the view
-    /// don't touch the source.
+    /// Build a new view: try APFS directory clone first (one syscall, CoW
+    /// entire tree), falling back to per-file clonefile. Respects
+    /// `.dockerignore` / `.syncignore` in the source root.
     public static func build(source: URL, root: URL) throws {
+        let ignores = loadIgnorePatterns(from: source)
+        // Fast path: whole-directory clone (APFS, same volume) — O(1).
+        if tryCloneDirectory(from: source, to: root, ignores: ignores) {
+            return
+        }
         try FileManager.default.createDirectory(
             at: root, withIntermediateDirectories: true)
         guard
@@ -39,6 +43,7 @@ public final class SharedView: @unchecked Sendable {
                 .isRegularFileKey, .isDirectoryKey,
             ])
             let relative = relativePath(from: source, to: url)
+            if isIgnored(relative, patterns: ignores) { continue }
             let target = root.appendingPathComponent(relative)
             if values.isDirectory == true {
                 try FileManager.default.createDirectory(
@@ -47,6 +52,55 @@ public final class SharedView: @unchecked Sendable {
                 try cloneOrCopy(from: url, to: target)
             }
         }
+    }
+
+    private static func tryCloneDirectory(from src: URL, to dst: URL, ignores: [String]) -> Bool {
+        // Ignore handling requires per-file filtering, so skip fast path when
+        // ignores are present. Also skip if src and dst are on different volumes.
+        guard ignores.isEmpty else { return false }
+        // Ensure parent exists and dst does not.
+        try? FileManager.default.createDirectory(
+            at: dst.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if FileManager.default.fileExists(atPath: dst.path) {
+            try? FileManager.default.removeItem(at: dst)
+        }
+        var success = false
+        src.withUnsafeFileSystemRepresentation { srcPtr in
+            dst.withUnsafeFileSystemRepresentation { dstPtr in
+                guard let s = srcPtr, let d = dstPtr else { return }
+                success = clonefile(s, d, 0) == 0
+            }
+        }
+        return success
+    }
+
+    private static func loadIgnorePatterns(from root: URL) -> [String] {
+        for name in [".dockerignore", ".syncignore"] {
+            let url = root.appendingPathComponent(name)
+            if let data = try? Data(contentsOf: url),
+                let text = String(data: data, encoding: .utf8)
+            {
+                return
+                    text.components(separatedBy: .newlines)
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty && !$0.hasPrefix("#") }
+            }
+        }
+        return []
+    }
+
+    private static func isIgnored(_ relative: String, patterns: [String]) -> Bool {
+        for pattern in patterns {
+            // Simple glob via fnmatch(3) — handles *, ?, [abc], ** via FNM_PATHNAME.
+            if fnmatch(pattern, relative, FNM_PATHNAME) == 0 { return true }
+            // Also match basename for patterns without slash (like .git).
+            if !pattern.contains("/"),
+                fnmatch(pattern, (relative as NSString).lastPathComponent, 0) == 0
+            {
+                return true
+            }
+        }
+        return false
     }
 
     /// Reverse `build` — copy every changed/new file in the view back into
@@ -118,7 +172,7 @@ public struct ViewID: Hashable, Codable, Sendable, CustomStringConvertible {
     public var description: String { value }
 }
 
-private func relativePath(from root: URL, to file: URL) -> String {
+func relativePath(from root: URL, to file: URL) -> String {
     let rootComponents = root.standardizedFileURL.pathComponents
     let fileComponents = file.standardizedFileURL.pathComponents
     if fileComponents.count >= rootComponents.count,

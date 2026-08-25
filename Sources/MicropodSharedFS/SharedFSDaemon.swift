@@ -213,30 +213,120 @@ public actor SharedFSDaemon: SharedFSClient {
 
     private func handleSrcChange(paths: [String], src: URL) async {
         let key = src.resolvingSymlinksInPath().path
-        fputs("[sharedfs] src change \(paths.first ?? "?")\n", stderr)
-        guard let viewIDs = viewsBySrc[key] ?? sharedViews[key].map({ [$0.id] }) else { return }
-        var targetIDs = viewIDs
+        // Filter out atomic-write temp files (e.g., .sb-...) to avoid syncing
+        // incomplete writes; the final file's event will arrive shortly after.
+        let filtered = paths.filter {
+            !$0.contains(".sb-") && !URL(fileURLWithPath: $0).lastPathComponent.hasPrefix(".")
+        }
+        let effective = filtered.isEmpty ? paths.filter { !$0.contains(".sb-") } : filtered
+        fputs("[sharedfs] src change \(effective.first ?? "?") (\(effective.count) paths)\n", stderr)
+        var targetIDs = viewsBySrc[key] ?? []
         if let shared = sharedViews[key] { targetIDs.insert(shared.id) }
+        guard !targetIDs.isEmpty else { return }
         for viewID in targetIDs {
             guard let view = views[viewID] ?? sharedViews[key] else { continue }
-            for changed in paths {
+            for changed in effective {
                 await syncFileChanged(at: changed, from: src, to: view.root)
+            }
+            // If FSEvents coalesced to a directory-only event, fall back to full tree for that dir
+            if effective.allSatisfy({ $0 == key || $0.hasPrefix(key + "/") }) && effective.count == 1
+                && effective.first == key
+            {
+                await syncTree(from: src, to: view.root)
             }
         }
     }
 
     private func handleViewChange(paths: [String], view: SharedView) async {
-        fputs("[sharedfs] view \(view.id.value) change \(paths.first ?? "?")\n", stderr)
-        for changed in paths {
+        let filtered = paths.filter {
+            !$0.contains(".sb-") && !URL(fileURLWithPath: $0).lastPathComponent.hasPrefix(".")
+        }
+        let effective = filtered.isEmpty ? paths.filter { !$0.contains(".sb-") } : filtered
+        fputs("[sharedfs] view \(view.id.value) change \(effective.first ?? "?") (\(effective.count) paths)\n", stderr)
+        for changed in effective {
             await syncFileChanged(at: changed, from: view.root, to: view.source)
-            let key = view.source.resolvingSymlinksInPath().path
-            let siblings = (viewsBySrc[key] ?? []).union(
-                sharedViews[key].map { Set([$0.id]) } ?? [])
-            for siblingID in siblings where siblingID != view.id {
-                guard let sibling = views[siblingID] ?? sharedViews[key] else { continue }
+        }
+        // Host -> siblings (host as hub for cross-container)
+        let key = view.source.resolvingSymlinksInPath().path
+        let siblings = (viewsBySrc[key] ?? []).union(
+            sharedViews[key].map { Set([$0.id]) } ?? [])
+        for siblingID in siblings where siblingID != view.id {
+            guard let sibling = views[siblingID] ?? sharedViews[key] else { continue }
+            for changed in effective {
                 await syncFileChanged(at: changed, from: view.root, to: sibling.root, viaRelativeFrom: view.root)
             }
         }
+        // Directory-only event fallback
+        if effective.allSatisfy({
+            $0 == view.root.resolvingSymlinksInPath().path
+                || $0.hasPrefix(view.root.resolvingSymlinksInPath().path + "/")
+        }) && effective.count == 1 && effective.first == view.root.resolvingSymlinksInPath().path {
+            await syncTree(from: view.root, to: view.source)
+        }
+    }
+
+    private func syncTree(from srcRoot: URL, to dstRoot: URL) async {
+        let realSrc = srcRoot.resolvingSymlinksInPath().standardized
+        let realDst = dstRoot.resolvingSymlinksInPath().standardized
+        var srcFiles: [String: URL] = [:]
+        var dstFiles: [String: URL] = [:]
+        if let e = FileManager.default.enumerator(
+            at: realSrc, includingPropertiesForKeys: [.isRegularFileKey], options: [])
+        {
+            for url in e.allObjects.compactMap({ $0 as? URL }) {
+                if (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) != true { continue }
+                if url.lastPathComponent.contains(".sb-") || url.lastPathComponent.hasPrefix(".") { continue }
+                let rel = relativePath(from: realSrc, to: url)
+                srcFiles[rel] = url
+            }
+        }
+        if let e = FileManager.default.enumerator(
+            at: realDst, includingPropertiesForKeys: [.isRegularFileKey], options: [])
+        {
+            for url in e.allObjects.compactMap({ $0 as? URL }) {
+                if (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) != true { continue }
+                if url.lastPathComponent.contains(".sb-") || url.lastPathComponent.hasPrefix(".") { continue }
+                let rel = relativePath(from: realDst, to: url)
+                dstFiles[rel] = url
+            }
+        }
+        for (rel, srcURL) in srcFiles {
+            let dstURL = realDst.appendingPathComponent(rel)
+            if let dstURLExisting = dstFiles[rel] {
+                if let srcHash = try? ChunkHash.computeFile(srcURL),
+                    let dstHash = try? ChunkHash.computeFile(dstURLExisting),
+                    srcHash == dstHash
+                {
+                    continue
+                }
+            }
+            do {
+                try FileManager.default.createDirectory(
+                    at: dstURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+                if FileManager.default.fileExists(atPath: dstURL.path) {
+                    try FileManager.default.removeItem(at: dstURL)
+                }
+                try cloneOrCopyFile(from: srcURL, to: dstURL)
+            } catch {}
+        }
+        for (rel, dstURL) in dstFiles where srcFiles[rel] == nil {
+            try? FileManager.default.removeItem(at: dstURL)
+        }
+    }
+
+    private func cloneOrCopyFile(from src: URL, to dst: URL) throws {
+        try FileManager.default.createDirectory(
+            at: dst.deletingLastPathComponent(), withIntermediateDirectories: true)
+        var done = false
+        src.withUnsafeFileSystemRepresentation { s in
+            dst.withUnsafeFileSystemRepresentation { d in
+                guard let s, let d else { return }
+                if clonefile(s, d, 0) == 0 { done = true }
+            }
+        }
+        if done { return }
+        let data = try Data(contentsOf: src)
+        try data.write(to: dst, options: .atomic)
     }
 
     /// Efficient per-file sync: clonefile if same APFS volume, else copy.

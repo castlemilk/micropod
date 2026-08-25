@@ -27,15 +27,19 @@ final class SharedFSDaemonTests: XCTestCase {
         let src = try writeSourceTree()
         let daemon = try SharedFSDaemon(cacheRoot: cacheRoot("refresh"))
         let info = try await daemon.mount(src: src, readonly: false)
+        // Live sync is now active: wait for initial mount to settle before
+        // dirtying the view, so the view->host sync for "old" completes
+        // before we overwrite host with "refreshed-payload".
+        try await Task.sleep(nanoseconds: 300_000_000)
         try "old".write(toFile: "\(info.viewPath)/a.txt", atomically: true, encoding: .utf8)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: "\(info.viewPath)/a.txt"))
+        // Wait for view->host live sync to complete
+        try await Task.sleep(nanoseconds: 600_000_000)
+        XCTAssertEqual(try String(contentsOfFile: src.appendingPathComponent("a.txt").path, encoding: .utf8), "old")
 
-        // Modify the source AND change the file size so clonefile dedup
-        // would otherwise hide the change.
         try "refreshed-payload".write(
             toFile: src.appendingPathComponent("a.txt").path, atomically: true, encoding: .utf8)
-        // Wait for FSEvents to fire.
-        try await Task.sleep(nanoseconds: 500_000_000)
+        // Wait for host->view live sync
+        try await Task.sleep(nanoseconds: 600_000_000)
 
         let refreshed = try await daemon.refresh(id: info.id)
         let data = try String(contentsOfFile: "\(refreshed.viewPath)/a.txt", encoding: .utf8)
@@ -48,9 +52,34 @@ final class SharedFSDaemonTests: XCTestCase {
         let info = try await daemon.mount(src: src, readonly: false)
         let newFile = "\(info.viewPath)/from-container.txt"
         try "hello-from-container".write(toFile: newFile, atomically: true, encoding: .utf8)
+        // Debug: list view dir before sync
+        let viewFiles = (try? FileManager.default.contentsOfDirectory(atPath: info.viewPath)) ?? []
+        print("view files before sync: \(viewFiles)")
 
-        let result = try await daemon.sync(id: info.id)
-        XCTAssertTrue(result.synced.contains(src.appendingPathComponent("from-container.txt").path))
+        // Live sync will copy to host within ~0.3s; poll, then fall back to
+        // explicit sync if needed (covers races where FSEvents coalesces the
+        // atomic-write temp file and misses the final file).
+        var found = false
+        for _ in 0..<20 {
+            if (try? String(contentsOfFile: src.appendingPathComponent("from-container.txt").path, encoding: .utf8))
+                == "hello-from-container"
+            {
+                found = true
+                break
+            }
+            try await Task.sleep(nanoseconds: 150_000_000)
+        }
+        print(
+            "found via live: \(found), src files: \((try? FileManager.default.contentsOfDirectory(atPath: src.path)) ?? [])"
+        )
+        if !found {
+            let result = try await daemon.sync(id: info.id)
+            print("explicit sync result: \(result.synced)")
+            let viewFiles2 = (try? FileManager.default.contentsOfDirectory(atPath: info.viewPath)) ?? []
+            print("view files after explicit sync: \(viewFiles2)")
+            let srcFiles = (try? FileManager.default.contentsOfDirectory(atPath: src.path)) ?? []
+            print("src files after explicit sync: \(srcFiles)")
+        }
         let onDisk = try String(
             contentsOfFile: src.appendingPathComponent("from-container.txt").path,
             encoding: .utf8)
