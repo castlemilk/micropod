@@ -55,7 +55,7 @@ Two layers, one API (`SharedFSClient`):
 - Keep `hashFiles(pattern)` via `busybox` (with fallback to host `sha256sum` if `busybox` not in image) and `sanitizeCachePathKey` volume naming for backwards compat, but change lookup to **global first**:
   1. Compute `hash = hashFiles(pattern)`.
   2. Check `SharedFSClient.Has(hash)` — if hit, mount shared view, done. Uses `singleflight.Group` per hash so 10 concurrent jobs do one `Has`/`Pull`.
-  3. Check GCS `Has(hash)` — if hit, pull chunks to local store, mount, done. `Pull` has 3s timeout, then cold.
+  3. Check GCS `Has(hash)` — if hit, pull chunks to local store, mount, done. `Has`+`Pull` have 3s total timeout (singleflight), then cold.
   4. Miss — create `cf-cache-*` volume as today.
   5. **Promotion:** on container exit, `CacheManager` calls `SharedFSDaemon.Sync(volumePath)` which snapshots volume content into `ChunkStore` keyed by `hash`, then async `GCSStore.Push` (upload to `*.tmp` then `ifGenerationMatch=0` CAS — first-write-wins, second gets `412 PreconditionFailed` and is swallowed as dedup success).
 - Add `shared: *bool` to `cachePolicy` (parsed from workflow YAML). `nil` = auto-detect, `true`/`false` = explicit.
@@ -75,7 +75,7 @@ At `containerCreate` time, inspect `HostConfig.Binds` and `CacheVolumes`:
 - If any bind's container path (normalized absolute, `~` expanded via container `USER`/`HOME` fallback `/root`) matches well-known **or** `cachePolicy.shared == true`, rewrite to shared view via daemon.
 - If `shared == false`, force isolated view.
 - Custom `sharedMounts: ["/my/cache"]` in workflow YAML → same.
-- `hashFiles` pattern language: glob base dir `/workspace`, supports `*`, `?`, `[abc]`, `**`; empty-match → fallback `path + ":" + langVersion`.
+- `hashFiles` pattern language: glob base dir `/workspace`, supports `*`, `?`, `[abc]`, `**`, `{a,b}` (gobwas/glob brace extension); empty-match → fallback `path + ":" + langVersion`.
 
 ### 4.4 BuildKit
 
@@ -114,7 +114,7 @@ for each volume in cachePolicy.paths + autoDetectedWellKnown:
 
 ## 7. Storage & Eviction (the "don't store too much" guarantee)
 
-- **Per-runner cap: 10GB global LRU** (`RUNNER_CACHE_MAX_BYTES`, default 10<<30). Single global cap (not per-type — deduped chunks cannot be attributed to Go vs npm; per-type metrics emitted for observability only). Enforced *before* next mount (synchronous `du -s` check) and via async sweep. If over cap, LRU-evict oldest `chunks` (by atime, `refCount==0`, 5m grace) until under cap; if still over and all candidates are `<5m` or pinned, bypass grace and evict oldest `refCount==0` anyway.
+- **Per-runner cap: 10GB global LRU** (`RUNNER_CACHE_MAX_BYTES`, default 10<<30). Single global cap (not per-type — deduped chunks cannot be attributed to Go vs npm; per-type metrics emitted for observability only). Enforced *before* next mount (synchronous indexed-size check via store metadata, no `du`) and via async sweep. If over cap, LRU-evict oldest `chunks` (by atime, `refCount==0`, 5m grace) until under cap; if still over and all candidates are `<5m` or pinned, bypass grace and evict oldest `refCount==0` anyway.
 - **Existing DiskManager (5m sweep) extended:** `sweepOrphanedVolumes` already age-gates (`cf-cache-*` 7d default, pressure 1h). Add `sharedCacheSize` check: same 10GB cap, same pinning.
 - **Remote:** GCS bucket lifecycle `7d`, alert at 80% via Cloud Monitoring (no hard remote cap). `Cache-Control` not set (lifecycle authoritative). Stale-while-revalidate: serve expired chunk, background refresh with jittered delay `100ms * rand(1, 10)` to avoid herd on mass 7d expiry.
 - **What we cache:** only `~/.npm`, `/go/pkg/mod`, `go-build`, `~/.cache/pip` — not `node_modules` (1-2GB, highly variable). This is ~80% smaller than naïve workspace caching.
@@ -135,7 +135,7 @@ for each volume in cachePolicy.paths + autoDetectedWellKnown:
 ## 9. Error Handling
 
 - Daemon down → fallback to plain Docker volume (today's behavior), log `shared mount failed` (500ms mount timeout, then isolated).
-- GCS down → local hit still works; miss goes cold (no push/pull), never blocks `mount` (3s `Pull` timeout, truncated download cleaned up, `ChunkHash` verify on Pull).
+- GCS down → local hit still works; miss goes cold (no push/pull), never blocks `mount` (3s `Has`+`Pull` total timeout, truncated download cleaned up, `ChunkHash` verify on Pull).
 - Corrupt chunk (`ChunkHash` mismatch on `Pull`) → delete chunk, re-pull from GCS or re-download (npm will re-fetch the tarball).
 - ENOSPC during `clonefile` or `sync` → log, delete `*.tmp`, revert to isolated volume, never fail job.
 - Private auth leak guard: `Push` no-ops if `~/.npmrc`/`NPM_TOKEN`/`~/.netrc` indicates private registry.
