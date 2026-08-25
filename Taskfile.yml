@@ -1,0 +1,127 @@
+version: "3"
+
+vars:
+  BIN: .build/debug
+  RELEASE_BIN: .build/release
+
+tasks:
+  default:
+    desc: Build everything (debug)
+    cmds:
+      - task: proto
+      - swift build
+
+  proto:
+    desc: Regenerate Swift protobuf models
+    cmds:
+      - buf lint
+      - buf generate
+
+  build:
+    desc: Release build
+    cmds:
+      - task: proto
+      - swift build -c release
+
+  run:
+    desc: Run the desktop app (debug)
+    cmds:
+      - swift run MicropodApp
+
+  mcp:
+    desc: Run the MCP server (debug)
+    cmds:
+      - swift run MicropodMCP
+
+  cli:
+    desc: Run the micropod CLI (debug)
+    cmds:
+      - swift run micropod
+
+  api:
+    desc: Run the local HTTP API (debug, http://127.0.0.1:45454)
+    cmds:
+      - swift run MicropodAPI
+
+  shim:
+    desc: Run the Docker Engine API shim (unix ~/.micropod/docker.sock + tcp :45455)
+    cmds:
+      - swift run micropod-docker-shim
+
+  test:
+    desc: Run unit tests
+    cmds:
+      - task: proto
+      - swift test
+
+  validate:
+    desc: Full deep validation (unit + integration + MCP e2e + app smoke)
+    cmds:
+      - task: proto
+      - swift build
+      - swift test
+      - python3 scripts/mcp_e2e.py
+      - ./scripts/app_smoke.sh
+
+  e2e-real:
+    desc: Real-runtime e2e tests (pulls + runs REAL containers on the Apple runtime, incl. docker-shim + ryuk reap)
+    cmds:
+      - task: proto
+      - swift build --product micropod-docker-shim
+      - MICROPOD_REAL_E2E=1 swift test --filter "RealRuntimeTests|RealShimTests"
+
+  bench:
+    desc: Performance benchmark against the real runtime (CLI, decode, streaming, MCP, scale)
+    cmds:
+      - task: proto
+      - swift build
+      - swift run MicropodBench
+
+  bench-compose:
+    desc: postgres compose startup — Micropod (Apple runtime) vs Docker Desktop
+    cmds:
+      - ./scripts/bench_compose_startup.sh
+
+  bench-shim:
+    desc: Docker Engine API latency + lifecycle — micropod-docker-shim vs Docker Desktop
+    cmds:
+      - |
+        python3 scripts/bench_shim_vs_docker.py unix://$HOME/.micropod/docker.sock shim
+        python3 scripts/bench_shim_vs_docker.py unix:///var/run/docker.sock docker
+
+  api-go:
+    desc: Run the connect-go API server (Go, http://127.0.0.1:45454)
+    cmds:
+      - cd api && go run ./cmd/micropod-apiserver
+
+  api-go-test:
+    desc: Run the connect-go API tests (mock CLI)
+    cmds:
+      - cd api && go test ./...
+
+  lint:
+    desc: Format check
+    cmds:
+      - swift format lint --recursive Sources Tests Package.swift
+
+  format:
+    desc: Format sources
+    cmds:
+      - swift format format --recursive --in-place Sources Tests Package.swift
+
+  package:
+    desc: Build + assemble release .app bundle (unsigned)
+    cmds:
+      - task: proto
+      - ./scripts/package_app.sh
+
+  install:
+    desc: Package + install app to /Applications and MCP to ~/.local/bin, then launch
+    cmds:
+      - task: package
+      - ./scripts/install.sh
+
+  uninstall:
+    desc: Remove the installed app + MCP server (leaves app data/preferences)
+    cmds:
+      - ./scripts/install.sh --uninstall

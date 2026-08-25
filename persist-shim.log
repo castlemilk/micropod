@@ -1,0 +1,8 @@
+[shim] micropod docker shim listening
+[shim]   unix socket : /tmp/persist-smoke.sock
+[shim]   tcp         : 127.0.0.1:45991
+[shim]   bridge      : 192.168.64.1:45991 (in-VM ryuk reachability)
+[shim] ryuk interception active for images containing testcontainers/ryuk
+[shim] state       : /tmp/persist-smoke.json
+[shim] POST //containers/create -> 201
+[shim] POST //containers/persist-ct/start -> 204

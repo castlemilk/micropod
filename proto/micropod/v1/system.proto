@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package micropod.v1;
+
+option go_package = "micropod/api/gen/micropod/v1;micropodv1";
+
+// Runtime health, mapped from `container system status`.
+message SystemStatus {
+  // "running" or "stopped".
+  string status = 1;
+  string app_root = 2;
+  string install_root = 3;
+  string api_server_version = 4;
+  string cli_version = 5;
+}
+
+// Disk usage, mapped from `container system df`.
+message DiskUsage {
+  DiskCategory containers = 1;
+  DiskCategory images = 2;
+  DiskCategory volumes = 3;
+  uint64 total_reclaimable_bytes = 4;
+}
+
+message DiskCategory {
+  uint64 total = 1;
+  uint64 active = 2;
+  uint64 size_bytes = 3;
+  uint64 reclaimable_bytes = 4;
+}
+
+// Single snapshot of runtime resource usage for all running containers,
+// mapped from `container stats --no-stream --format json`.
+message StatsSnapshot {
+  repeated ContainerStats containers = 1;
+  string sampled_at = 2;
+}
+
+message ContainerStats {
+  string id = 1;
+  double cpu_percent = 2;
+  uint64 memory_used_bytes = 3;
+  uint64 memory_limit_bytes = 4;
+  uint64 network_rx_bytes = 5;
+  uint64 network_tx_bytes = 6;
+  uint64 block_read_bytes = 7;
+  uint64 block_write_bytes = 8;
+  uint64 pids = 9;
+}
+
+// Curated network, mapped from `container network list`.
+message Network {
+  string id = 1;
+  string plugin = 2;
+  string mode = 3;
+  string ipv4_gateway = 4;
+  string ipv4_subnet = 5;
+  string ipv6_subnet = 6;
+  string created_at = 7;
+  bool builtin = 8;
+  map<string, string> labels = 9;
+}
+
+// Curated volume, mapped from `container volume list`.
+message Volume {
+  string id = 1;
+  string driver = 2;
+  string format = 3;
+  uint64 size_bytes = 4;
+  string source = 5;
+  string created_at = 6;
+  map<string, string> labels = 7;
+}
+
+// A registry login, mapped from `container registry list`.
+message RegistryLogin {
+  string server = 1;
+  string username = 2;
+  string scheme = 3;
+}

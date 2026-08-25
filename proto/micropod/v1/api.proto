@@ -1,0 +1,156 @@
+syntax = "proto3";
+
+package micropod.v1;
+
+option go_package = "micropod/api/gen/micropod/v1;micropodv1";
+
+import "micropod/v1/container.proto";
+import "micropod/v1/image.proto";
+import "micropod/v1/system.proto";
+
+// The Micropod management API: container/image/volume/network operations on
+// the Apple `container` runtime, served by the connect-go API server and
+// consumable from any connect client (Go, Swift, TS, …).
+service MicropodService {
+  // Runtime status + disk usage.
+  rpc GetSystem(Empty) returns (SystemSnapshot);
+  // List all containers.
+  rpc ListContainers(Empty) returns (ListContainersResponse);
+  // Run a container (docker run).
+  rpc RunContainer(RunContainerRequest) returns (ContainerRef);
+  // Create a container without starting it (docker create).
+  rpc CreateContainer(RunContainerRequest) returns (ContainerRef);
+  rpc StartContainer(ContainerRef) returns (Empty);
+  rpc StopContainer(ContainerRef) returns (Empty);
+  rpc RestartContainer(ContainerRef) returns (Empty);
+  rpc KillContainer(ContainerRef) returns (Empty);
+  rpc DeleteContainer(DeleteContainerRequest) returns (Empty);
+  // Live log stream (server streaming).
+  rpc StreamContainerLogs(StreamLogsRequest) returns (stream LogChunk);
+  rpc ListImages(Empty) returns (ListImagesResponse);
+  // Pull an image, streaming progress events.
+  rpc PullImage(PullImageRequest) returns (stream ProgressLine);
+  rpc DeleteImage(DeleteImageRequest) returns (Empty);
+  rpc ListVolumes(Empty) returns (ListVolumesResponse);
+  rpc CreateVolume(CreateVolumeRequest) returns (Empty);
+  rpc DeleteVolume(DeleteVolumeRequest) returns (Empty);
+  rpc ListNetworks(Empty) returns (ListNetworksResponse);
+  rpc CreateNetwork(CreateNetworkRequest) returns (Empty);
+  rpc DeleteNetwork(DeleteNetworkRequest) returns (Empty);
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+  rpc Exec(ExecRequest) returns (ExecResponse);
+}
+
+message Empty {}
+
+message GetStatsRequest {}
+
+message GetStatsResponse {
+  StatsSnapshot snapshot = 1;
+}
+
+message SystemSnapshot {
+  SystemStatus status = 1;
+  DiskUsage disk_usage = 2;
+}
+
+message ContainerRef {
+  string id = 1;
+}
+
+message ListContainersResponse {
+  repeated Container containers = 1;
+}
+
+message RunContainerRequest {
+  string image = 1;
+  optional string name = 2;
+  bool detach = 3;
+  optional double cpus = 4;
+  optional string memory = 5;
+  repeated string env = 6;
+  repeated PortMapping ports = 7;
+  repeated string volumes = 8;
+  map<string, string> labels = 9;
+  bool init = 10;
+  repeated string arguments = 11;
+}
+
+message DeleteContainerRequest {
+  string id = 1;
+  bool force = 2;
+}
+
+message StreamLogsRequest {
+  string id = 1;
+  int32 tail = 2;
+  bool boot = 3;
+}
+
+message LogChunk {
+  string text = 1;
+}
+
+message ListImagesResponse {
+  repeated Image images = 1;
+}
+
+message PullImageRequest {
+  string reference = 1;
+  optional string platform = 2;
+}
+
+message ProgressLine {
+  string line = 1;
+  optional int32 stage = 2;
+  optional int32 total_stages = 3;
+}
+
+message DeleteImageRequest {
+  string reference = 1;
+  bool force = 2;
+}
+
+message ListVolumesResponse {
+  repeated Volume volumes = 1;
+}
+
+message CreateVolumeRequest {
+  string name = 1;
+  optional string size = 2;
+  repeated string labels = 3;
+  repeated string options = 4;
+}
+
+message DeleteVolumeRequest {
+  string name = 1;
+}
+
+message ListNetworksResponse {
+  repeated Network networks = 1;
+}
+
+message CreateNetworkRequest {
+  string name = 1;
+  bool internal = 2;
+  optional string subnet = 3;
+  optional string subnet_v6 = 4;
+  optional string driver = 5;
+  repeated string options = 6;
+  repeated string labels = 7;
+}
+
+message DeleteNetworkRequest {
+  string name = 1;
+}
+
+message ExecRequest {
+  string id = 1;
+  string command = 2;
+  optional string workdir = 3;
+  repeated string env = 4;
+}
+
+message ExecResponse {
+  string output = 1;
+}

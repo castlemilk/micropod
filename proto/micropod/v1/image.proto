@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package micropod.v1;
+
+option go_package = "micropod/api/gen/micropod/v1;micropodv1";
+
+// Curated view of a local image, mapped from `container image list --verbose`.
+message Image {
+  string id = 1;
+  // All tags/references pointing at this image.
+  repeated string names = 2;
+  // ISO8601 creation timestamp.
+  string created_at = 3;
+  // Content digest.
+  string digest = 4;
+  uint64 size_bytes = 5;
+  repeated ImageVariant variants = 6;
+}
+
+message ImageVariant {
+  string os = 1;
+  string architecture = 2;
+  string variant = 3;
+}

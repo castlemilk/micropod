@@ -1,0 +1,1038 @@
+#!/bin/bash
+# mock-container — a stateful stand-in for Apple's `container` CLI.
+#
+# Emulates the exact command surface + JSON shapes Micropod consumes
+# (see ContainerCommandFactory and the DTOs). State lives in
+# $MICROPOD_MOCK_STATE_DIR (default: $TMPDIR/micropod-mock-state-$UID) as a
+# set of JSON files, so cross-process flows (app / MCP / tests) all share it.
+#
+# Usage: MICROPOD_MOCK_STATE_DIR=<dir> mock-container <subcommand> [...]
+set -u
+
+STATE_DIR="${MICROPOD_MOCK_STATE_DIR:-${TMPDIR:-/tmp}/micropod-mock-state-$(id -u)}"
+mkdir -p "$STATE_DIR"
+
+# Serialize concurrent invocations (readers + writers): the shim's event
+# poller lists at high frequency while tests mutate, and plain `>` redirects
+# truncate files mid-read without this.
+MOCK_LOCK="$STATE_DIR/.invocation-lock"
+mock_lock_attempt=0
+until mkdir "$MOCK_LOCK" 2>/dev/null; do
+    mock_lock_attempt=$((mock_lock_attempt + 1))
+    [ "$mock_lock_attempt" -gt 500 ] && { echo "Error: mock lock timeout" >&2; exit 1; }
+    sleep 0.02
+done
+release_mock_lock() { rmdir "$MOCK_LOCK" 2>/dev/null || true; }
+trap release_mock_lock EXIT
+
+CONTAINERS_FILE="$STATE_DIR/containers.json"
+IMAGES_FILE="$STATE_DIR/images.json"
+VOLUMES_FILE="$STATE_DIR/volumes.json"
+NETWORKS_FILE="$STATE_DIR/networks.json"
+MACHINES_FILE="$STATE_DIR/machines.json"
+LOGINS_FILE="$STATE_DIR/logins.json"
+COUNTER_FILE="$STATE_DIR/counter"
+TICK_FILE="$STATE_DIR/stats-tick"
+
+ensure_file() { [ -f "$1" ] || : >"$1"; }
+ensure_file "$CONTAINERS_FILE"
+ensure_file "$IMAGES_FILE"
+ensure_file "$VOLUMES_FILE"
+ensure_file "$NETWORKS_FILE"
+ensure_file "$LOGINS_FILE"
+
+next_id() {
+    local n=$(( $(cat "$COUNTER_FILE" 2>/dev/null || echo 0) + 1 ))
+    printf '%s' "$n" >"$COUNTER_FILE"
+    printf 'mpc-%04d' "$n"
+}
+
+next_sha() {
+    local n=$(( $(cat "$COUNTER_FILE" 2>/dev/null || echo 0) + 1 ))
+    printf '%s' "$n" >"$COUNTER_FILE"
+    printf 'sha256:mock%064d' "$n"
+}
+
+jesc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+
+# Parse a size like 64M / 1.5G / 104857600 into bytes.
+parse_size() {
+    local v="$1" mult=1
+    case "$v" in
+        *[Kk]) mult=$((1024)); v="${v%[Kk]}" ;;
+        *[Mm]) mult=$((1024 * 1024)); v="${v%[Mm]}" ;;
+        *[Gg]) mult=$((1024 * 1024 * 1024)); v="${v%[Gg]}" ;;
+        *[Tt]) mult=$((1024 * 1024 * 1024 * 1024)); v="${v%[Tt]}" ;;
+    esac
+    awk -v v="$v" -v m="$mult" 'BEGIN { printf "%d", v * m }'
+}
+
+iso_now() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
+
+# ---------------------------------------------------------------------------
+# Containers
+# ---------------------------------------------------------------------------
+
+emit_container() {
+    # $1 = state dir's containers.json, $2 = container id
+    # Prints one full ContainerListEntry JSON object for the id (assumes a
+    # line-oriented JSON store: one object per line).
+    grep -F "\"id\":\"$2\"" "$1"
+}
+
+store_containers() { printf '%s\n' "$@" >"$CONTAINERS_FILE"; }
+
+read_containers() { cat "$CONTAINERS_FILE" 2>/dev/null; }
+
+find_container() {
+    # Resolve by id or by container name (hostname) — the real CLI accepts both.
+    grep -F "\"id\":\"$1\"" "$CONTAINERS_FILE" 2>/dev/null \
+        || grep -F "\"hostname\":\"$1\"" "$CONTAINERS_FILE" 2>/dev/null \
+        || true
+}
+
+resolve_id() {
+    local line
+    line=$(find_container "$1")
+    [ -z "$line" ] && return 1
+    sed 's/.*"id":"\([^"]*\)".*/\1/' <<<"$line"
+}
+
+container_exists() {
+    [ -n "$(find_container "$1")" ]
+}
+
+container_state() {
+    # shellcheck disable=SC2001
+    sed 's/.*"state":"\([^"]*\)".*/\1/' <<<"$1"
+}
+
+set_container_state() {
+    # $1 = id, $2 = new state
+    local out=() line
+    while IFS= read -r line; do
+        if [[ "$line" == *"\"id\":\"$1\""* ]]; then
+            line=$(sed "s/\"state\":\"[^\"]*\"/\"state\":\"$2\"/" <<<"$line")
+            if [ "$2" = "running" ]; then
+                # Running containers get an IP on the default network.
+                local ip="192.168.64.$((RANDOM % 200 + 10))/24"
+                if [[ "$line" != *'"networks":[{"network":"default"'* ]]; then
+                    line=$(sed 's|"networks":\[\]|"networks":[{"network":"default","hostname":"x","ipv4Address":"'"$ip"'","ipv4Gateway":"192.168.64.1"}]|' <<<"$line")
+                else
+                    line=$(sed 's|"ipv4Address":"[^"]*"|"ipv4Address":"'"$ip"'"|' <<<"$line")
+                fi
+            fi
+        fi
+        out+=("$line")
+    done <"$CONTAINERS_FILE"
+    printf '%s\n' "${out[@]-}" >"$CONTAINERS_FILE"
+}
+
+cmd_list() {
+    local all=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --all) all=1 ;;
+            --format) shift ;;
+        esac
+        shift
+    done
+    local line
+    local printed=()
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        local state
+        state=$(container_state "$line")
+        if [ -n "$all" ] || [ "$state" = "running" ]; then
+            printed+=("$line")
+        fi
+    done <"$CONTAINERS_FILE"
+    printf '[%s]\n' "$(IFS=,; printf '%s' "${printed[*]-}")"
+}
+
+cmd_inspect() {
+    local line
+    line=$(find_container "$1")
+    if [ -z "$line" ]; then
+        echo "Error: no such container: $1" >&2
+        exit 1
+    fi
+    printf '[%s]\n' "$line"
+}
+
+cmd_start() { local id; id=$(resolve_id "$1") || { echo "Error: no such container: $1" >&2; exit 1; }; set_container_state "$id" running; }
+cmd_stop() {
+    if [ "${1:-}" = "--all" ]; then
+        while [ $# -gt 0 ]; do
+            case "$1" in --time) shift ;; esac
+            shift
+        done
+        local line
+        while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            local id
+            id=$(sed 's/.*"id":"\([^"]*\)".*/\1/' <<<"$line")
+            set_container_state "$id" stopped
+        done <"$CONTAINERS_FILE"
+    else
+        local id resolved
+        while [ $# -gt 0 ]; do
+            case "$1" in --time) shift ;; *) id="$1" ;; esac
+            shift
+        done
+        resolved=$(resolve_id "$id") || { echo "Error: no such container: $id" >&2; exit 1; }
+        set_container_state "$resolved" stopped
+    fi
+}
+cmd_kill() {
+    local signal="KILL"
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -s|--signal) shift; signal="$1" ;;
+            -a|--all) ;;
+            *) break ;;
+        esac
+        shift
+    done
+    local id
+    id=$(resolve_id "$1") || { echo "Error: no such container: $1" >&2; exit 1; }
+    # The mock's processes die on any signal, TERM included.
+    set_container_state "$id" stopped
+}
+cmd_delete() {
+    local force="" all=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --force) force=1 ;;
+            --all) all=1 ;;
+            *) break ;;
+        esac
+        shift
+    done
+    if [ -n "$all" ]; then
+        local out=() line
+        while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            local state
+            state=$(container_state "$line")
+            if [ -n "$force" ] || [ "$state" != "running" ]; then
+                continue
+            fi
+            out+=("$line")
+        done <"$CONTAINERS_FILE"
+        printf '%s\n' "${out[@]-}" >"$CONTAINERS_FILE"
+        return 0
+    fi
+    local id="$1" resolved out=() line found=""
+    resolved=$(resolve_id "$id") || { echo "Error: no such container: $id" >&2; exit 1; }
+    id="$resolved"
+    while IFS= read -r line; do
+        if [[ "$line" == *"\"id\":\"$id\""* ]]; then
+            found=1
+            local state
+            state=$(container_state "$line")
+            if [ -n "$force" ] || [ "$state" = "running" ]; then
+                continue
+            fi
+        fi
+        out+=("$line")
+    done <"$CONTAINERS_FILE"
+    if [ -z "$found" ]; then
+        echo "Error: no such container: $id" >&2
+        exit 1
+    fi
+    printf '%s\n' "${out[@]-}" >"$CONTAINERS_FILE"
+}
+
+cmd_prune() {
+    local out=() line
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        local state
+        state=$(container_state "$line")
+        if [ "$state" = "running" ]; then
+            out+=("$line")
+        fi
+    done <"$CONTAINERS_FILE"
+    printf '%s\n' "${out[@]-}" >"$CONTAINERS_FILE"
+    printf 'Total reclaimed space: 0B\n'
+}
+
+cmd_run() {
+    local name="" cpus="" memory="" platform="" workdir="" entrypoint="" user="" shm_size=""
+    local envs=() ports=() volumes=() labels=() cmd_args=() dns=() dns_search=() cap_add=() cap_drop=() ulimits=() tmpfs=() env_files=() net_attach=()
+    local detach=0 interactive=0 tty=0 use_init=0 read_only=0 rosetta=0
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --detach) detach=1 ;;
+            --interactive) interactive=1 ;;
+            --tty) tty=1 ;;
+            --init) use_init=1 ;;
+            --read-only) read_only=1 ;;
+            --rosetta) rosetta=1 ;;
+            --name) shift; name="$1" ;;
+            --cpus) shift; cpus="$1" ;;
+            --memory) shift; memory="$1" ;;
+            --platform) shift; platform="$1" ;;
+            --workdir) shift; workdir="$1" ;;
+            --entrypoint) shift; entrypoint="$1" ;;
+            --user) shift; user="$1" ;;
+            --shm-size) shift; shm_size="$1" ;;
+            --env) shift; envs+=("$1") ;;
+            --env-file) shift; env_files+=("$1") ;;
+            --publish) shift; ports+=("$1") ;;
+            --volume) shift; volumes+=("$1") ;;
+            --label) shift; labels+=("$1") ;;
+            --dns) shift; dns+=("$1") ;;
+            --dns-search) shift; dns_search+=("$1") ;;
+            --cap-add) shift; cap_add+=("$1") ;;
+            --cap-drop) shift; cap_drop+=("$1") ;;
+            --ulimit) shift; ulimits+=("$1") ;;
+            --tmpfs) shift; tmpfs+=("$1") ;;
+            --network) shift; net_attach+=("$1") ;;
+            *) break ;;
+        esac
+        shift
+    done
+    local image="$1"
+    shift
+    cmd_args=("$@")
+
+    # Env files contribute key=value pairs before --env values.
+    for ef in "${env_files[@]-}"; do
+        if [ -f "$ef" ]; then
+            while IFS= read -r line; do
+                [ -z "$line" ] && continue
+                [[ "$line" == \#* ]] && continue
+                envs+=("$line")
+            done <"$ef"
+        fi
+    done
+
+    local id
+    id=$(next_id)
+
+    local label_json=""
+    if [ ${#labels[@]} -gt 0 ]; then
+        local parts=()
+        for l in "${labels[@]}"; do
+            parts+=("\"$(jesc "${l%%=*}")\":\"$(jesc "${l#*=}")\"")
+        done
+        label_json="$(IFS=,; printf '%s' "${parts[*]}")"
+    fi
+
+    local env_json=""
+    if [ ${#envs[@]} -gt 0 ]; then
+        local eparts=()
+        for e in "${envs[@]}"; do eparts+=("\"$(jesc "$e")\""); done
+        env_json="$(IFS=,; printf '%s' "${eparts[*]-}")"
+    fi
+
+    local list_json="" parts=() v json_key
+    for field in dns dns_search cap_add cap_drop ulimits tmpfs; do
+        json_key="$field"
+        case "$field" in
+            dns_search) json_key="dnsSearch" ;;
+            cap_add) json_key="capAdd" ;;
+            cap_drop) json_key="capDrop" ;;
+        esac
+        parts=()
+        eval 'set -- "${'"$field"'[@]-}"'
+        for v in "$@"; do
+            [ -z "$v" ] && continue
+            parts+=("\"$(jesc "$v")\"")
+        done
+        if [ ${#parts[@]} -gt 0 ]; then
+            list_json="$list_json,\"$json_key\":[$(IFS=,; printf '%s' "${parts[*]-}")]"
+        fi
+    done
+    local extra_config=""
+    [ -n "$user" ] && extra_config="$extra_config,\"user\":\"$(jesc "$user")\""
+    [ -n "$shm_size" ] && extra_config="$extra_config,\"shmSize\":\"$(jesc "$shm_size")\""
+    if [ ${#env_files[@]} -gt 0 ]; then
+        local fparts=()
+        for f in "${env_files[@]}"; do fparts+=("\"$(jesc "$f")\""); done
+        extra_config="$extra_config,\"envFile\":[$(IFS=,; printf '%s' "${fparts[*]-}")]"
+    fi
+
+    local port_json=""
+    if [ ${#ports[@]} -gt 0 ]; then
+        local pparts=()
+        for p in "${ports[@]}"; do
+            local proto="tcp"
+            [[ "$p" == */* ]] && proto="${p##*/}"
+            local hp="${p%%:*}" rest
+            rest="${p#*:}"
+            local cp="${rest%%/*}"
+            pparts+=("{\"port\":{\"hostPort\":$hp,\"containerPort\":$cp},\"protocol\":\"$proto\"}")
+        done
+        port_json="$(IFS=,; printf '%s' "${pparts[*]}")"
+    fi
+
+    local mount_json=""
+    if [ ${#volumes[@]} -gt 0 ]; then
+        local mparts=()
+        for v in "${volumes[@]}"; do
+            local src dst
+            src="${v%%:*}"
+            dst="${v#*:}"
+            mparts+=("{\"destination\":\"$(jesc "$dst")\",\"source\":\"$(jesc "$src")\",\"options\":[],\"type\":{\"virtiofs\":{}}}")
+        done
+        mount_json="$(IFS=,; printf '%s' "${mparts[*]}")"
+    fi
+
+    local memory_bytes=0
+    [ -n "$memory" ] && memory_bytes=$(parse_size "$memory")
+    local ip
+    ip="192.168.64.$((RANDOM % 200 + 10))/24"
+
+    {
+        printf '{"configuration":{"creationDate":"%s","id":"%s"' "$(iso_now)" "$id"
+        if [ -n "$image" ]; then
+            printf ',"image":{"descriptor":{"digest":"sha256:mock","mediaType":"application/vnd.oci.image.index.v1+json","size":856},"reference":"%s"}' "$(jesc "$image")"
+        fi
+        if [ -n "$label_json" ]; then printf ',"labels":{%s}' "$label_json"; fi
+        if [ -n "$mount_json" ]; then printf ',"mounts":[%s]' "$mount_json"; fi
+        if [ -n "$port_json" ]; then printf ',"publishedPorts":[%s]' "$port_json"; fi
+        local attach_json=""
+        if [ ${#net_attach[@]} -gt 0 ]; then
+            local apart=()
+            for n in "${net_attach[@]}"; do
+                apart+=("{\"network\":\"$(jesc "${n%%,*}")\",\"options\":{}}")
+            done
+            attach_json="$(IFS=,; printf '%s' "${apart[*]-}")"
+        fi
+        local net_default='{"network":"default","options":{}}'
+        printf ',"networks":[%s]' "${attach_json:-$net_default}"
+        printf ',"platform":{"architecture":"arm64","os":"linux","variant":"v8"}'
+        if [ -n "$cpus" ]; then
+            printf ',"resources":{"cpuOverhead":1,"cpus":%s,"memoryInBytes":%s}' "$cpus" "$memory_bytes"
+        else
+            printf ',"resources":{"cpuOverhead":1,"cpus":1,"memoryInBytes":%s}' "$memory_bytes"
+        fi
+        printf ',"rosetta":%s,"readOnly":%s,"runtimeHandler":"container-runtime-linux","ssh":false,"useInit":%s,"virtualization":false' \
+            "$([ "$rosetta" = "1" ] && printf true || printf false)" \
+            "$([ "$read_only" = "1" ] && printf true || printf false)" \
+            "$([ "$use_init" = "1" ] && printf true || printf false)"
+        printf '%s' "$extra_config"
+        printf '%s' "$list_json"
+        printf ',"initProcess":{"arguments":[]'
+        if [ ${#envs[@]} -gt 0 ]; then printf ',"environment":[%s]' "$env_json"; fi
+        printf ',"executable":"/bin/sh","terminal":false,"workingDirectory":"%s","user":{"id":{"uid":0,"gid":0}}}' "$(jesc "$workdir")"
+        printf '},"status":{"networks":[{"network":"default","hostname":"%s","ipv4Address":"%s","ipv4Gateway":"192.168.64.1"}],"state":"running"}' "$(jesc "$name")" "$ip"
+        printf ',"id":"%s"}\n' "$id"
+    } >>"$CONTAINERS_FILE"
+
+    printf '%s\n' "$id"
+}
+
+cmd_exec() {
+    local id=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --detach|--interactive|--tty|--user|--workdir|--env) shift ;;
+            *) id="$1"; shift; break ;;
+        esac
+        shift
+    done
+    [ -n "$(find_container "$id")" ] || { echo "Error: no such container: $id" >&2; exit 1; }
+    printf 'ok\n'
+}
+
+cmd_logs() {
+    local tail=100 follow=0 boot=0 id=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -n) shift; tail="$1" ;;
+            --follow) follow=1 ;;
+            --boot) boot=1 ;;
+            *) id="$1" ;;
+        esac
+        shift
+    done
+    [ -n "$(find_container "$id")" ] || { echo "Error: no such container: $id" >&2; exit 1; }
+    local n=0
+    while [ "$n" -lt "$tail" ] && [ "$n" -lt 12 ]; do
+        printf 'mock log line %d from %s\n' "$((n + 1))" "$id"
+        n=$((n + 1))
+    done
+    if [ "$follow" = "1" ]; then
+        sleep 0.2
+        printf 'mock log line after-follow %d\n' "$n"
+    fi
+}
+
+cmd_export() {
+    local out_path="" id=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -o) shift; out_path="$1" ;;
+            *) id="$1" ;;
+        esac
+        shift
+    done
+    [ -n "$(find_container "$id")" ] || { echo "Error: no such container: $id" >&2; exit 1; }
+    printf 'mock-export-tarball' >"$out_path"
+}
+
+cmd_copy() {
+    local from="$1" to="$2"
+    if [ -f "$from" ]; then
+        cp "$from" "$to"
+    else
+        # Container path copy: just create the destination.
+        printf 'mock-file' >"$to"
+    fi
+}
+
+cmd_create() {
+    # docker create: prepare the container without starting it.
+    local state_override="created"
+    local output
+    output=$(cmd_run "$@")
+    # cmd_run prints the id; flip its state to "created".
+    local id
+    id=$(printf '%s' "$output" | tail -1)
+    if [ -n "$id" ]; then
+        set_container_state "$id" created
+    fi
+    printf '%s\n' "$id"
+}
+
+# ---------------------------------------------------------------------------
+# Stats + system
+# ---------------------------------------------------------------------------
+
+cmd_stats() {
+    local tick
+    tick=$(( $(cat "$TICK_FILE" 2>/dev/null || echo 0) + 1 ))
+    printf '%s' "$tick" >"$TICK_FILE"
+    local line out=()
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        local state id
+        state=$(container_state "$line")
+        [ "$state" != "running" ] && continue
+        id=$(sed 's/.*"id":"\([^"]*\)".*/\1/' <<<"$line")
+        local mem_bytes=1073741824
+        local mem_used=$((tick * 100000 + 4055040))
+        out+=("{\"blockReadBytes\":3870720,\"blockWriteBytes\":$((tick * 1024)),\"cpuUsageUsec\":$((tick * 500000)),\"id\":\"$id\",\"memoryLimitBytes\":$mem_bytes,\"memoryUsageBytes\":$mem_used,\"networkRxBytes\":$((tick * 28744)),\"networkTxBytes\":$((tick * 602)),\"numProcesses\":2}")
+    done <"$CONTAINERS_FILE"
+    printf '[%s]\n' "$(IFS=,; printf '%s' "${out[*]-}")"
+}
+
+cmd_system_status() {
+    printf '{"apiServerAppName":"container-apiserver","apiServerBuild":"mock","apiServerVersion":"container-apiserver version 1.2.3 (build: mock)","appRoot":"/mock/app-root/","installRoot":"/usr/local/","status":"running"}\n'
+}
+
+cmd_system_version() {
+    printf '[{"appName":"container","buildType":"release","commit":"mock","version":"1.2.3"},{"appName":"container-apiserver","buildType":"release","commit":"mock","version":"1.2.3"}]\n'
+}
+
+cmd_system_df() {
+    local ctotal=0 crate=0 cactive=0 itotal=0 vtotal=0 vsize=0 line
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        ctotal=$((ctotal + 1))
+        local state
+        state=$(container_state "$line")
+        if [ "$state" = "running" ]; then cactive=$((cactive + 1)); else crate=$((crate + 1)); fi
+    done <"$CONTAINERS_FILE"
+    itotal=$(wc -l <"$IMAGES_FILE" 2>/dev/null | tr -d ' ')
+    [ -z "$itotal" ] && itotal=0
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        local size
+        size=$(sed 's/.*"sizeInBytes":\([0-9]*\).*/\1/' <<<"$line")
+        vsize=$((vsize + ${size:-52428800}))
+    done <"$VOLUMES_FILE"
+    vtotal=$(wc -l <"$VOLUMES_FILE" 2>/dev/null | tr -d ' ')
+    [ -z "$vtotal" ] && vtotal=0
+    printf '{"containers":{"active":%d,"reclaimable":%d,"sizeInBytes":%d,"total":%d},"images":{"active":1,"reclaimable":0,"sizeInBytes":%d,"total":%d},"volumes":{"active":1,"reclaimable":0,"sizeInBytes":%d,"total":%d}}\n' \
+        "$cactive" $((crate * 104857600)) $((ctotal * 104857600)) "$ctotal" \
+        $((itotal * 209715200)) "$itotal" "$vsize" "$vtotal"
+}
+
+cmd_system_logs() {
+    printf 'mock system service log line one\nmock system service log line two\n'
+}
+
+# ---------------------------------------------------------------------------
+# Images
+# ---------------------------------------------------------------------------
+
+cmd_image_list() {
+    local line out=()
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        out+=("$line")
+    done <"$IMAGES_FILE"
+    printf '[%s]\n' "$(IFS=,; printf '%s' "${out[*]-}")"
+}
+
+cmd_image_pull() {
+    local reference="" platform=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --progress) shift ;;
+            --platform) shift; platform="$1" ;;
+            *) reference="$1" ;;
+        esac
+        shift
+    done
+    printf '# Pulling from %s\n' "$(jesc "$reference")"
+    printf '[1/3] Resolving\n'
+    printf '[2/3] Downloading\n'
+    sleep 0.1
+    printf '[3/3] Pull complete\n'
+    printf 'Digest: sha256:mock-pull\n'
+    local digest id
+    digest=$(next_sha)
+    id="$digest"
+    printf '{"configuration":{"creationDate":"%s","descriptor":{"digest":"%s","mediaType":"application/vnd.oci.image.index.v1+json","size":9226},"name":"%s"},"id":"%s","variants":[{"config":{"architecture":"arm64","os":"linux"},"digest":"%s","platform":"linux/arm64","size":209715200}]}\n' \
+        "$(iso_now)" "$digest" "$(jesc "$reference")" "$id" "$digest" >>"$IMAGES_FILE"
+}
+
+cmd_image_push() {
+    local reference=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --progress) shift ;;
+            --platform) shift ;;
+            *) reference="$1" ;;
+        esac
+        shift
+    done
+    printf '# Pushing %s\n' "$(jesc "$reference")"
+    printf '[1/2] Preparing\n'
+    sleep 0.1
+    printf '[2/2] Pushed\n'
+}
+
+cmd_image_delete() {
+    local force="" ref=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --force) force=1 ;;
+            *) ref="$1" ;;
+        esac
+        shift
+    done
+    local out=() line found=""
+    while IFS= read -r line; do
+        if [[ "$line" == *"\"name\":\"$ref\""* ]] || [[ "$line" == *"\"id\":\"$ref\""* ]]; then
+            found=1
+            continue
+        fi
+        out+=("$line")
+    done <"$IMAGES_FILE"
+    if [ -z "$found" ]; then
+        echo "Error: no such image: $ref" >&2
+        exit 1
+    fi
+    printf '%s\n' "${out[@]-}" >"$IMAGES_FILE"
+}
+
+cmd_image_prune() {
+    : >"$IMAGES_FILE"
+    printf 'Total reclaimed space: 0B\n'
+}
+
+cmd_image_tag() {
+    local source="$1" target="$2"
+    local digest="" line
+    line=$(grep -F "\"name\":\"$source\"" "$IMAGES_FILE" 2>/dev/null || grep -F "\"id\":\"$source\"" "$IMAGES_FILE" 2>/dev/null)
+    if [ -z "$line" ]; then
+        # Unknown source: create a fresh image record (mirrors pull).
+        digest=$(next_sha)
+        line=$(printf '{"configuration":{"creationDate":"%s","descriptor":{"digest":"%s","mediaType":"application/vnd.oci.image.index.v1+json","size":9226},"name":"%s"},"id":"%s","variants":[{"config":{"architecture":"arm64","os":"linux"},"digest":"%s","platform":"linux/arm64","size":209715200}]}' \
+            "$(iso_now)" "$digest" "$(jesc "$source")" "$digest" "$digest")
+    fi
+    line=$(sed "s|\"name\":\"[^\"]*\"|\"name\":\"$(jesc "$target")\"|" <<<"$line")
+    printf '%s\n' "$line" >>"$IMAGES_FILE"
+}
+
+cmd_image_save() {
+    local out_path="" ref=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -o) shift; out_path="$1" ;;
+            *) ref="$1" ;;
+        esac
+        shift
+    done
+    [ -n "$(grep -F "\"name\":\"$ref\"" "$IMAGES_FILE" 2>/dev/null || true)" ] || {
+        echo "Error: no such image: $ref" >&2
+        exit 1
+    }
+    printf 'mock-image-tarball' >"$out_path"
+}
+
+cmd_image_load() {
+    local input=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --input) shift; input="$1" ;;
+            *) input="$1" ;;
+        esac
+        shift
+    done
+    [ -f "$input" ] || { echo "Error: no such file: $input" >&2; exit 1; }
+    local digest id
+    digest=$(next_sha)
+    id="$digest"
+    printf '{"configuration":{"creationDate":"%s","descriptor":{"digest":"%s","mediaType":"application/vnd.oci.image.index.v1+json","size":9226},"name":"mock/loaded:latest"},"id":"%s","variants":[{"config":{"architecture":"arm64","os":"linux"},"digest":"%s","platform":"linux/arm64","size":209715200}]}\n' \
+        "$(iso_now)" "$digest" "$id" "$digest" >>"$IMAGES_FILE"
+    printf 'Loaded image: mock/loaded:latest\n'
+}
+
+cmd_image_inspect() {
+    local ref="$1" line
+    line=$(grep -F "\"name\":\"$ref\"" "$IMAGES_FILE" 2>/dev/null || grep -F "\"id\":\"$ref\"" "$IMAGES_FILE" 2>/dev/null || true)
+    if [ -z "$line" ]; then
+        echo "Error: no such image: $ref" >&2
+        exit 1
+    fi
+    printf '[%s]\n' "$line"
+}
+
+cmd_build() {
+    local file="" tag="" context="" target="" platform="" build_arg=""
+    local no_cache=0 cpus="" memory=""
+    local labels=()
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --progress) shift ;;
+            --file) shift; file="$1" ;;
+            --tag) shift; tag="$1" ;;
+            --build-arg) shift; build_arg="$1" ;;
+            --target) shift; target="$1" ;;
+            --platform) shift; platform="$1" ;;
+            --no-cache) no_cache=1 ;;
+            --cpus) shift; cpus="$1" ;;
+            --memory) shift; memory="$1" ;;
+            --label) shift; labels+=("$1") ;;
+            *) context="$1" ;;
+        esac
+        shift
+    done
+    [ -d "$context" ] || { echo "Error: build context does not exist: $context" >&2; exit 1; }
+    printf '#1 DOCKERFILE %s\n' "$(jesc "${file:-Dockerfile}")"
+    printf '[1/2] Resolving deps\n'
+    sleep 0.1
+    printf '[2/2] EXPORTING\n'
+    printf 'naming to %s\n' "$(jesc "$tag")"
+    local digest
+    digest=$(next_sha)
+    printf '{"configuration":{"creationDate":"%s","descriptor":{"digest":"%s","mediaType":"application/vnd.oci.image.index.v1+json","size":9226},"name":"%s"},"id":"%s","variants":[{"config":{"architecture":"arm64","os":"linux"},"digest":"%s","platform":"linux/arm64","size":209715200}]}\n' \
+        "$(iso_now)" "$digest" "$(jesc "$tag")" "$digest" "$digest" >>"$IMAGES_FILE"
+}
+
+# ---------------------------------------------------------------------------
+# Volumes + networks
+# ---------------------------------------------------------------------------
+
+cmd_volume_list() {
+    local line out=()
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        out+=("$line")
+    done <"$VOLUMES_FILE"
+    printf '[%s]\n' "$(IFS=,; printf '%s' "${out[*]-}")"
+}
+
+cmd_volume_create() {
+    local size="" name="" labels=() opts=()
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --size|-s) shift; size="$1" ;;
+            --label) shift; labels+=("$1") ;;
+            --opt) shift; opts+=("$1") ;;
+            *) name="$1" ;;
+        esac
+        shift
+    done
+    local bytes
+    bytes=$(parse_size "${size:-50M}")
+    local label_json="{}" opt_json="{}"
+    if [ ${#labels[@]} -gt 0 ]; then
+        local lparts=()
+        for l in "${labels[@]}"; do lparts+=("\"$(jesc "${l%%=*}")\":\"$(jesc "${l#*=}")\""); done
+        label_json="$(IFS=,; printf '{%s}' "${lparts[*]-}")"
+    fi
+    if [ ${#opts[@]} -gt 0 ]; then
+        local oparts=()
+        for o in "${opts[@]}"; do oparts+=("\"$(jesc "${o%%=*}")\":\"$(jesc "${o#*=}")\""); done
+        opt_json="$(IFS=,; printf '{%s}' "${oparts[*]-}")"
+    fi
+    printf '{"configuration":{"creationDate":"%s","driver":"local","format":"ext4","labels":%s,"name":"%s","options":%s,"sizeInBytes":%s,"source":"/mock/volumes/%s/volume.img"},"id":"%s"}\n' \
+        "$(iso_now)" "$label_json" "$(jesc "$name")" "$opt_json" "$bytes" "$(jesc "$name")" "$(jesc "$name")" >>"$VOLUMES_FILE"
+    printf '%s\n' "$name"
+}
+
+cmd_volume_delete() {
+    local name="$1" out=() line found=""
+    while IFS= read -r line; do
+        if [[ "$line" == *"\"name\":\"$name\""* ]]; then found=1; continue; fi
+        out+=("$line")
+    done <"$VOLUMES_FILE"
+    if [ -z "$found" ]; then
+        echo "Error: no such volume: $name" >&2
+        exit 1
+    fi
+    printf '%s\n' "${out[@]-}" >"$VOLUMES_FILE"
+}
+
+cmd_volume_prune() {
+    : >"$VOLUMES_FILE"
+    printf 'Total reclaimed space: 0B\n'
+}
+
+cmd_volume_inspect() {
+    local name="$1" line
+    line=$(grep -F "\"name\":\"$name\"" "$VOLUMES_FILE" 2>/dev/null || true)
+    if [ -z "$line" ]; then
+        echo "Error: no such volume: $name" >&2
+        exit 1
+    fi
+    printf '[%s]\n' "$line"
+}
+
+cmd_network_list() {
+    local line out=()
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        out+=("$line")
+    done <"$NETWORKS_FILE"
+    printf '[%s]\n' "$(IFS=,; printf '%s' "${out[*]-}")"
+}
+
+cmd_network_create() {
+    local internal=0 subnet="" subnet_v6="" plugin="" name="" labels=() options=()
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --internal) internal=1 ;;
+            --subnet) shift; subnet="$1" ;;
+            --subnet-v6) shift; subnet_v6="$1" ;;
+            --plugin) shift; plugin="$1" ;;
+            --label) shift; labels+=("$1") ;;
+            --option) shift; options+=("$1") ;;
+            *) name="$1" ;;
+        esac
+        shift
+    done
+    local mode="nat"
+    [ "$internal" = "1" ] && mode="hostOnly"
+    local gw sub
+    sub="${subnet:-192.168.99.0/24}"
+    gw="${sub%.*}.1"
+    local labels_json="{}" options_json="{}"
+    if [ ${#labels[@]} -gt 0 ]; then
+        local lparts=()
+        for l in "${labels[@]}"; do lparts+=("\"$(jesc "${l%%=*}")\":\"$(jesc "${l#*=}")\""); done
+        labels_json="$(IFS=,; printf '{%s}' "${lparts[*]-}")"
+    fi
+    if [ ${#options[@]} -gt 0 ]; then
+        local oparts=()
+        for o in "${options[@]}"; do oparts+=("\"$(jesc "${o%%=*}")\":\"$(jesc "${o#*=}")\""); done
+        options_json="$(IFS=,; printf '{%s}' "${oparts[*]-}")"
+    fi
+    [ "$name" = "default" ] && labels_json='{"com.apple.container.resource.role":"builtin"}'
+    plugin="${plugin:-container-network-vmnet}"
+    printf '{"configuration":{"creationDate":"%s","labels":%s,"mode":"%s","name":"%s","options":%s,"plugin":"%s"},"id":"%s","status":{"ipv4Gateway":"%s","ipv4Subnet":"%s","ipv6Subnet":"%s"}}\n' \
+        "$(iso_now)" "$labels_json" "$mode" "$(jesc "$name")" "$options_json" "$(jesc "$plugin")" "$(jesc "$name")" "$gw" "$sub" "${subnet_v6:-fd97:7f2f:97db:3103::/64}" >>"$NETWORKS_FILE"
+    printf '%s\n' "$name"
+}
+
+cmd_network_delete() {
+    local name="$1" out=() line found=""
+    while IFS= read -r line; do
+        if [[ "$line" == *"\"name\":\"$name\""* ]]; then found=1; continue; fi
+        out+=("$line")
+    done <"$NETWORKS_FILE"
+    if [ -z "$found" ]; then
+        echo "Error: no such network: $name" >&2
+        exit 1
+    fi
+    printf '%s\n' "${out[@]-}" >"$NETWORKS_FILE"
+}
+
+cmd_network_prune() {
+    local out=() line
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        # The builtin "default" network is never pruned.
+        [[ "$line" == *'"name":"default"'* ]] && { out+=("$line"); continue; }
+    done <"$NETWORKS_FILE"
+    printf '%s\n' "${out[@]-}" >"$NETWORKS_FILE"
+    printf 'Total reclaimed space: 0B\n'
+}
+
+cmd_machine_list() {
+    local line out=()
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        out+=("$line")
+    done <"$MACHINES_FILE"
+    printf '[%s]\n' "$(IFS=,; printf '%s' "${out[*]-}")"
+}
+
+cmd_machine_create() {
+    local image="" name="" cpus="" memory=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --name) shift; name="$1" ;;
+            --cpus) shift; cpus="$1" ;;
+            --memory) shift; memory="$1" ;;
+            *) image="$1" ;;
+        esac
+        shift
+    done
+    [ -n "$image" ] || { echo "Error: image is required" >&2; exit 1; }
+    [ -n "$name" ] || name="default"
+    local entry='{"name":"'"$(jesc "$name")"'","created":"'"$(iso_now)"'","ip":"192.168.1.10","cpus":'"${cpus:-4}"',"memory":"'"${memory:-8gb}"'","disk":"40gb","state":"running","defaultMachine":true}'
+    printf '%s\n' "$entry" >>"$MACHINES_FILE"
+    printf 'Created machine %s\n' "$name"
+}
+
+cmd_machine_delete() {
+    local name="${1:-}" out=() line found=""
+    while IFS= read -r line; do
+        if [[ "$line" == *"\"name\":\"$name\""* ]]; then found=1; continue; fi
+        out+=("$line")
+    done <"$MACHINES_FILE"
+    if [ -z "$found" ]; then
+        echo "Error: no such machine: $name" >&2
+        exit 1
+    fi
+    printf '%s\n' "${out[@]-}" >"$MACHINES_FILE"
+    printf 'Deleted machine %s\n' "$name"
+}
+
+cmd_system_property_list() {
+    printf '%s' '{"build":{"cpus":2,"image":"ghcr.io/mock/builder:latest","memory":"2048mb","rosetta":true},"container":{"cpus":4,"memory":"1gb"},"dns":{},"kernel":{"binaryPath":"opt/kata/share/kata-containers/vmlinux-mock","digest":"sha256:mock","url":"https://mock/kata.tar.zst"},"machine":{"cpus":6,"homeMount":"rw","memory":"32gb","virtualization":false},"network":{},"registry":{"domain":"docker.io"},"vminit":{"image":"ghcr.io/mock/vminit:latest"}}'
+    printf '\n'
+}
+
+cmd_network_inspect() {
+    local name="$1" line
+    line=$(grep -F "\"name\":\"$name\"" "$NETWORKS_FILE" 2>/dev/null || true)
+    if [ -z "$line" ]; then
+        echo "Error: no such network: $name" >&2
+        exit 1
+    fi
+    printf '[%s]\n' "$line"
+}
+
+# ---------------------------------------------------------------------------
+# Registry
+# ---------------------------------------------------------------------------
+
+cmd_registry_list() {
+    local line out=()
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        out+=("$line")
+    done <"$LOGINS_FILE"
+    printf '[%s]\n' "$(IFS=,; printf '%s' "${out[*]-}")"
+}
+
+cmd_registry_login() {
+    local username="" server="" password=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --username) shift; username="$1" ;;
+            --password-stdin) ;;
+            *) server="$1" ;;
+        esac
+        shift
+    done
+    IFS= read -r password
+    printf '{"name":"%s","scheme":"https","server":"%s","username":"%s"}\n' \
+        "$(jesc "$server")" "$(jesc "$server")" "$(jesc "$username")" >>"$LOGINS_FILE"
+    printf 'Login Succeeded\n'
+}
+
+cmd_registry_logout() {
+    local server="$1" out=() line
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        [[ "$line" == *"\"server\":\"$server\""* ]] && continue
+        out+=("$line")
+    done <"$LOGINS_FILE"
+    printf '%s\n' "${out[@]-}" >"$LOGINS_FILE"
+    printf 'Removing login credentials for %s\n' "$server"
+}
+
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
+
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
+    list)           cmd_list "$@" ;;
+    inspect)        cmd_inspect "${1:-}" ;;
+    start)          cmd_start "${1:-}" ;;
+    stop)           cmd_stop "$@" ;;
+    kill)           cmd_kill "$@" ;;
+    delete)         cmd_delete "$@" ;;
+    prune)          cmd_prune ;;
+    stats)          cmd_stats ;;
+    run)            cmd_run "$@" ;;
+    create)         cmd_create "$@" ;;
+    exec)           cmd_exec "$@" ;;
+    logs)           cmd_logs "$@" ;;
+    export)         cmd_export "$@" ;;
+    copy)           cmd_copy "$@" ;;
+    image)          case "${1:-}" in
+                        list) shift; cmd_image_list "$@" ;;
+                        pull) shift; cmd_image_pull "$@" ;;
+                        push) shift; cmd_image_push "$@" ;;
+                        delete) shift; cmd_image_delete "$@" ;;
+                        prune) shift; cmd_image_prune "$@" ;;
+                        tag) shift; cmd_image_tag "$@" ;;
+                        save) shift; cmd_image_save "$@" ;;
+                        load) shift; cmd_image_load "$@" ;;
+                        inspect) shift; cmd_image_inspect "${1:-}" ;;
+                    esac ;;
+    build)          cmd_build "$@" ;;
+    volume)         case "${1:-}" in
+                        list) shift; cmd_volume_list "$@" ;;
+                        create) shift; cmd_volume_create "$@" ;;
+                        delete) shift; cmd_volume_delete "${1:-}" ;;
+                        prune) shift; cmd_volume_prune "$@" ;;
+                        inspect) shift; cmd_volume_inspect "${1:-}" ;;
+                    esac ;;
+    network)        case "${1:-}" in
+                        list) shift; cmd_network_list "$@" ;;
+                        create) shift; cmd_network_create "$@" ;;
+                        delete) shift; cmd_network_delete "${1:-}" ;;
+                        prune) shift; cmd_network_prune "$@" ;;
+                        inspect) shift; cmd_network_inspect "${1:-}" ;;
+                    esac ;;
+    registry)       case "${1:-}" in
+                        list) shift; cmd_registry_list "$@" ;;
+                        login) shift; cmd_registry_login "$@" ;;
+                        logout) shift; cmd_registry_logout "${1:-}" ;;
+                    esac ;;
+    machine)        case "${1:-}" in
+                        list) shift; cmd_machine_list "$@" ;;
+                        create) shift; cmd_machine_create "$@" ;;
+                        delete) shift; cmd_machine_delete "${1:-}" ;;
+                    esac ;;
+    system)         case "${1:-}" in
+                        status) cmd_system_status ;;
+                        version) cmd_system_version ;;
+                        df) cmd_system_df ;;
+                        start) ;;
+                        stop) ;;
+                        logs) shift; cmd_system_logs "$@" ;;
+                        property) shift; case "${1:-}" in
+                            list) shift; cmd_system_property_list "$@" ;;
+                        esac ;;
+                        kernel) shift; [ "${1:-}" = "set" ] && { shift; printf 'Mock kernel set to recommended\n'; } ;;
+                    esac ;;
+    *)              echo "Error: unknown command: $cmd" >&2; exit 1 ;;
+esac

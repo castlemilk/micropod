@@ -1,0 +1,389 @@
+import Foundation
+import MicropodCore
+
+/// Route + JSON-projection layer over the MicropodCore services.
+/// Responses use stable JSON keys that mirror the curated proto models.
+struct APIHandlers {
+    let client: ContainerCLIClient
+    let system: SystemService
+    let containers: ContainerService
+    let images: ImageService
+    let volumes: VolumeService
+    let networks: NetworkService
+    let stats: StatsSampler
+    let logs: LogStreamer
+    let compose: ComposeService
+    let metrics = APIMetrics()
+    var usage: UsageService {
+        UsageService(containers: containers, images: images, volumes: volumes)
+    }
+
+    func handle(_ request: HTTPRequest) async -> HTTPResponse {
+        let started = Date()
+        let resp = await handleInner(request)
+        let elapsed = Date().timeIntervalSince(started)
+        metrics.record(
+            route: request.path.isEmpty ? "/" : request.path,
+            method: request.method.rawValue,
+            status: Self.status(of: resp),
+            duration: elapsed
+        )
+        return resp
+    }
+
+    private static func status(of resp: HTTPResponse) -> Int {
+        switch resp {
+        case .json(let code, _): return code
+        case .text(let code, _): return code
+        case .stream(let code, _, _): return code
+        }
+    }
+
+    private func handleInner(_ request: HTTPRequest) async -> HTTPResponse {
+        // /metrics — Prometheus text format, always 200
+        if request.path == "/metrics" {
+            let body = metrics.render().data(using: .utf8) ?? Data()
+            return .text(200, metrics.render())
+        }
+
+        let path = request.path
+        let method = request.method
+        let segments = path.split(separator: "/").map(String.init)
+
+        // /health
+        if path == "/health" || path == "/" {
+            return HTTPResponse.json(200, ["status": "ok"])
+        }
+
+        guard segments.first == "v1" else { return .json(404, ["error": "not found"]) }
+        let resource = segments.count > 1 ? segments[1] : ""
+
+        do {
+            switch (resource, method) {
+            // MARK: System
+            case ("usage", .get):
+                let report = try await usage.report()
+                return .json(
+                    200,
+                    [
+                        "images": report.images.map { entry -> [String: Any] in
+                            [
+                                "id": entry.image.id,
+                                "names": entry.image.names,
+                                "sizeBytes": entry.image.sizeBytes,
+                                "createdAt": entry.image.createdAt,
+                                "usedByContainerIDs": entry.usedByContainerIDs,
+                                "inUse": entry.inUse,
+                            ]
+                        },
+                        "volumes": report.volumes.map { entry -> [String: Any] in
+                            [
+                                "id": entry.volume.id,
+                                "sizeBytes": entry.volume.sizeBytes,
+                                "createdAt": entry.volume.createdAt,
+                                "usedByContainerIDs": entry.usedByContainerIDs,
+                                "inUse": entry.inUse,
+                            ]
+                        },
+                        "reclaimableImageBytes": report.reclaimableImageBytes,
+                        "reclaimableVolumeBytes": report.reclaimableVolumeBytes,
+                        "stoppedContainerCount": report.stoppedContainerCount,
+                    ])
+            case ("system", .get):
+                let status = try await system.status()
+                let usage = try await system.diskUsage()
+                return .json(
+                    200,
+                    [
+                        "status": status.status,
+                        "cliVersion": status.cliVersion,
+                        "apiServerVersion": status.apiServerVersion,
+                        "appRoot": status.appRoot,
+                        "diskUsage": projection(usage),
+                    ])
+
+            // MARK: Containers
+            case ("containers", .get) where segments.count == 2:
+                let list = try await containers.list()
+                return .json(200, ["containers": list.map(projection)])
+
+            case ("containers", .post) where segments.count == 2:
+                let id = try await containers.run(try runRequest(from: request.body))
+                return .json(201, ["id": id])
+
+            case ("containers", .post) where segments.count == 3 && segments[2] == "create":
+                let id = try await containers.create(try runRequest(from: request.body))
+                return .json(201, ["id": id])
+
+            case ("containers", .post)
+            where segments.count == 4 && ["start", "stop", "restart", "kill"].contains(segments[3]):
+                let id = segments[2]
+                switch segments[3] {
+                case "start": try await containers.start(id)
+                case "stop": try await containers.stop(id)
+                case "restart": try await containers.restart(id)
+                default: try await containers.kill(id)
+                }
+                return .json(200, ["id": id, "action": segments[3]])
+
+            case ("containers", .delete) where segments.count == 3:
+                let id = segments[2]
+                try await containers.delete(id, force: request.query["force"] == "true")
+                return .json(200, ["deleted": id])
+
+            case ("containers", .get) where segments.count == 4 && segments[3] == "logs":
+                let id = segments[2]
+                let tail = Int(request.string("tail")) ?? 100
+                let stream = logs.stream(id: id, tail: tail, boot: request.string("boot") == "true")
+                return .stream(
+                    200, "text/event-stream",
+                    AsyncStream { continuation in
+                        Task {
+                            do {
+                                for try await line in stream {
+                                    let payload =
+                                        "data: " + (line.text.replacingOccurrences(of: "\n", with: "\\n")) + "\n\n"
+                                    continuation.yield(Data(payload.utf8))
+                                }
+                            } catch {}
+                            continuation.finish()
+                        }
+                    })
+
+            // MARK: Images
+            case ("images", .get) where segments.count == 2:
+                let list = try await images.list()
+                return .json(200, ["images": list.map(projection)])
+
+            case ("images", .post) where segments.count == 3 && segments[2] == "pull":
+                let payload = try decodeBody(request.body)
+                let reference = payload["reference"] as? String ?? ""
+                guard !reference.isEmpty else { return .json(400, ["error": "reference is required"]) }
+                var lastLine = ""
+                for try await event in images.pull(reference, platform: nil) {
+                    lastLine = event.line
+                }
+                return .json(200, ["pulled": reference, "lastLine": lastLine])
+
+            case ("images", .delete) where segments.count == 3:
+                let reference = segments[2].removingPercentEncoding ?? segments[2]
+                try await images.delete(reference, force: request.query["force"] == "true")
+                return .json(200, ["deleted": reference])
+
+            // MARK: Volumes
+            case ("volumes", .get) where segments.count == 2:
+                let list = try await volumes.list()
+                return .json(200, ["volumes": list.map(projection)])
+
+            case ("volumes", .post) where segments.count == 2:
+                let payload = try decodeBody(request.body)
+                let name = payload["name"] as? String ?? ""
+                guard !name.isEmpty else { return .json(400, ["error": "name is required"]) }
+                try await volumes.create(name: name, size: payload["size"] as? String)
+                return .json(201, ["name": name])
+
+            case ("volumes", .delete) where segments.count == 3:
+                let name = segments[2].removingPercentEncoding ?? segments[2]
+                try await volumes.delete(name)
+                return .json(200, ["deleted": name])
+
+            // MARK: Networks
+            case ("networks", .get) where segments.count == 2:
+                let list = try await networks.list()
+                return .json(200, ["networks": list.map(projection)])
+
+            case ("networks", .post) where segments.count == 2:
+                let payload = try decodeBody(request.body)
+                let name = payload["name"] as? String ?? ""
+                guard !name.isEmpty else { return .json(400, ["error": "name is required"]) }
+                try await networks.create(
+                    name: name, internal: (payload["internal"] as? Bool) ?? false,
+                    subnet: payload["subnet"] as? String)
+                return .json(201, ["name": name])
+
+            case ("networks", .delete) where segments.count == 3:
+                let name = segments[2].removingPercentEncoding ?? segments[2]
+                try await networks.delete(name)
+                return .json(200, ["deleted": name])
+
+            // MARK: Stats
+            case ("stats", .get):
+                let snapshot = try await stats.snapshot()
+                return .json(200, ["containers": snapshot.containers.map(projection), "sampledAt": snapshot.sampledAt])
+
+            // MARK: Compose
+            case ("compose", .post) where segments.count == 3 && segments[2] == "up":
+                let payload = try decodeBody(request.body)
+                let path = payload["path"] as? String ?? ""
+                guard !path.isEmpty else { return .json(400, ["error": "path is required"]) }
+                let url = URL(fileURLWithPath: path)
+                let spec = try await compose.parse(url: url)
+                let profiles = Set(
+                    (payload["profiles"] as? String ?? "").split(separator: ",").map {
+                        $0.trimmingCharacters(in: .whitespaces)
+                    }.filter { !$0.isEmpty })
+                let plan = try compose.plan(spec: spec, enabledProfiles: profiles)
+                var progress: [String] = []
+                for try await line in await compose.up(plan: plan) {
+                    progress.append(line)
+                }
+                return .json(200, ["name": spec.name, "progress": progress])
+
+            case ("compose", .post) where segments.count == 3 && segments[2] == "down":
+                let payload = try decodeBody(request.body)
+                let name = payload["name"] as? String ?? ""
+                guard !name.isEmpty else { return .json(400, ["error": "name is required"]) }
+                try await compose.down(composeName: name)
+                return .json(200, ["toreDown": name])
+
+            // MARK: Exec
+            case ("exec", .post):
+                let payload = try decodeBody(request.body)
+                let id = payload["id"] as? String ?? ""
+                let command = payload["command"] as? String ?? ""
+                guard !id.isEmpty, !command.isEmpty else {
+                    return .json(400, ["error": "id and command are required"])
+                }
+                let output = try await containers.exec(
+                    ContainerExecRequest(containerID: id, arguments: [command], workdir: payload["workdir"] as? String))
+                return .json(200, ["output": output])
+
+            default:
+                return .json(404, ["error": "not found: \(method.rawValue) \(path)"])
+            }
+        } catch let error as MicropodError {
+            return .json(500, ["error": error.localizedDescription])
+        } catch {
+            return .json(500, ["error": error.localizedDescription])
+        }
+    }
+
+    // MARK: - Body helpers
+
+    private func decodeBody(_ data: Data) throws -> [String: Any] {
+        guard !data.isEmpty else { return [:] }
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw MicropodError.message("invalid JSON body")
+        }
+        return object
+    }
+
+    private func runRequest(from data: Data) throws -> ContainerRunRequest {
+        let payload = try decodeBody(data)
+        let env = (payload["env"] as? [String]) ?? []
+        let ports: [PortSpec] = ((payload["ports"] as? [[String: Any]]) ?? []).compactMap { port in
+            guard let containerPort = port["containerPort"] as? Int else { return nil }
+            return PortSpec(
+                hostPort: (port["hostPort"] as? Int) ?? 0,
+                containerPort: containerPort,
+                transportProtocol: (port["protocol"] as? String) ?? "tcp",
+                hostIP: port["hostIP"] as? String)
+        }
+        let labels: [LabelSpec] = ((payload["labels"] as? [String: String]) ?? [:]).map {
+            LabelSpec(key: $0.key, value: $0.value)
+        }
+        return ContainerRunRequest(
+            image: payload["image"] as? String ?? "",
+            name: payload["name"] as? String,
+            detach: (payload["detach"] as? Bool) ?? true,
+            cpus: payload["cpus"] as? Double,
+            memory: payload["memory"] as? String,
+            env: env,
+            publishedPorts: ports,
+            volumes: (payload["volumes"] as? [String]) ?? [],
+            labels: labels,
+            useInit: (payload["init"] as? Bool) ?? false,
+            arguments: (payload["arguments"] as? [String]) ?? [])
+    }
+
+    // MARK: - JSON projections (proto → API JSON)
+
+    private func projection(_ container: Micropod_V1_Container) -> [String: Any] {
+        [
+            "id": container.id,
+            "state": container.state,
+            "image": container.image,
+            "createdAt": container.createdAt,
+            "ipv4Address": container.ipv4Address,
+            "networks": container.networks,
+            "env": container.env,
+            "labels": container.labels,
+            "platform": container.platform,
+            "readOnly": container.readOnly,
+            "useInit": container.useInit,
+            "rosetta": container.rosetta,
+            "ports": container.publishedPorts.map { port in
+                [
+                    "hostPort": port.hostPort, "containerPort": port.containerPort,
+                    "protocol": port.`protocol`, "hostIP": port.hostIp,
+                ]
+            },
+            "mounts": container.mounts.map { mount in
+                [
+                    "type": mount.type, "source": mount.source, "destination": mount.destination,
+                    "readOnly": mount.readOnly,
+                ]
+            },
+            "resources": ["cpus": container.resources.cpus, "memoryBytes": container.resources.memoryBytes],
+        ]
+    }
+
+    private func projection(_ image: Micropod_V1_Image) -> [String: Any] {
+        [
+            "id": image.id,
+            "names": image.names,
+            "digest": image.digest,
+            "sizeBytes": image.sizeBytes,
+            "createdAt": image.createdAt,
+            "variants": image.variants.map { variant in
+                ["os": variant.os, "architecture": variant.architecture]
+            },
+        ]
+    }
+
+    private func projection(_ volume: Micropod_V1_Volume) -> [String: Any] {
+        [
+            "id": volume.id, "driver": volume.driver, "format": volume.format,
+            "sizeBytes": volume.sizeBytes, "source": volume.source, "createdAt": volume.createdAt,
+            "labels": volume.labels,
+        ]
+    }
+
+    private func projection(_ network: Micropod_V1_Network) -> [String: Any] {
+        [
+            "id": network.id, "mode": network.mode, "plugin": network.plugin,
+            "ipv4Subnet": network.ipv4Subnet, "ipv4Gateway": network.ipv4Gateway,
+            "ipv6Subnet": network.ipv6Subnet, "createdAt": network.createdAt,
+            "builtin": network.builtin, "labels": network.labels,
+        ]
+    }
+
+    private func projection(_ stats: Micropod_V1_ContainerStats) -> [String: Any] {
+        [
+            "id": stats.id,
+            "cpuPercent": stats.cpuPercent,
+            "memoryUsedBytes": stats.memoryUsedBytes,
+            "memoryLimitBytes": stats.memoryLimitBytes,
+            "networkRxBytes": stats.networkRxBytes,
+            "networkTxBytes": stats.networkTxBytes,
+            "blockReadBytes": stats.blockReadBytes,
+            "blockWriteBytes": stats.blockWriteBytes,
+            "pids": stats.pids,
+        ]
+    }
+
+    private func projection(_ usage: Micropod_V1_DiskUsage) -> [String: Any] {
+        func category(_ c: Micropod_V1_DiskCategory) -> [String: Any] {
+            [
+                "total": c.total, "active": c.active, "sizeBytes": c.sizeBytes,
+                "reclaimableBytes": c.reclaimableBytes,
+            ]
+        }
+        return [
+            "containers": category(usage.containers),
+            "images": category(usage.images),
+            "volumes": category(usage.volumes),
+            "totalReclaimableBytes": usage.totalReclaimableBytes,
+        ]
+    }
+}

@@ -1,0 +1,117 @@
+syntax = "proto3";
+
+package micropod.v1;
+
+option go_package = "micropod/api/gen/micropod/v1;micropodv1";
+
+import "micropod/v1/container.proto";
+
+// Parsed docker-compose.yml, produced by the compose importer.
+message ComposeSpec {
+  string name = 1;
+  string path = 2;
+  repeated ComposeService services = 3;
+  map<string, ComposeVolume> volumes = 4;
+  map<string, ComposeNetwork> networks = 5;
+}
+
+// A single service of a compose spec, mapped onto `container run` capabilities.
+// Fields the Apple runtime cannot express (e.g. privileged) are still parsed
+// so the UI can show them as unsupported rather than silently dropping them.
+message ComposeService {
+  string name = 1;
+  string image = 2;
+  // Build context dir if the service is built from a Dockerfile.
+  string build_context = 3;
+  string build_dockerfile = 4;
+  repeated string build_args = 5;
+  repeated string depends_on = 6;
+  repeated PortMapping ports = 7;
+  repeated string environment = 8;
+  repeated string volumes = 9;
+  repeated string commands = 10;
+  string working_dir = 11;
+  string restart = 12;
+  // Resource caps (compose `cpus`, `mem_limit`).
+  double cpus = 13;
+  string memory = 14;
+  // Healthcheck command; used for real readiness probes.
+  string healthcheck_command = 15;
+  repeated string networks = 16;
+  string container_name = 17;
+
+  // --- Extended docker-compose surface ---
+
+  string entrypoint = 18;
+  // User for the container process (format: name|uid[:gid]).
+  string user = 19;
+  // key=value container labels.
+  repeated string labels = 20;
+  // DNS nameserver IPs (compose `dns`).
+  repeated string dns = 21;
+  // DNS search domains (compose `dns_search`).
+  repeated string dns_search = 22;
+  repeated string cap_add = 23;
+  repeated string cap_drop = 24;
+  // Resource limits, format: type=soft[:hard].
+  repeated string ulimits = 25;
+  // tmpfs mounts: path or path:size.
+  repeated string tmpfs = 26;
+  // env_file paths (resolved against the compose file directory).
+  repeated string env_file = 27;
+  string shm_size = 28;
+  bool read_only = 29;
+  bool init = 30;
+  bool tty = 31;
+  bool stdin_open = 32;
+  // Parsed but not expressible on the Apple runtime.
+  bool privileged = 33;
+  repeated string extra_hosts = 34;
+  // Conditions for depends_on entries (key = dependency name):
+  // "started" (default) or "service_healthy".
+  map<string, string> depends_on_conditions = 35;
+  int32 healthcheck_interval_seconds = 36;
+  int32 healthcheck_timeout_seconds = 37;
+  int32 healthcheck_retries = 38;
+  int32 healthcheck_start_period_seconds = 39;
+  // Build stage target / platform for `build:` sections.
+  string build_target = 40;
+  string build_platform = 41;
+  // `build.no_cache` / `build.pull` passthrough.
+  bool build_no_cache = 44;
+  // Compose profiles; the service only runs when an enabled profile matches.
+  repeated string profiles = 45;
+  // Image pull policy: "always" forces a pull, anything else pulls only when
+  // the image is not present locally (docker's default "missing").
+  string pull_policy = 46;
+  // Stop behaviour (parsed; stop_signal is not expressible, grace period
+  // maps to `container stop --time`).
+  string stop_signal = 42;
+  int32 stop_grace_period_seconds = 43;
+}
+
+message ComposeVolume {
+  string name = 1;
+  bool external = 2;
+  // Driver + driver options (`driver_opts`), labels.
+  string driver = 3;
+  repeated string driver_opts = 4;
+  repeated string labels = 5;
+  // `external: {name: "…"}` override.
+  string external_name = 6;
+}
+
+message ComposeNetwork {
+  string name = 1;
+  bool internal = 2;
+  bool external = 3;
+  string driver = 4;
+  // Plugin options (compose `driver_opts` -> `--option`).
+  repeated string driver_opts = 5;
+  repeated string labels = 6;
+  // From `ipam.config[0].subnet` / `subnet_v6`.
+  string subnet = 7;
+  string subnet_v6 = 8;
+  // `external: {name: "…"}` override.
+  string external_name = 9;
+}
