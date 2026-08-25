@@ -1,7 +1,7 @@
 # Intelligent Shared Cache — Design
 
 **Date:** 2026-08-25
-**Status:** Approved (rev 3 — reviewer issues addressed)
+**Status:** Approved (rev 3.2 — all reviewer issues addressed)
 **Authors:** cuttlefish + micropod team
 **Scope:** Cross-repo, cross-job, cross-runner package cache sharing with intelligent re-mounting
 
@@ -104,7 +104,7 @@ Docker layer cache key is separate — BuildKit handles it.
 for each volume in cachePolicy.paths + autoDetectedWellKnown:
   if shared == false → isolated volume (today's behavior)
   else if localStore.Has(hash) → mount shared view (clonefile, ~15ms) [singleflight]
-  else if gcs.Has(hash) → pull (singleflight, 3s timeout) → mount
+  else if gcs.Has(hash) → pull (singleflight, Has+Pull 3s total timeout) → mount
   else → create volume, mount, on success push to gcs (bg, *.tmp + ifGenerationMatch=0)
 ```
 
@@ -166,3 +166,5 @@ for each volume in cachePolicy.paths + autoDetectedWellKnown:
 
 - **rev 2:** I1 single global LRU, I2 promotion path, I3 per-path keys, I4 pinned eviction, I5 CAS, I6 error handling, I7 clonefile fallback, I8 path normalization, I9 deferred local fallback.
 - **rev 3:** I1 remote alert-only (no hard 10GB), I2 diagram + Docker volume node, I3 table well-known→glob→langVersion, I4 grace-bypass, I5 `singleflight.Group` + first-write-wins, I6 ENOSPC/partial/auth/crash, I7 `FICLONE` vs ext4, I8 non-root `~`, I9 already pass, plus N1 single default, N2 sidecar, N3 file-level vs chunk, N4 GOOS/GOARCH, N5 jitter, N6 busybox fallback.
+- **rev 3.1:** R4 host→container path, R9 tmp+CAS manifest
+- **rev 3.2:** R1 {a,b}, R7 store index, R8 Has+Pull total, R3 pinned>cap gauge+block
