@@ -72,7 +72,7 @@ Already does `mount`/`sync`/`gc`. Add `GCSStore`:
 
 At `containerCreate` time, inspect `HostConfig.Binds` and `CacheVolumes`:
 - Well-known list (normalized to absolute container path): `/go/pkg/mod`, `/root/.cache/go-build`, `/root/.npm`, `~/.cache/pip` (expanded via container `USER`/`HOME` inspection — `~` → `$HOME` from `Config.Env HOME` or `Config.User` home, fallback `/root`).
-- If any bind's host path matches well-known (container absolute, `~` expanded) **or** `cachePolicy.shared == true`, rewrite to shared view via daemon.
+- If any bind's container path (normalized absolute, `~` expanded via container `USER`/`HOME` fallback `/root`) matches well-known **or** `cachePolicy.shared == true`, rewrite to shared view via daemon.
 - If `shared == false`, force isolated view.
 - Custom `sharedMounts: ["/my/cache"]` in workflow YAML → same.
 - `hashFiles` pattern language: glob base dir `/workspace`, supports `*`, `?`, `[abc]`, `**`; empty-match → fallback `path + ":" + langVersion`.
@@ -92,7 +92,7 @@ Dockerfiles already patched with `--mount=type=cache` (done on `cuttlefish/micro
 | `~/.cache/pip`, `/root/.cache/pip` | `requirements.txt` / `poetry.lock` / `pyproject.toml` (`**/{requirements.txt,poetry.lock,pyproject.toml}`) | `python --version` or `requires-python` | image digest |
 | `go-build` (already content-addressed) | `go.mod` | `go` version + `GOOS`/`GOARCH`/`GOFLAGS` (prevents cross-arch poisoning) | `go` version |
 
-`hashFiles` is SHA256 of sorted `sha256sum` of matched files (existing `busybox` impl, fallback to host `sha256sum` if `busybox` not in image). SHA256 stated explicitly; on hit verify manifest sidecar `hash -> file list` (stored atomically with chunks as `chunks/<hash>.manifest`) to detect poisoning.
+`hashFiles` is SHA256 of sorted `sha256sum` of matched files (existing `busybox` impl, fallback to host `sha256sum` if `busybox` not in image). SHA256 stated explicitly; on hit verify manifest sidecar `hash -> file list` (stored atomically with chunks as `chunks/<hash>.manifest` via `*.tmp` + `ifGenerationMatch=0`; `Push` uploads chunks (content-addressed, no CAS needed) then manifest via `*.tmp` + CAS).
 
 For well-known paths without `hashFiles` (bare `/root/.npm` mount), key is `path + ":" + langVersion` (e.g., `/root/.npm:node-22.11.0`).
 
