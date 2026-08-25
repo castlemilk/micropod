@@ -45,19 +45,22 @@ enum SharedCommands {
             Usage: micropod share <command> [options]
 
             Commands:
-              mount <src> [--ro]     Expose a host directory as a synchronized share
-              unmount <id>           Remove a shared view
-              list                   List active shared views
-              inspect <id>           Show a view's details
-              sync <id>              Flush a view's writes back to its source
-              gc                     Remove unreferenced chunks
-              daemon [--foreground]  Start the shared-fs daemon
+              mount <src> [--ro] [--shared]  Expose a host directory as a synchronized share
+                                             (--shared: single live view shared by all
+                                              containers mounting the same src)
+              unmount <id>                   Remove a shared view
+              list                           List active shared views
+              inspect <id>                   Show a view's details
+              sync <id>                      Flush a view's writes back to its source
+              gc                             Remove unreferenced chunks
+              daemon [--foreground]          Start the shared-fs daemon
 
-            The daemon is macOS-only (FSEvents). When running, every
-            `micropod run -v /host:/container` and shim bind whose host path
-            is a directory is automatically served through the shared cache
-            (APFS clonefile + chunk dedup) with FSEvents invalidation.
+            The daemon is macOS-only (FSEvents, 0.1s). When running, every
+            directory bind is served through the shared cache (APFS clonefile +
+            256 KiB chunk dedup) with live bidirectional FSEvents sync
+            (host ↔ view ↔ sibling views via host hub, per-file hash-checked).
             Without the daemon, binds fall back to plain virtiofs.
+            Env: MICROPOD_SHAREDFS_LIVE=0 disables live shared views (isolated).
             """
         )
     }
@@ -73,9 +76,10 @@ enum SharedCommands {
 
     private static func mount(_ args: [String]) async throws {
         guard let src = args.first(where: { !$0.hasPrefix("-") }) else {
-            throw MicropodError.message("micropod share mount <src> [--ro]")
+            throw MicropodError.message("micropod share mount <src> [--ro] [--shared]")
         }
         let readonly = args.contains("--ro") || args.contains("--readonly")
+        let shared = args.contains("--shared")
         let url = URL(fileURLWithPath: src).standardizedFileURL
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir),
@@ -83,7 +87,12 @@ enum SharedCommands {
         else {
             throw MicropodError.message("source is not a directory: \(src)")
         }
-        let info = try await client.mount(src: url, readonly: readonly)
+        let info: MountInfo
+        if shared {
+            info = try await client.mountShared(src: url, readonly: readonly)
+        } else {
+            info = try await client.mount(src: url, readonly: readonly)
+        }
         print("\(info.id.value)  \(info.src) -> \(info.viewPath)  (\(info.sizeBytes) bytes)")
     }
 

@@ -749,9 +749,26 @@ final class Router: @unchecked Sendable {
                 continue
             }
             do {
-                let info = try await sharedFS.mount(
-                    src: URL(fileURLWithPath: hostPath),
-                    readonly: options.contains("ro"))
+                let liveShared = ProcessInfo.processInfo.environment["MICROPOD_SHAREDFS_LIVE"] != "0"
+                let info: MountInfo
+                if liveShared {
+                    // Live shared view: all containers sharing the same host dir
+                    // see each other's writes via the single shared view + FSEvents.
+                    // Falls back to per-container isolated view on error.
+                    do {
+                        info = try await sharedFS.mountShared(
+                            src: URL(fileURLWithPath: hostPath),
+                            readonly: options.contains("ro"))
+                    } catch {
+                        info = try await sharedFS.mount(
+                            src: URL(fileURLWithPath: hostPath),
+                            readonly: options.contains("ro"))
+                    }
+                } else {
+                    info = try await sharedFS.mount(
+                        src: URL(fileURLWithPath: hostPath),
+                        readonly: options.contains("ro"))
+                }
                 viewIDs.append(info.id)
                 let newBind =
                     options.isEmpty

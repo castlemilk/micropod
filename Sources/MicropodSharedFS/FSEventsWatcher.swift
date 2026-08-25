@@ -8,47 +8,57 @@ import Foundation
 /// top-level entry point).
 public final class FSEventsWatcher: @unchecked Sendable {
     private var stream: FSEventStreamRef?
-    private let onChange: @Sendable () -> Void
-    private let contextPointer: UnsafeMutablePointer<FSEventStreamContext>
+    private let contextPtr: UnsafeMutablePointer<FSEventStreamContext>
+    private let holder: Unmanaged<ContextHolder>
 
-    public init(path: URL, latency: CFTimeInterval = 0.1, onChange: @escaping @Sendable () -> Void) {
-        self.onChange = onChange
+    public init(
+        path: URL, latency: CFTimeInterval = 0.1,
+        onChange: @escaping @Sendable ([String]) -> Void
+    ) {
         let holder = Unmanaged.passRetained(ContextHolder(callback: onChange))
-        var context = FSEventStreamContext(
+        self.holder = holder
+        let ptr = UnsafeMutablePointer<FSEventStreamContext>.allocate(capacity: 1)
+        ptr.initialize(to: FSEventStreamContext(
             version: 0,
             info: holder.toOpaque(),
             retain: nil,
             release: nil,
-            copyDescription: nil)
-        self.contextPointer = withUnsafeMutablePointer(to: &context) { $0 }
+            copyDescription: nil))
+        self.contextPtr = ptr
         let paths = [path.path] as CFArray
         let flags: FSEventStreamCreateFlags = UInt32(
             kFSEventStreamCreateFlagFileEvents
                 | kFSEventStreamCreateFlagNoDefer
                 | kFSEventStreamCreateFlagUseCFTypes)
-        let callback: FSEventStreamCallback = { _, info, count, _, _, _ in
+        let callback: FSEventStreamCallback = { _, info, count, eventPaths, _, _ in
             guard let info, count > 0 else { return }
             let holder = Unmanaged<ContextHolder>.fromOpaque(info).takeUnretainedValue()
-            holder.callback()
+            // eventPaths is CFArray of CFString when UseCFTypes is set
+            let cfArray = unsafeBitCast(eventPaths, to: CFArray.self)
+            var changed: [String] = []
+            for i in 0..<count {
+                if let cfStr = CFArrayGetValueAtIndex(cfArray, i) {
+                    let str = unsafeBitCast(cfStr, to: CFString.self) as String
+                    changed.append(str)
+                }
+            }
+            if !changed.isEmpty { holder.callback(changed) }
         }
         let stream = FSEventStreamCreate(
             kCFAllocatorDefault,
             callback,
-            contextPointer,
+            ptr,
             paths,
             FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
             latency,
             flags)!
         self.stream = stream
-        self.contextHolder = holder
         FSEventStreamSetDispatchQueue(stream, DispatchQueue.global(qos: .utility))
     }
 
-    private let contextHolder: Unmanaged<ContextHolder>
-
     private final class ContextHolder {
-        let callback: @Sendable () -> Void
-        init(callback: @escaping @Sendable () -> Void) { self.callback = callback }
+        let callback: @Sendable ([String]) -> Void
+        init(callback: @escaping @Sendable ([String]) -> Void) { self.callback = callback }
     }
 
     public func start() {
@@ -62,7 +72,9 @@ public final class FSEventsWatcher: @unchecked Sendable {
         FSEventStreamInvalidate(stream)
         FSEventStreamRelease(stream)
         self.stream = nil
-        contextHolder.release()
+        contextPtr.deinitialize(count: 1)
+        contextPtr.deallocate()
+        holder.release()
     }
 
     deinit { stop() }

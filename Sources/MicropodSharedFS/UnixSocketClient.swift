@@ -18,6 +18,12 @@ public final class UnixSocketClient: SharedFSClient, @unchecked Sendable {
         return MountInfo(dictionary: result as? [String: Any] ?? [:])
     }
 
+    public func mountShared(src: URL, readonly: Bool) async throws -> MountInfo {
+        let result = try await call(
+            method: "mountShared", params: ["src": src.path, "readonly": readonly])
+        return MountInfo(dictionary: result as? [String: Any] ?? [:])
+    }
+
     public func unmount(id: ViewID) async throws {
         _ = try await call(method: "unmount", params: ["id": id.value])
     }

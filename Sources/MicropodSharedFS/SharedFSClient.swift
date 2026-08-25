@@ -5,6 +5,9 @@ import Foundation
 /// directly (in-process tests use it without a socket).
 public protocol SharedFSClient: Sendable {
     func mount(src: URL, readonly: Bool) async throws -> MountInfo
+    /// Live shared mount — all containers mounting the same src share one
+    /// view directory, with bidirectional FSEvents sync for live writes.
+    func mountShared(src: URL, readonly: Bool) async throws -> MountInfo
     func unmount(id: ViewID) async throws
     func inspect(id: ViewID) async throws -> MountInfo
     func sync(id: ViewID) async throws -> SyncResult

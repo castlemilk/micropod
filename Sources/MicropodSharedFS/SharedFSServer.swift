@@ -84,15 +84,27 @@ public final class SharedFSServer: @unchecked Sendable {
         do {
             switch req.method {
             case "mount":
-                guard let src = params["src"]?.value as? String,
-                    let url = URL(string: src)
-                else {
+                guard let src = params["src"]?.value as? String else {
                     return .init(
                         id: req.id, ok: false, result: nil,
                         error: "missing src")
                 }
+                let url = URL(fileURLWithPath: src)
                 let readonly = (params["readonly"]?.value as? Bool) ?? false
                 let info = try await daemon.mount(src: url, readonly: readonly)
+                return .init(
+                    id: req.id, ok: true,
+                    result: AnyCodable(info.toDictionary()),
+                    error: nil)
+            case "mountShared":
+                guard let src = params["src"]?.value as? String else {
+                    return .init(
+                        id: req.id, ok: false, result: nil,
+                        error: "missing src")
+                }
+                let url = URL(fileURLWithPath: src)
+                let readonly = (params["readonly"]?.value as? Bool) ?? false
+                let info = try await daemon.mountShared(src: url, readonly: readonly)
                 return .init(
                     id: req.id, ok: true,
                     result: AnyCodable(info.toDictionary()),

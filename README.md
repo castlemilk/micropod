@@ -328,12 +328,17 @@ micropod share mount ~/myproj --ro       # optional explicit mount
 micropod run -v ~/myproj:/app alpine ls /app   # shim auto-routes through shared view
 ```
 
-Trade-off vs Docker Desktop Pro: synchronized shares are per-container
-isolated views (no cross-container live-write visibility without an overlay
-mount, which would require root). Host→container propagation is near-live
-(FSEvents), container→host via `sync` on unmount or explicit `micropod share
-sync`. `clonefile` dedup is the win for PHP/JS-style trees where `node_modules`
-churn would otherwise copy per container.
+Live writes in user space: every view and its source are watched with
+`FSEvents` (file-level, 0.1s latency). Host edits are copied to all live
+views sharing that source, and container writes are copied to the host and
+then to sibling views — all per-file, hash-checked to avoid loops, and
+backed by the chunk store for efficient block-level dedup. No root overlay
+mount required; cross-container live sharing works through the host as a hub.
+`--shared` mounts (`micropod share mount --shared` or `MICROPOD_SHAREDFS_LIVE=1`)
+use a single shared view for the same source (all containers see the same
+directory), while default per-container views keep writes isolated until
+`sync`. `clonefile` dedup is the win for PHP/JS-style trees where
+`node_modules` churn would otherwise copy per container.
 
 ## connect-go API (Go)
 
