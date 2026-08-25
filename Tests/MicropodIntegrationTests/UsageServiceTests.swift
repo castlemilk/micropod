@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import MicropodCore
 
 final class UsageServiceTests: XCTestCase {

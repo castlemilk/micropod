@@ -485,6 +485,51 @@ final class ShimServerTests: XCTestCase {
         XCTAssertEqual(try client.request("DELETE", "/containers/\(id)?force=true").status, 204)
     }
 
+    // MARK: Usage + prune reporting
+
+    func testSystemDFReportsInUseContainers() throws {
+        // Seed the mock state with alpine so the system df has images to
+        // report in-use counts on.
+        _ = try shim.raw().request(
+            "POST", "/images/create?fromImage=alpine:3.20",
+            body: Data("{}".utf8), headers: [("Content-Type", "application/json")])
+        _ = try createContainer("in-use", labels: ["job": "df-test"])
+        _ = try createContainer("in-use-2")
+        let client = shim.raw()
+        let response = try client.request("GET", "/system/df")
+        XCTAssertEqual(response.status, 200)
+        let object = try JSONSerialization.jsonObject(with: response.body) as! [String: Any]
+        let images = object["Images"] as? [[String: Any]] ?? []
+        let containers = object["Containers"] as? [[String: Any]] ?? []
+        XCTAssertGreaterThan(images.count, 0)
+        XCTAssertGreaterThan(containers.count, 0)
+        // The Containers field per-image counts how many use it (docker API).
+        let withInUseCount = images.filter { (($0["Containers"] as? Int) ?? 0) > 0 }
+        XCTAssertFalse(
+            withInUseCount.isEmpty,
+            "at least one image should report in-use containers: \(images.count) images")
+    }
+
+    func testImagePruneReportsDeletedAndSpaceReclaimed() throws {
+        _ = try createContainer("prune-test")  // marks alpine as in-use
+        let client = shim.raw()
+        // Run the prune — image must not be deleted (in use) so report empty.
+        let inUsePrune = try client.request("POST", "/images/prune")
+        XCTAssertEqual(inUsePrune.status, 200)
+        let inUseBody = try JSONSerialization.jsonObject(with: inUsePrune.body) as! [String: Any]
+        XCTAssertEqual((inUseBody["ImagesDeleted"] as? [Any])?.count ?? 0, 0)
+    }
+
+    func testContainersPruneReportsDeleted() throws {
+        _ = try createContainer("to-prune")
+        let client = shim.raw()
+        let response = try client.request("POST", "/containers/prune")
+        XCTAssertEqual(response.status, 200)
+        let object = try JSONSerialization.jsonObject(with: response.body) as! [String: Any]
+        let deleted = (object["ContainersDeleted"] as? [String]) ?? []
+        XCTAssertFalse(deleted.isEmpty, "expected at least one deleted container")
+    }
+
     // MARK: Networks & volumes
 
     func testNetworksListAndCreate() throws {

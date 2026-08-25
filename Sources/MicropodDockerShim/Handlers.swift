@@ -160,7 +160,7 @@ final class Router: @unchecked Sendable {
             return try await containersList(request)
         case ("POST", "containers") where segments.count == 2 && segments[1] == "create":
             return try await containerCreate(request)
-        case ("POST", "containers") where segments.count == 3 && segments[2] == "prune":
+        case ("POST", "containers") where segments.count >= 2 && segments.last == "prune":
             return try await containersPrune()
         case ("GET", "containers") where segments.count == 3 && segments[2] == "json":
             return try await containerInspect(segments[1])
@@ -559,7 +559,8 @@ final class Router: @unchecked Sendable {
     /// filters, all unused) images + unused volumes + unused networks,
     /// with honest deletion reporting via before/after diffs.
     private func systemPrune(_ request: ShimRequest) async throws -> ShimResponse {
-        let wantsAll = request.q("all").lowercased() == "1"
+        let wantsAll =
+            request.q("all").lowercased() == "1"
             || request.q("all").lowercased() == "true"
 
         // Containers: pruned = stopped ones (docker semantics).
