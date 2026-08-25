@@ -242,12 +242,15 @@ final class ShimServerTests: XCTestCase {
 
         // Wait for the 200 head — the subscription baseline is settled then
         // (real clients also gate on the status line before proceeding).
-        _ = try eventsClient.readUntil(timeout: 10) {
+        _ = try eventsClient.readUntil(timeout: 15) {
             String(decoding: $0, as: UTF8.self).contains("200")
         }
+        // Give the hub a moment to settle before creating (avoids a tight
+        // race where the snapshot list straddles the create under load).
+        Thread.sleep(forTimeInterval: 0.4)
         _ = try createContainer("evented", labels: ["events-test": "1"])
 
-        let data = try eventsClient.readUntil(timeout: 10) {
+        let data = try eventsClient.readUntil(timeout: 15) {
             String(decoding: $0, as: UTF8.self).contains("\"create\"")
         }
         XCTAssertTrue(

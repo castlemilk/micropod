@@ -1,5 +1,6 @@
 import Foundation
 import MicropodCore
+import MicropodSharedFS
 
 enum ShimError: Error {
     case notFound(String)
@@ -75,6 +76,7 @@ final class Router: @unchecked Sendable {
     private let systemConcrete: SystemService
     private let logs: any LogStreaming
     private let stats: StatsSampler
+    private let sharedFS: (any SharedFSClient)?
 
     init(
         config: ShimConfig, state: ShimState, events: EventsHub,
@@ -92,6 +94,16 @@ final class Router: @unchecked Sendable {
         self.systemConcrete = SystemService(client: client)
         self.logs = LogStreamer(client: client)
         self.stats = StatsSampler(client: client)
+        // Best-effort: if the shared-fs daemon socket exists, use it for
+        // synchronized file shares. Falls back to plain virtiofs binds.
+        let sharedSocket =
+            ProcessInfo.processInfo.environment["MICROPOD_SHAREDFS_SOCKET"]
+            ?? NSString("~/micropod/share-cache/socket").expandingTildeInPath
+        if FileManager.default.fileExists(atPath: sharedSocket) {
+            self.sharedFS = UnixSocketClient(socketPath: sharedSocket)
+        } else {
+            self.sharedFS = nil
+        }
     }
 
     func route(_ request: ShimRequest, _ connection: ShimConnection) async -> ShimResponse {
@@ -685,14 +697,73 @@ final class Router: @unchecked Sendable {
                     "Conflict. The container name \"/\(requestedName)\" is already in use")
             }
         }
+        // Synchronized file shares: rewrite directory binds through the
+        // shared-fs daemon when available (APFS clonefile cache + FSEvents
+        // invalidation). Per-container views are tracked for unmount on delete.
+        var sharedViewIDs: [ViewID] = []
+        if let sharedFS, let binds = body.HostConfig?.Binds, !binds.isEmpty {
+            let translated = await translateBindsForSharedFS(binds, sharedFS: sharedFS)
+            if translated.binds != binds {
+                body.HostConfig?.Binds = translated.binds
+                sharedViewIDs = translated.viewIDs
+                if !sharedViewIDs.isEmpty {
+                    fputs(
+                        "[shim] shared mounts for \(requestedName ?? "<unnamed>"): \(sharedViewIDs.map { $0.value }.joined(separator: ","))\n",
+                        stderr)
+                }
+            }
+        }
         let runRequest = try Self.buildRunRequest(from: body, name: requestedName)
         let id = try await containers.create(runRequest)
         await state.remember(id: id, name: requestedName, request: body)
+        if !sharedViewIDs.isEmpty {
+            await state.rememberSharedViews(containerID: id, views: sharedViewIDs)
+        }
         let response = DockerCreateResponse(Id: id, Warnings: [])
         if !notes.isEmpty {
             fputs("[shim] ryuk interception for \(id): \(notes.joined(separator: "; "))\n", stderr)
         }
         return .json(201, Self.encodeBody(response))
+    }
+
+    private func translateBindsForSharedFS(
+        _ binds: [String], sharedFS: any SharedFSClient
+    ) async -> (binds: [String], viewIDs: [ViewID]) {
+        var result: [String] = []
+        var viewIDs: [ViewID] = []
+        for bind in binds {
+            // Bind format host:container[:options] — host is an absolute path on macOS.
+            let parts = bind.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
+            guard parts.count >= 2 else {
+                result.append(bind)
+                continue
+            }
+            let hostPath = parts[0]
+            let containerPath = parts[1]
+            let options = parts.count > 2 ? parts[2...].joined(separator: ":") : ""
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: hostPath, isDirectory: &isDir),
+                isDir.boolValue
+            else {
+                result.append(bind)
+                continue
+            }
+            do {
+                let info = try await sharedFS.mount(
+                    src: URL(fileURLWithPath: hostPath),
+                    readonly: options.contains("ro"))
+                viewIDs.append(info.id)
+                let newBind =
+                    options.isEmpty
+                    ? "\(info.viewPath):\(containerPath)"
+                    : "\(info.viewPath):\(containerPath):\(options)"
+                result.append(newBind)
+            } catch {
+                fputs("[shim] shared mount failed for \(hostPath): \(error)\n", stderr)
+                result.append(bind)
+            }
+        }
+        return (result, viewIDs)
     }
 
     static func buildRunRequest(
@@ -934,6 +1005,13 @@ final class Router: @unchecked Sendable {
         if force, let target = await passThroughID(id) {
             // Never race a still-draining background stop.
             await state.awaitStop(target)
+            let views = await state.forgetSharedViews(containerID: target)
+            if let sharedFS {
+                for viewID in views {
+                    _ = try? await sharedFS.sync(id: viewID)
+                    try? await sharedFS.unmount(id: viewID)
+                }
+            }
             do {
                 try await containers.delete(target, force: true)
                 await state.forget(id: target)
@@ -948,6 +1026,13 @@ final class Router: @unchecked Sendable {
         }
         let container = try await resolveContainer(id)
         await state.awaitStop(container.id)
+        let views = await state.forgetSharedViews(containerID: container.id)
+        if let sharedFS {
+            for viewID in views {
+                _ = try? await sharedFS.sync(id: viewID)
+                try? await sharedFS.unmount(id: viewID)
+            }
+        }
         let running = DockerMapper.stateName(container.state) == "running"
         if running && !force {
             throw ShimError.conflict(

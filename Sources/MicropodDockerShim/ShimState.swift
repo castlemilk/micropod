@@ -1,5 +1,6 @@
 import Foundation
 import MicropodCore
+import MicropodSharedFS
 
 /// Session-scoped shim state: the original Docker create bodies (needed to
 /// render inspect/list faithfully and to honor AutoRemove), exec records,
@@ -46,6 +47,7 @@ actor ShimState {
         autoRemoveIDs.remove(id)
         resetRestartTracking(id)
         stopErrors.removeValue(forKey: id)
+        sharedViews.removeValue(forKey: id)
         snapshot()
     }
 
@@ -103,6 +105,8 @@ actor ShimState {
 
     // MARK: - Restart policy supervision
 
+    private var sharedViews: [String: [ViewID]] = [:]
+
     private var intentionalStops = Set<String>()
     private var restartAttempts: [String: Int] = [:]
     private var lastObservedRunning: [String: Date] = [:]
@@ -151,11 +155,30 @@ actor ShimState {
         intentionalStops.remove(id)
     }
 
+    // MARK: - Shared file-share views
+
+    func rememberSharedViews(containerID: String, views: [ViewID]) {
+        guard !views.isEmpty else { return }
+        sharedViews[containerID] = views
+        snapshot()
+    }
+
+    func sharedViews(for containerID: String) -> [ViewID] {
+        sharedViews[containerID] ?? []
+    }
+
+    func forgetSharedViews(containerID: String) -> [ViewID] {
+        let views = sharedViews.removeValue(forKey: containerID) ?? []
+        if !views.isEmpty { snapshot() }
+        return views
+    }
+
     // MARK: - Restart persistence
 
     private struct PersistedState: Codable {
         var version = 1
         var creates: [String: StoredCreate] = [:]
+        var sharedViews: [String: [ViewID]] = [:]
     }
 
     private struct StoredCreate: Codable {
@@ -170,11 +193,13 @@ actor ShimState {
         creates: [String: DockerCreateRequest] = [:],
         names: [String: String] = [:],
         autoRemove: Set<String> = [],
+        sharedViews: [String: [ViewID]] = [:],
         persistenceURL: URL? = nil
     ) {
         self.creates = creates
         self.nameToID = names
         self.autoRemoveIDs = autoRemove
+        self.sharedViews = sharedViews
         self.persistenceURL = persistenceURL
     }
 
@@ -204,6 +229,7 @@ actor ShimState {
         }
         return ShimState(
             creates: seededCreates, names: seededNames, autoRemove: seededAutoRemove,
+            sharedViews: persisted.sharedViews,
             persistenceURL: url)
     }
 
@@ -219,6 +245,7 @@ actor ShimState {
         for id in stale {
             resetRestartTracking(id)
             stopErrors.removeValue(forKey: id)
+            sharedViews.removeValue(forKey: id)
         }
         snapshot()
     }
@@ -241,6 +268,7 @@ actor ShimState {
             persisted.creates[id] = StoredCreate(
                 name: nameToID.first(where: { $0.value == id })?.key, request: request)
         }
+        persisted.sharedViews = sharedViews
         guard let data = try? JSONEncoder().encode(persisted) else { return }
         try? data.write(to: persistenceURL, options: .atomic)
     }

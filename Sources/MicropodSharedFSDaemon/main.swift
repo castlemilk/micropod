@@ -1,4 +1,5 @@
 import Foundation
+import MicropodSharedFS
 
 // `micropod-sharedfs` daemon entry point. In main.swift the top-level code
 // IS the entry point — no @main needed, no struct wrapper. We park forever

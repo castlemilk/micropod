@@ -139,6 +139,7 @@ struct MicropodCLI {
         case "machines", "machine":
             try await SystemCommands.machines(args, services)
         case "system": try await SystemCommands.system(args, services)
+        case "share": try await SharedCommands.run(args)
 
         case "version": try await SystemCommands.version(services)
         case "help", "--help", "-h": print(helpText)
@@ -189,6 +190,7 @@ struct MicropodCLI {
           compose up <file> [--profile p,…]  dependency-ordered compose up with readiness probes
           compose down <name> / compose ps <name>
           df [--json]                        disk usage by category
+          share mount|list|inspect|sync|gc   synchronized file shares
           machines [--json]                  runtime VMs
           system start|stop|logs             daemon control + log access
           status / version                   runtime + version info

@@ -48,6 +48,11 @@ tasks:
     cmds:
       - swift run micropod-docker-shim
 
+  share-daemon:
+    desc: Run the synchronized file-share daemon (unix ~/micropod/share-cache/socket)
+    cmds:
+      - swift run micropod-sharedfs
+
   test:
     desc: Run unit tests
     cmds:
