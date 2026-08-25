@@ -18,12 +18,13 @@ public final class FSEventsWatcher: @unchecked Sendable {
         let holder = Unmanaged.passRetained(ContextHolder(callback: onChange))
         self.holder = holder
         let ptr = UnsafeMutablePointer<FSEventStreamContext>.allocate(capacity: 1)
-        ptr.initialize(to: FSEventStreamContext(
-            version: 0,
-            info: holder.toOpaque(),
-            retain: nil,
-            release: nil,
-            copyDescription: nil))
+        ptr.initialize(
+            to: FSEventStreamContext(
+                version: 0,
+                info: holder.toOpaque(),
+                retain: nil,
+                release: nil,
+                copyDescription: nil))
         self.contextPtr = ptr
         let paths = [path.path] as CFArray
         let flags: FSEventStreamCreateFlags = UInt32(

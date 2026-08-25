@@ -28,7 +28,7 @@ public actor SharedFSDaemon: SharedFSClient {
     // MARK: - SharedFSClient
 
     public func mount(src: URL, readonly: Bool) async throws -> MountInfo {
-        let normalized = src.standardizedFileURL
+        let normalized = src.resolvingSymlinksInPath().standardizedFileURL
         let id = ViewID.generate()
         let viewRoot = viewsRoot.appendingPathComponent(id.value, isDirectory: true)
         try SharedView.build(source: normalized, root: viewRoot)
@@ -36,16 +36,18 @@ public actor SharedFSDaemon: SharedFSClient {
         views[id] = view
         viewsBySrc[normalized.path, default: []].insert(id)
         ensureWatchers(for: normalized, view: view)
+        fputs("[sharedfs] mount \(normalized.path) -> \(viewRoot.path) (\(view.size()) bytes)\n", stderr)
         return MountInfo(
             id: id, src: normalized.path, viewPath: viewRoot.path,
             sizeBytes: view.size(), readonly: readonly, createdAt: view.createdAt)
     }
 
     public func mountShared(src: URL, readonly: Bool) async throws -> MountInfo {
-        let normalized = src.standardizedFileURL
+        let normalized = src.resolvingSymlinksInPath().standardizedFileURL
         let key = normalized.path
         if let existing = sharedViews[key] {
             sharedRefCounts[key, default: 1] += 1
+            fputs("[sharedfs] mountShared reuse \(key) -> \(existing.root.path)\n", stderr)
             return MountInfo(
                 id: existing.id, src: key, viewPath: existing.root.path,
                 sizeBytes: existing.size(), readonly: readonly,
@@ -66,6 +68,7 @@ public actor SharedFSDaemon: SharedFSClient {
         // Also register in views for list/inspect visibility.
         views[id] = view
         startSharedWatchers(src: normalized, view: view)
+        fputs("[sharedfs] mountShared \(key) -> \(viewRoot.path)\n", stderr)
         return MountInfo(
             id: id, src: key, viewPath: viewRoot.path,
             sizeBytes: view.size(), readonly: readonly, createdAt: view.createdAt)
@@ -173,41 +176,49 @@ public actor SharedFSDaemon: SharedFSClient {
     // MARK: - Live sync internals (user-space, per-file, efficient)
 
     private func ensureWatchers(for src: URL, view: SharedView) {
-        let key = src.path
+        let realSrc = src.resolvingSymlinksInPath()
+        let realView = view.root.resolvingSymlinksInPath()
+        let key = realSrc.path
         if srcWatchers[key] == nil {
-            let watcher = FSEventsWatcher(path: src) { [weak self] paths in
-                Task { [weak self] in await self?.handleSrcChange(paths: paths, src: src) }
+            let watcher = FSEventsWatcher(path: realSrc) { [weak self] paths in
+                Task { [weak self] in await self?.handleSrcChange(paths: paths, src: realSrc) }
             }
             watcher.start()
             srcWatchers[key] = watcher
+            fputs("[sharedfs] watching src \(key)\n", stderr)
         }
-        let viewWatcher = FSEventsWatcher(path: view.root) { [weak self] paths in
+        let viewWatcher = FSEventsWatcher(path: realView) { [weak self] paths in
             Task { [weak self] in await self?.handleViewChange(paths: paths, view: view) }
         }
         viewWatcher.start()
         viewWatchers[view.id] = viewWatcher
+        fputs("[sharedfs] watching view \(view.id.value) at \(realView.path)\n", stderr)
     }
 
     private func startSharedWatchers(src: URL, view: SharedView) {
-        let key = src.path
-        let srcWatcher = FSEventsWatcher(path: src) { [weak self] paths in
-            Task { [weak self] in await self?.handleSrcChange(paths: paths, src: src) }
+        let realSrc = src.resolvingSymlinksInPath()
+        let realView = view.root.resolvingSymlinksInPath()
+        let key = realSrc.path
+        let srcWatcher = FSEventsWatcher(path: realSrc) { [weak self] paths in
+            Task { [weak self] in await self?.handleSrcChange(paths: paths, src: realSrc) }
         }
         srcWatcher.start()
-        let viewWatcher = FSEventsWatcher(path: view.root) { [weak self] paths in
+        let viewWatcher = FSEventsWatcher(path: realView) { [weak self] paths in
             Task { [weak self] in await self?.handleViewChange(paths: paths, view: view) }
         }
         viewWatcher.start()
         sharedWatchers[key] = (srcWatcher, viewWatcher)
+        fputs("[sharedfs] watching shared \(key) <-> \(realView.path)\n", stderr)
     }
 
     private func handleSrcChange(paths: [String], src: URL) async {
-        guard let viewIDs = viewsBySrc[src.path] ?? sharedViews[src.path].map({ [$0.id] }) else { return }
-        // For shared view, viewsBySrc may be empty; also check sharedViews
+        let key = src.resolvingSymlinksInPath().path
+        fputs("[sharedfs] src change \(paths.first ?? "?")\n", stderr)
+        guard let viewIDs = viewsBySrc[key] ?? sharedViews[key].map({ [$0.id] }) else { return }
         var targetIDs = viewIDs
-        if let shared = sharedViews[src.path] { targetIDs.insert(shared.id) }
+        if let shared = sharedViews[key] { targetIDs.insert(shared.id) }
         for viewID in targetIDs {
-            guard let view = views[viewID] ?? sharedViews[src.path] else { continue }
+            guard let view = views[viewID] ?? sharedViews[key] else { continue }
             for changed in paths {
                 await syncFileChanged(at: changed, from: src, to: view.root)
             }
@@ -215,10 +226,10 @@ public actor SharedFSDaemon: SharedFSClient {
     }
 
     private func handleViewChange(paths: [String], view: SharedView) async {
+        fputs("[sharedfs] view \(view.id.value) change \(paths.first ?? "?")\n", stderr)
         for changed in paths {
             await syncFileChanged(at: changed, from: view.root, to: view.source)
-            // Propagate to other views sharing same src (host as hub)
-            let key = view.source.path
+            let key = view.source.resolvingSymlinksInPath().path
             let siblings = (viewsBySrc[key] ?? []).union(
                 sharedViews[key].map { Set([$0.id]) } ?? [])
             for siblingID in siblings where siblingID != view.id {
@@ -230,13 +241,19 @@ public actor SharedFSDaemon: SharedFSClient {
 
     /// Efficient per-file sync: clonefile if same APFS volume, else copy.
     /// Checks content hash first to avoid loops (copying identical files is a no-op).
-    private func syncFileChanged(at changedPath: String, from srcRoot: URL, to dstRoot: URL, viaRelativeFrom base: URL? = nil) async {
-        let baseRoot = base ?? srcRoot
-        guard changedPath.hasPrefix(baseRoot.path) else { return }
-        let relative = String(changedPath.dropFirst(baseRoot.path.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+    private func syncFileChanged(
+        at changedPath: String, from srcRoot: URL, to dstRoot: URL, viaRelativeFrom base: URL? = nil
+    ) async {
+        let realChanged = URL(fileURLWithPath: changedPath).resolvingSymlinksInPath().standardized.path
+        let realBase = (base ?? srcRoot).resolvingSymlinksInPath().standardized.path
+        guard realChanged.hasPrefix(realBase) else { return }
+        let relative = String(realChanged.dropFirst(realBase.count)).trimmingCharacters(
+            in: CharacterSet(charactersIn: "/"))
         if relative.isEmpty { return }
-        let srcFile = srcRoot.appendingPathComponent(relative)
-        let dstFile = dstRoot.appendingPathComponent(relative)
+        let realSrcRoot = srcRoot.resolvingSymlinksInPath().standardized
+        let realDstRoot = dstRoot.resolvingSymlinksInPath().standardized
+        let srcFile = realSrcRoot.appendingPathComponent(relative)
+        let dstFile = realDstRoot.appendingPathComponent(relative)
         var isDir: ObjCBool = false
         let exists = FileManager.default.fileExists(atPath: changedPath, isDirectory: &isDir)
         if !exists {
@@ -249,9 +266,12 @@ public actor SharedFSDaemon: SharedFSClient {
         }
         // File: compare hashes before copying (loop avoidance + efficiency)
         if FileManager.default.fileExists(atPath: dstFile.path),
-           let srcHash = try? ChunkHash.computeFile(srcFile),
-           let dstHash = try? ChunkHash.computeFile(dstFile),
-           srcHash == dstHash { return }
+            let srcHash = try? ChunkHash.computeFile(srcFile),
+            let dstHash = try? ChunkHash.computeFile(dstFile),
+            srcHash == dstHash
+        {
+            return
+        }
         do {
             try FileManager.default.createDirectory(
                 at: dstFile.deletingLastPathComponent(), withIntermediateDirectories: true)

@@ -76,8 +76,36 @@ public final class UnixSocketClient: SharedFSClient, @unchecked Sendable {
         return decoded.result?.value ?? ()
     }
 
+    private final class OnceContinuation: @unchecked Sendable {
+        private let lock = NSLock()
+        private var done = false
+        private let cont: CheckedContinuation<Data, Error>
+        init(_ cont: CheckedContinuation<Data, Error>) { self.cont = cont }
+        func resume(returning value: Data) {
+            lock.lock()
+            guard !done else {
+                lock.unlock()
+                return
+            }
+            done = true
+            lock.unlock()
+            cont.resume(returning: value)
+        }
+        func resume(throwing error: Error) {
+            lock.lock()
+            guard !done else {
+                lock.unlock()
+                return
+            }
+            done = true
+            lock.unlock()
+            cont.resume(throwing: error)
+        }
+    }
+
     private func send(request: Data) async throws -> Data {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data, Error>) in
+            let once = OnceContinuation(cont)
             let parameters = NWParameters.tcp
             parameters.allowLocalEndpointReuse = true
             let connection = NWConnection(
@@ -90,15 +118,15 @@ public final class UnixSocketClient: SharedFSClient, @unchecked Sendable {
                         content: request,
                         completion: .contentProcessed { error in
                             if let error {
-                                cont.resume(throwing: error)
+                                once.resume(throwing: error)
                                 return
                             }
-                            Self.recvAll(connection: connection, cont: cont)
+                            Self.recvAll(connection: connection, once: once)
                         })
                 case .failed(let err):
-                    cont.resume(throwing: err)
+                    once.resume(throwing: err)
                 case .cancelled:
-                    cont.resume(throwing: SharedFSError.daemonUnavailable)
+                    once.resume(throwing: SharedFSError.daemonUnavailable)
                 default: break
                 }
             }
@@ -108,7 +136,7 @@ public final class UnixSocketClient: SharedFSClient, @unchecked Sendable {
 
     private static func recvAll(
         connection: NWConnection,
-        cont: CheckedContinuation<Data, Error>,
+        once: OnceContinuation,
         buffer: Data = Data()
     ) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) {
@@ -116,22 +144,22 @@ public final class UnixSocketClient: SharedFSClient, @unchecked Sendable {
             var buffer = buffer
             if let data { buffer.append(data) }
             if error != nil {
-                cont.resume(throwing: SharedFSError.daemonUnavailable)
+                once.resume(throwing: SharedFSError.daemonUnavailable)
                 connection.cancel()
                 return
             }
             if let nl = buffer.firstIndex(of: 0x0A) {
                 let response = buffer.subdata(in: 0..<nl)
-                cont.resume(returning: response)
+                once.resume(returning: response)
                 connection.cancel()
                 return
             }
             if isComplete {
-                cont.resume(throwing: SharedFSError.invalidResponse("truncated"))
+                once.resume(throwing: SharedFSError.invalidResponse("truncated"))
                 connection.cancel()
                 return
             }
-            Self.recvAll(connection: connection, cont: cont, buffer: buffer)
+            Self.recvAll(connection: connection, once: once, buffer: buffer)
         }
     }
 }
