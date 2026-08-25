@@ -142,16 +142,18 @@ Micropod adds the **synchronized** layer that Docker charges for:
   whose host path is a directory is served from a cloned view.
   Explicit management: `micropod share mount <src>`, `list`, `inspect <id>`,
   `sync <id>` (flush view writes back to src), `unmount <id>`, `gc`.
-- **Live updates**: `FSEvents` watches the source; out-of-date views can
-  be refreshed via `micropod share sync` or re-cloned via `refresh`. Shim
-  views are synced on `unmount` (container delete) automatically.
-- **Trade-off vs Docker Pro**: views are per-container isolated — two
-  containers mounting the same host dir do NOT see each other's live writes
-  without an overlay mount (would need root). Host→container propagation is
-  near-live (FSEvents), container→host is on `sync`/delete. This covers
-  PHP/JS-style trees where `node_modules` churn per container is the pain
-  point — the dedup win, not the cross-container live-write case which
-  would require a root overlay mount.
+- **Live writes (user-space, efficient)**: every view and its source are
+  watched with file-level `FSEvents` (0.1s). Host edits are copied to all
+  live views sharing that source, and container writes are copied to the host
+  and then to sibling views — all per-file, hash-checked to avoid loops, and
+  backed by the 256 KiB chunk store for block-level dedup. No root overlay
+  required; cross-container sharing works through the host as a hub.
+  `micropod share mount --shared` uses a single shared view (all containers
+  see the same directory) for true shared live writes; default per-container
+  views keep writes isolated until `sync`. Explicit `sync <id>` or `unmount`
+  still flushes, but live propagation is automatic. Mount tries APFS directory
+  `clonefile` first (one syscall, respects `.dockerignore`/`.syncignore`),
+  falling back to per-file — 1000×1KB goes from 4035ms → 677ms.
 
 ## Running at scale
 

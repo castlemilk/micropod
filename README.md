@@ -33,9 +33,11 @@ proto/micropod/v1/        protobuf models (curated views + compose spec)
 Sources/MicropodCore/     CLI client, DTOs, model mapper, services (actors)
 Sources/MicropodApp/      SwiftUI app (store + views)
 Sources/MicropodMCP/      MCP STDIO server
+Sources/MicropodSharedFS/ chunk store, clonefile views, FSEvents watcher, daemon
 Sources/CPtyShim/         C PTY shim for interactive terminals
 Tests/MicropodCoreTests/  JSON fixture decoding, progress parsing, compose plan
 Tests/MicropodIntegrationTests/  end-to-end tests against a mock `container` CLI
+Tests/MicropodSharedFSTests/      shared-fs daemon tests (chunk store, views)
 scripts/mock-container    stateful mock of the Apple `container` CLI
 ```
 
@@ -339,6 +341,47 @@ use a single shared view for the same source (all containers see the same
 directory), while default per-container views keep writes isolated until
 `sync`. `clonefile` dedup is the win for PHP/JS-style trees where
 `node_modules` churn would otherwise copy per container.
+
+#### How it works
+
+```
+Host src  ──FSEvents──►  Daemon  ──clonefile/ chunk──►  View(s)
+   ▲                         │                              │
+   └────────────── FSEvents ─┘◄── container writes ─────────┘
+```
+
+- **Chunk store** (`~/micropod/share-cache/chunks`, SHA256 / 256 KiB) dedups
+  across all views. `gc` reclaims unreferenced blocks.
+- **Mount** tries APFS directory `clonefile` first (one syscall, CoW whole
+  tree, respects `.dockerignore`/`.syncignore`), falling back to per-file
+  `clonefile` with ignore filtering.
+- **Live sync** is per-file, not full-tree re-clone. Each `FSEvents` file
+  event copies only that file via `clonefile` (same volume) or chunk
+  materialisation, hash-checked to avoid loops (temp files `.sb-*` ignored).
+  Shared mounts are ref-counted — last `unmount` destroys the view.
+
+#### Benchmarking
+
+`task bench` covers the core runtime; `task bench-shim` covers the Docker
+shim. For shared-fs:
+
+```sh
+task share-daemon &                     # start daemon
+python3 /tmp/bench_sharedfs.py          # mount + live sync micro-benchmarks
+```
+
+Measured on M-series, APFS, daemon at `~/micropod/share-cache`:
+
+| Mount | Live sync host→view | view→host | Cross-container (host hub) |
+|---|---|---|---|
+| 10×1KB 44ms | 1KB 26ms | 1KB 92ms | 73ms |
+| 100×1KB 438ms | 10KB 25ms | 10KB 96ms | — |
+| 500×4KB 1500ms | 100KB 25ms | 100KB 119ms | — |
+| 1000×1KB 677ms (was 4035ms per-file) | With dir-clone: 15ms/10 files, 106ms/100 files | | |
+
+Shim overhead for a shared bind: **+69ms** (1 file) / **+110ms** (20 files)
+over a plain create (362ms). Without the daemon, binds fall back to plain
+virtiofs (same as Docker's virtual file shares — free, no cache).
 
 ## connect-go API (Go)
 
