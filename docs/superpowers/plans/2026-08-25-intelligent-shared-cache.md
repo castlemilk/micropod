@@ -91,7 +91,7 @@ git commit -m "feat(cache): add shared flag to cachePolicy"
 **Files:**
 - Modify: `cuttlefish/internal/runner/cache_manager.go:80-150` (ResolveCacheVolumes)
 
-### Task 2b: Promotion Volume -> ChunkStore
+### Task 3: Promotion Volume -> ChunkStore
 
 **Files:**
 - Modify: `cuttlefish/internal/runner/cache_manager.go` — on `ResolveCacheVolumes` miss, after `create volume` and container exit, call `SharedFSDaemon.Sync(volumePath)` to snapshot volume content into `ChunkStore` keyed by `hash`, then async `GCSStore.Push` (ifGenerationMatch=0, swallow 412)
@@ -178,7 +178,18 @@ git commit -m "feat(cache): global Has lookup before per-project volume"
 
 ---
 
-## Chunk 2: SharedFSDaemon GCS + Eviction (depends on Chunk 1 Task 1 shared flag; GCSStore must exist before global lookup)
+## Chunk 2: GCSStore + Eviction (must complete before Chunk 1 Task 2 global lookup)
+
+### Task 3: GCSStore with CAS and timeout (Go)
+
+**Files:**
+- Create: `cuttlefish/internal/runner/gcs_store.go`
+- Test: `cuttlefish/internal/runner/gcs_store_test.go`
+
+### Task 3b: Swift Daemon GCS integration
+
+**Files:**
+- Modify: `micropod/Sources/MicropodSharedFS/SharedFSDaemon.swift` — add Swift `GCSStore` wrapper (or reuse Go `minio-go` via `URLSession`), `Has`+`Pull` singleflight, `Push` background
 
 ### Task 3: GCSStore with CAS and timeout
 
