@@ -76,9 +76,22 @@ cat > "$DIST/micropod-mcp" <<WRAP
 #!/bin/bash
 # MCP STDIO server for Micropod. Register as:
 #   "mcpServers": { "micropod": { "command": "$DIST/micropod-mcp" } }
-exec "$(cd "$DIST" && pwd)/micropod-mcp-bin"
+exec "$(cd "$DIST" && pwd)/micropod-mcp-bin" "\$@"
 WRAP
 chmod +x "$DIST/micropod-mcp" "$DIST/micropod-mcp-bin"
+
+# Bundle the Docker Engine API shim inside the .app so the app can auto-start
+# it — external agents (cuttlefish runner, Testcontainers, docker CLI) speak
+# Docker API over ~/.micropod/docker.sock.
+if [ -f ".build/release/micropod-docker-shim" ]; then
+    cp .build/release/micropod-docker-shim "$APP_BUNDLE/Contents/MacOS/micropod-docker-shim"
+    chmod +x "$APP_BUNDLE/Contents/MacOS/micropod-docker-shim"
+    cp .build/release/micropod-docker-shim "$DIST/micropod-docker-shim-bin"
+    chmod +x "$DIST/micropod-docker-shim-bin"
+    echo "==> Docker shim bundled (micropod-docker-shim)"
+else
+    echo "!! micropod-docker-shim not found in .build/release — shim auto-start disabled"
+fi
 
 echo "==> Staging micropod CLI"
 cp .build/release/micropod "$DIST/micropod"

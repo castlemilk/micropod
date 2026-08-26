@@ -120,7 +120,7 @@ let package = Package(
         ),
         .testTarget(
             name: "MicropodIntegrationTests",
-            dependencies: ["MicropodCore"],
+            dependencies: ["MicropodCore", "MicropodSharedFS"],
             exclude: ["Support", "Fixtures"],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")

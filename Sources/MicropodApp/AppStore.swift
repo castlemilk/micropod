@@ -246,6 +246,8 @@ final class AppStore {
     @ObservationIgnored private var consecutiveStartFailures = 0
     @ObservationIgnored private var userStoppedUntil: Date?
     @ObservationIgnored private var wasVisible = false
+    @ObservationIgnored private var mainWindowVisible = false
+    @ObservationIgnored private var panelVisible = false
 
     init(dependencies: AppDependencies = AppDependencies.shared) {
         self.dependencies = dependencies
@@ -256,6 +258,68 @@ final class AppStore {
         {
             activeTab = tab
         }
+    }
+
+    /// Ensures the Docker Engine API shim is listening on
+    /// ~/.micropod/docker.sock so external agents (cuttlefish runner,
+    /// Testcontainers, docker CLI) can drive the runtime. Idempotent: if the
+    /// socket already answers, nothing happens.
+    func ensureDockerShim() {
+        guard !dockerShimSocketLive() else { return }
+        guard let shimURL = Self.locateDockerShimBinary() else {
+            recordActivity("system", "Docker API shim not found — agent socket unavailable", level: .error)
+            return
+        }
+        let process = Process()
+        process.executableURL = shimURL
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+            // Detached: the shim outlives this Process handle.
+            recordActivity("system", "Docker API shim started on ~/.micropod/docker.sock", level: .success)
+        } catch {
+            recordActivity("system", "Docker API shim failed to start: \(error.localizedDescription)", level: .error)
+        }
+    }
+
+    private static func locateDockerShimBinary() -> URL? {
+        let candidates: [URL?] = [
+            Bundle.main.executableURL?.deletingLastPathComponent()
+                .appendingPathComponent("micropod-docker-shim"),
+            URL(fileURLWithPath: ".build/debug/micropod-docker-shim"),
+            URL(fileURLWithPath: ".build/release/micropod-docker-shim"),
+        ]
+        for candidate in candidates {
+            if let url = candidate, FileManager.default.isExecutableFile(atPath: url.path) {
+                return url
+            }
+        }
+        return nil
+    }
+
+    /// True when something answers on the shim's unix socket.
+    private func dockerShimSocketLive() -> Bool {
+        let path = NSString("~/.micropod/docker.sock").expandingTildeInPath
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { return false }
+        defer { close(fd) }
+        var addr = sockaddr_un()
+        addr.sun_family = sa_family_t(AF_UNIX)
+        let pathBytes = Array(path.utf8CString)
+        let maxLen = MemoryLayout.size(ofValue: addr.sun_path)
+        guard pathBytes.count <= maxLen else { return false }
+        withUnsafeMutableBytes(of: &addr.sun_path) { dest in
+            pathBytes.withUnsafeBufferPointer { src in
+                memcpy(dest.baseAddress, src.baseAddress!, pathBytes.count)
+            }
+        }
+        let result = withUnsafePointer(to: &addr) { ptr -> Int32 in
+            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                connect(fd, sa, socklen_t(MemoryLayout<sockaddr_un>.size))
+            }
+        }
+        return result == 0
     }
 
     func bootstrap() {
@@ -273,6 +337,7 @@ final class AppStore {
         }
         startPollers()
         startRuntimeSupervisor()
+        ensureDockerShim()
     }
 
     func stopPollers() {
@@ -379,10 +444,25 @@ final class AppStore {
         }
     }
 
-    /// Adjusts polling intensity based on whether the main window is visible.
+    /// Adjusts polling intensity based on whether any surface (main window or
+    /// menu-bar panel) is visible. Both surfaces report independently; the
+    /// pollers stay active while either is on screen.
     func setMainWindowVisible(_ visible: Bool) {
-        wasVisible = visible
-        restartStatsPolling()
+        mainWindowVisible = visible
+        syncVisibility()
+    }
+
+    func setPanelVisible(_ visible: Bool) {
+        panelVisible = visible
+        syncVisibility()
+    }
+
+    private func syncVisibility() {
+        let anyVisible = mainWindowVisible || panelVisible
+        if anyVisible != wasVisible {
+            wasVisible = anyVisible
+            restartStatsPolling()
+        }
     }
 
     private func startPollers() {

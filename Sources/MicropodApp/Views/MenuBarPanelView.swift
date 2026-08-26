@@ -34,8 +34,13 @@ struct MenuBarPanelView: View {
             footer
         }
         .padding(10)
-        .frame(width: 320)
+        .frame(width: 340)
         .task { store.bootstrap() }
+        // Keep the pollers running while the panel is open — otherwise tray
+        // data could be up to 30s stale (pollers sleep when the main window
+        // is hidden). Independent of the main window's own visibility flag.
+        .onAppear { store.setPanelVisible(true) }
+        .onDisappear { store.setPanelVisible(false) }
     }
 
     // MARK: - Header
@@ -135,13 +140,32 @@ struct MenuBarPanelView: View {
 
     private var statsRow: some View {
         HStack(spacing: 0) {
-            statBlock(value: "\(store.runningCount)", label: "running", icon: "shippingbox")
+            statBlock(value: "\(store.runningCount)", label: "running", icon: "containers")
             Spacer(minLength: 4)
-            statBlock(value: "\(store.agentWorkloadCount)", label: "agents", icon: "terminal")
+            statBlock(value: aggregateCPU ?? "—", label: "cpu", icon: "stats")
             Spacer(minLength: 4)
-            statBlock(value: "\(store.localImageCount)", label: "local images", icon: "photo.stack")
+            statBlock(value: totalMemory, label: "in use", icon: "storage")
+            Spacer(minLength: 4)
+            statBlock(value: reclaimable, label: "reclaim", icon: "prune")
         }
         .padding(.vertical, 8)
+    }
+
+    /// Total CPU across running containers, e.g. "12%".
+    private var aggregateCPU: String? {
+        guard store.isRuntimeRunning, let snapshot = store.statsSnapshot else { return nil }
+        let total = snapshot.containers.reduce(0.0) { $0 + $1.cpuPercent }
+        return String(format: "%.1f%%", total)
+    }
+
+    private var totalMemory: String {
+        let used = store.statsSnapshot?.containers.reduce(0) { $0 + $1.memoryUsedBytes } ?? 0
+        return ByteFormat.string(used)
+    }
+
+    private var reclaimable: String {
+        guard let usage = store.diskUsage else { return "—" }
+        return ByteFormat.string(usage.totalReclaimableBytes)
     }
 
     // MARK: - Containers
@@ -162,7 +186,10 @@ struct MenuBarPanelView: View {
                 ScrollView {
                     VStack(spacing: 4) {
                         ForEach(store.containers.prefix(6)) { container in
-                            MenuBarContainerRow(container: container) {
+                            MenuBarContainerRow(
+                                container: container,
+                                stats: store.statsByID[container.id]
+                            ) {
                                 openContainer(container.id)
                             } onStop: {
                                 Task { await store.stopContainer(container.id) }
@@ -314,10 +341,11 @@ struct MenuBarPanelView: View {
 
 }
 
-/// One compact row in the menu bar panel: click opens the container,
-/// the trailing button stops it.
+/// One compact row in the menu bar panel: name + live CPU/mem, image below;
+/// click opens the container, the trailing button stops it.
 struct MenuBarContainerRow: View {
     let container: Micropod_V1_Container
+    let stats: Micropod_V1_ContainerStats?
     var onOpen: () -> Void
     var onStop: () -> Void
 
@@ -328,15 +356,34 @@ struct MenuBarContainerRow: View {
                     Circle()
                         .fill(stateColor)
                         .frame(width: 6, height: 6)
-                    Text(container.id)
-                        .font(.caption.weight(.medium))
-                        .lineLimit(1)
-                    Spacer(minLength: 4)
-                    Text(container.image)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                    VStack(alignment: .leading, spacing: 1) {
+                        HStack(spacing: 6) {
+                            Text(container.id)
+                                .font(.caption.weight(.medium))
+                                .lineLimit(1)
+                            Spacer(minLength: 4)
+                            if container.state == "running" {
+                                Text(cpuText)
+                                    .font(.caption2.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize()
+                                Text(memText)
+                                    .font(.caption2.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize()
+                            } else {
+                                Text(container.state)
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                                    .fixedSize()
+                            }
+                        }
+                        Text(container.image)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
                 }
                 .contentShape(Rectangle())
             }
@@ -357,9 +404,19 @@ struct MenuBarContainerRow: View {
             }
         }
         .padding(.horizontal, 6)
-        .padding(.vertical, 3)
+        .padding(.vertical, 4)
         .background(stateColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 5))
     }
 
     private var stateColor: Color { ContainerStateStyle.color(for: container.state) }
+
+    private var cpuText: String {
+        guard let stats else { return "—" }
+        return String(format: "%.1f%%", stats.cpuPercent)
+    }
+
+    private var memText: String {
+        guard let stats else { return "—" }
+        return ByteFormat.string(stats.memoryUsedBytes)
+    }
 }

@@ -13,6 +13,12 @@ public actor SharedFSDaemon: SharedFSClient {
     public private(set) var sharedCachePinnedOverCap: Int = 0
     /// Synchronous indexed size via store index (no `du`).
     public var sharedCacheSize: UInt64 { store.indexedSize }
+    // MARK: - Metrics: shared_cache_* observables (mirrors cuttlefish runner)
+    public private(set) var localHits: Int = 0
+    public private(set) var remoteHits: Int = 0
+    public private(set) var misses: Int = 0
+    public private(set) var gcsPushErrors: Int = 0
+    public private(set) var evictedChunksTotal: Int = 0
     private let gracePeriod: TimeInterval = 300 // 5m grace
     private var sweepTask: Task<Void, Never>?
     private var views: [ViewID: SharedView] = [:]
@@ -159,8 +165,53 @@ public actor SharedFSDaemon: SharedFSClient {
         }
         if removed > 0 {
             fputs("[sharedfs] storage cap enforced: removed \(removed) chunks, reclaimed \(reclaimed) bytes, size now \(store.indexedSize) cap \(cap)\n", stderr)
+            evictedChunksTotal += removed
         }
         return GCResult(chunksRemoved: removed, bytesReclaimed: reclaimed)
+    }
+
+    // MARK: - Metrics (shared_cache_*)
+
+    /// Records a cache lookup outcome for `shared_cache_hit_total{hit="local|remote|miss"}`.
+    @discardableResult
+    public func recordCacheHit(hit: String, hash: ChunkHash) -> Int {
+        switch hit {
+        case "local":
+            localHits += 1
+            return localHits
+        case "remote":
+            remoteHits += 1
+            return remoteHits
+        case "miss":
+            misses += 1
+            return misses
+        default:
+            misses += 1
+            return misses
+        }
+    }
+
+    /// Records a GCS push error for `gcs_push_errors_total`.
+    public func recordGCSPushError() {
+        gcsPushErrors += 1
+    }
+
+    /// Returns the current shared-cache observable set, mirroring the Go
+    /// RunnerMetric names: shared_cache_hit_total{hit="..."}, shared_cache_bytes,
+    /// evicted_chunks_total, gcs_push_errors_total, shared_views_pinned.
+    public func cacheMetrics() -> [String: Int] {
+        // shared_views_pinned = active sharedViews count (pinned)
+        let pinned = sharedViews.count + views.count // approx
+        return [
+            "shared_cache_hit_total_local": localHits,
+            "shared_cache_hit_total_remote": remoteHits,
+            "shared_cache_hit_total_miss": misses,
+            "shared_cache_bytes": Int(sharedCacheSize),
+            "evicted_chunks_total": evictedChunksTotal,
+            "gcs_push_errors_total": gcsPushErrors,
+            "shared_views_pinned": pinned,
+            "shared_cache_pinned_over_cap": sharedCachePinnedOverCap,
+        ]
     }
 
     // MARK: - SharedFSClient
@@ -328,6 +379,9 @@ public actor SharedFSDaemon: SharedFSClient {
             }
             removed += 1
             bytesReclaimed += size
+        }
+        if removed > 0 {
+            evictedChunksTotal += removed
         }
         return GCResult(chunksRemoved: removed, bytesReclaimed: bytesReclaimed)
     }

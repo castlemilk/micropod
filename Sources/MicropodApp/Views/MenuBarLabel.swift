@@ -12,7 +12,9 @@ struct MenuBarLabel: View {
     private var accessibilityLabel: String {
         if !store.clientAvailable { return "Micropod: container CLI not found" }
         if store.isRuntimeRunning {
-            return "Micropod: runtime running, \(store.runningCount) container\(store.runningCount == 1 ? "" : "s")"
+            let cpu = aggregateCPU.map { ", \( $0) CPU" } ?? ""
+            return
+                "Micropod: runtime running, \(store.runningCount) container\(store.runningCount == 1 ? "" : "s")\(cpu)"
         }
         return "Micropod: runtime stopped"
     }
@@ -30,7 +32,12 @@ struct MenuBarLabel: View {
             if store.runningCount > 0 {
                 Text("\(store.runningCount)")
                     .font(.caption2.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
+                if let cpu = aggregateCPU {
+                    Text(cpu)
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .onAppear { startBootstrapIfNeeded() }
@@ -42,6 +49,14 @@ struct MenuBarLabel: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
+    }
+
+    /// Total CPU across running containers (e.g. "12%") — nil when no stats
+    /// have landed yet. Shown in the menu bar so load is visible at a glance.
+    private var aggregateCPU: String? {
+        guard store.isRuntimeRunning, let snapshot = store.statsSnapshot else { return nil }
+        let total = snapshot.containers.reduce(0.0) { $0 + $1.cpuPercent }
+        return String(format: "%.0f%%", total)
     }
 
     private func startBootstrapIfNeeded() {

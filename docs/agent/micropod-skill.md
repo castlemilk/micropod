@@ -155,6 +155,20 @@ Micropod adds the **synchronized** layer that Docker charges for:
   `clonefile` first (one syscall, respects `.dockerignore`/`.syncignore`),
   falling back to per-file — 1000×1KB goes from 4035ms → 677ms.
 
+### Intelligent shared cache (cross-repo, cross-runner)
+
+Content-addressed (`SHA256/256 KiB`) chunk store + GCS fallback for package-manager caches:
+
+- **What it caches**: `~/.npm` (tarballs, not `node_modules`), `/go/pkg/mod`, `/root/.cache/go-build`, `~/.cache/pip`. 80% smaller, dedupable.
+- **Key**: `hashFiles('package-lock.json') + ':' + nodeVersion` (falls back to image digest). Same lockfile → same chunks, even across repos.
+- **Lookup**: `local Has → GCS Has (3s timeout, singleflight) → create volume`. Promotion on container exit: `Sync(volume) → ChunkStore → GCS Push (ifGenerationMatch=0, 412 swallowed)`.
+- **Auto-mount**: well-known paths (`/go/pkg/mod`, `/root/.cache/go-build`, `/root/.npm`, `~/.cache/pip` via `~` → `$HOME` from `Config.User`/`Env HOME`) are auto-shared; explicit `shared: true/false` and `sharedMounts` in workflow `cachePolicy` override.
+- **Storage cap**: `RUNNER_CACHE_MAX_BYTES` env (default `10737418240` = 10GB, global LRU, single cap not per-type). Enforced *before* next mount (synchronous indexed-size check, no `du`) and via async 5m sweep. LRU evicts oldest `refCount==0` chunks after 5m grace; if still over cap, bypasses grace; `shared_cache_pinned_over_cap=1` when pinned blocks reclaim.
+- **Feature flag**: `RUNNER_PREFER_MICROPOD=1` enables the shared-cache path (daemon + GCS). Default off until flag set; `RUNNER_CACHE_MAX_BYTES` default is 10GB in either state (single default, no "off" vs "10GB" contradiction).
+- **Metrics** (via `task bench` and runner `ReportRunnerMetrics`):
+  `shared_cache_hit_total{hit="local|remote|miss"}` (counter), `shared_cache_bytes` (gauge), `evicted_chunks_total` (counter), `gcs_push_errors_total` (counter), `shared_views_pinned` (gauge).
+- **Safety**: `PruneDockerResources` uses `--filter label!=cuttle.kind` so `cf-cache-*` / `cf-ws-*` survive blanket prune (2026-04-05 incident). Private tarballs (`NPM_TOKEN` or `~/.npmrc` with `_authToken`/`_auth`, `PIP_EXTRA_INDEX_URL`) never `Push` to GCS. `Push`/`Pull` via `*.tmp` + atomic rename, truncated download cleanup, `ChunkHash` verify.
+
 ## Running at scale
 
 Measured facts to plan around (M-series, Apple runtime 1.2.2):

@@ -1,0 +1,25 @@
+name: Deploy Landing to GitHub Pages
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "landing/**"
+      - ".github/workflows/gh-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: landing
+          publish_branch: gh-pages
+          full_commit_message: "landing: rebuild for GitHub Pages [skip ci]"

@@ -54,6 +54,15 @@ exec "$MCP_DIR/micropod-mcp-bin" "\$@"
 WRAP
 chmod +x "$MCP_BIN" "${MCP_BIN}-bin"
 
+# Docker Engine API shim: the app auto-starts it from inside the bundle, but
+# a stable copy in ~/.local/bin lets agents (cuttlefish runner, docker CLI
+# with DOCKER_HOST) launch it manually too.
+if [ -f "$ROOT/dist/micropod-docker-shim-bin" ]; then
+    cp "$ROOT/dist/micropod-docker-shim-bin" "$MCP_DIR/micropod-docker-shim"
+    chmod +x "$MCP_DIR/micropod-docker-shim"
+    echo "==> Installed Docker API shim to $MCP_DIR/micropod-docker-shim"
+fi
+
 if [ -f "$ROOT/dist/micropod" ]; then
     echo "==> Installing CLI to $CLI_BIN"
     cp "$ROOT/dist/micropod" "$CLI_BIN"
