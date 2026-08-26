@@ -7,6 +7,14 @@ public actor SharedFSDaemon: SharedFSClient {
     public let cacheRoot: URL
     public let viewsRoot: URL
     public let store: ChunkStore
+    /// Per-runner cap: 10GB global LRU (RUNNER_CACHE_MAX_BYTES, default 10<<30).
+    public let cacheMaxBytes: UInt64
+    /// Gauge `shared_cache_pinned_over_cap`: 1 when still over cap after eviction because all remaining are pinned.
+    public private(set) var sharedCachePinnedOverCap: Int = 0
+    /// Synchronous indexed size via store index (no `du`).
+    public var sharedCacheSize: UInt64 { store.indexedSize }
+    private let gracePeriod: TimeInterval = 300 // 5m grace
+    private var sweepTask: Task<Void, Never>?
     private var views: [ViewID: SharedView] = [:]
     // Live shared mounts: one view per src, bidirectional sync for live writes.
     private var sharedViews: [String: SharedView] = [:]
@@ -18,16 +26,148 @@ public actor SharedFSDaemon: SharedFSClient {
     private var viewWatchers: [ViewID: FSEventsWatcher] = [:]
     private var srcWatchers: [String: FSEventsWatcher] = [:]
 
-    public init(cacheRoot: URL) throws {
+    public init(cacheRoot: URL, cacheMaxBytes: UInt64? = nil) throws {
         self.cacheRoot = cacheRoot
         self.viewsRoot = cacheRoot.appendingPathComponent("views", isDirectory: true)
         self.store = try ChunkStore(root: cacheRoot.appendingPathComponent("chunks", isDirectory: true))
         try FileManager.default.createDirectory(at: viewsRoot, withIntermediateDirectories: true)
+        if let cacheMaxBytes {
+            self.cacheMaxBytes = cacheMaxBytes
+        } else if let env = ProcessInfo.processInfo.environment["RUNNER_CACHE_MAX_BYTES"],
+            let parsed = UInt64(env)
+        {
+            self.cacheMaxBytes = parsed
+        } else {
+            self.cacheMaxBytes = 10 << 30 // 10GB default
+        }
+        // DiskManager integration: async 5m sweep (same interval as sweepOrphanedVolumes).
+        // Start background sweep; not awaited, runs for daemon lifetime.
+        // Use detached task to avoid actor isolation deadlock during init.
+        Task.detached { [weak self] in
+            guard let self else { return }
+            await self.startSweepLoop()
+        }
+    }
+
+    private func startSweepLoop() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(nanoseconds: 300_000_000_000) // 5m
+            _ = await enforceStorageCapIfNeeded()
+            // Also run orphan-volume style sweep if needed (disk hygiene).
+            try? await sweepOrphanedIfNeeded()
+        }
+    }
+
+    /// DiskManager hook: placeholder for sweepOrphanedVolumes integration.
+    /// In micropod the equivalent is `gc()` on idle views; we expose for observability.
+    public func sweepOrphanedIfNeeded() async throws {
+        // For now, enforce cap also covers orphan sweep. Real DiskManager
+        // would age-gate cf-cache-* volumes; here we just log.
+        _ = await enforceStorageCapIfNeeded()
+    }
+
+    // MARK: - Storage cap (indexed size gate + LRU eviction)
+
+    /// Enforced *before* next mount (synchronous indexed-size check via store metadata, no `du`)
+    /// and via async 5m sweep. LRU-evict oldest chunks (by atime, refCount==0, 5m grace) until under cap;
+    /// if still over and all remaining are pinned or <5m old, bypass grace and evict oldest refCount==0 anyway;
+    /// emit `shared_cache_pinned_over_cap` gauge if still over.
+    @discardableResult
+    public func enforceStorageCapIfNeeded() async -> GCResult {
+        let cap = cacheMaxBytes
+        var removed = 0
+        var reclaimed: UInt64 = 0
+        // Fast path: already under cap
+        if store.indexedSize <= cap {
+            sharedCachePinnedOverCap = 0
+            return GCResult(chunksRemoved: 0, bytesReclaimed: 0)
+        }
+        // Collect live pinned chunks from active views (view-backed pinning)
+        var livePinned: Set<String> = []
+        for view in views.values {
+            let hashes = await chunksInUse(view: view.root)
+            livePinned.formUnion(hashes)
+        }
+        for view in sharedViews.values {
+            let hashes = await chunksInUse(view: view.root)
+            livePinned.formUnion(hashes)
+        }
+
+        let now = Date()
+        let graceCutoff = now.addingTimeInterval(-gracePeriod)
+
+        // Build mutable list of candidates from store index
+        // Use store's internal tracking; we need atime/size/refCount per hash.
+        // To avoid exposing internals, we enumerate all chunk files and query store metadata.
+        var didEvict = true
+        while store.indexedSize > cap, didEvict {
+            didEvict = false
+            let allHashes = store.allChunkHashes()
+            if allHashes.isEmpty { break }
+            struct Candidate {
+                let hash: ChunkHash
+                let atime: Date
+                let size: UInt64
+                let refCount: Int
+                let isLivePinned: Bool
+            }
+            var candidates: [Candidate] = []
+            for h in allHashes {
+                let atime = store.atime(for: h) ?? Date.distantPast
+                let size = store.chunkSize(h) ?? 0
+                let rc = store.refCount(for: h)
+                let live = livePinned.contains(h.value)
+                candidates.append(Candidate(hash: h, atime: atime, size: size, refCount: rc, isLivePinned: live))
+            }
+            // Sort by atime oldest first for deterministic LRU
+            candidates.sort { $0.atime < $1.atime }
+
+            // Phase 1: grace-respecting candidates (refCount==0 && !livePinned && atime < graceCutoff)
+            var chosen: Candidate?
+            for c in candidates where c.refCount == 0 && !c.isLivePinned && c.atime < graceCutoff {
+                chosen = c
+                break
+            }
+            // Phase 2: bypass grace if still over cap — evict oldest refCount==0 anyway
+            if chosen == nil {
+                for c in candidates where c.refCount == 0 && !c.isLivePinned {
+                    chosen = c
+                    break
+                }
+            }
+            if let victim = chosen {
+                do {
+                    try store.remove(victim.hash)
+                    removed += 1
+                    reclaimed += victim.size
+                    didEvict = true
+                    fputs("[sharedfs] evicted \(victim.hash.value.prefix(12)) size \(victim.size) atime \(victim.atime) (cap \(cap) size \(store.indexedSize))\n", stderr)
+                } catch {
+                    fputs("[sharedfs] evict failed \(victim.hash.value): \(error)\n", stderr)
+                    break
+                }
+            } else {
+                // No evictable candidates — all remaining are pinned
+                break
+            }
+        }
+        if store.indexedSize > cap {
+            sharedCachePinnedOverCap = 1
+            fputs("[sharedfs] shared_cache_pinned_over_cap=1 size \(store.indexedSize) cap \(cap)\n", stderr)
+        } else {
+            sharedCachePinnedOverCap = 0
+        }
+        if removed > 0 {
+            fputs("[sharedfs] storage cap enforced: removed \(removed) chunks, reclaimed \(reclaimed) bytes, size now \(store.indexedSize) cap \(cap)\n", stderr)
+        }
+        return GCResult(chunksRemoved: removed, bytesReclaimed: reclaimed)
     }
 
     // MARK: - SharedFSClient
 
     public func mount(src: URL, readonly: Bool) async throws -> MountInfo {
+        // Enforce storage cap before next mount (synchronous indexed-size check, no du)
+        _ = await enforceStorageCapIfNeeded()
         let normalized = src.resolvingSymlinksInPath().standardizedFileURL
         let id = ViewID.generate()
         let viewRoot = viewsRoot.appendingPathComponent(id.value, isDirectory: true)
@@ -43,6 +183,8 @@ public actor SharedFSDaemon: SharedFSClient {
     }
 
     public func mountShared(src: URL, readonly: Bool) async throws -> MountInfo {
+        // Enforce storage cap before next mount (synchronous, no du)
+        _ = await enforceStorageCapIfNeeded()
         let normalized = src.resolvingSymlinksInPath().standardizedFileURL
         let key = normalized.path
         if let existing = sharedViews[key] {
@@ -153,22 +295,39 @@ public actor SharedFSDaemon: SharedFSClient {
         // Reference count = sum of live views' file references. We do a
         // simple GC by counting how many store chunks each view references
         // (by walking and hashing), then removing anything not referenced.
+        // Also keep indexedSize in sync via ChunkStore index (no du).
         var liveChunks: Set<String> = []
         for view in views.values {
             let chunkSet = await chunksInUse(view: view.root)
             for hash in chunkSet { liveChunks.insert(hash) }
         }
-        let allChunks =
-            (try? FileManager.default.contentsOfDirectory(
-                atPath: store.root.path)) ?? []
+        // Use store index for size tracking; enumerate via store to keep index authoritative.
+        let allHashes = store.allChunkHashes()
+        // Also include any stray files not in index (e.g., pre-existing) by scanning filesystem.
+        let fsNames = (try? FileManager.default.contentsOfDirectory(atPath: store.root.path)) ?? []
+        var allNames = Set(allHashes.map { $0.value })
+        allNames.formUnion(fsNames.filter { $0.count == 64 })
         var removed = 0
         var bytesReclaimed: UInt64 = 0
-        for name in allChunks where !liveChunks.contains(name) {
+        for name in allNames where !liveChunks.contains(name) {
+            let hash = ChunkHash(unchecked: name)
             let url = store.root.appendingPathComponent(name)
-            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-            try? FileManager.default.removeItem(at: url)
+            let size = store.chunkSize(hash) ?? {
+                let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+                if let s = attrs?[.size] as? UInt64 { return s }
+                if let s = attrs?[.size] as? Int { return UInt64(s) }
+                return UInt64(0)
+            }()
+            // Use store.remove to keep indexedSize consistent; check existence without bumping atime.
+            let exists = store.exists(hash) || FileManager.default.fileExists(atPath: url.path)
+            if exists {
+                try? store.remove(hash)
+                if FileManager.default.fileExists(atPath: url.path) {
+                    try? FileManager.default.removeItem(at: url)
+                }
+            }
             removed += 1
-            bytesReclaimed += UInt64(size)
+            bytesReclaimed += size
         }
         return GCResult(chunksRemoved: removed, bytesReclaimed: bytesReclaimed)
     }
