@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Micropod — Docker Desktop-class management for Apple's container runtime</title>
+  <meta name="description" content="Micropod is a native macOS app that manages Apple's container runtime: containers, images, volumes, networks, docker-compose translation, BuildKit builds, and an MCP server for agents. No Docker Desktop tax." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --font-sans: 'Instrument Sans', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --bg: #070d16;
+      --bg-card: #0d1626;
+      --bg-secondary: #111c30;
+      --fg: #e8eefc;
+      --fg-muted: #8b9bb8;
+      --border: #1b2a45;
+      --primary: #0a84ff;
+      --primary-fg: #050b14;
+      --primary-glow: rgba(10, 132, 255, 0.07);
+      --success: #32d74b;
+      --warn: #ffd60a;
+      --destructive: #ff453a;
+      --radius: 0.75rem;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    a { color: inherit; text-decoration: none; }
+    img, svg { display: block; max-width: 100%; }
+
+    .max-w-7xl { max-width: 80rem; margin: 0 auto; padding: 0 1.5rem; }
+    .text-center { text-align: center; }
+    .py-24 { padding: 6rem 0; }
+    .sm-only { display: none; }
+    @media (min-width: 640px) { .sm-only { display: inline; } }
+
+    /* Section headings */
+    .section-label {
+      font-size: 0.75rem; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--primary); margin-bottom: 0.75rem;
+    }
+    .section-title { font-size: 1.875rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
+    .section-title span { color: var(--primary); }
+    .section-desc { margin: 1rem auto 0; max-width: 42rem; font-size: 0.875rem; color: var(--fg-muted); line-height: 1.6; }
+
+    /* Nav */
+    .nav {
+      position: sticky; top: 0; z-index: 50;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--bg) 80%, transparent);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .nav-inner { display: flex; align-items: center; justify-content: space-between; max-width: 80rem; margin: 0 auto; padding: 0.875rem 1.5rem; }
+    .nav-logo { display: flex; align-items: center; gap: 0.625rem; font-weight: 600; }
+    .nav-logo-mark {
+      display: flex; align-items: center; justify-content: center;
+      width: 1.75rem; height: 1.75rem; border-radius: 0.5rem;
+      background: var(--primary); color: var(--primary-fg);
+      font-weight: 700; font-size: 0.875rem;
+    }
+    .nav-links { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--fg-muted); }
+    .nav-links a:hover { color: var(--fg); }
+    .nav-links a { display: inline-flex; align-items: center; gap: 0.375rem; }
+
+    /* Buttons */
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.625rem 1.25rem; border-radius: var(--radius);
+      background: var(--primary); color: var(--primary-fg);
+      font-size: 0.875rem; font-weight: 600;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.625rem 1.25rem; border-radius: var(--radius);
+      border: 1px solid var(--border); background: var(--bg-card);
+      font-size: 0.875rem; font-weight: 500;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-secondary:hover { background: var(--bg-secondary); }
+    .btn-secondary:active { transform: scale(0.97); }
+
+    /* Hero */
+    .hero { position: relative; padding: 6rem 0 5rem; overflow: hidden; }
+    .hero-bg {
+      position: absolute; inset: 0;
+      background: linear-gradient(to bottom, var(--primary-glow), transparent);
+    }
+    .hero-glow {
+      position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+      width: 48rem; height: 48rem; border-radius: 50%;
+      background: color-mix(in srgb, var(--primary) 3%, transparent);
+      filter: blur(4rem); pointer-events: none;
+    }
+    .hero-content { position: relative; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.25rem 1rem; border-radius: 9999px;
+      border: 1px solid color-mix(in srgb, var(--primary) 15%, transparent);
+      background: color-mix(in srgb, var(--primary) 6%, transparent);
+      font-size: 0.75rem; font-weight: 500; color: var(--primary);
+      margin-bottom: 1.5rem;
+    }
+    .hero-badge-dot { position: relative; width: 0.375rem; height: 0.375rem; }
+    .hero-badge-dot::before {
+      content: ''; position: absolute; inset: 0; border-radius: 50%;
+      background: var(--primary); animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+    .hero-badge-dot::after {
+      content: ''; position: relative; display: block;
+      width: 0.375rem; height: 0.375rem; border-radius: 50%; background: var(--primary);
+    }
+    @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+    .hero h1 { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+    .hero h1 span { color: var(--primary); }
+    .hero p { margin: 1.25rem auto 0; font-size: 1rem; line-height: 1.6; color: var(--fg-muted); max-width: 38rem; }
+    .hero-actions { margin-top: 2rem; display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; }
+    .hero-viz { margin-top: 4rem; }
+
+    /* App-window mock */
+    .app-mock {
+      border-radius: 0.75rem; overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), 0 4px 24px color-mix(in srgb, var(--primary) 6%, transparent);
+      text-align: left; font-size: 0.75rem;
+    }
+    .mock-titlebar {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.625rem 0.875rem; border-bottom: 1px solid var(--border);
+      background: var(--bg-secondary);
+    }
+    .tl { width: 0.6875rem; height: 0.6875rem; border-radius: 50%; }
+    .tl-r { background: #ff5f57; } .tl-y { background: #febc2e; } .tl-g { background: #28c840; }
+    .mock-titlebar .title { margin-left: 0.5rem; color: var(--fg-muted); font-size: 0.6875rem; }
+    .mock-body { display: grid; grid-template-columns: 148px 1fr; min-height: 264px; }
+    .mock-side { border-right: 1px solid var(--border); padding: 0.625rem 0.5rem; background: color-mix(in srgb, var(--bg-secondary) 55%, transparent); }
+    .mock-side .side-label { font-size: 0.5625rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-muted); padding: 0.375rem 0.5rem 0.25rem; }
+    .mock-side .side-item {
+      display: flex; align-items: center; gap: 0.4375rem;
+      padding: 0.3125rem 0.5rem; border-radius: 0.375rem;
+      color: var(--fg-muted); font-size: 0.6875rem;
+    }
+    .mock-side .side-item svg { width: 12px; height: 12px; }
+    .mock-side .side-item.active { background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--fg); }
+    .mock-main { padding: 0.75rem 0.875rem; }
+    .mock-main .tbl-head, .mock-row {
+      display: grid; grid-template-columns: 1.4fr 1.5fr 0.7fr 0.6fr 0.7fr;
+      gap: 0.625rem; align-items: center; padding: 0.375rem 0.25rem;
+    }
+    .mock-main .tbl-head { color: var(--fg-muted); font-size: 0.625rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+    .mock-row { border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent); font-family: var(--font-mono); font-size: 0.6875rem; }
+    .mock-row .name { color: var(--fg); font-family: var(--font-sans); font-weight: 500; display: flex; align-items: center; gap: 0.375rem; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .dot.run { background: var(--success); } .dot.stopped { background: #6b7a94; }
+    .mock-row .img, .mock-row .num { color: var(--fg-muted); }
+    .mock-row .num { text-align: right; }
+    .pill {
+      display: inline-block; padding: 0 0.4375rem; border-radius: 9999px;
+      font-family: var(--font-sans); font-size: 0.5625rem; font-weight: 600; line-height: 1.35;
+    }
+    .pill.run { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
+    .pill.stopped { color: var(--fg-muted); background: color-mix(in srgb, var(--fg-muted) 12%, transparent); }
+    .mock-status {
+      display: flex; align-items: center; gap: 0.5rem;
+      border-top: 1px solid var(--border); padding: 0.4375rem 0.875rem;
+      color: var(--fg-muted); font-size: 0.625rem; background: var(--bg-secondary);
+    }
+    .mock-status .live { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+
+    /* Feature grid */
+    .feature-grid { display: grid; gap: 1rem; margin-top: 3rem; }
+    .feature-card {
+      border-radius: var(--radius); border: 1px solid var(--border);
+      background: var(--bg-card); padding: 1.5rem;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      text-align: left;
+    }
+    .feature-card:hover { border-color: color-mix(in srgb, var(--primary) 25%, transparent); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+    .feature-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+    .feature-icon {
+      display: flex; align-items: center; justify-content: center;
+      width: 2.5rem; height: 2.5rem; border-radius: var(--radius);
+      background: color-mix(in srgb, var(--primary) 8%, transparent);
+      color: var(--primary); flex-shrink: 0;
+    }
+    .feature-icon svg { width: 1.25rem; height: 1.25rem; }
+    .feature-tag {
+      font-size: 0.6875rem; font-weight: 500; color: var(--fg-muted);
+      border: 1px solid var(--border); border-radius: 9999px; padding: 0.125rem 0.625rem;
+      white-space: nowrap;
+    }
+    .feature-card h3 { margin-top: 1rem; font-size: 1rem; font-weight: 600; }
+    .feature-card p { margin-top: 0.5rem; font-size: 0.8125rem; color: var(--fg-muted); line-height: 1.6; }
+
+    /* Steps */
+    .steps { display: grid; gap: 1rem; margin-top: 3rem; text-align: left; }
+    .step {
+      border-radius: var(--radius); border: 1px solid var(--border);
+      background: var(--bg-card); padding: 1.5rem; position: relative;
+    }
+    .step-num {
+      font-family: var(--font-mono); font-size: 0.75rem; color: var(--primary);
+      border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+      border-radius: 9999px; padding: 0.125rem 0.625rem; display: inline-block; margin-bottom: 0.875rem;
+    }
+    .step h3 { font-size: 1rem; font-weight: 600; }
+    .step p { margin-top: 0.5rem; font-size: 0.8125rem; color: var(--fg-muted); line-height: 1.6; }
+    .step code {
+      font-family: var(--font-mono); font-size: 0.75rem; color: var(--primary);
+      background: color-mix(in srgb, var(--primary) 7%, transparent);
+      padding: 0.125rem 0.375rem; border-radius: 0.25rem;
+    }
+
+    /* Comparison table */
+    .cmp { margin-top: 3rem; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+    th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { background: var(--bg-card); font-weight: 600; }
+    th:not(:first-child), td:not(:first-child) { text-align: center; }
+    tr:last-child td { border-bottom: none; }
+    td:first-child { color: var(--fg-muted); }
+    .cmp .col-micropod { background: color-mix(in srgb, var(--primary) 5%, transparent); color: var(--fg); font-weight: 500; }
+    th.col-micropod { color: var(--primary); }
+    .yes { color: var(--success); font-weight: 600; }
+    .no { color: var(--fg-muted); }
+
+    /* CTA */
+    .cta { position: relative; padding: 6rem 0; overflow: hidden; border-top: 1px solid var(--border); text-align: center; }
+    .cta-glow {
+      position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+      width: 32rem; height: 32rem; border-radius: 50%;
+      background: color-mix(in srgb, var(--primary) 4%, transparent);
+      filter: blur(4rem); pointer-events: none;
+    }
+    .cta-content { position: relative; }
+    .cta-content h2 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; }
+    .cta-content h2 span { color: var(--primary); }
+    .cta-content p { margin: 1rem auto 0; max-width: 32rem; font-size: 0.875rem; line-height: 1.6; color: var(--fg-muted); }
+    .cta-actions { margin-top: 2rem; display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; }
+    .cta-note { margin-top: 1.5rem; font-size: 0.75rem; color: var(--fg-muted); }
+
+    /* Footer */
+    .footer { border-top: 1px solid var(--border); padding: 1.5rem 0; }
+    .footer-inner { display: flex; align-items: center; justify-content: space-between; max-width: 80rem; margin: 0 auto; padding: 0 1.5rem; }
+    .footer-inner span { font-size: 0.75rem; color: var(--fg-muted); }
+
+    /* Reveal on scroll */
+    .reveal { opacity: 0; transform: translateY(1rem); transition: opacity 0.5s, transform 0.5s; }
+    .reveal.show { opacity: 1; transform: translateY(0); }
+
+    /* Responsive */
+    @media (min-width: 640px) {
+      .hero h1 { font-size: 3rem; }
+      .feature-grid { grid-template-columns: repeat(2, 1fr); }
+      .steps { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (min-width: 1024px) {
+      .hero h1 { font-size: 3.5rem; }
+      .hero { padding: 7rem 0 5rem; }
+      .feature-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <span class="nav-logo-mark">M</span>
+        <span>Micropod</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="https://github.com/castlemilk/micropod" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+          GitHub
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-bg"></div>
+      <div class="hero-glow"></div>
+      <div class="hero-content max-w-7xl text-center">
+        <div class="reveal show">
+          <span class="hero-badge">
+            <span class="hero-badge-dot"></span>
+            Built on Apple's container runtime — no Docker Desktop required
+          </span>
+        </div>
+        <h1 class="reveal show" style="transition-delay: 0.1s">
+          The native macOS manager for<br class="sm-only" />
+          <span>Apple's container runtime</span>
+        </h1>
+        <p class="reveal show" style="transition-delay: 0.2s">
+          Micropod is a fast, native SwiftUI app that manages containers, images, volumes, and networks — and translates <code style="font-family:var(--font-mono);font-size:0.8125rem;color:var(--primary)">docker-compose.yml</code> into a plan the runtime actually understands. Plus an MCP server so your agents can drive containers too.
+        </p>
+        <div class="hero-actions reveal show" style="transition-delay: 0.3s">
+          <a href="https://github.com/castlemilk/micropod/releases" class="btn-primary">
+            Download for macOS
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          </a>
+          <a href="https://github.com/castlemilk/micropod" target="_blank" rel="noopener" class="btn-secondary">
+            Star on GitHub
+          </a>
+        </div>
+        <div class="hero-viz reveal show" style="transition-delay: 0.4s">
+          <div class="app-mock">
+            <div class="mock-titlebar">
+              <span class="tl tl-r"></span><span class="tl tl-y"></span><span class="tl tl-g"></span>
+              <span class="title">Micropod</span>
+            </div>
+            <div class="mock-body">
+              <div class="mock-side">
+                <div class="side-label">Overview</div>
+                <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>Dashboard</div>
+                <div class="side-label">Resources</div>
+                <div class="side-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>Containers</div>
+                <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="10" x="3" y="11" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" x2="8" y1="16" y2="16"/><line x1="16" x2="16" y1="16" y2="16"/></svg>Images</div>
+                <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22a8 8 0 0 0 8-8c0-2.53-1.17-4.79-3-6.26"/><path d="M12 2a8 8 0 0 0-8 8c0 2.53 1.17 4.79 3 6.26"/></svg>Volumes</div>
+                <div class="side-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 1.76 4.24m2.24-6.24a10 10 0 0 1 2.76 6.20m-11.24-4.24a6 6 0 0 0-1.76 4.24m-2.24-6.24a10 10 0 0 0-2.76 6.20"/></svg>Networks</div>
+              </div>
+              <div class="mock-main">
+                <div class="tbl-head"><span>Name</span><span>Image</span><span>State</span><span style="text-align:right">CPU</span><span style="text-align:right">Memory</span></div>
+                <div class="mock-row">
+                  <span class="name"><span class="dot run"></span>web</span>
+                  <span class="img">alpine:3.20</span>
+                  <span><span class="pill run">running</span></span>
+                  <span class="num">0.4%</span>
+                  <span class="num">3.8 MB</span>
+                </div>
+                <div class="mock-row">
+                  <span class="name"><span class="dot run"></span>db</span>
+                  <span class="img">postgres:16</span>
+                  <span><span class="pill run">running</span></span>
+                  <span class="num">1.2%</span>
+                  <span class="num">41 MB</span>
+                </div>
+                <div class="mock-row">
+                  <span class="name"><span class="dot stopped"></span>buildkit</span>
+                  <span class="img">builder:0.13.1</span>
+                  <span><span class="pill stopped">stopped</span></span>
+                  <span class="num">—</span>
+                  <span class="num">—</span>
+                </div>
+                <div class="mock-status"><span class="live"></span> Runtime running · 2 running · 3 total · cli 1.2.2</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="py-24" id="features">
+      <div class="max-w-7xl text-center">
+        <div class="reveal"><p class="section-label">Why Micropod</p></div>
+        <div class="reveal" style="transition-delay:0.05s"><h2 class="section-title">Everything Docker Desktop Does.<br /><span>None of the tax.</span></h2></div>
+        <div class="reveal" style="transition-delay:0.1s"><p class="section-desc">Micropod is a native SwiftUI app built directly on Apple's container runtime — lightweight per-container VMs instead of one heavyweight Linux VM squatting on your RAM.</p></div>
+        <div class="feature-grid">
+          <div class="feature-card reveal" style="transition-delay:0s">
+            <div class="feature-header">
+              <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+              <span class="feature-tag">seconds, not minutes</span>
+            </div>
+            <h3>Native speed</h3>
+            <p>Apple's runtime boots lightweight VMs per container. A postgres compose stack is up in ~3–4 seconds. No Docker Desktop VM warming up, no daemon tax on your battery.</p>
+          </div>
+          <div class="feature-card reveal" style="transition-delay:0.05s">
+            <div class="feature-header">
+              <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a8 8 0 0 0 8-8c0-2.53-1.17-4.79-3-6.26"/><path d="M12 2a8 8 0 0 0-8 8c0 2.53 1.17 4.79 3 6.26"/><circle cx="12" cy="12" r="2"/></svg></div>
+              <span class="feature-tag">docker-compose.yml in</span>
+            </div>
+            <h3>Compose, translated</h3>
+            <p>The runtime has no native compose — Micropod translates your docker-compose.yml into a reviewable plan: networks, named volumes, builds, dependency-ordered starts, and real healthcheck-based readiness.</p>
+          </div>
+          <div class="feature-card reveal" style="transition-delay:0.1s">
+            <div class="feature-header">
+              <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+              <span class="feature-tag">5 s sampling</span>
+            </div>
+            <h3>Live stats &amp; charts</h3>
+            <p>Per-container CPU, memory, network I/O, and disk — with rolling charts on the dashboard and a sortable, filterable containers table with a responsive column layout.</p>
+          </div>
+          <div class="feature-card reveal" style="transition-delay:0.15s">
+            <div class="feature-header">
+              <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6-6-6"/><line x1="12" x2="20" y1="19" y2="19"/></svg></div>
+              <span class="feature-tag">real PTY</span>
+            </div>
+            <h3>Terminal, logs &amp; files</h3>
+            <p>An interactive terminal with real job control (setsid + TIOCSCTTY via a tiny C shim), streaming logs with search, and a file explorer that copies files in and out of containers.</p>
+          </div>
+          <div class="feature-card reveal" style="transition-delay:0.2s">
+            <div class="feature-header">
+              <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 16V6a4 4 0 0 0-8 0v10"/><rect width="16" height="7" x="4" y="13" rx="2"/></svg></div>
+              <span class="feature-tag">menu bar tray</span>
+            </div>
+            <h3>Always in the menu bar</h3>
+            <p>Running count and live CPU at a glance, a tray panel with per-container stats and quick actions, runtime auto-recovery if the daemon ever stops, and native notifications for pulls and builds.</p>
+          </div>
+          <div class="feature-card reveal" style="transition-delay:0.25s">
+            <div class="feature-header">
+              <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></svg></div>
+              <span class="feature-tag">MCP + Connect API</span>
+            </div>
+            <h3>Built for agents</h3>
+            <p>A built-in MCP server (STDIO JSON-RPC) lets Claude and other agents list, run, stop, and inspect containers — plus a Connect/gRPC-compatible HTTP API with Prometheus-style metrics.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="py-24">
+      <div class="max-w-7xl text-center">
+        <div class="reveal"><p class="section-label">Getting started</p></div>
+        <div class="reveal" style="transition-delay:0.05s"><h2 class="section-title">Running in <span>Three Steps</span></h2></div>
+        <div class="steps">
+          <div class="step reveal" style="transition-delay:0s">
+            <span class="step-num">01</span>
+            <h3>Install Apple's runtime</h3>
+            <p>Micropod manages everything: it detects the <code>container</code> CLI, starts the daemon, and installs the recommended kernel automatically — and keeps the runtime running for you.</p>
+          </div>
+          <div class="step reveal" style="transition-delay:0.05s">
+            <span class="step-num">02</span>
+            <h3>Pull or compose</h3>
+            <p>Pull an image with live progress, or drop in a <code>docker-compose.yml</code> and review the translated plan before anything starts.</p>
+          </div>
+          <div class="step reveal" style="transition-delay:0.1s">
+            <span class="step-num">03</span>
+            <h3>Manage everything</h3>
+            <p>Logs, stats charts, a real terminal, file copy, builds, volumes, and networks — from the window or the menu bar. ⌘K opens the command palette.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Comparison -->
+    <section class="py-24">
+      <div class="max-w-7xl text-center">
+        <div class="reveal"><p class="section-label">Compare</p></div>
+        <div class="reveal" style="transition-delay:0.05s"><h2 class="section-title">Micropod vs <span style="color:var(--fg-muted)">the alternatives</span></h2></div>
+        <div class="cmp reveal" style="transition-delay:0.1s">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th class="col-micropod">Micropod</th>
+                <th>Docker Desktop</th>
+                <th>Raw CLI only</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Apple container runtime</td><td class="col-micropod"><span class="yes">✓ native</span></td><td><span class="no">✗ own VM</span></td><td><span class="yes">✓</span></td></tr>
+              <tr><td>Full GUI (tables, charts, terminal)</td><td class="col-micropod"><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="no">✗</span></td></tr>
+              <tr><td>docker-compose support</td><td class="col-micropod"><span class="yes">✓ translated</span></td><td><span class="yes">✓</span></td><td><span class="no">✗</span></td></tr>
+              <tr><td>Menu bar tray with live stats</td><td class="col-micropod"><span class="yes">✓</span></td><td><span class="yes">✓</span></td><td><span class="no">✗</span></td></tr>
+              <tr><td>MCP server for AI agents</td><td class="col-micropod"><span class="yes">✓</span></td><td><span class="no">✗</span></td><td><span class="no">✗</span></td></tr>
+              <tr><td>Runtime auto-recovery</td><td class="col-micropod"><span class="yes">✓</span></td><td><span class="no">✗</span></td><td><span class="no">✗</span></td></tr>
+              <tr><td>VM overhead</td><td class="col-micropod"><span class="yes">lightweight, per-container</span></td><td><span class="no">one big VM</span></td><td class="col-micropod"><span class="yes">lightweight</span></td></tr>
+              <tr><td>License</td><td class="col-micropod"><span class="yes">open source</span></td><td><span class="no">paid for pros</span></td><td><span class="yes">open source</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+      <div class="cta-glow"></div>
+      <div class="cta-content max-w-7xl">
+        <h2>Your containers, <span>the Mac way.</span></h2>
+        <p>Download Micropod, and the runtime takes care of itself — start, kernel, recovery. You just ship.</p>
+        <div class="cta-actions">
+          <a href="https://github.com/castlemilk/micropod/releases" class="btn-primary">
+            Download for macOS
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          </a>
+          <a href="https://github.com/castlemilk/micropod" target="_blank" rel="noopener" class="btn-secondary">
+            View source
+          </a>
+        </div>
+        <p class="cta-note">Requires macOS 26+ · Apple silicon · free &amp; open source</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span>© 2026 Micropod — a skunkworq project</span>
+      <span>Built on <a href="https://github.com/apple/container" target="_blank" rel="noopener" style="color:var(--primary)">apple/container</a></span>
+    </div>
+  </footer>
+
+  <script>
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => { if (e.isIntersecting) e.target.classList.add('show'); }),
+      { threshold: 0.1 }
+    );
+    document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+  </script>
+</body>
+</html>
