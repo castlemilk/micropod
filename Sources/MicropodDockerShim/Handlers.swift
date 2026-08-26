@@ -78,9 +78,16 @@ final class Router: @unchecked Sendable {
     private let stats: StatsSampler
     private let sharedFS: (any SharedFSClient)?
 
-    init(
+    convenience init(
         config: ShimConfig, state: ShimState, events: EventsHub,
         client: ContainerCLIClient
+    ) {
+        self.init(config: config, state: state, events: events, client: client, sharedFS: nil)
+    }
+
+    init(
+        config: ShimConfig, state: ShimState, events: EventsHub,
+        client: ContainerCLIClient, sharedFS sharedFSOverride: (any SharedFSClient)?
     ) {
         self.config = config
         self.state = state
@@ -94,15 +101,19 @@ final class Router: @unchecked Sendable {
         self.systemConcrete = SystemService(client: client)
         self.logs = LogStreamer(client: client)
         self.stats = StatsSampler(client: client)
-        // Best-effort: if the shared-fs daemon socket exists, use it for
-        // synchronized file shares. Falls back to plain virtiofs binds.
-        let sharedSocket =
-            ProcessInfo.processInfo.environment["MICROPOD_SHAREDFS_SOCKET"]
-            ?? NSString("~/micropod/share-cache/socket").expandingTildeInPath
-        if FileManager.default.fileExists(atPath: sharedSocket) {
-            self.sharedFS = UnixSocketClient(socketPath: sharedSocket)
+        if let sharedFSOverride {
+            self.sharedFS = sharedFSOverride
         } else {
-            self.sharedFS = nil
+            // Best-effort: if the shared-fs daemon socket exists, use it for
+            // synchronized file shares. Falls back to plain virtiofs binds.
+            let sharedSocket =
+                ProcessInfo.processInfo.environment["MICROPOD_SHAREDFS_SOCKET"]
+                ?? NSString("~/micropod/share-cache/socket").expandingTildeInPath
+            if FileManager.default.fileExists(atPath: sharedSocket) {
+                self.sharedFS = UnixSocketClient(socketPath: sharedSocket)
+            } else {
+                self.sharedFS = nil
+            }
         }
     }
 
@@ -700,9 +711,11 @@ final class Router: @unchecked Sendable {
         // Synchronized file shares: rewrite directory binds through the
         // shared-fs daemon when available (APFS clonefile cache + FSEvents
         // invalidation). Per-container views are tracked for unmount on delete.
+        // Well-known cache paths are auto-shared; explicit shared:false or sharedMounts
+        // via labels overrides (see Router.isWellKnown / shouldUseSharedView).
         var sharedViewIDs: [ViewID] = []
         if let sharedFS, let binds = body.HostConfig?.Binds, !binds.isEmpty {
-            let translated = await translateBindsForSharedFS(binds, sharedFS: sharedFS)
+            let translated = await translateBindsForSharedFS(binds, request: body, sharedFS: sharedFS)
             if translated.binds != binds {
                 body.HostConfig?.Binds = translated.binds
                 sharedViewIDs = translated.viewIDs
@@ -727,7 +740,7 @@ final class Router: @unchecked Sendable {
     }
 
     private func translateBindsForSharedFS(
-        _ binds: [String], sharedFS: any SharedFSClient
+        _ binds: [String], request: DockerCreateRequest, sharedFS: any SharedFSClient
     ) async -> (binds: [String], viewIDs: [ViewID]) {
         var result: [String] = []
         var viewIDs: [ViewID] = []
@@ -745,6 +758,11 @@ final class Router: @unchecked Sendable {
             guard FileManager.default.fileExists(atPath: hostPath, isDirectory: &isDir),
                 isDir.boolValue
             else {
+                result.append(bind)
+                continue
+            }
+            // Well-known auto-detect + explicit shared / sharedMounts handling.
+            guard Self.shouldUseSharedView(containerPath, request: request) else {
                 result.append(bind)
                 continue
             }
@@ -781,6 +799,14 @@ final class Router: @unchecked Sendable {
             }
         }
         return (result, viewIDs)
+    }
+
+    // Backwards compat for any external callers that only pass binds.
+    private func translateBindsForSharedFS(
+        _ binds: [String], sharedFS: any SharedFSClient
+    ) async -> (binds: [String], viewIDs: [ViewID]) {
+        let emptyRequest = DockerCreateRequest(Image: "")
+        return await translateBindsForSharedFS(binds, request: emptyRequest, sharedFS: sharedFS)
     }
 
     static func buildRunRequest(
@@ -1499,5 +1525,140 @@ final class Router: @unchecked Sendable {
             self.VolumesDeleted = volumesDeleted
             self.SpaceReclaimed = spaceReclaimed
         }
+    }
+}
+
+// MARK: - Well-known cache path detection (intelligent shared cache)
+
+extension Router {
+    /// Well-known package-manager cache paths. Tilde is expanded per-container
+    /// via HOME / User (fallback /root). First three are absolute; last is
+    /// home-dependent (pip).
+    static let wellKnownTemplates: [String] = [
+        "/go/pkg/mod",
+        "/root/.cache/go-build",
+        "/root/.npm",
+        "~/.cache/pip",
+    ]
+
+    /// Container-aware home directory: Env HOME wins, else User -> /home/<user>, else /root.
+    static func homeDirectory(for request: DockerCreateRequest) -> String {
+        if let env = request.Env {
+            for entry in env where entry.hasPrefix("HOME=") {
+                let value = String(entry.dropFirst(5)).trimmingCharacters(in: .whitespaces)
+                if !value.isEmpty { return value }
+            }
+        }
+        if let user = request.User, !user.isEmpty {
+            let name = user.split(separator: ":").first.map(String.init) ?? user
+            let trimmed = name.trimmingCharacters(in: .whitespaces)
+            if !trimmed.isEmpty {
+                if trimmed == "root" { return "/root" }
+                // Numeric UIDs still map to /home/<uid> per spec fallback.
+                return "/home/\(trimmed)"
+            }
+        }
+        return "/root"
+    }
+
+    static func expandedPath(_ path: String, home: String) -> String {
+        var expanded = path.replacingOccurrences(of: "~", with: home)
+        // Normalize trailing slash (except root).
+        if expanded.count > 1 && expanded.hasSuffix("/") {
+            expanded = String(expanded.dropLast())
+        }
+        return expanded
+    }
+
+    /// One-arg overload uses fallback /root (for callers without container context).
+    static func isWellKnown(_ containerPath: String) -> Bool {
+        let fallback = DockerCreateRequest(Image: "")
+        return isWellKnown(containerPath, request: fallback)
+    }
+
+    static func isWellKnown(_ containerPath: String, request: DockerCreateRequest) -> Bool {
+        let home = homeDirectory(for: request)
+        let normalized = expandedPath(containerPath, home: home)
+        for template in wellKnownTemplates {
+            let expected = expandedPath(template, home: home)
+            if normalized == expected { return true }
+        }
+        return false
+    }
+
+    /// Backwards-compat alias matching the plan snippet's signature.
+    static func isWellKnown(_ containerPath: String, containerConfig: DockerCreateRequest) -> Bool {
+        isWellKnown(containerPath, request: containerConfig)
+    }
+
+    // MARK: Shared override helpers
+
+    private static let sharedFlagKeys = [
+        "micropod.cache.shared",
+        "cache.shared",
+        "shared",
+        "io.micropod.shared",
+        "com.micropod.cache.shared",
+    ]
+
+    private static let sharedMountsKeys = [
+        "micropod.cache.sharedMounts",
+        "cache.sharedMounts",
+        "sharedMounts",
+        "io.micropod.sharedMounts",
+        "micropod.sharedMounts",
+    ]
+
+    static func sharedFlag(from labels: [String: String]?) -> Bool? {
+        guard let labels else { return nil }
+        for key in sharedFlagKeys {
+            if let raw = labels[key]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+                if raw == "true" || raw == "1" || raw == "yes" { return true }
+                if raw == "false" || raw == "0" || raw == "no" { return false }
+            }
+        }
+        return nil
+    }
+
+    static func sharedMountsList(from labels: [String: String]?) -> [String] {
+        guard let labels else { return [] }
+        for key in sharedMountsKeys {
+            guard let raw = labels[key]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !raw.isEmpty
+            else { continue }
+            // Try JSON array decode first.
+            if raw.hasPrefix("["),
+               let data = raw.data(using: .utf8),
+               let decoded = try? JSONDecoder().decode([String].self, from: data)
+            {
+                return decoded.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            }
+            // Comma-separated list.
+            if raw.contains(",") {
+                let parts = raw.split(separator: ",").map {
+                    $0.trimmingCharacters(in: .whitespaces)
+                }.filter { !$0.isEmpty }
+                if !parts.isEmpty { return parts }
+            }
+            return [raw]
+        }
+        return []
+    }
+
+    static func shouldUseSharedView(_ containerPath: String, request: DockerCreateRequest) -> Bool {
+        // shared:false forces isolation even for well-known.
+        if let flag = sharedFlag(from: request.Labels), flag == false { return false }
+        if isWellKnown(containerPath, request: request) { return true }
+        let mounts = sharedMountsList(from: request.Labels)
+        if !mounts.isEmpty {
+            let home = homeDirectory(for: request)
+            let normalized = expandedPath(containerPath, home: home)
+            for mount in mounts {
+                let expected = expandedPath(mount, home: home)
+                if normalized == expected { return true }
+            }
+        }
+        if let flag = sharedFlag(from: request.Labels), flag == true { return true }
+        return false
     }
 }
