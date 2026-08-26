@@ -93,6 +93,18 @@ else
     echo "!! micropod-docker-shim not found in .build/release — shim auto-start disabled"
 fi
 
+# Bundle the synchronized file-shares daemon — the shim auto-discovers it
+# at ~/micropod/share-cache/socket and rewrites directory binds through it.
+if [ -f ".build/release/micropod-sharedfs" ]; then
+    cp .build/release/micropod-sharedfs "$APP_BUNDLE/Contents/MacOS/micropod-sharedfs"
+    chmod +x "$APP_BUNDLE/Contents/MacOS/micropod-sharedfs"
+    cp .build/release/micropod-sharedfs "$DIST/micropod-sharedfs-bin"
+    chmod +x "$DIST/micropod-sharedfs-bin"
+    echo "==> Shared-fs daemon bundled (micropod-sharedfs)"
+else
+    echo "!! micropod-sharedfs not found in .build/release — shared mounts will fall back to plain virtiofs"
+fi
+
 echo "==> Staging micropod CLI"
 cp .build/release/micropod "$DIST/micropod"
 chmod +x "$DIST/micropod"

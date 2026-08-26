@@ -10,6 +10,7 @@ INSTALL_APP="/Applications/$APP_NAME.app"
 MCP_DIR="$HOME/.local/bin"
 MCP_BIN="$MCP_DIR/micropod-mcp"
 CLI_BIN="$MCP_DIR/micropod"
+SHAREDFS_BIN="$MCP_DIR/micropod-sharedfs"
 UNINSTALL=0
 [[ "${1:-}" == "--uninstall" ]] && UNINSTALL=1
 
@@ -17,10 +18,14 @@ uninstall() {
     echo "==> Stopping $APP_NAME"
     pkill -x "$APP_NAME" 2>/dev/null || true
     sleep 1
+    echo "==> Stopping shared-fs daemon"
+    launchctl bootout "gui/$(id -u)/com.skunkworq.micropod-sharedfs" 2>/dev/null || true
+    rm -f "$HOME/Library/LaunchAgents/com.skunkworq.micropod-sharedfs.plist"
+    pkill -x "micropod-sharedfs" 2>/dev/null || true
     echo "==> Removing $INSTALL_APP"
     rm -rf "$INSTALL_APP"
     echo "==> Removing $MCP_BIN"
-    rm -f "$MCP_BIN" "${MCP_BIN}-bin" "$CLI_BIN"
+    rm -f "$MCP_BIN" "${MCP_BIN}-bin" "$CLI_BIN" "$SHAREDFS_BIN"
     # Drop the Launch Services registration so the icon/name vanish cleanly.
     /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
         -u "$INSTALL_APP" 2>/dev/null || true
@@ -61,6 +66,32 @@ if [ -f "$ROOT/dist/micropod-docker-shim-bin" ]; then
     cp "$ROOT/dist/micropod-docker-shim-bin" "$MCP_DIR/micropod-docker-shim"
     chmod +x "$MCP_DIR/micropod-docker-shim"
     echo "==> Installed Docker API shim to $MCP_DIR/micropod-docker-shim"
+fi
+
+# Synchronized file-shares daemon: same pattern — app can auto-start it,
+# and a LaunchAgent keeps it alive for shim bind rewriting.
+if [ -f "$ROOT/dist/micropod-sharedfs-bin" ]; then
+    cp "$ROOT/dist/micropod-sharedfs-bin" "$SHAREDFS_BIN"
+    chmod +x "$SHAREDFS_BIN"
+    echo "==> Installed shared-fs daemon to $SHAREDFS_BIN"
+    mkdir -p "$HOME/Library/LaunchAgents"
+    cat > "$HOME/Library/LaunchAgents/com.skunkworq.micropod-sharedfs.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.skunkworq.micropod-sharedfs</string>
+    <key>ProgramArguments</key><array><string>$SHAREDFS_BIN</string></array>
+    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><true/>
+    <key>StandardOutPath</key><string>$HOME/Library/Logs/micropod-sharedfs.log</string>
+    <key>StandardErrorPath</key><string>$HOME/Library/Logs/micropod-sharedfs.log</string>
+</dict>
+</plist>
+PLIST
+    launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.skunkworq.micropod-sharedfs.plist" 2>/dev/null || \
+        launchctl bootout "gui/$(id -u)/com.skunkworq.micropod-sharedfs" 2>/dev/null; launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.skunkworq.micropod-sharedfs.plist" 2>/dev/null || true
+    echo "==> Shared-fs daemon LaunchAgent installed (socket ~/micropod/share-cache/socket)"
 fi
 
 if [ -f "$ROOT/dist/micropod" ]; then
