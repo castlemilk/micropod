@@ -42,6 +42,7 @@ final class ShimServerTests: XCTestCase {
             try client.request("GET", "/v1.24/_ping").status, 200)
         XCTAssertEqual(
             try client.request("GET", "/v1.44/version").status, 200)
+        XCTAssertEqual(try client.request("POST", "/build/prune").status, 200)
     }
 
     // MARK: Lifecycle

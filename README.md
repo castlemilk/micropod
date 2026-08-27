@@ -248,7 +248,8 @@ DOCKER_HOST=unix://$HOME/.micropod/docker.sock <docker-api-client> ...
   `127.0.0.1:45455` (all interfaces), so containers inside the runtime VM can
   reach it via the host bridge.
 - **Surface**: `_ping`, `/version`, `/info`, `/auth`, `/events`, images
-  (pull/list/inspect/tag/delete/prune), containers (list/create/inspect/
+  (pull/list/inspect/tag/delete/prune), `POST /build` (legacy builder),
+  containers (list/create/inspect/
   start/stop/restart/kill/rm/wait/logs/stats/archive put+get/prune), exec
   (create/start with stdcopy hijack or detach/inspect), networks and volumes
   (list/create/delete/prune). Versioned client paths (`/v1.24/...`) are
@@ -267,7 +268,25 @@ DOCKER_HOST=unix://$HOME/.micropod/docker.sock <docker-api-client> ...
   connections with pipelined-response ordering, unknown list filters are
   rejected like dockerd, name conflicts return 409, SIGTERM/SIGINT exit
   cleanly (killing live exec children), and exec children are killed when
-  the client disconnects.
+  the client disconnects. HEAD responses omit their body (a body on HEAD
+  desynchronizes keep-alive clients), and container IPs are reported without
+  the runtime's CIDR suffix (`192.168.64.7/24` → `192.168.64.7`), which the
+  Docker CLI refuses to parse in `docker port`/`inspect`.
+- **docker build**: `POST /build` extracts the uploaded context and delegates
+  to `container build`, streaming progress back as buildkit-style NDJSON.
+  Use the legacy builder (`DOCKER_BUILDKIT=0 docker build …` /
+  `docker compose build`): the CLI's BuildKit mode speaks gRPC (`POST /grpc`),
+  which the shim does not proxy. Three runtime quirks are worked around:
+  the extracted context must live under `$HOME` (the container CLI's file
+  provider silently drops subdirectory contents for paths outside the home
+  tree — `/tmp` and `/var/folders` contexts come out with empty dirs), the
+  context's `.dockerignore` is stripped after extraction (the Docker CLI
+  already applied it client-side, avoiding a second filtering pass), and
+  large chunked uploads are parsed only
+  once complete (waiting on the terminal `0\r\n\r\n` chunk / Content-Length
+  keeps multi-hundred-MB uploads O(N) instead of O(N²)). Validated with
+  real Go builds: `cuttlefish` `docker compose build controlplane` (~130MB
+  context, full `go build`) and `runner`.
 - **Restart policies**: the runtime has none, so the shim supervises
   `always` / `unless-stopped` / `on-failure` (+ `MaximumRetryCount`) with
   exponential backoff that resets after 10s of stable running.

@@ -234,6 +234,12 @@ final class Router: @unchecked Sendable {
             throw ShimError.notImplemented(
                 "attach networks via HostConfig.NetworkMode at container create")
 
+        // MARK: Build
+        case ("POST", "build") where segments.count == 2 && segments[1] == "prune":
+            return try await buildPrune(request)
+        case ("POST", "build") where segments.count == 1:
+            return try await imageBuild(request)
+
         // MARK: Volumes
         case ("GET", "volumes"):
             return try await volumesList(request)
@@ -476,6 +482,153 @@ final class Router: @unchecked Sendable {
             }
         }
         return true
+    }
+
+    private func imageBuild(_ request: ShimRequest) async throws -> ShimResponse {
+        // Docker API: POST /build?t=tag&dockerfile=Dockerfile&target=&platform=&nocache=0&buildargs={}&labels={}&...
+        // Body is a tar context (optionally gzip). We extract to a temp dir and delegate to `container build`.
+        if request.body.isEmpty {
+            throw ShimError.badRequest("missing build context")
+        }
+        let tags: [String] = {
+            // query map collapses repeated `t`; handle JSON-encoded list as well
+            if let raw = request.query["t"] ?? request.query["tag"], !raw.isEmpty {
+                if raw.hasPrefix("["), let data = raw.data(using: .utf8),
+                    let arr = try? JSONDecoder().decode([String].self, from: data)
+                {
+                    return arr
+                }
+                return [raw]
+            }
+            return []
+        }()
+        let dockerfile = request.q("dockerfile").isEmpty ? nil : request.q("dockerfile")
+        let target = request.q("target").isEmpty ? nil : request.q("target")
+        let platform = request.q("platform").isEmpty ? nil : request.q("platform")
+        let noCache = request.q("nocache") == "1" || request.q("nocache").lowercased() == "true"
+        // buildargs is JSON dict string
+        var buildArgs: [String] = []
+        if let raw = request.query["buildargs"], !raw.isEmpty, let data = raw.data(using: .utf8),
+            let dict = try? JSONSerialization.jsonObject(with: data) as? [String: String]
+        {
+            buildArgs = dict.map { "\($0.key)=\($0.value)" }
+        }
+        var labelSpecs: [LabelSpec] = []
+        if let raw = request.query["labels"], !raw.isEmpty, let data = raw.data(using: .utf8),
+            let dict = try? JSONSerialization.jsonObject(with: data) as? [String: String]
+        {
+            labelSpecs = dict.map { LabelSpec(key: $0.key, value: $0.value) }
+        }
+        // Create temp context — lifetime tied to the streaming Task, not the request scope.
+        // Must live under $HOME: the container CLI's file provider silently drops
+        // subdirectory contents for contexts outside the home tree.
+        let buildsRoot = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".micropod/builds")
+        try? FileManager.default.createDirectory(at: buildsRoot, withIntermediateDirectories: true)
+        let tmpRoot = buildsRoot.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tmpRoot, withIntermediateDirectories: true)
+        let contextDir = tmpRoot.appendingPathComponent("context")
+        try FileManager.default.createDirectory(at: contextDir, withIntermediateDirectories: true)
+        // Write body to file and extract (handle plain tar or gzip, plus xattrs/pax)
+        let tarPath = tmpRoot.appendingPathComponent("context.tar")
+        do { try request.body.write(to: tarPath) } catch {
+            throw ShimError.internalError("failed to stage build context: \(error)")
+        }
+        // Detect gzip by magic bytes 1f 8b
+        let isGzip: Bool = {
+            if request.header("content-encoding").lowercased().contains("gzip") { return true }
+            if request.body.count >= 2 && request.body[0] == 0x1F && request.body[1] == 0x8B { return true }
+            return false
+        }()
+        let tarArgs: [String] =
+            isGzip ? ["-xzf", tarPath.path, "-C", contextDir.path] : ["-xf", tarPath.path, "-C", contextDir.path]
+        let tarProc = Process()
+        tarProc.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
+        tarProc.arguments = tarArgs
+        tarProc.standardOutput = FileHandle.nullDevice
+        tarProc.standardError = Pipe()
+        do {
+            try tarProc.run()
+            tarProc.waitUntilExit()
+        } catch {
+            throw ShimError.badRequest("failed to unpack build context: \(error)")
+        }
+        if tarProc.terminationStatus != 0 {
+            let errData = (tarProc.standardError as? Pipe)?.fileHandleForReading.readDataToEndOfFile() ?? Data()
+            let msg = String(data: errData, encoding: .utf8) ?? "unknown tar error"
+            throw ShimError.badRequest("failed to unpack build context: \(msg)")
+        }
+        // The Docker CLI already applied .dockerignore when creating the tar;
+        // avoid a second filtering pass in the nested builder.
+        try? FileManager.default.removeItem(at: contextDir.appendingPathComponent(".dockerignore"))
+        // Resolve dockerfile to absolute path inside context (container build needs file existence check)
+        let resolvedDockerfile: String? = {
+            guard let df = dockerfile else { return nil }
+            if df.hasPrefix("/") { return df }
+            return contextDir.appendingPathComponent(df).path
+        }()
+        // Debug: list context
+        fputs(
+            "[shim] build tags=\(tags) dockerfile=\(String(describing: resolvedDockerfile)) context=\(contextDir.path) contents=\((try? FileManager.default.contentsOfDirectory(atPath: contextDir.path)) ?? [])\n",
+            stderr)
+        let buildReq = ContainerBuildRequest(
+            contextDirectory: contextDir.path,
+            dockerfile: resolvedDockerfile,
+            tags: tags,
+            buildArgs: buildArgs,
+            target: target,
+            platform: platform,
+            noCache: noCache,
+            labels: labelSpecs)
+        let progress = images.build(buildReq)
+        let (stream, cont) = AsyncStream<Data>.makeStream()
+        Task.detached(priority: .userInitiated) {
+            defer {
+                cont.finish()
+                try? FileManager.default.removeItem(at: tmpRoot)
+            }
+            do {
+                for try await event in progress {
+                    let line = BuildStreamLine(stream: event.line + "\n")
+                    if let data = try? JSONEncoder().encode(line) {
+                        cont.yield(data + Data("\n".utf8))
+                    }
+                }
+                // Final aux with image ID if we can resolve it (best-effort)
+                let aux: String? = {
+                    if let tag = tags.first, !tag.isEmpty { return tag }
+                    return nil
+                }()
+                if let aux {
+                    let tail = BuildAuxLine(aux: ["ID": aux])
+                    if let data = try? JSONEncoder().encode(tail) {
+                        cont.yield(data + Data("\n".utf8))
+                    }
+                }
+            } catch {
+                let line = BuildErrorLine(errorDetail: ["message": "\(error)"], error: "\(error)")
+                if let data = try? JSONEncoder().encode(line) {
+                    cont.yield(data + Data("\n".utf8))
+                }
+            }
+        }
+        return .stream(200, [("Content-Type", "application/json")], stream)
+    }
+
+    struct BuildStreamLine: Encodable { var stream: String }
+    struct BuildAuxLine: Encodable { var aux: [String: String] }
+    struct BuildErrorLine: Encodable {
+        var errorDetail: [String: String]
+        var error: String
+    }
+
+    private func buildPrune(_ request: ShimRequest) async throws -> ShimResponse {
+        _ = request
+        struct Prune: Encodable {
+            var ImagesDeleted: [String] = []
+            var SpaceReclaimed: Int = 0
+        }
+        return Self.encode(Prune())
     }
 
     private func imageInspect(_ reference: String) async throws -> ShimResponse {
@@ -1624,12 +1777,12 @@ extension Router {
         guard let labels else { return [] }
         for key in sharedMountsKeys {
             guard let raw = labels[key]?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  !raw.isEmpty
+                !raw.isEmpty
             else { continue }
             // Try JSON array decode first.
             if raw.hasPrefix("["),
-               let data = raw.data(using: .utf8),
-               let decoded = try? JSONDecoder().decode([String].self, from: data)
+                let data = raw.data(using: .utf8),
+                let decoded = try? JSONDecoder().decode([String].self, from: data)
             {
                 return decoded.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
             }

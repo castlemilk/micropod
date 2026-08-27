@@ -143,9 +143,15 @@ enum DockerMapper {
             NetworkSettings: DockerContainerSummary.SummaryNetworkSettings(
                 Networks: [
                     networkName:
-                        .init(IPAddress: container.ipv4Address, Gateway: nil)
+                        .init(IPAddress: plainIP(container.ipv4Address), Gateway: nil)
                 ]),
             Mounts: mounts)
+    }
+
+    /// Runtime reports addresses with a CIDR suffix (192.168.64.7/24);
+    /// Docker clients expect a bare address.
+    static func plainIP(_ raw: String) -> String {
+        raw.split(separator: "/").first.map(String.init) ?? raw
     }
 
     /// Builds a Container proto from the runtime's raw `container inspect`
@@ -190,7 +196,7 @@ enum DockerMapper {
                 container.networks.append(name)
             }
             if container.ipv4Address.isEmpty {
-                container.ipv4Address = (raw["ipv4Address"] as? String) ?? ""
+                container.ipv4Address = plainIP((raw["ipv4Address"] as? String) ?? "")
             }
         }
         if let initProcess = configuration["initProcess"] as? [String: Any] {
@@ -236,7 +242,8 @@ enum DockerMapper {
         }
 
         let networkName = container.networks.first ?? "default"
-        let gateway = container.ipv4Address.split(separator: ".").dropLast().joined(separator: ".") + ".1"
+        let ipAddress = plainIP(container.ipv4Address)
+        let gateway = ipAddress.isEmpty ? "" : ipAddress.split(separator: ".").dropLast().joined(separator: ".") + ".1"
 
         return DockerContainerInspect(
             Id: container.id,
@@ -262,13 +269,13 @@ enum DockerMapper {
                 OpenStdin: false),
             HostConfig: create?.HostConfig ?? DockerHostConfig(),
             NetworkSettings: DockerContainerInspect.InspectNetworkSettings(
-                IPAddress: container.ipv4Address,
-                Gateway: container.ipv4Address.isEmpty ? "" : gateway,
+                IPAddress: ipAddress,
+                Gateway: ipAddress.isEmpty ? "" : gateway,
                 Ports: portMap,
                 Networks: [
                     networkName:
                         DockerContainerInspect.InspectNetworkSettings.DockerNetworkInspect(
-                            IPAddress: container.ipv4Address, Gateway: gateway, MacAddress: "")
+                            IPAddress: ipAddress, Gateway: gateway, MacAddress: "")
                 ]),
             Mounts: mounts(container))
     }

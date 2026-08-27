@@ -14,6 +14,12 @@ final class DockerMapperTests: XCTestCase {
         XCTAssertEqual(DockerMapper.stateName(""), "")
     }
 
+    func testPlainIPRemovesCIDRSuffix() {
+        XCTAssertEqual(DockerMapper.plainIP("192.168.64.7/24"), "192.168.64.7")
+        XCTAssertEqual(DockerMapper.plainIP("192.168.64.7"), "192.168.64.7")
+        XCTAssertEqual(DockerMapper.plainIP(""), "")
+    }
+
     func testSummaryShape() {
         var container = Micropod_V1_Container()
         container.id = "web-1"

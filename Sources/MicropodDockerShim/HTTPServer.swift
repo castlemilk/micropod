@@ -298,13 +298,23 @@ final class ShimHTTPServer: @unchecked Sendable {
     }
 
     /// Thread-per-connection read loop for raw-fd (unix socket) transports.
+    /// Large bodies (build contexts) are only parsed once fully received —
+    /// waiting on the chunked terminator or content-length — so recv-heavy
+    /// uploads stay O(N) instead of re-decoding the whole buffer per recv.
     private func serve(fileDescriptor fd: Int32) {
         let connection = ShimConnection(fileDescriptor: fd)
         Thread.detachNewThread { [weak self] in
             var buffer = Data()
+            var headerDone = false
+            var bodyIsChunked = false
+            var bodyStart = 0
+            var contentLength = 0
+            var terminatorScan = 0
             let chunkSize = 256 * 1024
             let chunk = UnsafeMutablePointer<UInt8>.allocate(capacity: chunkSize)
             defer { chunk.deallocate() }
+            let headerTerminator = Data("\r\n\r\n".utf8)
+            let chunkTerminator = Data("\r\n0\r\n\r\n".utf8)
             while !Task.isCancelled {
                 let received = Darwin.recv(fd, chunk, chunkSize, 0)
                 if received <= 0 { break }
@@ -314,8 +324,40 @@ final class ShimHTTPServer: @unchecked Sendable {
                     continue
                 }
                 buffer.append(incoming)
+                if !headerDone {
+                    guard let headRange = buffer.range(of: headerTerminator) else { continue }
+                    let head = String(
+                        decoding: buffer[buffer.startIndex..<headRange.lowerBound], as: UTF8.self)
+                    let lower = head.lowercased()
+                    bodyIsChunked = lower.contains("transfer-encoding") && lower.contains("chunked")
+                    bodyStart = buffer.distance(from: buffer.startIndex, to: headRange.upperBound)
+                    contentLength = 0
+                    if let match = lower.range(
+                        of: #"content-length:[ ]*([0-9]+)"#, options: .regularExpression)
+                    {
+                        contentLength = Int(lower[match].filter(\.isNumber)) ?? 0
+                    }
+                    headerDone = true
+                    if !connection.hasSentContinue {
+                        let pending = buffer
+                        Task { await connection.sendContinueIfNeeded(pending) }
+                    }
+                }
+                if bodyIsChunked {
+                    let scanFrom = buffer.index(
+                        buffer.startIndex,
+                        offsetBy: min(max(0, terminatorScan - 8), buffer.count))
+                    if buffer.range(of: chunkTerminator, in: scanFrom..<buffer.endIndex) == nil {
+                        terminatorScan = buffer.count
+                        continue
+                    }
+                } else if contentLength > 0, buffer.count < bodyStart + contentLength {
+                    continue
+                }
                 if let parsed = ShimRequestParser.parse(buffer) {
                     buffer = parsed.remainder
+                    headerDone = false
+                    terminatorScan = 0
                     connection.resetContinueFlag()
                     guard let self else { return }
                     let request = parsed.request
@@ -324,11 +366,8 @@ final class ShimHTTPServer: @unchecked Sendable {
                     }
                     continue
                 }
-                if !connection.hasSentContinue, !buffer.isEmpty {
-                    let pending = buffer
-                    Task { await connection.sendContinueIfNeeded(pending) }
-                }
-                if buffer.count > 64 * 1024 * 1024 { break }
+                if bodyIsChunked { terminatorScan = buffer.count }
+                if buffer.count > 512 * 1024 * 1024 { break }
             }
             connection.finishInbound()
             connection.close()
@@ -383,7 +422,7 @@ final class ShimHTTPServer: @unchecked Sendable {
             let snapshot = pending
             Task { await connection.sendContinueIfNeeded(snapshot) }
         }
-        if pending.count > 64 * 1024 * 1024 {
+        if pending.count > 512 * 1024 * 1024 {
             let oversized = Data("HTTP/1.1 413 Payload Too Large\r\nContent-Length: 0\r\n\r\n".utf8)
             Task { _ = await connection.write(oversized) }
             connection.close()
@@ -444,12 +483,16 @@ final class ShimHTTPServer: @unchecked Sendable {
             _ = await connection.write(Self.head(code: code, headers: [], body: Data()))
             finishFramed(request, connection: connection, remainder: remainder)
         case .json(let code, let data):
+            let body = request.method == "HEAD" ? Data() : data
             _ = await connection.write(
                 Self.head(code: code, headers: [("Content-Type", "application/json")], body: data)
-                    + data)
+                    + body)
             finishFramed(request, connection: connection, remainder: remainder)
         case .raw(let code, let headers, let data):
-            _ = await connection.write(Self.head(code: code, headers: headers, body: data) + data)
+            // HEAD responses carry headers (incl. Content-Length) but no body;
+            // sending one desynchronizes keep-alive clients.
+            let body = request.method == "HEAD" ? Data() : data
+            _ = await connection.write(Self.head(code: code, headers: headers, body: data) + body)
             finishFramed(request, connection: connection, remainder: remainder)
         case .stream(let code, let headers, let chunks):
             var allHeaders = headers
@@ -613,8 +656,9 @@ enum ShimRequestParser {
                     if trailer.isEmpty { return (body, dataEnd) }
                 }
             }
+            let remaining = buffer.distance(from: lineEnd.upperBound, to: buffer.endIndex)
+            guard size <= remaining else { return nil }
             dataEnd = buffer.index(lineEnd.upperBound, offsetBy: size)
-            guard dataEnd <= buffer.endIndex else { return nil }
             body.append(buffer[lineEnd.upperBound..<dataEnd])
             guard let sep = buffer.range(of: crlf, in: dataEnd..<buffer.endIndex) else {
                 return nil

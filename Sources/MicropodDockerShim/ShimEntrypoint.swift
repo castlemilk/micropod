@@ -69,6 +69,7 @@ struct ShimBootstrap {
 
         signal(SIGTERM, SIG_IGN)
         signal(SIGINT, SIG_IGN)
+        signal(SIGPIPE, SIG_IGN)
         let shutdown: @Sendable () -> Void = {
             // Kill live exec children so shutdown doesn't orphan CLI
             // processes, then exit.
