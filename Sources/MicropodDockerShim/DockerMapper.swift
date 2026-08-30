@@ -154,6 +154,45 @@ enum DockerMapper {
         raw.split(separator: "/").first.map(String.init) ?? raw
     }
 
+    /// The mask length the runtime reported, or 0 when it gave none. Docker's
+    /// schema carries it separately from the address, in `IPPrefixLen`.
+    static func addressPrefixLength(_ raw: String) -> Int {
+        guard let slash = raw.firstIndex(of: "/") else { return 0 }
+        return Int(raw[raw.index(after: slash)...]) ?? 0
+    }
+
+    /// The `.1` host of an address's /24, or empty when there is no address
+    /// to derive one from. Every field handed to a Docker client must be
+    /// either a parseable address or empty — never a partial one.
+    static func defaultGateway(for address: String) -> String {
+        guard !address.isEmpty else { return "" }
+        let octets = address.split(separator: ".")
+        guard octets.count == 4 else { return "" }
+        return octets.dropLast().joined(separator: ".") + ".1"
+    }
+
+    /// Whether the runtime has ever actually started this container.
+    ///
+    /// The Apple runtime reports `state: "stopped"` both for a container that
+    /// was created and never run and for one that ran to completion — only
+    /// `status.startedDate` tells them apart. `/containers/{id}/wait` must not
+    /// treat the former as an exit: the docker CLI issues `wait` concurrently
+    /// with `start`, so returning early makes `docker run` exit before the
+    /// container runs, and makes `--rm` delete it out from under its own
+    /// `start` call.
+    static func hasEverStarted(rawInspect data: Data) -> Bool {
+        guard let parsed = try? JSONSerialization.jsonObject(with: data) else { return false }
+        let entry: [String: Any]?
+        if let entries = parsed as? [[String: Any]] {
+            entry = entries.first
+        } else {
+            entry = parsed as? [String: Any]
+        }
+        guard let status = entry?["status"] as? [String: Any] else { return false }
+        let started = status["startedDate"] as? String
+        return !(started ?? "").isEmpty
+    }
+
     /// Builds a Container proto from the runtime's raw `container inspect`
     /// JSON so the shim can serve /containers/{id}/json with a single
     /// flat-cost CLI call instead of a full list enumeration.
@@ -242,8 +281,13 @@ enum DockerMapper {
         }
 
         let networkName = container.networks.first ?? "default"
-        let ipAddress = plainIP(container.ipv4Address)
-        let gateway = ipAddress.isEmpty ? "" : ipAddress.split(separator: ".").dropLast().joined(separator: ".") + ".1"
+        let address = plainIP(container.ipv4Address)
+        let prefixLen = addressPrefixLength(container.ipv4Address)
+        // Guarded rather than inline: a container that has not started yet has
+        // no address, and "".split(".") + ".1" yields ".1", which the Go docker
+        // client rejects with `ParseAddr(".1"): IPv4 field must have at least
+        // one digit`.
+        let gateway = defaultGateway(for: address)
 
         return DockerContainerInspect(
             Id: container.id,
@@ -269,13 +313,15 @@ enum DockerMapper {
                 OpenStdin: false),
             HostConfig: create?.HostConfig ?? DockerHostConfig(),
             NetworkSettings: DockerContainerInspect.InspectNetworkSettings(
-                IPAddress: ipAddress,
-                Gateway: ipAddress.isEmpty ? "" : gateway,
+                IPAddress: address,
+                IPPrefixLen: prefixLen,
+                Gateway: gateway,
                 Ports: portMap,
                 Networks: [
                     networkName:
                         DockerContainerInspect.InspectNetworkSettings.DockerNetworkInspect(
-                            IPAddress: ipAddress, Gateway: gateway, MacAddress: "")
+                            IPAddress: address, IPPrefixLen: prefixLen, Gateway: gateway,
+                            MacAddress: "")
                 ]),
             Mounts: mounts(container))
     }

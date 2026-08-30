@@ -41,8 +41,10 @@ actor ShimState {
     }
 
     func forget(id: String) {
+        startedIDs.remove(id)
+        attachInFlightIDs.remove(id)
         creates.removeValue(forKey: id)
-        lastExitCodes.removeValue(forKey: id)
+        // lastExitCodes deliberately survives — see noteExit.
         nameToID = nameToID.filter { $0.value != id }
         autoRemoveIDs.remove(id)
         resetRestartTracking(id)
@@ -66,7 +68,54 @@ actor ShimState {
         execs[id]
     }
 
+    /// Containers this shim has issued a `/start` for. The runtime cannot tell
+    /// us — it reports "stopped" for both a never-started container and one
+    /// that ran and exited — and asking it costs a CLI process per poll.
+    private var startedIDs: Set<String> = []
+
+    func markStarted(id: String) {
+        startedIDs.insert(id)
+    }
+
+    /// Containers whose `container start --attach` run has not finished.
+    ///
+    /// Held here rather than behind a lock in AttachRegistry because the
+    /// events loop needs to consult it: taking a non-reentrant NSLock from
+    /// inside that actor deadlocks it, and a stalled events loop stops every
+    /// reap and restart in the shim.
+    private var attachInFlightIDs: Set<String> = []
+
+    func markAttachRunning(id: String) {
+        attachInFlightIDs.insert(id)
+    }
+
+    func clearAttachRunning(id: String) {
+        attachInFlightIDs.remove(id)
+    }
+
+    func isAttachRunning(id: String) -> Bool {
+        attachInFlightIDs.contains(id)
+    }
+
+    func hasStarted(id: String) -> Bool {
+        startedIDs.contains(id)
+    }
+
+    /// Exit codes must outlive the container they describe: with `--rm` the
+    /// client's `/wait` is still polling when the container is deleted, and a
+    /// forgotten code reads back as 0 — a failed run reported as success.
+    /// Bounded so a long-lived shim doesn't accumulate them forever.
+    private static let exitCodeHistoryLimit = 512
+    private var exitCodeOrder: [String] = []
+
     func noteExit(id: String, code: Int) {
+        if lastExitCodes[id] == nil {
+            exitCodeOrder.append(id)
+            if exitCodeOrder.count > Self.exitCodeHistoryLimit {
+                let evicted = exitCodeOrder.removeFirst()
+                lastExitCodes.removeValue(forKey: evicted)
+            }
+        }
         lastExitCodes[id] = code
     }
 
