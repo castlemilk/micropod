@@ -171,4 +171,28 @@ public enum SharedFSError: Error, Sendable {
     case clonefileUnavailable
     case daemonUnavailable
     case invalidResponse(String)
+    case tarFailed(String)
+    case containerCommandFailed(String, String)
+    case volumeMissing(String)
+}
+
+extension SharedFSError: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case .sourceUnreadable(let url):
+            return "source tree unreadable: \(url.path)"
+        case .clonefileUnavailable:
+            return "clonefile(2) unavailable on this filesystem"
+        case .daemonUnavailable:
+            return "shared-fs daemon unavailable"
+        case .invalidResponse(let detail):
+            return "invalid shared-fs response: \(detail)"
+        case .tarFailed(let detail):
+            return "tar failed: \(detail)"
+        case .containerCommandFailed(let command, let detail):
+            return "container \(command) failed: \(detail)"
+        case .volumeMissing(let volume):
+            return "volume '\(volume)' does not exist — create it before syncing"
+        }
+    }
 }

@@ -33,6 +33,7 @@ proto/micropod/v1/        protobuf models (curated views + compose spec)
 Sources/MicropodCore/     CLI client, DTOs, model mapper, services (actors)
 Sources/MicropodApp/      SwiftUI app (store + views)
 Sources/MicropodMCP/      MCP STDIO server
+Sources/MicropodSharedFS/ incremental host-dir -> block-volume sync
 Sources/CPtyShim/         C PTY shim for interactive terminals
 Tests/MicropodCoreTests/  JSON fixture decoding, progress parsing, compose plan
 Tests/MicropodIntegrationTests/  end-to-end tests against a mock `container` CLI
@@ -301,6 +302,62 @@ DOCKER_HOST=unix://$HOME/.micropod/docker.sock <docker-api-client> ...
 Configuration: `MICROPOD_SHIM_SOCKET` (default `~/.micropod/docker.sock`),
 `MICROPOD_SHIM_TCP_PORT` (default 45455), `MICROPOD_SHIM_BRIDGE`
 (default `192.168.64.1`), `MICROPOD_CLI_PATH`.
+
+## Volume materialization (`micropod-sharedfs`)
+
+Incrementally mirrors a host directory into a **block-backed** volume, shipping
+only what changed since the last sync.
+
+```sh
+micropod-sharedfs sync --src ~/projects/app --volume app-src --dest /workspace
+micropod-sharedfs invalidate --src ~/projects/app --volume app-src   # force a full re-ship
+```
+
+**Why.** On this runtime a virtiofs bind mount is ~32x slower than a block
+volume for the small-file writes CI does (8000-file create/walk/read/delete:
+~190 ms on a block volume vs ~6.3 s over virtiofs; Docker Desktop's named volume
+is 270 ms and its bind mount 3.95 s). Copying a whole tree in on every run would
+give most of that back, so only the diff is shipped — over a tar through
+`container cp`, never a second bind mount.
+
+Measured on a 4805-file tree (real 800-file / 96 MB repo in parentheses):
+
+| | |
+|---|---|
+| first sync | 2.6 s (1.67 s) |
+| one file changed | ~1.25 s (1.15 s) |
+| nothing changed | **~195 ms, no container started** |
+
+Change detection is a manifest of size/mtime/mode/digest per path; a file whose
+stat signature matches keeps its recorded digest and is never re-read, so a
+no-op sync is a stat walk. A file rewritten with identical bytes (a checkout, an
+idempotent codegen step) does not ship.
+
+Honest scope: materializing a *source tree* buys ~2–3x on access, not 32x —
+that figure is small-file **writes**, i.e. the cache pattern, which is already
+served by putting caches on block volumes. A sync costs ~1.2 s, so it pays off
+for a job doing heavy I/O over the tree, not for one that reads it once.
+
+**Constraints this design works around:**
+
+- **Block volumes are exclusive** — the runtime attaches one to a single running
+  VM; a second concurrent mount fails to bootstrap with "The storage device
+  attachment is invalid". The helper container is therefore gone before anything
+  else mounts the volume, and concurrent syncs of one volume are serialized with
+  an `flock` (kernel-released, so a crashed sync cannot wedge the volume). A
+  helper orphaned by a crash is labelled and reaped on the next run.
+- **Writes need an in-guest `sync`** before the helper is removed — removing it
+  tears down the VM and anything still in the guest page cache is lost, silently.
+- **A recreated volume invalidates the history.** The manifest records a volume
+  fingerprint; if it no longer matches, the next sync re-ships everything rather
+  than reporting "up to date" against an empty volume. The fingerprint is
+  second-granular, so a delete-and-recreate inside one second needs
+  `invalidate`.
+- `.git`, `.build` and friends are excluded by default (`--exclude` adds more);
+  symlinks are recorded as links, never followed.
+
+Tests: `MicropodSharedFSTests` (48) cover the scanner, manifest diff, store,
+materializer and lock against a fake runtime.
 
 ## connect-go API (Go)
 

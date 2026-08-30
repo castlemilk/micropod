@@ -14,7 +14,7 @@ let package = Package(
         .executable(name: "MicropodAPI", targets: ["MicropodAPI"]),
         .executable(name: "micropod", targets: ["MicropodCLI"]),
         .executable(name: "micropod-docker-shim", targets: ["MicropodDockerShim"]),
-        .executable(name: "micropod-sharedfs", targets: ["MicropodSharedFS"]),
+        .executable(name: "micropod-sharedfs", targets: ["MicropodSharedFSCLI"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.28.0"),
@@ -87,6 +87,13 @@ let package = Package(
         .target(
             name: "MicropodSharedFS",
             dependencies: ["MicropodCore"],
+            swiftSettings: [
+                .enableUpcomingFeature("StrictConcurrency")
+            ]
+        ),
+        .executableTarget(
+            name: "MicropodSharedFSCLI",
+            dependencies: ["MicropodSharedFS"],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]
