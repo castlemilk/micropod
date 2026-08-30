@@ -228,11 +228,21 @@ final class ShimWellKnownIntegrationTests: XCTestCase {
         var status: Int
         var respBody: Data
         switch resp {
-        case .status(let code): status = code; respBody = Data()
-        case .json(let code, let data): status = code; respBody = data
-        case .raw(let code, _, let data): status = code; respBody = data
-        case .stream(let code, _, _): status = code; respBody = Data()
-        case .hijacked: status = 101; respBody = Data()
+        case .status(let code):
+            status = code
+            respBody = Data()
+        case .json(let code, let data):
+            status = code
+            respBody = data
+        case .raw(let code, _, let data):
+            status = code
+            respBody = data
+        case .stream(let code, _, _):
+            status = code
+            respBody = Data()
+        case .hijacked:
+            status = 101
+            respBody = Data()
         }
         XCTAssertEqual(status, 201, "create failed: \(status) \(String(decoding: respBody, as: UTF8.self))")
         // Inspect via router to see rewritten binds.
@@ -242,11 +252,21 @@ final class ShimWellKnownIntegrationTests: XCTestCase {
         var inspectStatus: Int
         var inspectBody: Data
         switch inspectResp {
-        case .status(let code): inspectStatus = code; inspectBody = Data()
-        case .json(let code, let data): inspectStatus = code; inspectBody = data
-        case .raw(let code, _, let data): inspectStatus = code; inspectBody = data
-        case .stream(let code, _, _): inspectStatus = code; inspectBody = Data()
-        case .hijacked: inspectStatus = 101; inspectBody = Data()
+        case .status(let code):
+            inspectStatus = code
+            inspectBody = Data()
+        case .json(let code, let data):
+            inspectStatus = code
+            inspectBody = data
+        case .raw(let code, _, let data):
+            inspectStatus = code
+            inspectBody = data
+        case .stream(let code, _, _):
+            inspectStatus = code
+            inspectBody = Data()
+        case .hijacked:
+            inspectStatus = 101
+            inspectBody = Data()
         }
         XCTAssertEqual(inspectStatus, 200)
         let object = try JSONSerialization.jsonObject(with: inspectBody) as! [String: Any]
@@ -260,7 +280,8 @@ final class ShimWellKnownIntegrationTests: XCTestCase {
         let router = try makeRouter(mockFS: mock)
         let host = try makeHostDir(named: "npm")
         defer { try? FileManager.default.removeItem(at: host) }
-        let inspect = try await createViaRouter(router, hostDir: host, containerPath: "/root/.npm", name: "wellknown-npm-\(UUID().uuidString.prefix(6))")
+        let inspect = try await createViaRouter(
+            router, hostDir: host, containerPath: "/root/.npm", name: "wellknown-npm-\(UUID().uuidString.prefix(6))")
         let binds = inspect.HostConfig.Binds ?? []
         XCTAssertEqual(binds.count, 1)
         // Host path should be rewritten to mock view (not original host path)
@@ -275,7 +296,8 @@ final class ShimWellKnownIntegrationTests: XCTestCase {
         let router = try makeRouter(mockFS: mock)
         let host = try makeHostDir(named: "data")
         defer { try? FileManager.default.removeItem(at: host) }
-        let inspect = try await createViaRouter(router, hostDir: host, containerPath: "/data", name: "plain-\(UUID().uuidString.prefix(6))")
+        let inspect = try await createViaRouter(
+            router, hostDir: host, containerPath: "/data", name: "plain-\(UUID().uuidString.prefix(6))")
         let binds = inspect.HostConfig.Binds ?? []
         XCTAssertEqual(binds.count, 1)
         XCTAssertTrue(binds[0].hasPrefix(host.path), "non-well-known must stay as plain bind: \(binds[0])")
@@ -342,5 +364,63 @@ final class ShimWellKnownIntegrationTests: XCTestCase {
         XCTAssertFalse(binds[0].hasPrefix(host.path), "pip with matching HOME must be rewritten: \(binds[0])")
         let mounted = await mock.mounted
         XCTAssertEqual(mounted.count, 1)
+    }
+}
+
+/// The ecosystems the built-in list covers, and the line it deliberately does
+/// not cross.
+final class WellKnownCacheCoverageTests: XCTestCase {
+    private func request(home: String? = nil, user: String? = nil) -> DockerCreateRequest {
+        var req = DockerCreateRequest(Image: "alpine:3.20")
+        if let home { req.Env = ["HOME=\(home)"] }
+        if let user { req.User = user }
+        return req
+    }
+
+    func testGoCachesAreShared() {
+        XCTAssertTrue(Router.isWellKnown("/go/pkg/mod"))
+        XCTAssertTrue(Router.isWellKnown("/root/.cache/go-build"))
+    }
+
+    func testNodeInputCachesAreShared() {
+        XCTAssertTrue(Router.isWellKnown("/root/.npm"))
+        XCTAssertTrue(Router.isWellKnown("/root/.cache/yarn"))
+        XCTAssertTrue(Router.isWellKnown("/usr/local/share/.cache/yarn"))
+        XCTAssertTrue(Router.isWellKnown("/root/.pnpm-store"))
+    }
+
+    func testRustAndJVMCachesAreShared() {
+        XCTAssertTrue(Router.isWellKnown("/root/.cargo/registry"))
+        XCTAssertTrue(Router.isWellKnown("/root/.m2/repository"))
+        XCTAssertTrue(Router.isWellKnown("/root/.gradle/caches"))
+    }
+
+    /// The input/output line. `node_modules` is repo-specific, carries compiled
+    /// native addons and absolute paths, and must never be shared across repos —
+    /// sharing it would be incorrect, not merely wasteful.
+    func testBuildOutputsAreNeverShared() {
+        for output in [
+            "/app/node_modules", "/root/node_modules", "/src/target",
+            "/app/.next", "/app/dist", "/app/build",
+        ] {
+            XCTAssertFalse(
+                Router.isWellKnown(output), "\(output) is build output, not a shareable input cache")
+        }
+    }
+
+    /// `~` entries must follow the container's HOME so one entry covers both
+    /// root and non-root images.
+    func testHomeRelativePathsFollowContainerHome() {
+        XCTAssertTrue(Router.isWellKnown("/home/ci/.npm", request: request(home: "/home/ci")))
+        XCTAssertTrue(
+            Router.isWellKnown("/home/node/.cargo/registry", request: request(home: "/home/node")))
+        XCTAssertFalse(
+            Router.isWellKnown("/home/ci/.npm", request: request(home: "/root")),
+            "a path outside the container's HOME must not match")
+    }
+
+    func testUnrelatedPathIsNotShared() {
+        XCTAssertFalse(Router.isWellKnown("/etc/passwd"))
+        XCTAssertFalse(Router.isWellKnown("/workspace"))
     }
 }

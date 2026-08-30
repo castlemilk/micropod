@@ -1854,12 +1854,56 @@ extension Router {
     /// Well-known package-manager cache paths. Tilde is expanded per-container
     /// via HOME / User (fallback /root). First three are absolute; last is
     /// home-dependent (pip).
-    static let wellKnownTemplates: [String] = [
+    /// Package-manager caches that are worth sharing across repos and runners.
+    ///
+    /// The test is *input vs output*. A downloaded artifact keyed by a lockfile
+    /// (a tarball, a module zip, a crate) is identical for every repo that pins
+    /// the same version, so sharing it is a pure win. A build output tree
+    /// (`node_modules`, `target/`, `.next`) is repo-specific, poorly dedupable
+    /// and often contains absolute paths or compiled native addons — sharing it
+    /// across repos would be wrong, not just wasteful. That is why
+    /// `~/.npm` is here and `node_modules` deliberately is not.
+    ///
+    /// `~` expands against the container's HOME (see `homeDirectory(for:)`), so
+    /// the same entry covers root and non-root images. Extra paths can be added
+    /// per-container with the `micropod.cache.sharedMounts` label, or host-wide
+    /// with MICROPOD_SHIM_CACHE_PATHS.
+    static let builtinWellKnownTemplates: [String] = [
+        // Go
         "/go/pkg/mod",
+        "~/go/pkg/mod",
         "/root/.cache/go-build",
+        "~/.cache/go-build",
+        // Node — input caches only, never node_modules
         "/root/.npm",
+        "~/.npm",
+        "~/.cache/yarn",
+        "/usr/local/share/.cache/yarn",
+        "~/.local/share/pnpm/store",
+        "~/.pnpm-store",
+        // Python
         "~/.cache/pip",
+        "~/.cache/uv",
+        // Rust
+        "~/.cargo/registry",
+        "~/.cargo/git",
+        // JVM
+        "~/.m2/repository",
+        "~/.gradle/caches",
     ]
+
+    /// Built-ins plus anything in MICROPOD_SHIM_CACHE_PATHS (colon- or
+    /// comma-separated), so an operator can opt a project's own cache path in
+    /// without rebuilding the shim or labelling every container.
+    static let wellKnownTemplates: [String] = {
+        var templates = builtinWellKnownTemplates
+        let raw = ProcessInfo.processInfo.environment["MICROPOD_SHIM_CACHE_PATHS"] ?? ""
+        for entry in raw.split(whereSeparator: { $0 == ":" || $0 == "," }) {
+            let trimmed = entry.trimmingCharacters(in: .whitespaces)
+            if !trimmed.isEmpty { templates.append(trimmed) }
+        }
+        return templates
+    }()
 
     /// Container-aware home directory: Env HOME wins, else User -> /home/<user>, else /root.
     static func homeDirectory(for request: DockerCreateRequest) -> String {
