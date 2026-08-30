@@ -33,6 +33,12 @@ struct ShimConfig: Sendable {
     var serverVersion = "27.3.1"
     var bridgeHost: String
     var tcpPort: UInt16
+    /// Size handed to `container volume create -s` when a client does not ask
+    /// for one. Docker's `local` driver grows on demand; the Apple runtime
+    /// formats a fixed-size block device up front, so an unsized volume would
+    /// silently inherit the runtime default and later ENOSPC mid-build. CI
+    /// caches (Go module cache, npm, build caches) routinely exceed a few GB.
+    var defaultVolumeSize: String
 }
 
 struct DockerNetworkCreateBody: Codable {
@@ -57,6 +63,7 @@ struct DockerVolumeCreateBody: Codable {
     var Name: String?
     var Driver: String?
     var Labels: [String: String]?
+    var DriverOpts: [String: String]?
 }
 
 /// Top-level request router mapping Docker Engine API paths onto
@@ -178,6 +185,8 @@ final class Router: @unchecked Sendable {
             return try await containerWait(segments[1], request)
         case ("GET", "containers") where segments.count == 3 && segments[2] == "logs":
             return try await containerLogs(segments[1], request)
+        case ("POST", "containers") where segments.count == 3 && segments[2] == "attach":
+            return try await containerAttach(segments[1], request, connection)
         case ("GET", "containers") where segments.count == 3 && segments[2] == "top":
             throw ShimError.notImplemented("container top is not supported by this runtime")
         case ("GET", "containers") where segments.count == 3 && segments[2] == "stats":
@@ -884,7 +893,7 @@ final class Router: @unchecked Sendable {
                 switch action {
                 case .start:
                     await state.clearIntentionalStop(target)
-                    try await containers.start(target)
+                    try await startPossiblyAttached(target)
                 case .restart:
                     try await fastStop(target, timeout: 10)
                     await state.clearIntentionalStop(target)
@@ -903,7 +912,7 @@ final class Router: @unchecked Sendable {
         switch action {
         case .start:
             await state.clearIntentionalStop(resolved)
-            try await containers.start(resolved)
+            try await startPossiblyAttached(resolved)
         case .restart:
             try await fastStop(resolved, timeout: 10)
             await state.clearIntentionalStop(resolved)
@@ -958,32 +967,64 @@ final class Router: @unchecked Sendable {
         return .status(204)
     }
 
+    /// `POST /containers/{id}/wait` — headers immediately, body on exit.
+    ///
+    /// The docker CLI issues this request *before* `/start` (so it cannot miss
+    /// a fast container's exit) and blocks on the response **headers** before
+    /// going on to start the container. dockerd sends the status line straight
+    /// away and writes the JSON only when the container exits, so a handler
+    /// that computes the whole response first deadlocks the client: no headers
+    /// until exit, no exit until start, no start until headers.
+    ///
+    /// Returning early to dodge that is worse — the CLI reads "exited" for a
+    /// container that has not run and skips `/start` entirely, silently
+    /// leaving a created-but-dead container behind.
     private func containerWait(_ id: String, _ request: ShimRequest) async throws -> ShimResponse {
-        let condition = request.q("condition").isEmpty ? "not-running" : request.q("condition")
         let target = try await resolveID(id)
+        let (stream, continuation) = AsyncStream<Data>.makeStream()
+        Task.detached(priority: .userInitiated) { [self] in
+            defer { continuation.finish() }
+            let result = await waitForExit(target: target, request: request)
+            continuation.yield(result)
+        }
+        return .stream(200, [("Content-Type", "application/json")], stream)
+    }
+
+    /// Blocks until the container has actually run and exited, then renders
+    /// the `WaitResult` JSON.
+    private func waitForExit(target: String, request: ShimRequest) async -> Data {
+        let condition = request.q("condition").isEmpty ? "not-running" : request.q("condition")
         while true {
             // Flat-cost single-container inspect instead of full-list scans.
             if let raw = try? await containers.inspect(target),
                 let container = DockerMapper.container(fromRawInspect: raw)
             {
                 let stateName = DockerMapper.stateName(container.state)
-                if stateName != "running" && condition != "removed" {
+                // "stopped" covers both never-run and ran-and-exited; only the
+                // latter is an exit to report. See `hasEverStarted`.
+                let neverRan =
+                    stateName != "running" && !DockerMapper.hasEverStarted(rawInspect: raw)
+                // An attached run reports the exit code moments after the
+                // container reaches "stopped"; returning now would report 0
+                // for a failed container.
+                let awaitingExitCode = AttachRegistry.shared.isRunning(containerID: target)
+                if stateName != "running" && !neverRan && !awaitingExitCode {
                     // The runtime omits exit codes for stopped containers;
                     // assume a clean exit unless an event captured one.
                     let parsed = Int(container.exitCode)
                     let remembered = await state.exitCode(for: target)
-                    return Self.encode(WaitResult(StatusCode: parsed ?? remembered ?? 0, Error: nil))
+                    return Self.encodeBody(
+                        WaitResult(StatusCode: parsed ?? remembered ?? 0, Error: nil))
                 }
-            } else if condition == "removed" || condition == "next-exit" {
-                let remembered = await state.exitCode(for: target)
-                return Self.encode(WaitResult(StatusCode: remembered ?? 0, Error: nil))
             } else {
-                let list = try await containers.list()
-                if !list.contains(where: { $0.id == target }) {
-                    throw ShimError.notFound("container \(target) disappeared")
-                }
+                // Gone from the runtime entirely. For `condition=removed` that
+                // IS the awaited outcome; otherwise report the last exit code
+                // we captured rather than hanging on a container that no
+                // longer exists.
+                let remembered = await state.exitCode(for: target)
+                return Self.encodeBody(WaitResult(StatusCode: remembered ?? 0, Error: nil))
             }
-            try await Task.sleep(for: .milliseconds(200))
+            try? await Task.sleep(for: .milliseconds(200))
         }
     }
 
@@ -1017,6 +1058,76 @@ final class Router: @unchecked Sendable {
             payload.append(ExecSession.frame(type: 1, payload: Data((line.text + "\n").utf8)))
         }
         return .raw(200, [("Content-Type", "application/vnd.docker.multiplexed-stream")], payload)
+    }
+
+    /// `POST /containers/{id}/attach` — the hijacked stream `docker run` and
+    /// `docker start -a` use. Synthesized from the log follow; see
+    /// `AttachSession` for what that can and cannot reproduce.
+    private func containerAttach(
+        _ id: String, _ request: ShimRequest, _ connection: ShimConnection
+    ) async throws -> ShimResponse {
+        let containerID = try await resolveID(id)
+
+        // Without stream=1 the client wants a one-shot replay, which is what
+        // the logs endpoint already serves.
+        if !Self.isTruthy(request.q("stream")) {
+            return try await containerLogs(containerID, request)
+        }
+
+        // Switch the connection to raw mode now, at park time. Leaving it in
+        // HTTP mode until `/start` claims it lets the client's transport treat
+        // it as an idle pooled connection, and the first stdcopy frame then
+        // surfaces as "Unsolicited response received on idle HTTP channel".
+        let inbound = connection.beginHijack()
+        Task.detached(priority: .utility) {
+            for await _ in inbound {}
+        }
+        // Park it; `/start` launches the attached run and claims it. See
+        // AttachRegistry for why the order is inverted.
+        AttachRegistry.shared.park(containerID: containerID, connection: connection)
+        let tty = await state.createRequest(for: containerID)?.Tty ?? false
+        return .hijacked(
+            contentType: tty ? ShimResponse.rawStream : ShimResponse.multiplexedStream)
+    }
+
+    /// Starts `id`, streaming into a hijacked connection if `/attach` parked
+    /// one for it. The attached form is what surfaces the container's real
+    /// exit code — a detached start leaves it unknowable (see AttachSession).
+    private func startPossiblyAttached(_ id: String) async throws {
+        await state.markStarted(id: id)
+        guard let connection = AttachRegistry.shared.claim(containerID: id) else {
+            try await containers.start(id)
+            return
+        }
+        let tty = await state.createRequest(for: id)?.Tty ?? false
+        do {
+            let containers = self.containers
+            let state = self.state
+            // Marked before launch so the events loop never sees the window
+            // between /start and the container actually running as an exit.
+            await state.markAttachRunning(id: id)
+            let session = AttachSession(
+                cliPath: cliPath, containerID: id, tty: tty, state: state,
+                onExit: { _ in
+                    await state.clearAttachRunning(id: id)
+                    guard let create = await state.createRequest(for: id),
+                        create.HostConfig?.AutoRemove == true
+                    else { return }
+                    try? await containers.delete(id, force: true)
+                })
+            try session.launchAndPump(connection: connection)
+        } catch {
+            // Never strand the client on a dead hijack.
+            await state.clearAttachRunning(id: id)
+            connection.close()
+            throw error
+        }
+    }
+
+    /// Docker query flags arrive as "1"/"true"/"True" depending on the client.
+    static func isTruthy(_ value: String) -> Bool {
+        let normalized = value.lowercased()
+        return normalized == "1" || normalized == "true"
     }
 
     private func containerStats(_ id: String) async throws -> ShimResponse {
@@ -1181,12 +1292,20 @@ final class Router: @unchecked Sendable {
         let session = try ExecSession(
             cliPath: cliPath, containerID: record.containerID,
             request: execBody(for: record, tty: body?.Tty), execID: execID, state: state)
-        try session.launchAndPump(connection: connection)
+        // Mark it running *before* launching. A short command (`true`) can exit
+        // and have its watcher record the exit code before this line would
+        // otherwise run, and then this would overwrite the finished record with
+        // `running: true, exitCode: nil` — an exec that already succeeded would
+        // report as still running with no status.
         await state.registerExec(
             ShimState.ExecRecord(
                 id: record.id, containerID: record.containerID, cmd: record.cmd, running: true,
                 exitCode: nil))
-        return .hijacked
+        try session.launchAndPump(connection: connection)
+        // ExecSession frames with stdcopy unless the client asked for a TTY.
+        return .hijacked(
+            contentType: body?.Tty == true
+                ? ShimResponse.rawStream : ShimResponse.multiplexedStream)
     }
 
     private func execBody(for record: ShimState.ExecRecord, tty: Bool?) -> DockerExecCreate {
@@ -1361,7 +1480,14 @@ final class Router: @unchecked Sendable {
     private func volumeCreate(_ request: ShimRequest) async throws -> ShimResponse {
         let body = try decodeBody(DockerVolumeCreateBody.self, request)
         let name = body.Name ?? IDGenerator.randomSuffix(length: 16)
-        try await volumes.create(name: name, size: nil, labels: [], options: [])
+        let labels = body.Labels ?? [:]
+        let (size, options) = Self.volumeCreateOptions(
+            body.DriverOpts, defaultSize: config.defaultVolumeSize)
+        try await volumes.create(
+            name: name,
+            size: size,
+            labels: labels.map { "\($0.key)=\($0.value)" }.sorted(),
+            options: options)
         return .json(
             201,
             Self.encodeBody(
@@ -1369,7 +1495,47 @@ final class Router: @unchecked Sendable {
                     Name: name, Driver: body.Driver ?? "local",
                     Mountpoint: "~/.micropod/volumes/\(name)",
                     CreatedAt: ISO8601DateFormatter().string(from: Date()),
-                    Labels: body.Labels ?? [:], Scope: "local")))
+                    Labels: labels, Scope: "local")))
+    }
+
+    /// Split Docker `DriverOpts` into the runtime's `-s <size>` and the
+    /// remaining `--opt k=v` pairs.
+    ///
+    /// Docker's `local` driver spells size two ways — a bare `size` key and
+    /// the mount-style `o=size=...` used by `--opt o=size=10g` — and both
+    /// appear in the wild (compose files, testcontainers). Either maps onto
+    /// the Apple runtime's `-s`. Anything else is forwarded untouched so a
+    /// future runtime option needs no shim change.
+    static func volumeCreateOptions(
+        _ driverOpts: [String: String]?, defaultSize: String
+    ) -> (size: String?, options: [String]) {
+        guard let driverOpts, !driverOpts.isEmpty else { return (defaultSize, []) }
+        var size: String?
+        var options: [String] = []
+        for (key, value) in driverOpts {
+            switch key.lowercased() {
+            case "size":
+                size = value
+            case "o":
+                // `o` is a comma-separated mount option list; pull `size=` out
+                // of it and forward whatever else it carries.
+                var passthrough: [String] = []
+                for part in value.split(separator: ",") {
+                    let opt = part.trimmingCharacters(in: .whitespaces)
+                    if opt.lowercased().hasPrefix("size=") {
+                        size = String(opt.dropFirst("size=".count))
+                    } else if !opt.isEmpty {
+                        passthrough.append(opt)
+                    }
+                }
+                if !passthrough.isEmpty {
+                    options.append("o=" + passthrough.joined(separator: ","))
+                }
+            default:
+                options.append("\(key)=\(value)")
+            }
+        }
+        return (size ?? defaultSize, options.sorted())
     }
 
     private func volumeDelete(_ name: String) async throws -> ShimResponse {

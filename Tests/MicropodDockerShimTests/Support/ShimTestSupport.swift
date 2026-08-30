@@ -47,7 +47,8 @@ enum ShimTestSupport {
         let containerService = ContainerService(client: client)
         let state = ShimState()
         let events = EventsHub(containers: containerService, interval: 0.1)
-        let config = ShimConfig(bridgeHost: "192.168.64.1", tcpPort: 45455)
+        let config = ShimConfig(
+            bridgeHost: "192.168.64.1", tcpPort: 45455, defaultVolumeSize: "64g")
         let router = Router(config: config, state: state, events: events, client: client)
         let server = ShimHTTPServer(handler: { request, connection in
             await router.route(request, connection)

@@ -137,11 +137,18 @@ actor EventsHub {
                 await emit("container", "create", after, id: id)
                 // A container first observed already exited ran and died
                 // entirely between polls — it still needs its die event,
-                // restart-policy supervision and AutoRemove reap. (One
-                // created-but-never-started sits in created/creating and is
-                // excluded.)
+                // restart-policy supervision and AutoRemove reap.
+                //
+                // The Apple runtime reports "stopped" for a container that was
+                // created and never started, exactly as it does for one that
+                // ran and exited, so state alone cannot tell them apart. Only
+                // `status.startedDate` can. Reaping on state alone deletes a
+                // brand-new `--rm` container in the window between the client's
+                // create and its start, which then fails with 404.
                 let terminal = ["stopped", "exited", "dead"]
-                if terminal.contains(after.state) {
+                if terminal.contains(after.state),
+                    await hasEverStarted(id: id, state: state)
+                {
                     await handleExit(entry: entry, observation: after, state: state)
                 }
                 continue
@@ -164,6 +171,25 @@ actor EventsHub {
         known = observed
     }
 
+    /// Whether this container ever actually ran.
+    ///
+    /// Answered from shim state where possible — a container we started has
+    /// run; one we created and never started has not — because the alternative
+    /// is a `container inspect` process on every poll, which at the events
+    /// loop's cadence starves the runtime. Only a container this shim never
+    /// created (started out of band) needs the runtime asked.
+    private func hasEverStarted(id: String, state: ShimState) async -> Bool {
+        // An attached run still in flight has not exited, whatever the runtime
+        // currently reports: the container reads "stopped" for the moments
+        // between /start and actually running, and reaping on that deletes an
+        // AutoRemove container out from under its own run.
+        if await state.isAttachRunning(id: id) { return false }
+        if await state.hasStarted(id: id) { return true }
+        if await state.createRequest(for: id) != nil { return false }
+        guard let raw = try? await containers.inspect(id) else { return false }
+        return DockerMapper.hasEverStarted(rawInspect: raw)
+    }
+
     /// Die event + exit bookkeeping + restart-policy supervision + the
     /// AutoRemove reap — shared by the observed-transition path and the
     /// "already exited when first seen" path.
@@ -179,7 +205,8 @@ actor EventsHub {
             extraAttributes: ["exitCode": "\(code)"])
         await superviseRestart(id: id, exitCode: code, state: state)
         if let create = await state.createRequest(for: id),
-            create.HostConfig?.AutoRemove == true
+            create.HostConfig?.AutoRemove == true,
+            await !state.isAttachRunning(id: id)
         {
             try? await containers.delete(id, force: true)
         }

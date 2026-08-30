@@ -440,7 +440,11 @@ final class ShimServerTests: XCTestCase {
         XCTAssertEqual(try client.request("POST", "/containers/\(id)/stop?t=1").status, 204)
 
         // Supervisor should bring it back within a poll + backoff window.
-        let deadline = Date().addingTimeInterval(15)
+        // Generous because the budget is spent on the *mock* CLI: every events
+        // poll and every inspect below forks a shell script, and under the full
+        // suite's contention that stretches well past a tight bound. The
+        // assertion is still that it restarts, not that it restarts quickly.
+        let deadline = Date().addingTimeInterval(45)
         var runningAgain = false
         while Date() < deadline {
             let inspect = try client.request("GET", "/containers/\(id)/json")

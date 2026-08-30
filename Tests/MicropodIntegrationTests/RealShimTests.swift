@@ -325,10 +325,15 @@ struct HTTPOverUnix {
             let n = recv(fd, &buffer, buffer.count, 0)
             if n <= 0 { break }
             received.append(contentsOf: buffer[0..<n])
-            if let headEnd = received.range(of: Data("\r\n\r\n".utf8)),
-                received.count - headEnd.upperBound >= contentLength(received, headEnd)
-            {
-                break
+            if let headEnd = received.range(of: Data("\r\n\r\n".utf8)) {
+                // A response without Content-Length is delimited by the close
+                // (the shim streams `/wait`, `/events` and follow-logs that
+                // way, so headers can go out before the body exists). Keep
+                // reading until EOF rather than treating it as a zero-length
+                // body — that read the wait result as empty.
+                if let length = contentLength(received, headEnd) {
+                    if received.count - headEnd.upperBound >= length { break }
+                }
             }
         }
         return try Self.parse(received)
@@ -366,7 +371,9 @@ struct HTTPOverUnix {
         return (head, Data(received[headEnd.upperBound...]))
     }
 
-    private func contentLength(_ data: Data, _ headEnd: Range<Data.Index>) -> Int {
+    /// The declared body length, or nil when the response carries none and is
+    /// therefore delimited by the connection closing.
+    private func contentLength(_ data: Data, _ headEnd: Range<Data.Index>) -> Int? {
         let head = String(decoding: data[data.startIndex..<headEnd.lowerBound], as: UTF8.self)
         for line in head.components(separatedBy: "\r\n") {
             let parts = line.split(separator: ":", maxSplits: 1)
@@ -374,7 +381,7 @@ struct HTTPOverUnix {
                 return Int(parts[1].trimmingCharacters(in: .whitespaces)) ?? 0
             }
         }
-        return 0
+        return nil
     }
 
     private func writeAll(_ fd: Int32, _ data: Data) throws {

@@ -121,6 +121,13 @@ set_container_state() {
                 else
                     line=$(sed 's|"ipv4Address":"[^"]*"|"ipv4Address":"'"$ip"'"|' <<<"$line")
                 fi
+                # The real runtime stamps startedDate on first start and keeps
+                # it after the container stops — it is the ONLY way to tell a
+                # created-never-started container from one that ran and exited,
+                # since both report state "stopped". Consumers rely on it.
+                if [[ "$line" != *'"startedDate"'* ]]; then
+                    line=$(sed 's|"state":"running"|"startedDate":"'"$(iso_now)"'","state":"running"|' <<<"$line")
+                fi
             fi
         fi
         out+=("$line")

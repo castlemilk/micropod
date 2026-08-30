@@ -145,12 +145,14 @@ struct DockerContainerInspect: Codable {
 
     struct InspectNetworkSettings: Codable {
         var IPAddress: String
+        var IPPrefixLen: Int
         var Gateway: String
         var Ports: [String: [DockerPortBinding]?]
         var Networks: [String: DockerNetworkInspect]
 
         struct DockerNetworkInspect: Codable {
             var IPAddress: String
+            var IPPrefixLen: Int
             var Gateway: String
             var MacAddress: String
         }

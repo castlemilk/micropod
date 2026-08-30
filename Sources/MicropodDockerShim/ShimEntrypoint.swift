@@ -26,11 +26,13 @@ struct ShimBootstrap {
         let statePath =
             environment["MICROPOD_SHIM_STATE"]
             ?? NSString("~/.micropod/shim-state.json").expandingTildeInPath
+        let defaultVolumeSize = environment["MICROPOD_SHIM_VOLUME_SIZE"] ?? "64g"
 
         try FileManager.default.createDirectory(
             atPath: (socketPath as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
 
-        let config = ShimConfig(bridgeHost: bridgeHost, tcpPort: tcpPort)
+        let config = ShimConfig(
+            bridgeHost: bridgeHost, tcpPort: tcpPort, defaultVolumeSize: defaultVolumeSize)
         let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: cliPath))
         let containerService = ContainerService(client: client)
         let state = ShimState.loadPersisted(from: URL(fileURLWithPath: statePath))

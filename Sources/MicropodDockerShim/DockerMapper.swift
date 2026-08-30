@@ -143,7 +143,7 @@ enum DockerMapper {
             NetworkSettings: DockerContainerSummary.SummaryNetworkSettings(
                 Networks: [
                     networkName:
-                        .init(IPAddress: container.ipv4Address, Gateway: nil)
+                        .init(IPAddress: bareAddress(container.ipv4Address), Gateway: nil)
                 ]),
             Mounts: mounts)
     }
@@ -151,6 +151,38 @@ enum DockerMapper {
     /// Builds a Container proto from the runtime's raw `container inspect`
     /// JSON so the shim can serve /containers/{id}/json with a single
     /// flat-cost CLI call instead of a full list enumeration.
+    /// The `.1` host of an address's /24, or empty when there is no address
+    /// to derive one from. Every field handed to a Docker client must be
+    /// either a parseable address or empty — never a partial one.
+    static func defaultGateway(for address: String) -> String {
+        guard !address.isEmpty else { return "" }
+        let octets = address.split(separator: ".")
+        guard octets.count == 4 else { return "" }
+        return octets.dropLast().joined(separator: ".") + ".1"
+    }
+
+    /// Whether the runtime has ever actually started this container.
+    ///
+    /// The Apple runtime reports `state: "stopped"` both for a container that
+    /// was created and never run and for one that ran to completion — only
+    /// `status.startedDate` tells them apart. `/containers/{id}/wait` must not
+    /// treat the former as an exit: the docker CLI issues `wait` concurrently
+    /// with `start`, so returning early makes `docker run` exit before the
+    /// container runs, and makes `--rm` delete it out from under its own
+    /// `start` call.
+    static func hasEverStarted(rawInspect data: Data) -> Bool {
+        guard let parsed = try? JSONSerialization.jsonObject(with: data) else { return false }
+        let entry: [String: Any]?
+        if let entries = parsed as? [[String: Any]] {
+            entry = entries.first
+        } else {
+            entry = parsed as? [String: Any]
+        }
+        guard let status = entry?["status"] as? [String: Any] else { return false }
+        let started = status["startedDate"] as? String
+        return !(started ?? "").isEmpty
+    }
+
     static func container(fromRawInspect data: Data) -> Micropod_V1_Container? {
         guard let parsed = try? JSONSerialization.jsonObject(with: data),
             let entries = parsed as? [[String: Any]],
@@ -236,7 +268,12 @@ enum DockerMapper {
         }
 
         let networkName = container.networks.first ?? "default"
-        let gateway = container.ipv4Address.split(separator: ".").dropLast().joined(separator: ".") + ".1"
+        let address = bareAddress(container.ipv4Address)
+        let prefixLen = addressPrefixLength(container.ipv4Address)
+        // A container that has not been started yet has no address, and
+        // "".split(".") + ".1" yields ".1" — which the Go docker CLI rejects
+        // with `ParseAddr(".1"): IPv4 field must have at least one digit`.
+        let gateway = defaultGateway(for: address)
 
         return DockerContainerInspect(
             Id: container.id,
@@ -262,15 +299,34 @@ enum DockerMapper {
                 OpenStdin: false),
             HostConfig: create?.HostConfig ?? DockerHostConfig(),
             NetworkSettings: DockerContainerInspect.InspectNetworkSettings(
-                IPAddress: container.ipv4Address,
-                Gateway: container.ipv4Address.isEmpty ? "" : gateway,
+                IPAddress: address,
+                IPPrefixLen: prefixLen,
+                Gateway: gateway,
                 Ports: portMap,
                 Networks: [
                     networkName:
                         DockerContainerInspect.InspectNetworkSettings.DockerNetworkInspect(
-                            IPAddress: container.ipv4Address, Gateway: gateway, MacAddress: "")
+                            IPAddress: address, IPPrefixLen: prefixLen, Gateway: gateway,
+                            MacAddress: "")
                 ]),
             Mounts: mounts(container))
+    }
+
+    /// The Apple runtime reports `ipv4Address` in CIDR form
+    /// ("192.168.64.16/24"). Docker's schema carries a bare address in
+    /// `IPAddress` and the mask separately in `IPPrefixLen` — and the Go
+    /// docker CLI runs the value through `netip.ParseAddr`, which rejects the
+    /// "/24" outright ("unexpected character (at \"/24\")"). SDK clients never
+    /// noticed because they don't parse the field.
+    static func bareAddress(_ raw: String) -> String {
+        guard let slash = raw.firstIndex(of: "/") else { return raw }
+        return String(raw[raw.startIndex..<slash])
+    }
+
+    /// Mask length from a CIDR address, or 0 when the runtime omitted it.
+    static func addressPrefixLength(_ raw: String) -> Int {
+        guard let slash = raw.firstIndex(of: "/") else { return 0 }
+        return Int(raw[raw.index(after: slash)...]) ?? 0
     }
 
     static func statusText(_ container: Micropod_V1_Container) -> String {

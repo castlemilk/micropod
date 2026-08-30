@@ -214,8 +214,16 @@ enum ShimResponse {
     /// Headers written immediately, then each chunk verbatim (no chunked
     /// encoding) until the stream ends — used for NDJSON event/log streams.
     case stream(Int, [(String, String)], AsyncStream<Data>)
-    /// 101 UPGRADED then raw bidirectional bytes (exec start).
-    case hijacked
+    /// 101 UPGRADED then raw bidirectional bytes (exec start, attach).
+    ///
+    /// The content type must describe what actually follows: dockerd sends
+    /// `multiplexed-stream` when the payload is stdcopy-framed and
+    /// `raw-stream` only for a TTY container's unframed bytes. Clients key
+    /// their demultiplexing off it.
+    case hijacked(contentType: String = ShimResponse.multiplexedStream)
+
+    static let rawStream = "application/vnd.docker.raw-stream"
+    static let multiplexedStream = "application/vnd.docker.multiplexed-stream"
 }
 
 /// Minimal HTTP/1.1 server over Network.framework supporting unix-socket +
@@ -305,8 +313,23 @@ final class ShimHTTPServer: @unchecked Sendable {
             let chunkSize = 256 * 1024
             let chunk = UnsafeMutablePointer<UInt8>.allocate(capacity: chunkSize)
             defer { chunk.deallocate() }
+            // Set when the client half-closed a hijacked stream: we stop
+            // reading but must leave the connection open to keep writing.
+            var clientHalfClosedHijack = false
             while !Task.isCancelled {
                 let received = Darwin.recv(fd, chunk, chunkSize, 0)
+                if received == 0 && connection.isHijacking {
+                    // FIN on a hijacked stream means the client is done
+                    // *sending*, not that the exchange is over. `docker run`
+                    // has no stdin to forward and half-closes right after the
+                    // 101, so tearing down here destroys the outbound half
+                    // that carries the container's output — it then surfaces
+                    // on the client's pooled connection as "Unsolicited
+                    // response received on idle HTTP channel". The attached
+                    // process's writer closes the connection when it exits.
+                    clientHalfClosedHijack = true
+                    break
+                }
                 if received <= 0 { break }
                 let incoming = Data(bytes: chunk, count: received)
                 if connection.isHijacking {
@@ -331,7 +354,9 @@ final class ShimHTTPServer: @unchecked Sendable {
                 if buffer.count > 64 * 1024 * 1024 { break }
             }
             connection.finishInbound()
-            connection.close()
+            if !clientHalfClosedHijack {
+                connection.close()
+            }
         }
     }
 
@@ -394,7 +419,15 @@ final class ShimHTTPServer: @unchecked Sendable {
             guard let self else { return }
             if error != nil || isComplete && (data == nil || data!.isEmpty) {
                 connection.finishInbound()
-                connection.close()
+                // A receive armed while the connection was still in HTTP mode
+                // can land *after* a handler hijacked it — the docker CLI
+                // half-closes its write side immediately after the 101, and
+                // this callback is what observes that EOF. Closing here kills
+                // the outbound half the hijack exists to use. The hijack's own
+                // writer owns the close.
+                if !connection.isHijacking {
+                    connection.close()
+                }
                 return
             }
             if connection.isHijacking {
@@ -419,9 +452,23 @@ final class ShimHTTPServer: @unchecked Sendable {
             if let data, !data.isEmpty {
                 connection.forwardInbound(data)
             }
-            if error != nil || (isComplete && data == nil) {
+            if error != nil {
                 connection.finishInbound()
                 connection.close()
+                return
+            }
+            if isComplete && data == nil {
+                // Inbound EOF on a hijacked stream means the client is done
+                // *sending* — it has no stdin to forward — not that the
+                // exchange is over. The server still owns the outbound half,
+                // which is what carries the container's output. Closing here
+                // tears that down before a single byte is written: the docker
+                // CLI half-closes immediately after the 101, so the output
+                // lands on a dead socket and resurfaces on the client's pooled
+                // connection as "Unsolicited response received on idle HTTP
+                // channel". The writer closes the connection when the attached
+                // process exits.
+                connection.finishInbound()
                 return
             }
             self.continueRawRead(connection)
@@ -439,17 +486,26 @@ final class ShimHTTPServer: @unchecked Sendable {
         case .hijacked: status = 101
         }
         fputs("[shim] \(request.method) /\(request.path) -> \(status)\n", stderr)
+        // RFC 9110 §9.3.2: a HEAD response carries the same headers a GET
+        // would (Content-Length included) but MUST NOT carry the body. The
+        // docker CLI probes `HEAD /_ping`; writing the body anyway leaves it
+        // unread in the socket, and the Go client surfaces it on the next
+        // request as "Unsolicited response received on idle HTTP channel".
+        // That lands on the client's stderr, which callers that merge stderr
+        // into parsed output then mis-read.
+        let bodySuppressed = request.method.uppercased() == "HEAD"
         switch response {
         case .status(let code):
             _ = await connection.write(Self.head(code: code, headers: [], body: Data()))
             finishFramed(request, connection: connection, remainder: remainder)
         case .json(let code, let data):
-            _ = await connection.write(
-                Self.head(code: code, headers: [("Content-Type", "application/json")], body: data)
-                    + data)
+            let head = Self.head(
+                code: code, headers: [("Content-Type", "application/json")], body: data)
+            _ = await connection.write(bodySuppressed ? head : head + data)
             finishFramed(request, connection: connection, remainder: remainder)
         case .raw(let code, let headers, let data):
-            _ = await connection.write(Self.head(code: code, headers: headers, body: data) + data)
+            let head = Self.head(code: code, headers: headers, body: data)
+            _ = await connection.write(bodySuppressed ? head : head + data)
             finishFramed(request, connection: connection, remainder: remainder)
         case .stream(let code, let headers, let chunks):
             var allHeaders = headers
@@ -459,10 +515,10 @@ final class ShimHTTPServer: @unchecked Sendable {
                 if await connection.write(chunk) == .failed { break }
             }
             connection.close()
-        case .hijacked:
+        case .hijacked(let contentType):
             _ = await connection.write(
                 Data(
-                    "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n"
+                    "HTTP/1.1 101 UPGRADED\r\nContent-Type: \(contentType)\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n"
                         .utf8))
             // Inbound bytes flow via the stream the handler got from
             // beginHijack(); re-arm raw reads to feed it.
