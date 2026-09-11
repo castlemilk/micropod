@@ -735,3 +735,23 @@ gaps found and fixed, all verified live (controlplane hot-swapped via
   live backend. Note: `cuttlefish_runner_cache` targets the desktop
   agent panel (:5555, different component), not CI runners; also
   refreshed `~/.local/bin/cuttle` which was a stale Sep-7 build.
+
+## Per-attempt perf columns (2026-09-11, LIVE on rig, PR #172)
+
+Attempt reports carried timing/resource facts visible only in logs or
+buried in outputs JSON. Now queryable nullable columns on
+`task_attempts` (postgres + firestore): `duration_ms` (server-derived),
+`exit_code`, `peak_memory_bytes`, `memory_limit_bytes`,
+`peak_cpu_percent`, `oom_killed`, `stat_samples`, `artifact_count`.
+Partial updates preserve via COALESCE; hollow zero-peak samples record
+nothing; runner merges authoritative exit code into outputs so every
+executor reports one (output files don't survive the shim). Surfaced in
+attempts API + CLI client (+ MCP summary on the dev line). Live proof:
+duration + exit code populating on real runs.
+- **Pre-existing gap found, not fixed**: docker-fallback stats/output
+  capture vs the shim is hollow (inline runs never carried them) —
+  separate workstream.
+- **Robustness gap found, not fixed**: runner startup register has no
+  retry — restarting the runner while the controlplane is down leaves a
+  zombie loop (process alive, no polling). Hit during this deploy;
+  recovered via kickstart.
