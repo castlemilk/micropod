@@ -803,3 +803,22 @@ named volumes; grooms (`docker-groom`, `cache-groom`) verified safe
 below ~2 GB free the container backend starts dying; the
 `registerWithRetry` rig survives controlplane restarts but nothing
 survives the backend OOMing.
+
+## Docker Desktop VM balloon (2026-09-12, graceful relief done)
+
+Symptom: host 15–800 MB free of 128 GB; Apple backend SIGKILLed.
+Diagnosis: Docker Desktop VM (Apple Virtualization.framework, PID 35709)
+ballooned to ~67 GB while containers inside totaled ~3–5 GB and the
+guest reported 44 GB free — no balloon driver returns freed guest
+pages to the host, and no per-container hog existed (top: deephost
+1.5 GB, a GH runner 1.36 GB). `drop_caches` inside the VM gave only
+transient relief.
+Graceful fix applied: snapshotted 24 containers, quit Docker Desktop
+via osascript (clean per-container stop), host free 51 GB, restarted —
+all 21 long-running stacks recovered (only 3 seconds-old test
+containers lost). WARNING: the 64 GB allocation was kept, so regrowth
+is expected; a durable fix is lowering Docker Desktop memory to ~32 GB
+(requires the same one restart). If the backend stays wedged after
+memory returns, suspect apiserver duplication (`pgrep` → kill extras,
+launchd keeps one) and unresponsive system daemons (no sudo from here;
+host reboot is the last resort).
