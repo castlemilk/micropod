@@ -751,7 +751,55 @@ duration + exit code populating on real runs.
 - **Pre-existing gap found, not fixed**: docker-fallback stats/output
   capture vs the shim is hollow (inline runs never carried them) —
   separate workstream.
-- **Robustness gap found, not fixed**: runner startup register has no
+- **Robustness gap found, FIXED (#177)**: runner startup register has no
   retry — restarting the runner while the controlplane is down leaves a
   zombie loop (process alive, no polling). Hit during this deploy;
-  recovered via kickstart.
+  recovered via kickstart. `registerWithRetry` (1s→30s backoff, 4xx
+  join-code fail-fast, latest-wins panel) fixed it; live drill proved
+  self-registration with zero kickstarts.
+
+## Rig outage + recovery runbook (2026-09-11/12)
+
+**Incident**: ~2026-09-11 20:58 local, both Apple-container data volumes
+(`cuttlefish_micropodval_postgres_data`, `..._minio_data`) were deleted
+and recreated, controlplane+minio restarted. Total DB loss (runs,
+attempts, metrics, registrations), minio artifacts gone, controlplane
+reverted to stock image (hot-swapped code wiped). Actor unknown —
+grooms verified benign; several parallel agent sessions active.
+**Root-cause context found 09-12**: Mac critically oversubscribed
+(60 MB free of 128 GB; Docker VM 64 GB, Ollama 13 GB, agents). Memory
+pressure SIGKILLed `containermanagerd` (-9) and crash-looped apiserver
+(-15) — no `container` CLI responds in that state.
+
+**Recovery order** (each step gates the next):
+1. Memory headroom first — nothing below works without it.
+2. Revive backend: if `container list` hangs and apiserver crash-loops,
+   `kill <apiserver-pid>` (runs as user, launchd respawns); confirm
+   `containermanagerd` alive before proceeding.
+3. Postgres lost+found block: fresh volume.img mounts with only
+   `lost+found`, initdb refuses. Fix from a helper container sharing
+   the volume (`rmdir lost+found`, empty dir → initdb succeeds) —
+   yields an EMPTY DB; there are no backups, plan to reseed.
+4. Peer-DNS: fresh containers can't resolve `postgres`/`minio`
+   (runtime quirk + stale self-entry). Append to the controlplane's
+   /etc/hosts via exec (does NOT survive restart — re-apply every time).
+5. Controlplane code: rebuild from the DEV TREE, not main — broker
+   presign (`/cache/has`), JWT mint (`/cache/token`), machine-executor
+   support and MCP tools served live are UNTRACKED files absent from
+   main; a main-built image silently drops those tiers. Hot-swap via
+   `container cp` (gzip first, >~13 MB fails over vsock).
+6. Runner: host binary survives container wipes; restart via launchd
+   (register-retry self-heals once the controlplane answers).
+7. Reseed: task packages (`seed_examples.py`), workflows in
+   `~/.micropod/workflows/` (files survive — host-side), runner
+   auto-registers with a fresh ID.
+8. Revalidate: edge-demo CI run → attempts show duration/exit;
+   `/metrics` shows 40 tier-split series; `/system/usage` shows disk;
+   MCP `runs_summary` renders.
+
+**Stability rules to avoid repeats**: never prune/recreate shared
+named volumes; grooms (`docker-groom`, `cache-groom`) verified safe
+(reclaim 0 B on shared state); keep an eye on Mac memory headroom —
+below ~2 GB free the container backend starts dying; the
+`registerWithRetry` rig survives controlplane restarts but nothing
+survives the backend OOMing.
