@@ -867,3 +867,16 @@ Reboot fixed the backend. Big corrections to the earlier story:
   (branch-name squats, worktree switches, mystery rebuilds). Unique
   branch suffixes (`-2`), verify `git log` before trusting tree state,
   never touch their files.
+
+## Attempt leaderboard + podman parity (2026-09-14, PR #207)
+
+- `GET /api/attempts/leaderboard` answers "where is CI time going":
+  slowest-first (or peak-memory) ranking with durations, exit codes,
+  OOM flags, workflow/node. Live: real history ranked, 130 s failed run
+  on top. MCP tool `cuttlefish_attempts_leaderboard` included.
+- Podman executor got the same attach-retry/logs-fallback hardening
+  (untested live — unused on this rig).
+- Test hygiene lesson: integration tests sharing one postgres via
+  `CUTTLE_TEST_POSTGRES_URL` pollute each other's windows — the
+  leaderboard test isolates with a unique project per run after catching
+  exactly that (passed solo, failed 4/5 shared).
