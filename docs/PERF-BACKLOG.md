@@ -847,3 +847,23 @@ Reboot fixed the backend. Big corrections to the earlier story:
 - Live proof post-rebuild: edge-demo SUCCEEDED, tiers split
   (edge miss on cold), duration+exit columns, 43 metric series,
   MCP usage/summary all rendering.
+
+## Stuck autopilot pins + flaky attach (2026-09-14, FIXED #204)
+
+- **Autopilot pins wedged the queue**: planner stamps runner ID+version
+  on the run; lease query hard-filtered both with no liveness escape,
+  so 2 runs sat QUEUED behind a dead rig ID. Diagnosed by comparing
+  `runs` vs `task_instances` state; unpinned via SQL for instant
+  recovery. Fix mirrors the attempt-level escape: pins release when no
+  live rig matches (both backends). Capability/mode/pool pins stay hard.
+- **Shim attach flakes ~1 in 5** (`unrecognized stream`, client
+  SIGSEGV on `start -a`): executor now retries attach while the
+  container isn't exited, `docker logs` fallback when it is (never
+  re-executes), clean attach wins outright.
+- Incidental: `cuttle` binary SIGKILLed by taskgated (Invalid
+  Signature) after plain `cp` — `codesign -f -s -` + move fixes it;
+  identical bytes in repo path always worked. Re-sign after copying.
+- Incidental: parallel sessions actively committing in both repos
+  (branch-name squats, worktree switches, mystery rebuilds). Unique
+  branch suffixes (`-2`), verify `git log` before trusting tree state,
+  never touch their files.
