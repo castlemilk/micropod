@@ -822,3 +822,28 @@ is expected; a durable fix is lowering Docker Desktop memory to ~32 GB
 memory returns, suspect apiserver duplication (`pgrep` → kill extras,
 launchd keeps one) and unresponsive system daemons (no sudo from here;
 host reboot is the last resort).
+
+## Rebuild after reboot, 2026-09-14 (rig fully green)
+
+Reboot fixed the backend. Big corrections to the earlier story:
+- **No data loss**: postgres volume was intact (crash-recovery, 4 runs
+  from Sep 13–14 present). The "wipe" diagnosis was wrong — someone had
+  already rebuilt + reseeded + validated before the reboot.
+- **Main is now complete**: edge/broker/machine-executor/MCP work all
+  merged (#171/#172/#177 included). Binaries built straight from main —
+  no more dirty-tree deploys for the controlplane.
+- **Stale-IP root cause**: the recreated controlplane baked
+  `DATABASE_URL=@10.63.219.5` + `MINIO_ENDPOINT=@10.63.219.2` (IPs from
+  creation boot). Recreated with **hostnames** (`postgres`, `minio`) —
+  reboot-proof. Prefer hostname env over the /etc/hosts hack (still
+  needed once per fresh container for the runtime DNS quirk).
+- **Image e8c3eadb predates features** (no token/metrics/disk routes):
+  hot-swapped a main-built binary in. If behavior ever looks
+  API-incomplete, check the image digest age first.
+- **JWT secret rotated**: Sep-14 recreate dropped `CACHE_JWT_SECRET`
+  (compose default empty). Minted fresh 32-byte hex, `wrangler secret
+  put` on the worker + container env. Old secret unrecoverable —
+  ROTATE, don't chase. Verify: authed HEAD 404 (not 401), no-auth 401.
+- Live proof post-rebuild: edge-demo SUCCEEDED, tiers split
+  (edge miss on cold), duration+exit columns, 43 metric series,
+  MCP usage/summary all rendering.
