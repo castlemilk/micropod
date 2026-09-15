@@ -900,3 +900,17 @@ Reboot fixed the backend. Big corrections to the earlier story:
   routes) resolves correctly — canonical ref for any recreate.
   Proven safe: tag removal is ref-scoped (`Reclaimed Zero KB`),
   verified on a dummy image first.
+
+## Adaptive metrics retention (2026-09-15, PR #215)
+
+- `RUNNER_METRICS_RETENTION` (base, 3 h) + `..._MAX` (7 d, must be >=
+  base) + `..._AUTO` flag. Off by default: behavior byte-identical.
+- Auto tiers on fleet-max host disk (already shipped by runners):
+  <70%→Max, 70–85%→base, 85–92%→min(base,1 h), ≥92%→30 m, unknown holds.
+  Two agreeing evals to move, every change logged, pushed to both
+  stores; API window cap + `retentionMinutes` follow the effective
+  window (the old hardcoded 180-min cap is gone).
+- Live proof: 88% fleet disk moved 3 h→1 h with the transition logged.
+  Note the honest tradeoff: on a pressured rig this prunes history —
+  metrics rows are KBs and never move real disk pressure, so treat the
+  squeeze tiers as hygiene signal, not savings.
