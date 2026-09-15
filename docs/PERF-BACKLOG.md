@@ -890,3 +890,13 @@ Reboot fixed the backend. Big corrections to the earlier story:
   leaks — Ollama back at ~13 GB, a new `scripts/ml` python job at
   ~5 GB, agent sessions ~10 GB. Sums to the 128 GB box; further relief
   needs tenant decisions (Ollama off? ML job box?), not engineering.
+
+## Image tags: use :stable, never :latest (2026-09-15)
+
+- The `:latest` ref is poisoned: duplicate rows plus a resolver that
+  still answers the Sep-8 digest after retag. `image rm` only removed
+  the row, not the stale resolution.
+- `:stable` (38795ff1, main-built, verified serving disk/metrics/token
+  routes) resolves correctly — canonical ref for any recreate.
+  Proven safe: tag removal is ref-scoped (`Reclaimed Zero KB`),
+  verified on a dummy image first.
