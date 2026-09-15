@@ -947,3 +947,13 @@ Reboot fixed the backend. Big corrections to the earlier story:
   false-positive risk.
 - **Lease query EXPLAIN**: seq scans throughout, optimal at current
   scale (24 runs / 19 k metrics). Revisit indexes past ~10 k runs.
+
+## Load probe (2026-09-15, live, gentle)
+
+- Poll storm: 8 parallel pollers × 30 s = 11,707 polls, **zero errors**,
+  p50 14 ms / p95 48 ms / p99 75 ms, one 5.9 s outlier (single DB/GC
+  blip in 11.7 k — noted, not chased). No breaking point found; stopped
+  there rather than risking live work for marginal signal.
+- Metrics ingest healthy throughout (200s every 30 s).
+- pprof gates verified live on the runner (heap 6 MB idle); controlplane
+  pprof endpoint exists but stays off (needs DEBUG_PPROF recreate).
