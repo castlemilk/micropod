@@ -928,3 +928,22 @@ Reboot fixed the backend. Big corrections to the earlier story:
   callers). Live proof: 14 s run reported 5 samples, ~5 MB peak.
 - Short attempts on slow backends still get nothing (a 4 s round trip
   can't fit in a 1 s run) — physical limit, documented not fixed.
+
+## Profiling + resilience round (2026-09-15, PR #218)
+
+- **Race**: `go test -race` clean everywhere except one real catch —
+  cache mock read push counters unlocked against the async push
+  goroutine. Locked accessor; production stores audited safe
+  (edge/broker synchronized, GCS immutable post-construction).
+- **pprof**: `/debug/pprof/` on both binaries, env-gated
+  (`DEBUG_PPROF`, `RUNNER_DEBUG_PPROF`), viewer-role on controlplane,
+  localhost trust on runner panel. Live baselines: 6 MB heap, 18 idle
+  goroutines, near-zero self CPU under 4 concurrent runs — nothing to
+  fix, orchestrator-shaped as designed.
+- **kill -9 drill**: mid-attempt SIGKILL → launchd restart <3 s →
+  lease expiry → reclaim → retry → SUCCEEDED in ~6 min total. Full
+  crash-recovery chain verified live. Lease window (~5 min) is the
+  dominant term — tune only if faster failover is worth the
+  false-positive risk.
+- **Lease query EXPLAIN**: seq scans throughout, optimal at current
+  scale (24 runs / 19 k metrics). Revisit indexes past ~10 k runs.
