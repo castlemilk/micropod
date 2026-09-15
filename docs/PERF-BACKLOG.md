@@ -955,5 +955,20 @@ Reboot fixed the backend. Big corrections to the earlier story:
   blip in 11.7 k — noted, not chased). No breaking point found; stopped
   there rather than risking live work for marginal signal.
 - Metrics ingest healthy throughout (200s every 30 s).
-- pprof gates verified live on the runner (heap 6 MB idle); controlplane
+- pprof gates verified live on the runner (heap 6 MB idle); controlpla
   pprof endpoint exists but stays off (needs DEBUG_PPROF recreate).
+
+## Headless runner self-update (2026-09-15, PR #219)
+
+- Rig runners can now detect + install updates with zero operator
+  action: manifest JSON (http/https/file) per GOOS/GOARCH with sha256,
+  hourly check, idle-gated auto-apply, atomic swap with `.prev`
+  backup, state file reconciled on next boot, SIGTERM for graceful
+  supervisor relaunch. `RUNNER_UPDATE_MANIFEST_URL` enables.
+- Live drill: v9.9.9-test manifest → downloaded, verified, swapped,
+  graceful restart, re-registered polling, boot report confirmed
+  applied. Rig restored to production binary after.
+- Still missing for the full story: a published manifest feed (release
+  pipeline only ships desktop DMGs + CLI today) and fleet-pin
+  integration (pins exist per-org; headless currently follows its own
+  manifest URL).
