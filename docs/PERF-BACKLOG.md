@@ -914,3 +914,17 @@ Reboot fixed the backend. Big corrections to the earlier story:
   Note the honest tradeoff: on a pressured rig this prunes history —
   metrics rows are KBs and never move real disk pressure, so treat the
   squeeze tiers as hygiene signal, not savings.
+
+## Stats collection bounds (2026-09-15, PR #216)
+
+- Symptom: zero resource samples on every attempt despite working
+  `docker stats`. Root causes, peeled in order: (1) the pre-start
+  immediate collect could only return hollow zeros; (2) one wedged
+  backend call occupied the sequential collector for the whole attempt;
+  (3) the real killer — a canceled CLI whose grandchildren hold its
+  pipes open stalls `Wait` indefinitely (200 ms timeout stretched to a
+  full 30 s sleep). Fixes: per-call 8 s timeout, no pre-start collect,
+  `WaitDelay: 10 s` on every docker invocation (central, protects all
+  callers). Live proof: 14 s run reported 5 samples, ~5 MB peak.
+- Short attempts on slow backends still get nothing (a 4 s round trip
+  can't fit in a 1 s run) — physical limit, documented not fixed.
