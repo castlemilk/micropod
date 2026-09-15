@@ -880,3 +880,13 @@ Reboot fixed the backend. Big corrections to the earlier story:
   `CUTTLE_TEST_POSTGRES_URL` pollute each other's windows — the
   leaderboard test isolates with a unique project per run after catching
   exactly that (passed solo, failed 4/5 shared).
+
+## Docker cap cut verified (2026-09-14)
+
+- Allocation lowered 64→32 GB per plan; VM now holds ~35 GB flat
+  (cap + overhead) instead of ballooning unbounded. Rig revalidated
+  end-to-end after the change (edge-demo SUCCEEDED, leaderboard live).
+- Structural note: pressure persists from legitimate tenants, not
+  leaks — Ollama back at ~13 GB, a new `scripts/ml` python job at
+  ~5 GB, agent sessions ~10 GB. Sums to the 128 GB box; further relief
+  needs tenant decisions (Ollama off? ML job box?), not engineering.
