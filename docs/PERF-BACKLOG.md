@@ -972,3 +972,14 @@ Reboot fixed the backend. Big corrections to the earlier story:
   pipeline only ships desktop DMGs + CLI today) and fleet-pin
   integration (pins exist per-org; headless currently follows its own
   manifest URL).
+
+## Runner release channel (2026-09-16, PR #220)
+
+- Above gaps closed: `scripts/publish-runner-release.sh` builds all 4
+  platforms with stamps + shas + `version.json` to
+  `gs://<bucket>/runner/{v<V>,latest}/`; CI workflow on `runner-v*`
+  tags; `GET /api/runners/{id}/update-target` serves the org pin
+  (fail-open empty); runner resolves explicit URL > pin > latest.
+- Live proof: pin round-trip against temp rows (since cleaned),
+  invalid pins rejected. First real publish is a deliberate
+  `runner-v*` tag, still to come.
