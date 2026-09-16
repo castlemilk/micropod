@@ -983,3 +983,15 @@ Reboot fixed the backend. Big corrections to the earlier story:
 - Live proof: pin round-trip against temp rows (since cleaned),
   invalid pins rejected. First real publish is a deliberate
   `runner-v*` tag, still to come.
+
+## Runner binaries on GitHub Releases (2026-09-16, PR #221, v0.2.26)
+
+- Goreleaser matrix extended with a second build (`./cmd/runner` →
+  `cf-runner-machine`, linux+darwin × amd64+arm64, same ldflags stamps
+  as the CLI), published as `runner_<Os>_<Arch>` archives alongside the
+  four `cuttle_*` CLI archives. Snapshot-validated before merge (8/8
+  binaries build; arm64 runner boots with stamped version).
+- `v0.2.26` cut from main tip and published via local
+  `goreleaser release --clean`: 9 assets live
+  (`cuttle_*` ×4, `runner_*` ×4, `checksums.txt`). Next step is a
+  tag-triggered GitHub workflow so future releases need no local run.
