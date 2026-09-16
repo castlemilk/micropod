@@ -995,3 +995,13 @@ Reboot fixed the backend. Big corrections to the earlier story:
   `goreleaser release --clean`: 9 assets live
   (`cuttle_*` ×4, `runner_*` ×4, `checksums.txt`). Next step is a
   tag-triggered GitHub workflow so future releases need no local run.
+
+## Tag-driven release pipeline, proven (2026-09-16, PR #222, v0.2.27)
+
+- `.github/workflows/release.yml`: pushing `v*` checks out full tag
+  history on the self-hosted linux builder and runs
+  `goreleaser release --clean` (`contents: write`). Tag filter can't
+  collide with the GCS channel (`runner-v*` doesn't start with `v`).
+- Proof is a real release, not a dry run: `v0.2.27` published 9/9
+  assets with zero local steps. Manual goreleaser runs retired —
+  future releases are push-a-tag only.
