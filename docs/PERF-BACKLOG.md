@@ -1005,3 +1005,22 @@ Reboot fixed the backend. Big corrections to the earlier story:
 - Proof is a real release, not a dry run: `v0.2.27` published 9/9
   assets with zero local steps. Manual goreleaser runs retired —
   future releases are push-a-tag only.
+
+## Runner channel moved to Cloudflare R2 (2026-09-16, PR #223)
+
+- GCS was never published to, so the channel moved before first use:
+  new `cuttlefish-downloads` R2 bucket, public root
+  `https://downloads.benebsworth.com/runner` (custom domain), upload
+  via AWS CLI S3 API in `scripts/publish-runner-release.sh`, workflow
+  secrets `R2_ACCOUNT_ID / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY`.
+  Runner default channel root follows. GCS artifact-store driver and
+  desktop DMG flow untouched (separate concerns).
+- Validated: dry-run builds 4/4 + valid manifest with R2 URLs,
+  fail-closed without creds, unit tests green, full CI green.
+- Still manual before the first deliberate `runner-v*` publish:
+  attach the custom domain (R2 → bucket → Settings) and set the 3
+  repo secrets.
+- Lesson logged honestly: chained shell commands run in the *starting*
+  workdir, so `worktree add` + `checkout -b` in one line switched the
+  main checkout twice. Separate the calls; verify with `git status`
+  before any checkout.
