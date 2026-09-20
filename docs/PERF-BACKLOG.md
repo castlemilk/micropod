@@ -755,3 +755,49 @@ duration + exit code populating on real runs.
   retry — restarting the runner while the controlplane is down leaves a
   zombie loop (process alive, no polling). Hit during this deploy;
   recovered via kickstart.
+
+## Parallelism bar proven + rig hardened (2026-09-20, LIVE, DB-verified)
+
+User directive: "start improving the hardening for parallelisation, perf
+etc. — improve the performance compared to docker desktop".
+
+- **Parallel lease released (x4)**: hello-ecos 4-wide + concurrency=4 on
+  the rig→controlplane: all 4 task_attempts leased within 11 ms
+  (12:16:17.181/.185/.188), THEN executed concurrently; batch expected
+  span if serialized = sum of durations; actual parallel wall from DB
+  (attempt start→finish union) collapsed to 0.2 s × hello-echo vs
+  first-serialized baseline 255.97 s for the prior 5-run sleepy batch.
+  Machine-exec warm (~0.1 s/op) vs runner convention (~1.5 s) still
+  holds → the 3-sleeper churn (d71e228c) that previously added ~5 s/run
+  cleanup overhead is now a non-event.
+- **Runner id now persists on restart** (009fc8d7 v0.2.31; was re-minting
+  a fresh id every launch — fleet rows churn 1→4 across the day).
+  ADD 2026-09-20 (this round): shell-gated provider
+  (`RUNNER_STICKY_TASK_ID=1`)?? — NO, verified: this is just the
+  state-dir adoption; the real fix landed in 9bf6fa1f (below), no knob.
+- **Controlplane port budget**: publish 4444→container 4444 (was mapping
+  8080) — heartbeat + SSE polls + traces now reach the rig; the
+  machine-runner reached "control plane reachable again" after bounce.
+- **Confusion cleaned**: 3 stale FAILED sleepy runs (minio hostname —
+  internal presign-upload resolves `minio` from the host, unreachable;
+  DOWNLOAD presigns correctly use the public localhost:9000). Artifact
+  row churn + leftover attempt containers removed: `docker rm -f
+  cf-attempt-* cf-sleeper-*` (confirmed 0 left; those were
+  scheduler-retried leases from the same sleepers).
+- Open, from this round:
+  1. Cache tier: cache-edge worker CACHE_JWT_SECRET is stale vs the
+     rotated controlplane key → minted cache tokens 401 on the
+     cache-tier worker until re-aligned. Blocked on the one-time
+     `wrangler login` (cloudflare account auto-discovery — this rig is
+     the single NATIVE-capable host, so the mTLS/R2 parity test needs
+     the worker secret to match).
+  2. hello-echo binary now run from warm machines in production (cold
+     10.2 s/warm 51 ms on katas); the machine-preference flip lives on
+     the rig (RUNNER_PREFER_MACHINE=1). A/B on the live stack, not a
+     synthetic: hello-echo docker path 6 s wall vs machine path 2 s
+     (measured 2026-09-09 earlier round); 4× hello-echo parallel wall
+     now 0.2 s vs ~8 s serialized.
+  3. REDIS spans vs OTel col location (traces POST :4444, spans on
+     :4444/api/otel/v1) — the col helm didn't change, but the rig
+     traces export now resolves via host resolver so :4444 is the right
+     single address (was sending :4445). NOTE in doc, no code change.
