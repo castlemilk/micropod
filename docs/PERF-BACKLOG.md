@@ -1024,3 +1024,29 @@ Reboot fixed the backend. Big corrections to the earlier story:
   workdir, so `worktree add` + `checkout -b` in one line switched the
   main checkout twice. Separate the calls; verify with `git status`
   before any checkout.
+
+## R2 channel live for real: runner-v0.2.28 published & verified (2026-09-16, PRs #224-226)
+
+- First deliberate `runner-v0.2.28` publish, end-to-end on Cloudflare:
+  bucket + custom domain (`downloads.benebsworth.com`) configured via
+  wrangler CLI (`r2 bucket create` + `r2 bucket domain add
+  --zone-id`); R2 S3 API token from `micropod/.env`
+  (`CF_ACCESS_KEY`/`CF_SECRET_ACCESS_KEY` → repo secrets; wrangler's
+  OAuth grant can't mint tokens — token-management calls 403/9109).
+- Bootstrap hiccups logged: tag push didn't auto-dispatch (first run
+  was `workflow_dispatch`), PEP 668 blocked `pip install awscli`
+  (→ `--break-system-packages`), pip user-bin off PATH (→
+  `GITHUB_PATH` + in-step `export PATH`). Each was a tiny merged PR
+  (#224-226). Note also: tag-trigger dispatch can be delayed; keep a
+  `workflow_dispatch` escape hatch.
+- Live proof (from R2 public URL): `latest/version.json` + 4/4
+  per-arch binaries download, every sha256 matches the manifest, and
+  darwin-arm64 boots with `version v0.2.28`. The `release` workflow
+  step succeeded; the run still shows failed because setup-go/checkout
+  *post* steps error on the self-hosted builder (cleanup flake,
+  cosmetic — publish already done).
+- Rig pointed at the channel: `RUNNER_UPDATE_MANIFEST_URL` and
+  `RUNNER_UPDATE_CHECK_INTERVAL=5m` added to
+  `~/.micropod/cf-machine-runner.env`. The running dev build will
+  self-update to v0.2.28 on first check once the (currently torn-down)
+  controlplane stack is back. Note gated as `updating/ pending`.
