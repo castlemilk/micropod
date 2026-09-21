@@ -801,3 +801,24 @@ etc. — improve the performance compared to docker desktop".
      :4444/api/otel/v1) — the col helm didn't change, but the rig
      traces export now resolves via host resolver so :4444 is the right
      single address (was sending :4445). NOTE in doc, no code change.
+
+## Cache-tier JWT parity — RESTORED (live, 2026-09-20)
+
+Controlplane rotated its cache-edge JWT signing key earlier this round,
+and the OAuth token was the only limb still holding the OLD secret (so
+edge-minted cache JWTs could not be validated by the worker post-rotate).
+Wrangler OAuth handshake (looped via `wrangler login`, account auto-
+discovered `2132ccf47ceb4fff2334c34d85490470a`) + `wrangler secret put
+CACHE_JWT_SECRET` re-aligned the worker with the controlplane's current
+64-hex. Verified live: controlplane mints → edge validates → same-key
+parity restored; tampered/old-key JWT rejected at the edge.
+
+Note for the next round: the host-native rig cannot reach the *internal*
+presign-upload endpoint (`minio`), only the public one — artifact
+uploads presign to an internal URL by design (minio_store_test.go
+asserts this on purpose — uploads stay in-network for in-VKE runners).
+On a host-native rig that means artifact-bearing benches (e.g. sleepy)
+will fail at upload unless the rig rides CF-edge (cache worker) for the
+class of bytes it can reach, or a MINIO_PUBLIC_ENDPOINT upload knob is
+added for host runners. hello-echo (no artifact) proves the parallel bar
+without this knob.
