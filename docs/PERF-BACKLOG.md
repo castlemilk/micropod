@@ -1050,27 +1050,3 @@ Reboot fixed the backend. Big corrections to the earlier story:
   `~/.micropod/cf-machine-runner.env`. The running dev build will
   self-update to v0.2.28 on first check once the (currently torn-down)
   controlplane stack is back. Note gated as `updating/ pending`.
-
----
-
-## Addendum (2026-09-20, live-proven on the host-native rig, DB-verified)
-
-Built on top of the master baseline above; supersedes the draft claims
-from the original fork commit.
-
-- **x4 parallel bar — live**: 4× hello-echo dispatched in parallel
-  (concurrency=4). All SUCCEEDED; `task_attempts` leased within
-  **11 ms** (12:16:17.181/.185/.188 DB timestamps). Batch wall
-  **0.20 s** vs the older serialized 5-run sleepy baseline
-  **255.97 s** → **~1,400×** wall-time win. Provenance: DB lease span
-  (min/max), not CLI `--wait` timing.
-- **Cache-tier JWT parity — RESTORED live**: controlplane rotated its
-  cache-edge signing key; worker `CACHE_JWT_SECRET` re-aligned via
-  wrangler OAuth (CF account auto-discovered) → worker↔controlplane
-  signing parity byte-identical (same 64-hex both sides). Re-opens the
-  warm-edge vs cold-R2 vs docker cache A/B, now unblocked.
-- **Ranked next (P1)**: artifact uploads presign to the internal `minio`
-  hostname (by design, correct for in-VKE runners); host-native rigs
-  can't resolve it, so artifact-bearing tasks fail at upload — hello-echo
-  proves the parallel bar without artifacts. Direction: MINIO_PUBLIC_
-  ENDPOINT-aware upload presign for host runners.
