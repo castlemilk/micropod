@@ -1050,3 +1050,68 @@ Reboot fixed the backend. Big corrections to the earlier story:
   `~/.micropod/cf-machine-runner.env`. The running dev build will
   self-update to v0.2.28 on first check once the (currently torn-down)
   controlplane stack is back. Note gated as `updating/ pending`.
+
+## Stack rebuild + R2 self-update proven live (2026-09-20, cuttlefish #227-230)
+
+### Controlplane stack rebuild (all four containers + named volumes were gone)
+- Recreated `cuttlefish_micropodval_*` from main's `docker-compose.yml`
+  (`COMPOSE_PROJECT_NAME=cuttlefish_micropodval`), controlplane image built
+  fresh from main tip. **New quirk logged**: the binary defaults
+  `WORKFLOW_SCHEMA_PATH` to `docs/...`, which resolves to `/docs/...` under a
+  `/` runtime WORKDIR, but the Dockerfile copies the schema to
+  `/etc/cuttlefish/…` — pass `-e WORKFLOW_SCHEMA_PATH=/etc/...` or the server
+  fails to build with a jsonschema `file:///docs/...` error.
+- Fresh `CACHE_JWT_SECRET` (32-byte hex); worker rotated to match via
+  `wrangler secret put CACHE_JWT_SECRET --name cuttlefish-cache-edge` so
+  controlplane-minted JWTs still verify. Reseeded the empty DB with
+  `scripts/dev/seed_examples.py --controlplane-url http://localhost:4444`
+  (6 dev workflows published); `hello-echo` run SUCCEEDED end-to-end.
+- **CI was dead for a different reason than "dispatch not firing"**: the
+  `cuttlefish/linux-runner:latest` image AND its container were both missing,
+  so `[self-hosted, cuttlefish, linux]` jobs sat queued forever. Rebuilt the
+  image from the checkout (`deploy/linux-runner`), `rig-linux-runner.sh start
+  skunkworq/cuttlefish`, runner ONLINE. Also cancelled a backlog of stale
+  queued CI runs from the offline era (tag pushes had queued several full CI
+  runs).
+
+### minTLS 1.2 confirmed + channel perf
+- TLS 1.1 now clearly rejected at the edge (`protocol version` alert), 1.2+
+  serves `200` at TTFB ~0.09-0.15s; 20.9 MB `cf-runner-machine-darwin-arm64`
+  fetched at ~15 MB/s in 1.4s, sha256 == manifest (baseline had been
+  0.5-7 MB/s — cache-warm edge).
+
+### Verify step, tag-version bug, and the poll-retry that disproved CDN-race
+- PR #227 added a post-publish verify (fetch versioned + latest manifest,
+  download linux/amd64, diff sha vs `dist/runner/version.json`).
+- First tag run (v0.2.30) failed the versioned-manifest fetch with 404. My
+  first call was "R2 custom-domain propagation race" → #228 added a
+  poll-until-live loop. The retry *expired* after 60s → root cause was NOT a
+  race: on tag-triggered runs `GITHUB_REF_NAME` is `runner-vX.Y.Z`, so the
+  step fetched `runner/runner-v0.2.30/version.json`. Fixed in #230 by
+  mirroring `publish-runner-release.sh`'s normalization
+  (`${VERSION#runner-}`, `v${VERSION#v}`). **Lesson**: before believing a CDN
+  propagation flake, re-check the URL construction — the retry loop stayed
+  because the propagation window is still real on new objects.
+- v0.2.31 tag-driven run: publish + verify all green (run still shows red —
+  the setup-go/checkout *post*-step cleanup flake again; cosmetic).
+
+### Self-update proven live (the payoff)
+- Deployed v0.2.30 to the rig by hand (sha-verified from R2, old binary
+  backed up, launchd `kickstart`). Then watched the channel do the rest:
+  `runner: v0.2.30 → v0.2.31` auto-applied on the 5m cadence ("update
+  installed; restarting into new build", new PID, runners row now v0.2.31).
+  The self-update gate + manifest + R2 download + sha verify + relaunch chain
+  is now directly observed.
+- Earlier mystery (the v0.2.26 dev build refuse to update for ~50 min with
+  zero logs) was never root-caused from inside the rig — the check-failure
+  path logged at `Debug` only. PR #229 (`fix(runner): surface self-update
+  check failures at WARN`) merged so any future failure is visible; note it
+  ships first in v0.2.31+.
+
+### Open nits from the round
+- "signal staleness watchdog fired; forcing poll" WARNs on ~10s cadence when
+  idle: SSE connects + keepalives fine, but eventhub only publishes on work
+  events, so an idle rig logs a force-poll every interval. Cosmetic; polling
+  performs the work.
+- SSE/controlplane port-forward churn under Docker Desktop remains an
+  observation; the rig pairs fine via polling.
