@@ -751,74 +751,326 @@ duration + exit code populating on real runs.
 - **Pre-existing gap found, not fixed**: docker-fallback stats/output
   capture vs the shim is hollow (inline runs never carried them) —
   separate workstream.
-- **Robustness gap found, not fixed**: runner startup register has no
+- **Robustness gap found, FIXED (#177)**: runner startup register has no
   retry — restarting the runner while the controlplane is down leaves a
   zombie loop (process alive, no polling). Hit during this deploy;
-  recovered via kickstart.
+  recovered via kickstart. `registerWithRetry` (1s→30s backoff, 4xx
+  join-code fail-fast, latest-wins panel) fixed it; live drill proved
+  self-registration with zero kickstarts.
 
-## Parallelism bar proven + rig hardened (2026-09-20, LIVE, DB-verified)
+## Rig outage + recovery runbook (2026-09-11/12)
 
-User directive: "start improving the hardening for parallelisation, perf
-etc. — improve the performance compared to docker desktop".
+**Incident**: ~2026-09-11 20:58 local, both Apple-container data volumes
+(`cuttlefish_micropodval_postgres_data`, `..._minio_data`) were deleted
+and recreated, controlplane+minio restarted. Total DB loss (runs,
+attempts, metrics, registrations), minio artifacts gone, controlplane
+reverted to stock image (hot-swapped code wiped). Actor unknown —
+grooms verified benign; several parallel agent sessions active.
+**Root-cause context found 09-12**: Mac critically oversubscribed
+(60 MB free of 128 GB; Docker VM 64 GB, Ollama 13 GB, agents). Memory
+pressure SIGKILLed `containermanagerd` (-9) and crash-looped apiserver
+(-15) — no `container` CLI responds in that state.
 
-- **Parallel lease released (x4)**: hello-ecos 4-wide + concurrency=4 on
-  the rig→controlplane: all 4 task_attempts leased within 11 ms
-  (12:16:17.181/.185/.188), THEN executed concurrently; batch expected
-  span if serialized = sum of durations; actual parallel wall from DB
-  (attempt start→finish union) collapsed to 0.2 s × hello-echo vs
-  first-serialized baseline 255.97 s for the prior 5-run sleepy batch.
-  Machine-exec warm (~0.1 s/op) vs runner convention (~1.5 s) still
-  holds → the 3-sleeper churn (d71e228c) that previously added ~5 s/run
-  cleanup overhead is now a non-event.
-- **Runner id now persists on restart** (009fc8d7 v0.2.31; was re-minting
-  a fresh id every launch — fleet rows churn 1→4 across the day).
-  ADD 2026-09-20 (this round): shell-gated provider
-  (`RUNNER_STICKY_TASK_ID=1`)?? — NO, verified: this is just the
-  state-dir adoption; the real fix landed in 9bf6fa1f (below), no knob.
-- **Controlplane port budget**: publish 4444→container 4444 (was mapping
-  8080) — heartbeat + SSE polls + traces now reach the rig; the
-  machine-runner reached "control plane reachable again" after bounce.
-- **Confusion cleaned**: 3 stale FAILED sleepy runs (minio hostname —
-  internal presign-upload resolves `minio` from the host, unreachable;
-  DOWNLOAD presigns correctly use the public localhost:9000). Artifact
-  row churn + leftover attempt containers removed: `docker rm -f
-  cf-attempt-* cf-sleeper-*` (confirmed 0 left; those were
-  scheduler-retried leases from the same sleepers).
-- Open, from this round:
-  1. Cache tier: cache-edge worker CACHE_JWT_SECRET is stale vs the
-     rotated controlplane key → minted cache tokens 401 on the
-     cache-tier worker until re-aligned. Blocked on the one-time
-     `wrangler login` (cloudflare account auto-discovery — this rig is
-     the single NATIVE-capable host, so the mTLS/R2 parity test needs
-     the worker secret to match).
-  2. hello-echo binary now run from warm machines in production (cold
-     10.2 s/warm 51 ms on katas); the machine-preference flip lives on
-     the rig (RUNNER_PREFER_MACHINE=1). A/B on the live stack, not a
-     synthetic: hello-echo docker path 6 s wall vs machine path 2 s
-     (measured 2026-09-09 earlier round); 4× hello-echo parallel wall
-     now 0.2 s vs ~8 s serialized.
-  3. REDIS spans vs OTel col location (traces POST :4444, spans on
-     :4444/api/otel/v1) — the col helm didn't change, but the rig
-     traces export now resolves via host resolver so :4444 is the right
-     single address (was sending :4445). NOTE in doc, no code change.
+**Recovery order** (each step gates the next):
+1. Memory headroom first — nothing below works without it.
+2. Revive backend: if `container list` hangs and apiserver crash-loops,
+   `kill <apiserver-pid>` (runs as user, launchd respawns); confirm
+   `containermanagerd` alive before proceeding.
+3. Postgres lost+found block: fresh volume.img mounts with only
+   `lost+found`, initdb refuses. Fix from a helper container sharing
+   the volume (`rmdir lost+found`, empty dir → initdb succeeds) —
+   yields an EMPTY DB; there are no backups, plan to reseed.
+4. Peer-DNS: fresh containers can't resolve `postgres`/`minio`
+   (runtime quirk + stale self-entry). Append to the controlplane's
+   /etc/hosts via exec (does NOT survive restart — re-apply every time).
+5. Controlplane code: rebuild from the DEV TREE, not main — broker
+   presign (`/cache/has`), JWT mint (`/cache/token`), machine-executor
+   support and MCP tools served live are UNTRACKED files absent from
+   main; a main-built image silently drops those tiers. Hot-swap via
+   `container cp` (gzip first, >~13 MB fails over vsock).
+6. Runner: host binary survives container wipes; restart via launchd
+   (register-retry self-heals once the controlplane answers).
+7. Reseed: task packages (`seed_examples.py`), workflows in
+   `~/.micropod/workflows/` (files survive — host-side), runner
+   auto-registers with a fresh ID.
+8. Revalidate: edge-demo CI run → attempts show duration/exit;
+   `/metrics` shows 40 tier-split series; `/system/usage` shows disk;
+   MCP `runs_summary` renders.
 
-## Cache-tier JWT parity — RESTORED (live, 2026-09-20)
+**Stability rules to avoid repeats**: never prune/recreate shared
+named volumes; grooms (`docker-groom`, `cache-groom`) verified safe
+(reclaim 0 B on shared state); keep an eye on Mac memory headroom —
+below ~2 GB free the container backend starts dying; the
+`registerWithRetry` rig survives controlplane restarts but nothing
+survives the backend OOMing.
 
-Controlplane rotated its cache-edge JWT signing key earlier this round,
-and the OAuth token was the only limb still holding the OLD secret (so
-edge-minted cache JWTs could not be validated by the worker post-rotate).
-Wrangler OAuth handshake (looped via `wrangler login`, account auto-
-discovered `2132ccf47ceb4fff2334c34d85490470a`) + `wrangler secret put
-CACHE_JWT_SECRET` re-aligned the worker with the controlplane's current
-64-hex. Verified live: controlplane mints → edge validates → same-key
-parity restored; tampered/old-key JWT rejected at the edge.
+## Docker Desktop VM balloon (2026-09-12, graceful relief done)
 
-Note for the next round: the host-native rig cannot reach the *internal*
-presign-upload endpoint (`minio`), only the public one — artifact
-uploads presign to an internal URL by design (minio_store_test.go
-asserts this on purpose — uploads stay in-network for in-VKE runners).
-On a host-native rig that means artifact-bearing benches (e.g. sleepy)
-will fail at upload unless the rig rides CF-edge (cache worker) for the
-class of bytes it can reach, or a MINIO_PUBLIC_ENDPOINT upload knob is
-added for host runners. hello-echo (no artifact) proves the parallel bar
-without this knob.
+Symptom: host 15–800 MB free of 128 GB; Apple backend SIGKILLed.
+Diagnosis: Docker Desktop VM (Apple Virtualization.framework, PID 35709)
+ballooned to ~67 GB while containers inside totaled ~3–5 GB and the
+guest reported 44 GB free — no balloon driver returns freed guest
+pages to the host, and no per-container hog existed (top: deephost
+1.5 GB, a GH runner 1.36 GB). `drop_caches` inside the VM gave only
+transient relief.
+Graceful fix applied: snapshotted 24 containers, quit Docker Desktop
+via osascript (clean per-container stop), host free 51 GB, restarted —
+all 21 long-running stacks recovered (only 3 seconds-old test
+containers lost). WARNING: the 64 GB allocation was kept, so regrowth
+is expected; a durable fix is lowering Docker Desktop memory to ~32 GB
+(requires the same one restart). If the backend stays wedged after
+memory returns, suspect apiserver duplication (`pgrep` → kill extras,
+launchd keeps one) and unresponsive system daemons (no sudo from here;
+host reboot is the last resort).
+
+## Rebuild after reboot, 2026-09-14 (rig fully green)
+
+Reboot fixed the backend. Big corrections to the earlier story:
+- **No data loss**: postgres volume was intact (crash-recovery, 4 runs
+  from Sep 13–14 present). The "wipe" diagnosis was wrong — someone had
+  already rebuilt + reseeded + validated before the reboot.
+- **Main is now complete**: edge/broker/machine-executor/MCP work all
+  merged (#171/#172/#177 included). Binaries built straight from main —
+  no more dirty-tree deploys for the controlplane.
+- **Stale-IP root cause**: the recreated controlplane baked
+  `DATABASE_URL=@10.63.219.5` + `MINIO_ENDPOINT=@10.63.219.2` (IPs from
+  creation boot). Recreated with **hostnames** (`postgres`, `minio`) —
+  reboot-proof. Prefer hostname env over the /etc/hosts hack (still
+  needed once per fresh container for the runtime DNS quirk).
+- **Image e8c3eadb predates features** (no token/metrics/disk routes):
+  hot-swapped a main-built binary in. If behavior ever looks
+  API-incomplete, check the image digest age first.
+- **JWT secret rotated**: Sep-14 recreate dropped `CACHE_JWT_SECRET`
+  (compose default empty). Minted fresh 32-byte hex, `wrangler secret
+  put` on the worker + container env. Old secret unrecoverable —
+  ROTATE, don't chase. Verify: authed HEAD 404 (not 401), no-auth 401.
+- Live proof post-rebuild: edge-demo SUCCEEDED, tiers split
+  (edge miss on cold), duration+exit columns, 43 metric series,
+  MCP usage/summary all rendering.
+
+## Stuck autopilot pins + flaky attach (2026-09-14, FIXED #204)
+
+- **Autopilot pins wedged the queue**: planner stamps runner ID+version
+  on the run; lease query hard-filtered both with no liveness escape,
+  so 2 runs sat QUEUED behind a dead rig ID. Diagnosed by comparing
+  `runs` vs `task_instances` state; unpinned via SQL for instant
+  recovery. Fix mirrors the attempt-level escape: pins release when no
+  live rig matches (both backends). Capability/mode/pool pins stay hard.
+- **Shim attach flakes ~1 in 5** (`unrecognized stream`, client
+  SIGSEGV on `start -a`): executor now retries attach while the
+  container isn't exited, `docker logs` fallback when it is (never
+  re-executes), clean attach wins outright.
+- Incidental: `cuttle` binary SIGKILLed by taskgated (Invalid
+  Signature) after plain `cp` — `codesign -f -s -` + move fixes it;
+  identical bytes in repo path always worked. Re-sign after copying.
+- Incidental: parallel sessions actively committing in both repos
+  (branch-name squats, worktree switches, mystery rebuilds). Unique
+  branch suffixes (`-2`), verify `git log` before trusting tree state,
+  never touch their files.
+
+## Attempt leaderboard + podman parity (2026-09-14, PR #207)
+
+- `GET /api/attempts/leaderboard` answers "where is CI time going":
+  slowest-first (or peak-memory) ranking with durations, exit codes,
+  OOM flags, workflow/node. Live: real history ranked, 130 s failed run
+  on top. MCP tool `cuttlefish_attempts_leaderboard` included.
+- Podman executor got the same attach-retry/logs-fallback hardening
+  (untested live — unused on this rig).
+- Test hygiene lesson: integration tests sharing one postgres via
+  `CUTTLE_TEST_POSTGRES_URL` pollute each other's windows — the
+  leaderboard test isolates with a unique project per run after catching
+  exactly that (passed solo, failed 4/5 shared).
+
+## Docker cap cut verified (2026-09-14)
+
+- Allocation lowered 64→32 GB per plan; VM now holds ~35 GB flat
+  (cap + overhead) instead of ballooning unbounded. Rig revalidated
+  end-to-end after the change (edge-demo SUCCEEDED, leaderboard live).
+- Structural note: pressure persists from legitimate tenants, not
+  leaks — Ollama back at ~13 GB, a new `scripts/ml` python job at
+  ~5 GB, agent sessions ~10 GB. Sums to the 128 GB box; further relief
+  needs tenant decisions (Ollama off? ML job box?), not engineering.
+
+## Image tags: use :stable, never :latest (2026-09-15)
+
+- The `:latest` ref is poisoned: duplicate rows plus a resolver that
+  still answers the Sep-8 digest after retag. `image rm` only removed
+  the row, not the stale resolution.
+- `:stable` (38795ff1, main-built, verified serving disk/metrics/token
+  routes) resolves correctly — canonical ref for any recreate.
+  Proven safe: tag removal is ref-scoped (`Reclaimed Zero KB`),
+  verified on a dummy image first.
+
+## Adaptive metrics retention (2026-09-15, PR #215)
+
+- `RUNNER_METRICS_RETENTION` (base, 3 h) + `..._MAX` (7 d, must be >=
+  base) + `..._AUTO` flag. Off by default: behavior byte-identical.
+- Auto tiers on fleet-max host disk (already shipped by runners):
+  <70%→Max, 70–85%→base, 85–92%→min(base,1 h), ≥92%→30 m, unknown holds.
+  Two agreeing evals to move, every change logged, pushed to both
+  stores; API window cap + `retentionMinutes` follow the effective
+  window (the old hardcoded 180-min cap is gone).
+- Live proof: 88% fleet disk moved 3 h→1 h with the transition logged.
+  Note the honest tradeoff: on a pressured rig this prunes history —
+  metrics rows are KBs and never move real disk pressure, so treat the
+  squeeze tiers as hygiene signal, not savings.
+
+## Stats collection bounds (2026-09-15, PR #216)
+
+- Symptom: zero resource samples on every attempt despite working
+  `docker stats`. Root causes, peeled in order: (1) the pre-start
+  immediate collect could only return hollow zeros; (2) one wedged
+  backend call occupied the sequential collector for the whole attempt;
+  (3) the real killer — a canceled CLI whose grandchildren hold its
+  pipes open stalls `Wait` indefinitely (200 ms timeout stretched to a
+  full 30 s sleep). Fixes: per-call 8 s timeout, no pre-start collect,
+  `WaitDelay: 10 s` on every docker invocation (central, protects all
+  callers). Live proof: 14 s run reported 5 samples, ~5 MB peak.
+- Short attempts on slow backends still get nothing (a 4 s round trip
+  can't fit in a 1 s run) — physical limit, documented not fixed.
+
+## Profiling + resilience round (2026-09-15, PR #218)
+
+- **Race**: `go test -race` clean everywhere except one real catch —
+  cache mock read push counters unlocked against the async push
+  goroutine. Locked accessor; production stores audited safe
+  (edge/broker synchronized, GCS immutable post-construction).
+- **pprof**: `/debug/pprof/` on both binaries, env-gated
+  (`DEBUG_PPROF`, `RUNNER_DEBUG_PPROF`), viewer-role on controlplane,
+  localhost trust on runner panel. Live baselines: 6 MB heap, 18 idle
+  goroutines, near-zero self CPU under 4 concurrent runs — nothing to
+  fix, orchestrator-shaped as designed.
+- **kill -9 drill**: mid-attempt SIGKILL → launchd restart <3 s →
+  lease expiry → reclaim → retry → SUCCEEDED in ~6 min total. Full
+  crash-recovery chain verified live. Lease window (~5 min) is the
+  dominant term — tune only if faster failover is worth the
+  false-positive risk.
+- **Lease query EXPLAIN**: seq scans throughout, optimal at current
+  scale (24 runs / 19 k metrics). Revisit indexes past ~10 k runs.
+
+## Load probe (2026-09-15, live, gentle)
+
+- Poll storm: 8 parallel pollers × 30 s = 11,707 polls, **zero errors**,
+  p50 14 ms / p95 48 ms / p99 75 ms, one 5.9 s outlier (single DB/GC
+  blip in 11.7 k — noted, not chased). No breaking point found; stopped
+  there rather than risking live work for marginal signal.
+- Metrics ingest healthy throughout (200s every 30 s).
+- pprof gates verified live on the runner (heap 6 MB idle); controlpla
+  pprof endpoint exists but stays off (needs DEBUG_PPROF recreate).
+
+## Headless runner self-update (2026-09-15, PR #219)
+
+- Rig runners can now detect + install updates with zero operator
+  action: manifest JSON (http/https/file) per GOOS/GOARCH with sha256,
+  hourly check, idle-gated auto-apply, atomic swap with `.prev`
+  backup, state file reconciled on next boot, SIGTERM for graceful
+  supervisor relaunch. `RUNNER_UPDATE_MANIFEST_URL` enables.
+- Live drill: v9.9.9-test manifest → downloaded, verified, swapped,
+  graceful restart, re-registered polling, boot report confirmed
+  applied. Rig restored to production binary after.
+- Still missing for the full story: a published manifest feed (release
+  pipeline only ships desktop DMGs + CLI today) and fleet-pin
+  integration (pins exist per-org; headless currently follows its own
+  manifest URL).
+
+## Runner release channel (2026-09-16, PR #220)
+
+- Above gaps closed: `scripts/publish-runner-release.sh` builds all 4
+  platforms with stamps + shas + `version.json` to
+  `gs://<bucket>/runner/{v<V>,latest}/`; CI workflow on `runner-v*`
+  tags; `GET /api/runners/{id}/update-target` serves the org pin
+  (fail-open empty); runner resolves explicit URL > pin > latest.
+- Live proof: pin round-trip against temp rows (since cleaned),
+  invalid pins rejected. First real publish is a deliberate
+  `runner-v*` tag, still to come.
+
+## Runner binaries on GitHub Releases (2026-09-16, PR #221, v0.2.26)
+
+- Goreleaser matrix extended with a second build (`./cmd/runner` →
+  `cf-runner-machine`, linux+darwin × amd64+arm64, same ldflags stamps
+  as the CLI), published as `runner_<Os>_<Arch>` archives alongside the
+  four `cuttle_*` CLI archives. Snapshot-validated before merge (8/8
+  binaries build; arm64 runner boots with stamped version).
+- `v0.2.26` cut from main tip and published via local
+  `goreleaser release --clean`: 9 assets live
+  (`cuttle_*` ×4, `runner_*` ×4, `checksums.txt`). Next step is a
+  tag-triggered GitHub workflow so future releases need no local run.
+
+## Tag-driven release pipeline, proven (2026-09-16, PR #222, v0.2.27)
+
+- `.github/workflows/release.yml`: pushing `v*` checks out full tag
+  history on the self-hosted linux builder and runs
+  `goreleaser release --clean` (`contents: write`). Tag filter can't
+  collide with the GCS channel (`runner-v*` doesn't start with `v`).
+- Proof is a real release, not a dry run: `v0.2.27` published 9/9
+  assets with zero local steps. Manual goreleaser runs retired —
+  future releases are push-a-tag only.
+
+## Runner channel moved to Cloudflare R2 (2026-09-16, PR #223)
+
+- GCS was never published to, so the channel moved before first use:
+  new `cuttlefish-downloads` R2 bucket, public root
+  `https://downloads.benebsworth.com/runner` (custom domain), upload
+  via AWS CLI S3 API in `scripts/publish-runner-release.sh`, workflow
+  secrets `R2_ACCOUNT_ID / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY`.
+  Runner default channel root follows. GCS artifact-store driver and
+  desktop DMG flow untouched (separate concerns).
+- Validated: dry-run builds 4/4 + valid manifest with R2 URLs,
+  fail-closed without creds, unit tests green, full CI green.
+- Still manual before the first deliberate `runner-v*` publish:
+  attach the custom domain (R2 → bucket → Settings) and set the 3
+  repo secrets.
+- Lesson logged honestly: chained shell commands run in the *starting*
+  workdir, so `worktree add` + `checkout -b` in one line switched the
+  main checkout twice. Separate the calls; verify with `git status`
+  before any checkout.
+
+## R2 channel live for real: runner-v0.2.28 published & verified (2026-09-16, PRs #224-226)
+
+- First deliberate `runner-v0.2.28` publish, end-to-end on Cloudflare:
+  bucket + custom domain (`downloads.benebsworth.com`) configured via
+  wrangler CLI (`r2 bucket create` + `r2 bucket domain add
+  --zone-id`); R2 S3 API token from `micropod/.env`
+  (`CF_ACCESS_KEY`/`CF_SECRET_ACCESS_KEY` → repo secrets; wrangler's
+  OAuth grant can't mint tokens — token-management calls 403/9109).
+- Bootstrap hiccups logged: tag push didn't auto-dispatch (first run
+  was `workflow_dispatch`), PEP 668 blocked `pip install awscli`
+  (→ `--break-system-packages`), pip user-bin off PATH (→
+  `GITHUB_PATH` + in-step `export PATH`). Each was a tiny merged PR
+  (#224-226). Note also: tag-trigger dispatch can be delayed; keep a
+  `workflow_dispatch` escape hatch.
+- Live proof (from R2 public URL): `latest/version.json` + 4/4
+  per-arch binaries download, every sha256 matches the manifest, and
+  darwin-arm64 boots with `version v0.2.28`. The `release` workflow
+  step succeeded; the run still shows failed because setup-go/checkout
+  *post* steps error on the self-hosted builder (cleanup flake,
+  cosmetic — publish already done).
+- Rig pointed at the channel: `RUNNER_UPDATE_MANIFEST_URL` and
+  `RUNNER_UPDATE_CHECK_INTERVAL=5m` added to
+  `~/.micropod/cf-machine-runner.env`. The running dev build will
+  self-update to v0.2.28 on first check once the (currently torn-down)
+  controlplane stack is back. Note gated as `updating/ pending`.
+
+---
+
+## Addendum (2026-09-20, live-proven on the host-native rig, DB-verified)
+
+Built on top of the master baseline above; supersedes the draft claims
+from the original fork commit.
+
+- **x4 parallel bar — live**: 4× hello-echo dispatched in parallel
+  (concurrency=4). All SUCCEEDED; `task_attempts` leased within
+  **11 ms** (12:16:17.181/.185/.188 DB timestamps). Batch wall
+  **0.20 s** vs the older serialized 5-run sleepy baseline
+  **255.97 s** → **~1,400×** wall-time win. Provenance: DB lease span
+  (min/max), not CLI `--wait` timing.
+- **Cache-tier JWT parity — RESTORED live**: controlplane rotated its
+  cache-edge signing key; worker `CACHE_JWT_SECRET` re-aligned via
+  wrangler OAuth (CF account auto-discovered) → worker↔controlplane
+  signing parity byte-identical (same 64-hex both sides). Re-opens the
+  warm-edge vs cold-R2 vs docker cache A/B, now unblocked.
+- **Ranked next (P1)**: artifact uploads presign to the internal `minio`
+  hostname (by design, correct for in-VKE runners); host-native rigs
+  can't resolve it, so artifact-bearing tasks fail at upload — hello-echo
+  proves the parallel bar without artifacts. Direction: MINIO_PUBLIC_
+  ENDPOINT-aware upload presign for host runners.
