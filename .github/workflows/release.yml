@@ -1,0 +1,92 @@
+name: Release
+
+# Tag push (v*) builds the app, packages a DMG, and attaches it to the
+# GitHub release. Signing + notarization run only when the Apple secrets
+# are configured — otherwise an unsigned DMG is still published with a
+# warning so the pipeline never hard-blocks a release.
+#
+# Required secrets for signed/notarized builds (see docs/releasing.md):
+#   MACOS_CERTIFICATE            base64-encoded Developer ID .p12
+#   MACOS_CERTIFICATE_PASSWORD   p12 export password
+#   APPLE_SIGNING_IDENTITY       e.g. "Developer ID Application: X (TEAMID)"
+#   NOTARY_API_KEY_BASE64        base64 AuthKey_*.p8 (App Store Connect API)
+#   NOTARY_KEY_ID                the key's ID
+#   NOTARY_ISSUER                issuer UUID
+#   APPLE_TEAM_ID                for future verification
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    env:
+      VERSION: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer || true
+
+      - name: Import signing certificate
+        if: env.MACOS_CERTIFICATE != ''
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          echo "$MACOS_CERTIFICATE" | base64 -d > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p ci "$RUNNER_TEMP/ci.keychain-db"
+          security default-keychain -s "$RUNNER_TEMP/ci.keychain-db"
+          security unlock-keychain -p ci "$RUNNER_TEMP/ci.keychain-db"
+          security import "$RUNNER_TEMP/cert.p12" \
+            -k "$RUNNER_TEMP/ci.keychain-db" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k ci "$RUNNER_TEMP/ci.keychain-db"
+          rm "$RUNNER_TEMP/cert.p12"
+
+      - name: Store notary credentials
+        if: env.MACOS_CERTIFICATE != ''
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          NOTARY_API_KEY_BASE64: ${{ secrets.NOTARY_API_KEY_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/notary"
+          echo "$NOTARY_API_KEY_BASE64" | base64 -d > "$RUNNER_TEMP/notary/AuthKey_$NOTARY_KEY_ID.p8"
+          xcrun notarytool store-credentials "micropod-notary" \
+            --key "$RUNNER_TEMP/notary/AuthKey_$NOTARY_KEY_ID.p8" \
+            --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER" \
+            --keychain "$RUNNER_TEMP/ci.keychain-db"
+
+      - name: Build + package app
+        run: bash scripts/package_app.sh "${VERSION#v}"
+
+      - name: Build DMG
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+        run: |
+          if [ -n "$APPLE_SIGNING_IDENTITY" ] && [ -n "$MACOS_CERTIFICATE" ]; then
+            bash scripts/make_dmg.sh --sign "$APPLE_SIGNING_IDENTITY" \
+              --notarize --key-profile micropod-notary
+          else
+            echo "::warning::Apple signing secrets not configured — publishing unsigned DMG"
+            bash scripts/make_dmg.sh
+          fi
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$VERSION" \
+            dist/Micropod.dmg dist/Micropod.dmg.sha256 "dist/Micropod.${VERSION#v}.tgz" \
+            --title "$VERSION" --generate-notes || \
+          gh release upload "$VERSION" \
+            dist/Micropod.dmg dist/Micropod.dmg.sha256 "dist/Micropod.${VERSION#v}.tgz" \
+            --clobber

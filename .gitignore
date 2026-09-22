@@ -11,3 +11,4 @@ ci/samples/*/node_modules/
 .env
 .serena/
 .wrangler/
+bench/
