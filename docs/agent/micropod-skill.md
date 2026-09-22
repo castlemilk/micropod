@@ -11,7 +11,7 @@ Four programmatic surfaces exist:
 
 | Surface | How to run | When to use |
 |---|---|---|
-| **MCP server** (STDIO JSON-RPC 2.0, 21 tools) | `task mcp` or `dist/micropod-mcp` | Claude/agent-driven work; the richest surface |
+| **MCP server** (STDIO JSON-RPC 2.0, 27 tools) | `task mcp` or `dist/micropod-mcp` | Claude/agent-driven work; the richest surface |
 | **HTTP API** (Swift, JSON) | `task api` → http://127.0.0.1:45454 | curl/scripts; SSE logs, compose up/down |
 | **connect-go API** (Go, protobuf) | `task api-go` → http://127.0.0.1:45454 | Go programs (cuttlefish, tests); gRPC/Connect/gRPC-Web |
 | **Docker Engine shim** (Swift) | `task shim` → unix `~/.micropod/docker.sock` + tcp :45455 | Unmodified Docker clients: docker-py, Testcontainers, Ryuk |
@@ -35,7 +35,9 @@ Register in Claude Code (project `.mcp.json` or user config):
 Tools: `status`, `list_containers`, `start`, `stop`, `restart`, `kill`,
 `delete`, `run`, `exec`, `logs`, `stats`, `inspect`, `list_images`,
 `list_volumes`, `list_networks`, `pull`, `push`, `df`,
-`compose_up` (path + optional profiles), `compose_down`, `compose_ps`.
+`compose_up` (path + optional profiles), `compose_down`, `compose_ps`,
+`share_mount` (src + optional readonly/shared), `share_unmount`,
+`share_list`, `share_sync`, `share_gc`, `build_cache_stats` (optional path).
 
 Example tools/call (JSON-RPC over stdin/stdout):
 ```json

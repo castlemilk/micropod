@@ -76,8 +76,10 @@ def main():
     expected = {"status", "list_containers", "start", "stop", "restart", "kill", "delete",
                 "run", "exec", "logs", "stats", "inspect",
                 "list_images", "list_volumes", "list_networks",
-                "pull", "push", "df", "compose_up", "compose_down", "compose_ps"}
-    check("all 21 tools advertised", set(names) == expected, f"got {sorted(names)}")
+                "pull", "push", "df", "compose_up", "compose_down", "compose_ps",
+                "share_mount", "share_unmount", "share_list", "share_sync", "share_gc",
+                "build_cache_stats"}
+    check("all 27 tools advertised", set(names) == expected, f"got {sorted(names)}")
 
     def call(tool_id, tool, **arguments):
         (responses, _) = rpc(binary, state_dir, args.cli, [
@@ -158,6 +160,20 @@ networks:
     check("list_volumes works", not r["isError"], r["text"])
     r = call(18, "delete", id="e2e-box")
     check("delete succeeds", "Deleted" in r["text"] and not r["isError"], r["text"])
+
+    print("== virtualFS tools (no daemon in e2e env: graceful errors + local stats)")
+    os.environ["MICROPOD_SHAREDFS_SOCKET"] = os.path.join(
+        tempfile.mkdtemp(prefix="micropod-no-share-"), "no-socket")
+    r = call(19, "share_list")
+    check("share_list without daemon is a clean error",
+          r["isError"] and "not running" in r["text"], r["text"])
+    r = call(20, "share_gc")
+    check("share_gc without daemon is a clean error",
+          r["isError"] and "not running" in r["text"], r["text"])
+    empty_cache = tempfile.mkdtemp(prefix="micropod-empty-bcache-")
+    r = call(21, "build_cache_stats", path=empty_cache)
+    check("build_cache_stats reads any root without a daemon",
+          "entries: 0" in r["text"] and not r["isError"], r["text"])
 
     print("== unknown tool")
     (responses, _) = rpc(binary, state_dir, args.cli, [
