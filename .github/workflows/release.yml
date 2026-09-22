@@ -75,9 +75,16 @@ jobs:
           if [ -n "$APPLE_SIGNING_IDENTITY" ] && [ -n "$MACOS_CERTIFICATE" ]; then
             bash scripts/make_dmg.sh --sign "$APPLE_SIGNING_IDENTITY" \
               --notarize --key-profile micropod-notary
+            echo "DMG_ASSET=Micropod.dmg" >> "$GITHUB_ENV"
           else
+            # Name it differently so an unsigned CI build can never clobber a
+            # signed Micropod.dmg uploaded by a local release run.
             echo "::warning::Apple signing secrets not configured — publishing unsigned DMG"
             bash scripts/make_dmg.sh
+            mv dist/Micropod.dmg dist/Micropod-unsigned.dmg
+            mv dist/Micropod.dmg.sha256 dist/Micropod-unsigned.dmg.sha256
+            sed -i '' 's/Micropod\.dmg/Micropod-unsigned.dmg/' dist/Micropod-unsigned.dmg.sha256
+            echo "DMG_ASSET=Micropod-unsigned.dmg" >> "$GITHUB_ENV"
           fi
 
       - name: Upload release assets
@@ -85,8 +92,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "$VERSION" \
-            dist/Micropod.dmg dist/Micropod.dmg.sha256 "dist/Micropod.${VERSION#v}.tgz" \
+            "dist/$DMG_ASSET" "dist/$DMG_ASSET.sha256" "dist/Micropod.${VERSION#v}.tgz" \
             --title "$VERSION" --generate-notes || \
           gh release upload "$VERSION" \
-            dist/Micropod.dmg dist/Micropod.dmg.sha256 "dist/Micropod.${VERSION#v}.tgz" \
+            "dist/$DMG_ASSET" "dist/$DMG_ASSET.sha256" "dist/Micropod.${VERSION#v}.tgz" \
             --clobber
