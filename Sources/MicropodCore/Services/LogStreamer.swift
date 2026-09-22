@@ -20,7 +20,7 @@ public protocol LogStreaming: Sendable {
     func tail(id: String, lines: Int, boot: Bool) async throws -> [LogLine]
 }
 
-public actor LogStreamer: LogStreaming {
+public struct LogStreamer: LogStreaming {
     private let client: ContainerCLIClient
 
     public init(client: ContainerCLIClient) {
@@ -37,7 +37,7 @@ public actor LogStreamer: LogStreaming {
             .suffix(lines)
             .map { LogLine(text: String($0)) }
     }
-    public nonisolated func stream(id: String, tail: Int? = nil, boot: Bool = false) -> AsyncThrowingStream<
+    public func stream(id: String, tail: Int? = nil, boot: Bool = false) -> AsyncThrowingStream<
         LogLine, Error
     > {
         let command = ContainerCommandFactory.logs(id, tail: tail, follow: true, boot: boot)

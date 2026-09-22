@@ -1,6 +1,26 @@
 import Foundation
 import MicropodCore
 
+/// Bridge from shim health supervision (`ShimState.HealthStatus`) to the
+/// Docker inspect shape (`State.Health`). Kept separate so DockerMapper
+/// stays free of actor types.
+struct ShimHealthView: Sendable {
+    var status: String
+    var failingStreak: Int
+    var log: [(startedAt: Date, exitCode: Int, output: String)]
+
+    var dockerHealth: DockerContainerInspect.DockerHealth {
+        DockerContainerInspect.DockerHealth(
+            Status: status, FailingStreak: failingStreak,
+            Log: log.map {
+                DockerContainerInspect.DockerHealthLog(
+                    Start: DockerMapper.formatter.string(from: $0.startedAt),
+                    End: DockerMapper.formatter.string(from: $0.startedAt),
+                    ExitCode: $0.exitCode, Output: $0.output)
+            })
+    }
+}
+
 struct DockerVersion: Codable {
     var Platform: NameOnly
     var Components: [Component]
@@ -246,7 +266,8 @@ enum DockerMapper {
     }
 
     static func inspect(
-        _ container: Micropod_V1_Container, create: DockerCreateRequest?
+        _ container: Micropod_V1_Container, create: DockerCreateRequest?,
+        health: ShimHealthView? = nil
     ) -> DockerContainerInspect {
         let state = stateName(container.state)
         let running = state == "running"
@@ -297,7 +318,8 @@ enum DockerMapper {
             State: DockerContainerInspect.DockerState(
                 Status: state, Running: running, Paused: false, Restarting: false,
                 OOMKilled: false, Dead: false, Pid: running ? 1 : 0, ExitCode: exitCode,
-                Error: "", StartedAt: started, FinishedAt: finishedAt),
+                Error: "", StartedAt: started, FinishedAt: finishedAt,
+                Health: health?.dockerHealth),
             Image: "sha256:\(container.image.sha256Prefix)",
             Name: "/\(container.id)",
             Platform: container.platform.isEmpty ? "linux" : container.platform,

@@ -52,7 +52,7 @@ public protocol ImageServing: Sendable {
     func inspect(_ reference: String) async throws -> Data
 }
 
-public actor ImageService: ImageServing {
+public struct ImageService: ImageServing {
     private let client: ContainerCLIClient
 
     public init(client: ContainerCLIClient) {
@@ -65,21 +65,21 @@ public actor ImageService: ImageServing {
         return entries.map(ModelMapper.image(from:))
     }
 
-    public nonisolated func pull(_ reference: String, platform: String? = nil) -> AsyncThrowingStream<
+    public func pull(_ reference: String, platform: String? = nil) -> AsyncThrowingStream<
         ProgressEvent, Error
     > {
         let command = ContainerCommandFactory.pullImage(reference, platform: platform)
         return progressStream(command)
     }
 
-    public nonisolated func push(_ reference: String, platform: String? = nil) -> AsyncThrowingStream<
+    public func push(_ reference: String, platform: String? = nil) -> AsyncThrowingStream<
         ProgressEvent, Error
     > {
         let command = ContainerCommandFactory.pushImage(reference, platform: platform)
         return progressStream(command)
     }
 
-    public nonisolated func build(_ request: ContainerBuildRequest) -> AsyncThrowingStream<ProgressEvent, Error> {
+    public func build(_ request: ContainerBuildRequest) -> AsyncThrowingStream<ProgressEvent, Error> {
         progressStream(ContainerCommandFactory.build(request))
     }
 
@@ -111,12 +111,14 @@ public actor ImageService: ImageServing {
         return Data(output.utf8)
     }
 
-    private nonisolated func progressStream(_ command: ContainerCommand) -> AsyncThrowingStream<ProgressEvent, Error> {
+    private func progressStream(_ command: ContainerCommand) -> AsyncThrowingStream<ProgressEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
                     var buffer = ""
-                    for try await chunk in client.stream(command) {
+                    // reportExitCode: a failed pull/push/build must surface,
+                    // not stream its error text as success.
+                    for try await chunk in client.stream(command, reportExitCode: true) {
                         guard let text = String(data: chunk, encoding: .utf8) else { continue }
                         buffer += text
                         let lines = buffer.split(separator: "\n", omittingEmptySubsequences: false)

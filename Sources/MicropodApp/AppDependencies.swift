@@ -56,4 +56,7 @@ public enum UserDefaultsKeys {
     public static let notifyCompose = "notifyCompose"
     public static let notifyPrune = "notifyPrune"
     public static let notifyKernel = "notifyKernel"
+    public static let agentDockerShim = "agentDockerShim"
+    public static let agentAPIServer = "agentAPIServer"
+    public static let agentSharedFS = "agentSharedFS"
 }

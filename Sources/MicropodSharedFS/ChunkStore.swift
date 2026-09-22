@@ -1,3 +1,4 @@
+import Compression
 import Foundation
 
 /// Content-addressed chunk store backed by the host filesystem.
@@ -6,14 +7,35 @@ import Foundation
 /// filename, so dedup is implicit and free. APFS gives us free CoW across
 /// hardlinks to the same chunk file (and `clonefile` for cheap per-view
 /// copies).
+///
+/// Transcoding (Cloudflare Cache-Transcoding pattern): when enabled, eligible
+/// blocks are stored LZ4-compressed behind a self-describing frame
+/// ("MCZ1" magic + original size). Filenames stay `sha256(identity bytes)`,
+/// so addressing and dedup are untouched by the representation — and files
+/// without the magic (legacy, or incompressible blocks stored as-is) always
+/// read back transparently. The frame is the storage encoding marker: tiers
+/// and restarts never double-encode and never need a sidecar.
 public final class ChunkStore: @unchecked Sendable {
     public let root: URL
     public let blockSize: Int
+    /// Store LZ4 frames for eligible blocks. Env `MICROPOD_SHAREDFS_TRANSCODE=1`.
+    public let transcodeEnabled: Bool
+
+    /// Minimum block size worth transcoding (Cloudflare's 4 KiB rule: below
+    /// this the per-object overhead exceeds the saving).
+    public static let transcodeMinBytes = 4096
+    /// Store the frame only when it saves at least this fraction (0.9 =
+    /// 10%+). Incompressible blocks (media, archives) stay identity.
+    public static let transcodeMaxRatio = 0.9
 
     // MARK: - Indexed metadata (no `du`)
     private let lock = NSLock()
     private var _indexedSize: UInt64 = 0
+    /// Stored (on-disk) bytes per chunk — what the cap accounts.
     private var sizes: [String: UInt64] = [:]
+    /// Identity (logical) bytes per chunk — what serves would read.
+    /// Equals stored size for identity/plain chunks.
+    private var contentSizes: [String: UInt64] = [:]
     private var atimes: [String: Date] = [:]
     private var refCounts: [String: Int] = [:]
 
@@ -23,12 +45,38 @@ public final class ChunkStore: @unchecked Sendable {
         return _indexedSize
     }
 
+    /// Bytes transcoding saved (identity total minus stored total). Zero
+    /// when disabled or on incompressible data.
+    public var transcodedBytesSaved: UInt64 {
+        lock.lock()
+        defer { lock.unlock() }
+        let content = contentSizes.values.reduce(0, +)
+        let stored = sizes.values.reduce(0, +)
+        return content >= stored ? content - stored : 0
+    }
+
+    /// Chunks currently stored as LZ4 frames.
+    public var transcodedChunks: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        var count = 0
+        for (key, content) in contentSizes {
+            if content > (sizes[key] ?? content) { count += 1 }
+        }
+        return count
+    }
+
     /// Alias for daemon integration (`sharedCacheSize` via store index).
     public var sharedCacheSize: UInt64 { indexedSize }
 
-    public init(root: URL, blockSize: Int = 256 * 1024) throws {
+    public init(root: URL, blockSize: Int = 256 * 1024, transcodeEnabled: Bool? = nil) throws {
         self.root = root
         self.blockSize = blockSize
+        if let transcodeEnabled {
+            self.transcodeEnabled = transcodeEnabled
+        } else {
+            self.transcodeEnabled = ProcessInfo.processInfo.environment["MICROPOD_SHAREDFS_TRANSCODE"] == "1"
+        }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         rebuildIndex()
     }
@@ -37,6 +85,7 @@ public final class ChunkStore: @unchecked Sendable {
         guard let names = try? FileManager.default.contentsOfDirectory(atPath: root.path) else { return }
         var total: UInt64 = 0
         var newSizes: [String: UInt64] = [:]
+        var newContent: [String: UInt64] = [:]
         var newAtimes: [String: Date] = [:]
         for name in names {
             let url = root.appendingPathComponent(name)
@@ -49,15 +98,104 @@ public final class ChunkStore: @unchecked Sendable {
             // Prefer stored atime if we have it, else use file modification date or now.
             let mtime = (attrs?[.modificationDate] as? Date) ?? Date()
             newSizes[name] = size
+            // Recover logical size for framed chunks from the frame header;
+            // legacy/plain chunks are their own size.
+            newContent[name] = Self.framedContentSize(at: url) ?? size
             newAtimes[name] = mtime
             total += size
         }
         lock.lock()
         self.sizes = newSizes
+        self.contentSizes = newContent
         self.atimes = newAtimes
         self._indexedSize = total
         // refCounts start at 0; daemon increments for pinned views.
         lock.unlock()
+    }
+
+    // MARK: - Transcoding (LZ4 frames)
+
+    public enum TranscodeError: Error, Sendable {
+        case corruptFrame(String)
+    }
+
+    /// Frame magic + version. Header layout: magic[4] + BE u32 identity size.
+    static let frameMagic = Data("MCZ1".utf8)
+    static let frameHeaderSize = 8
+
+    /// Identity size recorded in a framed file, or nil when not framed.
+    /// Reads 8 bytes; used by rebuild (no full reads) and guarded by open
+    /// failure (missing file → nil, caller decides).
+    static func framedContentSize(at url: URL) -> UInt64? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        guard let header = try? handle.read(upToCount: frameHeaderSize),
+            header.count == frameHeaderSize,
+            header.prefix(4) == frameMagic
+        else { return nil }
+        var size: UInt32 = 0
+        _ = withUnsafeMutableBytes(of: &size) { header.copyBytes(to: $0, from: 4..<8) }
+        return UInt64(UInt32(bigEndian: size))
+    }
+
+    /// Frame eligible identity bytes, or return nil to store as-is
+    /// (too small, incompressible, or transcoding disabled).
+    func transcodeEncode(_ block: Data) -> Data? {
+        guard transcodeEnabled, block.count >= Self.transcodeMinBytes else { return nil }
+        let bound = block.count + block.count / 255 + 16
+        var output = Data(count: bound)
+        let encoded: Int = output.withUnsafeMutableBytes { dst in
+            block.withUnsafeBytes { src in
+                guard let d = dst.baseAddress, let s = src.baseAddress else { return 0 }
+                return compression_encode_buffer(
+                    d.assumingMemoryBound(to: UInt8.self), bound,
+                    s.assumingMemoryBound(to: UInt8.self), block.count,
+                    nil, COMPRESSION_LZ4)
+            }
+        }
+        guard encoded > 0 else { return nil }
+        var framed = Data()
+        framed.append(Self.frameMagic)
+        var be = UInt32(block.count).bigEndian
+        withUnsafeBytes(of: &be) { framed.append(contentsOf: $0) }
+        framed.append(output.prefix(encoded))
+        guard Double(framed.count) < Double(block.count) * Self.transcodeMaxRatio else { return nil }
+        return framed
+    }
+
+    /// Restore identity bytes: framed payloads decode, anything else passes
+    /// through (legacy files, incompressible blocks). Throws on corrupt
+    /// frames rather than serving bad bytes.
+    static func transcodeDecode(_ stored: Data) throws -> Data {
+        guard stored.count >= frameHeaderSize, stored.prefix(4) == frameMagic else {
+            return stored
+        }
+        let size = stored[4..<8].withUnsafeBytes { $0.load(as: UInt32.self) }
+        let contentSize = Int(UInt32(bigEndian: size))
+        guard contentSize > 0, contentSize <= 1 << 31 else {
+            throw TranscodeError.corruptFrame("bad content size \(contentSize)")
+        }
+        var output = Data(count: contentSize)
+        let decoded: Int = output.withUnsafeMutableBytes { dst in
+            stored.withUnsafeBytes { src in
+                guard let d = dst.baseAddress, let s = src.baseAddress else { return 0 }
+                return compression_decode_buffer(
+                    d.assumingMemoryBound(to: UInt8.self), contentSize,
+                    s.assumingMemoryBound(to: UInt8.self).advanced(by: frameHeaderSize),
+                    stored.count - frameHeaderSize,
+                    nil, COMPRESSION_LZ4)
+            }
+        }
+        guard decoded == contentSize else {
+            throw TranscodeError.corruptFrame("decoded \(decoded) of \(contentSize)")
+        }
+        return output
+    }
+
+    /// Read one chunk back as identity bytes (decode if framed).
+    func readBlock(_ hash: ChunkHash) throws -> Data {
+        let data = try Data(contentsOf: chunkPath(hash), options: .mappedIfSafe)
+        return try Self.transcodeDecode(data)
     }
 
     /// Ingest a file's bytes, returning the ordered list of chunk hashes that
@@ -74,12 +212,16 @@ public final class ChunkStore: @unchecked Sendable {
             let path = chunkPath(hash)
             let exists = FileManager.default.fileExists(atPath: path.path)
             if !exists {
-                try block.write(to: path, options: .atomic)
-                let size = UInt64(block.count)
+                // Transcode when eligible: the filename stays the identity
+                // hash; only the stored representation changes.
+                let payload = transcodeEncode(block) ?? block
+                try payload.write(to: path, options: .atomic)
+                let stored = UInt64(payload.count)
                 lock.lock()
-                sizes[hash.value] = size
+                sizes[hash.value] = stored
+                contentSizes[hash.value] = UInt64(block.count)
                 atimes[hash.value] = Date()
-                _indexedSize += size
+                _indexedSize += stored
                 lock.unlock()
                 // Persist atime via mtime for rebuild after restart.
                 try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: path.path)
@@ -121,8 +263,7 @@ public final class ChunkStore: @unchecked Sendable {
         let handle = try FileHandle(forWritingTo: target)
         defer { try? handle.close() }
         for hash in hashes {
-            let chunkURL = chunkPath(hash)
-            let bytes = try Data(contentsOf: chunkURL, options: .mappedIfSafe)
+            let bytes = try readBlock(hash)
             handle.write(bytes)
         }
         return true
@@ -143,12 +284,14 @@ public final class ChunkStore: @unchecked Sendable {
                 let path = self.chunkPath(hash)
                 let exists = FileManager.default.fileExists(atPath: path.path)
                 if !exists {
-                    try block.write(to: path, options: .atomic)
-                    let size = UInt64(block.count)
+                    let payload = self.transcodeEncode(block) ?? block
+                    try payload.write(to: path, options: .atomic)
+                    let stored = UInt64(payload.count)
                     self.lock.lock()
-                    self.sizes[hash.value] = size
+                    self.sizes[hash.value] = stored
+                    self.contentSizes[hash.value] = UInt64(block.count)
                     self.atimes[hash.value] = Date()
-                    self._indexedSize += size
+                    self._indexedSize += stored
                     self.lock.unlock()
                     try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: path.path)
                 } else {
@@ -278,6 +421,7 @@ public final class ChunkStore: @unchecked Sendable {
                 _indexedSize = _indexedSize >= removedSize ? _indexedSize - removedSize : 0
             }
             atimes.removeValue(forKey: hash.value)
+            contentSizes.removeValue(forKey: hash.value)
             // Do not clear refCount here; caller manages pinning.
             lock.unlock()
         }

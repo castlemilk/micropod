@@ -51,13 +51,29 @@ public struct UsageService: Sendable {
         }
     }
 
-    public func report() async throws -> Report {
-        async let listedContainers = containers.list()
-        async let listedImages = images.list()
-        async let listedVolumes = volumes.list()
-        let (containerList, imageList, volumeList) = try await (
-            listedContainers, listedImages, listedVolumes
-        )
+    /// Caller-supplied snapshots let cache-aware surfaces (the Docker shim's
+    /// read-through cache) skip three CLI spawns per report. All three must
+    /// be provided or the services are queried in parallel as usual.
+    public func report(
+        prefetchedContainers: [Micropod_V1_Container]? = nil,
+        prefetchedImages: [Micropod_V1_Image]? = nil,
+        prefetchedVolumes: [Micropod_V1_Volume]? = nil
+    ) async throws -> Report {
+        let containerList: [Micropod_V1_Container]
+        let imageList: [Micropod_V1_Image]
+        let volumeList: [Micropod_V1_Volume]
+        if let prefetchedContainers, let prefetchedImages, let prefetchedVolumes {
+            containerList = prefetchedContainers
+            imageList = prefetchedImages
+            volumeList = prefetchedVolumes
+        } else {
+            async let listedContainers = containers.list()
+            async let listedImages = images.list()
+            async let listedVolumes = volumes.list()
+            (containerList, imageList, volumeList) = try await (
+                listedContainers, listedImages, listedVolumes
+            )
+        }
 
         // Image usage: normalize refs both ways so "alpine:3.20" (image
         // list) matches "docker.io/library/alpine:3.20" (container refs).

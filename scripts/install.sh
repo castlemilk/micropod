@@ -59,39 +59,28 @@ exec "$MCP_DIR/micropod-mcp-bin" "\$@"
 WRAP
 chmod +x "$MCP_BIN" "${MCP_BIN}-bin"
 
-# Docker Engine API shim: the app auto-starts it from inside the bundle, but
-# a stable copy in ~/.local/bin lets agents (cuttlefish runner, docker CLI
-# with DOCKER_HOST) launch it manually too.
+# Docker Engine API shim: the app owns it as a supervised agent (spawned
+# from the bundle, health-probed, restarted on death, killed on quit). A
+# stable copy in ~/.local/bin is kept only for manual/debug launches —
+# nothing auto-starts it outside the app anymore.
 if [ -f "$ROOT/dist/micropod-docker-shim-bin" ]; then
     cp "$ROOT/dist/micropod-docker-shim-bin" "$MCP_DIR/micropod-docker-shim"
     chmod +x "$MCP_DIR/micropod-docker-shim"
     echo "==> Installed Docker API shim to $MCP_DIR/micropod-docker-shim"
 fi
 
-# Synchronized file-shares daemon: same pattern — app can auto-start it,
-# and a LaunchAgent keeps it alive for shim bind rewriting.
+# Synchronized file-shares daemon: same ownership model — the app supervises
+# it (socket ~/micropod/share-cache/socket). Remove the legacy LaunchAgent
+# so launchd no longer fights the app's supervisor for the endpoint.
 if [ -f "$ROOT/dist/micropod-sharedfs-bin" ]; then
     cp "$ROOT/dist/micropod-sharedfs-bin" "$SHAREDFS_BIN"
     chmod +x "$SHAREDFS_BIN"
     echo "==> Installed shared-fs daemon to $SHAREDFS_BIN"
-    mkdir -p "$HOME/Library/LaunchAgents"
-    cat > "$HOME/Library/LaunchAgents/com.skunkworq.micropod-sharedfs.plist" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key><string>com.skunkworq.micropod-sharedfs</string>
-    <key>ProgramArguments</key><array><string>$SHAREDFS_BIN</string></array>
-    <key>RunAtLoad</key><true/>
-    <key>KeepAlive</key><true/>
-    <key>StandardOutPath</key><string>$HOME/Library/Logs/micropod-sharedfs.log</string>
-    <key>StandardErrorPath</key><string>$HOME/Library/Logs/micropod-sharedfs.log</string>
-</dict>
-</plist>
-PLIST
-    launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.skunkworq.micropod-sharedfs.plist" 2>/dev/null || \
-        launchctl bootout "gui/$(id -u)/com.skunkworq.micropod-sharedfs" 2>/dev/null; launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.skunkworq.micropod-sharedfs.plist" 2>/dev/null || true
-    echo "==> Shared-fs daemon LaunchAgent installed (socket ~/micropod/share-cache/socket)"
+fi
+if [ -f "$HOME/Library/LaunchAgents/com.skunkworq.micropod-sharedfs.plist" ]; then
+    launchctl bootout "gui/$(id -u)/com.skunkworq.micropod-sharedfs" 2>/dev/null || true
+    rm -f "$HOME/Library/LaunchAgents/com.skunkworq.micropod-sharedfs.plist"
+    echo "==> Retired legacy shared-fs LaunchAgent (app now supervises it)"
 fi
 
 if [ -f "$ROOT/dist/micropod" ]; then

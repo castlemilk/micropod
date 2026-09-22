@@ -18,22 +18,81 @@ actor ShimState {
     private(set) var execs: [String: ExecRecord] = [:]
     private(set) var lastExitCodes: [String: Int] = [:]
     private var nameToID: [String: String] = [:]
+    /// Reverse mirror of `nameToID` so snapshot/forget stay O(N) instead of
+    /// scanning all names per container (long-lived shims track hundreds).
+    private var idToName: [String: String] = [:]
+
+    /// Docker-visible name for a runtime id (create-time alias), if tracked.
+    func dockerName(for id: String) -> String? { idToName[id] }
+
+    /// True while any tracked container sits on a custom (non-default)
+    /// network — the events loop keeps polling then, to refresh managed
+    /// hosts files as membership churns.
+    private var customNetworks: [String: Set<String>] = [:]
+
+    var hasCustomNetworks: Bool { !customNetworks.isEmpty }
 
     func remember(id: String, name: String?, request: DockerCreateRequest) {
         creates[id] = request
         if let name, !name.isEmpty {
             nameToID[name] = id
+            idToName[id] = name
+            // (Re)creating under a tombstoned rename-aside name revives it.
+            tombstoned.remove(name)
+        }
+        // Custom-network membership (for managed /etc/hosts DNS): mirrors
+        // the attachment mapping in buildRunRequest.
+        let custom = request.attachedNetworks
+        if custom.isEmpty {
+            customNetworks.removeValue(forKey: id)
+        } else {
+            customNetworks[id] = Set(custom)
         }
         if request.HostConfig?.AutoRemove == true {
             autoRemoveIDs.insert(id)
         } else {
             autoRemoveIDs.remove(id)
         }
+        deriveHealthSpec(id: id)
         snapshot()
     }
 
     func id(forName name: String) -> String? {
         nameToID[name]
+    }
+
+    /// Record a Docker-side rename (the Apple runtime has no rename; the
+    /// runtime id is unchanged and only this mapping moves). Old Docker
+    /// name(s) for the id stop resolving, like real renames.
+    func rename(id: String, newName: String) {
+        if let old = idToName[id], nameToID[old] == id {
+            nameToID.removeValue(forKey: old)
+        } else {
+            nameToID = nameToID.filter { $0.value != id }
+        }
+        nameToID[newName] = id
+        idToName[id] = newName
+        snapshot()
+    }
+
+    /// Tombstoned Docker names: rename-aside of a stopped container deletes
+    /// it (freeing the runtime id — see containerRename) while remembering
+    /// that the new name was deliberately consumed, so its later removal is
+    /// idempotent instead of 404. Cleared when the name is (re)created.
+    /// In-memory only: renames are always followed promptly by the
+    /// recreate/remove that motivated them.
+    private var tombstoned: Set<String> = []
+
+    func tombstone(name: String) {
+        tombstoned.insert(name)
+    }
+
+    func isTombstoned(_ name: String) -> Bool {
+        tombstoned.contains(name)
+    }
+
+    func clearTombstone(_ name: String) {
+        tombstoned.remove(name)
     }
 
     func createRequest(for id: String) -> DockerCreateRequest? {
@@ -45,9 +104,15 @@ actor ShimState {
         attachInFlightIDs.remove(id)
         creates.removeValue(forKey: id)
         // lastExitCodes deliberately survives — see noteExit.
-        nameToID = nameToID.filter { $0.value != id }
+        // O(1) via the mirror; the equality guard keeps the maps consistent
+        // even if a name was ever reassigned without a forget in between.
+        if let old = idToName.removeValue(forKey: id), nameToID[old] == id {
+            nameToID.removeValue(forKey: old)
+        }
         autoRemoveIDs.remove(id)
         resetRestartTracking(id)
+        forgetHealth(id: id)
+        customNetworks.removeValue(forKey: id)
         stopErrors.removeValue(forKey: id)
         sharedViews.removeValue(forKey: id)
         snapshot()
@@ -204,6 +269,166 @@ actor ShimState {
         intentionalStops.remove(id)
     }
 
+    // MARK: - Healthcheck supervision
+
+    /// Normalized create-time healthcheck (durations in seconds).
+    struct HealthSpec: Sendable, Codable {
+        /// ["CMD", args...] or ["CMD-SHELL", script].
+        var test: [String]
+        var intervalS: Double
+        var timeoutS: Double
+        var retries: Int
+        var startPeriodS: Double
+        var startIntervalS: Double
+
+        /// Nil when no healthcheck is configured (absent, empty, or
+        /// Test == ["NONE"]). Docker durations arrive as nanoseconds.
+        static func from(_ body: DockerHealthcheck?) -> HealthSpec? {
+            guard let body, let test = body.Test, !test.isEmpty else { return nil }
+            guard test != ["NONE"] else { return nil }
+            guard test[0] == "CMD" || test[0] == "CMD-SHELL" else { return nil }
+            let interval = body.Interval.map { Double($0) / 1e9 } ?? 30
+            return HealthSpec(
+                test: test,
+                intervalS: interval > 0 ? interval : 30,
+                timeoutS: body.Timeout.map { max(Double($0) / 1e9, 0.05) } ?? 30,
+                retries: body.Retries ?? 3,
+                startPeriodS: max(Double(body.StartPeriod ?? 0) / 1e9, 0),
+                startIntervalS: {
+                    guard let raw = body.StartInterval, raw > 0 else { return interval }
+                    return Double(raw) / 1e9
+                }())
+        }
+    }
+
+    struct HealthLogEntry: Sendable, Codable {
+        var startedAt: Date
+        var exitCode: Int
+        var output: String
+    }
+
+    struct HealthStatus: Sendable {
+        var status: String  // starting | healthy | unhealthy
+        var failingStreak: Int
+        var log: [HealthLogEntry]  // last 5 probes
+        var everHealthy: Bool
+        var firstRunningAt: Date?
+        var nextProbeAt: Date
+        var inFlight: Bool
+
+        static var initial: HealthStatus {
+            HealthStatus(
+                status: "starting", failingStreak: 0, log: [],
+                everHealthy: false, firstRunningAt: nil,
+                nextProbeAt: Date(), inFlight: false)
+        }
+    }
+
+    private var healthSpecs: [String: HealthSpec] = [:]
+    private var healthStatuses: [String: HealthStatus] = [:]
+
+    /// Health specs ride on the remembered create bodies (persisted), so a
+    /// restarted shim re-derives supervision without extra snapshot fields.
+    private func deriveHealthSpec(id: String) {
+        if let request = creates[id], let spec = HealthSpec.from(request.Healthcheck) {
+            healthSpecs[id] = spec
+            if healthStatuses[id] == nil {
+                healthStatuses[id] = .initial
+            }
+        } else {
+            healthSpecs.removeValue(forKey: id)
+            healthStatuses.removeValue(forKey: id)
+        }
+    }
+
+    func healthSpec(id: String) -> HealthSpec? { healthSpecs[id] }
+
+    func healthStatus(id: String) -> HealthStatus? { healthStatuses[id] }
+
+    var hasHealthChecks: Bool { !healthSpecs.isEmpty }
+
+    /// (Re)start resets supervision to starting (Docker semantics); the spec
+    /// survives. Called on observed start transitions and explicit starts.
+    func resetHealth(id: String) {
+        guard healthSpecs[id] != nil else { return }
+        var status = healthStatuses[id] ?? .initial
+        status.status = "starting"
+        status.failingStreak = 0
+        status.everHealthy = false
+        status.firstRunningAt = nil
+        status.nextProbeAt = Date()
+        status.inFlight = false
+        healthStatuses[id] = status
+    }
+
+    /// Containers due for a probe: supervised, currently running, due, and
+    /// without a probe already in flight (slow probes must not pile up).
+    func healthDueIDs(runningIDs: Set<String>) -> [String] {
+        let now = Date()
+        return healthSpecs.keys.filter { id in
+            guard runningIDs.contains(id), let status = healthStatuses[id] else { return false }
+            return !status.inFlight && status.nextProbeAt <= now
+        }
+    }
+
+    func noteProbeStarted(id: String, intervalS: Double) {
+        guard var status = healthStatuses[id] else { return }
+        status.inFlight = true
+        // Schedule the next slot now so a hung probe cannot stall cadence;
+        // recordProbe reschedules precisely on completion.
+        status.nextProbeAt = Date().addingTimeInterval(intervalS)
+        healthStatuses[id] = status
+    }
+
+    /// Record a probe outcome; returns the new status string.
+    @discardableResult
+    func recordProbe(id: String, success: Bool, output: String) -> String {
+        guard var status = healthStatuses[id], let spec = healthSpecs[id] else { return "none" }
+        status.inFlight = false
+        let entry = HealthLogEntry(
+            startedAt: Date(), exitCode: success ? 0 : 1,
+            output: String(output.prefix(2048)))
+        status.log.append(entry)
+        if status.log.count > 5 { status.log.removeFirst(status.log.count - 5) }
+        if success {
+            status.failingStreak = 0
+            status.everHealthy = true
+            status.status = "healthy"
+        } else {
+            status.failingStreak += 1
+            let pastStart: Bool = {
+                guard let since = status.firstRunningAt else { return false }
+                return Date().timeIntervalSince(since) >= spec.startPeriodS
+            }()
+            if pastStart, status.failingStreak > spec.retries {
+                status.status = "unhealthy"
+            } else if !status.everHealthy {
+                status.status = "starting"
+            }
+            // else: was healthy, still within retries → stays healthy.
+        }
+        let interval =
+            status.status == "starting" && spec.startIntervalS > 0
+            ? spec.startIntervalS : spec.intervalS
+        status.nextProbeAt = Date().addingTimeInterval(interval)
+        healthStatuses[id] = status
+        return status.status
+    }
+
+    /// Stamp first-observed-running (start-period baseline). Called alongside
+    /// the existing running observation.
+    func noteHealthRunning(id: String) {
+        guard healthSpecs[id] != nil else { return }
+        if healthStatuses[id]?.firstRunningAt == nil {
+            healthStatuses[id]?.firstRunningAt = Date()
+        }
+    }
+
+    private func forgetHealth(id: String) {
+        healthSpecs.removeValue(forKey: id)
+        healthStatuses.removeValue(forKey: id)
+    }
+
     // MARK: - Shared file-share views
 
     func rememberSharedViews(containerID: String, views: [ViewID]) {
@@ -247,9 +472,31 @@ actor ShimState {
     ) {
         self.creates = creates
         self.nameToID = names
+        // Defensive: first name wins if legacy state ever maps two names to
+        // one id (uniqueKeysWithValues would trap).
+        var mirror = [String: String]()
+        mirror.reserveCapacity(names.count)
+        for (name, id) in names where mirror[id] == nil {
+            mirror[id] = name
+        }
+        self.idToName = mirror
         self.autoRemoveIDs = autoRemove
         self.sharedViews = sharedViews
         self.persistenceURL = persistenceURL
+        // Health specs ride on the remembered create bodies (persisted), so
+        // supervision re-derives for every construction path, including
+        // snapshot reloads (status restarts at starting). Inlined (not via
+        // deriveHealthSpec) because actor init cannot call isolated methods.
+        // Custom-network membership re-derives the same way.
+        for id in creates.keys {
+            if let request = creates[id], let spec = HealthSpec.from(request.Healthcheck) {
+                healthSpecs[id] = spec
+                healthStatuses[id] = .initial
+            }
+            if let request = creates[id], !request.attachedNetworks.isEmpty {
+                customNetworks[id] = Set(request.attachedNetworks)
+            }
+        }
     }
 
     /// Enables crash/restart-safe memory: every mutation is snapshotted to
@@ -290,9 +537,16 @@ actor ShimState {
             lastExitCodes.removeValue(forKey: id)
         }
         nameToID = nameToID.filter { ids.contains($0.value) }
+        for id in stale {
+            idToName.removeValue(forKey: id)
+        }
         autoRemoveIDs.subtract(stale)
         for id in stale {
+            customNetworks.removeValue(forKey: id)
+        }
+        for id in stale {
             resetRestartTracking(id)
+            forgetHealth(id: id)
             stopErrors.removeValue(forKey: id)
             sharedViews.removeValue(forKey: id)
         }
@@ -314,8 +568,7 @@ actor ShimState {
         guard let persistenceURL else { return }
         var persisted = PersistedState()
         for (id, request) in creates {
-            persisted.creates[id] = StoredCreate(
-                name: nameToID.first(where: { $0.value == id })?.key, request: request)
+            persisted.creates[id] = StoredCreate(name: idToName[id], request: request)
         }
         persisted.sharedViews = sharedViews
         guard let data = try? JSONEncoder().encode(persisted) else { return }
@@ -341,10 +594,61 @@ enum IDGenerator {
     }
 }
 
-/// Intercepts testcontainers' Ryuk resource-reaper creation. Ryuk expects a
-/// bind-mounted /var/run/docker.sock, which the Apple runtime cannot pass
-/// through virtiofs as a working unix socket — so instead we strip the socket
-/// bind and point Ryuk at this shim's TCP listener over the VM bridge.
+/// Docker↔Apple container-name translation.
+/// Docker accepts `/?[a-zA-Z0-9][a-zA-Z0-9_.-]+` with no practical length
+/// cap; the Apple runtime additionally requires ≤ 63 bytes and rejects
+/// leading `_` (probed: 63 ok, 64+ "not a valid container ID", `_foo`
+/// rejected, `UPPER`/`9foo`/`foo.bar` accepted). Stock clients hit this with
+/// long generated names — notably testcontainers' `reaper_<session>` (71
+/// chars). When the requested name is already valid it passes through
+/// untouched; otherwise a deterministic sanitized runtime name is derived
+/// (content-hash suffix, so it is stable across shim restarts) and the
+/// caller aliases requested → runtime in `ShimState`, so every later lookup
+/// by Docker name keeps working. `docker ps` then shows the sanitized name:
+/// cosmetic, documented, and strictly better than a hard failure for a name
+/// Docker itself accepts.
+enum DockerNaming {
+    static let maxLength = 63
+
+    static func isRuntimeValid(_ name: String) -> Bool {
+        guard !name.isEmpty, name.count <= maxLength else { return false }
+        guard let first = name.first, first.isLetter || first.isNumber else { return false }
+        return name.allSatisfy(Self.isRuntimeChar)
+    }
+
+    private static func isRuntimeChar(_ ch: Character) -> Bool {
+        ch.isLetter || ch.isNumber || ch == "_" || ch == "." || ch == "-"
+    }
+
+    private static func sanitizedChar(_ ch: Character) -> Character {
+        isRuntimeChar(ch) ? ch : "-"
+    }
+
+    /// Returns `(runtimeName, aliased)`. Pure function of the input.
+    static func runtimeName(for requested: String) -> (name: String, aliased: Bool) {
+        if isRuntimeValid(requested) { return (requested, false) }
+        var sanitized = String(requested.map(Self.sanitizedChar))
+        if let first = sanitized.first, !(first.isLetter || first.isNumber) {
+            sanitized = "c" + sanitized
+        }
+        if sanitized.isEmpty { sanitized = "c" }
+        if sanitized.count > maxLength {
+            let digest = (try? ChunkHash.compute(Data(requested.utf8)))?.value ?? "deadbeefdead"
+            sanitized = String(sanitized.prefix(maxLength - 13)) + "-" + digest.prefix(12)
+        }
+        return (sanitized, true)
+    }
+}
+
+/// Intercepts bind-mounted /var/run/docker.sock, which the Apple runtime
+/// cannot pass through virtiofs as a working unix socket — so instead we
+/// strip the socket bind and point the container at this shim's TCP listener
+/// over the VM bridge.
+///
+/// This applies to EVERY container (not just Ryuk): Docker-in-Docker clients
+/// such as the cuttlefish runner mount the socket expecting a daemon, and
+/// without the redirect the bind arrives as a dead file. Ryuk additionally
+/// gets its 8080 port published so session clients can reach it.
 enum RyukSupport {
     static let ryukImageMarker = "testcontainers/ryuk"
 
@@ -356,7 +660,7 @@ enum RyukSupport {
     static func intercept(
         _ request: DockerCreateRequest, bridgeHost: String, tcpPort: UInt16
     ) -> (request: DockerCreateRequest, notes: [String]) {
-        guard isRyuk(request.Image) else { return (request, []) }
+        let ryuk = isRyuk(request.Image)
         var modified = request
         var notes = [String]()
 
@@ -365,25 +669,35 @@ enum RyukSupport {
         binds = binds.filter { !$0.lowercased().contains("docker.sock") }
         if binds.count != before {
             notes.append("removed \(before - binds.count) docker.sock bind(s)")
+        } else if !ryuk {
+            // No socket bind and not Ryuk: nothing to do.
+            return (request, [])
         }
 
-        var env = modified.Env ?? []
-        let dockerHost = "tcp://\(bridgeHost):\(tcpPort)"
-        if !env.contains(where: { $0.hasPrefix("DOCKER_HOST=") }) {
-            env.append("DOCKER_HOST=\(dockerHost)")
-            notes.append("injected DOCKER_HOST=\(dockerHost)")
-        } else {
-            env = env.map { $0.hasPrefix("DOCKER_HOST=") ? "DOCKER_HOST=\(dockerHost)" : $0 }
+        // Any container that mounted the socket (or Ryuk, which needs the
+        // daemon even without an explicit bind) talks to the shim over TCP.
+        if binds.count != before || ryuk {
+            var env = modified.Env ?? []
+            let dockerHost = "tcp://\(bridgeHost):\(tcpPort)"
+            if !env.contains(where: { $0.hasPrefix("DOCKER_HOST=") }) {
+                env.append("DOCKER_HOST=\(dockerHost)")
+                notes.append("injected DOCKER_HOST=\(dockerHost)")
+            } else {
+                env = env.map { $0.hasPrefix("DOCKER_HOST=") ? "DOCKER_HOST=\(dockerHost)" : $0 }
+            }
+            modified.Env = env
         }
 
-        // Ryuk listens on 8080; make sure it is published so clients can reach it.
+        // Ryuk listens on 8080; make sure it is published so clients can
+        // reach it. Non-Ryuk containers keep their ports untouched.
         var bindings = modified.HostConfig?.PortBindings ?? [:]
-        if bindings["8080/tcp"] == nil || bindings["8080/tcp"]?.isEmpty == true {
+        if ryuk,
+            bindings["8080/tcp"] == nil || bindings["8080/tcp"]?.isEmpty == true
+        {
             bindings["8080/tcp"] = [DockerPortBinding(HostIp: nil, HostPort: nil)]
             notes.append("published 8080/tcp")
         }
 
-        modified.Env = env
         var hostConfig = modified.HostConfig ?? DockerHostConfig()
         hostConfig.Binds = binds
         hostConfig.PortBindings = bindings

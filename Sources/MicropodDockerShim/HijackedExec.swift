@@ -84,6 +84,32 @@ final class ExecSession: @unchecked Sendable {
     private let attachStdin: Bool
     private let execID: String
     private let state: ShimState
+    /// Bounded tail of the child's stderr (for exit-code mapping only —
+    /// the full stream still goes to the client).
+    private let stderrLock = NSLock()
+    private var stderrTail = Data()
+
+    /// Docker-conventional exec exit codes (runc parity): 126 = found but
+    /// not executable, 127 = executable not found. The Apple CLI reports
+    /// both as process failure (typically exit 1) with distinctive stderr
+    /// ("failed to find target executable …" / "… failed to start process …
+    /// Permission denied"), so the distinction has to be recovered from the
+    /// text. Genuine in-container exits pass through untouched — only a
+    /// nonzero CLI status *plus* a start-failure marker remaps. Clients key
+    /// behavior off this: testcontainers' port readiness treats 127 as
+    /// "no shell, skip the internal check" but retries anything else
+    /// forever.
+    static func dockerExitCode(cliStatus: Int32, stderr: String) -> Int {
+        guard cliStatus != 0 else { return 0 }
+        let text = stderr.lowercased()
+        if text.contains("failed to find target executable") { return 127 }
+        if text.contains("failed to start process")
+            && (text.contains("permission denied") || text.contains("code=13"))
+        {
+            return 126
+        }
+        return Int(cliStatus)
+    }
 
     init(
         cliPath: String, containerID: String, request: DockerExecCreate,
@@ -145,11 +171,16 @@ final class ExecSession: @unchecked Sendable {
         -> Void
     {
         let isTTY = tty
+        // frameType 2 == stderr: retain a bounded tail for exit-code mapping.
+        let captureStderr = frameType == 2
         return { [weak self] fileHandle in
             let data = fileHandle.availableData
             if data.isEmpty {
                 fileHandle.readabilityHandler = nil
                 return
+            }
+            if captureStderr {
+                self?.appendStderrTail(data)
             }
             let payload = isTTY ? data : ExecSession.frame(type: frameType, payload: data)
             Task {
@@ -161,31 +192,82 @@ final class ExecSession: @unchecked Sendable {
         }
     }
 
+    private func appendStderrTail(_ data: Data) {
+        stderrLock.lock()
+        stderrTail.append(data)
+        if stderrTail.count > 4096 {
+            stderrTail.removeFirst(stderrTail.count - 4096)
+        }
+        stderrLock.unlock()
+    }
+
+    private func stderrText() -> String {
+        stderrLock.lock()
+        defer { stderrLock.unlock() }
+        return String(data: stderrTail, encoding: .utf8) ?? ""
+    }
+
     func killChild() {
         guard process.isRunning else { return }
         process.terminate()
     }
 
     /// Runs the process with output discarded (POST /exec/{id}/start detach).
+    /// Stderr is drained into the bounded tail (never forwarded) so the
+    /// exit-code mapping still sees start-failure markers — an undrained
+    /// 64 KB pipe would wedge a chatty child. The detached task retains the
+    /// session until the child exits, so the drain cannot outlive its reader.
     func startDetached() throws {
         process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
+        // NOTE: standardError stays stderrPipe (wired in init).
+        let reader = stderrPipe.fileHandleForReading
+        reader.readabilityHandler = { [weak self] handle in
+            let data = handle.availableData
+            if data.isEmpty {
+                handle.readabilityHandler = nil
+                return
+            }
+            self?.appendStderrTail(data)
+        }
         try process.run()
-        let exitCodeCapture = state
-        let idCapture = execID
+        ExecRegistry.shared.add(self)
         Task.detached(priority: .utility) { [process] in
             process.waitUntilExit()
-            await exitCodeCapture.finishExec(id: idCapture, exitCode: Int(process.terminationStatus))
+            ExecRegistry.shared.remove(self)
+            await self.completeDetached()
+        }
+    }
+
+    private func completeDetached() async {
+        stderrPipe.fileHandleForReading.readabilityHandler = nil
+        let code = Self.dockerExitCode(
+            cliStatus: process.terminationStatus, stderr: stderrText())
+        await state.finishExec(id: execID, exitCode: code)
+        closePipes()
+    }
+
+    /// Deterministic pipe teardown (both ends of all three): FileHandle
+    /// deallocation timing is autoreleasepool-dependent on long-lived
+    /// threads, which showed up as a slow pipe-fd creep under exec load.
+    private func closePipes() {
+        stdoutPipe.fileHandleForReading.readabilityHandler = nil
+        stderrPipe.fileHandleForReading.readabilityHandler = nil
+        for handle in [
+            stdoutPipe.fileHandleForReading, stdoutPipe.fileHandleForWriting,
+            stderrPipe.fileHandleForReading, stderrPipe.fileHandleForWriting,
+            stdinPipe.fileHandleForReading, stdinPipe.fileHandleForWriting,
+        ] {
+            try? handle.close()
         }
     }
 
     private func awaitExit(connection: ShimConnection) {
         process.waitUntilExit()
         ExecRegistry.shared.remove(self)
-        fputs("[shim] exec \(execID) exited \(process.terminationStatus)\n", stderr)
-        stdoutPipe.fileHandleForReading.readabilityHandler = nil
-        stderrPipe.fileHandleForReading.readabilityHandler = nil
-        let code = Int(process.terminationStatus)
+        closePipes()
+        let code = Self.dockerExitCode(
+            cliStatus: process.terminationStatus, stderr: stderrText())
+        fputs("[shim] exec \(execID) exited \(code)\n", stderr)
         let finishState = state
         let id = execID
         Task {

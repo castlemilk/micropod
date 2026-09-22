@@ -434,7 +434,7 @@ struct ContainersView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+        .cardSurface(cornerRadius: 8, fillOpacity: 0.5)
     }
 
     private func applyFilter() {

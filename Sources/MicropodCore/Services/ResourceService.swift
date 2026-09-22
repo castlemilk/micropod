@@ -23,7 +23,7 @@ public protocol RegistryServing: Sendable {
     func logout(_ server: String) async throws
 }
 
-public actor VolumeService: VolumeServing {
+public struct VolumeService: VolumeServing {
     private let client: ContainerCLIClient
 
     public init(client: ContainerCLIClient) {
@@ -55,7 +55,7 @@ public actor VolumeService: VolumeServing {
     }
 }
 
-public actor NetworkService: NetworkServing {
+public struct NetworkService: NetworkServing {
     private let client: ContainerCLIClient
 
     public init(client: ContainerCLIClient) {
@@ -95,7 +95,7 @@ public actor NetworkService: NetworkServing {
     }
 }
 
-public actor RegistryService: RegistryServing {
+public struct RegistryService: RegistryServing {
     private let client: ContainerCLIClient
 
     public init(client: ContainerCLIClient) {

@@ -16,6 +16,24 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 RUNS="${1:-3}"
 
+# macOS ships no `timeout(1)` — fall back to a python3-based implementation
+# with the same `timeout <secs> <cmd...>` interface (exit 124 on expiry,
+# like GNU timeout) so `task bench-compose` works on stock macOS.
+if ! command -v timeout >/dev/null 2>&1; then
+    timeout() {
+        local duration="$1"
+        shift
+        python3 -c '
+import subprocess, sys
+try:
+    p = subprocess.run(sys.argv[2:], timeout=float(sys.argv[1]))
+    sys.exit(p.returncode)
+except subprocess.TimeoutExpired:
+    sys.exit(124)
+' "$duration" "$@"
+    }
+fi
+
 swift build --product MicropodMCP >/dev/null 2>&1
 MCP="$ROOT/.build/debug/MicropodMCP"
 WORK=$(mktemp -d)

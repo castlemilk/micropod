@@ -16,6 +16,8 @@ extension ProcessInfo {
 struct ShimBootstrap {
     static func run() async throws {
         setvbuf(stdout, nil, _IOLBF, 8192)
+        // When spawned by the app, die with it — no orphaned shim.
+        ParentDeathWatch.install()
         let environment = ProcessInfo.processInfo.environment
         let cliPath = environment["MICROPOD_CLI_PATH"] ?? "/usr/local/bin/container"
         let socketPath =
@@ -36,8 +38,9 @@ struct ShimBootstrap {
         let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: cliPath))
         let containerService = ContainerService(client: client)
         let state = ShimState.loadPersisted(from: URL(fileURLWithPath: statePath))
-        let events = EventsHub(containers: containerService)
-        let router = Router(config: config, state: state, events: events, client: client)
+        let readCache = ReadThroughCache()
+        let events = EventsHub(containers: containerService, readCache: readCache)
+        let router = Router(config: config, state: state, events: events, client: client, sharedFS: nil, buildCache: nil, readCache: readCache)
 
         // Prune state for containers that vanished while the shim was down,
         // and reap AutoRemove containers whose die event we missed.
@@ -66,7 +69,8 @@ struct ShimBootstrap {
         if bridgeHost != "127.0.0.1" {
             print("[shim]   bridge      : \(bridgeHost):\(tcpPort) (in-VM ryuk reachability)")
         }
-        print("[shim] ryuk interception active for images containing \(RyukSupport.ryukImageMarker)")
+        print("[shim] docker-sock intercept active (any DinD bind -> tcp bridge)")
+        print("[shim] ryuk 8080 publish for images containing \(RyukSupport.ryukImageMarker)")
         print("[shim] state       : \(statePath)")
 
         signal(SIGTERM, SIG_IGN)

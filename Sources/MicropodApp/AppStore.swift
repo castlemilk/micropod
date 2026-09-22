@@ -185,6 +185,19 @@ final class AppStore {
     var systemStatus: Micropod_V1_SystemStatus?
     var systemStatusError: String?
     var isStartingRuntime = false
+    var isRestartingRuntime = false
+    var isHealingRuntime = false
+    /// Liveness of the apiserver's container path — `system status` can keep
+    /// answering while list/create/df are wedged, so health tracks the probe
+    /// that exercises the path that actually breaks.
+    enum RuntimeHealth: Equatable {
+        case unknown, healthy, wedged
+    }
+    private(set) var runtimeHealth: RuntimeHealth = .unknown
+    /// When the last self-heal (stop+start bounce) finished, and how many
+    /// heals ran inside the current 15-minute window.
+    private(set) var lastRuntimeHealAt: Date?
+    private(set) var runtimeHealCount = 0
     var isInstallingKernel = false
     var kernelInstallProgress: [String] = []
     /// 0...1 when the CLI reports a fraction; nil while indeterminate.
@@ -244,7 +257,14 @@ final class AppStore {
     @ObservationIgnored private var runtimeSupervisorTask: Task<Void, Never>?
     @ObservationIgnored private var lastSupervisedRuntimeRunning = false
     @ObservationIgnored private var consecutiveStartFailures = 0
+    @ObservationIgnored private var consecutiveProbeMisses = 0
     @ObservationIgnored private var userStoppedUntil: Date?
+    /// Coalesces `container system status` spawns: the containers poller,
+    /// stats poller, and runtime supervisor would otherwise each fire their
+    /// own process every few seconds. One in-flight refresh serves all
+    /// callers; a fresh (<2s) result is reused unless `force` is passed.
+    @ObservationIgnored private var systemStatusTask: Task<Void, Never>?
+    @ObservationIgnored private var systemStatusAt = Date.distantPast
     @ObservationIgnored private var wasVisible = false
     @ObservationIgnored private var mainWindowVisible = false
     @ObservationIgnored private var panelVisible = false
@@ -260,66 +280,114 @@ final class AppStore {
         }
     }
 
-    /// Ensures the Docker Engine API shim is listening on
-    /// ~/.micropod/docker.sock so external agents (cuttlefish runner,
-    /// Testcontainers, docker CLI) can drive the runtime. Idempotent: if the
-    /// socket already answers, nothing happens.
-    func ensureDockerShim() {
-        guard !dockerShimSocketLive() else { return }
-        guard let shimURL = Self.locateDockerShimBinary() else {
-            recordActivity("system", "Docker API shim not found — agent socket unavailable", level: .error)
-            return
-        }
-        let process = Process()
-        process.executableURL = shimURL
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        do {
-            try process.run()
-            // Detached: the shim outlives this Process handle.
-            recordActivity("system", "Docker API shim started on ~/.micropod/docker.sock", level: .success)
-        } catch {
-            recordActivity("system", "Docker API shim failed to start: \(error.localizedDescription)", level: .error)
+    // MARK: - Managed agents (kernel processes)
+
+    /// Live status of the supervised helper daemons (docker shim + HTTP
+    /// API), refreshed by the supervisor's monitor tick.
+    private(set) var agentStatuses: [AgentStatus] = []
+    /// Settings toggles mirrored into observable state so the Agents
+    /// section re-renders on change (UserDefaults alone isn't tracked).
+    private(set) var agentEnabledOverrides: [String: Bool] = [:]
+    @ObservationIgnored private var didInstallTerminationHook = false
+    @ObservationIgnored private var terminationSignalSources: [DispatchSourceSignal] = []
+
+    /// The supervisor owns the agents' full lifecycle: spawn, health probes,
+    /// backoff restarts, orphan reaping, and quit-time teardown.
+    @ObservationIgnored private(set) lazy var agentSupervisor: AgentSupervisor = {
+        AgentSupervisor.micropodSpecs(
+            enabled: { spec in
+                // Missing key = enabled (agents are on by default).
+                UserDefaults.standard.object(forKey: spec.enabledDefaultsKey) == nil
+                    || UserDefaults.standard.bool(forKey: spec.enabledDefaultsKey)
+            },
+            onStatus: { [weak self] statuses in
+                Task { @MainActor in
+                    self?.applyAgentStatuses(statuses)
+                }
+            })
+    }()
+
+    private func applyAgentStatuses(_ statuses: [AgentStatus]) {
+        let previous = agentStatuses
+        agentStatuses = statuses
+        for status in statuses {
+            let before = previous.first { $0.id == status.id }
+            guard before?.state != status.state else { continue }
+            switch status.state {
+            case .running:
+                recordActivity(
+                    "agents", "\(status.name) running (pid \(status.pid ?? 0), \(status.endpoint))",
+                    level: .success)
+            case .adopted:
+                recordActivity(
+                    "agents", "\(status.name) already serving on \(status.endpoint) — adopted")
+            case .retryPending:
+                recordActivity(
+                    "agents", "\(status.name) down — \(status.lastError ?? "retrying")",
+                    level: .error)
+            case .missing:
+                recordActivity(
+                    "agents", "\(status.name) binary not found — \(status.endpoint) unavailable",
+                    level: .error)
+            case .starting, .stopped:
+                break
+            }
         }
     }
 
-    private static func locateDockerShimBinary() -> URL? {
-        let candidates: [URL?] = [
-            Bundle.main.executableURL?.deletingLastPathComponent()
-                .appendingPathComponent("micropod-docker-shim"),
-            URL(fileURLWithPath: ".build/debug/micropod-docker-shim"),
-            URL(fileURLWithPath: ".build/release/micropod-docker-shim"),
-        ]
-        for candidate in candidates {
-            if let url = candidate, FileManager.default.isExecutableFile(atPath: url.path) {
-                return url
-            }
-        }
-        return nil
+    func isAgentEnabled(_ id: String) -> Bool {
+        if let override = agentEnabledOverrides[id] { return override }
+        guard let spec = agentSpecs.first(where: { $0.id == id }) else { return false }
+        return UserDefaults.standard.object(forKey: spec.enabledDefaultsKey) == nil
+            || UserDefaults.standard.bool(forKey: spec.enabledDefaultsKey)
     }
 
-    /// True when something answers on the shim's unix socket.
-    private func dockerShimSocketLive() -> Bool {
-        let path = NSString("~/.micropod/docker.sock").expandingTildeInPath
-        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard fd >= 0 else { return false }
-        defer { close(fd) }
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        let pathBytes = Array(path.utf8CString)
-        let maxLen = MemoryLayout.size(ofValue: addr.sun_path)
-        guard pathBytes.count <= maxLen else { return false }
-        withUnsafeMutableBytes(of: &addr.sun_path) { dest in
-            pathBytes.withUnsafeBufferPointer { src in
-                memcpy(dest.baseAddress, src.baseAddress!, pathBytes.count)
-            }
+    func setAgentEnabled(_ id: String, _ enabled: Bool) {
+        guard let spec = agentSpecs.first(where: { $0.id == id }) else { return }
+        UserDefaults.standard.set(enabled, forKey: spec.enabledDefaultsKey)
+        agentEnabledOverrides[id] = enabled
+        if !enabled {
+            recordActivity("agents", "\(spec.displayName) disabled — owned process stopped")
         }
-        let result = withUnsafePointer(to: &addr) { ptr -> Int32 in
-            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
-                connect(fd, sa, socklen_t(MemoryLayout<sockaddr_un>.size))
-            }
+    }
+
+    func restartAgent(_ id: String) {
+        recordActivity("agents", "Restarting \(id)…")
+        Task { await agentSupervisor.restart(id) }
+    }
+
+    /// Specs the supervisor manages — surfaced in Settings.
+    var agentSpecs: [AgentSpec] { agentSupervisor.specsForUI }
+
+    /// Registers quit-time teardown once: when the app terminates, every
+    /// owned agent is SIGTERMed (SIGKILL fallback). Crashes are covered by
+    /// each child's ParentDeathWatch.
+    private func installTerminationHookIfNeeded() {
+        guard !didInstallTerminationHook else { return }
+        didInstallTerminationHook = true
+        let supervisor = agentSupervisor
+        // queue: nil runs the block synchronously on the posting thread —
+        // the app may exit before a main-queue enqueued block ever runs.
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil, queue: nil
+        ) { _ in
+            supervisor.terminateOwnedSync()
         }
-        return result == 0
+        // A bare `kill` (SIGTERM/SIGINT/SIGHUP) doesn't reliably reach
+        // applicationWillTerminate — handle the signals explicitly so owned
+        // agents still die with the app. terminateOwnedSync is synchronous
+        // and idempotent, so running it again via willTerminate is harmless.
+        for sig in [SIGTERM, SIGINT, SIGHUP] {
+            signal(sig, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+            source.setEventHandler {
+                supervisor.terminateOwnedSync()
+                NSApp.terminate(nil)
+            }
+            source.resume()
+            terminationSignalSources.append(source)
+        }
     }
 
     func bootstrap() {
@@ -337,7 +405,14 @@ final class AppStore {
         }
         startPollers()
         startRuntimeSupervisor()
-        ensureDockerShim()
+        installTerminationHookIfNeeded()
+        // Unit tests drive bootstrap() — never spawn real daemons there.
+        // MICROPOD_AGENTS_DISABLED=1 is the manual escape hatch.
+        if NSClassFromString("XCTestCase") == nil,
+            ProcessInfo.processInfo.environment["MICROPOD_AGENTS_DISABLED"] != "1"
+        {
+            Task { await agentSupervisor.start() }
+        }
     }
 
     func stopPollers() {
@@ -385,6 +460,13 @@ final class AppStore {
         // on stale data after any external daemon change.
         await refreshSystemStatus()
 
+        // "Wedged" only describes a running-but-unresponsive apiserver —
+        // a stopped runtime is just stopped.
+        if !isRuntimeRunning {
+            runtimeHealth = .unknown
+            consecutiveProbeMisses = 0
+        }
+
         guard clientAvailable else { return }
 
         // Honor the user's explicit Stop action for a short cooldown.
@@ -412,10 +494,110 @@ final class AppStore {
         if isRuntimeRunning {
             lastSupervisedRuntimeRunning = true
             consecutiveStartFailures = 0
+            // Status says running — but a crash-looping network plugin (or a
+            // stuck pending op) wedges the apiserver so `list`/`create`/`df`
+            // hang while status still answers. Probe the container path.
+            await probeRuntimeLiveness()
             return
         }
         // Not running and no obvious "restart" error: try once anyway.
         await attemptRuntimeStart(reason: "auto-start: runtime not running")
+    }
+
+    /// Self-healing for the Apple container runtime: two consecutive liveness
+    /// misses (the probe times out inside 8s or exits non-zero while status
+    /// claims "running") mean the apiserver is wedged — bounce it via
+    /// `container system stop` + `start`. Heals are capped at 3 per 15-minute
+    /// window; beyond that we surface `.wedged` and let the user escalate
+    /// (the runbook's deeper steps need admin rights or a logout).
+    private func probeRuntimeLiveness() async {
+        guard !isHealingRuntime, !isRestartingRuntime, !isInstallingKernel else { return }
+        do {
+            try await dependencies.system.livenessProbe()
+            consecutiveProbeMisses = 0
+            if runtimeHealth != .healthy { runtimeHealth = .healthy }
+        } catch {
+            consecutiveProbeMisses += 1
+            if consecutiveProbeMisses >= 2 {
+                runtimeHealth = .wedged
+                await healRuntime(reason: error.localizedDescription, manual: false)
+            } else {
+                recordActivity(
+                    "system",
+                    "Runtime liveness probe failed (\(error.localizedDescription)) — confirming",
+                    level: .info)
+            }
+        }
+    }
+
+    /// Bounce the runtime: `system stop` (best-effort — it may itself be
+    /// blocked by the wedge, the client timeout kills it) then
+    /// `system start` with kernel install.
+    private func healRuntime(reason: String, manual: Bool) async {
+        guard !isHealingRuntime else { return }
+        if !manual {
+            if let last = lastRuntimeHealAt, Date().timeIntervalSince(last) > 900 {
+                runtimeHealCount = 0
+            }
+            guard runtimeHealCount < 3 else { return }
+        }
+        isHealingRuntime = true
+        defer { isHealingRuntime = false }
+        runtimeHealCount += 1
+        recordActivity(
+            "system",
+            "Runtime unresponsive (\(reason)) — restarting system service…",
+            level: .error)
+        try? await dependencies.system.stop()
+        do {
+            try await dependencies.system.startWithKernelInstall()
+            consecutiveProbeMisses = 0
+            consecutiveStartFailures = 0
+            runtimeHealth = .healthy
+            lastRuntimeHealAt = Date()
+            recordActivity("system", "Runtime recovered after restart", level: .success)
+            await refreshSystemStatus(force: true)
+            Task { await refreshContainers() }
+        } catch {
+            lastRuntimeHealAt = Date()
+            recordActivity(
+                "system",
+                "Runtime recovery failed: \(error.localizedDescription)",
+                level: .error)
+        }
+    }
+
+    /// Manual "Recover runtime" from Settings — bypasses the heal cap.
+    func recoverRuntimeNow() {
+        recordActivity("system", "Manual runtime recovery requested")
+        Task { await healRuntime(reason: "manual recovery", manual: true) }
+    }
+
+    /// User-initiated bounce of the container runtime (stop + start).
+    func restartRuntime() async {
+        guard clientAvailable, !isRestartingRuntime, !isHealingRuntime else { return }
+        isRestartingRuntime = true
+        defer { isRestartingRuntime = false }
+        // Explicit user action — the supervisor must not treat the stopped
+        // gap as "user wants it off" (and must not fight the restart).
+        userStoppedUntil = nil
+        recordActivity("system", "Restarting runtime…")
+        try? await dependencies.system.stop()
+        do {
+            try await dependencies.system.startWithKernelInstall()
+            recordActivity("system", "Runtime restarted", level: .success)
+        } catch {
+            recordActivity(
+                "system", "Runtime restart failed: \(error.localizedDescription)", level: .error)
+        }
+        await refreshSystemStatus(force: true)
+        Task { await refreshContainers() }
+    }
+
+    /// Restart every enabled agent (Settings "Restart All Agents").
+    func restartAllAgents() {
+        recordActivity("agents", "Restarting all agents…")
+        Task { await agentSupervisor.restartAll() }
     }
 
     private func attemptRuntimeStart(reason: String) async {
@@ -430,7 +612,7 @@ final class AppStore {
             consecutiveStartFailures = 0
             lastSupervisedRuntimeRunning = true
             recordActivity("system", "Runtime supervisor: started daemon", level: .success)
-            await refreshSystemStatus()
+            await refreshSystemStatus(force: true)
             // Refresh dependents without blocking the supervisor — these
             // can hang on the wedged CLI and we don't want to delay the
             // next supervisor tick.
@@ -508,13 +690,37 @@ final class AppStore {
 
     // MARK: - System
 
-    func refreshSystemStatus() async {
+    /// Refreshes `systemStatus`. Coalesced: concurrent callers share one
+    /// in-flight CLI spawn, and a successful result younger than ~2s is
+    /// reused — the two pollers + supervisor would otherwise triple-spawn
+    /// `container system status` every poll cycle. Pass `force` after a
+    /// mutation (start/stop/heal) where a cached result would be wrong.
+    func refreshSystemStatus(force: Bool = false) async {
+        if !force, systemStatusError == nil,
+            Date().timeIntervalSince(systemStatusAt) < 2.0
+        {
+            return
+        }
+        if let inFlight = systemStatusTask {
+            await inFlight.value
+            return
+        }
+        let task = Task { [weak self] in
+            if let self { await self.performSystemStatusRefresh() }
+        }
+        systemStatusTask = task
+        await task.value
+        systemStatusTask = nil
+    }
+
+    private func performSystemStatusRefresh() async {
         // Re-check on every refresh so installing/removing the CLI mid-session
         // is picked up without relaunching the app.
         clientAvailable = dependencies.client.isAvailable()
         do {
             systemStatus = try await dependencies.system.status()
             systemStatusError = nil
+            systemStatusAt = Date()
             // The kernel banner is stale when the kernel is already on disk
             // (e.g. installed before the app, or by an earlier session).
             if !onboardingComplete, isKernelInstalled {
@@ -537,7 +743,7 @@ final class AppStore {
         do {
             try await dependencies.system.start()
             recordActivity("system", "Runtime started", level: .success)
-            await refreshSystemStatus()
+            await refreshSystemStatus(force: true)
         } catch {
             recordActivity("system", "Failed to start runtime: \(error.localizedDescription)", level: .error)
             systemStatusError = error.localizedDescription
@@ -552,6 +758,8 @@ final class AppStore {
             try await dependencies.system.stop()
             recordActivity("system", "Runtime stopped")
             systemStatus = nil
+            runtimeHealth = .unknown
+            consecutiveProbeMisses = 0
         } catch {
             recordActivity("system", "Failed to stop runtime: \(error.localizedDescription)", level: .error)
             systemStatusError = error.localizedDescription
@@ -623,11 +831,14 @@ final class AppStore {
     func refreshAll() async {
         await refreshSystemStatus()
         await refreshContainers()
-        await refreshImages()
-        await refreshVolumes()
-        await refreshNetworks()
-        await refreshRegistries()
-        await refreshDiskUsage()
+        // Independent CLI spawns — fan out so the first paint doesn't wait
+        // on five sequential process launches.
+        async let images: () = refreshImages()
+        async let volumes: () = refreshVolumes()
+        async let networks: () = refreshNetworks()
+        async let registries: () = refreshRegistries()
+        async let disk: () = refreshDiskUsage()
+        _ = await (images, volumes, networks, registries, disk)
     }
 
     /// Measures the runtime's on-disk footprint with `du -sk` per bucket
@@ -935,6 +1146,10 @@ final class AppStore {
     }
 
     func refreshStats() async {
+        // Don't spawn `container stats` while the daemon is down — the call
+        // can only fail (or worse, hang against a wedged apiserver until its
+        // timeout fires, delaying detection of a healed runtime).
+        guard isRuntimeRunning, clientAvailable else { return }
         do {
             let snapshot = try await dependencies.statsSampler.snapshot()
             statsSnapshot = snapshot

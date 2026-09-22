@@ -5,3 +5,9 @@ DerivedData/
 *.xcworkspace
 .DS_Store
 dist/
+# CI sample working dirs (recreated by the pipelines)
+ci/samples/*/node_modules/
+# Local tool/env state — never commit
+.env
+.serena/
+.wrangler/

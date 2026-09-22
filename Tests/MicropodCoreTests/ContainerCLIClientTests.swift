@@ -4,6 +4,29 @@ import XCTest
 @testable import MicropodCore
 
 final class ContainerCLIClientTests: XCTestCase {
+    /// Metrics labels must be low-cardinality: verb (+ grouped sub-verb)
+    /// only — never container names, ids, or flag values.
+    func testMetricLabelStripsArguments() {
+        XCTAssertEqual(
+            ContainerCommand(arguments: ["create", "--name", "web", "alpine"]).metricLabel,
+            "create")
+        XCTAssertEqual(
+            ContainerCommand(arguments: ["list", "--all", "--format", "json"]).metricLabel,
+            "list")
+        XCTAssertEqual(
+            ContainerCommand(arguments: ["image", "list", "--format", "json"]).metricLabel,
+            "image list")
+        XCTAssertEqual(
+            ContainerCommand(arguments: ["system", "start", "--disable-kernel-install"])
+                .metricLabel,
+            "system start")
+        XCTAssertEqual(
+            ContainerCommand(arguments: ["inspect", "bench-abc123"]).metricLabel,
+            "inspect")
+        XCTAssertEqual(
+            ContainerCommand(arguments: ["image"]).metricLabel, "image")
+    }
+
     func testPreCancelledRunDoesNotSpawnProcess() async throws {
         let markerURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("micropod-pre-cancelled-\(UUID().uuidString)")

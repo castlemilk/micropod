@@ -89,6 +89,23 @@ enum DebugCommands {
             checks.append(Check(name: "port-conflicts", ok: false, detail: duplicatePorts))
         }
 
+        // Native-arch check (Apple suggestion: Rosetta x86_64 translation
+        // costs execution overhead — everything local should be arm64).
+        let foreignArch = containers.filter { container in
+            guard container.state.lowercased() == "running" else { return false }
+            let platform = container.platform.lowercased()
+            return !platform.isEmpty && !platform.contains("arm64") && !platform.contains("aarch64")
+        }
+        if foreignArch.isEmpty {
+            checks.append(Check(name: "native-arch", ok: true, detail: "all running containers arm64"))
+        } else {
+            checks.append(
+                Check(
+                    name: "native-arch", ok: false,
+                    detail: "non-arm64 running (Rosetta overhead): "
+                        + foreignArch.map { "\($0.id)(\($0.platform))" }.joined(separator: ", ")))
+        }
+
         var diskSummary = ""
         if let usage = try? await services.system.diskUsage() {
             diskSummary =
@@ -113,6 +130,36 @@ enum DebugCommands {
                 kernelInfo = "no kernel properties reported"
             }
             checks.append(Check(name: "kernel", ok: true, detail: kernelInfo.trimmingCharacters(in: .whitespaces)))
+        }
+
+        // Hypervisor allocation check (tuning suggestion: the machine pool
+        // should use a fair share of host CPUs, and per-container/builder
+        // defaults are floor values, not ceilings).
+        do {
+            let hostCPUs = ProcessInfo.processInfo.activeProcessorCount
+            if let properties = try? await services.machines.properties(),
+                let machineCPUs = properties["machine"]?["cpus"]
+            {
+                let allocated: Int = {
+                    switch machineCPUs {
+                    case .number(let n): return Int(n)
+                    case .string(let s): return Int(s) ?? 0
+                    case .bool: return 0
+                    }
+                }()
+                if allocated > 0, allocated * 2 < hostCPUs {
+                    checks.append(
+                        Check(
+                            name: "machine-resources", ok: false,
+                            detail: "machine pool has \(allocated) CPUs of \(hostCPUs) host CPUs — "
+                                + "raise [machine] cpus via `container system property`"))
+                } else {
+                    checks.append(
+                        Check(
+                            name: "machine-resources", ok: true,
+                            detail: "machine pool \(allocated)/\(hostCPUs) host CPUs"))
+                }
+            }
         }
 
         var errorLines: [String] = []

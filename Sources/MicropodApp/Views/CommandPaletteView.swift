@@ -30,26 +30,30 @@ struct CommandPaletteView: View {
         return result
     }
 
-    private var flatItems: [PaletteItem] {
-        let items = sections.flatMap(\.items)
-        if selection >= items.count { selection = 0 }
-        return items
-    }
-
     var body: some View {
+        // Compute the model once per render — sections filter every resource
+        // array, so re-deriving them per accessor tripled the work (and the
+        // row lookup was an O(n²) firstIndex scan).
+        let sections = self.sections
+        let flatItems = sections.flatMap(\.items)
+        let effectiveSelection = flatItems.isEmpty ? 0 : min(selection, flatItems.count - 1)
+        let indexByID = Dictionary(
+            flatItems.enumerated().map { ($0.element.id, $0.offset) },
+            uniquingKeysWith: { first, _ in first })
+
         ZStack {
             Color.black.opacity(0.25)
                 .ignoresSafeArea()
                 .onTapGesture { store.showCommandPalette = false }
 
             VStack(spacing: 0) {
-                searchField
+                searchField(flatItems: flatItems, selection: effectiveSelection)
                 Divider()
                 if flatItems.isEmpty {
                     ContentUnavailableView.search(text: query)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    resultList
+                    resultList(sections: sections, indexByID: indexByID, selection: effectiveSelection)
                 }
                 footer
             }
@@ -71,7 +75,7 @@ struct CommandPaletteView: View {
         }
     }
 
-    private var searchField: some View {
+    private func searchField(flatItems: [PaletteItem], selection: Int) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
@@ -84,16 +88,16 @@ struct CommandPaletteView: View {
                 .accessibilityIdentifier("palette.search")
                 .onKeyPress(.upArrow) {
                     guard !flatItems.isEmpty else { return .handled }
-                    selection = (selection - 1 + flatItems.count) % flatItems.count
+                    self.selection = (selection - 1 + flatItems.count) % flatItems.count
                     return .handled
                 }
                 .onKeyPress(.downArrow) {
                     guard !flatItems.isEmpty else { return .handled }
-                    selection = (selection + 1) % flatItems.count
+                    self.selection = (selection + 1) % flatItems.count
                     return .handled
                 }
                 .onSubmit {
-                    guard !flatItems.isEmpty, flatItems.indices.contains(selection) else { return }
+                    guard flatItems.indices.contains(selection) else { return }
                     run(flatItems[selection])
                 }
         }
@@ -101,7 +105,7 @@ struct CommandPaletteView: View {
         .padding(.vertical, 12)
     }
 
-    private var resultList: some View {
+    private func resultList(sections: [PaletteSection], indexByID: [UUID: Int], selection: Int) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2) {
@@ -113,13 +117,14 @@ struct CommandPaletteView: View {
                             .padding(.top, 8)
                             .padding(.bottom, 2)
                         ForEach(section.items) { item in
-                            row(item)
+                            row(item, isSelected: indexByID[item.id] == selection)
                         }
                     }
                 }
                 .padding(.bottom, 8)
             }
             .onChange(of: selection) { _, newValue in
+                let flatItems = sections.flatMap(\.items)
                 guard flatItems.indices.contains(newValue) else { return }
                 if reduceMotion {
                     proxy.scrollTo(flatItems[newValue].id, anchor: .center)
@@ -132,10 +137,8 @@ struct CommandPaletteView: View {
         }
     }
 
-    private func row(_ item: PaletteItem) -> some View {
-        let index = flatItems.firstIndex { $0.id == item.id } ?? 0
-        let isSelected = index == selection
-        return Button {
+    private func row(_ item: PaletteItem, isSelected: Bool) -> some View {
+        Button {
             run(item)
         } label: {
             HStack(spacing: 10) {
