@@ -37,7 +37,10 @@ struct MicropodApp: App {
                     Button(tab.title) {
                         store.activeTab = tab
                     }
-                    .keyboardShortcut(shortcut(for: tab) ?? KeyEquivalent("s"), modifiers: [.command, .control])
+                    // Tabs without a shortcut (storage) get none — the old
+                    // ?? "s" fallback gave Storage a stray ⌃⌘S binding.
+                    .keyboardShortcut(
+                        shortcut(for: tab).map { KeyboardShortcut($0, modifiers: [.command, .control]) })
                 }
                 Divider()
                 Button("Refresh") {
@@ -62,8 +65,9 @@ struct MicropodApp: App {
         }
 
         MenuBarExtra {
+            // Width is owned by MenuBarPanelView (340pt); don't pin a second,
+            // conflicting width here.
             MenuBarPanelView(store: store)
-                .frame(width: 320)
         } label: {
             MenuBarLabel(store: store)
         }

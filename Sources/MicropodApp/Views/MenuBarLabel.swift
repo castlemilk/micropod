@@ -4,10 +4,14 @@ import SwiftUI
 /// Menu bar icon: runtime status dot + running container count.
 ///
 /// SwiftUI gives label views unreliable `.task`/`.onAppear` lifecycle, so
-/// bootstrap uses the triple-trigger pattern (skill guidance).
+/// bootstrap uses the triple-trigger pattern (skill guidance): `.onAppear`,
+/// `.task`, and a bounded retry loop inside that task — a perpetual
+/// `Timer.publish` would wake the process every few seconds forever for a
+/// one-shot bootstrap.
 struct MenuBarLabel: View {
     let store: AppStore
     @State private var didBootstrap = false
+    @AppStorage(UserDefaultsKeys.showMenuBarCount) private var showMenuBarCount = true
     // VoiceOver reads a meaningful label instead of the raw glyph.
     private var accessibilityLabel: String {
         if !store.clientAvailable { return "Micropod: container CLI not found" }
@@ -29,7 +33,7 @@ struct MenuBarLabel: View {
                 Image(systemName: iconName)
                     .foregroundStyle(iconColor)
             }
-            if store.runningCount > 0 {
+            if showMenuBarCount, store.runningCount > 0 {
                 Text("\(store.runningCount)")
                     .font(.caption2.weight(.semibold).monospacedDigit())
                     .foregroundStyle(.primary)
@@ -41,10 +45,13 @@ struct MenuBarLabel: View {
             }
         }
         .onAppear { startBootstrapIfNeeded() }
-        .task { startBootstrapIfNeeded() }
-        .onReceive(
-            Timer.publish(every: 5, on: .main, in: .common).autoconnect()
-        ) { _ in
+        .task {
+            // Third trigger as a bounded retry: covers the case where the
+            // label's lifecycle hooks never fire, then stops — ~30s window.
+            for _ in 0..<15 where !didBootstrap && !Task.isCancelled {
+                startBootstrapIfNeeded()
+                try? await Task.sleep(for: .seconds(2))
+            }
             startBootstrapIfNeeded()
         }
         .accessibilityElement(children: .ignore)
@@ -66,14 +73,14 @@ struct MenuBarLabel: View {
     }
 
     private var iconName: String {
-        guard store.clientAvailable else { return "shippingbox.fill" }
+        guard store.clientAvailable else { return "exclamationmark.triangle.fill" }
         if store.isRuntimeRunning { return "shippingbox.fill" }
         return "shippingbox"
     }
 
     private var iconColor: Color {
         guard store.clientAvailable else { return .red }
-        if store.isRuntimeRunning { return .green }
-        return .orange
+        // Stopped is a normal state, not a warning — dim it instead of orange.
+        return store.isRuntimeRunning ? .green : .secondary
     }
 }

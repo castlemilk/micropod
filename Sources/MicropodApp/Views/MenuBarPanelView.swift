@@ -8,32 +8,29 @@ import SwiftUI
 /// Rendering rules (learned from feedback):
 /// - The ROOT must stay a plain VStack — a ScrollView root breaks the
 ///   MenuBarExtra popover window. Variable sections are internally bounded.
+/// - Content is grouped into soft "cards" (Control Center style) instead of
+///   edge-to-edge dividers; the popover gets a real margin around everything.
 /// - Quick actions live in a 2×2 grid so labels never clip.
 /// - Values use `.fixedSize(horizontal:)` + monospaced digits so stats never
 ///   truncate; only the container image names middle-truncate.
-/// - The panel stays 320 pt wide, so compact stats must not rely on truncation.
 struct MenuBarPanelView: View {
     @Bindable var store: AppStore
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 10) {
             header
-            Divider()
             quickActions
-            Divider()
-            statsRow
-            Divider()
-            containerList
+            statsCard
+            containerSection
             if !store.activity.isEmpty {
-                Divider()
-                recentActivity
+                activitySection
             }
-            Divider()
             footer
         }
-        .padding(10)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
         .frame(width: 340)
         .task { store.bootstrap() }
         // Keep the pollers running while the panel is open — otherwise tray
@@ -43,18 +40,41 @@ struct MenuBarPanelView: View {
         .onDisappear { store.setPanelVisible(false) }
     }
 
+    // MARK: - Card container
+
+    /// Soft grouped surface used by every section — the shared cardSurface
+    /// treatment (slightly translucent so the popover material shows through).
+    private func card<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardSurface(cornerRadius: 10, fillOpacity: 0.65)
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+    }
+
     // MARK: - Header
 
     private var header: some View {
-        HStack(spacing: 8) {
-            EmptyStateView.brandMark(EmptyStateArtwork.dashboardHero, size: 26)
-            VStack(alignment: .leading, spacing: 1) {
+        HStack(spacing: 10) {
+            EmptyStateView.brandMark(EmptyStateArtwork.dashboardHero, size: 30)
+            VStack(alignment: .leading, spacing: 2) {
                 Text("Micropod")
                     .font(.headline)
-                Text(statusLine)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(statusDotColor)
+                        .frame(width: 6, height: 6)
+                    Text(statusLine)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
             Spacer(minLength: 8)
             Button {
@@ -67,7 +87,13 @@ struct MenuBarPanelView: View {
             .controlSize(.small)
             .fixedSize()
         }
-        .padding(.bottom, 8)
+        .padding(.horizontal, 2)
+    }
+
+    private var statusDotColor: Color {
+        if !store.clientAvailable { return .red }
+        if store.isHealingRuntime || store.runtimeHealth == .wedged { return .orange }
+        return store.isRuntimeRunning ? .green : .gray
     }
 
     // MARK: - Quick actions (2×2 grid — no clipped labels)
@@ -76,58 +102,45 @@ struct MenuBarPanelView: View {
         // Text-only buttons: the custom icon glyphs cost too much width in the
         // 320 pt popover and pushed the labels into truncation.
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 6), GridItem(.flexible(), spacing: 6)], spacing: 6) {
-            quickActionButton("Run", icon: "start", fallback: "play.fill") {
+            quickActionButton("Run", icon: "start") {
                 openAndSet {
                     store.activeTab = .containers
                     store.pendingRunSheet = true
                 }
             }
-            quickActionButton("Pull", icon: "pull", fallback: "arrow.down.circle") {
+            quickActionButton("Pull", icon: "pull") {
                 openAndSet {
                     store.activeTab = .images
                     store.pendingPullSheet = true
                 }
             }
-            quickActionButton("Palette", icon: "dashboard", fallback: "command") {
+            quickActionButton("Palette", icon: "palette") {
                 openAndSet { store.showCommandPalette = true }
             }
             if store.isRuntimeRunning {
-                quickActionButton("Stop", icon: "stop", fallback: "stop.fill") {
+                quickActionButton("Stop", icon: "stop") {
                     Task { await store.stopRuntime() }
                 }
                 .help("Stop the container runtime")
             } else if store.clientAvailable {
-                quickActionButton("Start", icon: "start", fallback: "play.fill") {
+                quickActionButton("Start", icon: "start", prominent: true) {
                     Task { await store.startRuntime() }
                 }
-                .buttonStyle(.borderedProminent)
                 .help("Start the container runtime")
             } else {
-                quickActionButton("Retry", icon: "refresh", fallback: "arrow.clockwise") {
+                quickActionButton("Retry", icon: "refresh") {
                     Task { await store.refreshSystemStatus() }
                 }
             }
         }
-        .padding(.vertical, 8)
     }
 
+    /// Control Center-style action tile (shared TileButton in PanelCard.swift).
     private func quickActionButton(
-        _ title: String, icon: String, fallback: String, action: @escaping () -> Void
+        _ title: String, icon: String, prominent: Bool = false,
+        action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 5) {
-                Image(systemName: AppIcon.sfName(for: icon))
-                    .font(.system(size: 11))
-                    .frame(width: 11, height: 11)
-                Text(title)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-            }
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
+        TileButton(title: title, icon: icon, prominent: prominent, action: action)
     }
 
     private func openAndSet(_ configure: @escaping () -> Void) {
@@ -138,17 +151,25 @@ struct MenuBarPanelView: View {
 
     // MARK: - Stats (fixed-size values, never truncated)
 
-    private var statsRow: some View {
-        HStack(spacing: 0) {
-            statBlock(value: "\(store.runningCount)", label: "running", icon: "containers")
-            Spacer(minLength: 4)
-            statBlock(value: aggregateCPU ?? "—", label: "cpu", icon: "stats")
-            Spacer(minLength: 4)
-            statBlock(value: totalMemory, label: "in use", icon: "storage")
-            Spacer(minLength: 4)
-            statBlock(value: reclaimable, label: "reclaim", icon: "prune")
+    private var statsCard: some View {
+        card {
+            HStack(spacing: 0) {
+                statBlock(value: "\(store.runningCount)", label: "running", icon: "containers")
+                statSeparator
+                statBlock(value: aggregateCPU ?? "—", label: "cpu", icon: "stats")
+                statSeparator
+                statBlock(value: totalMemory, label: "in use", icon: "storage")
+                statSeparator
+                statBlock(value: reclaimable, label: "reclaim", icon: "prune")
+            }
         }
-        .padding(.vertical, 8)
+    }
+
+    private var statSeparator: some View {
+        Rectangle()
+            .fill(Color(nsColor: .separatorColor))
+            .frame(width: 0.5, height: 26)
+            .padding(.horizontal, 6)
     }
 
     /// Total CPU across running containers, e.g. "12%".
@@ -170,47 +191,53 @@ struct MenuBarPanelView: View {
 
     // MARK: - Containers
 
-    private var containerList: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Containers")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.top, 8)
+    private var containerSection: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            sectionHeader("Containers")
+                .padding(.horizontal, 2)
             if store.containers.isEmpty {
-                Text("No containers")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 8)
+                card {
+                    Text("No containers")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 4)
+                }
             } else {
-                ScrollView {
-                    VStack(spacing: 4) {
-                        ForEach(store.containers.prefix(6)) { container in
-                            MenuBarContainerRow(
-                                container: container,
-                                stats: store.statsByID[container.id]
-                            ) {
-                                openContainer(container.id)
-                            } onStop: {
-                                Task { await store.stopContainer(container.id) }
+                card {
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            ForEach(Array(store.containers.prefix(6).enumerated()), id: \.element.id) { index, container in
+                                if index > 0 {
+                                    Divider().padding(.leading, 18)
+                                }
+                                MenuBarContainerRow(
+                                    container: container,
+                                    stats: store.statsByID[container.id]
+                                ) {
+                                    openContainer(container.id)
+                                } onStop: {
+                                    Task { await store.stopContainer(container.id) }
+                                }
                             }
-                        }
-                        if store.containers.count > 6 {
-                            Button {
-                                openAndSet { store.activeTab = .containers }
-                            } label: {
-                                Label(
-                                    "Show all \(store.containers.count) containers…",
-                                    systemImage: "square.grid.2x2")
+                            if store.containers.count > 6 {
+                                Divider().padding(.leading, 18)
+                                Button {
+                                    openAndSet { store.activeTab = .containers }
+                                } label: {
+                                    Label(
+                                        "Show all \(store.containers.count) containers…",
+                                        systemImage: "square.grid.2x2")
+                                }
+                                .buttonStyle(.plain)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .padding(.vertical, 4)
                             }
-                            .buttonStyle(.plain)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
                         }
                     }
-                    .padding(.vertical, 2)
+                    .frame(maxHeight: 220)
                 }
-                .frame(maxHeight: 220)
             }
         }
     }
@@ -224,34 +251,38 @@ struct MenuBarPanelView: View {
 
     // MARK: - Activity
 
-    private var recentActivity: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Recent Activity")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.top, 8)
-            ScrollView {
-                VStack(spacing: 4) {
-                    ForEach(store.recentActivity(limit: 4)) { entry in
-                        HStack(spacing: 6) {
-                            Image(systemName: activityIcon(entry))
-                                .font(.system(size: 9))
-                                .foregroundStyle(activityColor(entry))
-                            Text(entry.message)
-                                .font(.caption)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                            Spacer(minLength: 4)
-                            Text(entry.timestamp.formatted(.relative(presentation: .named)))
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                                .fixedSize()
+    private var activitySection: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            sectionHeader("Recent Activity")
+                .padding(.horizontal, 2)
+            card {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(Array(store.recentActivity(limit: 4).enumerated()), id: \.element.id) { index, entry in
+                            if index > 0 {
+                                Divider().padding(.leading, 18)
+                            }
+                            HStack(spacing: 7) {
+                                Image(systemName: activityIcon(entry))
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(activityColor(entry))
+                                    .frame(width: 12)
+                                Text(entry.message)
+                                    .font(.caption)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                                Spacer(minLength: 4)
+                                Text(entry.timestamp.formatted(.relative(presentation: .named)))
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                                    .fixedSize()
+                            }
+                            .padding(.vertical, 4)
                         }
                     }
                 }
-                .padding(.vertical, 2)
+                .frame(maxHeight: 120)
             }
-            .frame(maxHeight: 120)
         }
     }
 
@@ -287,7 +318,7 @@ struct MenuBarPanelView: View {
         }
         .font(.caption2)
         .foregroundStyle(.secondary)
-        .padding(.top, 8)
+        .padding(.horizontal, 2)
     }
 
     private func shortAPIServerVersion(_ version: String) -> String {
@@ -298,6 +329,8 @@ struct MenuBarPanelView: View {
 
     private var statusLine: String {
         if !store.clientAvailable { return "container CLI not found" }
+        if store.isHealingRuntime { return "Recovering runtime…" }
+        if store.runtimeHealth == .wedged { return "Runtime unresponsive" }
         if store.isRuntimeRunning {
             return store.runningCount == 1 ? "Running · 1 container" : "Running · \(store.runningCount) containers"
         }
@@ -305,10 +338,11 @@ struct MenuBarPanelView: View {
     }
 
     private func statBlock(value: String, label: String, icon: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 4) {
                 Image(systemName: AppIcon.sfName(for: icon))
                     .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
                     .frame(width: 10, height: 10)
                 Text(value)
                     .font(.callout.weight(.semibold).monospacedDigit())
@@ -342,7 +376,8 @@ struct MenuBarPanelView: View {
 }
 
 /// One compact row in the menu bar panel: name + live CPU/mem, image below;
-/// click opens the container, the trailing button stops it.
+/// click opens the container, the trailing button stops it. Rows sit inside
+/// a section card separated by inset dividers, so the row itself stays flat.
 struct MenuBarContainerRow: View {
     let container: Micropod_V1_Container
     let stats: Micropod_V1_ContainerStats?
@@ -392,8 +427,8 @@ struct MenuBarContainerRow: View {
 
             if container.state == "running" {
                 Button(action: onStop) {
-                    Image(systemName: "stop.fill")
-                        .font(.system(size: 8))
+                    Image(systemName: "stop.circle")
+                        .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                         .frame(width: 20, height: 20)
                         .contentShape(Rectangle())
@@ -403,9 +438,7 @@ struct MenuBarContainerRow: View {
                 .accessibilityLabel("Stop \(container.id)")
             }
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 4)
-        .background(stateColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 5))
+        .padding(.vertical, 5)
     }
 
     private var stateColor: Color { ContainerStateStyle.color(for: container.state) }

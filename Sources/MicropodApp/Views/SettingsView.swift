@@ -52,6 +52,22 @@ struct SettingsView: View {
                 Toggle("Show running container count", isOn: $showMenuBarCount)
                     .toggleStyle(.checkbox)
             }
+            Section("Agents") {
+                ForEach(store.agentSpecs, id: \.id) { spec in
+                    agentRow(spec)
+                }
+                Button {
+                    store.restartAllAgents()
+                } label: {
+                    IconLabel(title: "Restart All Agents", icon: "restart", fallback: "arrow.clockwise")
+                }
+                .controlSize(.small)
+                Text(
+                    "Helper processes the app runs for you. They start with the app, restart if they die, and quit when Micropod quits."
+                )
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            }
             Section("Terminal") {
                 TextField("Shell", text: $terminalShell)
                     .textFieldStyle(.roundedBorder)
@@ -78,11 +94,47 @@ struct SettingsView: View {
             }
             Section("Runtime") {
                 HStack {
+                    Text("Health")
+                    Spacer()
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(runtimeHealthColor)
+                            .frame(width: 6, height: 6)
+                        Text(runtimeHealthText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                HStack {
                     Text("CLI version")
                     Spacer()
                     Text(store.systemStatus?.cliVersion ?? "—")
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
+                }
+                HStack(spacing: 8) {
+                    Button {
+                        Task { await store.restartRuntime() }
+                    } label: {
+                        IconLabel(
+                            title: store.isRestartingRuntime ? "Restarting…" : "Restart Runtime",
+                            icon: "restart", fallback: "arrow.clockwise")
+                    }
+                    .controlSize(.small)
+                    .disabled(
+                        !store.isRuntimeRunning || store.isRestartingRuntime || store.isHealingRuntime)
+                    Button {
+                        store.recoverRuntimeNow()
+                    } label: {
+                        IconLabel(
+                            title: store.isHealingRuntime ? "Recovering…" : "Recover Runtime",
+                            icon: "refresh", fallback: "stethoscope")
+                    }
+                    .controlSize(.small)
+                    .disabled(store.isHealingRuntime || store.isRestartingRuntime)
+                    .help(
+                        "Bounces `container system` (stop + start) — the same recovery the supervisor runs when the apiserver stops answering."
+                    )
                 }
                 HStack {
                     Text("App root")
@@ -189,6 +241,92 @@ struct SettingsView: View {
         .sheet(isPresented: $showCreateMachine) {
             CreateMachineSheet(store: store)
         }
+    }
+
+    /// One agent: enable toggle, live state dot + pid/endpoint, restart.
+    private func agentRow(_ spec: AgentSpec) -> some View {
+        let status = store.agentStatuses.first { $0.id == spec.id }
+        return HStack(spacing: 8) {
+            Toggle(isOn: agentEnabledBinding(spec)) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(spec.displayName).font(.caption.weight(.medium))
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(agentStateColor(status?.state))
+                            .frame(width: 6, height: 6)
+                        Text(agentStateText(status))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .toggleStyle(.checkbox)
+            Spacer()
+            if let status, status.restarts > 0 {
+                Text("\(status.restarts)× restart")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            if store.isAgentEnabled(spec.id) {
+                Button {
+                    store.restartAgent(spec.id)
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .help("Restart \(spec.displayName)")
+                .accessibilityLabel("Restart \(spec.displayName)")
+            }
+        }
+    }
+
+    private func agentEnabledBinding(_ spec: AgentSpec) -> Binding<Bool> {
+        Binding(
+            get: { store.isAgentEnabled(spec.id) },
+            set: { store.setAgentEnabled(spec.id, $0) })
+    }
+
+    private func agentStateColor(_ state: AgentStatus.State?) -> Color {
+        switch state {
+        case .running: .green
+        case .adopted: .blue
+        case .starting, .retryPending: .orange
+        case .missing: .red
+        case .stopped, nil: .gray
+        }
+    }
+
+    private func agentStateText(_ status: AgentStatus?) -> String {
+        guard let status else { return "starting…" }
+        switch status.state {
+        case .running:
+            return "running · pid \(status.pid ?? 0) · \(status.endpoint)"
+        case .adopted:
+            return "running externally · \(status.endpoint)"
+        case .starting:
+            return "starting… · \(status.endpoint)"
+        case .retryPending:
+            return status.lastError.map { "down — \($0)" } ?? "down — retrying"
+        case .missing:
+            return "not installed · \(status.endpoint)"
+        case .stopped:
+            return "off"
+        }
+    }
+
+    private var runtimeHealthColor: Color {
+        if !store.clientAvailable { return .red }
+        if store.isHealingRuntime || store.isRestartingRuntime { return .orange }
+        if store.runtimeHealth == .wedged { return .orange }
+        return store.isRuntimeRunning ? .green : .gray
+    }
+
+    private var runtimeHealthText: String {
+        if !store.clientAvailable { return "CLI not found" }
+        if store.isHealingRuntime { return "recovering…" }
+        if store.isRestartingRuntime { return "restarting…" }
+        if store.runtimeHealth == .wedged { return "unresponsive (self-healing)" }
+        return store.isRuntimeRunning ? "healthy" : "stopped"
     }
 
     /// Flattened system properties: "section.key = value" rows, sections

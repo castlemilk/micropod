@@ -224,7 +224,7 @@ struct MainPanelView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(10)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .cardSurface(cornerRadius: 10, fillOpacity: 0.8)
         .padding(8)
     }
 
@@ -237,8 +237,9 @@ struct MainPanelView: View {
 
     private var statusColor: Color {
         if !store.clientAvailable { return .red }
+        if store.isStartingRuntime { return .orange }
         if store.isRuntimeRunning { return .green }
-        return .orange
+        return .gray
     }
 
     /// Live counts per tab (HIG: badges communicate state at a glance).

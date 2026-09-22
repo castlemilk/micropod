@@ -226,6 +226,62 @@ final class AppStoreLaunchTests: XCTestCase {
         XCTAssertTrue(consumerSawCancellation)
     }
 
+    /// The runtime liveness probe (`container list` under an 8s ceiling)
+    /// must succeed against a healthy mock runtime and fail fast against a
+    /// dead one — it drives the wedged-apiserver self-heal path.
+    func testLivenessProbeSucceedsAgainstHealthyRuntime() async throws {
+        let fixture = try AppTestCLI.makeMock()
+        defer { AppTestCLI.cleanUp(fixture) }
+        let store = makeRunningStore(client: fixture.client)
+        try await store.dependencies.system.livenessProbe()
+    }
+
+    func testLivenessProbeFailsAgainstDeadRuntime() async {
+        let store = makeRunningStore(client: AppTestCLI.makeFailing())
+        do {
+            try await store.dependencies.system.livenessProbe()
+            XCTFail("liveness probe should throw when the CLI is unusable")
+        } catch {}
+    }
+
+    /// Pollers + supervisor each call refreshSystemStatus — the second call
+    /// inside the freshness window must reuse the first result instead of
+    /// spawning another `container system status`.
+    func testSystemStatusRefreshCoalescesWithinFreshnessWindow() async throws {
+        let fixture = try AppTestCLI.makeMock()
+        defer { AppTestCLI.cleanUp(fixture) }
+        let store = AppStore(dependencies: AppDependencies(client: fixture.client))
+        defer { store.stopPollers() }
+
+        await store.refreshSystemStatus()
+        await store.refreshSystemStatus()
+        var statusCalls = statusCallCount(in: fixture.traceURL)
+        XCTAssertEqual(statusCalls, 1)
+
+        await store.refreshSystemStatus(force: true)
+        statusCalls = statusCallCount(in: fixture.traceURL)
+        XCTAssertEqual(statusCalls, 2)
+    }
+
+    /// Concurrent callers share a single in-flight status spawn.
+    func testConcurrentSystemStatusRefreshSharesOneSpawn() async throws {
+        let fixture = try AppTestCLI.makeMock()
+        defer { AppTestCLI.cleanUp(fixture) }
+        let store = AppStore(dependencies: AppDependencies(client: fixture.client))
+        defer { store.stopPollers() }
+
+        async let first: Void = store.refreshSystemStatus()
+        async let second: Void = store.refreshSystemStatus()
+        _ = await (first, second)
+
+        XCTAssertEqual(statusCallCount(in: fixture.traceURL), 1)
+    }
+
+    private func statusCallCount(in traceURL: URL) -> Int {
+        let trace = (try? String(contentsOf: traceURL, encoding: .utf8)) ?? ""
+        return trace.split(separator: "\n").filter { $0 == "system status --format json" }.count
+    }
+
     private func container(id: String, labels: [String: String]) -> Micropod_V1_Container {
         var container = Micropod_V1_Container()
         container.id = id

@@ -93,6 +93,19 @@ else
     echo "!! micropod-docker-shim not found in .build/release — shim auto-start disabled"
 fi
 
+# Bundle the local HTTP API server — the app supervises it as a managed
+# agent (spawn on bootstrap, health-probe /health, restart on death,
+# terminate on quit) so scripts/curl have 127.0.0.1:45454 whenever the app runs.
+if [ -f ".build/release/MicropodAPI" ]; then
+    cp .build/release/MicropodAPI "$APP_BUNDLE/Contents/MacOS/MicropodAPI"
+    chmod +x "$APP_BUNDLE/Contents/MacOS/MicropodAPI"
+    cp .build/release/MicropodAPI "$DIST/micropod-api-bin"
+    chmod +x "$DIST/micropod-api-bin"
+    echo "==> HTTP API server bundled (MicropodAPI)"
+else
+    echo "!! MicropodAPI not found in .build/release — API agent disabled"
+fi
+
 # Bundle the synchronized file-shares daemon — the shim auto-discovers it
 # at ~/micropod/share-cache/socket and rewrites directory binds through it.
 if [ -f ".build/release/micropod-sharedfs" ]; then

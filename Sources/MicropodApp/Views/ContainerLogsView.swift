@@ -16,13 +16,16 @@ struct ContainerLogsView: View {
     @State private var currentMatch: Int = 0
     @State private var streamError: String?
     @State private var streamTask: Task<Void, Never>?
+    /// Incremental match index: line id → match ordinal. Rebuilt once per
+    /// lines/search change — the previous per-row rescan was O(n²) while
+    /// scrolling a capped buffer.
+    @State private var matchOrdinalByID: [LogLine.ID: Int] = [:]
+    @State private var matchedIDsInOrder: [LogLine.ID] = []
+    @State private var seenLineIDs = Set<LogLine.ID>()
 
     private let maxLines = 1000
 
-    private var matchCount: Int {
-        guard !searchText.isEmpty else { return 0 }
-        return lines.filter { $0.text.localizedCaseInsensitiveContains(searchText) }.count
-    }
+    private var matchCount: Int { matchedIDsInOrder.count }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,6 +37,13 @@ struct ContainerLogsView: View {
         .onDisappear {
             streamTask?.cancel()
             streamTask = nil
+        }
+        .onChange(of: lines) { reconcileMatches() }
+        .onChange(of: searchText) {
+            // Force a full rescan — match membership depends on the query.
+            seenLineIDs = []
+            currentMatch = 0
+            reconcileMatches()
         }
     }
 
@@ -186,12 +196,38 @@ struct ContainerLogsView: View {
         return attributed
     }
 
-    private func matchBackground(_ index: Int) -> Color {
-        guard matchCount > 0, lines[index].text.localizedCaseInsensitiveContains(searchText) else {
-            return .clear
+    /// Keeps the match index consistent with the visible buffer: new lines
+    /// are scanned once on arrival; evicted lines drop their match ordinals.
+    private func reconcileMatches() {
+        guard !searchText.isEmpty else {
+            matchedIDsInOrder = []
+            matchOrdinalByID = [:]
+            seenLineIDs = []
+            return
         }
-        let matchIndex = lines[0...index].filter { $0.text.localizedCaseInsensitiveContains(searchText) }.count - 1
-        return matchIndex == currentMatch ? Color.accentColor.opacity(0.18) : .clear
+        let currentIDs = Set(lines.map(\.id))
+        guard currentIDs != seenLineIDs else { return }
+        matchedIDsInOrder.removeAll { !currentIDs.contains($0) }
+        for line in lines where !seenLineIDs.contains(line.id) {
+            if line.text.localizedCaseInsensitiveContains(searchText) {
+                matchedIDsInOrder.append(line.id)
+            }
+        }
+        seenLineIDs = currentIDs
+        matchOrdinalByID = Dictionary(
+            matchedIDsInOrder.enumerated().map { ($0.element, $0.offset) },
+            uniquingKeysWith: { first, _ in first })
+        if !matchedIDsInOrder.isEmpty {
+            currentMatch = min(currentMatch, matchedIDsInOrder.count - 1)
+        } else {
+            currentMatch = 0
+        }
+    }
+
+    private func matchBackground(_ index: Int) -> Color {
+        guard index < lines.count else { return .clear }
+        return matchOrdinalByID[lines[index].id] == currentMatch
+            ? Color.accentColor.opacity(0.18) : .clear
     }
 
     private func copyAll() {

@@ -65,9 +65,12 @@ struct DashboardView: View {
     // MARK: - Activity feed
 
     private var activityCard: some View {
-        GroupBox("Recent Activity") {
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(store.recentActivity(limit: 12)) { entry in
+        PanelCard(title: "Recent Activity") {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(store.recentActivity(limit: 12).enumerated()), id: \.element.id) { index, entry in
+                    if index > 0 {
+                        Divider().padding(.leading, 24)
+                    }
                     HStack(spacing: 8) {
                         Image(systemName: icon(for: entry))
                             .font(.system(size: 11))
@@ -83,9 +86,9 @@ struct DashboardView: View {
                             .foregroundStyle(.tertiary)
                             .monospacedDigit()
                     }
+                    .padding(.vertical, 5)
                 }
             }
-            .padding(4)
         }
     }
 
@@ -108,11 +111,17 @@ struct DashboardView: View {
     // MARK: - Runtime card
 
     private var runtimeCard: some View {
-        GroupBox(String(localized: "Runtime")) {
+        PanelCard(title: "Runtime") {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(store.isRuntimeRunning ? String(localized: "Running") : String(localized: "Stopped"))
-                        .font(.title3.weight(.semibold))
+                    HStack(spacing: 7) {
+                        Circle()
+                            .fill(runtimeStatusColor)
+                            .frame(width: 9, height: 9)
+                        Text(runtimeStatusTitle)
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(store.isRuntimeRunning ? Color.primary : Color.secondary)
+                    }
                     Text(subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -130,43 +139,55 @@ struct DashboardView: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(store.isStartingRuntime)
                 } else if store.isRuntimeRunning {
-                    Button {
-                        Task { await store.stopRuntime() }
-                    } label: {
-                        IconLabel(title: String(localized: "Stop"), icon: "stop", fallback: "stop.fill")
+                    HStack(spacing: 8) {
+                        Button {
+                            Task { await store.restartRuntime() }
+                        } label: {
+                            IconLabel(
+                                title: store.isRestartingRuntime
+                                    ? String(localized: "Restarting…") : String(localized: "Restart"),
+                                icon: "restart", fallback: "arrow.clockwise")
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(store.isRestartingRuntime || store.isHealingRuntime)
+                        Button {
+                            Task { await store.stopRuntime() }
+                        } label: {
+                            IconLabel(title: String(localized: "Stop"), icon: "stop", fallback: "stop.fill")
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(store.isRestartingRuntime || store.isHealingRuntime)
                     }
-                    .buttonStyle(.bordered)
                 }
             }
-            .padding(4)
 
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 6) {
-                    quickAction(String(localized: "Run Container…"), icon: "start", fallback: "plus.circle") {
+                    TileButton(title: String(localized: "Run Container…"), icon: "create") {
                         store.activeTab = .containers
                         store.pendingRunSheet = true
                     }
-                    quickAction(String(localized: "Pull Image…"), icon: "pull", fallback: "arrow.down.circle") {
+                    TileButton(title: String(localized: "Pull Image…"), icon: "pull") {
                         store.activeTab = .images
                         store.pendingPullSheet = true
                     }
-                    quickAction(String(localized: "Command Palette"), icon: "dashboard", fallback: "command") {
+                    TileButton(title: String(localized: "Command Palette"), icon: "palette") {
                         store.showCommandPalette = true
                     }
                     Spacer()
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
-                        quickAction(String(localized: "Run Container…"), icon: "start", fallback: "plus.circle") {
+                        TileButton(title: String(localized: "Run Container…"), icon: "create") {
                             store.activeTab = .containers
                             store.pendingRunSheet = true
                         }
-                        quickAction(String(localized: "Pull Image…"), icon: "pull", fallback: "arrow.down.circle") {
+                        TileButton(title: String(localized: "Pull Image…"), icon: "pull") {
                             store.activeTab = .images
                             store.pendingPullSheet = true
                         }
                     }
-                    quickAction(String(localized: "Command Palette"), icon: "dashboard", fallback: "command") {
+                    TileButton(title: String(localized: "Command Palette"), icon: "palette") {
                         store.showCommandPalette = true
                     }
                 }
@@ -279,9 +300,32 @@ struct DashboardView: View {
         .animation(reduceMotion ? .default : (animated ? .easeOut(duration: 0.35) : .default), value: progress)
     }
 
+    private var runtimeStatusColor: Color {
+        if !store.clientAvailable { return .red }
+        if store.isStartingRuntime || store.isHealingRuntime || store.isRestartingRuntime {
+            return .orange
+        }
+        if store.runtimeHealth == .wedged { return .orange }
+        return store.isRuntimeRunning ? .green : .gray
+    }
+
+    private var runtimeStatusTitle: String {
+        if store.isRuntimeRunning {
+            if store.isHealingRuntime { return String(localized: "Recovering…") }
+            return store.runtimeHealth == .wedged
+                ? String(localized: "Unresponsive") : String(localized: "Running")
+        }
+        return String(localized: "Stopped")
+    }
+
     private var subtitle: String {
         if !store.clientAvailable {
             return "The container CLI was not found at \(store.dependencies.client.executableURL.path)"
+        }
+        if store.runtimeHealth == .wedged {
+            return store.isHealingRuntime
+                ? "Runtime is unresponsive — restarting the system service…"
+                : "Runtime is unresponsive — self-healing is scheduled; use Recover in Settings to retry now."
         }
         guard let status = store.systemStatus else {
             return store.systemStatusError ?? "Checking runtime status…"
@@ -297,19 +341,15 @@ struct DashboardView: View {
 
     /// Rolling system-wide CPU + memory charts across all running containers.
     private var liveResourcesCard: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 6) {
+        PanelCard {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text(String(localized: "Live Resources")).font(.headline)
                     Spacer()
                     ChartTimeWindowPicker(window: $resourceWindow)
                 }
-                Divider()
                 chartBody
             }
-            .padding(4)
-        } label: {
-            EmptyView()
         }
     }
 
@@ -525,40 +565,39 @@ struct DashboardView: View {
         Button {
             store.activeTab = tab
         } label: {
-            VStack(alignment: .leading, spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 14))
-                    .foregroundStyle(color)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .fill(color.opacity(0.16))
+                        Image(systemName: icon)
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(color)
+                    }
+                    .frame(width: 18, height: 18)
+                    Text(title)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
                 Text(value)
                     .font(.callout.weight(.semibold).monospacedDigit())
                     .lineLimit(1)
-                Text(title)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
-            .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
+            .cardSurface(cornerRadius: 8, fillOpacity: 0.55)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(title): \(value)")
     }
 
-    private func quickAction(
-        _ title: String, icon: String, fallback: String, action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            IconLabel(title: title, icon: icon, fallback: fallback)
-        }
-        .buttonStyle(.borderless)
-        .controlSize(.small)
-    }
-
     // MARK: - Disk usage card
 
     private var diskUsageCard: some View {
-        GroupBox("Disk Usage") {
+        PanelCard(title: "Disk Usage") {
             if let usage = store.diskUsage {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
@@ -661,7 +700,7 @@ struct DashboardView: View {
     // MARK: - Workloads
 
     private var workloadsCard: some View {
-        GroupBox("Workloads") {
+        PanelCard(title: "Workloads") {
             let running = store.containers.filter { $0.state == "running" }
             if running.isEmpty {
                 Text("No running workloads")
@@ -671,13 +710,13 @@ struct DashboardView: View {
                     .padding(.vertical, 12)
             } else {
                 VStack(spacing: 0) {
-                    ForEach(running) { container in
+                    ForEach(Array(running.enumerated()), id: \.element.id) { index, container in
+                        if index > 0 {
+                            Divider().padding(.leading, 17)
+                        }
                         DashboardContainerRow(
                             container: container,
                             stats: store.statsByID[container.id])
-                        if container.id != running.last?.id {
-                            Divider()
-                        }
                     }
                 }
             }
