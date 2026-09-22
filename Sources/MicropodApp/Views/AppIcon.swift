@@ -28,8 +28,8 @@ enum AppIconStore {
         }
         lock.unlock()
         let url =
-            Bundle.module.url(forResource: name, withExtension: "png", subdirectory: "brandbrain")
-            ?? Bundle.module.url(forResource: name, withExtension: "svg", subdirectory: "brandbrain")
+            Bundle.micropodResources.url(forResource: name, withExtension: "png", subdirectory: "brandbrain")
+            ?? Bundle.micropodResources.url(forResource: name, withExtension: "svg", subdirectory: "brandbrain")
         guard let url, let image = NSImage(contentsOf: url),
             let tiff = image.tiffRepresentation,
             let source = NSBitmapImageRep(data: tiff)
@@ -80,8 +80,8 @@ struct AppIcon {
         }
         lock.unlock()
         let url =
-            Bundle.module.url(forResource: name, withExtension: "png", subdirectory: "brandbrain")
-            ?? Bundle.module.url(forResource: name, withExtension: "svg", subdirectory: "brandbrain")
+            Bundle.micropodResources.url(forResource: name, withExtension: "png", subdirectory: "brandbrain")
+            ?? Bundle.micropodResources.url(forResource: name, withExtension: "svg", subdirectory: "brandbrain")
         guard let url, let image = NSImage(contentsOf: url),
             let tiff = image.tiffRepresentation,
             let source = NSBitmapImageRep(data: tiff)

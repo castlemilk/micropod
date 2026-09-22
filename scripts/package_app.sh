@@ -61,10 +61,10 @@ cp .build/release/MicropodApp "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
 # SwiftPM resource bundle (icons, brandbrain assets, Localizable.xcstrings):
-# Bundle.module looks for it at Bundle.main.bundleURL/<name>.bundle, which for a
-# packaged .app resolves to the app bundle root.
+# must live under Contents/Resources — anything at the .app root makes
+# codesign fail with "unsealed contents". Bundle.micropodResources finds it.
 if [ -d ".build/release/Micropod_MicropodApp.bundle" ]; then
-    cp -R ".build/release/Micropod_MicropodApp.bundle" "$APP_BUNDLE/Micropod_MicropodApp.bundle"
+    cp -R ".build/release/Micropod_MicropodApp.bundle" "$APP_BUNDLE/Contents/Resources/Micropod_MicropodApp.bundle"
     echo "==> Resource bundle: Micropod_MicropodApp.bundle (brandbrain + strings catalog)"
 fi
 
