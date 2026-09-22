@@ -130,3 +130,24 @@ tasks:
     desc: Remove the installed app + MCP server (leaves app data/preferences)
     cmds:
       - ./scripts/install.sh --uninstall
+
+  ci-go:
+    desc: Go CI pipeline on micropod (image build, vet, unit, race, testcontainers postgres, run)
+    cmds:
+      - ./ci/pipeline-go.sh
+
+  ci-npm:
+    desc: Node CI pipeline on micropod (image build, install+test, run, change-rebuild)
+    cmds:
+      - ./ci/pipeline-npm.sh
+
+  ci:
+    desc: All CI pipelines on micropod (go + npm)
+    cmds:
+      - task: ci-go
+      - task: ci-npm
+
+  ci-matrix:
+    desc: Build-cache re-use matrix (related Go/Node builds sharing deps, bases, mounts)
+    cmds:
+      - ./ci/cache-matrix.sh

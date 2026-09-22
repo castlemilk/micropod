@@ -1,5 +1,6 @@
 import Foundation
 import MicropodCore
+import MicropodSharedFS
 
 // MCP (Model Context Protocol) STDIO server for Micropod.
 // JSON-RPC 2.0 over stdin/stdout.
@@ -49,8 +50,19 @@ struct MicropodMCP {
             networks: NetworkService(client: client),
             statsSampler: StatsSampler(client: client),
             logStreamer: LogStreamer(client: client),
-            compose: ComposeService(client: client))
+            compose: ComposeService(client: client),
+            sharedFS: MicropodMCP.sharedFSSocketClient())
         await server.run()
+    }
+
+    /// Best-effort synchronized file shares: connect when the daemon socket
+    /// exists, otherwise nil (the share_* tools report a clean error).
+    private static func sharedFSSocketClient() -> (any SharedFSClient)? {
+        let socket =
+            ProcessInfo.processInfo.environment["MICROPOD_SHAREDFS_SOCKET"]
+            ?? NSString("~/micropod/share-cache/socket").expandingTildeInPath
+        guard FileManager.default.fileExists(atPath: socket) else { return nil }
+        return UnixSocketClient(socketPath: socket)
     }
 }
 
@@ -64,6 +76,9 @@ private actor MCPServer {
     private let statsSampler: StatsSampler
     private let logStreamer: LogStreamer
     private let compose: ComposeService
+    /// Best-effort synchronized file shares (nil when the daemon socket is
+    /// absent — the tools then report a clean error instead of failing).
+    private let sharedFS: (any SharedFSClient)?
 
     init(
         client: ContainerCLIClient,
@@ -74,7 +89,8 @@ private actor MCPServer {
         networks: NetworkService,
         statsSampler: StatsSampler,
         logStreamer: LogStreamer,
-        compose: ComposeService
+        compose: ComposeService,
+        sharedFS: (any SharedFSClient)?
     ) {
         self.client = client
         self.system = system
@@ -85,6 +101,19 @@ private actor MCPServer {
         self.statsSampler = statsSampler
         self.logStreamer = logStreamer
         self.compose = compose
+        self.sharedFS = sharedFS
+    }
+
+    private static func sharedFSSocketClient() -> (any SharedFSClient)? {
+        let socket =
+            ProcessInfo.processInfo.environment["MICROPOD_SHAREDFS_SOCKET"]
+            ?? NSString("~/micropod/share-cache/socket").expandingTildeInPath
+        guard FileManager.default.fileExists(atPath: socket) else { return nil }
+        return UnixSocketClient(socketPath: socket)
+    }
+
+    private static var noDaemonMessage: String {
+        "shared-fs daemon is not running (no socket at ~/micropod/share-cache/socket or $MICROPOD_SHAREDFS_SOCKET)"
     }
 
     // MARK: - Main loop
@@ -207,6 +236,18 @@ private actor MCPServer {
         ("compose_up", "Parse + run a docker-compose.yml. Arguments: path, profiles (optional comma list)."),
         ("compose_down", "Tear down a compose stack by its compose name. Arguments: name."),
         ("compose_ps", "List containers belonging to a compose stack. Arguments: name."),
+        (
+            "share_mount",
+            "Expose a host directory as a synchronized file share. Arguments: src (required), readonly (optional), shared (optional live view)."
+        ),
+        ("share_unmount", "Remove a shared view. Arguments: id."),
+        ("share_list", "List active synchronized file shares."),
+        ("share_sync", "Flush a shared view's writes back to its source. Arguments: id."),
+        ("share_gc", "Remove unreferenced chunks from the shared cache."),
+        (
+            "build_cache_stats",
+            "Content-addressed build contexts: entries, bytes, shared bytes, cap. Arguments: path (optional cache root)."
+        ),
     ]
 
     private func callTool(id: Int?, _ call: MCPToolCall) async -> Data? {
@@ -214,6 +255,9 @@ private actor MCPServer {
         func string(_ key: String) -> String {
             if case .string(let value) = args[key] { return value }
             return ""
+        }
+        func flag(_ key: String) -> Bool {
+            ["true", "1", "yes"].contains(string(key).lowercased())
         }
 
         do {
@@ -355,6 +399,78 @@ private actor MCPServer {
                     .map { "\($0.id)\t\($0.state)\t\($0.image)" }
                 return toolResult(
                     id, lines.isEmpty ? "No containers for stack \(string("name"))" : lines.joined(separator: "\n"))
+
+            case "share_mount":
+                guard let sharedFS else {
+                    return toolResult(id, Self.noDaemonMessage, isError: true)
+                }
+                guard !string("src").isEmpty else {
+                    return toolResult(id, "share_mount requires src", isError: true)
+                }
+                let readonly = flag("readonly") || flag("ro")
+                let info: MountInfo
+                if flag("shared") {
+                    info = try await sharedFS.mountShared(
+                        src: URL(fileURLWithPath: string("src")), readonly: readonly)
+                } else {
+                    info = try await sharedFS.mount(
+                        src: URL(fileURLWithPath: string("src")), readonly: readonly)
+                }
+                return toolResult(
+                    id, "\(info.id.value)\t\(info.src) -> \(info.viewPath) (\(info.sizeBytes) bytes)")
+
+            case "share_unmount":
+                guard let sharedFS else {
+                    return toolResult(id, Self.noDaemonMessage, isError: true)
+                }
+                try await sharedFS.unmount(id: ViewID(string("id")))
+                return toolResult(id, "Unmounted \(string("id"))")
+
+            case "share_list":
+                guard let sharedFS else {
+                    return toolResult(id, Self.noDaemonMessage, isError: true)
+                }
+                let mounts = try await sharedFS.list()
+                if mounts.isEmpty { return toolResult(id, "no shared views") }
+                return toolResult(
+                    id,
+                    mounts.map {
+                        "\($0.id.value)\t\($0.src) -> \($0.viewPath)  \($0.sizeBytes)B"
+                    }.joined(separator: "\n"))
+
+            case "share_sync":
+                guard let sharedFS else {
+                    return toolResult(id, Self.noDaemonMessage, isError: true)
+                }
+                let result = try await sharedFS.sync(id: ViewID(string("id")))
+                return toolResult(
+                    id,
+                    "Synced \(result.synced.count) files (\(result.bytesWritten) bytes) for \(string("id"))")
+
+            case "share_gc":
+                guard let sharedFS else {
+                    return toolResult(id, Self.noDaemonMessage, isError: true)
+                }
+                let result = try await sharedFS.gc()
+                return toolResult(
+                    id,
+                    "Removed \(result.chunksRemoved) chunks, reclaimed \(result.bytesReclaimed) bytes")
+
+            case "build_cache_stats":
+                // Read-only directory scan — needs no daemon and no shim.
+                let root =
+                    string("path").isEmpty
+                    ? BuildCacheStore.standardRoot()
+                    : URL(fileURLWithPath: string("path"), isDirectory: true)
+                let (_, stats) = BuildCacheStore.scan(root: root)
+                return toolResult(
+                    id,
+                    """
+                    entries: \(stats.entries)
+                    content-bytes: \(stats.contentBytes)
+                    shared-bytes: \(stats.sharedBytes)
+                    cap-bytes: \(stats.capBytes)
+                    """)
 
             default:
                 return respondError(id: id, code: -32601, message: "Unknown tool: \(call.name)")

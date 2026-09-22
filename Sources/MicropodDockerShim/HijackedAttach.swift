@@ -29,27 +29,48 @@ import MicropodCore
 final class AttachRegistry: @unchecked Sendable {
     static let shared = AttachRegistry()
     private let lock = NSLock()
-    private var pending: [String: ShimConnection] = [:]
+    private var pending: [String: (connection: ShimConnection, parkedAt: Date)] = [:]
+    /// Parked attaches expire: a client that hijacks /attach but never
+    /// follows with /start (crashed between the calls) must not pin the
+    /// connection — and its file descriptor — forever.
+    private static let parkTTL: TimeInterval = 120
 
     /// Parks a hijacked connection until `/start` claims it.
     func park(containerID: String, connection: ShimConnection) {
         lock.lock()
-        pending[containerID] = connection
+        sweepLocked()
+        pending[containerID] = (connection, Date())
         lock.unlock()
     }
 
-    /// Removes and returns the parked connection, if any.
+    /// Removes and returns the parked connection, if any (expired entries
+    /// are treated as absent and closed).
     func claim(containerID: String) -> ShimConnection? {
         lock.lock()
-        let connection = pending.removeValue(forKey: containerID)
-        lock.unlock()
-        return connection
+        defer { lock.unlock() }
+        guard let parked = pending.removeValue(forKey: containerID) else { return nil }
+        if Date().timeIntervalSince(parked.parkedAt) > Self.parkTTL {
+            parked.connection.close()
+            return nil
+        }
+        return parked.connection
     }
 
     func discard(containerID: String) {
         lock.lock()
-        pending.removeValue(forKey: containerID)
-        lock.unlock()
+        defer { lock.unlock() }
+        if let parked = pending.removeValue(forKey: containerID) {
+            parked.connection.close()
+        }
+    }
+
+    /// Drops expired parks (lock must be held).
+    private func sweepLocked() {
+        let now = Date()
+        for (id, parked) in pending where now.timeIntervalSince(parked.parkedAt) > Self.parkTTL {
+            parked.connection.close()
+            pending.removeValue(forKey: id)
+        }
     }
 
     // MARK: - In-flight attached runs
@@ -133,19 +154,32 @@ final class AttachSession: @unchecked Sendable {
         let watcher = Thread { [self] in
             process.waitUntilExit()
             let code = Int(process.terminationStatus)
-            // Drain whatever the handlers had not picked up before closing;
-            // a fast container can exit before the first readability event.
-            let restOut = stdoutPipe.fileHandleForReading.availableData
-            let restErr = stderrPipe.fileHandleForReading.availableData
+            // Detach handlers first, then drain without blocking: the parent
+            // still holds the pipes' write ends open, so a blocking read
+            // on an empty pipe waits forever (EOF never arrives) and the
+            // client's `docker start -a` hangs despite the container
+            // having exited.
             stdoutPipe.fileHandleForReading.readabilityHandler = nil
             stderrPipe.fileHandleForReading.readabilityHandler = nil
+            let restOut = Self.drainWithoutBlocking(stdoutPipe.fileHandleForReading)
+            let restErr = Self.drainWithoutBlocking(stderrPipe.fileHandleForReading)
             Task.detached { [self] in
-                if !restOut.isEmpty {
-                    _ = await connection.write(Self.encode(restOut, frameType: 1, tty: tty))
+                // Best-effort trailing flush in its own task: it must never
+                // gate the close. (Awaiting a write group here once wedged
+                // the close forever — `withTaskGroup` joins all children, so
+                // a stuck write outlives the timeout despite `cancelAll`.)
+                let tty = self.tty
+                Task.detached(priority: .utility) {
+                    if !restOut.isEmpty {
+                        _ = await connection.write(Self.encode(restOut, frameType: 1, tty: tty))
+                    }
+                    if !restErr.isEmpty {
+                        _ = await connection.write(Self.encode(restErr, frameType: 2, tty: tty))
+                    }
                 }
-                if !restErr.isEmpty {
-                    _ = await connection.write(Self.encode(restErr, frameType: 2, tty: tty))
-                }
+                // Drain window for the flush above, then close unconditionally:
+                // the client is waiting on end-of-stream to exit.
+                try? await Task.sleep(for: .seconds(2))
                 // Recorded before the socket closes: the client's `/wait` is
                 // already blocked and will read this the moment it sees the
                 // container stop.
@@ -154,6 +188,7 @@ final class AttachSession: @unchecked Sendable {
                 // Close first: the client is waiting on end-of-stream, and
                 // AutoRemove deletion is a runtime round-trip.
                 connection.close()
+                closeSessionPipes()
                 await onExit(code)
             }
         }
@@ -163,6 +198,52 @@ final class AttachSession: @unchecked Sendable {
 
     private static func encode(_ data: Data, frameType: UInt8, tty: Bool) -> Data {
         tty ? data : ExecSession.frame(type: frameType, payload: data)
+    }
+
+    /// Deterministic pipe teardown (see ExecSession.closePipes): the session
+    /// may outlive its usefulness on long-lived threads whose
+    /// autoreleasepools drain late, showing up as pipe-fd creep under load.
+    /// Called after the trailing flush is queued; the flush holds its own
+    /// Data copies, so closing here cannot truncate it.
+    private func closeSessionPipes() {
+        for handle in [
+            stdoutPipe.fileHandleForReading, stdoutPipe.fileHandleForWriting,
+            stderrPipe.fileHandleForReading, stderrPipe.fileHandleForWriting,
+        ] {
+            try? handle.close()
+        }
+    }
+
+    /// Non-blocking pipe drain: returns buffered bytes if any, empty
+    /// otherwise — never waits. A blocking read on an empty pipe whose
+    /// write end we still hold never returns (no EOF), hanging the watcher
+    /// thread and with it the client's `docker start -a`.
+    private static func drainWithoutBlocking(_ handle: FileHandle) -> Data {
+        let fd = handle.fileDescriptor
+        let orig = Darwin.fcntl(fd, F_GETFL)
+        // If flags cannot be read or non-blocking cannot be set, return
+        // empty rather than risk a blocking read on a live pipe.
+        guard orig >= 0, Darwin.fcntl(fd, F_SETFL, orig | O_NONBLOCK) != -1 else {
+            return Data()
+        }
+        defer {
+            _ = Darwin.fcntl(fd, F_SETFL, orig)
+        }
+        var out = Data()
+        var buffer = [UInt8](repeating: 0, count: 65536)
+        while true {
+            let n: Int = buffer.withUnsafeMutableBytes { raw in
+                guard let base = raw.baseAddress else { return -1 }
+                return Darwin.read(fd, base, raw.count)
+            }
+            if n > 0 {
+                out.append(contentsOf: buffer[0..<n])
+                if n < buffer.count { break }
+            } else {
+                break
+            }
+        }
+        return out
     }
 
     private func makePump(connection: ShimConnection, frameType: UInt8)

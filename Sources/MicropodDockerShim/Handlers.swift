@@ -85,6 +85,16 @@ final class Router: @unchecked Sendable {
     private let logs: any LogStreaming
     private let stats: StatsSampler
     private let sharedFS: (any SharedFSClient)?
+    /// Read-through cache for hot Docker-API reads (list/inspect). Mutations
+    /// invalidate synchronously; the events loop invalidates on transitions.
+    private let readCache: ReadThroughCache
+    /// Per-route latency/count metrics, exposed at GET /metrics (Prometheus
+    /// text format) alongside CLIMetrics (per-command spawn timings).
+    private let metrics = APIMetrics()
+    /// Content-addressed build-context cache (no-change rebuilds skip tar
+    /// staging). Injected for tests; production uses the standard on-disk
+    /// location honoring MICROPOD_BUILD_CACHE_*.
+    private let buildCache: BuildContextCache
 
     convenience init(
         config: ShimConfig, state: ShimState, events: EventsHub,
@@ -95,7 +105,9 @@ final class Router: @unchecked Sendable {
 
     init(
         config: ShimConfig, state: ShimState, events: EventsHub,
-        client: ContainerCLIClient, sharedFS sharedFSOverride: (any SharedFSClient)?
+        client: ContainerCLIClient, sharedFS sharedFSOverride: (any SharedFSClient)?,
+        buildCache buildCacheOverride: BuildContextCache? = nil,
+        readCache readCacheOverride: ReadThroughCache? = nil
     ) {
         self.config = config
         self.state = state
@@ -109,6 +121,8 @@ final class Router: @unchecked Sendable {
         self.systemConcrete = SystemService(client: client)
         self.logs = LogStreamer(client: client)
         self.stats = StatsSampler(client: client)
+        self.buildCache = buildCacheOverride ?? BuildContextCache.standard()
+        self.readCache = readCacheOverride ?? ReadThroughCache()
         if let sharedFSOverride {
             self.sharedFS = sharedFSOverride
         } else {
@@ -126,15 +140,41 @@ final class Router: @unchecked Sendable {
     }
 
     func route(_ request: ShimRequest, _ connection: ShimConnection) async -> ShimResponse {
+        let started = Date()
+        let response: ShimResponse
         do {
-            return try await dispatch(request, connection)
+            response = try await dispatch(request, connection)
         } catch let error as ShimError {
-            return Self.errorJSON(error.status, error.message)
+            response = Self.errorJSON(error.status, error.message)
         } catch let error as MicropodError {
-            return Self.errorJSON(500, error.errorDescription ?? "\(error)")
+            response = Self.errorJSON(500, error.errorDescription ?? "\(error)")
         } catch {
-            return Self.errorJSON(500, "\(error)")
+            response = Self.errorJSON(500, "\(error)")
         }
+        metrics.record(
+            route: Self.normalizedRoute(request.path),
+            method: request.method,
+            status: response.statusCode,
+            duration: Date().timeIntervalSince(started))
+        return response
+    }
+
+    /// Collapses ids/names/image refs to `{id}` so /metrics label cardinality
+    /// stays bounded (a route per container name would explode the registry).
+    static func normalizedRoute(_ path: String) -> String {
+        let keywords: Set<String> = [
+            "_ping", "version", "info", "auth", "events", "metrics", "images", "json",
+            "create", "tag", "prune", "push", "search", "load", "get", "commit",
+            "containers", "start", "stop", "restart", "kill", "rename", "logs",
+            "top", "stats", "archive", "exec", "resize", "wait", "attach",
+            "pause", "unpause", "update", "changes", "export", "networks",
+            "volumes", "system", "df", "connect", "disconnect", "build",
+            "distribution", "session", "grpc", "join", "leave",
+        ]
+        let segments = path.split(separator: "/").map { seg in
+            keywords.contains(String(seg)) ? String(seg) : "{id}"
+        }
+        return segments.joined(separator: "/")
     }
 
     static func errorJSON(_ code: Int, _ message: String) -> ShimResponse {
@@ -162,6 +202,8 @@ final class Router: @unchecked Sendable {
             return try await auth(request)
         case ("GET", "events"):
             return await eventsStream(request)
+        case ("GET", "metrics"):
+            return try await metricsResponse()
         case ("GET", ""):
             throw ShimError.notFound("page not found")
 
@@ -203,6 +245,8 @@ final class Router: @unchecked Sendable {
             return try await containerAction(.restart, segments[1])
         case ("POST", "containers") where segments.count == 3 && segments[2] == "kill":
             return try await containerAction(.kill, segments[1])
+        case ("POST", "containers") where segments.count == 3 && segments[2] == "rename":
+            return try await containerRename(segments[1], request)
         case ("DELETE", "containers") where segments.count == 2:
             return try await containerDelete(segments[1], request)
         case ("POST", "containers") where segments.count == 3 && segments[2] == "wait":
@@ -229,10 +273,14 @@ final class Router: @unchecked Sendable {
             return try await execInspect(segments[1])
 
         // MARK: Networks
-        case ("GET", "networks"):
-            return try await networksList(request)
+        // NOTE: the specific inspect route must precede the bare list route —
+        // Swift matches top-down and the bare tuple would shadow it (this
+        // exact shadowing once broke `docker compose up`, which inspects the
+        // default network and choked on the list array).
         case ("GET", "networks") where segments.count == 2:
             return try await networkInspect(segments[1])
+        case ("GET", "networks"):
+            return try await networksList(request)
         case ("POST", "networks") where segments.count == 2 && segments[1] == "create":
             return try await networkCreate(request)
         case ("DELETE", "networks") where segments.count == 2:
@@ -251,6 +299,9 @@ final class Router: @unchecked Sendable {
             return try await imageBuild(request)
 
         // MARK: Volumes
+        // NOTE: inspect-before-list ordering, see Networks above.
+        case ("GET", "volumes") where segments.count == 2:
+            return try await volumeInspect(segments[1])
         case ("GET", "volumes"):
             return try await volumesList(request)
         case ("POST", "volumes") where segments.count == 2 && segments[1] == "create":
@@ -289,6 +340,39 @@ final class Router: @unchecked Sendable {
 
     private func resolveContainer(_ prefix: String) async throws -> Micropod_V1_Container {
         let all = try await containers.list()
+        return try Self.resolve(prefix, in: all)
+    }
+
+    /// Cached-then-fresh service reads: internal consumers (info, df, inspect
+    /// resolution) used to spawn a CLI per call even while the response cache
+    /// sat warm — the same TTL + mutation invalidation rules apply here.
+    private func cachedContainersList() async throws -> [Micropod_V1_Container] {
+        if let cached = await readCache.cachedList() { return cached }
+        let fresh = try await containers.list()
+        await readCache.storeList(fresh)
+        return fresh
+    }
+
+    private func cachedImagesList() async throws -> [Micropod_V1_Image] {
+        if let cached = await readCache.cachedImages() { return cached }
+        let fresh = try await images.list()
+        await readCache.storeImages(fresh)
+        return fresh
+    }
+
+    private func cachedVolumesList() async throws -> [Micropod_V1_Volume] {
+        if let cached = await readCache.cachedVolumes() { return cached }
+        let fresh = try await volumes.list()
+        await readCache.storeVolumes(fresh)
+        return fresh
+    }
+
+    /// Pure reference resolution over a (possibly cached) list: exact id,
+    /// unique id-prefix, then unique Docker name/prefix. Mutations always
+    /// resolve against a fresh list; read paths may pass the cached one.
+    static func resolve(
+        _ prefix: String, in all: [Micropod_V1_Container]
+    ) throws -> Micropod_V1_Container {
         if let exact = all.first(where: { $0.id == prefix }) { return exact }
         // Docker addressing also accepts names (and their prefixes); in the
         // Apple runtime names usually ARE ids, but not always (e.g. mock or
@@ -356,9 +440,28 @@ final class Router: @unchecked Sendable {
                 BuildTime: ISO8601DateFormatter().string(from: Date())))
     }
 
+    /// GET /metrics — Prometheus text: per-route request latency, per-command
+    /// CLI spawn timings, and read-cache hit/miss counters. Not part of the
+    /// Docker API; pure observability for perf work.
+    private func metricsResponse() async throws -> ShimResponse {
+        var text = metrics.render()
+        text += CLIMetrics.shared.render()
+        let (hits, misses) = await readCache.stats()
+        text += "# HELP micropod_shim_cache_hits Read-through cache hits\n"
+        text += "# TYPE micropod_shim_cache_hits counter\n"
+        text += "micropod_shim_cache_hits \(hits)\n"
+        text += "# HELP micropod_shim_cache_misses Read-through cache misses\n"
+        text += "# TYPE micropod_shim_cache_misses counter\n"
+        text += "micropod_shim_cache_misses \(misses)\n"
+        return .raw(200, [("Content-Type", "text/plain; version=0.0.4")], Data(text.utf8))
+    }
+
     private func info() async throws -> ShimResponse {
-        let list = try await containers.list()
-        let imageList = try await images.list()
+        // The two lists are independent reads — fetch concurrently (through
+        // the read cache: a warm info is microseconds, not two CLI spawns).
+        async let listedContainers = cachedContainersList()
+        async let listedImages = cachedImagesList()
+        let (list, imageList) = try await (listedContainers, listedImages)
         let running = list.filter { DockerMapper.stateName($0.state) == "running" }.count
         return Self.encode(
             DockerInfo(
@@ -412,7 +515,7 @@ final class Router: @unchecked Sendable {
 
     private func eventsStream(_ request: ShimRequest) async -> ShimResponse {
         let filters = request.filters()
-        let (_, stream) = await events.subscribe(filters: filters)
+        let (_, stream) = await events.subscribe(filters: filters, state: state)
         return .stream(200, [("Content-Type", "application/json")], stream)
     }
 
@@ -434,8 +537,8 @@ final class Router: @unchecked Sendable {
         let progressStream = pullImages.pull(reference, platform: platform)
         let (stream, continuation) = AsyncStream<Data>.makeStream()
         let imageRef = reference
+        let cache = self.readCache
         Task.detached(priority: .userInitiated) {
-            defer { continuation.finish() }
             do {
                 for try await event in progressStream {
                     let line = PullProgressLine(status: event.line, id: imageRef)
@@ -449,6 +552,10 @@ final class Router: @unchecked Sendable {
                     continuation.yield(data + Data("\n".utf8))
                 }
             }
+            // Linear tail (not defer: await is illegal in defer bodies).
+            // A finished pull changes the image set either way.
+            await cache.invalidateImages()
+            continuation.finish()
         }
         return .stream(200, [("Content-Type", "application/json")], stream)
     }
@@ -462,14 +569,28 @@ final class Router: @unchecked Sendable {
 
     private func imagesList(_ request: ShimRequest) async throws -> ShimResponse {
         let filters = request.filters()
-        let list = try await images.list()
+        if filters.isEmpty, let body = await readCache.cachedBody("images") {
+            return .json(200, body)
+        }
+        let list: [Micropod_V1_Image]
+        if let cached = await readCache.cachedImages() {
+            list = cached
+        } else {
+            let fresh = try await images.list()
+            await readCache.storeImages(fresh)
+            list = fresh
+        }
         var summaries = list.map(DockerMapper.imageSummary)
         summaries = try summaries.filter { summary in
             try Self.matchesLabelFilters(
                 filters, labels: summary.Labels,
                 allowedKeys: ["label", "labels", "dangling", "reference", "until", "before", "since"])
         }
-        return Self.encode(summaries)
+        let body = Self.encodeBody(summaries)
+        if filters.isEmpty {
+            await readCache.storeBody(body, for: "images")
+        }
+        return .json(200, body)
     }
 
     /// Shared label-filter evaluation. Rejects filter keys outside
@@ -539,34 +660,54 @@ final class Router: @unchecked Sendable {
         try FileManager.default.createDirectory(at: tmpRoot, withIntermediateDirectories: true)
         let contextDir = tmpRoot.appendingPathComponent("context")
         try FileManager.default.createDirectory(at: contextDir, withIntermediateDirectories: true)
-        // Write body to file and extract (handle plain tar or gzip, plus xattrs/pax)
-        let tarPath = tmpRoot.appendingPathComponent("context.tar")
-        do { try request.body.write(to: tarPath) } catch {
-            throw ShimError.internalError("failed to stage build context: \(error)")
-        }
         // Detect gzip by magic bytes 1f 8b
         let isGzip: Bool = {
             if request.header("content-encoding").lowercased().contains("gzip") { return true }
             if request.body.count >= 2 && request.body[0] == 0x1F && request.body[1] == 0x8B { return true }
             return false
         }()
-        let tarArgs: [String] =
-            isGzip ? ["-xzf", tarPath.path, "-C", contextDir.path] : ["-xf", tarPath.path, "-C", contextDir.path]
-        let tarProc = Process()
-        tarProc.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
-        tarProc.arguments = tarArgs
-        tarProc.standardOutput = FileHandle.nullDevice
-        tarProc.standardError = Pipe()
-        do {
-            try tarProc.run()
-            tarProc.waitUntilExit()
-        } catch {
-            throw ShimError.badRequest("failed to unpack build context: \(error)")
-        }
-        if tarProc.terminationStatus != 0 {
-            let errData = (tarProc.standardError as? Pipe)?.fileHandleForReading.readDataToEndOfFile() ?? Data()
-            let msg = String(data: errData, encoding: .utf8) ?? "unknown tar error"
-            throw ShimError.badRequest("failed to unpack build context: \(msg)")
+        let stageClock = ContinuousClock()
+        let stageStart = stageClock.now
+        // Content-addressed context cache: hash the tar's file tree
+        // (paths + bytes, mtime-insensitive) and reuse a retained extraction
+        // on hit. Gzip bodies skip the gate (would need inflating to hash)
+        // but still get the streaming extract below.
+        let manifest: (treeHash: String, files: [BuildFileEntry])? = {
+            guard !isGzip else { return nil }
+            return try? BuildContextHasher.treeManifest(tarData: request.body)
+        }()
+        let treeHash = manifest?.treeHash
+        let cacheHit: Bool = await {
+            guard let treeHash else { return false }
+            return await self.buildCache.checkout(treeHash: treeHash, dest: contextDir)
+        }()
+        if cacheHit, let treeHash {
+            let ms = stageElapsedMs(since: stageStart, clock: stageClock)
+            fputs(
+                "[shim] build context-cache HIT \(treeHash.prefix(12)) (\(request.body.count) tar bytes, gated in \(Int(ms))ms)\n",
+                stderr)
+            // Self-healing: entries retained before manifests existed gain
+            // one now (the gate already hashed every file).
+            await buildCache.ensureManifest(
+                treeHash: treeHash, files: manifest?.files ?? [], tarBytes: request.body.count)
+        } else {
+            // Miss (or unhashable): stream the body straight into tar's
+            // stdin — no intermediate context.tar disk write — then retain
+            // the extraction for next time.
+            do {
+                try Self.extractTarStream(request.body, gzip: isGzip, dest: contextDir)
+            } catch {
+                throw ShimError.badRequest("failed to unpack build context: \(error)")
+            }
+            if let treeHash {
+                await buildCache.store(
+                    treeHash: treeHash, contextDir: contextDir, tarBytes: request.body.count,
+                    files: manifest?.files ?? [])
+            }
+            let ms = stageElapsedMs(since: stageStart, clock: stageClock)
+            fputs(
+                "[shim] build context-cache MISS \(treeHash?.prefix(12) ?? "?") (\(request.body.count) tar bytes, staged in \(Int(ms))ms)\n",
+                stderr)
         }
         // The Docker CLI already applied .dockerignore when creating the tar;
         // avoid a second filtering pass in the nested builder.
@@ -581,6 +722,20 @@ final class Router: @unchecked Sendable {
         fputs(
             "[shim] build tags=\(tags) dockerfile=\(String(describing: resolvedDockerfile)) context=\(contextDir.path) contents=\((try? FileManager.default.contentsOfDirectory(atPath: contextDir.path)) ?? [])\n",
             stderr)
+        // `pull=1` forces a base-image refresh (Apple `--pull`); `memory`
+        // is Docker's byte count, mapped to Apple's MiB-suffixed form;
+        // `cpus`/`cpu_count` raise the builder allocation above the 2-CPU
+        // default for heavy compiles (Go controlplane builds).
+        let pullFlag = ["1", "true"].contains(request.q("pull").lowercased())
+        let memorySpec: String? = {
+            guard let bytes = UInt64(request.q("memory")), bytes > 0 else { return nil }
+            return "\(max(1, bytes / (1024 * 1024)))MiB"
+        }()
+        let cpusSpec: Double? = {
+            let raw = request.q("cpus").isEmpty ? request.q("cpu_count") : request.q("cpus")
+            guard let cpus = Double(raw), cpus > 0 else { return nil }
+            return cpus
+        }()
         let buildReq = ContainerBuildRequest(
             contextDirectory: contextDir.path,
             dockerfile: resolvedDockerfile,
@@ -589,14 +744,14 @@ final class Router: @unchecked Sendable {
             target: target,
             platform: platform,
             noCache: noCache,
+            cpus: cpusSpec,
+            memory: memorySpec,
+            pull: pullFlag,
             labels: labelSpecs)
         let progress = images.build(buildReq)
         let (stream, cont) = AsyncStream<Data>.makeStream()
+        let buildCache = self.buildCache
         Task.detached(priority: .userInitiated) {
-            defer {
-                cont.finish()
-                try? FileManager.default.removeItem(at: tmpRoot)
-            }
             do {
                 for try await event in progress {
                     let line = BuildStreamLine(stream: event.line + "\n")
@@ -621,8 +776,60 @@ final class Router: @unchecked Sendable {
                     cont.yield(data + Data("\n".utf8))
                 }
             }
+            // Linear tail (not defer: await is illegal in defer bodies).
+            // Runs on success, error, and stream-cancellation throws alike.
+            if let treeHash { await buildCache.release(treeHash) }
+            await self.readCache.invalidateImages()
+            cont.finish()
+            try? FileManager.default.removeItem(at: tmpRoot)
         }
         return .stream(200, [("Content-Type", "application/json")], stream)
+    }
+
+    /// Milliseconds from `start` to now (same components math as the bench
+    /// harness).
+    private func stageElapsedMs(since start: ContinuousClock.Instant, clock: ContinuousClock) -> Double {
+        let elapsed = start.duration(to: clock.now)
+        return Double(elapsed.components.seconds) * 1000 + Double(elapsed.components.attoseconds) / 1e15
+    }
+
+    /// Extract a tar (or gzip-tar) body straight into `dest` by piping it to
+    /// `/usr/bin/tar`'s stdin — no intermediate `.tar` disk write. Throws on
+    /// launch failure or non-zero tar exit (message carries tar's stderr).
+    private static func extractTarStream(_ body: Data, gzip: Bool, dest: URL) throws {
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
+        proc.arguments = gzip ? ["-xzf", "-", "-C", dest.path] : ["-xf", "-", "-C", dest.path]
+        let stdinPipe = Pipe()
+        let stderrPipe = Pipe()
+        proc.standardInput = stdinPipe
+        proc.standardOutput = FileHandle.nullDevice
+        proc.standardError = stderrPipe
+        do {
+            try proc.run()
+        } catch {
+            throw ShimError.badRequest("failed to launch tar: \(error)")
+        }
+        do {
+            // tar drains the pipe concurrently, so a single blocking write
+            // cannot deadlock; closing delivers EOF so tar can finish.
+            try stdinPipe.fileHandleForWriting.write(contentsOf: body)
+            try stdinPipe.fileHandleForWriting.close()
+        } catch {
+            // tar died mid-stream (e.g. corrupt header): surface its stderr.
+            if proc.isRunning { proc.terminate() }
+            proc.waitUntilExit()
+            throw tarError(stderrPipe)
+        }
+        proc.waitUntilExit()
+        guard proc.terminationStatus == 0 else { throw tarError(stderrPipe) }
+    }
+
+    private static func tarError(_ stderrPipe: Pipe) -> ShimError {
+        let raw =
+            String(data: stderrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return .badRequest("failed to unpack build context: \(raw.isEmpty ? "unknown tar error" : raw)")
     }
 
     struct BuildStreamLine: Encodable { var stream: String }
@@ -642,9 +849,20 @@ final class Router: @unchecked Sendable {
     }
 
     private func imageInspect(_ reference: String) async throws -> ShimResponse {
-        let data = try await images.inspect(reference)
+        let data: Data
+        do {
+            data = try await images.inspect(reference)
+        } catch {
+            // Docker reports a missing image as 404 "No such image" (not a
+            // 500): clients key pull-on-demand flows off exactly this shape
+            // (testcontainers-go's Ryuk bootstrap being one).
+            if Self.isNotFound(error) {
+                throw ShimError.notFound("No such image: \(reference)")
+            }
+            throw error
+        }
         guard let mapped = DockerMapper.dockerImageInspect(fromRaw: data, reference: reference) else {
-            throw ShimError.notFound("image \(reference) not found")
+            throw ShimError.notFound("No such image: \(reference)")
         }
         return .raw(200, [("Content-Type", "application/json")], mapped)
     }
@@ -652,6 +870,7 @@ final class Router: @unchecked Sendable {
     private func imageDelete(_ reference: String, _ request: ShimRequest) async throws -> ShimResponse {
         try await images.delete(
             reference, force: request.q("force").lowercased() == "1" || request.q("force").lowercased() == "true")
+        await readCache.invalidateImages()
         return Self.encode([["Untagged": reference, "Deleted": reference]])
     }
 
@@ -661,6 +880,7 @@ final class Router: @unchecked Sendable {
         let target = tag.isEmpty ? repo : "\(repo):\(tag)"
         guard !repo.isEmpty else { throw ShimError.badRequest("missing repo parameter") }
         try await images.tag(source: source, target: target)
+        await readCache.invalidateImages()
         return .status(201)
     }
 
@@ -672,6 +892,7 @@ final class Router: @unchecked Sendable {
                 containers: containers, images: images, volumes: volumes
             ).report().reclaimableImageBytes
         _ = try await images.prune(danglingOnly: !all)
+        await readCache.invalidateImages()
         let after = try await images.list()
         let afterIDs = Set(after.map { $0.id })
         let deleted = before.filter { !afterIDs.contains($0.id) }
@@ -709,7 +930,13 @@ final class Router: @unchecked Sendable {
 
     /// GET /system/df — docker-shaped usage report with in-use counts.
     private func systemDF() async throws -> ShimResponse {
-        let report = try await usage().report()
+        async let listedContainers = cachedContainersList()
+        async let listedImages = cachedImagesList()
+        async let listedVolumes = cachedVolumesList()
+        let report = try await usage().report(
+            prefetchedContainers: listedContainers,
+            prefetchedImages: listedImages,
+            prefetchedVolumes: listedVolumes)
         let df = DockerSystemDF(
             LayersSize: 0,
             Images: report.images.map { usage in
@@ -771,6 +998,9 @@ final class Router: @unchecked Sendable {
         let volumesBefore = try await volumes.list()
         _ = try? await volumes.prune()
         let volumesAfter = try await volumes.list()
+        await readCache.invalidateContainers()
+        await readCache.invalidateImages()
+        await readCache.invalidateVolumes()
         let volumeIDsAfter = Set(volumesAfter.map { $0.id })
         let volumesDeleted = volumesBefore.filter { !volumeIDsAfter.contains($0.id) }
 
@@ -811,7 +1041,24 @@ final class Router: @unchecked Sendable {
     private func containersList(_ request: ShimRequest) async throws -> ShimResponse {
         let all = request.q("all").lowercased() == "1" || request.q("all").lowercased() == "true"
         let filters = request.filters()
-        let list = try await containers.list()
+        // Encoded-body fast path for the hottest query shape (filter-less
+        // polls from compose, `docker ps`, MCP): skips map+encode entirely.
+        if filters.isEmpty {
+            let key = "containers:\(all)"
+            if let body = await readCache.cachedBody(key) {
+                return .json(200, body)
+            }
+        }
+        // Read-through cache: filters apply identically on hits and misses
+        // (only full results are ever cached).
+        let list: [Micropod_V1_Container]
+        if let cached = await readCache.cachedList() {
+            list = cached
+        } else {
+            let fresh = try await containers.list()
+            await readCache.storeList(fresh)
+            list = fresh
+        }
         var summaries = list.map {
             DockerMapper.summary($0, create: nil)
         }
@@ -825,7 +1072,11 @@ final class Router: @unchecked Sendable {
                 "[shim] list filters=\(filters) -> \(summaries.map { $0.Names.first ?? $0.Id })\n",
                 stderr)
         }
-        return Self.encode(summaries)
+        let body = Self.encodeBody(summaries)
+        if filters.isEmpty {
+            await readCache.storeBody(body, for: "containers:\(all)")
+        }
+        return .json(200, body)
     }
 
     static func matchesFilters(
@@ -857,19 +1108,42 @@ final class Router: @unchecked Sendable {
 
     private func containerCreate(_ request: ShimRequest) async throws -> ShimResponse {
         var body = try decodeBody(DockerCreateRequest.self, request)
-        var notes = [String]()
-        if RyukSupport.isRyuk(body.Image) {
-            (body, notes) = RyukSupport.intercept(body, bridgeHost: config.bridgeHost, tcpPort: config.tcpPort)
-        }
+        // Docker-socket redirect (Ryuk reaper + any DinD client such as the
+        // cuttlefish runner): strip the unusable virtiofs socket bind and
+        // point the container at the shim's TCP listener over the VM bridge.
+        // No-op when there is no socket bind and the image is not Ryuk.
+        let intercepted = RyukSupport.intercept(
+            body, bridgeHost: config.bridgeHost, tcpPort: config.tcpPort)
+        body = intercepted.request
+        var notes = intercepted.notes
 
         let requestedName = request.q("name").isEmpty ? nil : request.q("name")
+        // The Apple runtime rejects names Docker accepts (>63 bytes,
+        // leading _). Sanitize deterministically and alias requested →
+        // runtime in state, so later lookups by Docker name keep working.
+        let runtimeName: String?
         if let requestedName {
-            let takenByName = await state.id(forName: requestedName) != nil
-            let takenByID = try await containers.list().contains { $0.id == requestedName }
-            if takenByName || takenByID {
-                throw ShimError.conflict(
-                    "Conflict. The container name \"/\(requestedName)\" is already in use")
+            if let tracked = await state.id(forName: requestedName) {
+                // Fast path, verified: state can go stale when containers
+                // vanish behind the shim's back (direct CLI deletes, VM
+                // resets). Confirm with one list call on this rare path —
+                // fresh names still cost zero CLI round-trips — and forget
+                // ghosts instead of 409ing a free name. The CLI remains the
+                // final arbiter via the conflict-error mapping below.
+                let alive = (try? await containers.list())?.contains { $0.id == tracked }
+                if alive == true {
+                    throw ShimError.conflict(
+                        "Conflict. The container name \"/\(requestedName)\" is already in use")
+                }
+                await state.forget(id: tracked)
             }
+            let mapping = DockerNaming.runtimeName(for: requestedName)
+            runtimeName = mapping.name
+            if mapping.aliased {
+                notes.append("aliased name \(requestedName) -> \(mapping.name) (runtime limit)")
+            }
+        } else {
+            runtimeName = nil
         }
         // Synchronized file shares: rewrite directory binds through the
         // shared-fs daemon when available (APFS clonefile cache + FSEvents
@@ -889,15 +1163,37 @@ final class Router: @unchecked Sendable {
                 }
             }
         }
-        let runRequest = try Self.buildRunRequest(from: body, name: requestedName)
-        let id = try await containers.create(runRequest)
+        let runRequest = try Self.buildRunRequest(
+            from: body, name: runtimeName,
+            platform: request.q("platform").isEmpty ? nil : request.q("platform"))
+        // Managed hosts files must exist before the build below binds them.
+        HostsFile.ensure(networks: body.attachedNetworks)
+        let id: String
+        do {
+            id = try await containers.create(runRequest)
+        } catch let error as MicropodError {
+            // The pre-create check above only covers names this shim tracks;
+            // a name created outside the shim surfaces here as a CLI failure.
+            if case .cliFailure(_, _, let stderr) = error {
+                let text = stderr.lowercased()
+                if text.contains("already exists") || text.contains("already in use")
+                    || text.contains("already taken") || text.contains("conflict")
+                    || text.contains("duplicate")
+                {
+                    throw ShimError.conflict(
+                        "Conflict. The container name \"/\(requestedName ?? "")\" is already in use")
+                }
+            }
+            throw error
+        }
         await state.remember(id: id, name: requestedName, request: body)
+        await readCache.invalidateContainers()
         if !sharedViewIDs.isEmpty {
             await state.rememberSharedViews(containerID: id, views: sharedViewIDs)
         }
         let response = DockerCreateResponse(Id: id, Warnings: [])
         if !notes.isEmpty {
-            fputs("[shim] ryuk interception for \(id): \(notes.joined(separator: "; "))\n", stderr)
+            fputs("[shim] docker-sock intercept for \(id): \(notes.joined(separator: "; "))\n", stderr)
         }
         return .json(201, Self.encodeBody(response))
     }
@@ -973,7 +1269,7 @@ final class Router: @unchecked Sendable {
     }
 
     static func buildRunRequest(
-        from body: DockerCreateRequest, name: String?
+        from body: DockerCreateRequest, name: String?, platform: String? = nil
     ) throws -> ContainerRunRequest {
         var publishedPorts = [PortSpec]()
         let portBindings = body.HostConfig?.PortBindings ?? [:]
@@ -1002,13 +1298,22 @@ final class Router: @unchecked Sendable {
             }
         }
 
-        let networkMode = body.HostConfig?.NetworkMode ?? ""
-        let attachNetworks: [String]
-        switch networkMode {
-        case "", "default", "bridge", "host", "none":
-            attachNetworks = []
-        default:
-            attachNetworks = [networkMode]
+        let attachNetworks = body.attachedNetworks
+
+        // Managed /etc/hosts (name DNS for custom networks, which serve no
+        // container-name records): bind each attached network's hosts file
+        // read-only unless the client already binds /etc/hosts itself.
+        // Files are ensured beforehand (containerCreate) and refreshed by
+        // the events loop as membership changes.
+        var binds = body.HostConfig?.Binds ?? []
+        let bindsEtcHosts = binds.contains { bind in
+            bind.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
+                .dropFirst().first == "/etc/hosts"
+        }
+        if !bindsEtcHosts {
+            for network in attachNetworks {
+                binds.append("\(HostsFile.path(for: network).path):/etc/hosts:ro")
+            }
         }
 
         let memory: String?
@@ -1019,35 +1324,81 @@ final class Router: @unchecked Sendable {
             memory = nil
         }
 
+        // CPU quota: Docker NanoCpus (billionths) → Apple --cpus float.
+        // Previously dropped entirely, so container CPU limits were silently
+        // ignored (every container got the 4-CPU default).
+        let cpus: Double? = {
+            guard let nano = body.HostConfig?.NanoCpus, nano > 0 else { return nil }
+            return Double(nano) / 1_000_000_000
+        }()
+
+        // Shared memory: Docker bytes → Apple size string. Previously
+        // dropped, leaving the 64M default (browser/e2e OOM territory).
+        let shmSize: String? = {
+            guard let bytes = body.HostConfig?.ShmSize, bytes > 0 else { return nil }
+            return "\(max(1, bytes / (1024 * 1024)))MiB"
+        }()
+
+        // tmpfs: Docker map path → options; Apple takes bare paths only
+        // (verified: the `path,opts` form is silently ignored). Mounts are
+        // always honored; per-mount options have no Apple equivalent.
+        let tmpfs = (body.HostConfig?.Tmpfs ?? [:]).keys.filter { !$0.isEmpty }.sorted()
+
+        let dns = (body.HostConfig?.Dns ?? []).filter { !$0.isEmpty }
+        let dnsSearch = (body.HostConfig?.DnsSearch ?? []).filter { !$0.isEmpty }
+
+        // Ulimits: Docker {Name, Soft, Hard} → Apple `<type>=<soft>[:<hard>]`.
+        // Negative (unlimited) bounds have no Apple spelling — skipped.
+        let ulimits: [String] = (body.HostConfig?.Ulimits ?? []).compactMap { limit in
+            guard !limit.Name.isEmpty, limit.Soft >= 0 else { return nil }
+            if limit.Hard >= 0, limit.Hard != limit.Soft {
+                return "\(limit.Name)=\(limit.Soft):\(limit.Hard)"
+            }
+            return "\(limit.Name)=\(limit.Soft)"
+        }
+
+        // Entrypoint: Docker list replaces the image ENTRYPOINT, Cmd becomes
+        // its args; Apple takes ONE executable plus argument list. The old
+        // space-join broke every multi-element entrypoint ("failed to find
+        // target executable 'sh -c ...'" — Apple never splits or shells it,
+        // verified 2026-09-09): split head from tail instead.
+        let entryParts = body.Entrypoint ?? []
+        let hasEntrypoint = !entryParts.isEmpty && !(entryParts.count == 1 && entryParts[0].isEmpty)
+        let entrypoint: String? = hasEntrypoint ? entryParts[0] : nil
+        var arguments = hasEntrypoint ? Array(entryParts.dropFirst()) : []
+        arguments += body.Cmd ?? []
+
         return ContainerRunRequest(
             image: body.Image,
             name: name,
             detach: true,
-            cpus: nil,
+            cpus: cpus,
             memory: memory,
             env: body.Env ?? [],
             envFiles: [],
             publishedPorts: publishedPorts,
-            volumes: body.HostConfig?.Binds ?? [],
-            tmpfs: [],
+            volumes: binds,
+            tmpfs: tmpfs,
             labels: (body.Labels ?? [:]).map { LabelSpec(key: $0.key, value: $0.value) },
             interactive: body.OpenStdin == true,
             tty: body.Tty == true,
             useInit: body.HostConfig?.Init == true,
             readOnly: body.HostConfig?.ReadonlyRootfs == true,
             rosetta: false,
-            user: body.User,
-            shmSize: nil,
-            dns: [],
-            dnsSearch: [],
+            // Docker clients serialize zero values ("User": "") — never emit
+            // empty CLI flags from them.
+            user: (body.User?.isEmpty == false) ? body.User : nil,
+            shmSize: shmSize,
+            dns: dns,
+            dnsSearch: dnsSearch,
             capAdd: body.HostConfig?.CapAdd ?? [],
             capDrop: body.HostConfig?.CapDrop ?? [],
-            ulimits: [],
+            ulimits: ulimits,
             networks: attachNetworks,
-            platform: nil,
-            workdir: body.WorkingDir,
-            entrypoint: body.Entrypoint?.joined(separator: " "),
-            arguments: body.Cmd ?? [])
+            platform: (platform?.isEmpty == false) ? platform : nil,
+            workdir: (body.WorkingDir?.isEmpty == false) ? body.WorkingDir : nil,
+            entrypoint: entrypoint,
+            arguments: arguments)
     }
 
     private func containersPrune() async throws -> ShimResponse {
@@ -1069,19 +1420,47 @@ final class Router: @unchecked Sendable {
         }
     }
 
+    private func healthView(for id: String) async -> ShimHealthView? {
+        guard let status = await state.healthStatus(id: id) else { return nil }
+        return ShimHealthView(
+            status: status.status, failingStreak: status.failingStreak,
+            log: status.log.map { ($0.startedAt, $0.exitCode, $0.output) })
+    }
+
     private func containerInspect(_ id: String) async throws -> ShimResponse {
         // Fast path: single-container inspect (flat cost) + persisted create
-        // body instead of enumerating every container via list.
-        if let target = await passThroughID(id),
-            let raw = try? await containers.inspect(target),
-            let container = DockerMapper.container(fromRawInspect: raw)
+        // body instead of enumerating every container via list. The per-id
+        // cache (populated by every list/inspect) serves warm lookups in
+        // microseconds — inspect is the most-polled route after list.
+        if let target = await passThroughID(id) {
+            if let cached = await readCache.cachedInspect(id: target) {
+                let create = await state.createRequest(for: cached.id)
+                let health = await healthView(for: cached.id)
+                return Self.encode(DockerMapper.inspect(cached, create: create, health: health))
+            }
+            if let raw = try? await containers.inspect(target),
+                let container = DockerMapper.container(fromRawInspect: raw)
+            {
+                await readCache.storeInspect(container)
+                let create = await state.createRequest(for: container.id)
+                let health = await healthView(for: container.id)
+                return Self.encode(DockerMapper.inspect(container, create: create, health: health))
+            }
+        }
+        // Warm path: resolve against the cached list (no CLI when warm).
+        // A stale hit can only 404 a deleted container or show last poll's
+        // state; mutations never consult it.
+        if let cached = await readCache.cachedList(),
+            let container = try? Self.resolve(id, in: cached)
         {
             let create = await state.createRequest(for: container.id)
-            return Self.encode(DockerMapper.inspect(container, create: create))
+            let health = await healthView(for: container.id)
+            return Self.encode(DockerMapper.inspect(container, create: create, health: health))
         }
         let container = try await resolveContainer(id)
         let create = await state.createRequest(for: container.id)
-        return Self.encode(DockerMapper.inspect(container, create: create))
+        let health = await healthView(for: container.id)
+        return Self.encode(DockerMapper.inspect(container, create: create, health: health))
     }
 
     private enum ContainerLifecycle { case start, restart, kill }
@@ -1102,15 +1481,24 @@ final class Router: @unchecked Sendable {
 
     /// Resolves a reference to a container id without a full list scan when
     /// possible (logs/exec/wait/archive/stats don't need the record itself).
+    /// Read-only callers only — mutations resolve against a fresh list.
     private func resolveID(_ ref: String) async throws -> String {
         if let fast = await passThroughID(ref) { return fast }
+        if let cached = await readCache.cachedList(),
+            let hit = try? Self.resolve(ref, in: cached)
+        {
+            return hit.id
+        }
         return try await resolveContainer(ref).id
     }
 
     private static func isNotFound(_ error: Error) -> Bool {
         if case MicropodError.cliFailure(_, _, let stderr) = error {
             let text = stderr.lowercased()
+            // Covers the real CLI ("image not found: …", "container … not
+            // found") and the mock ("no such image/container: …").
             return text.contains("not found") || text.contains("no such container")
+                || text.contains("no such image")
         }
         return false
     }
@@ -1126,12 +1514,15 @@ final class Router: @unchecked Sendable {
         _ = grace
         await state.awaitStop(target)
 
+        let clock = ContinuousClock()
+        let inspectStart = clock.now
         if let raw = try? await containers.inspect(target),
             let container = DockerMapper.container(fromRawInspect: raw),
             DockerMapper.stateName(container.state) != "running"
         {
             return  // already stopped (docker-idiomatic 204/304 handling upstream)
         }
+        let inspectElapsed = inspectStart.duration(to: clock.now)
 
         await state.noteIntentionalStop(target)
         let state = self.state
@@ -1147,6 +1538,21 @@ final class Router: @unchecked Sendable {
         }
         await state.setStopTask(target, task)
         _ = await task.value
+        let stopElapsed = inspectStart.duration(to: clock.now)
+        // Observability for the intermittent slow stop (~3s, ~1 in 10 under
+        // concurrent load): split inspect vs stop CLI so the next occurrence
+        // attributes to the runtime call rather than shim bookkeeping.
+        if stopElapsed.components.seconds >= 1 {
+            let inspectMs =
+                Double(inspectElapsed.components.seconds) * 1000
+                + Double(inspectElapsed.components.attoseconds) / 1e15
+            let totalMs =
+                Double(stopElapsed.components.seconds) * 1000
+                + Double(stopElapsed.components.attoseconds) / 1e15
+            fputs(
+                "[shim] slow stop \(target): total \(Int(totalMs))ms (inspect \(Int(inspectMs))ms)\n",
+                stderr)
+        }
         if let failure = await state.stopError(for: target) {
             await state.finishStopTask(target, error: nil)
             throw ShimError.internalError("stop failed: \(failure)")
@@ -1170,6 +1576,7 @@ final class Router: @unchecked Sendable {
                     await state.clearIntentionalStop(target)
                     try await containers.kill(target, signal: "KILL")
                 }
+                await readCache.invalidateContainers()
                 return .status(204)
             } catch {
                 if Self.isNotFound(error) { throw ShimError.notFound("No such container: \(id)") }
@@ -1189,6 +1596,7 @@ final class Router: @unchecked Sendable {
             await state.clearIntentionalStop(resolved)
             try await containers.kill(resolved, signal: "KILL")
         }
+        await readCache.invalidateContainers()
         return .status(204)
     }
 
@@ -1196,11 +1604,89 @@ final class Router: @unchecked Sendable {
         let timeout = Int(request.q("t")) ?? 10
         if let target = await passThroughID(id) {
             try await fastStop(target, timeout: timeout)
+            await readCache.invalidateContainers()
             return .status(204)
         }
         let container = try await resolveContainer(id)
         guard DockerMapper.stateName(container.state) != "exited" else { return .status(304) }
         try await fastStop(container.id, timeout: timeout)
+        await readCache.invalidateContainers()
+        return .status(204)
+    }
+
+    /// POST /containers/{id}/rename?name= — the Apple runtime has no rename
+    /// primitive, so renames are state aliases (the runtime id never moves).
+    /// This is exactly what `docker compose up` recreate needs: it stops +
+    /// removes the old container itself, renames the temp replacement to the
+    /// canonical name, starts it, then removes the temp name. The abandoned
+    /// temp name is tombstoned so that final removal is idempotent instead
+    /// of 404. Deleting inside rename would destroy replacements-in-progress
+    /// (a stopped temp container is indistinguishable from debris), so
+    /// rename NEVER deletes — like Docker, which also keeps serving the
+    /// container under its new name while it runs.
+    private func containerRename(_ id: String, _ request: ShimRequest) async throws -> ShimResponse {
+        var newName = request.q("name")
+        if newName.hasPrefix("/") { newName = String(newName.dropFirst()) }
+        guard !newName.isEmpty else { throw ShimError.badRequest("rename requires ?name=") }
+        // Resolve the target and verify it exists: state can hold ghosts
+        // (deleted behind our back), which must 404 like Docker — and the
+        // stale entry self-heals instead of shadowing a future container.
+        // Rename-to-self (by request string, runtime id, or tracked alias)
+        // is a no-op success and must never delete.
+        let target: String
+        let targetRaw: Data
+        if let fast = await passThroughID(id) {
+            guard let raw = try? await containers.inspect(fast) else {
+                await state.forget(id: fast)
+                throw ShimError.notFound("No such container: \(id)")
+            }
+            target = fast
+            targetRaw = raw
+        } else {
+            let resolved: String
+            do {
+                resolved = try await resolveContainer(id).id
+            } catch let error as ShimError {
+                throw error
+            } catch {
+                throw ShimError.notFound("No such container: \(id)")
+            }
+            guard let raw = try? await containers.inspect(resolved) else {
+                throw ShimError.notFound("No such container: \(id)")
+            }
+            target = resolved
+            targetRaw = raw
+        }
+        if newName == id || newName == target {
+            return .status(204)
+        }
+        if await state.id(forName: newName) == target {
+            return .status(204)
+        }
+        if await state.id(forName: newName) != nil {
+            throw ShimError.conflict(
+                "Conflict. The container name \"/\(newName)\" is already in use")
+        }
+        // The alias lives in state, but a live runtime container with that
+        // exact id would be shadowed for Docker-name lookups — check it.
+        // Fail closed: an uncertain list must not green-light a destructive
+        // path (a failed check once wiped containers on a no-op rename).
+        let live: [Micropod_V1_Container]
+        do {
+            live = try await containers.list()
+        } catch {
+            throw ShimError.internalError("rename: could not list containers: \(error)")
+        }
+        if live.contains(where: { $0.id == newName }) {
+            throw ShimError.conflict(
+                "Conflict. The container name \"/\(newName)\" is already in use")
+        }
+        // Alias the new name to the untouched runtime container and
+        // tombstone the abandoned request name so its later removal (compose
+        // always removes the temp name after promoting it) is idempotent.
+        await state.rename(id: target, newName: newName)
+        await state.tombstone(name: id)
+        await readCache.invalidateContainers()
         return .status(204)
     }
 
@@ -1208,6 +1694,14 @@ final class Router: @unchecked Sendable {
         // docker-py sends force=True (capitalized) — parse case-insensitively.
         let forceFlag = request.q("force").lowercased()
         let force = forceFlag == "1" || forceFlag == "true"
+        // Tombstoned names (abandoned by rename, e.g. compose's temp name
+        // after promoting it): removal is idempotent instead of 404 — this
+        // is the tail of every compose recreate.
+        if await state.isTombstoned(id) {
+            await state.clearTombstone(id)
+            await readCache.invalidateContainers()
+            return .status(204)
+        }
         if force, let target = await passThroughID(id) {
             // Never race a still-draining background stop.
             await state.awaitStop(target)
@@ -1221,6 +1715,7 @@ final class Router: @unchecked Sendable {
             do {
                 try await containers.delete(target, force: true)
                 await state.forget(id: target)
+                await readCache.invalidateContainers()
                 return .status(204)
             } catch {
                 if Self.isNotFound(error) {
@@ -1246,6 +1741,7 @@ final class Router: @unchecked Sendable {
         }
         try await containers.delete(container.id, force: force)
         await state.forget(id: container.id)
+        await readCache.invalidateContainers()
         return .status(204)
     }
 
@@ -1276,35 +1772,46 @@ final class Router: @unchecked Sendable {
     /// the `WaitResult` JSON.
     private func waitForExit(target: String, request: ShimRequest) async -> Data {
         let condition = request.q("condition").isEmpty ? "not-running" : request.q("condition")
+        _ = condition
         while true {
             // Flat-cost single-container inspect instead of full-list scans.
-            if let raw = try? await containers.inspect(target),
-                let container = DockerMapper.container(fromRawInspect: raw)
-            {
-                let stateName = DockerMapper.stateName(container.state)
-                // "stopped" covers both never-run and ran-and-exited; only the
-                // latter is an exit to report. See `hasEverStarted`.
-                let neverRan =
-                    stateName != "running" && !DockerMapper.hasEverStarted(rawInspect: raw)
-                // An attached run reports the exit code moments after the
-                // container reaches "stopped"; returning now would report 0
-                // for a failed container.
-                let awaitingExitCode = AttachRegistry.shared.isRunning(containerID: target)
-                if stateName != "running" && !neverRan && !awaitingExitCode {
-                    // The runtime omits exit codes for stopped containers;
-                    // assume a clean exit unless an event captured one.
-                    let parsed = Int(container.exitCode)
-                    let remembered = await state.exitCode(for: target)
-                    return Self.encodeBody(
-                        WaitResult(StatusCode: parsed ?? remembered ?? 0, Error: nil))
+            do {
+                let raw = try await containers.inspect(target)
+                if let container = DockerMapper.container(fromRawInspect: raw) {
+                    let stateName = DockerMapper.stateName(container.state)
+                    // "stopped" covers both never-run and ran-and-exited; only the
+                    // latter is an exit to report. See `hasEverStarted`.
+                    let neverRan =
+                        stateName != "running" && !DockerMapper.hasEverStarted(rawInspect: raw)
+                    // An attached run reports the exit code moments after the
+                    // container reaches "stopped"; returning now would report 0
+                    // for a failed container.
+                    let awaitingExitCode = AttachRegistry.shared.isRunning(containerID: target)
+                    if stateName != "running" && !neverRan && !awaitingExitCode {
+                        // The runtime omits exit codes for stopped containers;
+                        // assume a clean exit unless an event captured one.
+                        let parsed = Int(container.exitCode)
+                        let remembered = await state.exitCode(for: target)
+                        return Self.encodeBody(
+                            WaitResult(StatusCode: parsed ?? remembered ?? 0, Error: nil))
+                    }
                 }
-            } else {
-                // Gone from the runtime entirely. For `condition=removed` that
-                // IS the awaited outcome; otherwise report the last exit code
-                // we captured rather than hanging on a container that no
-                // longer exists.
-                let remembered = await state.exitCode(for: target)
-                return Self.encodeBody(WaitResult(StatusCode: remembered ?? 0, Error: nil))
+                // Inspect succeeded but unmappable (transitional shape): retry
+                // below — never report an exit on a maybe-alive container.
+            } catch {
+                if Self.isNotFound(error) {
+                    // Gone from the runtime entirely. For `condition=removed`
+                    // that IS the awaited outcome; otherwise report the last
+                    // exit code we captured rather than hanging on a container
+                    // that no longer exists.
+                    let remembered = await state.exitCode(for: target)
+                    return Self.encodeBody(WaitResult(StatusCode: remembered ?? 0, Error: nil))
+                }
+                // Transient CLI failure (timeout, wedged apiserver): keep
+                // polling. A single hiccup must never surface as StatusCode 0
+                // for a healthy running container — that phantom exit aborts
+                // wait-strategy clients (e.g. testcontainers readiness).
+                fputs("[shim] wait \(target): transient inspect error, retrying: \(error)\n", stderr)
             }
             try? await Task.sleep(for: .milliseconds(200))
         }
@@ -1322,14 +1829,47 @@ final class Router: @unchecked Sendable {
         if follow {
             let stream = logs.stream(id: containerID, tail: min(tailParam, 500), boot: false)
             let (framedStream, continuation) = AsyncStream<Data>.makeStream()
-            Task.detached(priority: .userInitiated) {
-                defer { continuation.finish() }
+            // Apple's `logs -f` never terminates on its own — not even when
+            // the container dies — while Docker ends follow at container
+            // exit. A death watch finishes the stream (after a short drain
+            // for trailing output); a lock-guarded gate keeps post-finish
+            // yields from ever reaching a closed continuation.
+            let gate = StreamFinishGate()
+            // The pump must die with the stream: cancelling it unwinds the
+            // parked `for-await` (throws CancellationError at the suspension
+            // point), which releases the inner LogStreamer consumer, whose
+            // onTermination kills the `container logs -f` CLI child. Without
+            // this, every follow leaks a Task AND an Apple CLI process
+            // forever (Apple `logs -f` never exits on its own).
+            let pumpBox = PumpBox()
+            continuation.onTermination = { _ in pumpBox.task?.cancel() }
+            pumpBox.task = Task.detached(priority: .userInitiated) {
+                defer { gate.finish(continuation) }
                 do {
                     for try await line in stream {
+                        if gate.isFinished { break }
                         continuation.yield(
                             ExecSession.frame(type: 1, payload: Data((line.text + "\n").utf8)))
                     }
                 } catch {}
+            }
+            Task.detached(priority: .utility) {
+                let containers = self.containers
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .milliseconds(500))
+                    guard
+                        let raw = try? await containers.inspect(containerID),
+                        let container = DockerMapper.container(fromRawInspect: raw),
+                        DockerMapper.stateName(container.state) == "running"
+                    else { break }
+                }
+                // Drain window for output buffered behind the death.
+                try? await Task.sleep(for: .seconds(2))
+                gate.finish(continuation)
+                // Prompt producer teardown (also covered by onTermination):
+                // frees the parked for-await so the Apple CLI child is
+                // reaped now, not whenever its output would next arrive.
+                pumpBox.task?.cancel()
             }
             return .stream(
                 200, [("Content-Type", "application/vnd.docker.multiplexed-stream")], framedStream)
@@ -1377,10 +1917,15 @@ final class Router: @unchecked Sendable {
     /// exit code — a detached start leaves it unknowable (see AttachSession).
     private func startPossiblyAttached(_ id: String) async throws {
         await state.markStarted(id: id)
+        // A (re)start resets health supervision immediately (the events loop
+        // re-baselines on the observed transition as well).
+        await state.resetHealth(id: id)
         guard let connection = AttachRegistry.shared.claim(containerID: id) else {
+            fputs("[shim] start \(id): no parked attach, detached start\n", stderr)
             try await containers.start(id)
             return
         }
+        fputs("[shim] start \(id): claimed parked attach\n", stderr)
         let tty = await state.createRequest(for: id)?.Tty ?? false
         do {
             let containers = self.containers
@@ -1698,13 +2243,49 @@ final class Router: @unchecked Sendable {
         guard let name = body.Name, !name.isEmpty else {
             throw ShimError.badRequest("network name required")
         }
+        // The Apple runtime rejects uppercase network label keys
+        // (LabelError invalid_label_key_content) while Docker accepts
+        // anything — including testcontainers-go's camelCase sessionId.
+        // Normalize keys to lowercase (values untouched) so stock clients
+        // work unchanged; containers/volumes accept uppercase and are left
+        // exact. Caveat: a crash-abandoned session network keeps lowercased
+        // labels, so Ryuk's original-case label filter can miss it on reap
+        // (explicit session-end removal is ID-based and unaffected).
+        let rawLabels = body.Labels ?? [:]
+        var normalizedLabels: [String] = []
+        for (key, value) in rawLabels {
+            let lowered = key.lowercased()
+            if lowered != key {
+                fputs("[shim] network label key normalized \(key) -> \(lowered)\n", stderr)
+            }
+            normalizedLabels.append("\(lowered)=\(value)")
+        }
+        let requestedSubnet = body.IPAM?.Config?.first?.Subnet
+        // Explicit subnets pass through untouched. Otherwise allocate
+        // deterministically: Apple auto-allocated custom networks land on
+        // broken ranges (no inter-container L3 or DNS — probed), while
+        // explicit 10.x subnets work. The allocation is a pure function of
+        // the name, so repeated `compose up` converges instead of churning.
+        var subnet = requestedSubnet
+        if subnet == nil || subnet?.isEmpty == true {
+            let taken =
+                ((try? await networks.list()) ?? []).compactMap {
+                    $0.ipv4Subnet.isEmpty ? nil : $0.ipv4Subnet
+                }
+            if let pick = DockerNetworkAllocator.allocate(name: name, existingSubnets: taken) {
+                fputs("[shim] network \(name): allocated subnet \(pick)\n", stderr)
+                subnet = pick
+            } else {
+                fputs("[shim] network \(name): subnet pool exhausted, leaving to runtime\n", stderr)
+            }
+        }
         try await networks.create(
             name: name, internal: body.Internal ?? false,
-            subnet: body.IPAM?.Config?.first?.Subnet,
+            subnet: subnet,
             subnetV6: nil,
             driver: body.Driver,
             options: [],
-            labels: (body.Labels ?? [:]).map { "\($0.key)=\($0.value)" })
+            labels: normalizedLabels)
         return .json(201, Self.encodeBody(NetworkCreateResponse(Id: name.lowercased(), Warning: "")))
     }
 
@@ -1734,7 +2315,7 @@ final class Router: @unchecked Sendable {
 
     private func volumesList(_ request: ShimRequest) async throws -> ShimResponse {
         let filters = request.filters()
-        let list = try await volumes.list()
+        let list = try await cachedVolumesList()
         var resources = list.map(Self.volumeResource)
         resources = try resources.filter { resource in
             try Self.matchesLabelFilters(
@@ -1747,6 +2328,14 @@ final class Router: @unchecked Sendable {
     struct VolumeListResponse: Codable {
         var Volumes: [DockerVolume]
         var Warnings: [String]
+    }
+
+    private func volumeInspect(_ name: String) async throws -> ShimResponse {
+        let list = try await cachedVolumesList()
+        guard let match = list.first(where: { $0.id == name }) else {
+            throw ShimError.notFound("volume \(name) not found")
+        }
+        return Self.encode(Self.volumeResource(match))
     }
 
     static func volumeResource(_ volume: Micropod_V1_Volume) -> DockerVolume {
@@ -1770,6 +2359,7 @@ final class Router: @unchecked Sendable {
             size: size,
             labels: labels.map { "\($0.key)=\($0.value)" }.sorted(),
             options: options)
+        await readCache.invalidateVolumes()
         return .json(
             201,
             Self.encodeBody(
@@ -1822,6 +2412,7 @@ final class Router: @unchecked Sendable {
 
     private func volumeDelete(_ name: String) async throws -> ShimResponse {
         try await volumes.delete(name)
+        await readCache.invalidateVolumes()
         return .status(204)
     }
 
@@ -1829,6 +2420,7 @@ final class Router: @unchecked Sendable {
         let before = try await volumes.list()
         _ = try await volumes.prune()
         let after = try await volumes.list()
+        await readCache.invalidateVolumes()
         let afterIDs = Set(after.map { $0.id })
         let deleted = before.filter { !afterIDs.contains($0.id) }
         return Self.encode(
@@ -2024,5 +2616,51 @@ extension Router {
         }
         if let flag = sharedFlag(from: request.Labels), flag == true { return true }
         return false
+    }
+}
+
+/// Thread-safe once-gate for finishing an AsyncStream continuation from
+/// racing tasks (stream end vs death watch): exactly one finish wins, and
+/// producers check `isFinished` to stop yielding into a closed stream.
+final class StreamFinishGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var done = false
+
+    var isFinished: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return done
+    }
+
+    func finish(_ continuation: AsyncStream<Data>.Continuation) {
+        lock.lock()
+        guard !done else {
+            lock.unlock()
+            return
+        }
+        done = true
+        lock.unlock()
+        continuation.finish()
+    }
+}
+
+/// Mutable task handle shared between a stream's producer task and its
+/// termination handler (a class so concurrently-executing closures can
+/// share it under StrictConcurrency).
+final class PumpBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _task: Task<Void, Never>?
+
+    var task: Task<Void, Never>? {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return _task
+        }
+        set {
+            lock.lock()
+            _task = newValue
+            lock.unlock()
+        }
     }
 }

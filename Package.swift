@@ -51,7 +51,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "MicropodMCP",
-            dependencies: ["MicropodCore"],
+            dependencies: ["MicropodCore", "MicropodSharedFS"],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]
@@ -92,7 +92,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "MicropodSharedFSDaemon",
-            dependencies: ["MicropodSharedFS"],
+            dependencies: ["MicropodCore", "MicropodSharedFS"],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]
@@ -128,7 +128,7 @@ let package = Package(
         ),
         .testTarget(
             name: "MicropodDockerShimTests",
-            dependencies: ["MicropodCore", "MicropodDockerShim"],
+            dependencies: ["MicropodCore", "MicropodDockerShim", "MicropodSharedFS"],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]

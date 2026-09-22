@@ -32,6 +32,9 @@ import Network
 @main
 struct MicropodAPI {
     static func main() async {
+        // When spawned by the app, die with it — no orphaned apiserver.
+        ParentDeathWatch.install()
+
         let cliPath =
             ProcessInfo.processInfo.environment["MICROPOD_CONTAINER_CLI_PATH"]
             ?? "/usr/local/bin/container"

@@ -51,10 +51,11 @@ final class ShimServerTests: XCTestCase {
     private func createContainer(
         _ name: String, image: String = "alpine:3.20", labels: [String: String] = [:],
         cmd: [String] = ["sleep", "60"], autoRemove: Bool = false,
-        restartPolicy: [String: Any]? = nil
+        restartPolicy: [String: Any]? = nil, healthcheck: [String: Any]? = nil
     ) throws -> String {
         var body: [String: Any] = ["Image": image, "Cmd": cmd]
         if !labels.isEmpty { body["Labels"] = labels }
+        if let healthcheck { body["Healthcheck"] = healthcheck }
         var hostConfig: [String: Any] = ["AutoRemove": autoRemove]
         if let restartPolicy { hostConfig["RestartPolicy"] = restartPolicy }
         body["HostConfig"] = hostConfig
@@ -289,6 +290,218 @@ final class ShimServerTests: XCTestCase {
         let hostConfig = inspect["HostConfig"] as! [String: Any]
         let binds = hostConfig["Binds"] as! [String]
         XCTAssertFalse(binds.contains("/var/run/docker.sock:/var/run/docker.sock"), "binds were \(binds)")
+    }
+
+    func testDinDCreateIsRedirected() throws {
+        // Cuttlefish-runner style DinD: any image mounting the socket gets
+        // the strip + TCP redirect (Ryuk-only 8080 publish must NOT apply).
+        var body: [String: Any] = [
+            "Image": "myrunner:latest",
+            "Env": ["FOO=bar"],
+        ]
+        body["HostConfig"] = [
+            "AutoRemove": false,
+            "Binds": ["/var/run/docker.sock:/var/run/docker.sock"],
+        ]
+        let response = try shim.raw().request(
+            "POST", "/containers/create?name=dind", body: ShimTestSupport.jsonBody(body),
+            headers: [("Content-Type", "application/json")])
+        XCTAssertEqual(response.status, 201, String(decoding: response.body.prefix(200), as: UTF8.self))
+        let dindID =
+            (try JSONSerialization.jsonObject(with: response.body) as! [String: Any])["Id"]
+            as! String
+
+        let inspect =
+            try JSONSerialization.jsonObject(
+                with: shim.raw().request("GET", "/containers/\(dindID)/json").body) as! [String: Any]
+        let config = inspect["Config"] as! [String: Any]
+        let env = config["Env"] as! [String]
+        XCTAssertTrue(env.contains("DOCKER_HOST=tcp://192.168.64.1:45455"), "env was \(env)")
+        XCTAssertTrue(env.contains("FOO=bar"), "pre-existing env must survive")
+        let hostConfig = inspect["HostConfig"] as! [String: Any]
+        let binds = hostConfig["Binds"] as! [String]
+        XCTAssertFalse(binds.contains("/var/run/docker.sock:/var/run/docker.sock"), "binds were \(binds)")
+    }
+
+    // MARK: Build context cache
+
+    func testBuildTwiceReusesCachedContext() async throws {
+        let tar = TarBuilder.archive(
+            TarBuilder.file(name: "Dockerfile", content: Data("FROM alpine:3.20\n".utf8)),
+            TarBuilder.file(name: "app.txt", content: Data("v1".utf8)))
+        let client = shim.raw()
+        for _ in 0..<2 {
+            let response = try client.request(
+                "POST", "/build?t=bctx:test1", body: tar,
+                headers: [("Content-Type", "application/x-tar")])
+            let preview = String(decoding: response.body.prefix(300), as: UTF8.self)
+            XCTAssertEqual(response.status, 200, preview)
+            XCTAssertTrue(response.body.contains("naming to".data(using: .utf8)!), preview)
+        }
+        let stats = await shim.buildCache.stats()
+        XCTAssertEqual(stats.entries, 1, "identical contexts must share one cache entry")
+        XCTAssertEqual(try client.request("GET", "/images/bctx:test1/json").status, 200)
+    }
+
+    // MARK: Runtime compat shims
+
+    func testNetworkUppercaseLabelsAreNormalized() throws {
+        // The real runtime rejects uppercase network label keys; the shim
+        // lowercases them (the mock enforces the same rule, so 201 proves
+        // normalization happened before the CLI call).
+        let body: [String: Any] = [
+            "Name": "lblnet",
+            "Labels": ["org.testcontainers.sessionId": "abc", "plain": "x"],
+        ]
+        let response = try shim.raw().request(
+            "POST", "/networks/create", body: ShimTestSupport.jsonBody(body),
+            headers: [("Content-Type", "application/json")])
+        XCTAssertEqual(
+            response.status, 201, String(decoding: response.body.prefix(200), as: UTF8.self))
+    }
+
+    func testMissingImageIsDockerShaped404() throws {
+        let response = try shim.raw().request("GET", "/images/definitely-missing:9.9/json")
+        XCTAssertEqual(response.status, 404)
+        let text = String(decoding: response.body, as: UTF8.self)
+        XCTAssertTrue(text.contains("No such image"), text)
+    }
+
+    func testLongContainerNameIsAliased() throws {        // testcontainers-style 71-char name: Docker accepts it, the Apple
+        // runtime does not — the shim aliases and resolves transparently.
+        let long = "reaper_" + String(repeating: "a", count: 64)
+        XCTAssertEqual(long.count, 71)
+        let body: [String: Any] = ["Image": "alpine:3.20", "Cmd": ["sleep", "60"]]
+        let response = try shim.raw().request(
+            "POST", "/containers/create?name=\(long)", body: ShimTestSupport.jsonBody(body),
+            headers: [("Content-Type", "application/json")])
+        XCTAssertEqual(
+            response.status, 201, String(decoding: response.body.prefix(200), as: UTF8.self))
+        let parsed = try JSONSerialization.jsonObject(with: response.body) as! [String: Any]
+        let id = parsed["Id"] as! String
+        XCTAssertNotEqual(id, long, "runtime id must be the sanitized alias")
+        XCTAssertLessThanOrEqual(id.count, 63)
+        // Every later lookup by Docker name resolves through the alias.
+        XCTAssertEqual(try shim.raw().request("GET", "/containers/\(long)/json").status, 200)
+        XCTAssertEqual(
+            try shim.raw().request("DELETE", "/containers/\(long)?force=true").status, 204)
+    }
+
+    func testRenameStoppedContainerAliases() throws {
+        // Rename never deletes (a stopped temp replacement is
+        // indistinguishable from debris): the runtime container survives
+        // under the new name, and removing the abandoned request name is
+        // idempotent via the tombstone (compose's cleanup rm).
+        _ = try createContainer("rename-me")
+        let client = shim.raw()
+        XCTAssertEqual(
+            try client.request("POST", "/containers/rename-me/rename?name=rename-me-old").status,
+            204)
+        // Abandoned request name: tombstoned removal succeeds, container lives.
+        XCTAssertEqual(
+            try client.request("DELETE", "/containers/rename-me?force=true").status, 204)
+        // New name resolves to the intact container.
+        let inspect =
+            try JSONSerialization.jsonObject(
+                with: client.request("GET", "/containers/rename-me-old/json").body)
+            as! [String: Any]
+        let liveID = inspect["Id"] as? String
+        XCTAssertNotNil(liveID)
+        // And the underlying runtime container still lists (rename moves
+        // names, not containers).
+        let list =
+            try JSONSerialization.jsonObject(
+                with: client.request("GET", "/containers/json?all=1").body) as! [[String: Any]]
+        XCTAssertTrue(list.contains { ($0["Id"] as? String) == liveID })
+    }
+
+    func testRenameRunningContainerAliases() throws {        let id = try createContainer("rename-live")
+        let client = shim.raw()
+        XCTAssertEqual(try client.request("POST", "/containers/\(id)/start").status, 204)
+        XCTAssertEqual(
+            try client.request("POST", "/containers/rename-live/rename?name=rename-live-v2").status,
+            204)
+        // Live workloads are never killed by a rename: the runtime container
+        // is intact and reachable under the new name.
+        let inspect =
+            try JSONSerialization.jsonObject(
+                with: client.request("GET", "/containers/rename-live-v2/json").body)
+            as! [String: Any]
+        let state = inspect["State"] as! [String: Any]
+        XCTAssertEqual(state["Status"] as? String, "running")
+    }
+    func testRenameMissingContainerIs404() throws {
+        XCTAssertEqual(
+            try shim.raw().request("POST", "/containers/no-such-xyz/rename?name=n2").status,
+            404)
+    }
+
+    func testLogsFollowTerminatesWhenContainerDead() throws {
+        // Apple `logs -f` never terminates on its own (proven live); the
+        // shim's death watch must finish follow streams ~2s after death.
+        // The hanging mock (MICROPOD_MOCK_FOLLOW_HANG) emulates that CLI.
+        let hanging = try ShimTestSupport.makeMockShim(extraEnv: ["MICROPOD_MOCK_FOLLOW_HANG": "1"])
+        defer { try? FileManager.default.removeItem(at: hanging.stateDir) }
+        let created = try hanging.raw().request(
+            "POST", "/containers/create?name=follow-dead",
+            body: ShimTestSupport.jsonBody(["Image": "alpine:3.20", "Cmd": ["sleep", "60"]]),
+            headers: [("Content-Type", "application/json")])
+        XCTAssertEqual(created.status, 201)
+        let start = Date()
+        let response = try hanging.raw().request("GET", "/containers/follow-dead/logs?follow=1&tail=5")
+        let wall = Date().timeIntervalSince(start)
+        XCTAssertEqual(response.status, 200)
+        XCTAssertTrue(
+            String(decoding: response.body, as: UTF8.self).contains("mock log line 1"),
+            "buffered output must still flush")
+        XCTAssertLessThan(
+            wall, 12,
+            "follow ended after \(wall)s; without the death watch it hangs until client timeout (15s)")
+    }
+
+    func testHealthcheckReportedAsStarting() throws {
+        // Deterministic (no timing): a fresh healthchecked container reports
+        // State.Health starting before any probe runs.
+        let id = try createContainer(
+            "health-new", healthcheck: ["Test": ["CMD-SHELL", "true"], "Interval": 1_000_000_000])
+        let inspect =
+            try JSONSerialization.jsonObject(
+                with: shim.raw().request("GET", "/containers/\(id)/json").body) as! [String: Any]
+        let health = (inspect["State"] as! [String: Any])["Health"] as! [String: Any]
+        XCTAssertEqual(health["Status"] as? String, "starting")
+        XCTAssertEqual(health["FailingStreak"] as? Int, 0)
+    }
+
+    func testHealthcheckTurnsHealthy() throws {
+        // Mock exec exits 0 ("ok"), so probes succeed and the container must
+        // report healthy well within the deadline (EventsHub ticks at 0.1s).
+        let id = try createContainer(
+            "health-warm", healthcheck: ["Test": ["CMD", "true"], "Interval": 100_000_000])
+        let client = shim.raw()
+        XCTAssertEqual(try client.request("POST", "/containers/\(id)/start").status, 204)
+        let deadline = Date().addingTimeInterval(15)
+        var status = ""
+        while Date() < deadline {
+            let inspect =
+                try JSONSerialization.jsonObject(
+                    with: client.request("GET", "/containers/\(id)/json").body) as! [String: Any]
+            status = ((inspect["State"] as! [String: Any])["Health"] as? [String: Any])?["Status"]
+                as? String ?? ""
+            if status == "healthy" { break }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        XCTAssertEqual(status, "healthy", "mock exec always succeeds; probes must land")
+    }
+
+    func testNoHealthcheckMeansNoHealthKey() throws {
+        let id = try createContainer("health-none")
+        let inspect =
+            try JSONSerialization.jsonObject(
+                with: shim.raw().request("GET", "/containers/\(id)/json").body) as! [String: Any]
+        let state = inspect["State"] as! [String: Any]
+        XCTAssertTrue(
+            state["Health"] == nil || state["Health"] is NSNull,
+            "unconfigured containers must not report health, got \(state["Health"] as Any)")
     }
 
     // MARK: Protocol robustness

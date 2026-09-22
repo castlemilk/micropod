@@ -16,6 +16,23 @@ public struct ContainerCommand: Sendable, Equatable {
     public var displayName: String {
         "container " + arguments.joined(separator: " ")
     }
+
+    /// Low-cardinality label for metrics: the verb, plus a sub-verb for
+    /// resource-grouped commands (`image list`, `system start`). Arguments
+    /// (names, ids, flags) are never included — one label per operation.
+    public var metricLabel: String {
+        let grouped: Set<String> = [
+            "image", "system", "network", "volume", "registry", "builder",
+            "plugin", "machine", "dns",
+        ]
+        guard let verb = arguments.first else { return "container" }
+        if grouped.contains(verb), let sub = arguments.dropFirst().first,
+            !sub.hasPrefix("-")
+        {
+            return "\(verb) \(sub)"
+        }
+        return verb
+    }
 }
 
 /// Type-safe builders for every `container` subcommand Micropod uses.
@@ -60,7 +77,8 @@ public enum ContainerCommandFactory {
     // MARK: - Containers
 
     public static func listContainers(all: Bool = true) -> ContainerCommand {
-        .init(arguments: ["list", "--all", "--format", "json"])
+        // `all` was previously ignored — running-only is the cheaper probe.
+        .init(arguments: ["list"] + (all ? ["--all"] : []) + ["--format", "json"])
     }
 
     public static func inspectContainers(_ ids: [String]) -> ContainerCommand {
@@ -135,12 +153,27 @@ public enum ContainerCommandFactory {
         return command
     }
 
+    /// Formats a CPU count for `--cpus`: Apple rejects float spellings
+    /// ("2.0" is invalid — verified 2026-09-09), so whole numbers render
+    /// as integers. Fractional counts (1.5) pass through and fail loudly
+    /// at the runtime if unsupported, rather than rounding silently.
+    public static func cpuCountString(_ cpus: Double) -> String {
+        if cpus.truncatingRemainder(dividingBy: 1) == 0 {
+            return String(Int(cpus))
+        }
+        // String(Double) renders shortest round-trip ("1.5"); strip any
+        // trailing ".0" defensively.
+        var text = String(cpus)
+        if text.hasSuffix(".0") { text = String(text.dropLast(2)) }
+        return text
+    }
+
     /// Builds a `container run` invocation from a run request.
     public static func run(_ request: ContainerRunRequest) -> ContainerCommand {
         var args = ["run"]
         if request.detach { args.append("--detach") }
         if let name = request.name { args += ["--name", name] }
-        if let cpus = request.cpus { args += ["--cpus", String(cpus)] }
+        if let cpus = request.cpus { args += ["--cpus", Self.cpuCountString(cpus)] }
         if let memory = request.memory { args += ["--memory", memory] }
         for env in request.env { args += ["--env", env] }
         for file in request.envFiles { args += ["--env-file", file] }
@@ -195,8 +228,16 @@ public enum ContainerCommandFactory {
         return .init(arguments: args)
     }
 
+    /// Layer-download parallelism for image pulls. Apple defaults to 3;
+    /// CI images (node:22 etc.) are layer-heavy and pull-bound, so fetch
+    /// with 8-way parallelism.
+    public static let imagePullConcurrency = 8
+
     public static func pullImage(_ reference: String, platform: String? = nil) -> ContainerCommand {
         var args = ["image", "pull", "--progress", "plain"]
+        if imagePullConcurrency > 0 {
+            args += ["--max-concurrent-downloads", String(imagePullConcurrency)]
+        }
         if let platform { args += ["--platform", platform] }
         args.append(reference)
         return .init(arguments: args)
@@ -248,7 +289,8 @@ public enum ContainerCommandFactory {
         if let target = request.target { args += ["--target", target] }
         if let platform = request.platform { args += ["--platform", platform] }
         if request.noCache { args.append("--no-cache") }
-        if let cpus = request.cpus { args += ["--cpus", String(cpus)] }
+        if request.pull { args.append("--pull") }
+        if let cpus = request.cpus { args += ["--cpus", Self.cpuCountString(cpus)] }
         if let memory = request.memory { args += ["--memory", memory] }
         for label in request.labels { args += ["--label", "\(label.key)=\(label.value)"] }
         args.append(request.contextDirectory)
@@ -303,6 +345,14 @@ public enum ContainerCommandFactory {
         .init(arguments: ["machine", "delete", name])
     }
 
+    public static func runMachine(_ name: String, extraArgs: [String], command: [String]) -> ContainerCommand {
+        .init(arguments: ["machine", "run", "-n", name] + extraArgs + command)
+    }
+
+    public static func stopMachine(_ name: String) -> ContainerCommand {
+        .init(arguments: ["machine", "stop", name])
+    }
+
     public static func listProperties() -> ContainerCommand {
         .init(arguments: ["system", "property", "list", "--format", "json"])
     }
@@ -328,7 +378,10 @@ public enum ContainerCommandFactory {
         if let subnetV6 { args += ["--subnet-v6", subnetV6] }
         // docker-generic driver names map to the default plugin on the
         // Apple runtime; anything else is passed through as the plugin.
-        if let driver, !["bridge", "overlay", "host", "none"].contains(driver) {
+        // An empty driver (compose sends "" for default networks) also
+        // means default — emitting `--plugin ""` makes Apple fail plugin
+        // lookup instead.
+        if let driver, !driver.isEmpty, !["bridge", "overlay", "host", "none"].contains(driver) {
             args += ["--plugin", driver]
         }
         for option in options { args += ["--option", option] }
@@ -524,6 +577,8 @@ public struct ContainerBuildRequest: Sendable, Equatable {
     public var noCache: Bool
     public var cpus: Double?
     public var memory: String?
+    /// Force a base-image refresh (`container build --pull`, Docker `pull=1`).
+    public var pull: Bool
     public var labels: [LabelSpec]
 
     public init(
@@ -536,6 +591,7 @@ public struct ContainerBuildRequest: Sendable, Equatable {
         noCache: Bool = false,
         cpus: Double? = nil,
         memory: String? = nil,
+        pull: Bool = false,
         labels: [LabelSpec] = []
     ) {
         self.contextDirectory = contextDirectory
@@ -547,6 +603,7 @@ public struct ContainerBuildRequest: Sendable, Equatable {
         self.noCache = noCache
         self.cpus = cpus
         self.memory = memory
+        self.pull = pull
         self.labels = labels
     }
 }

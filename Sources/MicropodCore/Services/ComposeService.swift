@@ -176,7 +176,7 @@ private func networkDict(_ network: Micropod_V1_ComposeNetwork) -> [String: Any]
 
 /// Parse + orchestration for docker-compose.yml files on the `container`
 /// runtime (which has no native compose support).
-public actor ComposeService: @preconcurrency ComposeServing {
+public struct ComposeService: @preconcurrency ComposeServing {
     private let client: ContainerCLIClient
 
     public init(client: ContainerCLIClient) {
@@ -621,11 +621,11 @@ public actor ComposeService: @preconcurrency ComposeServing {
 
     // MARK: - Plan
 
-    public nonisolated func plan(spec: Micropod_V1_ComposeSpec) throws -> ComposePlan {
+    public func plan(spec: Micropod_V1_ComposeSpec) throws -> ComposePlan {
         try plan(spec: spec, enabledProfiles: [])
     }
 
-    public nonisolated func plan(spec: Micropod_V1_ComposeSpec, enabledProfiles: Set<String>) throws
+    public func plan(spec: Micropod_V1_ComposeSpec, enabledProfiles: Set<String>) throws
         -> ComposePlan
     {
         var plan = ComposePlan()
@@ -678,7 +678,7 @@ public actor ComposeService: @preconcurrency ComposeServing {
 
     /// Names of services that some other service depends on with
     /// `condition: service_healthy`.
-    private nonisolated func requiredHealthyServices(_ services: [Micropod_V1_ComposeService]) -> Set<String> {
+    private func requiredHealthyServices(_ services: [Micropod_V1_ComposeService]) -> Set<String> {
         var required: Set<String> = []
         for service in services {
             for (dependency, condition) in service.dependsOnConditions where condition == "service_healthy" {
@@ -688,7 +688,7 @@ public actor ComposeService: @preconcurrency ComposeServing {
         return required
     }
 
-    private nonisolated func orderedServices(_ services: [Micropod_V1_ComposeService]) throws
+    private func orderedServices(_ services: [Micropod_V1_ComposeService]) throws
         -> [Micropod_V1_ComposeService]
     {
         let byName = Dictionary(uniqueKeysWithValues: services.map { ($0.name, $0) })
@@ -716,7 +716,7 @@ public actor ComposeService: @preconcurrency ComposeServing {
         return result
     }
 
-    private nonisolated func makeRunRequest(spec: Micropod_V1_ComposeSpec, service: Micropod_V1_ComposeService)
+    private func makeRunRequest(spec: Micropod_V1_ComposeSpec, service: Micropod_V1_ComposeService)
         -> ContainerRunRequest
     {
         var labels =
@@ -769,14 +769,14 @@ public actor ComposeService: @preconcurrency ComposeServing {
 
     /// Maps a service network key to the runtime network name, honoring
     /// `external: {name: …}` overrides.
-    private nonisolated func resolveNetworkName(_ key: String, spec: Micropod_V1_ComposeSpec) -> String {
+    private func resolveNetworkName(_ key: String, spec: Micropod_V1_ComposeSpec) -> String {
         guard let network = spec.networks[key], network.external, !network.externalName.isEmpty else {
             return key
         }
         return network.externalName
     }
 
-    private nonisolated func resolveVolume(_ volume: String, spec: Micropod_V1_ComposeSpec) -> String {
+    private func resolveVolume(_ volume: String, spec: Micropod_V1_ComposeSpec) -> String {
         let parts = volume.split(separator: ":", maxSplits: 2)
         guard parts.count == 2 else { return volume }
         let source = String(parts[0])
@@ -791,7 +791,7 @@ public actor ComposeService: @preconcurrency ComposeServing {
         return "\(base)/\(source):\(destination)"
     }
 
-    private nonisolated func resolvePath(_ path: String, relativeTo specPath: String) -> String {
+    private func resolvePath(_ path: String, relativeTo specPath: String) -> String {
         guard !path.hasPrefix("/") else { return path }
         let base = (specPath as NSString).deletingLastPathComponent
         return (base as NSString).appendingPathComponent(path)
@@ -803,7 +803,7 @@ public actor ComposeService: @preconcurrency ComposeServing {
         startUp(plan: plan).stream
     }
 
-    public nonisolated func startUp(plan: ComposePlan) -> ComposeExecution {
+    public func startUp(plan: ComposePlan) -> ComposeExecution {
         let (stream, continuation) = AsyncThrowingStream<String, Error>.makeStream()
         let task = Task {
             await self.execute(plan: plan, continuation: continuation)
@@ -858,14 +858,14 @@ public actor ComposeService: @preconcurrency ComposeServing {
                     }
                     continuation.yield("Pulling \(image)…")
                     let command = ContainerCommandFactory.pullImage(image)
-                    for try await _ in client.stream(command) {}
+                    for try await _ in client.stream(command, reportExitCode: true) {}
                     try Task.checkCancellation()
                     continuation.yield("Pulled \(image)")
 
                 case .build(let request, let tag):
                     continuation.yield("Building \(tag)…")
                     let command = ContainerCommandFactory.build(request)
-                    for try await _ in client.stream(command) {}
+                    for try await _ in client.stream(command, reportExitCode: true) {}
                     try Task.checkCancellation()
                     continuation.yield("Built \(tag)")
 

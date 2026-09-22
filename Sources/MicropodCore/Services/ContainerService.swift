@@ -21,7 +21,7 @@ public protocol ContainerServing: Sendable {
     func copy(from: String, to: String) async throws
 }
 
-public actor ContainerService: ContainerServing {
+public struct ContainerService: ContainerServing {
     private let client: ContainerCLIClient
 
     public init(client: ContainerCLIClient) {

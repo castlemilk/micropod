@@ -1,4 +1,5 @@
 import Foundation
+import MicropodCore
 import MicropodSharedFS
 
 // `micropod-sharedfs` daemon entry point. In main.swift the top-level code
@@ -7,6 +8,9 @@ import MicropodSharedFS
 // FSEvents for live source-tree invalidation.
 
 #if canImport(CoreServices)
+
+    // When spawned by the app, die with it — no orphaned sharedfs.
+    ParentDeathWatch.install()
 
     let env = ProcessInfo.processInfo.environment
     let socketPath =

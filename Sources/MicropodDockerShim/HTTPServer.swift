@@ -169,8 +169,11 @@ final class ShimConnection: @unchecked Sendable {
             if !alreadyClosed { connection.cancel() }
         case .fileDescriptor(let fd, _):
             if !alreadyClosed {
-                Darwin.shutdown(fd, SHUT_RDWR)
-                Darwin.close(fd)
+                // shutdown() commonly reports ENOTCONN here (the docker CLI
+                // half-closes right after the 101) — harmless; close() below
+                // still delivers our FIN.
+                _ = Darwin.shutdown(fd, SHUT_RDWR)
+                _ = Darwin.close(fd)
             }
         }
         finishInbound()
@@ -224,6 +227,17 @@ enum ShimResponse {
 
     static let rawStream = "application/vnd.docker.raw-stream"
     static let multiplexedStream = "application/vnd.docker.multiplexed-stream"
+
+    /// Status code for metrics labels (hijacked connections report 101).
+    var statusCode: Int {
+        switch self {
+        case .status(let code): return code
+        case .json(let code, _): return code
+        case .raw(let code, _, _): return code
+        case .stream(let code, _, _): return code
+        case .hijacked: return 101
+        }
+    }
 }
 
 /// Minimal HTTP/1.1 server over Network.framework supporting unix-socket +
@@ -249,19 +263,71 @@ final class ShimHTTPServer: @unchecked Sendable {
     }
 
     func listenTCP(host: String?, port: UInt16) throws {
-        let parameters = NWParameters.tcp
-        parameters.allowLocalEndpointReuse = true
-        if let host, port != 0 {
-            parameters.requiredLocalEndpoint = NWEndpoint.hostPort(
-                host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: port)!)
+        // BSD sockets, not Network.framework: NWConnection.cancel() is a
+        // no-op on established connections (probed: state stays `ready`,
+        // TCP stays ESTABLISHED), so hijacked-stream EOF never reaches the
+        // client and `docker start -a` hangs forever. Accepted TCP fds flow
+        // through the same thread-per-connection `serve()` path as unix
+        // sockets, where close() is shutdown()+close() and EOF is reliable.
+        let fd = Darwin.socket(AF_INET, SOCK_STREAM, 0)
+        guard fd >= 0 else {
+            throw POSIXError(POSIXError.Code(rawValue: errno) ?? .ENODEV)
         }
-        let listener: NWListener
-        if port == 0 {
-            listener = try NWListener(using: parameters)
+        var reuse: Int32 = 1
+        _ = Darwin.setsockopt(
+            fd, SOL_SOCKET, SO_REUSEADDR, &reuse, socklen_t(MemoryLayout<Int32>.size))
+        var nodelay: Int32 = 1
+        _ = Darwin.setsockopt(
+            fd, IPPROTO_TCP, TCP_NODELAY, &nodelay, socklen_t(MemoryLayout<Int32>.size))
+        var address = sockaddr_in()
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = port.bigEndian
+        if let host, !host.isEmpty {
+            var addr = in_addr()
+            let parsed = host.withCString { Darwin.inet_pton(AF_INET, $0, &addr) }
+            guard parsed == 1 else {
+                Darwin.close(fd)
+                throw POSIXError(.EADDRNOTAVAIL)
+            }
+            address.sin_addr = addr
         } else {
-            listener = try NWListener(using: parameters, on: NWEndpoint.Port(rawValue: port)!)
+            address.sin_addr = in_addr(s_addr: INADDR_ANY)
         }
-        register(listener, label: "tcp \(host ?? "*"):\(port)")
+        let bound = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                Darwin.bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        guard bound == 0 else {
+            Darwin.close(fd)
+            throw POSIXError(POSIXError.Code(rawValue: errno) ?? .ENODEV)
+        }
+        // Report the ephemeral port when port == 0 (tests).
+        var resolved = sockaddr_in()
+        var resolvedLength = socklen_t(MemoryLayout<sockaddr_in>.size)
+        withUnsafeMutablePointer(to: &resolved) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                _ = Darwin.getsockname(fd, $0, &resolvedLength)
+            }
+        }
+        portLock.lock()
+        boundPortStorage = CFSwapInt16BigToHost(resolved.sin_port)
+        portLock.unlock()
+        guard Darwin.listen(fd, 32) == 0 else {
+            Darwin.close(fd)
+            throw POSIXError(POSIXError.Code(rawValue: errno) ?? .ENODEV)
+        }
+        fputs("[shim] tcp listening on \(host ?? "*"):\(CFSwapInt16BigToHost(resolved.sin_port))\n", stderr)
+        let acceptThread = Thread { [weak self] in
+            while true {
+                let clientFD = Darwin.accept(fd, nil, nil)
+                if clientFD < 0 { break }
+                self?.serve(fileDescriptor: clientFD)
+            }
+        }
+        acceptThread.name = "shim-tcp-accept"
+        acceptThread.stackSize = 256 * 1024
+        acceptThread.start()
     }
 
     func listenUnix(path: String) throws {
@@ -347,37 +413,43 @@ final class ShimHTTPServer: @unchecked Sendable {
                     continue
                 }
                 buffer.append(incoming)
-                if !headerDone {
-                    guard let headRange = buffer.range(of: headerTerminator) else { continue }
-                    let head = String(
-                        decoding: buffer[buffer.startIndex..<headRange.lowerBound], as: UTF8.self)
-                    let lower = head.lowercased()
-                    bodyIsChunked = lower.contains("transfer-encoding") && lower.contains("chunked")
-                    bodyStart = buffer.distance(from: buffer.startIndex, to: headRange.upperBound)
-                    contentLength = 0
-                    if let match = lower.range(
-                        of: #"content-length:[ ]*([0-9]+)"#, options: .regularExpression)
-                    {
-                        contentLength = Int(lower[match].filter(\.isNumber)) ?? 0
+                // Drain EVERY complete request already buffered before
+                // blocking in recv again: pipelined requests (test: three on
+                // one connection) must all be scheduled, not just the first.
+                // Blocking first would deadlock a client that pipelines then
+                // waits (it sends nothing more until it gets responses).
+                parseLoop: while !connection.isHijacking {
+                    if !headerDone {
+                        guard let headRange = buffer.range(of: headerTerminator) else { break parseLoop }
+                        let head = String(
+                            decoding: buffer[buffer.startIndex..<headRange.lowerBound], as: UTF8.self)
+                        let lower = head.lowercased()
+                        bodyIsChunked = lower.contains("transfer-encoding") && lower.contains("chunked")
+                        bodyStart = buffer.distance(from: buffer.startIndex, to: headRange.upperBound)
+                        contentLength = 0
+                        if let match = lower.range(
+                            of: #"content-length:[ ]*([0-9]+)"#, options: .regularExpression)
+                        {
+                            contentLength = Int(lower[match].filter(\.isNumber)) ?? 0
+                        }
+                        headerDone = true
+                        if !connection.hasSentContinue {
+                            let pending = buffer
+                            Task { await connection.sendContinueIfNeeded(pending) }
+                        }
                     }
-                    headerDone = true
-                    if !connection.hasSentContinue {
-                        let pending = buffer
-                        Task { await connection.sendContinueIfNeeded(pending) }
+                    if bodyIsChunked {
+                        let scanFrom = buffer.index(
+                            buffer.startIndex,
+                            offsetBy: min(max(0, terminatorScan - 8), buffer.count))
+                        if buffer.range(of: chunkTerminator, in: scanFrom..<buffer.endIndex) == nil {
+                            terminatorScan = buffer.count
+                            break parseLoop
+                        }
+                    } else if contentLength > 0, buffer.count < bodyStart + contentLength {
+                        break parseLoop
                     }
-                }
-                if bodyIsChunked {
-                    let scanFrom = buffer.index(
-                        buffer.startIndex,
-                        offsetBy: min(max(0, terminatorScan - 8), buffer.count))
-                    if buffer.range(of: chunkTerminator, in: scanFrom..<buffer.endIndex) == nil {
-                        terminatorScan = buffer.count
-                        continue
-                    }
-                } else if contentLength > 0, buffer.count < bodyStart + contentLength {
-                    continue
-                }
-                if let parsed = ShimRequestParser.parse(buffer) {
+                    guard let parsed = ShimRequestParser.parse(buffer) else { break parseLoop }
                     buffer = parsed.remainder
                     headerDone = false
                     terminatorScan = 0
@@ -387,7 +459,6 @@ final class ShimHTTPServer: @unchecked Sendable {
                     connection.schedule {
                         await self.handle(request, connection: connection, remainder: Data())
                     }
-                    continue
                 }
                 if bodyIsChunked { terminatorScan = buffer.count }
                 if buffer.count > 512 * 1024 * 1024 { break }

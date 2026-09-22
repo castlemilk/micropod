@@ -1,20 +1,31 @@
 import Darwin
 import Foundation
+import OSLog
 
 /// Executes `container` CLI commands.
 ///
 /// Short-lived commands run to completion with output captured in temp files
 /// (pipe deadlock avoidance — the storagesentry lesson), while long-lived
 /// commands (`logs -f`, builds, pulls) stream through pipes.
-public actor ContainerCLIClient {
-    public nonisolated let executableURL: URL
+///
+/// A struct (not an actor): every call spawns its own `Process` and touches
+/// no shared mutable state, so concurrent callers run their CLIs in parallel
+/// instead of queueing behind a single actor mailbox. This is what lets the
+/// Docker shim serve concurrent lifecycles without serialising them.
+public struct ContainerCLIClient: Sendable {
+    public let executableURL: URL
 
     public init(executableURL: URL = URL(fileURLWithPath: "/usr/local/bin/container")) {
         self.executableURL = executableURL
     }
 
+    /// Instruments signposts so `xctrace record --template "os_signpost"`
+    /// splits CLI spawn+XPC+run time from caller overhead (perf workstream).
+    private static let signposter = OSSignposter(
+        subsystem: "com.micropod.cli", category: .pointsOfInterest)
+
     /// Whether the `container` binary exists on disk.
-    public nonisolated func isAvailable() -> Bool {
+    public func isAvailable() -> Bool {
         FileManager.default.isExecutableFile(atPath: executableURL.path)
     }
 
@@ -22,6 +33,18 @@ public actor ContainerCLIClient {
     /// Stderr is captured and surfaced only on failure.
     public func run(_ command: ContainerCommand, timeout: Duration = .seconds(60)) async throws -> String {
         try Task.checkCancellation()
+        let started = Date()
+        let signpostState = Self.signposter.beginInterval(
+            "cli", "\(command.displayName, privacy: .public)")
+        defer {
+            Self.signposter.endInterval("cli", signpostState)
+        }
+        var metricStatus = 0
+        defer {
+            CLIMetrics.record(
+                command: command.metricLabel, status: metricStatus,
+                duration: Date().timeIntervalSince(started))
+        }
 
         let process = Process()
         process.executableURL = executableURL
@@ -65,59 +88,75 @@ public actor ContainerCLIClient {
         // hundreds of ms of launch latency).
         let cancellation = ProcessCancellationController()
         let gate = FinishGate()
-        let exitCode: Int32 = try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { continuation in
-                DispatchQueue.global(qos: .userInitiated).async {
-                    do {
-                        try cancellation.launch(process)
-                    } catch {
-                        gate.runOnce { continuation.resume(throwing: error) }
-                        return
-                    }
-                    // Instant exit detection — no polling latency.
-                    process.terminationHandler = { _ in
-                        let outcome = cancellation.outcome(
-                            exitCode: process.terminationStatus,
-                            cancelledWhileRunning: cancellation.cancelTerminated,
-                            timedOut: cancellation.timeoutTerminated)
-                        switch outcome {
-                        case .cancelled:
-                            gate.runOnce { continuation.resume(throwing: CancellationError()) }
-                        case .timedOut:
-                            gate.runOnce {
-                                continuation.resume(
-                                    throwing: MicropodError.message(
-                                        "`container` command timed out after \(timeout): \(command.displayName)"))
-                            }
-                        case .exited(let code):
-                            gate.runOnce { continuation.resume(returning: code) }
+        let exitCode: Int32
+        do {
+            exitCode = try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { continuation in
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        do {
+                            try cancellation.launch(process)
+                        } catch {
+                            gate.runOnce { continuation.resume(throwing: error) }
+                            return
                         }
-                    }
-                    // Exceptional-exit watchdog only: cancellation or timeout
-                    // must terminate the process; natural exits are handled
-                    // by the termination handler above.
-                    let components = timeout.components
-                    let deadline = Date().addingTimeInterval(
-                        Double(components.seconds) + Double(components.attoseconds) / 1e18)
-                    Thread.detachNewThread {
-                        while process.isRunning {
-                            if cancellation.shouldCancel(process) {
-                                cancellation.cancelTerminated = true
-                                terminateAndReap(process)
-                                return
+                        // Instant exit detection — no polling latency.
+                        process.terminationHandler = { _ in
+                            let outcome = cancellation.outcome(
+                                exitCode: process.terminationStatus,
+                                cancelledWhileRunning: cancellation.cancelTerminated,
+                                timedOut: cancellation.timeoutTerminated)
+                            switch outcome {
+                            case .cancelled:
+                                gate.runOnce { continuation.resume(throwing: CancellationError()) }
+                            case .timedOut:
+                                gate.runOnce {
+                                    continuation.resume(
+                                        throwing: MicropodError.message(
+                                            "`container` command timed out after \(timeout): \(command.displayName)"))
+                                }
+                            case .exited(let code):
+                                gate.runOnce { continuation.resume(returning: code) }
                             }
-                            if Date() >= deadline, process.isRunning {
-                                cancellation.timeoutTerminated = true
-                                terminateAndReap(process)
-                                return
+                        }
+                        // Exceptional-exit watchdog only: cancellation or timeout
+                        // must terminate the process; natural exits are handled
+                        // by the termination handler above.
+                        let components = timeout.components
+                        let deadline = Date().addingTimeInterval(
+                            Double(components.seconds) + Double(components.attoseconds) / 1e18)
+                        Thread.detachNewThread {
+                            while process.isRunning {
+                                if cancellation.shouldCancel(process) {
+                                    cancellation.cancelTerminated = true
+                                    terminateAndReap(process)
+                                    return
+                                }
+                                if Date() >= deadline, process.isRunning {
+                                    cancellation.timeoutTerminated = true
+                                    terminateAndReap(process)
+                                    return
+                                }
+                                Thread.sleep(forTimeInterval: 0.02)
                             }
-                            Thread.sleep(forTimeInterval: 0.02)
                         }
                     }
                 }
+            } onCancel: {
+                cancellation.cancel()
             }
-        } onCancel: {
-            cancellation.cancel()
+            metricStatus = Int(exitCode)
+        } catch {
+            // Timeout and cancellation are classified by the cancellation
+            // controller's flags (504/499); anything else is a launch/run
+            // failure (status 1).
+            if cancellation.timeoutTerminated {
+                metricStatus = 504
+            } else if cancellation.cancelTerminated {
+                metricStatus = 499
+            } else {
+                metricStatus = 1
+            }
+            throw error
         }
 
         let stdout = (try? String(contentsOf: stdoutURL, encoding: .utf8)) ?? ""
@@ -131,7 +170,16 @@ public actor ContainerCLIClient {
 
     /// Runs a long-lived command and streams its combined stdout+stderr output.
     /// The stream terminates when the process exits or the task is cancelled.
-    public nonisolated func stream(_ command: ContainerCommand) -> AsyncThrowingStream<Data, Error> {
+    ///
+    /// - Parameter reportExitCode: when true, a non-zero exit surfaces as
+    ///   `MicropodError.cliFailure` at stream end instead of a clean finish.
+    ///   Opt-in because log tails (`logs -f`) treat process end as data end,
+    ///   while pull/push/build progress must not report success when the CLI
+    ///   failed (the exit status is otherwise invisible — both pipes merge
+    ///   into yielded chunks).
+    public func stream(_ command: ContainerCommand, reportExitCode: Bool = false)
+        -> AsyncThrowingStream<Data, Error>
+    {
         AsyncThrowingStream { continuation in
             let process = Process()
             process.executableURL = executableURL
@@ -195,9 +243,15 @@ public actor ContainerCLIClient {
                 }
                 if !cancelledWhileRunning { process.waitUntilExit() }
                 let wasCancelledWhileRunning = cancelledWhileRunning
+                let exitCode = process.terminationStatus
+                let displayName = command.displayName
                 gate.runOnce {
                     if wasCancelledWhileRunning {
                         continuation.finish(throwing: CancellationError())
+                    } else if reportExitCode, exitCode != 0 {
+                        continuation.finish(
+                            throwing: MicropodError.cliFailure(
+                                command: displayName, exitCode: exitCode, stderr: ""))
                     } else {
                         continuation.finish()
                     }

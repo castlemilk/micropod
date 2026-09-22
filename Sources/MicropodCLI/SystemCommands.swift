@@ -223,6 +223,39 @@ enum SystemCommands {
             }
             try await services.machines.delete(name)
             print("Deleted machine \(name)")
+        case "stop":
+            let parsed = try parseArgs(
+                Array(args.dropFirst()), boolFlags: [], valueFlags: [], commandName: "machine stop")
+            guard let name = parsed.positionals.first else {
+                throw UsageError(message: "machine stop <name>")
+            }
+            try await services.machines.stop(name)
+            print("Stopped machine \(name)")
+        case "run":
+            let parsed = try parseArgs(
+                Array(args.dropFirst()),
+                boolFlags: [],
+                valueFlags: ["--env", "-e", "--workdir", "-w"],
+                commandName: "machine run")
+            guard let name = parsed.positionals.first else {
+                throw UsageError(
+                    message: "machine run <name> [--env K=V]... [--workdir dir] -- <exe> [args...]")
+            }
+            let command = Array(parsed.positionals.dropFirst())
+            guard !command.isEmpty else {
+                throw UsageError(
+                    message: "machine run <name> [--env K=V]... [--workdir dir] -- <exe> [args...]")
+            }
+            var extraArgs: [String] = []
+            for env in parsed.values("--env") + parsed.values("-e") { extraArgs += ["--env", env] }
+            if let workdir = parsed.value("--workdir") ?? parsed.value("-w") {
+                extraArgs += ["--workdir", workdir]
+            }
+            for try await chunk in services.machines.runStreaming(
+                name: name, extraArgs: extraArgs, command: command)
+            {
+                FileHandle.standardOutput.write(chunk)
+            }
         case "properties":
             let properties = try await services.machines.properties()
             if MicropodCLI.jsonOutput {

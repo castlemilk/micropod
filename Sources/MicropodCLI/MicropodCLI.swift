@@ -140,6 +140,7 @@ struct MicropodCLI {
             try await SystemCommands.machines(args, services)
         case "system": try await SystemCommands.system(args, services)
         case "share": try await SharedCommands.run(args)
+        case "build-cache", "buildcache": try await BuildCacheCommands.run(args)
 
         case "version": try await SystemCommands.version(services)
         case "help", "--help", "-h": print(helpText)
@@ -191,7 +192,8 @@ struct MicropodCLI {
           compose down <name> / compose ps <name>
           df [--json]                        disk usage by category
           share mount|list|inspect|sync|gc   synchronized file shares
-          machines [--json]                  runtime VMs
+          build-cache stats|inspect        content-addressed build contexts
+          machines [--json]                  runtime VMs (create/run/stop/rm for keep-alive CI)
           system start|stop|logs             daemon control + log access
           status / version                   runtime + version info
 

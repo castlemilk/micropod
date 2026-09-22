@@ -464,6 +464,18 @@ cmd_logs() {
         n=$((n + 1))
     done
     if [ "$follow" = "1" ]; then
+        # Follow holds no state past this point: release the invocation lock
+        # before the tail wait so concurrent CLI calls proceed. (The real
+        # CLI is fully concurrent; without this, a hung follow would
+        # serialize every later invocation behind the mock lock.)
+        release_mock_lock
+        # Opt-in hang: emulates Apple `logs -f`, which never terminates on
+        # its own (not even when the container dies). Lets shim tests prove
+        # the death watch finishes follow streams.
+        if [ -n "${MICROPOD_MOCK_FOLLOW_HANG:-}" ]; then
+            sleep 60
+            return 0
+        fi
         sleep 0.2
         printf 'mock log line after-follow %d\n' "$n"
     fi
@@ -695,7 +707,12 @@ cmd_image_load() {
 
 cmd_image_inspect() {
     local ref="$1" line
-    line=$(grep -F "\"name\":\"$ref\"" "$IMAGES_FILE" 2>/dev/null || grep -F "\"id\":\"$ref\"" "$IMAGES_FILE" 2>/dev/null || true)
+    # Rebuilding the same tag appends a second registration line (like a tag
+    # move); the latest wins, matching real-runtime replace semantics.
+    line=$(grep -F "\"name\":\"$ref\"" "$IMAGES_FILE" 2>/dev/null | tail -n 1)
+    if [ -z "$line" ]; then
+        line=$(grep -F "\"id\":\"$ref\"" "$IMAGES_FILE" 2>/dev/null | tail -n 1)
+    fi
     if [ -z "$line" ]; then
         echo "Error: no such image: $ref" >&2
         exit 1
@@ -716,6 +733,7 @@ cmd_build() {
             --target) shift; target="$1" ;;
             --platform) shift; platform="$1" ;;
             --no-cache) no_cache=1 ;;
+            --pull) ;;
             --cpus) shift; cpus="$1" ;;
             --memory) shift; memory="$1" ;;
             --label) shift; labels+=("$1") ;;
@@ -827,6 +845,16 @@ cmd_network_create() {
             *) name="$1" ;;
         esac
         shift
+    done
+    # Fidelity: the real runtime rejects uppercase network label keys
+    # (LabelError invalid_label_key_content); containers/volumes accept them.
+    local l
+    for l in ${labels[@]+"${labels[@]}"}; do
+        local key="${l%%=*}"
+        if [[ "$key" =~ [A-Z] ]]; then
+            echo "Error: LabelError(code: invalid_label_key_content, metadata: [\"key\": \"$key\"])" >&2
+            exit 1
+        fi
     done
     local mode="nat"
     [ "$internal" = "1" ] && mode="hostOnly"

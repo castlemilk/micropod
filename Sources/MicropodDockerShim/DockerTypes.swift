@@ -22,6 +22,14 @@ struct DockerCreateRequest: Codable {
     var OpenStdin: Bool?
     var ExposedPorts: [String: JSONEmpty]?
     var HostConfig: DockerHostConfig?
+    /// Docker API healthcheck (top-level create field). Durations are
+    /// nanoseconds, matching dockerd. Nil/absent or Test==["NONE"] disables.
+    var Healthcheck: DockerHealthcheck?
+    /// Per-network endpoint config (aliases, static IPs). The Apple runtime
+    /// has no multi-attach/static-IP/hostname primitives: attachment still
+    /// follows NetworkMode only, but aliases feed the managed /etc/hosts
+    /// DNS emulation (see HostsFile).
+    var NetworkingConfig: DockerNetworkingConfig?
 
     struct JSONEmpty: Codable {}
 
@@ -31,9 +39,51 @@ struct DockerCreateRequest: Codable {
     }
 }
 
+/// Docker API healthcheck descriptor (create-time config).
+struct DockerHealthcheck: Codable {
+    /// ["NONE"] disables; ["CMD", args...] execs directly;
+    /// ["CMD-SHELL", script] runs under /bin/sh -c.
+    var Test: [String]?
+    var Interval: Int64?
+    var Timeout: Int64?
+    var Retries: Int?
+    var StartPeriod: Int64?
+    var StartInterval: Int64?
+}
+
 struct DockerRestartPolicy: Codable {
     var Name: String?
     var MaximumRetryCount: Int?
+}
+
+struct DockerNetworkingConfig: Codable {
+    var EndpointsConfig: [String: DockerEndpointSettings]?
+}
+
+struct DockerEndpointSettings: Codable {
+    var Aliases: [String]?
+    var IPAddress: String?
+}
+
+/// Network attachment shared by create handling and state tracking.
+/// "", default, bridge, host and none all mean "no custom attachment"
+/// (the Apple default network, which has working name DNS); anything else
+/// is a custom Apple network (needs an explicit subnet + managed hosts).
+extension DockerCreateRequest {
+    var attachedNetworks: [String] {
+        let mode = HostConfig?.NetworkMode ?? ""
+        switch mode {
+        case "", "default", "bridge", "host", "none":
+            return []
+        default:
+            return [mode]
+        }
+    }
+
+    /// Aliases requested per network (service DNS names in compose flows).
+    func aliases(for network: String) -> [String] {
+        NetworkingConfig?.EndpointsConfig?[network]?.Aliases ?? []
+    }
 }
 
 struct DockerHostConfig: Codable {
@@ -50,6 +100,24 @@ struct DockerHostConfig: Codable {
     var CapDrop: [String]?
     var ExtraHosts: [String]?
     var RestartPolicy: DockerRestartPolicy?
+    /// CPU quota in billionths of a CPU (Docker NanoCpus). Missing/zero =
+    /// no limit (Apple default applies).
+    var NanoCpus: Int64?
+    /// tmpfs mounts path → options (Docker map form). Apple accepts bare
+    /// paths only; non-empty options are dropped at translation (documented
+    /// there) — the mount itself is always honored.
+    var Tmpfs: [String: String]?
+    var Dns: [String]?
+    var DnsSearch: [String]?
+    var Ulimits: [DockerUlimit]?
+}
+
+/// One Docker ulimit entry (HostConfig.Ulimits[]): mapped to Apple's
+/// `<type>=<soft>[:<hard>]` flag form.
+struct DockerUlimit: Codable {
+    var Name: String
+    var Soft: Int64
+    var Hard: Int64
 }
 
 struct DockerCreateResponse: Codable {
@@ -129,6 +197,24 @@ struct DockerContainerInspect: Codable {
         var Error: String
         var StartedAt: String
         var FinishedAt: String
+        /// Nil when the container has no healthcheck configured (dockerd
+        /// omits the key; synthesized Codable emits null, which clients
+        /// tolerate identically).
+        var Health: DockerHealth?
+    }
+
+    /// Docker API health state (inspect State.Health).
+    struct DockerHealth: Codable {
+        var Status: String
+        var FailingStreak: Int
+        var Log: [DockerHealthLog]
+    }
+
+    struct DockerHealthLog: Codable {
+        var Start: String
+        var End: String
+        var ExitCode: Int
+        var Output: String
     }
 
     struct DockerConfig: Codable {
