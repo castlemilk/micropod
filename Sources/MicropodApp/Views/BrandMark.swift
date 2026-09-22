@@ -7,7 +7,7 @@ struct BrandMark: View {
     var size: CGFloat = 28
 
     var body: some View {
-        if let url = Bundle.module.url(forResource: "micropod-mark", withExtension: "png"),
+        if let url = Bundle.micropodResources.url(forResource: "micropod-mark", withExtension: "png"),
             let image = NSImage(contentsOf: url)
         {
             Image(nsImage: image)

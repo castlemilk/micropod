@@ -129,7 +129,7 @@ enum EmptyStateArtwork {
         }
         lock.unlock()
         var resolved: NSImage?
-        for bundle in [Bundle.module, Bundle.main] {
+        for bundle in [Bundle.micropodResources, Bundle.main] {
             for ext in ["png", "svg"] {
                 if let url = bundle.url(forResource: name, withExtension: ext, subdirectory: "brandbrain"),
                     let image = NSImage(contentsOf: url)
