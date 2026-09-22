@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://castlemilk.github.io/micropod/sitemap.xml
