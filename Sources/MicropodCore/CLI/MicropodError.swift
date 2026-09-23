@@ -13,6 +13,9 @@ public enum MicropodError: LocalizedError, Sendable, Equatable {
     case runtimeNotRunning
     /// The operation is not supported by the installed CLI.
     case unsupported(String)
+    /// A pull emitted no forward progress within the stall budget — the
+    /// classic signature of the runtime's registry-auth deadlock.
+    case pullStalled(reference: String)
     case message(String)
 
     public var errorDescription: String? {
@@ -31,6 +34,9 @@ public enum MicropodError: LocalizedError, Sendable, Equatable {
             return "The container runtime is not running. Start it from the menu bar or the dashboard."
         case .unsupported(let detail):
             return detail
+        case .pullStalled(let reference):
+            return
+                "Pull of \(reference) made no progress — the registry fetch appears wedged (known runtime auth deadlock). A stored credential was cleared and the pull retried anonymously where possible; if it persists, restart the runtime (`container system stop && container system start`)."
         case .message(let detail):
             return detail
         }
