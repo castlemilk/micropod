@@ -301,6 +301,15 @@ struct MenuBarPanelView: View {
             }
             Spacer(minLength: 4)
             Button {
+                UpdateController.shared.checkForUpdates()
+            } label: {
+                IconLabel(title: "Updates", icon: "check", fallback: "arrow.triangle.2.circlepath")
+            }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+            .fixedSize()
+            .disabled(!UpdateController.shared.canCheckForUpdates)
+            Button {
                 openAndSet { store.activeTab = .settings }
             } label: {
                 IconLabel(title: "Settings…", icon: "settings", fallback: "gearshape")

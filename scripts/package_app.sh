@@ -52,6 +52,10 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
     <key>LSUIElement</key><false/>
     <key>NSSupportsAutomaticTermination</key><false/>
     <key>NSSupportsSuddenTermination</key><false/>
+    <key>SUFeedURL</key><string>https://castlemilk.github.io/micropod/appcast.xml</string>
+    <key>SUPublicEDKey</key><string>nJEL+JijqhfC7zxPlqxifCqBM06A3DGki/JmBFTW/VM=</string>
+    <key>SUEnableAutomaticChecks</key><true/>
+    <key>SUScheduledCheckInterval</key><string>3600</string>
     <key>NSHumanReadableCopyright</key><string>© 2026 skunkworq</string>
 </dict>
 </plist>
@@ -59,6 +63,23 @@ PLIST
 
 cp .build/release/MicropodApp "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+
+# Sparkle self-update framework: SwiftPM resolves it into the build dir at
+# @loader_path; the .app layout puts it in Contents/Frameworks, so add that
+# rpath. (update appcast signing: Sparkle EdDSA key, see docs/releasing.md)
+SPARKLE_FW="$(find .build/release -name "Sparkle.framework" -maxdepth 1 | head -1)"
+if [ -z "$SPARKLE_FW" ]; then
+    SPARKLE_FW="$(find .build -name "Sparkle.framework" -path "*release*" | head -1)"
+fi
+if [ -n "$SPARKLE_FW" ]; then
+    mkdir -p "$APP_BUNDLE/Contents/Frameworks"
+    cp -R "$SPARKLE_FW" "$APP_BUNDLE/Contents/Frameworks/Sparkle.framework"
+    install_name_tool -add_rpath "@executable_path/../Frameworks" \
+        "$APP_BUNDLE/Contents/MacOS/$APP_NAME" 2>/dev/null || true
+    echo "==> Sparkle.framework bundled (auto-update via appcast feed)"
+else
+    echo "!! Sparkle.framework not found — auto-update disabled in this build"
+fi
 
 # SwiftPM resource bundle (icons, brandbrain assets, Localizable.xcstrings):
 # must live under Contents/Resources — anything at the .app root makes

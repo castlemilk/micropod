@@ -39,6 +39,17 @@ if [ -n "$IDENTITY" ]; then
         codesign --force --options runtime --timestamp \
             --sign "$IDENTITY" "$bin"
     done
+    # Sparkle.framework (SwiftPM artifact ships unsigned): XPC services and
+    # helper apps first, then the framework dylib + bundle.
+    FW="$APP/Contents/Frameworks/Sparkle.framework"
+    if [ -d "$FW" ]; then
+        for piece in "$FW"/Versions/B/XPCServices/*.xpc \
+            "$FW"/Versions/B/Updater.app "$FW"/Versions/B/Autoupdate; do
+            [ -e "$piece" ] && codesign --force --options runtime --timestamp \
+                --sign "$IDENTITY" "$piece"
+        done
+        codesign --force --options runtime --timestamp --sign "$IDENTITY" "$FW"
+    fi
     codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
     codesign --verify --deep --strict --verbose=2 "$APP"
 fi

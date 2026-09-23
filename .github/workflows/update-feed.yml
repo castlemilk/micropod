@@ -1,0 +1,72 @@
+name: Update Feed
+
+# When a release is published, sign its DMG with the Sparkle EdDSA key and
+# add an item to landing/appcast.xml on master. The gh-pages workflow then
+# republishes the site, so clients' hourly SUFeedURL checks see the update.
+#
+# Required secret:
+#   SPARKLE_ED25519_KEY  base64 of the exported EdDSA private key
+#                        (`generate_keys -x keyfile && base64 -i keyfile`)
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  feed:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: master
+
+      - name: Download release DMG
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          gh release download "$TAG" --pattern "Micropod.dmg" --dir dist --clobber
+          gh release download "$TAG" --pattern "Micropod.dmg.sha256" --dir dist --clobber || true
+          cd dist && shasum -a 256 -c Micropod.dmg.sha256 2>/dev/null || \
+            echo "::warning::no sha256 sidecar; skipping checksum verify"
+
+      - name: Sign update with Sparkle EdDSA key
+        env:
+          SPARKLE_ED25519_KEY: ${{ secrets.SPARKLE_ED25519_KEY }}
+        run: |
+          if [ -z "$SPARKLE_ED25519_KEY" ]; then
+            echo "::error::SPARKLE_ED25519_KEY secret not configured"
+            exit 1
+          fi
+          curl -sL -o /tmp/sparkle.tar.xz \
+            https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-2.10.0.tar.xz
+          mkdir -p /tmp/sparkle && tar -xf /tmp/sparkle.tar.xz -C /tmp/sparkle
+          echo "$SPARKLE_ED25519_KEY" | base64 -d > "$RUNNER_TEMP/ed.key"
+          /tmp/sparkle/bin/sign_update --ed-key-file "$RUNNER_TEMP/ed.key" \
+            dist/Micropod.dmg > "$RUNNER_TEMP/sig.txt"
+          cat "$RUNNER_TEMP/sig.txt"
+          rm "$RUNNER_TEMP/ed.key"
+
+      - name: Update appcast
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          SIG=$(sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p' "$RUNNER_TEMP/sig.txt")
+          LEN=$(sed -n 's/.*length="\([^"]*\)".*/\1/p' "$RUNNER_TEMP/sig.txt")
+          [ -n "$SIG" ] && [ -n "$LEN" ] || { echo "::error::failed to parse signature"; exit 1; }
+          node scripts/update_appcast.mjs \
+            --version "${TAG#v}" \
+            --url "https://github.com/castlemilk/micropod/releases/download/$TAG/Micropod.dmg" \
+            --signature "$SIG" --length "$LEN"
+
+      - name: Commit appcast to master
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add landing/appcast.xml
+          git diff --cached --quiet && { echo "no change"; exit 0; }
+          git commit -m "appcast: ${{ github.event.release.tag_name }}"
+          git push origin HEAD:master
