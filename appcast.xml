@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Micropod Updates</title>
+    <link>https://castlemilk.github.io/micropod/appcast.xml</link>
+    <description>Micropod release channel — served to Sparkle clients in the app.</description>
+    <language>en</language>
+    <!-- Newest first. Release workflow appends items via scripts/update_appcast.mjs -->
+    <item>
+      <title>Version 0.4.0</title>
+      <pubDate>Tue, 23 Sep 2026 00:00:00 +0000</pubDate>
+      <sparkle:version>0.4.0</sparkle:version>
+      <sparkle:shortVersionString>0.4.0</sparkle:shortVersionString>
+      <enclosure
+        url="https://github.com/castlemilk/micropod/releases/download/v0.4.0/Micropod.dmg"
+        sparkle:edSignature="C0m0X74K8DntIB1+C0OBooqCcrWSlLmtVz6x4ugcpc06ApxZ6dX1PNIlJ4hpPTxleuBPPd4GIATItQNc1sMMDQ=="
+        length="12916426"
+        type="application/octet-stream"/>
+    </item>
+  </channel>
+</rss>
