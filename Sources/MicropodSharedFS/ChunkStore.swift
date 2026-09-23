@@ -41,7 +41,8 @@ public final class ChunkStore: @unchecked Sendable {
 
     /// Synchronous indexed size — sum of chunk file sizes via metadata, no filesystem `du`.
     public var indexedSize: UInt64 {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         return _indexedSize
     }
 
@@ -90,7 +91,9 @@ public final class ChunkStore: @unchecked Sendable {
         for name in names {
             let url = root.appendingPathComponent(name)
             var isDir: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), !isDir.boolValue else { continue }
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), !isDir.boolValue else {
+                continue
+            }
             // Only 64-char hex chunk names are part of index; ignore others.
             guard name.count == 64 else { continue }
             let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
@@ -335,7 +338,8 @@ public final class ChunkStore: @unchecked Sendable {
             if sizes[hash.value] == nil {
                 let path = chunkPath(hash)
                 if let attrs = try? FileManager.default.attributesOfItem(atPath: path.path),
-                    let size = attrs[.size] as? UInt64 ?? (attrs[.size] as? Int).map({ UInt64($0) }) {
+                    let size = attrs[.size] as? UInt64 ?? (attrs[.size] as? Int).map({ UInt64($0) })
+                {
                     sizes[hash.value] = size
                     _indexedSize += size
                 }
@@ -350,7 +354,8 @@ public final class ChunkStore: @unchecked Sendable {
     public func Has(_ hash: ChunkHash) -> Bool { has(hash) }
 
     public func atime(for hash: ChunkHash) -> Date? {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         return atimes[hash.value]
     }
 
@@ -369,7 +374,8 @@ public final class ChunkStore: @unchecked Sendable {
     }
 
     public func chunkSize(_ hash: ChunkHash) -> UInt64? {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         return sizes[hash.value]
     }
 
@@ -381,7 +387,8 @@ public final class ChunkStore: @unchecked Sendable {
     }
 
     public func refCount(for hash: ChunkHash) -> Int {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         return refCounts[hash.value] ?? 0
     }
 

@@ -1,6 +1,7 @@
 import XCTest
-@testable import MicropodSharedFS
+
 @testable import MicropodCore
+@testable import MicropodSharedFS
 
 /// Plan Chunk 5 — Cross-repo warm test (E2E Validation).
 /// Mirrors the Go E2E validation but exercises the Swift daemon's
@@ -65,7 +66,7 @@ final class CacheManagerIntegrationTests: XCTestCase {
         let h2 = try store.ingest(d2)[0]
         store.setAtime(h1, Date(timeIntervalSinceNow: -600))
         store.setAtime(h2, Date(timeIntervalSinceNow: -600))
-        store.incrementRefCount(h1) // pinned
+        store.incrementRefCount(h1)  // pinned
         let src = try writeSourceTree(named: "prune-int-src")
         _ = try await daemon.mount(src: src, readonly: false)
         XCTAssertTrue(store.has(h1), "pinned must survive")

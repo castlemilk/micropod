@@ -104,10 +104,16 @@ tasks:
     cmds:
       - cd api && go test ./...
 
+  hooks:
+    desc: Install git hooks (pre-commit lint, pre-push build+test)
+    cmds:
+      - git config core.hooksPath .githooks
+      - echo "hooks installed — pre-commit lints, pre-push runs swift build + test (--no-verify to skip)"
+
   lint:
     desc: Format check
     cmds:
-      - swift format lint --recursive Sources Tests Package.swift
+      - swift format lint --strict --recursive Sources Tests Package.swift
 
   format:
     desc: Format sources

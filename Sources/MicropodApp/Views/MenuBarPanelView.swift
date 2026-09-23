@@ -207,7 +207,8 @@ struct MenuBarPanelView: View {
                 card {
                     ScrollView {
                         VStack(spacing: 0) {
-                            ForEach(Array(store.containers.prefix(6).enumerated()), id: \.element.id) { index, container in
+                            ForEach(Array(store.containers.prefix(6).enumerated()), id: \.element.id) {
+                                index, container in
                                 if index > 0 {
                                     Divider().padding(.leading, 18)
                                 }

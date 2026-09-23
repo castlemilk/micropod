@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint workflows
+        run: |
+          brew install actionlint
+          actionlint .github/workflows/*.yml
+      - name: Lint shell scripts
+        run: |
+          for f in scripts/*.sh scripts/install.sh scripts/make_dmg.sh ci/*.sh; do
+            [ -f "$f" ] && bash -n "$f" || true
+          done
+      - name: Lint protos
+        run: |
+          brew install buf
+          buf lint
+      - name: Swift format check
+        run: swift format lint --strict --recursive Sources Tests Package.swift
+
+  build-test:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        run: swift build
+      - name: Test
+        run: swift test

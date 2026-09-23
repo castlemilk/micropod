@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import MicropodSharedFS
 
 final class StorageCapTests: XCTestCase {
@@ -82,7 +83,7 @@ final class StorageCapTests: XCTestCase {
         let h2 = try store.ingest(d2)[0]
         let h3 = try store.ingest(d3)[0]
         // Make them old enough to be grace-eligible
-        let old = Date(timeIntervalSinceNow: -600) // 10m ago
+        let old = Date(timeIntervalSinceNow: -600)  // 10m ago
         store.setAtime(h1, old)
         store.setAtime(h2, old.addingTimeInterval(10))
         store.setAtime(h3, old.addingTimeInterval(20))
@@ -136,8 +137,8 @@ final class StorageCapTests: XCTestCase {
         let cap: UInt64 = 2500
         let daemon = try SharedFSDaemon(cacheRoot: cacheRoot("grace"), cacheMaxBytes: cap)
         let store = await daemon.store
-        let old = Date(timeIntervalSinceNow: -600) // eligible
-        let recent = Date() // not eligible
+        let old = Date(timeIntervalSinceNow: -600)  // eligible
+        let recent = Date()  // not eligible
         let dOld1 = Data(repeating: 0xAA, count: 1024)
         let dOld2 = Data(repeating: 0xBB, count: 1024)
         let dRecent = Data(repeating: 0xCC, count: 1024)

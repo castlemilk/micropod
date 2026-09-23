@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import MicropodSharedFS
 
 /// Chunk 5 E2E Validation — covers spec §10 E2E and §11 Rollout.
@@ -70,7 +71,7 @@ final class CacheE2EValidationTests: XCTestCase {
         let store = await daemon.store
 
         // Simulate package-lock.json content for cold repo
-        let lockContent = Data(repeating: 0xAB, count: 256 * 1024) // one chunk
+        let lockContent = Data(repeating: 0xAB, count: 256 * 1024)  // one chunk
         let hashes = try store.ingest(lockContent)
         XCTAssertFalse(hashes.isEmpty)
         let hash = hashes[0]
@@ -91,7 +92,7 @@ final class CacheE2EValidationTests: XCTestCase {
         XCTAssertGreaterThan(size, 0)
         // Cleanup
         try await daemon.unmount(id: warmInfo.id)
-        _ = hash // silence unused
+        _ = hash  // silence unused
     }
 
     // MARK: - E2E: cross-repo same package-lock.json shares chunks
@@ -146,7 +147,7 @@ final class CacheE2EValidationTests: XCTestCase {
         store.setAtime(h1, old)
         store.setAtime(h2, old.addingTimeInterval(5))
         store.setAtime(h3, old.addingTimeInterval(10))
-        store.incrementRefCount(h1) // pin h1 (active shared view)
+        store.incrementRefCount(h1)  // pin h1 (active shared view)
         let src = try writeSourceTree(named: "prune-src")
         _ = try await daemon.mount(src: src, readonly: false)
         XCTAssertTrue(store.has(h1), "pinned chunk must survive prune/eviction")
@@ -167,7 +168,8 @@ final class CacheE2EValidationTests: XCTestCase {
         let src = FileManager.default.temporaryDirectory
             .appendingPathComponent("sharedfs-src-e2e-\(named)-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: src, withIntermediateDirectories: true)
-        try content.write(toFile: src.appendingPathComponent("package-lock.json").path, atomically: true, encoding: .utf8)
+        try content.write(
+            toFile: src.appendingPathComponent("package-lock.json").path, atomically: true, encoding: .utf8)
         try content.write(toFile: src.appendingPathComponent("a.txt").path, atomically: true, encoding: .utf8)
         return src
     }

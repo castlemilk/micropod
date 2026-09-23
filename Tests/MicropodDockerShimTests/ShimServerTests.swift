@@ -367,7 +367,7 @@ final class ShimServerTests: XCTestCase {
         XCTAssertTrue(text.contains("No such image"), text)
     }
 
-    func testLongContainerNameIsAliased() throws {        // testcontainers-style 71-char name: Docker accepts it, the Apple
+    func testLongContainerNameIsAliased() throws {  // testcontainers-style 71-char name: Docker accepts it, the Apple
         // runtime does not — the shim aliases and resolves transparently.
         let long = "reaper_" + String(repeating: "a", count: 64)
         XCTAssertEqual(long.count, 71)
@@ -415,7 +415,8 @@ final class ShimServerTests: XCTestCase {
         XCTAssertTrue(list.contains { ($0["Id"] as? String) == liveID })
     }
 
-    func testRenameRunningContainerAliases() throws {        let id = try createContainer("rename-live")
+    func testRenameRunningContainerAliases() throws {
+        let id = try createContainer("rename-live")
         let client = shim.raw()
         XCTAssertEqual(try client.request("POST", "/containers/\(id)/start").status, 204)
         XCTAssertEqual(
@@ -485,7 +486,8 @@ final class ShimServerTests: XCTestCase {
             let inspect =
                 try JSONSerialization.jsonObject(
                     with: client.request("GET", "/containers/\(id)/json").body) as! [String: Any]
-            status = ((inspect["State"] as! [String: Any])["Health"] as? [String: Any])?["Status"]
+            status =
+                ((inspect["State"] as! [String: Any])["Health"] as? [String: Any])?["Status"]
                 as? String ?? ""
             if status == "healthy" { break }
             Thread.sleep(forTimeInterval: 0.2)

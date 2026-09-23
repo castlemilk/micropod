@@ -1,60 +1,102 @@
 # Releasing Micropod
 
-Releases are tag-driven: push a `v*` tag and `.github/workflows/release.yml`
-builds the app, packages `Micropod.dmg`, and attaches it to a GitHub release.
-The landing page's download button points at the stable permalink:
+Releases are **fully automated**. Push a `v*` tag and the `Release` workflow
+builds, signs (Developer ID), notarizes, staples, and attaches a DMG to the
+GitHub release. The landing page's download button points at the stable
+permalink, so it always serves the newest release with no site changes:
 
 ```
 https://github.com/castlemilk/micropod/releases/latest/download/Micropod.dmg
 ```
 
-so it always serves the newest release with no site changes.
+## Release checklist
 
-## Signed + notarized builds
+1. Merge your work to `master` (pre-push hook runs build+test locally;
+   the `CI` workflow re-runs lint + build + test on GitHub).
+2. Pick the next semver and tag the merge commit:
 
-Unsigned DMGs still publish, but Gatekeeper will warn. To ship trusted builds,
-configure these repo secrets (Settings → Secrets and variables → Actions):
+   ```sh
+   git checkout master && git pull --ff-only
+   git tag -a v0.5.0 -m "v0.5.0"
+   git push origin v0.5.0
+   ```
 
-| Secret | What |
+3. Watch the run: `gh run watch` (or Actions → Release). ~5 min.
+4. Verify:
+
+   ```sh
+   gh release view v0.5.0 --json assets --jq '.assets[].name'
+   # expect: Micropod.dmg, Micropod.dmg.sha256, Micropod.<ver>.tgz
+
+   curl -sLO https://github.com/castlemilk/micropod/releases/latest/download/Micropod.dmg
+   spctl --assess --type open --context context:primary-signature Micropod.dmg
+   # expect: "accepted — source=Notarized Developer ID"
+   ```
+
+5. Done — https://castlemilk.github.io/micropod/ serves it immediately.
+
+## What the workflow does
+
+`.github/workflows/release.yml`, on `v*` tag push, `macos-26` runner:
+
+1. Imports the Developer ID certificate into a throwaway keychain.
+2. Stores a `micropod-notary` notarytool profile (App Store Connect API key).
+3. `scripts/package_app.sh` — release build + `.app` assembly + `.tgz`.
+4. `scripts/make_dmg.sh --sign … --notarize --key-profile micropod-notary`:
+   - inside-out signing: every Mach-O in `Contents/MacOS`, then the bundle,
+     with `--options runtime` (hardened runtime) + `--timestamp`
+   - `codesign --verify --deep --strict` gate
+   - UDZO DMG with `/Applications` symlink
+   - DMG signing, `notarytool submit --wait`, `stapler staple`
+5. `gh release create` with the DMG + sha256 + tgz (or `--clobber` upload if
+   the release already exists).
+
+If the signing secrets are absent, the workflow publishes
+`Micropod-unsigned.dmg` instead — deliberately a different name so it can
+never overwrite a signed `Micropod.dmg` attached by a local run.
+
+## Secrets (configured in repo → Settings → Secrets → Actions)
+
+| Secret | Value |
 |---|---|
-| `MACOS_CERTIFICATE` | `base64` of a Developer ID Application `.p12` export |
+| `MACOS_CERTIFICATE` | base64 `.p12` export of the Developer ID Application identity |
 | `MACOS_CERTIFICATE_PASSWORD` | the `.p12` export password |
-| `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: You (ABCDE12345)` |
-| `NOTARY_API_KEY_BASE64` | `base64` of `AuthKey_<id>.p8` from App Store Connect |
-| `NOTARY_KEY_ID` | the API key's ID |
-| `NOTARY_ISSUER` | the issuer UUID (App Store Connect → Users and Access → Keys) |
-| `APPLE_TEAM_ID` | 10-char team ID (reserved for future checks) |
+| `APPLE_SIGNING_IDENTITY` | `Developer ID Application: Ben Ebsworth (WFTX6CN23F)` |
+| `NOTARY_API_KEY_BASE64` | base64 `AuthKey_NDW5V25889.p8` |
+| `NOTARY_KEY_ID` | `NDW5V25889` |
+| `NOTARY_ISSUER` | `f4c22181-b343-4e92-8fb3-e90dab991b8f` |
+| `APPLE_TEAM_ID` | `WFTX6CN23F` |
 
-Obtaining them:
+Rotating: re-export the p12 / regenerate the ASC key, `gh secret set` the
+new values. No code changes needed.
 
-1. Apple Developer Program membership ($99/yr) → create a **Developer ID
-   Application** certificate in Certificates, Identifiers & Profiles.
-2. Export the cert + private key from Keychain Access as `.p12`, then
-   `base64 -i cert.p12 | pbcopy` into `MACOS_CERTIFICATE`.
-3. App Store Connect → Users and Access → Integrations → App Store Connect
-   API → generate a key; download `AuthKey_*.p8`, base64 it into
-   `NOTARY_API_KEY_BASE64`; the Key ID and Issuer are shown on the same page.
-
-## Cutting a release
+## Local release (fallback / testing)
 
 ```sh
-git tag -a v0.4.0 -m "v0.4.0" && git push origin v0.4.0
-# watch: gh run watch
-# the release lands at github.com/castlemilk/micropod/releases
+scripts/package_app.sh 0.5.0          # dist/Micropod.app + .tgz
+scripts/make_dmg.sh \
+  --sign "Developer ID Application: Ben Ebsworth (WFTX6CN23F)" \
+  --notarize --key-profile micropod-notary   # dist/Micropod.dmg + .sha256
+gh release upload v0.5.0 dist/Micropod.dmg dist/Micropod.dmg.sha256
 ```
 
-Local dry run (unsigned):
+(`micropod-notary` keychain profile exists on Ben's machine; recreate with
+`xcrun notarytool store-credentials micropod-notary --key <p8> --key-id
+NDW5V25889 --issuer f4c22181-…`.)
+
+## Rollback
 
 ```sh
-scripts/package_app.sh 0.4.0   # dist/Micropod.app + .tgz
-scripts/make_dmg.sh            # dist/Micropod.dmg + .sha256
+gh release delete v0.5.0 --yes --cleanup-tag   # removes release + tag
+git push origin :refs/tags/v0.5.0              # if tag pushed but no release
 ```
 
-With credentials on your keychain:
+## Local git hooks
 
-```sh
-scripts/make_dmg.sh --sign "Developer ID Application: …" \
-    --notarize --key-profile micropod-notary
-```
+`task hooks` installs `.githooks/` via `core.hooksPath`:
 
-(`notarytool store-credentials micropod-notary …` once to create the profile.)
+- **pre-commit** — `bash -n` on staged shell scripts, `actionlint` on staged
+  workflows, `swift format lint --strict` when Swift files are staged.
+- **pre-push** — `swift build` + `swift test` (mirrors the CI build-test job).
+
+Both honor `--no-verify` for emergencies.
