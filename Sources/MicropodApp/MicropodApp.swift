@@ -7,6 +7,12 @@ struct MicropodApp: App {
     @State private var store = AppStore()
     @Environment(\.openWindow) private var openWindow
 
+    init() {
+        // Control socket for the API server / MCP to reach app-process
+        // features (Sparkle update checks today).
+        AppControlServer.shared.start()
+    }
+
     var body: some Scene {
         WindowGroup(id: "main-window") {
             MainPanelView(store: store)

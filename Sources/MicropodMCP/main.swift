@@ -79,6 +79,8 @@ private actor MCPServer {
     /// Best-effort synchronized file shares (nil when the daemon socket is
     /// absent — the tools then report a clean error instead of failing).
     private let sharedFS: (any SharedFSClient)?
+    /// App control socket — reaches Sparkle in the app process.
+    private let appControl = AppControlClient()
 
     init(
         client: ContainerCLIClient,
@@ -114,6 +116,18 @@ private actor MCPServer {
 
     private static var noDaemonMessage: String {
         "shared-fs daemon is not running (no socket at ~/micropod/share-cache/socket or $MICROPOD_SHAREDFS_SOCKET)"
+    }
+
+    /// Human-readable rendering of an update check/status report.
+    private func describeUpdate(_ report: [String: Any]) -> String {
+        var line = "update: \(report["state"] as? String ?? "unknown")"
+        if let version = report["availableVersion"] as? String {
+            line += " (\(version) available)"
+        }
+        if let error = report["error"] as? String {
+            line += " — \(error)"
+        }
+        return line
     }
 
     // MARK: - Main loop
@@ -248,6 +262,8 @@ private actor MCPServer {
             "build_cache_stats",
             "Content-addressed build contexts: entries, bytes, shared bytes, cap. Arguments: path (optional cache root)."
         ),
+        ("update_check", "Trigger a background app update check (Sparkle) via the Micropod app."),
+        ("update_status", "Last-known app update state (checking/upToDate/updateAvailable/installing)."),
     ]
 
     private func callTool(id: Int?, _ call: MCPToolCall) async -> Data? {
@@ -471,6 +487,22 @@ private actor MCPServer {
                     shared-bytes: \(stats.sharedBytes)
                     cap-bytes: \(stats.capBytes)
                     """)
+
+            case "update_check":
+                guard appControl.isReachable else {
+                    return toolResult(
+                        id, "Micropod app is not running (no control socket)", isError: true)
+                }
+                let report = try await appControl.checkForUpdates()
+                return toolResult(id, describeUpdate(report))
+
+            case "update_status":
+                guard appControl.isReachable else {
+                    return toolResult(
+                        id, "Micropod app is not running (no control socket)", isError: true)
+                }
+                let report = try await appControl.updateStatus()
+                return toolResult(id, describeUpdate(report))
 
             default:
                 return respondError(id: id, code: -32601, message: "Unknown tool: \(call.name)")
