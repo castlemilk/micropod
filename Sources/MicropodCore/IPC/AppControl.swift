@@ -15,9 +15,16 @@ public enum AppControlError: Error {
 
 public struct AppControlClient: Sendable {
     public let socketPath: String
+    /// Upper bound on a single request round-trip — a listener that
+    /// accepts but never answers fails the call instead of hanging it.
+    public let requestTimeout: TimeInterval
 
-    public init(socketPath: String = AppControlClient.defaultSocketPath) {
+    public init(
+        socketPath: String = AppControlClient.defaultSocketPath,
+        requestTimeout: TimeInterval = 15
+    ) {
         self.socketPath = socketPath
+        self.requestTimeout = requestTimeout
     }
 
     public static var defaultSocketPath: String {
@@ -39,6 +46,14 @@ public struct AppControlClient: Sendable {
     /// Last-known updater status from the app.
     public func updateStatus() async throws -> [String: Any] {
         try await call("update.status")
+    }
+
+    /// Quit the app so Sparkle installs the downloaded update and
+    /// relaunches on the new version. Throws `callFailed` when no
+    /// update has been downloaded yet — poll `updateStatus` until
+    /// `downloaded` is true first.
+    public func applyUpdate() async throws -> [String: Any] {
+        try await call("update.apply")
     }
 
     public func call(_ method: String, params: [String: Any] = [:]) async throws -> [String: Any] {
@@ -98,6 +113,14 @@ public struct AppControlClient: Sendable {
                 }
             }
             connection.start(queue: DispatchQueue(label: "app-control-client"))
+            // A listener that accepts but never answers would hang the
+            // caller forever — bound the whole exchange.
+            Task {
+                try? await Task.sleep(for: .seconds(requestTimeout))
+                once.resume(
+                    throwing: AppControlError.unavailable("control socket timed out"))
+                connection.cancel()
+            }
         }
     }
 

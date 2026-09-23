@@ -76,6 +76,25 @@ final class AppControlTests: XCTestCase {
             XCTAssertTrue(message.contains("unknown method"))
         }
     }
+
+    func testUnresponsiveListenerHitsTimeout() async throws {
+        // A listener that accepts but never answers — the call must fail
+        // within the client's timeout instead of hanging forever.
+        let stub = StubControlServer(path: socketPath) { _ in nil }
+        try stub.start()
+        defer { stub.stop() }
+
+        let client = AppControlClient(socketPath: socketPath, requestTimeout: 1)
+        let start = Date()
+        await XCTAssertThrowsErrorAsync(try await client.updateStatus()) { error in
+            guard case AppControlError.unavailable(let message) = error else {
+                XCTFail("expected unavailable, got \(error)")
+                return
+            }
+            XCTAssertTrue(message.contains("timed out"))
+        }
+        XCTAssertLessThan(Date().timeIntervalSince(start), 10)
+    }
 }
 
 /// Minimal unix-socket server speaking the app's wire protocol: one
@@ -83,11 +102,13 @@ final class AppControlTests: XCTestCase {
 /// deterministic in test hosts where NWListener state callbacks can lag.
 private final class StubControlServer: @unchecked Sendable {
     private let path: String
-    private let handler: ([String: Any]) -> [String: Any]
+    private let handler: ([String: Any]) -> [String: Any]?
     private var listenFD: Int32 = -1
     private var thread: Thread?
 
-    init(path: String, handler: @escaping ([String: Any]) -> [String: Any]) {
+    /// `handler` returning nil leaves the connection open with no reply —
+    /// the "wedged listener" shape.
+    init(path: String, handler: @escaping ([String: Any]) -> [String: Any]?) {
         self.path = path
         self.handler = handler
     }
@@ -144,8 +165,14 @@ private final class StubControlServer: @unchecked Sendable {
         guard
             let request = try? JSONSerialization.jsonObject(with: buffer) as? [String: Any]
         else { return }
-        let response = handler(request)
-        guard let body = try? JSONSerialization.data(withJSONObject: response) else { return }
+        guard let response = handler(request) else {
+            // Wedged-listener shape: hold the connection open so the
+            // client's own timeout is what ends the exchange.
+            Thread.sleep(forTimeInterval: 30)
+            return
+        }
+        guard let body = try? JSONSerialization.data(withJSONObject: response)
+        else { return }
         let line = body + Data("\n".utf8)
         line.withUnsafeBytes { ptr in
             _ = send(conn, ptr.baseAddress, ptr.count, 0)

@@ -122,7 +122,10 @@ private actor MCPServer {
     private func describeUpdate(_ report: [String: Any]) -> String {
         var line = "update: \(report["state"] as? String ?? "unknown")"
         if let version = report["availableVersion"] as? String {
-            line += " (\(version) available)"
+            line += " (\(version) available"
+            if report["downloaded"] as? Bool == true { line += ", downloaded" }
+            if report["readyToInstall"] as? Bool == true { line += ", ready to install" }
+            line += ")"
         }
         if let error = report["error"] as? String {
             line += " — \(error)"
@@ -264,6 +267,10 @@ private actor MCPServer {
         ),
         ("update_check", "Trigger a background app update check (Sparkle) via the Micropod app."),
         ("update_status", "Last-known app update state (checking/upToDate/updateAvailable/installing)."),
+        (
+            "update_apply",
+            "Install a downloaded app update: quits Micropod, Sparkle applies it, app relaunches."
+        ),
     ]
 
     private func callTool(id: Int?, _ call: MCPToolCall) async -> Data? {
@@ -503,6 +510,15 @@ private actor MCPServer {
                 }
                 let report = try await appControl.updateStatus()
                 return toolResult(id, describeUpdate(report))
+
+            case "update_apply":
+                guard appControl.isReachable else {
+                    return toolResult(
+                        id, "Micropod app is not running (no control socket)", isError: true)
+                }
+                let report = try await appControl.applyUpdate()
+                return toolResult(
+                    id, "\(describeUpdate(report)) — app is quitting to install; it will relaunch")
 
             default:
                 return respondError(id: id, code: -32601, message: "Unknown tool: \(call.name)")
