@@ -221,22 +221,32 @@ actor ShimState {
 
     private var sharedViews: [String: [ViewID]] = [:]
 
-    private var intentionalStops = Set<String>()
+    private var intentionalStops: [String: Date] = [:]
     private var restartAttempts: [String: Int] = [:]
     private var lastObservedRunning: [String: Date] = [:]
 
     /// Marks a stop as client-intentional (docker `stop`), which suppresses
     /// `unless-stopped` restarts but not `always`.
     func noteIntentionalStop(_ id: String) {
-        intentionalStops.insert(id)
+        intentionalStops[id] = Date()
     }
 
     func clearIntentionalStop(_ id: String) {
-        intentionalStops.remove(id)
+        intentionalStops.removeValue(forKey: id)
+    }
+
+    /// Observed-state clear (EventsHub poll): only clears when the mark
+    /// predates the list snapshot. A mark newer than the snapshot means the
+    /// "running" sighting was captured before the stop landed — clearing
+    /// would let `unless-stopped` resurrect an explicitly stopped container.
+    func clearIntentionalStop(_ id: String, ifMarkedBefore observedAt: Date) {
+        if let marked = intentionalStops[id], marked <= observedAt {
+            intentionalStops.removeValue(forKey: id)
+        }
     }
 
     func isIntentionalStop(_ id: String) -> Bool {
-        intentionalStops.contains(id)
+        intentionalStops[id] != nil
     }
 
     func noteRunning(_ id: String) {
@@ -266,7 +276,7 @@ actor ShimState {
     func resetRestartTracking(_ id: String) {
         restartAttempts.removeValue(forKey: id)
         lastObservedRunning.removeValue(forKey: id)
-        intentionalStops.remove(id)
+        intentionalStops.removeValue(forKey: id)
     }
 
     // MARK: - Healthcheck supervision
