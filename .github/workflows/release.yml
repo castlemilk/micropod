@@ -20,6 +20,7 @@ on:
 
 permissions:
   contents: write
+  actions: write # dispatch gh-pages deploy after the appcast push
 
 jobs:
   release:
@@ -130,6 +131,7 @@ jobs:
         if: env.DMG_ASSET == 'Micropod.dmg'
         env:
           SPARKLE_ED25519_KEY: ${{ secrets.SPARKLE_ED25519_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           [ -n "$SPARKLE_ED25519_KEY" ] || exit 0
           git config user.name "github-actions[bot]"
@@ -139,3 +141,6 @@ jobs:
           git commit -m "appcast: $VERSION"
           # Tag checkouts are detached; the tag sits on master's tip.
           git push origin HEAD:master
+          # GITHUB_TOKEN pushes don't trigger workflows — dispatch the Pages
+          # deploy explicitly so the appcast actually reaches the live feed.
+          gh workflow run gh-pages.yml --ref master
