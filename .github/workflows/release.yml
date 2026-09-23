@@ -97,3 +97,45 @@ jobs:
           gh release upload "$VERSION" \
             "dist/$DMG_ASSET" "dist/$DMG_ASSET.sha256" "dist/Micropod.${VERSION#v}.tgz" \
             --clobber
+
+      # Sparkle feed: sign the DMG with the EdDSA key and push an updated
+      # appcast.xml to master (gh-pages deploy publishes it). This must live
+      # here, not in a `release: published` workflow — releases created by
+      # GITHUB_TOKEN do not trigger further workflows.
+      - name: Sign DMG for Sparkle feed
+        if: env.DMG_ASSET == 'Micropod.dmg'
+        env:
+          SPARKLE_ED25519_KEY: ${{ secrets.SPARKLE_ED25519_KEY }}
+        run: |
+          if [ -z "$SPARKLE_ED25519_KEY" ]; then
+            echo "::warning::SPARKLE_ED25519_KEY not configured — appcast not updated"
+            exit 0
+          fi
+          curl -sL -o /tmp/sparkle.tar.xz \
+            https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-2.10.0.tar.xz
+          mkdir -p /tmp/sparkle && tar -xf /tmp/sparkle.tar.xz -C /tmp/sparkle
+          echo "$SPARKLE_ED25519_KEY" | base64 -d > "$RUNNER_TEMP/ed.key"
+          /tmp/sparkle/bin/sign_update --ed-key-file "$RUNNER_TEMP/ed.key" \
+            dist/Micropod.dmg > "$RUNNER_TEMP/sig.txt"
+          rm "$RUNNER_TEMP/ed.key"
+          SIG=$(sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p' "$RUNNER_TEMP/sig.txt")
+          LEN=$(sed -n 's/.*length="\([^"]*\)".*/\1/p' "$RUNNER_TEMP/sig.txt")
+          [ -n "$SIG" ] && [ -n "$LEN" ] || { echo "::error::failed to parse signature"; exit 1; }
+          node scripts/update_appcast.mjs \
+            --version "${VERSION#v}" \
+            --url "https://github.com/castlemilk/micropod/releases/download/$VERSION/Micropod.dmg" \
+            --signature "$SIG" --length "$LEN"
+
+      - name: Publish appcast
+        if: env.DMG_ASSET == 'Micropod.dmg'
+        env:
+          SPARKLE_ED25519_KEY: ${{ secrets.SPARKLE_ED25519_KEY }}
+        run: |
+          [ -n "$SPARKLE_ED25519_KEY" ] || exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add landing/appcast.xml
+          git diff --cached --quiet && { echo "no change"; exit 0; }
+          git commit -m "appcast: $VERSION"
+          # Tag checkouts are detached; the tag sits on master's tip.
+          git push origin HEAD:master

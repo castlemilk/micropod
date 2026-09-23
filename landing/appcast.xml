@@ -5,6 +5,18 @@
     <link>https://castlemilk.github.io/micropod/appcast.xml</link>
     <description>Micropod release channel — served to Sparkle clients in the app.</description>
     <language>en</language>
+    <item>
+      <title>Version 0.5.0</title>
+      <pubDate>Wed, 23 Sep 2026 04:21:21 GMT</pubDate>
+      <sparkle:version>0.5.0</sparkle:version>
+      <sparkle:shortVersionString>0.5.0</sparkle:shortVersionString>
+      <enclosure
+        url="https://github.com/castlemilk/micropod/releases/download/v0.5.0/Micropod.dmg"
+        sparkle:edSignature="h59fvTM2+27El5dx79NaGqPM+PydCW8YA/Gq2QV1nRuTTIOedFwogTPUEgiAum5gpOTTAot3t8JLcUcdMJT+Bw=="
+        length="13982198"
+        type="application/octet-stream"/>
+    </item>
+
     <!-- Newest first. Release workflow appends items via scripts/update_appcast.mjs -->
     <item>
       <title>Version 0.4.0</title>

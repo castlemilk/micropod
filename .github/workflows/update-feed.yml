@@ -1,8 +1,10 @@
 name: Update Feed
 
-# When a release is published, sign its DMG with the Sparkle EdDSA key and
-# add an item to landing/appcast.xml on master. The gh-pages workflow then
-# republishes the site, so clients' hourly SUFeedURL checks see the update.
+# When a release is published *by a human* (local `gh release create`),
+# sign its DMG with the Sparkle EdDSA key and add an item to
+# landing/appcast.xml on master — the gh-pages workflow then republishes.
+# Tag-push releases are handled inside release.yml instead: releases
+# created by GITHUB_TOKEN do not trigger this event (anti-recursion).
 #
 # Required secret:
 #   SPARKLE_ED25519_KEY  base64 of the exported EdDSA private key

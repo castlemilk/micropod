@@ -82,14 +82,18 @@ The app embeds Sparkle (`SUFeedURL` → `https://castlemilk.github.io/micropod/a
 `SUPublicEDKey` in the packaged Info.plist, hourly checks). Users can also
 trigger checks from the app menu, menu-bar panel, or Settings → Updates.
 
-When a release is **published**, `.github/workflows/update-feed.yml`:
+The appcast item is added automatically after the DMG ships:
 
-1. Downloads `Micropod.dmg` (+ verifies the `.sha256` sidecar).
-2. Signs it with the Sparkle EdDSA key (`sign_update --ed-key-file`).
-3. Adds an `<item>` to `landing/appcast.xml` via `scripts/update_appcast.mjs`
-   (idempotent — re-runs replace the item).
-4. Commits + pushes to `master`, which triggers the `gh-pages` deploy —
-   the feed is live ~1 min after the release is published.
+- **Tag-push releases** (`release.yml`): signs the DMG with the Sparkle
+  EdDSA key and pushes the updated `landing/appcast.xml` to `master`,
+  which triggers the gh-pages deploy. (It lives in release.yml because
+  `GITHUB_TOKEN`-created releases do not trigger `release:` workflows.)
+- **Locally published releases**: `update-feed.yml` fires on
+  `release: published`, downloads `Micropod.dmg` (verifying the `.sha256`
+  sidecar), signs it, and does the same appcast push.
+
+`scripts/update_appcast.mjs` inserts items newest-first and replaces an
+existing item for the same version, so re-runs are safe.
 
 The private key also lives in the local login keychain
 (`generate_keys` already imported it) for local `sign_update` runs:
