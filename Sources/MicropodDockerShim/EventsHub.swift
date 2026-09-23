@@ -55,8 +55,12 @@ actor EventsHub {
             guard busy else {
                 continue
             }
+            // Snapshot timestamp BEFORE the list fetch: reconcile clears
+            // intentional-stop marks on observed "running" transitions, and
+            // a mark newer than this snapshot must survive (see ShimState).
+            let observedAt = Date()
             guard let current = try? await containers.list() else { continue }
-            await reconcile(current, state: state)
+            await reconcile(current, observedAt: observedAt, state: state)
             await probeHealthChecks(current: current, state: state)
             await syncHostsFiles(current: current, state: state)
         }
@@ -272,7 +276,9 @@ actor EventsHub {
     /// a deferred fast exit. Only synthetic entries consult hasEverStarted.
     private var syntheticCreated: Set<String> = []
 
-    private func reconcile(_ current: [Micropod_V1_Container], state: ShimState) async {
+    private func reconcile(
+        _ current: [Micropod_V1_Container], observedAt: Date, state: ShimState
+    ) async {
         let observed = observe(current)
         let previousKnown = known
 
@@ -320,7 +326,7 @@ actor EventsHub {
             if isLive {
                 await emit("container", "start", after, id: id)
                 await state.noteRunning(id)
-                await state.clearIntentionalStop(id)
+                await state.clearIntentionalStop(id, ifMarkedBefore: observedAt)
                 // A (re)start resets health supervision to starting; the
                 // running stamp below baselines the start period.
                 await state.resetHealth(id: id)
