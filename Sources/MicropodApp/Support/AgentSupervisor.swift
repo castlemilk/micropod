@@ -546,7 +546,9 @@ actor AgentSupervisor {
             }
             if let child = children.get(spec.id), child.isRunning,
                 child.processIdentifier == pid
-            { continue }
+            {
+                continue
+            }
             squatters.append(pid)
         }
         guard !squatters.isEmpty else { return }

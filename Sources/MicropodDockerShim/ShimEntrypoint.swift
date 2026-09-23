@@ -40,7 +40,9 @@ struct ShimBootstrap {
         let state = ShimState.loadPersisted(from: URL(fileURLWithPath: statePath))
         let readCache = ReadThroughCache()
         let events = EventsHub(containers: containerService, readCache: readCache)
-        let router = Router(config: config, state: state, events: events, client: client, sharedFS: nil, buildCache: nil, readCache: readCache)
+        let router = Router(
+            config: config, state: state, events: events, client: client, sharedFS: nil, buildCache: nil,
+            readCache: readCache)
 
         // Prune state for containers that vanished while the shim was down,
         // and reap AutoRemove containers whose die event we missed.

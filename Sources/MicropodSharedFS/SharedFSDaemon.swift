@@ -19,7 +19,7 @@ public actor SharedFSDaemon: SharedFSClient {
     public private(set) var misses: Int = 0
     public private(set) var gcsPushErrors: Int = 0
     public private(set) var evictedChunksTotal: Int = 0
-    private let gracePeriod: TimeInterval = 300 // 5m grace
+    private let gracePeriod: TimeInterval = 300  // 5m grace
     private var sweepTask: Task<Void, Never>?
     private var views: [ViewID: SharedView] = [:]
     // Live shared mounts: one view per src, bidirectional sync for live writes.
@@ -44,7 +44,7 @@ public actor SharedFSDaemon: SharedFSClient {
         {
             self.cacheMaxBytes = parsed
         } else {
-            self.cacheMaxBytes = 10 << 30 // 10GB default
+            self.cacheMaxBytes = 10 << 30  // 10GB default
         }
         // DiskManager integration: async 5m sweep (same interval as sweepOrphanedVolumes).
         // Start background sweep; not awaited, runs for daemon lifetime.
@@ -57,7 +57,7 @@ public actor SharedFSDaemon: SharedFSClient {
 
     private func startSweepLoop() async {
         while !Task.isCancelled {
-            try? await Task.sleep(nanoseconds: 300_000_000_000) // 5m
+            try? await Task.sleep(nanoseconds: 300_000_000_000)  // 5m
             _ = await enforceStorageCapIfNeeded()
             // Also run orphan-volume style sweep if needed (disk hygiene).
             try? await sweepOrphanedIfNeeded()
@@ -147,7 +147,9 @@ public actor SharedFSDaemon: SharedFSClient {
                     removed += 1
                     reclaimed += victim.size
                     didEvict = true
-                    fputs("[sharedfs] evicted \(victim.hash.value.prefix(12)) size \(victim.size) atime \(victim.atime) (cap \(cap) size \(store.indexedSize))\n", stderr)
+                    fputs(
+                        "[sharedfs] evicted \(victim.hash.value.prefix(12)) size \(victim.size) atime \(victim.atime) (cap \(cap) size \(store.indexedSize))\n",
+                        stderr)
                 } catch {
                     fputs("[sharedfs] evict failed \(victim.hash.value): \(error)\n", stderr)
                     break
@@ -164,7 +166,9 @@ public actor SharedFSDaemon: SharedFSClient {
             sharedCachePinnedOverCap = 0
         }
         if removed > 0 {
-            fputs("[sharedfs] storage cap enforced: removed \(removed) chunks, reclaimed \(reclaimed) bytes, size now \(store.indexedSize) cap \(cap)\n", stderr)
+            fputs(
+                "[sharedfs] storage cap enforced: removed \(removed) chunks, reclaimed \(reclaimed) bytes, size now \(store.indexedSize) cap \(cap)\n",
+                stderr)
             evictedChunksTotal += removed
         }
         return GCResult(chunksRemoved: removed, bytesReclaimed: reclaimed)
@@ -201,7 +205,7 @@ public actor SharedFSDaemon: SharedFSClient {
     /// evicted_chunks_total, gcs_push_errors_total, shared_views_pinned.
     public func cacheMetrics() -> [String: Int] {
         // shared_views_pinned = active sharedViews count (pinned)
-        let pinned = sharedViews.count + views.count // approx
+        let pinned = sharedViews.count + views.count  // approx
         return [
             "shared_cache_hit_total_local": localHits,
             "shared_cache_hit_total_remote": remoteHits,
@@ -363,12 +367,14 @@ public actor SharedFSDaemon: SharedFSClient {
         for name in allNames where !liveChunks.contains(name) {
             let hash = ChunkHash(unchecked: name)
             let url = store.root.appendingPathComponent(name)
-            let size = store.chunkSize(hash) ?? {
-                let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
-                if let s = attrs?[.size] as? UInt64 { return s }
-                if let s = attrs?[.size] as? Int { return UInt64(s) }
-                return UInt64(0)
-            }()
+            let size =
+                store.chunkSize(hash)
+                ?? {
+                    let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+                    if let s = attrs?[.size] as? UInt64 { return s }
+                    if let s = attrs?[.size] as? Int { return UInt64(s) }
+                    return UInt64(0)
+                }()
             // Use store.remove to keep indexedSize consistent; check existence without bumping atime.
             let exists = store.exists(hash) || FileManager.default.fileExists(atPath: url.path)
             if exists {

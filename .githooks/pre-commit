@@ -1,0 +1,39 @@
+#!/bin/bash
+# Pre-commit checks: fast lint gates. Installed via `task hooks`.
+# Skip with: git commit --no-verify
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+staged=$(git diff --cached --name-only)
+[ -z "$staged" ] && exit 0
+
+fail=0
+
+# Shell scripts that are staged must parse.
+sh_files=$(echo "$staged" | grep '\.sh$' || true)
+for f in $sh_files; do
+    if ! bash -n "$f" 2>/dev/null; then
+        echo "hook: bash -n failed: $f" >&2
+        fail=1
+    fi
+done
+
+# Workflow YAML must pass actionlint when workflows are staged.
+if echo "$staged" | grep -q '^\.github/workflows/'; then
+    if command -v actionlint >/dev/null; then
+        actionlint .github/workflows/*.yml || fail=1
+    else
+        echo "hook: actionlint not installed — skipping workflow lint" >&2
+    fi
+fi
+
+# Swift format lint when Swift sources are staged.
+if echo "$staged" | grep -q '\.swift$'; then
+    if ! swift format lint --strict --recursive Sources Tests Package.swift >/dev/null 2>&1; then
+        echo "hook: swift format lint failed — run: task format" >&2
+        fail=1
+    fi
+fi
+
+[ "$fail" = "0" ] || { echo "hook: pre-commit checks failed" >&2; exit 1; }
