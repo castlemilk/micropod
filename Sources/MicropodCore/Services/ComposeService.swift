@@ -857,8 +857,9 @@ public struct ComposeService: @preconcurrency ComposeServing {
                         continue
                     }
                     continuation.yield("Pulling \(image)…")
-                    let command = ContainerCommandFactory.pullImage(image)
-                    for try await _ in client.stream(command, reportExitCode: true) {}
+                    // ImageService.pull carries the stall watchdog +
+                    // credential-recovery retry.
+                    for try await _ in ImageService(client: client).pull(image) {}
                     try Task.checkCancellation()
                     continuation.yield("Pulled \(image)")
 
