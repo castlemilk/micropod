@@ -52,6 +52,17 @@ struct SettingsView: View {
                 Toggle("Show running container count", isOn: $showMenuBarCount)
                     .toggleStyle(.checkbox)
             }
+            Section("Updates") {
+                Toggle("Automatically check for updates", isOn: UpdateController.shared.automaticallyChecksForUpdates)
+                    .toggleStyle(.checkbox)
+                Button {
+                    UpdateController.shared.checkForUpdates()
+                } label: {
+                    IconLabel(title: "Check Now", icon: "check", fallback: "arrow.triangle.2.circlepath")
+                }
+                .controlSize(.small)
+                .disabled(!UpdateController.shared.canCheckForUpdates)
+            }
             Section("Agents") {
                 ForEach(store.agentSpecs, id: \.id) { spec in
                     agentRow(spec)

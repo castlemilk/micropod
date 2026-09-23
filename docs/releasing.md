@@ -66,9 +66,42 @@ never overwrite a signed `Micropod.dmg` attached by a local run.
 | `NOTARY_KEY_ID` | `NDW5V25889` |
 | `NOTARY_ISSUER` | `f4c22181-b343-4e92-8fb3-e90dab991b8f` |
 | `APPLE_TEAM_ID` | `WFTX6CN23F` |
+| `SPARKLE_ED25519_KEY` | base64 EdDSA private key for appcast signing (`generate_keys -x keyfile && base64 -i keyfile`) |
 
 Rotating: re-export the p12 / regenerate the ASC key, `gh secret set` the
-new values. No code changes needed.
+new values. No code changes needed. **Do not rotate the Sparkle key** —
+it is paired with `SUPublicEDKey` baked into shipped apps; rotating it
+breaks update signature verification for every installed client. If the
+private key is ever lost, generate a new pair, update `SUPublicEDKey` in
+`scripts/package_app.sh`, and ship a build whose feed items are signed
+with the new key.
+
+## Auto-update (Sparkle)
+
+The app embeds Sparkle (`SUFeedURL` → `https://castlemilk.github.io/micropod/appcast.xml`,
+`SUPublicEDKey` in the packaged Info.plist, hourly checks). Users can also
+trigger checks from the app menu, menu-bar panel, or Settings → Updates.
+
+When a release is **published**, `.github/workflows/update-feed.yml`:
+
+1. Downloads `Micropod.dmg` (+ verifies the `.sha256` sidecar).
+2. Signs it with the Sparkle EdDSA key (`sign_update --ed-key-file`).
+3. Adds an `<item>` to `landing/appcast.xml` via `scripts/update_appcast.mjs`
+   (idempotent — re-runs replace the item).
+4. Commits + pushes to `master`, which triggers the `gh-pages` deploy —
+   the feed is live ~1 min after the release is published.
+
+The private key also lives in the local login keychain
+(`generate_keys` already imported it) for local `sign_update` runs:
+
+```sh
+/tmp/sparkle/bin/sign_update dist/Micropod.dmg   # prints edSignature+length
+```
+
+Update signing is separate from codesigning/notarization: the EdDSA
+signature proves the DMG came from whoever holds the appcast key, and
+Sparkle additionally verifies the updated app's codesign identity matches
+the running app before installing.
 
 ## Local release (fallback / testing)
 

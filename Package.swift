@@ -19,6 +19,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.28.0"),
         .package(url: "https://github.com/jpsim/Yams.git", from: "5.1.0"),
+        .package(url: "https://github.com/sparkle-project/Sparkle.git", from: "2.10.0"),
     ],
     targets: [
         .target(
@@ -38,7 +39,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "MicropodApp",
-            dependencies: ["MicropodCore"],
+            dependencies: [
+                "MicropodCore",
+                .product(name: "Sparkle", package: "Sparkle"),
+            ],
             resources: [
                 .copy("Resources/micropod-mark.png"),
                 .copy("Resources/icons"),

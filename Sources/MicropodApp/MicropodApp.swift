@@ -31,6 +31,10 @@ struct MicropodApp: App {
                     openWindow(id: "main-window")
                 }
                 .keyboardShortcut("o", modifiers: [.command, .shift])
+                Button("Check for Updates…") {
+                    UpdateController.shared.checkForUpdates()
+                }
+                .disabled(!UpdateController.shared.canCheckForUpdates)
             }
             CommandMenu("View") {
                 ForEach(AppStore.ActiveTab.allCases) { tab in
