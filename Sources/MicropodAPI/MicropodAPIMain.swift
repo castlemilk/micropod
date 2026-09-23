@@ -26,6 +26,8 @@ import Network
 //   POST /v1/compose/up                  {path,profiles}
 //   POST /v1/compose/down                {name}
 //   POST /v1/exec                        {id,command,workdir,env}
+//   POST /v1/system/update               trigger a background app update check (Sparkle)
+//   GET  /v1/system/update               last-known updater status
 //
 // Environment: MICROPOD_API_PORT (default 45454), MICROPOD_CONTAINER_CLI_PATH.
 

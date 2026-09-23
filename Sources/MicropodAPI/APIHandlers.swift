@@ -14,6 +14,7 @@ struct APIHandlers {
     let logs: LogStreamer
     let compose: ComposeService
     let metrics = APIMetrics()
+    let appControl = AppControlClient()
     var usage: UsageService {
         UsageService(containers: containers, images: images, volumes: volumes)
     }
@@ -89,6 +90,22 @@ struct APIHandlers {
                         "reclaimableVolumeBytes": report.reclaimableVolumeBytes,
                         "stoppedContainerCount": report.stoppedContainerCount,
                     ])
+            // MARK: App updates (Sparkle lives in the app process; the
+            // control socket reaches it). 503 when the app isn't running.
+            case ("system", .post) where segments.count == 3 && segments[2] == "update":
+                guard appControl.isReachable else {
+                    return .json(503, ["error": "Micropod app is not running (no control socket)"])
+                }
+                let report = try await appControl.checkForUpdates()
+                return .json(202, report)
+
+            case ("system", .get) where segments.count == 3 && segments[2] == "update":
+                guard appControl.isReachable else {
+                    return .json(503, ["error": "Micropod app is not running (no control socket)"])
+                }
+                let report = try await appControl.updateStatus()
+                return .json(200, report)
+
             case ("system", .get):
                 let status = try await system.status()
                 let usage = try await system.diskUsage()
@@ -251,6 +268,9 @@ struct APIHandlers {
             default:
                 return .json(404, ["error": "not found: \(method.rawValue) \(path)"])
             }
+        } catch let error as AppControlError {
+            // App down / socket broken / updater refused → service unavailable.
+            return .json(503, ["error": error.localizedDescription])
         } catch let error as MicropodError {
             return .json(500, ["error": error.localizedDescription])
         } catch {
