@@ -100,6 +100,14 @@ final class AppControlServer: @unchecked Sendable {
             }
             updates.checkForUpdatesInBackground()
             return (true, updates.statusReport, nil)
+        case "update.apply":
+            // Runs Sparkle's staged installer: terminates the app,
+            // swaps in the update, relaunches on the new version.
+            let updates = UpdateController.shared
+            guard updates.applyStagedUpdate() else {
+                return (false, [:], "no staged update ready to install")
+            }
+            return (true, updates.statusReport, nil)
         case "update.status":
             return (true, UpdateController.shared.statusReport, nil)
         default:

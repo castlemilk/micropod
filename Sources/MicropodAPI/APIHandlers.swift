@@ -99,6 +99,19 @@ struct APIHandlers {
                 let report = try await appControl.checkForUpdates()
                 return .json(202, report)
 
+            case ("system", .post)
+            where segments.count == 4 && segments[2] == "update"
+                && segments[3] == "apply":
+                guard appControl.isReachable else {
+                    return .json(503, ["error": "Micropod app is not running (no control socket)"])
+                }
+                do {
+                    let report = try await appControl.applyUpdate()
+                    return .json(202, report)
+                } catch AppControlError.callFailed(let message) {
+                    return .json(409, ["error": message])
+                }
+
             case ("system", .get) where segments.count == 3 && segments[2] == "update":
                 guard appControl.isReachable else {
                     return .json(503, ["error": "Micropod app is not running (no control socket)"])

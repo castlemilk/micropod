@@ -39,14 +39,26 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
 
     private(set) var status: Status
     private(set) var availableVersion: String?
+    private(set) var downloadedVersion: String?
+    /// True once Sparkle has extracted the update and staged it for
+    /// install-on-quit — `applyStagedUpdate` only works in this state.
+    private(set) var readyToInstall = false
     private(set) var lastError: String?
     private(set) var lastCheckedAt: Date?
+
+    /// Sparkle's silent install+relaunch block, captured when the
+    /// update is fully staged. nil until then.
+    private var immediateInstallHandler: (() -> Void)?
 
     private override init() {
         feedConfigured = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil
         status = feedConfigured ? .idle : .unavailable
         super.init()
         _ = controller
+        // Hands-off apply path: updates found by background checks
+        // download silently and install automatically on quit — the
+        // app-control socket can drive the whole loop headless.
+        controller.updater.automaticallyDownloadsUpdates = true
     }
 
     var canCheckForUpdates: Bool {
@@ -74,6 +86,11 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
             "currentVersion": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") ?? "",
         ]
         if let availableVersion { report["availableVersion"] = availableVersion }
+        if let downloadedVersion {
+            report["downloaded"] = true
+            report["downloadedVersion"] = downloadedVersion
+        }
+        if readyToInstall { report["readyToInstall"] = true }
         if let lastError { report["error"] = lastError }
         if let lastCheckedAt { report["checkedAt"] = ISO8601DateFormatter().string(from: lastCheckedAt) }
         return report
@@ -87,6 +104,62 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
             set: { [controller] in controller.updater.automaticallyChecksForUpdates = $0 })
     }
 
+    /// Install a staged update via Sparkle's silent install handler —
+    /// it terminates the app, swaps in the new version, and relaunches.
+    /// Returns false until `willInstallUpdateOnQuit` has staged the
+    /// update (poll `readyToInstall` first).
+    @discardableResult
+    func applyStagedUpdate() -> Bool {
+        guard let handler = immediateInstallHandler else { return false }
+        status = .installing
+        spawnRelaunchWatchdog()
+        // Sparkle's install handler terminates this process — give the
+        // app-control server a beat to flush its response first so API
+        // callers get a real 202 instead of a dropped connection.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(750))
+            handler()
+        }
+        return true
+    }
+
+    /// Belt-and-suspenders relaunch: Sparkle's progress agent relaunches
+    /// the app via NSWorkspace, but that call can race the bundle swap
+    /// or be dropped for silent installs. A detached helper waits for
+    /// this process to exit, then `open`s the bundle (a no-op activate
+    /// if Sparkle already relaunched it). Survives our termination
+    /// because it gets reparented to launchd.
+    private func spawnRelaunchWatchdog() {
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let path = Bundle.main.bundlePath
+        let log = NSString("~/.micropod/run/relaunch.log").expandingTildeInPath
+        let logDir = (log as NSString).deletingLastPathComponent
+        let helper = Process()
+        helper.executableURL = URL(fileURLWithPath: "/bin/sh")
+        helper.arguments = [
+            "-c",
+            """
+            mkdir -p '\(logDir)'
+            exec >>'\(log)' 2>&1
+            echo "watchdog spawned pid=\(pid) path=\(path)"
+            while kill -0 \(pid) 2>/dev/null; do sleep 0.2; done
+            echo "parent exited"
+            sleep 1.5
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+                /usr/bin/open '\(path)' && { echo "relaunched (try $i)"; exit 0; }
+                sleep 1
+            done
+            echo "relaunch failed"
+            exit 1
+            """,
+        ]
+        do {
+            try helper.run()
+        } catch {
+            NSLog("UpdateController: failed to spawn relaunch watchdog: \(error)")
+        }
+    }
+
     // MARK: - SPUUpdaterDelegate
 
     nonisolated func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
@@ -96,6 +169,34 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
             lastError = nil
             lastCheckedAt = Date()
         }
+    }
+
+    nonisolated func updater(_ updater: SPUUpdater, didDownloadUpdate item: SUAppcastItem) {
+        Task { @MainActor in
+            downloadedVersion = item.displayVersionString
+        }
+    }
+
+    /// Sparkle's install block isn't declared Sendable — box it so it can
+    /// cross into the MainActor hop.
+    private struct InstallHandlerBox: @unchecked Sendable {
+        let run: () -> Void
+    }
+
+    /// The update is extracted and staged — Sparkle asks whether to run
+    /// its normal (gentle-UI) scheduler or hand control to us. We take
+    /// control so the app-control socket can trigger a silent install
+    /// + relaunch on demand; Sparkle still installs on quit regardless.
+    nonisolated func updater(
+        _ updater: SPUUpdater, willInstallUpdateOnQuit item: SUAppcastItem,
+        immediateInstallationBlock immediateInstallHandler: @escaping () -> Void
+    ) -> Bool {
+        let box = InstallHandlerBox(run: immediateInstallHandler)
+        Task { @MainActor in
+            self.immediateInstallHandler = box.run
+            readyToInstall = true
+        }
+        return true
     }
 
     nonisolated func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: Error) {

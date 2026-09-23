@@ -129,6 +129,10 @@ actor AgentSupervisor {
     private var nextRetryAt: [String: Date] = [:]
     private var startingSince: [String: Date] = [:]
     private var probeMisses: [String: Int] = [:]
+    /// PID verified as the endpoint's owner at adoption time. Re-verified
+    /// whenever the owner changes (a foreign or stale binary can bind the
+    /// endpoint between ticks and inherit a stale "adopted" verdict).
+    private var adoptedOwners: [String: Int32] = [:]
     private var started = false
 
     init(
@@ -238,6 +242,7 @@ actor AgentSupervisor {
             child.terminate()
         }
         children.set(id, nil)
+        adoptedOwners[id] = nil
         try? FileManager.default.removeItem(at: pidFileURL(for: id))
         failures[id] = 0
         nextRetryAt[id] = nil
@@ -293,6 +298,7 @@ actor AgentSupervisor {
             if let child = children.get(spec.id), child.isRunning {
                 // Keep the pid file fresh — it's what lets a *future* app
                 // instance reap this child if we crash without quitting.
+                adoptedOwners[spec.id] = nil
                 ensurePIDFile(spec, pid: child.processIdentifier)
                 states[spec.id]?.state = .running
                 states[spec.id]?.pid = child.processIdentifier
@@ -302,6 +308,38 @@ actor AgentSupervisor {
                 // process we never owned.
                 children.set(spec.id, nil)
                 reapStalePIDFile(spec)
+                if spec.reapsForeignCopies {
+                    // "Healthy" isn't enough — whoever answers the probe
+                    // must be the binary we'd spawn. A stale copy (orphan
+                    // exec'd before an update swapped the bundle) or a
+                    // foreign build would otherwise be trusted silently.
+                    let owners = endpointOwnerPIDs(spec)
+                    let verified =
+                        adoptedOwners[spec.id].map { ownerPID -> Bool in
+                            owners.contains(ownerPID) && Self.processAlive(ownerPID)
+                        } ?? false
+                    if !verified {
+                        let match = owners.first {
+                            endpointOwnedByExpectedBinary(spec, owner: $0)
+                        }
+                        if owners.isEmpty {
+                            adoptedOwners[spec.id] = nil
+                        } else if let match {
+                            adoptedOwners[spec.id] = match
+                        } else {
+                            adoptedOwners[spec.id] = nil
+                            states[spec.id]?.state = .retryPending
+                            states[spec.id]?.lastError =
+                                "endpoint served by a stale or foreign \(spec.binaryName)"
+                            // Reap same-name squatters so the next tick's
+                            // respawn can bind. A genuinely different binary
+                            // is left alone — we surface the conflict rather
+                            // than killing a process we don't own.
+                            reapForeignCopies(of: spec)
+                            return
+                        }
+                    }
+                }
                 states[spec.id]?.state = .adopted
                 states[spec.id]?.pid = nil
             }
@@ -336,6 +374,7 @@ actor AgentSupervisor {
             return
         }
 
+        adoptedOwners[spec.id] = nil
         // Nothing ours is alive — clear out anything squatting on the
         // endpoint, then respawn once backoff allows. Orphans from crashed
         // app instances come from the pid file; *foreign* copies of our
@@ -571,6 +610,86 @@ actor AgentSupervisor {
         let length = proc_pidpath(pid, &buffer, UInt32(buffer.count))
         guard length > 0 else { return nil }
         return String(cString: buffer)
+    }
+
+    /// Seconds-since-epoch the process was exec'd, from the BSD process
+    /// info — used to catch a process still running code from a binary
+    /// that has since been replaced on disk (Sparkle bundle swap).
+    private static func processStartTime(_ pid: Int32) -> TimeInterval? {
+        var info = proc_bsdinfo()
+        let size = proc_pidinfo(
+            pid, PROC_PIDTBSDINFO, 0, &info, Int32(MemoryLayout<proc_bsdinfo>.size))
+        guard size == MemoryLayout<proc_bsdinfo>.size else { return nil }
+        return TimeInterval(info.pbi_start_tvsec)
+    }
+
+    // MARK: - Endpoint ownership
+
+    /// PIDs holding the spec's probe endpoint. For TCP, lsof's
+    /// `-sTCP:LISTEN` returns only the bound listener — connected clients
+    /// can't be mistaken for the owner. For unix sockets the path match
+    /// can include transient clients too, so callers must accept the
+    /// endpoint when *any* candidate is the expected binary.
+    private func endpointOwnerPIDs(_ spec: AgentSpec) -> [Int32] {
+        let arguments: [String]
+        switch spec.probe {
+        case .http(let port, _):
+            arguments = ["-nP", "-iTCP:\(port)", "-sTCP:LISTEN", "-t"]
+        case .unixSocket(let path):
+            arguments = ["-t", "--", path]
+        case .custom:
+            return []
+        }
+        guard
+            let output = Self.runProcess(
+                "/usr/sbin/lsof", arguments, timeout: 3)
+        else { return [] }
+        return output.split(separator: "\n").compactMap {
+            Int32($0.trimmingCharacters(in: .whitespaces))
+        }
+    }
+
+    /// True when `pid` exec'd the binary this supervisor would spawn for
+    /// the spec, and exec'd it no earlier than the file's current mtime —
+    /// a same-path process started *before* the binary was last written
+    /// is still running the old code (e.g. an orphan surviving a Sparkle
+    /// install that replaced the bundle underneath it).
+    private func endpointOwnedByExpectedBinary(_ spec: AgentSpec, owner: Int32) -> Bool {
+        guard let binary = resolveBinary(spec) else { return true }
+        guard Self.processPath(owner) == binary.path else { return false }
+        guard
+            let start = Self.processStartTime(owner),
+            let mtime =
+                (try? FileManager.default.attributesOfItem(
+                    atPath: binary.path))?[.modificationDate] as? Date
+        else { return true }
+        return Date(timeIntervalSince1970: start)
+            >= mtime.addingTimeInterval(-1)
+    }
+
+    /// Bounded subprocess for ownership probes — lsof on a single
+    /// endpoint returns in tens of milliseconds, but a hung helper must
+    /// never stall the monitor loop.
+    private static func runProcess(
+        _ path: String, _ arguments: [String], timeout: TimeInterval
+    ) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = arguments
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        do { try process.run() } catch { return nil }
+        let deadline = Date().addingTimeInterval(timeout)
+        while process.isRunning, Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.02)
+        }
+        if process.isRunning {
+            process.terminate()
+            return nil
+        }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        return String(data: data, encoding: .utf8)
     }
 
     // MARK: - Binary resolution

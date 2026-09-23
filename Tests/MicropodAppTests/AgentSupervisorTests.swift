@@ -189,10 +189,212 @@ final class AgentSupervisorTests: XCTestCase {
                 atPath: runDirectory.appendingPathComponent("off.pid").path))
     }
 
+    // MARK: - Endpoint identity
+
+    /// A healthy endpoint served by a different binary than the one the
+    /// supervisor would spawn must not be adopted — and a foreign-named
+    /// process must never be killed to make room.
+    func testForeignEndpointOwnerIsNotAdopted() async throws {
+        let socketPath = "/tmp/mpsup-\(UUID().uuidString.prefix(8)).sock"
+        let nc = try spawnNCListener(at: socketPath)
+        defer {
+            if nc.isRunning { nc.terminate() }
+            try? FileManager.default.removeItem(atPath: socketPath)
+        }
+        try await waitForSocket(socketPath)
+
+        let spec = AgentSpec(
+            id: "fake", displayName: "Fake", binaryName: "sleep",
+            probe: .unixSocket(path: socketPath),
+            enabledDefaultsKey: "test.fake-foreign.enabled", endpoint: socketPath,
+            binaryPathOverride: "/bin/sleep")
+        let supervisor = AgentSupervisor(
+            specs: [spec], runDirectory: runDirectory,
+            isEnabled: { _ in true },
+            onStatus: { _ in })
+
+        await supervisor.tick()
+
+        let status = await supervisor.statuses().first
+        XCTAssertEqual(status?.state, .retryPending)
+        XCTAssertTrue(status?.lastError?.contains("foreign") ?? false)
+        XCTAssertTrue(
+            processAlive(nc.processIdentifier),
+            "a foreign-named process must be left alone")
+    }
+
+    /// An endpoint served by exactly the binary the supervisor would
+    /// spawn is adopted as before.
+    func testExpectedBinaryEndpointIsAdopted() async throws {
+        let socketPath = "/tmp/mpsup-\(UUID().uuidString.prefix(8)).sock"
+        let nc = try spawnNCListener(at: socketPath)
+        defer {
+            if nc.isRunning { nc.terminate() }
+            try? FileManager.default.removeItem(atPath: socketPath)
+        }
+        try await waitForSocket(socketPath)
+
+        let spec = AgentSpec(
+            id: "fake", displayName: "Fake", binaryName: "nc",
+            probe: .unixSocket(path: socketPath),
+            enabledDefaultsKey: "test.fake-own.enabled", endpoint: socketPath,
+            binaryPathOverride: "/usr/bin/nc")
+        let supervisor = AgentSupervisor(
+            specs: [spec], runDirectory: runDirectory,
+            isEnabled: { _ in true },
+            onStatus: { _ in })
+
+        await supervisor.tick()
+
+        let status = await supervisor.statuses().first
+        XCTAssertEqual(status?.state, .adopted)
+    }
+
+    /// A process whose binary file was replaced *after* it exec'd (the
+    /// Sparkle bundle-swap orphan shape) is stale even though its path
+    /// matches — it must be rejected and reaped so a fresh copy binds.
+    func testStaleBinaryCopyIsReapedNotAdopted() async throws {
+        // Copy nc and stamp the copy with a future mtime: the running
+        // process necessarily predates "its" binary.
+        let name = "nc-stale-\(UUID().uuidString.prefix(8))"
+        // proc_pidpath is canonical — resolve symlinks so the override
+        // path matches what the process reports (e.g. /var → /private/var).
+        let staleBinary = URL(fileURLWithPath: NSTemporaryDirectory() + name)
+            .resolvingSymlinksInPath().path
+        try FileManager.default.copyItem(atPath: "/usr/bin/nc", toPath: staleBinary)
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date().addingTimeInterval(3600)],
+            ofItemAtPath: staleBinary)
+        defer { try? FileManager.default.removeItem(atPath: staleBinary) }
+
+        let socketPath = "/tmp/mpsup-\(UUID().uuidString.prefix(8)).sock"
+        let stale = Process()
+        stale.executableURL = URL(fileURLWithPath: staleBinary)
+        stale.arguments = ["-lU", "-k", socketPath]
+        try stale.run()
+        defer {
+            if stale.isRunning { stale.terminate() }
+            try? FileManager.default.removeItem(atPath: socketPath)
+        }
+        try await waitForSocket(socketPath)
+
+        let spec = AgentSpec(
+            id: "fake", displayName: "Fake", binaryName: name,
+            probe: .unixSocket(path: socketPath),
+            enabledDefaultsKey: "test.fake-stale.enabled", endpoint: socketPath,
+            binaryPathOverride: staleBinary)
+        let supervisor = AgentSupervisor(
+            specs: [spec], runDirectory: runDirectory,
+            isEnabled: { _ in true },
+            onStatus: { _ in })
+
+        await supervisor.tick()
+
+        let status = await supervisor.statuses().first
+        XCTAssertEqual(status?.state, .retryPending)
+        XCTAssertFalse(
+            processAlive(stale.processIdentifier),
+            "a stale same-name copy must be reaped so a fresh binary can bind")
+    }
+
+    /// A wedged-but-listening API port owned by a different binary gets
+    /// the same treatment — this is the stale-MicropodAPI-on-45454 case.
+    func testForeignHTTPListenerIsNotAdopted() async throws {
+        // Find a free port, then hand it to a dumb HTTP responder.
+        let port = try ephemeralTCPPort()
+        let http = Process()
+        http.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+        http.arguments = ["-m", "http.server", "\(port)", "--bind", "127.0.0.1"]
+        try http.run()
+        defer { if http.isRunning { http.terminate() } }
+        try await waitForHTTP(port: port)
+
+        let spec = AgentSpec(
+            id: "fake", displayName: "Fake", binaryName: "sleep",
+            probe: .http(port: port, path: "/"),
+            enabledDefaultsKey: "test.fake-http.enabled", endpoint: "127.0.0.1:\(port)",
+            binaryPathOverride: "/bin/sleep")
+        let supervisor = AgentSupervisor(
+            specs: [spec], runDirectory: runDirectory,
+            isEnabled: { _ in true },
+            onStatus: { _ in })
+
+        await supervisor.tick()
+
+        let status = await supervisor.statuses().first
+        XCTAssertEqual(status?.state, .retryPending)
+        XCTAssertTrue(
+            processAlive(http.processIdentifier),
+            "a foreign-named process must be left alone")
+    }
+
     // MARK: - Helpers
 
     private func processAlive(_ pid: Int32) -> Bool {
         kill(pid, 0) == 0 || errno == EPERM
+    }
+
+    private func spawnNCListener(at socketPath: String) throws -> Process {
+        let nc = Process()
+        nc.executableURL = URL(fileURLWithPath: "/usr/bin/nc")
+        nc.arguments = ["-lU", "-k", socketPath]
+        try nc.run()
+        return nc
+    }
+
+    private func waitForSocket(_ path: String) async throws {
+        for _ in 0..<50 {
+            if AgentSupervisor.unixSocketAccepts(path) { return }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        XCTFail("listener never bound \(path)")
+    }
+
+    /// Reserve-then-release an ephemeral TCP port for a test responder.
+    private func ephemeralTCPPort() throws -> UInt16 {
+        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        guard fd >= 0 else { throw POSIXError(.EIO) }
+        defer { close(fd) }
+        var addr = sockaddr_in()
+        addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = 0
+        addr.sin_addr = in_addr(s_addr: INADDR_LOOPBACK.bigEndian)
+        guard
+            withUnsafePointer(
+                to: &addr,
+                {
+                    $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                        Darwin.bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+                    }
+                }) == 0
+        else { throw POSIXError(.EIO) }
+        var bound = sockaddr_in()
+        var len = socklen_t(MemoryLayout<sockaddr_in>.size)
+        guard
+            withUnsafeMutablePointer(
+                to: &bound,
+                {
+                    $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                        getsockname(fd, $0, &len)
+                    }
+                }) == 0
+        else { throw POSIXError(.EIO) }
+        return UInt16(bigEndian: bound.sin_port)
+    }
+
+    private func waitForHTTP(port: UInt16) async throws {
+        let url = URL(string: "http://127.0.0.1:\(port)/")!
+        for _ in 0..<50 {
+            if let (_, response) = try? await URLSession.shared.data(from: url),
+                (response as? HTTPURLResponse).map({ (200..<300).contains($0.statusCode) })
+                    == true
+            {
+                return
+            }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        XCTFail("HTTP responder never came up on \(port)")
     }
 
     private func bindUnixListener(at path: String) throws -> Int32 {
