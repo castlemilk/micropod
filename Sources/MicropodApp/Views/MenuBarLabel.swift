@@ -17,8 +17,14 @@ struct MenuBarLabel: View {
         if !store.clientAvailable { return "Micropod: container CLI not found" }
         if store.isRuntimeRunning {
             let cpu = aggregateCPU.map { ", \( $0) CPU" } ?? ""
+            let health =
+                switch healthBadge?.symbol {
+                case "checkmark.circle.fill": "healthy, "
+                case "exclamationmark.circle.fill": "degraded, "
+                default: ""
+                }
             return
-                "Micropod: runtime running, \(store.runningCount) container\(store.runningCount == 1 ? "" : "s")\(cpu)"
+                "Micropod: runtime \(health)running, \(store.runningCount) container\(store.runningCount == 1 ? "" : "s")\(cpu)"
         }
         return "Micropod: runtime stopped"
     }
@@ -32,6 +38,15 @@ struct MenuBarLabel: View {
             } else {
                 Image(systemName: iconName)
                     .foregroundStyle(iconColor)
+                    .overlay(alignment: .bottomTrailing) {
+                        if let badge = healthBadge {
+                            Image(systemName: badge.symbol)
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(badge.color)
+                                .offset(x: 3, y: 3)
+                                .accessibilityHidden(true)
+                        }
+                    }
             }
             if showMenuBarCount, store.runningCount > 0 {
                 Text("\(store.runningCount)")
@@ -82,5 +97,23 @@ struct MenuBarLabel: View {
         guard store.clientAvailable else { return .red }
         // Stopped is a normal state, not a warning — dim it instead of orange.
         return store.isRuntimeRunning ? .green : .secondary
+    }
+
+    /// Bottom-trailing superscript: green check when the whole stack is
+    /// healthy (runtime running, liveness probe clean, every enabled agent
+    /// serving), amber warning while wedged/healing or an agent is down.
+    private var healthBadge: (symbol: String, color: Color)? {
+        guard store.clientAvailable, store.isRuntimeRunning else { return nil }
+        let runtimeDegraded = store.runtimeHealth == .wedged || store.isHealingRuntime
+        // `stopped` = user-disabled, `starting` = still probing — neither is
+        // a failure. retryPending/missing means something should be up but
+        // isn't.
+        let agentsDegraded = store.agentStatuses.contains {
+            $0.state == .retryPending || $0.state == .missing
+        }
+        if runtimeDegraded || agentsDegraded {
+            return ("exclamationmark.circle.fill", .orange)
+        }
+        return ("checkmark.circle.fill", .green)
     }
 }

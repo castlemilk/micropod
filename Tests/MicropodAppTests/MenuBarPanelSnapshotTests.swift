@@ -81,6 +81,41 @@ final class MenuBarPanelSnapshotTests: XCTestCase {
         try png.write(to: URL(fileURLWithPath: "/tmp/menubar-panel.png"))
     }
 
+    /// Rasterizes the menu-bar label icon + health badge for visual review.
+    @MainActor
+    func testMenuBarLabelSnapshot() throws {
+        let fixture = try AppTestCLI.makeMock()
+        defer { AppTestCLI.cleanUp(fixture) }
+        let store = makeRunningStore(client: fixture.client)
+
+        let hosting = NSHostingView(
+            rootView: MenuBarLabel(store: store)
+                .padding(8)
+                .environment(\.colorScheme, .dark))
+        let fitting = hosting.fittingSize
+        hosting.frame = NSRect(origin: .zero, size: fitting)
+        let window = NSWindow(
+            contentRect: hosting.frame,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false)
+        window.contentView = hosting
+        window.orderBack(nil)
+        hosting.layoutSubtreeIfNeeded()
+        hosting.display()
+
+        guard let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else {
+            XCTFail("no bitmap rep")
+            return
+        }
+        hosting.cacheDisplay(in: hosting.bounds, to: rep)
+        guard let png = rep.representation(using: .png, properties: [:]) else {
+            XCTFail("no png")
+            return
+        }
+        try png.write(to: URL(fileURLWithPath: "/tmp/menubar-label.png"))
+    }
+
     /// Same trick for the main-window dashboard — rasterizes the card layout
     /// so the GroupBox → PanelCard uplift can be eyeballed.
     @MainActor
