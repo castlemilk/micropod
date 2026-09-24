@@ -53,7 +53,6 @@ struct APIHandlers {
     private func handleInner(_ request: HTTPRequest) async -> HTTPResponse {
         // /metrics — Prometheus text format, always 200
         if request.path == "/metrics" {
-            let body = metrics.render().data(using: .utf8) ?? Data()
             return .text(200, metrics.render())
         }
 
