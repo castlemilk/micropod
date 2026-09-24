@@ -1,7 +1,16 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "micropod.v1"
+    "title": "micropod.v1 \u2014 image types",
+    "version": "0.8.0",
+    "contact": {
+      "name": "Micropod",
+      "url": "https://github.com/castlemilk/micropod"
+    },
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/castlemilk/micropod/blob/master/LICENSE"
+    }
   },
   "paths": {},
   "components": {
@@ -79,5 +88,15 @@
       }
     }
   },
-  "security": []
+  "security": [],
+  "servers": [
+    {
+      "url": "http://localhost:45454",
+      "description": "Local Micropod daemon"
+    }
+  ],
+  "externalDocs": {
+    "description": "API explorer",
+    "url": "https://castlemilk.github.io/micropod/api/"
+  }
 }
