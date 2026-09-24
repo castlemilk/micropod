@@ -5,6 +5,13 @@ on:
     branches: [master]
     paths:
       - "landing/**"
+      - "web/**"
+      - "proto/micropod/**"
+      - "proto/com/**"
+      - "buf.gen.docs.yaml"
+      - "scripts/gen-api-docs.py"
+      - "Sources/MicropodAPI/APIHandlers.swift"
+      - "Sources/MicropodMCP/main.swift"
       - ".github/workflows/gh-pages.yml"
   workflow_dispatch:
 
@@ -17,9 +24,43 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Regenerates landing/api/{openapi.json,proto-reference.html,
+      # rest-routes.json}; mcp-tools.json stays committed (the MCP
+      # binary is macOS-only, so its step no-ops here).
+      - name: Generate API docs
+        run: python3 scripts/gen-api-docs.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # Builds the Next.js API explorer (web/) as a static export. prebuild
+      # syncs the generated artifacts into web/public/specs/ so they ship
+      # inside the export.
+      - name: Build API explorer
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      # Site = landing/ with the explorer overlaid at /api/ (replaces the
+      # old static landing/api/index.html; generated JSON + proto-reference
+      # stay alongside it, plus a copy under /api/specs/).
+      - name: Assemble site
+        run: |
+          mkdir -p site/api
+          cp -R landing/* site/
+          cp -R web/out/* site/api/
+
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: landing
+          publish_dir: site
           publish_branch: gh-pages
           full_commit_message: "landing: rebuild for GitHub Pages [skip ci]"

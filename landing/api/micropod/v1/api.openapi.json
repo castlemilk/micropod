@@ -1,0 +1,2560 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "micropod.v1",
+    "description": "## micropod.v1.MicropodService\n\nThe Micropod management API: container/image/volume/network operations on\n the Apple `container` runtime, served by the connect-go API server and\n consumable from any connect client (Go, Swift, TS, …)."
+  },
+  "paths": {
+    "/api/micropod.v1.MicropodService/CreateContainer": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "CreateContainer",
+        "description": "Create a container without starting it (docker create).",
+        "operationId": "micropod.v1.MicropodService.CreateContainer",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.RunContainerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ContainerRef"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/CreateNetwork": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "CreateNetwork",
+        "operationId": "micropod.v1.MicropodService.CreateNetwork",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.CreateNetworkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/CreateVolume": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "CreateVolume",
+        "operationId": "micropod.v1.MicropodService.CreateVolume",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.CreateVolumeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/DeleteContainer": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "DeleteContainer",
+        "operationId": "micropod.v1.MicropodService.DeleteContainer",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.DeleteContainerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/DeleteImage": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "DeleteImage",
+        "operationId": "micropod.v1.MicropodService.DeleteImage",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.DeleteImageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/DeleteNetwork": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "DeleteNetwork",
+        "operationId": "micropod.v1.MicropodService.DeleteNetwork",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.DeleteNetworkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/DeleteVolume": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "DeleteVolume",
+        "operationId": "micropod.v1.MicropodService.DeleteVolume",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.DeleteVolumeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/Exec": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "Exec",
+        "operationId": "micropod.v1.MicropodService.Exec",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ExecRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ExecResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/GetStats": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "GetStats",
+        "operationId": "micropod.v1.MicropodService.GetStats",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.GetStatsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.GetStatsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/GetSystem": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "GetSystem",
+        "description": "Runtime status + disk usage.",
+        "operationId": "micropod.v1.MicropodService.GetSystem",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.SystemSnapshot"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/KillContainer": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "KillContainer",
+        "operationId": "micropod.v1.MicropodService.KillContainer",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ContainerRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/ListContainers": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "ListContainers",
+        "description": "List all containers.",
+        "operationId": "micropod.v1.MicropodService.ListContainers",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ListContainersResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/ListImages": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "ListImages",
+        "operationId": "micropod.v1.MicropodService.ListImages",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ListImagesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/ListNetworks": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "ListNetworks",
+        "operationId": "micropod.v1.MicropodService.ListNetworks",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ListNetworksResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/ListVolumes": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "ListVolumes",
+        "operationId": "micropod.v1.MicropodService.ListVolumes",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ListVolumesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/PullImage": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "PullImage",
+        "description": "Pull an image, streaming progress events.",
+        "operationId": "micropod.v1.MicropodService.PullImage",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/connect+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.PullImageRequest"
+              }
+            },
+            "application/connect+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.PullImageRequest"
+              }
+            },
+            "application/grpc": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.PullImageRequest"
+              }
+            },
+            "application/grpc+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.PullImageRequest"
+              }
+            },
+            "application/grpc+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.PullImageRequest"
+              }
+            },
+            "application/grpc-web": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.PullImageRequest"
+              }
+            },
+            "application/grpc-web+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.PullImageRequest"
+              }
+            },
+            "application/grpc-web+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.PullImageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ProgressLine"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ProgressLine"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ProgressLine"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ProgressLine"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ProgressLine"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ProgressLine"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ProgressLine"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ProgressLine"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/RestartContainer": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "RestartContainer",
+        "operationId": "micropod.v1.MicropodService.RestartContainer",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ContainerRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/RunContainer": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "RunContainer",
+        "description": "Run a container (docker run).",
+        "operationId": "micropod.v1.MicropodService.RunContainer",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.RunContainerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ContainerRef"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/StartContainer": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "StartContainer",
+        "operationId": "micropod.v1.MicropodService.StartContainer",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ContainerRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/StopContainer": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "StopContainer",
+        "operationId": "micropod.v1.MicropodService.StopContainer",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ContainerRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/StreamContainerLogs": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "StreamContainerLogs",
+        "description": "Live log stream (server streaming).",
+        "operationId": "micropod.v1.MicropodService.StreamContainerLogs",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/connect+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StreamLogsRequest"
+              }
+            },
+            "application/connect+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StreamLogsRequest"
+              }
+            },
+            "application/grpc": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StreamLogsRequest"
+              }
+            },
+            "application/grpc+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StreamLogsRequest"
+              }
+            },
+            "application/grpc+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StreamLogsRequest"
+              }
+            },
+            "application/grpc-web": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StreamLogsRequest"
+              }
+            },
+            "application/grpc-web+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StreamLogsRequest"
+              }
+            },
+            "application/grpc-web+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StreamLogsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.LogChunk"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.LogChunk"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.LogChunk"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.LogChunk"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.LogChunk"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.LogChunk"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.LogChunk"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.LogChunk"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "connect-protocol-version": {
+        "type": "number",
+        "title": "Connect-Protocol-Version",
+        "enum": [
+          1
+        ],
+        "description": "Define the version of the Connect protocol",
+        "const": 1
+      },
+      "connect-timeout-header": {
+        "type": "number",
+        "title": "Connect-Timeout-Ms",
+        "description": "Define the timeout, in ms"
+      },
+      "connect.error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "examples": [
+              "not_found"
+            ],
+            "enum": [
+              "canceled",
+              "unknown",
+              "invalid_argument",
+              "deadline_exceeded",
+              "not_found",
+              "already_exists",
+              "permission_denied",
+              "resource_exhausted",
+              "failed_precondition",
+              "aborted",
+              "out_of_range",
+              "unimplemented",
+              "internal",
+              "unavailable",
+              "data_loss",
+              "unauthenticated"
+            ],
+            "description": "The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code]."
+          },
+          "message": {
+            "type": "string",
+            "description": "A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the [google.rpc.Status.details][google.rpc.Status.details] field, or localized by the client."
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/connect.error_details.Any"
+            },
+            "description": "A list of messages that carry the error details. There is no limit on the number of messages."
+          }
+        },
+        "title": "Connect Error",
+        "additionalProperties": true,
+        "description": "Error type returned by Connect: https://connectrpc.com/docs/go/errors/#http-representation"
+      },
+      "connect.error_details.Any": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "A URL that acts as a globally unique identifier for the type of the serialized message. For example: `type.googleapis.com/google.rpc.ErrorInfo`. This is used to determine the schema of the data in the `value` field and is the discriminator for the `debug` field."
+          },
+          "value": {
+            "type": "string",
+            "format": "binary",
+            "description": "The Protobuf message, serialized as bytes and base64-encoded. The specific message type is identified by the `type` field."
+          },
+          "debug": {
+            "oneOf": [
+              {
+                "type": "object",
+                "title": "Any",
+                "additionalProperties": true,
+                "description": "Detailed error information."
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type"
+            },
+            "title": "Debug",
+            "description": "Deserialized error detail payload. The 'type' field indicates the schema. This field is for easier debugging and should not be relied upon for application logic."
+          }
+        },
+        "additionalProperties": true,
+        "description": "Contains an arbitrary serialized message along with a @type that describes the type of the serialized message, with an additional debug field for ConnectRPC error details."
+      },
+      "micropod.v1.Container": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "description": "The container ID; `container` uses the user-assigned name as the ID."
+          },
+          "image": {
+            "type": "string",
+            "title": "image",
+            "description": "Image reference the container was created from."
+          },
+          "state": {
+            "type": "string",
+            "title": "state",
+            "description": "Lifecycle state: running, stopped, exited, created, ..."
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "created_at",
+            "description": "ISO8601 creation timestamp."
+          },
+          "resources": {
+            "title": "resources",
+            "$ref": "#/components/schemas/micropod.v1.ContainerResources"
+          },
+          "platform": {
+            "type": "string",
+            "title": "platform",
+            "description": "Platform string, e.g. \"linux/arm64\"."
+          },
+          "publishedPorts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.PortMapping"
+            },
+            "title": "published_ports"
+          },
+          "mounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.Mount"
+            },
+            "title": "mounts"
+          },
+          "networks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "networks",
+            "description": "Names of networks the container is attached to."
+          },
+          "ipv4Address": {
+            "type": "string",
+            "title": "ipv4_address",
+            "description": "Resolved IPv4 address on the container network, if running."
+          },
+          "env": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "env"
+          },
+          "labels": {
+            "type": "object",
+            "title": "labels",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            }
+          },
+          "rosetta": {
+            "type": "boolean",
+            "title": "rosetta"
+          },
+          "readOnly": {
+            "type": "boolean",
+            "title": "read_only"
+          },
+          "useInit": {
+            "type": "boolean",
+            "title": "use_init"
+          },
+          "ssh": {
+            "type": "boolean",
+            "title": "ssh"
+          },
+          "virtualization": {
+            "type": "boolean",
+            "title": "virtualization"
+          },
+          "runtimeHandler": {
+            "type": "string",
+            "title": "runtime_handler"
+          },
+          "exitCode": {
+            "type": "string",
+            "title": "exit_code"
+          }
+        },
+        "title": "Container",
+        "additionalProperties": false,
+        "description": "Curated view of a container, mapped from `container list --format json`."
+      },
+      "micropod.v1.Container.LabelsEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "type": "string",
+            "title": "value"
+          }
+        },
+        "title": "LabelsEntry",
+        "additionalProperties": false
+      },
+      "micropod.v1.ContainerRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          }
+        },
+        "title": "ContainerRef",
+        "additionalProperties": false
+      },
+      "micropod.v1.ContainerResources": {
+        "type": "object",
+        "properties": {
+          "cpus": {
+            "type": "number",
+            "title": "cpus",
+            "format": "double"
+          },
+          "memoryBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "memory_bytes",
+            "format": "int64"
+          }
+        },
+        "title": "ContainerResources",
+        "additionalProperties": false
+      },
+      "micropod.v1.ContainerStats": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "cpuPercent": {
+            "type": "number",
+            "title": "cpu_percent",
+            "format": "double"
+          },
+          "memoryUsedBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "memory_used_bytes",
+            "format": "int64"
+          },
+          "memoryLimitBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "memory_limit_bytes",
+            "format": "int64"
+          },
+          "networkRxBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "network_rx_bytes",
+            "format": "int64"
+          },
+          "networkTxBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "network_tx_bytes",
+            "format": "int64"
+          },
+          "blockReadBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "block_read_bytes",
+            "format": "int64"
+          },
+          "blockWriteBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "block_write_bytes",
+            "format": "int64"
+          },
+          "pids": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "pids",
+            "format": "int64"
+          }
+        },
+        "title": "ContainerStats",
+        "additionalProperties": false
+      },
+      "micropod.v1.CreateNetworkRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "internal": {
+            "type": "boolean",
+            "title": "internal"
+          },
+          "subnet": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "subnet"
+          },
+          "subnetV6": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "subnet_v6"
+          },
+          "driver": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "driver"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "options"
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "labels"
+          }
+        },
+        "title": "CreateNetworkRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.CreateVolumeRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "size": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "size"
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "labels"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "options"
+          }
+        },
+        "title": "CreateVolumeRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.DeleteContainerRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "force": {
+            "type": "boolean",
+            "title": "force"
+          }
+        },
+        "title": "DeleteContainerRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.DeleteImageRequest": {
+        "type": "object",
+        "properties": {
+          "reference": {
+            "type": "string",
+            "title": "reference"
+          },
+          "force": {
+            "type": "boolean",
+            "title": "force"
+          }
+        },
+        "title": "DeleteImageRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.DeleteNetworkRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name"
+          }
+        },
+        "title": "DeleteNetworkRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.DeleteVolumeRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name"
+          }
+        },
+        "title": "DeleteVolumeRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.DiskCategory": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "total",
+            "format": "int64"
+          },
+          "active": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "active",
+            "format": "int64"
+          },
+          "sizeBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "size_bytes",
+            "format": "int64"
+          },
+          "reclaimableBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "reclaimable_bytes",
+            "format": "int64"
+          }
+        },
+        "title": "DiskCategory",
+        "additionalProperties": false
+      },
+      "micropod.v1.DiskUsage": {
+        "type": "object",
+        "properties": {
+          "containers": {
+            "title": "containers",
+            "$ref": "#/components/schemas/micropod.v1.DiskCategory"
+          },
+          "images": {
+            "title": "images",
+            "$ref": "#/components/schemas/micropod.v1.DiskCategory"
+          },
+          "volumes": {
+            "title": "volumes",
+            "$ref": "#/components/schemas/micropod.v1.DiskCategory"
+          },
+          "totalReclaimableBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "total_reclaimable_bytes",
+            "format": "int64"
+          }
+        },
+        "title": "DiskUsage",
+        "additionalProperties": false,
+        "description": "Disk usage, mapped from `container system df`."
+      },
+      "micropod.v1.Empty": {
+        "type": "object",
+        "title": "Empty",
+        "additionalProperties": false
+      },
+      "micropod.v1.ExecRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "command": {
+            "type": "string",
+            "title": "command"
+          },
+          "workdir": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "workdir"
+          },
+          "env": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "env"
+          }
+        },
+        "title": "ExecRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.ExecResponse": {
+        "type": "object",
+        "properties": {
+          "output": {
+            "type": "string",
+            "title": "output"
+          },
+          "exitCode": {
+            "type": "integer",
+            "title": "exit_code",
+            "format": "int32",
+            "description": "Guest process exit code. 0 on success; when the native runtime backend\n is active this is the real exit status rather than a CLI approximation."
+          },
+          "error": {
+            "type": "string",
+            "title": "error",
+            "description": "Guest stderr, when the backend can separate the streams."
+          }
+        },
+        "title": "ExecResponse",
+        "additionalProperties": false
+      },
+      "micropod.v1.GetStatsRequest": {
+        "type": "object",
+        "title": "GetStatsRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.GetStatsResponse": {
+        "type": "object",
+        "properties": {
+          "snapshot": {
+            "title": "snapshot",
+            "$ref": "#/components/schemas/micropod.v1.StatsSnapshot"
+          }
+        },
+        "title": "GetStatsResponse",
+        "additionalProperties": false
+      },
+      "micropod.v1.Image": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "names",
+            "description": "All tags/references pointing at this image."
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "created_at",
+            "description": "ISO8601 creation timestamp."
+          },
+          "digest": {
+            "type": "string",
+            "title": "digest",
+            "description": "Content digest."
+          },
+          "sizeBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "size_bytes",
+            "format": "int64"
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.ImageVariant"
+            },
+            "title": "variants"
+          }
+        },
+        "title": "Image",
+        "additionalProperties": false,
+        "description": "Curated view of a local image, mapped from `container image list --verbose`."
+      },
+      "micropod.v1.ImageVariant": {
+        "type": "object",
+        "properties": {
+          "os": {
+            "type": "string",
+            "title": "os"
+          },
+          "architecture": {
+            "type": "string",
+            "title": "architecture"
+          },
+          "variant": {
+            "type": "string",
+            "title": "variant"
+          }
+        },
+        "title": "ImageVariant",
+        "additionalProperties": false
+      },
+      "micropod.v1.ListContainersResponse": {
+        "type": "object",
+        "properties": {
+          "containers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.Container"
+            },
+            "title": "containers"
+          }
+        },
+        "title": "ListContainersResponse",
+        "additionalProperties": false
+      },
+      "micropod.v1.ListImagesResponse": {
+        "type": "object",
+        "properties": {
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.Image"
+            },
+            "title": "images"
+          }
+        },
+        "title": "ListImagesResponse",
+        "additionalProperties": false
+      },
+      "micropod.v1.ListNetworksResponse": {
+        "type": "object",
+        "properties": {
+          "networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.Network"
+            },
+            "title": "networks"
+          }
+        },
+        "title": "ListNetworksResponse",
+        "additionalProperties": false
+      },
+      "micropod.v1.ListVolumesResponse": {
+        "type": "object",
+        "properties": {
+          "volumes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.Volume"
+            },
+            "title": "volumes"
+          }
+        },
+        "title": "ListVolumesResponse",
+        "additionalProperties": false
+      },
+      "micropod.v1.LogChunk": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "text"
+          }
+        },
+        "title": "LogChunk",
+        "additionalProperties": false
+      },
+      "micropod.v1.Mount": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "type"
+          },
+          "source": {
+            "type": "string",
+            "title": "source"
+          },
+          "destination": {
+            "type": "string",
+            "title": "destination"
+          },
+          "readOnly": {
+            "type": "boolean",
+            "title": "read_only"
+          }
+        },
+        "title": "Mount",
+        "additionalProperties": false
+      },
+      "micropod.v1.Network": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "plugin": {
+            "type": "string",
+            "title": "plugin"
+          },
+          "mode": {
+            "type": "string",
+            "title": "mode"
+          },
+          "ipv4Gateway": {
+            "type": "string",
+            "title": "ipv4_gateway"
+          },
+          "ipv4Subnet": {
+            "type": "string",
+            "title": "ipv4_subnet"
+          },
+          "ipv6Subnet": {
+            "type": "string",
+            "title": "ipv6_subnet"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "created_at"
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "builtin"
+          },
+          "labels": {
+            "type": "object",
+            "title": "labels",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            }
+          }
+        },
+        "title": "Network",
+        "additionalProperties": false,
+        "description": "Curated network, mapped from `container network list`."
+      },
+      "micropod.v1.Network.LabelsEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "type": "string",
+            "title": "value"
+          }
+        },
+        "title": "LabelsEntry",
+        "additionalProperties": false
+      },
+      "micropod.v1.PortMapping": {
+        "type": "object",
+        "properties": {
+          "hostPort": {
+            "type": "integer",
+            "title": "host_port"
+          },
+          "containerPort": {
+            "type": "integer",
+            "title": "container_port"
+          },
+          "protocol": {
+            "type": "string",
+            "title": "protocol"
+          },
+          "hostIp": {
+            "type": "string",
+            "title": "host_ip"
+          }
+        },
+        "title": "PortMapping",
+        "additionalProperties": false
+      },
+      "micropod.v1.ProgressLine": {
+        "type": "object",
+        "properties": {
+          "line": {
+            "type": "string",
+            "title": "line"
+          },
+          "stage": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "stage",
+            "format": "int32"
+          },
+          "totalStages": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "total_stages",
+            "format": "int32"
+          }
+        },
+        "title": "ProgressLine",
+        "additionalProperties": false
+      },
+      "micropod.v1.PullImageRequest": {
+        "type": "object",
+        "properties": {
+          "reference": {
+            "type": "string",
+            "title": "reference"
+          },
+          "platform": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "platform"
+          }
+        },
+        "title": "PullImageRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.RunContainerRequest": {
+        "type": "object",
+        "properties": {
+          "image": {
+            "type": "string",
+            "title": "image"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "name"
+          },
+          "detach": {
+            "type": "boolean",
+            "title": "detach"
+          },
+          "cpus": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "title": "cpus",
+            "format": "double"
+          },
+          "memory": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "memory"
+          },
+          "env": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "env"
+          },
+          "ports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.PortMapping"
+            },
+            "title": "ports"
+          },
+          "volumes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "volumes"
+          },
+          "labels": {
+            "type": "object",
+            "title": "labels",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            }
+          },
+          "init": {
+            "type": "boolean",
+            "title": "init"
+          },
+          "arguments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "arguments"
+          }
+        },
+        "title": "RunContainerRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.RunContainerRequest.LabelsEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "type": "string",
+            "title": "value"
+          }
+        },
+        "title": "LabelsEntry",
+        "additionalProperties": false
+      },
+      "micropod.v1.StatsSnapshot": {
+        "type": "object",
+        "properties": {
+          "containers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.ContainerStats"
+            },
+            "title": "containers"
+          },
+          "sampledAt": {
+            "type": "string",
+            "title": "sampled_at"
+          }
+        },
+        "title": "StatsSnapshot",
+        "additionalProperties": false,
+        "description": "Single snapshot of runtime resource usage for all running containers,\n mapped from `container stats --no-stream --format json`."
+      },
+      "micropod.v1.StreamLogsRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "tail": {
+            "type": "integer",
+            "title": "tail",
+            "format": "int32"
+          },
+          "boot": {
+            "type": "boolean",
+            "title": "boot"
+          }
+        },
+        "title": "StreamLogsRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.SystemSnapshot": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "title": "status",
+            "$ref": "#/components/schemas/micropod.v1.SystemStatus"
+          },
+          "diskUsage": {
+            "title": "disk_usage",
+            "$ref": "#/components/schemas/micropod.v1.DiskUsage"
+          }
+        },
+        "title": "SystemSnapshot",
+        "additionalProperties": false
+      },
+      "micropod.v1.SystemStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "status",
+            "description": "\"running\" or \"stopped\"."
+          },
+          "appRoot": {
+            "type": "string",
+            "title": "app_root"
+          },
+          "installRoot": {
+            "type": "string",
+            "title": "install_root"
+          },
+          "apiServerVersion": {
+            "type": "string",
+            "title": "api_server_version"
+          },
+          "cliVersion": {
+            "type": "string",
+            "title": "cli_version"
+          }
+        },
+        "title": "SystemStatus",
+        "additionalProperties": false,
+        "description": "Runtime health, mapped from `container system status`."
+      },
+      "micropod.v1.Volume": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "driver": {
+            "type": "string",
+            "title": "driver"
+          },
+          "format": {
+            "type": "string",
+            "title": "format"
+          },
+          "sizeBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "size_bytes",
+            "format": "int64"
+          },
+          "source": {
+            "type": "string",
+            "title": "source"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "created_at"
+          },
+          "labels": {
+            "type": "object",
+            "title": "labels",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            }
+          }
+        },
+        "title": "Volume",
+        "additionalProperties": false,
+        "description": "Curated volume, mapped from `container volume list`."
+      },
+      "micropod.v1.Volume.LabelsEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "type": "string",
+            "title": "value"
+          }
+        },
+        "title": "LabelsEntry",
+        "additionalProperties": false
+      }
+    }
+  },
+  "security": [],
+  "tags": [
+    {
+      "name": "micropod.v1.MicropodService",
+      "description": "The Micropod management API: container/image/volume/network operations on\n the Apple `container` runtime, served by the connect-go API server and\n consumable from any connect client (Go, Swift, TS, …)."
+    }
+  ]
+}

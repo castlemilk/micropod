@@ -1,0 +1,6184 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <title>Protocol Documentation</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Ubuntu:400,700,400italic"/>
+    <style>
+      body {
+        width: 60em;
+        margin: 1em auto;
+        color: #222;
+        font-family: "Ubuntu", sans-serif;
+        padding-bottom: 4em;
+      }
+
+      h1 {
+        font-weight: normal;
+        border-bottom: 1px solid #aaa;
+        padding-bottom: 0.5ex;
+      }
+
+      h2 {
+        border-bottom: 1px solid #aaa;
+        padding-bottom: 0.5ex;
+        margin: 1.5em 0;
+      }
+
+      h3 {
+        font-weight: normal;
+        border-bottom: 1px solid #aaa;
+        padding-bottom: 0.5ex;
+      }
+
+      a {
+        text-decoration: none;
+        color: #567e25;
+      }
+
+      table {
+        width: 100%;
+        font-size: 80%;
+        border-collapse: collapse;
+      }
+
+      thead {
+        font-weight: 700;
+        background-color: #dcdcdc;
+      }
+
+      tbody tr:nth-child(even) {
+        background-color: #fbfbfb;
+      }
+
+      td {
+        border: 1px solid #ccc;
+        padding: 0.5ex 2ex;
+      }
+
+      td p {
+        text-indent: 1em;
+        margin: 0;
+      }
+
+      td p:nth-child(1) {
+        text-indent: 0;  
+      }
+
+       
+      .field-table td:nth-child(1) {  
+        width: 10em;
+      }
+      .field-table td:nth-child(2) {  
+        width: 10em;
+      }
+      .field-table td:nth-child(3) {  
+        width: 6em;
+      }
+      .field-table td:nth-child(4) {  
+        width: auto;
+      }
+
+       
+      .extension-table td:nth-child(1) {  
+        width: 10em;
+      }
+      .extension-table td:nth-child(2) {  
+        width: 10em;
+      }
+      .extension-table td:nth-child(3) {  
+        width: 10em;
+      }
+      .extension-table td:nth-child(4) {  
+        width: 5em;
+      }
+      .extension-table td:nth-child(5) {  
+        width: auto;
+      }
+
+       
+      .enum-table td:nth-child(1) {  
+        width: 10em;
+      }
+      .enum-table td:nth-child(2) {  
+        width: 10em;
+      }
+      .enum-table td:nth-child(3) {  
+        width: auto;
+      }
+
+       
+      .scalar-value-types-table tr {
+        height: 3em;
+      }
+
+       
+      #toc-container ul {
+        list-style-type: none;
+        padding-left: 1em;
+        line-height: 180%;
+        margin: 0;
+      }
+      #toc > li > a {
+        font-weight: bold;
+      }
+
+       
+      .file-heading {
+        width: 100%;
+        display: table;
+        border-bottom: 1px solid #aaa;
+        margin: 4em 0 1.5em 0;
+      }
+      .file-heading h2 {
+        border: none;
+        display: table-cell;
+      }
+      .file-heading a {
+        text-align: right;
+        display: table-cell;
+      }
+
+       
+      .badge {
+        width: 1.6em;
+        height: 1.6em;
+        display: inline-block;
+
+        line-height: 1.6em;
+        text-align: center;
+        font-weight: bold;
+        font-size: 60%;
+
+        color: #89ba48;
+        background-color: #dff0c8;
+
+        margin: 0.5ex 1em 0.5ex -1em;
+        border: 1px solid #fbfbfb;
+        border-radius: 1ex;
+      }
+    </style>
+
+    
+    <link rel="stylesheet" type="text/css" href="stylesheet.css"/>
+  </head>
+
+  <body>
+
+    <h1 id="title">Protocol Documentation</h1>
+
+    <h2>Table of Contents</h2>
+
+    <div id="toc-container">
+      <ul id="toc">
+        
+          
+          <li>
+            <a href="#com%2fapple%2fcontainerization%2fsandbox%2fv3%2fsandbox_context.proto">com/apple/containerization/sandbox/v3/sandbox_context.proto</a>
+            <ul>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.BlockIOEntry"><span class="badge">M</span>BlockIOEntry</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.BlockIOStats"><span class="badge">M</span>BlockIOStats</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.CPUStats"><span class="badge">M</span>CPUStats</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.CloseProcessStdinRequest"><span class="badge">M</span>CloseProcessStdinRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.CloseProcessStdinResponse"><span class="badge">M</span>CloseProcessStdinResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.ConfigureDnsRequest"><span class="badge">M</span>ConfigureDnsRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.ConfigureDnsResponse"><span class="badge">M</span>ConfigureDnsResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.ConfigureHostsRequest"><span class="badge">M</span>ConfigureHostsRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.ConfigureHostsRequest.HostsEntry"><span class="badge">M</span>ConfigureHostsRequest.HostsEntry</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.ConfigureHostsResponse"><span class="badge">M</span>ConfigureHostsResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.ContainerStatisticsRequest"><span class="badge">M</span>ContainerStatisticsRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.ContainerStatisticsResponse"><span class="badge">M</span>ContainerStatisticsResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.ContainerStats"><span class="badge">M</span>ContainerStats</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.CopyRequest"><span class="badge">M</span>CopyRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.CopyResponse"><span class="badge">M</span>CopyResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.CreateProcessRequest"><span class="badge">M</span>CreateProcessRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.CreateProcessResponse"><span class="badge">M</span>CreateProcessResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.DeleteProcessRequest"><span class="badge">M</span>DeleteProcessRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.DeleteProcessResponse"><span class="badge">M</span>DeleteProcessResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.FiFreezeParams"><span class="badge">M</span>FiFreezeParams</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.FiThawParams"><span class="badge">M</span>FiThawParams</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.FiTrimParams"><span class="badge">M</span>FiTrimParams</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.FiTrimParams.OneShot"><span class="badge">M</span>FiTrimParams.OneShot</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.FiTrimResult"><span class="badge">M</span>FiTrimResult</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.FilesystemOperationRequest"><span class="badge">M</span>FilesystemOperationRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.FilesystemOperationResponse"><span class="badge">M</span>FilesystemOperationResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.GetenvRequest"><span class="badge">M</span>GetenvRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.GetenvResponse"><span class="badge">M</span>GetenvResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.IpAddrAddRequest"><span class="badge">M</span>IpAddrAddRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.IpAddrAddResponse"><span class="badge">M</span>IpAddrAddResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.IpLinkSetRequest"><span class="badge">M</span>IpLinkSetRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.IpLinkSetResponse"><span class="badge">M</span>IpLinkSetResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.IpRouteAddDefaultRequest"><span class="badge">M</span>IpRouteAddDefaultRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.IpRouteAddDefaultResponse"><span class="badge">M</span>IpRouteAddDefaultResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.IpRouteAddLinkRequest"><span class="badge">M</span>IpRouteAddLinkRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.IpRouteAddLinkResponse"><span class="badge">M</span>IpRouteAddLinkResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.KillProcessRequest"><span class="badge">M</span>KillProcessRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.KillProcessResponse"><span class="badge">M</span>KillProcessResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.KillRequest"><span class="badge">M</span>KillRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.KillResponse"><span class="badge">M</span>KillResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.MemoryEventStats"><span class="badge">M</span>MemoryEventStats</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.MemoryStats"><span class="badge">M</span>MemoryStats</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.MkdirRequest"><span class="badge">M</span>MkdirRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.MkdirResponse"><span class="badge">M</span>MkdirResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.MountRequest"><span class="badge">M</span>MountRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.MountResponse"><span class="badge">M</span>MountResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.NetworkStats"><span class="badge">M</span>NetworkStats</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.ProcessStats"><span class="badge">M</span>ProcessStats</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.ProxyVsockRequest"><span class="badge">M</span>ProxyVsockRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.ProxyVsockResponse"><span class="badge">M</span>ProxyVsockResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.ResizeProcessRequest"><span class="badge">M</span>ResizeProcessRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.ResizeProcessResponse"><span class="badge">M</span>ResizeProcessResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.SetTimeRequest"><span class="badge">M</span>SetTimeRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.SetTimeResponse"><span class="badge">M</span>SetTimeResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.SetenvRequest"><span class="badge">M</span>SetenvRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.SetenvResponse"><span class="badge">M</span>SetenvResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.SetupEmulatorRequest"><span class="badge">M</span>SetupEmulatorRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.SetupEmulatorResponse"><span class="badge">M</span>SetupEmulatorResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.StartProcessRequest"><span class="badge">M</span>StartProcessRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.StartProcessResponse"><span class="badge">M</span>StartProcessResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.Stat"><span class="badge">M</span>Stat</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.StatRequest"><span class="badge">M</span>StatRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.StatResponse"><span class="badge">M</span>StatResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.Stdio"><span class="badge">M</span>Stdio</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.StopVsockProxyRequest"><span class="badge">M</span>StopVsockProxyRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.StopVsockProxyResponse"><span class="badge">M</span>StopVsockProxyResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.SyncRequest"><span class="badge">M</span>SyncRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.SyncResponse"><span class="badge">M</span>SyncResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.SysctlRequest"><span class="badge">M</span>SysctlRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.SysctlRequest.SettingsEntry"><span class="badge">M</span>SysctlRequest.SettingsEntry</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.SysctlResponse"><span class="badge">M</span>SysctlResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.UmountRequest"><span class="badge">M</span>UmountRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.UmountResponse"><span class="badge">M</span>UmountResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.WaitProcessRequest"><span class="badge">M</span>WaitProcessRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.WaitProcessResponse"><span class="badge">M</span>WaitProcessResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.WriteFileRequest"><span class="badge">M</span>WriteFileRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.WriteFileRequest.WriteFileFlags"><span class="badge">M</span>WriteFileRequest.WriteFileFlags</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.WriteFileResponse"><span class="badge">M</span>WriteFileResponse</a>
+                </li>
+              
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.CopyRequest.Direction"><span class="badge">E</span>CopyRequest.Direction</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.CopyResponse.Status"><span class="badge">E</span>CopyResponse.Status</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.ProxyVsockRequest.Action"><span class="badge">E</span>ProxyVsockRequest.Action</a>
+                </li>
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.StatCategory"><span class="badge">E</span>StatCategory</a>
+                </li>
+              
+              
+              
+                <li>
+                  <a href="#com.apple.containerization.sandbox.v3.SandboxContext"><span class="badge">S</span>SandboxContext</a>
+                </li>
+              
+            </ul>
+          </li>
+        
+          
+          <li>
+            <a href="#micropod%2fv1%2fcontainer.proto">micropod/v1/container.proto</a>
+            <ul>
+              
+                <li>
+                  <a href="#micropod.v1.Container"><span class="badge">M</span>Container</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.Container.LabelsEntry"><span class="badge">M</span>Container.LabelsEntry</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ContainerResources"><span class="badge">M</span>ContainerResources</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.Mount"><span class="badge">M</span>Mount</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.PortMapping"><span class="badge">M</span>PortMapping</a>
+                </li>
+              
+              
+              
+              
+            </ul>
+          </li>
+        
+          
+          <li>
+            <a href="#micropod%2fv1%2fimage.proto">micropod/v1/image.proto</a>
+            <ul>
+              
+                <li>
+                  <a href="#micropod.v1.Image"><span class="badge">M</span>Image</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ImageVariant"><span class="badge">M</span>ImageVariant</a>
+                </li>
+              
+              
+              
+              
+            </ul>
+          </li>
+        
+          
+          <li>
+            <a href="#micropod%2fv1%2fsystem.proto">micropod/v1/system.proto</a>
+            <ul>
+              
+                <li>
+                  <a href="#micropod.v1.ContainerStats"><span class="badge">M</span>ContainerStats</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.DiskCategory"><span class="badge">M</span>DiskCategory</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.DiskUsage"><span class="badge">M</span>DiskUsage</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.Network"><span class="badge">M</span>Network</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.Network.LabelsEntry"><span class="badge">M</span>Network.LabelsEntry</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.RegistryLogin"><span class="badge">M</span>RegistryLogin</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.StatsSnapshot"><span class="badge">M</span>StatsSnapshot</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.SystemStatus"><span class="badge">M</span>SystemStatus</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.Volume"><span class="badge">M</span>Volume</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.Volume.LabelsEntry"><span class="badge">M</span>Volume.LabelsEntry</a>
+                </li>
+              
+              
+              
+              
+            </ul>
+          </li>
+        
+          
+          <li>
+            <a href="#micropod%2fv1%2fapi.proto">micropod/v1/api.proto</a>
+            <ul>
+              
+                <li>
+                  <a href="#micropod.v1.ContainerRef"><span class="badge">M</span>ContainerRef</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.CreateNetworkRequest"><span class="badge">M</span>CreateNetworkRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.CreateVolumeRequest"><span class="badge">M</span>CreateVolumeRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.DeleteContainerRequest"><span class="badge">M</span>DeleteContainerRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.DeleteImageRequest"><span class="badge">M</span>DeleteImageRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.DeleteNetworkRequest"><span class="badge">M</span>DeleteNetworkRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.DeleteVolumeRequest"><span class="badge">M</span>DeleteVolumeRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.Empty"><span class="badge">M</span>Empty</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ExecRequest"><span class="badge">M</span>ExecRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ExecResponse"><span class="badge">M</span>ExecResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.GetStatsRequest"><span class="badge">M</span>GetStatsRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.GetStatsResponse"><span class="badge">M</span>GetStatsResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ListContainersResponse"><span class="badge">M</span>ListContainersResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ListImagesResponse"><span class="badge">M</span>ListImagesResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ListNetworksResponse"><span class="badge">M</span>ListNetworksResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ListVolumesResponse"><span class="badge">M</span>ListVolumesResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.LogChunk"><span class="badge">M</span>LogChunk</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ProgressLine"><span class="badge">M</span>ProgressLine</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.PullImageRequest"><span class="badge">M</span>PullImageRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.RunContainerRequest"><span class="badge">M</span>RunContainerRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.RunContainerRequest.LabelsEntry"><span class="badge">M</span>RunContainerRequest.LabelsEntry</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.StreamLogsRequest"><span class="badge">M</span>StreamLogsRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.SystemSnapshot"><span class="badge">M</span>SystemSnapshot</a>
+                </li>
+              
+              
+              
+              
+                <li>
+                  <a href="#micropod.v1.MicropodService"><span class="badge">S</span>MicropodService</a>
+                </li>
+              
+            </ul>
+          </li>
+        
+          
+          <li>
+            <a href="#micropod%2fv1%2fcompose.proto">micropod/v1/compose.proto</a>
+            <ul>
+              
+                <li>
+                  <a href="#micropod.v1.ComposeNetwork"><span class="badge">M</span>ComposeNetwork</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ComposeService"><span class="badge">M</span>ComposeService</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ComposeService.DependsOnConditionsEntry"><span class="badge">M</span>ComposeService.DependsOnConditionsEntry</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ComposeSpec"><span class="badge">M</span>ComposeSpec</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ComposeSpec.NetworksEntry"><span class="badge">M</span>ComposeSpec.NetworksEntry</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ComposeSpec.VolumesEntry"><span class="badge">M</span>ComposeSpec.VolumesEntry</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ComposeVolume"><span class="badge">M</span>ComposeVolume</a>
+                </li>
+              
+              
+              
+              
+            </ul>
+          </li>
+        
+        <li><a href="#scalar-value-types">Scalar Value Types</a></li>
+      </ul>
+    </div>
+
+    
+      
+      <div class="file-heading">
+        <h2 id="com/apple/containerization/sandbox/v3/sandbox_context.proto">com/apple/containerization/sandbox/v3/sandbox_context.proto</h2><a href="#title">Top</a>
+      </div>
+      <p></p>
+
+      
+        <h3 id="com.apple.containerization.sandbox.v3.BlockIOEntry">BlockIOEntry</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>major</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>minor</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>read_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>write_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>read_operations</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>write_operations</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.BlockIOStats">BlockIOStats</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>devices</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.BlockIOEntry">BlockIOEntry</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.CPUStats">CPUStats</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>usage_usec</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>user_usec</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>system_usec</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>throttling_periods</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>throttled_periods</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>throttled_time_usec</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.CloseProcessStdinRequest">CloseProcessStdinRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>containerID</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.CloseProcessStdinResponse">CloseProcessStdinResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.ConfigureDnsRequest">ConfigureDnsRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>location</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>nameservers</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>domain</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>searchDomains</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>options</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.ConfigureDnsResponse">ConfigureDnsResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.ConfigureHostsRequest">ConfigureHostsRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>location</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>entries</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.ConfigureHostsRequest.HostsEntry">ConfigureHostsRequest.HostsEntry</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>comment</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.ConfigureHostsRequest.HostsEntry">ConfigureHostsRequest.HostsEntry</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>ipAddress</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>hostnames</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>comment</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.ConfigureHostsResponse">ConfigureHostsResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.ContainerStatisticsRequest">ContainerStatisticsRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>container_ids</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Empty = all containers </p></td>
+                </tr>
+              
+                <tr>
+                  <td>categories</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.StatCategory">StatCategory</a></td>
+                  <td>repeated</td>
+                  <td><p>Empty = all categories </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.ContainerStatisticsResponse">ContainerStatisticsResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>containers</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.ContainerStats">ContainerStats</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.ContainerStats">ContainerStats</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>container_id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>process</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.ProcessStats">ProcessStats</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.MemoryStats">MemoryStats</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cpu</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.CPUStats">CPUStats</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>block_io</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.BlockIOStats">BlockIOStats</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>networks</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.NetworkStats">NetworkStats</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory_events</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.MemoryEventStats">MemoryEventStats</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.CopyRequest">CopyRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>direction</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.CopyRequest.Direction">CopyRequest.Direction</a></td>
+                  <td></td>
+                  <td><p>Direction of the copy operation. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Path in the guest (destination for COPY_IN, source for COPY_OUT). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>mode</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>File mode for single-file COPY_IN (defaults to 0644 if not set). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>create_parents</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Create parent directories if they don&#39;t exist. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>vsock_port</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>Vsock port the host is listening on for data transfer. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>is_archive</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>For COPY_IN: indicates the data arriving on vsock is a tar&#43;gzip archive. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.CopyResponse">CopyResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>status</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.CopyResponse.Status">CopyResponse.Status</a></td>
+                  <td></td>
+                  <td><p>What this response represents. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>is_archive</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>For COPY_OUT METADATA: indicates the data on vsock will be a tar&#43;gzip archive. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>total_size</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>For COPY_OUT METADATA: total size in bytes (0 if unknown, e.g. for archives). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>error</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Non-empty if an error occurred. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.CreateProcessRequest">CreateProcessRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>containerID</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>stdin</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>stdout</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>stderr</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ociRuntimePath</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>configuration</td>
+                  <td><a href="#bytes">bytes</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>options</td>
+                  <td><a href="#bytes">bytes</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.CreateProcessResponse">CreateProcessResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.DeleteProcessRequest">DeleteProcessRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>containerID</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.DeleteProcessResponse">DeleteProcessResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.FiFreezeParams">FiFreezeParams</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.FiThawParams">FiThawParams</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.FiTrimParams">FiTrimParams</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>one_shot</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.FiTrimParams.OneShot">FiTrimParams.OneShot</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.FiTrimParams.OneShot">FiTrimParams.OneShot</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.FiTrimResult">FiTrimResult</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>trimmed_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.FilesystemOperationRequest">FilesystemOperationRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>trim</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.FiTrimParams">FiTrimParams</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>freeze</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.FiFreezeParams">FiFreezeParams</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>thaw</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.FiThawParams">FiThawParams</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.FilesystemOperationResponse">FilesystemOperationResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>trim</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.FiTrimResult">FiTrimResult</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.GetenvRequest">GetenvRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>key</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.GetenvResponse">GetenvResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>value</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.IpAddrAddRequest">IpAddrAddRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>interface</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ipv4Address</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ipv6Address</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.IpAddrAddResponse">IpAddrAddResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.IpLinkSetRequest">IpLinkSetRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>interface</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>up</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>mtu</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.IpLinkSetResponse">IpLinkSetResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.IpRouteAddDefaultRequest">IpRouteAddDefaultRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>interface</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ipv4Gateway</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ipv6Gateway</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.IpRouteAddDefaultResponse">IpRouteAddDefaultResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.IpRouteAddLinkRequest">IpRouteAddLinkRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>interface</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>dstIpv4Addr</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>srcIpv4Addr</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>dstIpv6Addr</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>srcIpv6Addr</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.IpRouteAddLinkResponse">IpRouteAddLinkResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.KillProcessRequest">KillProcessRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>containerID</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>signal</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.KillProcessResponse">KillProcessResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>result</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.KillRequest">KillRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>pid</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>signal</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.KillResponse">KillResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>result</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.MemoryEventStats">MemoryEventStats</h3>
+        <p>Memory event counters from cgroup2's memory.events file.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>low</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Number of times the cgroup was reclaimed due to low memory. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>high</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Number of times the cgroup exceeded its high memory limit. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>max</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Number of times the cgroup hit its max memory limit. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>oom</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Number of times the cgroup triggered OOM. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>oom_kill</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Number of processes killed by OOM killer. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>oom_group_kill</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Number of times charge for memory failed because of limit. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.MemoryStats">MemoryStats</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>usage_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>limit_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>swap_usage_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>swap_limit_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cache_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>kernel_stack_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>slab_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>page_faults</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>major_page_faults</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>inactive_file</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>anon</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>workingset_refault_anon</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>workingset_refault_file</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>pgsteal_kswapd</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>pgsteal_direct</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>pgsteal_khugepaged</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.MkdirRequest">MkdirRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>all</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>perms</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.MkdirResponse">MkdirResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.MountRequest">MountRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>type</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>source</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>destination</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>options</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.MountResponse">MountResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.NetworkStats">NetworkStats</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>interface</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>receivedPackets</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>transmittedPackets</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>receivedBytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>transmittedBytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>receivedErrors</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>transmittedErrors</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.ProcessStats">ProcessStats</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>current</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>limit</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>0 or max value = unlimited </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.ProxyVsockRequest">ProxyVsockRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>vsock_port</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>guestPath</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>guestSocketPermissions</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>action</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.ProxyVsockRequest.Action">ProxyVsockRequest.Action</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.ProxyVsockResponse">ProxyVsockResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.ResizeProcessRequest">ResizeProcessRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>containerID</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>rows</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>columns</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.ResizeProcessResponse">ResizeProcessResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.SetTimeRequest">SetTimeRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>sec</td>
+                  <td><a href="#int64">int64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>usec</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.SetTimeResponse">SetTimeResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.SetenvRequest">SetenvRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>key</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>value</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.SetenvResponse">SetenvResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.SetupEmulatorRequest">SetupEmulatorRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>binary_path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>type</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>offset</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>magic</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>mask</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>flags</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.SetupEmulatorResponse">SetupEmulatorResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.StartProcessRequest">StartProcessRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>containerID</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.StartProcessResponse">StartProcessResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>pid</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.Stat">Stat</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>dev</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>st_dev:     ID of device containing file </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ino</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>st_ino:     inode number </p></td>
+                </tr>
+              
+                <tr>
+                  <td>mode</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>st_mode:    file type and mode (permissions) </p></td>
+                </tr>
+              
+                <tr>
+                  <td>nlink</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>st_nlink:   number of hard links </p></td>
+                </tr>
+              
+                <tr>
+                  <td>uid</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>st_uid:     user ID of owner </p></td>
+                </tr>
+              
+                <tr>
+                  <td>gid</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>st_gid:     group ID of owner </p></td>
+                </tr>
+              
+                <tr>
+                  <td>rdev</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>st_rdev:    device ID (if special file) </p></td>
+                </tr>
+              
+                <tr>
+                  <td>size</td>
+                  <td><a href="#int64">int64</a></td>
+                  <td></td>
+                  <td><p>st_size:    total size in bytes </p></td>
+                </tr>
+              
+                <tr>
+                  <td>blksize</td>
+                  <td><a href="#int64">int64</a></td>
+                  <td></td>
+                  <td><p>st_blksize: preferred block size for filesystem I/O </p></td>
+                </tr>
+              
+                <tr>
+                  <td>blocks</td>
+                  <td><a href="#int64">int64</a></td>
+                  <td></td>
+                  <td><p>st_blocks:  number of 512-byte blocks allocated </p></td>
+                </tr>
+              
+                <tr>
+                  <td>atime</td>
+                  <td><a href="#google.protobuf.Timestamp">google.protobuf.Timestamp</a></td>
+                  <td></td>
+                  <td><p>st_atim: time of last access </p></td>
+                </tr>
+              
+                <tr>
+                  <td>mtime</td>
+                  <td><a href="#google.protobuf.Timestamp">google.protobuf.Timestamp</a></td>
+                  <td></td>
+                  <td><p>st_mtim: time of last modification </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ctime</td>
+                  <td><a href="#google.protobuf.Timestamp">google.protobuf.Timestamp</a></td>
+                  <td></td>
+                  <td><p>st_ctim: time of last status change </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.StatRequest">StatRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.StatResponse">StatResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>stat</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.Stat">Stat</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>error</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Non-empty if stat failed. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.Stdio">Stdio</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>stdinPort</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>stdoutPort</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>stderrPort</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.StopVsockProxyRequest">StopVsockProxyRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.StopVsockProxyResponse">StopVsockProxyResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.SyncRequest">SyncRequest</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.SyncResponse">SyncResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.SysctlRequest">SysctlRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>settings</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.SysctlRequest.SettingsEntry">SysctlRequest.SettingsEntry</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.SysctlRequest.SettingsEntry">SysctlRequest.SettingsEntry</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>key</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>value</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.SysctlResponse">SysctlResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.UmountRequest">UmountRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>flags</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.UmountResponse">UmountResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.WaitProcessRequest">WaitProcessRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>containerID</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.WaitProcessResponse">WaitProcessResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>exitCode</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>exited_at</td>
+                  <td><a href="#google.protobuf.Timestamp">google.protobuf.Timestamp</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.WriteFileRequest">WriteFileRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>data</td>
+                  <td><a href="#bytes">bytes</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>mode</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>flags</td>
+                  <td><a href="#com.apple.containerization.sandbox.v3.WriteFileRequest.WriteFileFlags">WriteFileRequest.WriteFileFlags</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.WriteFileRequest.WriteFileFlags">WriteFileRequest.WriteFileFlags</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>create_parent_dirs</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>append</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>create_if_missing</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="com.apple.containerization.sandbox.v3.WriteFileResponse">WriteFileResponse</h3>
+        <p></p>
+
+        
+
+        
+      
+
+      
+        <h3 id="com.apple.containerization.sandbox.v3.CopyRequest.Direction">CopyRequest.Direction</h3>
+        <p></p>
+        <table class="enum-table">
+          <thead>
+            <tr><td>Name</td><td>Number</td><td>Description</td></tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>COPY_IN</td>
+                <td>0</td>
+                <td><p>Copy from host into guest.</p></td>
+              </tr>
+            
+              <tr>
+                <td>COPY_OUT</td>
+                <td>1</td>
+                <td><p>Copy from guest to host.</p></td>
+              </tr>
+            
+          </tbody>
+        </table>
+      
+        <h3 id="com.apple.containerization.sandbox.v3.CopyResponse.Status">CopyResponse.Status</h3>
+        <p></p>
+        <table class="enum-table">
+          <thead>
+            <tr><td>Name</td><td>Number</td><td>Description</td></tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>METADATA</td>
+                <td>0</td>
+                <td><p>Transfer metadata (first message for COPY_OUT: is_archive, total_size).</p></td>
+              </tr>
+            
+              <tr>
+                <td>COMPLETE</td>
+                <td>1</td>
+                <td><p>Data transfer completed successfully.</p></td>
+              </tr>
+            
+          </tbody>
+        </table>
+      
+        <h3 id="com.apple.containerization.sandbox.v3.ProxyVsockRequest.Action">ProxyVsockRequest.Action</h3>
+        <p></p>
+        <table class="enum-table">
+          <thead>
+            <tr><td>Name</td><td>Number</td><td>Description</td></tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>INTO</td>
+                <td>0</td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>OUT_OF</td>
+                <td>1</td>
+                <td><p></p></td>
+              </tr>
+            
+          </tbody>
+        </table>
+      
+        <h3 id="com.apple.containerization.sandbox.v3.StatCategory">StatCategory</h3>
+        <p>Categories of statistics that can be requested.</p>
+        <table class="enum-table">
+          <thead>
+            <tr><td>Name</td><td>Number</td><td>Description</td></tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>STAT_CATEGORY_UNSPECIFIED</td>
+                <td>0</td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>STAT_CATEGORY_PROCESS</td>
+                <td>1</td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>STAT_CATEGORY_MEMORY</td>
+                <td>2</td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>STAT_CATEGORY_CPU</td>
+                <td>3</td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>STAT_CATEGORY_BLOCK_IO</td>
+                <td>4</td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>STAT_CATEGORY_NETWORK</td>
+                <td>5</td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>STAT_CATEGORY_MEMORY_EVENTS</td>
+                <td>6</td>
+                <td><p></p></td>
+              </tr>
+            
+          </tbody>
+        </table>
+      
+
+      
+
+      
+        <h3 id="com.apple.containerization.sandbox.v3.SandboxContext">SandboxContext</h3>
+        <p>Context for interacting with a container's runtime environment.</p>
+        <table class="enum-table">
+          <thead>
+            <tr><td>Method Name</td><td>Request Type</td><td>Response Type</td><td>Description</td></tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>Mount</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.MountRequest">MountRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.MountResponse">MountResponse</a></td>
+                <td><p>Mount a filesystem.</p></td>
+              </tr>
+            
+              <tr>
+                <td>Umount</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.UmountRequest">UmountRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.UmountResponse">UmountResponse</a></td>
+                <td><p>Unmount a filesystem.</p></td>
+              </tr>
+            
+              <tr>
+                <td>Setenv</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.SetenvRequest">SetenvRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.SetenvResponse">SetenvResponse</a></td>
+                <td><p>Set an environment variable on the init process.</p></td>
+              </tr>
+            
+              <tr>
+                <td>Getenv</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.GetenvRequest">GetenvRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.GetenvResponse">GetenvResponse</a></td>
+                <td><p>Get an environment variable from the init process.</p></td>
+              </tr>
+            
+              <tr>
+                <td>Mkdir</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.MkdirRequest">MkdirRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.MkdirResponse">MkdirResponse</a></td>
+                <td><p>Create a new directory inside the sandbox.</p></td>
+              </tr>
+            
+              <tr>
+                <td>Sysctl</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.SysctlRequest">SysctlRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.SysctlResponse">SysctlResponse</a></td>
+                <td><p>Set sysctls in the context of the sandbox.</p></td>
+              </tr>
+            
+              <tr>
+                <td>SetTime</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.SetTimeRequest">SetTimeRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.SetTimeResponse">SetTimeResponse</a></td>
+                <td><p>Set time in the guest.</p></td>
+              </tr>
+            
+              <tr>
+                <td>SetupEmulator</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.SetupEmulatorRequest">SetupEmulatorRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.SetupEmulatorResponse">SetupEmulatorResponse</a></td>
+                <td><p>Set up an emulator in the guest for a specific binary format.</p></td>
+              </tr>
+            
+              <tr>
+                <td>WriteFile</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.WriteFileRequest">WriteFileRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.WriteFileResponse">WriteFileResponse</a></td>
+                <td><p>Write data to an existing or new file.</p></td>
+              </tr>
+            
+              <tr>
+                <td>Copy</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.CopyRequest">CopyRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.CopyResponse">CopyResponse</a> stream</td>
+                <td><p>Copy a file or directory between the host and guest.
+Data transfer happens over a dedicated vsock connection;
+the gRPC stream is used only for control/metadata.</p></td>
+              </tr>
+            
+              <tr>
+                <td>Stat</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.StatRequest">StatRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.StatResponse">StatResponse</a></td>
+                <td><p>Stat a path in the guest filesystem.</p></td>
+              </tr>
+            
+              <tr>
+                <td>FilesystemOperation</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.FilesystemOperationRequest">FilesystemOperationRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.FilesystemOperationResponse">FilesystemOperationResponse</a></td>
+                <td><p>Perform a filesystem operation on a mounted filesystem.</p></td>
+              </tr>
+            
+              <tr>
+                <td>CreateProcess</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.CreateProcessRequest">CreateProcessRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.CreateProcessResponse">CreateProcessResponse</a></td>
+                <td><p>Create a new process inside the container.</p></td>
+              </tr>
+            
+              <tr>
+                <td>DeleteProcess</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.DeleteProcessRequest">DeleteProcessRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.DeleteProcessResponse">DeleteProcessResponse</a></td>
+                <td><p>Delete an existing process inside the container.</p></td>
+              </tr>
+            
+              <tr>
+                <td>StartProcess</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.StartProcessRequest">StartProcessRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.StartProcessResponse">StartProcessResponse</a></td>
+                <td><p>Start the provided process.</p></td>
+              </tr>
+            
+              <tr>
+                <td>KillProcess</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.KillProcessRequest">KillProcessRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.KillProcessResponse">KillProcessResponse</a></td>
+                <td><p>Send a signal to the provided process.</p></td>
+              </tr>
+            
+              <tr>
+                <td>WaitProcess</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.WaitProcessRequest">WaitProcessRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.WaitProcessResponse">WaitProcessResponse</a></td>
+                <td><p>Wait for a process to exit and return the exit code.</p></td>
+              </tr>
+            
+              <tr>
+                <td>ResizeProcess</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.ResizeProcessRequest">ResizeProcessRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.ResizeProcessResponse">ResizeProcessResponse</a></td>
+                <td><p>Resize the tty of a given process. This will error if the process does
+not have a pty allocated.</p></td>
+              </tr>
+            
+              <tr>
+                <td>CloseProcessStdin</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.CloseProcessStdinRequest">CloseProcessStdinRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.CloseProcessStdinResponse">CloseProcessStdinResponse</a></td>
+                <td><p>Close IO for a given process.</p></td>
+              </tr>
+            
+              <tr>
+                <td>ContainerStatistics</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.ContainerStatisticsRequest">ContainerStatisticsRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.ContainerStatisticsResponse">ContainerStatisticsResponse</a></td>
+                <td><p>Get statistics for containers.</p></td>
+              </tr>
+            
+              <tr>
+                <td>ProxyVsock</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.ProxyVsockRequest">ProxyVsockRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.ProxyVsockResponse">ProxyVsockResponse</a></td>
+                <td><p>Proxy a vsock port to a unix domain socket in the guest, or vice versa.</p></td>
+              </tr>
+            
+              <tr>
+                <td>StopVsockProxy</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.StopVsockProxyRequest">StopVsockProxyRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.StopVsockProxyResponse">StopVsockProxyResponse</a></td>
+                <td><p>Stop a vsock proxy to a unix domain socket.</p></td>
+              </tr>
+            
+              <tr>
+                <td>IpLinkSet</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.IpLinkSetRequest">IpLinkSetRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.IpLinkSetResponse">IpLinkSetResponse</a></td>
+                <td><p>Set the link state of a network interface.</p></td>
+              </tr>
+            
+              <tr>
+                <td>IpAddrAdd</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.IpAddrAddRequest">IpAddrAddRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.IpAddrAddResponse">IpAddrAddResponse</a></td>
+                <td><p>Add an IPv4 address to a network interface.</p></td>
+              </tr>
+            
+              <tr>
+                <td>IpRouteAddLink</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.IpRouteAddLinkRequest">IpRouteAddLinkRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.IpRouteAddLinkResponse">IpRouteAddLinkResponse</a></td>
+                <td><p>Add an IP route for a network interface.</p></td>
+              </tr>
+            
+              <tr>
+                <td>IpRouteAddDefault</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.IpRouteAddDefaultRequest">IpRouteAddDefaultRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.IpRouteAddDefaultResponse">IpRouteAddDefaultResponse</a></td>
+                <td><p>Add an IP route for a network interface.</p></td>
+              </tr>
+            
+              <tr>
+                <td>ConfigureDns</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.ConfigureDnsRequest">ConfigureDnsRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.ConfigureDnsResponse">ConfigureDnsResponse</a></td>
+                <td><p>Configure DNS resolver.</p></td>
+              </tr>
+            
+              <tr>
+                <td>ConfigureHosts</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.ConfigureHostsRequest">ConfigureHostsRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.ConfigureHostsResponse">ConfigureHostsResponse</a></td>
+                <td><p>Configure /etc/hosts.</p></td>
+              </tr>
+            
+              <tr>
+                <td>Sync</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.SyncRequest">SyncRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.SyncResponse">SyncResponse</a></td>
+                <td><p>Perform the sync syscall.</p></td>
+              </tr>
+            
+              <tr>
+                <td>Kill</td>
+                <td><a href="#com.apple.containerization.sandbox.v3.KillRequest">KillRequest</a></td>
+                <td><a href="#com.apple.containerization.sandbox.v3.KillResponse">KillResponse</a></td>
+                <td><p>Send a signal to a process via the PID.</p></td>
+              </tr>
+            
+          </tbody>
+        </table>
+
+        
+    
+      
+      <div class="file-heading">
+        <h2 id="micropod/v1/container.proto">micropod/v1/container.proto</h2><a href="#title">Top</a>
+      </div>
+      <p></p>
+
+      
+        <h3 id="micropod.v1.Container">Container</h3>
+        <p>Curated view of a container, mapped from `container list --format json`.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The container ID; `container` uses the user-assigned name as the ID. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>image</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Image reference the container was created from. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>state</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Lifecycle state: running, stopped, exited, created, ... </p></td>
+                </tr>
+              
+                <tr>
+                  <td>created_at</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>ISO8601 creation timestamp. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>resources</td>
+                  <td><a href="#micropod.v1.ContainerResources">ContainerResources</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>platform</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Platform string, e.g. &#34;linux/arm64&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>published_ports</td>
+                  <td><a href="#micropod.v1.PortMapping">PortMapping</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>mounts</td>
+                  <td><a href="#micropod.v1.Mount">Mount</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>networks</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Names of networks the container is attached to. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ipv4_address</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Resolved IPv4 address on the container network, if running. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>env</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>labels</td>
+                  <td><a href="#micropod.v1.Container.LabelsEntry">Container.LabelsEntry</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>rosetta</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>read_only</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>use_init</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ssh</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>virtualization</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>runtime_handler</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>exit_code</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.Container.LabelsEntry">Container.LabelsEntry</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>key</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>value</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ContainerResources">ContainerResources</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>cpus</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.Mount">Mount</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>type</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>source</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>destination</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>read_only</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.PortMapping">PortMapping</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>host_port</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>container_port</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>protocol</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>host_ip</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+
+      
+
+      
+
+      
+    
+      
+      <div class="file-heading">
+        <h2 id="micropod/v1/image.proto">micropod/v1/image.proto</h2><a href="#title">Top</a>
+      </div>
+      <p></p>
+
+      
+        <h3 id="micropod.v1.Image">Image</h3>
+        <p>Curated view of a local image, mapped from `container image list --verbose`.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>names</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>All tags/references pointing at this image. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>created_at</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>ISO8601 creation timestamp. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>digest</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Content digest. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>size_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>variants</td>
+                  <td><a href="#micropod.v1.ImageVariant">ImageVariant</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ImageVariant">ImageVariant</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>os</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>architecture</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>variant</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+
+      
+
+      
+
+      
+    
+      
+      <div class="file-heading">
+        <h2 id="micropod/v1/system.proto">micropod/v1/system.proto</h2><a href="#title">Top</a>
+      </div>
+      <p></p>
+
+      
+        <h3 id="micropod.v1.ContainerStats">ContainerStats</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cpu_percent</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory_used_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory_limit_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>network_rx_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>network_tx_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>block_read_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>block_write_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>pids</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.DiskCategory">DiskCategory</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>total</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>active</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>size_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>reclaimable_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.DiskUsage">DiskUsage</h3>
+        <p>Disk usage, mapped from `container system df`.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>containers</td>
+                  <td><a href="#micropod.v1.DiskCategory">DiskCategory</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>images</td>
+                  <td><a href="#micropod.v1.DiskCategory">DiskCategory</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>volumes</td>
+                  <td><a href="#micropod.v1.DiskCategory">DiskCategory</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>total_reclaimable_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.Network">Network</h3>
+        <p>Curated network, mapped from `container network list`.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>plugin</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>mode</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ipv4_gateway</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ipv4_subnet</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ipv6_subnet</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>created_at</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>builtin</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>labels</td>
+                  <td><a href="#micropod.v1.Network.LabelsEntry">Network.LabelsEntry</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.Network.LabelsEntry">Network.LabelsEntry</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>key</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>value</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.RegistryLogin">RegistryLogin</h3>
+        <p>A registry login, mapped from `container registry list`.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>server</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>username</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>scheme</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.StatsSnapshot">StatsSnapshot</h3>
+        <p>Single snapshot of runtime resource usage for all running containers,</p><p>mapped from `container stats --no-stream --format json`.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>containers</td>
+                  <td><a href="#micropod.v1.ContainerStats">ContainerStats</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>sampled_at</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.SystemStatus">SystemStatus</h3>
+        <p>Runtime health, mapped from `container system status`.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>status</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>&#34;running&#34; or &#34;stopped&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>app_root</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>install_root</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>api_server_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cli_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.Volume">Volume</h3>
+        <p>Curated volume, mapped from `container volume list`.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>driver</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>format</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>size_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>source</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>created_at</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>labels</td>
+                  <td><a href="#micropod.v1.Volume.LabelsEntry">Volume.LabelsEntry</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.Volume.LabelsEntry">Volume.LabelsEntry</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>key</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>value</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+
+      
+
+      
+
+      
+    
+      
+      <div class="file-heading">
+        <h2 id="micropod/v1/api.proto">micropod/v1/api.proto</h2><a href="#title">Top</a>
+      </div>
+      <p></p>
+
+      
+        <h3 id="micropod.v1.ContainerRef">ContainerRef</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.CreateNetworkRequest">CreateNetworkRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>internal</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>subnet</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>subnet_v6</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>driver</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>options</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>labels</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.CreateVolumeRequest">CreateVolumeRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>size</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>labels</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>options</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.DeleteContainerRequest">DeleteContainerRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>force</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.DeleteImageRequest">DeleteImageRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>reference</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>force</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.DeleteNetworkRequest">DeleteNetworkRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.DeleteVolumeRequest">DeleteVolumeRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.Empty">Empty</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="micropod.v1.ExecRequest">ExecRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>command</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>workdir</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>env</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ExecResponse">ExecResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>output</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>exit_code</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p>Guest process exit code. 0 on success; when the native runtime backend
+is active this is the real exit status rather than a CLI approximation. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>error</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Guest stderr, when the backend can separate the streams. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.GetStatsRequest">GetStatsRequest</h3>
+        <p></p>
+
+        
+
+        
+      
+        <h3 id="micropod.v1.GetStatsResponse">GetStatsResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>snapshot</td>
+                  <td><a href="#micropod.v1.StatsSnapshot">StatsSnapshot</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ListContainersResponse">ListContainersResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>containers</td>
+                  <td><a href="#micropod.v1.Container">Container</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ListImagesResponse">ListImagesResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>images</td>
+                  <td><a href="#micropod.v1.Image">Image</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ListNetworksResponse">ListNetworksResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>networks</td>
+                  <td><a href="#micropod.v1.Network">Network</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ListVolumesResponse">ListVolumesResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>volumes</td>
+                  <td><a href="#micropod.v1.Volume">Volume</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.LogChunk">LogChunk</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>text</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ProgressLine">ProgressLine</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>line</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>stage</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>total_stages</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.PullImageRequest">PullImageRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>reference</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>platform</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.RunContainerRequest">RunContainerRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>image</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>detach</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cpus</td>
+                  <td><a href="#double">double</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>env</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ports</td>
+                  <td><a href="#micropod.v1.PortMapping">PortMapping</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>volumes</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>labels</td>
+                  <td><a href="#micropod.v1.RunContainerRequest.LabelsEntry">RunContainerRequest.LabelsEntry</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>init</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>arguments</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.RunContainerRequest.LabelsEntry">RunContainerRequest.LabelsEntry</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>key</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>value</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.StreamLogsRequest">StreamLogsRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>tail</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>boot</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.SystemSnapshot">SystemSnapshot</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>status</td>
+                  <td><a href="#micropod.v1.SystemStatus">SystemStatus</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>disk_usage</td>
+                  <td><a href="#micropod.v1.DiskUsage">DiskUsage</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+
+      
+
+      
+
+      
+        <h3 id="micropod.v1.MicropodService">MicropodService</h3>
+        <p>The Micropod management API: container/image/volume/network operations on</p><p>the Apple `container` runtime, served by the connect-go API server and</p><p>consumable from any connect client (Go, Swift, TS, …).</p>
+        <table class="enum-table">
+          <thead>
+            <tr><td>Method Name</td><td>Request Type</td><td>Response Type</td><td>Description</td></tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>GetSystem</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.SystemSnapshot">SystemSnapshot</a></td>
+                <td><p>Runtime status &#43; disk usage.</p></td>
+              </tr>
+            
+              <tr>
+                <td>ListContainers</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.ListContainersResponse">ListContainersResponse</a></td>
+                <td><p>List all containers.</p></td>
+              </tr>
+            
+              <tr>
+                <td>RunContainer</td>
+                <td><a href="#micropod.v1.RunContainerRequest">RunContainerRequest</a></td>
+                <td><a href="#micropod.v1.ContainerRef">ContainerRef</a></td>
+                <td><p>Run a container (docker run).</p></td>
+              </tr>
+            
+              <tr>
+                <td>CreateContainer</td>
+                <td><a href="#micropod.v1.RunContainerRequest">RunContainerRequest</a></td>
+                <td><a href="#micropod.v1.ContainerRef">ContainerRef</a></td>
+                <td><p>Create a container without starting it (docker create).</p></td>
+              </tr>
+            
+              <tr>
+                <td>StartContainer</td>
+                <td><a href="#micropod.v1.ContainerRef">ContainerRef</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>StopContainer</td>
+                <td><a href="#micropod.v1.ContainerRef">ContainerRef</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>RestartContainer</td>
+                <td><a href="#micropod.v1.ContainerRef">ContainerRef</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>KillContainer</td>
+                <td><a href="#micropod.v1.ContainerRef">ContainerRef</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>DeleteContainer</td>
+                <td><a href="#micropod.v1.DeleteContainerRequest">DeleteContainerRequest</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>StreamContainerLogs</td>
+                <td><a href="#micropod.v1.StreamLogsRequest">StreamLogsRequest</a></td>
+                <td><a href="#micropod.v1.LogChunk">LogChunk</a> stream</td>
+                <td><p>Live log stream (server streaming).</p></td>
+              </tr>
+            
+              <tr>
+                <td>ListImages</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.ListImagesResponse">ListImagesResponse</a></td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>PullImage</td>
+                <td><a href="#micropod.v1.PullImageRequest">PullImageRequest</a></td>
+                <td><a href="#micropod.v1.ProgressLine">ProgressLine</a> stream</td>
+                <td><p>Pull an image, streaming progress events.</p></td>
+              </tr>
+            
+              <tr>
+                <td>DeleteImage</td>
+                <td><a href="#micropod.v1.DeleteImageRequest">DeleteImageRequest</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>ListVolumes</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.ListVolumesResponse">ListVolumesResponse</a></td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>CreateVolume</td>
+                <td><a href="#micropod.v1.CreateVolumeRequest">CreateVolumeRequest</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>DeleteVolume</td>
+                <td><a href="#micropod.v1.DeleteVolumeRequest">DeleteVolumeRequest</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>ListNetworks</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.ListNetworksResponse">ListNetworksResponse</a></td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>CreateNetwork</td>
+                <td><a href="#micropod.v1.CreateNetworkRequest">CreateNetworkRequest</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>DeleteNetwork</td>
+                <td><a href="#micropod.v1.DeleteNetworkRequest">DeleteNetworkRequest</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>GetStats</td>
+                <td><a href="#micropod.v1.GetStatsRequest">GetStatsRequest</a></td>
+                <td><a href="#micropod.v1.GetStatsResponse">GetStatsResponse</a></td>
+                <td><p></p></td>
+              </tr>
+            
+              <tr>
+                <td>Exec</td>
+                <td><a href="#micropod.v1.ExecRequest">ExecRequest</a></td>
+                <td><a href="#micropod.v1.ExecResponse">ExecResponse</a></td>
+                <td><p></p></td>
+              </tr>
+            
+          </tbody>
+        </table>
+
+        
+    
+      
+      <div class="file-heading">
+        <h2 id="micropod/v1/compose.proto">micropod/v1/compose.proto</h2><a href="#title">Top</a>
+      </div>
+      <p></p>
+
+      
+        <h3 id="micropod.v1.ComposeNetwork">ComposeNetwork</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>internal</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>external</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>driver</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>driver_opts</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Plugin options (compose `driver_opts` -&gt; `--option`). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>labels</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>subnet</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>From `ipam.config[0].subnet` / `subnet_v6`. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>subnet_v6</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>external_name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>`external: {name: &#34;…&#34;}` override. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ComposeService">ComposeService</h3>
+        <p>A single service of a compose spec, mapped onto `container run` capabilities.</p><p>Fields the Apple runtime cannot express (e.g. privileged) are still parsed</p><p>so the UI can show them as unsupported rather than silently dropping them.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>image</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>build_context</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Build context dir if the service is built from a Dockerfile. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>build_dockerfile</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>build_args</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>depends_on</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ports</td>
+                  <td><a href="#micropod.v1.PortMapping">PortMapping</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>environment</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>volumes</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>commands</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>working_dir</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>restart</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cpus</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p>Resource caps (compose `cpus`, `mem_limit`). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>healthcheck_command</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Healthcheck command; used for real readiness probes. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>networks</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>container_name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>entrypoint</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>user</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>User for the container process (format: name|uid[:gid]). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>labels</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>key=value container labels. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>dns</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>DNS nameserver IPs (compose `dns`). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>dns_search</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>DNS search domains (compose `dns_search`). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cap_add</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cap_drop</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ulimits</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Resource limits, format: type=soft[:hard]. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>tmpfs</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>tmpfs mounts: path or path:size. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>env_file</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>env_file paths (resolved against the compose file directory). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>shm_size</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>read_only</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>init</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>tty</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>stdin_open</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>privileged</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Parsed but not expressible on the Apple runtime. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>extra_hosts</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>depends_on_conditions</td>
+                  <td><a href="#micropod.v1.ComposeService.DependsOnConditionsEntry">ComposeService.DependsOnConditionsEntry</a></td>
+                  <td>repeated</td>
+                  <td><p>Conditions for depends_on entries (key = dependency name):
+&#34;started&#34; (default) or &#34;service_healthy&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>healthcheck_interval_seconds</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>healthcheck_timeout_seconds</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>healthcheck_retries</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>healthcheck_start_period_seconds</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>build_target</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Build stage target / platform for `build:` sections. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>build_platform</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>build_no_cache</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>`build.no_cache` / `build.pull` passthrough. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>profiles</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Compose profiles; the service only runs when an enabled profile matches. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>pull_policy</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Image pull policy: &#34;always&#34; forces a pull, anything else pulls only when
+the image is not present locally (docker&#39;s default &#34;missing&#34;). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>stop_signal</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Stop behaviour (parsed; stop_signal is not expressible, grace period
+maps to `container stop --time`). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>stop_grace_period_seconds</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ComposeService.DependsOnConditionsEntry">ComposeService.DependsOnConditionsEntry</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>key</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>value</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ComposeSpec">ComposeSpec</h3>
+        <p>Parsed docker-compose.yml, produced by the compose importer.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>services</td>
+                  <td><a href="#micropod.v1.ComposeService">ComposeService</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>volumes</td>
+                  <td><a href="#micropod.v1.ComposeSpec.VolumesEntry">ComposeSpec.VolumesEntry</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>networks</td>
+                  <td><a href="#micropod.v1.ComposeSpec.NetworksEntry">ComposeSpec.NetworksEntry</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ComposeSpec.NetworksEntry">ComposeSpec.NetworksEntry</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>key</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>value</td>
+                  <td><a href="#micropod.v1.ComposeNetwork">ComposeNetwork</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ComposeSpec.VolumesEntry">ComposeSpec.VolumesEntry</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>key</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>value</td>
+                  <td><a href="#micropod.v1.ComposeVolume">ComposeVolume</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ComposeVolume">ComposeVolume</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>external</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>driver</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Driver &#43; driver options (`driver_opts`), labels. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>driver_opts</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>labels</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>external_name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>`external: {name: &#34;…&#34;}` override. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+
+      
+
+      
+
+      
+    
+
+    <h2 id="scalar-value-types">Scalar Value Types</h2>
+    <table class="scalar-value-types-table">
+      <thead>
+        <tr><td>.proto Type</td><td>Notes</td><td>C++</td><td>Java</td><td>Python</td><td>Go</td><td>C#</td><td>PHP</td><td>Ruby</td></tr>
+      </thead>
+      <tbody>
+        
+          <tr id="double">
+            <td>double</td>
+            <td></td>
+            <td>double</td>
+            <td>double</td>
+            <td>float</td>
+            <td>float64</td>
+            <td>double</td>
+            <td>float</td>
+            <td>Float</td>
+          </tr>
+        
+          <tr id="float">
+            <td>float</td>
+            <td></td>
+            <td>float</td>
+            <td>float</td>
+            <td>float</td>
+            <td>float32</td>
+            <td>float</td>
+            <td>float</td>
+            <td>Float</td>
+          </tr>
+        
+          <tr id="int32">
+            <td>int32</td>
+            <td>Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint32 instead.</td>
+            <td>int32</td>
+            <td>int</td>
+            <td>int</td>
+            <td>int32</td>
+            <td>int</td>
+            <td>integer</td>
+            <td>Bignum or Fixnum (as required)</td>
+          </tr>
+        
+          <tr id="int64">
+            <td>int64</td>
+            <td>Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint64 instead.</td>
+            <td>int64</td>
+            <td>long</td>
+            <td>int/long</td>
+            <td>int64</td>
+            <td>long</td>
+            <td>integer/string</td>
+            <td>Bignum</td>
+          </tr>
+        
+          <tr id="uint32">
+            <td>uint32</td>
+            <td>Uses variable-length encoding.</td>
+            <td>uint32</td>
+            <td>int</td>
+            <td>int/long</td>
+            <td>uint32</td>
+            <td>uint</td>
+            <td>integer</td>
+            <td>Bignum or Fixnum (as required)</td>
+          </tr>
+        
+          <tr id="uint64">
+            <td>uint64</td>
+            <td>Uses variable-length encoding.</td>
+            <td>uint64</td>
+            <td>long</td>
+            <td>int/long</td>
+            <td>uint64</td>
+            <td>ulong</td>
+            <td>integer/string</td>
+            <td>Bignum or Fixnum (as required)</td>
+          </tr>
+        
+          <tr id="sint32">
+            <td>sint32</td>
+            <td>Uses variable-length encoding. Signed int value. These more efficiently encode negative numbers than regular int32s.</td>
+            <td>int32</td>
+            <td>int</td>
+            <td>int</td>
+            <td>int32</td>
+            <td>int</td>
+            <td>integer</td>
+            <td>Bignum or Fixnum (as required)</td>
+          </tr>
+        
+          <tr id="sint64">
+            <td>sint64</td>
+            <td>Uses variable-length encoding. Signed int value. These more efficiently encode negative numbers than regular int64s.</td>
+            <td>int64</td>
+            <td>long</td>
+            <td>int/long</td>
+            <td>int64</td>
+            <td>long</td>
+            <td>integer/string</td>
+            <td>Bignum</td>
+          </tr>
+        
+          <tr id="fixed32">
+            <td>fixed32</td>
+            <td>Always four bytes. More efficient than uint32 if values are often greater than 2^28.</td>
+            <td>uint32</td>
+            <td>int</td>
+            <td>int</td>
+            <td>uint32</td>
+            <td>uint</td>
+            <td>integer</td>
+            <td>Bignum or Fixnum (as required)</td>
+          </tr>
+        
+          <tr id="fixed64">
+            <td>fixed64</td>
+            <td>Always eight bytes. More efficient than uint64 if values are often greater than 2^56.</td>
+            <td>uint64</td>
+            <td>long</td>
+            <td>int/long</td>
+            <td>uint64</td>
+            <td>ulong</td>
+            <td>integer/string</td>
+            <td>Bignum</td>
+          </tr>
+        
+          <tr id="sfixed32">
+            <td>sfixed32</td>
+            <td>Always four bytes.</td>
+            <td>int32</td>
+            <td>int</td>
+            <td>int</td>
+            <td>int32</td>
+            <td>int</td>
+            <td>integer</td>
+            <td>Bignum or Fixnum (as required)</td>
+          </tr>
+        
+          <tr id="sfixed64">
+            <td>sfixed64</td>
+            <td>Always eight bytes.</td>
+            <td>int64</td>
+            <td>long</td>
+            <td>int/long</td>
+            <td>int64</td>
+            <td>long</td>
+            <td>integer/string</td>
+            <td>Bignum</td>
+          </tr>
+        
+          <tr id="bool">
+            <td>bool</td>
+            <td></td>
+            <td>bool</td>
+            <td>boolean</td>
+            <td>boolean</td>
+            <td>bool</td>
+            <td>bool</td>
+            <td>boolean</td>
+            <td>TrueClass/FalseClass</td>
+          </tr>
+        
+          <tr id="string">
+            <td>string</td>
+            <td>A string must always contain UTF-8 encoded or 7-bit ASCII text.</td>
+            <td>string</td>
+            <td>String</td>
+            <td>str/unicode</td>
+            <td>string</td>
+            <td>string</td>
+            <td>string</td>
+            <td>String (UTF-8)</td>
+          </tr>
+        
+          <tr id="bytes">
+            <td>bytes</td>
+            <td>May contain any arbitrary sequence of bytes.</td>
+            <td>string</td>
+            <td>ByteString</td>
+            <td>str</td>
+            <td>[]byte</td>
+            <td>ByteString</td>
+            <td>string</td>
+            <td>String (ASCII-8BIT)</td>
+          </tr>
+        
+      </tbody>
+    </table>
+  </body>
+</html>
+

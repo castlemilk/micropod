@@ -1,0 +1,200 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "micropod.v1"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "micropod.v1.Container": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "description": "The container ID; `container` uses the user-assigned name as the ID."
+          },
+          "image": {
+            "type": "string",
+            "title": "image",
+            "description": "Image reference the container was created from."
+          },
+          "state": {
+            "type": "string",
+            "title": "state",
+            "description": "Lifecycle state: running, stopped, exited, created, ..."
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "created_at",
+            "description": "ISO8601 creation timestamp."
+          },
+          "resources": {
+            "title": "resources",
+            "$ref": "#/components/schemas/micropod.v1.ContainerResources"
+          },
+          "platform": {
+            "type": "string",
+            "title": "platform",
+            "description": "Platform string, e.g. \"linux/arm64\"."
+          },
+          "publishedPorts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.PortMapping"
+            },
+            "title": "published_ports"
+          },
+          "mounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.Mount"
+            },
+            "title": "mounts"
+          },
+          "networks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "networks",
+            "description": "Names of networks the container is attached to."
+          },
+          "ipv4Address": {
+            "type": "string",
+            "title": "ipv4_address",
+            "description": "Resolved IPv4 address on the container network, if running."
+          },
+          "env": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "env"
+          },
+          "labels": {
+            "type": "object",
+            "title": "labels",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            }
+          },
+          "rosetta": {
+            "type": "boolean",
+            "title": "rosetta"
+          },
+          "readOnly": {
+            "type": "boolean",
+            "title": "read_only"
+          },
+          "useInit": {
+            "type": "boolean",
+            "title": "use_init"
+          },
+          "ssh": {
+            "type": "boolean",
+            "title": "ssh"
+          },
+          "virtualization": {
+            "type": "boolean",
+            "title": "virtualization"
+          },
+          "runtimeHandler": {
+            "type": "string",
+            "title": "runtime_handler"
+          },
+          "exitCode": {
+            "type": "string",
+            "title": "exit_code"
+          }
+        },
+        "title": "Container",
+        "additionalProperties": false,
+        "description": "Curated view of a container, mapped from `container list --format json`."
+      },
+      "micropod.v1.Container.LabelsEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "type": "string",
+            "title": "value"
+          }
+        },
+        "title": "LabelsEntry",
+        "additionalProperties": false
+      },
+      "micropod.v1.ContainerResources": {
+        "type": "object",
+        "properties": {
+          "cpus": {
+            "type": "number",
+            "title": "cpus",
+            "format": "double"
+          },
+          "memoryBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "memory_bytes",
+            "format": "int64"
+          }
+        },
+        "title": "ContainerResources",
+        "additionalProperties": false
+      },
+      "micropod.v1.Mount": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "type"
+          },
+          "source": {
+            "type": "string",
+            "title": "source"
+          },
+          "destination": {
+            "type": "string",
+            "title": "destination"
+          },
+          "readOnly": {
+            "type": "boolean",
+            "title": "read_only"
+          }
+        },
+        "title": "Mount",
+        "additionalProperties": false
+      },
+      "micropod.v1.PortMapping": {
+        "type": "object",
+        "properties": {
+          "hostPort": {
+            "type": "integer",
+            "title": "host_port"
+          },
+          "containerPort": {
+            "type": "integer",
+            "title": "container_port"
+          },
+          "protocol": {
+            "type": "string",
+            "title": "protocol"
+          },
+          "hostIp": {
+            "type": "string",
+            "title": "host_ip"
+          }
+        },
+        "title": "PortMapping",
+        "additionalProperties": false
+      }
+    }
+  },
+  "security": []
+}

@@ -1,0 +1,20 @@
+version: v2
+# Doc-generation template — emits API reference artifacts into
+# landing/api/ for the GitHub Pages site. Deliberately separate from
+# buf.gen.yaml: no `clean`, no code outputs. All plugins are remote so
+# `buf generate --template buf.gen.docs.yaml` works anywhere (incl. CI);
+# driven by scripts/gen-api-docs.py.
+plugins:
+  # OpenAPI v3 per service (Connect/REST surface).
+  - remote: buf.build/community/sudorandom-connect-openapi:v0.25.4
+    out: landing/api
+    opt:
+      - format=json
+      - path-prefix=/api
+      - with-service-descriptions
+      - with-streaming
+  # Proto reference as self-contained HTML (built-in `html` template).
+  - remote: buf.build/community/pseudomuto-doc:v1.5.1
+    out: landing/api
+    opt:
+      - html,proto-reference.html

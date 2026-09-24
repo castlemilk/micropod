@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Micropod API Reference — REST, Connect/gRPC, MCP tools</title>
+  <meta name="description" content="Micropod API reference: the /v1 REST surface, the micropod.v1 Connect/gRPC service (OpenAPI + proto reference), and the MCP server tool catalogue." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://castlemilk.github.io/micropod/api/" />
+  <link rel="icon" type="image/png" href="../icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --font-sans: 'Instrument Sans', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --bg: #070d16;
+      --bg-card: #0d1626;
+      --bg-secondary: #111c30;
+      --fg: #e8eefc;
+      --fg-muted: #8b9bb8;
+      --border: #1b2a45;
+      --primary: #0a84ff;
+      --success: #32d74b;
+      --warning: #ff9f0a;
+      --danger: #ff453a;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--fg); font-family: var(--font-sans); line-height: 1.6; }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { font-family: var(--font-mono); font-size: 0.85em; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px; padding: 0.1em 0.4em; }
+    .nav { border-bottom: 1px solid var(--border); position: sticky; top: 0; background: rgba(7,13,22,0.85); backdrop-filter: blur(12px); z-index: 10; }
+    .nav-inner { display: flex; align-items: center; justify-content: space-between; max-width: 72rem; margin: 0 auto; padding: 0.875rem 1.5rem; }
+    .nav-logo { display: flex; align-items: center; gap: 0.625rem; font-weight: 600; color: var(--fg); }
+    .nav-logo:hover { text-decoration: none; }
+    .nav-logo-mark { width: 1.75rem; height: 1.75rem; border-radius: 0.5rem; background: linear-gradient(135deg, var(--primary), #5e5ce6); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; color: #fff; }
+    .nav-links { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; }
+    .nav-links a { color: var(--fg-muted); }
+    .nav-links a:hover { color: var(--fg); text-decoration: none; }
+    .wrap { max-width: 72rem; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+    .eyebrow { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--primary); }
+    h1 { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.02em; margin: 0.5rem 0 0.75rem; }
+    .lede { color: var(--fg-muted); max-width: 44rem; margin-bottom: 2.5rem; }
+    h2 { font-size: 1.35rem; font-weight: 600; letter-spacing: -0.01em; margin: 3rem 0 0.5rem; display: flex; align-items: center; gap: 0.625rem; }
+    h2 .badge { font-family: var(--font-mono); font-size: 0.65rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.2rem 0.55rem; border-radius: 999px; border: 1px solid var(--border); color: var(--fg-muted); }
+    .section-note { color: var(--fg-muted); font-size: 0.9rem; margin-bottom: 1.25rem; max-width: 46rem; }
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 0.875rem; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th { text-align: left; font-weight: 500; color: var(--fg-muted); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
+    td { padding: 0.55rem 1rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    td.path { font-family: var(--font-mono); font-size: 0.8rem; white-space: nowrap; }
+    td.desc { color: var(--fg-muted); }
+    td.tool { font-family: var(--font-mono); font-size: 0.8rem; white-space: nowrap; color: var(--primary); }
+    .method { font-family: var(--font-mono); font-size: 0.7rem; font-weight: 500; padding: 0.15rem 0.5rem; border-radius: 4px; letter-spacing: 0.05em; }
+    .m-get { color: var(--success); background: rgba(50,215,75,0.08); }
+    .m-post { color: var(--primary); background: rgba(10,132,255,0.1); }
+    .m-put { color: var(--warning); background: rgba(255,159,10,0.1); }
+    .m-delete { color: var(--danger); background: rgba(255,69,58,0.1); }
+    .links { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; }
+    .link-card { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.9rem; border: 1px solid var(--border); border-radius: 0.625rem; background: var(--bg-card); color: var(--fg); font-size: 0.85rem; }
+    .link-card:hover { border-color: var(--primary); text-decoration: none; }
+    .link-card .hint { color: var(--fg-muted); font-size: 0.75rem; }
+    footer { border-top: 1px solid var(--border); margin-top: 4rem; padding-top: 2rem; color: var(--fg-muted); font-size: 0.8rem; }
+    .empty { padding: 2rem; color: var(--fg-muted); text-align: center; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <a href="../" class="nav-logo"><span class="nav-logo-mark">M</span> Micropod</a>
+      <div class="nav-links">
+        <a href="../">Home</a>
+        <a href="https://github.com/castlemilk/micropod" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="eyebrow">API Reference</div>
+    <h1>Three surfaces, one runtime</h1>
+    <p class="lede">
+      Micropod exposes the same container engine through a REST API
+      (<code>/v1/…</code>), a Connect/gRPC service (<code>micropod.v1.MicropodService</code>),
+      and an MCP tool server for agents. All are generated from source:
+      routes from <code>APIHandlers.swift</code>, OpenAPI from protobuf
+      via <code>protoc-gen-connect-openapi</code>, tools from a live
+      <code>tools/list</code>.
+    </p>
+
+    <h2>REST API <span class="badge">MicropodAPI · :8080</span></h2>
+    <p class="section-note">
+      Plain HTTP/JSON surface used by the app, CLI and automation.
+      <code>?force=true</code> on deletes; log streams are SSE;
+      the vsock route upgrades to a raw duplex stream for guest gRPC.
+    </p>
+    <div class="card">
+      <table id="rest-table">
+        <thead><tr><th style="width:6rem">Method</th><th>Path</th><th>Description</th></tr></thead>
+        <tbody><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <h2>Connect / gRPC <span class="badge">micropod.v1</span></h2>
+    <p class="section-note">
+      The management service is defined in protobuf
+      (<code>proto/micropod/v1/api.proto</code>) and served over Connect —
+      one port speaks Connect, gRPC and gRPC-Web. Unary calls are ordinary
+      <code>POST /api/micropod.v1.MicropodService/&lt;Method&gt;</code> with JSON bodies.
+    </p>
+    <div class="links">
+      <a class="link-card" href="./openapi.html">Interactive OpenAPI reference <span class="hint">Scalar · try requests in-page</span></a>
+      <a class="link-card" href="./proto-reference.html">Protobuf reference <span class="hint">messages, fields, services</span></a>
+      <a class="link-card" href="./micropod/v1/api.openapi.json">openapi.json <span class="hint">MicropodService</span></a>
+      <a class="link-card" href="./com/apple/containerization/sandbox/v3/sandbox_context.openapi.json">openapi.json <span class="hint">vminitd SandboxContext (vsock)</span></a>
+    </div>
+
+    <h2>MCP tools <span class="badge">micropod-mcp · stdio JSON-RPC</span></h2>
+    <p class="section-note">
+      The MCP server exposes every operation as a tool over stdio
+      JSON-RPC — this is what agents drive. Arguments are named in each
+      description; <code>volume_policy_set</code> mutates the shared
+      volume policy without a restart.
+    </p>
+    <div class="card">
+      <table id="mcp-table">
+        <thead><tr><th>Tool</th><th>Description</th></tr></thead>
+        <tbody><tr><td colspan="2" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <footer>
+      Generated by <code>scripts/gen-api-docs.py</code> — protobuf → OpenAPI via
+      <code>protoc-gen-connect-openapi</code>, proto reference via
+      <code>protoc-gen-doc</code>, REST routes extracted from the handler source.
+    </footer>
+  </main>
+
+  <script>
+    const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+    fetch('./rest-routes.json').then(r => r.json()).then(routes => {
+      document.querySelector('#rest-table tbody').innerHTML = routes.map(r =>
+        `<tr><td><span class="method m-${r.method.toLowerCase()}">${esc(r.method)}</span></td>` +
+        `<td class="path">${esc(r.path)}</td><td class="desc">${esc(r.description)}</td></tr>`
+      ).join('');
+    }).catch(() => {
+      document.querySelector('#rest-table tbody').innerHTML =
+        '<tr><td colspan="3" class="empty">rest-routes.json unavailable</td></tr>';
+    });
+
+    fetch('./mcp-tools.json').then(r => r.json()).then(tools => {
+      document.querySelector('#mcp-table tbody').innerHTML = tools.map(t =>
+        `<tr><td class="tool">${esc(t.name)}</td><td class="desc">${esc(t.description)}</td></tr>`
+      ).join('');
+    }).catch(() => {
+      document.querySelector('#mcp-table tbody').innerHTML =
+        '<tr><td colspan="2" class="empty">mcp-tools.json unavailable</td></tr>';
+    });
+  </script>
+</body>
+</html>
