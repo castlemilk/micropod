@@ -41,6 +41,10 @@ jobs:
         run: |
           echo "$MACOS_CERTIFICATE" | base64 -d > "$RUNNER_TEMP/cert.p12"
           security create-keychain -p ci "$RUNNER_TEMP/ci.keychain-db"
+          # Keychains default to lock-after-300s — the package build now
+          # outlasts that, so the first codesign in Build DMG would block on
+          # an unlock prompt that can never render on a headless runner.
+          security set-keychain-settings -lut 21600 "$RUNNER_TEMP/ci.keychain-db"
           security default-keychain -s "$RUNNER_TEMP/ci.keychain-db"
           security unlock-keychain -p ci "$RUNNER_TEMP/ci.keychain-db"
           security import "$RUNNER_TEMP/cert.p12" \
