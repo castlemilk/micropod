@@ -1,5 +1,6 @@
 import Foundation
 import MicropodCore
+import MicropodRuntime
 import MicropodSharedFS
 
 enum ShimError: Error {
@@ -83,7 +84,7 @@ final class Router: @unchecked Sendable {
     private let system: any SystemServing
     private let systemConcrete: SystemService
     private let logs: any LogStreaming
-    private let stats: StatsSampler
+    private let stats: any StatsSampling
     private let sharedFS: (any SharedFSClient)?
     /// Read-through cache for hot Docker-API reads (list/inspect). Mutations
     /// invalidate synchronously; the events loop invalidates on transitions.
@@ -107,20 +108,21 @@ final class Router: @unchecked Sendable {
         config: ShimConfig, state: ShimState, events: EventsHub,
         client: ContainerCLIClient, sharedFS sharedFSOverride: (any SharedFSClient)?,
         buildCache buildCacheOverride: BuildContextCache? = nil,
-        readCache readCacheOverride: ReadThroughCache? = nil
+        readCache readCacheOverride: ReadThroughCache? = nil,
+        runtime: RuntimeServices? = nil
     ) {
         self.config = config
         self.state = state
         self.events = events
         self.cliPath = client.executableURL.path
-        self.containers = ContainerService(client: client)
+        self.containers = runtime?.containers ?? ContainerService(client: client)
         self.images = ImageService(client: client)
         self.volumes = VolumeService(client: client)
         self.networks = NetworkService(client: client)
         self.system = SystemService(client: client)
         self.systemConcrete = SystemService(client: client)
-        self.logs = LogStreamer(client: client)
-        self.stats = StatsSampler(client: client)
+        self.logs = runtime?.logs ?? LogStreamer(client: client)
+        self.stats = runtime?.stats ?? StatsSampler(client: client)
         self.buildCache = buildCacheOverride ?? BuildContextCache.standard()
         self.readCache = readCacheOverride ?? ReadThroughCache()
         if let sharedFSOverride {
@@ -1492,7 +1494,7 @@ final class Router: @unchecked Sendable {
         return try await resolveContainer(ref).id
     }
 
-    private static func isNotFound(_ error: Error) -> Bool {
+    static func isNotFound(_ error: Error) -> Bool {
         if case MicropodError.cliFailure(_, _, let stderr) = error {
             let text = stderr.lowercased()
             // Covers the real CLI ("image not found: …", "container … not
@@ -1634,14 +1636,12 @@ final class Router: @unchecked Sendable {
         // Rename-to-self (by request string, runtime id, or tracked alias)
         // is a no-op success and must never delete.
         let target: String
-        let targetRaw: Data
         if let fast = await passThroughID(id) {
-            guard let raw = try? await containers.inspect(fast) else {
+            guard (try? await containers.inspect(fast)) != nil else {
                 await state.forget(id: fast)
                 throw ShimError.notFound("No such container: \(id)")
             }
             target = fast
-            targetRaw = raw
         } else {
             let resolved: String
             do {
@@ -1651,11 +1651,10 @@ final class Router: @unchecked Sendable {
             } catch {
                 throw ShimError.notFound("No such container: \(id)")
             }
-            guard let raw = try? await containers.inspect(resolved) else {
+            guard (try? await containers.inspect(resolved)) != nil else {
                 throw ShimError.notFound("No such container: \(id)")
             }
             target = resolved
-            targetRaw = raw
         }
         if newName == id || newName == target {
             return .status(204)

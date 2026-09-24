@@ -524,6 +524,7 @@ final class ShimHTTPServer: @unchecked Sendable {
             connection.close()
             return
         }
+        let buffered = pending
         connection.networkConnection?.receive(minimumIncompleteLength: 1, maximumLength: 256 * 1024) {
             [weak self] data, _, isComplete, error in
             guard let self else { return }
@@ -547,7 +548,7 @@ final class ShimHTTPServer: @unchecked Sendable {
                 self.continueRawRead(connection)
                 return
             }
-            var accumulated = pending
+            var accumulated = buffered
             if let data, !data.isEmpty {
                 accumulated.append(data)
             }

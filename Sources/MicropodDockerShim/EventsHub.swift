@@ -248,16 +248,45 @@ actor EventsHub {
         }
 
         _ = await state.ranStably(id)
-        let delay = await state.nextRestartDelay(id)
+        var delay = await state.nextRestartDelay(id)
         let containers = self.containers
         let hubState = state
         let target = id
         let policyName = name
+        let maxRetries = policy.MaximumRetryCount
         Task {
-            try? await Task.sleep(for: .seconds(delay))
-            guard await hubState.isIntentionalStop(target) == false || policyName == "always"
-            else { return }
-            try? await containers.start(target)
+            // Retry a failed start with the same backoff — a transient runtime
+            // error must not permanently strand an `always` container (Docker
+            // retries indefinitely). Exits when the container is forgotten
+            // (rm) or the policy suppresses the restart.
+            while true {
+                try? await Task.sleep(for: .seconds(delay))
+                // Never race a still-draining client stop.
+                await hubState.awaitStop(target)
+                guard await hubState.createRequest(for: target) != nil else { return }
+                guard await hubState.isIntentionalStop(target) == false || policyName == "always"
+                else { return }
+                do {
+                    try await containers.start(target)
+                    return
+                } catch {
+                    // Already running (a concurrent start won the race) — done.
+                    if let raw = try? await containers.inspect(target),
+                        let container = DockerMapper.container(fromRawInspect: raw),
+                        DockerMapper.stateName(container.state) == "running"
+                    {
+                        return
+                    }
+                    fputs("[shim] restart \(target) (\(policyName)) failed: \(error)\n", stderr)
+                    if policyName == "on-failure",
+                        let maxRetries,
+                        await hubState.restartAttemptCount(target) >= maxRetries
+                    {
+                        return
+                    }
+                    delay = await hubState.nextRestartDelay(target)
+                }
+            }
         }
     }
 
@@ -416,7 +445,21 @@ actor EventsHub {
             create.HostConfig?.AutoRemove == true,
             await !state.isAttachRunning(id: id)
         {
-            try? await containers.delete(id, force: true)
+            let containers = self.containers
+            Task {
+                // Bounded retries: a transient delete failure must not leak an
+                // --rm container forever, and a vanished container is a win.
+                for attempt in 0..<5 {
+                    do {
+                        try await containers.delete(id, force: true)
+                        return
+                    } catch {
+                        if Router.isNotFound(error) { return }
+                        fputs("[shim] autoremove \(id) attempt \(attempt + 1) failed: \(error)\n", stderr)
+                        try? await Task.sleep(for: .seconds(0.2 * Double(attempt + 1)))
+                    }
+                }
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 import Foundation
 import MicropodCore
+import MicropodRuntime
 
 extension ProcessInfo {
     /// uname -r style kernel string for Docker /version + /info payloads.
@@ -36,13 +37,14 @@ struct ShimBootstrap {
         let config = ShimConfig(
             bridgeHost: bridgeHost, tcpPort: tcpPort, defaultVolumeSize: defaultVolumeSize)
         let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: cliPath))
-        let containerService = ContainerService(client: client)
+        let runtime = await RuntimeBackendResolver.resolve(client: client)
+        let containerService = runtime.containers
         let state = ShimState.loadPersisted(from: URL(fileURLWithPath: statePath))
         let readCache = ReadThroughCache()
         let events = EventsHub(containers: containerService, readCache: readCache)
         let router = Router(
             config: config, state: state, events: events, client: client, sharedFS: nil, buildCache: nil,
-            readCache: readCache)
+            readCache: readCache, runtime: runtime)
 
         // Prune state for containers that vanished while the shim was down,
         // and reap AutoRemove containers whose die event we missed.
@@ -92,7 +94,7 @@ struct ShimBootstrap {
         intSource.resume()
 
         async let eventLoop: () = events.start(state: state)
-        try await server.awaitForever()
+        await server.awaitForever()
         _ = await eventLoop
     }
 }
