@@ -6,6 +6,18 @@
     <description>Micropod release channel — served to Sparkle clients in the app.</description>
     <language>en</language>
     <item>
+      <title>Version 0.7.0</title>
+      <pubDate>Thu, 24 Sep 2026 04:06:38 GMT</pubDate>
+      <sparkle:version>0.7.0</sparkle:version>
+      <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
+      <enclosure
+        url="https://github.com/castlemilk/micropod/releases/download/v0.7.0/Micropod.dmg"
+        sparkle:edSignature="aQJBGL1ts5qM6fSa6reZILeTfFszjgvJKq1JB4ODxPmJhQAx/yE75er9bW1YaACyTqATbBvXZYeJpUwdcMjoDw=="
+        length="59051940"
+        type="application/octet-stream"/>
+    </item>
+
+    <item>
       <title>Version 0.6.0</title>
       <pubDate>Wed, 23 Sep 2026 09:40:37 GMT</pubDate>
       <sparkle:version>0.6.0</sparkle:version>
