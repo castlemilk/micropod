@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package micropod.v1;
+
+option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
+
+import "buf/validate/validate.proto";
+import "micropod/v1/api.proto";
+
+// Named volumes plus the mount policy applied on container create.
+service VolumeService {
+  // List all volumes.
+  rpc ListVolumes(Empty) returns (ListVolumesResponse);
+  // Create a named volume.
+  rpc CreateVolume(CreateVolumeRequest) returns (Empty);
+  // Remove a named volume.
+  rpc DeleteVolume(DeleteVolumeRequest) returns (Empty);
+  // Named-volume mount policy applied on container create across every
+  // surface (API, shim, app, CLI, MCP).
+  rpc GetVolumePolicy(Empty) returns (VolumePolicy);
+  // Replace the volume mount policy; returns the stored policy.
+  rpc SetVolumePolicy(VolumePolicy) returns (VolumePolicy);
+}
+
+// Curated volume, mapped from `container volume list`.
+message Volume {
+  // Volume name (used as the ID).
+  string id = 1;
+  // Volume driver, e.g. "local".
+  string driver = 2;
+  // Filesystem format, e.g. "ext4".
+  string format = 3;
+  // Volume size in bytes.
+  uint64 size_bytes = 4;
+  // Backing source (name or host path).
+  string source = 5;
+  // ISO8601 creation timestamp.
+  string created_at = 6;
+  // Metadata labels on the volume.
+  map<string, string> labels = 7;
+}
+
+// Named-volume mount policy — read on container create by every surface
+// (API, docker shim, app, CLI, MCP). Per-container `com.micropod.*` labels
+// take precedence over this policy.
+message VolumePolicy {
+  // Which named-volume mounts get clonefile-forked per container.
+  enum CloneMode {
+    // Treated as CLONE_MODE_LABELS (the standard default).
+    CLONE_MODE_UNSPECIFIED = 0;
+    // Only mounts carrying the `com.micropod.cache.clone` label.
+    CLONE_MODE_LABELS = 1;
+    // Auto-clone mounts of the volumes named in `golden_volumes`.
+    CLONE_MODE_GOLDENS = 2;
+    // Clone every named-volume mount.
+    CLONE_MODE_ALL = 3;
+  }
+  // Writeback sync mode for volume disk images.
+  enum SyncMode {
+    // Per-mount default (fsync for named volumes, nosync for clones).
+    SYNC_MODE_UNSPECIFIED = 0;
+    // Flush writes on every write.
+    SYNC_MODE_FULL = 1;
+    // fsync on container stop.
+    SYNC_MODE_FSYNC = 2;
+    // Never fsync — fastest, can lose writes on host crash.
+    SYNC_MODE_NOSYNC = 3;
+  }
+  // VZ disk-image caching mode.
+  enum CacheMode {
+    // Treated as CACHE_MODE_ON (the standard default).
+    CACHE_MODE_UNSPECIFIED = 0;
+    // Always cache the disk image.
+    CACHE_MODE_ON = 1;
+    // Never cache.
+    CACHE_MODE_OFF = 2;
+    // Cache when the volume driver supports it.
+    CACHE_MODE_AUTO = 3;
+  }
+  // Which named-volume mounts get clonefile-forked per container.
+  CloneMode clone_mode = 1;
+  // Volume names auto-cloned under `CLONE_MODE_GOLDENS`.
+  repeated string golden_volumes = 2;
+  // Restrict cloning to job-labelled containers (`com.cuttlefish.job` /
+  // `com.micropod.job`). Per-container clone labels always apply.
+  bool jobs_only = 3;
+  // Writeback sync mode override; `SYNC_MODE_UNSPECIFIED` keeps the
+  // per-mount default.
+  SyncMode sync = 4;
+  // VZ disk-image cache mode.
+  CacheMode cache = 5;
+}
+
+message ListVolumesResponse {
+  // Every volume, in `container volume list` order.
+  repeated Volume volumes = 1;
+}
+
+message CreateVolumeRequest {
+  // Volume name.
+  string name = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  // Optional size limit, e.g. "10g".
+  optional string size = 2;
+  // Labels applied to the volume ("key=value").
+  repeated string labels = 3;
+  // Driver options passed through to the volume driver.
+  repeated string options = 4;
+}
+
+message DeleteVolumeRequest {
+  // Volume name to remove.
+  string name = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+}

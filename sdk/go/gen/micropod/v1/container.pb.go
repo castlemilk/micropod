@@ -430,11 +430,618 @@ func (x *Mount) GetReadOnly() bool {
 	return false
 }
 
+// Reference to an existing container (or the ID returned by run/create).
+type ContainerRef struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Container ID — `container` uses the user-assigned name as the ID.
+	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ContainerRef) Reset() {
+	*x = ContainerRef{}
+	mi := &file_micropod_v1_container_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContainerRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContainerRef) ProtoMessage() {}
+
+func (x *ContainerRef) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_container_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContainerRef.ProtoReflect.Descriptor instead.
+func (*ContainerRef) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_container_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ContainerRef) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type ListContainersResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Every container, in `container list` order.
+	Containers    []*Container `protobuf:"bytes,1,rep,name=containers,proto3" json:"containers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListContainersResponse) Reset() {
+	*x = ListContainersResponse{}
+	mi := &file_micropod_v1_container_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListContainersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListContainersResponse) ProtoMessage() {}
+
+func (x *ListContainersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_container_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListContainersResponse.ProtoReflect.Descriptor instead.
+func (*ListContainersResponse) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_container_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListContainersResponse) GetContainers() []*Container {
+	if x != nil {
+		return x.Containers
+	}
+	return nil
+}
+
+// Shared request shape for run + create (docker run / docker create).
+type RunContainerRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Image reference to run, e.g. "alpine:3.20". Pulled if not present locally.
+	Image string `protobuf:"bytes,1,opt,name=image,proto3" json:"image,omitempty"`
+	// Optional container name; becomes the container ID.
+	Name *string `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	// Return immediately instead of streaming/attaching.
+	Detach bool `protobuf:"varint,3,opt,name=detach,proto3" json:"detach,omitempty"`
+	// CPU limit in cores, e.g. 0.5 for half a core.
+	Cpus *float64 `protobuf:"fixed64,4,opt,name=cpus,proto3,oneof" json:"cpus,omitempty"`
+	// Memory limit, e.g. "512m" or "4g".
+	Memory *string `protobuf:"bytes,5,opt,name=memory,proto3,oneof" json:"memory,omitempty"`
+	// Environment variables as KEY=value pairs.
+	Env []string `protobuf:"bytes,6,rep,name=env,proto3" json:"env,omitempty"`
+	// Published port mappings (host → container).
+	Ports []*PortMapping `protobuf:"bytes,7,rep,name=ports,proto3" json:"ports,omitempty"`
+	// Bind/volume mounts as "name-or-path:/mount" specs.
+	Volumes []string `protobuf:"bytes,8,rep,name=volumes,proto3" json:"volumes,omitempty"`
+	// Arbitrary metadata labels on the container.
+	Labels map[string]string `protobuf:"bytes,9,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Run an init process as PID 1 to reap zombies.
+	Init bool `protobuf:"varint,10,opt,name=init,proto3" json:"init,omitempty"`
+	// Command + args override (image entrypoint is used when empty).
+	Arguments     []string `protobuf:"bytes,11,rep,name=arguments,proto3" json:"arguments,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunContainerRequest) Reset() {
+	*x = RunContainerRequest{}
+	mi := &file_micropod_v1_container_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunContainerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunContainerRequest) ProtoMessage() {}
+
+func (x *RunContainerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_container_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunContainerRequest.ProtoReflect.Descriptor instead.
+func (*RunContainerRequest) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_container_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *RunContainerRequest) GetImage() string {
+	if x != nil {
+		return x.Image
+	}
+	return ""
+}
+
+func (x *RunContainerRequest) GetName() string {
+	if x != nil && x.Name != nil {
+		return *x.Name
+	}
+	return ""
+}
+
+func (x *RunContainerRequest) GetDetach() bool {
+	if x != nil {
+		return x.Detach
+	}
+	return false
+}
+
+func (x *RunContainerRequest) GetCpus() float64 {
+	if x != nil && x.Cpus != nil {
+		return *x.Cpus
+	}
+	return 0
+}
+
+func (x *RunContainerRequest) GetMemory() string {
+	if x != nil && x.Memory != nil {
+		return *x.Memory
+	}
+	return ""
+}
+
+func (x *RunContainerRequest) GetEnv() []string {
+	if x != nil {
+		return x.Env
+	}
+	return nil
+}
+
+func (x *RunContainerRequest) GetPorts() []*PortMapping {
+	if x != nil {
+		return x.Ports
+	}
+	return nil
+}
+
+func (x *RunContainerRequest) GetVolumes() []string {
+	if x != nil {
+		return x.Volumes
+	}
+	return nil
+}
+
+func (x *RunContainerRequest) GetLabels() map[string]string {
+	if x != nil {
+		return x.Labels
+	}
+	return nil
+}
+
+func (x *RunContainerRequest) GetInit() bool {
+	if x != nil {
+		return x.Init
+	}
+	return false
+}
+
+func (x *RunContainerRequest) GetArguments() []string {
+	if x != nil {
+		return x.Arguments
+	}
+	return nil
+}
+
+type DeleteContainerRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Container ID (or name).
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Remove even if the container is still running.
+	Force         bool `protobuf:"varint,2,opt,name=force,proto3" json:"force,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteContainerRequest) Reset() {
+	*x = DeleteContainerRequest{}
+	mi := &file_micropod_v1_container_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteContainerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteContainerRequest) ProtoMessage() {}
+
+func (x *DeleteContainerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_container_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteContainerRequest.ProtoReflect.Descriptor instead.
+func (*DeleteContainerRequest) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_container_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DeleteContainerRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DeleteContainerRequest) GetForce() bool {
+	if x != nil {
+		return x.Force
+	}
+	return false
+}
+
+type StreamLogsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Container ID (or name) to stream logs from.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Number of lines to replay from the end of the log before following.
+	Tail int32 `protobuf:"varint,2,opt,name=tail,proto3" json:"tail,omitempty"`
+	// Include the vminitd guest boot log.
+	Boot          bool `protobuf:"varint,3,opt,name=boot,proto3" json:"boot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StreamLogsRequest) Reset() {
+	*x = StreamLogsRequest{}
+	mi := &file_micropod_v1_container_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamLogsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamLogsRequest) ProtoMessage() {}
+
+func (x *StreamLogsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_container_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamLogsRequest.ProtoReflect.Descriptor instead.
+func (*StreamLogsRequest) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_container_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *StreamLogsRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *StreamLogsRequest) GetTail() int32 {
+	if x != nil {
+		return x.Tail
+	}
+	return 0
+}
+
+func (x *StreamLogsRequest) GetBoot() bool {
+	if x != nil {
+		return x.Boot
+	}
+	return false
+}
+
+// One streamed log line (StreamContainerLogs event).
+type LogChunk struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A single line of container output.
+	Text          string `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogChunk) Reset() {
+	*x = LogChunk{}
+	mi := &file_micropod_v1_container_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogChunk) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogChunk) ProtoMessage() {}
+
+func (x *LogChunk) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_container_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogChunk.ProtoReflect.Descriptor instead.
+func (*LogChunk) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_container_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *LogChunk) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+type GetStatsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStatsRequest) Reset() {
+	*x = GetStatsRequest{}
+	mi := &file_micropod_v1_container_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStatsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStatsRequest) ProtoMessage() {}
+
+func (x *GetStatsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_container_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStatsRequest.ProtoReflect.Descriptor instead.
+func (*GetStatsRequest) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_container_proto_rawDescGZIP(), []int{10}
+}
+
+type GetStatsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// One stats snapshot covering every running container.
+	Snapshot      *StatsSnapshot `protobuf:"bytes,1,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStatsResponse) Reset() {
+	*x = GetStatsResponse{}
+	mi := &file_micropod_v1_container_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStatsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStatsResponse) ProtoMessage() {}
+
+func (x *GetStatsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_container_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStatsResponse.ProtoReflect.Descriptor instead.
+func (*GetStatsResponse) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_container_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetStatsResponse) GetSnapshot() *StatsSnapshot {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
+type ExecRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Container ID (or name) to exec into.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Command to run inside the container.
+	Command string `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
+	// Working directory for the command.
+	Workdir *string `protobuf:"bytes,3,opt,name=workdir,proto3,oneof" json:"workdir,omitempty"`
+	// Extra environment variables as KEY=value pairs.
+	Env           []string `protobuf:"bytes,4,rep,name=env,proto3" json:"env,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExecRequest) Reset() {
+	*x = ExecRequest{}
+	mi := &file_micropod_v1_container_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecRequest) ProtoMessage() {}
+
+func (x *ExecRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_container_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecRequest.ProtoReflect.Descriptor instead.
+func (*ExecRequest) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_container_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ExecRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ExecRequest) GetCommand() string {
+	if x != nil {
+		return x.Command
+	}
+	return ""
+}
+
+func (x *ExecRequest) GetWorkdir() string {
+	if x != nil && x.Workdir != nil {
+		return *x.Workdir
+	}
+	return ""
+}
+
+func (x *ExecRequest) GetEnv() []string {
+	if x != nil {
+		return x.Env
+	}
+	return nil
+}
+
+type ExecResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Combined stdout (and stderr when not separable) of the command.
+	Output string `protobuf:"bytes,1,opt,name=output,proto3" json:"output,omitempty"`
+	// Guest process exit code. 0 on success; when the native runtime backend
+	// is active this is the real exit status rather than a CLI approximation.
+	ExitCode int32 `protobuf:"varint,2,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
+	// Guest stderr, when the backend can separate the streams.
+	Error         string `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExecResponse) Reset() {
+	*x = ExecResponse{}
+	mi := &file_micropod_v1_container_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecResponse) ProtoMessage() {}
+
+func (x *ExecResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_container_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecResponse.ProtoReflect.Descriptor instead.
+func (*ExecResponse) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_container_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ExecResponse) GetOutput() string {
+	if x != nil {
+		return x.Output
+	}
+	return ""
+}
+
+func (x *ExecResponse) GetExitCode() int32 {
+	if x != nil {
+		return x.ExitCode
+	}
+	return 0
+}
+
+func (x *ExecResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
 var File_micropod_v1_container_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_container_proto_rawDesc = "" +
 	"\n" +
-	"\x1bmicropod/v1/container.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\"\xca\x05\n" +
+	"\x1bmicropod/v1/container.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a\x15micropod/v1/api.proto\x1a\x18micropod/v1/system.proto\"\xca\x05\n" +
 	"\tContainer\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05image\x18\x02 \x01(\tR\x05image\x12\x14\n" +
@@ -472,7 +1079,73 @@ const file_micropod_v1_container_proto_rawDesc = "" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x16\n" +
 	"\x06source\x18\x02 \x01(\tR\x06source\x12 \n" +
 	"\vdestination\x18\x03 \x01(\tR\vdestination\x12\x1b\n" +
-	"\tread_only\x18\x04 \x01(\bR\breadOnlyBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
+	"\tread_only\x18\x04 \x01(\bR\breadOnly\"*\n" +
+	"\fContainerRef\x12\x1a\n" +
+	"\x02id\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\"P\n" +
+	"\x16ListContainersResponse\x126\n" +
+	"\n" +
+	"containers\x18\x01 \x03(\v2\x16.micropod.v1.ContainerR\n" +
+	"containers\"\xda\x03\n" +
+	"\x13RunContainerRequest\x12 \n" +
+	"\x05image\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x05image\x12\x17\n" +
+	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x16\n" +
+	"\x06detach\x18\x03 \x01(\bR\x06detach\x12'\n" +
+	"\x04cpus\x18\x04 \x01(\x01B\x0e\xbaH\v\x12\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x01R\x04cpus\x88\x01\x01\x12\x1b\n" +
+	"\x06memory\x18\x05 \x01(\tH\x02R\x06memory\x88\x01\x01\x12\x10\n" +
+	"\x03env\x18\x06 \x03(\tR\x03env\x12.\n" +
+	"\x05ports\x18\a \x03(\v2\x18.micropod.v1.PortMappingR\x05ports\x12\x18\n" +
+	"\avolumes\x18\b \x03(\tR\avolumes\x12D\n" +
+	"\x06labels\x18\t \x03(\v2,.micropod.v1.RunContainerRequest.LabelsEntryR\x06labels\x12\x12\n" +
+	"\x04init\x18\n" +
+	" \x01(\bR\x04init\x12\x1c\n" +
+	"\targuments\x18\v \x03(\tR\targuments\x1a9\n" +
+	"\vLabelsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\a\n" +
+	"\x05_nameB\a\n" +
+	"\x05_cpusB\t\n" +
+	"\a_memory\"J\n" +
+	"\x16DeleteContainerRequest\x12\x1a\n" +
+	"\x02id\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x12\x14\n" +
+	"\x05force\x18\x02 \x01(\bR\x05force\"`\n" +
+	"\x11StreamLogsRequest\x12\x1a\n" +
+	"\x02id\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x12\x1b\n" +
+	"\x04tail\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x04tail\x12\x12\n" +
+	"\x04boot\x18\x03 \x01(\bR\x04boot\"\x1e\n" +
+	"\bLogChunk\x12\x12\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\"\x11\n" +
+	"\x0fGetStatsRequest\"J\n" +
+	"\x10GetStatsResponse\x126\n" +
+	"\bsnapshot\x18\x01 \x01(\v2\x1a.micropod.v1.StatsSnapshotR\bsnapshot\"\x8c\x01\n" +
+	"\vExecRequest\x12\x1a\n" +
+	"\x02id\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x12$\n" +
+	"\acommand\x18\x02 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\acommand\x12\x1d\n" +
+	"\aworkdir\x18\x03 \x01(\tH\x00R\aworkdir\x88\x01\x01\x12\x10\n" +
+	"\x03env\x18\x04 \x03(\tR\x03envB\n" +
+	"\n" +
+	"\b_workdir\"Y\n" +
+	"\fExecResponse\x12\x16\n" +
+	"\x06output\x18\x01 \x01(\tR\x06output\x12\x1b\n" +
+	"\texit_code\x18\x02 \x01(\x05R\bexitCode\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error2\xa0\x06\n" +
+	"\x10ContainerService\x12I\n" +
+	"\x0eListContainers\x12\x12.micropod.v1.Empty\x1a#.micropod.v1.ListContainersResponse\x12K\n" +
+	"\fRunContainer\x12 .micropod.v1.RunContainerRequest\x1a\x19.micropod.v1.ContainerRef\x12N\n" +
+	"\x0fCreateContainer\x12 .micropod.v1.RunContainerRequest\x1a\x19.micropod.v1.ContainerRef\x12?\n" +
+	"\x0eStartContainer\x12\x19.micropod.v1.ContainerRef\x1a\x12.micropod.v1.Empty\x12>\n" +
+	"\rStopContainer\x12\x19.micropod.v1.ContainerRef\x1a\x12.micropod.v1.Empty\x12A\n" +
+	"\x10RestartContainer\x12\x19.micropod.v1.ContainerRef\x1a\x12.micropod.v1.Empty\x12>\n" +
+	"\rKillContainer\x12\x19.micropod.v1.ContainerRef\x1a\x12.micropod.v1.Empty\x12J\n" +
+	"\x0fDeleteContainer\x12#.micropod.v1.DeleteContainerRequest\x1a\x12.micropod.v1.Empty\x12N\n" +
+	"\x13StreamContainerLogs\x12\x1e.micropod.v1.StreamLogsRequest\x1a\x15.micropod.v1.LogChunk0\x01\x12G\n" +
+	"\bGetStats\x12\x1c.micropod.v1.GetStatsRequest\x1a\x1d.micropod.v1.GetStatsResponse\x12;\n" +
+	"\x04Exec\x12\x18.micropod.v1.ExecRequest\x1a\x19.micropod.v1.ExecResponseBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
 
 var (
 	file_micropod_v1_container_proto_rawDescOnce sync.Once
@@ -486,24 +1159,63 @@ func file_micropod_v1_container_proto_rawDescGZIP() []byte {
 	return file_micropod_v1_container_proto_rawDescData
 }
 
-var file_micropod_v1_container_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_micropod_v1_container_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_micropod_v1_container_proto_goTypes = []any{
-	(*Container)(nil),          // 0: micropod.v1.Container
-	(*ContainerResources)(nil), // 1: micropod.v1.ContainerResources
-	(*PortMapping)(nil),        // 2: micropod.v1.PortMapping
-	(*Mount)(nil),              // 3: micropod.v1.Mount
-	nil,                        // 4: micropod.v1.Container.LabelsEntry
+	(*Container)(nil),              // 0: micropod.v1.Container
+	(*ContainerResources)(nil),     // 1: micropod.v1.ContainerResources
+	(*PortMapping)(nil),            // 2: micropod.v1.PortMapping
+	(*Mount)(nil),                  // 3: micropod.v1.Mount
+	(*ContainerRef)(nil),           // 4: micropod.v1.ContainerRef
+	(*ListContainersResponse)(nil), // 5: micropod.v1.ListContainersResponse
+	(*RunContainerRequest)(nil),    // 6: micropod.v1.RunContainerRequest
+	(*DeleteContainerRequest)(nil), // 7: micropod.v1.DeleteContainerRequest
+	(*StreamLogsRequest)(nil),      // 8: micropod.v1.StreamLogsRequest
+	(*LogChunk)(nil),               // 9: micropod.v1.LogChunk
+	(*GetStatsRequest)(nil),        // 10: micropod.v1.GetStatsRequest
+	(*GetStatsResponse)(nil),       // 11: micropod.v1.GetStatsResponse
+	(*ExecRequest)(nil),            // 12: micropod.v1.ExecRequest
+	(*ExecResponse)(nil),           // 13: micropod.v1.ExecResponse
+	nil,                            // 14: micropod.v1.Container.LabelsEntry
+	nil,                            // 15: micropod.v1.RunContainerRequest.LabelsEntry
+	(*StatsSnapshot)(nil),          // 16: micropod.v1.StatsSnapshot
+	(*Empty)(nil),                  // 17: micropod.v1.Empty
 }
 var file_micropod_v1_container_proto_depIdxs = []int32{
-	1, // 0: micropod.v1.Container.resources:type_name -> micropod.v1.ContainerResources
-	2, // 1: micropod.v1.Container.published_ports:type_name -> micropod.v1.PortMapping
-	3, // 2: micropod.v1.Container.mounts:type_name -> micropod.v1.Mount
-	4, // 3: micropod.v1.Container.labels:type_name -> micropod.v1.Container.LabelsEntry
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	1,  // 0: micropod.v1.Container.resources:type_name -> micropod.v1.ContainerResources
+	2,  // 1: micropod.v1.Container.published_ports:type_name -> micropod.v1.PortMapping
+	3,  // 2: micropod.v1.Container.mounts:type_name -> micropod.v1.Mount
+	14, // 3: micropod.v1.Container.labels:type_name -> micropod.v1.Container.LabelsEntry
+	0,  // 4: micropod.v1.ListContainersResponse.containers:type_name -> micropod.v1.Container
+	2,  // 5: micropod.v1.RunContainerRequest.ports:type_name -> micropod.v1.PortMapping
+	15, // 6: micropod.v1.RunContainerRequest.labels:type_name -> micropod.v1.RunContainerRequest.LabelsEntry
+	16, // 7: micropod.v1.GetStatsResponse.snapshot:type_name -> micropod.v1.StatsSnapshot
+	17, // 8: micropod.v1.ContainerService.ListContainers:input_type -> micropod.v1.Empty
+	6,  // 9: micropod.v1.ContainerService.RunContainer:input_type -> micropod.v1.RunContainerRequest
+	6,  // 10: micropod.v1.ContainerService.CreateContainer:input_type -> micropod.v1.RunContainerRequest
+	4,  // 11: micropod.v1.ContainerService.StartContainer:input_type -> micropod.v1.ContainerRef
+	4,  // 12: micropod.v1.ContainerService.StopContainer:input_type -> micropod.v1.ContainerRef
+	4,  // 13: micropod.v1.ContainerService.RestartContainer:input_type -> micropod.v1.ContainerRef
+	4,  // 14: micropod.v1.ContainerService.KillContainer:input_type -> micropod.v1.ContainerRef
+	7,  // 15: micropod.v1.ContainerService.DeleteContainer:input_type -> micropod.v1.DeleteContainerRequest
+	8,  // 16: micropod.v1.ContainerService.StreamContainerLogs:input_type -> micropod.v1.StreamLogsRequest
+	10, // 17: micropod.v1.ContainerService.GetStats:input_type -> micropod.v1.GetStatsRequest
+	12, // 18: micropod.v1.ContainerService.Exec:input_type -> micropod.v1.ExecRequest
+	5,  // 19: micropod.v1.ContainerService.ListContainers:output_type -> micropod.v1.ListContainersResponse
+	4,  // 20: micropod.v1.ContainerService.RunContainer:output_type -> micropod.v1.ContainerRef
+	4,  // 21: micropod.v1.ContainerService.CreateContainer:output_type -> micropod.v1.ContainerRef
+	17, // 22: micropod.v1.ContainerService.StartContainer:output_type -> micropod.v1.Empty
+	17, // 23: micropod.v1.ContainerService.StopContainer:output_type -> micropod.v1.Empty
+	17, // 24: micropod.v1.ContainerService.RestartContainer:output_type -> micropod.v1.Empty
+	17, // 25: micropod.v1.ContainerService.KillContainer:output_type -> micropod.v1.Empty
+	17, // 26: micropod.v1.ContainerService.DeleteContainer:output_type -> micropod.v1.Empty
+	9,  // 27: micropod.v1.ContainerService.StreamContainerLogs:output_type -> micropod.v1.LogChunk
+	11, // 28: micropod.v1.ContainerService.GetStats:output_type -> micropod.v1.GetStatsResponse
+	13, // 29: micropod.v1.ContainerService.Exec:output_type -> micropod.v1.ExecResponse
+	19, // [19:30] is the sub-list for method output_type
+	8,  // [8:19] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_micropod_v1_container_proto_init() }
@@ -511,15 +1223,19 @@ func file_micropod_v1_container_proto_init() {
 	if File_micropod_v1_container_proto != nil {
 		return
 	}
+	file_micropod_v1_api_proto_init()
+	file_micropod_v1_system_proto_init()
+	file_micropod_v1_container_proto_msgTypes[6].OneofWrappers = []any{}
+	file_micropod_v1_container_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_micropod_v1_container_proto_rawDesc), len(file_micropod_v1_container_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   16,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_micropod_v1_container_proto_goTypes,
 		DependencyIndexes: file_micropod_v1_container_proto_depIdxs,

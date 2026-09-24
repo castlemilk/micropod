@@ -2,18 +2,24 @@ import Foundation
 import MicropodCore
 import SwiftProtobuf
 
-/// Connect-protocol mount: `POST /api/micropod.v1.MicropodService/<Method>`.
+/// Connect-protocol mount: `POST /api/micropod.v1.<Service>/<Method>`.
+///
+/// The daemon API is grouped into per-domain services (ContainerService,
+/// ImageService, VolumeService, NetworkService, ComposeService,
+/// SystemService) — the service segment is matched by the caller; method
+/// names are unique across services so dispatch keys on the method alone.
+/// The pre-split `micropod.v1.MicropodService` prefix is accepted as an
+/// alias for backward compatibility with v0.8 SDK clients.
 ///
 /// Makes the documented Connect surface real on the shipped server — unary
-/// calls take a proto-JSON body and return proto-JSON; the two
-/// server-streaming RPCs speak Connect envelope framing
-/// (`application/connect+json`). Requests decode straight into the same
-/// `Micropod_V1_*` messages the core services already vend, so the wire
-/// contract stays true to proto/micropod/v1.
+/// calls take a proto-JSON body and return proto-JSON; server-streaming
+/// RPCs speak Connect envelope framing (`application/connect+json`).
+/// Requests decode straight into the same `Micropod_V1_*` messages the core
+/// services already vend, so the wire contract stays true to proto/micropod/v1.
 extension APIHandlers {
 
-    /// Route `/api/micropod.v1.MicropodService/*`. Returns nil for paths
-    /// outside the mount so the caller can fall through to 404.
+    /// Route `/api/micropod.v1.<Service>/*`. Returns nil for methods that
+    /// don't exist so the caller can fall through to 404.
     func connectRPC(method: String, body: Data) async -> HTTPResponse? {
         do {
             switch method {

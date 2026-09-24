@@ -137,13 +137,44 @@ export function getMcpTool(name: string): McpTool | undefined {
 // Connect/gRPC OpenAPI specs (buf -> connect-openapi plugin)
 // ---------------------------------------------------------------------------
 
+// One spec per proto file — the connect-openapi plugin emits per file, and
+// the micropod.v1 API is grouped one service per domain file.
 const CONNECT_SPECS = [
   {
-    file: "micropod/v1/api.openapi.json",
-    service: "micropod.v1.MicropodService",
-    title: "MicropodService",
-    blurb:
-      "Connect-RPC control surface mounted by MicropodAPI (and the Go daemon at api/). Connect JSON over HTTP — same messages as the protobuf contract.",
+    file: "micropod/v1/container.openapi.json",
+    service: "micropod.v1.ContainerService",
+    title: "Containers",
+    blurb: "Container lifecycle, live logs, stats, and exec.",
+  },
+  {
+    file: "micropod/v1/image.openapi.json",
+    service: "micropod.v1.ImageService",
+    title: "Images",
+    blurb: "Local image inventory and streaming pulls.",
+  },
+  {
+    file: "micropod/v1/volume.openapi.json",
+    service: "micropod.v1.VolumeService",
+    title: "Volumes",
+    blurb: "Named volumes plus the mount policy applied on container create.",
+  },
+  {
+    file: "micropod/v1/network.openapi.json",
+    service: "micropod.v1.NetworkService",
+    title: "Networks",
+    blurb: "vmnet-backed container networks.",
+  },
+  {
+    file: "micropod/v1/compose.openapi.json",
+    service: "micropod.v1.ComposeService",
+    title: "Compose",
+    blurb: "Compose project lifecycle — run a spec file, tear a project down.",
+  },
+  {
+    file: "micropod/v1/system.openapi.json",
+    service: "micropod.v1.SystemService",
+    title: "System",
+    blurb: "Runtime snapshot, cleanup usage report, and app updates.",
   },
   {
     file: "com/apple/containerization/sandbox/v3/sandbox_context.openapi.json",
@@ -252,6 +283,21 @@ export function getConnectEndpoint(id: string): {
   for (const service of loadConnectServices()) {
     const endpoint = service.spec.endpoints.find((e) => e.id === id);
     if (endpoint) return { endpoint, service };
+  }
+  return undefined;
+}
+
+/** Pre-split page ids were `…-micropodservice-<method>`; resolve them to the
+ * endpoint's current id so old /grpc/ links redirect instead of 404ing. */
+export function legacyConnectEndpointId(id: string): string | undefined {
+  const m = id.match(/^(\w+)--api-micropod\.v1\.micropodservice-(\w+)$/);
+  if (!m) return undefined;
+  const [, , methodSlug] = m;
+  for (const svc of loadConnectServices()) {
+    const hit = svc.spec.endpoints.find(
+      (e) => e.path.split("/").pop()?.toLowerCase() === methodSlug,
+    );
+    if (hit) return hit.id;
   }
   return undefined;
 }

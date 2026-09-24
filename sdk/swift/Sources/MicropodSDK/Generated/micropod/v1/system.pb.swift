@@ -20,6 +20,38 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
   typealias Version = _2
 }
 
+public nonisolated struct Micropod_V1_SystemSnapshot: @unchecked Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Runtime health (status, versions, install paths).
+  public var status: Micropod_V1_SystemStatus {
+    get {_storage._status ?? Micropod_V1_SystemStatus()}
+    set {_uniqueStorage()._status = newValue}
+  }
+  /// Returns true if `status` has been explicitly set.
+  public var hasStatus: Bool {_storage._status != nil}
+  /// Clears the value of `status`. Subsequent reads from it will return its default value.
+  public mutating func clearStatus() {_uniqueStorage()._status = nil}
+
+  /// Disk usage grouped by resource kind.
+  public var diskUsage: Micropod_V1_DiskUsage {
+    get {_storage._diskUsage ?? Micropod_V1_DiskUsage()}
+    set {_uniqueStorage()._diskUsage = newValue}
+  }
+  /// Returns true if `diskUsage` has been explicitly set.
+  public var hasDiskUsage: Bool {_storage._diskUsage != nil}
+  /// Clears the value of `diskUsage`. Subsequent reads from it will return its default value.
+  public mutating func clearDiskUsage() {_uniqueStorage()._diskUsage = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
 /// Runtime health, mapped from `container system status`.
 public nonisolated struct Micropod_V1_SystemStatus: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -172,76 +204,6 @@ public nonisolated struct Micropod_V1_ContainerStats: Sendable {
   public init() {}
 }
 
-/// Curated network, mapped from `container network list`.
-public nonisolated struct Micropod_V1_Network: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// Network ID (name).
-  public var id: String = String()
-
-  /// Network plugin backing this network, e.g. "vmnet".
-  public var plugin: String = String()
-
-  /// Network mode, e.g. "nat".
-  public var mode: String = String()
-
-  /// IPv4 gateway address.
-  public var ipv4Gateway: String = String()
-
-  /// IPv4 CIDR of the network.
-  public var ipv4Subnet: String = String()
-
-  /// IPv6 CIDR of the network, if any.
-  public var ipv6Subnet: String = String()
-
-  /// ISO8601 creation timestamp.
-  public var createdAt: String = String()
-
-  /// True for runtime-managed networks that cannot be deleted.
-  public var builtin: Bool = false
-
-  /// Metadata labels on the network.
-  public var labels: Dictionary<String,String> = [:]
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-/// Curated volume, mapped from `container volume list`.
-public nonisolated struct Micropod_V1_Volume: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// Volume name (used as the ID).
-  public var id: String = String()
-
-  /// Volume driver, e.g. "local".
-  public var driver: String = String()
-
-  /// Filesystem format, e.g. "ext4".
-  public var format: String = String()
-
-  /// Volume size in bytes.
-  public var sizeBytes: UInt64 = 0
-
-  /// Backing source (name or host path).
-  public var source: String = String()
-
-  /// ISO8601 creation timestamp.
-  public var createdAt: String = String()
-
-  /// Metadata labels on the volume.
-  public var labels: Dictionary<String,String> = [:]
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
 /// A registry login, mapped from `container registry list`.
 public nonisolated struct Micropod_V1_RegistryLogin: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -342,189 +304,6 @@ public nonisolated struct Micropod_V1_UsageReport: Sendable {
     public init() {}
 
     fileprivate var _volume: Micropod_V1_Volume? = nil
-  }
-
-  public init() {}
-}
-
-/// Named-volume mount policy — read on container create by every surface
-/// (API, docker shim, app, CLI, MCP). Per-container `com.micropod.*` labels
-/// take precedence over this policy.
-public nonisolated struct Micropod_V1_VolumePolicy: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// Which named-volume mounts get clonefile-forked per container.
-  public var cloneMode: Micropod_V1_VolumePolicy.CloneMode = .unspecified
-
-  /// Volume names auto-cloned under `CLONE_MODE_GOLDENS`.
-  public var goldenVolumes: [String] = []
-
-  /// Restrict cloning to job-labelled containers (`com.cuttlefish.job` /
-  /// `com.micropod.job`). Per-container clone labels always apply.
-  public var jobsOnly: Bool = false
-
-  /// Writeback sync mode override; `SYNC_MODE_UNSPECIFIED` keeps the
-  /// per-mount default.
-  public var sync: Micropod_V1_VolumePolicy.SyncMode = .unspecified
-
-  /// VZ disk-image cache mode.
-  public var cache: Micropod_V1_VolumePolicy.CacheMode = .unspecified
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  /// Which named-volume mounts get clonefile-forked per container.
-  public nonisolated enum CloneMode: SwiftProtobuf.Enum, Swift.CaseIterable {
-    public typealias RawValue = Int
-
-    /// Treated as CLONE_MODE_LABELS (the standard default).
-    case unspecified // = 0
-
-    /// Only mounts carrying the `com.micropod.cache.clone` label.
-    case labels // = 1
-
-    /// Auto-clone mounts of the volumes named in `golden_volumes`.
-    case goldens // = 2
-
-    /// Clone every named-volume mount.
-    case all // = 3
-    case UNRECOGNIZED(Int)
-
-    public init() {
-      self = .unspecified
-    }
-
-    public init?(rawValue: Int) {
-      switch rawValue {
-      case 0: self = .unspecified
-      case 1: self = .labels
-      case 2: self = .goldens
-      case 3: self = .all
-      default: self = .UNRECOGNIZED(rawValue)
-      }
-    }
-
-    public var rawValue: Int {
-      switch self {
-      case .unspecified: return 0
-      case .labels: return 1
-      case .goldens: return 2
-      case .all: return 3
-      case .UNRECOGNIZED(let i): return i
-      }
-    }
-
-    // The compiler won't synthesize support with the UNRECOGNIZED case.
-    public static let allCases: [Micropod_V1_VolumePolicy.CloneMode] = [
-      .unspecified,
-      .labels,
-      .goldens,
-      .all,
-    ]
-
-  }
-
-  /// Writeback sync mode for volume disk images.
-  public nonisolated enum SyncMode: SwiftProtobuf.Enum, Swift.CaseIterable {
-    public typealias RawValue = Int
-
-    /// Per-mount default (fsync for named volumes, nosync for clones).
-    case unspecified // = 0
-
-    /// Flush writes on every write.
-    case full // = 1
-
-    /// fsync on container stop.
-    case fsync // = 2
-
-    /// Never fsync — fastest, can lose writes on host crash.
-    case nosync // = 3
-    case UNRECOGNIZED(Int)
-
-    public init() {
-      self = .unspecified
-    }
-
-    public init?(rawValue: Int) {
-      switch rawValue {
-      case 0: self = .unspecified
-      case 1: self = .full
-      case 2: self = .fsync
-      case 3: self = .nosync
-      default: self = .UNRECOGNIZED(rawValue)
-      }
-    }
-
-    public var rawValue: Int {
-      switch self {
-      case .unspecified: return 0
-      case .full: return 1
-      case .fsync: return 2
-      case .nosync: return 3
-      case .UNRECOGNIZED(let i): return i
-      }
-    }
-
-    // The compiler won't synthesize support with the UNRECOGNIZED case.
-    public static let allCases: [Micropod_V1_VolumePolicy.SyncMode] = [
-      .unspecified,
-      .full,
-      .fsync,
-      .nosync,
-    ]
-
-  }
-
-  /// VZ disk-image caching mode.
-  public nonisolated enum CacheMode: SwiftProtobuf.Enum, Swift.CaseIterable {
-    public typealias RawValue = Int
-
-    /// Treated as CACHE_MODE_ON (the standard default).
-    case unspecified // = 0
-
-    /// Always cache the disk image.
-    case on // = 1
-
-    /// Never cache.
-    case off // = 2
-
-    /// Cache when the volume driver supports it.
-    case auto // = 3
-    case UNRECOGNIZED(Int)
-
-    public init() {
-      self = .unspecified
-    }
-
-    public init?(rawValue: Int) {
-      switch rawValue {
-      case 0: self = .unspecified
-      case 1: self = .on
-      case 2: self = .off
-      case 3: self = .auto
-      default: self = .UNRECOGNIZED(rawValue)
-      }
-    }
-
-    public var rawValue: Int {
-      switch self {
-      case .unspecified: return 0
-      case .on: return 1
-      case .off: return 2
-      case .auto: return 3
-      case .UNRECOGNIZED(let i): return i
-      }
-    }
-
-    // The compiler won't synthesize support with the UNRECOGNIZED case.
-    public static let allCases: [Micropod_V1_VolumePolicy.CacheMode] = [
-      .unspecified,
-      .on,
-      .off,
-      .auto,
-    ]
-
   }
 
   public init() {}
@@ -647,6 +426,83 @@ public nonisolated struct Micropod_V1_UpdateStatus: Sendable {
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "micropod.v1"
+
+nonisolated extension Micropod_V1_SystemSnapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SystemSnapshot"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}disk_usage\0")
+
+  fileprivate class _StorageClass {
+    var _status: Micropod_V1_SystemStatus? = nil
+    var _diskUsage: Micropod_V1_DiskUsage? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _status = source._status
+      _diskUsage = source._diskUsage
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._status) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._diskUsage) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._status {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._diskUsage {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_SystemSnapshot, rhs: Micropod_V1_SystemSnapshot) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._status != rhs_storage._status {return false}
+        if _storage._diskUsage != rhs_storage._diskUsage {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
 
 nonisolated extension Micropod_V1_SystemStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SystemStatus"
@@ -897,136 +753,6 @@ nonisolated extension Micropod_V1_ContainerStats: SwiftProtobuf.Message, SwiftPr
   }
 }
 
-nonisolated extension Micropod_V1_Network: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".Network"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}plugin\0\u{1}mode\0\u{3}ipv4_gateway\0\u{3}ipv4_subnet\0\u{3}ipv6_subnet\0\u{3}created_at\0\u{1}builtin\0\u{1}labels\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.plugin) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self.mode) }()
-      case 4: try { try decoder.decodeSingularStringField(value: &self.ipv4Gateway) }()
-      case 5: try { try decoder.decodeSingularStringField(value: &self.ipv4Subnet) }()
-      case 6: try { try decoder.decodeSingularStringField(value: &self.ipv6Subnet) }()
-      case 7: try { try decoder.decodeSingularStringField(value: &self.createdAt) }()
-      case 8: try { try decoder.decodeSingularBoolField(value: &self.builtin) }()
-      case 9: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: &self.labels) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.id.isEmpty {
-      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
-    }
-    if !self.plugin.isEmpty {
-      try visitor.visitSingularStringField(value: self.plugin, fieldNumber: 2)
-    }
-    if !self.mode.isEmpty {
-      try visitor.visitSingularStringField(value: self.mode, fieldNumber: 3)
-    }
-    if !self.ipv4Gateway.isEmpty {
-      try visitor.visitSingularStringField(value: self.ipv4Gateway, fieldNumber: 4)
-    }
-    if !self.ipv4Subnet.isEmpty {
-      try visitor.visitSingularStringField(value: self.ipv4Subnet, fieldNumber: 5)
-    }
-    if !self.ipv6Subnet.isEmpty {
-      try visitor.visitSingularStringField(value: self.ipv6Subnet, fieldNumber: 6)
-    }
-    if !self.createdAt.isEmpty {
-      try visitor.visitSingularStringField(value: self.createdAt, fieldNumber: 7)
-    }
-    if self.builtin != false {
-      try visitor.visitSingularBoolField(value: self.builtin, fieldNumber: 8)
-    }
-    if !self.labels.isEmpty {
-      try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: self.labels, fieldNumber: 9)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Micropod_V1_Network, rhs: Micropod_V1_Network) -> Bool {
-    if lhs.id != rhs.id {return false}
-    if lhs.plugin != rhs.plugin {return false}
-    if lhs.mode != rhs.mode {return false}
-    if lhs.ipv4Gateway != rhs.ipv4Gateway {return false}
-    if lhs.ipv4Subnet != rhs.ipv4Subnet {return false}
-    if lhs.ipv6Subnet != rhs.ipv6Subnet {return false}
-    if lhs.createdAt != rhs.createdAt {return false}
-    if lhs.builtin != rhs.builtin {return false}
-    if lhs.labels != rhs.labels {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-nonisolated extension Micropod_V1_Volume: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".Volume"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}driver\0\u{1}format\0\u{3}size_bytes\0\u{1}source\0\u{3}created_at\0\u{1}labels\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.driver) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self.format) }()
-      case 4: try { try decoder.decodeSingularUInt64Field(value: &self.sizeBytes) }()
-      case 5: try { try decoder.decodeSingularStringField(value: &self.source) }()
-      case 6: try { try decoder.decodeSingularStringField(value: &self.createdAt) }()
-      case 7: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: &self.labels) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.id.isEmpty {
-      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
-    }
-    if !self.driver.isEmpty {
-      try visitor.visitSingularStringField(value: self.driver, fieldNumber: 2)
-    }
-    if !self.format.isEmpty {
-      try visitor.visitSingularStringField(value: self.format, fieldNumber: 3)
-    }
-    if self.sizeBytes != 0 {
-      try visitor.visitSingularUInt64Field(value: self.sizeBytes, fieldNumber: 4)
-    }
-    if !self.source.isEmpty {
-      try visitor.visitSingularStringField(value: self.source, fieldNumber: 5)
-    }
-    if !self.createdAt.isEmpty {
-      try visitor.visitSingularStringField(value: self.createdAt, fieldNumber: 6)
-    }
-    if !self.labels.isEmpty {
-      try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: self.labels, fieldNumber: 7)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Micropod_V1_Volume, rhs: Micropod_V1_Volume) -> Bool {
-    if lhs.id != rhs.id {return false}
-    if lhs.driver != rhs.driver {return false}
-    if lhs.format != rhs.format {return false}
-    if lhs.sizeBytes != rhs.sizeBytes {return false}
-    if lhs.source != rhs.source {return false}
-    if lhs.createdAt != rhs.createdAt {return false}
-    if lhs.labels != rhs.labels {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
 nonisolated extension Micropod_V1_RegistryLogin: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RegistryLogin"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}server\0\u{1}username\0\u{1}scheme\0")
@@ -1203,68 +929,6 @@ nonisolated extension Micropod_V1_UsageReport.VolumeUsage: SwiftProtobuf.Message
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
-}
-
-nonisolated extension Micropod_V1_VolumePolicy: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".VolumePolicy"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}clone_mode\0\u{3}golden_volumes\0\u{3}jobs_only\0\u{1}sync\0\u{1}cache\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularEnumField(value: &self.cloneMode) }()
-      case 2: try { try decoder.decodeRepeatedStringField(value: &self.goldenVolumes) }()
-      case 3: try { try decoder.decodeSingularBoolField(value: &self.jobsOnly) }()
-      case 4: try { try decoder.decodeSingularEnumField(value: &self.sync) }()
-      case 5: try { try decoder.decodeSingularEnumField(value: &self.cache) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if self.cloneMode != .unspecified {
-      try visitor.visitSingularEnumField(value: self.cloneMode, fieldNumber: 1)
-    }
-    if !self.goldenVolumes.isEmpty {
-      try visitor.visitRepeatedStringField(value: self.goldenVolumes, fieldNumber: 2)
-    }
-    if self.jobsOnly != false {
-      try visitor.visitSingularBoolField(value: self.jobsOnly, fieldNumber: 3)
-    }
-    if self.sync != .unspecified {
-      try visitor.visitSingularEnumField(value: self.sync, fieldNumber: 4)
-    }
-    if self.cache != .unspecified {
-      try visitor.visitSingularEnumField(value: self.cache, fieldNumber: 5)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Micropod_V1_VolumePolicy, rhs: Micropod_V1_VolumePolicy) -> Bool {
-    if lhs.cloneMode != rhs.cloneMode {return false}
-    if lhs.goldenVolumes != rhs.goldenVolumes {return false}
-    if lhs.jobsOnly != rhs.jobsOnly {return false}
-    if lhs.sync != rhs.sync {return false}
-    if lhs.cache != rhs.cache {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-nonisolated extension Micropod_V1_VolumePolicy.CloneMode: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0CLONE_MODE_UNSPECIFIED\0\u{1}CLONE_MODE_LABELS\0\u{1}CLONE_MODE_GOLDENS\0\u{1}CLONE_MODE_ALL\0")
-}
-
-nonisolated extension Micropod_V1_VolumePolicy.SyncMode: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0SYNC_MODE_UNSPECIFIED\0\u{1}SYNC_MODE_FULL\0\u{1}SYNC_MODE_FSYNC\0\u{1}SYNC_MODE_NOSYNC\0")
-}
-
-nonisolated extension Micropod_V1_VolumePolicy.CacheMode: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0CACHE_MODE_UNSPECIFIED\0\u{1}CACHE_MODE_ON\0\u{1}CACHE_MODE_OFF\0\u{1}CACHE_MODE_AUTO\0")
 }
 
 nonisolated extension Micropod_V1_UpdateStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

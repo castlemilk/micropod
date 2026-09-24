@@ -33,7 +33,7 @@ public nonisolated struct Micropod_V1_ComposeSpec: Sendable {
   public var path: String = String()
 
   /// Services in dependency order.
-  public var services: [Micropod_V1_ComposeService] = []
+  public var services: [Micropod_V1_ComposeServiceSpec] = []
 
   /// Named volumes declared at the top level.
   public var volumes: Dictionary<String,Micropod_V1_ComposeVolume> = [:]
@@ -49,7 +49,7 @@ public nonisolated struct Micropod_V1_ComposeSpec: Sendable {
 /// A single service of a compose spec, mapped onto `container run` capabilities.
 /// Fields the Apple runtime cannot express (e.g. privileged) are still parsed
 /// so the UI can show them as unsupported rather than silently dropping them.
-public nonisolated struct Micropod_V1_ComposeService: @unchecked Sendable {
+public nonisolated struct Micropod_V1_ComposeServiceSpec: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -508,8 +508,8 @@ nonisolated extension Micropod_V1_ComposeSpec: SwiftProtobuf.Message, SwiftProto
   }
 }
 
-nonisolated extension Micropod_V1_ComposeService: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".ComposeService"
+nonisolated extension Micropod_V1_ComposeServiceSpec: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ComposeServiceSpec"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}image\0\u{3}build_context\0\u{3}build_dockerfile\0\u{3}build_args\0\u{3}depends_on\0\u{1}ports\0\u{1}environment\0\u{1}volumes\0\u{1}commands\0\u{3}working_dir\0\u{1}restart\0\u{1}cpus\0\u{1}memory\0\u{3}healthcheck_command\0\u{1}networks\0\u{3}container_name\0\u{1}entrypoint\0\u{1}user\0\u{1}labels\0\u{1}dns\0\u{3}dns_search\0\u{3}cap_add\0\u{3}cap_drop\0\u{1}ulimits\0\u{1}tmpfs\0\u{3}env_file\0\u{3}shm_size\0\u{3}read_only\0\u{1}init\0\u{1}tty\0\u{3}stdin_open\0\u{1}privileged\0\u{3}extra_hosts\0\u{3}depends_on_conditions\0\u{3}healthcheck_interval_seconds\0\u{3}healthcheck_timeout_seconds\0\u{3}healthcheck_retries\0\u{3}healthcheck_start_period_seconds\0\u{3}build_target\0\u{3}build_platform\0\u{3}stop_signal\0\u{3}stop_grace_period_seconds\0\u{3}build_no_cache\0\u{1}profiles\0\u{3}pull_policy\0")
 
   fileprivate class _StorageClass {
@@ -829,7 +829,7 @@ nonisolated extension Micropod_V1_ComposeService: SwiftProtobuf.Message, SwiftPr
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Micropod_V1_ComposeService, rhs: Micropod_V1_ComposeService) -> Bool {
+  public static func ==(lhs: Micropod_V1_ComposeServiceSpec, rhs: Micropod_V1_ComposeServiceSpec) -> Bool {
     if lhs._storage !== rhs._storage {
       let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
         let _storage = _args.0

@@ -2,17 +2,47 @@
 // @generated from file micropod/v1/system.proto (package micropod.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { EmptySchema } from "./api_pb.js";
+import { file_micropod_v1_api } from "./api_pb.js";
 import type { Image } from "./image_pb.js";
 import { file_micropod_v1_image } from "./image_pb.js";
+import type { Volume } from "./volume_pb.js";
+import { file_micropod_v1_volume } from "./volume_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file micropod/v1/system.proto.
  */
 export const file_micropod_v1_system: GenFile = /*@__PURE__*/
-  fileDesc("ChhtaWNyb3BvZC92MS9zeXN0ZW0ucHJvdG8SC21pY3JvcG9kLnYxIncKDFN5c3RlbVN0YXR1cxIOCgZzdGF0dXMYASABKAkSEAoIYXBwX3Jvb3QYAiABKAkSFAoMaW5zdGFsbF9yb290GAMgASgJEhoKEmFwaV9zZXJ2ZXJfdmVyc2lvbhgEIAEoCRITCgtjbGlfdmVyc2lvbhgFIAEoCSKyAQoJRGlza1VzYWdlEi0KCmNvbnRhaW5lcnMYASABKAsyGS5taWNyb3BvZC52MS5EaXNrQ2F0ZWdvcnkSKQoGaW1hZ2VzGAIgASgLMhkubWljcm9wb2QudjEuRGlza0NhdGVnb3J5EioKB3ZvbHVtZXMYAyABKAsyGS5taWNyb3BvZC52MS5EaXNrQ2F0ZWdvcnkSHwoXdG90YWxfcmVjbGFpbWFibGVfYnl0ZXMYBCABKAQiXAoMRGlza0NhdGVnb3J5Eg0KBXRvdGFsGAEgASgEEg4KBmFjdGl2ZRgCIAEoBBISCgpzaXplX2J5dGVzGAMgASgEEhkKEXJlY2xhaW1hYmxlX2J5dGVzGAQgASgEIlQKDVN0YXRzU25hcHNob3QSLwoKY29udGFpbmVycxgBIAMoCzIbLm1pY3JvcG9kLnYxLkNvbnRhaW5lclN0YXRzEhIKCnNhbXBsZWRfYXQYAiABKAki3wEKDkNvbnRhaW5lclN0YXRzEgoKAmlkGAEgASgJEhMKC2NwdV9wZXJjZW50GAIgASgBEhkKEW1lbW9yeV91c2VkX2J5dGVzGAMgASgEEhoKEm1lbW9yeV9saW1pdF9ieXRlcxgEIAEoBBIYChBuZXR3b3JrX3J4X2J5dGVzGAUgASgEEhgKEG5ldHdvcmtfdHhfYnl0ZXMYBiABKAQSGAoQYmxvY2tfcmVhZF9ieXRlcxgHIAEoBBIZChFibG9ja193cml0ZV9ieXRlcxgIIAEoBBIMCgRwaWRzGAkgASgEIvkBCgdOZXR3b3JrEgoKAmlkGAEgASgJEg4KBnBsdWdpbhgCIAEoCRIMCgRtb2RlGAMgASgJEhQKDGlwdjRfZ2F0ZXdheRgEIAEoCRITCgtpcHY0X3N1Ym5ldBgFIAEoCRITCgtpcHY2X3N1Ym5ldBgGIAEoCRISCgpjcmVhdGVkX2F0GAcgASgJEg8KB2J1aWx0aW4YCCABKAgSMAoGbGFiZWxzGAkgAygLMiAubWljcm9wb2QudjEuTmV0d29yay5MYWJlbHNFbnRyeRotCgtMYWJlbHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIswBCgZWb2x1bWUSCgoCaWQYASABKAkSDgoGZHJpdmVyGAIgASgJEg4KBmZvcm1hdBgDIAEoCRISCgpzaXplX2J5dGVzGAQgASgEEg4KBnNvdXJjZRgFIAEoCRISCgpjcmVhdGVkX2F0GAYgASgJEi8KBmxhYmVscxgHIAMoCzIfLm1pY3JvcG9kLnYxLlZvbHVtZS5MYWJlbHNFbnRyeRotCgtMYWJlbHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkEKDVJlZ2lzdHJ5TG9naW4SDgoGc2VydmVyGAEgASgJEhAKCHVzZXJuYW1lGAIgASgJEg4KBnNjaGVtZRgDIAEoCSKgAwoLVXNhZ2VSZXBvcnQSMwoGaW1hZ2VzGAEgAygLMiMubWljcm9wb2QudjEuVXNhZ2VSZXBvcnQuSW1hZ2VVc2FnZRI1Cgd2b2x1bWVzGAIgAygLMiQubWljcm9wb2QudjEuVXNhZ2VSZXBvcnQuVm9sdW1lVXNhZ2USHwoXcmVjbGFpbWFibGVfaW1hZ2VfYnl0ZXMYAyABKAQSIAoYcmVjbGFpbWFibGVfdm9sdW1lX2J5dGVzGAQgASgEEh8KF3N0b3BwZWRfY29udGFpbmVyX2NvdW50GAUgASgFGl4KCkltYWdlVXNhZ2USIQoFaW1hZ2UYASABKAsyEi5taWNyb3BvZC52MS5JbWFnZRIdChV1c2VkX2J5X2NvbnRhaW5lcl9pZHMYAiADKAkSDgoGaW5fdXNlGAMgASgIGmEKC1ZvbHVtZVVzYWdlEiMKBnZvbHVtZRgBIAEoCzITLm1pY3JvcG9kLnYxLlZvbHVtZRIdChV1c2VkX2J5X2NvbnRhaW5lcl9pZHMYAiADKAkSDgoGaW5fdXNlGAMgASgIIo8ECgxWb2x1bWVQb2xpY3kSNwoKY2xvbmVfbW9kZRgBIAEoDjIjLm1pY3JvcG9kLnYxLlZvbHVtZVBvbGljeS5DbG9uZU1vZGUSFgoOZ29sZGVuX3ZvbHVtZXMYAiADKAkSEQoJam9ic19vbmx5GAMgASgIEjAKBHN5bmMYBCABKA4yIi5taWNyb3BvZC52MS5Wb2x1bWVQb2xpY3kuU3luY01vZGUSMgoFY2FjaGUYBSABKA4yIy5taWNyb3BvZC52MS5Wb2x1bWVQb2xpY3kuQ2FjaGVNb2RlImoKCUNsb25lTW9kZRIaChZDTE9ORV9NT0RFX1VOU1BFQ0lGSUVEEAASFQoRQ0xPTkVfTU9ERV9MQUJFTFMQARIWChJDTE9ORV9NT0RFX0dPTERFTlMQAhISCg5DTE9ORV9NT0RFX0FMTBADImQKCFN5bmNNb2RlEhkKFVNZTkNfTU9ERV9VTlNQRUNJRklFRBAAEhIKDlNZTkNfTU9ERV9GVUxMEAESEwoPU1lOQ19NT0RFX0ZTWU5DEAISFAoQU1lOQ19NT0RFX05PU1lOQxADImMKCUNhY2hlTW9kZRIaChZDQUNIRV9NT0RFX1VOU1BFQ0lGSUVEEAASEQoNQ0FDSEVfTU9ERV9PThABEhIKDkNBQ0hFX01PREVfT0ZGEAISEwoPQ0FDSEVfTU9ERV9BVVRPEAMirQMKDFVwZGF0ZVN0YXR1cxIuCgVzdGF0ZRgBIAEoDjIfLm1pY3JvcG9kLnYxLlVwZGF0ZVN0YXR1cy5TdGF0ZRIXCg9mZWVkX2NvbmZpZ3VyZWQYAiABKAgSFwoPY3VycmVudF92ZXJzaW9uGAMgASgJEhkKEWF2YWlsYWJsZV92ZXJzaW9uGAQgASgJEhIKCmRvd25sb2FkZWQYBSABKAgSGgoSZG93bmxvYWRlZF92ZXJzaW9uGAYgASgJEhgKEHJlYWR5X3RvX2luc3RhbGwYByABKAgSDQoFZXJyb3IYCCABKAkSEgoKY2hlY2tlZF9hdBgJIAEoCSKyAQoFU3RhdGUSFQoRU1RBVEVfVU5TUEVDSUZJRUQQABIVChFTVEFURV9VTkFWQUlMQUJMRRABEg4KClNUQVRFX0lETEUQAhISCg5TVEFURV9DSEVDS0lORxADEhQKEFNUQVRFX1VQX1RPX0RBVEUQBBIaChZTVEFURV9VUERBVEVfQVZBSUxBQkxFEAUSFAoQU1RBVEVfSU5TVEFMTElORxAGEg8KC1NUQVRFX0VSUk9SEAdCQlpAZ2l0aHViLmNvbS9jYXN0bGVtaWxrL21pY3JvcG9kL3Nkay9nby9nZW4vbWljcm9wb2QvdjE7bWljcm9wb2R2MWIGcHJvdG8z", [file_micropod_v1_image]);
+  fileDesc("ChhtaWNyb3BvZC92MS9zeXN0ZW0ucHJvdG8SC21pY3JvcG9kLnYxImcKDlN5c3RlbVNuYXBzaG90EikKBnN0YXR1cxgBIAEoCzIZLm1pY3JvcG9kLnYxLlN5c3RlbVN0YXR1cxIqCgpkaXNrX3VzYWdlGAIgASgLMhYubWljcm9wb2QudjEuRGlza1VzYWdlIncKDFN5c3RlbVN0YXR1cxIOCgZzdGF0dXMYASABKAkSEAoIYXBwX3Jvb3QYAiABKAkSFAoMaW5zdGFsbF9yb290GAMgASgJEhoKEmFwaV9zZXJ2ZXJfdmVyc2lvbhgEIAEoCRITCgtjbGlfdmVyc2lvbhgFIAEoCSKyAQoJRGlza1VzYWdlEi0KCmNvbnRhaW5lcnMYASABKAsyGS5taWNyb3BvZC52MS5EaXNrQ2F0ZWdvcnkSKQoGaW1hZ2VzGAIgASgLMhkubWljcm9wb2QudjEuRGlza0NhdGVnb3J5EioKB3ZvbHVtZXMYAyABKAsyGS5taWNyb3BvZC52MS5EaXNrQ2F0ZWdvcnkSHwoXdG90YWxfcmVjbGFpbWFibGVfYnl0ZXMYBCABKAQiXAoMRGlza0NhdGVnb3J5Eg0KBXRvdGFsGAEgASgEEg4KBmFjdGl2ZRgCIAEoBBISCgpzaXplX2J5dGVzGAMgASgEEhkKEXJlY2xhaW1hYmxlX2J5dGVzGAQgASgEIlQKDVN0YXRzU25hcHNob3QSLwoKY29udGFpbmVycxgBIAMoCzIbLm1pY3JvcG9kLnYxLkNvbnRhaW5lclN0YXRzEhIKCnNhbXBsZWRfYXQYAiABKAki3wEKDkNvbnRhaW5lclN0YXRzEgoKAmlkGAEgASgJEhMKC2NwdV9wZXJjZW50GAIgASgBEhkKEW1lbW9yeV91c2VkX2J5dGVzGAMgASgEEhoKEm1lbW9yeV9saW1pdF9ieXRlcxgEIAEoBBIYChBuZXR3b3JrX3J4X2J5dGVzGAUgASgEEhgKEG5ldHdvcmtfdHhfYnl0ZXMYBiABKAQSGAoQYmxvY2tfcmVhZF9ieXRlcxgHIAEoBBIZChFibG9ja193cml0ZV9ieXRlcxgIIAEoBBIMCgRwaWRzGAkgASgEIkEKDVJlZ2lzdHJ5TG9naW4SDgoGc2VydmVyGAEgASgJEhAKCHVzZXJuYW1lGAIgASgJEg4KBnNjaGVtZRgDIAEoCSKgAwoLVXNhZ2VSZXBvcnQSMwoGaW1hZ2VzGAEgAygLMiMubWljcm9wb2QudjEuVXNhZ2VSZXBvcnQuSW1hZ2VVc2FnZRI1Cgd2b2x1bWVzGAIgAygLMiQubWljcm9wb2QudjEuVXNhZ2VSZXBvcnQuVm9sdW1lVXNhZ2USHwoXcmVjbGFpbWFibGVfaW1hZ2VfYnl0ZXMYAyABKAQSIAoYcmVjbGFpbWFibGVfdm9sdW1lX2J5dGVzGAQgASgEEh8KF3N0b3BwZWRfY29udGFpbmVyX2NvdW50GAUgASgFGl4KCkltYWdlVXNhZ2USIQoFaW1hZ2UYASABKAsyEi5taWNyb3BvZC52MS5JbWFnZRIdChV1c2VkX2J5X2NvbnRhaW5lcl9pZHMYAiADKAkSDgoGaW5fdXNlGAMgASgIGmEKC1ZvbHVtZVVzYWdlEiMKBnZvbHVtZRgBIAEoCzITLm1pY3JvcG9kLnYxLlZvbHVtZRIdChV1c2VkX2J5X2NvbnRhaW5lcl9pZHMYAiADKAkSDgoGaW5fdXNlGAMgASgIIq0DCgxVcGRhdGVTdGF0dXMSLgoFc3RhdGUYASABKA4yHy5taWNyb3BvZC52MS5VcGRhdGVTdGF0dXMuU3RhdGUSFwoPZmVlZF9jb25maWd1cmVkGAIgASgIEhcKD2N1cnJlbnRfdmVyc2lvbhgDIAEoCRIZChFhdmFpbGFibGVfdmVyc2lvbhgEIAEoCRISCgpkb3dubG9hZGVkGAUgASgIEhoKEmRvd25sb2FkZWRfdmVyc2lvbhgGIAEoCRIYChByZWFkeV90b19pbnN0YWxsGAcgASgIEg0KBWVycm9yGAggASgJEhIKCmNoZWNrZWRfYXQYCSABKAkisgEKBVN0YXRlEhUKEVNUQVRFX1VOU1BFQ0lGSUVEEAASFQoRU1RBVEVfVU5BVkFJTEFCTEUQARIOCgpTVEFURV9JRExFEAISEgoOU1RBVEVfQ0hFQ0tJTkcQAxIUChBTVEFURV9VUF9UT19EQVRFEAQSGgoWU1RBVEVfVVBEQVRFX0FWQUlMQUJMRRAFEhQKEFNUQVRFX0lOU1RBTExJTkcQBhIPCgtTVEFURV9FUlJPUhAHMskCCg1TeXN0ZW1TZXJ2aWNlEjwKCUdldFN5c3RlbRISLm1pY3JvcG9kLnYxLkVtcHR5GhsubWljcm9wb2QudjEuU3lzdGVtU25hcHNob3QSOAoIR2V0VXNhZ2USEi5taWNyb3BvZC52MS5FbXB0eRoYLm1pY3JvcG9kLnYxLlVzYWdlUmVwb3J0EkAKD0NoZWNrRm9yVXBkYXRlcxISLm1pY3JvcG9kLnYxLkVtcHR5GhkubWljcm9wb2QudjEuVXBkYXRlU3RhdHVzEkAKD0dldFVwZGF0ZVN0YXR1cxISLm1pY3JvcG9kLnYxLkVtcHR5GhkubWljcm9wb2QudjEuVXBkYXRlU3RhdHVzEjwKC0FwcGx5VXBkYXRlEhIubWljcm9wb2QudjEuRW1wdHkaGS5taWNyb3BvZC52MS5VcGRhdGVTdGF0dXNCQlpAZ2l0aHViLmNvbS9jYXN0bGVtaWxrL21pY3JvcG9kL3Nkay9nby9nZW4vbWljcm9wb2QvdjE7bWljcm9wb2R2MWIGcHJvdG8z", [file_micropod_v1_api, file_micropod_v1_image, file_micropod_v1_volume]);
+
+/**
+ * @generated from message micropod.v1.SystemSnapshot
+ */
+export type SystemSnapshot = Message<"micropod.v1.SystemSnapshot"> & {
+  /**
+   * Runtime health (status, versions, install paths).
+   *
+   * @generated from field: micropod.v1.SystemStatus status = 1;
+   */
+  status?: SystemStatus;
+
+  /**
+   * Disk usage grouped by resource kind.
+   *
+   * @generated from field: micropod.v1.DiskUsage disk_usage = 2;
+   */
+  diskUsage?: DiskUsage;
+};
+
+/**
+ * Describes the message micropod.v1.SystemSnapshot.
+ * Use `create(SystemSnapshotSchema)` to create a new message.
+ */
+export const SystemSnapshotSchema: GenMessage<SystemSnapshot> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_system, 0);
 
 /**
  * Runtime health, mapped from `container system status`.
@@ -61,7 +91,7 @@ export type SystemStatus = Message<"micropod.v1.SystemStatus"> & {
  * Use `create(SystemStatusSchema)` to create a new message.
  */
 export const SystemStatusSchema: GenMessage<SystemStatus> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 0);
+  messageDesc(file_micropod_v1_system, 1);
 
 /**
  * Disk usage, mapped from `container system df`.
@@ -103,7 +133,7 @@ export type DiskUsage = Message<"micropod.v1.DiskUsage"> & {
  * Use `create(DiskUsageSchema)` to create a new message.
  */
 export const DiskUsageSchema: GenMessage<DiskUsage> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 1);
+  messageDesc(file_micropod_v1_system, 2);
 
 /**
  * @generated from message micropod.v1.DiskCategory
@@ -143,7 +173,7 @@ export type DiskCategory = Message<"micropod.v1.DiskCategory"> & {
  * Use `create(DiskCategorySchema)` to create a new message.
  */
 export const DiskCategorySchema: GenMessage<DiskCategory> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 2);
+  messageDesc(file_micropod_v1_system, 3);
 
 /**
  * Single snapshot of runtime resource usage for all running containers,
@@ -172,7 +202,7 @@ export type StatsSnapshot = Message<"micropod.v1.StatsSnapshot"> & {
  * Use `create(StatsSnapshotSchema)` to create a new message.
  */
 export const StatsSnapshotSchema: GenMessage<StatsSnapshot> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 3);
+  messageDesc(file_micropod_v1_system, 4);
 
 /**
  * Per-container resource counters within a StatsSnapshot.
@@ -249,147 +279,7 @@ export type ContainerStats = Message<"micropod.v1.ContainerStats"> & {
  * Use `create(ContainerStatsSchema)` to create a new message.
  */
 export const ContainerStatsSchema: GenMessage<ContainerStats> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 4);
-
-/**
- * Curated network, mapped from `container network list`.
- *
- * @generated from message micropod.v1.Network
- */
-export type Network = Message<"micropod.v1.Network"> & {
-  /**
-   * Network ID (name).
-   *
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * Network plugin backing this network, e.g. "vmnet".
-   *
-   * @generated from field: string plugin = 2;
-   */
-  plugin: string;
-
-  /**
-   * Network mode, e.g. "nat".
-   *
-   * @generated from field: string mode = 3;
-   */
-  mode: string;
-
-  /**
-   * IPv4 gateway address.
-   *
-   * @generated from field: string ipv4_gateway = 4;
-   */
-  ipv4Gateway: string;
-
-  /**
-   * IPv4 CIDR of the network.
-   *
-   * @generated from field: string ipv4_subnet = 5;
-   */
-  ipv4Subnet: string;
-
-  /**
-   * IPv6 CIDR of the network, if any.
-   *
-   * @generated from field: string ipv6_subnet = 6;
-   */
-  ipv6Subnet: string;
-
-  /**
-   * ISO8601 creation timestamp.
-   *
-   * @generated from field: string created_at = 7;
-   */
-  createdAt: string;
-
-  /**
-   * True for runtime-managed networks that cannot be deleted.
-   *
-   * @generated from field: bool builtin = 8;
-   */
-  builtin: boolean;
-
-  /**
-   * Metadata labels on the network.
-   *
-   * @generated from field: map<string, string> labels = 9;
-   */
-  labels: { [key: string]: string };
-};
-
-/**
- * Describes the message micropod.v1.Network.
- * Use `create(NetworkSchema)` to create a new message.
- */
-export const NetworkSchema: GenMessage<Network> = /*@__PURE__*/
   messageDesc(file_micropod_v1_system, 5);
-
-/**
- * Curated volume, mapped from `container volume list`.
- *
- * @generated from message micropod.v1.Volume
- */
-export type Volume = Message<"micropod.v1.Volume"> & {
-  /**
-   * Volume name (used as the ID).
-   *
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * Volume driver, e.g. "local".
-   *
-   * @generated from field: string driver = 2;
-   */
-  driver: string;
-
-  /**
-   * Filesystem format, e.g. "ext4".
-   *
-   * @generated from field: string format = 3;
-   */
-  format: string;
-
-  /**
-   * Volume size in bytes.
-   *
-   * @generated from field: uint64 size_bytes = 4;
-   */
-  sizeBytes: bigint;
-
-  /**
-   * Backing source (name or host path).
-   *
-   * @generated from field: string source = 5;
-   */
-  source: string;
-
-  /**
-   * ISO8601 creation timestamp.
-   *
-   * @generated from field: string created_at = 6;
-   */
-  createdAt: string;
-
-  /**
-   * Metadata labels on the volume.
-   *
-   * @generated from field: map<string, string> labels = 7;
-   */
-  labels: { [key: string]: string };
-};
-
-/**
- * Describes the message micropod.v1.Volume.
- * Use `create(VolumeSchema)` to create a new message.
- */
-export const VolumeSchema: GenMessage<Volume> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 6);
 
 /**
  * A registry login, mapped from `container registry list`.
@@ -424,7 +314,7 @@ export type RegistryLogin = Message<"micropod.v1.RegistryLogin"> & {
  * Use `create(RegistryLoginSchema)` to create a new message.
  */
 export const RegistryLoginSchema: GenMessage<RegistryLogin> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 7);
+  messageDesc(file_micropod_v1_system, 6);
 
 /**
  * What a cleanup would reclaim: every image and volume annotated with the
@@ -474,7 +364,7 @@ export type UsageReport = Message<"micropod.v1.UsageReport"> & {
  * Use `create(UsageReportSchema)` to create a new message.
  */
 export const UsageReportSchema: GenMessage<UsageReport> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 8);
+  messageDesc(file_micropod_v1_system, 7);
 
 /**
  * An image plus the containers that reference it.
@@ -509,7 +399,7 @@ export type UsageReport_ImageUsage = Message<"micropod.v1.UsageReport.ImageUsage
  * Use `create(UsageReport_ImageUsageSchema)` to create a new message.
  */
 export const UsageReport_ImageUsageSchema: GenMessage<UsageReport_ImageUsage> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 8, 0);
+  messageDesc(file_micropod_v1_system, 7, 0);
 
 /**
  * A volume plus the containers mounting it.
@@ -544,183 +434,7 @@ export type UsageReport_VolumeUsage = Message<"micropod.v1.UsageReport.VolumeUsa
  * Use `create(UsageReport_VolumeUsageSchema)` to create a new message.
  */
 export const UsageReport_VolumeUsageSchema: GenMessage<UsageReport_VolumeUsage> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 8, 1);
-
-/**
- * Named-volume mount policy — read on container create by every surface
- * (API, docker shim, app, CLI, MCP). Per-container `com.micropod.*` labels
- * take precedence over this policy.
- *
- * @generated from message micropod.v1.VolumePolicy
- */
-export type VolumePolicy = Message<"micropod.v1.VolumePolicy"> & {
-  /**
-   * Which named-volume mounts get clonefile-forked per container.
-   *
-   * @generated from field: micropod.v1.VolumePolicy.CloneMode clone_mode = 1;
-   */
-  cloneMode: VolumePolicy_CloneMode;
-
-  /**
-   * Volume names auto-cloned under `CLONE_MODE_GOLDENS`.
-   *
-   * @generated from field: repeated string golden_volumes = 2;
-   */
-  goldenVolumes: string[];
-
-  /**
-   * Restrict cloning to job-labelled containers (`com.cuttlefish.job` /
-   * `com.micropod.job`). Per-container clone labels always apply.
-   *
-   * @generated from field: bool jobs_only = 3;
-   */
-  jobsOnly: boolean;
-
-  /**
-   * Writeback sync mode override; `SYNC_MODE_UNSPECIFIED` keeps the
-   * per-mount default.
-   *
-   * @generated from field: micropod.v1.VolumePolicy.SyncMode sync = 4;
-   */
-  sync: VolumePolicy_SyncMode;
-
-  /**
-   * VZ disk-image cache mode.
-   *
-   * @generated from field: micropod.v1.VolumePolicy.CacheMode cache = 5;
-   */
-  cache: VolumePolicy_CacheMode;
-};
-
-/**
- * Describes the message micropod.v1.VolumePolicy.
- * Use `create(VolumePolicySchema)` to create a new message.
- */
-export const VolumePolicySchema: GenMessage<VolumePolicy> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 9);
-
-/**
- * Which named-volume mounts get clonefile-forked per container.
- *
- * @generated from enum micropod.v1.VolumePolicy.CloneMode
- */
-export enum VolumePolicy_CloneMode {
-  /**
-   * Treated as CLONE_MODE_LABELS (the standard default).
-   *
-   * @generated from enum value: CLONE_MODE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * Only mounts carrying the `com.micropod.cache.clone` label.
-   *
-   * @generated from enum value: CLONE_MODE_LABELS = 1;
-   */
-  LABELS = 1,
-
-  /**
-   * Auto-clone mounts of the volumes named in `golden_volumes`.
-   *
-   * @generated from enum value: CLONE_MODE_GOLDENS = 2;
-   */
-  GOLDENS = 2,
-
-  /**
-   * Clone every named-volume mount.
-   *
-   * @generated from enum value: CLONE_MODE_ALL = 3;
-   */
-  ALL = 3,
-}
-
-/**
- * Describes the enum micropod.v1.VolumePolicy.CloneMode.
- */
-export const VolumePolicy_CloneModeSchema: GenEnum<VolumePolicy_CloneMode> = /*@__PURE__*/
-  enumDesc(file_micropod_v1_system, 9, 0);
-
-/**
- * Writeback sync mode for volume disk images.
- *
- * @generated from enum micropod.v1.VolumePolicy.SyncMode
- */
-export enum VolumePolicy_SyncMode {
-  /**
-   * Per-mount default (fsync for named volumes, nosync for clones).
-   *
-   * @generated from enum value: SYNC_MODE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * Flush writes on every write.
-   *
-   * @generated from enum value: SYNC_MODE_FULL = 1;
-   */
-  FULL = 1,
-
-  /**
-   * fsync on container stop.
-   *
-   * @generated from enum value: SYNC_MODE_FSYNC = 2;
-   */
-  FSYNC = 2,
-
-  /**
-   * Never fsync — fastest, can lose writes on host crash.
-   *
-   * @generated from enum value: SYNC_MODE_NOSYNC = 3;
-   */
-  NOSYNC = 3,
-}
-
-/**
- * Describes the enum micropod.v1.VolumePolicy.SyncMode.
- */
-export const VolumePolicy_SyncModeSchema: GenEnum<VolumePolicy_SyncMode> = /*@__PURE__*/
-  enumDesc(file_micropod_v1_system, 9, 1);
-
-/**
- * VZ disk-image caching mode.
- *
- * @generated from enum micropod.v1.VolumePolicy.CacheMode
- */
-export enum VolumePolicy_CacheMode {
-  /**
-   * Treated as CACHE_MODE_ON (the standard default).
-   *
-   * @generated from enum value: CACHE_MODE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * Always cache the disk image.
-   *
-   * @generated from enum value: CACHE_MODE_ON = 1;
-   */
-  ON = 1,
-
-  /**
-   * Never cache.
-   *
-   * @generated from enum value: CACHE_MODE_OFF = 2;
-   */
-  OFF = 2,
-
-  /**
-   * Cache when the volume driver supports it.
-   *
-   * @generated from enum value: CACHE_MODE_AUTO = 3;
-   */
-  AUTO = 3,
-}
-
-/**
- * Describes the enum micropod.v1.VolumePolicy.CacheMode.
- */
-export const VolumePolicy_CacheModeSchema: GenEnum<VolumePolicy_CacheMode> = /*@__PURE__*/
-  enumDesc(file_micropod_v1_system, 9, 2);
+  messageDesc(file_micropod_v1_system, 7, 1);
 
 /**
  * Desktop-app updater status (Sparkle), proxied over the app control
@@ -798,7 +512,7 @@ export type UpdateStatus = Message<"micropod.v1.UpdateStatus"> & {
  * Use `create(UpdateStatusSchema)` to create a new message.
  */
 export const UpdateStatusSchema: GenMessage<UpdateStatus> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 10);
+  messageDesc(file_micropod_v1_system, 8);
 
 /**
  * Updater lifecycle state.
@@ -867,5 +581,68 @@ export enum UpdateStatus_State {
  * Describes the enum micropod.v1.UpdateStatus.State.
  */
 export const UpdateStatus_StateSchema: GenEnum<UpdateStatus_State> = /*@__PURE__*/
-  enumDesc(file_micropod_v1_system, 10, 0);
+  enumDesc(file_micropod_v1_system, 8, 0);
+
+/**
+ * Daemon-level operations: runtime snapshot, cleanup usage report, and the
+ * desktop app's update lifecycle (proxied over the app control socket).
+ *
+ * @generated from service micropod.v1.SystemService
+ */
+export const SystemService: GenService<{
+  /**
+   * Runtime status + disk usage.
+   *
+   * @generated from rpc micropod.v1.SystemService.GetSystem
+   */
+  getSystem: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof SystemSnapshotSchema;
+  },
+  /**
+   * What a cleanup would reclaim: images and volumes annotated with the
+   * containers that reference them.
+   *
+   * @generated from rpc micropod.v1.SystemService.GetUsage
+   */
+  getUsage: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof UsageReportSchema;
+  },
+  /**
+   * Trigger a background update check in the desktop app (Sparkle).
+   * Fails with `unavailable` when the app isn't running.
+   *
+   * @generated from rpc micropod.v1.SystemService.CheckForUpdates
+   */
+  checkForUpdates: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof UpdateStatusSchema;
+  },
+  /**
+   * Last-known updater status from the desktop app.
+   *
+   * @generated from rpc micropod.v1.SystemService.GetUpdateStatus
+   */
+  getUpdateStatus: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof UpdateStatusSchema;
+  },
+  /**
+   * Quit the app so a downloaded update installs and relaunches. Fails
+   * with `failed_precondition` until `UpdateStatus.ready_to_install`.
+   *
+   * @generated from rpc micropod.v1.SystemService.ApplyUpdate
+   */
+  applyUpdate: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof UpdateStatusSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_micropod_v1_system, 0);
 

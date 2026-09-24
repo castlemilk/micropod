@@ -187,8 +187,19 @@ def enrich_openapi(version):
     for spec in OUT.glob("micropod/v1/*.openapi.json"):
         doc = json.loads(spec.read_text())
         info = doc.setdefault("info", {})
-        info["title"] = "Micropod API" if spec.stem == "api.openapi" else \
-            f"micropod.v1 — {spec.stem.removesuffix('.openapi')} types"
+        # Service-bearing specs are titled by the service tag on their paths;
+        # message-only files stay "… types" reference docs.
+        tags = {
+            tag
+            for path in doc.get("paths", {}).values()
+            for op in path.values()
+            if isinstance(op, dict)
+            for tag in op.get("tags", [])
+        }
+        service = sorted(tags)[0] if tags else None
+        info["title"] = (f"Micropod API · {service.split('.')[-1]}"
+                         if service else
+                         f"micropod.v1 — {spec.stem.removesuffix('.openapi')} types")
         if version:
             info["version"] = version
         info["contact"] = {"name": "Micropod",

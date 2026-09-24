@@ -5,7 +5,16 @@ package micropod.v1;
 option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
 
 import "buf/validate/validate.proto";
+import "micropod/v1/api.proto";
 import "micropod/v1/container.proto";
+
+// Compose project lifecycle — run a spec file and tear the project down.
+service ComposeService {
+  // Run a compose spec file, streaming progress lines (server streaming).
+  rpc ComposeUp(ComposeUpRequest) returns (stream ComposeUpEvent);
+  // Tear down a compose project's containers.
+  rpc ComposeDown(ComposeDownRequest) returns (Empty);
+}
 
 // Parsed docker-compose.yml, produced by the compose importer.
 message ComposeSpec {
@@ -14,7 +23,7 @@ message ComposeSpec {
   // Absolute path of the docker-compose.yml this spec was parsed from.
   string path = 2;
   // Services in dependency order.
-  repeated ComposeService services = 3;
+  repeated ComposeServiceSpec services = 3;
   // Named volumes declared at the top level.
   map<string, ComposeVolume> volumes = 4;
   // Networks declared at the top level.
@@ -24,7 +33,7 @@ message ComposeSpec {
 // A single service of a compose spec, mapped onto `container run` capabilities.
 // Fields the Apple runtime cannot express (e.g. privileged) are still parsed
 // so the UI can show them as unsupported rather than silently dropping them.
-message ComposeService {
+message ComposeServiceSpec {
   // Service name from the compose file.
   string name = 1;
   // Image reference for the service.

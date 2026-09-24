@@ -4,6 +4,19 @@ package micropod.v1;
 
 option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
 
+import "buf/validate/validate.proto";
+import "micropod/v1/api.proto";
+
+// Local image inventory and pulls.
+service ImageService {
+  // List all local images.
+  rpc ListImages(Empty) returns (ListImagesResponse);
+  // Pull an image, streaming progress events.
+  rpc PullImage(PullImageRequest) returns (stream ProgressLine);
+  // Remove an image. Images in use require force.
+  rpc DeleteImage(DeleteImageRequest) returns (Empty);
+}
+
 // Curated view of a local image, mapped from `container image list --verbose`.
 message Image {
   // Image ID (content-addressed digest prefix).
@@ -28,4 +41,33 @@ message ImageVariant {
   string architecture = 2;
   // Architecture variant, e.g. "v8".
   string variant = 3;
+}
+
+message ListImagesResponse {
+  // Every local image, in `container image list` order.
+  repeated Image images = 1;
+}
+
+message PullImageRequest {
+  // Image reference to pull, e.g. "alpine:3.20" or a full registry path.
+  string reference = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  // Platform to pull, e.g. "linux/arm64". Defaults to the host platform.
+  optional string platform = 2;
+}
+
+// One pull-progress event (PullImage stream).
+message ProgressLine {
+  // Human-readable progress text from the registry pull.
+  string line = 1;
+  // Current stage index (1-based), when the pull reports staged progress.
+  optional int32 stage = 2;
+  // Total number of stages, when known.
+  optional int32 total_stages = 3;
+}
+
+message DeleteImageRequest {
+  // Image reference or digest to remove.
+  string reference = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  // Remove even if containers reference the image.
+  bool force = 2;
 }

@@ -28,7 +28,7 @@ const { containers } = await client.listContainers({});
 ## OpenTelemetry
 
 `otel: true` wraps every call in a `CLIENT` span
-(`micropod.v1.MicropodService/RunContainer`), injects the W3C
+(`micropod.v1.ContainerService/RunContainer`), injects the W3C
 `traceparent` header, and records `micropod.client.duration` +
 `micropod.client.calls` on the global meter. Streaming calls keep the span
 open until the stream terminates. Pass `{ tracer, meter }` to bypass the
@@ -44,5 +44,6 @@ createMicropodClient("http://localhost:45454", { transport: createConnectTranspo
 ## Generated surface
 
 `@micropod/sdk/gen/*` exposes the raw protobuf-es modules
-(`micropod/v1/api_pb`, `container_pb`, …) plus the `MicropodService`
-descriptor if you want to compose your own client.
+(`micropod/v1/api_pb`, `container_pb`, …) plus the per-service
+descriptors (`ContainerService`, `ImageService`, …) if you want to compose
+your own client.

@@ -330,7 +330,7 @@ effectively a `net.Conn` into the guest. Go side:
   (base URL from `MICROPOD_API_URL`, default `http://127.0.0.1:45454`).
 - `api/internal/guestclient` — wraps it in `grpc.ClientConn` +
   `sandboxv3.SandboxContextClient` (generated from the vendored proto via
-  buf into `api/gen/com/apple/containerization/sandbox/v3`).
+  buf into `sdk/go/gen/com/apple/containerization/sandbox/v3`).
 
 That's how cuttlefish (or any Go consumer) reaches guest-agent RPCs
 without XPC — it just needs the MicropodAPI base URL.
@@ -383,7 +383,7 @@ unchanged — each sample is one XPC call instead of a ~2.4 s
   added).
 - `proto/micropod/v1/api.proto` — `ExecResponse` gained `exit_code`.
 - `buf generate` produces:
-  - Go: `api/gen/com/…/sandboxv3` (+ connect stubs), `api/gen/micropod/v1`
+  - Go: `sdk/go/gen/com/…/sandboxv3` (+ connect stubs), `sdk/go/gen/micropod/v1`
     (+ grpc stubs).
   - Swift: `Sources/MicropodCore/Generated/` (micropod.v1 api.pb.swift;
     the sandbox stubs also land there, unused — `Vminitd` already carries

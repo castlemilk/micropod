@@ -4,7 +4,7 @@ import OSLog
 /// A single RPC in flight. Interceptors may mutate headers/metadata before
 /// it is sent and observe the outcome.
 public struct RPCContext: Sendable {
-    /// Fully-qualified Connect path, e.g. "/micropod.v1.MicropodService/RunContainer".
+    /// Fully-qualified Connect path, e.g. "/micropod.v1.ContainerService/RunContainer".
     public let path: String
     /// Logical service + method for attributes and signposts.
     public let service: String

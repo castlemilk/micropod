@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package micropod.v1;
+
+option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
+
+import "buf/validate/validate.proto";
+import "micropod/v1/api.proto";
+
+// Container networks (vmnet-backed).
+service NetworkService {
+  // List all container networks.
+  rpc ListNetworks(Empty) returns (ListNetworksResponse);
+  // Create a container network.
+  rpc CreateNetwork(CreateNetworkRequest) returns (Empty);
+  // Remove a container network.
+  rpc DeleteNetwork(DeleteNetworkRequest) returns (Empty);
+}
+
+// Curated network, mapped from `container network list`.
+message Network {
+  // Network ID (name).
+  string id = 1;
+  // Network plugin backing this network, e.g. "vmnet".
+  string plugin = 2;
+  // Network mode, e.g. "nat".
+  string mode = 3;
+  // IPv4 gateway address.
+  string ipv4_gateway = 4;
+  // IPv4 CIDR of the network.
+  string ipv4_subnet = 5;
+  // IPv6 CIDR of the network, if any.
+  string ipv6_subnet = 6;
+  // ISO8601 creation timestamp.
+  string created_at = 7;
+  // True for runtime-managed networks that cannot be deleted.
+  bool builtin = 8;
+  // Metadata labels on the network.
+  map<string, string> labels = 9;
+}
+
+message ListNetworksResponse {
+  // Every container network, in `container network list` order.
+  repeated Network networks = 1;
+}
+
+message CreateNetworkRequest {
+  // Network name.
+  string name = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  // Isolate the network from external traffic.
+  bool internal = 2;
+  // IPv4 CIDR for the network, e.g. "192.168.100.0/24".
+  optional string subnet = 3;
+  // IPv6 CIDR for the network.
+  optional string subnet_v6 = 4;
+  // Network driver/plugin to use.
+  optional string driver = 5;
+  // Driver options passed through to the network plugin.
+  repeated string options = 6;
+  // Labels applied to the network ("key=value").
+  repeated string labels = 7;
+}
+
+message DeleteNetworkRequest {
+  // Network name to remove.
+  string name = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+}

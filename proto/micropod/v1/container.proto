@@ -3,8 +3,37 @@ syntax = "proto3";
 package micropod.v1;
 
 import "buf/validate/validate.proto";
+import "micropod/v1/api.proto";
+import "micropod/v1/system.proto";
 
 option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
+
+// Container lifecycle, logs, stats, and exec against the Apple `container`
+// runtime.
+service ContainerService {
+  // List all containers.
+  rpc ListContainers(Empty) returns (ListContainersResponse);
+  // Run a container (docker run).
+  rpc RunContainer(RunContainerRequest) returns (ContainerRef);
+  // Create a container without starting it (docker create).
+  rpc CreateContainer(RunContainerRequest) returns (ContainerRef);
+  // Start a stopped container.
+  rpc StartContainer(ContainerRef) returns (Empty);
+  // Stop a running container (SIGTERM, then SIGKILL after the grace period).
+  rpc StopContainer(ContainerRef) returns (Empty);
+  // Stop then start a container.
+  rpc RestartContainer(ContainerRef) returns (Empty);
+  // SIGKILL a running container.
+  rpc KillContainer(ContainerRef) returns (Empty);
+  // Remove a container. Running containers require force.
+  rpc DeleteContainer(DeleteContainerRequest) returns (Empty);
+  // Live log stream (server streaming).
+  rpc StreamContainerLogs(StreamLogsRequest) returns (stream LogChunk);
+  // Point-in-time resource usage for all running containers.
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+  // Run a command inside a running container and return its output.
+  rpc Exec(ExecRequest) returns (ExecResponse);
+}
 
 // Curated view of a container, mapped from `container list --format json`.
 message Container {
@@ -77,4 +106,91 @@ message Mount {
   string destination = 3;
   // Mount is read-only.
   bool read_only = 4;
+}
+
+// Reference to an existing container (or the ID returned by run/create).
+message ContainerRef {
+  // Container ID — `container` uses the user-assigned name as the ID.
+  string id = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+}
+
+message ListContainersResponse {
+  // Every container, in `container list` order.
+  repeated Container containers = 1;
+}
+
+// Shared request shape for run + create (docker run / docker create).
+message RunContainerRequest {
+  // Image reference to run, e.g. "alpine:3.20". Pulled if not present locally.
+  string image = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  // Optional container name; becomes the container ID.
+  optional string name = 2;
+  // Return immediately instead of streaming/attaching.
+  bool detach = 3;
+  // CPU limit in cores, e.g. 0.5 for half a core.
+  optional double cpus = 4 [(buf.validate.field).double.gt = 0];
+  // Memory limit, e.g. "512m" or "4g".
+  optional string memory = 5;
+  // Environment variables as KEY=value pairs.
+  repeated string env = 6;
+  // Published port mappings (host → container).
+  repeated PortMapping ports = 7;
+  // Bind/volume mounts as "name-or-path:/mount" specs.
+  repeated string volumes = 8;
+  // Arbitrary metadata labels on the container.
+  map<string, string> labels = 9;
+  // Run an init process as PID 1 to reap zombies.
+  bool init = 10;
+  // Command + args override (image entrypoint is used when empty).
+  repeated string arguments = 11;
+}
+
+message DeleteContainerRequest {
+  // Container ID (or name).
+  string id = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  // Remove even if the container is still running.
+  bool force = 2;
+}
+
+message StreamLogsRequest {
+  // Container ID (or name) to stream logs from.
+  string id = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  // Number of lines to replay from the end of the log before following.
+  int32 tail = 2 [(buf.validate.field).int32.gte = 0];
+  // Include the vminitd guest boot log.
+  bool boot = 3;
+}
+
+// One streamed log line (StreamContainerLogs event).
+message LogChunk {
+  // A single line of container output.
+  string text = 1;
+}
+
+message GetStatsRequest {}
+
+message GetStatsResponse {
+  // One stats snapshot covering every running container.
+  StatsSnapshot snapshot = 1;
+}
+
+message ExecRequest {
+  // Container ID (or name) to exec into.
+  string id = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  // Command to run inside the container.
+  string command = 2 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  // Working directory for the command.
+  optional string workdir = 3;
+  // Extra environment variables as KEY=value pairs.
+  repeated string env = 4;
+}
+
+message ExecResponse {
+  // Combined stdout (and stderr when not separable) of the command.
+  string output = 1;
+  // Guest process exit code. 0 on success; when the native runtime backend
+  // is active this is the real exit status rather than a CLI approximation.
+  int32 exit_code = 2;
+  // Guest stderr, when the backend can separate the streams.
+  string error = 3;
 }

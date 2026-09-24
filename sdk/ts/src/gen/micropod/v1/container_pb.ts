@@ -2,16 +2,20 @@
 // @generated from file micropod/v1/container.proto (package micropod.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "@bufbuild/protovalidate/gen/buf/validate/validate_pb.js";
+import type { EmptySchema } from "./api_pb.js";
+import { file_micropod_v1_api } from "./api_pb.js";
+import type { StatsSnapshot } from "./system_pb.js";
+import { file_micropod_v1_system } from "./system_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file micropod/v1/container.proto.
  */
 export const file_micropod_v1_container: GenFile = /*@__PURE__*/
-  fileDesc("ChttaWNyb3BvZC92MS9jb250YWluZXIucHJvdG8SC21pY3JvcG9kLnYxIoUECglDb250YWluZXISCgoCaWQYASABKAkSDQoFaW1hZ2UYAiABKAkSDQoFc3RhdGUYAyABKAkSEgoKY3JlYXRlZF9hdBgEIAEoCRIyCglyZXNvdXJjZXMYBSABKAsyHy5taWNyb3BvZC52MS5Db250YWluZXJSZXNvdXJjZXMSEAoIcGxhdGZvcm0YBiABKAkSMQoPcHVibGlzaGVkX3BvcnRzGAcgAygLMhgubWljcm9wb2QudjEuUG9ydE1hcHBpbmcSIgoGbW91bnRzGAggAygLMhIubWljcm9wb2QudjEuTW91bnQSEAoIbmV0d29ya3MYCSADKAkSFAoMaXB2NF9hZGRyZXNzGAogASgJEgsKA2VudhgLIAMoCRIyCgZsYWJlbHMYDCADKAsyIi5taWNyb3BvZC52MS5Db250YWluZXIuTGFiZWxzRW50cnkSDwoHcm9zZXR0YRgNIAEoCBIRCglyZWFkX29ubHkYDiABKAgSEAoIdXNlX2luaXQYDyABKAgSCwoDc3NoGBAgASgIEhYKDnZpcnR1YWxpemF0aW9uGBEgASgIEhcKD3J1bnRpbWVfaGFuZGxlchgSIAEoCRIRCglleGl0X2NvZGUYEyABKAkaLQoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASI4ChJDb250YWluZXJSZXNvdXJjZXMSDAoEY3B1cxgBIAEoARIUCgxtZW1vcnlfYnl0ZXMYAiABKAQidAoLUG9ydE1hcHBpbmcSHAoJaG9zdF9wb3J0GAEgASgNQgm6SAYqBBj//wMSJAoOY29udGFpbmVyX3BvcnQYAiABKA1CDLpICcgBASoEGP//AxIQCghwcm90b2NvbBgDIAEoCRIPCgdob3N0X2lwGAQgASgJIk0KBU1vdW50EgwKBHR5cGUYASABKAkSDgoGc291cmNlGAIgASgJEhMKC2Rlc3RpbmF0aW9uGAMgASgJEhEKCXJlYWRfb25seRgEIAEoCEJCWkBnaXRodWIuY29tL2Nhc3RsZW1pbGsvbWljcm9wb2Qvc2RrL2dvL2dlbi9taWNyb3BvZC92MTttaWNyb3BvZHYxYgZwcm90bzM", [file_buf_validate_validate]);
+  fileDesc("ChttaWNyb3BvZC92MS9jb250YWluZXIucHJvdG8SC21pY3JvcG9kLnYxIoUECglDb250YWluZXISCgoCaWQYASABKAkSDQoFaW1hZ2UYAiABKAkSDQoFc3RhdGUYAyABKAkSEgoKY3JlYXRlZF9hdBgEIAEoCRIyCglyZXNvdXJjZXMYBSABKAsyHy5taWNyb3BvZC52MS5Db250YWluZXJSZXNvdXJjZXMSEAoIcGxhdGZvcm0YBiABKAkSMQoPcHVibGlzaGVkX3BvcnRzGAcgAygLMhgubWljcm9wb2QudjEuUG9ydE1hcHBpbmcSIgoGbW91bnRzGAggAygLMhIubWljcm9wb2QudjEuTW91bnQSEAoIbmV0d29ya3MYCSADKAkSFAoMaXB2NF9hZGRyZXNzGAogASgJEgsKA2VudhgLIAMoCRIyCgZsYWJlbHMYDCADKAsyIi5taWNyb3BvZC52MS5Db250YWluZXIuTGFiZWxzRW50cnkSDwoHcm9zZXR0YRgNIAEoCBIRCglyZWFkX29ubHkYDiABKAgSEAoIdXNlX2luaXQYDyABKAgSCwoDc3NoGBAgASgIEhYKDnZpcnR1YWxpemF0aW9uGBEgASgIEhcKD3J1bnRpbWVfaGFuZGxlchgSIAEoCRIRCglleGl0X2NvZGUYEyABKAkaLQoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASI4ChJDb250YWluZXJSZXNvdXJjZXMSDAoEY3B1cxgBIAEoARIUCgxtZW1vcnlfYnl0ZXMYAiABKAQidAoLUG9ydE1hcHBpbmcSHAoJaG9zdF9wb3J0GAEgASgNQgm6SAYqBBj//wMSJAoOY29udGFpbmVyX3BvcnQYAiABKA1CDLpICcgBASoEGP//AxIQCghwcm90b2NvbBgDIAEoCRIPCgdob3N0X2lwGAQgASgJIk0KBU1vdW50EgwKBHR5cGUYASABKAkSDgoGc291cmNlGAIgASgJEhMKC2Rlc3RpbmF0aW9uGAMgASgJEhEKCXJlYWRfb25seRgEIAEoCCImCgxDb250YWluZXJSZWYSFgoCaWQYASABKAlCCrpIB8gBAXICEAEiRAoWTGlzdENvbnRhaW5lcnNSZXNwb25zZRIqCgpjb250YWluZXJzGAEgAygLMhYubWljcm9wb2QudjEuQ29udGFpbmVyIv0CChNSdW5Db250YWluZXJSZXF1ZXN0EhkKBWltYWdlGAEgASgJQgq6SAfIAQFyAhABEhEKBG5hbWUYAiABKAlIAIgBARIOCgZkZXRhY2gYAyABKAgSIQoEY3B1cxgEIAEoAUIOukgLEgkhAAAAAAAAAABIAYgBARITCgZtZW1vcnkYBSABKAlIAogBARILCgNlbnYYBiADKAkSJwoFcG9ydHMYByADKAsyGC5taWNyb3BvZC52MS5Qb3J0TWFwcGluZxIPCgd2b2x1bWVzGAggAygJEjwKBmxhYmVscxgJIAMoCzIsLm1pY3JvcG9kLnYxLlJ1bkNvbnRhaW5lclJlcXVlc3QuTGFiZWxzRW50cnkSDAoEaW5pdBgKIAEoCBIRCglhcmd1bWVudHMYCyADKAkaLQoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIHCgVfbmFtZUIHCgVfY3B1c0IJCgdfbWVtb3J5Ij8KFkRlbGV0ZUNvbnRhaW5lclJlcXVlc3QSFgoCaWQYASABKAlCCrpIB8gBAXICEAESDQoFZm9yY2UYAiABKAgiUAoRU3RyZWFtTG9nc1JlcXVlc3QSFgoCaWQYASABKAlCCrpIB8gBAXICEAESFQoEdGFpbBgCIAEoBUIHukgEGgIoABIMCgRib290GAMgASgIIhgKCExvZ0NodW5rEgwKBHRleHQYASABKAkiEQoPR2V0U3RhdHNSZXF1ZXN0IkAKEEdldFN0YXRzUmVzcG9uc2USLAoIc25hcHNob3QYASABKAsyGi5taWNyb3BvZC52MS5TdGF0c1NuYXBzaG90InEKC0V4ZWNSZXF1ZXN0EhYKAmlkGAEgASgJQgq6SAfIAQFyAhABEhsKB2NvbW1hbmQYAiABKAlCCrpIB8gBAXICEAESFAoHd29ya2RpchgDIAEoCUgAiAEBEgsKA2VudhgEIAMoCUIKCghfd29ya2RpciJACgxFeGVjUmVzcG9uc2USDgoGb3V0cHV0GAEgASgJEhEKCWV4aXRfY29kZRgCIAEoBRINCgVlcnJvchgDIAEoCTKgBgoQQ29udGFpbmVyU2VydmljZRJJCg5MaXN0Q29udGFpbmVycxISLm1pY3JvcG9kLnYxLkVtcHR5GiMubWljcm9wb2QudjEuTGlzdENvbnRhaW5lcnNSZXNwb25zZRJLCgxSdW5Db250YWluZXISIC5taWNyb3BvZC52MS5SdW5Db250YWluZXJSZXF1ZXN0GhkubWljcm9wb2QudjEuQ29udGFpbmVyUmVmEk4KD0NyZWF0ZUNvbnRhaW5lchIgLm1pY3JvcG9kLnYxLlJ1bkNvbnRhaW5lclJlcXVlc3QaGS5taWNyb3BvZC52MS5Db250YWluZXJSZWYSPwoOU3RhcnRDb250YWluZXISGS5taWNyb3BvZC52MS5Db250YWluZXJSZWYaEi5taWNyb3BvZC52MS5FbXB0eRI+Cg1TdG9wQ29udGFpbmVyEhkubWljcm9wb2QudjEuQ29udGFpbmVyUmVmGhIubWljcm9wb2QudjEuRW1wdHkSQQoQUmVzdGFydENvbnRhaW5lchIZLm1pY3JvcG9kLnYxLkNvbnRhaW5lclJlZhoSLm1pY3JvcG9kLnYxLkVtcHR5Ej4KDUtpbGxDb250YWluZXISGS5taWNyb3BvZC52MS5Db250YWluZXJSZWYaEi5taWNyb3BvZC52MS5FbXB0eRJKCg9EZWxldGVDb250YWluZXISIy5taWNyb3BvZC52MS5EZWxldGVDb250YWluZXJSZXF1ZXN0GhIubWljcm9wb2QudjEuRW1wdHkSTgoTU3RyZWFtQ29udGFpbmVyTG9ncxIeLm1pY3JvcG9kLnYxLlN0cmVhbUxvZ3NSZXF1ZXN0GhUubWljcm9wb2QudjEuTG9nQ2h1bmswARJHCghHZXRTdGF0cxIcLm1pY3JvcG9kLnYxLkdldFN0YXRzUmVxdWVzdBodLm1pY3JvcG9kLnYxLkdldFN0YXRzUmVzcG9uc2USOwoERXhlYxIYLm1pY3JvcG9kLnYxLkV4ZWNSZXF1ZXN0GhkubWljcm9wb2QudjEuRXhlY1Jlc3BvbnNlQkJaQGdpdGh1Yi5jb20vY2FzdGxlbWlsay9taWNyb3BvZC9zZGsvZ28vZ2VuL21pY3JvcG9kL3YxO21pY3JvcG9kdjFiBnByb3RvMw", [file_buf_validate_validate, file_micropod_v1_api, file_micropod_v1_system]);
 
 /**
  * Curated view of a container, mapped from `container list --format json`.
@@ -269,4 +273,441 @@ export type Mount = Message<"micropod.v1.Mount"> & {
  */
 export const MountSchema: GenMessage<Mount> = /*@__PURE__*/
   messageDesc(file_micropod_v1_container, 3);
+
+/**
+ * Reference to an existing container (or the ID returned by run/create).
+ *
+ * @generated from message micropod.v1.ContainerRef
+ */
+export type ContainerRef = Message<"micropod.v1.ContainerRef"> & {
+  /**
+   * Container ID — `container` uses the user-assigned name as the ID.
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message micropod.v1.ContainerRef.
+ * Use `create(ContainerRefSchema)` to create a new message.
+ */
+export const ContainerRefSchema: GenMessage<ContainerRef> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_container, 4);
+
+/**
+ * @generated from message micropod.v1.ListContainersResponse
+ */
+export type ListContainersResponse = Message<"micropod.v1.ListContainersResponse"> & {
+  /**
+   * Every container, in `container list` order.
+   *
+   * @generated from field: repeated micropod.v1.Container containers = 1;
+   */
+  containers: Container[];
+};
+
+/**
+ * Describes the message micropod.v1.ListContainersResponse.
+ * Use `create(ListContainersResponseSchema)` to create a new message.
+ */
+export const ListContainersResponseSchema: GenMessage<ListContainersResponse> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_container, 5);
+
+/**
+ * Shared request shape for run + create (docker run / docker create).
+ *
+ * @generated from message micropod.v1.RunContainerRequest
+ */
+export type RunContainerRequest = Message<"micropod.v1.RunContainerRequest"> & {
+  /**
+   * Image reference to run, e.g. "alpine:3.20". Pulled if not present locally.
+   *
+   * @generated from field: string image = 1;
+   */
+  image: string;
+
+  /**
+   * Optional container name; becomes the container ID.
+   *
+   * @generated from field: optional string name = 2;
+   */
+  name?: string;
+
+  /**
+   * Return immediately instead of streaming/attaching.
+   *
+   * @generated from field: bool detach = 3;
+   */
+  detach: boolean;
+
+  /**
+   * CPU limit in cores, e.g. 0.5 for half a core.
+   *
+   * @generated from field: optional double cpus = 4;
+   */
+  cpus?: number;
+
+  /**
+   * Memory limit, e.g. "512m" or "4g".
+   *
+   * @generated from field: optional string memory = 5;
+   */
+  memory?: string;
+
+  /**
+   * Environment variables as KEY=value pairs.
+   *
+   * @generated from field: repeated string env = 6;
+   */
+  env: string[];
+
+  /**
+   * Published port mappings (host → container).
+   *
+   * @generated from field: repeated micropod.v1.PortMapping ports = 7;
+   */
+  ports: PortMapping[];
+
+  /**
+   * Bind/volume mounts as "name-or-path:/mount" specs.
+   *
+   * @generated from field: repeated string volumes = 8;
+   */
+  volumes: string[];
+
+  /**
+   * Arbitrary metadata labels on the container.
+   *
+   * @generated from field: map<string, string> labels = 9;
+   */
+  labels: { [key: string]: string };
+
+  /**
+   * Run an init process as PID 1 to reap zombies.
+   *
+   * @generated from field: bool init = 10;
+   */
+  init: boolean;
+
+  /**
+   * Command + args override (image entrypoint is used when empty).
+   *
+   * @generated from field: repeated string arguments = 11;
+   */
+  arguments: string[];
+};
+
+/**
+ * Describes the message micropod.v1.RunContainerRequest.
+ * Use `create(RunContainerRequestSchema)` to create a new message.
+ */
+export const RunContainerRequestSchema: GenMessage<RunContainerRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_container, 6);
+
+/**
+ * @generated from message micropod.v1.DeleteContainerRequest
+ */
+export type DeleteContainerRequest = Message<"micropod.v1.DeleteContainerRequest"> & {
+  /**
+   * Container ID (or name).
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * Remove even if the container is still running.
+   *
+   * @generated from field: bool force = 2;
+   */
+  force: boolean;
+};
+
+/**
+ * Describes the message micropod.v1.DeleteContainerRequest.
+ * Use `create(DeleteContainerRequestSchema)` to create a new message.
+ */
+export const DeleteContainerRequestSchema: GenMessage<DeleteContainerRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_container, 7);
+
+/**
+ * @generated from message micropod.v1.StreamLogsRequest
+ */
+export type StreamLogsRequest = Message<"micropod.v1.StreamLogsRequest"> & {
+  /**
+   * Container ID (or name) to stream logs from.
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * Number of lines to replay from the end of the log before following.
+   *
+   * @generated from field: int32 tail = 2;
+   */
+  tail: number;
+
+  /**
+   * Include the vminitd guest boot log.
+   *
+   * @generated from field: bool boot = 3;
+   */
+  boot: boolean;
+};
+
+/**
+ * Describes the message micropod.v1.StreamLogsRequest.
+ * Use `create(StreamLogsRequestSchema)` to create a new message.
+ */
+export const StreamLogsRequestSchema: GenMessage<StreamLogsRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_container, 8);
+
+/**
+ * One streamed log line (StreamContainerLogs event).
+ *
+ * @generated from message micropod.v1.LogChunk
+ */
+export type LogChunk = Message<"micropod.v1.LogChunk"> & {
+  /**
+   * A single line of container output.
+   *
+   * @generated from field: string text = 1;
+   */
+  text: string;
+};
+
+/**
+ * Describes the message micropod.v1.LogChunk.
+ * Use `create(LogChunkSchema)` to create a new message.
+ */
+export const LogChunkSchema: GenMessage<LogChunk> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_container, 9);
+
+/**
+ * @generated from message micropod.v1.GetStatsRequest
+ */
+export type GetStatsRequest = Message<"micropod.v1.GetStatsRequest"> & {
+};
+
+/**
+ * Describes the message micropod.v1.GetStatsRequest.
+ * Use `create(GetStatsRequestSchema)` to create a new message.
+ */
+export const GetStatsRequestSchema: GenMessage<GetStatsRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_container, 10);
+
+/**
+ * @generated from message micropod.v1.GetStatsResponse
+ */
+export type GetStatsResponse = Message<"micropod.v1.GetStatsResponse"> & {
+  /**
+   * One stats snapshot covering every running container.
+   *
+   * @generated from field: micropod.v1.StatsSnapshot snapshot = 1;
+   */
+  snapshot?: StatsSnapshot;
+};
+
+/**
+ * Describes the message micropod.v1.GetStatsResponse.
+ * Use `create(GetStatsResponseSchema)` to create a new message.
+ */
+export const GetStatsResponseSchema: GenMessage<GetStatsResponse> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_container, 11);
+
+/**
+ * @generated from message micropod.v1.ExecRequest
+ */
+export type ExecRequest = Message<"micropod.v1.ExecRequest"> & {
+  /**
+   * Container ID (or name) to exec into.
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * Command to run inside the container.
+   *
+   * @generated from field: string command = 2;
+   */
+  command: string;
+
+  /**
+   * Working directory for the command.
+   *
+   * @generated from field: optional string workdir = 3;
+   */
+  workdir?: string;
+
+  /**
+   * Extra environment variables as KEY=value pairs.
+   *
+   * @generated from field: repeated string env = 4;
+   */
+  env: string[];
+};
+
+/**
+ * Describes the message micropod.v1.ExecRequest.
+ * Use `create(ExecRequestSchema)` to create a new message.
+ */
+export const ExecRequestSchema: GenMessage<ExecRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_container, 12);
+
+/**
+ * @generated from message micropod.v1.ExecResponse
+ */
+export type ExecResponse = Message<"micropod.v1.ExecResponse"> & {
+  /**
+   * Combined stdout (and stderr when not separable) of the command.
+   *
+   * @generated from field: string output = 1;
+   */
+  output: string;
+
+  /**
+   * Guest process exit code. 0 on success; when the native runtime backend
+   * is active this is the real exit status rather than a CLI approximation.
+   *
+   * @generated from field: int32 exit_code = 2;
+   */
+  exitCode: number;
+
+  /**
+   * Guest stderr, when the backend can separate the streams.
+   *
+   * @generated from field: string error = 3;
+   */
+  error: string;
+};
+
+/**
+ * Describes the message micropod.v1.ExecResponse.
+ * Use `create(ExecResponseSchema)` to create a new message.
+ */
+export const ExecResponseSchema: GenMessage<ExecResponse> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_container, 13);
+
+/**
+ * Container lifecycle, logs, stats, and exec against the Apple `container`
+ * runtime.
+ *
+ * @generated from service micropod.v1.ContainerService
+ */
+export const ContainerService: GenService<{
+  /**
+   * List all containers.
+   *
+   * @generated from rpc micropod.v1.ContainerService.ListContainers
+   */
+  listContainers: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof ListContainersResponseSchema;
+  },
+  /**
+   * Run a container (docker run).
+   *
+   * @generated from rpc micropod.v1.ContainerService.RunContainer
+   */
+  runContainer: {
+    methodKind: "unary";
+    input: typeof RunContainerRequestSchema;
+    output: typeof ContainerRefSchema;
+  },
+  /**
+   * Create a container without starting it (docker create).
+   *
+   * @generated from rpc micropod.v1.ContainerService.CreateContainer
+   */
+  createContainer: {
+    methodKind: "unary";
+    input: typeof RunContainerRequestSchema;
+    output: typeof ContainerRefSchema;
+  },
+  /**
+   * Start a stopped container.
+   *
+   * @generated from rpc micropod.v1.ContainerService.StartContainer
+   */
+  startContainer: {
+    methodKind: "unary";
+    input: typeof ContainerRefSchema;
+    output: typeof EmptySchema;
+  },
+  /**
+   * Stop a running container (SIGTERM, then SIGKILL after the grace period).
+   *
+   * @generated from rpc micropod.v1.ContainerService.StopContainer
+   */
+  stopContainer: {
+    methodKind: "unary";
+    input: typeof ContainerRefSchema;
+    output: typeof EmptySchema;
+  },
+  /**
+   * Stop then start a container.
+   *
+   * @generated from rpc micropod.v1.ContainerService.RestartContainer
+   */
+  restartContainer: {
+    methodKind: "unary";
+    input: typeof ContainerRefSchema;
+    output: typeof EmptySchema;
+  },
+  /**
+   * SIGKILL a running container.
+   *
+   * @generated from rpc micropod.v1.ContainerService.KillContainer
+   */
+  killContainer: {
+    methodKind: "unary";
+    input: typeof ContainerRefSchema;
+    output: typeof EmptySchema;
+  },
+  /**
+   * Remove a container. Running containers require force.
+   *
+   * @generated from rpc micropod.v1.ContainerService.DeleteContainer
+   */
+  deleteContainer: {
+    methodKind: "unary";
+    input: typeof DeleteContainerRequestSchema;
+    output: typeof EmptySchema;
+  },
+  /**
+   * Live log stream (server streaming).
+   *
+   * @generated from rpc micropod.v1.ContainerService.StreamContainerLogs
+   */
+  streamContainerLogs: {
+    methodKind: "server_streaming";
+    input: typeof StreamLogsRequestSchema;
+    output: typeof LogChunkSchema;
+  },
+  /**
+   * Point-in-time resource usage for all running containers.
+   *
+   * @generated from rpc micropod.v1.ContainerService.GetStats
+   */
+  getStats: {
+    methodKind: "unary";
+    input: typeof GetStatsRequestSchema;
+    output: typeof GetStatsResponseSchema;
+  },
+  /**
+   * Run a command inside a running container and return its output.
+   *
+   * @generated from rpc micropod.v1.ContainerService.Exec
+   */
+  exec: {
+    methodKind: "unary";
+    input: typeof ExecRequestSchema;
+    output: typeof ExecResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_micropod_v1_container, 0);
 

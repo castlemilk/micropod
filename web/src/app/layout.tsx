@@ -25,9 +25,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       ],
     },
     ...services.map((svc) => ({
-      // MicropodService is THE daemon API; SandboxContext is the vminitd
-      // guest contract, only reachable over the vsock bridge.
-      title: svc.service.startsWith("micropod.") ? "Micropod API" : `Guest API · ${svc.title}`,
+      // The daemon API is one service per domain (ContainerService, …);
+      // SandboxContext is the vminitd guest contract over the vsock bridge.
+      title: svc.service.startsWith("micropod.") ? svc.title : `Guest API · ${svc.title}`,
       items: svc.spec.endpoints.map((e) => ({
         label: e.summary ?? e.path,
         href: `/grpc/${e.id}/`,

@@ -7,6 +7,7 @@
 package micropodv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -176,11 +177,228 @@ func (x *ImageVariant) GetVariant() string {
 	return ""
 }
 
+type ListImagesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Every local image, in `container image list` order.
+	Images        []*Image `protobuf:"bytes,1,rep,name=images,proto3" json:"images,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListImagesResponse) Reset() {
+	*x = ListImagesResponse{}
+	mi := &file_micropod_v1_image_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListImagesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListImagesResponse) ProtoMessage() {}
+
+func (x *ListImagesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_image_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListImagesResponse.ProtoReflect.Descriptor instead.
+func (*ListImagesResponse) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_image_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ListImagesResponse) GetImages() []*Image {
+	if x != nil {
+		return x.Images
+	}
+	return nil
+}
+
+type PullImageRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Image reference to pull, e.g. "alpine:3.20" or a full registry path.
+	Reference string `protobuf:"bytes,1,opt,name=reference,proto3" json:"reference,omitempty"`
+	// Platform to pull, e.g. "linux/arm64". Defaults to the host platform.
+	Platform      *string `protobuf:"bytes,2,opt,name=platform,proto3,oneof" json:"platform,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PullImageRequest) Reset() {
+	*x = PullImageRequest{}
+	mi := &file_micropod_v1_image_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PullImageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PullImageRequest) ProtoMessage() {}
+
+func (x *PullImageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_image_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PullImageRequest.ProtoReflect.Descriptor instead.
+func (*PullImageRequest) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_image_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *PullImageRequest) GetReference() string {
+	if x != nil {
+		return x.Reference
+	}
+	return ""
+}
+
+func (x *PullImageRequest) GetPlatform() string {
+	if x != nil && x.Platform != nil {
+		return *x.Platform
+	}
+	return ""
+}
+
+// One pull-progress event (PullImage stream).
+type ProgressLine struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Human-readable progress text from the registry pull.
+	Line string `protobuf:"bytes,1,opt,name=line,proto3" json:"line,omitempty"`
+	// Current stage index (1-based), when the pull reports staged progress.
+	Stage *int32 `protobuf:"varint,2,opt,name=stage,proto3,oneof" json:"stage,omitempty"`
+	// Total number of stages, when known.
+	TotalStages   *int32 `protobuf:"varint,3,opt,name=total_stages,json=totalStages,proto3,oneof" json:"total_stages,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProgressLine) Reset() {
+	*x = ProgressLine{}
+	mi := &file_micropod_v1_image_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProgressLine) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProgressLine) ProtoMessage() {}
+
+func (x *ProgressLine) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_image_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProgressLine.ProtoReflect.Descriptor instead.
+func (*ProgressLine) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_image_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ProgressLine) GetLine() string {
+	if x != nil {
+		return x.Line
+	}
+	return ""
+}
+
+func (x *ProgressLine) GetStage() int32 {
+	if x != nil && x.Stage != nil {
+		return *x.Stage
+	}
+	return 0
+}
+
+func (x *ProgressLine) GetTotalStages() int32 {
+	if x != nil && x.TotalStages != nil {
+		return *x.TotalStages
+	}
+	return 0
+}
+
+type DeleteImageRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Image reference or digest to remove.
+	Reference string `protobuf:"bytes,1,opt,name=reference,proto3" json:"reference,omitempty"`
+	// Remove even if containers reference the image.
+	Force         bool `protobuf:"varint,2,opt,name=force,proto3" json:"force,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteImageRequest) Reset() {
+	*x = DeleteImageRequest{}
+	mi := &file_micropod_v1_image_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteImageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteImageRequest) ProtoMessage() {}
+
+func (x *DeleteImageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_image_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteImageRequest.ProtoReflect.Descriptor instead.
+func (*DeleteImageRequest) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_image_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *DeleteImageRequest) GetReference() string {
+	if x != nil {
+		return x.Reference
+	}
+	return ""
+}
+
+func (x *DeleteImageRequest) GetForce() bool {
+	if x != nil {
+		return x.Force
+	}
+	return false
+}
+
 var File_micropod_v1_image_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_image_proto_rawDesc = "" +
 	"\n" +
-	"\x17micropod/v1/image.proto\x12\vmicropod.v1\"\xba\x01\n" +
+	"\x17micropod/v1/image.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a\x15micropod/v1/api.proto\"\xba\x01\n" +
 	"\x05Image\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05names\x18\x02 \x03(\tR\x05names\x12\x1d\n" +
@@ -193,7 +411,29 @@ const file_micropod_v1_image_proto_rawDesc = "" +
 	"\fImageVariant\x12\x0e\n" +
 	"\x02os\x18\x01 \x01(\tR\x02os\x12\"\n" +
 	"\farchitecture\x18\x02 \x01(\tR\farchitecture\x12\x18\n" +
-	"\avariant\x18\x03 \x01(\tR\avariantBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
+	"\avariant\x18\x03 \x01(\tR\avariant\"@\n" +
+	"\x12ListImagesResponse\x12*\n" +
+	"\x06images\x18\x01 \x03(\v2\x12.micropod.v1.ImageR\x06images\"j\n" +
+	"\x10PullImageRequest\x12(\n" +
+	"\treference\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\treference\x12\x1f\n" +
+	"\bplatform\x18\x02 \x01(\tH\x00R\bplatform\x88\x01\x01B\v\n" +
+	"\t_platform\"\x80\x01\n" +
+	"\fProgressLine\x12\x12\n" +
+	"\x04line\x18\x01 \x01(\tR\x04line\x12\x19\n" +
+	"\x05stage\x18\x02 \x01(\x05H\x00R\x05stage\x88\x01\x01\x12&\n" +
+	"\ftotal_stages\x18\x03 \x01(\x05H\x01R\vtotalStages\x88\x01\x01B\b\n" +
+	"\x06_stageB\x0f\n" +
+	"\r_total_stages\"T\n" +
+	"\x12DeleteImageRequest\x12(\n" +
+	"\treference\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\treference\x12\x14\n" +
+	"\x05force\x18\x02 \x01(\bR\x05force2\xde\x01\n" +
+	"\fImageService\x12A\n" +
+	"\n" +
+	"ListImages\x12\x12.micropod.v1.Empty\x1a\x1f.micropod.v1.ListImagesResponse\x12G\n" +
+	"\tPullImage\x12\x1d.micropod.v1.PullImageRequest\x1a\x19.micropod.v1.ProgressLine0\x01\x12B\n" +
+	"\vDeleteImage\x12\x1f.micropod.v1.DeleteImageRequest\x1a\x12.micropod.v1.EmptyBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
 
 var (
 	file_micropod_v1_image_proto_rawDescOnce sync.Once
@@ -207,18 +447,30 @@ func file_micropod_v1_image_proto_rawDescGZIP() []byte {
 	return file_micropod_v1_image_proto_rawDescData
 }
 
-var file_micropod_v1_image_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_micropod_v1_image_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_micropod_v1_image_proto_goTypes = []any{
-	(*Image)(nil),        // 0: micropod.v1.Image
-	(*ImageVariant)(nil), // 1: micropod.v1.ImageVariant
+	(*Image)(nil),              // 0: micropod.v1.Image
+	(*ImageVariant)(nil),       // 1: micropod.v1.ImageVariant
+	(*ListImagesResponse)(nil), // 2: micropod.v1.ListImagesResponse
+	(*PullImageRequest)(nil),   // 3: micropod.v1.PullImageRequest
+	(*ProgressLine)(nil),       // 4: micropod.v1.ProgressLine
+	(*DeleteImageRequest)(nil), // 5: micropod.v1.DeleteImageRequest
+	(*Empty)(nil),              // 6: micropod.v1.Empty
 }
 var file_micropod_v1_image_proto_depIdxs = []int32{
 	1, // 0: micropod.v1.Image.variants:type_name -> micropod.v1.ImageVariant
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	0, // 1: micropod.v1.ListImagesResponse.images:type_name -> micropod.v1.Image
+	6, // 2: micropod.v1.ImageService.ListImages:input_type -> micropod.v1.Empty
+	3, // 3: micropod.v1.ImageService.PullImage:input_type -> micropod.v1.PullImageRequest
+	5, // 4: micropod.v1.ImageService.DeleteImage:input_type -> micropod.v1.DeleteImageRequest
+	2, // 5: micropod.v1.ImageService.ListImages:output_type -> micropod.v1.ListImagesResponse
+	4, // 6: micropod.v1.ImageService.PullImage:output_type -> micropod.v1.ProgressLine
+	6, // 7: micropod.v1.ImageService.DeleteImage:output_type -> micropod.v1.Empty
+	5, // [5:8] is the sub-list for method output_type
+	2, // [2:5] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_micropod_v1_image_proto_init() }
@@ -226,15 +478,18 @@ func file_micropod_v1_image_proto_init() {
 	if File_micropod_v1_image_proto != nil {
 		return
 	}
+	file_micropod_v1_api_proto_init()
+	file_micropod_v1_image_proto_msgTypes[3].OneofWrappers = []any{}
+	file_micropod_v1_image_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_micropod_v1_image_proto_rawDesc), len(file_micropod_v1_image_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   6,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_micropod_v1_image_proto_goTypes,
 		DependencyIndexes: file_micropod_v1_image_proto_depIdxs,

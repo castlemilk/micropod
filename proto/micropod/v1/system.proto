@@ -4,7 +4,34 @@ package micropod.v1;
 
 option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
 
+import "micropod/v1/api.proto";
 import "micropod/v1/image.proto";
+import "micropod/v1/volume.proto";
+
+// Daemon-level operations: runtime snapshot, cleanup usage report, and the
+// desktop app's update lifecycle (proxied over the app control socket).
+service SystemService {
+  // Runtime status + disk usage.
+  rpc GetSystem(Empty) returns (SystemSnapshot);
+  // What a cleanup would reclaim: images and volumes annotated with the
+  // containers that reference them.
+  rpc GetUsage(Empty) returns (UsageReport);
+  // Trigger a background update check in the desktop app (Sparkle).
+  // Fails with `unavailable` when the app isn't running.
+  rpc CheckForUpdates(Empty) returns (UpdateStatus);
+  // Last-known updater status from the desktop app.
+  rpc GetUpdateStatus(Empty) returns (UpdateStatus);
+  // Quit the app so a downloaded update installs and relaunches. Fails
+  // with `failed_precondition` until `UpdateStatus.ready_to_install`.
+  rpc ApplyUpdate(Empty) returns (UpdateStatus);
+}
+
+message SystemSnapshot {
+  // Runtime health (status, versions, install paths).
+  SystemStatus status = 1;
+  // Disk usage grouped by resource kind.
+  DiskUsage disk_usage = 2;
+}
 
 // Runtime health, mapped from `container system status`.
 message SystemStatus {
@@ -74,46 +101,6 @@ message ContainerStats {
   uint64 pids = 9;
 }
 
-// Curated network, mapped from `container network list`.
-message Network {
-  // Network ID (name).
-  string id = 1;
-  // Network plugin backing this network, e.g. "vmnet".
-  string plugin = 2;
-  // Network mode, e.g. "nat".
-  string mode = 3;
-  // IPv4 gateway address.
-  string ipv4_gateway = 4;
-  // IPv4 CIDR of the network.
-  string ipv4_subnet = 5;
-  // IPv6 CIDR of the network, if any.
-  string ipv6_subnet = 6;
-  // ISO8601 creation timestamp.
-  string created_at = 7;
-  // True for runtime-managed networks that cannot be deleted.
-  bool builtin = 8;
-  // Metadata labels on the network.
-  map<string, string> labels = 9;
-}
-
-// Curated volume, mapped from `container volume list`.
-message Volume {
-  // Volume name (used as the ID).
-  string id = 1;
-  // Volume driver, e.g. "local".
-  string driver = 2;
-  // Filesystem format, e.g. "ext4".
-  string format = 3;
-  // Volume size in bytes.
-  uint64 size_bytes = 4;
-  // Backing source (name or host path).
-  string source = 5;
-  // ISO8601 creation timestamp.
-  string created_at = 6;
-  // Metadata labels on the volume.
-  map<string, string> labels = 7;
-}
-
 // A registry login, mapped from `container registry list`.
 message RegistryLogin {
   // Registry hostname, e.g. "docker.io".
@@ -155,57 +142,6 @@ message UsageReport {
   uint64 reclaimable_volume_bytes = 4;
   // Number of stopped containers.
   int32 stopped_container_count = 5;
-}
-
-// Named-volume mount policy — read on container create by every surface
-// (API, docker shim, app, CLI, MCP). Per-container `com.micropod.*` labels
-// take precedence over this policy.
-message VolumePolicy {
-  // Which named-volume mounts get clonefile-forked per container.
-  enum CloneMode {
-    // Treated as CLONE_MODE_LABELS (the standard default).
-    CLONE_MODE_UNSPECIFIED = 0;
-    // Only mounts carrying the `com.micropod.cache.clone` label.
-    CLONE_MODE_LABELS = 1;
-    // Auto-clone mounts of the volumes named in `golden_volumes`.
-    CLONE_MODE_GOLDENS = 2;
-    // Clone every named-volume mount.
-    CLONE_MODE_ALL = 3;
-  }
-  // Writeback sync mode for volume disk images.
-  enum SyncMode {
-    // Per-mount default (fsync for named volumes, nosync for clones).
-    SYNC_MODE_UNSPECIFIED = 0;
-    // Flush writes on every write.
-    SYNC_MODE_FULL = 1;
-    // fsync on container stop.
-    SYNC_MODE_FSYNC = 2;
-    // Never fsync — fastest, can lose writes on host crash.
-    SYNC_MODE_NOSYNC = 3;
-  }
-  // VZ disk-image caching mode.
-  enum CacheMode {
-    // Treated as CACHE_MODE_ON (the standard default).
-    CACHE_MODE_UNSPECIFIED = 0;
-    // Always cache the disk image.
-    CACHE_MODE_ON = 1;
-    // Never cache.
-    CACHE_MODE_OFF = 2;
-    // Cache when the volume driver supports it.
-    CACHE_MODE_AUTO = 3;
-  }
-  // Which named-volume mounts get clonefile-forked per container.
-  CloneMode clone_mode = 1;
-  // Volume names auto-cloned under `CLONE_MODE_GOLDENS`.
-  repeated string golden_volumes = 2;
-  // Restrict cloning to job-labelled containers (`com.cuttlefish.job` /
-  // `com.micropod.job`). Per-container clone labels always apply.
-  bool jobs_only = 3;
-  // Writeback sync mode override; `SYNC_MODE_UNSPECIFIED` keeps the
-  // per-mount default.
-  SyncMode sync = 4;
-  // VZ disk-image cache mode.
-  CacheMode cache = 5;
 }
 
 // Desktop-app updater status (Sparkle), proxied over the app control

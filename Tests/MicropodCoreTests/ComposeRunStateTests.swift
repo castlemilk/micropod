@@ -26,7 +26,7 @@ final class ComposeRunStateTests: XCTestCase {
     }
 
     private func readinessStep() -> ComposeStep {
-        var service = Micropod_V1_ComposeService()
+        var service = Micropod_V1_ComposeServiceSpec()
         service.name = "db"
         service.containerName = "db"
         return .readiness(service)

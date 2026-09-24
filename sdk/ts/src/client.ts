@@ -5,7 +5,12 @@ import {
   type Transport,
 } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { MicropodService } from "./gen/micropod/v1/api_pb.js";
+import { ContainerService } from "./gen/micropod/v1/container_pb.js";
+import { ImageService } from "./gen/micropod/v1/image_pb.js";
+import { VolumeService } from "./gen/micropod/v1/volume_pb.js";
+import { NetworkService } from "./gen/micropod/v1/network_pb.js";
+import { ComposeService } from "./gen/micropod/v1/compose_pb.js";
+import { SystemService } from "./gen/micropod/v1/system_pb.js";
 import {
   otelInterceptor,
   retryInterceptor,
@@ -38,10 +43,22 @@ export interface MicropodClientOptions {
   interceptors?: Interceptor[];
 }
 
-export type MicropodClient = Client<typeof MicropodService>;
+/**
+ * The daemon API is grouped into per-domain services (ContainerService,
+ * ImageService, VolumeService, NetworkService, ComposeService,
+ * SystemService). Method names are unique across services, so the facade
+ * merges them into one flat call surface — `client.listContainers()`,
+ * `client.composeUp()`, etc.
+ */
+export type MicropodClient = Client<typeof ContainerService> &
+  Client<typeof ImageService> &
+  Client<typeof VolumeService> &
+  Client<typeof NetworkService> &
+  Client<typeof ComposeService> &
+  Client<typeof SystemService>;
 
 /**
- * Create a typed MicropodService client with the resiliency +
+ * Create a typed client for all micropod.v1 services with the resiliency +
  * instrumentation chain applied.
  *
  * const client = createMicropodClient("http://localhost:45454", {
@@ -62,7 +79,18 @@ export function createMicropodClient(
   interceptors.push(...(opts.interceptors ?? []));
 
   // Interceptors attach to the transport, not the client, in connect-es v2.
+  // One transport shared by all six service clients.
   const transport =
     opts.transport ?? createConnectTransport({ baseUrl, interceptors });
-  return createConnectClient(MicropodService, transport);
+  return Object.assign(
+    {},
+    ...[
+      ContainerService,
+      ImageService,
+      VolumeService,
+      NetworkService,
+      ComposeService,
+      SystemService,
+    ].map((svc) => createConnectClient(svc, transport)),
+  ) as MicropodClient;
 }

@@ -21,7 +21,10 @@ func main() {
 	if base == "" {
 		base = "http://127.0.0.1:45454"
 	}
-	client := micropodv1connect.NewMicropodServiceClient(httpClient(), base)
+	hc := httpClient()
+	containers := micropodv1connect.NewContainerServiceClient(hc, base)
+	images := micropodv1connect.NewImageServiceClient(hc, base)
+	system := micropodv1connect.NewSystemServiceClient(hc, base)
 	ctx := context.Background()
 
 	if len(os.Args) < 2 {
@@ -32,14 +35,14 @@ func main() {
 	switch os.Args[1] {
 	case "system":
 		var res *connect.Response[micropodv1.SystemSnapshot]
-		res, err = client.GetSystem(ctx, connect.NewRequest(&micropodv1.Empty{}))
+		res, err = system.GetSystem(ctx, connect.NewRequest(&micropodv1.Empty{}))
 		if err == nil {
 			s := res.Msg.GetStatus()
 			fmt.Printf("status=%s cli=%s apiserver=%s\n", s.GetStatus(), s.GetCliVersion(), s.GetApiServerVersion())
 		}
 	case "list-containers", "containers":
 		var res *connect.Response[micropodv1.ListContainersResponse]
-		res, err = client.ListContainers(ctx, connect.NewRequest(&micropodv1.Empty{}))
+		res, err = containers.ListContainers(ctx, connect.NewRequest(&micropodv1.Empty{}))
 		if err == nil {
 			for _, c := range res.Msg.GetContainers() {
 				fmt.Printf("%s\t%s\t%s\t%s\n", c.GetId(), c.GetState(), c.GetImage(), c.GetIpv4Address())
@@ -51,7 +54,7 @@ func main() {
 			name = os.Args[3]
 		}
 		var res *connect.Response[micropodv1.ContainerRef]
-		res, err = client.RunContainer(ctx, connect.NewRequest(&micropodv1.RunContainerRequest{
+		res, err = containers.RunContainer(ctx, connect.NewRequest(&micropodv1.RunContainerRequest{
 			Image: os.Args[2], Name: &name,
 		}))
 		if err == nil {
@@ -59,7 +62,7 @@ func main() {
 		}
 	case "pull":
 		var stream *connect.ServerStreamForClient[micropodv1.ProgressLine]
-		stream, err = client.PullImage(ctx, connect.NewRequest(&micropodv1.PullImageRequest{Reference: os.Args[2]}))
+		stream, err = images.PullImage(ctx, connect.NewRequest(&micropodv1.PullImageRequest{Reference: os.Args[2]}))
 		if err == nil {
 			for stream.Receive() {
 				fmt.Println(stream.Msg().GetLine())
@@ -68,7 +71,7 @@ func main() {
 		}
 	case "stats":
 		var res *connect.Response[micropodv1.GetStatsResponse]
-		res, err = client.GetStats(ctx, connect.NewRequest(&micropodv1.GetStatsRequest{}))
+		res, err = containers.GetStats(ctx, connect.NewRequest(&micropodv1.GetStatsRequest{}))
 		if err == nil {
 			for _, c := range res.Msg.GetSnapshot().GetContainers() {
 				fmt.Printf("%s mem=%d rx=%d pids=%d\n", c.GetId(), c.GetMemoryUsedBytes(), c.GetNetworkRxBytes(), c.GetPids())

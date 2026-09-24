@@ -14,8 +14,16 @@ import (
 	"micropod/api/internal/clicli"
 )
 
+// Server implements all six micropod.v1 domain services on top of the
+// `container` CLI. App-owned RPCs it can't serve (volume policy, updates,
+// compose) fall through to the embedded unimplemented handlers.
 type Server struct {
-	micropodv1connect.UnimplementedMicropodServiceHandler
+	micropodv1connect.UnimplementedContainerServiceHandler
+	micropodv1connect.UnimplementedImageServiceHandler
+	micropodv1connect.UnimplementedVolumeServiceHandler
+	micropodv1connect.UnimplementedNetworkServiceHandler
+	micropodv1connect.UnimplementedComposeServiceHandler
+	micropodv1connect.UnimplementedSystemServiceHandler
 	cli *clicli.CLI
 }
 

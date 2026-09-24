@@ -1,0 +1,635 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Micropod API \u00b7 VolumeService",
+    "description": "## micropod.v1.VolumeService\n\nNamed volumes plus the mount policy applied on container create.",
+    "version": "0.8.0",
+    "contact": {
+      "name": "Micropod",
+      "url": "https://github.com/castlemilk/micropod"
+    },
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/castlemilk/micropod/blob/master/LICENSE"
+    }
+  },
+  "paths": {
+    "/api/micropod.v1.VolumeService/CreateVolume": {
+      "post": {
+        "tags": [
+          "micropod.v1.VolumeService"
+        ],
+        "summary": "CreateVolume",
+        "description": "Create a named volume.",
+        "operationId": "micropod.v1.VolumeService.CreateVolume",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.CreateVolumeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.VolumeService/DeleteVolume": {
+      "post": {
+        "tags": [
+          "micropod.v1.VolumeService"
+        ],
+        "summary": "DeleteVolume",
+        "description": "Remove a named volume.",
+        "operationId": "micropod.v1.VolumeService.DeleteVolume",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.DeleteVolumeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.VolumeService/GetVolumePolicy": {
+      "post": {
+        "tags": [
+          "micropod.v1.VolumeService"
+        ],
+        "summary": "GetVolumePolicy",
+        "description": "Named-volume mount policy applied on container create across every\n surface (API, shim, app, CLI, MCP).",
+        "operationId": "micropod.v1.VolumeService.GetVolumePolicy",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.VolumePolicy"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.VolumeService/ListVolumes": {
+      "post": {
+        "tags": [
+          "micropod.v1.VolumeService"
+        ],
+        "summary": "ListVolumes",
+        "description": "List all volumes.",
+        "operationId": "micropod.v1.VolumeService.ListVolumes",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ListVolumesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.VolumeService/SetVolumePolicy": {
+      "post": {
+        "tags": [
+          "micropod.v1.VolumeService"
+        ],
+        "summary": "SetVolumePolicy",
+        "description": "Replace the volume mount policy; returns the stored policy.",
+        "operationId": "micropod.v1.VolumeService.SetVolumePolicy",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.VolumePolicy"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.VolumePolicy"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "connect-protocol-version": {
+        "type": "number",
+        "title": "Connect-Protocol-Version",
+        "enum": [
+          1
+        ],
+        "description": "Define the version of the Connect protocol",
+        "const": 1
+      },
+      "connect-timeout-header": {
+        "type": "number",
+        "title": "Connect-Timeout-Ms",
+        "description": "Define the timeout, in ms"
+      },
+      "connect.error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "examples": [
+              "not_found"
+            ],
+            "enum": [
+              "canceled",
+              "unknown",
+              "invalid_argument",
+              "deadline_exceeded",
+              "not_found",
+              "already_exists",
+              "permission_denied",
+              "resource_exhausted",
+              "failed_precondition",
+              "aborted",
+              "out_of_range",
+              "unimplemented",
+              "internal",
+              "unavailable",
+              "data_loss",
+              "unauthenticated"
+            ],
+            "description": "The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code]."
+          },
+          "message": {
+            "type": "string",
+            "description": "A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the [google.rpc.Status.details][google.rpc.Status.details] field, or localized by the client."
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/connect.error_details.Any"
+            },
+            "description": "A list of messages that carry the error details. There is no limit on the number of messages."
+          }
+        },
+        "title": "Connect Error",
+        "additionalProperties": true,
+        "description": "Error type returned by Connect: https://connectrpc.com/docs/go/errors/#http-representation"
+      },
+      "connect.error_details.Any": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "A URL that acts as a globally unique identifier for the type of the serialized message. For example: `type.googleapis.com/google.rpc.ErrorInfo`. This is used to determine the schema of the data in the `value` field and is the discriminator for the `debug` field."
+          },
+          "value": {
+            "type": "string",
+            "format": "binary",
+            "description": "The Protobuf message, serialized as bytes and base64-encoded. The specific message type is identified by the `type` field."
+          },
+          "debug": {
+            "oneOf": [
+              {
+                "type": "object",
+                "title": "Any",
+                "additionalProperties": true,
+                "description": "Detailed error information."
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type"
+            },
+            "title": "Debug",
+            "description": "Deserialized error detail payload. The 'type' field indicates the schema. This field is for easier debugging and should not be relied upon for application logic."
+          }
+        },
+        "additionalProperties": true,
+        "description": "Contains an arbitrary serialized message along with a @type that describes the type of the serialized message, with an additional debug field for ConnectRPC error details."
+      },
+      "micropod.v1.CreateVolumeRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name",
+            "minLength": 1,
+            "description": "Volume name."
+          },
+          "size": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "size",
+            "description": "Optional size limit, e.g. \"10g\"."
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "labels",
+            "description": "Labels applied to the volume (\"key=value\")."
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "options",
+            "description": "Driver options passed through to the volume driver."
+          }
+        },
+        "title": "CreateVolumeRequest",
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "micropod.v1.DeleteVolumeRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name",
+            "minLength": 1,
+            "description": "Volume name to remove."
+          }
+        },
+        "title": "DeleteVolumeRequest",
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "micropod.v1.Empty": {
+        "type": "object",
+        "title": "Empty",
+        "additionalProperties": false,
+        "description": "The Micropod daemon API is grouped into per-domain services, one per file:\n\n   container.proto \u2014 ContainerService (lifecycle, logs, stats, exec)\n   image.proto     \u2014 ImageService (list, pull, delete)\n   volume.proto    \u2014 VolumeService (volumes + mount policy)\n   network.proto   \u2014 NetworkService\n   compose.proto   \u2014 Compose (up/down over a compose spec)\n   system.proto    \u2014 SystemService (snapshot, usage, app updates)\n\n Empty is shared by every service, so it lives here."
+      },
+      "micropod.v1.ListVolumesResponse": {
+        "type": "object",
+        "properties": {
+          "volumes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.Volume"
+            },
+            "title": "volumes",
+            "description": "Every volume, in `container volume list` order."
+          }
+        },
+        "title": "ListVolumesResponse",
+        "additionalProperties": false
+      },
+      "micropod.v1.Volume": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "description": "Volume name (used as the ID)."
+          },
+          "driver": {
+            "type": "string",
+            "title": "driver",
+            "description": "Volume driver, e.g. \"local\"."
+          },
+          "format": {
+            "type": "string",
+            "title": "format",
+            "description": "Filesystem format, e.g. \"ext4\"."
+          },
+          "sizeBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "size_bytes",
+            "format": "int64",
+            "description": "Volume size in bytes."
+          },
+          "source": {
+            "type": "string",
+            "title": "source",
+            "description": "Backing source (name or host path)."
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "created_at",
+            "description": "ISO8601 creation timestamp."
+          },
+          "labels": {
+            "type": "object",
+            "title": "labels",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            },
+            "description": "Metadata labels on the volume."
+          }
+        },
+        "title": "Volume",
+        "additionalProperties": false,
+        "description": "Curated volume, mapped from `container volume list`."
+      },
+      "micropod.v1.Volume.LabelsEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "type": "string",
+            "title": "value"
+          }
+        },
+        "title": "LabelsEntry",
+        "additionalProperties": false
+      },
+      "micropod.v1.VolumePolicy": {
+        "type": "object",
+        "properties": {
+          "cloneMode": {
+            "title": "clone_mode",
+            "description": "Which named-volume mounts get clonefile-forked per container.",
+            "$ref": "#/components/schemas/micropod.v1.VolumePolicy.CloneMode"
+          },
+          "goldenVolumes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "golden_volumes",
+            "description": "Volume names auto-cloned under `CLONE_MODE_GOLDENS`."
+          },
+          "jobsOnly": {
+            "type": "boolean",
+            "title": "jobs_only",
+            "description": "Restrict cloning to job-labelled containers (`com.cuttlefish.job` /\n `com.micropod.job`). Per-container clone labels always apply."
+          },
+          "sync": {
+            "title": "sync",
+            "description": "Writeback sync mode override; `SYNC_MODE_UNSPECIFIED` keeps the\n per-mount default.",
+            "$ref": "#/components/schemas/micropod.v1.VolumePolicy.SyncMode"
+          },
+          "cache": {
+            "title": "cache",
+            "description": "VZ disk-image cache mode.",
+            "$ref": "#/components/schemas/micropod.v1.VolumePolicy.CacheMode"
+          }
+        },
+        "title": "VolumePolicy",
+        "additionalProperties": false,
+        "description": "Named-volume mount policy \u2014 read on container create by every surface\n (API, docker shim, app, CLI, MCP). Per-container `com.micropod.*` labels\n take precedence over this policy."
+      },
+      "micropod.v1.VolumePolicy.CacheMode": {
+        "type": "string",
+        "title": "CacheMode",
+        "enum": [
+          "CACHE_MODE_UNSPECIFIED",
+          "CACHE_MODE_ON",
+          "CACHE_MODE_OFF",
+          "CACHE_MODE_AUTO"
+        ],
+        "description": "VZ disk-image caching mode."
+      },
+      "micropod.v1.VolumePolicy.CloneMode": {
+        "type": "string",
+        "title": "CloneMode",
+        "enum": [
+          "CLONE_MODE_UNSPECIFIED",
+          "CLONE_MODE_LABELS",
+          "CLONE_MODE_GOLDENS",
+          "CLONE_MODE_ALL"
+        ],
+        "description": "Which named-volume mounts get clonefile-forked per container."
+      },
+      "micropod.v1.VolumePolicy.SyncMode": {
+        "type": "string",
+        "title": "SyncMode",
+        "enum": [
+          "SYNC_MODE_UNSPECIFIED",
+          "SYNC_MODE_FULL",
+          "SYNC_MODE_FSYNC",
+          "SYNC_MODE_NOSYNC"
+        ],
+        "description": "Writeback sync mode for volume disk images."
+      }
+    }
+  },
+  "security": [],
+  "tags": [
+    {
+      "name": "micropod.v1.VolumeService",
+      "description": "Named volumes plus the mount policy applied on container create."
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://localhost:45454",
+      "description": "Local Micropod daemon"
+    }
+  ],
+  "externalDocs": {
+    "description": "API explorer",
+    "url": "https://castlemilk.github.io/micropod/api/"
+  }
+}

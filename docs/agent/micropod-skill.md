@@ -67,16 +67,18 @@ Example: `curl -s -X POST -d '{"image":"postgres:16","name":"pg"}' http://127.0.
 
 ## connect-go API (Go)
 
-Generated bindings in `api/gen/micropod/v1` + `micropodv1connect`. The server
-(`task api-go`) implements `MicropodService`; a ready-made client CLI is
+Generated bindings in `sdk/go/gen/micropod/v1` + `micropodv1connect`. The
+server (`task api-go`) implements the `micropod.v1` domain services
+(ContainerService, ImageService, VolumeService, NetworkService,
+ComposeService, SystemService); a ready-made client CLI is
 `api/cmd/micropod-ctl` (`micropod-ctl list-containers`, `run`, `pull`, `stats`).
 
 ```go
 import (
-    micropodv1 "micropod/api/gen/micropod/v1"
-    "micropod/api/gen/micropod/v1/micropodv1connect"
+    micropodv1 "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1"
+    "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1/micropodv1connect"
 )
-client := micropodv1connect.NewMicropodServiceClient(http.DefaultClient, "http://127.0.0.1:45454")
+client := micropodv1connect.NewContainerServiceClient(http.DefaultClient, "http://127.0.0.1:45454")
 res, err := client.ListContainers(ctx, connect.NewRequest(&micropodv1.Empty{}))
 ```
 

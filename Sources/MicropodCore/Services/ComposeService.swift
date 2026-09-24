@@ -8,7 +8,7 @@ public enum ComposeStep: Sendable, Equatable {
     case pull(image: String, force: Bool)
     case build(request: ContainerBuildRequest, tag: String)
     case run(request: ContainerRunRequest)
-    case readiness(Micropod_V1_ComposeService)
+    case readiness(Micropod_V1_ComposeServiceSpec)
 }
 
 /// A ready-to-execute plan for a compose spec, in dependency order.
@@ -65,7 +65,7 @@ public func composeYAML(from spec: Micropod_V1_ComposeSpec) -> String {
     return (try? Yams.dump(object: root)) ?? ""
 }
 
-private func serviceDict(_ service: Micropod_V1_ComposeService) -> [String: Any] {
+private func serviceDict(_ service: Micropod_V1_ComposeServiceSpec) -> [String: Any] {
     var dict: [String: Any] = [:]
     if !service.image.isEmpty { dict["image"] = service.image }
     if !service.buildContext.isEmpty {
@@ -327,9 +327,9 @@ public struct ComposeService: @preconcurrency ComposeServing {
     }
 
     private func parseService(name: String, raw: [String: Any], baseURL: URL, env: [String: String])
-        -> Micropod_V1_ComposeService
+        -> Micropod_V1_ComposeServiceSpec
     {
-        var service = Micropod_V1_ComposeService()
+        var service = Micropod_V1_ComposeServiceSpec()
         service.name = name
         service.image = interpolate((raw["image"] as? String) ?? "", env: env)
         service.containerName = interpolate((raw["container_name"] as? String) ?? name, env: env)
@@ -678,7 +678,7 @@ public struct ComposeService: @preconcurrency ComposeServing {
 
     /// Names of services that some other service depends on with
     /// `condition: service_healthy`.
-    private func requiredHealthyServices(_ services: [Micropod_V1_ComposeService]) -> Set<String> {
+    private func requiredHealthyServices(_ services: [Micropod_V1_ComposeServiceSpec]) -> Set<String> {
         var required: Set<String> = []
         for service in services {
             for (dependency, condition) in service.dependsOnConditions where condition == "service_healthy" {
@@ -688,11 +688,11 @@ public struct ComposeService: @preconcurrency ComposeServing {
         return required
     }
 
-    private func orderedServices(_ services: [Micropod_V1_ComposeService]) throws
-        -> [Micropod_V1_ComposeService]
+    private func orderedServices(_ services: [Micropod_V1_ComposeServiceSpec]) throws
+        -> [Micropod_V1_ComposeServiceSpec]
     {
         let byName = Dictionary(uniqueKeysWithValues: services.map { ($0.name, $0) })
-        var result: [Micropod_V1_ComposeService] = []
+        var result: [Micropod_V1_ComposeServiceSpec] = []
         var visited: [String: Bool] = [:]  // false = in progress (cycle)
 
         func visit(_ name: String) throws {
@@ -716,7 +716,7 @@ public struct ComposeService: @preconcurrency ComposeServing {
         return result
     }
 
-    private func makeRunRequest(spec: Micropod_V1_ComposeSpec, service: Micropod_V1_ComposeService)
+    private func makeRunRequest(spec: Micropod_V1_ComposeSpec, service: Micropod_V1_ComposeServiceSpec)
         -> ContainerRunRequest
     {
         var labels =
@@ -892,7 +892,7 @@ public struct ComposeService: @preconcurrency ComposeServing {
     /// Real readiness probe: run the healthcheck command via `exec` until it
     /// exits 0 — never treat "has an IP" or "is running" as ready. Honors the
     /// compose healthcheck timing (interval/timeout/retries/start_period).
-    private func waitForReadiness(service: Micropod_V1_ComposeService) async throws {
+    private func waitForReadiness(service: Micropod_V1_ComposeServiceSpec) async throws {
         let command = service.healthcheckCommand
         let interval =
             service.healthcheckIntervalSeconds > 0

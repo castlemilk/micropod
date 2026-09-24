@@ -1,13 +1,46 @@
 import Foundation
 import SwiftProtobuf
 
-/// Typed facade over `micropod.v1.MicropodService`. Wraps a `ConnectClient`
+/// Typed facade over the `micropod.v1` services. Wraps a `ConnectClient`
 /// (transport + interceptor chain) with one method per RPC.
 ///
 ///     let client = MicropodClient(baseURL: URL(string: "http://localhost:45454")!)
 ///     let ref = try await client.run(.with { $0.image = "alpine:3.20" })
 public struct MicropodClient: Sendable {
-    private static let service = "micropod.v1.MicropodService"
+    /// The API is grouped into per-domain services; method names are unique
+    /// across services, so the facade keeps a flat surface and maps each
+    /// method to its service for the Connect path.
+    private static let methodService: [String: String] = [
+        "ListContainers": "ContainerService",
+        "RunContainer": "ContainerService",
+        "CreateContainer": "ContainerService",
+        "StartContainer": "ContainerService",
+        "StopContainer": "ContainerService",
+        "RestartContainer": "ContainerService",
+        "KillContainer": "ContainerService",
+        "DeleteContainer": "ContainerService",
+        "StreamContainerLogs": "ContainerService",
+        "GetStats": "ContainerService",
+        "Exec": "ContainerService",
+        "ListImages": "ImageService",
+        "PullImage": "ImageService",
+        "DeleteImage": "ImageService",
+        "ListVolumes": "VolumeService",
+        "CreateVolume": "VolumeService",
+        "DeleteVolume": "VolumeService",
+        "GetVolumePolicy": "VolumeService",
+        "SetVolumePolicy": "VolumeService",
+        "ListNetworks": "NetworkService",
+        "CreateNetwork": "NetworkService",
+        "DeleteNetwork": "NetworkService",
+        "ComposeUp": "ComposeService",
+        "ComposeDown": "ComposeService",
+        "GetSystem": "SystemService",
+        "GetUsage": "SystemService",
+        "CheckForUpdates": "SystemService",
+        "GetUpdateStatus": "SystemService",
+        "ApplyUpdate": "SystemService",
+    ]
 
     public let connect: ConnectClient
 
@@ -33,7 +66,7 @@ public struct MicropodClient: Sendable {
     }
 
     private func path(_ method: String) -> String {
-        "/\(Self.service)/\(method)"
+        "/micropod.v1.\(Self.methodService[method] ?? "MicropodService")/\(method)"
     }
 
     // MARK: - System

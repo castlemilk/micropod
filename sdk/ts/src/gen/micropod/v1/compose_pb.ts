@@ -2,9 +2,11 @@
 // @generated from file micropod/v1/compose.proto (package micropod.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "@bufbuild/protovalidate/gen/buf/validate/validate_pb.js";
+import type { EmptySchema } from "./api_pb.js";
+import { file_micropod_v1_api } from "./api_pb.js";
 import type { PortMapping } from "./container_pb.js";
 import { file_micropod_v1_container } from "./container_pb.js";
 import type { Message } from "@bufbuild/protobuf";
@@ -13,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file micropod/v1/compose.proto.
  */
 export const file_micropod_v1_compose: GenFile = /*@__PURE__*/
-  fileDesc("ChltaWNyb3BvZC92MS9jb21wb3NlLnByb3RvEgttaWNyb3BvZC52MSLkAgoLQ29tcG9zZVNwZWMSDAoEbmFtZRgBIAEoCRIMCgRwYXRoGAIgASgJEi0KCHNlcnZpY2VzGAMgAygLMhsubWljcm9wb2QudjEuQ29tcG9zZVNlcnZpY2USNgoHdm9sdW1lcxgEIAMoCzIlLm1pY3JvcG9kLnYxLkNvbXBvc2VTcGVjLlZvbHVtZXNFbnRyeRI4CghuZXR3b3JrcxgFIAMoCzImLm1pY3JvcG9kLnYxLkNvbXBvc2VTcGVjLk5ldHdvcmtzRW50cnkaSgoMVm9sdW1lc0VudHJ5EgsKA2tleRgBIAEoCRIpCgV2YWx1ZRgCIAEoCzIaLm1pY3JvcG9kLnYxLkNvbXBvc2VWb2x1bWU6AjgBGkwKDU5ldHdvcmtzRW50cnkSCwoDa2V5GAEgASgJEioKBXZhbHVlGAIgASgLMhsubWljcm9wb2QudjEuQ29tcG9zZU5ldHdvcms6AjgBIt8ICg5Db21wb3NlU2VydmljZRIMCgRuYW1lGAEgASgJEg0KBWltYWdlGAIgASgJEhUKDWJ1aWxkX2NvbnRleHQYAyABKAkSGAoQYnVpbGRfZG9ja2VyZmlsZRgEIAEoCRISCgpidWlsZF9hcmdzGAUgAygJEhIKCmRlcGVuZHNfb24YBiADKAkSJwoFcG9ydHMYByADKAsyGC5taWNyb3BvZC52MS5Qb3J0TWFwcGluZxITCgtlbnZpcm9ubWVudBgIIAMoCRIPCgd2b2x1bWVzGAkgAygJEhAKCGNvbW1hbmRzGAogAygJEhMKC3dvcmtpbmdfZGlyGAsgASgJEg8KB3Jlc3RhcnQYDCABKAkSDAoEY3B1cxgNIAEoARIOCgZtZW1vcnkYDiABKAkSGwoTaGVhbHRoY2hlY2tfY29tbWFuZBgPIAEoCRIQCghuZXR3b3JrcxgQIAMoCRIWCg5jb250YWluZXJfbmFtZRgRIAEoCRISCgplbnRyeXBvaW50GBIgASgJEgwKBHVzZXIYEyABKAkSDgoGbGFiZWxzGBQgAygJEgsKA2RucxgVIAMoCRISCgpkbnNfc2VhcmNoGBYgAygJEg8KB2NhcF9hZGQYFyADKAkSEAoIY2FwX2Ryb3AYGCADKAkSDwoHdWxpbWl0cxgZIAMoCRINCgV0bXBmcxgaIAMoCRIQCghlbnZfZmlsZRgbIAMoCRIQCghzaG1fc2l6ZRgcIAEoCRIRCglyZWFkX29ubHkYHSABKAgSDAoEaW5pdBgeIAEoCBILCgN0dHkYHyABKAgSEgoKc3RkaW5fb3BlbhggIAEoCBISCgpwcml2aWxlZ2VkGCEgASgIEhMKC2V4dHJhX2hvc3RzGCIgAygJElMKFWRlcGVuZHNfb25fY29uZGl0aW9ucxgjIAMoCzI0Lm1pY3JvcG9kLnYxLkNvbXBvc2VTZXJ2aWNlLkRlcGVuZHNPbkNvbmRpdGlvbnNFbnRyeRIkChxoZWFsdGhjaGVja19pbnRlcnZhbF9zZWNvbmRzGCQgASgFEiMKG2hlYWx0aGNoZWNrX3RpbWVvdXRfc2Vjb25kcxglIAEoBRIbChNoZWFsdGhjaGVja19yZXRyaWVzGCYgASgFEigKIGhlYWx0aGNoZWNrX3N0YXJ0X3BlcmlvZF9zZWNvbmRzGCcgASgFEhQKDGJ1aWxkX3RhcmdldBgoIAEoCRIWCg5idWlsZF9wbGF0Zm9ybRgpIAEoCRIWCg5idWlsZF9ub19jYWNoZRgsIAEoCBIQCghwcm9maWxlcxgtIAMoCRITCgtwdWxsX3BvbGljeRguIAEoCRITCgtzdG9wX3NpZ25hbBgqIAEoCRIhChlzdG9wX2dyYWNlX3BlcmlvZF9zZWNvbmRzGCsgASgFGjoKGERlcGVuZHNPbkNvbmRpdGlvbnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBInsKDUNvbXBvc2VWb2x1bWUSDAoEbmFtZRgBIAEoCRIQCghleHRlcm5hbBgCIAEoCBIOCgZkcml2ZXIYAyABKAkSEwoLZHJpdmVyX29wdHMYBCADKAkSDgoGbGFiZWxzGAUgAygJEhUKDWV4dGVybmFsX25hbWUYBiABKAkisQEKDkNvbXBvc2VOZXR3b3JrEgwKBG5hbWUYASABKAkSEAoIaW50ZXJuYWwYAiABKAgSEAoIZXh0ZXJuYWwYAyABKAgSDgoGZHJpdmVyGAQgASgJEhMKC2RyaXZlcl9vcHRzGAUgAygJEg4KBmxhYmVscxgGIAMoCRIOCgZzdWJuZXQYByABKAkSEQoJc3VibmV0X3Y2GAggASgJEhUKDWV4dGVybmFsX25hbWUYCSABKAkiOwoQQ29tcG9zZVVwUmVxdWVzdBIVCgRwYXRoGAEgASgJQge6SARyAhABEhAKCHByb2ZpbGVzGAIgAygJIjoKDkNvbXBvc2VVcEV2ZW50EgwKBGxpbmUYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRkb25lGAMgASgIIisKEkNvbXBvc2VEb3duUmVxdWVzdBIVCgRuYW1lGAEgASgJQge6SARyAhABQkJaQGdpdGh1Yi5jb20vY2FzdGxlbWlsay9taWNyb3BvZC9zZGsvZ28vZ2VuL21pY3JvcG9kL3YxO21pY3JvcG9kdjFiBnByb3RvMw", [file_buf_validate_validate, file_micropod_v1_container]);
+  fileDesc("ChltaWNyb3BvZC92MS9jb21wb3NlLnByb3RvEgttaWNyb3BvZC52MSLoAgoLQ29tcG9zZVNwZWMSDAoEbmFtZRgBIAEoCRIMCgRwYXRoGAIgASgJEjEKCHNlcnZpY2VzGAMgAygLMh8ubWljcm9wb2QudjEuQ29tcG9zZVNlcnZpY2VTcGVjEjYKB3ZvbHVtZXMYBCADKAsyJS5taWNyb3BvZC52MS5Db21wb3NlU3BlYy5Wb2x1bWVzRW50cnkSOAoIbmV0d29ya3MYBSADKAsyJi5taWNyb3BvZC52MS5Db21wb3NlU3BlYy5OZXR3b3Jrc0VudHJ5GkoKDFZvbHVtZXNFbnRyeRILCgNrZXkYASABKAkSKQoFdmFsdWUYAiABKAsyGi5taWNyb3BvZC52MS5Db21wb3NlVm9sdW1lOgI4ARpMCg1OZXR3b3Jrc0VudHJ5EgsKA2tleRgBIAEoCRIqCgV2YWx1ZRgCIAEoCzIbLm1pY3JvcG9kLnYxLkNvbXBvc2VOZXR3b3JrOgI4ASLnCAoSQ29tcG9zZVNlcnZpY2VTcGVjEgwKBG5hbWUYASABKAkSDQoFaW1hZ2UYAiABKAkSFQoNYnVpbGRfY29udGV4dBgDIAEoCRIYChBidWlsZF9kb2NrZXJmaWxlGAQgASgJEhIKCmJ1aWxkX2FyZ3MYBSADKAkSEgoKZGVwZW5kc19vbhgGIAMoCRInCgVwb3J0cxgHIAMoCzIYLm1pY3JvcG9kLnYxLlBvcnRNYXBwaW5nEhMKC2Vudmlyb25tZW50GAggAygJEg8KB3ZvbHVtZXMYCSADKAkSEAoIY29tbWFuZHMYCiADKAkSEwoLd29ya2luZ19kaXIYCyABKAkSDwoHcmVzdGFydBgMIAEoCRIMCgRjcHVzGA0gASgBEg4KBm1lbW9yeRgOIAEoCRIbChNoZWFsdGhjaGVja19jb21tYW5kGA8gASgJEhAKCG5ldHdvcmtzGBAgAygJEhYKDmNvbnRhaW5lcl9uYW1lGBEgASgJEhIKCmVudHJ5cG9pbnQYEiABKAkSDAoEdXNlchgTIAEoCRIOCgZsYWJlbHMYFCADKAkSCwoDZG5zGBUgAygJEhIKCmRuc19zZWFyY2gYFiADKAkSDwoHY2FwX2FkZBgXIAMoCRIQCghjYXBfZHJvcBgYIAMoCRIPCgd1bGltaXRzGBkgAygJEg0KBXRtcGZzGBogAygJEhAKCGVudl9maWxlGBsgAygJEhAKCHNobV9zaXplGBwgASgJEhEKCXJlYWRfb25seRgdIAEoCBIMCgRpbml0GB4gASgIEgsKA3R0eRgfIAEoCBISCgpzdGRpbl9vcGVuGCAgASgIEhIKCnByaXZpbGVnZWQYISABKAgSEwoLZXh0cmFfaG9zdHMYIiADKAkSVwoVZGVwZW5kc19vbl9jb25kaXRpb25zGCMgAygLMjgubWljcm9wb2QudjEuQ29tcG9zZVNlcnZpY2VTcGVjLkRlcGVuZHNPbkNvbmRpdGlvbnNFbnRyeRIkChxoZWFsdGhjaGVja19pbnRlcnZhbF9zZWNvbmRzGCQgASgFEiMKG2hlYWx0aGNoZWNrX3RpbWVvdXRfc2Vjb25kcxglIAEoBRIbChNoZWFsdGhjaGVja19yZXRyaWVzGCYgASgFEigKIGhlYWx0aGNoZWNrX3N0YXJ0X3BlcmlvZF9zZWNvbmRzGCcgASgFEhQKDGJ1aWxkX3RhcmdldBgoIAEoCRIWCg5idWlsZF9wbGF0Zm9ybRgpIAEoCRIWCg5idWlsZF9ub19jYWNoZRgsIAEoCBIQCghwcm9maWxlcxgtIAMoCRITCgtwdWxsX3BvbGljeRguIAEoCRITCgtzdG9wX3NpZ25hbBgqIAEoCRIhChlzdG9wX2dyYWNlX3BlcmlvZF9zZWNvbmRzGCsgASgFGjoKGERlcGVuZHNPbkNvbmRpdGlvbnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBInsKDUNvbXBvc2VWb2x1bWUSDAoEbmFtZRgBIAEoCRIQCghleHRlcm5hbBgCIAEoCBIOCgZkcml2ZXIYAyABKAkSEwoLZHJpdmVyX29wdHMYBCADKAkSDgoGbGFiZWxzGAUgAygJEhUKDWV4dGVybmFsX25hbWUYBiABKAkisQEKDkNvbXBvc2VOZXR3b3JrEgwKBG5hbWUYASABKAkSEAoIaW50ZXJuYWwYAiABKAgSEAoIZXh0ZXJuYWwYAyABKAgSDgoGZHJpdmVyGAQgASgJEhMKC2RyaXZlcl9vcHRzGAUgAygJEg4KBmxhYmVscxgGIAMoCRIOCgZzdWJuZXQYByABKAkSEQoJc3VibmV0X3Y2GAggASgJEhUKDWV4dGVybmFsX25hbWUYCSABKAkiOwoQQ29tcG9zZVVwUmVxdWVzdBIVCgRwYXRoGAEgASgJQge6SARyAhABEhAKCHByb2ZpbGVzGAIgAygJIjoKDkNvbXBvc2VVcEV2ZW50EgwKBGxpbmUYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRkb25lGAMgASgIIisKEkNvbXBvc2VEb3duUmVxdWVzdBIVCgRuYW1lGAEgASgJQge6SARyAhABMp8BCg5Db21wb3NlU2VydmljZRJJCglDb21wb3NlVXASHS5taWNyb3BvZC52MS5Db21wb3NlVXBSZXF1ZXN0GhsubWljcm9wb2QudjEuQ29tcG9zZVVwRXZlbnQwARJCCgtDb21wb3NlRG93bhIfLm1pY3JvcG9kLnYxLkNvbXBvc2VEb3duUmVxdWVzdBoSLm1pY3JvcG9kLnYxLkVtcHR5QkJaQGdpdGh1Yi5jb20vY2FzdGxlbWlsay9taWNyb3BvZC9zZGsvZ28vZ2VuL21pY3JvcG9kL3YxO21pY3JvcG9kdjFiBnByb3RvMw", [file_buf_validate_validate, file_micropod_v1_api, file_micropod_v1_container]);
 
 /**
  * Parsed docker-compose.yml, produced by the compose importer.
@@ -38,9 +40,9 @@ export type ComposeSpec = Message<"micropod.v1.ComposeSpec"> & {
   /**
    * Services in dependency order.
    *
-   * @generated from field: repeated micropod.v1.ComposeService services = 3;
+   * @generated from field: repeated micropod.v1.ComposeServiceSpec services = 3;
    */
-  services: ComposeService[];
+  services: ComposeServiceSpec[];
 
   /**
    * Named volumes declared at the top level.
@@ -69,9 +71,9 @@ export const ComposeSpecSchema: GenMessage<ComposeSpec> = /*@__PURE__*/
  * Fields the Apple runtime cannot express (e.g. privileged) are still parsed
  * so the UI can show them as unsupported rather than silently dropping them.
  *
- * @generated from message micropod.v1.ComposeService
+ * @generated from message micropod.v1.ComposeServiceSpec
  */
-export type ComposeService = Message<"micropod.v1.ComposeService"> & {
+export type ComposeServiceSpec = Message<"micropod.v1.ComposeServiceSpec"> & {
   /**
    * Service name from the compose file.
    *
@@ -396,10 +398,10 @@ export type ComposeService = Message<"micropod.v1.ComposeService"> & {
 };
 
 /**
- * Describes the message micropod.v1.ComposeService.
- * Use `create(ComposeServiceSchema)` to create a new message.
+ * Describes the message micropod.v1.ComposeServiceSpec.
+ * Use `create(ComposeServiceSpecSchema)` to create a new message.
  */
-export const ComposeServiceSchema: GenMessage<ComposeService> = /*@__PURE__*/
+export const ComposeServiceSpecSchema: GenMessage<ComposeServiceSpec> = /*@__PURE__*/
   messageDesc(file_micropod_v1_compose, 1);
 
 /**
@@ -610,4 +612,33 @@ export type ComposeDownRequest = Message<"micropod.v1.ComposeDownRequest"> & {
  */
 export const ComposeDownRequestSchema: GenMessage<ComposeDownRequest> = /*@__PURE__*/
   messageDesc(file_micropod_v1_compose, 6);
+
+/**
+ * Compose project lifecycle — run a spec file and tear the project down.
+ *
+ * @generated from service micropod.v1.ComposeService
+ */
+export const ComposeService: GenService<{
+  /**
+   * Run a compose spec file, streaming progress lines (server streaming).
+   *
+   * @generated from rpc micropod.v1.ComposeService.ComposeUp
+   */
+  composeUp: {
+    methodKind: "server_streaming";
+    input: typeof ComposeUpRequestSchema;
+    output: typeof ComposeUpEventSchema;
+  },
+  /**
+   * Tear down a compose project's containers.
+   *
+   * @generated from rpc micropod.v1.ComposeService.ComposeDown
+   */
+  composeDown: {
+    methodKind: "unary";
+    input: typeof ComposeDownRequestSchema;
+    output: typeof EmptySchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_micropod_v1_compose, 0);
 

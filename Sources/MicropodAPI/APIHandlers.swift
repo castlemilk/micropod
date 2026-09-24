@@ -70,10 +70,13 @@ struct APIHandlers {
             return HTTPResponse.json(200, ["status": "ok"])
         }
 
-        // Connect-protocol mount — proto-JSON over POST, documented under
-        // the Connect section of the API explorer.
+        // Connect-protocol mount — proto-JSON over POST. The daemon API is
+        // grouped into per-domain services (micropod.v1.ContainerService, …);
+        // the pre-split micropod.v1.MicropodService prefix is kept as an
+        // alias so v0.8 SDK clients keep working — method names are unique
+        // across services, so dispatch never needs the service segment.
         if segments.count == 3, segments[0] == "api",
-            segments[1] == "micropod.v1.MicropodService", method == .post,
+            segments[1].hasPrefix("micropod.v1."), method == .post,
             let resp = await connectRPC(method: segments[2], body: request.body)
         {
             return resp

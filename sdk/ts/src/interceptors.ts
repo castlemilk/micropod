@@ -114,8 +114,8 @@ export function timeoutInterceptor(timeoutMs: number): Interceptor {
 export function validationInterceptor(): Interceptor {
   const validator = createValidator();
   return (next) => async (req) => {
-    // Client/bidi streams send an AsyncIterable of messages — MicropodService
-    // has none, but guard so the interceptor stays safe on other services.
+    // Client/bidi streams send an AsyncIterable of messages — the micropod.v1
+    // services have none, but guard so the interceptor stays safe elsewhere.
     if (req.stream) return next(req);
     const result = validator.validate(req.method.input, req.message);
     if (result.kind === "invalid") {

@@ -215,7 +215,7 @@ ${returns ? `let res = try await ${call}` : `try await ${call}`}`;
 
 /**
  * SDK samples for a Connect endpoint — TypeScript, Go, Swift typed clients.
- * Empty for SandboxContext (the SDKs only cover MicropodService).
+ * Empty for SandboxContext (the SDKs only cover the micropod.v1 services).
  */
 export function connectSdkSamples(endpoint: ParsedEndpoint): Sample[] {
   if (!endpoint.service.startsWith("micropod.")) return [];
@@ -229,25 +229,29 @@ export function connectSdkSamples(endpoint: ParsedEndpoint): Sample[] {
 
 /** Per-RPC call spellings across the three SDKs — drives the /sdk call map. */
 export function sdkCallMap(): {
+  service: string;
   rpc: string;
   ts: string;
   go: string;
   swift: string;
   streaming: boolean;
 }[] {
-  const svc = loadConnectServices().find((s) => s.service.startsWith("micropod."));
-  if (!svc) return [];
-  return svc.spec.endpoints.map((e) => {
-    const rpc = rpcName(e);
-    const facade = SWIFT_FACADE[rpc];
-    return {
-      rpc,
-      ts: `client.${lowerFirst(rpc)}(…)`,
-      go: `client.${rpc}(ctx, req)`,
-      swift: facade ? `client.${facade.m}(…)` : `—`,
-      streaming: e.serverStreaming ?? false,
-    };
-  });
+  return loadConnectServices()
+    .filter((s) => s.service.startsWith("micropod."))
+    .flatMap((s) =>
+      s.spec.endpoints.map((e) => {
+        const rpc = rpcName(e);
+        const facade = SWIFT_FACADE[rpc];
+        return {
+          service: s.service.split(".").pop()!,
+          rpc,
+          ts: `client.${lowerFirst(rpc)}(…)`,
+          go: `client.${rpc}(ctx, req)`,
+          swift: facade ? `client.${facade.m}(…)` : `—`,
+          streaming: e.serverStreaming ?? false,
+        };
+      }),
+    );
 }
 
 /** REST route → the Connect RPC it delegates to (empty = REST-only surface). */

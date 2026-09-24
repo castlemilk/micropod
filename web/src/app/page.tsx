@@ -6,7 +6,8 @@ import { loadConnectServices, loadMcpTools, REST_BASE_URL } from "@/lib/data";
 export default function OverviewPage() {
   const services = loadConnectServices();
   const tools = loadMcpTools();
-  const micropod = services.find((s) => s.service.startsWith("micropod."));
+  const daemonServices = services.filter((s) => s.service.startsWith("micropod."));
+  const rpcCount = daemonServices.reduce((n, s) => n + s.spec.endpoints.length, 0);
   const guest = services.filter((s) => !s.service.startsWith("micropod."));
   const version = services.find((s) => s.spec.info.version)?.spec.info.version;
 
@@ -15,7 +16,7 @@ export default function OverviewPage() {
       href: "/grpc/",
       icon: Plug,
       title: "Micropod API",
-      count: `${micropod?.spec.endpoints.length ?? 0} RPCs`,
+      count: `${rpcCount} RPCs · ${daemonServices.length} services`,
       blurb: `The daemon's Connect-RPC service on ${REST_BASE_URL} — unary JSON over plain POST, so curl, fetch, and the typed SDKs all speak the same contract.`,
     },
     {
@@ -90,7 +91,7 @@ export default function OverviewPage() {
         <div className="rounded-lg border border-border bg-card p-4 font-mono text-[13px] leading-relaxed">
           <p className="text-muted"># Connect unary — plain POST + JSON</p>
           <p>
-            curl -X POST {REST_BASE_URL}/api/micropod.v1.MicropodService/ListContainers \
+            curl -X POST {REST_BASE_URL}/api/micropod.v1.ContainerService/ListContainers \
           </p>
           <p>{'  -H "Content-Type: application/json" -d \'{}\''}</p>
           <p className="mt-3 text-muted"># TypeScript SDK — same call, typed</p>
@@ -130,11 +131,12 @@ export default function OverviewPage() {
             "mcp-tools.json",
             "proto-reference.html",
             "openapi.html",
-            "micropod/v1/api.openapi.json",
             "micropod/v1/container.openapi.json",
             "micropod/v1/image.openapi.json",
-            "micropod/v1/system.openapi.json",
+            "micropod/v1/volume.openapi.json",
+            "micropod/v1/network.openapi.json",
             "micropod/v1/compose.openapi.json",
+            "micropod/v1/system.openapi.json",
             "com/apple/containerization/sandbox/v3/sandbox_context.openapi.json",
           ].map((f) => (
             <li key={f}>

@@ -9,6 +9,12 @@
 //	    micropod.WithOTel(tp, mp),
 //	)
 //	resp, err := client.ListContainers(ctx, connect.NewRequest(&micropodv1.Empty{}))
+//
+// The API is grouped into per-domain services (ContainerService,
+// ImageService, …); Client embeds all six so every RPC is reachable as a
+// promoted method — client.ListContainers, client.ComposeUp, etc. Use the
+// generated per-service clients directly (micropodv1connect.New*Client)
+// when you only need one domain.
 package micropod
 
 import (
@@ -19,10 +25,16 @@ import (
 	"github.com/castlemilk/micropod/sdk/go/gen/micropod/v1/micropodv1connect"
 )
 
-// Client is the MicropodService client with the configured interceptor
-// chain applied. It satisfies micropodv1connect.MicropodServiceClient.
+// Client fans the configured interceptor chain out to every domain
+// service. Method names are unique across services, so the embedded
+// clients promote a flat call surface: client.ListContainers(ctx, req).
 type Client struct {
-	micropodv1connect.MicropodServiceClient
+	micropodv1connect.ContainerServiceClient
+	micropodv1connect.ImageServiceClient
+	micropodv1connect.VolumeServiceClient
+	micropodv1connect.NetworkServiceClient
+	micropodv1connect.ComposeServiceClient
+	micropodv1connect.SystemServiceClient
 }
 
 type config struct {
@@ -70,18 +82,20 @@ func WithOTel(opts ...OTelOption) Option {
 	}
 }
 
-// NewClient builds a MicropodService client against baseURL
+// NewClient builds a client for all micropod.v1 services against baseURL
 // (e.g. http://localhost:45454) speaking Connect JSON over HTTP.
 func NewClient(baseURL string, opts ...Option) *Client {
 	cfg := &config{httpClient: http.DefaultClient}
 	for _, o := range opts {
 		o(cfg)
 	}
+	shared := connect.WithInterceptors(cfg.interceptors...)
 	return &Client{
-		MicropodServiceClient: micropodv1connect.NewMicropodServiceClient(
-			cfg.httpClient,
-			baseURL,
-			connect.WithInterceptors(cfg.interceptors...),
-		),
+		ContainerServiceClient: micropodv1connect.NewContainerServiceClient(cfg.httpClient, baseURL, shared),
+		ImageServiceClient:     micropodv1connect.NewImageServiceClient(cfg.httpClient, baseURL, shared),
+		VolumeServiceClient:    micropodv1connect.NewVolumeServiceClient(cfg.httpClient, baseURL, shared),
+		NetworkServiceClient:   micropodv1connect.NewNetworkServiceClient(cfg.httpClient, baseURL, shared),
+		ComposeServiceClient:   micropodv1connect.NewComposeServiceClient(cfg.httpClient, baseURL, shared),
+		SystemServiceClient:    micropodv1connect.NewSystemServiceClient(cfg.httpClient, baseURL, shared),
 	}
 }

@@ -73,7 +73,7 @@ for await (const line of client.pullImage({ image: "alpine:3.20" })) {
     install: `.package(url: "https://github.com/castlemilk/micropod", from: "0.8.0")`,
     source: "sdk/swift",
     blurb:
-      "SwiftProtobuf messages + a dependency-light Connect transport over URLSession. The MicropodClient facade covers all 19 MicropodService RPCs.",
+      "SwiftProtobuf messages + a dependency-light Connect transport over URLSession. The MicropodClient facade covers all 29 RPCs across the six micropod.v1 services.",
     quickstart: `import MicropodSDK
 
 let client = MicropodClient(baseURL: URL(string: "${REST_BASE_URL}")!)
@@ -162,9 +162,8 @@ export default function SdkPage() {
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Call map</h2>
         <p className="text-sm text-muted">
-          Every MicropodService RPC spelled in each SDK — Connect pages embed
-          the matching snippet under the <span className="font-mono text-xs">SDK</span>{" "}
-          toggle in the request panel.
+          Every RPC across the six micropod.v1 services, spelled in each SDK —
+          endpoint pages embed the matching snippet in the request panel.
         </p>
         <div className="overflow-hidden rounded-lg border border-border">
           <table className="w-full text-left text-[12px]">
@@ -189,20 +188,32 @@ export default function SdkPage() {
               </tr>
             </thead>
             <tbody>
-              {sdkCallMap().map((row) => (
-                <tr key={row.rpc} className="border-b border-border last:border-0">
-                  <td className="px-4 py-1.5 font-mono text-foreground">
-                    {row.rpc}
-                    {row.streaming && (
-                      <span className="ml-1.5 rounded-sm bg-primary/10 px-1 font-mono text-[9px] uppercase text-primary">
-                        stream
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-1.5 font-mono text-muted">{row.ts}</td>
-                  <td className="px-4 py-1.5 font-mono text-muted">{row.go}</td>
-                  <td className="px-4 py-1.5 font-mono text-muted">{row.swift}</td>
-                </tr>
+              {sdkCallMap().map((row, i, rows) => (
+                <React.Fragment key={row.rpc}>
+                  {(i === 0 || rows[i - 1].service !== row.service) && (
+                    <tr className="border-b border-border bg-secondary/25">
+                      <td
+                        colSpan={4}
+                        className="px-4 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-muted"
+                      >
+                        {row.service}
+                      </td>
+                    </tr>
+                  )}
+                  <tr className="border-b border-border last:border-0">
+                    <td className="px-4 py-1.5 font-mono text-foreground">
+                      {row.rpc}
+                      {row.streaming && (
+                        <span className="ml-1.5 rounded-sm bg-primary/10 px-1 font-mono text-[9px] uppercase text-primary">
+                          stream
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-1.5 font-mono text-muted">{row.ts}</td>
+                    <td className="px-4 py-1.5 font-mono text-muted">{row.go}</td>
+                    <td className="px-4 py-1.5 font-mono text-muted">{row.swift}</td>
+                  </tr>
+                </React.Fragment>
               ))}
             </tbody>
           </table>

@@ -450,20 +450,20 @@ struct ComposeView: View {
     // MARK: - Helpers
 
     /// Services in the current spec that would run with the enabled profiles.
-    private var activeServices: [Micropod_V1_ComposeService] {
+    private var activeServices: [Micropod_V1_ComposeServiceSpec] {
         guard let spec else { return [] }
         return spec.services.filter {
             $0.profiles.isEmpty || $0.profiles.contains(where: enabledProfiles.contains)
         }
     }
 
-    private func runningContainer(_ service: Micropod_V1_ComposeService) -> Micropod_V1_Container? {
+    private func runningContainer(_ service: Micropod_V1_ComposeServiceSpec) -> Micropod_V1_Container? {
         guard let spec else { return nil }
         let composeName = "\(spec.name)-\(service.containerName)"
         return store.containers.first { $0.id == composeName }
     }
 
-    private func composeExtras(_ service: Micropod_V1_ComposeService) -> String {
+    private func composeExtras(_ service: Micropod_V1_ComposeServiceSpec) -> String {
         var parts: [String] = []
         if !service.user.isEmpty { parts.append("user \(service.user)") }
         if !service.entrypoint.isEmpty { parts.append("entrypoint \(service.entrypoint)") }

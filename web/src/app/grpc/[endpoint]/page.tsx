@@ -1,7 +1,7 @@
 import React from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getConnectEndpoint, loadConnectServices, REST_BASE_URL } from "@/lib/data";
+import { getConnectEndpoint, legacyConnectEndpointId, loadConnectServices, REST_BASE_URL } from "@/lib/data";
 import { connectSamples } from "@/lib/code-samples";
 import { connectSdkSamples } from "@/lib/sdk-samples";
 import { exampleForSchema, requestExampleFor, responseExampleFor } from "@/lib/examples";
@@ -11,11 +11,20 @@ import { PageActions } from "@/components/page-actions";
 import { Playground } from "@/components/playground";
 import { EndpointUrlBar } from "@/components/url-bar";
 import { RequestPanel } from "@/components/request-panel";
+import { Redirect } from "@/components/redirect";
 
 export function generateStaticParams() {
-  return loadConnectServices().flatMap((svc) =>
-    svc.spec.endpoints.map((e) => ({ endpoint: e.id })),
-  );
+  const endpoints = loadConnectServices().flatMap((svc) => svc.spec.endpoints);
+  // Pre-split doc URLs used a single MicropodService — emit stub pages that
+  // redirect to the grouped-service paths.
+  const legacy = endpoints
+    .filter((e) => e.path.startsWith("/api/micropod.v1."))
+    .map((e) => ({
+      endpoint: `${e.method.toLowerCase()}--api-micropod.v1.micropodservice-${
+        e.path.split("/").pop()!.toLowerCase()
+      }`,
+    }));
+  return [...endpoints.map((e) => ({ endpoint: e.id })), ...legacy];
 }
 
 export function generateMetadata({ params }: { params: { endpoint: string } }): Metadata {
@@ -33,7 +42,11 @@ export default function ConnectEndpointPage({
   params: { endpoint: string };
 }) {
   const found = getConnectEndpoint(params.endpoint);
-  if (!found) return notFound();
+  if (!found) {
+    const moved = legacyConnectEndpointId(params.endpoint);
+    if (!moved) return notFound();
+    return <Redirect href={`../${moved}/`} label="endpoint" />;
+  }
 
   const { endpoint, service } = found;
   const isSandbox = service.service.startsWith("com.apple");
@@ -133,8 +146,11 @@ export default function ConnectEndpointPage({
   );
 
   return (
-    <div className="xl:grid xl:grid-cols-[1fr_420px]">
-      <div className="px-6 py-8 md:px-8">
+    // minmax(0,1fr) on the content column — a plain 1fr track can't shrink
+    // below its widest child (long code lines, schema names), which pushes
+    // the 420px rail off the right edge of the viewport.
+    <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
+      <div className="min-w-0 px-6 py-8 md:px-8">
         {isSandbox && (
           <p className="mb-6 rounded-md border border-warn/25 bg-warn/5 px-3 py-2 text-sm text-warn">
             Guest-side contract — served by vminitd over vsock port 1024 inside each
@@ -175,7 +191,9 @@ export default function ConnectEndpointPage({
         <div className="sticky top-14 h-[calc(100vh-3.5rem)]">{panel}</div>
       </div>
       <div className="border-t border-border px-6 py-8 md:px-8 xl:hidden">
-        <div className="h-96 overflow-hidden rounded-lg border border-border">{panel}</div>
+        <div className="h-[70dvh] min-h-96 overflow-hidden rounded-lg border border-border">
+          {panel}
+        </div>
       </div>
     </div>
   );

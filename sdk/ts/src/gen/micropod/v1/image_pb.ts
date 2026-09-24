@@ -2,15 +2,18 @@
 // @generated from file micropod/v1/image.proto (package micropod.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_buf_validate_validate } from "@bufbuild/protovalidate/gen/buf/validate/validate_pb.js";
+import type { EmptySchema } from "./api_pb.js";
+import { file_micropod_v1_api } from "./api_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file micropod/v1/image.proto.
  */
 export const file_micropod_v1_image: GenFile = /*@__PURE__*/
-  fileDesc("ChdtaWNyb3BvZC92MS9pbWFnZS5wcm90bxILbWljcm9wb2QudjEihwEKBUltYWdlEgoKAmlkGAEgASgJEg0KBW5hbWVzGAIgAygJEhIKCmNyZWF0ZWRfYXQYAyABKAkSDgoGZGlnZXN0GAQgASgJEhIKCnNpemVfYnl0ZXMYBSABKAQSKwoIdmFyaWFudHMYBiADKAsyGS5taWNyb3BvZC52MS5JbWFnZVZhcmlhbnQiQQoMSW1hZ2VWYXJpYW50EgoKAm9zGAEgASgJEhQKDGFyY2hpdGVjdHVyZRgCIAEoCRIPCgd2YXJpYW50GAMgASgJQkJaQGdpdGh1Yi5jb20vY2FzdGxlbWlsay9taWNyb3BvZC9zZGsvZ28vZ2VuL21pY3JvcG9kL3YxO21pY3JvcG9kdjFiBnByb3RvMw");
+  fileDesc("ChdtaWNyb3BvZC92MS9pbWFnZS5wcm90bxILbWljcm9wb2QudjEihwEKBUltYWdlEgoKAmlkGAEgASgJEg0KBW5hbWVzGAIgAygJEhIKCmNyZWF0ZWRfYXQYAyABKAkSDgoGZGlnZXN0GAQgASgJEhIKCnNpemVfYnl0ZXMYBSABKAQSKwoIdmFyaWFudHMYBiADKAsyGS5taWNyb3BvZC52MS5JbWFnZVZhcmlhbnQiQQoMSW1hZ2VWYXJpYW50EgoKAm9zGAEgASgJEhQKDGFyY2hpdGVjdHVyZRgCIAEoCRIPCgd2YXJpYW50GAMgASgJIjgKEkxpc3RJbWFnZXNSZXNwb25zZRIiCgZpbWFnZXMYASADKAsyEi5taWNyb3BvZC52MS5JbWFnZSJVChBQdWxsSW1hZ2VSZXF1ZXN0Eh0KCXJlZmVyZW5jZRgBIAEoCUIKukgHyAEBcgIQARIVCghwbGF0Zm9ybRgCIAEoCUgAiAEBQgsKCV9wbGF0Zm9ybSJmCgxQcm9ncmVzc0xpbmUSDAoEbGluZRgBIAEoCRISCgVzdGFnZRgCIAEoBUgAiAEBEhkKDHRvdGFsX3N0YWdlcxgDIAEoBUgBiAEBQggKBl9zdGFnZUIPCg1fdG90YWxfc3RhZ2VzIkIKEkRlbGV0ZUltYWdlUmVxdWVzdBIdCglyZWZlcmVuY2UYASABKAlCCrpIB8gBAXICEAESDQoFZm9yY2UYAiABKAgy3gEKDEltYWdlU2VydmljZRJBCgpMaXN0SW1hZ2VzEhIubWljcm9wb2QudjEuRW1wdHkaHy5taWNyb3BvZC52MS5MaXN0SW1hZ2VzUmVzcG9uc2USRwoJUHVsbEltYWdlEh0ubWljcm9wb2QudjEuUHVsbEltYWdlUmVxdWVzdBoZLm1pY3JvcG9kLnYxLlByb2dyZXNzTGluZTABEkIKC0RlbGV0ZUltYWdlEh8ubWljcm9wb2QudjEuRGVsZXRlSW1hZ2VSZXF1ZXN0GhIubWljcm9wb2QudjEuRW1wdHlCQlpAZ2l0aHViLmNvbS9jYXN0bGVtaWxrL21pY3JvcG9kL3Nkay9nby9nZW4vbWljcm9wb2QvdjE7bWljcm9wb2R2MWIGcHJvdG8z", [file_buf_validate_validate, file_micropod_v1_api]);
 
 /**
  * Curated view of a local image, mapped from `container image list --verbose`.
@@ -102,4 +105,149 @@ export type ImageVariant = Message<"micropod.v1.ImageVariant"> & {
  */
 export const ImageVariantSchema: GenMessage<ImageVariant> = /*@__PURE__*/
   messageDesc(file_micropod_v1_image, 1);
+
+/**
+ * @generated from message micropod.v1.ListImagesResponse
+ */
+export type ListImagesResponse = Message<"micropod.v1.ListImagesResponse"> & {
+  /**
+   * Every local image, in `container image list` order.
+   *
+   * @generated from field: repeated micropod.v1.Image images = 1;
+   */
+  images: Image[];
+};
+
+/**
+ * Describes the message micropod.v1.ListImagesResponse.
+ * Use `create(ListImagesResponseSchema)` to create a new message.
+ */
+export const ListImagesResponseSchema: GenMessage<ListImagesResponse> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_image, 2);
+
+/**
+ * @generated from message micropod.v1.PullImageRequest
+ */
+export type PullImageRequest = Message<"micropod.v1.PullImageRequest"> & {
+  /**
+   * Image reference to pull, e.g. "alpine:3.20" or a full registry path.
+   *
+   * @generated from field: string reference = 1;
+   */
+  reference: string;
+
+  /**
+   * Platform to pull, e.g. "linux/arm64". Defaults to the host platform.
+   *
+   * @generated from field: optional string platform = 2;
+   */
+  platform?: string;
+};
+
+/**
+ * Describes the message micropod.v1.PullImageRequest.
+ * Use `create(PullImageRequestSchema)` to create a new message.
+ */
+export const PullImageRequestSchema: GenMessage<PullImageRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_image, 3);
+
+/**
+ * One pull-progress event (PullImage stream).
+ *
+ * @generated from message micropod.v1.ProgressLine
+ */
+export type ProgressLine = Message<"micropod.v1.ProgressLine"> & {
+  /**
+   * Human-readable progress text from the registry pull.
+   *
+   * @generated from field: string line = 1;
+   */
+  line: string;
+
+  /**
+   * Current stage index (1-based), when the pull reports staged progress.
+   *
+   * @generated from field: optional int32 stage = 2;
+   */
+  stage?: number;
+
+  /**
+   * Total number of stages, when known.
+   *
+   * @generated from field: optional int32 total_stages = 3;
+   */
+  totalStages?: number;
+};
+
+/**
+ * Describes the message micropod.v1.ProgressLine.
+ * Use `create(ProgressLineSchema)` to create a new message.
+ */
+export const ProgressLineSchema: GenMessage<ProgressLine> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_image, 4);
+
+/**
+ * @generated from message micropod.v1.DeleteImageRequest
+ */
+export type DeleteImageRequest = Message<"micropod.v1.DeleteImageRequest"> & {
+  /**
+   * Image reference or digest to remove.
+   *
+   * @generated from field: string reference = 1;
+   */
+  reference: string;
+
+  /**
+   * Remove even if containers reference the image.
+   *
+   * @generated from field: bool force = 2;
+   */
+  force: boolean;
+};
+
+/**
+ * Describes the message micropod.v1.DeleteImageRequest.
+ * Use `create(DeleteImageRequestSchema)` to create a new message.
+ */
+export const DeleteImageRequestSchema: GenMessage<DeleteImageRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_image, 5);
+
+/**
+ * Local image inventory and pulls.
+ *
+ * @generated from service micropod.v1.ImageService
+ */
+export const ImageService: GenService<{
+  /**
+   * List all local images.
+   *
+   * @generated from rpc micropod.v1.ImageService.ListImages
+   */
+  listImages: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof ListImagesResponseSchema;
+  },
+  /**
+   * Pull an image, streaming progress events.
+   *
+   * @generated from rpc micropod.v1.ImageService.PullImage
+   */
+  pullImage: {
+    methodKind: "server_streaming";
+    input: typeof PullImageRequestSchema;
+    output: typeof ProgressLineSchema;
+  },
+  /**
+   * Remove an image. Images in use require force.
+   *
+   * @generated from rpc micropod.v1.ImageService.DeleteImage
+   */
+  deleteImage: {
+    methodKind: "unary";
+    input: typeof DeleteImageRequestSchema;
+    output: typeof EmptySchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_micropod_v1_image, 0);
 

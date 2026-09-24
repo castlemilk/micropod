@@ -32,13 +32,36 @@ func main() {
 
 	metricsReg := metrics.NewRegistry()
 	mux := http.NewServeMux()
-	// buf.validate constraints in the protos are enforced here — an invalid
-	// request is rejected with invalid_argument before reaching a handler.
-	pattern, handler := micropodv1connect.NewMicropodServiceHandler(
-		server.New(cli),
-		connect.WithInterceptors(validate.NewInterceptor()),
-	)
-	mux.Handle(pattern, handler)
+	// One connect-go handler per domain service; the Server implements all
+	// six. buf.validate constraints in the protos are enforced by the
+	// interceptor — an invalid request is rejected with invalid_argument
+	// before reaching a handler.
+	svc := server.New(cli)
+	opts := []connect.HandlerOption{connect.WithInterceptors(validate.NewInterceptor())}
+	mounts := []func(*server.Server, ...connect.HandlerOption) (string, http.Handler){
+		func(s *server.Server, o ...connect.HandlerOption) (string, http.Handler) {
+			return micropodv1connect.NewContainerServiceHandler(s, o...)
+		},
+		func(s *server.Server, o ...connect.HandlerOption) (string, http.Handler) {
+			return micropodv1connect.NewImageServiceHandler(s, o...)
+		},
+		func(s *server.Server, o ...connect.HandlerOption) (string, http.Handler) {
+			return micropodv1connect.NewVolumeServiceHandler(s, o...)
+		},
+		func(s *server.Server, o ...connect.HandlerOption) (string, http.Handler) {
+			return micropodv1connect.NewNetworkServiceHandler(s, o...)
+		},
+		func(s *server.Server, o ...connect.HandlerOption) (string, http.Handler) {
+			return micropodv1connect.NewComposeServiceHandler(s, o...)
+		},
+		func(s *server.Server, o ...connect.HandlerOption) (string, http.Handler) {
+			return micropodv1connect.NewSystemServiceHandler(s, o...)
+		},
+	}
+	for _, mount := range mounts {
+		pattern, handler := mount(svc, opts...)
+		mux.Handle(pattern, handler)
+	}
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"status":"ok"}`)

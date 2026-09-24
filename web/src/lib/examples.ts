@@ -240,7 +240,7 @@ function singular(name?: string): string | undefined {
 // ---------------------------------------------------------------------------
 
 export const REQUEST_OVERRIDES: Record<string, any> = {
-  "micropod.v1.MicropodService.CreateContainer": {
+  "micropod.v1.ContainerService.CreateContainer": {
     image: "alpine:3.20",
     name: "web",
     detach: true,
@@ -253,15 +253,15 @@ export const REQUEST_OVERRIDES: Record<string, any> = {
     init: true,
     arguments: [],
   },
-  "micropod.v1.MicropodService.Exec": {
+  "micropod.v1.ContainerService.Exec": {
     id: "9f2e4a1b3c7d",
     command: "cat /etc/os-release",
     workdir: "/",
     env: [],
   },
-  "micropod.v1.MicropodService.PullImage": { reference: "alpine:3.20", platform: "linux/arm64" },
-  "micropod.v1.MicropodService.StreamContainerLogs": { id: "9f2e4a1b3c7d", tail: 200, boot: false },
-  "micropod.v1.MicropodService.CreateNetwork": {
+  "micropod.v1.ImageService.PullImage": { reference: "alpine:3.20", platform: "linux/arm64" },
+  "micropod.v1.ContainerService.StreamContainerLogs": { id: "9f2e4a1b3c7d", tail: 200, boot: false },
+  "micropod.v1.NetworkService.CreateNetwork": {
     name: "frontend",
     internal: false,
     subnet: "192.168.100.0/24",
@@ -269,18 +269,18 @@ export const REQUEST_OVERRIDES: Record<string, any> = {
     options: [],
     labels: [{ key: "com.example.tier", value: "edge" }],
   },
-  "micropod.v1.MicropodService.CreateVolume": {
+  "micropod.v1.VolumeService.CreateVolume": {
     name: "web-data",
     size: "10g",
     labels: [{ key: "com.micropod.cache.clone", value: "true" }],
     options: [],
   },
-  "micropod.v1.MicropodService.ComposeUp": {
+  "micropod.v1.ComposeService.ComposeUp": {
     path: "/tmp/docker-compose.yml",
     profiles: ["debug"],
   },
-  "micropod.v1.MicropodService.ComposeDown": { name: "web" },
-  "micropod.v1.MicropodService.SetVolumePolicy": {
+  "micropod.v1.ComposeService.ComposeDown": { name: "web" },
+  "micropod.v1.VolumeService.SetVolumePolicy": {
     cloneMode: "CLONE_MODE_GOLDENS",
     goldenVolumes: ["xcode-cache"],
     jobsOnly: true,

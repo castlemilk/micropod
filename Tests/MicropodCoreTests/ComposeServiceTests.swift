@@ -262,7 +262,7 @@ final class ComposeServiceTests: XCTestCase {
     }
 
     func testStartUpCancellationTerminatesProducerAndStreamPromptly() async throws {
-        var service = Micropod_V1_ComposeService()
+        var service = Micropod_V1_ComposeServiceSpec()
         service.containerName = "slow-service"
         service.healthcheckCommand = "true"
         service.healthcheckStartPeriodSeconds = 30

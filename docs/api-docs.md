@@ -8,7 +8,9 @@ view), generated samples in one flat strip (typed SDKs first — TypeScript /
 Go / Swift — then raw HTTP: cURL, fetch, requests, net/http, URLSession),
 and ⌘K search across every surface.
 
-**The daemon has one public API: `micropod.v1.MicropodService` over Connect.**
+**The daemon's public API is `micropod.v1` over Connect — six domain
+services (`ContainerService`, `ImageService`, `VolumeService`,
+`NetworkService`, `ComposeService`, `SystemService`).**
 Unary calls are plain `POST` + proto-JSON, so curl and browsers hit the same
 endpoints the typed SDKs do; server-streaming RPCs use the Connect envelope
 protocol. The legacy `/v1/*` REST facade still answers for compatibility but
@@ -46,7 +48,7 @@ playground. Browser calls depend on the daemon's CORS policy in
 | `/sdk/` | method spellings from `sdk-samples.ts` | — |
 
 Nothing is hand-copied — every page renders from the generated artifacts. The
-API section covers `micropod.v1.MicropodService` (daemon, host HTTP) and
+API section covers the six `micropod.v1` domain services (daemon, host HTTP) and
 `com.apple.containerization.sandbox.v3.SandboxContext` (vminitd, vsock 1024)
 under a separate "Guest API" heading.
 

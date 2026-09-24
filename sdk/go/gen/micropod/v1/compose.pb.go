@@ -30,7 +30,7 @@ type ComposeSpec struct {
 	// Absolute path of the docker-compose.yml this spec was parsed from.
 	Path string `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
 	// Services in dependency order.
-	Services []*ComposeService `protobuf:"bytes,3,rep,name=services,proto3" json:"services,omitempty"`
+	Services []*ComposeServiceSpec `protobuf:"bytes,3,rep,name=services,proto3" json:"services,omitempty"`
 	// Named volumes declared at the top level.
 	Volumes map[string]*ComposeVolume `protobuf:"bytes,4,rep,name=volumes,proto3" json:"volumes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Networks declared at the top level.
@@ -83,7 +83,7 @@ func (x *ComposeSpec) GetPath() string {
 	return ""
 }
 
-func (x *ComposeSpec) GetServices() []*ComposeService {
+func (x *ComposeSpec) GetServices() []*ComposeServiceSpec {
 	if x != nil {
 		return x.Services
 	}
@@ -107,7 +107,7 @@ func (x *ComposeSpec) GetNetworks() map[string]*ComposeNetwork {
 // A single service of a compose spec, mapped onto `container run` capabilities.
 // Fields the Apple runtime cannot express (e.g. privileged) are still parsed
 // so the UI can show them as unsupported rather than silently dropping them.
-type ComposeService struct {
+type ComposeServiceSpec struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Service name from the compose file.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -207,20 +207,20 @@ type ComposeService struct {
 	sizeCache              protoimpl.SizeCache
 }
 
-func (x *ComposeService) Reset() {
-	*x = ComposeService{}
+func (x *ComposeServiceSpec) Reset() {
+	*x = ComposeServiceSpec{}
 	mi := &file_micropod_v1_compose_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ComposeService) String() string {
+func (x *ComposeServiceSpec) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ComposeService) ProtoMessage() {}
+func (*ComposeServiceSpec) ProtoMessage() {}
 
-func (x *ComposeService) ProtoReflect() protoreflect.Message {
+func (x *ComposeServiceSpec) ProtoReflect() protoreflect.Message {
 	mi := &file_micropod_v1_compose_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -232,327 +232,327 @@ func (x *ComposeService) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ComposeService.ProtoReflect.Descriptor instead.
-func (*ComposeService) Descriptor() ([]byte, []int) {
+// Deprecated: Use ComposeServiceSpec.ProtoReflect.Descriptor instead.
+func (*ComposeServiceSpec) Descriptor() ([]byte, []int) {
 	return file_micropod_v1_compose_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ComposeService) GetName() string {
+func (x *ComposeServiceSpec) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *ComposeService) GetImage() string {
+func (x *ComposeServiceSpec) GetImage() string {
 	if x != nil {
 		return x.Image
 	}
 	return ""
 }
 
-func (x *ComposeService) GetBuildContext() string {
+func (x *ComposeServiceSpec) GetBuildContext() string {
 	if x != nil {
 		return x.BuildContext
 	}
 	return ""
 }
 
-func (x *ComposeService) GetBuildDockerfile() string {
+func (x *ComposeServiceSpec) GetBuildDockerfile() string {
 	if x != nil {
 		return x.BuildDockerfile
 	}
 	return ""
 }
 
-func (x *ComposeService) GetBuildArgs() []string {
+func (x *ComposeServiceSpec) GetBuildArgs() []string {
 	if x != nil {
 		return x.BuildArgs
 	}
 	return nil
 }
 
-func (x *ComposeService) GetDependsOn() []string {
+func (x *ComposeServiceSpec) GetDependsOn() []string {
 	if x != nil {
 		return x.DependsOn
 	}
 	return nil
 }
 
-func (x *ComposeService) GetPorts() []*PortMapping {
+func (x *ComposeServiceSpec) GetPorts() []*PortMapping {
 	if x != nil {
 		return x.Ports
 	}
 	return nil
 }
 
-func (x *ComposeService) GetEnvironment() []string {
+func (x *ComposeServiceSpec) GetEnvironment() []string {
 	if x != nil {
 		return x.Environment
 	}
 	return nil
 }
 
-func (x *ComposeService) GetVolumes() []string {
+func (x *ComposeServiceSpec) GetVolumes() []string {
 	if x != nil {
 		return x.Volumes
 	}
 	return nil
 }
 
-func (x *ComposeService) GetCommands() []string {
+func (x *ComposeServiceSpec) GetCommands() []string {
 	if x != nil {
 		return x.Commands
 	}
 	return nil
 }
 
-func (x *ComposeService) GetWorkingDir() string {
+func (x *ComposeServiceSpec) GetWorkingDir() string {
 	if x != nil {
 		return x.WorkingDir
 	}
 	return ""
 }
 
-func (x *ComposeService) GetRestart() string {
+func (x *ComposeServiceSpec) GetRestart() string {
 	if x != nil {
 		return x.Restart
 	}
 	return ""
 }
 
-func (x *ComposeService) GetCpus() float64 {
+func (x *ComposeServiceSpec) GetCpus() float64 {
 	if x != nil {
 		return x.Cpus
 	}
 	return 0
 }
 
-func (x *ComposeService) GetMemory() string {
+func (x *ComposeServiceSpec) GetMemory() string {
 	if x != nil {
 		return x.Memory
 	}
 	return ""
 }
 
-func (x *ComposeService) GetHealthcheckCommand() string {
+func (x *ComposeServiceSpec) GetHealthcheckCommand() string {
 	if x != nil {
 		return x.HealthcheckCommand
 	}
 	return ""
 }
 
-func (x *ComposeService) GetNetworks() []string {
+func (x *ComposeServiceSpec) GetNetworks() []string {
 	if x != nil {
 		return x.Networks
 	}
 	return nil
 }
 
-func (x *ComposeService) GetContainerName() string {
+func (x *ComposeServiceSpec) GetContainerName() string {
 	if x != nil {
 		return x.ContainerName
 	}
 	return ""
 }
 
-func (x *ComposeService) GetEntrypoint() string {
+func (x *ComposeServiceSpec) GetEntrypoint() string {
 	if x != nil {
 		return x.Entrypoint
 	}
 	return ""
 }
 
-func (x *ComposeService) GetUser() string {
+func (x *ComposeServiceSpec) GetUser() string {
 	if x != nil {
 		return x.User
 	}
 	return ""
 }
 
-func (x *ComposeService) GetLabels() []string {
+func (x *ComposeServiceSpec) GetLabels() []string {
 	if x != nil {
 		return x.Labels
 	}
 	return nil
 }
 
-func (x *ComposeService) GetDns() []string {
+func (x *ComposeServiceSpec) GetDns() []string {
 	if x != nil {
 		return x.Dns
 	}
 	return nil
 }
 
-func (x *ComposeService) GetDnsSearch() []string {
+func (x *ComposeServiceSpec) GetDnsSearch() []string {
 	if x != nil {
 		return x.DnsSearch
 	}
 	return nil
 }
 
-func (x *ComposeService) GetCapAdd() []string {
+func (x *ComposeServiceSpec) GetCapAdd() []string {
 	if x != nil {
 		return x.CapAdd
 	}
 	return nil
 }
 
-func (x *ComposeService) GetCapDrop() []string {
+func (x *ComposeServiceSpec) GetCapDrop() []string {
 	if x != nil {
 		return x.CapDrop
 	}
 	return nil
 }
 
-func (x *ComposeService) GetUlimits() []string {
+func (x *ComposeServiceSpec) GetUlimits() []string {
 	if x != nil {
 		return x.Ulimits
 	}
 	return nil
 }
 
-func (x *ComposeService) GetTmpfs() []string {
+func (x *ComposeServiceSpec) GetTmpfs() []string {
 	if x != nil {
 		return x.Tmpfs
 	}
 	return nil
 }
 
-func (x *ComposeService) GetEnvFile() []string {
+func (x *ComposeServiceSpec) GetEnvFile() []string {
 	if x != nil {
 		return x.EnvFile
 	}
 	return nil
 }
 
-func (x *ComposeService) GetShmSize() string {
+func (x *ComposeServiceSpec) GetShmSize() string {
 	if x != nil {
 		return x.ShmSize
 	}
 	return ""
 }
 
-func (x *ComposeService) GetReadOnly() bool {
+func (x *ComposeServiceSpec) GetReadOnly() bool {
 	if x != nil {
 		return x.ReadOnly
 	}
 	return false
 }
 
-func (x *ComposeService) GetInit() bool {
+func (x *ComposeServiceSpec) GetInit() bool {
 	if x != nil {
 		return x.Init
 	}
 	return false
 }
 
-func (x *ComposeService) GetTty() bool {
+func (x *ComposeServiceSpec) GetTty() bool {
 	if x != nil {
 		return x.Tty
 	}
 	return false
 }
 
-func (x *ComposeService) GetStdinOpen() bool {
+func (x *ComposeServiceSpec) GetStdinOpen() bool {
 	if x != nil {
 		return x.StdinOpen
 	}
 	return false
 }
 
-func (x *ComposeService) GetPrivileged() bool {
+func (x *ComposeServiceSpec) GetPrivileged() bool {
 	if x != nil {
 		return x.Privileged
 	}
 	return false
 }
 
-func (x *ComposeService) GetExtraHosts() []string {
+func (x *ComposeServiceSpec) GetExtraHosts() []string {
 	if x != nil {
 		return x.ExtraHosts
 	}
 	return nil
 }
 
-func (x *ComposeService) GetDependsOnConditions() map[string]string {
+func (x *ComposeServiceSpec) GetDependsOnConditions() map[string]string {
 	if x != nil {
 		return x.DependsOnConditions
 	}
 	return nil
 }
 
-func (x *ComposeService) GetHealthcheckIntervalSeconds() int32 {
+func (x *ComposeServiceSpec) GetHealthcheckIntervalSeconds() int32 {
 	if x != nil {
 		return x.HealthcheckIntervalSeconds
 	}
 	return 0
 }
 
-func (x *ComposeService) GetHealthcheckTimeoutSeconds() int32 {
+func (x *ComposeServiceSpec) GetHealthcheckTimeoutSeconds() int32 {
 	if x != nil {
 		return x.HealthcheckTimeoutSeconds
 	}
 	return 0
 }
 
-func (x *ComposeService) GetHealthcheckRetries() int32 {
+func (x *ComposeServiceSpec) GetHealthcheckRetries() int32 {
 	if x != nil {
 		return x.HealthcheckRetries
 	}
 	return 0
 }
 
-func (x *ComposeService) GetHealthcheckStartPeriodSeconds() int32 {
+func (x *ComposeServiceSpec) GetHealthcheckStartPeriodSeconds() int32 {
 	if x != nil {
 		return x.HealthcheckStartPeriodSeconds
 	}
 	return 0
 }
 
-func (x *ComposeService) GetBuildTarget() string {
+func (x *ComposeServiceSpec) GetBuildTarget() string {
 	if x != nil {
 		return x.BuildTarget
 	}
 	return ""
 }
 
-func (x *ComposeService) GetBuildPlatform() string {
+func (x *ComposeServiceSpec) GetBuildPlatform() string {
 	if x != nil {
 		return x.BuildPlatform
 	}
 	return ""
 }
 
-func (x *ComposeService) GetBuildNoCache() bool {
+func (x *ComposeServiceSpec) GetBuildNoCache() bool {
 	if x != nil {
 		return x.BuildNoCache
 	}
 	return false
 }
 
-func (x *ComposeService) GetProfiles() []string {
+func (x *ComposeServiceSpec) GetProfiles() []string {
 	if x != nil {
 		return x.Profiles
 	}
 	return nil
 }
 
-func (x *ComposeService) GetPullPolicy() string {
+func (x *ComposeServiceSpec) GetPullPolicy() string {
 	if x != nil {
 		return x.PullPolicy
 	}
 	return ""
 }
 
-func (x *ComposeService) GetStopSignal() string {
+func (x *ComposeServiceSpec) GetStopSignal() string {
 	if x != nil {
 		return x.StopSignal
 	}
 	return ""
 }
 
-func (x *ComposeService) GetStopGracePeriodSeconds() int32 {
+func (x *ComposeServiceSpec) GetStopGracePeriodSeconds() int32 {
 	if x != nil {
 		return x.StopGracePeriodSeconds
 	}
@@ -934,11 +934,11 @@ var File_micropod_v1_compose_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_compose_proto_rawDesc = "" +
 	"\n" +
-	"\x19micropod/v1/compose.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1bmicropod/v1/container.proto\"\xa5\x03\n" +
+	"\x19micropod/v1/compose.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a\x15micropod/v1/api.proto\x1a\x1bmicropod/v1/container.proto\"\xa9\x03\n" +
 	"\vComposeSpec\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\x127\n" +
-	"\bservices\x18\x03 \x03(\v2\x1b.micropod.v1.ComposeServiceR\bservices\x12?\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12;\n" +
+	"\bservices\x18\x03 \x03(\v2\x1f.micropod.v1.ComposeServiceSpecR\bservices\x12?\n" +
 	"\avolumes\x18\x04 \x03(\v2%.micropod.v1.ComposeSpec.VolumesEntryR\avolumes\x12B\n" +
 	"\bnetworks\x18\x05 \x03(\v2&.micropod.v1.ComposeSpec.NetworksEntryR\bnetworks\x1aV\n" +
 	"\fVolumesEntry\x12\x10\n" +
@@ -946,8 +946,8 @@ const file_micropod_v1_compose_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2\x1a.micropod.v1.ComposeVolumeR\x05value:\x028\x01\x1aX\n" +
 	"\rNetworksEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x121\n" +
-	"\x05value\x18\x02 \x01(\v2\x1b.micropod.v1.ComposeNetworkR\x05value:\x028\x01\"\x9c\r\n" +
-	"\x0eComposeService\x12\x12\n" +
+	"\x05value\x18\x02 \x01(\v2\x1b.micropod.v1.ComposeNetworkR\x05value:\x028\x01\"\xa4\r\n" +
+	"\x12ComposeServiceSpec\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05image\x18\x02 \x01(\tR\x05image\x12#\n" +
 	"\rbuild_context\x18\x03 \x01(\tR\fbuildContext\x12)\n" +
@@ -992,8 +992,8 @@ const file_micropod_v1_compose_proto_rawDesc = "" +
 	"privileged\x18! \x01(\bR\n" +
 	"privileged\x12\x1f\n" +
 	"\vextra_hosts\x18\" \x03(\tR\n" +
-	"extraHosts\x12h\n" +
-	"\x15depends_on_conditions\x18# \x03(\v24.micropod.v1.ComposeService.DependsOnConditionsEntryR\x13dependsOnConditions\x12@\n" +
+	"extraHosts\x12l\n" +
+	"\x15depends_on_conditions\x18# \x03(\v28.micropod.v1.ComposeServiceSpec.DependsOnConditionsEntryR\x13dependsOnConditions\x12@\n" +
 	"\x1chealthcheck_interval_seconds\x18$ \x01(\x05R\x1ahealthcheckIntervalSeconds\x12>\n" +
 	"\x1bhealthcheck_timeout_seconds\x18% \x01(\x05R\x19healthcheckTimeoutSeconds\x12/\n" +
 	"\x13healthcheck_retries\x18& \x01(\x05R\x12healthcheckRetries\x12G\n" +
@@ -1037,7 +1037,10 @@ const file_micropod_v1_compose_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
 	"\x04done\x18\x03 \x01(\bR\x04done\"1\n" +
 	"\x12ComposeDownRequest\x12\x1b\n" +
-	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04nameBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name2\x9f\x01\n" +
+	"\x0eComposeService\x12I\n" +
+	"\tComposeUp\x12\x1d.micropod.v1.ComposeUpRequest\x1a\x1b.micropod.v1.ComposeUpEvent0\x01\x12B\n" +
+	"\vComposeDown\x12\x1f.micropod.v1.ComposeDownRequest\x1a\x12.micropod.v1.EmptyBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
 
 var (
 	file_micropod_v1_compose_proto_rawDescOnce sync.Once
@@ -1054,7 +1057,7 @@ func file_micropod_v1_compose_proto_rawDescGZIP() []byte {
 var file_micropod_v1_compose_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_micropod_v1_compose_proto_goTypes = []any{
 	(*ComposeSpec)(nil),        // 0: micropod.v1.ComposeSpec
-	(*ComposeService)(nil),     // 1: micropod.v1.ComposeService
+	(*ComposeServiceSpec)(nil), // 1: micropod.v1.ComposeServiceSpec
 	(*ComposeVolume)(nil),      // 2: micropod.v1.ComposeVolume
 	(*ComposeNetwork)(nil),     // 3: micropod.v1.ComposeNetwork
 	(*ComposeUpRequest)(nil),   // 4: micropod.v1.ComposeUpRequest
@@ -1062,19 +1065,24 @@ var file_micropod_v1_compose_proto_goTypes = []any{
 	(*ComposeDownRequest)(nil), // 6: micropod.v1.ComposeDownRequest
 	nil,                        // 7: micropod.v1.ComposeSpec.VolumesEntry
 	nil,                        // 8: micropod.v1.ComposeSpec.NetworksEntry
-	nil,                        // 9: micropod.v1.ComposeService.DependsOnConditionsEntry
+	nil,                        // 9: micropod.v1.ComposeServiceSpec.DependsOnConditionsEntry
 	(*PortMapping)(nil),        // 10: micropod.v1.PortMapping
+	(*Empty)(nil),              // 11: micropod.v1.Empty
 }
 var file_micropod_v1_compose_proto_depIdxs = []int32{
-	1,  // 0: micropod.v1.ComposeSpec.services:type_name -> micropod.v1.ComposeService
+	1,  // 0: micropod.v1.ComposeSpec.services:type_name -> micropod.v1.ComposeServiceSpec
 	7,  // 1: micropod.v1.ComposeSpec.volumes:type_name -> micropod.v1.ComposeSpec.VolumesEntry
 	8,  // 2: micropod.v1.ComposeSpec.networks:type_name -> micropod.v1.ComposeSpec.NetworksEntry
-	10, // 3: micropod.v1.ComposeService.ports:type_name -> micropod.v1.PortMapping
-	9,  // 4: micropod.v1.ComposeService.depends_on_conditions:type_name -> micropod.v1.ComposeService.DependsOnConditionsEntry
+	10, // 3: micropod.v1.ComposeServiceSpec.ports:type_name -> micropod.v1.PortMapping
+	9,  // 4: micropod.v1.ComposeServiceSpec.depends_on_conditions:type_name -> micropod.v1.ComposeServiceSpec.DependsOnConditionsEntry
 	2,  // 5: micropod.v1.ComposeSpec.VolumesEntry.value:type_name -> micropod.v1.ComposeVolume
 	3,  // 6: micropod.v1.ComposeSpec.NetworksEntry.value:type_name -> micropod.v1.ComposeNetwork
-	7,  // [7:7] is the sub-list for method output_type
-	7,  // [7:7] is the sub-list for method input_type
+	4,  // 7: micropod.v1.ComposeService.ComposeUp:input_type -> micropod.v1.ComposeUpRequest
+	6,  // 8: micropod.v1.ComposeService.ComposeDown:input_type -> micropod.v1.ComposeDownRequest
+	5,  // 9: micropod.v1.ComposeService.ComposeUp:output_type -> micropod.v1.ComposeUpEvent
+	11, // 10: micropod.v1.ComposeService.ComposeDown:output_type -> micropod.v1.Empty
+	9,  // [9:11] is the sub-list for method output_type
+	7,  // [7:9] is the sub-list for method input_type
 	7,  // [7:7] is the sub-list for extension type_name
 	7,  // [7:7] is the sub-list for extension extendee
 	0,  // [0:7] is the sub-list for field type_name
@@ -1085,6 +1093,7 @@ func file_micropod_v1_compose_proto_init() {
 	if File_micropod_v1_compose_proto != nil {
 		return
 	}
+	file_micropod_v1_api_proto_init()
 	file_micropod_v1_container_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1094,7 +1103,7 @@ func file_micropod_v1_compose_proto_init() {
 			NumEnums:      0,
 			NumMessages:   10,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_micropod_v1_compose_proto_goTypes,
 		DependencyIndexes: file_micropod_v1_compose_proto_depIdxs,

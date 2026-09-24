@@ -238,8 +238,9 @@ export function RequestPanel({ samples, sdkSamples, heading, url, responses, pla
         </div>
       )}
 
-      {/* Example response card with status selector */}
-      {responses && responses.length > 0 && (
+      {/* Example response card with status selector — hidden on the Try-it
+          tab, where the playground's live response takes its place. */}
+      {responses && responses.length > 0 && active !== TRY_IT && (
         <div className="max-h-[45%] shrink-0 overflow-auto border-t border-border">
           <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2">
             <ResponsePicker responses={responses} index={respIdx} onChange={setRespIdx} />
