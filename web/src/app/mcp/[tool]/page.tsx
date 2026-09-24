@@ -2,8 +2,14 @@ import React from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getMcpTool, loadMcpTools } from "@/lib/data";
-import { SchemaViewer } from "@/components/schema-viewer";
-import { CodeBlock } from "@/components/code-block";
+import {
+  mcpArgumentsExample,
+  mcpDescription,
+  mcpInputSchema,
+} from "@/lib/examples";
+import { mcpSamples } from "@/lib/code-samples";
+import { PayloadExplorer } from "@/components/payload-explorer";
+import { RequestPanel } from "@/components/request-panel";
 import { TerminalSquare } from "lucide-react";
 
 export function generateStaticParams() {
@@ -20,51 +26,57 @@ export default function McpToolPage({ params }: { params: { tool: string } }) {
   const tool = getMcpTool(params.tool);
   if (!tool) return notFound();
 
-  const hasProperties =
-    tool.inputSchema &&
-    typeof tool.inputSchema === "object" &&
-    Object.keys((tool.inputSchema as Record<string, unknown>).properties ?? {}).length > 0;
+  const schema = mcpInputSchema(tool);
+  const args = mcpArgumentsExample(tool);
+  const samples = mcpSamples(tool.name, args);
+  const description = mcpDescription(tool.description);
 
-  const call = JSON.stringify(
-    {
-      jsonrpc: "2.0",
-      id: 1,
-      method: "tools/call",
-      params: { name: tool.name, arguments: {} },
-    },
-    null,
-    2,
-  );
+  const panel = <RequestPanel samples={samples} heading={`tools/call · ${tool.name}`} />;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 px-6 py-10 md:px-10">
-      <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <TerminalSquare className="h-5 w-5 text-warn" />
-          <code className="font-mono text-sm text-muted">tools/call</code>
+    <div className="xl:grid xl:grid-cols-[1fr_420px]">
+      <div className="space-y-8 px-6 py-8 pb-16 md:px-8">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <TerminalSquare className="h-5 w-5 text-warn" />
+            <code className="font-mono text-sm text-muted">tools/call</code>
+          </div>
+          <h1 className="font-mono text-3xl font-bold tracking-tight">{tool.name}</h1>
+          <p className="text-muted">{description}</p>
+          <p className="text-sm text-muted">
+            MCP · JSON-RPC over stdin/stdout via the{" "}
+            <code className="font-mono text-xs">micropod-mcp</code> binary
+          </p>
         </div>
-        <h1 className="font-mono text-3xl font-bold tracking-tight">{tool.name}</h1>
-        <p className="text-muted">{tool.description}</p>
+
+        {schema ? (
+          <section className="space-y-3">
+            <h2 className="border-b border-border pb-2 text-xl font-semibold">Arguments</h2>
+            <PayloadExplorer schema={schema} example={args} />
+          </section>
+        ) : (
+          <p className="rounded-md border border-border bg-card px-4 py-3 text-sm text-muted">
+            Takes no arguments — call it with an empty{" "}
+            <code className="font-mono text-xs">arguments</code> object.
+          </p>
+        )}
+
+        <section className="space-y-3">
+          <h2 className="border-b border-border pb-2 text-xl font-semibold">Result</h2>
+          <p className="text-sm text-muted">
+            Returns a standard MCP <code className="font-mono text-xs">CallToolResult</code>{" "}
+            — text content on success, or <code className="font-mono text-xs">isError: true</code>{" "}
+            with a diagnostic message on failure.
+          </p>
+        </section>
       </div>
 
-      {hasProperties ? (
-        <section className="space-y-3">
-          <h2 className="border-b border-border pb-2 text-xl font-semibold">Arguments</h2>
-          <SchemaViewer schema={tool.inputSchema} />
-        </section>
-      ) : (
-        <p className="rounded-md border border-border bg-card px-4 py-3 text-sm text-muted">
-          No declared input schema — argument details are described in the tool
-          description above.
-        </p>
-      )}
-
-      <section className="space-y-3">
-        <h2 className="border-b border-border pb-2 text-xl font-semibold">JSON-RPC call</h2>
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
-          <CodeBlock code={call} language="json" />
-        </div>
-      </section>
+      <div className="hidden xl:block">
+        <div className="sticky top-14 h-[calc(100vh-3.5rem)]">{panel}</div>
+      </div>
+      <div className="border-t border-border px-6 py-8 md:px-8 xl:hidden">
+        <div className="h-96 overflow-hidden rounded-lg border border-border">{panel}</div>
+      </div>
     </div>
   );
 }

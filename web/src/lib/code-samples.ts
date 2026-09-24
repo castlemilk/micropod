@@ -1,107 +1,263 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ParsedEndpoint, RestRoute } from "./types";
+import { requestExampleFor } from "./examples";
+import type { RouteShape } from "./rest-links";
 
-function exampleFromSchema(schema: any): any {
-  if (!schema || typeof schema !== "object") return {};
-  if (schema.example !== undefined) return schema.example;
-  if (schema.enum?.length) return schema.enum[0];
-  if (schema.type === "array") return [exampleFromSchema(schema.items)];
-  if (schema.type === "object" || schema.properties) {
-    const out: Record<string, any> = {};
-    const required: string[] = schema.required ?? [];
-    for (const [k, v] of Object.entries<any>(schema.properties ?? {})) {
-      // Only populate required fields so samples stay minimal.
-      if (required.includes(k)) out[k] = exampleFromSchema(v);
-    }
-    if (Object.keys(out).length === 0 && schema.properties) {
-      for (const [k, v] of Object.entries<any>(schema.properties).slice(0, 2)) {
-        out[k] = exampleFromSchema(v);
-      }
-    }
-    return out;
-  }
-  switch (schema.type) {
-    case "string":
-      return schema.format === "date-time" ? "2025-01-01T00:00:00Z" : "string";
-    case "integer":
-    case "number":
-      return 0;
-    case "boolean":
-      return true;
-    default:
-      return {};
-  }
+export interface Sample {
+  label: string;
+  lang: string;
+  code: string;
 }
 
-function requestExample(endpoint: ParsedEndpoint): any | undefined {
-  const schema = endpoint.requestBody?.content?.["application/json"]?.schema as any;
-  return schema ? exampleFromSchema(schema) : undefined;
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
+
+function jsLiteral(value: any, indent: string): string {
+  // Pretty JSON with the given base indent — close enough to JS object literal
+  // syntax for sample purposes (quoted keys are valid JS).
+  return JSON.stringify(value, null, 2)
+    .split("\n")
+    .map((l, i) => (i === 0 ? l : indent + l))
+    .join("\n");
 }
 
-export function generateCurl(endpoint: ParsedEndpoint, baseUrl: string): string {
-  let curl = `curl -X ${endpoint.method} "${baseUrl}${endpoint.path}"`;
-  curl += ` \\\n  -H "Content-Type: application/json"`;
-  const body = requestExample(endpoint);
-  if (endpoint.method !== "GET") {
-    curl += ` \\\n  -d '${JSON.stringify(body ?? {}, null, 2)}'`;
+function substitutePath(path: string, params: Record<string, string>): string {
+  return path.replace(/\{(\w+)\}/g, (_, k) => params[k] ?? `<${k}>`);
+}
+
+const PATH_PARAM_VALUES: Record<string, string> = {
+  id: "9f2e4a1b3c7d",
+  ref: "alpine:3.20",
+  name: "web-data",
+  port: "1024",
+};
+
+// ---------------------------------------------------------------------------
+// Language generators — one per call shape (method, url, body)
+// ---------------------------------------------------------------------------
+
+function curlSample(method: string, url: string, body: any, extraHeaders: string[] = []): string {
+  let out = `curl -X ${method} "${url}"`;
+  for (const h of extraHeaders) out += ` \\\n  -H "${h}"`;
+  if (body !== undefined) {
+    out += ` \\\n  -H "Content-Type: application/json"`;
+    out += ` \\\n  -d '${JSON.stringify(body, null, 2)}'`;
   }
-  return curl;
+  return out;
 }
 
-export function generateJavascript(endpoint: ParsedEndpoint, baseUrl: string): string {
-  const body = requestExample(endpoint);
+function jsSample(method: string, url: string, body: any): string {
   const lines = [
-    `const response = await fetch("${baseUrl}${endpoint.path}", {`,
-    `  method: "${endpoint.method}",`,
-    `  headers: { "Content-Type": "application/json" },`,
+    `const response = await fetch("${url}", {`,
+    `  method: "${method}",`,
   ];
-  if (endpoint.method !== "GET") {
-    lines.push(`  body: JSON.stringify(${JSON.stringify(body ?? {})}),`);
+  if (body !== undefined) {
+    lines.push(`  headers: { "Content-Type": "application/json" },`);
+    lines.push(`  body: JSON.stringify(${jsLiteral(body, "  ")}),`);
   }
-  lines.push("});", "const data = await response.json();");
+  lines.push("});", "", "const data = await response.json();", "console.log(data);");
   return lines.join("\n");
 }
 
-export function generatePython(endpoint: ParsedEndpoint, baseUrl: string): string {
-  const body = requestExample(endpoint);
-  const m = endpoint.method.toLowerCase();
-  let py = `import requests\n\nurl = "${baseUrl}${endpoint.path}"\n`;
-  if (endpoint.method !== "GET") {
-    py += `\ndata = ${JSON.stringify(body ?? {}, null, 4)}\n`;
-    py += `response = requests.${m}(url, json=data)\n`;
+function pySample(method: string, url: string, body: any): string {
+  const m = method.toLowerCase();
+  const lines = ["import requests", "", `url = "${url}"`];
+  if (body !== undefined) {
+    lines.push("", `payload = ${jsLiteral(body, "")}`, "", `response = requests.${m}(url, json=payload)`);
   } else {
-    py += `response = requests.${m}(url)\n`;
+    lines.push("", `response = requests.${m}(url)`);
   }
-  return py + `print(response.json())`;
+  lines.push("print(response.status_code, response.json())");
+  return lines.join("\n");
 }
 
-export function generateGo(endpoint: ParsedEndpoint, baseUrl: string): string {
-  const op = endpoint.operationId ?? endpoint.summary ?? "Call";
-  const reqType = `${op.split(".").pop()}Request`;
+/** Render a JSON value as a Go composite literal (map[string]any / []any). */
+function goLiteral(v: any, indent: string): string {
+  if (v === null) return "nil";
+  if (typeof v === "string") return JSON.stringify(v);
+  if (typeof v === "boolean" || typeof v === "number") return String(v);
+  if (Array.isArray(v)) {
+    if (v.length === 0) return "[]any{}";
+    const items = v.map((x) => `${indent}\t${goLiteral(x, indent + "\t")},`).join("\n");
+    return `[]any{\n${items}\n${indent}}`;
+  }
+  const entries = Object.entries(v).map(
+    ([k, x]) => `${indent}\t${JSON.stringify(k)}: ${goLiteral(x, indent + "\t")},`,
+  );
+  if (entries.length === 0) return "map[string]any{}";
+  return `map[string]any{\n${entries.join("\n")}\n${indent}}`;
+}
+
+function goSample(method: string, url: string, body: any): string {
+  const lines = [
+    "import (",
+    '\t"bytes"',
+    '\t"encoding/json"',
+    '\t"fmt"',
+    '\t"net/http"',
+    ")",
+    "",
+  ];
+  if (body !== undefined) {
+    lines.push(
+      `payload, _ := json.Marshal(${goLiteral(body, "")})`,
+      "",
+      `req, _ := http.NewRequest("${method}", "${url}", bytes.NewReader(payload))`,
+      '\treq.Header.Set("Content-Type", "application/json")',
+    );
+  } else {
+    lines.push(`req, _ := http.NewRequest("${method}", "${url}", nil)`);
+  }
+  lines.push(
+    "",
+    "resp, err := http.DefaultClient.Do(req)",
+    "if err != nil { panic(err) }",
+    "defer resp.Body.Close()",
+    "",
+    "var result map[string]any",
+    "json.NewDecoder(resp.Body).Decode(&result)",
+    "fmt.Println(result)",
+  );
+  return lines.join("\n");
+}
+
+function swiftSample(method: string, url: string, body: any): string {
+  const lines = [
+    "import Foundation",
+    "",
+    `var request = URLRequest(url: URL(string: "${url}")!)`,
+    `request.httpMethod = "${method}"`,
+  ];
+  if (body !== undefined) {
+    lines.push(
+      'request.setValue("application/json", forHTTPHeaderField: "Content-Type")',
+      `request.httpBody = try JSONSerialization.data(withJSONObject: ${jsLiteral(body, "\t")})`,
+    );
+  }
+  lines.push(
+    "",
+    "let (data, _) = try await URLSession.shared.data(for: request)",
+    "print(String(decoding: data, as: UTF8.self))",
+  );
+  return lines.join("\n");
+}
+
+function samplesForCall(method: string, url: string, body: any): Sample[] {
+  return [
+    { label: "cURL", lang: "bash", code: curlSample(method, url, body) },
+    { label: "JavaScript", lang: "javascript", code: jsSample(method, url, body) },
+    { label: "Python", lang: "python", code: pySample(method, url, body) },
+    { label: "Go", lang: "go", code: goSample(method, url, body) },
+    { label: "Swift", lang: "swift", code: swiftSample(method, url, body) },
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Connect endpoints — raw HTTP samples + a typed connect-go variant.
+// ---------------------------------------------------------------------------
+
+function goConnectSample(endpoint: ParsedEndpoint, baseUrl: string): string {
+  const op = (endpoint.operationId ?? endpoint.summary ?? "Call").split(".").pop() ?? "Call";
+  const serviceName = endpoint.service.split(".").pop() ?? "MicropodService";
+  const reqType = `${op}Request`;
+  const body = requestExampleFor(endpoint);
+  const fields = Object.entries<any>(body ?? {})
+    .slice(0, 6)
+    .map(([k, v]) => `\t\t${k[0].toUpperCase() + k.slice(1)}: ${goValue(v)},`)
+    .join("\n");
   return `import (
-  "net/http"
+\t"context"
+\t"net/http"
 
-  "connectrpc.com/connect"
-  micropodv1 "github.com/castlemilk/micropod/api/gen/micropod/v1"
-  "github.com/castlemilk/micropod/api/gen/micropod/v1/micropodv1connect"
+\t"connectrpc.com/connect"
+\tmicropodv1 "github.com/castlemilk/micropod/api/gen/micropod/v1"
+\t"github.com/castlemilk/micropod/api/gen/micropod/v1/micropodv1connect"
 )
 
-client := micropodv1connect.NewMicropodServiceClient(
-  http.DefaultClient, "${baseUrl}",
+client := micropodv1connect.New${serviceName}Client(
+\thttp.DefaultClient, "${baseUrl}",
 )
-resp, err := client.${endpoint.summary}(
-  ctx, connect.NewRequest(&micropodv1.${reqType}{/* ... */}),
+resp, err := client.${op}(
+\tcontext.Background(),
+\tconnect.NewRequest(&micropodv1.${reqType}{
+${fields}
+\t}),
 )`;
 }
 
-export function generateRestCurl(route: RestRoute, baseUrl: string): string {
-  const path = route.pathParams.reduce(
-    (p, name) => p.replace(`{${name}}`, `<${name}>`),
-    route.path,
-  );
-  let curl = `curl -X ${route.method} "${baseUrl}${path}"`;
-  if (route.method === "POST" || route.method === "PUT") {
-    curl += ` \\\n  -H "Content-Type: application/json" \\\n  -d '{}'`;
+function goValue(v: any): string {
+  if (typeof v === "string") return `"${v}"`;
+  if (typeof v === "boolean") return String(v);
+  if (typeof v === "number") return String(v);
+  if (Array.isArray(v)) return `[]string{${v.map((x) => goValue(x)).join(", ")}}`;
+  return "/* … */ nil";
+}
+
+export function connectSamples(endpoint: ParsedEndpoint, baseUrl: string): Sample[] {
+  const body = requestExampleFor(endpoint);
+  const url = `${baseUrl}${endpoint.path}`;
+  const samples = samplesForCall(endpoint.method, url, body);
+  // MicropodService gets the typed connect-go client; the vendored Apple
+  // SandboxContext has no published Go module — keep raw net/http there.
+  if (endpoint.service.startsWith("micropod.")) {
+    samples[3] = { label: "Go (connect)", lang: "go", code: goConnectSample(endpoint, baseUrl) };
   }
-  return curl;
+  return samples;
+}
+
+// ---------------------------------------------------------------------------
+// REST routes — same five languages, bodies from the curated route shape.
+// ---------------------------------------------------------------------------
+
+export function restSamples(route: RestRoute, shape: RouteShape | undefined, baseUrl: string): Sample[] {
+  const url = `${baseUrl}${substitutePath(route.path, PATH_PARAM_VALUES)}`;
+  const hasBody = route.method === "POST" || route.method === "PUT";
+  const body = hasBody ? (shape?.requestExample ?? {}) : undefined;
+  return samplesForCall(route.method, url, body);
+}
+
+// ---------------------------------------------------------------------------
+// MCP — tools/call JSON-RPC payload.
+// ---------------------------------------------------------------------------
+
+export function mcpCallPayload(toolName: string, args: any): string {
+  return JSON.stringify(
+    {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: toolName, arguments: args },
+    },
+    null,
+    2,
+  );
+}
+
+export function mcpSamples(toolName: string, args: any): Sample[] {
+  const payload = mcpCallPayload(toolName, args);
+  return [
+    {
+      label: "JSON-RPC",
+      lang: "json",
+      code: payload,
+    },
+    {
+      label: "stdio",
+      lang: "bash",
+      code: `# MicropodMCP speaks JSON-RPC over stdin/stdout\necho '${JSON.stringify(JSON.parse(payload))}' | micropod-mcp`,
+    },
+    {
+      label: "Python",
+      lang: "python",
+      code: `import json, subprocess
+
+proc = subprocess.run(
+    ["micropod-mcp"],
+    input=${JSON.stringify(JSON.stringify(JSON.parse(payload)))},
+    capture_output=True, text=True,
+)
+print(json.loads(proc.stdout.strip().splitlines()[-1]))`,
+    },
+  ];
 }

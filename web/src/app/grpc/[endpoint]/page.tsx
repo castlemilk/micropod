@@ -2,8 +2,10 @@ import React from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getConnectEndpoint, loadConnectServices, REST_BASE_URL } from "@/lib/data";
+import { connectSamples } from "@/lib/code-samples";
+import { responseExampleFor } from "@/lib/examples";
 import { EndpointContent } from "@/components/endpoint-content";
-import { CodePanel } from "@/components/code-panel";
+import { RequestPanel } from "@/components/request-panel";
 
 export function generateStaticParams() {
   return loadConnectServices().flatMap((svc) =>
@@ -30,9 +32,19 @@ export default function ConnectEndpointPage({
 
   const { endpoint, service } = found;
   const isSandbox = service.service.startsWith("com.apple");
+  const samples = connectSamples(endpoint, REST_BASE_URL);
+  const ok = responseExampleFor(endpoint);
+
+  const panel = (
+    <RequestPanel
+      samples={samples}
+      heading={`${endpoint.method} ${endpoint.path}`}
+      response={ok ? { status: ok.status, body: ok.body } : undefined}
+    />
+  );
 
   return (
-    <div className="xl:grid xl:grid-cols-[1fr_400px]">
+    <div className="xl:grid xl:grid-cols-[1fr_420px]">
       <div className="px-6 py-8 md:px-8">
         {isSandbox && (
           <p className="mb-6 rounded-md border border-warn/25 bg-warn/5 px-3 py-2 text-sm text-warn">
@@ -44,14 +56,10 @@ export default function ConnectEndpointPage({
         <EndpointContent endpoint={endpoint} />
       </div>
       <div className="hidden xl:block">
-        <div className="sticky top-14 h-[calc(100vh-3.5rem)]">
-          <CodePanel endpoint={endpoint} baseUrl={REST_BASE_URL} />
-        </div>
+        <div className="sticky top-14 h-[calc(100vh-3.5rem)]">{panel}</div>
       </div>
       <div className="border-t border-border px-6 py-8 md:px-8 xl:hidden">
-        <div className="h-96 overflow-hidden rounded-lg border border-border">
-          <CodePanel endpoint={endpoint} baseUrl={REST_BASE_URL} />
-        </div>
+        <div className="h-96 overflow-hidden rounded-lg border border-border">{panel}</div>
       </div>
     </div>
   );

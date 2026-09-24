@@ -1,9 +1,19 @@
 # API documentation explorer
 
 The API reference at <https://castlemilk.github.io/micropod/api/> is a Next.js
-static-export app in `web/` — a grouped sidebar, per-endpoint pages with
-expandable request/response schemas, generated curl/JavaScript/Python/Go
-samples, and ⌘K search across every surface.
+static-export app in `web/` — a grouped sidebar, per-endpoint pages with a
+deep payload explorer (expandable field trees with type chips, required
+badges, enums, and inline example values, plus a syntax-highlighted Example
+view), generated curl/JavaScript/Python/Go/Swift samples with real request
+bodies, and ⌘K search across every surface.
+
+- `web/src/lib/examples.ts` — schema→example generator (field-name heuristics,
+  proto JSON conventions like int64-as-string, curated overrides for flagship
+  RPCs) and the MCP `Arguments:` description parser that synthesizes tool
+  input schemas.
+- `web/src/lib/rest-links.ts` — per-route request/response shapes matching
+  `APIHandlers.swift` projections; update it when a REST handler's JSON
+  contract changes.
 
 ## Surfaces
 
