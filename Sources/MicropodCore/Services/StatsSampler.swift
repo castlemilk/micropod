@@ -1,11 +1,16 @@
 import Foundation
 
+/// Common interface for container stats samplers (CLI and native backends).
+public protocol StatsSampling: Sendable {
+    func snapshot() async throws -> Micropod_V1_StatsSnapshot
+}
+
 /// Samples resource usage for all running containers.
 ///
 /// CPU percentage is computed from `cpuUsageUsec` deltas between samples
 /// (the CLI only reports cumulative CPU time), so consecutive samples must
 /// be taken by the same sampler instance.
-public actor StatsSampler {
+public actor StatsSampler: StatsSampling {
     private let client: ContainerCLIClient
     private var previous: [String: (usec: Int64, at: ContinuousClock.Instant)] = [:]
 

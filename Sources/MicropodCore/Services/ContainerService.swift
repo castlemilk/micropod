@@ -21,6 +21,47 @@ public protocol ContainerServing: Sendable {
     func copy(from: String, to: String) async throws
 }
 
+/// Result of an exec, including the guest process exit code and stderr —
+/// data the CLI path only surfaces as a thrown `cliFailure`.
+public struct ContainerExecResult: Sendable, Equatable {
+    public var output: String
+    public var error: String
+    public var exitCode: Int32
+
+    public init(output: String, error: String, exitCode: Int32) {
+        self.output = output
+        self.error = error
+        self.exitCode = exitCode
+    }
+}
+
+extension ContainerServing {
+    /// `exec` that reports the guest exit code instead of throwing on
+    /// non-zero exits. CLI-backed implementations recover the code from the
+    /// thrown `cliFailure`; native backends return it directly.
+    public func execDetailed(_ request: ContainerExecRequest) async throws -> ContainerExecResult {
+        do {
+            return ContainerExecResult(output: try await exec(request), error: "", exitCode: 0)
+        } catch MicropodError.cliFailure(let command, let code, let stderr) {
+            return ContainerExecResult(
+                output: "", error: "`\(command)` failed: \(stderr)", exitCode: code)
+        }
+    }
+
+    /// Default-parameter shims so protocol-typed call sites keep working.
+    public func stop(_ id: String) async throws {
+        try await stop(id, timeout: 10)
+    }
+
+    public func kill(_ id: String) async throws {
+        try await kill(id, signal: "KILL")
+    }
+
+    public func delete(_ id: String) async throws {
+        try await delete(id, force: false)
+    }
+}
+
 public struct ContainerService: ContainerServing {
     private let client: ContainerCLIClient
 

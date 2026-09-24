@@ -15,6 +15,9 @@ struct SettingsView: View {
     @AppStorage(UserDefaultsKeys.notifyPrune) private var notifyPrune = false
     @AppStorage(UserDefaultsKeys.notifyKernel) private var notifyKernel = false
     @State private var showCreateMachine = false
+    @State private var volumePolicy = VolumePolicy.standard
+    @State private var volumePolicyLoaded = false
+    @State private var newGolden = ""
 
     var body: some View {
         Form {
@@ -214,6 +217,82 @@ struct SettingsView: View {
                 }
                 .controlSize(.small)
             }
+            Section("Volume Caching") {
+                Picker("Named volumes", selection: cloneModeBinding) {
+                    Text("Attach shared").tag(VolumePolicy.CloneMode.labels)
+                    Text("Clone golden volumes").tag(VolumePolicy.CloneMode.goldens)
+                    Text("Clone all").tag(VolumePolicy.CloneMode.all)
+                }
+                .pickerStyle(.menu)
+                if volumePolicy.cloneMode == .goldens {
+                    ForEach(volumePolicy.goldenVolumes, id: \.self) { golden in
+                        HStack {
+                            Text(golden).font(.caption.monospaced())
+                            Spacer()
+                            Button(role: .destructive) {
+                                volumePolicy.goldenVolumes.removeAll { $0 == golden }
+                                saveVolumePolicy()
+                            } label: {
+                                Image(systemName: "minus.circle")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Remove golden volume")
+                        }
+                    }
+                    HStack {
+                        TextField("Add golden volume…", text: $newGolden)
+                            .textFieldStyle(.roundedBorder)
+                            .onSubmit { addGolden() }
+                        Menu {
+                            ForEach(availableGoldenNames, id: \.self) { name in
+                                Button(name) { addGolden(name) }
+                            }
+                        } label: {
+                            Image(systemName: "list.bullet")
+                        }
+                        .menuStyle(.borderlessButton)
+                        .disabled(availableGoldenNames.isEmpty)
+                        .help("Pick an existing volume")
+                        Button {
+                            addGolden()
+                        } label: {
+                            Image(systemName: "plus.circle")
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(newGolden.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .help("Add golden volume")
+                    }
+                }
+                if volumePolicy.cloneMode != .labels {
+                    Toggle("Only for job containers (cuttlefish)", isOn: jobsOnlyBinding)
+                }
+                Picker("Disk sync", selection: syncBinding) {
+                    Text("Default").tag("default")
+                    Text("Fsync").tag("fsync")
+                    Text("No sync (ephemeral)").tag("nosync")
+                    Text("Full").tag("full")
+                }
+                .pickerStyle(.menu)
+                Picker("Disk cache", selection: cacheBinding) {
+                    ForEach(VolumePolicy.CacheMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue.capitalized).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                Text(
+                    "Cloning forks a golden volume's disk image per container (APFS copy-on-write) so each job gets warm caches at "
+                        + "native speed with isolated writes. Applies to the API, docker shim, and MCP too — per-container "
+                        + "`com.micropod.cache.*` labels always win."
+                )
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            }
+            .onAppear {
+                if !volumePolicyLoaded {
+                    volumePolicy = VolumePolicyStore.load()
+                    volumePolicyLoaded = true
+                }
+            }
             Section("System Properties") {
                 if store.systemProperties == nil {
                     Text("Loading…").font(.caption).foregroundStyle(.secondary)
@@ -289,6 +368,62 @@ struct SettingsView: View {
                 .accessibilityLabel("Restart \(spec.displayName)")
             }
         }
+    }
+
+    // MARK: - Volume policy
+
+    /// Existing volume names not already listed as goldens — suggestions
+    /// for the picker menu.
+    private var availableGoldenNames: [String] {
+        store.volumes.map(\.id).filter { !volumePolicy.goldenVolumes.contains($0) }.sorted()
+    }
+
+    private var cloneModeBinding: Binding<VolumePolicy.CloneMode> {
+        Binding(
+            get: { volumePolicy.cloneMode },
+            set: {
+                volumePolicy.cloneMode = $0
+                saveVolumePolicy()
+            })
+    }
+
+    private var jobsOnlyBinding: Binding<Bool> {
+        Binding(
+            get: { volumePolicy.jobsOnly },
+            set: {
+                volumePolicy.jobsOnly = $0
+                saveVolumePolicy()
+            })
+    }
+
+    private var syncBinding: Binding<String> {
+        Binding(
+            get: { volumePolicy.sync?.rawValue ?? "default" },
+            set: {
+                volumePolicy.sync = VolumePolicy.SyncMode(rawValue: $0)
+                saveVolumePolicy()
+            })
+    }
+
+    private var cacheBinding: Binding<VolumePolicy.CacheMode> {
+        Binding(
+            get: { volumePolicy.cache },
+            set: {
+                volumePolicy.cache = $0
+                saveVolumePolicy()
+            })
+    }
+
+    private func addGolden(_ name: String? = nil) {
+        let trimmed = (name ?? newGolden).trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, !volumePolicy.goldenVolumes.contains(trimmed) else { return }
+        volumePolicy.goldenVolumes.append(trimmed)
+        newGolden = ""
+        saveVolumePolicy()
+    }
+
+    private func saveVolumePolicy() {
+        try? VolumePolicyStore.save(volumePolicy)
     }
 
     private func agentEnabledBinding(_ spec: AgentSpec) -> Binding<Bool> {

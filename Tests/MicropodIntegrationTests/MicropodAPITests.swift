@@ -32,6 +32,7 @@ final class MicropodAPITests: XCTestCase {
                 "MICROPOD_CONTAINER_CLI_PATH": MockContainerCLI.scriptURL.path,
                 "MICROPOD_MOCK_STATE_DIR": stateDir.path,
                 "MICROPOD_API_PORT": String(port),
+                "MICROPOD_VOLUME_POLICY": stateDir.appendingPathComponent("policy.json").path,
             ]) { _, new in new }
         server.standardOutput = FileHandle.nullDevice
         server.standardError = FileHandle.nullDevice
@@ -65,6 +66,62 @@ final class MicropodAPITests: XCTestCase {
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         XCTAssertTrue([200, 201].contains(status), "\(method) \(path) returned \(status)")
         return (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+    }
+
+    /// Same as `json` but returns the status — for expected-error paths.
+    private func jsonStatus(_ method: String, _ path: String, body: [String: Any]? = nil) async throws
+        -> (Int, [String: Any])
+    {
+        var request = URLRequest(url: baseURL.appendingPathComponent(path))
+        request.httpMethod = method
+        if let body {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        return (status, (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:])
+    }
+
+    func testVolumePolicyEndpoints() async throws {
+        let initial = try await json("GET", "v1/config/volumes")
+        XCTAssertEqual(initial["cloneMode"] as? String, "labels")
+        XCTAssertEqual(initial["cache"] as? String, "on")
+        XCTAssertNil(initial["sync"])
+
+        // Full update round-trips.
+        let updated = try await json(
+            "PUT", "v1/config/volumes",
+            body: [
+                "cloneMode": "goldens", "goldenVolumes": ["ci-golden"],
+                "jobsOnly": true, "sync": "nosync", "cache": "auto",
+            ])
+        XCTAssertEqual(updated["cloneMode"] as? String, "goldens")
+        XCTAssertEqual((updated["goldenVolumes"] as? [String]) ?? [], ["ci-golden"])
+        XCTAssertEqual(updated["jobsOnly"] as? Bool, true)
+        XCTAssertEqual(updated["sync"] as? String, "nosync")
+
+        // Persisted — a second GET sees it (the runtime reads the same file).
+        let reloaded = try await json("GET", "v1/config/volumes")
+        XCTAssertEqual(reloaded["cloneMode"] as? String, "goldens")
+
+        // Partial body merges onto defaults.
+        let partial = try await json("PUT", "v1/config/volumes", body: ["cloneMode": "labels"])
+        XCTAssertEqual(partial["cloneMode"] as? String, "labels")
+        XCTAssertNil(partial["sync"])
+
+        // Bad enum values are rejected with a useful error.
+        let (badStatus, badBody) = try await jsonStatus(
+            "PUT", "v1/config/volumes", body: ["cloneMode": "bogus"])
+        XCTAssertEqual(badStatus, 400)
+        XCTAssertTrue((badBody["error"] as? String ?? "").contains("cloneMode"))
+
+        // Non-JSON body is rejected.
+        var raw = URLRequest(url: baseURL.appendingPathComponent("v1/config/volumes"))
+        raw.httpMethod = "PUT"
+        raw.httpBody = Data("hello".utf8)
+        let (_, rawResponse) = try await URLSession.shared.data(for: raw)
+        XCTAssertEqual((rawResponse as? HTTPURLResponse)?.statusCode, 400)
     }
 
     func testFullAPISurface() async throws {

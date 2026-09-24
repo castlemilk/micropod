@@ -1,18 +1,26 @@
 import Foundation
 import MicropodCore
+import MicropodRuntime
 
 /// Route + JSON-projection layer over the MicropodCore services.
 /// Responses use stable JSON keys that mirror the curated proto models.
 struct APIHandlers {
     let client: ContainerCLIClient
     let system: SystemService
-    let containers: ContainerService
+    let containers: any ContainerServing
     let images: ImageService
     let volumes: VolumeService
     let networks: NetworkService
-    let stats: StatsSampler
-    let logs: LogStreamer
+    let stats: any StatsSampling
+    let logs: any LogStreaming
     let compose: ComposeService
+    /// Native apiserver client when the native backend is active —
+    /// powers the vsock bridge endpoint.
+    let api: APIServerClient?
+    /// Which runtime backend resolved at startup (native XPC vs CLI).
+    var backend: RuntimeBackendKind = .cli
+    /// Apiserver identity from the resolve-time ping, when known.
+    var runtimeHealth: APIServerHealth?
     let metrics = APIMetrics()
     let appControl = AppControlClient()
     var usage: UsageService {
@@ -37,6 +45,7 @@ struct APIHandlers {
         case .json(let code, _): return code
         case .text(let code, _): return code
         case .stream(let code, _, _): return code
+        case .bridge(let code, _): return code
         }
     }
 
@@ -122,15 +131,19 @@ struct APIHandlers {
             case ("system", .get):
                 let status = try await system.status()
                 let usage = try await system.diskUsage()
-                return .json(
-                    200,
-                    [
-                        "status": status.status,
-                        "cliVersion": status.cliVersion,
-                        "apiServerVersion": status.apiServerVersion,
-                        "appRoot": status.appRoot,
-                        "diskUsage": projection(usage),
-                    ])
+                var body: [String: Any] = [
+                    "status": status.status,
+                    "cliVersion": status.cliVersion,
+                    "apiServerVersion": status.apiServerVersion,
+                    "appRoot": status.appRoot,
+                    "backend": backend.rawValue,
+                    "diskUsage": projection(usage),
+                ]
+                if let runtimeHealth {
+                    body["runtimeVersion"] = runtimeHealth.semver ?? runtimeHealth.apiServerVersion
+                    body["runtimeCommit"] = runtimeHealth.apiServerCommit
+                }
+                return .json(200, body)
 
             // MARK: Containers
             case ("containers", .get) where segments.count == 2:
@@ -160,6 +173,24 @@ struct APIHandlers {
                 let id = segments[2]
                 try await containers.delete(id, force: request.query["force"] == "true")
                 return .json(200, ["deleted": id])
+
+            // GET /v1/containers/:id/vsock/:port — raw duplex byte stream to
+            // a guest vsock port. After the 200 head the connection is a
+            // net.Conn-equivalent; run gRPC (vminitd on :1024) over it.
+            case ("containers", .get)
+            where segments.count == 5 && segments[3] == "vsock":
+                guard let api else {
+                    return .json(
+                        501, ["error": "vsock bridge requires the native runtime backend"])
+                }
+                let id = segments[2]
+                guard let port = UInt32(segments[4]) else {
+                    return .json(400, ["error": "invalid vsock port '\(segments[4])'"])
+                }
+                let vsock = try await api.dial(id: id, port: port)
+                return .bridge(200) { connection in
+                    await VsockBridge.attach(connection: connection, vsock: vsock)
+                }
 
             case ("containers", .get) where segments.count == 4 && segments[3] == "logs":
                 let id = segments[2]
@@ -216,6 +247,25 @@ struct APIHandlers {
                 let name = segments[2].removingPercentEncoding ?? segments[2]
                 try await volumes.delete(name)
                 return .json(200, ["deleted": name])
+
+            // MARK: Volume policy (native backend mount handling)
+            case ("config", .get) where segments.count == 3 && segments[2] == "volumes":
+                return .json(200, Self.policyBody(VolumePolicyStore.load()))
+
+            case ("config", .put) where segments.count == 3 && segments[2] == "volumes":
+                guard let policy = try? JSONDecoder().decode(VolumePolicy.self, from: request.body)
+                else {
+                    return .json(
+                        400,
+                        [
+                            "error":
+                                "invalid policy — expected {cloneMode: labels|goldens|all, "
+                                + "goldenVolumes: [name], jobsOnly: bool, sync: full|fsync|nosync, "
+                                + "cache: on|off|auto}"
+                        ])
+                }
+                try VolumePolicyStore.save(policy)
+                return .json(200, Self.policyBody(policy))
 
             // MARK: Networks
             case ("networks", .get) where segments.count == 2:
@@ -274,9 +324,15 @@ struct APIHandlers {
                 guard !id.isEmpty, !command.isEmpty else {
                     return .json(400, ["error": "id and command are required"])
                 }
-                let output = try await containers.exec(
+                let result = try await containers.execDetailed(
                     ContainerExecRequest(containerID: id, arguments: [command], workdir: payload["workdir"] as? String))
-                return .json(200, ["output": output])
+                return .json(
+                    200,
+                    [
+                        "output": result.output,
+                        "error": result.error,
+                        "exitCode": result.exitCode,
+                    ])
 
             default:
                 return .json(404, ["error": "not found: \(method.rawValue) \(path)"])
@@ -330,6 +386,24 @@ struct APIHandlers {
     }
 
     // MARK: - JSON projections (proto → API JSON)
+
+    /// `VolumePolicy` → response JSON (`sync` omitted when unset so the
+    /// per-mount defaults are visible as "not overridden").
+    private static func policyBody(_ policy: VolumePolicy) -> [String: Any] {
+        var body: [String: Any] = [
+            "cloneMode": policy.cloneMode.rawValue,
+            "goldenVolumes": policy.goldenVolumes,
+            "jobsOnly": policy.jobsOnly,
+            "cache": policy.cache.rawValue,
+            "labels": [
+                "clone": "com.micropod.cache.clone",
+                "sync": "com.micropod.volume.sync",
+                "cache": "com.micropod.volume.cache",
+            ],
+        ]
+        if let sync = policy.sync { body["sync"] = sync.rawValue }
+        return body
+    }
 
     private func projection(_ container: Micropod_V1_Container) -> [String: Any] {
         [

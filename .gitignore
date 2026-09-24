@@ -18,3 +18,6 @@ web/node_modules/
 web/.next/
 web/out/
 web/public/specs/
+
+# Vendored apple/container checkout kept locally for reference
+docs/container/

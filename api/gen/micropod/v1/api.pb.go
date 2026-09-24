@@ -1170,8 +1170,13 @@ func (x *ExecRequest) GetEnv() []string {
 }
 
 type ExecResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Output        string                 `protobuf:"bytes,1,opt,name=output,proto3" json:"output,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Output string                 `protobuf:"bytes,1,opt,name=output,proto3" json:"output,omitempty"`
+	// Guest process exit code. 0 on success; when the native runtime backend
+	// is active this is the real exit status rather than a CLI approximation.
+	ExitCode int32 `protobuf:"varint,2,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
+	// Guest stderr, when the backend can separate the streams.
+	Error         string `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1209,6 +1214,20 @@ func (*ExecResponse) Descriptor() ([]byte, []int) {
 func (x *ExecResponse) GetOutput() string {
 	if x != nil {
 		return x.Output
+	}
+	return ""
+}
+
+func (x *ExecResponse) GetExitCode() int32 {
+	if x != nil {
+		return x.ExitCode
+	}
+	return 0
+}
+
+func (x *ExecResponse) GetError() string {
+	if x != nil {
+		return x.Error
 	}
 	return ""
 }
@@ -1307,9 +1326,11 @@ const file_micropod_v1_api_proto_rawDesc = "" +
 	"\aworkdir\x18\x03 \x01(\tH\x00R\aworkdir\x88\x01\x01\x12\x10\n" +
 	"\x03env\x18\x04 \x03(\tR\x03envB\n" +
 	"\n" +
-	"\b_workdir\"&\n" +
+	"\b_workdir\"Y\n" +
 	"\fExecResponse\x12\x16\n" +
-	"\x06output\x18\x01 \x01(\tR\x06output2\xd5\v\n" +
+	"\x06output\x18\x01 \x01(\tR\x06output\x12\x1b\n" +
+	"\texit_code\x18\x02 \x01(\x05R\bexitCode\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error2\xd5\v\n" +
 	"\x0fMicropodService\x12<\n" +
 	"\tGetSystem\x12\x12.micropod.v1.Empty\x1a\x1b.micropod.v1.SystemSnapshot\x12I\n" +
 	"\x0eListContainers\x12\x12.micropod.v1.Empty\x1a#.micropod.v1.ListContainersResponse\x12K\n" +

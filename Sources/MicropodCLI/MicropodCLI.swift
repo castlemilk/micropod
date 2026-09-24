@@ -1,35 +1,38 @@
 import Foundation
 import MicropodCore
+import MicropodRuntime
 
 struct Services {
     let client: ContainerCLIClient
     let system: SystemService
-    let containers: ContainerService
+    let containers: any ContainerServing
     let images: ImageService
     let volumes: VolumeService
     let networks: NetworkService
     let registry: RegistryService
     let machines: MachineService
-    let stats: StatsSampler
-    let logs: LogStreamer
+    let stats: any StatsSampling
+    let logs: any LogStreaming
     let compose: ComposeService
     let usage: UsageService
+    let runtime: RuntimeServices
 
-    init(cliPath: String?) {
+    init(cliPath: String?) async {
         let resolved =
             cliPath
             ?? ProcessInfo.processInfo.environment["MICROPOD_CONTAINER_CLI_PATH"]
             ?? "/usr/local/bin/container"
         client = ContainerCLIClient(executableURL: URL(fileURLWithPath: resolved))
+        runtime = await RuntimeBackendResolver.resolve(client: client)
         system = SystemService(client: client)
-        containers = ContainerService(client: client)
+        containers = runtime.containers
         images = ImageService(client: client)
         volumes = VolumeService(client: client)
         networks = NetworkService(client: client)
         registry = RegistryService(client: client)
         machines = MachineService(client: client)
-        stats = StatsSampler(client: client)
-        logs = LogStreamer(client: client)
+        stats = runtime.stats
+        logs = runtime.logs
         compose = ComposeService(client: client)
         usage = UsageService(containers: containers, images: images, volumes: volumes)
     }
@@ -68,7 +71,7 @@ struct MicropodCLI {
         }
         let rest = Array(args.dropFirst())
 
-        let services = Services(cliPath: cliPath)
+        let services = await Services(cliPath: cliPath)
         do {
             try await dispatch(command, rest, services)
             exit(exitOverride ?? ExitCode.ok)

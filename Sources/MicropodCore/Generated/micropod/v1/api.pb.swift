@@ -454,6 +454,13 @@ public nonisolated struct Micropod_V1_ExecResponse: Sendable {
 
   public var output: String = String()
 
+  /// Guest process exit code. 0 on success; when the native runtime backend
+  /// is active this is the real exit status rather than a CLI approximation.
+  public var exitCode: Int32 = 0
+
+  /// Guest stderr, when the backend can separate the streams.
+  public var error: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1293,7 +1300,7 @@ nonisolated extension Micropod_V1_ExecRequest: SwiftProtobuf.Message, SwiftProto
 
 nonisolated extension Micropod_V1_ExecResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ExecResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}output\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}output\0\u{3}exit_code\0\u{1}error\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1302,6 +1309,8 @@ nonisolated extension Micropod_V1_ExecResponse: SwiftProtobuf.Message, SwiftProt
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.output) }()
+      case 2: try { try decoder.decodeSingularInt32Field(value: &self.exitCode) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.error) }()
       default: break
       }
     }
@@ -1311,11 +1320,19 @@ nonisolated extension Micropod_V1_ExecResponse: SwiftProtobuf.Message, SwiftProt
     if !self.output.isEmpty {
       try visitor.visitSingularStringField(value: self.output, fieldNumber: 1)
     }
+    if self.exitCode != 0 {
+      try visitor.visitSingularInt32Field(value: self.exitCode, fieldNumber: 2)
+    }
+    if !self.error.isEmpty {
+      try visitor.visitSingularStringField(value: self.error, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Micropod_V1_ExecResponse, rhs: Micropod_V1_ExecResponse) -> Bool {
     if lhs.output != rhs.output {return false}
+    if lhs.exitCode != rhs.exitCode {return false}
+    if lhs.error != rhs.error {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

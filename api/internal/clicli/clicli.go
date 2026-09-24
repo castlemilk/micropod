@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -391,10 +392,45 @@ func (c *CLI) Stats(ctx context.Context) ([]StatsEntry, error) {
 	return decodeList[StatsEntry](out)
 }
 
+// ExecResult carries the guest process exit code alongside captured output.
+type ExecResult struct {
+	Output   string
+	Error    string
+	ExitCode int32
+}
+
 func (c *CLI) Exec(ctx context.Context, id, command string) (string, error) {
 	out, err := c.Run(ctx, "exec", id, command)
 	if err != nil {
 		return "", err
 	}
 	return out, nil
+}
+
+// ExecDetailed runs `container exec` and reports the guest exit code rather
+// than failing on non-zero exits.
+func (c *CLI) ExecDetailed(ctx context.Context, id, command string) (*ExecResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, c.Bin, "exec", id, command)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	res := &ExecResult{
+		Output: stdout.String(),
+		Error:  strings.TrimSpace(stderr.String()),
+	}
+	if err == nil {
+		return res, nil
+	}
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		res.ExitCode = int32(exitErr.ExitCode())
+		if res.ExitCode < 0 {
+			res.ExitCode = 128
+		}
+		return res, nil
+	}
+	return nil, fmt.Errorf("`container exec %s` failed: %w: %s", id, err, res.Error)
 }

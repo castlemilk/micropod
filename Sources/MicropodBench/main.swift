@@ -1,5 +1,6 @@
 import Foundation
 import MicropodCore
+import MicropodRuntime
 
 // MicropodBench — performance validation against the real Apple `container`
 // runtime. Measures the exact paths the app polls every few seconds:
@@ -278,6 +279,251 @@ struct MicropodBench {
         }
         allStats += lifecycleSection.stats
         failures += lifecycleSection.failures
+
+        // 5b. Native backend head-to-head ------------------------------------
+        // Same operations through the XPC path vs the CLI spawn path.
+        // The native service needs a live apiserver; skip quietly when the
+        // ping fails (e.g. runtime stopped).
+        section("Native backend vs CLI (same ops, both paths)")
+        let nativeSection = await resilientSection { emit in
+            let api = APIServerClient()
+            _ = try await api.ping(timeout: .seconds(10))
+            let native = NativeContainerService(api: api, cli: env.containers)
+
+            func pair(
+                _ name: String, iterations: Int = 15, thresholdMs: Double? = nil,
+                cli cliBody: @escaping () async throws -> Void,
+                native nativeBody: @escaping () async throws -> Void
+            ) async throws {
+                emit(
+                    try await measure(
+                        "\(name) [cli]", iterations: iterations, thresholdMs: thresholdMs, cliBody))
+                emit(
+                    try await measure(
+                        "\(name) [native]", iterations: iterations, thresholdMs: thresholdMs, nativeBody))
+            }
+
+            try await pair(
+                "container list",
+                cli: { _ = try await env.containers.list() },
+                native: { _ = try await native.list() })
+
+            // Shared fixture for inspect/exec/stats.
+            let fixture = try await native.run(
+                ContainerRunRequest(
+                    image: "alpine:3.20",
+                    name: "\(env.namespace)-nv",
+                    arguments: ["sleep", "300"]))
+            try await Task.sleep(for: .seconds(2))
+
+            try await pair(
+                "container inspect",
+                cli: { _ = try await env.containers.inspect(fixture) },
+                native: { _ = try await native.inspect(fixture) })
+
+            try await pair(
+                "exec echo (exit code)",
+                cli: {
+                    _ = try await env.containers.exec(
+                        ContainerExecRequest(containerID: fixture, arguments: ["echo", "x"]))
+                },
+                native: {
+                    _ = try await native.exec(
+                        ContainerExecRequest(containerID: fixture, arguments: ["echo", "x"]))
+                })
+
+            try await pair(
+                "stats sample",
+                cli: { _ = try await env.stats.snapshot() },
+                native: { _ = try await NativeStatsSampler(api: api).snapshot() })
+
+            // Concurrency: 8 execs at once — spawn contention vs one
+            // persistent XPC connection.
+            func exec8(_ svc: any ContainerServing) async throws {
+                try await withThrowingTaskGroup(of: Void.self) { group in
+                    for _ in 0..<8 {
+                        group.addTask {
+                            _ = try await svc.exec(
+                                ContainerExecRequest(containerID: fixture, arguments: ["echo", "x"]))
+                        }
+                    }
+                    try await group.waitForAll()
+                }
+            }
+            try await pair(
+                "exec ×8 concurrent", iterations: 5,
+                cli: { try await exec8(env.containers) },
+                native: { try await exec8(native) })
+
+            // Full cycle: create → bootstrap → start → delete.
+            func cycle(_ svc: any ContainerServing) async throws {
+                let id = try await svc.run(
+                    ContainerRunRequest(
+                        image: "alpine:3.20",
+                        name: "\(env.namespace)-cyc-\(UUID().uuidString.prefix(6))",
+                        arguments: ["sleep", "60"]))
+                try await svc.delete(id, force: true)
+            }
+            try await pair(
+                "run -d + delete cycle", iterations: 3,
+                cli: { try await cycle(env.containers) },
+                native: { try await cycle(native) })
+
+            // 5c. Cache-mount strategies ----------------------------------
+            // CI-cache patterns: virtiofs shared dir vs ext4 named volume
+            // vs APFS-cloned golden (nosync). Workload = 500 small-file
+            // creates + full stat/read sweep + 64MB write + sync — the
+            // metadata-heavy shape package-manager caches produce.
+            let sharedDir = FileManager.default.temporaryDirectory
+                .appendingPathComponent("\(env.namespace)-shared", isDirectory: true)
+            try FileManager.default.createDirectory(at: sharedDir, withIntermediateDirectories: true)
+            let volName = "\(env.namespace)-vol"
+            let goldName = "\(env.namespace)-golden"
+            _ = try await api.getOrCreateVolume(name: volName)
+            _ = try await api.getOrCreateVolume(name: goldName)
+
+            let workload = """
+                cd /cache && rm -rf w && mkdir w && cd w && \
+                for i in $(seq 1 500); do echo "d$i" > f$i.txt; done && \
+                cat *.txt > /dev/null && \
+                dd if=/dev/zero of=big bs=1M count=64 2>/dev/null && sync
+                """
+
+            struct Strategy {
+                let name: String
+                let volumes: [String]
+                let labels: [LabelSpec]
+            }
+            let strategies = [
+                Strategy(
+                    name: "virtiofs shared dir",
+                    volumes: ["\(sharedDir.path):/cache"], labels: []),
+                Strategy(
+                    name: "ext4 volume (fsync)",
+                    volumes: ["\(volName):/cache"], labels: []),
+                Strategy(
+                    name: "ext4 clone (nosync)",
+                    volumes: ["\(goldName):/cache"],
+                    labels: [LabelSpec(key: "com.micropod.cache.clone", value: goldName)]),
+            ]
+            for strategy in strategies {
+                let cid = try await native.run(
+                    ContainerRunRequest(
+                        image: "alpine:3.20",
+                        name: "\(env.namespace)-cm-\(UUID().uuidString.prefix(6).lowercased())",
+                        volumes: strategy.volumes,
+                        labels: strategy.labels,
+                        arguments: ["sleep", "300"]))
+                let s = try await measure(
+                    "meta+io: \(strategy.name)", warmup: true, iterations: 3
+                ) {
+                    _ = try await native.exec(
+                        ContainerExecRequest(
+                            containerID: cid,
+                            arguments: ["sh", "-c", workload]))
+                }
+                emit(s)
+                try await native.delete(cid, force: true)
+            }
+
+            // Clone cost itself — should be O(1) regardless of golden size.
+            if let golden = try await api.volumeInspect(name: goldName),
+                case .object(let goldenObj) = golden,
+                case .string(let src)? = goldenObj["source"]
+            {
+                var s = try await measure("clonefile golden → clone", warmup: true, iterations: 10) {
+                    _ = try NativeContainerService.cloneVolumeImage(
+                        source: src, containerID: "bench-clone-probe", volume: goldName)
+                }
+                emit(s)
+
+                // Grow the golden to ~256MB and re-measure — APFS CoW must
+                // keep clone cost flat as the golden grows.
+                let grower = try await native.run(
+                    ContainerRunRequest(
+                        image: "alpine:3.20",
+                        name: "\(env.namespace)-grow-\(UUID().uuidString.prefix(6).lowercased())",
+                        volumes: ["\(goldName):/cache"],
+                        arguments: [
+                            "sh", "-c",
+                            "dd if=/dev/zero of=/cache/fill bs=1M count=256 2>/dev/null && sync",
+                        ]))
+                for _ in 0..<60 {
+                    let st = try await api.list()
+                    let entries = try MicropodJSON.decodeArray(
+                        ContainerListEntry.self, from: st, context: "list")
+                    if entries.first(where: { $0.id == grower })?.status.state != "running" { break }
+                    try await Task.sleep(for: .milliseconds(250))
+                }
+                try await native.delete(grower, force: true)
+                s = try await measure("clonefile 256MB golden → clone", warmup: false, iterations: 10) {
+                    _ = try NativeContainerService.cloneVolumeImage(
+                        source: src, containerID: "bench-clone-probe", volume: goldName)
+                }
+                emit(s)
+                try? FileManager.default.removeItem(
+                    at: NativeContainerService.cloneRoot.appendingPathComponent("bench-clone-probe"))
+            }
+
+            // Create-path overhead: cloning create vs plain named-volume
+            // create — isolates policy+list+inspect+clonefile cost from
+            // the VM-boot work that `run` adds.
+            func createOnce(_ labels: [LabelSpec], _ volume: String) async throws {
+                let id = try await native.create(
+                    ContainerRunRequest(
+                        image: "alpine:3.20",
+                        name: "\(env.namespace)-co-\(UUID().uuidString.prefix(6).lowercased())",
+                        volumes: ["\(volume):/cache"],
+                        labels: labels,
+                        arguments: ["sleep", "300"]))
+                try await native.delete(id, force: true)
+            }
+            emit(
+                try await measure("create+delete: plain volume", warmup: true, iterations: 3) {
+                    try await createOnce([], volName)
+                })
+            emit(
+                try await measure(
+                    "create+delete: clone", warmup: true, iterations: 3
+                ) {
+                    try await createOnce(
+                        [LabelSpec(key: "com.micropod.cache.clone", value: goldName)], goldName)
+                })
+
+            // Fan-out: 4 concurrent creates cloning the same golden —
+            // throughput + the concurrent-create path (sweep included).
+            emit(
+                try await measure("clone create ×4 concurrent", warmup: false, iterations: 3) {
+                    try await withThrowingTaskGroup(of: String.self) { group in
+                        for _ in 0..<4 {
+                            group.addTask {
+                                try await native.create(
+                                    ContainerRunRequest(
+                                        image: "alpine:3.20",
+                                        name: "mpb-fan-\(UUID().uuidString.prefix(8).lowercased())",
+                                        volumes: ["\(goldName):/cache"],
+                                        labels: [
+                                            LabelSpec(
+                                                key: "com.micropod.cache.clone", value: goldName)
+                                        ],
+                                        arguments: ["sleep", "300"]))
+                            }
+                        }
+                        var ids: [String] = []
+                        for try await id in group { ids.append(id) }
+                        for id in ids { try await native.delete(id, force: true) }
+                    }
+                })
+            _ = try? await env.client.run(
+                ContainerCommandFactory.deleteVolume(volName), timeout: .seconds(15))
+            _ = try? await env.client.run(
+                ContainerCommandFactory.deleteVolume(goldName), timeout: .seconds(15))
+            try? FileManager.default.removeItem(at: sharedDir)
+
+            try await native.delete(fixture, force: true)
+        }
+        allStats += nativeSection.stats
+        failures += nativeSection.failures
 
         // 6. MCP latency -----------------------------------------------------
         section("MCP tool latency (stdio JSON-RPC)")

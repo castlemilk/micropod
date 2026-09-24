@@ -13,3 +13,9 @@ plugins:
     out: api/gen
     opt:
       - paths=source_relative
+  # Plain gRPC stubs so Go callers (cuttlefish) can drive vminitd's
+  # SandboxContext over the vsock bridge with grpc-go.
+  - local: protoc-gen-go-grpc
+    out: api/gen
+    opt:
+      - paths=source_relative

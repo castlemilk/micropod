@@ -8,6 +8,12 @@ lint:
     - RPC_REQUEST_STANDARD_NAME
     - RPC_RESPONSE_STANDARD_NAME
     - RPC_REQUEST_RESPONSE_UNIQUE
+  # Vendored upstream proto (apple/containerization SandboxContext) —
+  # not ours to restyle.
+  ignore:
+    - proto/com/apple
 breaking:
   use:
     - FILE
+  ignore:
+    - proto/com/apple

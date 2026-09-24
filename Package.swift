@@ -20,6 +20,11 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.28.0"),
         .package(url: "https://github.com/jpsim/Yams.git", from: "5.1.0"),
         .package(url: "https://github.com/sparkle-project/Sparkle.git", from: "2.10.0"),
+        // Native-runtime integration: the installed `container` 1.3.1 runtime
+        // ships vminit 0.42.0; pin exactly so the generated SandboxContext
+        // stubs match the guest agent on the wire.
+        .package(url: "https://github.com/apple/containerization.git", exact: "0.42.0"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.80.0"),
     ],
     targets: [
         .target(
@@ -41,6 +46,7 @@ let package = Package(
             name: "MicropodApp",
             dependencies: [
                 "MicropodCore",
+                "MicropodRuntime",
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
             resources: [
@@ -48,6 +54,19 @@ let package = Package(
                 .copy("Resources/icons"),
                 .copy("Resources/brandbrain"),
                 .process("Localizable.xcstrings"),
+            ],
+            swiftSettings: [
+                .enableUpcomingFeature("StrictConcurrency")
+            ]
+        ),
+        .target(
+            name: "MicropodRuntime",
+            dependencies: [
+                "MicropodCore",
+                .product(name: "Containerization", package: "containerization"),
+                .product(name: "ContainerizationOS", package: "containerization"),
+                .product(name: "ContainerizationOCI", package: "containerization"),
+                .product(name: "NIOPosix", package: "swift-nio"),
             ],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
@@ -62,28 +81,28 @@ let package = Package(
         ),
         .executableTarget(
             name: "MicropodAPI",
-            dependencies: ["MicropodCore"],
+            dependencies: ["MicropodCore", "MicropodRuntime"],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]
         ),
         .executableTarget(
             name: "MicropodCLI",
-            dependencies: ["MicropodCore", "MicropodSharedFS"],
+            dependencies: ["MicropodCore", "MicropodSharedFS", "MicropodRuntime"],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]
         ),
         .executableTarget(
             name: "MicropodDockerShim",
-            dependencies: ["MicropodCore", "MicropodSharedFS"],
+            dependencies: ["MicropodCore", "MicropodSharedFS", "MicropodRuntime"],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]
         ),
         .executableTarget(
             name: "MicropodBench",
-            dependencies: ["MicropodCore"],
+            dependencies: ["MicropodCore", "MicropodRuntime"],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]
@@ -97,6 +116,13 @@ let package = Package(
         .executableTarget(
             name: "MicropodSharedFSDaemon",
             dependencies: ["MicropodCore", "MicropodSharedFS"],
+            swiftSettings: [
+                .enableUpcomingFeature("StrictConcurrency")
+            ]
+        ),
+        .testTarget(
+            name: "MicropodRuntimeTests",
+            dependencies: ["MicropodRuntime", "MicropodCore"],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]

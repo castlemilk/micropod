@@ -153,4 +153,9 @@ message ExecRequest {
 
 message ExecResponse {
   string output = 1;
+  // Guest process exit code. 0 on success; when the native runtime backend
+  // is active this is the real exit status rather than a CLI approximation.
+  int32 exit_code = 2;
+  // Guest stderr, when the backend can separate the streams.
+  string error = 3;
 }

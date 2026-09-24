@@ -359,9 +359,13 @@ func (s *Server) GetStats(ctx context.Context, req *connect.Request[micropodv1.G
 }
 
 func (s *Server) Exec(ctx context.Context, req *connect.Request[micropodv1.ExecRequest]) (*connect.Response[micropodv1.ExecResponse], error) {
-	out, err := s.cli.Exec(ctx, req.Msg.Id, req.Msg.Command)
+	res, err := s.cli.ExecDetailed(ctx, req.Msg.Id, req.Msg.Command)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, err)
 	}
-	return connect.NewResponse(&micropodv1.ExecResponse{Output: out}), nil
+	return connect.NewResponse(&micropodv1.ExecResponse{
+		Output:   res.Output,
+		ExitCode: res.ExitCode,
+		Error:    res.Error,
+	}), nil
 }

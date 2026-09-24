@@ -1,5 +1,6 @@
 import Foundation
 import MicropodCore
+import MicropodRuntime
 import Network
 
 // MicropodAPI — a local HTTP/1.1 JSON API over the same service layer the
@@ -43,21 +44,27 @@ struct MicropodAPI {
         let port = UInt16(ProcessInfo.processInfo.environment["MICROPOD_API_PORT"] ?? "45454") ?? 45454
 
         let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: cliPath))
-        let api = APIHandlers(
+        let runtime = await RuntimeBackendResolver.resolve(client: client)
+        var api = APIHandlers(
             client: client,
             system: SystemService(client: client),
-            containers: ContainerService(client: client),
+            containers: runtime.containers,
             images: ImageService(client: client),
             volumes: VolumeService(client: client),
             networks: NetworkService(client: client),
-            stats: StatsSampler(client: client),
-            logs: LogStreamer(client: client),
-            compose: ComposeService(client: client))
+            stats: runtime.stats,
+            logs: runtime.logs,
+            compose: ComposeService(client: client),
+            api: runtime.api)
+        api.backend = runtime.kind
+        api.runtimeHealth = runtime.health
 
         let server = HTTPServer(port: port, handler: api.handle)
         do {
             try await server.run()
-            print("Micropod API listening on http://127.0.0.1:\(port) (cli: \(cliPath))")
+            print(
+                "Micropod API listening on http://127.0.0.1:\(port) (cli: \(cliPath), backend: \(runtime.kind.rawValue))"
+            )
             await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
         } catch {
             fputs("API failed to start: \(error)\n", stderr)
@@ -88,6 +95,9 @@ enum HTTPResponse {
     case json(Int, [String: Any])
     case text(Int, String)
     case stream(Int, String, AsyncStream<Data>)
+    /// Raw duplex take-over: the head is written, then the closure owns the
+    /// connection until it returns (used by the guest vsock bridge).
+    case bridge(Int, @Sendable (NWConnection) async -> Void)
 }
 
 final class HTTPServer: @unchecked Sendable {
@@ -137,6 +147,14 @@ final class HTTPServer: @unchecked Sendable {
         Task {
             let response = await handler(request)
             switch response {
+            case .bridge(let status, let attach):
+                let head = Self.streamHead(
+                    status: status, contentType: "application/octet-stream")
+                connection.send(
+                    content: head,
+                    completion: .contentProcessed { _ in
+                        Task { await attach(connection) }
+                    })
             case .stream(let status, let contentType, let events):
                 // SSE: write the head without Content-Length, then stream
                 // each event on the live connection, closing when done.
@@ -184,9 +202,9 @@ final class HTTPServer: @unchecked Sendable {
             statusLine = reasonLine(for: status)
             headers.append(("Content-Type", "text/plain"))
             body = Data(text.utf8)
-        case .stream:
-            // Streams are written via streamHead + live chunks; this path is
-            // unreachable for well-formed responses.
+        case .stream, .bridge:
+            // Streams/bridges are written via streamHead + live chunks;
+            // this path is unreachable for well-formed responses.
             return Data()
         }
 

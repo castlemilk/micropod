@@ -1,5 +1,6 @@
 import Foundation
 import MicropodCore
+import MicropodRuntime
 
 /// Central factory for app dependencies (storagesentry pattern).
 @MainActor
@@ -8,16 +9,18 @@ public final class AppDependencies {
 
     public let client: ContainerCLIClient
     public let system: SystemService
-    public let containers: ContainerService
+    public private(set) var containers: any ContainerServing
     public let images: ImageService
     public let volumes: VolumeService
     public let networks: NetworkService
     public let registries: RegistryService
-    public let statsSampler: StatsSampler
-    public let logStreamer: LogStreamer
+    public private(set) var statsSampler: any StatsSampling
+    public private(set) var logStreamer: any LogStreaming
     public let terminal: TerminalService
     public let compose: ComposeService
     public let machine: MachineService
+    /// The resolved runtime backend (cli until `useNativeBackend` resolves).
+    public private(set) var runtime: RuntimeServices?
 
     private convenience init() {
         // Env override so the app can be validated against a mock CLI.
@@ -41,6 +44,18 @@ public final class AppDependencies {
         self.terminal = TerminalService(client: client)
         self.compose = ComposeService(client: client)
         self.machine = MachineService(client: client)
+    }
+
+    /// Swaps container/log/stats services to the native apiserver backend
+    /// when the `ping` handshake succeeds. Safe to call once at app start;
+    /// views built afterwards get the fast path.
+    public func useNativeBackend() async {
+        let resolved = await RuntimeBackendResolver.resolve(client: client)
+        guard resolved.kind == .native else { return }
+        self.runtime = resolved
+        self.containers = resolved.containers
+        self.statsSampler = resolved.stats
+        self.logStreamer = resolved.logs
     }
 }
 

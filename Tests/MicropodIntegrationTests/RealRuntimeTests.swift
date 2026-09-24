@@ -476,6 +476,7 @@ final class RealRuntimeTests: XCTestCase {
     }
 
     func testComposeFullSurface() async throws {
+        let hostPort = try ephemeralTCPPort()
         try await withRealHarness { harness in
             try "MODE=full\n".write(
                 to: harness.stateDir.appendingPathComponent(".env"), atomically: true, encoding: .utf8)
@@ -504,7 +505,7 @@ final class RealRuntimeTests: XCTestCase {
                 init: true
                 ports:
                   - target: 8080
-                    published: 18080
+                    published: \(hostPort)
                 healthcheck:
                   test: ["CMD", "true"]
                   interval: 1s
@@ -692,4 +693,32 @@ final class RealRuntimeHarness {
         }
         try? FileManager.default.removeItem(at: stateDir)
     }
+}
+
+/// A currently-free loopback TCP port for published-port tests. There is an
+/// unavoidable TOCTOU gap between the close and the compose bind, but it beats
+/// a hardcoded port colliding with unrelated long-lived processes (a stray
+/// listener on 18080 once took the whole suite down).
+private func ephemeralTCPPort() throws -> UInt16 {
+    let fd = socket(AF_INET, SOCK_STREAM, 0)
+    guard fd >= 0 else { throw POSIXError(.EIO) }
+    defer { close(fd) }
+    var addr = sockaddr_in()
+    addr.sin_family = sa_family_t(AF_INET)
+    addr.sin_port = 0
+    addr.sin_addr.s_addr = INADDR_LOOPBACK.bigEndian
+    let bound = withUnsafePointer(to: &addr) {
+        $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+            bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+        }
+    }
+    guard bound == 0 else { throw POSIXError(.EIO) }
+    var len = socklen_t(MemoryLayout<sockaddr_in>.size)
+    let named = withUnsafeMutablePointer(to: &addr) {
+        $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+            getsockname(fd, $0, &len)
+        }
+    }
+    guard named == 0 else { throw POSIXError(.EIO) }
+    return UInt16(bigEndian: addr.sin_port)
 }
