@@ -139,6 +139,10 @@
         ],
         "summary": "Exec",
         "description": "Run a command inside a running container and return its output.",
+        "externalDocs": {
+          "description": "docker exec semantics",
+          "url": "https://docs.docker.com/reference/cli/docker/container/exec/"
+        },
         "operationId": "micropod.v1.ContainerService.Exec",
         "parameters": [
           {
@@ -865,22 +869,35 @@
         "properties": {
           "id": {
             "type": "string",
+            "examples": [
+              "web"
+            ],
             "title": "id",
             "description": "The container ID; `container` uses the user-assigned name as the ID."
           },
           "image": {
             "type": "string",
+            "examples": [
+              "alpine:3.20"
+            ],
             "title": "image",
             "description": "Image reference the container was created from."
           },
           "state": {
             "type": "string",
+            "examples": [
+              "running"
+            ],
             "title": "state",
             "description": "Lifecycle state: running, stopped, exited, created, ..."
           },
           "createdAt": {
             "type": "string",
+            "examples": [
+              "2026-01-15T10:30:00Z"
+            ],
             "title": "created_at",
+            "format": "date-time",
             "description": "ISO8601 creation timestamp."
           },
           "resources": {
@@ -890,6 +907,9 @@
           },
           "platform": {
             "type": "string",
+            "examples": [
+              "linux/arm64"
+            ],
             "title": "platform",
             "description": "Platform string, e.g. \"linux/arm64\"."
           },
@@ -911,15 +931,29 @@
           },
           "networks": {
             "type": "array",
+            "examples": [
+              [
+                "backend"
+              ]
+            ],
             "items": {
-              "type": "string"
+              "type": "string",
+              "examples": [
+                [
+                  "backend"
+                ]
+              ]
             },
             "title": "networks",
             "description": "Names of networks the container is attached to."
           },
           "ipv4Address": {
             "type": "string",
+            "examples": [
+              "192.168.64.3"
+            ],
             "title": "ipv4_address",
+            "format": "ipv4",
             "description": "Resolved IPv4 address on the container network, if running."
           },
           "env": {
@@ -999,6 +1033,9 @@
         "properties": {
           "id": {
             "type": "string",
+            "examples": [
+              "web"
+            ],
             "title": "id",
             "minLength": 1,
             "description": "Container ID \u2014 `container` uses the user-assigned name as the ID."
@@ -1016,6 +1053,9 @@
         "properties": {
           "cpus": {
             "type": "number",
+            "examples": [
+              "2"
+            ],
             "title": "cpus",
             "format": "double",
             "description": "CPU limit in cores."
@@ -1024,6 +1064,9 @@
             "type": [
               "integer",
               "string"
+            ],
+            "examples": [
+              "536870912"
             ],
             "title": "memory_bytes",
             "format": "int64",
@@ -1038,11 +1081,17 @@
         "properties": {
           "id": {
             "type": "string",
+            "examples": [
+              "web"
+            ],
             "title": "id",
             "description": "Container ID."
           },
           "cpuPercent": {
             "type": "number",
+            "examples": [
+              "12.5"
+            ],
             "title": "cpu_percent",
             "format": "double",
             "description": "CPU usage as a percentage of one core."
@@ -1051,6 +1100,9 @@
             "type": [
               "integer",
               "string"
+            ],
+            "examples": [
+              "134217728"
             ],
             "title": "memory_used_bytes",
             "format": "int64",
@@ -1061,6 +1113,9 @@
               "integer",
               "string"
             ],
+            "examples": [
+              "536870912"
+            ],
             "title": "memory_limit_bytes",
             "format": "int64",
             "description": "Configured memory limit in bytes."
@@ -1069,6 +1124,9 @@
             "type": [
               "integer",
               "string"
+            ],
+            "examples": [
+              "1048576"
             ],
             "title": "network_rx_bytes",
             "format": "int64",
@@ -1079,6 +1137,9 @@
               "integer",
               "string"
             ],
+            "examples": [
+              "524288"
+            ],
             "title": "network_tx_bytes",
             "format": "int64",
             "description": "Bytes transmitted over the container network."
@@ -1087,6 +1148,9 @@
             "type": [
               "integer",
               "string"
+            ],
+            "examples": [
+              "2097152"
             ],
             "title": "block_read_bytes",
             "format": "int64",
@@ -1097,6 +1161,9 @@
               "integer",
               "string"
             ],
+            "examples": [
+              "1048576"
+            ],
             "title": "block_write_bytes",
             "format": "int64",
             "description": "Bytes written to the block device."
@@ -1105,6 +1172,9 @@
             "type": [
               "integer",
               "string"
+            ],
+            "examples": [
+              "7"
             ],
             "title": "pids",
             "format": "int64",
@@ -1120,12 +1190,18 @@
         "properties": {
           "id": {
             "type": "string",
+            "examples": [
+              "web"
+            ],
             "title": "id",
             "minLength": 1,
             "description": "Container ID (or name)."
           },
           "force": {
             "type": "boolean",
+            "examples": [
+              "true"
+            ],
             "title": "force",
             "description": "Remove even if the container is still running."
           }
@@ -1147,12 +1223,18 @@
         "properties": {
           "id": {
             "type": "string",
+            "examples": [
+              "web"
+            ],
             "title": "id",
             "minLength": 1,
             "description": "Container ID (or name) to exec into."
           },
           "command": {
             "type": "string",
+            "examples": [
+              "/bin/sh"
+            ],
             "title": "command",
             "minLength": 1,
             "description": "Command to run inside the container."
@@ -1162,13 +1244,26 @@
               "string",
               "null"
             ],
+            "examples": [
+              "/app"
+            ],
             "title": "workdir",
             "description": "Working directory for the command."
           },
           "env": {
             "type": "array",
+            "examples": [
+              [
+                "TERM=xterm"
+              ]
+            ],
             "items": {
-              "type": "string"
+              "type": "string",
+              "examples": [
+                [
+                  "TERM=xterm"
+                ]
+              ]
             },
             "title": "env",
             "description": "Extra environment variables as KEY=value pairs."
@@ -1186,11 +1281,17 @@
         "properties": {
           "output": {
             "type": "string",
+            "examples": [
+              "hello "
+            ],
             "title": "output",
             "description": "Combined stdout (and stderr when not separable) of the command."
           },
           "exitCode": {
             "type": "integer",
+            "examples": [
+              "0"
+            ],
             "title": "exit_code",
             "format": "int32",
             "description": "Guest process exit code. 0 on success; when the native runtime backend\n is active this is the real exit status rather than a CLI approximation."
@@ -1241,6 +1342,9 @@
         "properties": {
           "text": {
             "type": "string",
+            "examples": [
+              "GET /healthz 200"
+            ],
             "title": "text",
             "description": "A single line of container output."
           }
@@ -1254,16 +1358,25 @@
         "properties": {
           "type": {
             "type": "string",
+            "examples": [
+              "volume"
+            ],
             "title": "type",
             "description": "Mount kind: \"volume\" or \"bind\"."
           },
           "source": {
             "type": "string",
+            "examples": [
+              "data"
+            ],
             "title": "source",
             "description": "Volume name or host path."
           },
           "destination": {
             "type": "string",
+            "examples": [
+              "/data"
+            ],
             "title": "destination",
             "description": "Path inside the container."
           },
@@ -1282,6 +1395,9 @@
         "properties": {
           "hostPort": {
             "type": "integer",
+            "examples": [
+              "8080"
+            ],
             "title": "host_port",
             "maximum": 65535,
             "description": "Port on the host."
@@ -1294,12 +1410,19 @@
           },
           "protocol": {
             "type": "string",
+            "examples": [
+              "tcp"
+            ],
             "title": "protocol",
             "description": "\"tcp\" or \"udp\"."
           },
           "hostIp": {
             "type": "string",
+            "examples": [
+              "127.0.0.1"
+            ],
             "title": "host_ip",
+            "format": "ipv4",
             "description": "Host interface IP to bind (empty = all interfaces)."
           }
         },
@@ -1315,6 +1438,9 @@
         "properties": {
           "image": {
             "type": "string",
+            "examples": [
+              "alpine:3.20"
+            ],
             "title": "image",
             "minLength": 1,
             "description": "Image reference to run, e.g. \"alpine:3.20\". Pulled if not present locally."
@@ -1324,11 +1450,17 @@
               "string",
               "null"
             ],
+            "examples": [
+              "web"
+            ],
             "title": "name",
             "description": "Optional container name; becomes the container ID."
           },
           "detach": {
             "type": "boolean",
+            "examples": [
+              "true"
+            ],
             "title": "detach",
             "description": "Return immediately instead of streaming/attaching."
           },
@@ -1337,6 +1469,9 @@
             "type": [
               "number",
               "null"
+            ],
+            "examples": [
+              "2"
             ],
             "title": "cpus",
             "format": "double",
@@ -1347,13 +1482,26 @@
               "string",
               "null"
             ],
+            "examples": [
+              "512m"
+            ],
             "title": "memory",
             "description": "Memory limit, e.g. \"512m\" or \"4g\"."
           },
           "env": {
             "type": "array",
+            "examples": [
+              [
+                "DEBUG=true"
+              ]
+            ],
             "items": {
-              "type": "string"
+              "type": "string",
+              "examples": [
+                [
+                  "DEBUG=true"
+                ]
+              ]
             },
             "title": "env",
             "description": "Environment variables as KEY=value pairs."
@@ -1368,8 +1516,18 @@
           },
           "volumes": {
             "type": "array",
+            "examples": [
+              [
+                "data:/data"
+              ]
+            ],
             "items": {
-              "type": "string"
+              "type": "string",
+              "examples": [
+                [
+                  "data:/data"
+                ]
+              ]
             },
             "title": "volumes",
             "description": "Bind/volume mounts as \"name-or-path:/mount\" specs."
@@ -1390,8 +1548,20 @@
           },
           "arguments": {
             "type": "array",
+            "examples": [
+              [
+                "echo",
+                "hello"
+              ]
+            ],
             "items": {
-              "type": "string"
+              "type": "string",
+              "examples": [
+                [
+                  "echo",
+                  "hello"
+                ]
+              ]
             },
             "title": "arguments",
             "description": "Command + args override (image entrypoint is used when empty)."
@@ -1432,7 +1602,11 @@
           },
           "sampledAt": {
             "type": "string",
+            "examples": [
+              "2026-01-15T10:30:00Z"
+            ],
             "title": "sampled_at",
+            "format": "date-time",
             "description": "ISO8601 timestamp the snapshot was taken."
           }
         },
@@ -1445,12 +1619,18 @@
         "properties": {
           "id": {
             "type": "string",
+            "examples": [
+              "web"
+            ],
             "title": "id",
             "minLength": 1,
             "description": "Container ID (or name) to stream logs from."
           },
           "tail": {
             "type": "integer",
+            "examples": [
+              "200"
+            ],
             "title": "tail",
             "minimum": 0,
             "format": "int32",

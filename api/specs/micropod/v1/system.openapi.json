@@ -406,11 +406,17 @@
         "properties": {
           "id": {
             "type": "string",
+            "examples": [
+              "web"
+            ],
             "title": "id",
             "description": "Container ID."
           },
           "cpuPercent": {
             "type": "number",
+            "examples": [
+              "12.5"
+            ],
             "title": "cpu_percent",
             "format": "double",
             "description": "CPU usage as a percentage of one core."
@@ -419,6 +425,9 @@
             "type": [
               "integer",
               "string"
+            ],
+            "examples": [
+              "134217728"
             ],
             "title": "memory_used_bytes",
             "format": "int64",
@@ -429,6 +438,9 @@
               "integer",
               "string"
             ],
+            "examples": [
+              "536870912"
+            ],
             "title": "memory_limit_bytes",
             "format": "int64",
             "description": "Configured memory limit in bytes."
@@ -437,6 +449,9 @@
             "type": [
               "integer",
               "string"
+            ],
+            "examples": [
+              "1048576"
             ],
             "title": "network_rx_bytes",
             "format": "int64",
@@ -447,6 +462,9 @@
               "integer",
               "string"
             ],
+            "examples": [
+              "524288"
+            ],
             "title": "network_tx_bytes",
             "format": "int64",
             "description": "Bytes transmitted over the container network."
@@ -455,6 +473,9 @@
             "type": [
               "integer",
               "string"
+            ],
+            "examples": [
+              "2097152"
             ],
             "title": "block_read_bytes",
             "format": "int64",
@@ -465,6 +486,9 @@
               "integer",
               "string"
             ],
+            "examples": [
+              "1048576"
+            ],
             "title": "block_write_bytes",
             "format": "int64",
             "description": "Bytes written to the block device."
@@ -473,6 +497,9 @@
             "type": [
               "integer",
               "string"
+            ],
+            "examples": [
+              "7"
             ],
             "title": "pids",
             "format": "int64",
@@ -491,6 +518,9 @@
               "integer",
               "string"
             ],
+            "examples": [
+              "12"
+            ],
             "title": "total",
             "format": "int64",
             "description": "Total objects in the category."
@@ -499,6 +529,9 @@
             "type": [
               "integer",
               "string"
+            ],
+            "examples": [
+              "5"
             ],
             "title": "active",
             "format": "int64",
@@ -509,6 +542,9 @@
               "integer",
               "string"
             ],
+            "examples": [
+              "4294967296"
+            ],
             "title": "size_bytes",
             "format": "int64",
             "description": "On-disk size of the category in bytes."
@@ -517,6 +553,9 @@
             "type": [
               "integer",
               "string"
+            ],
+            "examples": [
+              "1073741824"
             ],
             "title": "reclaimable_bytes",
             "format": "int64",
@@ -569,24 +608,46 @@
         "properties": {
           "id": {
             "type": "string",
+            "examples": [
+              "sha256:1c4a8f"
+            ],
             "title": "id",
             "description": "Image ID (content-addressed digest prefix)."
           },
           "names": {
             "type": "array",
+            "examples": [
+              [
+                "alpine:3.20",
+                "alpine:latest"
+              ]
+            ],
             "items": {
-              "type": "string"
+              "type": "string",
+              "examples": [
+                [
+                  "alpine:3.20",
+                  "alpine:latest"
+                ]
+              ]
             },
             "title": "names",
             "description": "All tags/references pointing at this image."
           },
           "createdAt": {
             "type": "string",
+            "examples": [
+              "2026-01-15T10:30:00Z"
+            ],
             "title": "created_at",
+            "format": "date-time",
             "description": "ISO8601 creation timestamp."
           },
           "digest": {
             "type": "string",
+            "examples": [
+              "sha256:8e24b3e4a1f2c9d8e7f6a5b4c3d2e1f0"
+            ],
             "title": "digest",
             "description": "Content digest."
           },
@@ -594,6 +655,9 @@
             "type": [
               "integer",
               "string"
+            ],
+            "examples": [
+              "3800000"
             ],
             "title": "size_bytes",
             "format": "int64",
@@ -617,16 +681,25 @@
         "properties": {
           "os": {
             "type": "string",
+            "examples": [
+              "linux"
+            ],
             "title": "os",
             "description": "Operating system, e.g. \"linux\"."
           },
           "architecture": {
             "type": "string",
+            "examples": [
+              "arm64"
+            ],
             "title": "architecture",
             "description": "CPU architecture, e.g. \"arm64\"."
           },
           "variant": {
             "type": "string",
+            "examples": [
+              "v8"
+            ],
             "title": "variant",
             "description": "Architecture variant, e.g. \"v8\"."
           }
@@ -640,16 +713,25 @@
         "properties": {
           "server": {
             "type": "string",
+            "examples": [
+              "docker.io"
+            ],
             "title": "server",
             "description": "Registry hostname, e.g. \"docker.io\"."
           },
           "username": {
             "type": "string",
+            "examples": [
+              "octocat"
+            ],
             "title": "username",
             "description": "Account username stored for the registry."
           },
           "scheme": {
             "type": "string",
+            "examples": [
+              "basic"
+            ],
             "title": "scheme",
             "description": "Auth scheme in use, e.g. \"basic\" or \"oauth\"."
           }
@@ -671,7 +753,11 @@
           },
           "sampledAt": {
             "type": "string",
+            "examples": [
+              "2026-01-15T10:30:00Z"
+            ],
             "title": "sampled_at",
+            "format": "date-time",
             "description": "ISO8601 timestamp the snapshot was taken."
           }
         },
@@ -701,26 +787,41 @@
         "properties": {
           "status": {
             "type": "string",
+            "examples": [
+              "running"
+            ],
             "title": "status",
             "description": "\"running\" or \"stopped\"."
           },
           "appRoot": {
             "type": "string",
+            "examples": [
+              "/Applications/Micropod.app"
+            ],
             "title": "app_root",
             "description": "Path to the installed Micropod.app bundle."
           },
           "installRoot": {
             "type": "string",
+            "examples": [
+              "~/.micropod"
+            ],
             "title": "install_root",
             "description": "Runtime install root (binaries, kernels, images)."
           },
           "apiServerVersion": {
             "type": "string",
+            "examples": [
+              "0.8.0"
+            ],
             "title": "api_server_version",
             "description": "Version of the embedded API server."
           },
           "cliVersion": {
             "type": "string",
+            "examples": [
+              "0.7.0"
+            ],
             "title": "cli_version",
             "description": "Version of the bundled `container` CLI."
           }
@@ -733,6 +834,9 @@
         "type": "object",
         "properties": {
           "state": {
+            "examples": [
+              "STATE_UPDATE_AVAILABLE"
+            ],
             "title": "state",
             "description": "Updater lifecycle state.",
             "$ref": "#/components/schemas/micropod.v1.UpdateStatus.State"
@@ -744,11 +848,17 @@
           },
           "currentVersion": {
             "type": "string",
+            "examples": [
+              "0.8.0"
+            ],
             "title": "current_version",
             "description": "Currently running app version."
           },
           "availableVersion": {
             "type": "string",
+            "examples": [
+              "0.9.0"
+            ],
             "title": "available_version",
             "description": "Version available on the feed, if an update was found."
           },
@@ -759,6 +869,9 @@
           },
           "downloadedVersion": {
             "type": "string",
+            "examples": [
+              "0.9.0"
+            ],
             "title": "downloaded_version",
             "description": "Version staged for install."
           },
@@ -774,7 +887,11 @@
           },
           "checkedAt": {
             "type": "string",
+            "examples": [
+              "2026-01-15T10:30:00Z"
+            ],
             "title": "checked_at",
+            "format": "date-time",
             "description": "ISO8601 time of the last completed check."
           }
         },
@@ -821,6 +938,9 @@
               "integer",
               "string"
             ],
+            "examples": [
+              "2147483648"
+            ],
             "title": "reclaimable_image_bytes",
             "format": "int64",
             "description": "Bytes reclaimable by pruning unreferenced images."
@@ -830,12 +950,18 @@
               "integer",
               "string"
             ],
+            "examples": [
+              "1073741824"
+            ],
             "title": "reclaimable_volume_bytes",
             "format": "int64",
             "description": "Bytes reclaimable by pruning unmounted volumes."
           },
           "stoppedContainerCount": {
             "type": "integer",
+            "examples": [
+              "2"
+            ],
             "title": "stopped_container_count",
             "format": "int32",
             "description": "Number of stopped containers."
@@ -902,16 +1028,25 @@
         "properties": {
           "id": {
             "type": "string",
+            "examples": [
+              "data"
+            ],
             "title": "id",
             "description": "Volume name (used as the ID)."
           },
           "driver": {
             "type": "string",
+            "examples": [
+              "local"
+            ],
             "title": "driver",
             "description": "Volume driver, e.g. \"local\"."
           },
           "format": {
             "type": "string",
+            "examples": [
+              "ext4"
+            ],
             "title": "format",
             "description": "Filesystem format, e.g. \"ext4\"."
           },
@@ -920,18 +1055,28 @@
               "integer",
               "string"
             ],
+            "examples": [
+              "10737418240"
+            ],
             "title": "size_bytes",
             "format": "int64",
             "description": "Volume size in bytes."
           },
           "source": {
             "type": "string",
+            "examples": [
+              "data"
+            ],
             "title": "source",
             "description": "Backing source (name or host path)."
           },
           "createdAt": {
             "type": "string",
+            "examples": [
+              "2026-01-15T10:30:00Z"
+            ],
             "title": "created_at",
+            "format": "date-time",
             "description": "ISO8601 creation timestamp."
           },
           "labels": {

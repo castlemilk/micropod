@@ -393,6 +393,9 @@
         "properties": {
           "reference": {
             "type": "string",
+            "examples": [
+              "alpine:3.20"
+            ],
             "title": "reference",
             "minLength": 1,
             "description": "Image reference or digest to remove."
@@ -420,24 +423,46 @@
         "properties": {
           "id": {
             "type": "string",
+            "examples": [
+              "sha256:1c4a8f"
+            ],
             "title": "id",
             "description": "Image ID (content-addressed digest prefix)."
           },
           "names": {
             "type": "array",
+            "examples": [
+              [
+                "alpine:3.20",
+                "alpine:latest"
+              ]
+            ],
             "items": {
-              "type": "string"
+              "type": "string",
+              "examples": [
+                [
+                  "alpine:3.20",
+                  "alpine:latest"
+                ]
+              ]
             },
             "title": "names",
             "description": "All tags/references pointing at this image."
           },
           "createdAt": {
             "type": "string",
+            "examples": [
+              "2026-01-15T10:30:00Z"
+            ],
             "title": "created_at",
+            "format": "date-time",
             "description": "ISO8601 creation timestamp."
           },
           "digest": {
             "type": "string",
+            "examples": [
+              "sha256:8e24b3e4a1f2c9d8e7f6a5b4c3d2e1f0"
+            ],
             "title": "digest",
             "description": "Content digest."
           },
@@ -445,6 +470,9 @@
             "type": [
               "integer",
               "string"
+            ],
+            "examples": [
+              "3800000"
             ],
             "title": "size_bytes",
             "format": "int64",
@@ -468,16 +496,25 @@
         "properties": {
           "os": {
             "type": "string",
+            "examples": [
+              "linux"
+            ],
             "title": "os",
             "description": "Operating system, e.g. \"linux\"."
           },
           "architecture": {
             "type": "string",
+            "examples": [
+              "arm64"
+            ],
             "title": "architecture",
             "description": "CPU architecture, e.g. \"arm64\"."
           },
           "variant": {
             "type": "string",
+            "examples": [
+              "v8"
+            ],
             "title": "variant",
             "description": "Architecture variant, e.g. \"v8\"."
           }
@@ -506,6 +543,9 @@
         "properties": {
           "line": {
             "type": "string",
+            "examples": [
+              "Downloading layer 3 of 5"
+            ],
             "title": "line",
             "description": "Human-readable progress text from the registry pull."
           },
@@ -513,6 +553,9 @@
             "type": [
               "integer",
               "null"
+            ],
+            "examples": [
+              "3"
             ],
             "title": "stage",
             "format": "int32",
@@ -522,6 +565,9 @@
             "type": [
               "integer",
               "null"
+            ],
+            "examples": [
+              "5"
             ],
             "title": "total_stages",
             "format": "int32",
@@ -537,6 +583,9 @@
         "properties": {
           "reference": {
             "type": "string",
+            "examples": [
+              "alpine:3.20"
+            ],
             "title": "reference",
             "minLength": 1,
             "description": "Image reference to pull, e.g. \"alpine:3.20\" or a full registry path."
@@ -545,6 +594,9 @@
             "type": [
               "string",
               "null"
+            ],
+            "examples": [
+              "linux/arm64"
             ],
             "title": "platform",
             "description": "Platform to pull, e.g. \"linux/arm64\". Defaults to the host platform."

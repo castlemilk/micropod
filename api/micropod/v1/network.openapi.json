@@ -288,6 +288,9 @@
         "properties": {
           "name": {
             "type": "string",
+            "examples": [
+              "backend"
+            ],
             "title": "name",
             "minLength": 1,
             "description": "Network name."
@@ -302,6 +305,9 @@
               "string",
               "null"
             ],
+            "examples": [
+              "192.168.100.0/24"
+            ],
             "title": "subnet",
             "description": "IPv4 CIDR for the network, e.g. \"192.168.100.0/24\"."
           },
@@ -309,6 +315,9 @@
             "type": [
               "string",
               "null"
+            ],
+            "examples": [
+              "fd00:100::/64"
             ],
             "title": "subnet_v6",
             "description": "IPv6 CIDR for the network."
@@ -318,21 +327,44 @@
               "string",
               "null"
             ],
+            "examples": [
+              "vmnet"
+            ],
             "title": "driver",
             "description": "Network driver/plugin to use."
           },
           "options": {
             "type": "array",
+            "examples": [
+              [
+                "mtu=1500"
+              ]
+            ],
             "items": {
-              "type": "string"
+              "type": "string",
+              "examples": [
+                [
+                  "mtu=1500"
+                ]
+              ]
             },
             "title": "options",
             "description": "Driver options passed through to the network plugin."
           },
           "labels": {
             "type": "array",
+            "examples": [
+              [
+                "com.example.project=web"
+              ]
+            ],
             "items": {
-              "type": "string"
+              "type": "string",
+              "examples": [
+                [
+                  "com.example.project=web"
+                ]
+              ]
             },
             "title": "labels",
             "description": "Labels applied to the network (\"key=value\")."
@@ -349,6 +381,9 @@
         "properties": {
           "name": {
             "type": "string",
+            "examples": [
+              "backend"
+            ],
             "title": "name",
             "minLength": 1,
             "description": "Network name to remove."
@@ -386,37 +421,60 @@
         "properties": {
           "id": {
             "type": "string",
+            "examples": [
+              "backend"
+            ],
             "title": "id",
             "description": "Network ID (name)."
           },
           "plugin": {
             "type": "string",
+            "examples": [
+              "vmnet"
+            ],
             "title": "plugin",
             "description": "Network plugin backing this network, e.g. \"vmnet\"."
           },
           "mode": {
             "type": "string",
+            "examples": [
+              "nat"
+            ],
             "title": "mode",
             "description": "Network mode, e.g. \"nat\"."
           },
           "ipv4Gateway": {
             "type": "string",
+            "examples": [
+              "192.168.64.1"
+            ],
             "title": "ipv4_gateway",
+            "format": "ipv4",
             "description": "IPv4 gateway address."
           },
           "ipv4Subnet": {
             "type": "string",
+            "examples": [
+              "192.168.64.0/24"
+            ],
             "title": "ipv4_subnet",
             "description": "IPv4 CIDR of the network."
           },
           "ipv6Subnet": {
             "type": "string",
+            "examples": [
+              "fd00::/64"
+            ],
             "title": "ipv6_subnet",
             "description": "IPv6 CIDR of the network, if any."
           },
           "createdAt": {
             "type": "string",
+            "examples": [
+              "2026-01-15T10:30:00Z"
+            ],
             "title": "created_at",
+            "format": "date-time",
             "description": "ISO8601 creation timestamp."
           },
           "builtin": {

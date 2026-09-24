@@ -406,6 +406,9 @@
         "properties": {
           "name": {
             "type": "string",
+            "examples": [
+              "data"
+            ],
             "title": "name",
             "minLength": 1,
             "description": "Volume name."
@@ -415,13 +418,26 @@
               "string",
               "null"
             ],
+            "examples": [
+              "10g"
+            ],
             "title": "size",
             "description": "Optional size limit, e.g. \"10g\"."
           },
           "labels": {
             "type": "array",
+            "examples": [
+              [
+                "com.example.project=web"
+              ]
+            ],
             "items": {
-              "type": "string"
+              "type": "string",
+              "examples": [
+                [
+                  "com.example.project=web"
+                ]
+              ]
             },
             "title": "labels",
             "description": "Labels applied to the volume (\"key=value\")."
@@ -446,6 +462,9 @@
         "properties": {
           "name": {
             "type": "string",
+            "examples": [
+              "data"
+            ],
             "title": "name",
             "minLength": 1,
             "description": "Volume name to remove."
@@ -483,16 +502,25 @@
         "properties": {
           "id": {
             "type": "string",
+            "examples": [
+              "data"
+            ],
             "title": "id",
             "description": "Volume name (used as the ID)."
           },
           "driver": {
             "type": "string",
+            "examples": [
+              "local"
+            ],
             "title": "driver",
             "description": "Volume driver, e.g. \"local\"."
           },
           "format": {
             "type": "string",
+            "examples": [
+              "ext4"
+            ],
             "title": "format",
             "description": "Filesystem format, e.g. \"ext4\"."
           },
@@ -501,18 +529,28 @@
               "integer",
               "string"
             ],
+            "examples": [
+              "10737418240"
+            ],
             "title": "size_bytes",
             "format": "int64",
             "description": "Volume size in bytes."
           },
           "source": {
             "type": "string",
+            "examples": [
+              "data"
+            ],
             "title": "source",
             "description": "Backing source (name or host path)."
           },
           "createdAt": {
             "type": "string",
+            "examples": [
+              "2026-01-15T10:30:00Z"
+            ],
             "title": "created_at",
+            "format": "date-time",
             "description": "ISO8601 creation timestamp."
           },
           "labels": {
@@ -548,14 +586,27 @@
         "type": "object",
         "properties": {
           "cloneMode": {
+            "examples": [
+              "CLONE_MODE_LABELS"
+            ],
             "title": "clone_mode",
             "description": "Which named-volume mounts get clonefile-forked per container.",
             "$ref": "#/components/schemas/micropod.v1.VolumePolicy.CloneMode"
           },
           "goldenVolumes": {
             "type": "array",
+            "examples": [
+              [
+                "xcode-derived"
+              ]
+            ],
             "items": {
-              "type": "string"
+              "type": "string",
+              "examples": [
+                [
+                  "xcode-derived"
+                ]
+              ]
             },
             "title": "golden_volumes",
             "description": "Volume names auto-cloned under `CLONE_MODE_GOLDENS`."
@@ -566,11 +617,17 @@
             "description": "Restrict cloning to job-labelled containers (`com.cuttlefish.job` /\n `com.micropod.job`). Per-container clone labels always apply."
           },
           "sync": {
+            "examples": [
+              "SYNC_MODE_FSYNC"
+            ],
             "title": "sync",
             "description": "Writeback sync mode override; `SYNC_MODE_UNSPECIFIED` keeps the\n per-mount default.",
             "$ref": "#/components/schemas/micropod.v1.VolumePolicy.SyncMode"
           },
           "cache": {
+            "examples": [
+              "CACHE_MODE_ON"
+            ],
             "title": "cache",
             "description": "VZ disk-image cache mode.",
             "$ref": "#/components/schemas/micropod.v1.VolumePolicy.CacheMode"

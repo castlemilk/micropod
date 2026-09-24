@@ -80,6 +80,10 @@
         ],
         "summary": "ComposeUp",
         "description": "Run a compose spec file, streaming progress lines (server streaming).",
+        "externalDocs": {
+          "description": "Compose file specification",
+          "url": "https://docs.docker.com/reference/compose-file/"
+        },
         "operationId": "micropod.v1.ComposeService.ComposeUp",
         "parameters": [
           {
@@ -334,6 +338,9 @@
         "properties": {
           "name": {
             "type": "string",
+            "examples": [
+              "web"
+            ],
             "title": "name",
             "minLength": 1,
             "description": "Compose project name."
@@ -348,6 +355,9 @@
         "properties": {
           "name": {
             "type": "string",
+            "examples": [
+              "web"
+            ],
             "title": "name",
             "description": "Network name within the compose project."
           },
@@ -379,7 +389,8 @@
             "items": {
               "type": "string"
             },
-            "title": "labels"
+            "title": "labels",
+            "description": "Network labels."
           },
           "subnet": {
             "type": "string",
@@ -405,6 +416,9 @@
         "properties": {
           "name": {
             "type": "string",
+            "examples": [
+              "web"
+            ],
             "title": "name",
             "description": "Service name from the compose file."
           },
@@ -489,7 +503,8 @@
           },
           "memory": {
             "type": "string",
-            "title": "memory"
+            "title": "memory",
+            "description": "Memory limit as a compose quantity string, e.g. \"512m\"."
           },
           "healthcheckCommand": {
             "type": "string",
@@ -661,7 +676,8 @@
           },
           "buildPlatform": {
             "type": "string",
-            "title": "build_platform"
+            "title": "build_platform",
+            "description": "Target platform for `build:` sections, e.g. \"linux/arm64\"."
           },
           "buildNoCache": {
             "type": "boolean",
@@ -717,6 +733,9 @@
         "properties": {
           "name": {
             "type": "string",
+            "examples": [
+              "web"
+            ],
             "title": "name",
             "description": "Compose project name (top-level `name:` or the directory name)."
           },
@@ -791,6 +810,9 @@
         "properties": {
           "line": {
             "type": "string",
+            "examples": [
+              "Creating web-web-1"
+            ],
             "title": "line",
             "description": "Progress output line \u2014 empty on the terminal event."
           },
@@ -814,14 +836,27 @@
         "properties": {
           "path": {
             "type": "string",
+            "examples": [
+              "/Users/me/proj/docker-compose.yml"
+            ],
             "title": "path",
             "minLength": 1,
             "description": "Absolute path to the compose YAML on the host."
           },
           "profiles": {
             "type": "array",
+            "examples": [
+              [
+                "dev"
+              ]
+            ],
             "items": {
-              "type": "string"
+              "type": "string",
+              "examples": [
+                [
+                  "dev"
+                ]
+              ]
             },
             "title": "profiles",
             "description": "Compose profiles to enable (service runs only when one matches)."
@@ -836,6 +871,9 @@
         "properties": {
           "name": {
             "type": "string",
+            "examples": [
+              "web"
+            ],
             "title": "name",
             "description": "Volume name within the compose project."
           },
@@ -854,14 +892,16 @@
             "items": {
               "type": "string"
             },
-            "title": "driver_opts"
+            "title": "driver_opts",
+            "description": "Driver options (compose `driver_opts`)."
           },
           "labels": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "title": "labels"
+            "title": "labels",
+            "description": "Volume labels."
           },
           "externalName": {
             "type": "string",
@@ -883,6 +923,9 @@
         "properties": {
           "hostPort": {
             "type": "integer",
+            "examples": [
+              "8080"
+            ],
             "title": "host_port",
             "maximum": 65535,
             "description": "Port on the host."
@@ -895,12 +938,19 @@
           },
           "protocol": {
             "type": "string",
+            "examples": [
+              "tcp"
+            ],
             "title": "protocol",
             "description": "\"tcp\" or \"udp\"."
           },
           "hostIp": {
             "type": "string",
+            "examples": [
+              "127.0.0.1"
+            ],
             "title": "host_ip",
+            "format": "ipv4",
             "description": "Host interface IP to bind (empty = all interfaces)."
           }
         },
