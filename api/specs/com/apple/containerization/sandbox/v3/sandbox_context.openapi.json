@@ -1,0 +1,3679 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "com.apple.containerization.sandbox.v3",
+    "description": "## com.apple.containerization.sandbox.v3.SandboxContext\n\nContext for interacting with a container's runtime environment."
+  },
+  "paths": {
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/CloseProcessStdin": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "CloseProcessStdin",
+        "description": "Close IO for a given process.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.CloseProcessStdin",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CloseProcessStdinRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CloseProcessStdinResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/ConfigureDns": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "ConfigureDns",
+        "description": "Configure DNS resolver.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.ConfigureDns",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.ConfigureDnsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.ConfigureDnsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/ConfigureHosts": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "ConfigureHosts",
+        "description": "Configure /etc/hosts.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.ConfigureHosts",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.ConfigureHostsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.ConfigureHostsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/ContainerStatistics": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "ContainerStatistics",
+        "description": "Get statistics for containers.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.ContainerStatistics",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.ContainerStatisticsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.ContainerStatisticsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/Copy": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "Copy",
+        "description": "Copy a file or directory between the host and guest.\n Data transfer happens over a dedicated vsock connection;\n the gRPC stream is used only for control/metadata.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.Copy",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/connect+json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyRequest"
+              }
+            },
+            "application/connect+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyRequest"
+              }
+            },
+            "application/grpc": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyRequest"
+              }
+            },
+            "application/grpc+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyRequest"
+              }
+            },
+            "application/grpc+json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyRequest"
+              }
+            },
+            "application/grpc-web": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyRequest"
+              }
+            },
+            "application/grpc-web+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyRequest"
+              }
+            },
+            "application/grpc-web+json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyResponse"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyResponse"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyResponse"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyResponse"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyResponse"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyResponse"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyResponse"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/CreateProcess": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "CreateProcess",
+        "description": "Create a new process inside the container.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.CreateProcess",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CreateProcessRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CreateProcessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/DeleteProcess": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "DeleteProcess",
+        "description": "Delete an existing process inside the container.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.DeleteProcess",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.DeleteProcessRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.DeleteProcessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/FilesystemOperation": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "FilesystemOperation",
+        "description": "Perform a filesystem operation on a mounted filesystem.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.FilesystemOperation",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.FilesystemOperationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.FilesystemOperationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/Getenv": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "Getenv",
+        "description": "Get an environment variable from the init process.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.Getenv",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.GetenvRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.GetenvResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/IpAddrAdd": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "IpAddrAdd",
+        "description": "Add an IPv4 address to a network interface.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.IpAddrAdd",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.IpAddrAddRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.IpAddrAddResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/IpLinkSet": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "IpLinkSet",
+        "description": "Set the link state of a network interface.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.IpLinkSet",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.IpLinkSetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.IpLinkSetResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/IpRouteAddDefault": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "IpRouteAddDefault",
+        "description": "Add an IP route for a network interface.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.IpRouteAddDefault",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.IpRouteAddDefaultRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.IpRouteAddDefaultResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/IpRouteAddLink": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "IpRouteAddLink",
+        "description": "Add an IP route for a network interface.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.IpRouteAddLink",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.IpRouteAddLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.IpRouteAddLinkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/Kill": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "Kill",
+        "description": "Send a signal to a process via the PID.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.Kill",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.KillRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.KillResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/KillProcess": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "KillProcess",
+        "description": "Send a signal to the provided process.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.KillProcess",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.KillProcessRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.KillProcessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/Mkdir": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "Mkdir",
+        "description": "Create a new directory inside the sandbox.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.Mkdir",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.MkdirRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.MkdirResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/Mount": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "Mount",
+        "description": "Mount a filesystem.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.Mount",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.MountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.MountResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/ProxyVsock": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "ProxyVsock",
+        "description": "Proxy a vsock port to a unix domain socket in the guest, or vice versa.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.ProxyVsock",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.ProxyVsockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.ProxyVsockResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/ResizeProcess": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "ResizeProcess",
+        "description": "Resize the tty of a given process. This will error if the process does\n not have a pty allocated.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.ResizeProcess",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.ResizeProcessRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.ResizeProcessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/SetTime": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "SetTime",
+        "description": "Set time in the guest.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.SetTime",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.SetTimeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.SetTimeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/Setenv": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "Setenv",
+        "description": "Set an environment variable on the init process.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.Setenv",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.SetenvRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.SetenvResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/SetupEmulator": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "SetupEmulator",
+        "description": "Set up an emulator in the guest for a specific binary format.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.SetupEmulator",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.SetupEmulatorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.SetupEmulatorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/StartProcess": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "StartProcess",
+        "description": "Start the provided process.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.StartProcess",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.StartProcessRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.StartProcessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/Stat": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "Stat",
+        "description": "Stat a path in the guest filesystem.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.Stat",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.StatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.StatResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/StopVsockProxy": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "StopVsockProxy",
+        "description": "Stop a vsock proxy to a unix domain socket.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.StopVsockProxy",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.StopVsockProxyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.StopVsockProxyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/Sync": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "Sync",
+        "description": "Perform the sync syscall.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.Sync",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.SyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.SyncResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/Sysctl": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "Sysctl",
+        "description": "Set sysctls in the context of the sandbox.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.Sysctl",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.SysctlRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.SysctlResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/Umount": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "Umount",
+        "description": "Unmount a filesystem.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.Umount",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.UmountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.UmountResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/WaitProcess": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "WaitProcess",
+        "description": "Wait for a process to exit and return the exit code.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.WaitProcess",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.WaitProcessRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.WaitProcessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/com.apple.containerization.sandbox.v3.SandboxContext/WriteFile": {
+      "post": {
+        "tags": [
+          "com.apple.containerization.sandbox.v3.SandboxContext"
+        ],
+        "summary": "WriteFile",
+        "description": "Write data to an existing or new file.",
+        "operationId": "com.apple.containerization.sandbox.v3.SandboxContext.WriteFile",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.WriteFileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.WriteFileResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "com.apple.containerization.sandbox.v3.BlockIOEntry": {
+        "type": "object",
+        "properties": {
+          "major": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "major",
+            "format": "int64"
+          },
+          "minor": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "minor",
+            "format": "int64"
+          },
+          "readBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "read_bytes",
+            "format": "int64"
+          },
+          "writeBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "write_bytes",
+            "format": "int64"
+          },
+          "readOperations": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "read_operations",
+            "format": "int64"
+          },
+          "writeOperations": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "write_operations",
+            "format": "int64"
+          }
+        },
+        "title": "BlockIOEntry",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.BlockIOStats": {
+        "type": "object",
+        "properties": {
+          "devices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.BlockIOEntry"
+            },
+            "title": "devices"
+          }
+        },
+        "title": "BlockIOStats",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.CPUStats": {
+        "type": "object",
+        "properties": {
+          "usageUsec": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "usage_usec",
+            "format": "int64"
+          },
+          "userUsec": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "user_usec",
+            "format": "int64"
+          },
+          "systemUsec": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "system_usec",
+            "format": "int64"
+          },
+          "throttlingPeriods": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "throttling_periods",
+            "format": "int64"
+          },
+          "throttledPeriods": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "throttled_periods",
+            "format": "int64"
+          },
+          "throttledTimeUsec": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "throttled_time_usec",
+            "format": "int64"
+          }
+        },
+        "title": "CPUStats",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.CloseProcessStdinRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "containerID": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "containerID"
+          }
+        },
+        "title": "CloseProcessStdinRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.CloseProcessStdinResponse": {
+        "type": "object",
+        "title": "CloseProcessStdinResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.ConfigureDnsRequest": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "string",
+            "title": "location"
+          },
+          "nameservers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "nameservers"
+          },
+          "domain": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "domain"
+          },
+          "searchDomains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "searchDomains"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "options"
+          }
+        },
+        "title": "ConfigureDnsRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.ConfigureDnsResponse": {
+        "type": "object",
+        "title": "ConfigureDnsResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.ConfigureHostsRequest": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "string",
+            "title": "location"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.ConfigureHostsRequest.HostsEntry"
+            },
+            "title": "entries"
+          },
+          "comment": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "comment"
+          }
+        },
+        "title": "ConfigureHostsRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.ConfigureHostsRequest.HostsEntry": {
+        "type": "object",
+        "properties": {
+          "ipAddress": {
+            "type": "string",
+            "title": "ipAddress"
+          },
+          "hostnames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "hostnames"
+          },
+          "comment": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "comment"
+          }
+        },
+        "title": "HostsEntry",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.ConfigureHostsResponse": {
+        "type": "object",
+        "title": "ConfigureHostsResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.ContainerStatisticsRequest": {
+        "type": "object",
+        "properties": {
+          "containerIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "container_ids",
+            "description": "Empty = all containers"
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.StatCategory"
+            },
+            "title": "categories",
+            "description": "Empty = all categories"
+          }
+        },
+        "title": "ContainerStatisticsRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.ContainerStatisticsResponse": {
+        "type": "object",
+        "properties": {
+          "containers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.ContainerStats"
+            },
+            "title": "containers"
+          }
+        },
+        "title": "ContainerStatisticsResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.ContainerStats": {
+        "type": "object",
+        "properties": {
+          "containerId": {
+            "type": "string",
+            "title": "container_id"
+          },
+          "process": {
+            "title": "process",
+            "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.ProcessStats"
+          },
+          "memory": {
+            "title": "memory",
+            "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.MemoryStats"
+          },
+          "cpu": {
+            "title": "cpu",
+            "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CPUStats"
+          },
+          "blockIo": {
+            "title": "block_io",
+            "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.BlockIOStats"
+          },
+          "networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.NetworkStats"
+            },
+            "title": "networks"
+          },
+          "memoryEvents": {
+            "title": "memory_events",
+            "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.MemoryEventStats"
+          }
+        },
+        "title": "ContainerStats",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.CopyRequest": {
+        "type": "object",
+        "properties": {
+          "direction": {
+            "title": "direction",
+            "description": "Direction of the copy operation.",
+            "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyRequest.Direction"
+          },
+          "path": {
+            "type": "string",
+            "title": "path",
+            "description": "Path in the guest (destination for COPY_IN, source for COPY_OUT)."
+          },
+          "mode": {
+            "type": "integer",
+            "title": "mode",
+            "description": "File mode for single-file COPY_IN (defaults to 0644 if not set)."
+          },
+          "createParents": {
+            "type": "boolean",
+            "title": "create_parents",
+            "description": "Create parent directories if they don't exist."
+          },
+          "vsockPort": {
+            "type": "integer",
+            "title": "vsock_port",
+            "description": "Vsock port the host is listening on for data transfer."
+          },
+          "isArchive": {
+            "type": "boolean",
+            "title": "is_archive",
+            "description": "For COPY_IN: indicates the data arriving on vsock is a tar+gzip archive."
+          }
+        },
+        "title": "CopyRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.CopyRequest.Direction": {
+        "type": "string",
+        "title": "Direction",
+        "enum": [
+          "COPY_IN",
+          "COPY_OUT"
+        ]
+      },
+      "com.apple.containerization.sandbox.v3.CopyResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "title": "status",
+            "description": "What this response represents.",
+            "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.CopyResponse.Status"
+          },
+          "isArchive": {
+            "type": "boolean",
+            "title": "is_archive",
+            "description": "For COPY_OUT METADATA: indicates the data on vsock will be a tar+gzip archive."
+          },
+          "totalSize": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "total_size",
+            "format": "int64",
+            "description": "For COPY_OUT METADATA: total size in bytes (0 if unknown, e.g. for archives)."
+          },
+          "error": {
+            "type": "string",
+            "title": "error",
+            "description": "Non-empty if an error occurred."
+          }
+        },
+        "title": "CopyResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.CopyResponse.Status": {
+        "type": "string",
+        "title": "Status",
+        "enum": [
+          "METADATA",
+          "COMPLETE"
+        ]
+      },
+      "com.apple.containerization.sandbox.v3.CreateProcessRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "containerID": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "containerID"
+          },
+          "stdin": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "stdin"
+          },
+          "stdout": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "stdout"
+          },
+          "stderr": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "stderr"
+          },
+          "ociRuntimePath": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "ociRuntimePath"
+          },
+          "configuration": {
+            "type": "string",
+            "title": "configuration",
+            "format": "byte"
+          },
+          "options": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "options",
+            "format": "byte"
+          }
+        },
+        "title": "CreateProcessRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.CreateProcessResponse": {
+        "type": "object",
+        "title": "CreateProcessResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.DeleteProcessRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "containerID": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "containerID"
+          }
+        },
+        "title": "DeleteProcessRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.DeleteProcessResponse": {
+        "type": "object",
+        "title": "DeleteProcessResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.FiFreezeParams": {
+        "type": "object",
+        "title": "FiFreezeParams",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.FiThawParams": {
+        "type": "object",
+        "title": "FiThawParams",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.FiTrimParams": {
+        "type": "object",
+        "oneOf": [
+          {
+            "properties": {
+              "oneShot": {
+                "title": "one_shot",
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.FiTrimParams.OneShot"
+              }
+            },
+            "title": "one_shot",
+            "required": [
+              "oneShot"
+            ]
+          }
+        ],
+        "title": "FiTrimParams",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.FiTrimParams.OneShot": {
+        "type": "object",
+        "title": "OneShot",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.FiTrimResult": {
+        "type": "object",
+        "properties": {
+          "trimmedBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "trimmed_bytes",
+            "format": "int64"
+          }
+        },
+        "title": "FiTrimResult",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.FilesystemOperationRequest": {
+        "type": "object",
+        "allOf": [
+          {
+            "properties": {
+              "path": {
+                "type": "string",
+                "title": "path"
+              }
+            }
+          },
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "freeze": {
+                    "title": "freeze",
+                    "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.FiFreezeParams"
+                  }
+                },
+                "title": "freeze",
+                "required": [
+                  "freeze"
+                ]
+              },
+              {
+                "properties": {
+                  "thaw": {
+                    "title": "thaw",
+                    "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.FiThawParams"
+                  }
+                },
+                "title": "thaw",
+                "required": [
+                  "thaw"
+                ]
+              },
+              {
+                "properties": {
+                  "trim": {
+                    "title": "trim",
+                    "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.FiTrimParams"
+                  }
+                },
+                "title": "trim",
+                "required": [
+                  "trim"
+                ]
+              }
+            ]
+          }
+        ],
+        "title": "FilesystemOperationRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.FilesystemOperationResponse": {
+        "type": "object",
+        "oneOf": [
+          {
+            "properties": {
+              "trim": {
+                "title": "trim",
+                "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.FiTrimResult"
+              }
+            },
+            "title": "trim",
+            "required": [
+              "trim"
+            ]
+          }
+        ],
+        "title": "FilesystemOperationResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.GetenvRequest": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          }
+        },
+        "title": "GetenvRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.GetenvResponse": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "value"
+          }
+        },
+        "title": "GetenvResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.IpAddrAddRequest": {
+        "type": "object",
+        "properties": {
+          "interface": {
+            "type": "string",
+            "title": "interface"
+          },
+          "ipv4Address": {
+            "type": "string",
+            "title": "ipv4Address"
+          },
+          "ipv6Address": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "ipv6Address"
+          }
+        },
+        "title": "IpAddrAddRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.IpAddrAddResponse": {
+        "type": "object",
+        "title": "IpAddrAddResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.IpLinkSetRequest": {
+        "type": "object",
+        "properties": {
+          "interface": {
+            "type": "string",
+            "title": "interface"
+          },
+          "up": {
+            "type": "boolean",
+            "title": "up"
+          },
+          "mtu": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "mtu"
+          }
+        },
+        "title": "IpLinkSetRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.IpLinkSetResponse": {
+        "type": "object",
+        "title": "IpLinkSetResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.IpRouteAddDefaultRequest": {
+        "type": "object",
+        "properties": {
+          "interface": {
+            "type": "string",
+            "title": "interface"
+          },
+          "ipv4Gateway": {
+            "type": "string",
+            "title": "ipv4Gateway"
+          },
+          "ipv6Gateway": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "ipv6Gateway"
+          }
+        },
+        "title": "IpRouteAddDefaultRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.IpRouteAddDefaultResponse": {
+        "type": "object",
+        "title": "IpRouteAddDefaultResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.IpRouteAddLinkRequest": {
+        "type": "object",
+        "properties": {
+          "interface": {
+            "type": "string",
+            "title": "interface"
+          },
+          "dstIpv4Addr": {
+            "type": "string",
+            "title": "dstIpv4Addr"
+          },
+          "srcIpv4Addr": {
+            "type": "string",
+            "title": "srcIpv4Addr"
+          },
+          "dstIpv6Addr": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "dstIpv6Addr"
+          },
+          "srcIpv6Addr": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "srcIpv6Addr"
+          }
+        },
+        "title": "IpRouteAddLinkRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.IpRouteAddLinkResponse": {
+        "type": "object",
+        "title": "IpRouteAddLinkResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.KillProcessRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "containerID": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "containerID"
+          },
+          "signal": {
+            "type": "integer",
+            "title": "signal",
+            "format": "int32"
+          }
+        },
+        "title": "KillProcessRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.KillProcessResponse": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "integer",
+            "title": "result",
+            "format": "int32"
+          }
+        },
+        "title": "KillProcessResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.KillRequest": {
+        "type": "object",
+        "properties": {
+          "pid": {
+            "type": "integer",
+            "title": "pid",
+            "format": "int32"
+          },
+          "signal": {
+            "type": "integer",
+            "title": "signal",
+            "format": "int32"
+          }
+        },
+        "title": "KillRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.KillResponse": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "integer",
+            "title": "result",
+            "format": "int32"
+          }
+        },
+        "title": "KillResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.MemoryEventStats": {
+        "type": "object",
+        "properties": {
+          "low": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "low",
+            "format": "int64",
+            "description": "Number of times the cgroup was reclaimed due to low memory."
+          },
+          "high": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "high",
+            "format": "int64",
+            "description": "Number of times the cgroup exceeded its high memory limit."
+          },
+          "max": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "max",
+            "format": "int64",
+            "description": "Number of times the cgroup hit its max memory limit."
+          },
+          "oom": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "oom",
+            "format": "int64",
+            "description": "Number of times the cgroup triggered OOM."
+          },
+          "oomKill": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "oom_kill",
+            "format": "int64",
+            "description": "Number of processes killed by OOM killer."
+          },
+          "oomGroupKill": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "oom_group_kill",
+            "format": "int64",
+            "description": "Number of times charge for memory failed because of limit."
+          }
+        },
+        "title": "MemoryEventStats",
+        "additionalProperties": false,
+        "description": "Memory event counters from cgroup2's memory.events file."
+      },
+      "com.apple.containerization.sandbox.v3.MemoryStats": {
+        "type": "object",
+        "properties": {
+          "usageBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "usage_bytes",
+            "format": "int64"
+          },
+          "limitBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "limit_bytes",
+            "format": "int64"
+          },
+          "swapUsageBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "swap_usage_bytes",
+            "format": "int64"
+          },
+          "swapLimitBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "swap_limit_bytes",
+            "format": "int64"
+          },
+          "cacheBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "cache_bytes",
+            "format": "int64"
+          },
+          "kernelStackBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "kernel_stack_bytes",
+            "format": "int64"
+          },
+          "slabBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "slab_bytes",
+            "format": "int64"
+          },
+          "pageFaults": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "page_faults",
+            "format": "int64"
+          },
+          "majorPageFaults": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "major_page_faults",
+            "format": "int64"
+          },
+          "inactiveFile": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "inactive_file",
+            "format": "int64"
+          },
+          "anon": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "anon",
+            "format": "int64"
+          },
+          "workingsetRefaultAnon": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "workingset_refault_anon",
+            "format": "int64"
+          },
+          "workingsetRefaultFile": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "workingset_refault_file",
+            "format": "int64"
+          },
+          "pgstealKswapd": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "pgsteal_kswapd",
+            "format": "int64"
+          },
+          "pgstealDirect": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "pgsteal_direct",
+            "format": "int64"
+          },
+          "pgstealKhugepaged": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "pgsteal_khugepaged",
+            "format": "int64"
+          }
+        },
+        "title": "MemoryStats",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.MkdirRequest": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "path"
+          },
+          "all": {
+            "type": "boolean",
+            "title": "all"
+          },
+          "perms": {
+            "type": "integer",
+            "title": "perms"
+          }
+        },
+        "title": "MkdirRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.MkdirResponse": {
+        "type": "object",
+        "title": "MkdirResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.MountRequest": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "type"
+          },
+          "source": {
+            "type": "string",
+            "title": "source"
+          },
+          "destination": {
+            "type": "string",
+            "title": "destination"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "options"
+          }
+        },
+        "title": "MountRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.MountResponse": {
+        "type": "object",
+        "title": "MountResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.NetworkStats": {
+        "type": "object",
+        "properties": {
+          "interface": {
+            "type": "string",
+            "title": "interface"
+          },
+          "receivedPackets": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "receivedPackets",
+            "format": "int64"
+          },
+          "transmittedPackets": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "transmittedPackets",
+            "format": "int64"
+          },
+          "receivedBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "receivedBytes",
+            "format": "int64"
+          },
+          "transmittedBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "transmittedBytes",
+            "format": "int64"
+          },
+          "receivedErrors": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "receivedErrors",
+            "format": "int64"
+          },
+          "transmittedErrors": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "transmittedErrors",
+            "format": "int64"
+          }
+        },
+        "title": "NetworkStats",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.ProcessStats": {
+        "type": "object",
+        "properties": {
+          "current": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "current",
+            "format": "int64"
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "limit",
+            "format": "int64",
+            "description": "0 or max value = unlimited"
+          }
+        },
+        "title": "ProcessStats",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.ProxyVsockRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "vsockPort": {
+            "type": "integer",
+            "title": "vsock_port"
+          },
+          "guestPath": {
+            "type": "string",
+            "title": "guestPath"
+          },
+          "guestSocketPermissions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "guestSocketPermissions"
+          },
+          "action": {
+            "title": "action",
+            "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.ProxyVsockRequest.Action"
+          }
+        },
+        "title": "ProxyVsockRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.ProxyVsockRequest.Action": {
+        "type": "string",
+        "title": "Action",
+        "enum": [
+          "INTO",
+          "OUT_OF"
+        ]
+      },
+      "com.apple.containerization.sandbox.v3.ProxyVsockResponse": {
+        "type": "object",
+        "title": "ProxyVsockResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.ResizeProcessRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "containerID": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "containerID"
+          },
+          "rows": {
+            "type": "integer",
+            "title": "rows"
+          },
+          "columns": {
+            "type": "integer",
+            "title": "columns"
+          }
+        },
+        "title": "ResizeProcessRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.ResizeProcessResponse": {
+        "type": "object",
+        "title": "ResizeProcessResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.SetTimeRequest": {
+        "type": "object",
+        "properties": {
+          "sec": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "sec",
+            "format": "int64"
+          },
+          "usec": {
+            "type": "integer",
+            "title": "usec",
+            "format": "int32"
+          }
+        },
+        "title": "SetTimeRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.SetTimeResponse": {
+        "type": "object",
+        "title": "SetTimeResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.SetenvRequest": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "value"
+          }
+        },
+        "title": "SetenvRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.SetenvResponse": {
+        "type": "object",
+        "title": "SetenvResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.SetupEmulatorRequest": {
+        "type": "object",
+        "properties": {
+          "binaryPath": {
+            "type": "string",
+            "title": "binary_path"
+          },
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "type": {
+            "type": "string",
+            "title": "type"
+          },
+          "offset": {
+            "type": "string",
+            "title": "offset"
+          },
+          "magic": {
+            "type": "string",
+            "title": "magic"
+          },
+          "mask": {
+            "type": "string",
+            "title": "mask"
+          },
+          "flags": {
+            "type": "string",
+            "title": "flags"
+          }
+        },
+        "title": "SetupEmulatorRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.SetupEmulatorResponse": {
+        "type": "object",
+        "title": "SetupEmulatorResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.StartProcessRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "containerID": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "containerID"
+          }
+        },
+        "title": "StartProcessRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.StartProcessResponse": {
+        "type": "object",
+        "properties": {
+          "pid": {
+            "type": "integer",
+            "title": "pid",
+            "format": "int32"
+          }
+        },
+        "title": "StartProcessResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.Stat": {
+        "type": "object",
+        "properties": {
+          "dev": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "dev",
+            "format": "int64",
+            "description": "st_dev:     ID of device containing file"
+          },
+          "ino": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "ino",
+            "format": "int64",
+            "description": "st_ino:     inode number"
+          },
+          "mode": {
+            "type": "integer",
+            "title": "mode",
+            "description": "st_mode:    file type and mode (permissions)"
+          },
+          "nlink": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "nlink",
+            "format": "int64",
+            "description": "st_nlink:   number of hard links"
+          },
+          "uid": {
+            "type": "integer",
+            "title": "uid",
+            "description": "st_uid:     user ID of owner"
+          },
+          "gid": {
+            "type": "integer",
+            "title": "gid",
+            "description": "st_gid:     group ID of owner"
+          },
+          "rdev": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "rdev",
+            "format": "int64",
+            "description": "st_rdev:    device ID (if special file)"
+          },
+          "size": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "size",
+            "format": "int64",
+            "description": "st_size:    total size in bytes"
+          },
+          "blksize": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "blksize",
+            "format": "int64",
+            "description": "st_blksize: preferred block size for filesystem I/O"
+          },
+          "blocks": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "blocks",
+            "format": "int64",
+            "description": "st_blocks:  number of 512-byte blocks allocated"
+          },
+          "atime": {
+            "title": "atime",
+            "description": "st_atim: time of last access",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "mtime": {
+            "title": "mtime",
+            "description": "st_mtim: time of last modification",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "ctime": {
+            "title": "ctime",
+            "description": "st_ctim: time of last status change",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
+        "title": "Stat",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.StatCategory": {
+        "type": "string",
+        "title": "StatCategory",
+        "enum": [
+          "STAT_CATEGORY_UNSPECIFIED",
+          "STAT_CATEGORY_PROCESS",
+          "STAT_CATEGORY_MEMORY",
+          "STAT_CATEGORY_CPU",
+          "STAT_CATEGORY_BLOCK_IO",
+          "STAT_CATEGORY_NETWORK",
+          "STAT_CATEGORY_MEMORY_EVENTS"
+        ],
+        "description": "Categories of statistics that can be requested."
+      },
+      "com.apple.containerization.sandbox.v3.StatRequest": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "path"
+          }
+        },
+        "title": "StatRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.StatResponse": {
+        "type": "object",
+        "properties": {
+          "stat": {
+            "title": "stat",
+            "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.Stat"
+          },
+          "error": {
+            "type": "string",
+            "title": "error",
+            "description": "Non-empty if stat failed."
+          }
+        },
+        "title": "StatResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.Stdio": {
+        "type": "object",
+        "properties": {
+          "stdinPort": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "stdinPort",
+            "format": "int32"
+          },
+          "stdoutPort": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "stdoutPort",
+            "format": "int32"
+          },
+          "stderrPort": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "stderrPort",
+            "format": "int32"
+          }
+        },
+        "title": "Stdio",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.StopVsockProxyRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          }
+        },
+        "title": "StopVsockProxyRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.StopVsockProxyResponse": {
+        "type": "object",
+        "title": "StopVsockProxyResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.SyncRequest": {
+        "type": "object",
+        "title": "SyncRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.SyncResponse": {
+        "type": "object",
+        "title": "SyncResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.SysctlRequest": {
+        "type": "object",
+        "properties": {
+          "settings": {
+            "type": "object",
+            "title": "settings",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            }
+          }
+        },
+        "title": "SysctlRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.SysctlRequest.SettingsEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "type": "string",
+            "title": "value"
+          }
+        },
+        "title": "SettingsEntry",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.SysctlResponse": {
+        "type": "object",
+        "title": "SysctlResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.UmountRequest": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "path"
+          },
+          "flags": {
+            "type": "integer",
+            "title": "flags",
+            "format": "int32"
+          }
+        },
+        "title": "UmountRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.UmountResponse": {
+        "type": "object",
+        "title": "UmountResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.WaitProcessRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "containerID": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "containerID"
+          }
+        },
+        "title": "WaitProcessRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.WaitProcessResponse": {
+        "type": "object",
+        "properties": {
+          "exitCode": {
+            "type": "integer",
+            "title": "exitCode",
+            "format": "int32"
+          },
+          "exitedAt": {
+            "title": "exited_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
+        "title": "WaitProcessResponse",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.WriteFileRequest": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "path"
+          },
+          "data": {
+            "type": "string",
+            "title": "data",
+            "format": "byte"
+          },
+          "mode": {
+            "type": "integer",
+            "title": "mode"
+          },
+          "flags": {
+            "title": "flags",
+            "$ref": "#/components/schemas/com.apple.containerization.sandbox.v3.WriteFileRequest.WriteFileFlags"
+          }
+        },
+        "title": "WriteFileRequest",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.WriteFileRequest.WriteFileFlags": {
+        "type": "object",
+        "properties": {
+          "createParentDirs": {
+            "type": "boolean",
+            "title": "create_parent_dirs"
+          },
+          "append": {
+            "type": "boolean",
+            "title": "append"
+          },
+          "createIfMissing": {
+            "type": "boolean",
+            "title": "create_if_missing"
+          }
+        },
+        "title": "WriteFileFlags",
+        "additionalProperties": false
+      },
+      "com.apple.containerization.sandbox.v3.WriteFileResponse": {
+        "type": "object",
+        "title": "WriteFileResponse",
+        "additionalProperties": false
+      },
+      "connect-protocol-version": {
+        "type": "number",
+        "title": "Connect-Protocol-Version",
+        "enum": [
+          1
+        ],
+        "description": "Define the version of the Connect protocol",
+        "const": 1
+      },
+      "connect-timeout-header": {
+        "type": "number",
+        "title": "Connect-Timeout-Ms",
+        "description": "Define the timeout, in ms"
+      },
+      "connect.error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "examples": [
+              "not_found"
+            ],
+            "enum": [
+              "canceled",
+              "unknown",
+              "invalid_argument",
+              "deadline_exceeded",
+              "not_found",
+              "already_exists",
+              "permission_denied",
+              "resource_exhausted",
+              "failed_precondition",
+              "aborted",
+              "out_of_range",
+              "unimplemented",
+              "internal",
+              "unavailable",
+              "data_loss",
+              "unauthenticated"
+            ],
+            "description": "The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code]."
+          },
+          "message": {
+            "type": "string",
+            "description": "A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the [google.rpc.Status.details][google.rpc.Status.details] field, or localized by the client."
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/connect.error_details.Any"
+            },
+            "description": "A list of messages that carry the error details. There is no limit on the number of messages."
+          }
+        },
+        "title": "Connect Error",
+        "additionalProperties": true,
+        "description": "Error type returned by Connect: https://connectrpc.com/docs/go/errors/#http-representation"
+      },
+      "connect.error_details.Any": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "A URL that acts as a globally unique identifier for the type of the serialized message. For example: `type.googleapis.com/google.rpc.ErrorInfo`. This is used to determine the schema of the data in the `value` field and is the discriminator for the `debug` field."
+          },
+          "value": {
+            "type": "string",
+            "format": "binary",
+            "description": "The Protobuf message, serialized as bytes and base64-encoded. The specific message type is identified by the `type` field."
+          },
+          "debug": {
+            "oneOf": [
+              {
+                "type": "object",
+                "title": "Any",
+                "additionalProperties": true,
+                "description": "Detailed error information."
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type"
+            },
+            "title": "Debug",
+            "description": "Deserialized error detail payload. The 'type' field indicates the schema. This field is for easier debugging and should not be relied upon for application logic."
+          }
+        },
+        "additionalProperties": true,
+        "description": "Contains an arbitrary serialized message along with a @type that describes the type of the serialized message, with an additional debug field for ConnectRPC error details."
+      },
+      "google.protobuf.Timestamp": {
+        "type": "string",
+        "examples": [
+          "2023-01-15T01:30:15.01Z",
+          "2024-12-25T12:00:00Z"
+        ],
+        "format": "date-time",
+        "description": "A Timestamp represents a point in time independent of any time zone or local\n calendar, encoded as a count of seconds and fractions of seconds at\n nanosecond resolution. The count is relative to an epoch at UTC midnight on\n January 1, 1970, in the proleptic Gregorian calendar which extends the\n Gregorian calendar backwards to year one.\n\n All minutes are 60 seconds long. Leap seconds are \"smeared\" so that no leap\n second table is needed for interpretation, using a [24-hour linear\n smear](https://developers.google.com/time/smear).\n\n The range is from 0001-01-01T00:00:00Z to 9999-12-31T23:59:59.999999999Z. By\n restricting to that range, we ensure that we can convert to and from [RFC\n 3339](https://www.ietf.org/rfc/rfc3339.txt) date strings.\n\n # Examples\n\n Example 1: Compute Timestamp from POSIX `time()`.\n\n     Timestamp timestamp;\n     timestamp.set_seconds(time(NULL));\n     timestamp.set_nanos(0);\n\n Example 2: Compute Timestamp from POSIX `gettimeofday()`.\n\n     struct timeval tv;\n     gettimeofday(\u0026tv, NULL);\n\n     Timestamp timestamp;\n     timestamp.set_seconds(tv.tv_sec);\n     timestamp.set_nanos(tv.tv_usec * 1000);\n\n Example 3: Compute Timestamp from Win32 `GetSystemTimeAsFileTime()`.\n\n     FILETIME ft;\n     GetSystemTimeAsFileTime(\u0026ft);\n     UINT64 ticks = (((UINT64)ft.dwHighDateTime) \u003c\u003c 32) | ft.dwLowDateTime;\n\n     // A Windows tick is 100 nanoseconds. Windows epoch 1601-01-01T00:00:00Z\n     // is 11644473600 seconds before Unix epoch 1970-01-01T00:00:00Z.\n     Timestamp timestamp;\n     timestamp.set_seconds((INT64) ((ticks / 10000000) - 11644473600LL));\n     timestamp.set_nanos((INT32) ((ticks % 10000000) * 100));\n\n Example 4: Compute Timestamp from Java `System.currentTimeMillis()`.\n\n     long millis = System.currentTimeMillis();\n\n     Timestamp timestamp = Timestamp.newBuilder().setSeconds(millis / 1000)\n         .setNanos((int) ((millis % 1000) * 1000000)).build();\n\n Example 5: Compute Timestamp from Java `Instant.now()`.\n\n     Instant now = Instant.now();\n\n     Timestamp timestamp =\n         Timestamp.newBuilder().setSeconds(now.getEpochSecond())\n             .setNanos(now.getNano()).build();\n\n Example 6: Compute Timestamp from current time in Python.\n\n     timestamp = Timestamp()\n     timestamp.GetCurrentTime()\n\n # JSON Mapping\n\n In JSON format, the Timestamp type is encoded as a string in the\n [RFC 3339](https://www.ietf.org/rfc/rfc3339.txt) format. That is, the\n format is \"{year}-{month}-{day}T{hour}:{min}:{sec}[.{frac_sec}]Z\"\n where {year} is always expressed using four digits while {month}, {day},\n {hour}, {min}, and {sec} are zero-padded to two digits each. The fractional\n seconds, which can go up to 9 digits (i.e. up to 1 nanosecond resolution),\n are optional. The \"Z\" suffix indicates the timezone (\"UTC\"); the timezone\n is required. A proto3 JSON serializer should always use UTC (as indicated by\n \"Z\") when printing the Timestamp type and a proto3 JSON parser should be\n able to accept both UTC and other timezones (as indicated by an offset).\n\n For example, \"2017-01-15T01:30:15.01Z\" encodes 15.01 seconds past\n 01:30 UTC on January 15, 2017.\n\n In JavaScript, one can convert a Date object to this format using the\n standard\n [toISOString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toISOString)\n method. In Python, a standard `datetime.datetime` object can be converted\n to this format using\n [`strftime`](https://docs.python.org/2/library/time.html#time.strftime) with\n the time format spec '%Y-%m-%dT%H:%M:%S.%fZ'. Likewise, in Java, one can use\n the Joda Time's [`ISODateTimeFormat.dateTime()`](\n http://joda-time.sourceforge.net/apidocs/org/joda/time/format/ISODateTimeFormat.html#dateTime()\n ) to obtain a formatter capable of generating timestamps in this format."
+      }
+    }
+  },
+  "security": [],
+  "tags": [
+    {
+      "name": "com.apple.containerization.sandbox.v3.SandboxContext",
+      "description": "Context for interacting with a container's runtime environment."
+    }
+  ]
+}

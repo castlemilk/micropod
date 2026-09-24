@@ -1,0 +1,341 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "micropod.v1"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "micropod.v1.ContainerStats": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "cpuPercent": {
+            "type": "number",
+            "title": "cpu_percent",
+            "format": "double"
+          },
+          "memoryUsedBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "memory_used_bytes",
+            "format": "int64"
+          },
+          "memoryLimitBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "memory_limit_bytes",
+            "format": "int64"
+          },
+          "networkRxBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "network_rx_bytes",
+            "format": "int64"
+          },
+          "networkTxBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "network_tx_bytes",
+            "format": "int64"
+          },
+          "blockReadBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "block_read_bytes",
+            "format": "int64"
+          },
+          "blockWriteBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "block_write_bytes",
+            "format": "int64"
+          },
+          "pids": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "pids",
+            "format": "int64"
+          }
+        },
+        "title": "ContainerStats",
+        "additionalProperties": false
+      },
+      "micropod.v1.DiskCategory": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "total",
+            "format": "int64"
+          },
+          "active": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "active",
+            "format": "int64"
+          },
+          "sizeBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "size_bytes",
+            "format": "int64"
+          },
+          "reclaimableBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "reclaimable_bytes",
+            "format": "int64"
+          }
+        },
+        "title": "DiskCategory",
+        "additionalProperties": false
+      },
+      "micropod.v1.DiskUsage": {
+        "type": "object",
+        "properties": {
+          "containers": {
+            "title": "containers",
+            "$ref": "#/components/schemas/micropod.v1.DiskCategory"
+          },
+          "images": {
+            "title": "images",
+            "$ref": "#/components/schemas/micropod.v1.DiskCategory"
+          },
+          "volumes": {
+            "title": "volumes",
+            "$ref": "#/components/schemas/micropod.v1.DiskCategory"
+          },
+          "totalReclaimableBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "total_reclaimable_bytes",
+            "format": "int64"
+          }
+        },
+        "title": "DiskUsage",
+        "additionalProperties": false,
+        "description": "Disk usage, mapped from `container system df`."
+      },
+      "micropod.v1.Network": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "plugin": {
+            "type": "string",
+            "title": "plugin"
+          },
+          "mode": {
+            "type": "string",
+            "title": "mode"
+          },
+          "ipv4Gateway": {
+            "type": "string",
+            "title": "ipv4_gateway"
+          },
+          "ipv4Subnet": {
+            "type": "string",
+            "title": "ipv4_subnet"
+          },
+          "ipv6Subnet": {
+            "type": "string",
+            "title": "ipv6_subnet"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "created_at"
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "builtin"
+          },
+          "labels": {
+            "type": "object",
+            "title": "labels",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            }
+          }
+        },
+        "title": "Network",
+        "additionalProperties": false,
+        "description": "Curated network, mapped from `container network list`."
+      },
+      "micropod.v1.Network.LabelsEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "type": "string",
+            "title": "value"
+          }
+        },
+        "title": "LabelsEntry",
+        "additionalProperties": false
+      },
+      "micropod.v1.RegistryLogin": {
+        "type": "object",
+        "properties": {
+          "server": {
+            "type": "string",
+            "title": "server"
+          },
+          "username": {
+            "type": "string",
+            "title": "username"
+          },
+          "scheme": {
+            "type": "string",
+            "title": "scheme"
+          }
+        },
+        "title": "RegistryLogin",
+        "additionalProperties": false,
+        "description": "A registry login, mapped from `container registry list`."
+      },
+      "micropod.v1.StatsSnapshot": {
+        "type": "object",
+        "properties": {
+          "containers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.ContainerStats"
+            },
+            "title": "containers"
+          },
+          "sampledAt": {
+            "type": "string",
+            "title": "sampled_at"
+          }
+        },
+        "title": "StatsSnapshot",
+        "additionalProperties": false,
+        "description": "Single snapshot of runtime resource usage for all running containers,\n mapped from `container stats --no-stream --format json`."
+      },
+      "micropod.v1.SystemStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "status",
+            "description": "\"running\" or \"stopped\"."
+          },
+          "appRoot": {
+            "type": "string",
+            "title": "app_root"
+          },
+          "installRoot": {
+            "type": "string",
+            "title": "install_root"
+          },
+          "apiServerVersion": {
+            "type": "string",
+            "title": "api_server_version"
+          },
+          "cliVersion": {
+            "type": "string",
+            "title": "cli_version"
+          }
+        },
+        "title": "SystemStatus",
+        "additionalProperties": false,
+        "description": "Runtime health, mapped from `container system status`."
+      },
+      "micropod.v1.Volume": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "driver": {
+            "type": "string",
+            "title": "driver"
+          },
+          "format": {
+            "type": "string",
+            "title": "format"
+          },
+          "sizeBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "size_bytes",
+            "format": "int64"
+          },
+          "source": {
+            "type": "string",
+            "title": "source"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "created_at"
+          },
+          "labels": {
+            "type": "object",
+            "title": "labels",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            }
+          }
+        },
+        "title": "Volume",
+        "additionalProperties": false,
+        "description": "Curated volume, mapped from `container volume list`."
+      },
+      "micropod.v1.Volume.LabelsEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "type": "string",
+            "title": "value"
+          }
+        },
+        "title": "LabelsEntry",
+        "additionalProperties": false
+      }
+    }
+  },
+  "security": []
+}

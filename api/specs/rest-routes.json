@@ -1,0 +1,147 @@
+[
+  {
+    "method": "GET",
+    "path": "/health",
+    "description": "Liveness probe."
+  },
+  {
+    "method": "GET",
+    "path": "/metrics",
+    "description": "Prometheus metrics (text format)."
+  },
+  {
+    "method": "GET",
+    "path": "/v1/usage",
+    "description": "Disk usage report (containers, images, volumes)."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/system/update",
+    "description": "Check for runtime updates via the app control socket."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/system/update/apply",
+    "description": "Apply a pending runtime update."
+  },
+  {
+    "method": "GET",
+    "path": "/v1/system/update",
+    "description": "Check for available runtime updates."
+  },
+  {
+    "method": "GET",
+    "path": "/v1/system",
+    "description": "Runtime status, versions, backend."
+  },
+  {
+    "method": "GET",
+    "path": "/v1/containers",
+    "description": "List all containers."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/containers",
+    "description": "Run a container (create + start)."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/containers/create",
+    "description": "Create a container without starting it."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/containers/{id}/start",
+    "description": "Start a stopped container."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/containers/{id}/stop",
+    "description": "Stop a running container."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/containers/{id}/restart",
+    "description": "Restart a container."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/containers/{id}/kill",
+    "description": "Force-kill a container."
+  },
+  {
+    "method": "DELETE",
+    "path": "/v1/containers/{id}",
+    "description": "Delete a container (?force=true)."
+  },
+  {
+    "method": "GET",
+    "path": "/v1/containers/{id}/logs",
+    "description": "Stream logs as SSE (?tail=N&boot=true)."
+  },
+  {
+    "method": "GET",
+    "path": "/v1/images",
+    "description": "List local images."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/images/pull",
+    "description": "Pull an image; streams progress as SSE."
+  },
+  {
+    "method": "DELETE",
+    "path": "/v1/images/{ref}",
+    "description": "Delete an image."
+  },
+  {
+    "method": "GET",
+    "path": "/v1/volumes",
+    "description": "List volumes."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/volumes",
+    "description": "Create a named volume."
+  },
+  {
+    "method": "DELETE",
+    "path": "/v1/volumes/{name}",
+    "description": "Delete a volume."
+  },
+  {
+    "method": "GET",
+    "path": "/v1/networks",
+    "description": "List networks."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/networks",
+    "description": "Create a network."
+  },
+  {
+    "method": "DELETE",
+    "path": "/v1/networks/{name}",
+    "description": "Delete a network."
+  },
+  {
+    "method": "GET",
+    "path": "/v1/stats",
+    "description": "Resource usage snapshot for running containers."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/compose/up",
+    "description": "docker-compose up from a compose file."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/compose/down",
+    "description": "docker-compose down."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/exec",
+    "description": "Run a command in a container; returns exit code + output."
+  }
+]

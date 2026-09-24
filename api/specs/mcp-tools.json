@@ -1,0 +1,226 @@
+[
+  {
+    "name": "build_cache_stats",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Content-addressed build contexts: entries, bytes, shared bytes, cap. Arguments: path (optional cache root)."
+  },
+  {
+    "name": "compose_down",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Tear down a compose stack by its compose name. Arguments: name."
+  },
+  {
+    "name": "compose_ps",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "List containers belonging to a compose stack. Arguments: name."
+  },
+  {
+    "name": "compose_up",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Parse + run a docker-compose.yml. Arguments: path, profiles (optional comma list)."
+  },
+  {
+    "name": "delete",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Force-delete a container. Arguments: id."
+  },
+  {
+    "name": "df",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Disk usage: containers/images/volumes sizes + reclaimable bytes."
+  },
+  {
+    "name": "exec",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Run a command in a running container. Arguments: id (required), command (required)."
+  },
+  {
+    "name": "inspect",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Pretty-printed container inspect JSON. Arguments: id."
+  },
+  {
+    "name": "kill",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Kill a container. Arguments: id."
+  },
+  {
+    "name": "list_containers",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "List all containers (id, state, image, IP) as tab-separated lines."
+  },
+  {
+    "name": "list_images",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "List local images (name, id, size, variants)."
+  },
+  {
+    "name": "list_networks",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "List networks (name, mode, subnet)."
+  },
+  {
+    "name": "list_volumes",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "List volumes (name, size, driver)."
+  },
+  {
+    "name": "logs",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Last 100 log lines of a container. Arguments: id."
+  },
+  {
+    "name": "pull",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Pull an image. Arguments: reference."
+  },
+  {
+    "name": "push",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Push an image. Arguments: reference."
+  },
+  {
+    "name": "restart",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Restart a container (stop then start). Arguments: id."
+  },
+  {
+    "name": "run",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Run a container. Arguments: image (required), name (optional), memory (optional)."
+  },
+  {
+    "name": "share_gc",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Remove unreferenced chunks from the shared cache."
+  },
+  {
+    "name": "share_list",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "List active synchronized file shares."
+  },
+  {
+    "name": "share_mount",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Expose a host directory as a synchronized file share. Arguments: src (required), readonly (optional), shared (optional live view)."
+  },
+  {
+    "name": "share_sync",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Flush a shared view's writes back to its source. Arguments: id."
+  },
+  {
+    "name": "share_unmount",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Remove a shared view. Arguments: id."
+  },
+  {
+    "name": "start",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Start a container. Arguments: id."
+  },
+  {
+    "name": "stats",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Resource usage for all running containers (memory/CPU/net)."
+  },
+  {
+    "name": "status",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Runtime status: running/stopped + CLI + apiserver versions."
+  },
+  {
+    "name": "stop",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Stop a container. Arguments: id."
+  },
+  {
+    "name": "update_apply",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Install a downloaded app update: quits Micropod, Sparkle applies it, app relaunches."
+  },
+  {
+    "name": "update_check",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Trigger a background app update check (Sparkle) via the Micropod app."
+  },
+  {
+    "name": "update_status",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Last-known app update state (checking/upToDate/updateAvailable/installing)."
+  },
+  {
+    "name": "volume_policy",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Show the shared volume-mount policy (clone mode, golden volumes, sync/cache modes)."
+  },
+  {
+    "name": "volume_policy_set",
+    "inputSchema": {
+      "type": "object"
+    },
+    "description": "Update the volume-mount policy. Arguments: mode (labels|goldens|all), goldens (comma list), jobsOnly (true|false), sync (full|fsync|nosync|default), cache (on|off|auto). Only provided fields change."
+  }
+]

@@ -1,0 +1,76 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "micropod.v1"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "micropod.v1.Image": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "names",
+            "description": "All tags/references pointing at this image."
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "created_at",
+            "description": "ISO8601 creation timestamp."
+          },
+          "digest": {
+            "type": "string",
+            "title": "digest",
+            "description": "Content digest."
+          },
+          "sizeBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "size_bytes",
+            "format": "int64"
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.ImageVariant"
+            },
+            "title": "variants"
+          }
+        },
+        "title": "Image",
+        "additionalProperties": false,
+        "description": "Curated view of a local image, mapped from `container image list --verbose`."
+      },
+      "micropod.v1.ImageVariant": {
+        "type": "object",
+        "properties": {
+          "os": {
+            "type": "string",
+            "title": "os"
+          },
+          "architecture": {
+            "type": "string",
+            "title": "architecture"
+          },
+          "variant": {
+            "type": "string",
+            "title": "variant"
+          }
+        },
+        "title": "ImageVariant",
+        "additionalProperties": false
+      }
+    }
+  },
+  "security": []
+}

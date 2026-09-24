@@ -1,0 +1,480 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "micropod.v1"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "micropod.v1.ComposeNetwork": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "internal": {
+            "type": "boolean",
+            "title": "internal"
+          },
+          "external": {
+            "type": "boolean",
+            "title": "external"
+          },
+          "driver": {
+            "type": "string",
+            "title": "driver"
+          },
+          "driverOpts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "driver_opts",
+            "description": "Plugin options (compose `driver_opts` -\u003e `--option`)."
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "labels"
+          },
+          "subnet": {
+            "type": "string",
+            "title": "subnet",
+            "description": "From `ipam.config[0].subnet` / `subnet_v6`."
+          },
+          "subnetV6": {
+            "type": "string",
+            "title": "subnet_v6"
+          },
+          "externalName": {
+            "type": "string",
+            "title": "external_name",
+            "description": "`external: {name: \"…\"}` override."
+          }
+        },
+        "title": "ComposeNetwork",
+        "additionalProperties": false
+      },
+      "micropod.v1.ComposeService": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "image": {
+            "type": "string",
+            "title": "image"
+          },
+          "buildContext": {
+            "type": "string",
+            "title": "build_context",
+            "description": "Build context dir if the service is built from a Dockerfile."
+          },
+          "buildDockerfile": {
+            "type": "string",
+            "title": "build_dockerfile"
+          },
+          "buildArgs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "build_args"
+          },
+          "dependsOn": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "depends_on"
+          },
+          "ports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.PortMapping"
+            },
+            "title": "ports"
+          },
+          "environment": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "environment"
+          },
+          "volumes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "volumes"
+          },
+          "commands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "commands"
+          },
+          "workingDir": {
+            "type": "string",
+            "title": "working_dir"
+          },
+          "restart": {
+            "type": "string",
+            "title": "restart"
+          },
+          "cpus": {
+            "type": "number",
+            "title": "cpus",
+            "format": "double",
+            "description": "Resource caps (compose `cpus`, `mem_limit`)."
+          },
+          "memory": {
+            "type": "string",
+            "title": "memory"
+          },
+          "healthcheckCommand": {
+            "type": "string",
+            "title": "healthcheck_command",
+            "description": "Healthcheck command; used for real readiness probes."
+          },
+          "networks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "networks"
+          },
+          "containerName": {
+            "type": "string",
+            "title": "container_name"
+          },
+          "entrypoint": {
+            "type": "string",
+            "title": "entrypoint"
+          },
+          "user": {
+            "type": "string",
+            "title": "user",
+            "description": "User for the container process (format: name|uid[:gid])."
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "labels",
+            "description": "key=value container labels."
+          },
+          "dns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "dns",
+            "description": "DNS nameserver IPs (compose `dns`)."
+          },
+          "dnsSearch": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "dns_search",
+            "description": "DNS search domains (compose `dns_search`)."
+          },
+          "capAdd": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "cap_add"
+          },
+          "capDrop": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "cap_drop"
+          },
+          "ulimits": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "ulimits",
+            "description": "Resource limits, format: type=soft[:hard]."
+          },
+          "tmpfs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "tmpfs",
+            "description": "tmpfs mounts: path or path:size."
+          },
+          "envFile": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "env_file",
+            "description": "env_file paths (resolved against the compose file directory)."
+          },
+          "shmSize": {
+            "type": "string",
+            "title": "shm_size"
+          },
+          "readOnly": {
+            "type": "boolean",
+            "title": "read_only"
+          },
+          "init": {
+            "type": "boolean",
+            "title": "init"
+          },
+          "tty": {
+            "type": "boolean",
+            "title": "tty"
+          },
+          "stdinOpen": {
+            "type": "boolean",
+            "title": "stdin_open"
+          },
+          "privileged": {
+            "type": "boolean",
+            "title": "privileged",
+            "description": "Parsed but not expressible on the Apple runtime."
+          },
+          "extraHosts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "extra_hosts"
+          },
+          "dependsOnConditions": {
+            "type": "object",
+            "title": "depends_on_conditions",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            },
+            "description": "Conditions for depends_on entries (key = dependency name):\n \"started\" (default) or \"service_healthy\"."
+          },
+          "healthcheckIntervalSeconds": {
+            "type": "integer",
+            "title": "healthcheck_interval_seconds",
+            "format": "int32"
+          },
+          "healthcheckTimeoutSeconds": {
+            "type": "integer",
+            "title": "healthcheck_timeout_seconds",
+            "format": "int32"
+          },
+          "healthcheckRetries": {
+            "type": "integer",
+            "title": "healthcheck_retries",
+            "format": "int32"
+          },
+          "healthcheckStartPeriodSeconds": {
+            "type": "integer",
+            "title": "healthcheck_start_period_seconds",
+            "format": "int32"
+          },
+          "buildTarget": {
+            "type": "string",
+            "title": "build_target",
+            "description": "Build stage target / platform for `build:` sections."
+          },
+          "buildPlatform": {
+            "type": "string",
+            "title": "build_platform"
+          },
+          "buildNoCache": {
+            "type": "boolean",
+            "title": "build_no_cache",
+            "description": "`build.no_cache` / `build.pull` passthrough."
+          },
+          "profiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "profiles",
+            "description": "Compose profiles; the service only runs when an enabled profile matches."
+          },
+          "pullPolicy": {
+            "type": "string",
+            "title": "pull_policy",
+            "description": "Image pull policy: \"always\" forces a pull, anything else pulls only when\n the image is not present locally (docker's default \"missing\")."
+          },
+          "stopSignal": {
+            "type": "string",
+            "title": "stop_signal",
+            "description": "Stop behaviour (parsed; stop_signal is not expressible, grace period\n maps to `container stop --time`)."
+          },
+          "stopGracePeriodSeconds": {
+            "type": "integer",
+            "title": "stop_grace_period_seconds",
+            "format": "int32"
+          }
+        },
+        "title": "ComposeService",
+        "additionalProperties": false,
+        "description": "A single service of a compose spec, mapped onto `container run` capabilities.\n Fields the Apple runtime cannot express (e.g. privileged) are still parsed\n so the UI can show them as unsupported rather than silently dropping them."
+      },
+      "micropod.v1.ComposeService.DependsOnConditionsEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "type": "string",
+            "title": "value"
+          }
+        },
+        "title": "DependsOnConditionsEntry",
+        "additionalProperties": false
+      },
+      "micropod.v1.ComposeSpec": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "path": {
+            "type": "string",
+            "title": "path"
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.ComposeService"
+            },
+            "title": "services"
+          },
+          "volumes": {
+            "type": "object",
+            "title": "volumes",
+            "additionalProperties": {
+              "title": "value",
+              "$ref": "#/components/schemas/micropod.v1.ComposeVolume"
+            }
+          },
+          "networks": {
+            "type": "object",
+            "title": "networks",
+            "additionalProperties": {
+              "title": "value",
+              "$ref": "#/components/schemas/micropod.v1.ComposeNetwork"
+            }
+          }
+        },
+        "title": "ComposeSpec",
+        "additionalProperties": false,
+        "description": "Parsed docker-compose.yml, produced by the compose importer."
+      },
+      "micropod.v1.ComposeSpec.NetworksEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "title": "value",
+            "$ref": "#/components/schemas/micropod.v1.ComposeNetwork"
+          }
+        },
+        "title": "NetworksEntry",
+        "additionalProperties": false
+      },
+      "micropod.v1.ComposeSpec.VolumesEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "title": "value",
+            "$ref": "#/components/schemas/micropod.v1.ComposeVolume"
+          }
+        },
+        "title": "VolumesEntry",
+        "additionalProperties": false
+      },
+      "micropod.v1.ComposeVolume": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "external": {
+            "type": "boolean",
+            "title": "external"
+          },
+          "driver": {
+            "type": "string",
+            "title": "driver",
+            "description": "Driver + driver options (`driver_opts`), labels."
+          },
+          "driverOpts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "driver_opts"
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "labels"
+          },
+          "externalName": {
+            "type": "string",
+            "title": "external_name",
+            "description": "`external: {name: \"…\"}` override."
+          }
+        },
+        "title": "ComposeVolume",
+        "additionalProperties": false
+      },
+      "micropod.v1.PortMapping": {
+        "type": "object",
+        "properties": {
+          "hostPort": {
+            "type": "integer",
+            "title": "host_port"
+          },
+          "containerPort": {
+            "type": "integer",
+            "title": "container_port"
+          },
+          "protocol": {
+            "type": "string",
+            "title": "protocol"
+          },
+          "hostIp": {
+            "type": "string",
+            "title": "host_ip"
+          }
+        },
+        "title": "PortMapping",
+        "additionalProperties": false
+      }
+    }
+  },
+  "security": []
+}

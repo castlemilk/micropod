@@ -1,0 +1,1 @@
+self.__SSG_MANIFEST=new Set(["\u002Fgrpc\u002F[endpoint]","\u002Fmcp\u002F[tool]","\u002Frest\u002F[route]"]);self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()
