@@ -40,6 +40,14 @@ const (
 	MicropodService_DeleteNetwork_FullMethodName       = "/micropod.v1.MicropodService/DeleteNetwork"
 	MicropodService_GetStats_FullMethodName            = "/micropod.v1.MicropodService/GetStats"
 	MicropodService_Exec_FullMethodName                = "/micropod.v1.MicropodService/Exec"
+	MicropodService_GetUsage_FullMethodName            = "/micropod.v1.MicropodService/GetUsage"
+	MicropodService_GetVolumePolicy_FullMethodName     = "/micropod.v1.MicropodService/GetVolumePolicy"
+	MicropodService_SetVolumePolicy_FullMethodName     = "/micropod.v1.MicropodService/SetVolumePolicy"
+	MicropodService_CheckForUpdates_FullMethodName     = "/micropod.v1.MicropodService/CheckForUpdates"
+	MicropodService_GetUpdateStatus_FullMethodName     = "/micropod.v1.MicropodService/GetUpdateStatus"
+	MicropodService_ApplyUpdate_FullMethodName         = "/micropod.v1.MicropodService/ApplyUpdate"
+	MicropodService_ComposeUp_FullMethodName           = "/micropod.v1.MicropodService/ComposeUp"
+	MicropodService_ComposeDown_FullMethodName         = "/micropod.v1.MicropodService/ComposeDown"
 )
 
 // MicropodServiceClient is the client API for MicropodService service.
@@ -92,6 +100,26 @@ type MicropodServiceClient interface {
 	GetStats(ctx context.Context, in *GetStatsRequest, opts ...grpc.CallOption) (*GetStatsResponse, error)
 	// Run a command inside a running container and return its output.
 	Exec(ctx context.Context, in *ExecRequest, opts ...grpc.CallOption) (*ExecResponse, error)
+	// What a cleanup would reclaim: images and volumes annotated with the
+	// containers that reference them.
+	GetUsage(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*UsageReport, error)
+	// Named-volume mount policy applied on container create across every
+	// surface (API, shim, app, CLI, MCP).
+	GetVolumePolicy(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*VolumePolicy, error)
+	// Replace the volume mount policy; returns the stored policy.
+	SetVolumePolicy(ctx context.Context, in *VolumePolicy, opts ...grpc.CallOption) (*VolumePolicy, error)
+	// Trigger a background update check in the desktop app (Sparkle).
+	// Fails with `unavailable` when the app isn't running.
+	CheckForUpdates(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*UpdateStatus, error)
+	// Last-known updater status from the desktop app.
+	GetUpdateStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*UpdateStatus, error)
+	// Quit the app so a downloaded update installs and relaunches. Fails
+	// with `failed_precondition` until `UpdateStatus.ready_to_install`.
+	ApplyUpdate(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*UpdateStatus, error)
+	// Run a compose spec file, streaming progress lines (server streaming).
+	ComposeUp(ctx context.Context, in *ComposeUpRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ComposeUpEvent], error)
+	// Tear down a compose project's containers.
+	ComposeDown(ctx context.Context, in *ComposeDownRequest, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type micropodServiceClient struct {
@@ -330,6 +358,95 @@ func (c *micropodServiceClient) Exec(ctx context.Context, in *ExecRequest, opts 
 	return out, nil
 }
 
+func (c *micropodServiceClient) GetUsage(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*UsageReport, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UsageReport)
+	err := c.cc.Invoke(ctx, MicropodService_GetUsage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *micropodServiceClient) GetVolumePolicy(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*VolumePolicy, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VolumePolicy)
+	err := c.cc.Invoke(ctx, MicropodService_GetVolumePolicy_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *micropodServiceClient) SetVolumePolicy(ctx context.Context, in *VolumePolicy, opts ...grpc.CallOption) (*VolumePolicy, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VolumePolicy)
+	err := c.cc.Invoke(ctx, MicropodService_SetVolumePolicy_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *micropodServiceClient) CheckForUpdates(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*UpdateStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateStatus)
+	err := c.cc.Invoke(ctx, MicropodService_CheckForUpdates_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *micropodServiceClient) GetUpdateStatus(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*UpdateStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateStatus)
+	err := c.cc.Invoke(ctx, MicropodService_GetUpdateStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *micropodServiceClient) ApplyUpdate(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*UpdateStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateStatus)
+	err := c.cc.Invoke(ctx, MicropodService_ApplyUpdate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *micropodServiceClient) ComposeUp(ctx context.Context, in *ComposeUpRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ComposeUpEvent], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &MicropodService_ServiceDesc.Streams[2], MicropodService_ComposeUp_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[ComposeUpRequest, ComposeUpEvent]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type MicropodService_ComposeUpClient = grpc.ServerStreamingClient[ComposeUpEvent]
+
+func (c *micropodServiceClient) ComposeDown(ctx context.Context, in *ComposeDownRequest, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, MicropodService_ComposeDown_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MicropodServiceServer is the server API for MicropodService service.
 // All implementations must embed UnimplementedMicropodServiceServer
 // for forward compatibility.
@@ -380,6 +497,26 @@ type MicropodServiceServer interface {
 	GetStats(context.Context, *GetStatsRequest) (*GetStatsResponse, error)
 	// Run a command inside a running container and return its output.
 	Exec(context.Context, *ExecRequest) (*ExecResponse, error)
+	// What a cleanup would reclaim: images and volumes annotated with the
+	// containers that reference them.
+	GetUsage(context.Context, *Empty) (*UsageReport, error)
+	// Named-volume mount policy applied on container create across every
+	// surface (API, shim, app, CLI, MCP).
+	GetVolumePolicy(context.Context, *Empty) (*VolumePolicy, error)
+	// Replace the volume mount policy; returns the stored policy.
+	SetVolumePolicy(context.Context, *VolumePolicy) (*VolumePolicy, error)
+	// Trigger a background update check in the desktop app (Sparkle).
+	// Fails with `unavailable` when the app isn't running.
+	CheckForUpdates(context.Context, *Empty) (*UpdateStatus, error)
+	// Last-known updater status from the desktop app.
+	GetUpdateStatus(context.Context, *Empty) (*UpdateStatus, error)
+	// Quit the app so a downloaded update installs and relaunches. Fails
+	// with `failed_precondition` until `UpdateStatus.ready_to_install`.
+	ApplyUpdate(context.Context, *Empty) (*UpdateStatus, error)
+	// Run a compose spec file, streaming progress lines (server streaming).
+	ComposeUp(*ComposeUpRequest, grpc.ServerStreamingServer[ComposeUpEvent]) error
+	// Tear down a compose project's containers.
+	ComposeDown(context.Context, *ComposeDownRequest) (*Empty, error)
 	mustEmbedUnimplementedMicropodServiceServer()
 }
 
@@ -452,6 +589,30 @@ func (UnimplementedMicropodServiceServer) GetStats(context.Context, *GetStatsReq
 }
 func (UnimplementedMicropodServiceServer) Exec(context.Context, *ExecRequest) (*ExecResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Exec not implemented")
+}
+func (UnimplementedMicropodServiceServer) GetUsage(context.Context, *Empty) (*UsageReport, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUsage not implemented")
+}
+func (UnimplementedMicropodServiceServer) GetVolumePolicy(context.Context, *Empty) (*VolumePolicy, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetVolumePolicy not implemented")
+}
+func (UnimplementedMicropodServiceServer) SetVolumePolicy(context.Context, *VolumePolicy) (*VolumePolicy, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetVolumePolicy not implemented")
+}
+func (UnimplementedMicropodServiceServer) CheckForUpdates(context.Context, *Empty) (*UpdateStatus, error) {
+	return nil, status.Error(codes.Unimplemented, "method CheckForUpdates not implemented")
+}
+func (UnimplementedMicropodServiceServer) GetUpdateStatus(context.Context, *Empty) (*UpdateStatus, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUpdateStatus not implemented")
+}
+func (UnimplementedMicropodServiceServer) ApplyUpdate(context.Context, *Empty) (*UpdateStatus, error) {
+	return nil, status.Error(codes.Unimplemented, "method ApplyUpdate not implemented")
+}
+func (UnimplementedMicropodServiceServer) ComposeUp(*ComposeUpRequest, grpc.ServerStreamingServer[ComposeUpEvent]) error {
+	return status.Error(codes.Unimplemented, "method ComposeUp not implemented")
+}
+func (UnimplementedMicropodServiceServer) ComposeDown(context.Context, *ComposeDownRequest) (*Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method ComposeDown not implemented")
 }
 func (UnimplementedMicropodServiceServer) mustEmbedUnimplementedMicropodServiceServer() {}
 func (UnimplementedMicropodServiceServer) testEmbeddedByValue()                         {}
@@ -838,6 +999,143 @@ func _MicropodService_Exec_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MicropodService_GetUsage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MicropodServiceServer).GetUsage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MicropodService_GetUsage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MicropodServiceServer).GetUsage(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MicropodService_GetVolumePolicy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MicropodServiceServer).GetVolumePolicy(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MicropodService_GetVolumePolicy_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MicropodServiceServer).GetVolumePolicy(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MicropodService_SetVolumePolicy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VolumePolicy)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MicropodServiceServer).SetVolumePolicy(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MicropodService_SetVolumePolicy_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MicropodServiceServer).SetVolumePolicy(ctx, req.(*VolumePolicy))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MicropodService_CheckForUpdates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MicropodServiceServer).CheckForUpdates(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MicropodService_CheckForUpdates_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MicropodServiceServer).CheckForUpdates(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MicropodService_GetUpdateStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MicropodServiceServer).GetUpdateStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MicropodService_GetUpdateStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MicropodServiceServer).GetUpdateStatus(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MicropodService_ApplyUpdate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MicropodServiceServer).ApplyUpdate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MicropodService_ApplyUpdate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MicropodServiceServer).ApplyUpdate(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MicropodService_ComposeUp_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ComposeUpRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(MicropodServiceServer).ComposeUp(m, &grpc.GenericServerStream[ComposeUpRequest, ComposeUpEvent]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type MicropodService_ComposeUpServer = grpc.ServerStreamingServer[ComposeUpEvent]
+
+func _MicropodService_ComposeDown_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ComposeDownRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MicropodServiceServer).ComposeDown(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MicropodService_ComposeDown_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MicropodServiceServer).ComposeDown(ctx, req.(*ComposeDownRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MicropodService_ServiceDesc is the grpc.ServiceDesc for MicropodService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -921,6 +1219,34 @@ var MicropodService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "Exec",
 			Handler:    _MicropodService_Exec_Handler,
 		},
+		{
+			MethodName: "GetUsage",
+			Handler:    _MicropodService_GetUsage_Handler,
+		},
+		{
+			MethodName: "GetVolumePolicy",
+			Handler:    _MicropodService_GetVolumePolicy_Handler,
+		},
+		{
+			MethodName: "SetVolumePolicy",
+			Handler:    _MicropodService_SetVolumePolicy_Handler,
+		},
+		{
+			MethodName: "CheckForUpdates",
+			Handler:    _MicropodService_CheckForUpdates_Handler,
+		},
+		{
+			MethodName: "GetUpdateStatus",
+			Handler:    _MicropodService_GetUpdateStatus_Handler,
+		},
+		{
+			MethodName: "ApplyUpdate",
+			Handler:    _MicropodService_ApplyUpdate_Handler,
+		},
+		{
+			MethodName: "ComposeDown",
+			Handler:    _MicropodService_ComposeDown_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -931,6 +1257,11 @@ var MicropodService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "PullImage",
 			Handler:       _MicropodService_PullImage_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "ComposeUp",
+			Handler:       _MicropodService_ComposeUp_Handler,
 			ServerStreams: true,
 		},
 	},

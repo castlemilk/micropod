@@ -318,7 +318,7 @@ struct APIHandlers {
                     }.filter { !$0.isEmpty })
                 let plan = try compose.plan(spec: spec, enabledProfiles: profiles)
                 var progress: [String] = []
-                for try await line in await compose.up(plan: plan) {
+                for try await line in compose.up(plan: plan) {
                     progress.append(line)
                 }
                 return .json(200, ["name": spec.name, "progress": progress])

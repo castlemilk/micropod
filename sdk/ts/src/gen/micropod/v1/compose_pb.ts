@@ -4,6 +4,7 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_buf_validate_validate } from "@bufbuild/protovalidate/gen/buf/validate/validate_pb.js";
 import type { PortMapping } from "./container_pb.js";
 import { file_micropod_v1_container } from "./container_pb.js";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file micropod/v1/compose.proto.
  */
 export const file_micropod_v1_compose: GenFile = /*@__PURE__*/
-  fileDesc("ChltaWNyb3BvZC92MS9jb21wb3NlLnByb3RvEgttaWNyb3BvZC52MSLkAgoLQ29tcG9zZVNwZWMSDAoEbmFtZRgBIAEoCRIMCgRwYXRoGAIgASgJEi0KCHNlcnZpY2VzGAMgAygLMhsubWljcm9wb2QudjEuQ29tcG9zZVNlcnZpY2USNgoHdm9sdW1lcxgEIAMoCzIlLm1pY3JvcG9kLnYxLkNvbXBvc2VTcGVjLlZvbHVtZXNFbnRyeRI4CghuZXR3b3JrcxgFIAMoCzImLm1pY3JvcG9kLnYxLkNvbXBvc2VTcGVjLk5ldHdvcmtzRW50cnkaSgoMVm9sdW1lc0VudHJ5EgsKA2tleRgBIAEoCRIpCgV2YWx1ZRgCIAEoCzIaLm1pY3JvcG9kLnYxLkNvbXBvc2VWb2x1bWU6AjgBGkwKDU5ldHdvcmtzRW50cnkSCwoDa2V5GAEgASgJEioKBXZhbHVlGAIgASgLMhsubWljcm9wb2QudjEuQ29tcG9zZU5ldHdvcms6AjgBIt8ICg5Db21wb3NlU2VydmljZRIMCgRuYW1lGAEgASgJEg0KBWltYWdlGAIgASgJEhUKDWJ1aWxkX2NvbnRleHQYAyABKAkSGAoQYnVpbGRfZG9ja2VyZmlsZRgEIAEoCRISCgpidWlsZF9hcmdzGAUgAygJEhIKCmRlcGVuZHNfb24YBiADKAkSJwoFcG9ydHMYByADKAsyGC5taWNyb3BvZC52MS5Qb3J0TWFwcGluZxITCgtlbnZpcm9ubWVudBgIIAMoCRIPCgd2b2x1bWVzGAkgAygJEhAKCGNvbW1hbmRzGAogAygJEhMKC3dvcmtpbmdfZGlyGAsgASgJEg8KB3Jlc3RhcnQYDCABKAkSDAoEY3B1cxgNIAEoARIOCgZtZW1vcnkYDiABKAkSGwoTaGVhbHRoY2hlY2tfY29tbWFuZBgPIAEoCRIQCghuZXR3b3JrcxgQIAMoCRIWCg5jb250YWluZXJfbmFtZRgRIAEoCRISCgplbnRyeXBvaW50GBIgASgJEgwKBHVzZXIYEyABKAkSDgoGbGFiZWxzGBQgAygJEgsKA2RucxgVIAMoCRISCgpkbnNfc2VhcmNoGBYgAygJEg8KB2NhcF9hZGQYFyADKAkSEAoIY2FwX2Ryb3AYGCADKAkSDwoHdWxpbWl0cxgZIAMoCRINCgV0bXBmcxgaIAMoCRIQCghlbnZfZmlsZRgbIAMoCRIQCghzaG1fc2l6ZRgcIAEoCRIRCglyZWFkX29ubHkYHSABKAgSDAoEaW5pdBgeIAEoCBILCgN0dHkYHyABKAgSEgoKc3RkaW5fb3BlbhggIAEoCBISCgpwcml2aWxlZ2VkGCEgASgIEhMKC2V4dHJhX2hvc3RzGCIgAygJElMKFWRlcGVuZHNfb25fY29uZGl0aW9ucxgjIAMoCzI0Lm1pY3JvcG9kLnYxLkNvbXBvc2VTZXJ2aWNlLkRlcGVuZHNPbkNvbmRpdGlvbnNFbnRyeRIkChxoZWFsdGhjaGVja19pbnRlcnZhbF9zZWNvbmRzGCQgASgFEiMKG2hlYWx0aGNoZWNrX3RpbWVvdXRfc2Vjb25kcxglIAEoBRIbChNoZWFsdGhjaGVja19yZXRyaWVzGCYgASgFEigKIGhlYWx0aGNoZWNrX3N0YXJ0X3BlcmlvZF9zZWNvbmRzGCcgASgFEhQKDGJ1aWxkX3RhcmdldBgoIAEoCRIWCg5idWlsZF9wbGF0Zm9ybRgpIAEoCRIWCg5idWlsZF9ub19jYWNoZRgsIAEoCBIQCghwcm9maWxlcxgtIAMoCRITCgtwdWxsX3BvbGljeRguIAEoCRITCgtzdG9wX3NpZ25hbBgqIAEoCRIhChlzdG9wX2dyYWNlX3BlcmlvZF9zZWNvbmRzGCsgASgFGjoKGERlcGVuZHNPbkNvbmRpdGlvbnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBInsKDUNvbXBvc2VWb2x1bWUSDAoEbmFtZRgBIAEoCRIQCghleHRlcm5hbBgCIAEoCBIOCgZkcml2ZXIYAyABKAkSEwoLZHJpdmVyX29wdHMYBCADKAkSDgoGbGFiZWxzGAUgAygJEhUKDWV4dGVybmFsX25hbWUYBiABKAkisQEKDkNvbXBvc2VOZXR3b3JrEgwKBG5hbWUYASABKAkSEAoIaW50ZXJuYWwYAiABKAgSEAoIZXh0ZXJuYWwYAyABKAgSDgoGZHJpdmVyGAQgASgJEhMKC2RyaXZlcl9vcHRzGAUgAygJEg4KBmxhYmVscxgGIAMoCRIOCgZzdWJuZXQYByABKAkSEQoJc3VibmV0X3Y2GAggASgJEhUKDWV4dGVybmFsX25hbWUYCSABKAlCQlpAZ2l0aHViLmNvbS9jYXN0bGVtaWxrL21pY3JvcG9kL3Nkay9nby9nZW4vbWljcm9wb2QvdjE7bWljcm9wb2R2MWIGcHJvdG8z", [file_micropod_v1_container]);
+  fileDesc("ChltaWNyb3BvZC92MS9jb21wb3NlLnByb3RvEgttaWNyb3BvZC52MSLkAgoLQ29tcG9zZVNwZWMSDAoEbmFtZRgBIAEoCRIMCgRwYXRoGAIgASgJEi0KCHNlcnZpY2VzGAMgAygLMhsubWljcm9wb2QudjEuQ29tcG9zZVNlcnZpY2USNgoHdm9sdW1lcxgEIAMoCzIlLm1pY3JvcG9kLnYxLkNvbXBvc2VTcGVjLlZvbHVtZXNFbnRyeRI4CghuZXR3b3JrcxgFIAMoCzImLm1pY3JvcG9kLnYxLkNvbXBvc2VTcGVjLk5ldHdvcmtzRW50cnkaSgoMVm9sdW1lc0VudHJ5EgsKA2tleRgBIAEoCRIpCgV2YWx1ZRgCIAEoCzIaLm1pY3JvcG9kLnYxLkNvbXBvc2VWb2x1bWU6AjgBGkwKDU5ldHdvcmtzRW50cnkSCwoDa2V5GAEgASgJEioKBXZhbHVlGAIgASgLMhsubWljcm9wb2QudjEuQ29tcG9zZU5ldHdvcms6AjgBIt8ICg5Db21wb3NlU2VydmljZRIMCgRuYW1lGAEgASgJEg0KBWltYWdlGAIgASgJEhUKDWJ1aWxkX2NvbnRleHQYAyABKAkSGAoQYnVpbGRfZG9ja2VyZmlsZRgEIAEoCRISCgpidWlsZF9hcmdzGAUgAygJEhIKCmRlcGVuZHNfb24YBiADKAkSJwoFcG9ydHMYByADKAsyGC5taWNyb3BvZC52MS5Qb3J0TWFwcGluZxITCgtlbnZpcm9ubWVudBgIIAMoCRIPCgd2b2x1bWVzGAkgAygJEhAKCGNvbW1hbmRzGAogAygJEhMKC3dvcmtpbmdfZGlyGAsgASgJEg8KB3Jlc3RhcnQYDCABKAkSDAoEY3B1cxgNIAEoARIOCgZtZW1vcnkYDiABKAkSGwoTaGVhbHRoY2hlY2tfY29tbWFuZBgPIAEoCRIQCghuZXR3b3JrcxgQIAMoCRIWCg5jb250YWluZXJfbmFtZRgRIAEoCRISCgplbnRyeXBvaW50GBIgASgJEgwKBHVzZXIYEyABKAkSDgoGbGFiZWxzGBQgAygJEgsKA2RucxgVIAMoCRISCgpkbnNfc2VhcmNoGBYgAygJEg8KB2NhcF9hZGQYFyADKAkSEAoIY2FwX2Ryb3AYGCADKAkSDwoHdWxpbWl0cxgZIAMoCRINCgV0bXBmcxgaIAMoCRIQCghlbnZfZmlsZRgbIAMoCRIQCghzaG1fc2l6ZRgcIAEoCRIRCglyZWFkX29ubHkYHSABKAgSDAoEaW5pdBgeIAEoCBILCgN0dHkYHyABKAgSEgoKc3RkaW5fb3BlbhggIAEoCBISCgpwcml2aWxlZ2VkGCEgASgIEhMKC2V4dHJhX2hvc3RzGCIgAygJElMKFWRlcGVuZHNfb25fY29uZGl0aW9ucxgjIAMoCzI0Lm1pY3JvcG9kLnYxLkNvbXBvc2VTZXJ2aWNlLkRlcGVuZHNPbkNvbmRpdGlvbnNFbnRyeRIkChxoZWFsdGhjaGVja19pbnRlcnZhbF9zZWNvbmRzGCQgASgFEiMKG2hlYWx0aGNoZWNrX3RpbWVvdXRfc2Vjb25kcxglIAEoBRIbChNoZWFsdGhjaGVja19yZXRyaWVzGCYgASgFEigKIGhlYWx0aGNoZWNrX3N0YXJ0X3BlcmlvZF9zZWNvbmRzGCcgASgFEhQKDGJ1aWxkX3RhcmdldBgoIAEoCRIWCg5idWlsZF9wbGF0Zm9ybRgpIAEoCRIWCg5idWlsZF9ub19jYWNoZRgsIAEoCBIQCghwcm9maWxlcxgtIAMoCRITCgtwdWxsX3BvbGljeRguIAEoCRITCgtzdG9wX3NpZ25hbBgqIAEoCRIhChlzdG9wX2dyYWNlX3BlcmlvZF9zZWNvbmRzGCsgASgFGjoKGERlcGVuZHNPbkNvbmRpdGlvbnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBInsKDUNvbXBvc2VWb2x1bWUSDAoEbmFtZRgBIAEoCRIQCghleHRlcm5hbBgCIAEoCBIOCgZkcml2ZXIYAyABKAkSEwoLZHJpdmVyX29wdHMYBCADKAkSDgoGbGFiZWxzGAUgAygJEhUKDWV4dGVybmFsX25hbWUYBiABKAkisQEKDkNvbXBvc2VOZXR3b3JrEgwKBG5hbWUYASABKAkSEAoIaW50ZXJuYWwYAiABKAgSEAoIZXh0ZXJuYWwYAyABKAgSDgoGZHJpdmVyGAQgASgJEhMKC2RyaXZlcl9vcHRzGAUgAygJEg4KBmxhYmVscxgGIAMoCRIOCgZzdWJuZXQYByABKAkSEQoJc3VibmV0X3Y2GAggASgJEhUKDWV4dGVybmFsX25hbWUYCSABKAkiOwoQQ29tcG9zZVVwUmVxdWVzdBIVCgRwYXRoGAEgASgJQge6SARyAhABEhAKCHByb2ZpbGVzGAIgAygJIjoKDkNvbXBvc2VVcEV2ZW50EgwKBGxpbmUYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRkb25lGAMgASgIIisKEkNvbXBvc2VEb3duUmVxdWVzdBIVCgRuYW1lGAEgASgJQge6SARyAhABQkJaQGdpdGh1Yi5jb20vY2FzdGxlbWlsay9taWNyb3BvZC9zZGsvZ28vZ2VuL21pY3JvcG9kL3YxO21pY3JvcG9kdjFiBnByb3RvMw", [file_buf_validate_validate, file_micropod_v1_container]);
 
 /**
  * Parsed docker-compose.yml, produced by the compose importer.
@@ -524,4 +525,89 @@ export type ComposeNetwork = Message<"micropod.v1.ComposeNetwork"> & {
  */
 export const ComposeNetworkSchema: GenMessage<ComposeNetwork> = /*@__PURE__*/
   messageDesc(file_micropod_v1_compose, 3);
+
+/**
+ * Bring a compose project up from a spec file — ComposeUp streams progress.
+ *
+ * @generated from message micropod.v1.ComposeUpRequest
+ */
+export type ComposeUpRequest = Message<"micropod.v1.ComposeUpRequest"> & {
+  /**
+   * Absolute path to the compose YAML on the host.
+   *
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * Compose profiles to enable (service runs only when one matches).
+   *
+   * @generated from field: repeated string profiles = 2;
+   */
+  profiles: string[];
+};
+
+/**
+ * Describes the message micropod.v1.ComposeUpRequest.
+ * Use `create(ComposeUpRequestSchema)` to create a new message.
+ */
+export const ComposeUpRequestSchema: GenMessage<ComposeUpRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_compose, 4);
+
+/**
+ * One ComposeUp stream event: progress output lines, then a terminal
+ * marker once every service is up.
+ *
+ * @generated from message micropod.v1.ComposeUpEvent
+ */
+export type ComposeUpEvent = Message<"micropod.v1.ComposeUpEvent"> & {
+  /**
+   * Progress output line — empty on the terminal event.
+   *
+   * @generated from field: string line = 1;
+   */
+  line: string;
+
+  /**
+   * Compose project name — set only on the terminal event.
+   *
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * True on the terminal event once every service is up.
+   *
+   * @generated from field: bool done = 3;
+   */
+  done: boolean;
+};
+
+/**
+ * Describes the message micropod.v1.ComposeUpEvent.
+ * Use `create(ComposeUpEventSchema)` to create a new message.
+ */
+export const ComposeUpEventSchema: GenMessage<ComposeUpEvent> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_compose, 5);
+
+/**
+ * Tear down a compose project's containers.
+ *
+ * @generated from message micropod.v1.ComposeDownRequest
+ */
+export type ComposeDownRequest = Message<"micropod.v1.ComposeDownRequest"> & {
+  /**
+   * Compose project name.
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message micropod.v1.ComposeDownRequest.
+ * Use `create(ComposeDownRequestSchema)` to create a new message.
+ */
+export const ComposeDownRequestSchema: GenMessage<ComposeDownRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_compose, 6);
 

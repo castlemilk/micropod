@@ -1291,7 +1291,7 @@ var File_micropod_v1_api_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_api_proto_rawDesc = "" +
 	"\n" +
-	"\x15micropod/v1/api.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1bmicropod/v1/container.proto\x1a\x17micropod/v1/image.proto\x1a\x18micropod/v1/system.proto\"\a\n" +
+	"\x15micropod/v1/api.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a\x19micropod/v1/compose.proto\x1a\x1bmicropod/v1/container.proto\x1a\x17micropod/v1/image.proto\x1a\x18micropod/v1/system.proto\"\a\n" +
 	"\x05Empty\"\x11\n" +
 	"\x0fGetStatsRequest\"J\n" +
 	"\x10GetStatsResponse\x126\n" +
@@ -1397,7 +1397,7 @@ const file_micropod_v1_api_proto_rawDesc = "" +
 	"\fExecResponse\x12\x16\n" +
 	"\x06output\x18\x01 \x01(\tR\x06output\x12\x1b\n" +
 	"\texit_code\x18\x02 \x01(\x05R\bexitCode\x12\x14\n" +
-	"\x05error\x18\x03 \x01(\tR\x05error2\xd5\v\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error2\xeb\x0f\n" +
 	"\x0fMicropodService\x12<\n" +
 	"\tGetSystem\x12\x12.micropod.v1.Empty\x1a\x1b.micropod.v1.SystemSnapshot\x12I\n" +
 	"\x0eListContainers\x12\x12.micropod.v1.Empty\x1a#.micropod.v1.ListContainersResponse\x12K\n" +
@@ -1420,7 +1420,15 @@ const file_micropod_v1_api_proto_rawDesc = "" +
 	"\rCreateNetwork\x12!.micropod.v1.CreateNetworkRequest\x1a\x12.micropod.v1.Empty\x12F\n" +
 	"\rDeleteNetwork\x12!.micropod.v1.DeleteNetworkRequest\x1a\x12.micropod.v1.Empty\x12G\n" +
 	"\bGetStats\x12\x1c.micropod.v1.GetStatsRequest\x1a\x1d.micropod.v1.GetStatsResponse\x12;\n" +
-	"\x04Exec\x12\x18.micropod.v1.ExecRequest\x1a\x19.micropod.v1.ExecResponseBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
+	"\x04Exec\x12\x18.micropod.v1.ExecRequest\x1a\x19.micropod.v1.ExecResponse\x128\n" +
+	"\bGetUsage\x12\x12.micropod.v1.Empty\x1a\x18.micropod.v1.UsageReport\x12@\n" +
+	"\x0fGetVolumePolicy\x12\x12.micropod.v1.Empty\x1a\x19.micropod.v1.VolumePolicy\x12G\n" +
+	"\x0fSetVolumePolicy\x12\x19.micropod.v1.VolumePolicy\x1a\x19.micropod.v1.VolumePolicy\x12@\n" +
+	"\x0fCheckForUpdates\x12\x12.micropod.v1.Empty\x1a\x19.micropod.v1.UpdateStatus\x12@\n" +
+	"\x0fGetUpdateStatus\x12\x12.micropod.v1.Empty\x1a\x19.micropod.v1.UpdateStatus\x12<\n" +
+	"\vApplyUpdate\x12\x12.micropod.v1.Empty\x1a\x19.micropod.v1.UpdateStatus\x12I\n" +
+	"\tComposeUp\x12\x1d.micropod.v1.ComposeUpRequest\x1a\x1b.micropod.v1.ComposeUpEvent0\x01\x12B\n" +
+	"\vComposeDown\x12\x1f.micropod.v1.ComposeDownRequest\x1a\x12.micropod.v1.EmptyBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
 
 var (
 	file_micropod_v1_api_proto_rawDescOnce sync.Once
@@ -1467,6 +1475,12 @@ var file_micropod_v1_api_proto_goTypes = []any{
 	(*Image)(nil),                  // 28: micropod.v1.Image
 	(*Volume)(nil),                 // 29: micropod.v1.Volume
 	(*Network)(nil),                // 30: micropod.v1.Network
+	(*VolumePolicy)(nil),           // 31: micropod.v1.VolumePolicy
+	(*ComposeUpRequest)(nil),       // 32: micropod.v1.ComposeUpRequest
+	(*ComposeDownRequest)(nil),     // 33: micropod.v1.ComposeDownRequest
+	(*UsageReport)(nil),            // 34: micropod.v1.UsageReport
+	(*UpdateStatus)(nil),           // 35: micropod.v1.UpdateStatus
+	(*ComposeUpEvent)(nil),         // 36: micropod.v1.ComposeUpEvent
 }
 var file_micropod_v1_api_proto_depIdxs = []int32{
 	23, // 0: micropod.v1.GetStatsResponse.snapshot:type_name -> micropod.v1.StatsSnapshot
@@ -1499,29 +1513,45 @@ var file_micropod_v1_api_proto_depIdxs = []int32{
 	19, // 27: micropod.v1.MicropodService.DeleteNetwork:input_type -> micropod.v1.DeleteNetworkRequest
 	1,  // 28: micropod.v1.MicropodService.GetStats:input_type -> micropod.v1.GetStatsRequest
 	20, // 29: micropod.v1.MicropodService.Exec:input_type -> micropod.v1.ExecRequest
-	3,  // 30: micropod.v1.MicropodService.GetSystem:output_type -> micropod.v1.SystemSnapshot
-	5,  // 31: micropod.v1.MicropodService.ListContainers:output_type -> micropod.v1.ListContainersResponse
-	4,  // 32: micropod.v1.MicropodService.RunContainer:output_type -> micropod.v1.ContainerRef
-	4,  // 33: micropod.v1.MicropodService.CreateContainer:output_type -> micropod.v1.ContainerRef
-	0,  // 34: micropod.v1.MicropodService.StartContainer:output_type -> micropod.v1.Empty
-	0,  // 35: micropod.v1.MicropodService.StopContainer:output_type -> micropod.v1.Empty
-	0,  // 36: micropod.v1.MicropodService.RestartContainer:output_type -> micropod.v1.Empty
-	0,  // 37: micropod.v1.MicropodService.KillContainer:output_type -> micropod.v1.Empty
-	0,  // 38: micropod.v1.MicropodService.DeleteContainer:output_type -> micropod.v1.Empty
-	9,  // 39: micropod.v1.MicropodService.StreamContainerLogs:output_type -> micropod.v1.LogChunk
-	10, // 40: micropod.v1.MicropodService.ListImages:output_type -> micropod.v1.ListImagesResponse
-	12, // 41: micropod.v1.MicropodService.PullImage:output_type -> micropod.v1.ProgressLine
-	0,  // 42: micropod.v1.MicropodService.DeleteImage:output_type -> micropod.v1.Empty
-	14, // 43: micropod.v1.MicropodService.ListVolumes:output_type -> micropod.v1.ListVolumesResponse
-	0,  // 44: micropod.v1.MicropodService.CreateVolume:output_type -> micropod.v1.Empty
-	0,  // 45: micropod.v1.MicropodService.DeleteVolume:output_type -> micropod.v1.Empty
-	17, // 46: micropod.v1.MicropodService.ListNetworks:output_type -> micropod.v1.ListNetworksResponse
-	0,  // 47: micropod.v1.MicropodService.CreateNetwork:output_type -> micropod.v1.Empty
-	0,  // 48: micropod.v1.MicropodService.DeleteNetwork:output_type -> micropod.v1.Empty
-	2,  // 49: micropod.v1.MicropodService.GetStats:output_type -> micropod.v1.GetStatsResponse
-	21, // 50: micropod.v1.MicropodService.Exec:output_type -> micropod.v1.ExecResponse
-	30, // [30:51] is the sub-list for method output_type
-	9,  // [9:30] is the sub-list for method input_type
+	0,  // 30: micropod.v1.MicropodService.GetUsage:input_type -> micropod.v1.Empty
+	0,  // 31: micropod.v1.MicropodService.GetVolumePolicy:input_type -> micropod.v1.Empty
+	31, // 32: micropod.v1.MicropodService.SetVolumePolicy:input_type -> micropod.v1.VolumePolicy
+	0,  // 33: micropod.v1.MicropodService.CheckForUpdates:input_type -> micropod.v1.Empty
+	0,  // 34: micropod.v1.MicropodService.GetUpdateStatus:input_type -> micropod.v1.Empty
+	0,  // 35: micropod.v1.MicropodService.ApplyUpdate:input_type -> micropod.v1.Empty
+	32, // 36: micropod.v1.MicropodService.ComposeUp:input_type -> micropod.v1.ComposeUpRequest
+	33, // 37: micropod.v1.MicropodService.ComposeDown:input_type -> micropod.v1.ComposeDownRequest
+	3,  // 38: micropod.v1.MicropodService.GetSystem:output_type -> micropod.v1.SystemSnapshot
+	5,  // 39: micropod.v1.MicropodService.ListContainers:output_type -> micropod.v1.ListContainersResponse
+	4,  // 40: micropod.v1.MicropodService.RunContainer:output_type -> micropod.v1.ContainerRef
+	4,  // 41: micropod.v1.MicropodService.CreateContainer:output_type -> micropod.v1.ContainerRef
+	0,  // 42: micropod.v1.MicropodService.StartContainer:output_type -> micropod.v1.Empty
+	0,  // 43: micropod.v1.MicropodService.StopContainer:output_type -> micropod.v1.Empty
+	0,  // 44: micropod.v1.MicropodService.RestartContainer:output_type -> micropod.v1.Empty
+	0,  // 45: micropod.v1.MicropodService.KillContainer:output_type -> micropod.v1.Empty
+	0,  // 46: micropod.v1.MicropodService.DeleteContainer:output_type -> micropod.v1.Empty
+	9,  // 47: micropod.v1.MicropodService.StreamContainerLogs:output_type -> micropod.v1.LogChunk
+	10, // 48: micropod.v1.MicropodService.ListImages:output_type -> micropod.v1.ListImagesResponse
+	12, // 49: micropod.v1.MicropodService.PullImage:output_type -> micropod.v1.ProgressLine
+	0,  // 50: micropod.v1.MicropodService.DeleteImage:output_type -> micropod.v1.Empty
+	14, // 51: micropod.v1.MicropodService.ListVolumes:output_type -> micropod.v1.ListVolumesResponse
+	0,  // 52: micropod.v1.MicropodService.CreateVolume:output_type -> micropod.v1.Empty
+	0,  // 53: micropod.v1.MicropodService.DeleteVolume:output_type -> micropod.v1.Empty
+	17, // 54: micropod.v1.MicropodService.ListNetworks:output_type -> micropod.v1.ListNetworksResponse
+	0,  // 55: micropod.v1.MicropodService.CreateNetwork:output_type -> micropod.v1.Empty
+	0,  // 56: micropod.v1.MicropodService.DeleteNetwork:output_type -> micropod.v1.Empty
+	2,  // 57: micropod.v1.MicropodService.GetStats:output_type -> micropod.v1.GetStatsResponse
+	21, // 58: micropod.v1.MicropodService.Exec:output_type -> micropod.v1.ExecResponse
+	34, // 59: micropod.v1.MicropodService.GetUsage:output_type -> micropod.v1.UsageReport
+	31, // 60: micropod.v1.MicropodService.GetVolumePolicy:output_type -> micropod.v1.VolumePolicy
+	31, // 61: micropod.v1.MicropodService.SetVolumePolicy:output_type -> micropod.v1.VolumePolicy
+	35, // 62: micropod.v1.MicropodService.CheckForUpdates:output_type -> micropod.v1.UpdateStatus
+	35, // 63: micropod.v1.MicropodService.GetUpdateStatus:output_type -> micropod.v1.UpdateStatus
+	35, // 64: micropod.v1.MicropodService.ApplyUpdate:output_type -> micropod.v1.UpdateStatus
+	36, // 65: micropod.v1.MicropodService.ComposeUp:output_type -> micropod.v1.ComposeUpEvent
+	0,  // 66: micropod.v1.MicropodService.ComposeDown:output_type -> micropod.v1.Empty
+	38, // [38:67] is the sub-list for method output_type
+	9,  // [9:38] is the sub-list for method input_type
 	9,  // [9:9] is the sub-list for extension type_name
 	9,  // [9:9] is the sub-list for extension extendee
 	0,  // [0:9] is the sub-list for field type_name
@@ -1532,6 +1562,7 @@ func file_micropod_v1_api_proto_init() {
 	if File_micropod_v1_api_proto != nil {
 		return
 	}
+	file_micropod_v1_compose_proto_init()
 	file_micropod_v1_container_proto_init()
 	file_micropod_v1_image_proto_init()
 	file_micropod_v1_system_proto_init()

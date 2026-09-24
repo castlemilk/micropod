@@ -4,6 +4,8 @@ package micropod.v1;
 
 option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
 
+import "micropod/v1/image.proto";
+
 // Runtime health, mapped from `container system status`.
 message SystemStatus {
   // "running" or "stopped".
@@ -120,4 +122,130 @@ message RegistryLogin {
   string username = 2;
   // Auth scheme in use, e.g. "basic" or "oauth".
   string scheme = 3;
+}
+
+// What a cleanup would reclaim: every image and volume annotated with the
+// containers that reference it.
+message UsageReport {
+  // An image plus the containers that reference it.
+  message ImageUsage {
+    // The image.
+    Image image = 1;
+    // IDs of containers referencing this image.
+    repeated string used_by_container_ids = 2;
+    // True when at least one container references the image.
+    bool in_use = 3;
+  }
+  // A volume plus the containers mounting it.
+  message VolumeUsage {
+    // The volume.
+    Volume volume = 1;
+    // IDs of containers mounting this volume.
+    repeated string used_by_container_ids = 2;
+    // True when at least one container mounts the volume.
+    bool in_use = 3;
+  }
+  // Every local image with its referencing containers.
+  repeated ImageUsage images = 1;
+  // Every local volume with its mounting containers.
+  repeated VolumeUsage volumes = 2;
+  // Bytes reclaimable by pruning unreferenced images.
+  uint64 reclaimable_image_bytes = 3;
+  // Bytes reclaimable by pruning unmounted volumes.
+  uint64 reclaimable_volume_bytes = 4;
+  // Number of stopped containers.
+  int32 stopped_container_count = 5;
+}
+
+// Named-volume mount policy — read on container create by every surface
+// (API, docker shim, app, CLI, MCP). Per-container `com.micropod.*` labels
+// take precedence over this policy.
+message VolumePolicy {
+  // Which named-volume mounts get clonefile-forked per container.
+  enum CloneMode {
+    // Treated as CLONE_MODE_LABELS (the standard default).
+    CLONE_MODE_UNSPECIFIED = 0;
+    // Only mounts carrying the `com.micropod.cache.clone` label.
+    CLONE_MODE_LABELS = 1;
+    // Auto-clone mounts of the volumes named in `golden_volumes`.
+    CLONE_MODE_GOLDENS = 2;
+    // Clone every named-volume mount.
+    CLONE_MODE_ALL = 3;
+  }
+  // Writeback sync mode for volume disk images.
+  enum SyncMode {
+    // Per-mount default (fsync for named volumes, nosync for clones).
+    SYNC_MODE_UNSPECIFIED = 0;
+    // Flush writes on every write.
+    SYNC_MODE_FULL = 1;
+    // fsync on container stop.
+    SYNC_MODE_FSYNC = 2;
+    // Never fsync — fastest, can lose writes on host crash.
+    SYNC_MODE_NOSYNC = 3;
+  }
+  // VZ disk-image caching mode.
+  enum CacheMode {
+    // Treated as CACHE_MODE_ON (the standard default).
+    CACHE_MODE_UNSPECIFIED = 0;
+    // Always cache the disk image.
+    CACHE_MODE_ON = 1;
+    // Never cache.
+    CACHE_MODE_OFF = 2;
+    // Cache when the volume driver supports it.
+    CACHE_MODE_AUTO = 3;
+  }
+  // Which named-volume mounts get clonefile-forked per container.
+  CloneMode clone_mode = 1;
+  // Volume names auto-cloned under `CLONE_MODE_GOLDENS`.
+  repeated string golden_volumes = 2;
+  // Restrict cloning to job-labelled containers (`com.cuttlefish.job` /
+  // `com.micropod.job`). Per-container clone labels always apply.
+  bool jobs_only = 3;
+  // Writeback sync mode override; `SYNC_MODE_UNSPECIFIED` keeps the
+  // per-mount default.
+  SyncMode sync = 4;
+  // VZ disk-image cache mode.
+  CacheMode cache = 5;
+}
+
+// Desktop-app updater status (Sparkle), proxied over the app control
+// socket. Reported by CheckForUpdates, GetUpdateStatus, and ApplyUpdate.
+message UpdateStatus {
+  // Updater lifecycle state.
+  enum State {
+    // Never emitted — zero value only.
+    STATE_UNSPECIFIED = 0;
+    // No update feed configured (dev/test builds).
+    STATE_UNAVAILABLE = 1;
+    // Feed configured, nothing in flight.
+    STATE_IDLE = 2;
+    // A check is running.
+    STATE_CHECKING = 3;
+    // Last check found nothing newer.
+    STATE_UP_TO_DATE = 4;
+    // A newer version is available on the feed.
+    STATE_UPDATE_AVAILABLE = 5;
+    // An update is being installed.
+    STATE_INSTALLING = 6;
+    // Last check/apply failed — see `error`.
+    STATE_ERROR = 7;
+  }
+  // Updater lifecycle state.
+  State state = 1;
+  // Whether a Sparkle feed URL is configured.
+  bool feed_configured = 2;
+  // Currently running app version.
+  string current_version = 3;
+  // Version available on the feed, if an update was found.
+  string available_version = 4;
+  // True once an update has finished downloading.
+  bool downloaded = 5;
+  // Version staged for install.
+  string downloaded_version = 6;
+  // True when ApplyUpdate will succeed immediately.
+  bool ready_to_install = 7;
+  // Last updater error, when `state` is STATE_ERROR.
+  string error = 8;
+  // ISO8601 time of the last completed check.
+  string checked_at = 9;
 }

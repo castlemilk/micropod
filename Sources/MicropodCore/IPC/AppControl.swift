@@ -7,10 +7,18 @@ import Network
 ///
 /// Wire shape mirrors the shared-fs protocol: request
 /// `{"id","method","params"}` → response `{"id","ok","result","error"}`.
-public enum AppControlError: Error {
+public enum AppControlError: Error, LocalizedError {
     case unavailable(String)
     case callFailed(String)
     case malformedResponse
+
+    public var errorDescription: String? {
+        switch self {
+        case .unavailable(let detail): return detail
+        case .callFailed(let detail): return detail
+        case .malformedResponse: return "malformed response from app control socket"
+        }
+    }
 }
 
 public struct AppControlClient: Sendable {

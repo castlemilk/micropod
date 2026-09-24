@@ -4,6 +4,7 @@ package micropod.v1;
 
 option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
 
+import "buf/validate/validate.proto";
 import "micropod/v1/container.proto";
 
 // Parsed docker-compose.yml, produced by the compose importer.
@@ -155,4 +156,29 @@ message ComposeNetwork {
   string subnet_v6 = 8;
   // `external: {name: "…"}` override.
   string external_name = 9;
+}
+
+// Bring a compose project up from a spec file — ComposeUp streams progress.
+message ComposeUpRequest {
+  // Absolute path to the compose YAML on the host.
+  string path = 1 [(buf.validate.field).string.min_len = 1];
+  // Compose profiles to enable (service runs only when one matches).
+  repeated string profiles = 2;
+}
+
+// One ComposeUp stream event: progress output lines, then a terminal
+// marker once every service is up.
+message ComposeUpEvent {
+  // Progress output line — empty on the terminal event.
+  string line = 1;
+  // Compose project name — set only on the terminal event.
+  string name = 2;
+  // True on the terminal event once every service is up.
+  bool done = 3;
+}
+
+// Tear down a compose project's containers.
+message ComposeDownRequest {
+  // Compose project name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
 }

@@ -1,16 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "micropod.v1 \u2014 system types",
-    "version": "0.8.0",
-    "contact": {
-      "name": "Micropod",
-      "url": "https://github.com/castlemilk/micropod"
-    },
-    "license": {
-      "name": "Apache-2.0",
-      "url": "https://github.com/castlemilk/micropod/blob/master/LICENSE"
-    }
+    "title": "micropod.v1"
   },
   "paths": {},
   "components": {
@@ -172,6 +163,77 @@
         "additionalProperties": false,
         "description": "Disk usage, mapped from `container system df`."
       },
+      "micropod.v1.Image": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "description": "Image ID (content-addressed digest prefix)."
+          },
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "names",
+            "description": "All tags/references pointing at this image."
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "created_at",
+            "description": "ISO8601 creation timestamp."
+          },
+          "digest": {
+            "type": "string",
+            "title": "digest",
+            "description": "Content digest."
+          },
+          "sizeBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "size_bytes",
+            "format": "int64",
+            "description": "Total unpacked size in bytes."
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.ImageVariant"
+            },
+            "title": "variants",
+            "description": "Per-platform variants of this image."
+          }
+        },
+        "title": "Image",
+        "additionalProperties": false,
+        "description": "Curated view of a local image, mapped from `container image list --verbose`."
+      },
+      "micropod.v1.ImageVariant": {
+        "type": "object",
+        "properties": {
+          "os": {
+            "type": "string",
+            "title": "os",
+            "description": "Operating system, e.g. \"linux\"."
+          },
+          "architecture": {
+            "type": "string",
+            "title": "architecture",
+            "description": "CPU architecture, e.g. \"arm64\"."
+          },
+          "variant": {
+            "type": "string",
+            "title": "variant",
+            "description": "Architecture variant, e.g. \"v8\"."
+          }
+        },
+        "title": "ImageVariant",
+        "additionalProperties": false,
+        "description": "One platform variant of a multi-arch image."
+      },
       "micropod.v1.Network": {
         "type": "object",
         "properties": {
@@ -321,6 +383,174 @@
         "additionalProperties": false,
         "description": "Runtime health, mapped from `container system status`."
       },
+      "micropod.v1.UpdateStatus": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "title": "state",
+            "description": "Updater lifecycle state.",
+            "$ref": "#/components/schemas/micropod.v1.UpdateStatus.State"
+          },
+          "feedConfigured": {
+            "type": "boolean",
+            "title": "feed_configured",
+            "description": "Whether a Sparkle feed URL is configured."
+          },
+          "currentVersion": {
+            "type": "string",
+            "title": "current_version",
+            "description": "Currently running app version."
+          },
+          "availableVersion": {
+            "type": "string",
+            "title": "available_version",
+            "description": "Version available on the feed, if an update was found."
+          },
+          "downloaded": {
+            "type": "boolean",
+            "title": "downloaded",
+            "description": "True once an update has finished downloading."
+          },
+          "downloadedVersion": {
+            "type": "string",
+            "title": "downloaded_version",
+            "description": "Version staged for install."
+          },
+          "readyToInstall": {
+            "type": "boolean",
+            "title": "ready_to_install",
+            "description": "True when ApplyUpdate will succeed immediately."
+          },
+          "error": {
+            "type": "string",
+            "title": "error",
+            "description": "Last updater error, when `state` is STATE_ERROR."
+          },
+          "checkedAt": {
+            "type": "string",
+            "title": "checked_at",
+            "description": "ISO8601 time of the last completed check."
+          }
+        },
+        "title": "UpdateStatus",
+        "additionalProperties": false,
+        "description": "Desktop-app updater status (Sparkle), proxied over the app control\n socket. Reported by CheckForUpdates, GetUpdateStatus, and ApplyUpdate."
+      },
+      "micropod.v1.UpdateStatus.State": {
+        "type": "string",
+        "title": "State",
+        "enum": [
+          "STATE_UNSPECIFIED",
+          "STATE_UNAVAILABLE",
+          "STATE_IDLE",
+          "STATE_CHECKING",
+          "STATE_UP_TO_DATE",
+          "STATE_UPDATE_AVAILABLE",
+          "STATE_INSTALLING",
+          "STATE_ERROR"
+        ],
+        "description": "Updater lifecycle state."
+      },
+      "micropod.v1.UsageReport": {
+        "type": "object",
+        "properties": {
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.UsageReport.ImageUsage"
+            },
+            "title": "images",
+            "description": "Every local image with its referencing containers."
+          },
+          "volumes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.UsageReport.VolumeUsage"
+            },
+            "title": "volumes",
+            "description": "Every local volume with its mounting containers."
+          },
+          "reclaimableImageBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "reclaimable_image_bytes",
+            "format": "int64",
+            "description": "Bytes reclaimable by pruning unreferenced images."
+          },
+          "reclaimableVolumeBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "reclaimable_volume_bytes",
+            "format": "int64",
+            "description": "Bytes reclaimable by pruning unmounted volumes."
+          },
+          "stoppedContainerCount": {
+            "type": "integer",
+            "title": "stopped_container_count",
+            "format": "int32",
+            "description": "Number of stopped containers."
+          }
+        },
+        "title": "UsageReport",
+        "additionalProperties": false,
+        "description": "What a cleanup would reclaim: every image and volume annotated with the\n containers that reference it."
+      },
+      "micropod.v1.UsageReport.ImageUsage": {
+        "type": "object",
+        "properties": {
+          "image": {
+            "title": "image",
+            "description": "The image.",
+            "$ref": "#/components/schemas/micropod.v1.Image"
+          },
+          "usedByContainerIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "used_by_container_ids",
+            "description": "IDs of containers referencing this image."
+          },
+          "inUse": {
+            "type": "boolean",
+            "title": "in_use",
+            "description": "True when at least one container references the image."
+          }
+        },
+        "title": "ImageUsage",
+        "additionalProperties": false,
+        "description": "An image plus the containers that reference it."
+      },
+      "micropod.v1.UsageReport.VolumeUsage": {
+        "type": "object",
+        "properties": {
+          "volume": {
+            "title": "volume",
+            "description": "The volume.",
+            "$ref": "#/components/schemas/micropod.v1.Volume"
+          },
+          "usedByContainerIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "used_by_container_ids",
+            "description": "IDs of containers mounting this volume."
+          },
+          "inUse": {
+            "type": "boolean",
+            "title": "in_use",
+            "description": "True when at least one container mounts the volume."
+          }
+        },
+        "title": "VolumeUsage",
+        "additionalProperties": false,
+        "description": "A volume plus the containers mounting it."
+      },
       "micropod.v1.Volume": {
         "type": "object",
         "properties": {
@@ -386,18 +616,77 @@
         },
         "title": "LabelsEntry",
         "additionalProperties": false
+      },
+      "micropod.v1.VolumePolicy": {
+        "type": "object",
+        "properties": {
+          "cloneMode": {
+            "title": "clone_mode",
+            "description": "Which named-volume mounts get clonefile-forked per container.",
+            "$ref": "#/components/schemas/micropod.v1.VolumePolicy.CloneMode"
+          },
+          "goldenVolumes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "golden_volumes",
+            "description": "Volume names auto-cloned under `CLONE_MODE_GOLDENS`."
+          },
+          "jobsOnly": {
+            "type": "boolean",
+            "title": "jobs_only",
+            "description": "Restrict cloning to job-labelled containers (`com.cuttlefish.job` /\n `com.micropod.job`). Per-container clone labels always apply."
+          },
+          "sync": {
+            "title": "sync",
+            "description": "Writeback sync mode override; `SYNC_MODE_UNSPECIFIED` keeps the\n per-mount default.",
+            "$ref": "#/components/schemas/micropod.v1.VolumePolicy.SyncMode"
+          },
+          "cache": {
+            "title": "cache",
+            "description": "VZ disk-image cache mode.",
+            "$ref": "#/components/schemas/micropod.v1.VolumePolicy.CacheMode"
+          }
+        },
+        "title": "VolumePolicy",
+        "additionalProperties": false,
+        "description": "Named-volume mount policy — read on container create by every surface\n (API, docker shim, app, CLI, MCP). Per-container `com.micropod.*` labels\n take precedence over this policy."
+      },
+      "micropod.v1.VolumePolicy.CacheMode": {
+        "type": "string",
+        "title": "CacheMode",
+        "enum": [
+          "CACHE_MODE_UNSPECIFIED",
+          "CACHE_MODE_ON",
+          "CACHE_MODE_OFF",
+          "CACHE_MODE_AUTO"
+        ],
+        "description": "VZ disk-image caching mode."
+      },
+      "micropod.v1.VolumePolicy.CloneMode": {
+        "type": "string",
+        "title": "CloneMode",
+        "enum": [
+          "CLONE_MODE_UNSPECIFIED",
+          "CLONE_MODE_LABELS",
+          "CLONE_MODE_GOLDENS",
+          "CLONE_MODE_ALL"
+        ],
+        "description": "Which named-volume mounts get clonefile-forked per container."
+      },
+      "micropod.v1.VolumePolicy.SyncMode": {
+        "type": "string",
+        "title": "SyncMode",
+        "enum": [
+          "SYNC_MODE_UNSPECIFIED",
+          "SYNC_MODE_FULL",
+          "SYNC_MODE_FSYNC",
+          "SYNC_MODE_NOSYNC"
+        ],
+        "description": "Writeback sync mode for volume disk images."
       }
     }
   },
-  "security": [],
-  "servers": [
-    {
-      "url": "http://localhost:45454",
-      "description": "Local Micropod daemon"
-    }
-  ],
-  "externalDocs": {
-    "description": "API explorer",
-    "url": "https://castlemilk.github.io/micropod/api/"
-  }
+  "security": []
 }

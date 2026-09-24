@@ -135,4 +135,53 @@ public struct MicropodClient: Sendable {
     public func deleteNetwork(_ request: Micropod_V1_DeleteNetworkRequest) async throws {
         _ = try await connect.unary(path: path("DeleteNetwork"), request: request, response: Micropod_V1_Empty.self)
     }
+
+    // MARK: - Usage + policy
+
+    /// What a cleanup would reclaim: images/volumes with their referencing
+    /// containers.
+    public func usage() async throws -> Micropod_V1_UsageReport {
+        try await connect.unary(path: path("GetUsage"), request: Micropod_V1_Empty())
+    }
+
+    /// Shared named-volume mount policy.
+    public func volumePolicy() async throws -> Micropod_V1_VolumePolicy {
+        try await connect.unary(path: path("GetVolumePolicy"), request: Micropod_V1_Empty())
+    }
+
+    /// Replace the volume mount policy; returns the stored policy.
+    public func setVolumePolicy(_ policy: Micropod_V1_VolumePolicy) async throws -> Micropod_V1_VolumePolicy {
+        try await connect.unary(path: path("SetVolumePolicy"), request: policy)
+    }
+
+    // MARK: - App updates
+
+    /// Trigger a background update check in the desktop app.
+    public func checkForUpdates() async throws -> Micropod_V1_UpdateStatus {
+        try await connect.unary(path: path("CheckForUpdates"), request: Micropod_V1_Empty())
+    }
+
+    /// Last-known updater status.
+    public func updateStatus() async throws -> Micropod_V1_UpdateStatus {
+        try await connect.unary(path: path("GetUpdateStatus"), request: Micropod_V1_Empty())
+    }
+
+    /// Quit the app so a downloaded update installs and relaunches.
+    public func applyUpdate() async throws -> Micropod_V1_UpdateStatus {
+        try await connect.unary(path: path("ApplyUpdate"), request: Micropod_V1_Empty())
+    }
+
+    // MARK: - Compose
+
+    /// Server-streaming compose-up progress; the terminal event carries
+    /// `name` and `done`.
+    public func composeUp(
+        _ request: Micropod_V1_ComposeUpRequest
+    ) -> AsyncThrowingStream<Micropod_V1_ComposeUpEvent, Error> {
+        connect.serverStream(path: path("ComposeUp"), request: request)
+    }
+
+    public func composeDown(_ request: Micropod_V1_ComposeDownRequest) async throws {
+        _ = try await connect.unary(path: path("ComposeDown"), request: request, response: Micropod_V1_Empty.self)
+    }
 }

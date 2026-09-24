@@ -95,6 +95,30 @@ const (
 	MicropodServiceGetStatsProcedure = "/micropod.v1.MicropodService/GetStats"
 	// MicropodServiceExecProcedure is the fully-qualified name of the MicropodService's Exec RPC.
 	MicropodServiceExecProcedure = "/micropod.v1.MicropodService/Exec"
+	// MicropodServiceGetUsageProcedure is the fully-qualified name of the MicropodService's GetUsage
+	// RPC.
+	MicropodServiceGetUsageProcedure = "/micropod.v1.MicropodService/GetUsage"
+	// MicropodServiceGetVolumePolicyProcedure is the fully-qualified name of the MicropodService's
+	// GetVolumePolicy RPC.
+	MicropodServiceGetVolumePolicyProcedure = "/micropod.v1.MicropodService/GetVolumePolicy"
+	// MicropodServiceSetVolumePolicyProcedure is the fully-qualified name of the MicropodService's
+	// SetVolumePolicy RPC.
+	MicropodServiceSetVolumePolicyProcedure = "/micropod.v1.MicropodService/SetVolumePolicy"
+	// MicropodServiceCheckForUpdatesProcedure is the fully-qualified name of the MicropodService's
+	// CheckForUpdates RPC.
+	MicropodServiceCheckForUpdatesProcedure = "/micropod.v1.MicropodService/CheckForUpdates"
+	// MicropodServiceGetUpdateStatusProcedure is the fully-qualified name of the MicropodService's
+	// GetUpdateStatus RPC.
+	MicropodServiceGetUpdateStatusProcedure = "/micropod.v1.MicropodService/GetUpdateStatus"
+	// MicropodServiceApplyUpdateProcedure is the fully-qualified name of the MicropodService's
+	// ApplyUpdate RPC.
+	MicropodServiceApplyUpdateProcedure = "/micropod.v1.MicropodService/ApplyUpdate"
+	// MicropodServiceComposeUpProcedure is the fully-qualified name of the MicropodService's ComposeUp
+	// RPC.
+	MicropodServiceComposeUpProcedure = "/micropod.v1.MicropodService/ComposeUp"
+	// MicropodServiceComposeDownProcedure is the fully-qualified name of the MicropodService's
+	// ComposeDown RPC.
+	MicropodServiceComposeDownProcedure = "/micropod.v1.MicropodService/ComposeDown"
 )
 
 // MicropodServiceClient is a client for the micropod.v1.MicropodService service.
@@ -141,6 +165,26 @@ type MicropodServiceClient interface {
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
 	// Run a command inside a running container and return its output.
 	Exec(context.Context, *connect.Request[v1.ExecRequest]) (*connect.Response[v1.ExecResponse], error)
+	// What a cleanup would reclaim: images and volumes annotated with the
+	// containers that reference them.
+	GetUsage(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UsageReport], error)
+	// Named-volume mount policy applied on container create across every
+	// surface (API, shim, app, CLI, MCP).
+	GetVolumePolicy(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.VolumePolicy], error)
+	// Replace the volume mount policy; returns the stored policy.
+	SetVolumePolicy(context.Context, *connect.Request[v1.VolumePolicy]) (*connect.Response[v1.VolumePolicy], error)
+	// Trigger a background update check in the desktop app (Sparkle).
+	// Fails with `unavailable` when the app isn't running.
+	CheckForUpdates(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error)
+	// Last-known updater status from the desktop app.
+	GetUpdateStatus(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error)
+	// Quit the app so a downloaded update installs and relaunches. Fails
+	// with `failed_precondition` until `UpdateStatus.ready_to_install`.
+	ApplyUpdate(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error)
+	// Run a compose spec file, streaming progress lines (server streaming).
+	ComposeUp(context.Context, *connect.Request[v1.ComposeUpRequest]) (*connect.ServerStreamForClient[v1.ComposeUpEvent], error)
+	// Tear down a compose project's containers.
+	ComposeDown(context.Context, *connect.Request[v1.ComposeDownRequest]) (*connect.Response[v1.Empty], error)
 }
 
 // NewMicropodServiceClient constructs a client for the micropod.v1.MicropodService service. By
@@ -280,6 +324,54 @@ func NewMicropodServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(micropodServiceMethods.ByName("Exec")),
 			connect.WithClientOptions(opts...),
 		),
+		getUsage: connect.NewClient[v1.Empty, v1.UsageReport](
+			httpClient,
+			baseURL+MicropodServiceGetUsageProcedure,
+			connect.WithSchema(micropodServiceMethods.ByName("GetUsage")),
+			connect.WithClientOptions(opts...),
+		),
+		getVolumePolicy: connect.NewClient[v1.Empty, v1.VolumePolicy](
+			httpClient,
+			baseURL+MicropodServiceGetVolumePolicyProcedure,
+			connect.WithSchema(micropodServiceMethods.ByName("GetVolumePolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		setVolumePolicy: connect.NewClient[v1.VolumePolicy, v1.VolumePolicy](
+			httpClient,
+			baseURL+MicropodServiceSetVolumePolicyProcedure,
+			connect.WithSchema(micropodServiceMethods.ByName("SetVolumePolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		checkForUpdates: connect.NewClient[v1.Empty, v1.UpdateStatus](
+			httpClient,
+			baseURL+MicropodServiceCheckForUpdatesProcedure,
+			connect.WithSchema(micropodServiceMethods.ByName("CheckForUpdates")),
+			connect.WithClientOptions(opts...),
+		),
+		getUpdateStatus: connect.NewClient[v1.Empty, v1.UpdateStatus](
+			httpClient,
+			baseURL+MicropodServiceGetUpdateStatusProcedure,
+			connect.WithSchema(micropodServiceMethods.ByName("GetUpdateStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		applyUpdate: connect.NewClient[v1.Empty, v1.UpdateStatus](
+			httpClient,
+			baseURL+MicropodServiceApplyUpdateProcedure,
+			connect.WithSchema(micropodServiceMethods.ByName("ApplyUpdate")),
+			connect.WithClientOptions(opts...),
+		),
+		composeUp: connect.NewClient[v1.ComposeUpRequest, v1.ComposeUpEvent](
+			httpClient,
+			baseURL+MicropodServiceComposeUpProcedure,
+			connect.WithSchema(micropodServiceMethods.ByName("ComposeUp")),
+			connect.WithClientOptions(opts...),
+		),
+		composeDown: connect.NewClient[v1.ComposeDownRequest, v1.Empty](
+			httpClient,
+			baseURL+MicropodServiceComposeDownProcedure,
+			connect.WithSchema(micropodServiceMethods.ByName("ComposeDown")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -306,6 +398,14 @@ type micropodServiceClient struct {
 	deleteNetwork       *connect.Client[v1.DeleteNetworkRequest, v1.Empty]
 	getStats            *connect.Client[v1.GetStatsRequest, v1.GetStatsResponse]
 	exec                *connect.Client[v1.ExecRequest, v1.ExecResponse]
+	getUsage            *connect.Client[v1.Empty, v1.UsageReport]
+	getVolumePolicy     *connect.Client[v1.Empty, v1.VolumePolicy]
+	setVolumePolicy     *connect.Client[v1.VolumePolicy, v1.VolumePolicy]
+	checkForUpdates     *connect.Client[v1.Empty, v1.UpdateStatus]
+	getUpdateStatus     *connect.Client[v1.Empty, v1.UpdateStatus]
+	applyUpdate         *connect.Client[v1.Empty, v1.UpdateStatus]
+	composeUp           *connect.Client[v1.ComposeUpRequest, v1.ComposeUpEvent]
+	composeDown         *connect.Client[v1.ComposeDownRequest, v1.Empty]
 }
 
 // GetSystem calls micropod.v1.MicropodService.GetSystem.
@@ -413,6 +513,46 @@ func (c *micropodServiceClient) Exec(ctx context.Context, req *connect.Request[v
 	return c.exec.CallUnary(ctx, req)
 }
 
+// GetUsage calls micropod.v1.MicropodService.GetUsage.
+func (c *micropodServiceClient) GetUsage(ctx context.Context, req *connect.Request[v1.Empty]) (*connect.Response[v1.UsageReport], error) {
+	return c.getUsage.CallUnary(ctx, req)
+}
+
+// GetVolumePolicy calls micropod.v1.MicropodService.GetVolumePolicy.
+func (c *micropodServiceClient) GetVolumePolicy(ctx context.Context, req *connect.Request[v1.Empty]) (*connect.Response[v1.VolumePolicy], error) {
+	return c.getVolumePolicy.CallUnary(ctx, req)
+}
+
+// SetVolumePolicy calls micropod.v1.MicropodService.SetVolumePolicy.
+func (c *micropodServiceClient) SetVolumePolicy(ctx context.Context, req *connect.Request[v1.VolumePolicy]) (*connect.Response[v1.VolumePolicy], error) {
+	return c.setVolumePolicy.CallUnary(ctx, req)
+}
+
+// CheckForUpdates calls micropod.v1.MicropodService.CheckForUpdates.
+func (c *micropodServiceClient) CheckForUpdates(ctx context.Context, req *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error) {
+	return c.checkForUpdates.CallUnary(ctx, req)
+}
+
+// GetUpdateStatus calls micropod.v1.MicropodService.GetUpdateStatus.
+func (c *micropodServiceClient) GetUpdateStatus(ctx context.Context, req *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error) {
+	return c.getUpdateStatus.CallUnary(ctx, req)
+}
+
+// ApplyUpdate calls micropod.v1.MicropodService.ApplyUpdate.
+func (c *micropodServiceClient) ApplyUpdate(ctx context.Context, req *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error) {
+	return c.applyUpdate.CallUnary(ctx, req)
+}
+
+// ComposeUp calls micropod.v1.MicropodService.ComposeUp.
+func (c *micropodServiceClient) ComposeUp(ctx context.Context, req *connect.Request[v1.ComposeUpRequest]) (*connect.ServerStreamForClient[v1.ComposeUpEvent], error) {
+	return c.composeUp.CallServerStream(ctx, req)
+}
+
+// ComposeDown calls micropod.v1.MicropodService.ComposeDown.
+func (c *micropodServiceClient) ComposeDown(ctx context.Context, req *connect.Request[v1.ComposeDownRequest]) (*connect.Response[v1.Empty], error) {
+	return c.composeDown.CallUnary(ctx, req)
+}
+
 // MicropodServiceHandler is an implementation of the micropod.v1.MicropodService service.
 type MicropodServiceHandler interface {
 	// Runtime status + disk usage.
@@ -457,6 +597,26 @@ type MicropodServiceHandler interface {
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
 	// Run a command inside a running container and return its output.
 	Exec(context.Context, *connect.Request[v1.ExecRequest]) (*connect.Response[v1.ExecResponse], error)
+	// What a cleanup would reclaim: images and volumes annotated with the
+	// containers that reference them.
+	GetUsage(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UsageReport], error)
+	// Named-volume mount policy applied on container create across every
+	// surface (API, shim, app, CLI, MCP).
+	GetVolumePolicy(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.VolumePolicy], error)
+	// Replace the volume mount policy; returns the stored policy.
+	SetVolumePolicy(context.Context, *connect.Request[v1.VolumePolicy]) (*connect.Response[v1.VolumePolicy], error)
+	// Trigger a background update check in the desktop app (Sparkle).
+	// Fails with `unavailable` when the app isn't running.
+	CheckForUpdates(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error)
+	// Last-known updater status from the desktop app.
+	GetUpdateStatus(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error)
+	// Quit the app so a downloaded update installs and relaunches. Fails
+	// with `failed_precondition` until `UpdateStatus.ready_to_install`.
+	ApplyUpdate(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error)
+	// Run a compose spec file, streaming progress lines (server streaming).
+	ComposeUp(context.Context, *connect.Request[v1.ComposeUpRequest], *connect.ServerStream[v1.ComposeUpEvent]) error
+	// Tear down a compose project's containers.
+	ComposeDown(context.Context, *connect.Request[v1.ComposeDownRequest]) (*connect.Response[v1.Empty], error)
 }
 
 // NewMicropodServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -592,6 +752,54 @@ func NewMicropodServiceHandler(svc MicropodServiceHandler, opts ...connect.Handl
 		connect.WithSchema(micropodServiceMethods.ByName("Exec")),
 		connect.WithHandlerOptions(opts...),
 	)
+	micropodServiceGetUsageHandler := connect.NewUnaryHandler(
+		MicropodServiceGetUsageProcedure,
+		svc.GetUsage,
+		connect.WithSchema(micropodServiceMethods.ByName("GetUsage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	micropodServiceGetVolumePolicyHandler := connect.NewUnaryHandler(
+		MicropodServiceGetVolumePolicyProcedure,
+		svc.GetVolumePolicy,
+		connect.WithSchema(micropodServiceMethods.ByName("GetVolumePolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	micropodServiceSetVolumePolicyHandler := connect.NewUnaryHandler(
+		MicropodServiceSetVolumePolicyProcedure,
+		svc.SetVolumePolicy,
+		connect.WithSchema(micropodServiceMethods.ByName("SetVolumePolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	micropodServiceCheckForUpdatesHandler := connect.NewUnaryHandler(
+		MicropodServiceCheckForUpdatesProcedure,
+		svc.CheckForUpdates,
+		connect.WithSchema(micropodServiceMethods.ByName("CheckForUpdates")),
+		connect.WithHandlerOptions(opts...),
+	)
+	micropodServiceGetUpdateStatusHandler := connect.NewUnaryHandler(
+		MicropodServiceGetUpdateStatusProcedure,
+		svc.GetUpdateStatus,
+		connect.WithSchema(micropodServiceMethods.ByName("GetUpdateStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	micropodServiceApplyUpdateHandler := connect.NewUnaryHandler(
+		MicropodServiceApplyUpdateProcedure,
+		svc.ApplyUpdate,
+		connect.WithSchema(micropodServiceMethods.ByName("ApplyUpdate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	micropodServiceComposeUpHandler := connect.NewServerStreamHandler(
+		MicropodServiceComposeUpProcedure,
+		svc.ComposeUp,
+		connect.WithSchema(micropodServiceMethods.ByName("ComposeUp")),
+		connect.WithHandlerOptions(opts...),
+	)
+	micropodServiceComposeDownHandler := connect.NewUnaryHandler(
+		MicropodServiceComposeDownProcedure,
+		svc.ComposeDown,
+		connect.WithSchema(micropodServiceMethods.ByName("ComposeDown")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/micropod.v1.MicropodService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MicropodServiceGetSystemProcedure:
@@ -636,6 +844,22 @@ func NewMicropodServiceHandler(svc MicropodServiceHandler, opts ...connect.Handl
 			micropodServiceGetStatsHandler.ServeHTTP(w, r)
 		case MicropodServiceExecProcedure:
 			micropodServiceExecHandler.ServeHTTP(w, r)
+		case MicropodServiceGetUsageProcedure:
+			micropodServiceGetUsageHandler.ServeHTTP(w, r)
+		case MicropodServiceGetVolumePolicyProcedure:
+			micropodServiceGetVolumePolicyHandler.ServeHTTP(w, r)
+		case MicropodServiceSetVolumePolicyProcedure:
+			micropodServiceSetVolumePolicyHandler.ServeHTTP(w, r)
+		case MicropodServiceCheckForUpdatesProcedure:
+			micropodServiceCheckForUpdatesHandler.ServeHTTP(w, r)
+		case MicropodServiceGetUpdateStatusProcedure:
+			micropodServiceGetUpdateStatusHandler.ServeHTTP(w, r)
+		case MicropodServiceApplyUpdateProcedure:
+			micropodServiceApplyUpdateHandler.ServeHTTP(w, r)
+		case MicropodServiceComposeUpProcedure:
+			micropodServiceComposeUpHandler.ServeHTTP(w, r)
+		case MicropodServiceComposeDownProcedure:
+			micropodServiceComposeDownHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -727,4 +951,36 @@ func (UnimplementedMicropodServiceHandler) GetStats(context.Context, *connect.Re
 
 func (UnimplementedMicropodServiceHandler) Exec(context.Context, *connect.Request[v1.ExecRequest]) (*connect.Response[v1.ExecResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.MicropodService.Exec is not implemented"))
+}
+
+func (UnimplementedMicropodServiceHandler) GetUsage(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UsageReport], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.MicropodService.GetUsage is not implemented"))
+}
+
+func (UnimplementedMicropodServiceHandler) GetVolumePolicy(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.VolumePolicy], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.MicropodService.GetVolumePolicy is not implemented"))
+}
+
+func (UnimplementedMicropodServiceHandler) SetVolumePolicy(context.Context, *connect.Request[v1.VolumePolicy]) (*connect.Response[v1.VolumePolicy], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.MicropodService.SetVolumePolicy is not implemented"))
+}
+
+func (UnimplementedMicropodServiceHandler) CheckForUpdates(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.MicropodService.CheckForUpdates is not implemented"))
+}
+
+func (UnimplementedMicropodServiceHandler) GetUpdateStatus(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.MicropodService.GetUpdateStatus is not implemented"))
+}
+
+func (UnimplementedMicropodServiceHandler) ApplyUpdate(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.MicropodService.ApplyUpdate is not implemented"))
+}
+
+func (UnimplementedMicropodServiceHandler) ComposeUp(context.Context, *connect.Request[v1.ComposeUpRequest], *connect.ServerStream[v1.ComposeUpEvent]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.MicropodService.ComposeUp is not implemented"))
+}
+
+func (UnimplementedMicropodServiceHandler) ComposeDown(context.Context, *connect.Request[v1.ComposeDownRequest]) (*connect.Response[v1.Empty], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.MicropodService.ComposeDown is not implemented"))
 }

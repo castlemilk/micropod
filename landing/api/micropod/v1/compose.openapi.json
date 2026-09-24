@@ -1,20 +1,25 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "micropod.v1 \u2014 compose types",
-    "version": "0.8.0",
-    "contact": {
-      "name": "Micropod",
-      "url": "https://github.com/castlemilk/micropod"
-    },
-    "license": {
-      "name": "Apache-2.0",
-      "url": "https://github.com/castlemilk/micropod/blob/master/LICENSE"
-    }
+    "title": "micropod.v1"
   },
   "paths": {},
   "components": {
     "schemas": {
+      "micropod.v1.ComposeDownRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name",
+            "minLength": 1,
+            "description": "Compose project name."
+          }
+        },
+        "title": "ComposeDownRequest",
+        "additionalProperties": false,
+        "description": "Tear down a compose project's containers."
+      },
       "micropod.v1.ComposeNetwork": {
         "type": "object",
         "properties": {
@@ -44,7 +49,7 @@
               "type": "string"
             },
             "title": "driver_opts",
-            "description": "Plugin options (compose `driver_opts` -> `--option`)."
+            "description": "Plugin options (compose `driver_opts` -\u003e `--option`)."
           },
           "labels": {
             "type": "array",
@@ -66,7 +71,7 @@
           "externalName": {
             "type": "string",
             "title": "external_name",
-            "description": "`external: {name: \"\u2026\"}` override."
+            "description": "`external: {name: \"…\"}` override."
           }
         },
         "title": "ComposeNetwork",
@@ -458,6 +463,51 @@
         "title": "VolumesEntry",
         "additionalProperties": false
       },
+      "micropod.v1.ComposeUpEvent": {
+        "type": "object",
+        "properties": {
+          "line": {
+            "type": "string",
+            "title": "line",
+            "description": "Progress output line — empty on the terminal event."
+          },
+          "name": {
+            "type": "string",
+            "title": "name",
+            "description": "Compose project name — set only on the terminal event."
+          },
+          "done": {
+            "type": "boolean",
+            "title": "done",
+            "description": "True on the terminal event once every service is up."
+          }
+        },
+        "title": "ComposeUpEvent",
+        "additionalProperties": false,
+        "description": "One ComposeUp stream event: progress output lines, then a terminal\n marker once every service is up."
+      },
+      "micropod.v1.ComposeUpRequest": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "path",
+            "minLength": 1,
+            "description": "Absolute path to the compose YAML on the host."
+          },
+          "profiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "profiles",
+            "description": "Compose profiles to enable (service runs only when one matches)."
+          }
+        },
+        "title": "ComposeUpRequest",
+        "additionalProperties": false,
+        "description": "Bring a compose project up from a spec file — ComposeUp streams progress."
+      },
       "micropod.v1.ComposeVolume": {
         "type": "object",
         "properties": {
@@ -493,7 +543,7 @@
           "externalName": {
             "type": "string",
             "title": "external_name",
-            "description": "`external: {name: \"\u2026\"}` override."
+            "description": "`external: {name: \"…\"}` override."
           }
         },
         "title": "ComposeVolume",
@@ -534,15 +584,5 @@
       }
     }
   },
-  "security": [],
-  "servers": [
-    {
-      "url": "http://localhost:45454",
-      "description": "Local Micropod daemon"
-    }
-  ],
-  "externalDocs": {
-    "description": "API explorer",
-    "url": "https://castlemilk.github.io/micropod/api/"
-  }
+  "security": []
 }

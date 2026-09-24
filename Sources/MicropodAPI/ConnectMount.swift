@@ -172,13 +172,71 @@ extension APIHandlers {
                         $0.error = result.error
                     })
 
+            case "GetUsage":
+                return unary(usageReportProto(try await usage.report()))
+
+            case "GetVolumePolicy":
+                return unary(volumePolicyProto(VolumePolicyStore.load()))
+
+            case "SetVolumePolicy":
+                let req = try decode(Micropod_V1_VolumePolicy.self, body)
+                let policy = volumePolicy(from: req)
+                try VolumePolicyStore.save(policy)
+                return unary(volumePolicyProto(policy))
+
+            case "CheckForUpdates":
+                return unary(updateStatus(from: try await appControl.checkForUpdates()))
+
+            case "GetUpdateStatus":
+                return unary(updateStatus(from: try await appControl.updateStatus()))
+
+            case "ApplyUpdate":
+                return unary(updateStatus(from: try await appControl.applyUpdate()))
+
+            case "ComposeUp":
+                let req = try decodeStreamRequest(Micropod_V1_ComposeUpRequest.self, body)
+                try check(req)
+                let spec = try await compose.parse(url: URL(fileURLWithPath: req.path))
+                let plan = try compose.plan(spec: spec, enabledProfiles: Set(req.profiles))
+                let name = spec.name
+                let events = AsyncThrowingStream<Micropod_V1_ComposeUpEvent, Error> { cont in
+                    Task {
+                        do {
+                            for try await line in compose.up(plan: plan) {
+                                cont.yield(.with { $0.line = line })
+                            }
+                            cont.yield(
+                                .with {
+                                    $0.name = name
+                                    $0.done = true
+                                })
+                            cont.finish()
+                        } catch {
+                            cont.finish(throwing: error)
+                        }
+                    }
+                }
+                return streamEnvelope(events) { $0 }
+
+            case "ComposeDown":
+                let req = try decode(Micropod_V1_ComposeDownRequest.self, body)
+                try check(req)
+                try await compose.down(composeName: req.name)
+                return unary(Micropod_V1_Empty())
+
             default:
                 return nil
             }
         } catch let error as ConnectDecodeError {
             return connectError(error.code, error.message)
         } catch let error as AppControlError {
-            return connectError(.unavailable, error.localizedDescription)
+            switch error {
+            case .callFailed:
+                // e.g. ApplyUpdate before a download is staged.
+                return connectError(.failedPrecondition, error.localizedDescription)
+            default:
+                return connectError(.unavailable, error.localizedDescription)
+            }
         } catch let error as MicropodError {
             return connectError(codeFor(error), error.localizedDescription)
         } catch {
@@ -297,6 +355,14 @@ extension APIHandlers {
         try required(req.command, "command")
     }
 
+    private func check(_ req: Micropod_V1_ComposeUpRequest) throws {
+        try required(req.path, "path")
+    }
+
+    private func check(_ req: Micropod_V1_ComposeDownRequest) throws {
+        try required(req.name, "name")
+    }
+
     private func decode<M: Message>(_ type: M.Type, _ body: Data) throws -> M {
         do {
             return try M(jsonUTF8Data: body.isEmpty ? Data("{}".utf8) : body)
@@ -389,6 +455,109 @@ extension APIHandlers {
             labels: proto.labels.map { LabelSpec(key: $0.key, value: $0.value) },
             useInit: proto.init_p,
             arguments: proto.arguments)
+    }
+
+    private func usageReportProto(_ report: UsageService.Report) -> Micropod_V1_UsageReport {
+        Micropod_V1_UsageReport.with { proto in
+            proto.images = report.images.map { entry in
+                Micropod_V1_UsageReport.ImageUsage.with {
+                    $0.image = entry.image
+                    $0.usedByContainerIds = entry.usedByContainerIDs
+                    $0.inUse = entry.inUse
+                }
+            }
+            proto.volumes = report.volumes.map { entry in
+                Micropod_V1_UsageReport.VolumeUsage.with {
+                    $0.volume = entry.volume
+                    $0.usedByContainerIds = entry.usedByContainerIDs
+                    $0.inUse = entry.inUse
+                }
+            }
+            proto.reclaimableImageBytes = report.reclaimableImageBytes
+            proto.reclaimableVolumeBytes = report.reclaimableVolumeBytes
+            proto.stoppedContainerCount = Int32(report.stoppedContainerCount)
+        }
+    }
+
+    private func volumePolicyProto(_ policy: VolumePolicy) -> Micropod_V1_VolumePolicy {
+        Micropod_V1_VolumePolicy.with { proto in
+            switch policy.cloneMode {
+            case .labels: proto.cloneMode = .labels
+            case .goldens: proto.cloneMode = .goldens
+            case .all: proto.cloneMode = .all
+            }
+            proto.goldenVolumes = policy.goldenVolumes
+            proto.jobsOnly = policy.jobsOnly
+            if let sync = policy.sync {
+                switch sync {
+                case .full: proto.sync = .full
+                case .fsync: proto.sync = .fsync
+                case .nosync: proto.sync = .nosync
+                }
+            }
+            switch policy.cache {
+            case .on: proto.cache = .on
+            case .off: proto.cache = .off
+            case .auto: proto.cache = .auto
+            }
+        }
+    }
+
+    /// Proto → service policy. Unspecified enums fall back to the standard
+    /// defaults (labels / no sync override / cache on), so a sparse body
+    /// still produces a valid stored policy.
+    private func volumePolicy(from proto: Micropod_V1_VolumePolicy) -> VolumePolicy {
+        let cloneMode: VolumePolicy.CloneMode =
+            switch proto.cloneMode {
+            case .goldens: .goldens
+            case .all: .all
+            default: .labels
+            }
+        let sync: VolumePolicy.SyncMode? =
+            switch proto.sync {
+            case .full: .full
+            case .fsync: .fsync
+            case .nosync: .nosync
+            default: nil
+            }
+        let cache: VolumePolicy.CacheMode =
+            switch proto.cache {
+            case .off: .off
+            case .auto: .auto
+            default: .on
+            }
+        return VolumePolicy(
+            cloneMode: cloneMode,
+            goldenVolumes: proto.goldenVolumes,
+            jobsOnly: proto.jobsOnly,
+            sync: sync,
+            cache: cache)
+    }
+
+    /// App-control statusReport dictionary → typed UpdateStatus. Unknown
+    /// keys are ignored so the app can extend the report without a
+    /// coordinated daemon bump.
+    private func updateStatus(from report: [String: Any]) -> Micropod_V1_UpdateStatus {
+        Micropod_V1_UpdateStatus.with { proto in
+            switch report["state"] as? String {
+            case "unavailable": proto.state = .unavailable
+            case "idle": proto.state = .idle
+            case "checking": proto.state = .checking
+            case "upToDate": proto.state = .upToDate
+            case "updateAvailable": proto.state = .updateAvailable
+            case "installing": proto.state = .installing
+            case "error": proto.state = .error
+            default: proto.state = .unspecified
+            }
+            proto.feedConfigured = (report["feedConfigured"] as? Bool) ?? false
+            proto.currentVersion = (report["currentVersion"] as? String) ?? ""
+            if let v = report["availableVersion"] as? String { proto.availableVersion = v }
+            proto.downloaded = (report["downloaded"] as? Bool) ?? false
+            if let v = report["downloadedVersion"] as? String { proto.downloadedVersion = v }
+            proto.readyToInstall = (report["readyToInstall"] as? Bool) ?? false
+            if let v = report["error"] as? String { proto.error = v }
+            if let v = report["checkedAt"] as? String { proto.checkedAt = v }
+        }
     }
 }
 

@@ -21,6 +21,250 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Which named-volume mounts get clonefile-forked per container.
+type VolumePolicy_CloneMode int32
+
+const (
+	// Treated as CLONE_MODE_LABELS (the standard default).
+	VolumePolicy_CLONE_MODE_UNSPECIFIED VolumePolicy_CloneMode = 0
+	// Only mounts carrying the `com.micropod.cache.clone` label.
+	VolumePolicy_CLONE_MODE_LABELS VolumePolicy_CloneMode = 1
+	// Auto-clone mounts of the volumes named in `golden_volumes`.
+	VolumePolicy_CLONE_MODE_GOLDENS VolumePolicy_CloneMode = 2
+	// Clone every named-volume mount.
+	VolumePolicy_CLONE_MODE_ALL VolumePolicy_CloneMode = 3
+)
+
+// Enum value maps for VolumePolicy_CloneMode.
+var (
+	VolumePolicy_CloneMode_name = map[int32]string{
+		0: "CLONE_MODE_UNSPECIFIED",
+		1: "CLONE_MODE_LABELS",
+		2: "CLONE_MODE_GOLDENS",
+		3: "CLONE_MODE_ALL",
+	}
+	VolumePolicy_CloneMode_value = map[string]int32{
+		"CLONE_MODE_UNSPECIFIED": 0,
+		"CLONE_MODE_LABELS":      1,
+		"CLONE_MODE_GOLDENS":     2,
+		"CLONE_MODE_ALL":         3,
+	}
+)
+
+func (x VolumePolicy_CloneMode) Enum() *VolumePolicy_CloneMode {
+	p := new(VolumePolicy_CloneMode)
+	*p = x
+	return p
+}
+
+func (x VolumePolicy_CloneMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (VolumePolicy_CloneMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_micropod_v1_system_proto_enumTypes[0].Descriptor()
+}
+
+func (VolumePolicy_CloneMode) Type() protoreflect.EnumType {
+	return &file_micropod_v1_system_proto_enumTypes[0]
+}
+
+func (x VolumePolicy_CloneMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use VolumePolicy_CloneMode.Descriptor instead.
+func (VolumePolicy_CloneMode) EnumDescriptor() ([]byte, []int) {
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{9, 0}
+}
+
+// Writeback sync mode for volume disk images.
+type VolumePolicy_SyncMode int32
+
+const (
+	// Per-mount default (fsync for named volumes, nosync for clones).
+	VolumePolicy_SYNC_MODE_UNSPECIFIED VolumePolicy_SyncMode = 0
+	// Flush writes on every write.
+	VolumePolicy_SYNC_MODE_FULL VolumePolicy_SyncMode = 1
+	// fsync on container stop.
+	VolumePolicy_SYNC_MODE_FSYNC VolumePolicy_SyncMode = 2
+	// Never fsync — fastest, can lose writes on host crash.
+	VolumePolicy_SYNC_MODE_NOSYNC VolumePolicy_SyncMode = 3
+)
+
+// Enum value maps for VolumePolicy_SyncMode.
+var (
+	VolumePolicy_SyncMode_name = map[int32]string{
+		0: "SYNC_MODE_UNSPECIFIED",
+		1: "SYNC_MODE_FULL",
+		2: "SYNC_MODE_FSYNC",
+		3: "SYNC_MODE_NOSYNC",
+	}
+	VolumePolicy_SyncMode_value = map[string]int32{
+		"SYNC_MODE_UNSPECIFIED": 0,
+		"SYNC_MODE_FULL":        1,
+		"SYNC_MODE_FSYNC":       2,
+		"SYNC_MODE_NOSYNC":      3,
+	}
+)
+
+func (x VolumePolicy_SyncMode) Enum() *VolumePolicy_SyncMode {
+	p := new(VolumePolicy_SyncMode)
+	*p = x
+	return p
+}
+
+func (x VolumePolicy_SyncMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (VolumePolicy_SyncMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_micropod_v1_system_proto_enumTypes[1].Descriptor()
+}
+
+func (VolumePolicy_SyncMode) Type() protoreflect.EnumType {
+	return &file_micropod_v1_system_proto_enumTypes[1]
+}
+
+func (x VolumePolicy_SyncMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use VolumePolicy_SyncMode.Descriptor instead.
+func (VolumePolicy_SyncMode) EnumDescriptor() ([]byte, []int) {
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{9, 1}
+}
+
+// VZ disk-image caching mode.
+type VolumePolicy_CacheMode int32
+
+const (
+	// Treated as CACHE_MODE_ON (the standard default).
+	VolumePolicy_CACHE_MODE_UNSPECIFIED VolumePolicy_CacheMode = 0
+	// Always cache the disk image.
+	VolumePolicy_CACHE_MODE_ON VolumePolicy_CacheMode = 1
+	// Never cache.
+	VolumePolicy_CACHE_MODE_OFF VolumePolicy_CacheMode = 2
+	// Cache when the volume driver supports it.
+	VolumePolicy_CACHE_MODE_AUTO VolumePolicy_CacheMode = 3
+)
+
+// Enum value maps for VolumePolicy_CacheMode.
+var (
+	VolumePolicy_CacheMode_name = map[int32]string{
+		0: "CACHE_MODE_UNSPECIFIED",
+		1: "CACHE_MODE_ON",
+		2: "CACHE_MODE_OFF",
+		3: "CACHE_MODE_AUTO",
+	}
+	VolumePolicy_CacheMode_value = map[string]int32{
+		"CACHE_MODE_UNSPECIFIED": 0,
+		"CACHE_MODE_ON":          1,
+		"CACHE_MODE_OFF":         2,
+		"CACHE_MODE_AUTO":        3,
+	}
+)
+
+func (x VolumePolicy_CacheMode) Enum() *VolumePolicy_CacheMode {
+	p := new(VolumePolicy_CacheMode)
+	*p = x
+	return p
+}
+
+func (x VolumePolicy_CacheMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (VolumePolicy_CacheMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_micropod_v1_system_proto_enumTypes[2].Descriptor()
+}
+
+func (VolumePolicy_CacheMode) Type() protoreflect.EnumType {
+	return &file_micropod_v1_system_proto_enumTypes[2]
+}
+
+func (x VolumePolicy_CacheMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use VolumePolicy_CacheMode.Descriptor instead.
+func (VolumePolicy_CacheMode) EnumDescriptor() ([]byte, []int) {
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{9, 2}
+}
+
+// Updater lifecycle state.
+type UpdateStatus_State int32
+
+const (
+	// Never emitted — zero value only.
+	UpdateStatus_STATE_UNSPECIFIED UpdateStatus_State = 0
+	// No update feed configured (dev/test builds).
+	UpdateStatus_STATE_UNAVAILABLE UpdateStatus_State = 1
+	// Feed configured, nothing in flight.
+	UpdateStatus_STATE_IDLE UpdateStatus_State = 2
+	// A check is running.
+	UpdateStatus_STATE_CHECKING UpdateStatus_State = 3
+	// Last check found nothing newer.
+	UpdateStatus_STATE_UP_TO_DATE UpdateStatus_State = 4
+	// A newer version is available on the feed.
+	UpdateStatus_STATE_UPDATE_AVAILABLE UpdateStatus_State = 5
+	// An update is being installed.
+	UpdateStatus_STATE_INSTALLING UpdateStatus_State = 6
+	// Last check/apply failed — see `error`.
+	UpdateStatus_STATE_ERROR UpdateStatus_State = 7
+)
+
+// Enum value maps for UpdateStatus_State.
+var (
+	UpdateStatus_State_name = map[int32]string{
+		0: "STATE_UNSPECIFIED",
+		1: "STATE_UNAVAILABLE",
+		2: "STATE_IDLE",
+		3: "STATE_CHECKING",
+		4: "STATE_UP_TO_DATE",
+		5: "STATE_UPDATE_AVAILABLE",
+		6: "STATE_INSTALLING",
+		7: "STATE_ERROR",
+	}
+	UpdateStatus_State_value = map[string]int32{
+		"STATE_UNSPECIFIED":      0,
+		"STATE_UNAVAILABLE":      1,
+		"STATE_IDLE":             2,
+		"STATE_CHECKING":         3,
+		"STATE_UP_TO_DATE":       4,
+		"STATE_UPDATE_AVAILABLE": 5,
+		"STATE_INSTALLING":       6,
+		"STATE_ERROR":            7,
+	}
+)
+
+func (x UpdateStatus_State) Enum() *UpdateStatus_State {
+	p := new(UpdateStatus_State)
+	*p = x
+	return p
+}
+
+func (x UpdateStatus_State) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (UpdateStatus_State) Descriptor() protoreflect.EnumDescriptor {
+	return file_micropod_v1_system_proto_enumTypes[3].Descriptor()
+}
+
+func (UpdateStatus_State) Type() protoreflect.EnumType {
+	return &file_micropod_v1_system_proto_enumTypes[3]
+}
+
+func (x UpdateStatus_State) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use UpdateStatus_State.Descriptor instead.
+func (UpdateStatus_State) EnumDescriptor() ([]byte, []int) {
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{10, 0}
+}
+
 // Runtime health, mapped from `container system status`.
 type SystemStatus struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -704,11 +948,427 @@ func (x *RegistryLogin) GetScheme() string {
 	return ""
 }
 
+// What a cleanup would reclaim: every image and volume annotated with the
+// containers that reference it.
+type UsageReport struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Every local image with its referencing containers.
+	Images []*UsageReport_ImageUsage `protobuf:"bytes,1,rep,name=images,proto3" json:"images,omitempty"`
+	// Every local volume with its mounting containers.
+	Volumes []*UsageReport_VolumeUsage `protobuf:"bytes,2,rep,name=volumes,proto3" json:"volumes,omitempty"`
+	// Bytes reclaimable by pruning unreferenced images.
+	ReclaimableImageBytes uint64 `protobuf:"varint,3,opt,name=reclaimable_image_bytes,json=reclaimableImageBytes,proto3" json:"reclaimable_image_bytes,omitempty"`
+	// Bytes reclaimable by pruning unmounted volumes.
+	ReclaimableVolumeBytes uint64 `protobuf:"varint,4,opt,name=reclaimable_volume_bytes,json=reclaimableVolumeBytes,proto3" json:"reclaimable_volume_bytes,omitempty"`
+	// Number of stopped containers.
+	StoppedContainerCount int32 `protobuf:"varint,5,opt,name=stopped_container_count,json=stoppedContainerCount,proto3" json:"stopped_container_count,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *UsageReport) Reset() {
+	*x = UsageReport{}
+	mi := &file_micropod_v1_system_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageReport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageReport) ProtoMessage() {}
+
+func (x *UsageReport) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_system_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageReport.ProtoReflect.Descriptor instead.
+func (*UsageReport) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *UsageReport) GetImages() []*UsageReport_ImageUsage {
+	if x != nil {
+		return x.Images
+	}
+	return nil
+}
+
+func (x *UsageReport) GetVolumes() []*UsageReport_VolumeUsage {
+	if x != nil {
+		return x.Volumes
+	}
+	return nil
+}
+
+func (x *UsageReport) GetReclaimableImageBytes() uint64 {
+	if x != nil {
+		return x.ReclaimableImageBytes
+	}
+	return 0
+}
+
+func (x *UsageReport) GetReclaimableVolumeBytes() uint64 {
+	if x != nil {
+		return x.ReclaimableVolumeBytes
+	}
+	return 0
+}
+
+func (x *UsageReport) GetStoppedContainerCount() int32 {
+	if x != nil {
+		return x.StoppedContainerCount
+	}
+	return 0
+}
+
+// Named-volume mount policy — read on container create by every surface
+// (API, docker shim, app, CLI, MCP). Per-container `com.micropod.*` labels
+// take precedence over this policy.
+type VolumePolicy struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Which named-volume mounts get clonefile-forked per container.
+	CloneMode VolumePolicy_CloneMode `protobuf:"varint,1,opt,name=clone_mode,json=cloneMode,proto3,enum=micropod.v1.VolumePolicy_CloneMode" json:"clone_mode,omitempty"`
+	// Volume names auto-cloned under `CLONE_MODE_GOLDENS`.
+	GoldenVolumes []string `protobuf:"bytes,2,rep,name=golden_volumes,json=goldenVolumes,proto3" json:"golden_volumes,omitempty"`
+	// Restrict cloning to job-labelled containers (`com.cuttlefish.job` /
+	// `com.micropod.job`). Per-container clone labels always apply.
+	JobsOnly bool `protobuf:"varint,3,opt,name=jobs_only,json=jobsOnly,proto3" json:"jobs_only,omitempty"`
+	// Writeback sync mode override; `SYNC_MODE_UNSPECIFIED` keeps the
+	// per-mount default.
+	Sync VolumePolicy_SyncMode `protobuf:"varint,4,opt,name=sync,proto3,enum=micropod.v1.VolumePolicy_SyncMode" json:"sync,omitempty"`
+	// VZ disk-image cache mode.
+	Cache         VolumePolicy_CacheMode `protobuf:"varint,5,opt,name=cache,proto3,enum=micropod.v1.VolumePolicy_CacheMode" json:"cache,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VolumePolicy) Reset() {
+	*x = VolumePolicy{}
+	mi := &file_micropod_v1_system_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VolumePolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VolumePolicy) ProtoMessage() {}
+
+func (x *VolumePolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_system_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VolumePolicy.ProtoReflect.Descriptor instead.
+func (*VolumePolicy) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *VolumePolicy) GetCloneMode() VolumePolicy_CloneMode {
+	if x != nil {
+		return x.CloneMode
+	}
+	return VolumePolicy_CLONE_MODE_UNSPECIFIED
+}
+
+func (x *VolumePolicy) GetGoldenVolumes() []string {
+	if x != nil {
+		return x.GoldenVolumes
+	}
+	return nil
+}
+
+func (x *VolumePolicy) GetJobsOnly() bool {
+	if x != nil {
+		return x.JobsOnly
+	}
+	return false
+}
+
+func (x *VolumePolicy) GetSync() VolumePolicy_SyncMode {
+	if x != nil {
+		return x.Sync
+	}
+	return VolumePolicy_SYNC_MODE_UNSPECIFIED
+}
+
+func (x *VolumePolicy) GetCache() VolumePolicy_CacheMode {
+	if x != nil {
+		return x.Cache
+	}
+	return VolumePolicy_CACHE_MODE_UNSPECIFIED
+}
+
+// Desktop-app updater status (Sparkle), proxied over the app control
+// socket. Reported by CheckForUpdates, GetUpdateStatus, and ApplyUpdate.
+type UpdateStatus struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Updater lifecycle state.
+	State UpdateStatus_State `protobuf:"varint,1,opt,name=state,proto3,enum=micropod.v1.UpdateStatus_State" json:"state,omitempty"`
+	// Whether a Sparkle feed URL is configured.
+	FeedConfigured bool `protobuf:"varint,2,opt,name=feed_configured,json=feedConfigured,proto3" json:"feed_configured,omitempty"`
+	// Currently running app version.
+	CurrentVersion string `protobuf:"bytes,3,opt,name=current_version,json=currentVersion,proto3" json:"current_version,omitempty"`
+	// Version available on the feed, if an update was found.
+	AvailableVersion string `protobuf:"bytes,4,opt,name=available_version,json=availableVersion,proto3" json:"available_version,omitempty"`
+	// True once an update has finished downloading.
+	Downloaded bool `protobuf:"varint,5,opt,name=downloaded,proto3" json:"downloaded,omitempty"`
+	// Version staged for install.
+	DownloadedVersion string `protobuf:"bytes,6,opt,name=downloaded_version,json=downloadedVersion,proto3" json:"downloaded_version,omitempty"`
+	// True when ApplyUpdate will succeed immediately.
+	ReadyToInstall bool `protobuf:"varint,7,opt,name=ready_to_install,json=readyToInstall,proto3" json:"ready_to_install,omitempty"`
+	// Last updater error, when `state` is STATE_ERROR.
+	Error string `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
+	// ISO8601 time of the last completed check.
+	CheckedAt     string `protobuf:"bytes,9,opt,name=checked_at,json=checkedAt,proto3" json:"checked_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateStatus) Reset() {
+	*x = UpdateStatus{}
+	mi := &file_micropod_v1_system_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateStatus) ProtoMessage() {}
+
+func (x *UpdateStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_system_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateStatus.ProtoReflect.Descriptor instead.
+func (*UpdateStatus) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *UpdateStatus) GetState() UpdateStatus_State {
+	if x != nil {
+		return x.State
+	}
+	return UpdateStatus_STATE_UNSPECIFIED
+}
+
+func (x *UpdateStatus) GetFeedConfigured() bool {
+	if x != nil {
+		return x.FeedConfigured
+	}
+	return false
+}
+
+func (x *UpdateStatus) GetCurrentVersion() string {
+	if x != nil {
+		return x.CurrentVersion
+	}
+	return ""
+}
+
+func (x *UpdateStatus) GetAvailableVersion() string {
+	if x != nil {
+		return x.AvailableVersion
+	}
+	return ""
+}
+
+func (x *UpdateStatus) GetDownloaded() bool {
+	if x != nil {
+		return x.Downloaded
+	}
+	return false
+}
+
+func (x *UpdateStatus) GetDownloadedVersion() string {
+	if x != nil {
+		return x.DownloadedVersion
+	}
+	return ""
+}
+
+func (x *UpdateStatus) GetReadyToInstall() bool {
+	if x != nil {
+		return x.ReadyToInstall
+	}
+	return false
+}
+
+func (x *UpdateStatus) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *UpdateStatus) GetCheckedAt() string {
+	if x != nil {
+		return x.CheckedAt
+	}
+	return ""
+}
+
+// An image plus the containers that reference it.
+type UsageReport_ImageUsage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The image.
+	Image *Image `protobuf:"bytes,1,opt,name=image,proto3" json:"image,omitempty"`
+	// IDs of containers referencing this image.
+	UsedByContainerIds []string `protobuf:"bytes,2,rep,name=used_by_container_ids,json=usedByContainerIds,proto3" json:"used_by_container_ids,omitempty"`
+	// True when at least one container references the image.
+	InUse         bool `protobuf:"varint,3,opt,name=in_use,json=inUse,proto3" json:"in_use,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageReport_ImageUsage) Reset() {
+	*x = UsageReport_ImageUsage{}
+	mi := &file_micropod_v1_system_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageReport_ImageUsage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageReport_ImageUsage) ProtoMessage() {}
+
+func (x *UsageReport_ImageUsage) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_system_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageReport_ImageUsage.ProtoReflect.Descriptor instead.
+func (*UsageReport_ImageUsage) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{8, 0}
+}
+
+func (x *UsageReport_ImageUsage) GetImage() *Image {
+	if x != nil {
+		return x.Image
+	}
+	return nil
+}
+
+func (x *UsageReport_ImageUsage) GetUsedByContainerIds() []string {
+	if x != nil {
+		return x.UsedByContainerIds
+	}
+	return nil
+}
+
+func (x *UsageReport_ImageUsage) GetInUse() bool {
+	if x != nil {
+		return x.InUse
+	}
+	return false
+}
+
+// A volume plus the containers mounting it.
+type UsageReport_VolumeUsage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The volume.
+	Volume *Volume `protobuf:"bytes,1,opt,name=volume,proto3" json:"volume,omitempty"`
+	// IDs of containers mounting this volume.
+	UsedByContainerIds []string `protobuf:"bytes,2,rep,name=used_by_container_ids,json=usedByContainerIds,proto3" json:"used_by_container_ids,omitempty"`
+	// True when at least one container mounts the volume.
+	InUse         bool `protobuf:"varint,3,opt,name=in_use,json=inUse,proto3" json:"in_use,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsageReport_VolumeUsage) Reset() {
+	*x = UsageReport_VolumeUsage{}
+	mi := &file_micropod_v1_system_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsageReport_VolumeUsage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsageReport_VolumeUsage) ProtoMessage() {}
+
+func (x *UsageReport_VolumeUsage) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_system_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsageReport_VolumeUsage.ProtoReflect.Descriptor instead.
+func (*UsageReport_VolumeUsage) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{8, 1}
+}
+
+func (x *UsageReport_VolumeUsage) GetVolume() *Volume {
+	if x != nil {
+		return x.Volume
+	}
+	return nil
+}
+
+func (x *UsageReport_VolumeUsage) GetUsedByContainerIds() []string {
+	if x != nil {
+		return x.UsedByContainerIds
+	}
+	return nil
+}
+
+func (x *UsageReport_VolumeUsage) GetInUse() bool {
+	if x != nil {
+		return x.InUse
+	}
+	return false
+}
+
 var File_micropod_v1_system_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_system_proto_rawDesc = "" +
 	"\n" +
-	"\x18micropod/v1/system.proto\x12\vmicropod.v1\"\xb3\x01\n" +
+	"\x18micropod/v1/system.proto\x12\vmicropod.v1\x1a\x17micropod/v1/image.proto\"\xb3\x01\n" +
 	"\fSystemStatus\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x19\n" +
 	"\bapp_root\x18\x02 \x01(\tR\aappRoot\x12!\n" +
@@ -778,7 +1438,67 @@ const file_micropod_v1_system_proto_rawDesc = "" +
 	"\rRegistryLogin\x12\x16\n" +
 	"\x06server\x18\x01 \x01(\tR\x06server\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x16\n" +
-	"\x06scheme\x18\x03 \x01(\tR\x06schemeBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
+	"\x06scheme\x18\x03 \x01(\tR\x06scheme\"\xbe\x04\n" +
+	"\vUsageReport\x12;\n" +
+	"\x06images\x18\x01 \x03(\v2#.micropod.v1.UsageReport.ImageUsageR\x06images\x12>\n" +
+	"\avolumes\x18\x02 \x03(\v2$.micropod.v1.UsageReport.VolumeUsageR\avolumes\x126\n" +
+	"\x17reclaimable_image_bytes\x18\x03 \x01(\x04R\x15reclaimableImageBytes\x128\n" +
+	"\x18reclaimable_volume_bytes\x18\x04 \x01(\x04R\x16reclaimableVolumeBytes\x126\n" +
+	"\x17stopped_container_count\x18\x05 \x01(\x05R\x15stoppedContainerCount\x1a\x80\x01\n" +
+	"\n" +
+	"ImageUsage\x12(\n" +
+	"\x05image\x18\x01 \x01(\v2\x12.micropod.v1.ImageR\x05image\x121\n" +
+	"\x15used_by_container_ids\x18\x02 \x03(\tR\x12usedByContainerIds\x12\x15\n" +
+	"\x06in_use\x18\x03 \x01(\bR\x05inUse\x1a\x84\x01\n" +
+	"\vVolumeUsage\x12+\n" +
+	"\x06volume\x18\x01 \x01(\v2\x13.micropod.v1.VolumeR\x06volume\x121\n" +
+	"\x15used_by_container_ids\x18\x02 \x03(\tR\x12usedByContainerIds\x12\x15\n" +
+	"\x06in_use\x18\x03 \x01(\bR\x05inUse\"\xc0\x04\n" +
+	"\fVolumePolicy\x12B\n" +
+	"\n" +
+	"clone_mode\x18\x01 \x01(\x0e2#.micropod.v1.VolumePolicy.CloneModeR\tcloneMode\x12%\n" +
+	"\x0egolden_volumes\x18\x02 \x03(\tR\rgoldenVolumes\x12\x1b\n" +
+	"\tjobs_only\x18\x03 \x01(\bR\bjobsOnly\x126\n" +
+	"\x04sync\x18\x04 \x01(\x0e2\".micropod.v1.VolumePolicy.SyncModeR\x04sync\x129\n" +
+	"\x05cache\x18\x05 \x01(\x0e2#.micropod.v1.VolumePolicy.CacheModeR\x05cache\"j\n" +
+	"\tCloneMode\x12\x1a\n" +
+	"\x16CLONE_MODE_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11CLONE_MODE_LABELS\x10\x01\x12\x16\n" +
+	"\x12CLONE_MODE_GOLDENS\x10\x02\x12\x12\n" +
+	"\x0eCLONE_MODE_ALL\x10\x03\"d\n" +
+	"\bSyncMode\x12\x19\n" +
+	"\x15SYNC_MODE_UNSPECIFIED\x10\x00\x12\x12\n" +
+	"\x0eSYNC_MODE_FULL\x10\x01\x12\x13\n" +
+	"\x0fSYNC_MODE_FSYNC\x10\x02\x12\x14\n" +
+	"\x10SYNC_MODE_NOSYNC\x10\x03\"c\n" +
+	"\tCacheMode\x12\x1a\n" +
+	"\x16CACHE_MODE_UNSPECIFIED\x10\x00\x12\x11\n" +
+	"\rCACHE_MODE_ON\x10\x01\x12\x12\n" +
+	"\x0eCACHE_MODE_OFF\x10\x02\x12\x13\n" +
+	"\x0fCACHE_MODE_AUTO\x10\x03\"\xa7\x04\n" +
+	"\fUpdateStatus\x125\n" +
+	"\x05state\x18\x01 \x01(\x0e2\x1f.micropod.v1.UpdateStatus.StateR\x05state\x12'\n" +
+	"\x0ffeed_configured\x18\x02 \x01(\bR\x0efeedConfigured\x12'\n" +
+	"\x0fcurrent_version\x18\x03 \x01(\tR\x0ecurrentVersion\x12+\n" +
+	"\x11available_version\x18\x04 \x01(\tR\x10availableVersion\x12\x1e\n" +
+	"\n" +
+	"downloaded\x18\x05 \x01(\bR\n" +
+	"downloaded\x12-\n" +
+	"\x12downloaded_version\x18\x06 \x01(\tR\x11downloadedVersion\x12(\n" +
+	"\x10ready_to_install\x18\a \x01(\bR\x0ereadyToInstall\x12\x14\n" +
+	"\x05error\x18\b \x01(\tR\x05error\x12\x1d\n" +
+	"\n" +
+	"checked_at\x18\t \x01(\tR\tcheckedAt\"\xb2\x01\n" +
+	"\x05State\x12\x15\n" +
+	"\x11STATE_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11STATE_UNAVAILABLE\x10\x01\x12\x0e\n" +
+	"\n" +
+	"STATE_IDLE\x10\x02\x12\x12\n" +
+	"\x0eSTATE_CHECKING\x10\x03\x12\x14\n" +
+	"\x10STATE_UP_TO_DATE\x10\x04\x12\x1a\n" +
+	"\x16STATE_UPDATE_AVAILABLE\x10\x05\x12\x14\n" +
+	"\x10STATE_INSTALLING\x10\x06\x12\x0f\n" +
+	"\vSTATE_ERROR\x10\aBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
 
 var (
 	file_micropod_v1_system_proto_rawDescOnce sync.Once
@@ -792,31 +1512,50 @@ func file_micropod_v1_system_proto_rawDescGZIP() []byte {
 	return file_micropod_v1_system_proto_rawDescData
 }
 
-var file_micropod_v1_system_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_micropod_v1_system_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_micropod_v1_system_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_micropod_v1_system_proto_goTypes = []any{
-	(*SystemStatus)(nil),   // 0: micropod.v1.SystemStatus
-	(*DiskUsage)(nil),      // 1: micropod.v1.DiskUsage
-	(*DiskCategory)(nil),   // 2: micropod.v1.DiskCategory
-	(*StatsSnapshot)(nil),  // 3: micropod.v1.StatsSnapshot
-	(*ContainerStats)(nil), // 4: micropod.v1.ContainerStats
-	(*Network)(nil),        // 5: micropod.v1.Network
-	(*Volume)(nil),         // 6: micropod.v1.Volume
-	(*RegistryLogin)(nil),  // 7: micropod.v1.RegistryLogin
-	nil,                    // 8: micropod.v1.Network.LabelsEntry
-	nil,                    // 9: micropod.v1.Volume.LabelsEntry
+	(VolumePolicy_CloneMode)(0),     // 0: micropod.v1.VolumePolicy.CloneMode
+	(VolumePolicy_SyncMode)(0),      // 1: micropod.v1.VolumePolicy.SyncMode
+	(VolumePolicy_CacheMode)(0),     // 2: micropod.v1.VolumePolicy.CacheMode
+	(UpdateStatus_State)(0),         // 3: micropod.v1.UpdateStatus.State
+	(*SystemStatus)(nil),            // 4: micropod.v1.SystemStatus
+	(*DiskUsage)(nil),               // 5: micropod.v1.DiskUsage
+	(*DiskCategory)(nil),            // 6: micropod.v1.DiskCategory
+	(*StatsSnapshot)(nil),           // 7: micropod.v1.StatsSnapshot
+	(*ContainerStats)(nil),          // 8: micropod.v1.ContainerStats
+	(*Network)(nil),                 // 9: micropod.v1.Network
+	(*Volume)(nil),                  // 10: micropod.v1.Volume
+	(*RegistryLogin)(nil),           // 11: micropod.v1.RegistryLogin
+	(*UsageReport)(nil),             // 12: micropod.v1.UsageReport
+	(*VolumePolicy)(nil),            // 13: micropod.v1.VolumePolicy
+	(*UpdateStatus)(nil),            // 14: micropod.v1.UpdateStatus
+	nil,                             // 15: micropod.v1.Network.LabelsEntry
+	nil,                             // 16: micropod.v1.Volume.LabelsEntry
+	(*UsageReport_ImageUsage)(nil),  // 17: micropod.v1.UsageReport.ImageUsage
+	(*UsageReport_VolumeUsage)(nil), // 18: micropod.v1.UsageReport.VolumeUsage
+	(*Image)(nil),                   // 19: micropod.v1.Image
 }
 var file_micropod_v1_system_proto_depIdxs = []int32{
-	2, // 0: micropod.v1.DiskUsage.containers:type_name -> micropod.v1.DiskCategory
-	2, // 1: micropod.v1.DiskUsage.images:type_name -> micropod.v1.DiskCategory
-	2, // 2: micropod.v1.DiskUsage.volumes:type_name -> micropod.v1.DiskCategory
-	4, // 3: micropod.v1.StatsSnapshot.containers:type_name -> micropod.v1.ContainerStats
-	8, // 4: micropod.v1.Network.labels:type_name -> micropod.v1.Network.LabelsEntry
-	9, // 5: micropod.v1.Volume.labels:type_name -> micropod.v1.Volume.LabelsEntry
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	6,  // 0: micropod.v1.DiskUsage.containers:type_name -> micropod.v1.DiskCategory
+	6,  // 1: micropod.v1.DiskUsage.images:type_name -> micropod.v1.DiskCategory
+	6,  // 2: micropod.v1.DiskUsage.volumes:type_name -> micropod.v1.DiskCategory
+	8,  // 3: micropod.v1.StatsSnapshot.containers:type_name -> micropod.v1.ContainerStats
+	15, // 4: micropod.v1.Network.labels:type_name -> micropod.v1.Network.LabelsEntry
+	16, // 5: micropod.v1.Volume.labels:type_name -> micropod.v1.Volume.LabelsEntry
+	17, // 6: micropod.v1.UsageReport.images:type_name -> micropod.v1.UsageReport.ImageUsage
+	18, // 7: micropod.v1.UsageReport.volumes:type_name -> micropod.v1.UsageReport.VolumeUsage
+	0,  // 8: micropod.v1.VolumePolicy.clone_mode:type_name -> micropod.v1.VolumePolicy.CloneMode
+	1,  // 9: micropod.v1.VolumePolicy.sync:type_name -> micropod.v1.VolumePolicy.SyncMode
+	2,  // 10: micropod.v1.VolumePolicy.cache:type_name -> micropod.v1.VolumePolicy.CacheMode
+	3,  // 11: micropod.v1.UpdateStatus.state:type_name -> micropod.v1.UpdateStatus.State
+	19, // 12: micropod.v1.UsageReport.ImageUsage.image:type_name -> micropod.v1.Image
+	10, // 13: micropod.v1.UsageReport.VolumeUsage.volume:type_name -> micropod.v1.Volume
+	14, // [14:14] is the sub-list for method output_type
+	14, // [14:14] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_micropod_v1_system_proto_init() }
@@ -824,18 +1563,20 @@ func file_micropod_v1_system_proto_init() {
 	if File_micropod_v1_system_proto != nil {
 		return
 	}
+	file_micropod_v1_image_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_micropod_v1_system_proto_rawDesc), len(file_micropod_v1_system_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   10,
+			NumEnums:      4,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_micropod_v1_system_proto_goTypes,
 		DependencyIndexes: file_micropod_v1_system_proto_depIdxs,
+		EnumInfos:         file_micropod_v1_system_proto_enumTypes,
 		MessageInfos:      file_micropod_v1_system_proto_msgTypes,
 	}.Build()
 	File_micropod_v1_system_proto = out.File

@@ -240,24 +240,27 @@ func (s *Server) ListImages(ctx context.Context, req *connect.Request[micropodv1
 	}
 	images := make([]*micropodv1.Image, 0, len(entries))
 	for _, e := range entries {
-		img := &micropodv1.Image{
-			Id:        e.ID,
-			Names:     nil,
-			CreatedAt: e.Configuration.CreationDate,
-		}
-		if e.Configuration.Name != "" {
-			img.Names = []string{e.Configuration.Name}
-		}
-		if e.Configuration.Descriptor != nil {
-			img.Digest = e.Configuration.Descriptor.Digest
-		}
-		for _, v := range e.Variants {
-			img.SizeBytes += uint64(v.Size)
-			_ = v.Size
-		}
-		images = append(images, img)
+		images = append(images, imageFrom(e))
 	}
 	return connect.NewResponse(&micropodv1.ListImagesResponse{Images: images}), nil
+}
+
+func imageFrom(e clicli.ImageListEntry) *micropodv1.Image {
+	img := &micropodv1.Image{
+		Id:        e.ID,
+		Names:     nil,
+		CreatedAt: e.Configuration.CreationDate,
+	}
+	if e.Configuration.Name != "" {
+		img.Names = []string{e.Configuration.Name}
+	}
+	if e.Configuration.Descriptor != nil {
+		img.Digest = e.Configuration.Descriptor.Digest
+	}
+	for _, v := range e.Variants {
+		img.SizeBytes += uint64(v.Size)
+	}
+	return img
 }
 
 func (s *Server) PullImage(ctx context.Context, req *connect.Request[micropodv1.PullImageRequest], stream *connect.ServerStream[micropodv1.ProgressLine]) error {
@@ -277,17 +280,21 @@ func (s *Server) ListVolumes(ctx context.Context, req *connect.Request[micropodv
 	}
 	volumes := make([]*micropodv1.Volume, 0, len(entries))
 	for _, e := range entries {
-		volumes = append(volumes, &micropodv1.Volume{
-			Id:        e.ID,
-			Driver:    e.Configuration.Driver,
-			Format:    e.Configuration.Format,
-			SizeBytes: uint64(e.Configuration.SizeInBytes),
-			Source:    e.Configuration.Source,
-			CreatedAt: e.Configuration.CreationDate,
-			Labels:    e.Configuration.Labels,
-		})
+		volumes = append(volumes, volumeFrom(e))
 	}
 	return connect.NewResponse(&micropodv1.ListVolumesResponse{Volumes: volumes}), nil
+}
+
+func volumeFrom(e clicli.VolumeListEntry) *micropodv1.Volume {
+	return &micropodv1.Volume{
+		Id:        e.ID,
+		Driver:    e.Configuration.Driver,
+		Format:    e.Configuration.Format,
+		SizeBytes: uint64(e.Configuration.SizeInBytes),
+		Source:    e.Configuration.Source,
+		CreatedAt: e.Configuration.CreationDate,
+		Labels:    e.Configuration.Labels,
+	}
 }
 
 func (s *Server) CreateVolume(ctx context.Context, req *connect.Request[micropodv1.CreateVolumeRequest]) (*connect.Response[micropodv1.Empty], error) {
@@ -356,6 +363,99 @@ func (s *Server) GetStats(ctx context.Context, req *connect.Request[micropodv1.G
 		})
 	}
 	return connect.NewResponse(&micropodv1.GetStatsResponse{Snapshot: snapshot}), nil
+}
+
+// GetUsage mirrors UsageService.report in the Swift daemon: join containers to
+// images (by normalized reference) and volumes (by mount source or volume id),
+// then derive reclaimable bytes and the stopped-container count.
+func (s *Server) GetUsage(ctx context.Context, req *connect.Request[micropodv1.Empty]) (*connect.Response[micropodv1.UsageReport], error) {
+	containerEntries, err := s.cli.ListContainers(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, err)
+	}
+	imageEntries, err := s.cli.ListImages(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, err)
+	}
+	volumeEntries, err := s.cli.ListVolumes(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, err)
+	}
+
+	byNormalizedRef := map[string][]string{}
+	mountsBySource := map[string][]string{}
+	var stopped int32
+	for _, e := range containerEntries {
+		if e.Configuration.Image != nil {
+			ref := normalizeRef(e.Configuration.Image.Reference)
+			byNormalizedRef[ref] = append(byNormalizedRef[ref], e.ID)
+		}
+		for _, m := range e.Configuration.Mounts {
+			if m.Source != "" {
+				mountsBySource[m.Source] = append(mountsBySource[m.Source], e.ID)
+			}
+		}
+		if !strings.EqualFold(e.Status.State, "running") {
+			stopped++
+		}
+	}
+
+	report := &micropodv1.UsageReport{StoppedContainerCount: stopped}
+	for _, e := range imageEntries {
+		img := imageFrom(e)
+		users := append([]string{}, byNormalizedRef[normalizeRef(img.Id)]...)
+		for _, name := range img.Names {
+			users = append(users, byNormalizedRef[normalizeRef(name)]...)
+		}
+		users = unique(users)
+		report.Images = append(report.Images, &micropodv1.UsageReport_ImageUsage{
+			Image: img, UsedByContainerIds: users, InUse: len(users) > 0,
+		})
+		if len(users) == 0 {
+			report.ReclaimableImageBytes += img.SizeBytes
+		}
+	}
+	for _, e := range volumeEntries {
+		vol := volumeFrom(e)
+		users := unique(append(
+			append([]string{}, mountsBySource[vol.Source]...),
+			mountsBySource[vol.Id]...,
+		))
+		report.Volumes = append(report.Volumes, &micropodv1.UsageReport_VolumeUsage{
+			Volume: vol, UsedByContainerIds: users, InUse: len(users) > 0,
+		})
+		if len(users) == 0 {
+			report.ReclaimableVolumeBytes += vol.SizeBytes
+		}
+	}
+	return connect.NewResponse(report), nil
+}
+
+// normalizeRef strips docker.io/library/ and any digest suffix so
+// "docker.io/library/alpine:3.20" ≡ "alpine:3.20" — matches UsageService.
+func normalizeRef(reference string) string {
+	ref := strings.ToLower(reference)
+	if at := strings.Index(ref, "@"); at >= 0 {
+		ref = ref[:at]
+	}
+	for _, prefix := range []string{"docker.io/library/", "index.docker.io/library/", "docker.io/", "library/"} {
+		if strings.HasPrefix(ref, prefix) {
+			return ref[len(prefix):]
+		}
+	}
+	return ref
+}
+
+func unique(in []string) []string {
+	seen := map[string]struct{}{}
+	out := in[:0]
+	for _, s := range in {
+		if _, ok := seen[s]; !ok {
+			seen[s] = struct{}{}
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 func (s *Server) Exec(ctx context.Context, req *connect.Request[micropodv1.ExecRequest]) (*connect.Response[micropodv1.ExecResponse], error) {

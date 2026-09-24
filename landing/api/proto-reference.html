@@ -549,6 +549,57 @@
         
           
           <li>
+            <a href="#micropod%2fv1%2fcompose.proto">micropod/v1/compose.proto</a>
+            <ul>
+              
+                <li>
+                  <a href="#micropod.v1.ComposeDownRequest"><span class="badge">M</span>ComposeDownRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ComposeNetwork"><span class="badge">M</span>ComposeNetwork</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ComposeService"><span class="badge">M</span>ComposeService</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ComposeService.DependsOnConditionsEntry"><span class="badge">M</span>ComposeService.DependsOnConditionsEntry</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ComposeSpec"><span class="badge">M</span>ComposeSpec</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ComposeSpec.NetworksEntry"><span class="badge">M</span>ComposeSpec.NetworksEntry</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ComposeSpec.VolumesEntry"><span class="badge">M</span>ComposeSpec.VolumesEntry</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ComposeUpEvent"><span class="badge">M</span>ComposeUpEvent</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ComposeUpRequest"><span class="badge">M</span>ComposeUpRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ComposeVolume"><span class="badge">M</span>ComposeVolume</a>
+                </li>
+              
+              
+              
+              
+            </ul>
+          </li>
+        
+          
+          <li>
             <a href="#micropod%2fv1%2fimage.proto">micropod/v1/image.proto</a>
             <ul>
               
@@ -604,6 +655,22 @@
                 </li>
               
                 <li>
+                  <a href="#micropod.v1.UpdateStatus"><span class="badge">M</span>UpdateStatus</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.UsageReport"><span class="badge">M</span>UsageReport</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.UsageReport.ImageUsage"><span class="badge">M</span>UsageReport.ImageUsage</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.UsageReport.VolumeUsage"><span class="badge">M</span>UsageReport.VolumeUsage</a>
+                </li>
+              
+                <li>
                   <a href="#micropod.v1.Volume"><span class="badge">M</span>Volume</a>
                 </li>
               
@@ -611,6 +678,26 @@
                   <a href="#micropod.v1.Volume.LabelsEntry"><span class="badge">M</span>Volume.LabelsEntry</a>
                 </li>
               
+                <li>
+                  <a href="#micropod.v1.VolumePolicy"><span class="badge">M</span>VolumePolicy</a>
+                </li>
+              
+              
+                <li>
+                  <a href="#micropod.v1.UpdateStatus.State"><span class="badge">E</span>UpdateStatus.State</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.VolumePolicy.CacheMode"><span class="badge">E</span>VolumePolicy.CacheMode</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.VolumePolicy.CloneMode"><span class="badge">E</span>VolumePolicy.CloneMode</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.VolumePolicy.SyncMode"><span class="badge">E</span>VolumePolicy.SyncMode</a>
+                </li>
               
               
               
@@ -720,45 +807,6 @@
                 <li>
                   <a href="#micropod.v1.MicropodService"><span class="badge">S</span>MicropodService</a>
                 </li>
-              
-            </ul>
-          </li>
-        
-          
-          <li>
-            <a href="#micropod%2fv1%2fcompose.proto">micropod/v1/compose.proto</a>
-            <ul>
-              
-                <li>
-                  <a href="#micropod.v1.ComposeNetwork"><span class="badge">M</span>ComposeNetwork</a>
-                </li>
-              
-                <li>
-                  <a href="#micropod.v1.ComposeService"><span class="badge">M</span>ComposeService</a>
-                </li>
-              
-                <li>
-                  <a href="#micropod.v1.ComposeService.DependsOnConditionsEntry"><span class="badge">M</span>ComposeService.DependsOnConditionsEntry</a>
-                </li>
-              
-                <li>
-                  <a href="#micropod.v1.ComposeSpec"><span class="badge">M</span>ComposeSpec</a>
-                </li>
-              
-                <li>
-                  <a href="#micropod.v1.ComposeSpec.NetworksEntry"><span class="badge">M</span>ComposeSpec.NetworksEntry</a>
-                </li>
-              
-                <li>
-                  <a href="#micropod.v1.ComposeSpec.VolumesEntry"><span class="badge">M</span>ComposeSpec.VolumesEntry</a>
-                </li>
-              
-                <li>
-                  <a href="#micropod.v1.ComposeVolume"><span class="badge">M</span>ComposeVolume</a>
-                </li>
-              
-              
-              
               
             </ul>
           </li>
@@ -3804,6 +3852,741 @@ not have a pty allocated.</p></td>
     
       
       <div class="file-heading">
+        <h2 id="micropod/v1/compose.proto">micropod/v1/compose.proto</h2><a href="#title">Top</a>
+      </div>
+      <p></p>
+
+      
+        <h3 id="micropod.v1.ComposeDownRequest">ComposeDownRequest</h3>
+        <p>Tear down a compose project's containers.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Compose project name. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ComposeNetwork">ComposeNetwork</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Network name within the compose project. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>internal</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Isolate the network from external traffic. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>external</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>References a pre-existing network outside the project. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>driver</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Network driver to use. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>driver_opts</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Plugin options (compose `driver_opts` -&gt; `--option`). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>labels</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>subnet</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>From `ipam.config[0].subnet` / `subnet_v6`.
+IPv4 CIDR (from `ipam.config[0].subnet`). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>subnet_v6</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>IPv6 CIDR. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>external_name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>`external: {name: &#34;…&#34;}` override. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ComposeService">ComposeService</h3>
+        <p>A single service of a compose spec, mapped onto `container run` capabilities.</p><p>Fields the Apple runtime cannot express (e.g. privileged) are still parsed</p><p>so the UI can show them as unsupported rather than silently dropping them.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Service name from the compose file. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>image</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Image reference for the service. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>build_context</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Build context dir if the service is built from a Dockerfile. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>build_dockerfile</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Dockerfile path relative to the build context. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>build_args</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Build args as KEY=value pairs. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>depends_on</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Service names that must start before this one. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ports</td>
+                  <td><a href="#micropod.v1.PortMapping">PortMapping</a></td>
+                  <td>repeated</td>
+                  <td><p>Published port mappings. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>environment</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Environment variables as KEY=value pairs. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>volumes</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Volume/bind mounts in compose syntax. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>commands</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Command override (compose `command`). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>working_dir</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Working directory inside the container. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>restart</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Restart policy: &#34;no&#34;, &#34;always&#34;, &#34;unless-stopped&#34;, &#34;on-failure[:N]&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cpus</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p>Resource caps (compose `cpus`, `mem_limit`). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>healthcheck_command</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Healthcheck command; used for real readiness probes. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>networks</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Networks the service attaches to. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>container_name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Explicit container name override (compose `container_name`). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>entrypoint</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Entrypoint override (compose `entrypoint`). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>user</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>User for the container process (format: name|uid[:gid]). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>labels</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>key=value container labels. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>dns</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>DNS nameserver IPs (compose `dns`). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>dns_search</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>DNS search domains (compose `dns_search`). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cap_add</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Linux capabilities to add. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cap_drop</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Linux capabilities to drop. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ulimits</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Resource limits, format: type=soft[:hard]. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>tmpfs</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>tmpfs mounts: path or path:size. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>env_file</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>env_file paths (resolved against the compose file directory). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>shm_size</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Size of /dev/shm, e.g. &#34;64m&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>read_only</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Mount the root filesystem read-only. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>init</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Run an init process as PID 1. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>tty</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Allocate a pseudo-TTY. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>stdin_open</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Keep stdin open. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>privileged</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Parsed but not expressible on the Apple runtime. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>extra_hosts</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Extra /etc/hosts entries as &#34;host:ip&#34; pairs. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>depends_on_conditions</td>
+                  <td><a href="#micropod.v1.ComposeService.DependsOnConditionsEntry">ComposeService.DependsOnConditionsEntry</a></td>
+                  <td>repeated</td>
+                  <td><p>Conditions for depends_on entries (key = dependency name):
+&#34;started&#34; (default) or &#34;service_healthy&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>healthcheck_interval_seconds</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p>Seconds between healthcheck runs. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>healthcheck_timeout_seconds</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p>Seconds before a healthcheck is considered failed. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>healthcheck_retries</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p>Consecutive failures before the container is marked unhealthy. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>healthcheck_start_period_seconds</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p>Grace period at start during which failures don&#39;t count. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>build_target</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Build stage target / platform for `build:` sections. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>build_platform</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>build_no_cache</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>`build.no_cache` / `build.pull` passthrough. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>profiles</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Compose profiles; the service only runs when an enabled profile matches. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>pull_policy</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Image pull policy: &#34;always&#34; forces a pull, anything else pulls only when
+the image is not present locally (docker&#39;s default &#34;missing&#34;). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>stop_signal</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Stop behaviour (parsed; stop_signal is not expressible, grace period
+maps to `container stop --time`).
+Signal sent on stop (parsed; not expressible on the Apple runtime). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>stop_grace_period_seconds</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p>Seconds between SIGTERM and SIGKILL on stop. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ComposeService.DependsOnConditionsEntry">ComposeService.DependsOnConditionsEntry</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>key</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>value</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ComposeSpec">ComposeSpec</h3>
+        <p>Parsed docker-compose.yml, produced by the compose importer.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Compose project name (top-level `name:` or the directory name). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Absolute path of the docker-compose.yml this spec was parsed from. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>services</td>
+                  <td><a href="#micropod.v1.ComposeService">ComposeService</a></td>
+                  <td>repeated</td>
+                  <td><p>Services in dependency order. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>volumes</td>
+                  <td><a href="#micropod.v1.ComposeSpec.VolumesEntry">ComposeSpec.VolumesEntry</a></td>
+                  <td>repeated</td>
+                  <td><p>Named volumes declared at the top level. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>networks</td>
+                  <td><a href="#micropod.v1.ComposeSpec.NetworksEntry">ComposeSpec.NetworksEntry</a></td>
+                  <td>repeated</td>
+                  <td><p>Networks declared at the top level. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ComposeSpec.NetworksEntry">ComposeSpec.NetworksEntry</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>key</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>value</td>
+                  <td><a href="#micropod.v1.ComposeNetwork">ComposeNetwork</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ComposeSpec.VolumesEntry">ComposeSpec.VolumesEntry</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>key</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>value</td>
+                  <td><a href="#micropod.v1.ComposeVolume">ComposeVolume</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ComposeUpEvent">ComposeUpEvent</h3>
+        <p>One ComposeUp stream event: progress output lines, then a terminal</p><p>marker once every service is up.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>line</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Progress output line — empty on the terminal event. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Compose project name — set only on the terminal event. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>done</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>True on the terminal event once every service is up. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ComposeUpRequest">ComposeUpRequest</h3>
+        <p>Bring a compose project up from a spec file — ComposeUp streams progress.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Absolute path to the compose YAML on the host. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>profiles</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Compose profiles to enable (service runs only when one matches). </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ComposeVolume">ComposeVolume</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Volume name within the compose project. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>external</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>References a pre-existing volume outside the project. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>driver</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Driver &#43; driver options (`driver_opts`), labels. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>driver_opts</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>labels</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>external_name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>`external: {name: &#34;…&#34;}` override. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+
+      
+
+      
+
+      
+    
+      
+      <div class="file-heading">
         <h2 id="micropod/v1/image.proto">micropod/v1/image.proto</h2><a href="#title">Top</a>
       </div>
       <p></p>
@@ -4322,6 +5105,214 @@ not have a pty allocated.</p></td>
 
         
       
+        <h3 id="micropod.v1.UpdateStatus">UpdateStatus</h3>
+        <p>Desktop-app updater status (Sparkle), proxied over the app control</p><p>socket. Reported by CheckForUpdates, GetUpdateStatus, and ApplyUpdate.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>state</td>
+                  <td><a href="#micropod.v1.UpdateStatus.State">UpdateStatus.State</a></td>
+                  <td></td>
+                  <td><p>Updater lifecycle state. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>feed_configured</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Whether a Sparkle feed URL is configured. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>current_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Currently running app version. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>available_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Version available on the feed, if an update was found. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>downloaded</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>True once an update has finished downloading. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>downloaded_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Version staged for install. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ready_to_install</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>True when ApplyUpdate will succeed immediately. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>error</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Last updater error, when `state` is STATE_ERROR. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>checked_at</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>ISO8601 time of the last completed check. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.UsageReport">UsageReport</h3>
+        <p>What a cleanup would reclaim: every image and volume annotated with the</p><p>containers that reference it.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>images</td>
+                  <td><a href="#micropod.v1.UsageReport.ImageUsage">UsageReport.ImageUsage</a></td>
+                  <td>repeated</td>
+                  <td><p>Every local image with its referencing containers. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>volumes</td>
+                  <td><a href="#micropod.v1.UsageReport.VolumeUsage">UsageReport.VolumeUsage</a></td>
+                  <td>repeated</td>
+                  <td><p>Every local volume with its mounting containers. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>reclaimable_image_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Bytes reclaimable by pruning unreferenced images. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>reclaimable_volume_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Bytes reclaimable by pruning unmounted volumes. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>stopped_container_count</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p>Number of stopped containers. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.UsageReport.ImageUsage">UsageReport.ImageUsage</h3>
+        <p>An image plus the containers that reference it.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>image</td>
+                  <td><a href="#micropod.v1.Image">Image</a></td>
+                  <td></td>
+                  <td><p>The image. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>used_by_container_ids</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>IDs of containers referencing this image. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>in_use</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>True when at least one container references the image. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.UsageReport.VolumeUsage">UsageReport.VolumeUsage</h3>
+        <p>A volume plus the containers mounting it.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>volume</td>
+                  <td><a href="#micropod.v1.Volume">Volume</a></td>
+                  <td></td>
+                  <td><p>The volume. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>used_by_container_ids</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>IDs of containers mounting this volume. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>in_use</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>True when at least one container mounts the volume. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
         <h3 id="micropod.v1.Volume">Volume</h3>
         <p>Curated volume, mapped from `container volume list`.</p>
 
@@ -4419,7 +5410,225 @@ not have a pty allocated.</p></td>
 
         
       
+        <h3 id="micropod.v1.VolumePolicy">VolumePolicy</h3>
+        <p>Named-volume mount policy — read on container create by every surface</p><p>(API, docker shim, app, CLI, MCP). Per-container `com.micropod.*` labels</p><p>take precedence over this policy.</p>
 
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>clone_mode</td>
+                  <td><a href="#micropod.v1.VolumePolicy.CloneMode">VolumePolicy.CloneMode</a></td>
+                  <td></td>
+                  <td><p>Which named-volume mounts get clonefile-forked per container. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>golden_volumes</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Volume names auto-cloned under `CLONE_MODE_GOLDENS`. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>jobs_only</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Restrict cloning to job-labelled containers (`com.cuttlefish.job` /
+`com.micropod.job`). Per-container clone labels always apply. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>sync</td>
+                  <td><a href="#micropod.v1.VolumePolicy.SyncMode">VolumePolicy.SyncMode</a></td>
+                  <td></td>
+                  <td><p>Writeback sync mode override; `SYNC_MODE_UNSPECIFIED` keeps the
+per-mount default. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cache</td>
+                  <td><a href="#micropod.v1.VolumePolicy.CacheMode">VolumePolicy.CacheMode</a></td>
+                  <td></td>
+                  <td><p>VZ disk-image cache mode. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+
+      
+        <h3 id="micropod.v1.UpdateStatus.State">UpdateStatus.State</h3>
+        <p>Updater lifecycle state.</p>
+        <table class="enum-table">
+          <thead>
+            <tr><td>Name</td><td>Number</td><td>Description</td></tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>STATE_UNSPECIFIED</td>
+                <td>0</td>
+                <td><p>Never emitted — zero value only.</p></td>
+              </tr>
+            
+              <tr>
+                <td>STATE_UNAVAILABLE</td>
+                <td>1</td>
+                <td><p>No update feed configured (dev/test builds).</p></td>
+              </tr>
+            
+              <tr>
+                <td>STATE_IDLE</td>
+                <td>2</td>
+                <td><p>Feed configured, nothing in flight.</p></td>
+              </tr>
+            
+              <tr>
+                <td>STATE_CHECKING</td>
+                <td>3</td>
+                <td><p>A check is running.</p></td>
+              </tr>
+            
+              <tr>
+                <td>STATE_UP_TO_DATE</td>
+                <td>4</td>
+                <td><p>Last check found nothing newer.</p></td>
+              </tr>
+            
+              <tr>
+                <td>STATE_UPDATE_AVAILABLE</td>
+                <td>5</td>
+                <td><p>A newer version is available on the feed.</p></td>
+              </tr>
+            
+              <tr>
+                <td>STATE_INSTALLING</td>
+                <td>6</td>
+                <td><p>An update is being installed.</p></td>
+              </tr>
+            
+              <tr>
+                <td>STATE_ERROR</td>
+                <td>7</td>
+                <td><p>Last check/apply failed — see `error`.</p></td>
+              </tr>
+            
+          </tbody>
+        </table>
+      
+        <h3 id="micropod.v1.VolumePolicy.CacheMode">VolumePolicy.CacheMode</h3>
+        <p>VZ disk-image caching mode.</p>
+        <table class="enum-table">
+          <thead>
+            <tr><td>Name</td><td>Number</td><td>Description</td></tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>CACHE_MODE_UNSPECIFIED</td>
+                <td>0</td>
+                <td><p>Treated as CACHE_MODE_ON (the standard default).</p></td>
+              </tr>
+            
+              <tr>
+                <td>CACHE_MODE_ON</td>
+                <td>1</td>
+                <td><p>Always cache the disk image.</p></td>
+              </tr>
+            
+              <tr>
+                <td>CACHE_MODE_OFF</td>
+                <td>2</td>
+                <td><p>Never cache.</p></td>
+              </tr>
+            
+              <tr>
+                <td>CACHE_MODE_AUTO</td>
+                <td>3</td>
+                <td><p>Cache when the volume driver supports it.</p></td>
+              </tr>
+            
+          </tbody>
+        </table>
+      
+        <h3 id="micropod.v1.VolumePolicy.CloneMode">VolumePolicy.CloneMode</h3>
+        <p>Which named-volume mounts get clonefile-forked per container.</p>
+        <table class="enum-table">
+          <thead>
+            <tr><td>Name</td><td>Number</td><td>Description</td></tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>CLONE_MODE_UNSPECIFIED</td>
+                <td>0</td>
+                <td><p>Treated as CLONE_MODE_LABELS (the standard default).</p></td>
+              </tr>
+            
+              <tr>
+                <td>CLONE_MODE_LABELS</td>
+                <td>1</td>
+                <td><p>Only mounts carrying the `com.micropod.cache.clone` label.</p></td>
+              </tr>
+            
+              <tr>
+                <td>CLONE_MODE_GOLDENS</td>
+                <td>2</td>
+                <td><p>Auto-clone mounts of the volumes named in `golden_volumes`.</p></td>
+              </tr>
+            
+              <tr>
+                <td>CLONE_MODE_ALL</td>
+                <td>3</td>
+                <td><p>Clone every named-volume mount.</p></td>
+              </tr>
+            
+          </tbody>
+        </table>
+      
+        <h3 id="micropod.v1.VolumePolicy.SyncMode">VolumePolicy.SyncMode</h3>
+        <p>Writeback sync mode for volume disk images.</p>
+        <table class="enum-table">
+          <thead>
+            <tr><td>Name</td><td>Number</td><td>Description</td></tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>SYNC_MODE_UNSPECIFIED</td>
+                <td>0</td>
+                <td><p>Per-mount default (fsync for named volumes, nosync for clones).</p></td>
+              </tr>
+            
+              <tr>
+                <td>SYNC_MODE_FULL</td>
+                <td>1</td>
+                <td><p>Flush writes on every write.</p></td>
+              </tr>
+            
+              <tr>
+                <td>SYNC_MODE_FSYNC</td>
+                <td>2</td>
+                <td><p>fsync on container stop.</p></td>
+              </tr>
+            
+              <tr>
+                <td>SYNC_MODE_NOSYNC</td>
+                <td>3</td>
+                <td><p>Never fsync — fastest, can lose writes on host crash.</p></td>
+              </tr>
+            
+          </tbody>
+        </table>
       
 
       
@@ -5344,652 +6553,70 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                 <td><p>Run a command inside a running container and return its output.</p></td>
               </tr>
             
+              <tr>
+                <td>GetUsage</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.UsageReport">UsageReport</a></td>
+                <td><p>What a cleanup would reclaim: images and volumes annotated with the
+containers that reference them.</p></td>
+              </tr>
+            
+              <tr>
+                <td>GetVolumePolicy</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.VolumePolicy">VolumePolicy</a></td>
+                <td><p>Named-volume mount policy applied on container create across every
+surface (API, shim, app, CLI, MCP).</p></td>
+              </tr>
+            
+              <tr>
+                <td>SetVolumePolicy</td>
+                <td><a href="#micropod.v1.VolumePolicy">VolumePolicy</a></td>
+                <td><a href="#micropod.v1.VolumePolicy">VolumePolicy</a></td>
+                <td><p>Replace the volume mount policy; returns the stored policy.</p></td>
+              </tr>
+            
+              <tr>
+                <td>CheckForUpdates</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.UpdateStatus">UpdateStatus</a></td>
+                <td><p>Trigger a background update check in the desktop app (Sparkle).
+Fails with `unavailable` when the app isn&#39;t running.</p></td>
+              </tr>
+            
+              <tr>
+                <td>GetUpdateStatus</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.UpdateStatus">UpdateStatus</a></td>
+                <td><p>Last-known updater status from the desktop app.</p></td>
+              </tr>
+            
+              <tr>
+                <td>ApplyUpdate</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.UpdateStatus">UpdateStatus</a></td>
+                <td><p>Quit the app so a downloaded update installs and relaunches. Fails
+with `failed_precondition` until `UpdateStatus.ready_to_install`.</p></td>
+              </tr>
+            
+              <tr>
+                <td>ComposeUp</td>
+                <td><a href="#micropod.v1.ComposeUpRequest">ComposeUpRequest</a></td>
+                <td><a href="#micropod.v1.ComposeUpEvent">ComposeUpEvent</a> stream</td>
+                <td><p>Run a compose spec file, streaming progress lines (server streaming).</p></td>
+              </tr>
+            
+              <tr>
+                <td>ComposeDown</td>
+                <td><a href="#micropod.v1.ComposeDownRequest">ComposeDownRequest</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p>Tear down a compose project&#39;s containers.</p></td>
+              </tr>
+            
           </tbody>
         </table>
 
         
-    
-      
-      <div class="file-heading">
-        <h2 id="micropod/v1/compose.proto">micropod/v1/compose.proto</h2><a href="#title">Top</a>
-      </div>
-      <p></p>
-
-      
-        <h3 id="micropod.v1.ComposeNetwork">ComposeNetwork</h3>
-        <p></p>
-
-        
-          <table class="field-table">
-            <thead>
-              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
-            </thead>
-            <tbody>
-              
-                <tr>
-                  <td>name</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Network name within the compose project. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>internal</td>
-                  <td><a href="#bool">bool</a></td>
-                  <td></td>
-                  <td><p>Isolate the network from external traffic. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>external</td>
-                  <td><a href="#bool">bool</a></td>
-                  <td></td>
-                  <td><p>References a pre-existing network outside the project. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>driver</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Network driver to use. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>driver_opts</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p>Plugin options (compose `driver_opts` -&gt; `--option`). </p></td>
-                </tr>
-              
-                <tr>
-                  <td>labels</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p> </p></td>
-                </tr>
-              
-                <tr>
-                  <td>subnet</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>From `ipam.config[0].subnet` / `subnet_v6`.
-IPv4 CIDR (from `ipam.config[0].subnet`). </p></td>
-                </tr>
-              
-                <tr>
-                  <td>subnet_v6</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>IPv6 CIDR. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>external_name</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>`external: {name: &#34;…&#34;}` override. </p></td>
-                </tr>
-              
-            </tbody>
-          </table>
-
-          
-
-        
-      
-        <h3 id="micropod.v1.ComposeService">ComposeService</h3>
-        <p>A single service of a compose spec, mapped onto `container run` capabilities.</p><p>Fields the Apple runtime cannot express (e.g. privileged) are still parsed</p><p>so the UI can show them as unsupported rather than silently dropping them.</p>
-
-        
-          <table class="field-table">
-            <thead>
-              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
-            </thead>
-            <tbody>
-              
-                <tr>
-                  <td>name</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Service name from the compose file. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>image</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Image reference for the service. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>build_context</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Build context dir if the service is built from a Dockerfile. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>build_dockerfile</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Dockerfile path relative to the build context. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>build_args</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p>Build args as KEY=value pairs. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>depends_on</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p>Service names that must start before this one. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>ports</td>
-                  <td><a href="#micropod.v1.PortMapping">PortMapping</a></td>
-                  <td>repeated</td>
-                  <td><p>Published port mappings. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>environment</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p>Environment variables as KEY=value pairs. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>volumes</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p>Volume/bind mounts in compose syntax. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>commands</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p>Command override (compose `command`). </p></td>
-                </tr>
-              
-                <tr>
-                  <td>working_dir</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Working directory inside the container. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>restart</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Restart policy: &#34;no&#34;, &#34;always&#34;, &#34;unless-stopped&#34;, &#34;on-failure[:N]&#34;. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>cpus</td>
-                  <td><a href="#double">double</a></td>
-                  <td></td>
-                  <td><p>Resource caps (compose `cpus`, `mem_limit`). </p></td>
-                </tr>
-              
-                <tr>
-                  <td>memory</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p> </p></td>
-                </tr>
-              
-                <tr>
-                  <td>healthcheck_command</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Healthcheck command; used for real readiness probes. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>networks</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p>Networks the service attaches to. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>container_name</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Explicit container name override (compose `container_name`). </p></td>
-                </tr>
-              
-                <tr>
-                  <td>entrypoint</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Entrypoint override (compose `entrypoint`). </p></td>
-                </tr>
-              
-                <tr>
-                  <td>user</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>User for the container process (format: name|uid[:gid]). </p></td>
-                </tr>
-              
-                <tr>
-                  <td>labels</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p>key=value container labels. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>dns</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p>DNS nameserver IPs (compose `dns`). </p></td>
-                </tr>
-              
-                <tr>
-                  <td>dns_search</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p>DNS search domains (compose `dns_search`). </p></td>
-                </tr>
-              
-                <tr>
-                  <td>cap_add</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p>Linux capabilities to add. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>cap_drop</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p>Linux capabilities to drop. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>ulimits</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p>Resource limits, format: type=soft[:hard]. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>tmpfs</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p>tmpfs mounts: path or path:size. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>env_file</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p>env_file paths (resolved against the compose file directory). </p></td>
-                </tr>
-              
-                <tr>
-                  <td>shm_size</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Size of /dev/shm, e.g. &#34;64m&#34;. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>read_only</td>
-                  <td><a href="#bool">bool</a></td>
-                  <td></td>
-                  <td><p>Mount the root filesystem read-only. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>init</td>
-                  <td><a href="#bool">bool</a></td>
-                  <td></td>
-                  <td><p>Run an init process as PID 1. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>tty</td>
-                  <td><a href="#bool">bool</a></td>
-                  <td></td>
-                  <td><p>Allocate a pseudo-TTY. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>stdin_open</td>
-                  <td><a href="#bool">bool</a></td>
-                  <td></td>
-                  <td><p>Keep stdin open. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>privileged</td>
-                  <td><a href="#bool">bool</a></td>
-                  <td></td>
-                  <td><p>Parsed but not expressible on the Apple runtime. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>extra_hosts</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p>Extra /etc/hosts entries as &#34;host:ip&#34; pairs. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>depends_on_conditions</td>
-                  <td><a href="#micropod.v1.ComposeService.DependsOnConditionsEntry">ComposeService.DependsOnConditionsEntry</a></td>
-                  <td>repeated</td>
-                  <td><p>Conditions for depends_on entries (key = dependency name):
-&#34;started&#34; (default) or &#34;service_healthy&#34;. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>healthcheck_interval_seconds</td>
-                  <td><a href="#int32">int32</a></td>
-                  <td></td>
-                  <td><p>Seconds between healthcheck runs. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>healthcheck_timeout_seconds</td>
-                  <td><a href="#int32">int32</a></td>
-                  <td></td>
-                  <td><p>Seconds before a healthcheck is considered failed. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>healthcheck_retries</td>
-                  <td><a href="#int32">int32</a></td>
-                  <td></td>
-                  <td><p>Consecutive failures before the container is marked unhealthy. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>healthcheck_start_period_seconds</td>
-                  <td><a href="#int32">int32</a></td>
-                  <td></td>
-                  <td><p>Grace period at start during which failures don&#39;t count. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>build_target</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Build stage target / platform for `build:` sections. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>build_platform</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p> </p></td>
-                </tr>
-              
-                <tr>
-                  <td>build_no_cache</td>
-                  <td><a href="#bool">bool</a></td>
-                  <td></td>
-                  <td><p>`build.no_cache` / `build.pull` passthrough. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>profiles</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p>Compose profiles; the service only runs when an enabled profile matches. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>pull_policy</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Image pull policy: &#34;always&#34; forces a pull, anything else pulls only when
-the image is not present locally (docker&#39;s default &#34;missing&#34;). </p></td>
-                </tr>
-              
-                <tr>
-                  <td>stop_signal</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Stop behaviour (parsed; stop_signal is not expressible, grace period
-maps to `container stop --time`).
-Signal sent on stop (parsed; not expressible on the Apple runtime). </p></td>
-                </tr>
-              
-                <tr>
-                  <td>stop_grace_period_seconds</td>
-                  <td><a href="#int32">int32</a></td>
-                  <td></td>
-                  <td><p>Seconds between SIGTERM and SIGKILL on stop. </p></td>
-                </tr>
-              
-            </tbody>
-          </table>
-
-          
-
-        
-      
-        <h3 id="micropod.v1.ComposeService.DependsOnConditionsEntry">ComposeService.DependsOnConditionsEntry</h3>
-        <p></p>
-
-        
-          <table class="field-table">
-            <thead>
-              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
-            </thead>
-            <tbody>
-              
-                <tr>
-                  <td>key</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p> </p></td>
-                </tr>
-              
-                <tr>
-                  <td>value</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p> </p></td>
-                </tr>
-              
-            </tbody>
-          </table>
-
-          
-
-        
-      
-        <h3 id="micropod.v1.ComposeSpec">ComposeSpec</h3>
-        <p>Parsed docker-compose.yml, produced by the compose importer.</p>
-
-        
-          <table class="field-table">
-            <thead>
-              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
-            </thead>
-            <tbody>
-              
-                <tr>
-                  <td>name</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Compose project name (top-level `name:` or the directory name). </p></td>
-                </tr>
-              
-                <tr>
-                  <td>path</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Absolute path of the docker-compose.yml this spec was parsed from. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>services</td>
-                  <td><a href="#micropod.v1.ComposeService">ComposeService</a></td>
-                  <td>repeated</td>
-                  <td><p>Services in dependency order. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>volumes</td>
-                  <td><a href="#micropod.v1.ComposeSpec.VolumesEntry">ComposeSpec.VolumesEntry</a></td>
-                  <td>repeated</td>
-                  <td><p>Named volumes declared at the top level. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>networks</td>
-                  <td><a href="#micropod.v1.ComposeSpec.NetworksEntry">ComposeSpec.NetworksEntry</a></td>
-                  <td>repeated</td>
-                  <td><p>Networks declared at the top level. </p></td>
-                </tr>
-              
-            </tbody>
-          </table>
-
-          
-
-        
-      
-        <h3 id="micropod.v1.ComposeSpec.NetworksEntry">ComposeSpec.NetworksEntry</h3>
-        <p></p>
-
-        
-          <table class="field-table">
-            <thead>
-              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
-            </thead>
-            <tbody>
-              
-                <tr>
-                  <td>key</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p> </p></td>
-                </tr>
-              
-                <tr>
-                  <td>value</td>
-                  <td><a href="#micropod.v1.ComposeNetwork">ComposeNetwork</a></td>
-                  <td></td>
-                  <td><p> </p></td>
-                </tr>
-              
-            </tbody>
-          </table>
-
-          
-
-        
-      
-        <h3 id="micropod.v1.ComposeSpec.VolumesEntry">ComposeSpec.VolumesEntry</h3>
-        <p></p>
-
-        
-          <table class="field-table">
-            <thead>
-              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
-            </thead>
-            <tbody>
-              
-                <tr>
-                  <td>key</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p> </p></td>
-                </tr>
-              
-                <tr>
-                  <td>value</td>
-                  <td><a href="#micropod.v1.ComposeVolume">ComposeVolume</a></td>
-                  <td></td>
-                  <td><p> </p></td>
-                </tr>
-              
-            </tbody>
-          </table>
-
-          
-
-        
-      
-        <h3 id="micropod.v1.ComposeVolume">ComposeVolume</h3>
-        <p></p>
-
-        
-          <table class="field-table">
-            <thead>
-              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
-            </thead>
-            <tbody>
-              
-                <tr>
-                  <td>name</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Volume name within the compose project. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>external</td>
-                  <td><a href="#bool">bool</a></td>
-                  <td></td>
-                  <td><p>References a pre-existing volume outside the project. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>driver</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>Driver &#43; driver options (`driver_opts`), labels. </p></td>
-                </tr>
-              
-                <tr>
-                  <td>driver_opts</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p> </p></td>
-                </tr>
-              
-                <tr>
-                  <td>labels</td>
-                  <td><a href="#string">string</a></td>
-                  <td>repeated</td>
-                  <td><p> </p></td>
-                </tr>
-              
-                <tr>
-                  <td>external_name</td>
-                  <td><a href="#string">string</a></td>
-                  <td></td>
-                  <td><p>`external: {name: &#34;…&#34;}` override. </p></td>
-                </tr>
-              
-            </tbody>
-          </table>
-
-          
-
-        
-      
-
-      
-
-      
-
-      
     
 
     <h2 id="scalar-value-types">Scalar Value Types</h2>

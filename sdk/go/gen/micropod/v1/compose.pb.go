@@ -7,6 +7,7 @@
 package micropodv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -763,11 +764,177 @@ func (x *ComposeNetwork) GetExternalName() string {
 	return ""
 }
 
+// Bring a compose project up from a spec file — ComposeUp streams progress.
+type ComposeUpRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Absolute path to the compose YAML on the host.
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// Compose profiles to enable (service runs only when one matches).
+	Profiles      []string `protobuf:"bytes,2,rep,name=profiles,proto3" json:"profiles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ComposeUpRequest) Reset() {
+	*x = ComposeUpRequest{}
+	mi := &file_micropod_v1_compose_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ComposeUpRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ComposeUpRequest) ProtoMessage() {}
+
+func (x *ComposeUpRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_compose_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ComposeUpRequest.ProtoReflect.Descriptor instead.
+func (*ComposeUpRequest) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_compose_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ComposeUpRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *ComposeUpRequest) GetProfiles() []string {
+	if x != nil {
+		return x.Profiles
+	}
+	return nil
+}
+
+// One ComposeUp stream event: progress output lines, then a terminal
+// marker once every service is up.
+type ComposeUpEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Progress output line — empty on the terminal event.
+	Line string `protobuf:"bytes,1,opt,name=line,proto3" json:"line,omitempty"`
+	// Compose project name — set only on the terminal event.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// True on the terminal event once every service is up.
+	Done          bool `protobuf:"varint,3,opt,name=done,proto3" json:"done,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ComposeUpEvent) Reset() {
+	*x = ComposeUpEvent{}
+	mi := &file_micropod_v1_compose_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ComposeUpEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ComposeUpEvent) ProtoMessage() {}
+
+func (x *ComposeUpEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_compose_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ComposeUpEvent.ProtoReflect.Descriptor instead.
+func (*ComposeUpEvent) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_compose_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ComposeUpEvent) GetLine() string {
+	if x != nil {
+		return x.Line
+	}
+	return ""
+}
+
+func (x *ComposeUpEvent) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ComposeUpEvent) GetDone() bool {
+	if x != nil {
+		return x.Done
+	}
+	return false
+}
+
+// Tear down a compose project's containers.
+type ComposeDownRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Compose project name.
+	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ComposeDownRequest) Reset() {
+	*x = ComposeDownRequest{}
+	mi := &file_micropod_v1_compose_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ComposeDownRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ComposeDownRequest) ProtoMessage() {}
+
+func (x *ComposeDownRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_compose_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ComposeDownRequest.ProtoReflect.Descriptor instead.
+func (*ComposeDownRequest) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_compose_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ComposeDownRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
 var File_micropod_v1_compose_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_compose_proto_rawDesc = "" +
 	"\n" +
-	"\x19micropod/v1/compose.proto\x12\vmicropod.v1\x1a\x1bmicropod/v1/container.proto\"\xa5\x03\n" +
+	"\x19micropod/v1/compose.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1bmicropod/v1/container.proto\"\xa5\x03\n" +
 	"\vComposeSpec\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x127\n" +
@@ -861,7 +1028,16 @@ const file_micropod_v1_compose_proto_rawDesc = "" +
 	"\x06labels\x18\x06 \x03(\tR\x06labels\x12\x16\n" +
 	"\x06subnet\x18\a \x01(\tR\x06subnet\x12\x1b\n" +
 	"\tsubnet_v6\x18\b \x01(\tR\bsubnetV6\x12#\n" +
-	"\rexternal_name\x18\t \x01(\tR\fexternalNameBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
+	"\rexternal_name\x18\t \x01(\tR\fexternalName\"K\n" +
+	"\x10ComposeUpRequest\x12\x1b\n" +
+	"\x04path\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04path\x12\x1a\n" +
+	"\bprofiles\x18\x02 \x03(\tR\bprofiles\"L\n" +
+	"\x0eComposeUpEvent\x12\x12\n" +
+	"\x04line\x18\x01 \x01(\tR\x04line\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
+	"\x04done\x18\x03 \x01(\bR\x04done\"1\n" +
+	"\x12ComposeDownRequest\x12\x1b\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04nameBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
 
 var (
 	file_micropod_v1_compose_proto_rawDescOnce sync.Once
@@ -875,30 +1051,33 @@ func file_micropod_v1_compose_proto_rawDescGZIP() []byte {
 	return file_micropod_v1_compose_proto_rawDescData
 }
 
-var file_micropod_v1_compose_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_micropod_v1_compose_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_micropod_v1_compose_proto_goTypes = []any{
-	(*ComposeSpec)(nil),    // 0: micropod.v1.ComposeSpec
-	(*ComposeService)(nil), // 1: micropod.v1.ComposeService
-	(*ComposeVolume)(nil),  // 2: micropod.v1.ComposeVolume
-	(*ComposeNetwork)(nil), // 3: micropod.v1.ComposeNetwork
-	nil,                    // 4: micropod.v1.ComposeSpec.VolumesEntry
-	nil,                    // 5: micropod.v1.ComposeSpec.NetworksEntry
-	nil,                    // 6: micropod.v1.ComposeService.DependsOnConditionsEntry
-	(*PortMapping)(nil),    // 7: micropod.v1.PortMapping
+	(*ComposeSpec)(nil),        // 0: micropod.v1.ComposeSpec
+	(*ComposeService)(nil),     // 1: micropod.v1.ComposeService
+	(*ComposeVolume)(nil),      // 2: micropod.v1.ComposeVolume
+	(*ComposeNetwork)(nil),     // 3: micropod.v1.ComposeNetwork
+	(*ComposeUpRequest)(nil),   // 4: micropod.v1.ComposeUpRequest
+	(*ComposeUpEvent)(nil),     // 5: micropod.v1.ComposeUpEvent
+	(*ComposeDownRequest)(nil), // 6: micropod.v1.ComposeDownRequest
+	nil,                        // 7: micropod.v1.ComposeSpec.VolumesEntry
+	nil,                        // 8: micropod.v1.ComposeSpec.NetworksEntry
+	nil,                        // 9: micropod.v1.ComposeService.DependsOnConditionsEntry
+	(*PortMapping)(nil),        // 10: micropod.v1.PortMapping
 }
 var file_micropod_v1_compose_proto_depIdxs = []int32{
-	1, // 0: micropod.v1.ComposeSpec.services:type_name -> micropod.v1.ComposeService
-	4, // 1: micropod.v1.ComposeSpec.volumes:type_name -> micropod.v1.ComposeSpec.VolumesEntry
-	5, // 2: micropod.v1.ComposeSpec.networks:type_name -> micropod.v1.ComposeSpec.NetworksEntry
-	7, // 3: micropod.v1.ComposeService.ports:type_name -> micropod.v1.PortMapping
-	6, // 4: micropod.v1.ComposeService.depends_on_conditions:type_name -> micropod.v1.ComposeService.DependsOnConditionsEntry
-	2, // 5: micropod.v1.ComposeSpec.VolumesEntry.value:type_name -> micropod.v1.ComposeVolume
-	3, // 6: micropod.v1.ComposeSpec.NetworksEntry.value:type_name -> micropod.v1.ComposeNetwork
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	1,  // 0: micropod.v1.ComposeSpec.services:type_name -> micropod.v1.ComposeService
+	7,  // 1: micropod.v1.ComposeSpec.volumes:type_name -> micropod.v1.ComposeSpec.VolumesEntry
+	8,  // 2: micropod.v1.ComposeSpec.networks:type_name -> micropod.v1.ComposeSpec.NetworksEntry
+	10, // 3: micropod.v1.ComposeService.ports:type_name -> micropod.v1.PortMapping
+	9,  // 4: micropod.v1.ComposeService.depends_on_conditions:type_name -> micropod.v1.ComposeService.DependsOnConditionsEntry
+	2,  // 5: micropod.v1.ComposeSpec.VolumesEntry.value:type_name -> micropod.v1.ComposeVolume
+	3,  // 6: micropod.v1.ComposeSpec.NetworksEntry.value:type_name -> micropod.v1.ComposeNetwork
+	7,  // [7:7] is the sub-list for method output_type
+	7,  // [7:7] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_micropod_v1_compose_proto_init() }
@@ -913,7 +1092,7 @@ func file_micropod_v1_compose_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_micropod_v1_compose_proto_rawDesc), len(file_micropod_v1_compose_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

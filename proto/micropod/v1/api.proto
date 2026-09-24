@@ -5,6 +5,7 @@ package micropod.v1;
 option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
 
 import "buf/validate/validate.proto";
+import "micropod/v1/compose.proto";
 import "micropod/v1/container.proto";
 import "micropod/v1/image.proto";
 import "micropod/v1/system.proto";
@@ -55,6 +56,26 @@ service MicropodService {
   rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
   // Run a command inside a running container and return its output.
   rpc Exec(ExecRequest) returns (ExecResponse);
+  // What a cleanup would reclaim: images and volumes annotated with the
+  // containers that reference them.
+  rpc GetUsage(Empty) returns (UsageReport);
+  // Named-volume mount policy applied on container create across every
+  // surface (API, shim, app, CLI, MCP).
+  rpc GetVolumePolicy(Empty) returns (VolumePolicy);
+  // Replace the volume mount policy; returns the stored policy.
+  rpc SetVolumePolicy(VolumePolicy) returns (VolumePolicy);
+  // Trigger a background update check in the desktop app (Sparkle).
+  // Fails with `unavailable` when the app isn't running.
+  rpc CheckForUpdates(Empty) returns (UpdateStatus);
+  // Last-known updater status from the desktop app.
+  rpc GetUpdateStatus(Empty) returns (UpdateStatus);
+  // Quit the app so a downloaded update installs and relaunches. Fails
+  // with `failed_precondition` until `UpdateStatus.ready_to_install`.
+  rpc ApplyUpdate(Empty) returns (UpdateStatus);
+  // Run a compose spec file, streaming progress lines (server streaming).
+  rpc ComposeUp(ComposeUpRequest) returns (stream ComposeUpEvent);
+  // Tear down a compose project's containers.
+  rpc ComposeDown(ComposeDownRequest) returns (Empty);
 }
 
 message Empty {}
