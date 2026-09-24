@@ -70,6 +70,7 @@
           "micropod.v1.MicropodService"
         ],
         "summary": "CreateNetwork",
+        "description": "Create a container network.",
         "operationId": "micropod.v1.MicropodService.CreateNetwork",
         "parameters": [
           {
@@ -128,6 +129,7 @@
           "micropod.v1.MicropodService"
         ],
         "summary": "CreateVolume",
+        "description": "Create a named volume.",
         "operationId": "micropod.v1.MicropodService.CreateVolume",
         "parameters": [
           {
@@ -186,6 +188,7 @@
           "micropod.v1.MicropodService"
         ],
         "summary": "DeleteContainer",
+        "description": "Remove a container. Running containers require force.",
         "operationId": "micropod.v1.MicropodService.DeleteContainer",
         "parameters": [
           {
@@ -244,6 +247,7 @@
           "micropod.v1.MicropodService"
         ],
         "summary": "DeleteImage",
+        "description": "Remove an image. Images in use require force.",
         "operationId": "micropod.v1.MicropodService.DeleteImage",
         "parameters": [
           {
@@ -302,6 +306,7 @@
           "micropod.v1.MicropodService"
         ],
         "summary": "DeleteNetwork",
+        "description": "Remove a container network.",
         "operationId": "micropod.v1.MicropodService.DeleteNetwork",
         "parameters": [
           {
@@ -360,6 +365,7 @@
           "micropod.v1.MicropodService"
         ],
         "summary": "DeleteVolume",
+        "description": "Remove a named volume.",
         "operationId": "micropod.v1.MicropodService.DeleteVolume",
         "parameters": [
           {
@@ -418,6 +424,7 @@
           "micropod.v1.MicropodService"
         ],
         "summary": "Exec",
+        "description": "Run a command inside a running container and return its output.",
         "operationId": "micropod.v1.MicropodService.Exec",
         "parameters": [
           {
@@ -476,6 +483,7 @@
           "micropod.v1.MicropodService"
         ],
         "summary": "GetStats",
+        "description": "Point-in-time resource usage for all running containers.",
         "operationId": "micropod.v1.MicropodService.GetStats",
         "parameters": [
           {
@@ -593,6 +601,7 @@
           "micropod.v1.MicropodService"
         ],
         "summary": "KillContainer",
+        "description": "SIGKILL a running container.",
         "operationId": "micropod.v1.MicropodService.KillContainer",
         "parameters": [
           {
@@ -710,6 +719,7 @@
           "micropod.v1.MicropodService"
         ],
         "summary": "ListImages",
+        "description": "List all local images.",
         "operationId": "micropod.v1.MicropodService.ListImages",
         "parameters": [
           {
@@ -768,6 +778,7 @@
           "micropod.v1.MicropodService"
         ],
         "summary": "ListNetworks",
+        "description": "List all container networks.",
         "operationId": "micropod.v1.MicropodService.ListNetworks",
         "parameters": [
           {
@@ -826,6 +837,7 @@
           "micropod.v1.MicropodService"
         ],
         "summary": "ListVolumes",
+        "description": "List all volumes.",
         "operationId": "micropod.v1.MicropodService.ListVolumes",
         "parameters": [
           {
@@ -1048,6 +1060,7 @@
           "micropod.v1.MicropodService"
         ],
         "summary": "RestartContainer",
+        "description": "Stop then start a container.",
         "operationId": "micropod.v1.MicropodService.RestartContainer",
         "parameters": [
           {
@@ -1165,6 +1178,7 @@
           "micropod.v1.MicropodService"
         ],
         "summary": "StartContainer",
+        "description": "Start a stopped container.",
         "operationId": "micropod.v1.MicropodService.StartContainer",
         "parameters": [
           {
@@ -1223,6 +1237,7 @@
           "micropod.v1.MicropodService"
         ],
         "summary": "StopContainer",
+        "description": "Stop a running container (SIGTERM, then SIGKILL after the grace period).",
         "operationId": "micropod.v1.MicropodService.StopContainer",
         "parameters": [
           {
@@ -1556,6 +1571,7 @@
           },
           "resources": {
             "title": "resources",
+            "description": "Configured CPU/memory limits.",
             "$ref": "#/components/schemas/micropod.v1.ContainerResources"
           },
           "platform": {
@@ -1568,14 +1584,16 @@
             "items": {
               "$ref": "#/components/schemas/micropod.v1.PortMapping"
             },
-            "title": "published_ports"
+            "title": "published_ports",
+            "description": "Published host→container port mappings."
           },
           "mounts": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/micropod.v1.Mount"
             },
-            "title": "mounts"
+            "title": "mounts",
+            "description": "Mounted volumes and binds."
           },
           "networks": {
             "type": "array",
@@ -1595,7 +1613,8 @@
             "items": {
               "type": "string"
             },
-            "title": "env"
+            "title": "env",
+            "description": "Environment variables as KEY=value pairs."
           },
           "labels": {
             "type": "object",
@@ -1603,35 +1622,43 @@
             "additionalProperties": {
               "type": "string",
               "title": "value"
-            }
+            },
+            "description": "Metadata labels on the container."
           },
           "rosetta": {
             "type": "boolean",
-            "title": "rosetta"
+            "title": "rosetta",
+            "description": "Runs x86_64 binaries via Rosetta translation."
           },
           "readOnly": {
             "type": "boolean",
-            "title": "read_only"
+            "title": "read_only",
+            "description": "Root filesystem is read-only."
           },
           "useInit": {
             "type": "boolean",
-            "title": "use_init"
+            "title": "use_init",
+            "description": "An init process runs as PID 1 inside the container."
           },
           "ssh": {
             "type": "boolean",
-            "title": "ssh"
+            "title": "ssh",
+            "description": "SSH access is enabled for the container."
           },
           "virtualization": {
             "type": "boolean",
-            "title": "virtualization"
+            "title": "virtualization",
+            "description": "Uses full virtualization rather than the container runtime path."
           },
           "runtimeHandler": {
             "type": "string",
-            "title": "runtime_handler"
+            "title": "runtime_handler",
+            "description": "OCI runtime handler in use, if any."
           },
           "exitCode": {
             "type": "string",
-            "title": "exit_code"
+            "title": "exit_code",
+            "description": "Exit code once the container has stopped."
           }
         },
         "title": "Container",
@@ -1658,11 +1685,17 @@
         "properties": {
           "id": {
             "type": "string",
-            "title": "id"
+            "title": "id",
+            "minLength": 1,
+            "description": "Container ID — `container` uses the user-assigned name as the ID."
           }
         },
         "title": "ContainerRef",
-        "additionalProperties": false
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false,
+        "description": "Reference to an existing container (or the ID returned by run/create)."
       },
       "micropod.v1.ContainerResources": {
         "type": "object",
@@ -1670,7 +1703,8 @@
           "cpus": {
             "type": "number",
             "title": "cpus",
-            "format": "double"
+            "format": "double",
+            "description": "CPU limit in cores."
           },
           "memoryBytes": {
             "type": [
@@ -1678,7 +1712,8 @@
               "string"
             ],
             "title": "memory_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Memory limit in bytes."
           }
         },
         "title": "ContainerResources",
@@ -1689,12 +1724,14 @@
         "properties": {
           "id": {
             "type": "string",
-            "title": "id"
+            "title": "id",
+            "description": "Container ID."
           },
           "cpuPercent": {
             "type": "number",
             "title": "cpu_percent",
-            "format": "double"
+            "format": "double",
+            "description": "CPU usage as a percentage of one core."
           },
           "memoryUsedBytes": {
             "type": [
@@ -1702,7 +1739,8 @@
               "string"
             ],
             "title": "memory_used_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Resident memory in bytes."
           },
           "memoryLimitBytes": {
             "type": [
@@ -1710,7 +1748,8 @@
               "string"
             ],
             "title": "memory_limit_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Configured memory limit in bytes."
           },
           "networkRxBytes": {
             "type": [
@@ -1718,7 +1757,8 @@
               "string"
             ],
             "title": "network_rx_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Bytes received over the container network."
           },
           "networkTxBytes": {
             "type": [
@@ -1726,7 +1766,8 @@
               "string"
             ],
             "title": "network_tx_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Bytes transmitted over the container network."
           },
           "blockReadBytes": {
             "type": [
@@ -1734,7 +1775,8 @@
               "string"
             ],
             "title": "block_read_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Bytes read from the block device."
           },
           "blockWriteBytes": {
             "type": [
@@ -1742,7 +1784,8 @@
               "string"
             ],
             "title": "block_write_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Bytes written to the block device."
           },
           "pids": {
             "type": [
@@ -1750,60 +1793,73 @@
               "string"
             ],
             "title": "pids",
-            "format": "int64"
+            "format": "int64",
+            "description": "Number of processes inside the container."
           }
         },
         "title": "ContainerStats",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Per-container resource counters within a StatsSnapshot."
       },
       "micropod.v1.CreateNetworkRequest": {
         "type": "object",
         "properties": {
           "name": {
             "type": "string",
-            "title": "name"
+            "title": "name",
+            "minLength": 1,
+            "description": "Network name."
           },
           "internal": {
             "type": "boolean",
-            "title": "internal"
+            "title": "internal",
+            "description": "Isolate the network from external traffic."
           },
           "subnet": {
             "type": [
               "string",
               "null"
             ],
-            "title": "subnet"
+            "title": "subnet",
+            "description": "IPv4 CIDR for the network, e.g. \"192.168.100.0/24\"."
           },
           "subnetV6": {
             "type": [
               "string",
               "null"
             ],
-            "title": "subnet_v6"
+            "title": "subnet_v6",
+            "description": "IPv6 CIDR for the network."
           },
           "driver": {
             "type": [
               "string",
               "null"
             ],
-            "title": "driver"
+            "title": "driver",
+            "description": "Network driver/plugin to use."
           },
           "options": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "title": "options"
+            "title": "options",
+            "description": "Driver options passed through to the network plugin."
           },
           "labels": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "title": "labels"
+            "title": "labels",
+            "description": "Labels applied to the network (\"key=value\")."
           }
         },
         "title": "CreateNetworkRequest",
+        "required": [
+          "name"
+        ],
         "additionalProperties": false
       },
       "micropod.v1.CreateVolumeRequest": {
@@ -1811,31 +1867,39 @@
         "properties": {
           "name": {
             "type": "string",
-            "title": "name"
+            "title": "name",
+            "minLength": 1,
+            "description": "Volume name."
           },
           "size": {
             "type": [
               "string",
               "null"
             ],
-            "title": "size"
+            "title": "size",
+            "description": "Optional size limit, e.g. \"10g\"."
           },
           "labels": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "title": "labels"
+            "title": "labels",
+            "description": "Labels applied to the volume (\"key=value\")."
           },
           "options": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "title": "options"
+            "title": "options",
+            "description": "Driver options passed through to the volume driver."
           }
         },
         "title": "CreateVolumeRequest",
+        "required": [
+          "name"
+        ],
         "additionalProperties": false
       },
       "micropod.v1.DeleteContainerRequest": {
@@ -1843,14 +1907,20 @@
         "properties": {
           "id": {
             "type": "string",
-            "title": "id"
+            "title": "id",
+            "minLength": 1,
+            "description": "Container ID (or name)."
           },
           "force": {
             "type": "boolean",
-            "title": "force"
+            "title": "force",
+            "description": "Remove even if the container is still running."
           }
         },
         "title": "DeleteContainerRequest",
+        "required": [
+          "id"
+        ],
         "additionalProperties": false
       },
       "micropod.v1.DeleteImageRequest": {
@@ -1858,14 +1928,20 @@
         "properties": {
           "reference": {
             "type": "string",
-            "title": "reference"
+            "title": "reference",
+            "minLength": 1,
+            "description": "Image reference or digest to remove."
           },
           "force": {
             "type": "boolean",
-            "title": "force"
+            "title": "force",
+            "description": "Remove even if containers reference the image."
           }
         },
         "title": "DeleteImageRequest",
+        "required": [
+          "reference"
+        ],
         "additionalProperties": false
       },
       "micropod.v1.DeleteNetworkRequest": {
@@ -1873,10 +1949,15 @@
         "properties": {
           "name": {
             "type": "string",
-            "title": "name"
+            "title": "name",
+            "minLength": 1,
+            "description": "Network name to remove."
           }
         },
         "title": "DeleteNetworkRequest",
+        "required": [
+          "name"
+        ],
         "additionalProperties": false
       },
       "micropod.v1.DeleteVolumeRequest": {
@@ -1884,10 +1965,15 @@
         "properties": {
           "name": {
             "type": "string",
-            "title": "name"
+            "title": "name",
+            "minLength": 1,
+            "description": "Volume name to remove."
           }
         },
         "title": "DeleteVolumeRequest",
+        "required": [
+          "name"
+        ],
         "additionalProperties": false
       },
       "micropod.v1.DiskCategory": {
@@ -1899,7 +1985,8 @@
               "string"
             ],
             "title": "total",
-            "format": "int64"
+            "format": "int64",
+            "description": "Total objects in the category."
           },
           "active": {
             "type": [
@@ -1907,7 +1994,8 @@
               "string"
             ],
             "title": "active",
-            "format": "int64"
+            "format": "int64",
+            "description": "Objects currently referenced by a running workload."
           },
           "sizeBytes": {
             "type": [
@@ -1915,7 +2003,8 @@
               "string"
             ],
             "title": "size_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "On-disk size of the category in bytes."
           },
           "reclaimableBytes": {
             "type": [
@@ -1923,7 +2012,8 @@
               "string"
             ],
             "title": "reclaimable_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Bytes freed if inactive objects were pruned."
           }
         },
         "title": "DiskCategory",
@@ -1934,14 +2024,17 @@
         "properties": {
           "containers": {
             "title": "containers",
+            "description": "Disk usage attributed to containers.",
             "$ref": "#/components/schemas/micropod.v1.DiskCategory"
           },
           "images": {
             "title": "images",
+            "description": "Disk usage attributed to images.",
             "$ref": "#/components/schemas/micropod.v1.DiskCategory"
           },
           "volumes": {
             "title": "volumes",
+            "description": "Disk usage attributed to volumes.",
             "$ref": "#/components/schemas/micropod.v1.DiskCategory"
           },
           "totalReclaimableBytes": {
@@ -1950,7 +2043,8 @@
               "string"
             ],
             "title": "total_reclaimable_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Bytes reclaimable by pruning across all categories."
           }
         },
         "title": "DiskUsage",
@@ -1967,28 +2061,38 @@
         "properties": {
           "id": {
             "type": "string",
-            "title": "id"
+            "title": "id",
+            "minLength": 1,
+            "description": "Container ID (or name) to exec into."
           },
           "command": {
             "type": "string",
-            "title": "command"
+            "title": "command",
+            "minLength": 1,
+            "description": "Command to run inside the container."
           },
           "workdir": {
             "type": [
               "string",
               "null"
             ],
-            "title": "workdir"
+            "title": "workdir",
+            "description": "Working directory for the command."
           },
           "env": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "title": "env"
+            "title": "env",
+            "description": "Extra environment variables as KEY=value pairs."
           }
         },
         "title": "ExecRequest",
+        "required": [
+          "id",
+          "command"
+        ],
         "additionalProperties": false
       },
       "micropod.v1.ExecResponse": {
@@ -1996,7 +2100,8 @@
         "properties": {
           "output": {
             "type": "string",
-            "title": "output"
+            "title": "output",
+            "description": "Combined stdout (and stderr when not separable) of the command."
           },
           "exitCode": {
             "type": "integer",
@@ -2023,6 +2128,7 @@
         "properties": {
           "snapshot": {
             "title": "snapshot",
+            "description": "One stats snapshot covering every running container.",
             "$ref": "#/components/schemas/micropod.v1.StatsSnapshot"
           }
         },
@@ -2034,7 +2140,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "title": "id"
+            "title": "id",
+            "description": "Image ID (content-addressed digest prefix)."
           },
           "names": {
             "type": "array",
@@ -2060,14 +2167,16 @@
               "string"
             ],
             "title": "size_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Total unpacked size in bytes."
           },
           "variants": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/micropod.v1.ImageVariant"
             },
-            "title": "variants"
+            "title": "variants",
+            "description": "Per-platform variants of this image."
           }
         },
         "title": "Image",
@@ -2079,19 +2188,23 @@
         "properties": {
           "os": {
             "type": "string",
-            "title": "os"
+            "title": "os",
+            "description": "Operating system, e.g. \"linux\"."
           },
           "architecture": {
             "type": "string",
-            "title": "architecture"
+            "title": "architecture",
+            "description": "CPU architecture, e.g. \"arm64\"."
           },
           "variant": {
             "type": "string",
-            "title": "variant"
+            "title": "variant",
+            "description": "Architecture variant, e.g. \"v8\"."
           }
         },
         "title": "ImageVariant",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "One platform variant of a multi-arch image."
       },
       "micropod.v1.ListContainersResponse": {
         "type": "object",
@@ -2101,7 +2214,8 @@
             "items": {
               "$ref": "#/components/schemas/micropod.v1.Container"
             },
-            "title": "containers"
+            "title": "containers",
+            "description": "Every container, in `container list` order."
           }
         },
         "title": "ListContainersResponse",
@@ -2115,7 +2229,8 @@
             "items": {
               "$ref": "#/components/schemas/micropod.v1.Image"
             },
-            "title": "images"
+            "title": "images",
+            "description": "Every local image, in `container image list` order."
           }
         },
         "title": "ListImagesResponse",
@@ -2129,7 +2244,8 @@
             "items": {
               "$ref": "#/components/schemas/micropod.v1.Network"
             },
-            "title": "networks"
+            "title": "networks",
+            "description": "Every container network, in `container network list` order."
           }
         },
         "title": "ListNetworksResponse",
@@ -2143,7 +2259,8 @@
             "items": {
               "$ref": "#/components/schemas/micropod.v1.Volume"
             },
-            "title": "volumes"
+            "title": "volumes",
+            "description": "Every volume, in `container volume list` order."
           }
         },
         "title": "ListVolumesResponse",
@@ -2154,69 +2271,84 @@
         "properties": {
           "text": {
             "type": "string",
-            "title": "text"
+            "title": "text",
+            "description": "A single line of container output."
           }
         },
         "title": "LogChunk",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "One streamed log line (StreamContainerLogs event)."
       },
       "micropod.v1.Mount": {
         "type": "object",
         "properties": {
           "type": {
             "type": "string",
-            "title": "type"
+            "title": "type",
+            "description": "Mount kind: \"volume\" or \"bind\"."
           },
           "source": {
             "type": "string",
-            "title": "source"
+            "title": "source",
+            "description": "Volume name or host path."
           },
           "destination": {
             "type": "string",
-            "title": "destination"
+            "title": "destination",
+            "description": "Path inside the container."
           },
           "readOnly": {
             "type": "boolean",
-            "title": "read_only"
+            "title": "read_only",
+            "description": "Mount is read-only."
           }
         },
         "title": "Mount",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A volume or bind mount inside the container."
       },
       "micropod.v1.Network": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string",
-            "title": "id"
+            "title": "id",
+            "description": "Network ID (name)."
           },
           "plugin": {
             "type": "string",
-            "title": "plugin"
+            "title": "plugin",
+            "description": "Network plugin backing this network, e.g. \"vmnet\"."
           },
           "mode": {
             "type": "string",
-            "title": "mode"
+            "title": "mode",
+            "description": "Network mode, e.g. \"nat\"."
           },
           "ipv4Gateway": {
             "type": "string",
-            "title": "ipv4_gateway"
+            "title": "ipv4_gateway",
+            "description": "IPv4 gateway address."
           },
           "ipv4Subnet": {
             "type": "string",
-            "title": "ipv4_subnet"
+            "title": "ipv4_subnet",
+            "description": "IPv4 CIDR of the network."
           },
           "ipv6Subnet": {
             "type": "string",
-            "title": "ipv6_subnet"
+            "title": "ipv6_subnet",
+            "description": "IPv6 CIDR of the network, if any."
           },
           "createdAt": {
             "type": "string",
-            "title": "created_at"
+            "title": "created_at",
+            "description": "ISO8601 creation timestamp."
           },
           "builtin": {
             "type": "boolean",
-            "title": "builtin"
+            "title": "builtin",
+            "description": "True for runtime-managed networks that cannot be deleted."
           },
           "labels": {
             "type": "object",
@@ -2224,7 +2356,8 @@
             "additionalProperties": {
               "type": "string",
               "title": "value"
-            }
+            },
+            "description": "Metadata labels on the network."
           }
         },
         "title": "Network",
@@ -2251,30 +2384,41 @@
         "properties": {
           "hostPort": {
             "type": "integer",
-            "title": "host_port"
+            "title": "host_port",
+            "maximum": 65535,
+            "description": "Port on the host."
           },
           "containerPort": {
             "type": "integer",
-            "title": "container_port"
+            "title": "container_port",
+            "maximum": 65535,
+            "description": "Port inside the container."
           },
           "protocol": {
             "type": "string",
-            "title": "protocol"
+            "title": "protocol",
+            "description": "\"tcp\" or \"udp\"."
           },
           "hostIp": {
             "type": "string",
-            "title": "host_ip"
+            "title": "host_ip",
+            "description": "Host interface IP to bind (empty = all interfaces)."
           }
         },
         "title": "PortMapping",
-        "additionalProperties": false
+        "required": [
+          "containerPort"
+        ],
+        "additionalProperties": false,
+        "description": "A published port mapping between host and container."
       },
       "micropod.v1.ProgressLine": {
         "type": "object",
         "properties": {
           "line": {
             "type": "string",
-            "title": "line"
+            "title": "line",
+            "description": "Human-readable progress text from the registry pull."
           },
           "stage": {
             "type": [
@@ -2282,7 +2426,8 @@
               "null"
             ],
             "title": "stage",
-            "format": "int32"
+            "format": "int32",
+            "description": "Current stage index (1-based), when the pull reports staged progress."
           },
           "totalStages": {
             "type": [
@@ -2290,28 +2435,36 @@
               "null"
             ],
             "title": "total_stages",
-            "format": "int32"
+            "format": "int32",
+            "description": "Total number of stages, when known."
           }
         },
         "title": "ProgressLine",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "One pull-progress event (PullImage stream)."
       },
       "micropod.v1.PullImageRequest": {
         "type": "object",
         "properties": {
           "reference": {
             "type": "string",
-            "title": "reference"
+            "title": "reference",
+            "minLength": 1,
+            "description": "Image reference to pull, e.g. \"alpine:3.20\" or a full registry path."
           },
           "platform": {
             "type": [
               "string",
               "null"
             ],
-            "title": "platform"
+            "title": "platform",
+            "description": "Platform to pull, e.g. \"linux/arm64\". Defaults to the host platform."
           }
         },
         "title": "PullImageRequest",
+        "required": [
+          "reference"
+        ],
         "additionalProperties": false
       },
       "micropod.v1.RunContainerRequest": {
@@ -2319,54 +2472,64 @@
         "properties": {
           "image": {
             "type": "string",
-            "title": "image"
+            "title": "image",
+            "minLength": 1,
+            "description": "Image reference to run, e.g. \"alpine:3.20\". Pulled if not present locally."
           },
           "name": {
             "type": [
               "string",
               "null"
             ],
-            "title": "name"
+            "title": "name",
+            "description": "Optional container name; becomes the container ID."
           },
           "detach": {
             "type": "boolean",
-            "title": "detach"
+            "title": "detach",
+            "description": "Return immediately instead of streaming/attaching."
           },
           "cpus": {
+            "exclusiveMinimum": 0,
             "type": [
               "number",
               "null"
             ],
             "title": "cpus",
-            "format": "double"
+            "format": "double",
+            "description": "CPU limit in cores, e.g. 0.5 for half a core."
           },
           "memory": {
             "type": [
               "string",
               "null"
             ],
-            "title": "memory"
+            "title": "memory",
+            "description": "Memory limit, e.g. \"512m\" or \"4g\"."
           },
           "env": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "title": "env"
+            "title": "env",
+            "description": "Environment variables as KEY=value pairs."
           },
           "ports": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/micropod.v1.PortMapping"
             },
-            "title": "ports"
+            "title": "ports",
+            "description": "Published port mappings (host → container)."
           },
           "volumes": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "title": "volumes"
+            "title": "volumes",
+            "description": "Bind/volume mounts as \"name-or-path:/mount\" specs."
           },
           "labels": {
             "type": "object",
@@ -2374,22 +2537,29 @@
             "additionalProperties": {
               "type": "string",
               "title": "value"
-            }
+            },
+            "description": "Arbitrary metadata labels on the container."
           },
           "init": {
             "type": "boolean",
-            "title": "init"
+            "title": "init",
+            "description": "Run an init process as PID 1 to reap zombies."
           },
           "arguments": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "title": "arguments"
+            "title": "arguments",
+            "description": "Command + args override (image entrypoint is used when empty)."
           }
         },
         "title": "RunContainerRequest",
-        "additionalProperties": false
+        "required": [
+          "image"
+        ],
+        "additionalProperties": false,
+        "description": "Shared request shape for run + create (docker run / docker create)."
       },
       "micropod.v1.RunContainerRequest.LabelsEntry": {
         "type": "object",
@@ -2414,11 +2584,13 @@
             "items": {
               "$ref": "#/components/schemas/micropod.v1.ContainerStats"
             },
-            "title": "containers"
+            "title": "containers",
+            "description": "Per-container stats, one entry per running container."
           },
           "sampledAt": {
             "type": "string",
-            "title": "sampled_at"
+            "title": "sampled_at",
+            "description": "ISO8601 timestamp the snapshot was taken."
           }
         },
         "title": "StatsSnapshot",
@@ -2430,19 +2602,27 @@
         "properties": {
           "id": {
             "type": "string",
-            "title": "id"
+            "title": "id",
+            "minLength": 1,
+            "description": "Container ID (or name) to stream logs from."
           },
           "tail": {
             "type": "integer",
             "title": "tail",
-            "format": "int32"
+            "minimum": 0,
+            "format": "int32",
+            "description": "Number of lines to replay from the end of the log before following."
           },
           "boot": {
             "type": "boolean",
-            "title": "boot"
+            "title": "boot",
+            "description": "Include the vminitd guest boot log."
           }
         },
         "title": "StreamLogsRequest",
+        "required": [
+          "id"
+        ],
         "additionalProperties": false
       },
       "micropod.v1.SystemSnapshot": {
@@ -2450,10 +2630,12 @@
         "properties": {
           "status": {
             "title": "status",
+            "description": "Runtime health (status, versions, install paths).",
             "$ref": "#/components/schemas/micropod.v1.SystemStatus"
           },
           "diskUsage": {
             "title": "disk_usage",
+            "description": "Disk usage grouped by resource kind.",
             "$ref": "#/components/schemas/micropod.v1.DiskUsage"
           }
         },
@@ -2470,19 +2652,23 @@
           },
           "appRoot": {
             "type": "string",
-            "title": "app_root"
+            "title": "app_root",
+            "description": "Path to the installed Micropod.app bundle."
           },
           "installRoot": {
             "type": "string",
-            "title": "install_root"
+            "title": "install_root",
+            "description": "Runtime install root (binaries, kernels, images)."
           },
           "apiServerVersion": {
             "type": "string",
-            "title": "api_server_version"
+            "title": "api_server_version",
+            "description": "Version of the embedded API server."
           },
           "cliVersion": {
             "type": "string",
-            "title": "cli_version"
+            "title": "cli_version",
+            "description": "Version of the bundled `container` CLI."
           }
         },
         "title": "SystemStatus",
@@ -2494,15 +2680,18 @@
         "properties": {
           "id": {
             "type": "string",
-            "title": "id"
+            "title": "id",
+            "description": "Volume name (used as the ID)."
           },
           "driver": {
             "type": "string",
-            "title": "driver"
+            "title": "driver",
+            "description": "Volume driver, e.g. \"local\"."
           },
           "format": {
             "type": "string",
-            "title": "format"
+            "title": "format",
+            "description": "Filesystem format, e.g. \"ext4\"."
           },
           "sizeBytes": {
             "type": [
@@ -2510,15 +2699,18 @@
               "string"
             ],
             "title": "size_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Volume size in bytes."
           },
           "source": {
             "type": "string",
-            "title": "source"
+            "title": "source",
+            "description": "Backing source (name or host path)."
           },
           "createdAt": {
             "type": "string",
-            "title": "created_at"
+            "title": "created_at",
+            "description": "ISO8601 creation timestamp."
           },
           "labels": {
             "type": "object",
@@ -2526,7 +2718,8 @@
             "additionalProperties": {
               "type": "string",
               "title": "value"
-            }
+            },
+            "description": "Metadata labels on the volume."
           }
         },
         "title": "Volume",

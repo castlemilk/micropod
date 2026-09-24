@@ -31,6 +31,7 @@
           },
           "resources": {
             "title": "resources",
+            "description": "Configured CPU/memory limits.",
             "$ref": "#/components/schemas/micropod.v1.ContainerResources"
           },
           "platform": {
@@ -43,14 +44,16 @@
             "items": {
               "$ref": "#/components/schemas/micropod.v1.PortMapping"
             },
-            "title": "published_ports"
+            "title": "published_ports",
+            "description": "Published host→container port mappings."
           },
           "mounts": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/micropod.v1.Mount"
             },
-            "title": "mounts"
+            "title": "mounts",
+            "description": "Mounted volumes and binds."
           },
           "networks": {
             "type": "array",
@@ -70,7 +73,8 @@
             "items": {
               "type": "string"
             },
-            "title": "env"
+            "title": "env",
+            "description": "Environment variables as KEY=value pairs."
           },
           "labels": {
             "type": "object",
@@ -78,35 +82,43 @@
             "additionalProperties": {
               "type": "string",
               "title": "value"
-            }
+            },
+            "description": "Metadata labels on the container."
           },
           "rosetta": {
             "type": "boolean",
-            "title": "rosetta"
+            "title": "rosetta",
+            "description": "Runs x86_64 binaries via Rosetta translation."
           },
           "readOnly": {
             "type": "boolean",
-            "title": "read_only"
+            "title": "read_only",
+            "description": "Root filesystem is read-only."
           },
           "useInit": {
             "type": "boolean",
-            "title": "use_init"
+            "title": "use_init",
+            "description": "An init process runs as PID 1 inside the container."
           },
           "ssh": {
             "type": "boolean",
-            "title": "ssh"
+            "title": "ssh",
+            "description": "SSH access is enabled for the container."
           },
           "virtualization": {
             "type": "boolean",
-            "title": "virtualization"
+            "title": "virtualization",
+            "description": "Uses full virtualization rather than the container runtime path."
           },
           "runtimeHandler": {
             "type": "string",
-            "title": "runtime_handler"
+            "title": "runtime_handler",
+            "description": "OCI runtime handler in use, if any."
           },
           "exitCode": {
             "type": "string",
-            "title": "exit_code"
+            "title": "exit_code",
+            "description": "Exit code once the container has stopped."
           }
         },
         "title": "Container",
@@ -134,7 +146,8 @@
           "cpus": {
             "type": "number",
             "title": "cpus",
-            "format": "double"
+            "format": "double",
+            "description": "CPU limit in cores."
           },
           "memoryBytes": {
             "type": [
@@ -142,7 +155,8 @@
               "string"
             ],
             "title": "memory_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Memory limit in bytes."
           }
         },
         "title": "ContainerResources",
@@ -153,46 +167,61 @@
         "properties": {
           "type": {
             "type": "string",
-            "title": "type"
+            "title": "type",
+            "description": "Mount kind: \"volume\" or \"bind\"."
           },
           "source": {
             "type": "string",
-            "title": "source"
+            "title": "source",
+            "description": "Volume name or host path."
           },
           "destination": {
             "type": "string",
-            "title": "destination"
+            "title": "destination",
+            "description": "Path inside the container."
           },
           "readOnly": {
             "type": "boolean",
-            "title": "read_only"
+            "title": "read_only",
+            "description": "Mount is read-only."
           }
         },
         "title": "Mount",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "A volume or bind mount inside the container."
       },
       "micropod.v1.PortMapping": {
         "type": "object",
         "properties": {
           "hostPort": {
             "type": "integer",
-            "title": "host_port"
+            "title": "host_port",
+            "maximum": 65535,
+            "description": "Port on the host."
           },
           "containerPort": {
             "type": "integer",
-            "title": "container_port"
+            "title": "container_port",
+            "maximum": 65535,
+            "description": "Port inside the container."
           },
           "protocol": {
             "type": "string",
-            "title": "protocol"
+            "title": "protocol",
+            "description": "\"tcp\" or \"udp\"."
           },
           "hostIp": {
             "type": "string",
-            "title": "host_ip"
+            "title": "host_ip",
+            "description": "Host interface IP to bind (empty = all interfaces)."
           }
         },
         "title": "PortMapping",
-        "additionalProperties": false
+        "required": [
+          "containerPort"
+        ],
+        "additionalProperties": false,
+        "description": "A published port mapping between host and container."
       }
     }
   },

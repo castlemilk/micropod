@@ -11,7 +11,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "title": "id"
+            "title": "id",
+            "description": "Image ID (content-addressed digest prefix)."
           },
           "names": {
             "type": "array",
@@ -37,14 +38,16 @@
               "string"
             ],
             "title": "size_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Total unpacked size in bytes."
           },
           "variants": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/micropod.v1.ImageVariant"
             },
-            "title": "variants"
+            "title": "variants",
+            "description": "Per-platform variants of this image."
           }
         },
         "title": "Image",
@@ -56,19 +59,23 @@
         "properties": {
           "os": {
             "type": "string",
-            "title": "os"
+            "title": "os",
+            "description": "Operating system, e.g. \"linux\"."
           },
           "architecture": {
             "type": "string",
-            "title": "architecture"
+            "title": "architecture",
+            "description": "CPU architecture, e.g. \"arm64\"."
           },
           "variant": {
             "type": "string",
-            "title": "variant"
+            "title": "variant",
+            "description": "Architecture variant, e.g. \"v8\"."
           }
         },
         "title": "ImageVariant",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "One platform variant of a multi-arch image."
       }
     }
   },
