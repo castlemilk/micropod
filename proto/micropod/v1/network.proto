@@ -5,6 +5,7 @@ package micropod.v1;
 option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
 
 import "buf/validate/validate.proto";
+import "gnostic/openapi/v3/annotations.proto";
 import "micropod/v1/api.proto";
 
 // Container networks (vmnet-backed).
@@ -20,19 +21,19 @@ service NetworkService {
 // Curated network, mapped from `container network list`.
 message Network {
   // Network ID (name).
-  string id = 1;
+  string id = 1 [(gnostic.openapi.v3.property).example = {yaml: "'backend'"}];
   // Network plugin backing this network, e.g. "vmnet".
-  string plugin = 2;
+  string plugin = 2 [(gnostic.openapi.v3.property).example = {yaml: "'vmnet'"}];
   // Network mode, e.g. "nat".
-  string mode = 3;
+  string mode = 3 [(gnostic.openapi.v3.property).example = {yaml: "'nat'"}];
   // IPv4 gateway address.
-  string ipv4_gateway = 4;
+  string ipv4_gateway = 4 [(gnostic.openapi.v3.property).example = {yaml: "'192.168.64.1'"}, (gnostic.openapi.v3.property).format = "ipv4"];
   // IPv4 CIDR of the network.
-  string ipv4_subnet = 5;
+  string ipv4_subnet = 5 [(gnostic.openapi.v3.property).example = {yaml: "'192.168.64.0/24'"}];
   // IPv6 CIDR of the network, if any.
-  string ipv6_subnet = 6;
+  string ipv6_subnet = 6 [(gnostic.openapi.v3.property).example = {yaml: "'fd00::/64'"}];
   // ISO8601 creation timestamp.
-  string created_at = 7;
+  string created_at = 7 [(gnostic.openapi.v3.property).example = {yaml: "'2026-01-15T10:30:00Z'"}, (gnostic.openapi.v3.property).format = "date-time"];
   // True for runtime-managed networks that cannot be deleted.
   bool builtin = 8;
   // Metadata labels on the network.
@@ -46,22 +47,22 @@ message ListNetworksResponse {
 
 message CreateNetworkRequest {
   // Network name.
-  string name = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  string name = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'backend'"}];
   // Isolate the network from external traffic.
   bool internal = 2;
   // IPv4 CIDR for the network, e.g. "192.168.100.0/24".
-  optional string subnet = 3;
+  optional string subnet = 3 [(gnostic.openapi.v3.property).example = {yaml: "'192.168.100.0/24'"}];
   // IPv6 CIDR for the network.
-  optional string subnet_v6 = 4;
+  optional string subnet_v6 = 4 [(gnostic.openapi.v3.property).example = {yaml: "'fd00:100::/64'"}];
   // Network driver/plugin to use.
-  optional string driver = 5;
+  optional string driver = 5 [(gnostic.openapi.v3.property).example = {yaml: "'vmnet'"}];
   // Driver options passed through to the network plugin.
-  repeated string options = 6;
+  repeated string options = 6 [(gnostic.openapi.v3.property).example = {yaml: "['mtu=1500']"}];
   // Labels applied to the network ("key=value").
-  repeated string labels = 7;
+  repeated string labels = 7 [(gnostic.openapi.v3.property).example = {yaml: "['com.example.project=web']"}];
 }
 
 message DeleteNetworkRequest {
   // Network name to remove.
-  string name = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  string name = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'backend'"}];
 }

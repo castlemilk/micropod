@@ -54,6 +54,16 @@ export function EndpointContent({
         {endpoint.description && (
           <p className="text-muted">{endpoint.description}</p>
         )}
+        {endpoint.externalDocs && (
+          <a
+            href={endpoint.externalDocs.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-[13px] text-primary hover:underline"
+          >
+            {endpoint.externalDocs.description ?? "Reference docs"} ↗
+          </a>
+        )}
       </div>
 
       {endpoint.parameters.length > 0 && (

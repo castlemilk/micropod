@@ -15,6 +15,10 @@ plugins:
       - target=ts
       - import_extension=js
       - rewrite_imports=**/buf/validate/validate_pb.js:@bufbuild/protovalidate/gen
+      # The protos annotate with (gnostic.openapi.v3.*) — no npm package ships
+      # those types, so generated descriptors are pointed at the committed
+      # stubs under src/vendor (outside gen/, where `clean` can't wipe them).
+      - rewrite_imports=**/gnostic/openapi/v3/annotations_pb.js:../vendor
   # Swift: standalone copy for the MicropodSDK library target (kept
   # separate from MicropodCore/Generated so the SDK stays dependency-light).
   - remote: buf.build/apple/swift

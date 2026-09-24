@@ -8,6 +8,7 @@ package micropodv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/google/gnostic/openapiv3"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -134,8 +135,9 @@ type ComposeServiceSpec struct {
 	// Restart policy: "no", "always", "unless-stopped", "on-failure[:N]".
 	Restart string `protobuf:"bytes,12,opt,name=restart,proto3" json:"restart,omitempty"`
 	// Resource caps (compose `cpus`, `mem_limit`).
-	Cpus   float64 `protobuf:"fixed64,13,opt,name=cpus,proto3" json:"cpus,omitempty"`
-	Memory string  `protobuf:"bytes,14,opt,name=memory,proto3" json:"memory,omitempty"`
+	Cpus float64 `protobuf:"fixed64,13,opt,name=cpus,proto3" json:"cpus,omitempty"`
+	// Memory limit as a compose quantity string, e.g. "512m".
+	Memory string `protobuf:"bytes,14,opt,name=memory,proto3" json:"memory,omitempty"`
 	// Healthcheck command; used for real readiness probes.
 	HealthcheckCommand string `protobuf:"bytes,15,opt,name=healthcheck_command,json=healthcheckCommand,proto3" json:"healthcheck_command,omitempty"`
 	// Networks the service attaches to.
@@ -188,7 +190,8 @@ type ComposeServiceSpec struct {
 	// Grace period at start during which failures don't count.
 	HealthcheckStartPeriodSeconds int32 `protobuf:"varint,39,opt,name=healthcheck_start_period_seconds,json=healthcheckStartPeriodSeconds,proto3" json:"healthcheck_start_period_seconds,omitempty"`
 	// Build stage target / platform for `build:` sections.
-	BuildTarget   string `protobuf:"bytes,40,opt,name=build_target,json=buildTarget,proto3" json:"build_target,omitempty"`
+	BuildTarget string `protobuf:"bytes,40,opt,name=build_target,json=buildTarget,proto3" json:"build_target,omitempty"`
+	// Target platform for `build:` sections, e.g. "linux/arm64".
 	BuildPlatform string `protobuf:"bytes,41,opt,name=build_platform,json=buildPlatform,proto3" json:"build_platform,omitempty"`
 	// `build.no_cache` / `build.pull` passthrough.
 	BuildNoCache bool `protobuf:"varint,44,opt,name=build_no_cache,json=buildNoCache,proto3" json:"build_no_cache,omitempty"`
@@ -566,9 +569,11 @@ type ComposeVolume struct {
 	// References a pre-existing volume outside the project.
 	External bool `protobuf:"varint,2,opt,name=external,proto3" json:"external,omitempty"`
 	// Driver + driver options (`driver_opts`), labels.
-	Driver     string   `protobuf:"bytes,3,opt,name=driver,proto3" json:"driver,omitempty"`
+	Driver string `protobuf:"bytes,3,opt,name=driver,proto3" json:"driver,omitempty"`
+	// Driver options (compose `driver_opts`).
 	DriverOpts []string `protobuf:"bytes,4,rep,name=driver_opts,json=driverOpts,proto3" json:"driver_opts,omitempty"`
-	Labels     []string `protobuf:"bytes,5,rep,name=labels,proto3" json:"labels,omitempty"`
+	// Volume labels.
+	Labels []string `protobuf:"bytes,5,rep,name=labels,proto3" json:"labels,omitempty"`
 	// `external: {name: "…"}` override.
 	ExternalName  string `protobuf:"bytes,6,opt,name=external_name,json=externalName,proto3" json:"external_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -659,7 +664,8 @@ type ComposeNetwork struct {
 	Driver string `protobuf:"bytes,4,opt,name=driver,proto3" json:"driver,omitempty"`
 	// Plugin options (compose `driver_opts` -> `--option`).
 	DriverOpts []string `protobuf:"bytes,5,rep,name=driver_opts,json=driverOpts,proto3" json:"driver_opts,omitempty"`
-	Labels     []string `protobuf:"bytes,6,rep,name=labels,proto3" json:"labels,omitempty"`
+	// Network labels.
+	Labels []string `protobuf:"bytes,6,rep,name=labels,proto3" json:"labels,omitempty"`
 	// From `ipam.config[0].subnet` / `subnet_v6`.
 	// IPv4 CIDR (from `ipam.config[0].subnet`).
 	Subnet string `protobuf:"bytes,7,opt,name=subnet,proto3" json:"subnet,omitempty"`
@@ -934,9 +940,9 @@ var File_micropod_v1_compose_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_compose_proto_rawDesc = "" +
 	"\n" +
-	"\x19micropod/v1/compose.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a\x15micropod/v1/api.proto\x1a\x1bmicropod/v1/container.proto\"\xa9\x03\n" +
-	"\vComposeSpec\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x19micropod/v1/compose.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\x1a\x1bmicropod/v1/container.proto\"\xb7\x03\n" +
+	"\vComposeSpec\x12 \n" +
+	"\x04name\x18\x01 \x01(\tB\f\xbaG\t:\a\x12\x05'web'R\x04name\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12;\n" +
 	"\bservices\x18\x03 \x03(\v2\x1f.micropod.v1.ComposeServiceSpecR\bservices\x12?\n" +
 	"\avolumes\x18\x04 \x03(\v2%.micropod.v1.ComposeSpec.VolumesEntryR\avolumes\x12B\n" +
@@ -946,9 +952,9 @@ const file_micropod_v1_compose_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2\x1a.micropod.v1.ComposeVolumeR\x05value:\x028\x01\x1aX\n" +
 	"\rNetworksEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x121\n" +
-	"\x05value\x18\x02 \x01(\v2\x1b.micropod.v1.ComposeNetworkR\x05value:\x028\x01\"\xa4\r\n" +
-	"\x12ComposeServiceSpec\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\v2\x1b.micropod.v1.ComposeNetworkR\x05value:\x028\x01\"\xb2\r\n" +
+	"\x12ComposeServiceSpec\x12 \n" +
+	"\x04name\x18\x01 \x01(\tB\f\xbaG\t:\a\x12\x05'web'R\x04name\x12\x14\n" +
 	"\x05image\x18\x02 \x01(\tR\x05image\x12#\n" +
 	"\rbuild_context\x18\x03 \x01(\tR\fbuildContext\x12)\n" +
 	"\x10build_dockerfile\x18\x04 \x01(\tR\x0fbuildDockerfile\x12\x1d\n" +
@@ -1009,17 +1015,17 @@ const file_micropod_v1_compose_proto_rawDesc = "" +
 	"\x19stop_grace_period_seconds\x18+ \x01(\x05R\x16stopGracePeriodSeconds\x1aF\n" +
 	"\x18DependsOnConditionsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb5\x01\n" +
-	"\rComposeVolume\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc3\x01\n" +
+	"\rComposeVolume\x12 \n" +
+	"\x04name\x18\x01 \x01(\tB\f\xbaG\t:\a\x12\x05'web'R\x04name\x12\x1a\n" +
 	"\bexternal\x18\x02 \x01(\bR\bexternal\x12\x16\n" +
 	"\x06driver\x18\x03 \x01(\tR\x06driver\x12\x1f\n" +
 	"\vdriver_opts\x18\x04 \x03(\tR\n" +
 	"driverOpts\x12\x16\n" +
 	"\x06labels\x18\x05 \x03(\tR\x06labels\x12#\n" +
-	"\rexternal_name\x18\x06 \x01(\tR\fexternalName\"\x87\x02\n" +
-	"\x0eComposeNetwork\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
+	"\rexternal_name\x18\x06 \x01(\tR\fexternalName\"\x95\x02\n" +
+	"\x0eComposeNetwork\x12 \n" +
+	"\x04name\x18\x01 \x01(\tB\f\xbaG\t:\a\x12\x05'web'R\x04name\x12\x1a\n" +
 	"\binternal\x18\x02 \x01(\bR\binternal\x12\x1a\n" +
 	"\bexternal\x18\x03 \x01(\bR\bexternal\x12\x16\n" +
 	"\x06driver\x18\x04 \x01(\tR\x06driver\x12\x1f\n" +
@@ -1028,18 +1034,19 @@ const file_micropod_v1_compose_proto_rawDesc = "" +
 	"\x06labels\x18\x06 \x03(\tR\x06labels\x12\x16\n" +
 	"\x06subnet\x18\a \x01(\tR\x06subnet\x12\x1b\n" +
 	"\tsubnet_v6\x18\b \x01(\tR\bsubnetV6\x12#\n" +
-	"\rexternal_name\x18\t \x01(\tR\fexternalName\"K\n" +
-	"\x10ComposeUpRequest\x12\x1b\n" +
-	"\x04path\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04path\x12\x1a\n" +
-	"\bprofiles\x18\x02 \x03(\tR\bprofiles\"L\n" +
-	"\x0eComposeUpEvent\x12\x12\n" +
-	"\x04line\x18\x01 \x01(\tR\x04line\x12\x12\n" +
+	"\rexternal_name\x18\t \x01(\tR\fexternalName\"\x85\x01\n" +
+	"\x10ComposeUpRequest\x12E\n" +
+	"\x04path\x18\x01 \x01(\tB1\xbaG':%\x12#'/Users/me/proj/docker-compose.yml'\xbaH\x04r\x02\x10\x01R\x04path\x12*\n" +
+	"\bprofiles\x18\x02 \x03(\tB\x0e\xbaG\v:\t\x12\a['dev']R\bprofiles\"i\n" +
+	"\x0eComposeUpEvent\x12/\n" +
+	"\x04line\x18\x01 \x01(\tB\x1b\xbaG\x18:\x16\x12\x14'Creating web-web-1'R\x04line\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
-	"\x04done\x18\x03 \x01(\bR\x04done\"1\n" +
-	"\x12ComposeDownRequest\x12\x1b\n" +
-	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name2\x9f\x01\n" +
-	"\x0eComposeService\x12I\n" +
-	"\tComposeUp\x12\x1d.micropod.v1.ComposeUpRequest\x1a\x1b.micropod.v1.ComposeUpEvent0\x01\x12B\n" +
+	"\x04done\x18\x03 \x01(\bR\x04done\"=\n" +
+	"\x12ComposeDownRequest\x12'\n" +
+	"\x04name\x18\x01 \x01(\tB\x13\xbaG\t:\a\x12\x05'web'\xbaH\x04r\x02\x10\x01R\x04name2\xf4\x01\n" +
+	"\x0eComposeService\x12\x9d\x01\n" +
+	"\tComposeUp\x12\x1d.micropod.v1.ComposeUpRequest\x1a\x1b.micropod.v1.ComposeUpEvent\"R\xbaGO\"M\n" +
+	"\x1aCompose file specification\x12/https://docs.docker.com/reference/compose-file/0\x01\x12B\n" +
 	"\vComposeDown\x12\x1f.micropod.v1.ComposeDownRequest\x1a\x12.micropod.v1.EmptyBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
 
 var (

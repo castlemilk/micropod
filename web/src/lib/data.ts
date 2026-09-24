@@ -241,6 +241,7 @@ function parseSpec(file: string): OpenAPISpec {
         requestType,
         responseType,
         serverStreaming,
+        externalDocs: operation.externalDocs,
         parameters: resolveRefs(operation.parameters ?? [], schemas),
         requestBody: resolveRefs(operation.requestBody, schemas),
         responses: resolveRefs(operation.responses ?? {}, schemas),

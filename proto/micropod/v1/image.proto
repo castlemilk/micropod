@@ -5,6 +5,7 @@ package micropod.v1;
 option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
 
 import "buf/validate/validate.proto";
+import "gnostic/openapi/v3/annotations.proto";
 import "micropod/v1/api.proto";
 
 // Local image inventory and pulls.
@@ -20,15 +21,15 @@ service ImageService {
 // Curated view of a local image, mapped from `container image list --verbose`.
 message Image {
   // Image ID (content-addressed digest prefix).
-  string id = 1;
+  string id = 1 [(gnostic.openapi.v3.property).example = {yaml: "'sha256:1c4a8f'"}];
   // All tags/references pointing at this image.
-  repeated string names = 2;
+  repeated string names = 2 [(gnostic.openapi.v3.property).example = {yaml: "['alpine:3.20', 'alpine:latest']"}];
   // ISO8601 creation timestamp.
-  string created_at = 3;
+  string created_at = 3 [(gnostic.openapi.v3.property).example = {yaml: "'2026-01-15T10:30:00Z'"}, (gnostic.openapi.v3.property).format = "date-time"];
   // Content digest.
-  string digest = 4;
+  string digest = 4 [(gnostic.openapi.v3.property).example = {yaml: "'sha256:8e24b3e4a1f2c9d8e7f6a5b4c3d2e1f0'"}];
   // Total unpacked size in bytes.
-  uint64 size_bytes = 5;
+  uint64 size_bytes = 5 [(gnostic.openapi.v3.property).example = {yaml: "3800000"}];
   // Per-platform variants of this image.
   repeated ImageVariant variants = 6;
 }
@@ -36,11 +37,11 @@ message Image {
 // One platform variant of a multi-arch image.
 message ImageVariant {
   // Operating system, e.g. "linux".
-  string os = 1;
+  string os = 1 [(gnostic.openapi.v3.property).example = {yaml: "'linux'"}];
   // CPU architecture, e.g. "arm64".
-  string architecture = 2;
+  string architecture = 2 [(gnostic.openapi.v3.property).example = {yaml: "'arm64'"}];
   // Architecture variant, e.g. "v8".
-  string variant = 3;
+  string variant = 3 [(gnostic.openapi.v3.property).example = {yaml: "'v8'"}];
 }
 
 message ListImagesResponse {
@@ -50,24 +51,24 @@ message ListImagesResponse {
 
 message PullImageRequest {
   // Image reference to pull, e.g. "alpine:3.20" or a full registry path.
-  string reference = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  string reference = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'alpine:3.20'"}];
   // Platform to pull, e.g. "linux/arm64". Defaults to the host platform.
-  optional string platform = 2;
+  optional string platform = 2 [(gnostic.openapi.v3.property).example = {yaml: "'linux/arm64'"}];
 }
 
 // One pull-progress event (PullImage stream).
 message ProgressLine {
   // Human-readable progress text from the registry pull.
-  string line = 1;
+  string line = 1 [(gnostic.openapi.v3.property).example = {yaml: "'Downloading layer 3 of 5'"}];
   // Current stage index (1-based), when the pull reports staged progress.
-  optional int32 stage = 2;
+  optional int32 stage = 2 [(gnostic.openapi.v3.property).example = {yaml: "3"}];
   // Total number of stages, when known.
-  optional int32 total_stages = 3;
+  optional int32 total_stages = 3 [(gnostic.openapi.v3.property).example = {yaml: "5"}];
 }
 
 message DeleteImageRequest {
   // Image reference or digest to remove.
-  string reference = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  string reference = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'alpine:3.20'"}];
   // Remove even if containers reference the image.
   bool force = 2;
 }

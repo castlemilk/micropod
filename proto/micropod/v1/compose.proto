@@ -5,13 +5,21 @@ package micropod.v1;
 option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
 
 import "buf/validate/validate.proto";
+import "gnostic/openapi/v3/annotations.proto";
 import "micropod/v1/api.proto";
 import "micropod/v1/container.proto";
 
 // Compose project lifecycle — run a spec file and tear the project down.
 service ComposeService {
   // Run a compose spec file, streaming progress lines (server streaming).
-  rpc ComposeUp(ComposeUpRequest) returns (stream ComposeUpEvent);
+  rpc ComposeUp(ComposeUpRequest) returns (stream ComposeUpEvent) {
+    option (gnostic.openapi.v3.operation) = {
+      external_docs: {
+        url: "https://docs.docker.com/reference/compose-file/"
+        description: "Compose file specification"
+      }
+    };
+  }
   // Tear down a compose project's containers.
   rpc ComposeDown(ComposeDownRequest) returns (Empty);
 }
@@ -19,7 +27,7 @@ service ComposeService {
 // Parsed docker-compose.yml, produced by the compose importer.
 message ComposeSpec {
   // Compose project name (top-level `name:` or the directory name).
-  string name = 1;
+  string name = 1 [(gnostic.openapi.v3.property).example = {yaml: "'web'"}];
   // Absolute path of the docker-compose.yml this spec was parsed from.
   string path = 2;
   // Services in dependency order.
@@ -35,7 +43,7 @@ message ComposeSpec {
 // so the UI can show them as unsupported rather than silently dropping them.
 message ComposeServiceSpec {
   // Service name from the compose file.
-  string name = 1;
+  string name = 1 [(gnostic.openapi.v3.property).example = {yaml: "'web'"}];
   // Image reference for the service.
   string image = 2;
   // Build context dir if the service is built from a Dockerfile.
@@ -60,6 +68,7 @@ message ComposeServiceSpec {
   string restart = 12;
   // Resource caps (compose `cpus`, `mem_limit`).
   double cpus = 13;
+  // Memory limit as a compose quantity string, e.g. "512m".
   string memory = 14;
   // Healthcheck command; used for real readiness probes.
   string healthcheck_command = 15;
@@ -117,6 +126,7 @@ message ComposeServiceSpec {
   int32 healthcheck_start_period_seconds = 39;
   // Build stage target / platform for `build:` sections.
   string build_target = 40;
+  // Target platform for `build:` sections, e.g. "linux/arm64".
   string build_platform = 41;
   // `build.no_cache` / `build.pull` passthrough.
   bool build_no_cache = 44;
@@ -135,12 +145,14 @@ message ComposeServiceSpec {
 
 message ComposeVolume {
   // Volume name within the compose project.
-  string name = 1;
+  string name = 1 [(gnostic.openapi.v3.property).example = {yaml: "'web'"}];
   // References a pre-existing volume outside the project.
   bool external = 2;
   // Driver + driver options (`driver_opts`), labels.
   string driver = 3;
+  // Driver options (compose `driver_opts`).
   repeated string driver_opts = 4;
+  // Volume labels.
   repeated string labels = 5;
   // `external: {name: "…"}` override.
   string external_name = 6;
@@ -148,7 +160,7 @@ message ComposeVolume {
 
 message ComposeNetwork {
   // Network name within the compose project.
-  string name = 1;
+  string name = 1 [(gnostic.openapi.v3.property).example = {yaml: "'web'"}];
   // Isolate the network from external traffic.
   bool internal = 2;
   // References a pre-existing network outside the project.
@@ -157,6 +169,7 @@ message ComposeNetwork {
   string driver = 4;
   // Plugin options (compose `driver_opts` -> `--option`).
   repeated string driver_opts = 5;
+  // Network labels.
   repeated string labels = 6;
   // From `ipam.config[0].subnet` / `subnet_v6`.
   // IPv4 CIDR (from `ipam.config[0].subnet`).
@@ -170,16 +183,16 @@ message ComposeNetwork {
 // Bring a compose project up from a spec file — ComposeUp streams progress.
 message ComposeUpRequest {
   // Absolute path to the compose YAML on the host.
-  string path = 1 [(buf.validate.field).string.min_len = 1];
+  string path = 1 [(buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'/Users/me/proj/docker-compose.yml'"}];
   // Compose profiles to enable (service runs only when one matches).
-  repeated string profiles = 2;
+  repeated string profiles = 2 [(gnostic.openapi.v3.property).example = {yaml: "['dev']"}];
 }
 
 // One ComposeUp stream event: progress output lines, then a terminal
 // marker once every service is up.
 message ComposeUpEvent {
   // Progress output line — empty on the terminal event.
-  string line = 1;
+  string line = 1 [(gnostic.openapi.v3.property).example = {yaml: "'Creating web-web-1'"}];
   // Compose project name — set only on the terminal event.
   string name = 2;
   // True on the terminal event once every service is up.
@@ -189,5 +202,5 @@ message ComposeUpEvent {
 // Tear down a compose project's containers.
 message ComposeDownRequest {
   // Compose project name.
-  string name = 1 [(buf.validate.field).string.min_len = 1];
+  string name = 1 [(buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'web'"}];
 }

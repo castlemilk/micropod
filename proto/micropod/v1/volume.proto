@@ -5,6 +5,7 @@ package micropod.v1;
 option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
 
 import "buf/validate/validate.proto";
+import "gnostic/openapi/v3/annotations.proto";
 import "micropod/v1/api.proto";
 
 // Named volumes plus the mount policy applied on container create.
@@ -25,17 +26,17 @@ service VolumeService {
 // Curated volume, mapped from `container volume list`.
 message Volume {
   // Volume name (used as the ID).
-  string id = 1;
+  string id = 1 [(gnostic.openapi.v3.property).example = {yaml: "'data'"}];
   // Volume driver, e.g. "local".
-  string driver = 2;
+  string driver = 2 [(gnostic.openapi.v3.property).example = {yaml: "'local'"}];
   // Filesystem format, e.g. "ext4".
-  string format = 3;
+  string format = 3 [(gnostic.openapi.v3.property).example = {yaml: "'ext4'"}];
   // Volume size in bytes.
-  uint64 size_bytes = 4;
+  uint64 size_bytes = 4 [(gnostic.openapi.v3.property).example = {yaml: "10737418240"}];
   // Backing source (name or host path).
-  string source = 5;
+  string source = 5 [(gnostic.openapi.v3.property).example = {yaml: "'data'"}];
   // ISO8601 creation timestamp.
-  string created_at = 6;
+  string created_at = 6 [(gnostic.openapi.v3.property).example = {yaml: "'2026-01-15T10:30:00Z'"}, (gnostic.openapi.v3.property).format = "date-time"];
   // Metadata labels on the volume.
   map<string, string> labels = 7;
 }
@@ -78,17 +79,17 @@ message VolumePolicy {
     CACHE_MODE_AUTO = 3;
   }
   // Which named-volume mounts get clonefile-forked per container.
-  CloneMode clone_mode = 1;
+  CloneMode clone_mode = 1 [(gnostic.openapi.v3.property).example = {yaml: "'CLONE_MODE_LABELS'"}];
   // Volume names auto-cloned under `CLONE_MODE_GOLDENS`.
-  repeated string golden_volumes = 2;
+  repeated string golden_volumes = 2 [(gnostic.openapi.v3.property).example = {yaml: "['xcode-derived']"}];
   // Restrict cloning to job-labelled containers (`com.cuttlefish.job` /
   // `com.micropod.job`). Per-container clone labels always apply.
   bool jobs_only = 3;
   // Writeback sync mode override; `SYNC_MODE_UNSPECIFIED` keeps the
   // per-mount default.
-  SyncMode sync = 4;
+  SyncMode sync = 4 [(gnostic.openapi.v3.property).example = {yaml: "'SYNC_MODE_FSYNC'"}];
   // VZ disk-image cache mode.
-  CacheMode cache = 5;
+  CacheMode cache = 5 [(gnostic.openapi.v3.property).example = {yaml: "'CACHE_MODE_ON'"}];
 }
 
 message ListVolumesResponse {
@@ -98,16 +99,16 @@ message ListVolumesResponse {
 
 message CreateVolumeRequest {
   // Volume name.
-  string name = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  string name = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'data'"}];
   // Optional size limit, e.g. "10g".
-  optional string size = 2;
+  optional string size = 2 [(gnostic.openapi.v3.property).example = {yaml: "'10g'"}];
   // Labels applied to the volume ("key=value").
-  repeated string labels = 3;
+  repeated string labels = 3 [(gnostic.openapi.v3.property).example = {yaml: "['com.example.project=web']"}];
   // Driver options passed through to the volume driver.
   repeated string options = 4;
 }
 
 message DeleteVolumeRequest {
   // Volume name to remove.
-  string name = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  string name = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'data'"}];
 }

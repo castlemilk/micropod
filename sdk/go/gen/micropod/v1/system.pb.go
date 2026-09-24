@@ -7,6 +7,7 @@
 package micropodv1
 
 import (
+	_ "github.com/google/gnostic/openapiv3"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -947,17 +948,17 @@ var File_micropod_v1_system_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_system_proto_rawDesc = "" +
 	"\n" +
-	"\x18micropod/v1/system.proto\x12\vmicropod.v1\x1a\x15micropod/v1/api.proto\x1a\x17micropod/v1/image.proto\x1a\x18micropod/v1/volume.proto\"z\n" +
+	"\x18micropod/v1/system.proto\x12\vmicropod.v1\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\x1a\x17micropod/v1/image.proto\x1a\x18micropod/v1/volume.proto\"z\n" +
 	"\x0eSystemSnapshot\x121\n" +
 	"\x06status\x18\x01 \x01(\v2\x19.micropod.v1.SystemStatusR\x06status\x125\n" +
 	"\n" +
-	"disk_usage\x18\x02 \x01(\v2\x16.micropod.v1.DiskUsageR\tdiskUsage\"\xb3\x01\n" +
-	"\fSystemStatus\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status\x12\x19\n" +
-	"\bapp_root\x18\x02 \x01(\tR\aappRoot\x12!\n" +
-	"\finstall_root\x18\x03 \x01(\tR\vinstallRoot\x12,\n" +
-	"\x12api_server_version\x18\x04 \x01(\tR\x10apiServerVersion\x12\x1f\n" +
-	"\vcli_version\x18\x05 \x01(\tR\n" +
+	"disk_usage\x18\x02 \x01(\v2\x16.micropod.v1.DiskUsageR\tdiskUsage\"\xa0\x02\n" +
+	"\fSystemStatus\x12(\n" +
+	"\x06status\x18\x01 \x01(\tB\x10\xbaG\r:\v\x12\t'running'R\x06status\x12>\n" +
+	"\bapp_root\x18\x02 \x01(\tB#\xbaG :\x1e\x12\x1c'/Applications/Micropod.app'R\aappRoot\x127\n" +
+	"\finstall_root\x18\x03 \x01(\tB\x14\xbaG\x11:\x0f\x12\r'~/.micropod'R\vinstallRoot\x12<\n" +
+	"\x12api_server_version\x18\x04 \x01(\tB\x0e\xbaG\v:\t\x12\a'0.8.0'R\x10apiServerVersion\x12/\n" +
+	"\vcli_version\x18\x05 \x01(\tB\x0e\xbaG\v:\t\x12\a'0.7.0'R\n" +
 	"cliVersion\"\xe6\x01\n" +
 	"\tDiskUsage\x129\n" +
 	"\n" +
@@ -965,40 +966,45 @@ const file_micropod_v1_system_proto_rawDesc = "" +
 	"containers\x121\n" +
 	"\x06images\x18\x02 \x01(\v2\x19.micropod.v1.DiskCategoryR\x06images\x123\n" +
 	"\avolumes\x18\x03 \x01(\v2\x19.micropod.v1.DiskCategoryR\avolumes\x126\n" +
-	"\x17total_reclaimable_bytes\x18\x04 \x01(\x04R\x15totalReclaimableBytes\"\x88\x01\n" +
-	"\fDiskCategory\x12\x14\n" +
-	"\x05total\x18\x01 \x01(\x04R\x05total\x12\x16\n" +
-	"\x06active\x18\x02 \x01(\x04R\x06active\x12\x1d\n" +
+	"\x17total_reclaimable_bytes\x18\x04 \x01(\x04R\x15totalReclaimableBytes\"\xc3\x01\n" +
+	"\fDiskCategory\x12\x1f\n" +
+	"\x05total\x18\x01 \x01(\x04B\t\xbaG\x06:\x04\x12\x0212R\x05total\x12 \n" +
+	"\x06active\x18\x02 \x01(\x04B\b\xbaG\x05:\x03\x12\x015R\x06active\x120\n" +
 	"\n" +
-	"size_bytes\x18\x03 \x01(\x04R\tsizeBytes\x12+\n" +
-	"\x11reclaimable_bytes\x18\x04 \x01(\x04R\x10reclaimableBytes\"k\n" +
+	"size_bytes\x18\x03 \x01(\x04B\x11\xbaG\x0e:\f\x12\n" +
+	"4294967296R\tsizeBytes\x12>\n" +
+	"\x11reclaimable_bytes\x18\x04 \x01(\x04B\x11\xbaG\x0e:\f\x12\n" +
+	"1073741824R\x10reclaimableBytes\"\x96\x01\n" +
 	"\rStatsSnapshot\x12;\n" +
 	"\n" +
 	"containers\x18\x01 \x03(\v2\x1b.micropod.v1.ContainerStatsR\n" +
-	"containers\x12\x1d\n" +
+	"containers\x12H\n" +
 	"\n" +
-	"sampled_at\x18\x02 \x01(\tR\tsampledAt\"\xd9\x02\n" +
-	"\x0eContainerStats\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
-	"\vcpu_percent\x18\x02 \x01(\x01R\n" +
-	"cpuPercent\x12*\n" +
-	"\x11memory_used_bytes\x18\x03 \x01(\x04R\x0fmemoryUsedBytes\x12,\n" +
-	"\x12memory_limit_bytes\x18\x04 \x01(\x04R\x10memoryLimitBytes\x12(\n" +
-	"\x10network_rx_bytes\x18\x05 \x01(\x04R\x0enetworkRxBytes\x12(\n" +
-	"\x10network_tx_bytes\x18\x06 \x01(\x04R\x0enetworkTxBytes\x12(\n" +
-	"\x10block_read_bytes\x18\a \x01(\x04R\x0eblockReadBytes\x12*\n" +
-	"\x11block_write_bytes\x18\b \x01(\x04R\x0fblockWriteBytes\x12\x12\n" +
-	"\x04pids\x18\t \x01(\x04R\x04pids\"[\n" +
-	"\rRegistryLogin\x12\x16\n" +
-	"\x06server\x18\x01 \x01(\tR\x06server\x12\x1a\n" +
-	"\busername\x18\x02 \x01(\tR\busername\x12\x16\n" +
-	"\x06scheme\x18\x03 \x01(\tR\x06scheme\"\xbe\x04\n" +
+	"sampled_at\x18\x02 \x01(\tB)\xbaG&:\x18\x12\x16'2026-01-15T10:30:00Z'\x9a\x02\tdate-timeR\tsampledAt\"\xe1\x03\n" +
+	"\x0eContainerStats\x12\x1c\n" +
+	"\x02id\x18\x01 \x01(\tB\f\xbaG\t:\a\x12\x05'web'R\x02id\x12,\n" +
+	"\vcpu_percent\x18\x02 \x01(\x01B\v\xbaG\b:\x06\x12\x0412.5R\n" +
+	"cpuPercent\x12<\n" +
+	"\x11memory_used_bytes\x18\x03 \x01(\x04B\x10\xbaG\r:\v\x12\t134217728R\x0fmemoryUsedBytes\x12>\n" +
+	"\x12memory_limit_bytes\x18\x04 \x01(\x04B\x10\xbaG\r:\v\x12\t536870912R\x10memoryLimitBytes\x128\n" +
+	"\x10network_rx_bytes\x18\x05 \x01(\x04B\x0e\xbaG\v:\t\x12\a1048576R\x0enetworkRxBytes\x127\n" +
+	"\x10network_tx_bytes\x18\x06 \x01(\x04B\r\xbaG\n" +
+	":\b\x12\x06524288R\x0enetworkTxBytes\x128\n" +
+	"\x10block_read_bytes\x18\a \x01(\x04B\x0e\xbaG\v:\t\x12\a2097152R\x0eblockReadBytes\x12:\n" +
+	"\x11block_write_bytes\x18\b \x01(\x04B\x0e\xbaG\v:\t\x12\a1048576R\x0fblockWriteBytes\x12\x1c\n" +
+	"\x04pids\x18\t \x01(\x04B\b\xbaG\x05:\x03\x12\x017R\x04pids\"\x91\x01\n" +
+	"\rRegistryLogin\x12*\n" +
+	"\x06server\x18\x01 \x01(\tB\x12\xbaG\x0f:\r\x12\v'docker.io'R\x06server\x12,\n" +
+	"\busername\x18\x02 \x01(\tB\x10\xbaG\r:\v\x12\t'octocat'R\busername\x12&\n" +
+	"\x06scheme\x18\x03 \x01(\tB\x0e\xbaG\v:\t\x12\a'basic'R\x06scheme\"\xee\x04\n" +
 	"\vUsageReport\x12;\n" +
 	"\x06images\x18\x01 \x03(\v2#.micropod.v1.UsageReport.ImageUsageR\x06images\x12>\n" +
-	"\avolumes\x18\x02 \x03(\v2$.micropod.v1.UsageReport.VolumeUsageR\avolumes\x126\n" +
-	"\x17reclaimable_image_bytes\x18\x03 \x01(\x04R\x15reclaimableImageBytes\x128\n" +
-	"\x18reclaimable_volume_bytes\x18\x04 \x01(\x04R\x16reclaimableVolumeBytes\x126\n" +
-	"\x17stopped_container_count\x18\x05 \x01(\x05R\x15stoppedContainerCount\x1a\x80\x01\n" +
+	"\avolumes\x18\x02 \x03(\v2$.micropod.v1.UsageReport.VolumeUsageR\avolumes\x12I\n" +
+	"\x17reclaimable_image_bytes\x18\x03 \x01(\x04B\x11\xbaG\x0e:\f\x12\n" +
+	"2147483648R\x15reclaimableImageBytes\x12K\n" +
+	"\x18reclaimable_volume_bytes\x18\x04 \x01(\x04B\x11\xbaG\x0e:\f\x12\n" +
+	"1073741824R\x16reclaimableVolumeBytes\x12@\n" +
+	"\x17stopped_container_count\x18\x05 \x01(\x05B\b\xbaG\x05:\x03\x12\x012R\x15stoppedContainerCount\x1a\x80\x01\n" +
 	"\n" +
 	"ImageUsage\x12(\n" +
 	"\x05image\x18\x01 \x01(\v2\x12.micropod.v1.ImageR\x05image\x121\n" +
@@ -1007,20 +1013,20 @@ const file_micropod_v1_system_proto_rawDesc = "" +
 	"\vVolumeUsage\x12+\n" +
 	"\x06volume\x18\x01 \x01(\v2\x13.micropod.v1.VolumeR\x06volume\x121\n" +
 	"\x15used_by_container_ids\x18\x02 \x03(\tR\x12usedByContainerIds\x12\x15\n" +
-	"\x06in_use\x18\x03 \x01(\bR\x05inUse\"\xa7\x04\n" +
-	"\fUpdateStatus\x125\n" +
-	"\x05state\x18\x01 \x01(\x0e2\x1f.micropod.v1.UpdateStatus.StateR\x05state\x12'\n" +
-	"\x0ffeed_configured\x18\x02 \x01(\bR\x0efeedConfigured\x12'\n" +
-	"\x0fcurrent_version\x18\x03 \x01(\tR\x0ecurrentVersion\x12+\n" +
-	"\x11available_version\x18\x04 \x01(\tR\x10availableVersion\x12\x1e\n" +
+	"\x06in_use\x18\x03 \x01(\bR\x05inUse\"\xa3\x05\n" +
+	"\fUpdateStatus\x12V\n" +
+	"\x05state\x18\x01 \x01(\x0e2\x1f.micropod.v1.UpdateStatus.StateB\x1f\xbaG\x1c:\x1a\x12\x18'STATE_UPDATE_AVAILABLE'R\x05state\x12'\n" +
+	"\x0ffeed_configured\x18\x02 \x01(\bR\x0efeedConfigured\x127\n" +
+	"\x0fcurrent_version\x18\x03 \x01(\tB\x0e\xbaG\v:\t\x12\a'0.8.0'R\x0ecurrentVersion\x12;\n" +
+	"\x11available_version\x18\x04 \x01(\tB\x0e\xbaG\v:\t\x12\a'0.9.0'R\x10availableVersion\x12\x1e\n" +
 	"\n" +
 	"downloaded\x18\x05 \x01(\bR\n" +
-	"downloaded\x12-\n" +
-	"\x12downloaded_version\x18\x06 \x01(\tR\x11downloadedVersion\x12(\n" +
+	"downloaded\x12=\n" +
+	"\x12downloaded_version\x18\x06 \x01(\tB\x0e\xbaG\v:\t\x12\a'0.9.0'R\x11downloadedVersion\x12(\n" +
 	"\x10ready_to_install\x18\a \x01(\bR\x0ereadyToInstall\x12\x14\n" +
-	"\x05error\x18\b \x01(\tR\x05error\x12\x1d\n" +
+	"\x05error\x18\b \x01(\tR\x05error\x12H\n" +
 	"\n" +
-	"checked_at\x18\t \x01(\tR\tcheckedAt\"\xb2\x01\n" +
+	"checked_at\x18\t \x01(\tB)\xbaG&:\x18\x12\x16'2026-01-15T10:30:00Z'\x9a\x02\tdate-timeR\tcheckedAt\"\xb2\x01\n" +
 	"\x05State\x12\x15\n" +
 	"\x11STATE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11STATE_UNAVAILABLE\x10\x01\x12\x0e\n" +

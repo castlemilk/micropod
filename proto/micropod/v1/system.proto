@@ -4,6 +4,7 @@ package micropod.v1;
 
 option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
 
+import "gnostic/openapi/v3/annotations.proto";
 import "micropod/v1/api.proto";
 import "micropod/v1/image.proto";
 import "micropod/v1/volume.proto";
@@ -36,15 +37,15 @@ message SystemSnapshot {
 // Runtime health, mapped from `container system status`.
 message SystemStatus {
   // "running" or "stopped".
-  string status = 1;
+  string status = 1 [(gnostic.openapi.v3.property).example = {yaml: "'running'"}];
   // Path to the installed Micropod.app bundle.
-  string app_root = 2;
+  string app_root = 2 [(gnostic.openapi.v3.property).example = {yaml: "'/Applications/Micropod.app'"}];
   // Runtime install root (binaries, kernels, images).
-  string install_root = 3;
+  string install_root = 3 [(gnostic.openapi.v3.property).example = {yaml: "'~/.micropod'"}];
   // Version of the embedded API server.
-  string api_server_version = 4;
+  string api_server_version = 4 [(gnostic.openapi.v3.property).example = {yaml: "'0.8.0'"}];
   // Version of the bundled `container` CLI.
-  string cli_version = 5;
+  string cli_version = 5 [(gnostic.openapi.v3.property).example = {yaml: "'0.7.0'"}];
 }
 
 // Disk usage, mapped from `container system df`.
@@ -61,13 +62,13 @@ message DiskUsage {
 
 message DiskCategory {
   // Total objects in the category.
-  uint64 total = 1;
+  uint64 total = 1 [(gnostic.openapi.v3.property).example = {yaml: "12"}];
   // Objects currently referenced by a running workload.
-  uint64 active = 2;
+  uint64 active = 2 [(gnostic.openapi.v3.property).example = {yaml: "5"}];
   // On-disk size of the category in bytes.
-  uint64 size_bytes = 3;
+  uint64 size_bytes = 3 [(gnostic.openapi.v3.property).example = {yaml: "4294967296"}];
   // Bytes freed if inactive objects were pruned.
-  uint64 reclaimable_bytes = 4;
+  uint64 reclaimable_bytes = 4 [(gnostic.openapi.v3.property).example = {yaml: "1073741824"}];
 }
 
 // Single snapshot of runtime resource usage for all running containers,
@@ -76,39 +77,39 @@ message StatsSnapshot {
   // Per-container stats, one entry per running container.
   repeated ContainerStats containers = 1;
   // ISO8601 timestamp the snapshot was taken.
-  string sampled_at = 2;
+  string sampled_at = 2 [(gnostic.openapi.v3.property).example = {yaml: "'2026-01-15T10:30:00Z'"}, (gnostic.openapi.v3.property).format = "date-time"];
 }
 
 // Per-container resource counters within a StatsSnapshot.
 message ContainerStats {
   // Container ID.
-  string id = 1;
+  string id = 1 [(gnostic.openapi.v3.property).example = {yaml: "'web'"}];
   // CPU usage as a percentage of one core.
-  double cpu_percent = 2;
+  double cpu_percent = 2 [(gnostic.openapi.v3.property).example = {yaml: "12.5"}];
   // Resident memory in bytes.
-  uint64 memory_used_bytes = 3;
+  uint64 memory_used_bytes = 3 [(gnostic.openapi.v3.property).example = {yaml: "134217728"}];
   // Configured memory limit in bytes.
-  uint64 memory_limit_bytes = 4;
+  uint64 memory_limit_bytes = 4 [(gnostic.openapi.v3.property).example = {yaml: "536870912"}];
   // Bytes received over the container network.
-  uint64 network_rx_bytes = 5;
+  uint64 network_rx_bytes = 5 [(gnostic.openapi.v3.property).example = {yaml: "1048576"}];
   // Bytes transmitted over the container network.
-  uint64 network_tx_bytes = 6;
+  uint64 network_tx_bytes = 6 [(gnostic.openapi.v3.property).example = {yaml: "524288"}];
   // Bytes read from the block device.
-  uint64 block_read_bytes = 7;
+  uint64 block_read_bytes = 7 [(gnostic.openapi.v3.property).example = {yaml: "2097152"}];
   // Bytes written to the block device.
-  uint64 block_write_bytes = 8;
+  uint64 block_write_bytes = 8 [(gnostic.openapi.v3.property).example = {yaml: "1048576"}];
   // Number of processes inside the container.
-  uint64 pids = 9;
+  uint64 pids = 9 [(gnostic.openapi.v3.property).example = {yaml: "7"}];
 }
 
 // A registry login, mapped from `container registry list`.
 message RegistryLogin {
   // Registry hostname, e.g. "docker.io".
-  string server = 1;
+  string server = 1 [(gnostic.openapi.v3.property).example = {yaml: "'docker.io'"}];
   // Account username stored for the registry.
-  string username = 2;
+  string username = 2 [(gnostic.openapi.v3.property).example = {yaml: "'octocat'"}];
   // Auth scheme in use, e.g. "basic" or "oauth".
-  string scheme = 3;
+  string scheme = 3 [(gnostic.openapi.v3.property).example = {yaml: "'basic'"}];
 }
 
 // What a cleanup would reclaim: every image and volume annotated with the
@@ -137,11 +138,11 @@ message UsageReport {
   // Every local volume with its mounting containers.
   repeated VolumeUsage volumes = 2;
   // Bytes reclaimable by pruning unreferenced images.
-  uint64 reclaimable_image_bytes = 3;
+  uint64 reclaimable_image_bytes = 3 [(gnostic.openapi.v3.property).example = {yaml: "2147483648"}];
   // Bytes reclaimable by pruning unmounted volumes.
-  uint64 reclaimable_volume_bytes = 4;
+  uint64 reclaimable_volume_bytes = 4 [(gnostic.openapi.v3.property).example = {yaml: "1073741824"}];
   // Number of stopped containers.
-  int32 stopped_container_count = 5;
+  int32 stopped_container_count = 5 [(gnostic.openapi.v3.property).example = {yaml: "2"}];
 }
 
 // Desktop-app updater status (Sparkle), proxied over the app control
@@ -167,21 +168,21 @@ message UpdateStatus {
     STATE_ERROR = 7;
   }
   // Updater lifecycle state.
-  State state = 1;
+  State state = 1 [(gnostic.openapi.v3.property).example = {yaml: "'STATE_UPDATE_AVAILABLE'"}];
   // Whether a Sparkle feed URL is configured.
   bool feed_configured = 2;
   // Currently running app version.
-  string current_version = 3;
+  string current_version = 3 [(gnostic.openapi.v3.property).example = {yaml: "'0.8.0'"}];
   // Version available on the feed, if an update was found.
-  string available_version = 4;
+  string available_version = 4 [(gnostic.openapi.v3.property).example = {yaml: "'0.9.0'"}];
   // True once an update has finished downloading.
   bool downloaded = 5;
   // Version staged for install.
-  string downloaded_version = 6;
+  string downloaded_version = 6 [(gnostic.openapi.v3.property).example = {yaml: "'0.9.0'"}];
   // True when ApplyUpdate will succeed immediately.
   bool ready_to_install = 7;
   // Last updater error, when `state` is STATE_ERROR.
   string error = 8;
   // ISO8601 time of the last completed check.
-  string checked_at = 9;
+  string checked_at = 9 [(gnostic.openapi.v3.property).example = {yaml: "'2026-01-15T10:30:00Z'"}, (gnostic.openapi.v3.property).format = "date-time"];
 }

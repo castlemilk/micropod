@@ -8,6 +8,7 @@ package micropodv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/google/gnostic/openapiv3"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -545,27 +546,30 @@ var File_micropod_v1_volume_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_volume_proto_rawDesc = "" +
 	"\n" +
-	"\x18micropod/v1/volume.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a\x15micropod/v1/api.proto\"\x92\x02\n" +
-	"\x06Volume\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
-	"\x06driver\x18\x02 \x01(\tR\x06driver\x12\x16\n" +
-	"\x06format\x18\x03 \x01(\tR\x06format\x12\x1d\n" +
+	"\x18micropod/v1/volume.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\"\x8e\x03\n" +
+	"\x06Volume\x12\x1d\n" +
+	"\x02id\x18\x01 \x01(\tB\r\xbaG\n" +
+	":\b\x12\x06'data'R\x02id\x12&\n" +
+	"\x06driver\x18\x02 \x01(\tB\x0e\xbaG\v:\t\x12\a'local'R\x06driver\x12%\n" +
+	"\x06format\x18\x03 \x01(\tB\r\xbaG\n" +
+	":\b\x12\x06'ext4'R\x06format\x121\n" +
 	"\n" +
-	"size_bytes\x18\x04 \x01(\x04R\tsizeBytes\x12\x16\n" +
-	"\x06source\x18\x05 \x01(\tR\x06source\x12\x1d\n" +
+	"size_bytes\x18\x04 \x01(\x04B\x12\xbaG\x0f:\r\x12\v10737418240R\tsizeBytes\x12%\n" +
+	"\x06source\x18\x05 \x01(\tB\r\xbaG\n" +
+	":\b\x12\x06'data'R\x06source\x12H\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\tR\tcreatedAt\x127\n" +
+	"created_at\x18\x06 \x01(\tB)\xbaG&:\x18\x12\x16'2026-01-15T10:30:00Z'\x9a\x02\tdate-timeR\tcreatedAt\x127\n" +
 	"\x06labels\x18\a \x03(\v2\x1f.micropod.v1.Volume.LabelsEntryR\x06labels\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc0\x04\n" +
-	"\fVolumePolicy\x12B\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa8\x05\n" +
+	"\fVolumePolicy\x12^\n" +
 	"\n" +
-	"clone_mode\x18\x01 \x01(\x0e2#.micropod.v1.VolumePolicy.CloneModeR\tcloneMode\x12%\n" +
-	"\x0egolden_volumes\x18\x02 \x03(\tR\rgoldenVolumes\x12\x1b\n" +
-	"\tjobs_only\x18\x03 \x01(\bR\bjobsOnly\x126\n" +
-	"\x04sync\x18\x04 \x01(\x0e2\".micropod.v1.VolumePolicy.SyncModeR\x04sync\x129\n" +
-	"\x05cache\x18\x05 \x01(\x0e2#.micropod.v1.VolumePolicy.CacheModeR\x05cache\"j\n" +
+	"clone_mode\x18\x01 \x01(\x0e2#.micropod.v1.VolumePolicy.CloneModeB\x1a\xbaG\x17:\x15\x12\x13'CLONE_MODE_LABELS'R\tcloneMode\x12?\n" +
+	"\x0egolden_volumes\x18\x02 \x03(\tB\x18\xbaG\x15:\x13\x12\x11['xcode-derived']R\rgoldenVolumes\x12\x1b\n" +
+	"\tjobs_only\x18\x03 \x01(\bR\bjobsOnly\x12P\n" +
+	"\x04sync\x18\x04 \x01(\x0e2\".micropod.v1.VolumePolicy.SyncModeB\x18\xbaG\x15:\x13\x12\x11'SYNC_MODE_FSYNC'R\x04sync\x12Q\n" +
+	"\x05cache\x18\x05 \x01(\x0e2#.micropod.v1.VolumePolicy.CacheModeB\x16\xbaG\x13:\x11\x12\x0f'CACHE_MODE_ON'R\x05cache\"j\n" +
 	"\tCloneMode\x12\x1a\n" +
 	"\x16CLONE_MODE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11CLONE_MODE_LABELS\x10\x01\x12\x16\n" +
@@ -582,17 +586,17 @@ const file_micropod_v1_volume_proto_rawDesc = "" +
 	"\x0eCACHE_MODE_OFF\x10\x02\x12\x13\n" +
 	"\x0fCACHE_MODE_AUTO\x10\x03\"D\n" +
 	"\x13ListVolumesResponse\x12-\n" +
-	"\avolumes\x18\x01 \x03(\v2\x13.micropod.v1.VolumeR\avolumes\"\x89\x01\n" +
-	"\x13CreateVolumeRequest\x12\x1e\n" +
-	"\x04name\x18\x01 \x01(\tB\n" +
-	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name\x12\x17\n" +
-	"\x04size\x18\x02 \x01(\tH\x00R\x04size\x88\x01\x01\x12\x16\n" +
-	"\x06labels\x18\x03 \x03(\tR\x06labels\x12\x18\n" +
+	"\avolumes\x18\x01 \x03(\v2\x13.micropod.v1.VolumeR\avolumes\"\xc8\x01\n" +
+	"\x13CreateVolumeRequest\x12+\n" +
+	"\x04name\x18\x01 \x01(\tB\x17\xbaG\n" +
+	":\b\x12\x06'data'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name\x12%\n" +
+	"\x04size\x18\x02 \x01(\tB\f\xbaG\t:\a\x12\x05'10g'H\x00R\x04size\x88\x01\x01\x12:\n" +
+	"\x06labels\x18\x03 \x03(\tB\"\xbaG\x1f:\x1d\x12\x1b['com.example.project=web']R\x06labels\x12\x18\n" +
 	"\aoptions\x18\x04 \x03(\tR\aoptionsB\a\n" +
-	"\x05_size\"5\n" +
-	"\x13DeleteVolumeRequest\x12\x1e\n" +
-	"\x04name\x18\x01 \x01(\tB\n" +
-	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name2\xeb\x02\n" +
+	"\x05_size\"B\n" +
+	"\x13DeleteVolumeRequest\x12+\n" +
+	"\x04name\x18\x01 \x01(\tB\x17\xbaG\n" +
+	":\b\x12\x06'data'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name2\xeb\x02\n" +
 	"\rVolumeService\x12C\n" +
 	"\vListVolumes\x12\x12.micropod.v1.Empty\x1a .micropod.v1.ListVolumesResponse\x12D\n" +
 	"\fCreateVolume\x12 .micropod.v1.CreateVolumeRequest\x1a\x12.micropod.v1.Empty\x12D\n" +

@@ -3,6 +3,7 @@ syntax = "proto3";
 package micropod.v1;
 
 import "buf/validate/validate.proto";
+import "gnostic/openapi/v3/annotations.proto";
 import "micropod/v1/api.proto";
 import "micropod/v1/system.proto";
 
@@ -32,31 +33,38 @@ service ContainerService {
   // Point-in-time resource usage for all running containers.
   rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
   // Run a command inside a running container and return its output.
-  rpc Exec(ExecRequest) returns (ExecResponse);
+  rpc Exec(ExecRequest) returns (ExecResponse) {
+    option (gnostic.openapi.v3.operation) = {
+      external_docs: {
+        url: "https://docs.docker.com/reference/cli/docker/container/exec/"
+        description: "docker exec semantics"
+      }
+    };
+  }
 }
 
 // Curated view of a container, mapped from `container list --format json`.
 message Container {
   // The container ID; `container` uses the user-assigned name as the ID.
-  string id = 1;
+  string id = 1 [(gnostic.openapi.v3.property).example = {yaml: "'web'"}];
   // Image reference the container was created from.
-  string image = 2;
+  string image = 2 [(gnostic.openapi.v3.property).example = {yaml: "'alpine:3.20'"}];
   // Lifecycle state: running, stopped, exited, created, ...
-  string state = 3;
+  string state = 3 [(gnostic.openapi.v3.property).example = {yaml: "'running'"}];
   // ISO8601 creation timestamp.
-  string created_at = 4;
+  string created_at = 4 [(gnostic.openapi.v3.property).example = {yaml: "'2026-01-15T10:30:00Z'"}, (gnostic.openapi.v3.property).format = "date-time"];
   // Configured CPU/memory limits.
   ContainerResources resources = 5;
   // Platform string, e.g. "linux/arm64".
-  string platform = 6;
+  string platform = 6 [(gnostic.openapi.v3.property).example = {yaml: "'linux/arm64'"}];
   // Published host→container port mappings.
   repeated PortMapping published_ports = 7;
   // Mounted volumes and binds.
   repeated Mount mounts = 8;
   // Names of networks the container is attached to.
-  repeated string networks = 9;
+  repeated string networks = 9 [(gnostic.openapi.v3.property).example = {yaml: "['backend']"}];
   // Resolved IPv4 address on the container network, if running.
-  string ipv4_address = 10;
+  string ipv4_address = 10 [(gnostic.openapi.v3.property).example = {yaml: "'192.168.64.3'"}, (gnostic.openapi.v3.property).format = "ipv4"];
   // Environment variables as KEY=value pairs.
   repeated string env = 11;
   // Metadata labels on the container.
@@ -79,31 +87,31 @@ message Container {
 
 message ContainerResources {
   // CPU limit in cores.
-  double cpus = 1;
+  double cpus = 1 [(gnostic.openapi.v3.property).example = {yaml: "2"}];
   // Memory limit in bytes.
-  uint64 memory_bytes = 2;
+  uint64 memory_bytes = 2 [(gnostic.openapi.v3.property).example = {yaml: "536870912"}];
 }
 
 // A published port mapping between host and container.
 message PortMapping {
   // Port on the host.
-  uint32 host_port = 1 [(buf.validate.field).uint32.lte = 65535];
+  uint32 host_port = 1 [(buf.validate.field).uint32.lte = 65535, (gnostic.openapi.v3.property).example = {yaml: "8080"}];
   // Port inside the container.
   uint32 container_port = 2 [(buf.validate.field).required = true, (buf.validate.field).uint32.lte = 65535];
   // "tcp" or "udp".
-  string protocol = 3;
+  string protocol = 3 [(gnostic.openapi.v3.property).example = {yaml: "'tcp'"}];
   // Host interface IP to bind (empty = all interfaces).
-  string host_ip = 4;
+  string host_ip = 4 [(gnostic.openapi.v3.property).example = {yaml: "'127.0.0.1'"}, (gnostic.openapi.v3.property).format = "ipv4"];
 }
 
 // A volume or bind mount inside the container.
 message Mount {
   // Mount kind: "volume" or "bind".
-  string type = 1;
+  string type = 1 [(gnostic.openapi.v3.property).example = {yaml: "'volume'"}];
   // Volume name or host path.
-  string source = 2;
+  string source = 2 [(gnostic.openapi.v3.property).example = {yaml: "'data'"}];
   // Path inside the container.
-  string destination = 3;
+  string destination = 3 [(gnostic.openapi.v3.property).example = {yaml: "'/data'"}];
   // Mount is read-only.
   bool read_only = 4;
 }
@@ -111,7 +119,7 @@ message Mount {
 // Reference to an existing container (or the ID returned by run/create).
 message ContainerRef {
   // Container ID — `container` uses the user-assigned name as the ID.
-  string id = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  string id = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'web'"}];
 }
 
 message ListContainersResponse {
@@ -122,41 +130,45 @@ message ListContainersResponse {
 // Shared request shape for run + create (docker run / docker create).
 message RunContainerRequest {
   // Image reference to run, e.g. "alpine:3.20". Pulled if not present locally.
-  string image = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  string image = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1,
+    (gnostic.openapi.v3.property).example = {yaml: "'alpine:3.20'"}
+  ];
   // Optional container name; becomes the container ID.
-  optional string name = 2;
+  optional string name = 2 [(gnostic.openapi.v3.property).example = {yaml: "'web'"}];
   // Return immediately instead of streaming/attaching.
-  bool detach = 3;
+  bool detach = 3 [(gnostic.openapi.v3.property).example = {yaml: "true"}];
   // CPU limit in cores, e.g. 0.5 for half a core.
-  optional double cpus = 4 [(buf.validate.field).double.gt = 0];
+  optional double cpus = 4 [(buf.validate.field).double.gt = 0, (gnostic.openapi.v3.property).example = {yaml: "2"}];
   // Memory limit, e.g. "512m" or "4g".
-  optional string memory = 5;
+  optional string memory = 5 [(gnostic.openapi.v3.property).example = {yaml: "'512m'"}];
   // Environment variables as KEY=value pairs.
-  repeated string env = 6;
+  repeated string env = 6 [(gnostic.openapi.v3.property).example = {yaml: "['DEBUG=true']"}];
   // Published port mappings (host → container).
   repeated PortMapping ports = 7;
   // Bind/volume mounts as "name-or-path:/mount" specs.
-  repeated string volumes = 8;
+  repeated string volumes = 8 [(gnostic.openapi.v3.property).example = {yaml: "['data:/data']"}];
   // Arbitrary metadata labels on the container.
   map<string, string> labels = 9;
   // Run an init process as PID 1 to reap zombies.
   bool init = 10;
   // Command + args override (image entrypoint is used when empty).
-  repeated string arguments = 11;
+  repeated string arguments = 11 [(gnostic.openapi.v3.property).example = {yaml: "['echo', 'hello']"}];
 }
 
 message DeleteContainerRequest {
   // Container ID (or name).
-  string id = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  string id = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'web'"}];
   // Remove even if the container is still running.
-  bool force = 2;
+  bool force = 2 [(gnostic.openapi.v3.property).example = {yaml: "true"}];
 }
 
 message StreamLogsRequest {
   // Container ID (or name) to stream logs from.
-  string id = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  string id = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'web'"}];
   // Number of lines to replay from the end of the log before following.
-  int32 tail = 2 [(buf.validate.field).int32.gte = 0];
+  int32 tail = 2 [(buf.validate.field).int32.gte = 0, (gnostic.openapi.v3.property).example = {yaml: "200"}];
   // Include the vminitd guest boot log.
   bool boot = 3;
 }
@@ -164,7 +176,7 @@ message StreamLogsRequest {
 // One streamed log line (StreamContainerLogs event).
 message LogChunk {
   // A single line of container output.
-  string text = 1;
+  string text = 1 [(gnostic.openapi.v3.property).example = {yaml: "'GET /healthz 200'"}];
 }
 
 message GetStatsRequest {}
@@ -176,21 +188,21 @@ message GetStatsResponse {
 
 message ExecRequest {
   // Container ID (or name) to exec into.
-  string id = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  string id = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'web'"}];
   // Command to run inside the container.
-  string command = 2 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  string command = 2 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'/bin/sh'"}];
   // Working directory for the command.
-  optional string workdir = 3;
+  optional string workdir = 3 [(gnostic.openapi.v3.property).example = {yaml: "'/app'"}];
   // Extra environment variables as KEY=value pairs.
-  repeated string env = 4;
+  repeated string env = 4 [(gnostic.openapi.v3.property).example = {yaml: "['TERM=xterm']"}];
 }
 
 message ExecResponse {
   // Combined stdout (and stderr when not separable) of the command.
-  string output = 1;
+  string output = 1 [(gnostic.openapi.v3.property).example = {yaml: "'hello\n'"}];
   // Guest process exit code. 0 on success; when the native runtime backend
   // is active this is the real exit status rather than a CLI approximation.
-  int32 exit_code = 2;
+  int32 exit_code = 2 [(gnostic.openapi.v3.property).example = {yaml: "0"}];
   // Guest stderr, when the backend can separate the streams.
   string error = 3;
 }

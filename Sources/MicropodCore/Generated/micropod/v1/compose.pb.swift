@@ -132,6 +132,7 @@ public nonisolated struct Micropod_V1_ComposeServiceSpec: @unchecked Sendable {
     set {_uniqueStorage()._cpus = newValue}
   }
 
+  /// Memory limit as a compose quantity string, e.g. "512m".
   public var memory: String {
     get {_storage._memory}
     set {_uniqueStorage()._memory = newValue}
@@ -294,6 +295,7 @@ public nonisolated struct Micropod_V1_ComposeServiceSpec: @unchecked Sendable {
     set {_uniqueStorage()._buildTarget = newValue}
   }
 
+  /// Target platform for `build:` sections, e.g. "linux/arm64".
   public var buildPlatform: String {
     get {_storage._buildPlatform}
     set {_uniqueStorage()._buildPlatform = newValue}
@@ -353,8 +355,10 @@ public nonisolated struct Micropod_V1_ComposeVolume: Sendable {
   /// Driver + driver options (`driver_opts`), labels.
   public var driver: String = String()
 
+  /// Driver options (compose `driver_opts`).
   public var driverOpts: [String] = []
 
+  /// Volume labels.
   public var labels: [String] = []
 
   /// `external: {name: "…"}` override.
@@ -385,6 +389,7 @@ public nonisolated struct Micropod_V1_ComposeNetwork: Sendable {
   /// Plugin options (compose `driver_opts` -> `--option`).
   public var driverOpts: [String] = []
 
+  /// Network labels.
   public var labels: [String] = []
 
   /// From `ipam.config[0].subnet` / `subnet_v6`.

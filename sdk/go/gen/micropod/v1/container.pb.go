@@ -8,6 +8,7 @@ package micropodv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/google/gnostic/openapiv3"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -1041,20 +1042,20 @@ var File_micropod_v1_container_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_container_proto_rawDesc = "" +
 	"\n" +
-	"\x1bmicropod/v1/container.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a\x15micropod/v1/api.proto\x1a\x18micropod/v1/system.proto\"\xca\x05\n" +
-	"\tContainer\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05image\x18\x02 \x01(\tR\x05image\x12\x14\n" +
-	"\x05state\x18\x03 \x01(\tR\x05state\x12\x1d\n" +
+	"\x1bmicropod/v1/container.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\x1a\x18micropod/v1/system.proto\"\xf3\x06\n" +
+	"\tContainer\x12\x1c\n" +
+	"\x02id\x18\x01 \x01(\tB\f\xbaG\t:\a\x12\x05'web'R\x02id\x12*\n" +
+	"\x05image\x18\x02 \x01(\tB\x14\xbaG\x11:\x0f\x12\r'alpine:3.20'R\x05image\x12&\n" +
+	"\x05state\x18\x03 \x01(\tB\x10\xbaG\r:\v\x12\t'running'R\x05state\x12H\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12=\n" +
-	"\tresources\x18\x05 \x01(\v2\x1f.micropod.v1.ContainerResourcesR\tresources\x12\x1a\n" +
-	"\bplatform\x18\x06 \x01(\tR\bplatform\x12A\n" +
+	"created_at\x18\x04 \x01(\tB)\xbaG&:\x18\x12\x16'2026-01-15T10:30:00Z'\x9a\x02\tdate-timeR\tcreatedAt\x12=\n" +
+	"\tresources\x18\x05 \x01(\v2\x1f.micropod.v1.ContainerResourcesR\tresources\x120\n" +
+	"\bplatform\x18\x06 \x01(\tB\x14\xbaG\x11:\x0f\x12\r'linux/arm64'R\bplatform\x12A\n" +
 	"\x0fpublished_ports\x18\a \x03(\v2\x18.micropod.v1.PortMappingR\x0epublishedPorts\x12*\n" +
-	"\x06mounts\x18\b \x03(\v2\x12.micropod.v1.MountR\x06mounts\x12\x1a\n" +
-	"\bnetworks\x18\t \x03(\tR\bnetworks\x12!\n" +
+	"\x06mounts\x18\b \x03(\v2\x12.micropod.v1.MountR\x06mounts\x12.\n" +
+	"\bnetworks\x18\t \x03(\tB\x12\xbaG\x0f:\r\x12\v['backend']R\bnetworks\x12?\n" +
 	"\fipv4_address\x18\n" +
-	" \x01(\tR\vipv4Address\x12\x10\n" +
+	" \x01(\tB\x1c\xbaG\x19:\x10\x12\x0e'192.168.64.3'\x9a\x02\x04ipv4R\vipv4Address\x12\x10\n" +
 	"\x03env\x18\v \x03(\tR\x03env\x12:\n" +
 	"\x06labels\x18\f \x03(\v2\".micropod.v1.Container.LabelsEntryR\x06labels\x12\x18\n" +
 	"\arosetta\x18\r \x01(\bR\arosetta\x12\x1b\n" +
@@ -1066,74 +1067,74 @@ const file_micropod_v1_container_proto_rawDesc = "" +
 	"\texit_code\x18\x13 \x01(\tR\bexitCode\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"K\n" +
-	"\x12ContainerResources\x12\x12\n" +
-	"\x04cpus\x18\x01 \x01(\x01R\x04cpus\x12!\n" +
-	"\fmemory_bytes\x18\x02 \x01(\x04R\vmemoryBytes\"\x9f\x01\n" +
-	"\vPortMapping\x12&\n" +
-	"\thost_port\x18\x01 \x01(\rB\t\xbaH\x06*\x04\x18\xff\xff\x03R\bhostPort\x123\n" +
-	"\x0econtainer_port\x18\x02 \x01(\rB\f\xbaH\t\xc8\x01\x01*\x04\x18\xff\xff\x03R\rcontainerPort\x12\x1a\n" +
-	"\bprotocol\x18\x03 \x01(\tR\bprotocol\x12\x17\n" +
-	"\ahost_ip\x18\x04 \x01(\tR\x06hostIp\"r\n" +
-	"\x05Mount\x12\x12\n" +
-	"\x04type\x18\x01 \x01(\tR\x04type\x12\x16\n" +
-	"\x06source\x18\x02 \x01(\tR\x06source\x12 \n" +
-	"\vdestination\x18\x03 \x01(\tR\vdestination\x12\x1b\n" +
-	"\tread_only\x18\x04 \x01(\bR\breadOnly\"*\n" +
-	"\fContainerRef\x12\x1a\n" +
-	"\x02id\x18\x01 \x01(\tB\n" +
-	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\"P\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"g\n" +
+	"\x12ContainerResources\x12\x1c\n" +
+	"\x04cpus\x18\x01 \x01(\x01B\b\xbaG\x05:\x03\x12\x012R\x04cpus\x123\n" +
+	"\fmemory_bytes\x18\x02 \x01(\x04B\x10\xbaG\r:\v\x12\t536870912R\vmemoryBytes\"\xd3\x01\n" +
+	"\vPortMapping\x121\n" +
+	"\thost_port\x18\x01 \x01(\rB\x14\xbaG\b:\x06\x12\x048080\xbaH\x06*\x04\x18\xff\xff\x03R\bhostPort\x123\n" +
+	"\x0econtainer_port\x18\x02 \x01(\rB\f\xbaH\t\xc8\x01\x01*\x04\x18\xff\xff\x03R\rcontainerPort\x12(\n" +
+	"\bprotocol\x18\x03 \x01(\tB\f\xbaG\t:\a\x12\x05'tcp'R\bprotocol\x122\n" +
+	"\ahost_ip\x18\x04 \x01(\tB\x19\xbaG\x16:\r\x12\v'127.0.0.1'\x9a\x02\x04ipv4R\x06hostIp\"\xa2\x01\n" +
+	"\x05Mount\x12#\n" +
+	"\x04type\x18\x01 \x01(\tB\x0f\xbaG\f:\n" +
+	"\x12\b'volume'R\x04type\x12%\n" +
+	"\x06source\x18\x02 \x01(\tB\r\xbaG\n" +
+	":\b\x12\x06'data'R\x06source\x120\n" +
+	"\vdestination\x18\x03 \x01(\tB\x0e\xbaG\v:\t\x12\a'/data'R\vdestination\x12\x1b\n" +
+	"\tread_only\x18\x04 \x01(\bR\breadOnly\"6\n" +
+	"\fContainerRef\x12&\n" +
+	"\x02id\x18\x01 \x01(\tB\x16\xbaG\t:\a\x12\x05'web'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\"P\n" +
 	"\x16ListContainersResponse\x126\n" +
 	"\n" +
 	"containers\x18\x01 \x03(\v2\x16.micropod.v1.ContainerR\n" +
-	"containers\"\xda\x03\n" +
-	"\x13RunContainerRequest\x12 \n" +
-	"\x05image\x18\x01 \x01(\tB\n" +
-	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x05image\x12\x17\n" +
-	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x16\n" +
-	"\x06detach\x18\x03 \x01(\bR\x06detach\x12'\n" +
-	"\x04cpus\x18\x04 \x01(\x01B\x0e\xbaH\v\x12\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x01R\x04cpus\x88\x01\x01\x12\x1b\n" +
-	"\x06memory\x18\x05 \x01(\tH\x02R\x06memory\x88\x01\x01\x12\x10\n" +
-	"\x03env\x18\x06 \x03(\tR\x03env\x12.\n" +
-	"\x05ports\x18\a \x03(\v2\x18.micropod.v1.PortMappingR\x05ports\x12\x18\n" +
-	"\avolumes\x18\b \x03(\tR\avolumes\x12D\n" +
+	"containers\"\xe8\x04\n" +
+	"\x13RunContainerRequest\x124\n" +
+	"\x05image\x18\x01 \x01(\tB\x1e\xbaG\x11:\x0f\x12\r'alpine:3.20'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x05image\x12%\n" +
+	"\x04name\x18\x02 \x01(\tB\f\xbaG\t:\a\x12\x05'web'H\x00R\x04name\x88\x01\x01\x12#\n" +
+	"\x06detach\x18\x03 \x01(\bB\v\xbaG\b:\x06\x12\x04trueR\x06detach\x12/\n" +
+	"\x04cpus\x18\x04 \x01(\x01B\x16\xbaG\x05:\x03\x12\x012\xbaH\v\x12\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x01R\x04cpus\x88\x01\x01\x12*\n" +
+	"\x06memory\x18\x05 \x01(\tB\r\xbaG\n" +
+	":\b\x12\x06'512m'H\x02R\x06memory\x88\x01\x01\x12'\n" +
+	"\x03env\x18\x06 \x03(\tB\x15\xbaG\x12:\x10\x12\x0e['DEBUG=true']R\x03env\x12.\n" +
+	"\x05ports\x18\a \x03(\v2\x18.micropod.v1.PortMappingR\x05ports\x12/\n" +
+	"\avolumes\x18\b \x03(\tB\x15\xbaG\x12:\x10\x12\x0e['data:/data']R\avolumes\x12D\n" +
 	"\x06labels\x18\t \x03(\v2,.micropod.v1.RunContainerRequest.LabelsEntryR\x06labels\x12\x12\n" +
 	"\x04init\x18\n" +
-	" \x01(\bR\x04init\x12\x1c\n" +
-	"\targuments\x18\v \x03(\tR\targuments\x1a9\n" +
+	" \x01(\bR\x04init\x126\n" +
+	"\targuments\x18\v \x03(\tB\x18\xbaG\x15:\x13\x12\x11['echo', 'hello']R\targuments\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\a\n" +
 	"\x05_nameB\a\n" +
 	"\x05_cpusB\t\n" +
-	"\a_memory\"J\n" +
-	"\x16DeleteContainerRequest\x12\x1a\n" +
-	"\x02id\x18\x01 \x01(\tB\n" +
-	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x12\x14\n" +
-	"\x05force\x18\x02 \x01(\bR\x05force\"`\n" +
-	"\x11StreamLogsRequest\x12\x1a\n" +
-	"\x02id\x18\x01 \x01(\tB\n" +
-	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x12\x1b\n" +
-	"\x04tail\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x04tail\x12\x12\n" +
-	"\x04boot\x18\x03 \x01(\bR\x04boot\"\x1e\n" +
-	"\bLogChunk\x12\x12\n" +
-	"\x04text\x18\x01 \x01(\tR\x04text\"\x11\n" +
+	"\a_memory\"c\n" +
+	"\x16DeleteContainerRequest\x12&\n" +
+	"\x02id\x18\x01 \x01(\tB\x16\xbaG\t:\a\x12\x05'web'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x12!\n" +
+	"\x05force\x18\x02 \x01(\bB\v\xbaG\b:\x06\x12\x04trueR\x05force\"v\n" +
+	"\x11StreamLogsRequest\x12&\n" +
+	"\x02id\x18\x01 \x01(\tB\x16\xbaG\t:\a\x12\x05'web'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x12%\n" +
+	"\x04tail\x18\x02 \x01(\x05B\x11\xbaG\a:\x05\x12\x03200\xbaH\x04\x1a\x02(\x00R\x04tail\x12\x12\n" +
+	"\x04boot\x18\x03 \x01(\bR\x04boot\"9\n" +
+	"\bLogChunk\x12-\n" +
+	"\x04text\x18\x01 \x01(\tB\x19\xbaG\x16:\x14\x12\x12'GET /healthz 200'R\x04text\"\x11\n" +
 	"\x0fGetStatsRequest\"J\n" +
 	"\x10GetStatsResponse\x126\n" +
-	"\bsnapshot\x18\x01 \x01(\v2\x1a.micropod.v1.StatsSnapshotR\bsnapshot\"\x8c\x01\n" +
-	"\vExecRequest\x12\x1a\n" +
-	"\x02id\x18\x01 \x01(\tB\n" +
-	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x12$\n" +
-	"\acommand\x18\x02 \x01(\tB\n" +
-	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\acommand\x12\x1d\n" +
-	"\aworkdir\x18\x03 \x01(\tH\x00R\aworkdir\x88\x01\x01\x12\x10\n" +
-	"\x03env\x18\x04 \x03(\tR\x03envB\n" +
+	"\bsnapshot\x18\x01 \x01(\v2\x1a.micropod.v1.StatsSnapshotR\bsnapshot\"\xce\x01\n" +
+	"\vExecRequest\x12&\n" +
+	"\x02id\x18\x01 \x01(\tB\x16\xbaG\t:\a\x12\x05'web'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x124\n" +
+	"\acommand\x18\x02 \x01(\tB\x1a\xbaG\r:\v\x12\t'/bin/sh'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\acommand\x12,\n" +
+	"\aworkdir\x18\x03 \x01(\tB\r\xbaG\n" +
+	":\b\x12\x06'/app'H\x00R\aworkdir\x88\x01\x01\x12'\n" +
+	"\x03env\x18\x04 \x03(\tB\x15\xbaG\x12:\x10\x12\x0e['TERM=xterm']R\x03envB\n" +
 	"\n" +
-	"\b_workdir\"Y\n" +
-	"\fExecResponse\x12\x16\n" +
-	"\x06output\x18\x01 \x01(\tR\x06output\x12\x1b\n" +
-	"\texit_code\x18\x02 \x01(\x05R\bexitCode\x12\x14\n" +
-	"\x05error\x18\x03 \x01(\tR\x05error2\xa0\x06\n" +
+	"\b_workdir\"t\n" +
+	"\fExecResponse\x12'\n" +
+	"\x06output\x18\x01 \x01(\tB\x0f\xbaG\f:\n" +
+	"\x12\b'hello\n" +
+	"'R\x06output\x12%\n" +
+	"\texit_code\x18\x02 \x01(\x05B\b\xbaG\x05:\x03\x12\x010R\bexitCode\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error2\xfd\x06\n" +
 	"\x10ContainerService\x12I\n" +
 	"\x0eListContainers\x12\x12.micropod.v1.Empty\x1a#.micropod.v1.ListContainersResponse\x12K\n" +
 	"\fRunContainer\x12 .micropod.v1.RunContainerRequest\x1a\x19.micropod.v1.ContainerRef\x12N\n" +
@@ -1144,8 +1145,9 @@ const file_micropod_v1_container_proto_rawDesc = "" +
 	"\rKillContainer\x12\x19.micropod.v1.ContainerRef\x1a\x12.micropod.v1.Empty\x12J\n" +
 	"\x0fDeleteContainer\x12#.micropod.v1.DeleteContainerRequest\x1a\x12.micropod.v1.Empty\x12N\n" +
 	"\x13StreamContainerLogs\x12\x1e.micropod.v1.StreamLogsRequest\x1a\x15.micropod.v1.LogChunk0\x01\x12G\n" +
-	"\bGetStats\x12\x1c.micropod.v1.GetStatsRequest\x1a\x1d.micropod.v1.GetStatsResponse\x12;\n" +
-	"\x04Exec\x12\x18.micropod.v1.ExecRequest\x1a\x19.micropod.v1.ExecResponseBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
+	"\bGetStats\x12\x1c.micropod.v1.GetStatsRequest\x1a\x1d.micropod.v1.GetStatsResponse\x12\x97\x01\n" +
+	"\x04Exec\x12\x18.micropod.v1.ExecRequest\x1a\x19.micropod.v1.ExecResponse\"Z\xbaGW\"U\n" +
+	"\x15docker exec semantics\x12<https://docs.docker.com/reference/cli/docker/container/exec/BBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
 
 var (
 	file_micropod_v1_container_proto_rawDescOnce sync.Once

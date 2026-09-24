@@ -33,6 +33,8 @@ export interface ParsedEndpoint {
   responseType?: string;
   /** True when the 200 response is a Connect/gRPC stream rather than JSON. */
   serverStreaming?: boolean;
+  /** gnostic (operation).external_docs — link to canonical reference docs. */
+  externalDocs?: { url: string; description?: string };
   parameters: Parameter[];
   requestBody?: RequestBody;
   responses: Record<string, Response>;

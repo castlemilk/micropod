@@ -8,6 +8,7 @@ package micropodv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/google/gnostic/openapiv3"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -333,41 +334,39 @@ var File_micropod_v1_network_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_network_proto_rawDesc = "" +
 	"\n" +
-	"\x19micropod/v1/network.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a\x15micropod/v1/api.proto\"\xd8\x02\n" +
-	"\aNetwork\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
-	"\x06plugin\x18\x02 \x01(\tR\x06plugin\x12\x12\n" +
-	"\x04mode\x18\x03 \x01(\tR\x04mode\x12!\n" +
-	"\fipv4_gateway\x18\x04 \x01(\tR\vipv4Gateway\x12\x1f\n" +
-	"\vipv4_subnet\x18\x05 \x01(\tR\n" +
-	"ipv4Subnet\x12\x1f\n" +
-	"\vipv6_subnet\x18\x06 \x01(\tR\n" +
-	"ipv6Subnet\x12\x1d\n" +
+	"\x19micropod/v1/network.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\"\xff\x03\n" +
+	"\aNetwork\x12 \n" +
+	"\x02id\x18\x01 \x01(\tB\x10\xbaG\r:\v\x12\t'backend'R\x02id\x12&\n" +
+	"\x06plugin\x18\x02 \x01(\tB\x0e\xbaG\v:\t\x12\a'vmnet'R\x06plugin\x12 \n" +
+	"\x04mode\x18\x03 \x01(\tB\f\xbaG\t:\a\x12\x05'nat'R\x04mode\x12?\n" +
+	"\fipv4_gateway\x18\x04 \x01(\tB\x1c\xbaG\x19:\x10\x12\x0e'192.168.64.1'\x9a\x02\x04ipv4R\vipv4Gateway\x129\n" +
+	"\vipv4_subnet\x18\x05 \x01(\tB\x18\xbaG\x15:\x13\x12\x11'192.168.64.0/24'R\n" +
+	"ipv4Subnet\x123\n" +
+	"\vipv6_subnet\x18\x06 \x01(\tB\x12\xbaG\x0f:\r\x12\v'fd00::/64'R\n" +
+	"ipv6Subnet\x12H\n" +
 	"\n" +
-	"created_at\x18\a \x01(\tR\tcreatedAt\x12\x18\n" +
+	"created_at\x18\a \x01(\tB)\xbaG&:\x18\x12\x16'2026-01-15T10:30:00Z'\x9a\x02\tdate-timeR\tcreatedAt\x12\x18\n" +
 	"\abuiltin\x18\b \x01(\bR\abuiltin\x128\n" +
 	"\x06labels\x18\t \x03(\v2 .micropod.v1.Network.LabelsEntryR\x06labels\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"H\n" +
 	"\x14ListNetworksResponse\x120\n" +
-	"\bnetworks\x18\x01 \x03(\v2\x14.micropod.v1.NetworkR\bnetworks\"\x84\x02\n" +
-	"\x14CreateNetworkRequest\x12\x1e\n" +
-	"\x04name\x18\x01 \x01(\tB\n" +
-	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name\x12\x1a\n" +
-	"\binternal\x18\x02 \x01(\bR\binternal\x12\x1b\n" +
-	"\x06subnet\x18\x03 \x01(\tH\x00R\x06subnet\x88\x01\x01\x12 \n" +
-	"\tsubnet_v6\x18\x04 \x01(\tH\x01R\bsubnetV6\x88\x01\x01\x12\x1b\n" +
-	"\x06driver\x18\x05 \x01(\tH\x02R\x06driver\x88\x01\x01\x12\x18\n" +
-	"\aoptions\x18\x06 \x03(\tR\aoptions\x12\x16\n" +
-	"\x06labels\x18\a \x03(\tR\x06labelsB\t\n" +
+	"\bnetworks\x18\x01 \x03(\v2\x14.micropod.v1.NetworkR\bnetworks\"\x90\x03\n" +
+	"\x14CreateNetworkRequest\x12.\n" +
+	"\x04name\x18\x01 \x01(\tB\x1a\xbaG\r:\v\x12\t'backend'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name\x12\x1a\n" +
+	"\binternal\x18\x02 \x01(\bR\binternal\x126\n" +
+	"\x06subnet\x18\x03 \x01(\tB\x19\xbaG\x16:\x14\x12\x12'192.168.100.0/24'H\x00R\x06subnet\x88\x01\x01\x128\n" +
+	"\tsubnet_v6\x18\x04 \x01(\tB\x16\xbaG\x13:\x11\x12\x0f'fd00:100::/64'H\x01R\bsubnetV6\x88\x01\x01\x12+\n" +
+	"\x06driver\x18\x05 \x01(\tB\x0e\xbaG\v:\t\x12\a'vmnet'H\x02R\x06driver\x88\x01\x01\x12-\n" +
+	"\aoptions\x18\x06 \x03(\tB\x13\xbaG\x10:\x0e\x12\f['mtu=1500']R\aoptions\x12:\n" +
+	"\x06labels\x18\a \x03(\tB\"\xbaG\x1f:\x1d\x12\x1b['com.example.project=web']R\x06labelsB\t\n" +
 	"\a_subnetB\f\n" +
 	"\n" +
 	"_subnet_v6B\t\n" +
-	"\a_driver\"6\n" +
-	"\x14DeleteNetworkRequest\x12\x1e\n" +
-	"\x04name\x18\x01 \x01(\tB\n" +
-	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name2\xe7\x01\n" +
+	"\a_driver\"F\n" +
+	"\x14DeleteNetworkRequest\x12.\n" +
+	"\x04name\x18\x01 \x01(\tB\x1a\xbaG\r:\v\x12\t'backend'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name2\xe7\x01\n" +
 	"\x0eNetworkService\x12E\n" +
 	"\fListNetworks\x12\x12.micropod.v1.Empty\x1a!.micropod.v1.ListNetworksResponse\x12F\n" +
 	"\rCreateNetwork\x12!.micropod.v1.CreateNetworkRequest\x1a\x12.micropod.v1.Empty\x12F\n" +

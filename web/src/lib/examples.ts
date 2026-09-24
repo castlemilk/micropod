@@ -175,7 +175,9 @@ function fallbackScalar(schema: any): any {
 
 export function exampleForSchema(schema: any, name?: string, depth = 0): any {
   if (!schema || typeof schema !== "object") return null;
+  // gnostic (openapi.v3.property).example annotations land as `examples: []`.
   if (schema.example !== undefined) return schema.example;
+  if (schema.examples?.[0] !== undefined) return schema.examples[0];
   if (schema.default !== undefined) return schema.default;
   if (schema.enum?.length) {
     // Proto enums lead with a *_UNSPECIFIED zero value — examples should

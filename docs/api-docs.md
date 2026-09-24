@@ -53,11 +53,21 @@ API section covers the six `micropod.v1` domain services (daemon, host HTTP) and
 under a separate "Guest API" heading.
 
 Proto field comments become OpenAPI `description`s and SDK doc comments — keep
-them accurate. `buf.validate` field options (`required`, `min_len`, `gt`, …)
-surface in the spec as `required`/`minLength`/`exclusiveMinimum`/… and are
-enforced three ways: the Go apiserver's `connectrpc.com/validate` interceptor,
-the TypeScript SDK's client-side protovalidate interceptor (`validate: false`
-opts out), and the per-field `check` calls in `ConnectMount.swift`.
+them accurate. Two annotation layers enrich the spec:
+
+- `buf.validate` field options (`required`, `min_len`, `gt`, …) surface as
+  `required`/`minLength`/`exclusiveMinimum`/… and are enforced three ways:
+  the Go apiserver's `connectrpc.com/validate` interceptor, the TypeScript
+  SDK's client-side protovalidate interceptor (`validate: false` opts out),
+  and the per-field `check` calls in `ConnectMount.swift`.
+- `gnostic.openapi.v3` options (`property` on fields, `operation`/`schema` on
+  RPCs and messages) surface as `examples`, `format`, `externalDocs`, etc.
+  Field examples are written as `{yaml: "'…'"}` scalars — quote string values
+  inside the YAML. Note `schema.example` on messages stringifies to a Go
+  `map[…]` dump in the plugin output, so examples go on fields, not messages.
+  The `buf.build/gnostic/gnostic` dep is descriptor-only for Go/Swift; the TS
+  SDK vendors `src/vendor/gnostic/openapi/v3/*_pb.ts` (no npm package ships
+  it) and `buf.gen.sdk.yaml` `rewrite_imports` points generated code there.
 
 ## Local development
 

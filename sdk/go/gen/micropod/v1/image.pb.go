@@ -8,6 +8,7 @@ package micropodv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/google/gnostic/openapiv3"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -398,36 +399,34 @@ var File_micropod_v1_image_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_image_proto_rawDesc = "" +
 	"\n" +
-	"\x17micropod/v1/image.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a\x15micropod/v1/api.proto\"\xba\x01\n" +
-	"\x05Image\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05names\x18\x02 \x03(\tR\x05names\x12\x1d\n" +
+	"\x17micropod/v1/image.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\"\xe8\x02\n" +
+	"\x05Image\x12&\n" +
+	"\x02id\x18\x01 \x01(\tB\x16\xbaG\x13:\x11\x12\x0f'sha256:1c4a8f'R\x02id\x12=\n" +
+	"\x05names\x18\x02 \x03(\tB'\xbaG$:\"\x12 ['alpine:3.20', 'alpine:latest']R\x05names\x12H\n" +
 	"\n" +
-	"created_at\x18\x03 \x01(\tR\tcreatedAt\x12\x16\n" +
-	"\x06digest\x18\x04 \x01(\tR\x06digest\x12\x1d\n" +
+	"created_at\x18\x03 \x01(\tB)\xbaG&:\x18\x12\x16'2026-01-15T10:30:00Z'\x9a\x02\tdate-timeR\tcreatedAt\x12H\n" +
+	"\x06digest\x18\x04 \x01(\tB0\xbaG-:+\x12)'sha256:8e24b3e4a1f2c9d8e7f6a5b4c3d2e1f0'R\x06digest\x12-\n" +
 	"\n" +
-	"size_bytes\x18\x05 \x01(\x04R\tsizeBytes\x125\n" +
-	"\bvariants\x18\x06 \x03(\v2\x19.micropod.v1.ImageVariantR\bvariants\"\\\n" +
-	"\fImageVariant\x12\x0e\n" +
-	"\x02os\x18\x01 \x01(\tR\x02os\x12\"\n" +
-	"\farchitecture\x18\x02 \x01(\tR\farchitecture\x12\x18\n" +
-	"\avariant\x18\x03 \x01(\tR\avariant\"@\n" +
+	"size_bytes\x18\x05 \x01(\x04B\x0e\xbaG\v:\t\x12\a3800000R\tsizeBytes\x125\n" +
+	"\bvariants\x18\x06 \x03(\v2\x19.micropod.v1.ImageVariantR\bvariants\"\x89\x01\n" +
+	"\fImageVariant\x12\x1e\n" +
+	"\x02os\x18\x01 \x01(\tB\x0e\xbaG\v:\t\x12\a'linux'R\x02os\x122\n" +
+	"\farchitecture\x18\x02 \x01(\tB\x0e\xbaG\v:\t\x12\a'arm64'R\farchitecture\x12%\n" +
+	"\avariant\x18\x03 \x01(\tB\v\xbaG\b:\x06\x12\x04'v8'R\avariant\"@\n" +
 	"\x12ListImagesResponse\x12*\n" +
-	"\x06images\x18\x01 \x03(\v2\x12.micropod.v1.ImageR\x06images\"j\n" +
-	"\x10PullImageRequest\x12(\n" +
-	"\treference\x18\x01 \x01(\tB\n" +
-	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\treference\x12\x1f\n" +
-	"\bplatform\x18\x02 \x01(\tH\x00R\bplatform\x88\x01\x01B\v\n" +
-	"\t_platform\"\x80\x01\n" +
-	"\fProgressLine\x12\x12\n" +
-	"\x04line\x18\x01 \x01(\tR\x04line\x12\x19\n" +
-	"\x05stage\x18\x02 \x01(\x05H\x00R\x05stage\x88\x01\x01\x12&\n" +
-	"\ftotal_stages\x18\x03 \x01(\x05H\x01R\vtotalStages\x88\x01\x01B\b\n" +
+	"\x06images\x18\x01 \x03(\v2\x12.micropod.v1.ImageR\x06images\"\x94\x01\n" +
+	"\x10PullImageRequest\x12<\n" +
+	"\treference\x18\x01 \x01(\tB\x1e\xbaG\x11:\x0f\x12\r'alpine:3.20'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\treference\x125\n" +
+	"\bplatform\x18\x02 \x01(\tB\x14\xbaG\x11:\x0f\x12\r'linux/arm64'H\x00R\bplatform\x88\x01\x01B\v\n" +
+	"\t_platform\"\xb7\x01\n" +
+	"\fProgressLine\x125\n" +
+	"\x04line\x18\x01 \x01(\tB!\xbaG\x1e:\x1c\x12\x1a'Downloading layer 3 of 5'R\x04line\x12#\n" +
+	"\x05stage\x18\x02 \x01(\x05B\b\xbaG\x05:\x03\x12\x013H\x00R\x05stage\x88\x01\x01\x120\n" +
+	"\ftotal_stages\x18\x03 \x01(\x05B\b\xbaG\x05:\x03\x12\x015H\x01R\vtotalStages\x88\x01\x01B\b\n" +
 	"\x06_stageB\x0f\n" +
-	"\r_total_stages\"T\n" +
-	"\x12DeleteImageRequest\x12(\n" +
-	"\treference\x18\x01 \x01(\tB\n" +
-	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\treference\x12\x14\n" +
+	"\r_total_stages\"h\n" +
+	"\x12DeleteImageRequest\x12<\n" +
+	"\treference\x18\x01 \x01(\tB\x1e\xbaG\x11:\x0f\x12\r'alpine:3.20'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\treference\x12\x14\n" +
 	"\x05force\x18\x02 \x01(\bR\x05force2\xde\x01\n" +
 	"\fImageService\x12A\n" +
 	"\n" +
