@@ -37,6 +37,9 @@ def rpc(binary, state_dir, cli_path, requests):
     env = dict(os.environ)
     env["MICROPOD_CONTAINER_CLI_PATH"] = cli_path
     env["MICROPOD_MOCK_STATE_DIR"] = state_dir
+    # Isolate the volume-policy file so policy tool calls don't touch
+    # the developer's real config.
+    env["MICROPOD_VOLUME_POLICY"] = os.path.join(state_dir, "policy.json")
     payload = "".join(json.dumps(r) + "\n" for r in requests)
     proc = subprocess.run(
         [str(binary)], input=payload, capture_output=True, text=True, env=env, timeout=60)
@@ -78,8 +81,9 @@ def main():
                 "list_images", "list_volumes", "list_networks",
                 "pull", "push", "df", "compose_up", "compose_down", "compose_ps",
                 "share_mount", "share_unmount", "share_list", "share_sync", "share_gc",
-                "build_cache_stats"}
-    check("all 27 tools advertised", set(names) == expected, f"got {sorted(names)}")
+                "build_cache_stats", "volume_policy", "volume_policy_set",
+                "update_check", "update_status", "update_apply"}
+    check("all 32 tools advertised", set(names) == expected, f"got {sorted(names)}")
 
     def call(tool_id, tool, **arguments):
         (responses, _) = rpc(binary, state_dir, args.cli, [
@@ -174,6 +178,17 @@ networks:
     r = call(21, "build_cache_stats", path=empty_cache)
     check("build_cache_stats reads any root without a daemon",
           "entries: 0" in r["text"] and not r["isError"], r["text"])
+
+    print("== volume policy tools")
+    r = call(90, "volume_policy_set", mode="goldens", goldens="ci-golden", sync="nosync")
+    check("volume_policy_set saves", "cloneMode=goldens" in r["text"] and "sync=nosync" in r["text"],
+          r["text"])
+    r = call(91, "volume_policy")
+    check("volume_policy reflects the write",
+          "cloneMode: goldens" in r["text"] and "ci-golden" in r["text"], r["text"])
+    r = call(92, "volume_policy_set", mode="bogus")
+    check("volume_policy_set rejects bad mode", r["isError"] and "labels|goldens|all" in r["text"],
+          r["text"])
 
     print("== unknown tool")
     (responses, _) = rpc(binary, state_dir, args.cli, [

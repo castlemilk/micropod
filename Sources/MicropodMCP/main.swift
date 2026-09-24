@@ -156,6 +156,16 @@ private actor MCPServer {
                 }
             }
         }
+
+        // EOF with a partial line: a client that flushes its final
+        // message without a trailing newline still deserves a response.
+        if let line = String(data: buffer, encoding: .utf8),
+            !line.trimmingCharacters(in: .whitespaces).isEmpty,
+            let response = await handle(line: line)
+        {
+            try? stdout.write(contentsOf: response)
+            try? stdout.write(contentsOf: Data("\n".utf8))
+        }
     }
 
     private func handle(line: String) async -> Data? {
@@ -246,6 +256,18 @@ private actor MCPServer {
         ("inspect", "Pretty-printed container inspect JSON. Arguments: id."),
         ("list_images", "List local images (name, id, size, variants)."),
         ("list_volumes", "List volumes (name, size, driver)."),
+        (
+            "volume_policy",
+            "Show the shared volume-mount policy (clone mode, golden volumes, sync/cache modes)."
+        ),
+        (
+            "volume_policy_set",
+            """
+            Update the volume-mount policy. Arguments: mode (labels|goldens|all), \
+            goldens (comma list), jobsOnly (true|false), sync (full|fsync|nosync|default), \
+            cache (on|off|auto). Only provided fields change.
+            """
+        ),
         ("list_networks", "List networks (name, mode, subnet)."),
         ("pull", "Pull an image. Arguments: reference."),
         ("push", "Push an image. Arguments: reference."),
@@ -353,6 +375,61 @@ private actor MCPServer {
                     "\(volume.id)\t\(ByteFormat.string(volume.sizeBytes))\t\(volume.driver)"
                 }
                 return toolResult(id, lines.isEmpty ? "No volumes" : lines.joined(separator: "\n"))
+
+            case "volume_policy":
+                let policy = VolumePolicyStore.load()
+                var lines = [
+                    "cloneMode: \(policy.cloneMode.rawValue)",
+                    "goldenVolumes: "
+                        + (policy.goldenVolumes.isEmpty ? "—" : policy.goldenVolumes.joined(separator: ", ")),
+                    "jobsOnly: \(policy.jobsOnly)",
+                    "sync: \(policy.sync?.rawValue ?? "default (fsync; nosync for clones)")",
+                    "cache: \(policy.cache.rawValue)",
+                ]
+                lines.append("labels override: com.micropod.cache.clone / .volume.sync / .volume.cache")
+                return toolResult(id, lines.joined(separator: "\n"))
+
+            case "volume_policy_set":
+                var policy = VolumePolicyStore.load()
+                let mode = string("mode")
+                if !mode.isEmpty {
+                    guard let parsed = VolumePolicy.CloneMode(rawValue: mode) else {
+                        return toolResult(id, "invalid mode '\(mode)' — labels|goldens|all", isError: true)
+                    }
+                    policy.cloneMode = parsed
+                }
+                let goldens = string("goldens")
+                if !goldens.isEmpty {
+                    policy.goldenVolumes = goldens.split(separator: ",").map {
+                        $0.trimmingCharacters(in: .whitespaces)
+                    }
+                }
+                if args["jobsOnly"] != nil {
+                    policy.jobsOnly = flag("jobsOnly")
+                }
+                let sync = string("sync")
+                if !sync.isEmpty {
+                    if sync == "default" {
+                        policy.sync = nil
+                    } else if let parsed = VolumePolicy.SyncMode(rawValue: sync) {
+                        policy.sync = parsed
+                    } else {
+                        return toolResult(id, "invalid sync '\(sync)' — full|fsync|nosync|default", isError: true)
+                    }
+                }
+                let cache = string("cache")
+                if !cache.isEmpty {
+                    guard let parsed = VolumePolicy.CacheMode(rawValue: cache) else {
+                        return toolResult(id, "invalid cache '\(cache)' — on|off|auto", isError: true)
+                    }
+                    policy.cache = parsed
+                }
+                try VolumePolicyStore.save(policy)
+                return toolResult(
+                    id,
+                    "Saved: cloneMode=\(policy.cloneMode.rawValue) goldens=\(policy.goldenVolumes.joined(separator: ",")) "
+                        + "jobsOnly=\(policy.jobsOnly) sync=\(policy.sync?.rawValue ?? "default") cache=\(policy.cache.rawValue)"
+                )
 
             case "list_networks":
                 let networks = try await networks.list()
