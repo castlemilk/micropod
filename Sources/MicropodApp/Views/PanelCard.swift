@@ -47,6 +47,24 @@ struct PanelCard<Content: View>: View {
     }
 }
 
+/// The single status-dot used across the app (dashboard, sidebar, rail).
+/// Static `circle.fill` when the state is settled; `breathe` while the
+/// runtime is in a transitional state (starting/restarting/healing) — a
+/// symbol effect so Reduce Motion can disable it cleanly.
+struct StatusDot: View {
+    let color: Color
+    var size: CGFloat = 8
+    var active = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Image(systemName: "circle.fill")
+            .font(.system(size: size))
+            .foregroundStyle(color)
+            .symbolEffect(.breathe, isActive: active && !reduceMotion)
+    }
+}
+
 /// Control Center-style action tile used in the menu bar and dashboard:
 /// tinted rounded fill + leading icon. `prominent` swaps the fill to the
 /// accent color for the single primary action.

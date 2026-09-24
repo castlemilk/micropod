@@ -14,7 +14,7 @@ struct ContainerInspectView: View {
             if let json {
                 ScrollView {
                     Text(json)
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.subheadline.monospaced())
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(12)

@@ -123,7 +123,7 @@ struct NetworkDetailSheet: View {
     private func copyRow(_ label: String, _ value: String) -> some View {
         HStack(spacing: 8) {
             Text(label).font(.caption).foregroundStyle(.secondary).frame(width: 100, alignment: .leading)
-            Text(value).font(.system(size: 11, design: .monospaced)).lineLimit(1).textSelection(.enabled)
+            Text(value).font(.subheadline.monospaced()).lineLimit(1).textSelection(.enabled)
             Spacer(minLength: 4)
             Button {
                 NSPasteboard.general.clearContents()

@@ -45,7 +45,7 @@ struct ContainerConfigView: View {
                     Section("Environment") {
                         ForEach(Array(container.env.enumerated()), id: \.offset) { _, line in
                             Text(line)
-                                .font(.system(size: 11, design: .monospaced))
+                                .font(.subheadline.monospaced())
                                 .textSelection(.enabled)
                         }
                     }

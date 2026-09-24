@@ -124,7 +124,7 @@ struct ComposeView: View {
             VStack(alignment: .leading, spacing: 8) {
                 stepper
                 if let runError {
-                    Text(runError).font(.system(size: 10, design: .monospaced)).foregroundStyle(.red)
+                    Text(runError).font(.footnote.monospaced()).foregroundStyle(.red)
                 }
                 serviceLogSection
                 rawLogDisclosure
@@ -160,7 +160,7 @@ struct ComposeView: View {
             if !step.detail.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(Array(step.detail.enumerated()), id: \.offset) { _, line in
-                        Text(line).font(.system(size: 10, design: .monospaced)).textSelection(.enabled)
+                        Text(line).font(.footnote.monospaced()).textSelection(.enabled)
                     }
                 }
                 .padding(.leading, 22)
@@ -254,7 +254,7 @@ struct ComposeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(Array(run.rawLog.enumerated()), id: \.offset) { _, line in
-                        Text(line).font(.system(size: 10, design: .monospaced)).textSelection(.enabled)
+                        Text(line).font(.footnote.monospaced()).textSelection(.enabled)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

@@ -45,7 +45,7 @@ struct ContainerTerminalView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     Text(output.isEmpty ? "Press Enter to open the shell…" : output)
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.subheadline.monospaced())
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .id("output")
@@ -65,7 +65,7 @@ struct ContainerTerminalView: View {
             HStack(spacing: 8) {
                 TextField("Command…", text: $input)
                     .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(.subheadline.monospaced())
                     .focused($inputFocused)
                     .onSubmit { sendInput() }
                     .disabled(!attached)

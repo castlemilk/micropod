@@ -115,9 +115,10 @@ struct DashboardView: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 7) {
-                        Circle()
-                            .fill(runtimeStatusColor)
-                            .frame(width: 9, height: 9)
+                        StatusDot(
+                            color: runtimeStatusColor, size: 9,
+                            active: store.isStartingRuntime || store.isRestartingRuntime
+                                || store.isHealingRuntime)
                         Text(runtimeStatusTitle)
                             .font(.title3.weight(.semibold))
                             .foregroundStyle(store.isRuntimeRunning ? Color.primary : Color.secondary)
@@ -161,36 +162,16 @@ struct DashboardView: View {
                 }
             }
 
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 6) {
-                    TileButton(title: String(localized: "Run Container…"), icon: "create") {
-                        store.activeTab = .containers
-                        store.pendingRunSheet = true
-                    }
-                    TileButton(title: String(localized: "Pull Image…"), icon: "pull") {
-                        store.activeTab = .images
-                        store.pendingPullSheet = true
-                    }
-                    TileButton(title: String(localized: "Command Palette"), icon: "palette") {
-                        store.showCommandPalette = true
-                    }
-                    Spacer()
+            HStack(spacing: 6) {
+                TileButton(title: String(localized: "Run Container…"), icon: "create") {
+                    store.activeTab = .containers
+                    store.pendingRunSheet = true
                 }
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 6) {
-                        TileButton(title: String(localized: "Run Container…"), icon: "create") {
-                            store.activeTab = .containers
-                            store.pendingRunSheet = true
-                        }
-                        TileButton(title: String(localized: "Pull Image…"), icon: "pull") {
-                            store.activeTab = .images
-                            store.pendingPullSheet = true
-                        }
-                    }
-                    TileButton(title: String(localized: "Command Palette"), icon: "palette") {
-                        store.showCommandPalette = true
-                    }
+                TileButton(title: String(localized: "Pull Image…"), icon: "pull") {
+                    store.activeTab = .images
+                    store.pendingPullSheet = true
                 }
+                Spacer()
             }
             .padding(.top, 10)
 
@@ -234,13 +215,14 @@ struct DashboardView: View {
         }
     }
 
-    /// Blue animated bar + spinner while the kernel downloads.
+    /// Blue animated bar + download indicator while the kernel downloads.
     private var kernelInstallProgress: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                ProgressView()
-                    .controlSize(.small)
-                    .tint(.blue)
+                Image(systemName: "arrow.down.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.blue)
+                    .symbolEffect(.pulse, isActive: !reduceMotion)
                 Text(String(localized: "Downloading the recommended kernel…"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -250,7 +232,7 @@ struct DashboardView: View {
             DisclosureGroup(String(localized: "Details")) {
                 ScrollView {
                     Text(store.kernelInstallProgress.joined(separator: "\n"))
-                        .font(.system(size: 10, design: .monospaced))
+                        .font(.footnote.monospaced())
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .frame(maxHeight: 80)
@@ -318,6 +300,17 @@ struct DashboardView: View {
         return String(localized: "Stopped")
     }
 
+    /// `system status` reports verbose strings like
+    /// "container-apiserver version 1.3.1 (build: release, commit: abc123)"
+    /// — the dashboard needs just the semver.
+    private static func shortVersion(_ raw: String) -> String {
+        for token in raw.split(whereSeparator: { $0 == " " || $0 == "(" }) {
+            let t = token.trimmingCharacters(in: CharacterSet(charactersIn: ",)"))
+            if t.first?.isNumber == true, t.contains(".") { return t }
+        }
+        return raw
+    }
+
     private var subtitle: String {
         if !store.clientAvailable {
             return "The container CLI was not found at \(store.dependencies.client.executableURL.path)"
@@ -331,8 +324,10 @@ struct DashboardView: View {
             return store.systemStatusError ?? "Checking runtime status…"
         }
         var parts: [String] = []
-        if !status.apiServerVersion.isEmpty { parts.append("apiserver \(status.apiServerVersion)") }
-        if !status.cliVersion.isEmpty { parts.append("cli \(status.cliVersion)") }
+        if !status.apiServerVersion.isEmpty {
+            parts.append("apiserver \(Self.shortVersion(status.apiServerVersion))")
+        }
+        if !status.cliVersion.isEmpty { parts.append("CLI \(Self.shortVersion(status.cliVersion))") }
         if parts.isEmpty { return "Runtime status unavailable" }
         return parts.joined(separator: " · ")
     }
@@ -359,7 +354,9 @@ struct DashboardView: View {
         let chartSamples = downsample(samples, maxPoints: 360)
         if samples.count < 2 {
             HStack(spacing: 8) {
-                ProgressView().controlSize(.small)
+                Image(systemName: "waveform.path.ecg")
+                    .foregroundStyle(.secondary)
+                    .symbolEffect(.variableColor.iterative, isActive: !reduceMotion)
                 Text(String(localized: "Sampling…")).font(.caption).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .center)
@@ -440,7 +437,17 @@ struct DashboardView: View {
                         .lineStyle(StrokeStyle(lineWidth: 1.5))
                     }
                 }
-                .chartYAxisLabel("bytes")
+                .chartYAxis {
+                    AxisMarks(position: .leading) { value in
+                        AxisGridLine()
+                        AxisValueLabel {
+                            if let bytes = value.as(Double.self) {
+                                // ByteCountFormatter renders 0 as "Zero KB".
+                                Text(bytes <= 0 ? "0" : ByteFormat.string(Int64(bytes)))
+                            }
+                        }
+                    }
+                }
                 .frame(height: 80)
             }
         }
@@ -462,7 +469,10 @@ struct DashboardView: View {
                 .font(.system(size: 11))
                 .foregroundStyle(color)
             VStack(alignment: .leading, spacing: 0) {
-                Text(value).font(.callout.weight(.semibold).monospacedDigit())
+                Text(value)
+                    .font(.callout.weight(.semibold).monospacedDigit())
+                    .contentTransition(.numericText())
+                    .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: value)
                 Text(label).font(.caption2).foregroundStyle(.secondary)
             }
         }
@@ -584,6 +594,8 @@ struct DashboardView: View {
                 Text(value)
                     .font(.callout.weight(.semibold).monospacedDigit())
                     .lineLimit(1)
+                    .contentTransition(.numericText())
+                    .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: value)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
@@ -727,6 +739,7 @@ struct DashboardView: View {
 struct DashboardContainerRow: View {
     let container: Micropod_V1_Container
     let stats: Micropod_V1_ContainerStats?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var metadata: WorkloadMetadata {
         WorkloadMetadata(labels: container.labels)
@@ -766,13 +779,16 @@ struct DashboardContainerRow: View {
 
     private var workloadMetadata: some View {
         HStack(spacing: 8) {
-            Label(
-                metadata.source.rawValue,
-                systemImage: metadata.source == .compose
-                    ? "square.stack.3d.up" : "arrow.right"
-            )
-            .foregroundStyle(.secondary)
-            .fixedSize()
+            // Provenance is a fact, not an action — no arrow glyph for direct
+            // launches (it read as a link). Compose keeps its stack icon.
+            if metadata.source == .compose {
+                Label("Compose", systemImage: "square.stack.3d.up")
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+            } else {
+                Text("Direct")
+                    .foregroundStyle(.secondary)
+            }
             if metadata.isAgent {
                 Label("Agent", systemImage: "terminal")
                     .foregroundStyle(.blue)
@@ -796,7 +812,10 @@ struct DashboardContainerRow: View {
     private func metric(_ text: String, icon: String) -> some View {
         HStack(spacing: 3) {
             Image(systemName: icon).font(.system(size: 9)).foregroundStyle(.secondary)
-            Text(text).font(.caption2.monospacedDigit())
+            Text(text)
+                .font(.caption2.monospacedDigit())
+                .contentTransition(.numericText())
+                .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: text)
         }
     }
 }

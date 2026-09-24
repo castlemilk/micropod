@@ -143,6 +143,8 @@ struct MainPanelView: View {
                                     .padding(.horizontal, 3)
                                     .padding(.vertical, 1)
                                     .background(Color.accentColor, in: Capsule())
+                                    .contentTransition(.numericText())
+                                    .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: count)
                                     .offset(x: 4, y: -2)
                             }
                         }
@@ -164,9 +166,7 @@ struct MainPanelView: View {
                     Task { await store.startRuntime() }
                 }
             } label: {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 10, height: 10)
+                StatusDot(color: statusColor, size: 10, active: store.isStartingRuntime)
                     .padding(10)
                     .contentShape(Rectangle())
             }
@@ -202,9 +202,7 @@ struct MainPanelView: View {
     private var runtimeStatusCard: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 8, height: 8)
+                StatusDot(color: statusColor, size: 8, active: store.isStartingRuntime)
                 Text(statusText)
                     .font(.caption2.weight(.medium))
                 Spacer()
@@ -220,8 +218,10 @@ struct MainPanelView: View {
                 }
             }
             Text("\(store.runningCount) running · \(store.containers.count) total")
-                .font(.caption2)
+                .font(.caption2.monospacedDigit())
                 .foregroundStyle(.secondary)
+                .contentTransition(.numericText())
+                .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: store.runningCount)
         }
         .padding(10)
         .cardSurface(cornerRadius: 10, fillOpacity: 0.8)

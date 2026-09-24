@@ -34,7 +34,7 @@ struct BuildView: View {
                 HStack {
                     LabeledContent(String(localized: "Context")) {
                         HStack {
-                            Text(contextDirectory).font(.system(size: 11, design: .monospaced)).lineLimit(1)
+                            Text(contextDirectory).font(.subheadline.monospaced()).lineLimit(1)
                             Button(String(localized: "Choose…")) { showContextPicker = true }
                                 .controlSize(.small)
                         }
@@ -42,7 +42,7 @@ struct BuildView: View {
                     LabeledContent(String(localized: "Dockerfile")) {
                         HStack {
                             Text(dockerfile.isEmpty ? String(localized: "Dockerfile (default)") : dockerfile)
-                                .font(.system(size: 11, design: .monospaced))
+                                .font(.subheadline.monospaced())
                                 .lineLimit(1)
                             Button(String(localized: "Choose…")) { showDockerfilePicker = true }
                                 .controlSize(.small)
@@ -60,7 +60,7 @@ struct BuildView: View {
                 LabeledContent(String(localized: "Build args")) {
                     TextField(String(localized: "KEY=VALUE, one per line"), text: $buildArgsText, axis: .vertical)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.subheadline.monospaced())
                         .lineLimit(1...3)
                 }
                 LabeledContent(String(localized: "Platform")) {
@@ -92,7 +92,7 @@ struct BuildView: View {
                                     .controlSize(.small)
                             }
                             TextEditor(text: $dockerfileContent)
-                                .font(.system(size: 11, design: .monospaced))
+                                .font(.subheadline.monospaced())
                                 .frame(minHeight: 140)
                                 .scrollContentBackground(.hidden)
                                 .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 6))
@@ -174,7 +174,7 @@ struct BuildView: View {
 
             ScrollView {
                 Text(buildEvents.map(\.line).joined(separator: "\n"))
-                    .font(.system(size: 10, design: .monospaced))
+                    .font(.footnote.monospaced())
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
@@ -234,14 +234,18 @@ struct BuildView: View {
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
         guard let provider = providers.first else { return false }
         provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+            // loadItem's completion is a @Sendable closure off the main actor
+            // — hop before touching @State.
             guard let data = item as? Data, let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
             var isDir: ObjCBool = false
             if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
-                contextDirectory = url.path
+                Task { @MainActor in contextDirectory = url.path }
             } else if let content = try? String(contentsOf: url, encoding: .utf8) {
-                dockerfile = url.path
-                dockerfileContent = content
-                editorEnabled = true
+                Task { @MainActor in
+                    dockerfile = url.path
+                    dockerfileContent = content
+                    editorEnabled = true
+                }
             }
         }
         return true

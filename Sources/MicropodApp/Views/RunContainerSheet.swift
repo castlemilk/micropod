@@ -508,7 +508,7 @@ struct RunContainerSheet: View {
                 .foregroundStyle(.secondary)
             TextField(placeholder, text: text, axis: .vertical)
                 .textFieldStyle(.plain)
-                .font(.system(size: 11, design: .monospaced))
+                .font(.subheadline.monospaced())
                 .lineLimit(lineLimit)
                 .padding(8)
                 .background(.quaternary.opacity(0.24))

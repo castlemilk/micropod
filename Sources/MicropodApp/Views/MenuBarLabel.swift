@@ -12,6 +12,7 @@ struct MenuBarLabel: View {
     let store: AppStore
     @State private var didBootstrap = false
     @AppStorage(UserDefaultsKeys.showMenuBarCount) private var showMenuBarCount = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     // VoiceOver reads a meaningful label instead of the raw glyph.
     private var accessibilityLabel: String {
         if !store.clientAvailable { return "Micropod: container CLI not found" }
@@ -32,12 +33,16 @@ struct MenuBarLabel: View {
     var body: some View {
         HStack(spacing: 3) {
             if store.isStartingRuntime || store.isInstallingKernel {
-                ProgressView()
-                    .controlSize(.mini)
+                // Breathing brand mark reads "coming up" more calmly than a
+                // dasher spinner squeezed into 14pt.
+                Image(systemName: "shippingbox.fill")
+                    .foregroundStyle(.orange)
+                    .symbolEffect(.breathe, isActive: !reduceMotion)
                     .frame(width: 14, height: 14)
             } else {
                 Image(systemName: iconName)
                     .foregroundStyle(iconColor)
+                    .contentTransition(.symbolEffect(.replace))
                     .overlay(alignment: .bottomTrailing) {
                         if let badge = healthBadge {
                             Image(systemName: badge.symbol)
@@ -52,10 +57,14 @@ struct MenuBarLabel: View {
                 Text("\(store.runningCount)")
                     .font(.caption2.weight(.semibold).monospacedDigit())
                     .foregroundStyle(.primary)
+                    .contentTransition(.numericText())
+                    .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: store.runningCount)
                 if let cpu = aggregateCPU {
                     Text(cpu)
                         .font(.caption2.monospacedDigit())
                         .foregroundStyle(.secondary)
+                        .contentTransition(.numericText())
+                        .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: cpu)
                 }
             }
         }

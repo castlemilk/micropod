@@ -114,7 +114,7 @@ struct ImageDetailSheet: View {
     private func metaRow(_ label: String, _ value: String) -> some View {
         HStack(spacing: 8) {
             Text(label).font(.caption).foregroundStyle(.secondary).frame(width: 110, alignment: .leading)
-            Text(value).font(.system(size: 11, design: .monospaced)).lineLimit(2).textSelection(.enabled)
+            Text(value).font(.subheadline.monospaced()).lineLimit(2).textSelection(.enabled)
             Spacer(minLength: 4)
             Button {
                 NSPasteboard.general.clearContents()

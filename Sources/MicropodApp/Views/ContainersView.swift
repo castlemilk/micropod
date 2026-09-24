@@ -23,6 +23,8 @@ struct ContainersView: View {
     /// Available width of the table column — drives the responsive layout.
     @State private var tableWidth: CGFloat = 340
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Incremented per refresh tap — drives the rotate symbol effect.
+    @State private var refreshTicks = 0
 
     private var columnLayout: ContainerColumnLayout {
         ContainerColumnLayout.compute(visible: visibleColumns, width: tableWidth)
@@ -119,10 +121,12 @@ struct ContainersView: View {
     @ViewBuilder
     private var toolbarRefresh: some View {
         Button {
+            if !reduceMotion { refreshTicks += 1 }
             Task { await store.refreshContainers() }
         } label: {
             Image(systemName: "arrow.clockwise")
                 .font(.system(size: 13))
+                .symbolEffect(.rotate.byLayer, value: refreshTicks)
         }
         .help("Refresh containers")
         .accessibilityLabel("Refresh containers")

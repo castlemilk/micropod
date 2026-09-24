@@ -117,7 +117,7 @@ struct NetworkTopologyView: View {
             }
             if !network.ipv4Subnet.isEmpty {
                 Text(network.ipv4Subnet)
-                    .font(.system(size: 9, design: .monospaced))
+                    .font(.caption2.monospaced())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -146,7 +146,7 @@ struct NetworkTopologyView: View {
             Spacer(minLength: 0)
             if !container.ipv4Address.isEmpty {
                 Text(container.ipv4Address)
-                    .font(.system(size: 9, design: .monospaced))
+                    .font(.caption2.monospaced())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }

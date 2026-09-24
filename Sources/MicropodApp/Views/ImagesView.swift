@@ -34,6 +34,8 @@ struct ImagesView: View {
     @State private var batchSelection = Set<String>()
     @State private var confirmBatchDelete = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Incremented per refresh tap — drives the rotate symbol effect.
+    @State private var refreshTicks = 0
 
     @ViewBuilder
     private func imageContextMenu(_ image: Micropod_V1_Image) -> some View {
@@ -248,10 +250,12 @@ struct ImagesView: View {
             }
 
             Button {
+                if !reduceMotion { refreshTicks += 1 }
                 Task { await store.refreshImages() }
             } label: {
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 13))
+                    .symbolEffect(.rotate.byLayer, value: refreshTicks)
             }
             .help("Refresh images")
             .accessibilityLabel("Refresh images")
@@ -615,7 +619,7 @@ struct PullProgressSheet: View {
             }
             ScrollView {
                 Text(events.joined(separator: "\n"))
-                    .font(.system(size: 10, design: .monospaced))
+                    .font(.footnote.monospaced())
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxHeight: 200)

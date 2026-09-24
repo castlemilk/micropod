@@ -7,6 +7,8 @@ struct StorageView: View {
     @Bindable var store: AppStore
 
     @State private var pendingPrune: PendingPrune?
+    @State private var refreshTicks = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private enum PendingPrune: Identifiable {
         case containers, imagesDangling, imagesAll, volumes
@@ -83,12 +85,14 @@ struct StorageView: View {
                 }
                 Spacer()
                 Button {
+                    if !reduceMotion { refreshTicks += 1 }
                     Task {
                         await store.refreshStorage()
                         await store.refreshDiskUsage()
                     }
                 } label: {
                     Image(systemName: "arrow.clockwise")
+                        .symbolEffect(.rotate.byLayer, value: refreshTicks)
                 }
                 .buttonStyle(.borderless)
                 .help("Re-measure storage")

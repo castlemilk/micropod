@@ -13,7 +13,6 @@ struct OperationsDrawerView: View {
 
     var body: some View {
         let active = store.operations.filter { $0.status == .running }
-        let recent = store.operations.filter { $0.status != .running }
         VStack(spacing: 0) {
             header(activeCount: active.count)
             if expanded {
@@ -42,16 +41,16 @@ struct OperationsDrawerView: View {
         HStack(spacing: 6) {
             Image(systemName: "shippingbox")
                 .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(activeCount > 0 ? Color.accentColor : Color.secondary)
+                .symbolEffect(.pulse, isActive: activeCount > 0 && !reduceMotion)
             Text(
                 activeCount > 0
                     ? String(localized: "Operations · \(activeCount) running") : String(localized: "Operations")
             )
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
-            if activeCount > 0 {
-                ProgressView().controlSize(.mini)
-            }
+            .contentTransition(.numericText())
+            .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: activeCount)
             Spacer()
             if !store.operations.isEmpty {
                 Button {
@@ -112,7 +111,7 @@ struct OperationRowView: View {
                     .lineLimit(1)
                 if let preview = operation.events.last, !preview.isEmpty {
                     Text(preview)
-                        .font(.system(size: 10, design: .monospaced))
+                        .font(.footnote.monospaced())
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.head)

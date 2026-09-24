@@ -35,7 +35,7 @@ struct ComposeEditorSheet: View {
             }
 
             TextEditor(text: $text)
-                .font(.system(size: 11, design: .monospaced))
+                .font(.subheadline.monospaced())
                 .frame(minHeight: 300)
                 .scrollContentBackground(.hidden)
                 .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 6))
@@ -150,7 +150,7 @@ struct ComposeEditorSheet: View {
                 try writeEnvironment(spec)
                 if up {
                     let plan = try store.dependencies.compose.plan(spec: spec)
-                    for try await _ in await store.dependencies.compose.up(plan: plan) {}
+                    for try await _ in store.dependencies.compose.up(plan: plan) {}
                     await store.refreshContainers()
                 }
                 isSaving = false

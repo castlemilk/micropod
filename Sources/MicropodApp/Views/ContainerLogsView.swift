@@ -163,7 +163,7 @@ struct ContainerLogsView: View {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(lines.enumerated()), id: \.element.id) { index, line in
                         Text(highlighted(line.text))
-                            .font(.system(size: 11, design: .monospaced))
+                            .font(.subheadline.monospaced())
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .lineLimit(wrap ? nil : 1)
