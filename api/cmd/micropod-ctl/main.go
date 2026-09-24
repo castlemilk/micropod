@@ -12,8 +12,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	micropodv1 "micropod/api/gen/micropod/v1"
-	"micropod/api/gen/micropod/v1/micropodv1connect"
+	micropodv1 "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1"
+	"github.com/castlemilk/micropod/sdk/go/gen/micropod/v1/micropodv1connect"
 )
 
 func main() {

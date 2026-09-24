@@ -12,7 +12,7 @@ import (
 	"os"
 	"time"
 
-	"micropod/api/gen/micropod/v1/micropodv1connect"
+	"github.com/castlemilk/micropod/sdk/go/gen/micropod/v1/micropodv1connect"
 	"micropod/api/internal/clicli"
 	"micropod/api/internal/metrics"
 	"micropod/api/internal/server"

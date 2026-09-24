@@ -11,6 +11,7 @@ const KIND_STYLES: Record<SearchItem["kind"], string> = {
   REST: "text-success",
   Connect: "text-primary",
   MCP: "text-warn",
+  SDK: "text-foreground",
 };
 
 export function SearchDialog({ items }: { items: SearchItem[] }) {

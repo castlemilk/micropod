@@ -5,17 +5,20 @@ plugins:
     out: Sources/MicropodCore/Generated
     opt:
       - Visibility=public
+  # Go SDK gen — the publishable client surface lives in sdk/go (module
+  # github.com/castlemilk/micropod/sdk/go). api/ consumes it via a local
+  # replace directive.
   - local: protoc-gen-go
-    out: api/gen
+    out: sdk/go/gen
     opt:
       - paths=source_relative
   - local: protoc-gen-connect-go
-    out: api/gen
+    out: sdk/go/gen
     opt:
       - paths=source_relative
   # Plain gRPC stubs so Go callers (cuttlefish) can drive vminitd's
   # SandboxContext over the vsock bridge with grpc-go.
   - local: protoc-gen-go-grpc
-    out: api/gen
+    out: sdk/go/gen
     opt:
       - paths=source_relative

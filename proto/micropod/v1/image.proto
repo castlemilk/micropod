@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package micropod.v1;
 
-option go_package = "micropod/api/gen/micropod/v1;micropodv1";
+option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
 
 // Curated view of a local image, mapped from `container image list --verbose`.
 message Image {

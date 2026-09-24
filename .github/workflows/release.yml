@@ -153,3 +153,53 @@ jobs:
           # GITHUB_TOKEN pushes don't trigger workflows — dispatch the Pages
           # deploy explicitly so the appcast actually reaches the live feed.
           gh workflow run gh-pages.yml --ref master
+
+  # Publishable client SDKs (proto-generated, sdk/). Runs after the release
+  # exists so asset upload + module tagging land on the same release.
+  sdk:
+    needs: release
+    runs-on: macos-26
+    env:
+      VERSION: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: bufbuild/buf-setup-action@v1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+
+      - name: Verify generated code is in sync
+        run: scripts/gen-sdk.sh --check
+
+      - name: Build + test Go SDK
+        run: cd sdk/go && go build ./... && go test ./...
+
+      - name: Build + pack TypeScript SDK
+        run: |
+          mkdir -p dist
+          cd sdk/ts
+          npm ci
+          npm run build
+          npm pack --pack-destination ../../dist
+          mv "../../dist/micropod-sdk-"*.tgz "../../dist/micropod-sdk-${VERSION#v}.tgz"
+
+      - name: Build Swift SDK
+        run: cd sdk/swift && swift build
+
+      - name: Upload TypeScript SDK asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$VERSION" "dist/micropod-sdk-${VERSION#v}.tgz" --clobber
+
+      # Go modules resolve by path-versioned tag: sdk/go/v0.7.0 makes
+      # `go get github.com/castlemilk/micropod/sdk/go@sdk/go/v0.7.0` work.
+      - name: Tag Go module version
+        run: |
+          git tag "sdk/go/$VERSION" 2>/dev/null || true
+          git push origin "refs/tags/sdk/go/$VERSION"

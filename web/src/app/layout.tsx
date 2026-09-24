@@ -28,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       title: "Reference",
       items: [
         { label: "Overview", href: "/" },
+        { label: "Client SDKs", href: "/sdk/" },
         { label: "Protobuf reference", href: "/proto/" },
       ],
     },

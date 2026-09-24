@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"net"
 
-	sandboxv3 "micropod/api/gen/com/apple/containerization/sandbox/v3"
+	sandboxv3 "github.com/castlemilk/micropod/sdk/go/gen/com/apple/containerization/sandbox/v3"
 	"micropod/api/internal/vsockdial"
 
 	"google.golang.org/grpc"

@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { ArrowRight, Globe, Plug, TerminalSquare, FileCode2 } from "lucide-react";
+import { ArrowRight, Globe, Plug, TerminalSquare, FileCode2, Package } from "lucide-react";
 import { loadConnectServices, loadMcpTools, loadRestRoutes, REST_BASE_URL } from "@/lib/data";
 
 export default function OverviewPage() {
@@ -40,6 +40,14 @@ export default function OverviewPage() {
       count: "source of truth",
       blurb:
         "Generated message and service reference for proto/micropod/v1 plus the vendored Apple sandbox contract.",
+    },
+    {
+      href: "/sdk/",
+      icon: Package,
+      title: "Client SDKs",
+      count: "Go · TS · Swift",
+      blurb:
+        "Generated clients with retry, timeouts, and OpenTelemetry instrumentation built in — one contract, three languages.",
     },
   ];
 

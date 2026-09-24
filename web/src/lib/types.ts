@@ -62,7 +62,7 @@ export interface McpTool {
 }
 
 export interface SearchItem {
-  kind: "REST" | "Connect" | "MCP";
+  kind: "REST" | "Connect" | "MCP" | "SDK";
   title: string;
   subtitle: string;
   href: string;

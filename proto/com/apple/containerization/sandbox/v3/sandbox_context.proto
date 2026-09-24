@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package com.apple.containerization.sandbox.v3;
 
-option go_package = "micropod/api/gen/com/apple/containerization/sandbox/v3;sandboxv3";
+option go_package = "github.com/castlemilk/micropod/sdk/go/gen/com/apple/containerization/sandbox/v3;sandboxv3";
 
 import "google/protobuf/timestamp.proto";
 
