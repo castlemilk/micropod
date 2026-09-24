@@ -143,7 +143,7 @@ const CONNECT_SPECS = [
     service: "micropod.v1.MicropodService",
     title: "MicropodService",
     blurb:
-      "Connect-RPC control surface served by the Go daemon at api/. Unary JSON over HTTP — same messages as the protobuf contract.",
+      "Connect-RPC control surface mounted by MicropodAPI (and the Go daemon at api/). Connect JSON over HTTP — same messages as the protobuf contract.",
   },
   {
     file: "com/apple/containerization/sandbox/v3/sandbox_context.openapi.json",
@@ -240,7 +240,14 @@ export function getConnectEndpoint(id: string): {
 // ---------------------------------------------------------------------------
 
 export function buildSearchIndex(): SearchItem[] {
-  const items: SearchItem[] = [];
+  const items: SearchItem[] = [
+    {
+      kind: "SDK",
+      title: "Client SDKs",
+      subtitle: "Go, TypeScript, and Swift clients — retry, timeouts, OpenTelemetry",
+      href: "/sdk/",
+    },
+  ];
   for (const r of loadRestRoutes()) {
     items.push({
       kind: "REST",

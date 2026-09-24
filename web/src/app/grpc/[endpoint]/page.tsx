@@ -5,6 +5,7 @@ import { getConnectEndpoint, loadConnectServices, REST_BASE_URL } from "@/lib/da
 import { connectSamples } from "@/lib/code-samples";
 import { responseExampleFor } from "@/lib/examples";
 import { EndpointContent } from "@/components/endpoint-content";
+import { Playground } from "@/components/playground";
 import { RequestPanel } from "@/components/request-panel";
 
 export function generateStaticParams() {
@@ -35,8 +36,23 @@ export default function ConnectEndpointPage({
   const samples = connectSamples(endpoint, REST_BASE_URL);
   const ok = responseExampleFor(endpoint);
 
+  const schema = endpoint.requestBody?.content?.["application/json"]?.schema;
+  const isStreaming = Object.values(endpoint.responses).some((r) =>
+    Object.keys(r.content ?? {}).some((ct) => ct.includes("connect+json")),
+  );
+
   const panel = (
     <RequestPanel
+      playground={
+        !isSandbox ? (
+          <Playground
+            method={endpoint.method}
+            path={endpoint.path}
+            requestSchema={schema}
+            stream={isStreaming ? "connect" : null}
+          />
+        ) : undefined
+      }
       samples={samples}
       heading={`${endpoint.method} ${endpoint.path}`}
       response={ok ? { status: ok.status, body: ok.body } : undefined}

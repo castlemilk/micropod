@@ -7,6 +7,17 @@ badges, enums, and inline example values, plus a syntax-highlighted Example
 view), generated curl/JavaScript/Python/Go/Swift samples with real request
 bodies, and ⌘K search across every surface.
 
+Every REST and Connect page also has a **Try it** playground (Fern-style) in
+the right rail — an editable base-URL bar with a live daemon-reachability
+indicator, per-field request editors seeded from the generated examples,
+and a Send button that calls the daemon directly from the browser (default
+`http://localhost:45454`). Server-streaming RPCs (`StreamContainerLogs`,
+`PullImage`) are decoded as Connect envelope frames; the REST logs endpoint
+reads SSE. The two pages without a playground are the vsock bridge (a raw
+duplex byte pipe) and the `SandboxContext` endpoints (guest-side, not host
+HTTP). Browser calls depend on the daemon's CORS policy in
+`Sources/MicropodAPI/CORSPolicy.swift` — add new docs origins there.
+
 - `web/src/lib/examples.ts` — schema→example generator (field-name heuristics,
   proto JSON conventions like int64-as-string, curated overrides for flagship
   RPCs) and the MCP `Arguments:` description parser that synthesizes tool

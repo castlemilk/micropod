@@ -6,6 +6,7 @@ import { restSamples } from "@/lib/code-samples";
 import { restShape } from "@/lib/rest-links";
 import { MethodBadge } from "@/components/method-badge";
 import { PayloadExplorer } from "@/components/payload-explorer";
+import { Playground } from "@/components/playground";
 import { RequestPanel } from "@/components/request-panel";
 import { JsonView } from "@/components/json-view";
 import { cn } from "@/lib/utils";
@@ -29,8 +30,24 @@ export default function RestRoutePage({ params }: { params: { route: string } })
   const shape = restShape(route);
   const okResponse = shape?.responses.find((r) => r.status.startsWith("2"));
 
+  // The vsock bridge is a raw duplex byte pipe — not playable over fetch.
+  const playable = route.id !== "get-v1-containers-id-vsock-port";
+  const isSse = shape?.responses.some((r) => r.stream?.includes("event-stream")) ?? false;
+
   const panel = (
     <RequestPanel
+      playground={
+        playable ? (
+          <Playground
+            method={route.method}
+            path={route.path}
+            requestSchema={shape?.requestSchema}
+            requestExample={shape?.requestExample}
+            query={shape?.query}
+            stream={isSse ? "sse" : null}
+          />
+        ) : undefined
+      }
       samples={restSamples(route, shape, REST_BASE_URL)}
       heading={`${route.method} ${route.path}`}
       response={
