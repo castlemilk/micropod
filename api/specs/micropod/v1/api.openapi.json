@@ -1997,6 +1997,17 @@
           "output": {
             "type": "string",
             "title": "output"
+          },
+          "exitCode": {
+            "type": "integer",
+            "title": "exit_code",
+            "format": "int32",
+            "description": "Guest process exit code. 0 on success; when the native runtime backend\n is active this is the real exit status rather than a CLI approximation."
+          },
+          "error": {
+            "type": "string",
+            "title": "error",
+            "description": "Guest stderr, when the backend can separate the streams."
           }
         },
         "title": "ExecResponse",

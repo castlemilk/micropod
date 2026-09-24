@@ -76,6 +76,11 @@
   },
   {
     "method": "GET",
+    "path": "/v1/containers/{id}/vsock/{port}",
+    "description": "Raw duplex stream to a guest vsock port (native backend)."
+  },
+  {
+    "method": "GET",
     "path": "/v1/containers/{id}/logs",
     "description": "Stream logs as SSE (?tail=N&boot=true)."
   },
@@ -108,6 +113,16 @@
     "method": "DELETE",
     "path": "/v1/volumes/{name}",
     "description": "Delete a volume."
+  },
+  {
+    "method": "GET",
+    "path": "/v1/config/volumes",
+    "description": "Read the shared volume-mount policy."
+  },
+  {
+    "method": "PUT",
+    "path": "/v1/config/volumes",
+    "description": "Replace the volume-mount policy (partial bodies merge onto defaults)."
   },
   {
     "method": "GET",
