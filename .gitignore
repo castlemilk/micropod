@@ -19,5 +19,9 @@ web/.next/
 web/out/
 web/public/specs/
 
+# SDK build artifacts (generated sources ARE committed; .build/ and dist/
+# are already global patterns above)
+sdk/ts/node_modules/
+
 # Vendored apple/container checkout kept locally for reference
 docs/container/

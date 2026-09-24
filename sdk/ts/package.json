@@ -1,0 +1,32 @@
+{
+  "name": "@micropod/sdk",
+  "version": "0.7.0",
+  "description": "TypeScript SDK for the Micropod container API — Connect-RPC client with retry, timeouts, and OpenTelemetry instrumentation.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js",
+    "./gen/*": "./dist/gen/*"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src/gen"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.9.0",
+    "@connectrpc/connect": "^2.1.0",
+    "@connectrpc/connect-web": "^2.1.0",
+    "@opentelemetry/api": "^1.9.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,19 @@
+version: v2
+clean: true
+# SDK-generation template — emits the publishable client surfaces for
+# TypeScript and Swift. Go gen lives in the main buf.gen.yaml (the api/
+# module shares it via replace). All plugins remote so it runs anywhere;
+# driven by scripts/gen-sdk.sh.
+plugins:
+  # TypeScript: protobuf-es v2 emits messages AND connect service stubs.
+  - remote: buf.build/bufbuild/es:v2.9.0
+    out: sdk/ts/src/gen
+    opt:
+      - target=ts
+      - import_extension=js
+  # Swift: standalone copy for the MicropodSDK library target (kept
+  # separate from MicropodCore/Generated so the SDK stays dependency-light).
+  - remote: buf.build/apple/swift
+    out: sdk/swift/Sources/MicropodSDK/Generated
+    opt:
+      - Visibility=public

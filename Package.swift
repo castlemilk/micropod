@@ -8,6 +8,11 @@ let package = Package(
     ],
     products: [
         .library(name: "MicropodCore", targets: ["MicropodCore"]),
+        // Public client SDK generated from proto/micropod/v1 — Connect-RPC
+        // transport + retry/timeout/tracing interceptors. Sources live in
+        // sdk/swift so the standalone package at sdk/swift/Package.swift
+        // and this product share one implementation.
+        .library(name: "MicropodSDK", targets: ["MicropodSDK"]),
         .executable(name: "MicropodApp", targets: ["MicropodApp"]),
         .executable(name: "MicropodMCP", targets: ["MicropodMCP"]),
         .executable(name: "MicropodBench", targets: ["MicropodBench"]),
@@ -103,6 +108,16 @@ let package = Package(
         .executableTarget(
             name: "MicropodBench",
             dependencies: ["MicropodCore", "MicropodRuntime"],
+            swiftSettings: [
+                .enableUpcomingFeature("StrictConcurrency")
+            ]
+        ),
+        .target(
+            name: "MicropodSDK",
+            dependencies: [
+                .product(name: "SwiftProtobuf", package: "swift-protobuf")
+            ],
+            path: "sdk/swift/Sources/MicropodSDK",
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]
