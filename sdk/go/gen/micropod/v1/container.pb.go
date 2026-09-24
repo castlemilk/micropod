@@ -7,6 +7,7 @@
 package micropodv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -31,27 +32,39 @@ type Container struct {
 	// Lifecycle state: running, stopped, exited, created, ...
 	State string `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
 	// ISO8601 creation timestamp.
-	CreatedAt string              `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CreatedAt string `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Configured CPU/memory limits.
 	Resources *ContainerResources `protobuf:"bytes,5,opt,name=resources,proto3" json:"resources,omitempty"`
 	// Platform string, e.g. "linux/arm64".
-	Platform       string         `protobuf:"bytes,6,opt,name=platform,proto3" json:"platform,omitempty"`
+	Platform string `protobuf:"bytes,6,opt,name=platform,proto3" json:"platform,omitempty"`
+	// Published host→container port mappings.
 	PublishedPorts []*PortMapping `protobuf:"bytes,7,rep,name=published_ports,json=publishedPorts,proto3" json:"published_ports,omitempty"`
-	Mounts         []*Mount       `protobuf:"bytes,8,rep,name=mounts,proto3" json:"mounts,omitempty"`
+	// Mounted volumes and binds.
+	Mounts []*Mount `protobuf:"bytes,8,rep,name=mounts,proto3" json:"mounts,omitempty"`
 	// Names of networks the container is attached to.
 	Networks []string `protobuf:"bytes,9,rep,name=networks,proto3" json:"networks,omitempty"`
 	// Resolved IPv4 address on the container network, if running.
-	Ipv4Address    string            `protobuf:"bytes,10,opt,name=ipv4_address,json=ipv4Address,proto3" json:"ipv4_address,omitempty"`
-	Env            []string          `protobuf:"bytes,11,rep,name=env,proto3" json:"env,omitempty"`
-	Labels         map[string]string `protobuf:"bytes,12,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Rosetta        bool              `protobuf:"varint,13,opt,name=rosetta,proto3" json:"rosetta,omitempty"`
-	ReadOnly       bool              `protobuf:"varint,14,opt,name=read_only,json=readOnly,proto3" json:"read_only,omitempty"`
-	UseInit        bool              `protobuf:"varint,15,opt,name=use_init,json=useInit,proto3" json:"use_init,omitempty"`
-	Ssh            bool              `protobuf:"varint,16,opt,name=ssh,proto3" json:"ssh,omitempty"`
-	Virtualization bool              `protobuf:"varint,17,opt,name=virtualization,proto3" json:"virtualization,omitempty"`
-	RuntimeHandler string            `protobuf:"bytes,18,opt,name=runtime_handler,json=runtimeHandler,proto3" json:"runtime_handler,omitempty"`
-	ExitCode       string            `protobuf:"bytes,19,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	Ipv4Address string `protobuf:"bytes,10,opt,name=ipv4_address,json=ipv4Address,proto3" json:"ipv4_address,omitempty"`
+	// Environment variables as KEY=value pairs.
+	Env []string `protobuf:"bytes,11,rep,name=env,proto3" json:"env,omitempty"`
+	// Metadata labels on the container.
+	Labels map[string]string `protobuf:"bytes,12,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Runs x86_64 binaries via Rosetta translation.
+	Rosetta bool `protobuf:"varint,13,opt,name=rosetta,proto3" json:"rosetta,omitempty"`
+	// Root filesystem is read-only.
+	ReadOnly bool `protobuf:"varint,14,opt,name=read_only,json=readOnly,proto3" json:"read_only,omitempty"`
+	// An init process runs as PID 1 inside the container.
+	UseInit bool `protobuf:"varint,15,opt,name=use_init,json=useInit,proto3" json:"use_init,omitempty"`
+	// SSH access is enabled for the container.
+	Ssh bool `protobuf:"varint,16,opt,name=ssh,proto3" json:"ssh,omitempty"`
+	// Uses full virtualization rather than the container runtime path.
+	Virtualization bool `protobuf:"varint,17,opt,name=virtualization,proto3" json:"virtualization,omitempty"`
+	// OCI runtime handler in use, if any.
+	RuntimeHandler string `protobuf:"bytes,18,opt,name=runtime_handler,json=runtimeHandler,proto3" json:"runtime_handler,omitempty"`
+	// Exit code once the container has stopped.
+	ExitCode      string `protobuf:"bytes,19,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Container) Reset() {
@@ -218,9 +231,11 @@ func (x *Container) GetExitCode() string {
 }
 
 type ContainerResources struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Cpus          float64                `protobuf:"fixed64,1,opt,name=cpus,proto3" json:"cpus,omitempty"`
-	MemoryBytes   uint64                 `protobuf:"varint,2,opt,name=memory_bytes,json=memoryBytes,proto3" json:"memory_bytes,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// CPU limit in cores.
+	Cpus float64 `protobuf:"fixed64,1,opt,name=cpus,proto3" json:"cpus,omitempty"`
+	// Memory limit in bytes.
+	MemoryBytes   uint64 `protobuf:"varint,2,opt,name=memory_bytes,json=memoryBytes,proto3" json:"memory_bytes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -269,12 +284,17 @@ func (x *ContainerResources) GetMemoryBytes() uint64 {
 	return 0
 }
 
+// A published port mapping between host and container.
 type PortMapping struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	HostPort      uint32                 `protobuf:"varint,1,opt,name=host_port,json=hostPort,proto3" json:"host_port,omitempty"`
-	ContainerPort uint32                 `protobuf:"varint,2,opt,name=container_port,json=containerPort,proto3" json:"container_port,omitempty"`
-	Protocol      string                 `protobuf:"bytes,3,opt,name=protocol,proto3" json:"protocol,omitempty"`
-	HostIp        string                 `protobuf:"bytes,4,opt,name=host_ip,json=hostIp,proto3" json:"host_ip,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Port on the host.
+	HostPort uint32 `protobuf:"varint,1,opt,name=host_port,json=hostPort,proto3" json:"host_port,omitempty"`
+	// Port inside the container.
+	ContainerPort uint32 `protobuf:"varint,2,opt,name=container_port,json=containerPort,proto3" json:"container_port,omitempty"`
+	// "tcp" or "udp".
+	Protocol string `protobuf:"bytes,3,opt,name=protocol,proto3" json:"protocol,omitempty"`
+	// Host interface IP to bind (empty = all interfaces).
+	HostIp        string `protobuf:"bytes,4,opt,name=host_ip,json=hostIp,proto3" json:"host_ip,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -337,12 +357,17 @@ func (x *PortMapping) GetHostIp() string {
 	return ""
 }
 
+// A volume or bind mount inside the container.
 type Mount struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
-	Source        string                 `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
-	Destination   string                 `protobuf:"bytes,3,opt,name=destination,proto3" json:"destination,omitempty"`
-	ReadOnly      bool                   `protobuf:"varint,4,opt,name=read_only,json=readOnly,proto3" json:"read_only,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Mount kind: "volume" or "bind".
+	Type string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	// Volume name or host path.
+	Source string `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
+	// Path inside the container.
+	Destination string `protobuf:"bytes,3,opt,name=destination,proto3" json:"destination,omitempty"`
+	// Mount is read-only.
+	ReadOnly      bool `protobuf:"varint,4,opt,name=read_only,json=readOnly,proto3" json:"read_only,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -409,7 +434,7 @@ var File_micropod_v1_container_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_container_proto_rawDesc = "" +
 	"\n" +
-	"\x1bmicropod/v1/container.proto\x12\vmicropod.v1\"\xca\x05\n" +
+	"\x1bmicropod/v1/container.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\"\xca\x05\n" +
 	"\tContainer\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05image\x18\x02 \x01(\tR\x05image\x12\x14\n" +
@@ -437,10 +462,10 @@ const file_micropod_v1_container_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"K\n" +
 	"\x12ContainerResources\x12\x12\n" +
 	"\x04cpus\x18\x01 \x01(\x01R\x04cpus\x12!\n" +
-	"\fmemory_bytes\x18\x02 \x01(\x04R\vmemoryBytes\"\x86\x01\n" +
-	"\vPortMapping\x12\x1b\n" +
-	"\thost_port\x18\x01 \x01(\rR\bhostPort\x12%\n" +
-	"\x0econtainer_port\x18\x02 \x01(\rR\rcontainerPort\x12\x1a\n" +
+	"\fmemory_bytes\x18\x02 \x01(\x04R\vmemoryBytes\"\x9f\x01\n" +
+	"\vPortMapping\x12&\n" +
+	"\thost_port\x18\x01 \x01(\rB\t\xbaH\x06*\x04\x18\xff\xff\x03R\bhostPort\x123\n" +
+	"\x0econtainer_port\x18\x02 \x01(\rB\f\xbaH\t\xc8\x01\x01*\x04\x18\xff\xff\x03R\rcontainerPort\x12\x1a\n" +
 	"\bprotocol\x18\x03 \x01(\tR\bprotocol\x12\x17\n" +
 	"\ahost_ip\x18\x04 \x01(\tR\x06hostIp\"r\n" +
 	"\x05Mount\x12\x12\n" +

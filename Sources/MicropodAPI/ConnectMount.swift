@@ -30,41 +30,49 @@ extension APIHandlers {
 
             case "RunContainer":
                 let req = try decode(Micropod_V1_RunContainerRequest.self, body)
+                try check(req)
                 let id = try await containers.run(runRequest(from: req))
                 return unary(Micropod_V1_ContainerRef.with { $0.id = id })
 
             case "CreateContainer":
                 let req = try decode(Micropod_V1_RunContainerRequest.self, body)
+                try check(req)
                 let id = try await containers.create(runRequest(from: req))
                 return unary(Micropod_V1_ContainerRef.with { $0.id = id })
 
             case "StartContainer":
                 let req = try decode(Micropod_V1_ContainerRef.self, body)
+                try check(req)
                 try await containers.start(req.id)
                 return unary(Micropod_V1_Empty())
 
             case "StopContainer":
                 let req = try decode(Micropod_V1_ContainerRef.self, body)
+                try check(req)
                 try await containers.stop(req.id)
                 return unary(Micropod_V1_Empty())
 
             case "RestartContainer":
                 let req = try decode(Micropod_V1_ContainerRef.self, body)
+                try check(req)
                 try await containers.restart(req.id)
                 return unary(Micropod_V1_Empty())
 
             case "KillContainer":
                 let req = try decode(Micropod_V1_ContainerRef.self, body)
+                try check(req)
                 try await containers.kill(req.id)
                 return unary(Micropod_V1_Empty())
 
             case "DeleteContainer":
                 let req = try decode(Micropod_V1_DeleteContainerRequest.self, body)
+                try check(req)
                 try await containers.delete(req.id, force: req.force)
                 return unary(Micropod_V1_Empty())
 
             case "StreamContainerLogs":
                 let req = try decodeStreamRequest(Micropod_V1_StreamLogsRequest.self, body)
+                try check(req)
                 let events = logs.stream(
                     id: req.id,
                     tail: req.tail > 0 ? Int(req.tail) : nil,
@@ -80,6 +88,7 @@ extension APIHandlers {
 
             case "PullImage":
                 let req = try decodeStreamRequest(Micropod_V1_PullImageRequest.self, body)
+                try check(req)
                 let events = images.pull(
                     req.reference,
                     platform: req.hasPlatform ? req.platform : nil)
@@ -93,6 +102,7 @@ extension APIHandlers {
 
             case "DeleteImage":
                 let req = try decode(Micropod_V1_DeleteImageRequest.self, body)
+                try check(req)
                 try await images.delete(req.reference, force: req.force)
                 return unary(Micropod_V1_Empty())
 
@@ -103,6 +113,7 @@ extension APIHandlers {
 
             case "CreateVolume":
                 let req = try decode(Micropod_V1_CreateVolumeRequest.self, body)
+                try check(req)
                 try await volumes.create(
                     name: req.name,
                     size: req.hasSize ? req.size : nil,
@@ -112,6 +123,7 @@ extension APIHandlers {
 
             case "DeleteVolume":
                 let req = try decode(Micropod_V1_DeleteVolumeRequest.self, body)
+                try check(req)
                 try await volumes.delete(req.name)
                 return unary(Micropod_V1_Empty())
 
@@ -122,6 +134,7 @@ extension APIHandlers {
 
             case "CreateNetwork":
                 let req = try decode(Micropod_V1_CreateNetworkRequest.self, body)
+                try check(req)
                 try await networks.create(
                     name: req.name,
                     internal: req.`internal`,
@@ -134,6 +147,7 @@ extension APIHandlers {
 
             case "DeleteNetwork":
                 let req = try decode(Micropod_V1_DeleteNetworkRequest.self, body)
+                try check(req)
                 try await networks.delete(req.name)
                 return unary(Micropod_V1_Empty())
 
@@ -144,6 +158,7 @@ extension APIHandlers {
 
             case "Exec":
                 let req = try decode(Micropod_V1_ExecRequest.self, body)
+                try check(req)
                 let result = try await containers.execDetailed(
                     ContainerExecRequest(
                         containerID: req.id,
@@ -205,6 +220,82 @@ extension APIHandlers {
     }
 
     // MARK: - Wire helpers
+
+    /// Mirrors the `buf.validate` constraints declared on the protos — the Go
+    /// apiserver enforces them via its protovalidate interceptor, but this
+    /// in-process mount bypasses that chain, so required/non-empty fields are
+    /// checked here before dispatch.
+    private func required(_ value: String, _ field: String) throws {
+        if value.isEmpty {
+            throw ConnectDecodeError(
+                code: .invalidArgument, message: "\(field): value is required")
+        }
+    }
+
+    private func check(_ req: Micropod_V1_ContainerRef) throws {
+        try required(req.id, "id")
+    }
+
+    private func check(_ req: Micropod_V1_RunContainerRequest) throws {
+        try required(req.image, "image")
+        if req.hasCpus && req.cpus <= 0 {
+            throw ConnectDecodeError(
+                code: .invalidArgument, message: "cpus: must be greater than 0")
+        }
+        for port in req.ports {
+            if port.containerPort == 0 || port.containerPort > 65535 {
+                throw ConnectDecodeError(
+                    code: .invalidArgument,
+                    message: "ports.containerPort: must be in 1...65535")
+            }
+            if port.hostPort > 65535 {
+                throw ConnectDecodeError(
+                    code: .invalidArgument,
+                    message: "ports.hostPort: must be in 0...65535")
+            }
+        }
+    }
+
+    private func check(_ req: Micropod_V1_DeleteContainerRequest) throws {
+        try required(req.id, "id")
+    }
+
+    private func check(_ req: Micropod_V1_StreamLogsRequest) throws {
+        try required(req.id, "id")
+        if req.tail < 0 {
+            throw ConnectDecodeError(
+                code: .invalidArgument, message: "tail: must be 0 or greater")
+        }
+    }
+
+    private func check(_ req: Micropod_V1_PullImageRequest) throws {
+        try required(req.reference, "reference")
+    }
+
+    private func check(_ req: Micropod_V1_DeleteImageRequest) throws {
+        try required(req.reference, "reference")
+    }
+
+    private func check(_ req: Micropod_V1_CreateVolumeRequest) throws {
+        try required(req.name, "name")
+    }
+
+    private func check(_ req: Micropod_V1_DeleteVolumeRequest) throws {
+        try required(req.name, "name")
+    }
+
+    private func check(_ req: Micropod_V1_CreateNetworkRequest) throws {
+        try required(req.name, "name")
+    }
+
+    private func check(_ req: Micropod_V1_DeleteNetworkRequest) throws {
+        try required(req.name, "name")
+    }
+
+    private func check(_ req: Micropod_V1_ExecRequest) throws {
+        try required(req.id, "id")
+        try required(req.command, "command")
+    }
 
     private func decode<M: Message>(_ type: M.Type, _ body: Data) throws -> M {
         do {

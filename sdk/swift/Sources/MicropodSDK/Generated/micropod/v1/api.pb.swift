@@ -45,6 +45,7 @@ public nonisolated struct Micropod_V1_GetStatsResponse: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// One stats snapshot covering every running container.
   public var snapshot: Micropod_V1_StatsSnapshot {
     get {_snapshot ?? Micropod_V1_StatsSnapshot()}
     set {_snapshot = newValue}
@@ -66,6 +67,7 @@ public nonisolated struct Micropod_V1_SystemSnapshot: @unchecked Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Runtime health (status, versions, install paths).
   public var status: Micropod_V1_SystemStatus {
     get {_storage._status ?? Micropod_V1_SystemStatus()}
     set {_uniqueStorage()._status = newValue}
@@ -75,6 +77,7 @@ public nonisolated struct Micropod_V1_SystemSnapshot: @unchecked Sendable {
   /// Clears the value of `status`. Subsequent reads from it will return its default value.
   public mutating func clearStatus() {_uniqueStorage()._status = nil}
 
+  /// Disk usage grouped by resource kind.
   public var diskUsage: Micropod_V1_DiskUsage {
     get {_storage._diskUsage ?? Micropod_V1_DiskUsage()}
     set {_uniqueStorage()._diskUsage = newValue}
@@ -91,11 +94,13 @@ public nonisolated struct Micropod_V1_SystemSnapshot: @unchecked Sendable {
   fileprivate var _storage = _StorageClass.defaultInstance
 }
 
+/// Reference to an existing container (or the ID returned by run/create).
 public nonisolated struct Micropod_V1_ContainerRef: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Container ID — `container` uses the user-assigned name as the ID.
   public var id: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -108,6 +113,7 @@ public nonisolated struct Micropod_V1_ListContainersResponse: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Every container, in `container list` order.
   public var containers: [Micropod_V1_Container] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -115,13 +121,16 @@ public nonisolated struct Micropod_V1_ListContainersResponse: Sendable {
   public init() {}
 }
 
+/// Shared request shape for run + create (docker run / docker create).
 public nonisolated struct Micropod_V1_RunContainerRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Image reference to run, e.g. "alpine:3.20". Pulled if not present locally.
   public var image: String = String()
 
+  /// Optional container name; becomes the container ID.
   public var name: String {
     get {_name ?? String()}
     set {_name = newValue}
@@ -131,8 +140,10 @@ public nonisolated struct Micropod_V1_RunContainerRequest: Sendable {
   /// Clears the value of `name`. Subsequent reads from it will return its default value.
   public mutating func clearName() {self._name = nil}
 
+  /// Return immediately instead of streaming/attaching.
   public var detach: Bool = false
 
+  /// CPU limit in cores, e.g. 0.5 for half a core.
   public var cpus: Double {
     get {_cpus ?? 0}
     set {_cpus = newValue}
@@ -142,6 +153,7 @@ public nonisolated struct Micropod_V1_RunContainerRequest: Sendable {
   /// Clears the value of `cpus`. Subsequent reads from it will return its default value.
   public mutating func clearCpus() {self._cpus = nil}
 
+  /// Memory limit, e.g. "512m" or "4g".
   public var memory: String {
     get {_memory ?? String()}
     set {_memory = newValue}
@@ -151,16 +163,22 @@ public nonisolated struct Micropod_V1_RunContainerRequest: Sendable {
   /// Clears the value of `memory`. Subsequent reads from it will return its default value.
   public mutating func clearMemory() {self._memory = nil}
 
+  /// Environment variables as KEY=value pairs.
   public var env: [String] = []
 
+  /// Published port mappings (host → container).
   public var ports: [Micropod_V1_PortMapping] = []
 
+  /// Bind/volume mounts as "name-or-path:/mount" specs.
   public var volumes: [String] = []
 
+  /// Arbitrary metadata labels on the container.
   public var labels: Dictionary<String,String> = [:]
 
+  /// Run an init process as PID 1 to reap zombies.
   public var init_p: Bool = false
 
+  /// Command + args override (image entrypoint is used when empty).
   public var arguments: [String] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -177,8 +195,10 @@ public nonisolated struct Micropod_V1_DeleteContainerRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Container ID (or name).
   public var id: String = String()
 
+  /// Remove even if the container is still running.
   public var force: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -191,10 +211,13 @@ public nonisolated struct Micropod_V1_StreamLogsRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Container ID (or name) to stream logs from.
   public var id: String = String()
 
+  /// Number of lines to replay from the end of the log before following.
   public var tail: Int32 = 0
 
+  /// Include the vminitd guest boot log.
   public var boot: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -202,11 +225,13 @@ public nonisolated struct Micropod_V1_StreamLogsRequest: Sendable {
   public init() {}
 }
 
+/// One streamed log line (StreamContainerLogs event).
 public nonisolated struct Micropod_V1_LogChunk: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// A single line of container output.
   public var text: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -219,6 +244,7 @@ public nonisolated struct Micropod_V1_ListImagesResponse: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Every local image, in `container image list` order.
   public var images: [Micropod_V1_Image] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -231,8 +257,10 @@ public nonisolated struct Micropod_V1_PullImageRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Image reference to pull, e.g. "alpine:3.20" or a full registry path.
   public var reference: String = String()
 
+  /// Platform to pull, e.g. "linux/arm64". Defaults to the host platform.
   public var platform: String {
     get {_platform ?? String()}
     set {_platform = newValue}
@@ -249,13 +277,16 @@ public nonisolated struct Micropod_V1_PullImageRequest: Sendable {
   fileprivate var _platform: String? = nil
 }
 
+/// One pull-progress event (PullImage stream).
 public nonisolated struct Micropod_V1_ProgressLine: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Human-readable progress text from the registry pull.
   public var line: String = String()
 
+  /// Current stage index (1-based), when the pull reports staged progress.
   public var stage: Int32 {
     get {_stage ?? 0}
     set {_stage = newValue}
@@ -265,6 +296,7 @@ public nonisolated struct Micropod_V1_ProgressLine: Sendable {
   /// Clears the value of `stage`. Subsequent reads from it will return its default value.
   public mutating func clearStage() {self._stage = nil}
 
+  /// Total number of stages, when known.
   public var totalStages: Int32 {
     get {_totalStages ?? 0}
     set {_totalStages = newValue}
@@ -287,8 +319,10 @@ public nonisolated struct Micropod_V1_DeleteImageRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Image reference or digest to remove.
   public var reference: String = String()
 
+  /// Remove even if containers reference the image.
   public var force: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -301,6 +335,7 @@ public nonisolated struct Micropod_V1_ListVolumesResponse: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Every volume, in `container volume list` order.
   public var volumes: [Micropod_V1_Volume] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -313,8 +348,10 @@ public nonisolated struct Micropod_V1_CreateVolumeRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Volume name.
   public var name: String = String()
 
+  /// Optional size limit, e.g. "10g".
   public var size: String {
     get {_size ?? String()}
     set {_size = newValue}
@@ -324,8 +361,10 @@ public nonisolated struct Micropod_V1_CreateVolumeRequest: Sendable {
   /// Clears the value of `size`. Subsequent reads from it will return its default value.
   public mutating func clearSize() {self._size = nil}
 
+  /// Labels applied to the volume ("key=value").
   public var labels: [String] = []
 
+  /// Driver options passed through to the volume driver.
   public var options: [String] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -340,6 +379,7 @@ public nonisolated struct Micropod_V1_DeleteVolumeRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Volume name to remove.
   public var name: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -352,6 +392,7 @@ public nonisolated struct Micropod_V1_ListNetworksResponse: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Every container network, in `container network list` order.
   public var networks: [Micropod_V1_Network] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -364,10 +405,13 @@ public nonisolated struct Micropod_V1_CreateNetworkRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Network name.
   public var name: String = String()
 
+  /// Isolate the network from external traffic.
   public var `internal`: Bool = false
 
+  /// IPv4 CIDR for the network, e.g. "192.168.100.0/24".
   public var subnet: String {
     get {_subnet ?? String()}
     set {_subnet = newValue}
@@ -377,6 +421,7 @@ public nonisolated struct Micropod_V1_CreateNetworkRequest: Sendable {
   /// Clears the value of `subnet`. Subsequent reads from it will return its default value.
   public mutating func clearSubnet() {self._subnet = nil}
 
+  /// IPv6 CIDR for the network.
   public var subnetV6: String {
     get {_subnetV6 ?? String()}
     set {_subnetV6 = newValue}
@@ -386,6 +431,7 @@ public nonisolated struct Micropod_V1_CreateNetworkRequest: Sendable {
   /// Clears the value of `subnetV6`. Subsequent reads from it will return its default value.
   public mutating func clearSubnetV6() {self._subnetV6 = nil}
 
+  /// Network driver/plugin to use.
   public var driver: String {
     get {_driver ?? String()}
     set {_driver = newValue}
@@ -395,8 +441,10 @@ public nonisolated struct Micropod_V1_CreateNetworkRequest: Sendable {
   /// Clears the value of `driver`. Subsequent reads from it will return its default value.
   public mutating func clearDriver() {self._driver = nil}
 
+  /// Driver options passed through to the network plugin.
   public var options: [String] = []
 
+  /// Labels applied to the network ("key=value").
   public var labels: [String] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -413,6 +461,7 @@ public nonisolated struct Micropod_V1_DeleteNetworkRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Network name to remove.
   public var name: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -425,10 +474,13 @@ public nonisolated struct Micropod_V1_ExecRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Container ID (or name) to exec into.
   public var id: String = String()
 
+  /// Command to run inside the container.
   public var command: String = String()
 
+  /// Working directory for the command.
   public var workdir: String {
     get {_workdir ?? String()}
     set {_workdir = newValue}
@@ -438,6 +490,7 @@ public nonisolated struct Micropod_V1_ExecRequest: Sendable {
   /// Clears the value of `workdir`. Subsequent reads from it will return its default value.
   public mutating func clearWorkdir() {self._workdir = nil}
 
+  /// Extra environment variables as KEY=value pairs.
   public var env: [String] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -452,6 +505,7 @@ public nonisolated struct Micropod_V1_ExecResponse: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Combined stdout (and stderr when not separable) of the command.
   public var output: String = String()
 
   /// Guest process exit code. 0 on success; when the native runtime backend

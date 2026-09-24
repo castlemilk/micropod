@@ -4,6 +4,7 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_buf_validate_validate } from "@bufbuild/protovalidate/gen/buf/validate/validate_pb.js";
 import type { Container, PortMapping } from "./container_pb.js";
 import { file_micropod_v1_container } from "./container_pb.js";
 import type { Image } from "./image_pb.js";
@@ -16,7 +17,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file micropod/v1/api.proto.
  */
 export const file_micropod_v1_api: GenFile = /*@__PURE__*/
-  fileDesc("ChVtaWNyb3BvZC92MS9hcGkucHJvdG8SC21pY3JvcG9kLnYxIgcKBUVtcHR5IhEKD0dldFN0YXRzUmVxdWVzdCJAChBHZXRTdGF0c1Jlc3BvbnNlEiwKCHNuYXBzaG90GAEgASgLMhoubWljcm9wb2QudjEuU3RhdHNTbmFwc2hvdCJnCg5TeXN0ZW1TbmFwc2hvdBIpCgZzdGF0dXMYASABKAsyGS5taWNyb3BvZC52MS5TeXN0ZW1TdGF0dXMSKgoKZGlza191c2FnZRgCIAEoCzIWLm1pY3JvcG9kLnYxLkRpc2tVc2FnZSIaCgxDb250YWluZXJSZWYSCgoCaWQYASABKAkiRAoWTGlzdENvbnRhaW5lcnNSZXNwb25zZRIqCgpjb250YWluZXJzGAEgAygLMhYubWljcm9wb2QudjEuQ29udGFpbmVyIuECChNSdW5Db250YWluZXJSZXF1ZXN0Eg0KBWltYWdlGAEgASgJEhEKBG5hbWUYAiABKAlIAIgBARIOCgZkZXRhY2gYAyABKAgSEQoEY3B1cxgEIAEoAUgBiAEBEhMKBm1lbW9yeRgFIAEoCUgCiAEBEgsKA2VudhgGIAMoCRInCgVwb3J0cxgHIAMoCzIYLm1pY3JvcG9kLnYxLlBvcnRNYXBwaW5nEg8KB3ZvbHVtZXMYCCADKAkSPAoGbGFiZWxzGAkgAygLMiwubWljcm9wb2QudjEuUnVuQ29udGFpbmVyUmVxdWVzdC5MYWJlbHNFbnRyeRIMCgRpbml0GAogASgIEhEKCWFyZ3VtZW50cxgLIAMoCRotCgtMYWJlbHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQgcKBV9uYW1lQgcKBV9jcHVzQgkKB19tZW1vcnkiMwoWRGVsZXRlQ29udGFpbmVyUmVxdWVzdBIKCgJpZBgBIAEoCRINCgVmb3JjZRgCIAEoCCI7ChFTdHJlYW1Mb2dzUmVxdWVzdBIKCgJpZBgBIAEoCRIMCgR0YWlsGAIgASgFEgwKBGJvb3QYAyABKAgiGAoITG9nQ2h1bmsSDAoEdGV4dBgBIAEoCSI4ChJMaXN0SW1hZ2VzUmVzcG9uc2USIgoGaW1hZ2VzGAEgAygLMhIubWljcm9wb2QudjEuSW1hZ2UiSQoQUHVsbEltYWdlUmVxdWVzdBIRCglyZWZlcmVuY2UYASABKAkSFQoIcGxhdGZvcm0YAiABKAlIAIgBAUILCglfcGxhdGZvcm0iZgoMUHJvZ3Jlc3NMaW5lEgwKBGxpbmUYASABKAkSEgoFc3RhZ2UYAiABKAVIAIgBARIZCgx0b3RhbF9zdGFnZXMYAyABKAVIAYgBAUIICgZfc3RhZ2VCDwoNX3RvdGFsX3N0YWdlcyI2ChJEZWxldGVJbWFnZVJlcXVlc3QSEQoJcmVmZXJlbmNlGAEgASgJEg0KBWZvcmNlGAIgASgIIjsKE0xpc3RWb2x1bWVzUmVzcG9uc2USJAoHdm9sdW1lcxgBIAMoCzITLm1pY3JvcG9kLnYxLlZvbHVtZSJgChNDcmVhdGVWb2x1bWVSZXF1ZXN0EgwKBG5hbWUYASABKAkSEQoEc2l6ZRgCIAEoCUgAiAEBEg4KBmxhYmVscxgDIAMoCRIPCgdvcHRpb25zGAQgAygJQgcKBV9zaXplIiMKE0RlbGV0ZVZvbHVtZVJlcXVlc3QSDAoEbmFtZRgBIAEoCSI+ChRMaXN0TmV0d29ya3NSZXNwb25zZRImCghuZXR3b3JrcxgBIAMoCzIULm1pY3JvcG9kLnYxLk5ldHdvcmsivQEKFENyZWF0ZU5ldHdvcmtSZXF1ZXN0EgwKBG5hbWUYASABKAkSEAoIaW50ZXJuYWwYAiABKAgSEwoGc3VibmV0GAMgASgJSACIAQESFgoJc3VibmV0X3Y2GAQgASgJSAGIAQESEwoGZHJpdmVyGAUgASgJSAKIAQESDwoHb3B0aW9ucxgGIAMoCRIOCgZsYWJlbHMYByADKAlCCQoHX3N1Ym5ldEIMCgpfc3VibmV0X3Y2QgkKB19kcml2ZXIiJAoURGVsZXRlTmV0d29ya1JlcXVlc3QSDAoEbmFtZRgBIAEoCSJZCgtFeGVjUmVxdWVzdBIKCgJpZBgBIAEoCRIPCgdjb21tYW5kGAIgASgJEhQKB3dvcmtkaXIYAyABKAlIAIgBARILCgNlbnYYBCADKAlCCgoIX3dvcmtkaXIiQAoMRXhlY1Jlc3BvbnNlEg4KBm91dHB1dBgBIAEoCRIRCglleGl0X2NvZGUYAiABKAUSDQoFZXJyb3IYAyABKAky1QsKD01pY3JvcG9kU2VydmljZRI8CglHZXRTeXN0ZW0SEi5taWNyb3BvZC52MS5FbXB0eRobLm1pY3JvcG9kLnYxLlN5c3RlbVNuYXBzaG90EkkKDkxpc3RDb250YWluZXJzEhIubWljcm9wb2QudjEuRW1wdHkaIy5taWNyb3BvZC52MS5MaXN0Q29udGFpbmVyc1Jlc3BvbnNlEksKDFJ1bkNvbnRhaW5lchIgLm1pY3JvcG9kLnYxLlJ1bkNvbnRhaW5lclJlcXVlc3QaGS5taWNyb3BvZC52MS5Db250YWluZXJSZWYSTgoPQ3JlYXRlQ29udGFpbmVyEiAubWljcm9wb2QudjEuUnVuQ29udGFpbmVyUmVxdWVzdBoZLm1pY3JvcG9kLnYxLkNvbnRhaW5lclJlZhI/Cg5TdGFydENvbnRhaW5lchIZLm1pY3JvcG9kLnYxLkNvbnRhaW5lclJlZhoSLm1pY3JvcG9kLnYxLkVtcHR5Ej4KDVN0b3BDb250YWluZXISGS5taWNyb3BvZC52MS5Db250YWluZXJSZWYaEi5taWNyb3BvZC52MS5FbXB0eRJBChBSZXN0YXJ0Q29udGFpbmVyEhkubWljcm9wb2QudjEuQ29udGFpbmVyUmVmGhIubWljcm9wb2QudjEuRW1wdHkSPgoNS2lsbENvbnRhaW5lchIZLm1pY3JvcG9kLnYxLkNvbnRhaW5lclJlZhoSLm1pY3JvcG9kLnYxLkVtcHR5EkoKD0RlbGV0ZUNvbnRhaW5lchIjLm1pY3JvcG9kLnYxLkRlbGV0ZUNvbnRhaW5lclJlcXVlc3QaEi5taWNyb3BvZC52MS5FbXB0eRJOChNTdHJlYW1Db250YWluZXJMb2dzEh4ubWljcm9wb2QudjEuU3RyZWFtTG9nc1JlcXVlc3QaFS5taWNyb3BvZC52MS5Mb2dDaHVuazABEkEKCkxpc3RJbWFnZXMSEi5taWNyb3BvZC52MS5FbXB0eRofLm1pY3JvcG9kLnYxLkxpc3RJbWFnZXNSZXNwb25zZRJHCglQdWxsSW1hZ2USHS5taWNyb3BvZC52MS5QdWxsSW1hZ2VSZXF1ZXN0GhkubWljcm9wb2QudjEuUHJvZ3Jlc3NMaW5lMAESQgoLRGVsZXRlSW1hZ2USHy5taWNyb3BvZC52MS5EZWxldGVJbWFnZVJlcXVlc3QaEi5taWNyb3BvZC52MS5FbXB0eRJDCgtMaXN0Vm9sdW1lcxISLm1pY3JvcG9kLnYxLkVtcHR5GiAubWljcm9wb2QudjEuTGlzdFZvbHVtZXNSZXNwb25zZRJECgxDcmVhdGVWb2x1bWUSIC5taWNyb3BvZC52MS5DcmVhdGVWb2x1bWVSZXF1ZXN0GhIubWljcm9wb2QudjEuRW1wdHkSRAoMRGVsZXRlVm9sdW1lEiAubWljcm9wb2QudjEuRGVsZXRlVm9sdW1lUmVxdWVzdBoSLm1pY3JvcG9kLnYxLkVtcHR5EkUKDExpc3ROZXR3b3JrcxISLm1pY3JvcG9kLnYxLkVtcHR5GiEubWljcm9wb2QudjEuTGlzdE5ldHdvcmtzUmVzcG9uc2USRgoNQ3JlYXRlTmV0d29yaxIhLm1pY3JvcG9kLnYxLkNyZWF0ZU5ldHdvcmtSZXF1ZXN0GhIubWljcm9wb2QudjEuRW1wdHkSRgoNRGVsZXRlTmV0d29yaxIhLm1pY3JvcG9kLnYxLkRlbGV0ZU5ldHdvcmtSZXF1ZXN0GhIubWljcm9wb2QudjEuRW1wdHkSRwoIR2V0U3RhdHMSHC5taWNyb3BvZC52MS5HZXRTdGF0c1JlcXVlc3QaHS5taWNyb3BvZC52MS5HZXRTdGF0c1Jlc3BvbnNlEjsKBEV4ZWMSGC5taWNyb3BvZC52MS5FeGVjUmVxdWVzdBoZLm1pY3JvcG9kLnYxLkV4ZWNSZXNwb25zZUJCWkBnaXRodWIuY29tL2Nhc3RsZW1pbGsvbWljcm9wb2Qvc2RrL2dvL2dlbi9taWNyb3BvZC92MTttaWNyb3BvZHYxYgZwcm90bzM", [file_micropod_v1_container, file_micropod_v1_image, file_micropod_v1_system]);
+  fileDesc("ChVtaWNyb3BvZC92MS9hcGkucHJvdG8SC21pY3JvcG9kLnYxIgcKBUVtcHR5IhEKD0dldFN0YXRzUmVxdWVzdCJAChBHZXRTdGF0c1Jlc3BvbnNlEiwKCHNuYXBzaG90GAEgASgLMhoubWljcm9wb2QudjEuU3RhdHNTbmFwc2hvdCJnCg5TeXN0ZW1TbmFwc2hvdBIpCgZzdGF0dXMYASABKAsyGS5taWNyb3BvZC52MS5TeXN0ZW1TdGF0dXMSKgoKZGlza191c2FnZRgCIAEoCzIWLm1pY3JvcG9kLnYxLkRpc2tVc2FnZSImCgxDb250YWluZXJSZWYSFgoCaWQYASABKAlCCrpIB8gBAXICEAEiRAoWTGlzdENvbnRhaW5lcnNSZXNwb25zZRIqCgpjb250YWluZXJzGAEgAygLMhYubWljcm9wb2QudjEuQ29udGFpbmVyIv0CChNSdW5Db250YWluZXJSZXF1ZXN0EhkKBWltYWdlGAEgASgJQgq6SAfIAQFyAhABEhEKBG5hbWUYAiABKAlIAIgBARIOCgZkZXRhY2gYAyABKAgSIQoEY3B1cxgEIAEoAUIOukgLEgkhAAAAAAAAAABIAYgBARITCgZtZW1vcnkYBSABKAlIAogBARILCgNlbnYYBiADKAkSJwoFcG9ydHMYByADKAsyGC5taWNyb3BvZC52MS5Qb3J0TWFwcGluZxIPCgd2b2x1bWVzGAggAygJEjwKBmxhYmVscxgJIAMoCzIsLm1pY3JvcG9kLnYxLlJ1bkNvbnRhaW5lclJlcXVlc3QuTGFiZWxzRW50cnkSDAoEaW5pdBgKIAEoCBIRCglhcmd1bWVudHMYCyADKAkaLQoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIHCgVfbmFtZUIHCgVfY3B1c0IJCgdfbWVtb3J5Ij8KFkRlbGV0ZUNvbnRhaW5lclJlcXVlc3QSFgoCaWQYASABKAlCCrpIB8gBAXICEAESDQoFZm9yY2UYAiABKAgiUAoRU3RyZWFtTG9nc1JlcXVlc3QSFgoCaWQYASABKAlCCrpIB8gBAXICEAESFQoEdGFpbBgCIAEoBUIHukgEGgIoABIMCgRib290GAMgASgIIhgKCExvZ0NodW5rEgwKBHRleHQYASABKAkiOAoSTGlzdEltYWdlc1Jlc3BvbnNlEiIKBmltYWdlcxgBIAMoCzISLm1pY3JvcG9kLnYxLkltYWdlIlUKEFB1bGxJbWFnZVJlcXVlc3QSHQoJcmVmZXJlbmNlGAEgASgJQgq6SAfIAQFyAhABEhUKCHBsYXRmb3JtGAIgASgJSACIAQFCCwoJX3BsYXRmb3JtImYKDFByb2dyZXNzTGluZRIMCgRsaW5lGAEgASgJEhIKBXN0YWdlGAIgASgFSACIAQESGQoMdG90YWxfc3RhZ2VzGAMgASgFSAGIAQFCCAoGX3N0YWdlQg8KDV90b3RhbF9zdGFnZXMiQgoSRGVsZXRlSW1hZ2VSZXF1ZXN0Eh0KCXJlZmVyZW5jZRgBIAEoCUIKukgHyAEBcgIQARINCgVmb3JjZRgCIAEoCCI7ChNMaXN0Vm9sdW1lc1Jlc3BvbnNlEiQKB3ZvbHVtZXMYASADKAsyEy5taWNyb3BvZC52MS5Wb2x1bWUibAoTQ3JlYXRlVm9sdW1lUmVxdWVzdBIYCgRuYW1lGAEgASgJQgq6SAfIAQFyAhABEhEKBHNpemUYAiABKAlIAIgBARIOCgZsYWJlbHMYAyADKAkSDwoHb3B0aW9ucxgEIAMoCUIHCgVfc2l6ZSIvChNEZWxldGVWb2x1bWVSZXF1ZXN0EhgKBG5hbWUYASABKAlCCrpIB8gBAXICEAEiPgoUTGlzdE5ldHdvcmtzUmVzcG9uc2USJgoIbmV0d29ya3MYASADKAsyFC5taWNyb3BvZC52MS5OZXR3b3JrIskBChRDcmVhdGVOZXR3b3JrUmVxdWVzdBIYCgRuYW1lGAEgASgJQgq6SAfIAQFyAhABEhAKCGludGVybmFsGAIgASgIEhMKBnN1Ym5ldBgDIAEoCUgAiAEBEhYKCXN1Ym5ldF92NhgEIAEoCUgBiAEBEhMKBmRyaXZlchgFIAEoCUgCiAEBEg8KB29wdGlvbnMYBiADKAkSDgoGbGFiZWxzGAcgAygJQgkKB19zdWJuZXRCDAoKX3N1Ym5ldF92NkIJCgdfZHJpdmVyIjAKFERlbGV0ZU5ldHdvcmtSZXF1ZXN0EhgKBG5hbWUYASABKAlCCrpIB8gBAXICEAEicQoLRXhlY1JlcXVlc3QSFgoCaWQYASABKAlCCrpIB8gBAXICEAESGwoHY29tbWFuZBgCIAEoCUIKukgHyAEBcgIQARIUCgd3b3JrZGlyGAMgASgJSACIAQESCwoDZW52GAQgAygJQgoKCF93b3JrZGlyIkAKDEV4ZWNSZXNwb25zZRIOCgZvdXRwdXQYASABKAkSEQoJZXhpdF9jb2RlGAIgASgFEg0KBWVycm9yGAMgASgJMtULCg9NaWNyb3BvZFNlcnZpY2USPAoJR2V0U3lzdGVtEhIubWljcm9wb2QudjEuRW1wdHkaGy5taWNyb3BvZC52MS5TeXN0ZW1TbmFwc2hvdBJJCg5MaXN0Q29udGFpbmVycxISLm1pY3JvcG9kLnYxLkVtcHR5GiMubWljcm9wb2QudjEuTGlzdENvbnRhaW5lcnNSZXNwb25zZRJLCgxSdW5Db250YWluZXISIC5taWNyb3BvZC52MS5SdW5Db250YWluZXJSZXF1ZXN0GhkubWljcm9wb2QudjEuQ29udGFpbmVyUmVmEk4KD0NyZWF0ZUNvbnRhaW5lchIgLm1pY3JvcG9kLnYxLlJ1bkNvbnRhaW5lclJlcXVlc3QaGS5taWNyb3BvZC52MS5Db250YWluZXJSZWYSPwoOU3RhcnRDb250YWluZXISGS5taWNyb3BvZC52MS5Db250YWluZXJSZWYaEi5taWNyb3BvZC52MS5FbXB0eRI+Cg1TdG9wQ29udGFpbmVyEhkubWljcm9wb2QudjEuQ29udGFpbmVyUmVmGhIubWljcm9wb2QudjEuRW1wdHkSQQoQUmVzdGFydENvbnRhaW5lchIZLm1pY3JvcG9kLnYxLkNvbnRhaW5lclJlZhoSLm1pY3JvcG9kLnYxLkVtcHR5Ej4KDUtpbGxDb250YWluZXISGS5taWNyb3BvZC52MS5Db250YWluZXJSZWYaEi5taWNyb3BvZC52MS5FbXB0eRJKCg9EZWxldGVDb250YWluZXISIy5taWNyb3BvZC52MS5EZWxldGVDb250YWluZXJSZXF1ZXN0GhIubWljcm9wb2QudjEuRW1wdHkSTgoTU3RyZWFtQ29udGFpbmVyTG9ncxIeLm1pY3JvcG9kLnYxLlN0cmVhbUxvZ3NSZXF1ZXN0GhUubWljcm9wb2QudjEuTG9nQ2h1bmswARJBCgpMaXN0SW1hZ2VzEhIubWljcm9wb2QudjEuRW1wdHkaHy5taWNyb3BvZC52MS5MaXN0SW1hZ2VzUmVzcG9uc2USRwoJUHVsbEltYWdlEh0ubWljcm9wb2QudjEuUHVsbEltYWdlUmVxdWVzdBoZLm1pY3JvcG9kLnYxLlByb2dyZXNzTGluZTABEkIKC0RlbGV0ZUltYWdlEh8ubWljcm9wb2QudjEuRGVsZXRlSW1hZ2VSZXF1ZXN0GhIubWljcm9wb2QudjEuRW1wdHkSQwoLTGlzdFZvbHVtZXMSEi5taWNyb3BvZC52MS5FbXB0eRogLm1pY3JvcG9kLnYxLkxpc3RWb2x1bWVzUmVzcG9uc2USRAoMQ3JlYXRlVm9sdW1lEiAubWljcm9wb2QudjEuQ3JlYXRlVm9sdW1lUmVxdWVzdBoSLm1pY3JvcG9kLnYxLkVtcHR5EkQKDERlbGV0ZVZvbHVtZRIgLm1pY3JvcG9kLnYxLkRlbGV0ZVZvbHVtZVJlcXVlc3QaEi5taWNyb3BvZC52MS5FbXB0eRJFCgxMaXN0TmV0d29ya3MSEi5taWNyb3BvZC52MS5FbXB0eRohLm1pY3JvcG9kLnYxLkxpc3ROZXR3b3Jrc1Jlc3BvbnNlEkYKDUNyZWF0ZU5ldHdvcmsSIS5taWNyb3BvZC52MS5DcmVhdGVOZXR3b3JrUmVxdWVzdBoSLm1pY3JvcG9kLnYxLkVtcHR5EkYKDURlbGV0ZU5ldHdvcmsSIS5taWNyb3BvZC52MS5EZWxldGVOZXR3b3JrUmVxdWVzdBoSLm1pY3JvcG9kLnYxLkVtcHR5EkcKCEdldFN0YXRzEhwubWljcm9wb2QudjEuR2V0U3RhdHNSZXF1ZXN0Gh0ubWljcm9wb2QudjEuR2V0U3RhdHNSZXNwb25zZRI7CgRFeGVjEhgubWljcm9wb2QudjEuRXhlY1JlcXVlc3QaGS5taWNyb3BvZC52MS5FeGVjUmVzcG9uc2VCQlpAZ2l0aHViLmNvbS9jYXN0bGVtaWxrL21pY3JvcG9kL3Nkay9nby9nZW4vbWljcm9wb2QvdjE7bWljcm9wb2R2MWIGcHJvdG8z", [file_buf_validate_validate, file_micropod_v1_container, file_micropod_v1_image, file_micropod_v1_system]);
 
 /**
  * @generated from message micropod.v1.Empty
@@ -49,6 +50,8 @@ export const GetStatsRequestSchema: GenMessage<GetStatsRequest> = /*@__PURE__*/
  */
 export type GetStatsResponse = Message<"micropod.v1.GetStatsResponse"> & {
   /**
+   * One stats snapshot covering every running container.
+   *
    * @generated from field: micropod.v1.StatsSnapshot snapshot = 1;
    */
   snapshot?: StatsSnapshot;
@@ -66,11 +69,15 @@ export const GetStatsResponseSchema: GenMessage<GetStatsResponse> = /*@__PURE__*
  */
 export type SystemSnapshot = Message<"micropod.v1.SystemSnapshot"> & {
   /**
+   * Runtime health (status, versions, install paths).
+   *
    * @generated from field: micropod.v1.SystemStatus status = 1;
    */
   status?: SystemStatus;
 
   /**
+   * Disk usage grouped by resource kind.
+   *
    * @generated from field: micropod.v1.DiskUsage disk_usage = 2;
    */
   diskUsage?: DiskUsage;
@@ -84,10 +91,14 @@ export const SystemSnapshotSchema: GenMessage<SystemSnapshot> = /*@__PURE__*/
   messageDesc(file_micropod_v1_api, 3);
 
 /**
+ * Reference to an existing container (or the ID returned by run/create).
+ *
  * @generated from message micropod.v1.ContainerRef
  */
 export type ContainerRef = Message<"micropod.v1.ContainerRef"> & {
   /**
+   * Container ID — `container` uses the user-assigned name as the ID.
+   *
    * @generated from field: string id = 1;
    */
   id: string;
@@ -105,6 +116,8 @@ export const ContainerRefSchema: GenMessage<ContainerRef> = /*@__PURE__*/
  */
 export type ListContainersResponse = Message<"micropod.v1.ListContainersResponse"> & {
   /**
+   * Every container, in `container list` order.
+   *
    * @generated from field: repeated micropod.v1.Container containers = 1;
    */
   containers: Container[];
@@ -118,60 +131,84 @@ export const ListContainersResponseSchema: GenMessage<ListContainersResponse> = 
   messageDesc(file_micropod_v1_api, 5);
 
 /**
+ * Shared request shape for run + create (docker run / docker create).
+ *
  * @generated from message micropod.v1.RunContainerRequest
  */
 export type RunContainerRequest = Message<"micropod.v1.RunContainerRequest"> & {
   /**
+   * Image reference to run, e.g. "alpine:3.20". Pulled if not present locally.
+   *
    * @generated from field: string image = 1;
    */
   image: string;
 
   /**
+   * Optional container name; becomes the container ID.
+   *
    * @generated from field: optional string name = 2;
    */
   name?: string;
 
   /**
+   * Return immediately instead of streaming/attaching.
+   *
    * @generated from field: bool detach = 3;
    */
   detach: boolean;
 
   /**
+   * CPU limit in cores, e.g. 0.5 for half a core.
+   *
    * @generated from field: optional double cpus = 4;
    */
   cpus?: number;
 
   /**
+   * Memory limit, e.g. "512m" or "4g".
+   *
    * @generated from field: optional string memory = 5;
    */
   memory?: string;
 
   /**
+   * Environment variables as KEY=value pairs.
+   *
    * @generated from field: repeated string env = 6;
    */
   env: string[];
 
   /**
+   * Published port mappings (host → container).
+   *
    * @generated from field: repeated micropod.v1.PortMapping ports = 7;
    */
   ports: PortMapping[];
 
   /**
+   * Bind/volume mounts as "name-or-path:/mount" specs.
+   *
    * @generated from field: repeated string volumes = 8;
    */
   volumes: string[];
 
   /**
+   * Arbitrary metadata labels on the container.
+   *
    * @generated from field: map<string, string> labels = 9;
    */
   labels: { [key: string]: string };
 
   /**
+   * Run an init process as PID 1 to reap zombies.
+   *
    * @generated from field: bool init = 10;
    */
   init: boolean;
 
   /**
+   * Command + args override (image entrypoint is used when empty).
+   *
    * @generated from field: repeated string arguments = 11;
    */
   arguments: string[];
@@ -189,11 +226,15 @@ export const RunContainerRequestSchema: GenMessage<RunContainerRequest> = /*@__P
  */
 export type DeleteContainerRequest = Message<"micropod.v1.DeleteContainerRequest"> & {
   /**
+   * Container ID (or name).
+   *
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
+   * Remove even if the container is still running.
+   *
    * @generated from field: bool force = 2;
    */
   force: boolean;
@@ -211,16 +252,22 @@ export const DeleteContainerRequestSchema: GenMessage<DeleteContainerRequest> = 
  */
 export type StreamLogsRequest = Message<"micropod.v1.StreamLogsRequest"> & {
   /**
+   * Container ID (or name) to stream logs from.
+   *
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
+   * Number of lines to replay from the end of the log before following.
+   *
    * @generated from field: int32 tail = 2;
    */
   tail: number;
 
   /**
+   * Include the vminitd guest boot log.
+   *
    * @generated from field: bool boot = 3;
    */
   boot: boolean;
@@ -234,10 +281,14 @@ export const StreamLogsRequestSchema: GenMessage<StreamLogsRequest> = /*@__PURE_
   messageDesc(file_micropod_v1_api, 8);
 
 /**
+ * One streamed log line (StreamContainerLogs event).
+ *
  * @generated from message micropod.v1.LogChunk
  */
 export type LogChunk = Message<"micropod.v1.LogChunk"> & {
   /**
+   * A single line of container output.
+   *
    * @generated from field: string text = 1;
    */
   text: string;
@@ -255,6 +306,8 @@ export const LogChunkSchema: GenMessage<LogChunk> = /*@__PURE__*/
  */
 export type ListImagesResponse = Message<"micropod.v1.ListImagesResponse"> & {
   /**
+   * Every local image, in `container image list` order.
+   *
    * @generated from field: repeated micropod.v1.Image images = 1;
    */
   images: Image[];
@@ -272,11 +325,15 @@ export const ListImagesResponseSchema: GenMessage<ListImagesResponse> = /*@__PUR
  */
 export type PullImageRequest = Message<"micropod.v1.PullImageRequest"> & {
   /**
+   * Image reference to pull, e.g. "alpine:3.20" or a full registry path.
+   *
    * @generated from field: string reference = 1;
    */
   reference: string;
 
   /**
+   * Platform to pull, e.g. "linux/arm64". Defaults to the host platform.
+   *
    * @generated from field: optional string platform = 2;
    */
   platform?: string;
@@ -290,20 +347,28 @@ export const PullImageRequestSchema: GenMessage<PullImageRequest> = /*@__PURE__*
   messageDesc(file_micropod_v1_api, 11);
 
 /**
+ * One pull-progress event (PullImage stream).
+ *
  * @generated from message micropod.v1.ProgressLine
  */
 export type ProgressLine = Message<"micropod.v1.ProgressLine"> & {
   /**
+   * Human-readable progress text from the registry pull.
+   *
    * @generated from field: string line = 1;
    */
   line: string;
 
   /**
+   * Current stage index (1-based), when the pull reports staged progress.
+   *
    * @generated from field: optional int32 stage = 2;
    */
   stage?: number;
 
   /**
+   * Total number of stages, when known.
+   *
    * @generated from field: optional int32 total_stages = 3;
    */
   totalStages?: number;
@@ -321,11 +386,15 @@ export const ProgressLineSchema: GenMessage<ProgressLine> = /*@__PURE__*/
  */
 export type DeleteImageRequest = Message<"micropod.v1.DeleteImageRequest"> & {
   /**
+   * Image reference or digest to remove.
+   *
    * @generated from field: string reference = 1;
    */
   reference: string;
 
   /**
+   * Remove even if containers reference the image.
+   *
    * @generated from field: bool force = 2;
    */
   force: boolean;
@@ -343,6 +412,8 @@ export const DeleteImageRequestSchema: GenMessage<DeleteImageRequest> = /*@__PUR
  */
 export type ListVolumesResponse = Message<"micropod.v1.ListVolumesResponse"> & {
   /**
+   * Every volume, in `container volume list` order.
+   *
    * @generated from field: repeated micropod.v1.Volume volumes = 1;
    */
   volumes: Volume[];
@@ -360,21 +431,29 @@ export const ListVolumesResponseSchema: GenMessage<ListVolumesResponse> = /*@__P
  */
 export type CreateVolumeRequest = Message<"micropod.v1.CreateVolumeRequest"> & {
   /**
+   * Volume name.
+   *
    * @generated from field: string name = 1;
    */
   name: string;
 
   /**
+   * Optional size limit, e.g. "10g".
+   *
    * @generated from field: optional string size = 2;
    */
   size?: string;
 
   /**
+   * Labels applied to the volume ("key=value").
+   *
    * @generated from field: repeated string labels = 3;
    */
   labels: string[];
 
   /**
+   * Driver options passed through to the volume driver.
+   *
    * @generated from field: repeated string options = 4;
    */
   options: string[];
@@ -392,6 +471,8 @@ export const CreateVolumeRequestSchema: GenMessage<CreateVolumeRequest> = /*@__P
  */
 export type DeleteVolumeRequest = Message<"micropod.v1.DeleteVolumeRequest"> & {
   /**
+   * Volume name to remove.
+   *
    * @generated from field: string name = 1;
    */
   name: string;
@@ -409,6 +490,8 @@ export const DeleteVolumeRequestSchema: GenMessage<DeleteVolumeRequest> = /*@__P
  */
 export type ListNetworksResponse = Message<"micropod.v1.ListNetworksResponse"> & {
   /**
+   * Every container network, in `container network list` order.
+   *
    * @generated from field: repeated micropod.v1.Network networks = 1;
    */
   networks: Network[];
@@ -426,36 +509,50 @@ export const ListNetworksResponseSchema: GenMessage<ListNetworksResponse> = /*@_
  */
 export type CreateNetworkRequest = Message<"micropod.v1.CreateNetworkRequest"> & {
   /**
+   * Network name.
+   *
    * @generated from field: string name = 1;
    */
   name: string;
 
   /**
+   * Isolate the network from external traffic.
+   *
    * @generated from field: bool internal = 2;
    */
   internal: boolean;
 
   /**
+   * IPv4 CIDR for the network, e.g. "192.168.100.0/24".
+   *
    * @generated from field: optional string subnet = 3;
    */
   subnet?: string;
 
   /**
+   * IPv6 CIDR for the network.
+   *
    * @generated from field: optional string subnet_v6 = 4;
    */
   subnetV6?: string;
 
   /**
+   * Network driver/plugin to use.
+   *
    * @generated from field: optional string driver = 5;
    */
   driver?: string;
 
   /**
+   * Driver options passed through to the network plugin.
+   *
    * @generated from field: repeated string options = 6;
    */
   options: string[];
 
   /**
+   * Labels applied to the network ("key=value").
+   *
    * @generated from field: repeated string labels = 7;
    */
   labels: string[];
@@ -473,6 +570,8 @@ export const CreateNetworkRequestSchema: GenMessage<CreateNetworkRequest> = /*@_
  */
 export type DeleteNetworkRequest = Message<"micropod.v1.DeleteNetworkRequest"> & {
   /**
+   * Network name to remove.
+   *
    * @generated from field: string name = 1;
    */
   name: string;
@@ -490,21 +589,29 @@ export const DeleteNetworkRequestSchema: GenMessage<DeleteNetworkRequest> = /*@_
  */
 export type ExecRequest = Message<"micropod.v1.ExecRequest"> & {
   /**
+   * Container ID (or name) to exec into.
+   *
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
+   * Command to run inside the container.
+   *
    * @generated from field: string command = 2;
    */
   command: string;
 
   /**
+   * Working directory for the command.
+   *
    * @generated from field: optional string workdir = 3;
    */
   workdir?: string;
 
   /**
+   * Extra environment variables as KEY=value pairs.
+   *
    * @generated from field: repeated string env = 4;
    */
   env: string[];
@@ -522,6 +629,8 @@ export const ExecRequestSchema: GenMessage<ExecRequest> = /*@__PURE__*/
  */
 export type ExecResponse = Message<"micropod.v1.ExecResponse"> & {
   /**
+   * Combined stdout (and stderr when not separable) of the command.
+   *
    * @generated from field: string output = 1;
    */
   output: string;
@@ -598,6 +707,8 @@ export const MicropodService: GenService<{
     output: typeof ContainerRefSchema;
   },
   /**
+   * Start a stopped container.
+   *
    * @generated from rpc micropod.v1.MicropodService.StartContainer
    */
   startContainer: {
@@ -606,6 +717,8 @@ export const MicropodService: GenService<{
     output: typeof EmptySchema;
   },
   /**
+   * Stop a running container (SIGTERM, then SIGKILL after the grace period).
+   *
    * @generated from rpc micropod.v1.MicropodService.StopContainer
    */
   stopContainer: {
@@ -614,6 +727,8 @@ export const MicropodService: GenService<{
     output: typeof EmptySchema;
   },
   /**
+   * Stop then start a container.
+   *
    * @generated from rpc micropod.v1.MicropodService.RestartContainer
    */
   restartContainer: {
@@ -622,6 +737,8 @@ export const MicropodService: GenService<{
     output: typeof EmptySchema;
   },
   /**
+   * SIGKILL a running container.
+   *
    * @generated from rpc micropod.v1.MicropodService.KillContainer
    */
   killContainer: {
@@ -630,6 +747,8 @@ export const MicropodService: GenService<{
     output: typeof EmptySchema;
   },
   /**
+   * Remove a container. Running containers require force.
+   *
    * @generated from rpc micropod.v1.MicropodService.DeleteContainer
    */
   deleteContainer: {
@@ -648,6 +767,8 @@ export const MicropodService: GenService<{
     output: typeof LogChunkSchema;
   },
   /**
+   * List all local images.
+   *
    * @generated from rpc micropod.v1.MicropodService.ListImages
    */
   listImages: {
@@ -666,6 +787,8 @@ export const MicropodService: GenService<{
     output: typeof ProgressLineSchema;
   },
   /**
+   * Remove an image. Images in use require force.
+   *
    * @generated from rpc micropod.v1.MicropodService.DeleteImage
    */
   deleteImage: {
@@ -674,6 +797,8 @@ export const MicropodService: GenService<{
     output: typeof EmptySchema;
   },
   /**
+   * List all volumes.
+   *
    * @generated from rpc micropod.v1.MicropodService.ListVolumes
    */
   listVolumes: {
@@ -682,6 +807,8 @@ export const MicropodService: GenService<{
     output: typeof ListVolumesResponseSchema;
   },
   /**
+   * Create a named volume.
+   *
    * @generated from rpc micropod.v1.MicropodService.CreateVolume
    */
   createVolume: {
@@ -690,6 +817,8 @@ export const MicropodService: GenService<{
     output: typeof EmptySchema;
   },
   /**
+   * Remove a named volume.
+   *
    * @generated from rpc micropod.v1.MicropodService.DeleteVolume
    */
   deleteVolume: {
@@ -698,6 +827,8 @@ export const MicropodService: GenService<{
     output: typeof EmptySchema;
   },
   /**
+   * List all container networks.
+   *
    * @generated from rpc micropod.v1.MicropodService.ListNetworks
    */
   listNetworks: {
@@ -706,6 +837,8 @@ export const MicropodService: GenService<{
     output: typeof ListNetworksResponseSchema;
   },
   /**
+   * Create a container network.
+   *
    * @generated from rpc micropod.v1.MicropodService.CreateNetwork
    */
   createNetwork: {
@@ -714,6 +847,8 @@ export const MicropodService: GenService<{
     output: typeof EmptySchema;
   },
   /**
+   * Remove a container network.
+   *
    * @generated from rpc micropod.v1.MicropodService.DeleteNetwork
    */
   deleteNetwork: {
@@ -722,6 +857,8 @@ export const MicropodService: GenService<{
     output: typeof EmptySchema;
   },
   /**
+   * Point-in-time resource usage for all running containers.
+   *
    * @generated from rpc micropod.v1.MicropodService.GetStats
    */
   getStats: {
@@ -730,6 +867,8 @@ export const MicropodService: GenService<{
     output: typeof GetStatsResponseSchema;
   },
   /**
+   * Run a command inside a running container and return its output.
+   *
    * @generated from rpc micropod.v1.MicropodService.Exec
    */
   exec: {

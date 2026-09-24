@@ -39,6 +39,13 @@ Nothing is hand-copied — every page renders from the generated artifacts. The
 Connect section covers `micropod.v1.MicropodService` (daemon, host HTTP) and
 `com.apple.containerization.sandbox.v3.SandboxContext` (vminitd, vsock 1024).
 
+Proto field comments become OpenAPI `description`s and SDK doc comments — keep
+them accurate. `buf.validate` field options (`required`, `min_len`, `gt`, …)
+surface in the spec as `required`/`minLength`/`exclusiveMinimum`/… and are
+enforced three ways: the Go apiserver's `connectrpc.com/validate` interceptor,
+the TypeScript SDK's client-side protovalidate interceptor (`validate: false`
+opts out), and the per-field `check` calls in `ConnectMount.swift`.
+
 ## Local development
 
 ```sh

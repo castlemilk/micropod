@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package micropod.v1;
 
+import "buf/validate/validate.proto";
+
 option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
 
 // Curated view of a container, mapped from `container list --format json`.
@@ -14,41 +16,65 @@ message Container {
   string state = 3;
   // ISO8601 creation timestamp.
   string created_at = 4;
+  // Configured CPU/memory limits.
   ContainerResources resources = 5;
   // Platform string, e.g. "linux/arm64".
   string platform = 6;
+  // Published host→container port mappings.
   repeated PortMapping published_ports = 7;
+  // Mounted volumes and binds.
   repeated Mount mounts = 8;
   // Names of networks the container is attached to.
   repeated string networks = 9;
   // Resolved IPv4 address on the container network, if running.
   string ipv4_address = 10;
+  // Environment variables as KEY=value pairs.
   repeated string env = 11;
+  // Metadata labels on the container.
   map<string, string> labels = 12;
+  // Runs x86_64 binaries via Rosetta translation.
   bool rosetta = 13;
+  // Root filesystem is read-only.
   bool read_only = 14;
+  // An init process runs as PID 1 inside the container.
   bool use_init = 15;
+  // SSH access is enabled for the container.
   bool ssh = 16;
+  // Uses full virtualization rather than the container runtime path.
   bool virtualization = 17;
+  // OCI runtime handler in use, if any.
   string runtime_handler = 18;
+  // Exit code once the container has stopped.
   string exit_code = 19;
 }
 
 message ContainerResources {
+  // CPU limit in cores.
   double cpus = 1;
+  // Memory limit in bytes.
   uint64 memory_bytes = 2;
 }
 
+// A published port mapping between host and container.
 message PortMapping {
-  uint32 host_port = 1;
-  uint32 container_port = 2;
+  // Port on the host.
+  uint32 host_port = 1 [(buf.validate.field).uint32.lte = 65535];
+  // Port inside the container.
+  uint32 container_port = 2 [(buf.validate.field).required = true, (buf.validate.field).uint32.lte = 65535];
+  // "tcp" or "udp".
   string protocol = 3;
+  // Host interface IP to bind (empty = all interfaces).
   string host_ip = 4;
 }
 
+// A volume or bind mount inside the container.
 message Mount {
+  // Mount kind: "volume" or "bind".
   string type = 1;
+  // Volume name or host path.
   string source = 2;
+  // Path inside the container.
   string destination = 3;
+  // Mount is read-only.
   bool read_only = 4;
 }

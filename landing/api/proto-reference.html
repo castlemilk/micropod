@@ -3535,7 +3535,7 @@ not have a pty allocated.</p></td>
                   <td>resources</td>
                   <td><a href="#micropod.v1.ContainerResources">ContainerResources</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Configured CPU/memory limits. </p></td>
                 </tr>
               
                 <tr>
@@ -3549,14 +3549,14 @@ not have a pty allocated.</p></td>
                   <td>published_ports</td>
                   <td><a href="#micropod.v1.PortMapping">PortMapping</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Published host→container port mappings. </p></td>
                 </tr>
               
                 <tr>
                   <td>mounts</td>
                   <td><a href="#micropod.v1.Mount">Mount</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Mounted volumes and binds. </p></td>
                 </tr>
               
                 <tr>
@@ -3577,63 +3577,63 @@ not have a pty allocated.</p></td>
                   <td>env</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Environment variables as KEY=value pairs. </p></td>
                 </tr>
               
                 <tr>
                   <td>labels</td>
                   <td><a href="#micropod.v1.Container.LabelsEntry">Container.LabelsEntry</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Metadata labels on the container. </p></td>
                 </tr>
               
                 <tr>
                   <td>rosetta</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Runs x86_64 binaries via Rosetta translation. </p></td>
                 </tr>
               
                 <tr>
                   <td>read_only</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Root filesystem is read-only. </p></td>
                 </tr>
               
                 <tr>
                   <td>use_init</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>An init process runs as PID 1 inside the container. </p></td>
                 </tr>
               
                 <tr>
                   <td>ssh</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>SSH access is enabled for the container. </p></td>
                 </tr>
               
                 <tr>
                   <td>virtualization</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Uses full virtualization rather than the container runtime path. </p></td>
                 </tr>
               
                 <tr>
                   <td>runtime_handler</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>OCI runtime handler in use, if any. </p></td>
                 </tr>
               
                 <tr>
                   <td>exit_code</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Exit code once the container has stopped. </p></td>
                 </tr>
               
             </tbody>
@@ -3688,14 +3688,14 @@ not have a pty allocated.</p></td>
                   <td>cpus</td>
                   <td><a href="#double">double</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>CPU limit in cores. </p></td>
                 </tr>
               
                 <tr>
                   <td>memory_bytes</td>
                   <td><a href="#uint64">uint64</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Memory limit in bytes. </p></td>
                 </tr>
               
             </tbody>
@@ -3706,7 +3706,7 @@ not have a pty allocated.</p></td>
         
       
         <h3 id="micropod.v1.Mount">Mount</h3>
-        <p></p>
+        <p>A volume or bind mount inside the container.</p>
 
         
           <table class="field-table">
@@ -3719,28 +3719,28 @@ not have a pty allocated.</p></td>
                   <td>type</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Mount kind: &#34;volume&#34; or &#34;bind&#34;. </p></td>
                 </tr>
               
                 <tr>
                   <td>source</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Volume name or host path. </p></td>
                 </tr>
               
                 <tr>
                   <td>destination</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Path inside the container. </p></td>
                 </tr>
               
                 <tr>
                   <td>read_only</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Mount is read-only. </p></td>
                 </tr>
               
             </tbody>
@@ -3751,7 +3751,7 @@ not have a pty allocated.</p></td>
         
       
         <h3 id="micropod.v1.PortMapping">PortMapping</h3>
-        <p></p>
+        <p>A published port mapping between host and container.</p>
 
         
           <table class="field-table">
@@ -3764,28 +3764,28 @@ not have a pty allocated.</p></td>
                   <td>host_port</td>
                   <td><a href="#uint32">uint32</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Port on the host. </p></td>
                 </tr>
               
                 <tr>
                   <td>container_port</td>
                   <td><a href="#uint32">uint32</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Port inside the container. </p></td>
                 </tr>
               
                 <tr>
                   <td>protocol</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>&#34;tcp&#34; or &#34;udp&#34;. </p></td>
                 </tr>
               
                 <tr>
                   <td>host_ip</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Host interface IP to bind (empty = all interfaces). </p></td>
                 </tr>
               
             </tbody>
@@ -3823,7 +3823,7 @@ not have a pty allocated.</p></td>
                   <td>id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Image ID (content-addressed digest prefix). </p></td>
                 </tr>
               
                 <tr>
@@ -3851,14 +3851,14 @@ not have a pty allocated.</p></td>
                   <td>size_bytes</td>
                   <td><a href="#uint64">uint64</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Total unpacked size in bytes. </p></td>
                 </tr>
               
                 <tr>
                   <td>variants</td>
                   <td><a href="#micropod.v1.ImageVariant">ImageVariant</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Per-platform variants of this image. </p></td>
                 </tr>
               
             </tbody>
@@ -3869,7 +3869,7 @@ not have a pty allocated.</p></td>
         
       
         <h3 id="micropod.v1.ImageVariant">ImageVariant</h3>
-        <p></p>
+        <p>One platform variant of a multi-arch image.</p>
 
         
           <table class="field-table">
@@ -3882,21 +3882,21 @@ not have a pty allocated.</p></td>
                   <td>os</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Operating system, e.g. &#34;linux&#34;. </p></td>
                 </tr>
               
                 <tr>
                   <td>architecture</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>CPU architecture, e.g. &#34;arm64&#34;. </p></td>
                 </tr>
               
                 <tr>
                   <td>variant</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Architecture variant, e.g. &#34;v8&#34;. </p></td>
                 </tr>
               
             </tbody>
@@ -3921,7 +3921,7 @@ not have a pty allocated.</p></td>
 
       
         <h3 id="micropod.v1.ContainerStats">ContainerStats</h3>
-        <p></p>
+        <p>Per-container resource counters within a StatsSnapshot.</p>
 
         
           <table class="field-table">
@@ -3934,63 +3934,63 @@ not have a pty allocated.</p></td>
                   <td>id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Container ID. </p></td>
                 </tr>
               
                 <tr>
                   <td>cpu_percent</td>
                   <td><a href="#double">double</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>CPU usage as a percentage of one core. </p></td>
                 </tr>
               
                 <tr>
                   <td>memory_used_bytes</td>
                   <td><a href="#uint64">uint64</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Resident memory in bytes. </p></td>
                 </tr>
               
                 <tr>
                   <td>memory_limit_bytes</td>
                   <td><a href="#uint64">uint64</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Configured memory limit in bytes. </p></td>
                 </tr>
               
                 <tr>
                   <td>network_rx_bytes</td>
                   <td><a href="#uint64">uint64</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Bytes received over the container network. </p></td>
                 </tr>
               
                 <tr>
                   <td>network_tx_bytes</td>
                   <td><a href="#uint64">uint64</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Bytes transmitted over the container network. </p></td>
                 </tr>
               
                 <tr>
                   <td>block_read_bytes</td>
                   <td><a href="#uint64">uint64</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Bytes read from the block device. </p></td>
                 </tr>
               
                 <tr>
                   <td>block_write_bytes</td>
                   <td><a href="#uint64">uint64</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Bytes written to the block device. </p></td>
                 </tr>
               
                 <tr>
                   <td>pids</td>
                   <td><a href="#uint64">uint64</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Number of processes inside the container. </p></td>
                 </tr>
               
             </tbody>
@@ -4014,28 +4014,28 @@ not have a pty allocated.</p></td>
                   <td>total</td>
                   <td><a href="#uint64">uint64</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Total objects in the category. </p></td>
                 </tr>
               
                 <tr>
                   <td>active</td>
                   <td><a href="#uint64">uint64</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Objects currently referenced by a running workload. </p></td>
                 </tr>
               
                 <tr>
                   <td>size_bytes</td>
                   <td><a href="#uint64">uint64</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>On-disk size of the category in bytes. </p></td>
                 </tr>
               
                 <tr>
                   <td>reclaimable_bytes</td>
                   <td><a href="#uint64">uint64</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Bytes freed if inactive objects were pruned. </p></td>
                 </tr>
               
             </tbody>
@@ -4059,28 +4059,28 @@ not have a pty allocated.</p></td>
                   <td>containers</td>
                   <td><a href="#micropod.v1.DiskCategory">DiskCategory</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Disk usage attributed to containers. </p></td>
                 </tr>
               
                 <tr>
                   <td>images</td>
                   <td><a href="#micropod.v1.DiskCategory">DiskCategory</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Disk usage attributed to images. </p></td>
                 </tr>
               
                 <tr>
                   <td>volumes</td>
                   <td><a href="#micropod.v1.DiskCategory">DiskCategory</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Disk usage attributed to volumes. </p></td>
                 </tr>
               
                 <tr>
                   <td>total_reclaimable_bytes</td>
                   <td><a href="#uint64">uint64</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Bytes reclaimable by pruning across all categories. </p></td>
                 </tr>
               
             </tbody>
@@ -4104,63 +4104,63 @@ not have a pty allocated.</p></td>
                   <td>id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Network ID (name). </p></td>
                 </tr>
               
                 <tr>
                   <td>plugin</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Network plugin backing this network, e.g. &#34;vmnet&#34;. </p></td>
                 </tr>
               
                 <tr>
                   <td>mode</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Network mode, e.g. &#34;nat&#34;. </p></td>
                 </tr>
               
                 <tr>
                   <td>ipv4_gateway</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>IPv4 gateway address. </p></td>
                 </tr>
               
                 <tr>
                   <td>ipv4_subnet</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>IPv4 CIDR of the network. </p></td>
                 </tr>
               
                 <tr>
                   <td>ipv6_subnet</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>IPv6 CIDR of the network, if any. </p></td>
                 </tr>
               
                 <tr>
                   <td>created_at</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>ISO8601 creation timestamp. </p></td>
                 </tr>
               
                 <tr>
                   <td>builtin</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>True for runtime-managed networks that cannot be deleted. </p></td>
                 </tr>
               
                 <tr>
                   <td>labels</td>
                   <td><a href="#micropod.v1.Network.LabelsEntry">Network.LabelsEntry</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Metadata labels on the network. </p></td>
                 </tr>
               
             </tbody>
@@ -4215,21 +4215,21 @@ not have a pty allocated.</p></td>
                   <td>server</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Registry hostname, e.g. &#34;docker.io&#34;. </p></td>
                 </tr>
               
                 <tr>
                   <td>username</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Account username stored for the registry. </p></td>
                 </tr>
               
                 <tr>
                   <td>scheme</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Auth scheme in use, e.g. &#34;basic&#34; or &#34;oauth&#34;. </p></td>
                 </tr>
               
             </tbody>
@@ -4253,14 +4253,14 @@ not have a pty allocated.</p></td>
                   <td>containers</td>
                   <td><a href="#micropod.v1.ContainerStats">ContainerStats</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Per-container stats, one entry per running container. </p></td>
                 </tr>
               
                 <tr>
                   <td>sampled_at</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>ISO8601 timestamp the snapshot was taken. </p></td>
                 </tr>
               
             </tbody>
@@ -4291,28 +4291,28 @@ not have a pty allocated.</p></td>
                   <td>app_root</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Path to the installed Micropod.app bundle. </p></td>
                 </tr>
               
                 <tr>
                   <td>install_root</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Runtime install root (binaries, kernels, images). </p></td>
                 </tr>
               
                 <tr>
                   <td>api_server_version</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Version of the embedded API server. </p></td>
                 </tr>
               
                 <tr>
                   <td>cli_version</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Version of the bundled `container` CLI. </p></td>
                 </tr>
               
             </tbody>
@@ -4336,49 +4336,49 @@ not have a pty allocated.</p></td>
                   <td>id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Volume name (used as the ID). </p></td>
                 </tr>
               
                 <tr>
                   <td>driver</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Volume driver, e.g. &#34;local&#34;. </p></td>
                 </tr>
               
                 <tr>
                   <td>format</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Filesystem format, e.g. &#34;ext4&#34;. </p></td>
                 </tr>
               
                 <tr>
                   <td>size_bytes</td>
                   <td><a href="#uint64">uint64</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Volume size in bytes. </p></td>
                 </tr>
               
                 <tr>
                   <td>source</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Backing source (name or host path). </p></td>
                 </tr>
               
                 <tr>
                   <td>created_at</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>ISO8601 creation timestamp. </p></td>
                 </tr>
               
                 <tr>
                   <td>labels</td>
                   <td><a href="#micropod.v1.Volume.LabelsEntry">Volume.LabelsEntry</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Metadata labels on the volume. </p></td>
                 </tr>
               
             </tbody>
@@ -4434,7 +4434,7 @@ not have a pty allocated.</p></td>
 
       
         <h3 id="micropod.v1.ContainerRef">ContainerRef</h3>
-        <p></p>
+        <p>Reference to an existing container (or the ID returned by run/create).</p>
 
         
           <table class="field-table">
@@ -4447,7 +4447,7 @@ not have a pty allocated.</p></td>
                   <td>id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Container ID — `container` uses the user-assigned name as the ID. </p></td>
                 </tr>
               
             </tbody>
@@ -4471,49 +4471,49 @@ not have a pty allocated.</p></td>
                   <td>name</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Network name. </p></td>
                 </tr>
               
                 <tr>
                   <td>internal</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Isolate the network from external traffic. </p></td>
                 </tr>
               
                 <tr>
                   <td>subnet</td>
                   <td><a href="#string">string</a></td>
                   <td>optional</td>
-                  <td><p> </p></td>
+                  <td><p>IPv4 CIDR for the network, e.g. &#34;192.168.100.0/24&#34;. </p></td>
                 </tr>
               
                 <tr>
                   <td>subnet_v6</td>
                   <td><a href="#string">string</a></td>
                   <td>optional</td>
-                  <td><p> </p></td>
+                  <td><p>IPv6 CIDR for the network. </p></td>
                 </tr>
               
                 <tr>
                   <td>driver</td>
                   <td><a href="#string">string</a></td>
                   <td>optional</td>
-                  <td><p> </p></td>
+                  <td><p>Network driver/plugin to use. </p></td>
                 </tr>
               
                 <tr>
                   <td>options</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Driver options passed through to the network plugin. </p></td>
                 </tr>
               
                 <tr>
                   <td>labels</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Labels applied to the network (&#34;key=value&#34;). </p></td>
                 </tr>
               
             </tbody>
@@ -4537,28 +4537,28 @@ not have a pty allocated.</p></td>
                   <td>name</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Volume name. </p></td>
                 </tr>
               
                 <tr>
                   <td>size</td>
                   <td><a href="#string">string</a></td>
                   <td>optional</td>
-                  <td><p> </p></td>
+                  <td><p>Optional size limit, e.g. &#34;10g&#34;. </p></td>
                 </tr>
               
                 <tr>
                   <td>labels</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Labels applied to the volume (&#34;key=value&#34;). </p></td>
                 </tr>
               
                 <tr>
                   <td>options</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Driver options passed through to the volume driver. </p></td>
                 </tr>
               
             </tbody>
@@ -4582,14 +4582,14 @@ not have a pty allocated.</p></td>
                   <td>id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Container ID (or name). </p></td>
                 </tr>
               
                 <tr>
                   <td>force</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Remove even if the container is still running. </p></td>
                 </tr>
               
             </tbody>
@@ -4613,14 +4613,14 @@ not have a pty allocated.</p></td>
                   <td>reference</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Image reference or digest to remove. </p></td>
                 </tr>
               
                 <tr>
                   <td>force</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Remove even if containers reference the image. </p></td>
                 </tr>
               
             </tbody>
@@ -4644,7 +4644,7 @@ not have a pty allocated.</p></td>
                   <td>name</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Network name to remove. </p></td>
                 </tr>
               
             </tbody>
@@ -4668,7 +4668,7 @@ not have a pty allocated.</p></td>
                   <td>name</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Volume name to remove. </p></td>
                 </tr>
               
             </tbody>
@@ -4699,28 +4699,28 @@ not have a pty allocated.</p></td>
                   <td>id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Container ID (or name) to exec into. </p></td>
                 </tr>
               
                 <tr>
                   <td>command</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Command to run inside the container. </p></td>
                 </tr>
               
                 <tr>
                   <td>workdir</td>
                   <td><a href="#string">string</a></td>
                   <td>optional</td>
-                  <td><p> </p></td>
+                  <td><p>Working directory for the command. </p></td>
                 </tr>
               
                 <tr>
                   <td>env</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Extra environment variables as KEY=value pairs. </p></td>
                 </tr>
               
             </tbody>
@@ -4744,7 +4744,7 @@ not have a pty allocated.</p></td>
                   <td>output</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Combined stdout (and stderr when not separable) of the command. </p></td>
                 </tr>
               
                 <tr>
@@ -4790,7 +4790,7 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>snapshot</td>
                   <td><a href="#micropod.v1.StatsSnapshot">StatsSnapshot</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>One stats snapshot covering every running container. </p></td>
                 </tr>
               
             </tbody>
@@ -4814,7 +4814,7 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>containers</td>
                   <td><a href="#micropod.v1.Container">Container</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Every container, in `container list` order. </p></td>
                 </tr>
               
             </tbody>
@@ -4838,7 +4838,7 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>images</td>
                   <td><a href="#micropod.v1.Image">Image</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Every local image, in `container image list` order. </p></td>
                 </tr>
               
             </tbody>
@@ -4862,7 +4862,7 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>networks</td>
                   <td><a href="#micropod.v1.Network">Network</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Every container network, in `container network list` order. </p></td>
                 </tr>
               
             </tbody>
@@ -4886,7 +4886,7 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>volumes</td>
                   <td><a href="#micropod.v1.Volume">Volume</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Every volume, in `container volume list` order. </p></td>
                 </tr>
               
             </tbody>
@@ -4897,7 +4897,7 @@ is active this is the real exit status rather than a CLI approximation. </p></td
         
       
         <h3 id="micropod.v1.LogChunk">LogChunk</h3>
-        <p></p>
+        <p>One streamed log line (StreamContainerLogs event).</p>
 
         
           <table class="field-table">
@@ -4910,7 +4910,7 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>text</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>A single line of container output. </p></td>
                 </tr>
               
             </tbody>
@@ -4921,7 +4921,7 @@ is active this is the real exit status rather than a CLI approximation. </p></td
         
       
         <h3 id="micropod.v1.ProgressLine">ProgressLine</h3>
-        <p></p>
+        <p>One pull-progress event (PullImage stream).</p>
 
         
           <table class="field-table">
@@ -4934,21 +4934,21 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>line</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Human-readable progress text from the registry pull. </p></td>
                 </tr>
               
                 <tr>
                   <td>stage</td>
                   <td><a href="#int32">int32</a></td>
                   <td>optional</td>
-                  <td><p> </p></td>
+                  <td><p>Current stage index (1-based), when the pull reports staged progress. </p></td>
                 </tr>
               
                 <tr>
                   <td>total_stages</td>
                   <td><a href="#int32">int32</a></td>
                   <td>optional</td>
-                  <td><p> </p></td>
+                  <td><p>Total number of stages, when known. </p></td>
                 </tr>
               
             </tbody>
@@ -4972,14 +4972,14 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>reference</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Image reference to pull, e.g. &#34;alpine:3.20&#34; or a full registry path. </p></td>
                 </tr>
               
                 <tr>
                   <td>platform</td>
                   <td><a href="#string">string</a></td>
                   <td>optional</td>
-                  <td><p> </p></td>
+                  <td><p>Platform to pull, e.g. &#34;linux/arm64&#34;. Defaults to the host platform. </p></td>
                 </tr>
               
             </tbody>
@@ -4990,7 +4990,7 @@ is active this is the real exit status rather than a CLI approximation. </p></td
         
       
         <h3 id="micropod.v1.RunContainerRequest">RunContainerRequest</h3>
-        <p></p>
+        <p>Shared request shape for run + create (docker run / docker create).</p>
 
         
           <table class="field-table">
@@ -5003,77 +5003,77 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>image</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Image reference to run, e.g. &#34;alpine:3.20&#34;. Pulled if not present locally. </p></td>
                 </tr>
               
                 <tr>
                   <td>name</td>
                   <td><a href="#string">string</a></td>
                   <td>optional</td>
-                  <td><p> </p></td>
+                  <td><p>Optional container name; becomes the container ID. </p></td>
                 </tr>
               
                 <tr>
                   <td>detach</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Return immediately instead of streaming/attaching. </p></td>
                 </tr>
               
                 <tr>
                   <td>cpus</td>
                   <td><a href="#double">double</a></td>
                   <td>optional</td>
-                  <td><p> </p></td>
+                  <td><p>CPU limit in cores, e.g. 0.5 for half a core. </p></td>
                 </tr>
               
                 <tr>
                   <td>memory</td>
                   <td><a href="#string">string</a></td>
                   <td>optional</td>
-                  <td><p> </p></td>
+                  <td><p>Memory limit, e.g. &#34;512m&#34; or &#34;4g&#34;. </p></td>
                 </tr>
               
                 <tr>
                   <td>env</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Environment variables as KEY=value pairs. </p></td>
                 </tr>
               
                 <tr>
                   <td>ports</td>
                   <td><a href="#micropod.v1.PortMapping">PortMapping</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Published port mappings (host → container). </p></td>
                 </tr>
               
                 <tr>
                   <td>volumes</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Bind/volume mounts as &#34;name-or-path:/mount&#34; specs. </p></td>
                 </tr>
               
                 <tr>
                   <td>labels</td>
                   <td><a href="#micropod.v1.RunContainerRequest.LabelsEntry">RunContainerRequest.LabelsEntry</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Arbitrary metadata labels on the container. </p></td>
                 </tr>
               
                 <tr>
                   <td>init</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Run an init process as PID 1 to reap zombies. </p></td>
                 </tr>
               
                 <tr>
                   <td>arguments</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Command &#43; args override (image entrypoint is used when empty). </p></td>
                 </tr>
               
             </tbody>
@@ -5128,21 +5128,21 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>id</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Container ID (or name) to stream logs from. </p></td>
                 </tr>
               
                 <tr>
                   <td>tail</td>
                   <td><a href="#int32">int32</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Number of lines to replay from the end of the log before following. </p></td>
                 </tr>
               
                 <tr>
                   <td>boot</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Include the vminitd guest boot log. </p></td>
                 </tr>
               
             </tbody>
@@ -5166,14 +5166,14 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>status</td>
                   <td><a href="#micropod.v1.SystemStatus">SystemStatus</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Runtime health (status, versions, install paths). </p></td>
                 </tr>
               
                 <tr>
                   <td>disk_usage</td>
                   <td><a href="#micropod.v1.DiskUsage">DiskUsage</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Disk usage grouped by resource kind. </p></td>
                 </tr>
               
             </tbody>
@@ -5229,35 +5229,35 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                 <td>StartContainer</td>
                 <td><a href="#micropod.v1.ContainerRef">ContainerRef</a></td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
-                <td><p></p></td>
+                <td><p>Start a stopped container.</p></td>
               </tr>
             
               <tr>
                 <td>StopContainer</td>
                 <td><a href="#micropod.v1.ContainerRef">ContainerRef</a></td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
-                <td><p></p></td>
+                <td><p>Stop a running container (SIGTERM, then SIGKILL after the grace period).</p></td>
               </tr>
             
               <tr>
                 <td>RestartContainer</td>
                 <td><a href="#micropod.v1.ContainerRef">ContainerRef</a></td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
-                <td><p></p></td>
+                <td><p>Stop then start a container.</p></td>
               </tr>
             
               <tr>
                 <td>KillContainer</td>
                 <td><a href="#micropod.v1.ContainerRef">ContainerRef</a></td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
-                <td><p></p></td>
+                <td><p>SIGKILL a running container.</p></td>
               </tr>
             
               <tr>
                 <td>DeleteContainer</td>
                 <td><a href="#micropod.v1.DeleteContainerRequest">DeleteContainerRequest</a></td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
-                <td><p></p></td>
+                <td><p>Remove a container. Running containers require force.</p></td>
               </tr>
             
               <tr>
@@ -5271,7 +5271,7 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                 <td>ListImages</td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
                 <td><a href="#micropod.v1.ListImagesResponse">ListImagesResponse</a></td>
-                <td><p></p></td>
+                <td><p>List all local images.</p></td>
               </tr>
             
               <tr>
@@ -5285,63 +5285,63 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                 <td>DeleteImage</td>
                 <td><a href="#micropod.v1.DeleteImageRequest">DeleteImageRequest</a></td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
-                <td><p></p></td>
+                <td><p>Remove an image. Images in use require force.</p></td>
               </tr>
             
               <tr>
                 <td>ListVolumes</td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
                 <td><a href="#micropod.v1.ListVolumesResponse">ListVolumesResponse</a></td>
-                <td><p></p></td>
+                <td><p>List all volumes.</p></td>
               </tr>
             
               <tr>
                 <td>CreateVolume</td>
                 <td><a href="#micropod.v1.CreateVolumeRequest">CreateVolumeRequest</a></td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
-                <td><p></p></td>
+                <td><p>Create a named volume.</p></td>
               </tr>
             
               <tr>
                 <td>DeleteVolume</td>
                 <td><a href="#micropod.v1.DeleteVolumeRequest">DeleteVolumeRequest</a></td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
-                <td><p></p></td>
+                <td><p>Remove a named volume.</p></td>
               </tr>
             
               <tr>
                 <td>ListNetworks</td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
                 <td><a href="#micropod.v1.ListNetworksResponse">ListNetworksResponse</a></td>
-                <td><p></p></td>
+                <td><p>List all container networks.</p></td>
               </tr>
             
               <tr>
                 <td>CreateNetwork</td>
                 <td><a href="#micropod.v1.CreateNetworkRequest">CreateNetworkRequest</a></td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
-                <td><p></p></td>
+                <td><p>Create a container network.</p></td>
               </tr>
             
               <tr>
                 <td>DeleteNetwork</td>
                 <td><a href="#micropod.v1.DeleteNetworkRequest">DeleteNetworkRequest</a></td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
-                <td><p></p></td>
+                <td><p>Remove a container network.</p></td>
               </tr>
             
               <tr>
                 <td>GetStats</td>
                 <td><a href="#micropod.v1.GetStatsRequest">GetStatsRequest</a></td>
                 <td><a href="#micropod.v1.GetStatsResponse">GetStatsResponse</a></td>
-                <td><p></p></td>
+                <td><p>Point-in-time resource usage for all running containers.</p></td>
               </tr>
             
               <tr>
                 <td>Exec</td>
                 <td><a href="#micropod.v1.ExecRequest">ExecRequest</a></td>
                 <td><a href="#micropod.v1.ExecResponse">ExecResponse</a></td>
-                <td><p></p></td>
+                <td><p>Run a command inside a running container and return its output.</p></td>
               </tr>
             
           </tbody>
@@ -5370,28 +5370,28 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>name</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Network name within the compose project. </p></td>
                 </tr>
               
                 <tr>
                   <td>internal</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Isolate the network from external traffic. </p></td>
                 </tr>
               
                 <tr>
                   <td>external</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>References a pre-existing network outside the project. </p></td>
                 </tr>
               
                 <tr>
                   <td>driver</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Network driver to use. </p></td>
                 </tr>
               
                 <tr>
@@ -5412,14 +5412,15 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>subnet</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p>From `ipam.config[0].subnet` / `subnet_v6`. </p></td>
+                  <td><p>From `ipam.config[0].subnet` / `subnet_v6`.
+IPv4 CIDR (from `ipam.config[0].subnet`). </p></td>
                 </tr>
               
                 <tr>
                   <td>subnet_v6</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>IPv6 CIDR. </p></td>
                 </tr>
               
                 <tr>
@@ -5450,14 +5451,14 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>name</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Service name from the compose file. </p></td>
                 </tr>
               
                 <tr>
                   <td>image</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Image reference for the service. </p></td>
                 </tr>
               
                 <tr>
@@ -5471,63 +5472,63 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>build_dockerfile</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Dockerfile path relative to the build context. </p></td>
                 </tr>
               
                 <tr>
                   <td>build_args</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Build args as KEY=value pairs. </p></td>
                 </tr>
               
                 <tr>
                   <td>depends_on</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Service names that must start before this one. </p></td>
                 </tr>
               
                 <tr>
                   <td>ports</td>
                   <td><a href="#micropod.v1.PortMapping">PortMapping</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Published port mappings. </p></td>
                 </tr>
               
                 <tr>
                   <td>environment</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Environment variables as KEY=value pairs. </p></td>
                 </tr>
               
                 <tr>
                   <td>volumes</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Volume/bind mounts in compose syntax. </p></td>
                 </tr>
               
                 <tr>
                   <td>commands</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Command override (compose `command`). </p></td>
                 </tr>
               
                 <tr>
                   <td>working_dir</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Working directory inside the container. </p></td>
                 </tr>
               
                 <tr>
                   <td>restart</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Restart policy: &#34;no&#34;, &#34;always&#34;, &#34;unless-stopped&#34;, &#34;on-failure[:N]&#34;. </p></td>
                 </tr>
               
                 <tr>
@@ -5555,21 +5556,21 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>networks</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Networks the service attaches to. </p></td>
                 </tr>
               
                 <tr>
                   <td>container_name</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Explicit container name override (compose `container_name`). </p></td>
                 </tr>
               
                 <tr>
                   <td>entrypoint</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Entrypoint override (compose `entrypoint`). </p></td>
                 </tr>
               
                 <tr>
@@ -5604,14 +5605,14 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>cap_add</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Linux capabilities to add. </p></td>
                 </tr>
               
                 <tr>
                   <td>cap_drop</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Linux capabilities to drop. </p></td>
                 </tr>
               
                 <tr>
@@ -5639,35 +5640,35 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>shm_size</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Size of /dev/shm, e.g. &#34;64m&#34;. </p></td>
                 </tr>
               
                 <tr>
                   <td>read_only</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Mount the root filesystem read-only. </p></td>
                 </tr>
               
                 <tr>
                   <td>init</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Run an init process as PID 1. </p></td>
                 </tr>
               
                 <tr>
                   <td>tty</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Allocate a pseudo-TTY. </p></td>
                 </tr>
               
                 <tr>
                   <td>stdin_open</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Keep stdin open. </p></td>
                 </tr>
               
                 <tr>
@@ -5681,7 +5682,7 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>extra_hosts</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Extra /etc/hosts entries as &#34;host:ip&#34; pairs. </p></td>
                 </tr>
               
                 <tr>
@@ -5696,28 +5697,28 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td>healthcheck_interval_seconds</td>
                   <td><a href="#int32">int32</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Seconds between healthcheck runs. </p></td>
                 </tr>
               
                 <tr>
                   <td>healthcheck_timeout_seconds</td>
                   <td><a href="#int32">int32</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Seconds before a healthcheck is considered failed. </p></td>
                 </tr>
               
                 <tr>
                   <td>healthcheck_retries</td>
                   <td><a href="#int32">int32</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Consecutive failures before the container is marked unhealthy. </p></td>
                 </tr>
               
                 <tr>
                   <td>healthcheck_start_period_seconds</td>
                   <td><a href="#int32">int32</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Grace period at start during which failures don&#39;t count. </p></td>
                 </tr>
               
                 <tr>
@@ -5761,14 +5762,15 @@ the image is not present locally (docker&#39;s default &#34;missing&#34;). </p><
                   <td><a href="#string">string</a></td>
                   <td></td>
                   <td><p>Stop behaviour (parsed; stop_signal is not expressible, grace period
-maps to `container stop --time`). </p></td>
+maps to `container stop --time`).
+Signal sent on stop (parsed; not expressible on the Apple runtime). </p></td>
                 </tr>
               
                 <tr>
                   <td>stop_grace_period_seconds</td>
                   <td><a href="#int32">int32</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Seconds between SIGTERM and SIGKILL on stop. </p></td>
                 </tr>
               
             </tbody>
@@ -5823,35 +5825,35 @@ maps to `container stop --time`). </p></td>
                   <td>name</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Compose project name (top-level `name:` or the directory name). </p></td>
                 </tr>
               
                 <tr>
                   <td>path</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Absolute path of the docker-compose.yml this spec was parsed from. </p></td>
                 </tr>
               
                 <tr>
                   <td>services</td>
                   <td><a href="#micropod.v1.ComposeService">ComposeService</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Services in dependency order. </p></td>
                 </tr>
               
                 <tr>
                   <td>volumes</td>
                   <td><a href="#micropod.v1.ComposeSpec.VolumesEntry">ComposeSpec.VolumesEntry</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Named volumes declared at the top level. </p></td>
                 </tr>
               
                 <tr>
                   <td>networks</td>
                   <td><a href="#micropod.v1.ComposeSpec.NetworksEntry">ComposeSpec.NetworksEntry</a></td>
                   <td>repeated</td>
-                  <td><p> </p></td>
+                  <td><p>Networks declared at the top level. </p></td>
                 </tr>
               
             </tbody>
@@ -5937,14 +5939,14 @@ maps to `container stop --time`). </p></td>
                   <td>name</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>Volume name within the compose project. </p></td>
                 </tr>
               
                 <tr>
                   <td>external</td>
                   <td><a href="#bool">bool</a></td>
                   <td></td>
-                  <td><p> </p></td>
+                  <td><p>References a pre-existing volume outside the project. </p></td>
                 </tr>
               
                 <tr>

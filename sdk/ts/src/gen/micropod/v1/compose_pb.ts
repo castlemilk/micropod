@@ -21,26 +21,36 @@ export const file_micropod_v1_compose: GenFile = /*@__PURE__*/
  */
 export type ComposeSpec = Message<"micropod.v1.ComposeSpec"> & {
   /**
+   * Compose project name (top-level `name:` or the directory name).
+   *
    * @generated from field: string name = 1;
    */
   name: string;
 
   /**
+   * Absolute path of the docker-compose.yml this spec was parsed from.
+   *
    * @generated from field: string path = 2;
    */
   path: string;
 
   /**
+   * Services in dependency order.
+   *
    * @generated from field: repeated micropod.v1.ComposeService services = 3;
    */
   services: ComposeService[];
 
   /**
+   * Named volumes declared at the top level.
+   *
    * @generated from field: map<string, micropod.v1.ComposeVolume> volumes = 4;
    */
   volumes: { [key: string]: ComposeVolume };
 
   /**
+   * Networks declared at the top level.
+   *
    * @generated from field: map<string, micropod.v1.ComposeNetwork> networks = 5;
    */
   networks: { [key: string]: ComposeNetwork };
@@ -62,11 +72,15 @@ export const ComposeSpecSchema: GenMessage<ComposeSpec> = /*@__PURE__*/
  */
 export type ComposeService = Message<"micropod.v1.ComposeService"> & {
   /**
+   * Service name from the compose file.
+   *
    * @generated from field: string name = 1;
    */
   name: string;
 
   /**
+   * Image reference for the service.
+   *
    * @generated from field: string image = 2;
    */
   image: string;
@@ -79,46 +93,64 @@ export type ComposeService = Message<"micropod.v1.ComposeService"> & {
   buildContext: string;
 
   /**
+   * Dockerfile path relative to the build context.
+   *
    * @generated from field: string build_dockerfile = 4;
    */
   buildDockerfile: string;
 
   /**
+   * Build args as KEY=value pairs.
+   *
    * @generated from field: repeated string build_args = 5;
    */
   buildArgs: string[];
 
   /**
+   * Service names that must start before this one.
+   *
    * @generated from field: repeated string depends_on = 6;
    */
   dependsOn: string[];
 
   /**
+   * Published port mappings.
+   *
    * @generated from field: repeated micropod.v1.PortMapping ports = 7;
    */
   ports: PortMapping[];
 
   /**
+   * Environment variables as KEY=value pairs.
+   *
    * @generated from field: repeated string environment = 8;
    */
   environment: string[];
 
   /**
+   * Volume/bind mounts in compose syntax.
+   *
    * @generated from field: repeated string volumes = 9;
    */
   volumes: string[];
 
   /**
+   * Command override (compose `command`).
+   *
    * @generated from field: repeated string commands = 10;
    */
   commands: string[];
 
   /**
+   * Working directory inside the container.
+   *
    * @generated from field: string working_dir = 11;
    */
   workingDir: string;
 
   /**
+   * Restart policy: "no", "always", "unless-stopped", "on-failure[:N]".
+   *
    * @generated from field: string restart = 12;
    */
   restart: string;
@@ -143,16 +175,22 @@ export type ComposeService = Message<"micropod.v1.ComposeService"> & {
   healthcheckCommand: string;
 
   /**
+   * Networks the service attaches to.
+   *
    * @generated from field: repeated string networks = 16;
    */
   networks: string[];
 
   /**
+   * Explicit container name override (compose `container_name`).
+   *
    * @generated from field: string container_name = 17;
    */
   containerName: string;
 
   /**
+   * Entrypoint override (compose `entrypoint`).
+   *
    * @generated from field: string entrypoint = 18;
    */
   entrypoint: string;
@@ -186,11 +224,15 @@ export type ComposeService = Message<"micropod.v1.ComposeService"> & {
   dnsSearch: string[];
 
   /**
+   * Linux capabilities to add.
+   *
    * @generated from field: repeated string cap_add = 23;
    */
   capAdd: string[];
 
   /**
+   * Linux capabilities to drop.
+   *
    * @generated from field: repeated string cap_drop = 24;
    */
   capDrop: string[];
@@ -217,26 +259,36 @@ export type ComposeService = Message<"micropod.v1.ComposeService"> & {
   envFile: string[];
 
   /**
+   * Size of /dev/shm, e.g. "64m".
+   *
    * @generated from field: string shm_size = 28;
    */
   shmSize: string;
 
   /**
+   * Mount the root filesystem read-only.
+   *
    * @generated from field: bool read_only = 29;
    */
   readOnly: boolean;
 
   /**
+   * Run an init process as PID 1.
+   *
    * @generated from field: bool init = 30;
    */
   init: boolean;
 
   /**
+   * Allocate a pseudo-TTY.
+   *
    * @generated from field: bool tty = 31;
    */
   tty: boolean;
 
   /**
+   * Keep stdin open.
+   *
    * @generated from field: bool stdin_open = 32;
    */
   stdinOpen: boolean;
@@ -249,6 +301,8 @@ export type ComposeService = Message<"micropod.v1.ComposeService"> & {
   privileged: boolean;
 
   /**
+   * Extra /etc/hosts entries as "host:ip" pairs.
+   *
    * @generated from field: repeated string extra_hosts = 34;
    */
   extraHosts: string[];
@@ -262,21 +316,29 @@ export type ComposeService = Message<"micropod.v1.ComposeService"> & {
   dependsOnConditions: { [key: string]: string };
 
   /**
+   * Seconds between healthcheck runs.
+   *
    * @generated from field: int32 healthcheck_interval_seconds = 36;
    */
   healthcheckIntervalSeconds: number;
 
   /**
+   * Seconds before a healthcheck is considered failed.
+   *
    * @generated from field: int32 healthcheck_timeout_seconds = 37;
    */
   healthcheckTimeoutSeconds: number;
 
   /**
+   * Consecutive failures before the container is marked unhealthy.
+   *
    * @generated from field: int32 healthcheck_retries = 38;
    */
   healthcheckRetries: number;
 
   /**
+   * Grace period at start during which failures don't count.
+   *
    * @generated from field: int32 healthcheck_start_period_seconds = 39;
    */
   healthcheckStartPeriodSeconds: number;
@@ -318,12 +380,15 @@ export type ComposeService = Message<"micropod.v1.ComposeService"> & {
   /**
    * Stop behaviour (parsed; stop_signal is not expressible, grace period
    * maps to `container stop --time`).
+   * Signal sent on stop (parsed; not expressible on the Apple runtime).
    *
    * @generated from field: string stop_signal = 42;
    */
   stopSignal: string;
 
   /**
+   * Seconds between SIGTERM and SIGKILL on stop.
+   *
    * @generated from field: int32 stop_grace_period_seconds = 43;
    */
   stopGracePeriodSeconds: number;
@@ -341,11 +406,15 @@ export const ComposeServiceSchema: GenMessage<ComposeService> = /*@__PURE__*/
  */
 export type ComposeVolume = Message<"micropod.v1.ComposeVolume"> & {
   /**
+   * Volume name within the compose project.
+   *
    * @generated from field: string name = 1;
    */
   name: string;
 
   /**
+   * References a pre-existing volume outside the project.
+   *
    * @generated from field: bool external = 2;
    */
   external: boolean;
@@ -387,21 +456,29 @@ export const ComposeVolumeSchema: GenMessage<ComposeVolume> = /*@__PURE__*/
  */
 export type ComposeNetwork = Message<"micropod.v1.ComposeNetwork"> & {
   /**
+   * Network name within the compose project.
+   *
    * @generated from field: string name = 1;
    */
   name: string;
 
   /**
+   * Isolate the network from external traffic.
+   *
    * @generated from field: bool internal = 2;
    */
   internal: boolean;
 
   /**
+   * References a pre-existing network outside the project.
+   *
    * @generated from field: bool external = 3;
    */
   external: boolean;
 
   /**
+   * Network driver to use.
+   *
    * @generated from field: string driver = 4;
    */
   driver: string;
@@ -420,12 +497,15 @@ export type ComposeNetwork = Message<"micropod.v1.ComposeNetwork"> & {
 
   /**
    * From `ipam.config[0].subnet` / `subnet_v6`.
+   * IPv4 CIDR (from `ipam.config[0].subnet`).
    *
    * @generated from field: string subnet = 7;
    */
   subnet: string;
 
   /**
+   * IPv6 CIDR.
+   *
    * @generated from field: string subnet_v6 = 8;
    */
   subnetV6: string;

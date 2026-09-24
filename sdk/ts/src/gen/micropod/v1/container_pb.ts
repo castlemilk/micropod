@@ -4,13 +4,14 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_buf_validate_validate } from "@bufbuild/protovalidate/gen/buf/validate/validate_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file micropod/v1/container.proto.
  */
 export const file_micropod_v1_container: GenFile = /*@__PURE__*/
-  fileDesc("ChttaWNyb3BvZC92MS9jb250YWluZXIucHJvdG8SC21pY3JvcG9kLnYxIoUECglDb250YWluZXISCgoCaWQYASABKAkSDQoFaW1hZ2UYAiABKAkSDQoFc3RhdGUYAyABKAkSEgoKY3JlYXRlZF9hdBgEIAEoCRIyCglyZXNvdXJjZXMYBSABKAsyHy5taWNyb3BvZC52MS5Db250YWluZXJSZXNvdXJjZXMSEAoIcGxhdGZvcm0YBiABKAkSMQoPcHVibGlzaGVkX3BvcnRzGAcgAygLMhgubWljcm9wb2QudjEuUG9ydE1hcHBpbmcSIgoGbW91bnRzGAggAygLMhIubWljcm9wb2QudjEuTW91bnQSEAoIbmV0d29ya3MYCSADKAkSFAoMaXB2NF9hZGRyZXNzGAogASgJEgsKA2VudhgLIAMoCRIyCgZsYWJlbHMYDCADKAsyIi5taWNyb3BvZC52MS5Db250YWluZXIuTGFiZWxzRW50cnkSDwoHcm9zZXR0YRgNIAEoCBIRCglyZWFkX29ubHkYDiABKAgSEAoIdXNlX2luaXQYDyABKAgSCwoDc3NoGBAgASgIEhYKDnZpcnR1YWxpemF0aW9uGBEgASgIEhcKD3J1bnRpbWVfaGFuZGxlchgSIAEoCRIRCglleGl0X2NvZGUYEyABKAkaLQoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASI4ChJDb250YWluZXJSZXNvdXJjZXMSDAoEY3B1cxgBIAEoARIUCgxtZW1vcnlfYnl0ZXMYAiABKAQiWwoLUG9ydE1hcHBpbmcSEQoJaG9zdF9wb3J0GAEgASgNEhYKDmNvbnRhaW5lcl9wb3J0GAIgASgNEhAKCHByb3RvY29sGAMgASgJEg8KB2hvc3RfaXAYBCABKAkiTQoFTW91bnQSDAoEdHlwZRgBIAEoCRIOCgZzb3VyY2UYAiABKAkSEwoLZGVzdGluYXRpb24YAyABKAkSEQoJcmVhZF9vbmx5GAQgASgIQkJaQGdpdGh1Yi5jb20vY2FzdGxlbWlsay9taWNyb3BvZC9zZGsvZ28vZ2VuL21pY3JvcG9kL3YxO21pY3JvcG9kdjFiBnByb3RvMw");
+  fileDesc("ChttaWNyb3BvZC92MS9jb250YWluZXIucHJvdG8SC21pY3JvcG9kLnYxIoUECglDb250YWluZXISCgoCaWQYASABKAkSDQoFaW1hZ2UYAiABKAkSDQoFc3RhdGUYAyABKAkSEgoKY3JlYXRlZF9hdBgEIAEoCRIyCglyZXNvdXJjZXMYBSABKAsyHy5taWNyb3BvZC52MS5Db250YWluZXJSZXNvdXJjZXMSEAoIcGxhdGZvcm0YBiABKAkSMQoPcHVibGlzaGVkX3BvcnRzGAcgAygLMhgubWljcm9wb2QudjEuUG9ydE1hcHBpbmcSIgoGbW91bnRzGAggAygLMhIubWljcm9wb2QudjEuTW91bnQSEAoIbmV0d29ya3MYCSADKAkSFAoMaXB2NF9hZGRyZXNzGAogASgJEgsKA2VudhgLIAMoCRIyCgZsYWJlbHMYDCADKAsyIi5taWNyb3BvZC52MS5Db250YWluZXIuTGFiZWxzRW50cnkSDwoHcm9zZXR0YRgNIAEoCBIRCglyZWFkX29ubHkYDiABKAgSEAoIdXNlX2luaXQYDyABKAgSCwoDc3NoGBAgASgIEhYKDnZpcnR1YWxpemF0aW9uGBEgASgIEhcKD3J1bnRpbWVfaGFuZGxlchgSIAEoCRIRCglleGl0X2NvZGUYEyABKAkaLQoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASI4ChJDb250YWluZXJSZXNvdXJjZXMSDAoEY3B1cxgBIAEoARIUCgxtZW1vcnlfYnl0ZXMYAiABKAQidAoLUG9ydE1hcHBpbmcSHAoJaG9zdF9wb3J0GAEgASgNQgm6SAYqBBj//wMSJAoOY29udGFpbmVyX3BvcnQYAiABKA1CDLpICcgBASoEGP//AxIQCghwcm90b2NvbBgDIAEoCRIPCgdob3N0X2lwGAQgASgJIk0KBU1vdW50EgwKBHR5cGUYASABKAkSDgoGc291cmNlGAIgASgJEhMKC2Rlc3RpbmF0aW9uGAMgASgJEhEKCXJlYWRfb25seRgEIAEoCEJCWkBnaXRodWIuY29tL2Nhc3RsZW1pbGsvbWljcm9wb2Qvc2RrL2dvL2dlbi9taWNyb3BvZC92MTttaWNyb3BvZHYxYgZwcm90bzM", [file_buf_validate_validate]);
 
 /**
  * Curated view of a container, mapped from `container list --format json`.
@@ -47,6 +48,8 @@ export type Container = Message<"micropod.v1.Container"> & {
   createdAt: string;
 
   /**
+   * Configured CPU/memory limits.
+   *
    * @generated from field: micropod.v1.ContainerResources resources = 5;
    */
   resources?: ContainerResources;
@@ -59,11 +62,15 @@ export type Container = Message<"micropod.v1.Container"> & {
   platform: string;
 
   /**
+   * Published host→container port mappings.
+   *
    * @generated from field: repeated micropod.v1.PortMapping published_ports = 7;
    */
   publishedPorts: PortMapping[];
 
   /**
+   * Mounted volumes and binds.
+   *
    * @generated from field: repeated micropod.v1.Mount mounts = 8;
    */
   mounts: Mount[];
@@ -83,46 +90,64 @@ export type Container = Message<"micropod.v1.Container"> & {
   ipv4Address: string;
 
   /**
+   * Environment variables as KEY=value pairs.
+   *
    * @generated from field: repeated string env = 11;
    */
   env: string[];
 
   /**
+   * Metadata labels on the container.
+   *
    * @generated from field: map<string, string> labels = 12;
    */
   labels: { [key: string]: string };
 
   /**
+   * Runs x86_64 binaries via Rosetta translation.
+   *
    * @generated from field: bool rosetta = 13;
    */
   rosetta: boolean;
 
   /**
+   * Root filesystem is read-only.
+   *
    * @generated from field: bool read_only = 14;
    */
   readOnly: boolean;
 
   /**
+   * An init process runs as PID 1 inside the container.
+   *
    * @generated from field: bool use_init = 15;
    */
   useInit: boolean;
 
   /**
+   * SSH access is enabled for the container.
+   *
    * @generated from field: bool ssh = 16;
    */
   ssh: boolean;
 
   /**
+   * Uses full virtualization rather than the container runtime path.
+   *
    * @generated from field: bool virtualization = 17;
    */
   virtualization: boolean;
 
   /**
+   * OCI runtime handler in use, if any.
+   *
    * @generated from field: string runtime_handler = 18;
    */
   runtimeHandler: string;
 
   /**
+   * Exit code once the container has stopped.
+   *
    * @generated from field: string exit_code = 19;
    */
   exitCode: string;
@@ -140,11 +165,15 @@ export const ContainerSchema: GenMessage<Container> = /*@__PURE__*/
  */
 export type ContainerResources = Message<"micropod.v1.ContainerResources"> & {
   /**
+   * CPU limit in cores.
+   *
    * @generated from field: double cpus = 1;
    */
   cpus: number;
 
   /**
+   * Memory limit in bytes.
+   *
    * @generated from field: uint64 memory_bytes = 2;
    */
   memoryBytes: bigint;
@@ -158,25 +187,35 @@ export const ContainerResourcesSchema: GenMessage<ContainerResources> = /*@__PUR
   messageDesc(file_micropod_v1_container, 1);
 
 /**
+ * A published port mapping between host and container.
+ *
  * @generated from message micropod.v1.PortMapping
  */
 export type PortMapping = Message<"micropod.v1.PortMapping"> & {
   /**
+   * Port on the host.
+   *
    * @generated from field: uint32 host_port = 1;
    */
   hostPort: number;
 
   /**
+   * Port inside the container.
+   *
    * @generated from field: uint32 container_port = 2;
    */
   containerPort: number;
 
   /**
+   * "tcp" or "udp".
+   *
    * @generated from field: string protocol = 3;
    */
   protocol: string;
 
   /**
+   * Host interface IP to bind (empty = all interfaces).
+   *
    * @generated from field: string host_ip = 4;
    */
   hostIp: string;
@@ -190,25 +229,35 @@ export const PortMappingSchema: GenMessage<PortMapping> = /*@__PURE__*/
   messageDesc(file_micropod_v1_container, 2);
 
 /**
+ * A volume or bind mount inside the container.
+ *
  * @generated from message micropod.v1.Mount
  */
 export type Mount = Message<"micropod.v1.Mount"> & {
   /**
+   * Mount kind: "volume" or "bind".
+   *
    * @generated from field: string type = 1;
    */
   type: string;
 
   /**
+   * Volume name or host path.
+   *
    * @generated from field: string source = 2;
    */
   source: string;
 
   /**
+   * Path inside the container.
+   *
    * @generated from field: string destination = 3;
    */
   destination: string;
 
   /**
+   * Mount is read-only.
+   *
    * @generated from field: bool read_only = 4;
    */
   readOnly: boolean;

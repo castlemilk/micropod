@@ -8,10 +8,15 @@ import "micropod/v1/container.proto";
 
 // Parsed docker-compose.yml, produced by the compose importer.
 message ComposeSpec {
+  // Compose project name (top-level `name:` or the directory name).
   string name = 1;
+  // Absolute path of the docker-compose.yml this spec was parsed from.
   string path = 2;
+  // Services in dependency order.
   repeated ComposeService services = 3;
+  // Named volumes declared at the top level.
   map<string, ComposeVolume> volumes = 4;
+  // Networks declared at the top level.
   map<string, ComposeNetwork> networks = 5;
 }
 
@@ -19,29 +24,43 @@ message ComposeSpec {
 // Fields the Apple runtime cannot express (e.g. privileged) are still parsed
 // so the UI can show them as unsupported rather than silently dropping them.
 message ComposeService {
+  // Service name from the compose file.
   string name = 1;
+  // Image reference for the service.
   string image = 2;
   // Build context dir if the service is built from a Dockerfile.
   string build_context = 3;
+  // Dockerfile path relative to the build context.
   string build_dockerfile = 4;
+  // Build args as KEY=value pairs.
   repeated string build_args = 5;
+  // Service names that must start before this one.
   repeated string depends_on = 6;
+  // Published port mappings.
   repeated PortMapping ports = 7;
+  // Environment variables as KEY=value pairs.
   repeated string environment = 8;
+  // Volume/bind mounts in compose syntax.
   repeated string volumes = 9;
+  // Command override (compose `command`).
   repeated string commands = 10;
+  // Working directory inside the container.
   string working_dir = 11;
+  // Restart policy: "no", "always", "unless-stopped", "on-failure[:N]".
   string restart = 12;
   // Resource caps (compose `cpus`, `mem_limit`).
   double cpus = 13;
   string memory = 14;
   // Healthcheck command; used for real readiness probes.
   string healthcheck_command = 15;
+  // Networks the service attaches to.
   repeated string networks = 16;
+  // Explicit container name override (compose `container_name`).
   string container_name = 17;
 
   // --- Extended docker-compose surface ---
 
+  // Entrypoint override (compose `entrypoint`).
   string entrypoint = 18;
   // User for the container process (format: name|uid[:gid]).
   string user = 19;
@@ -51,7 +70,9 @@ message ComposeService {
   repeated string dns = 21;
   // DNS search domains (compose `dns_search`).
   repeated string dns_search = 22;
+  // Linux capabilities to add.
   repeated string cap_add = 23;
+  // Linux capabilities to drop.
   repeated string cap_drop = 24;
   // Resource limits, format: type=soft[:hard].
   repeated string ulimits = 25;
@@ -59,20 +80,30 @@ message ComposeService {
   repeated string tmpfs = 26;
   // env_file paths (resolved against the compose file directory).
   repeated string env_file = 27;
+  // Size of /dev/shm, e.g. "64m".
   string shm_size = 28;
+  // Mount the root filesystem read-only.
   bool read_only = 29;
+  // Run an init process as PID 1.
   bool init = 30;
+  // Allocate a pseudo-TTY.
   bool tty = 31;
+  // Keep stdin open.
   bool stdin_open = 32;
   // Parsed but not expressible on the Apple runtime.
   bool privileged = 33;
+  // Extra /etc/hosts entries as "host:ip" pairs.
   repeated string extra_hosts = 34;
   // Conditions for depends_on entries (key = dependency name):
   // "started" (default) or "service_healthy".
   map<string, string> depends_on_conditions = 35;
+  // Seconds between healthcheck runs.
   int32 healthcheck_interval_seconds = 36;
+  // Seconds before a healthcheck is considered failed.
   int32 healthcheck_timeout_seconds = 37;
+  // Consecutive failures before the container is marked unhealthy.
   int32 healthcheck_retries = 38;
+  // Grace period at start during which failures don't count.
   int32 healthcheck_start_period_seconds = 39;
   // Build stage target / platform for `build:` sections.
   string build_target = 40;
@@ -86,12 +117,16 @@ message ComposeService {
   string pull_policy = 46;
   // Stop behaviour (parsed; stop_signal is not expressible, grace period
   // maps to `container stop --time`).
+  // Signal sent on stop (parsed; not expressible on the Apple runtime).
   string stop_signal = 42;
+  // Seconds between SIGTERM and SIGKILL on stop.
   int32 stop_grace_period_seconds = 43;
 }
 
 message ComposeVolume {
+  // Volume name within the compose project.
   string name = 1;
+  // References a pre-existing volume outside the project.
   bool external = 2;
   // Driver + driver options (`driver_opts`), labels.
   string driver = 3;
@@ -102,15 +137,21 @@ message ComposeVolume {
 }
 
 message ComposeNetwork {
+  // Network name within the compose project.
   string name = 1;
+  // Isolate the network from external traffic.
   bool internal = 2;
+  // References a pre-existing network outside the project.
   bool external = 3;
+  // Network driver to use.
   string driver = 4;
   // Plugin options (compose `driver_opts` -> `--option`).
   repeated string driver_opts = 5;
   repeated string labels = 6;
   // From `ipam.config[0].subnet` / `subnet_v6`.
+  // IPv4 CIDR (from `ipam.config[0].subnet`).
   string subnet = 7;
+  // IPv6 CIDR.
   string subnet_v6 = 8;
   // `external: {name: "…"}` override.
   string external_name = 9;

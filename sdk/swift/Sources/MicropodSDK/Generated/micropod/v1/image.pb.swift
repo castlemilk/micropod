@@ -26,6 +26,7 @@ public nonisolated struct Micropod_V1_Image: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Image ID (content-addressed digest prefix).
   public var id: String = String()
 
   /// All tags/references pointing at this image.
@@ -37,8 +38,10 @@ public nonisolated struct Micropod_V1_Image: Sendable {
   /// Content digest.
   public var digest: String = String()
 
+  /// Total unpacked size in bytes.
   public var sizeBytes: UInt64 = 0
 
+  /// Per-platform variants of this image.
   public var variants: [Micropod_V1_ImageVariant] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -46,15 +49,19 @@ public nonisolated struct Micropod_V1_Image: Sendable {
   public init() {}
 }
 
+/// One platform variant of a multi-arch image.
 public nonisolated struct Micropod_V1_ImageVariant: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Operating system, e.g. "linux".
   public var os: String = String()
 
+  /// CPU architecture, e.g. "arm64".
   public var architecture: String = String()
 
+  /// Architecture variant, e.g. "v8".
   public var variant: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()

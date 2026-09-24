@@ -11,19 +11,23 @@
         "properties": {
           "name": {
             "type": "string",
-            "title": "name"
+            "title": "name",
+            "description": "Network name within the compose project."
           },
           "internal": {
             "type": "boolean",
-            "title": "internal"
+            "title": "internal",
+            "description": "Isolate the network from external traffic."
           },
           "external": {
             "type": "boolean",
-            "title": "external"
+            "title": "external",
+            "description": "References a pre-existing network outside the project."
           },
           "driver": {
             "type": "string",
-            "title": "driver"
+            "title": "driver",
+            "description": "Network driver to use."
           },
           "driverOpts": {
             "type": "array",
@@ -43,11 +47,12 @@
           "subnet": {
             "type": "string",
             "title": "subnet",
-            "description": "From `ipam.config[0].subnet` / `subnet_v6`."
+            "description": "From `ipam.config[0].subnet` / `subnet_v6`.\n IPv4 CIDR (from `ipam.config[0].subnet`)."
           },
           "subnetV6": {
             "type": "string",
-            "title": "subnet_v6"
+            "title": "subnet_v6",
+            "description": "IPv6 CIDR."
           },
           "externalName": {
             "type": "string",
@@ -63,11 +68,13 @@
         "properties": {
           "name": {
             "type": "string",
-            "title": "name"
+            "title": "name",
+            "description": "Service name from the compose file."
           },
           "image": {
             "type": "string",
-            "title": "image"
+            "title": "image",
+            "description": "Image reference for the service."
           },
           "buildContext": {
             "type": "string",
@@ -76,57 +83,66 @@
           },
           "buildDockerfile": {
             "type": "string",
-            "title": "build_dockerfile"
+            "title": "build_dockerfile",
+            "description": "Dockerfile path relative to the build context."
           },
           "buildArgs": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "title": "build_args"
+            "title": "build_args",
+            "description": "Build args as KEY=value pairs."
           },
           "dependsOn": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "title": "depends_on"
+            "title": "depends_on",
+            "description": "Service names that must start before this one."
           },
           "ports": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/micropod.v1.PortMapping"
             },
-            "title": "ports"
+            "title": "ports",
+            "description": "Published port mappings."
           },
           "environment": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "title": "environment"
+            "title": "environment",
+            "description": "Environment variables as KEY=value pairs."
           },
           "volumes": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "title": "volumes"
+            "title": "volumes",
+            "description": "Volume/bind mounts in compose syntax."
           },
           "commands": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "title": "commands"
+            "title": "commands",
+            "description": "Command override (compose `command`)."
           },
           "workingDir": {
             "type": "string",
-            "title": "working_dir"
+            "title": "working_dir",
+            "description": "Working directory inside the container."
           },
           "restart": {
             "type": "string",
-            "title": "restart"
+            "title": "restart",
+            "description": "Restart policy: \"no\", \"always\", \"unless-stopped\", \"on-failure[:N]\"."
           },
           "cpus": {
             "type": "number",
@@ -148,15 +164,18 @@
             "items": {
               "type": "string"
             },
-            "title": "networks"
+            "title": "networks",
+            "description": "Networks the service attaches to."
           },
           "containerName": {
             "type": "string",
-            "title": "container_name"
+            "title": "container_name",
+            "description": "Explicit container name override (compose `container_name`)."
           },
           "entrypoint": {
             "type": "string",
-            "title": "entrypoint"
+            "title": "entrypoint",
+            "description": "Entrypoint override (compose `entrypoint`)."
           },
           "user": {
             "type": "string",
@@ -192,14 +211,16 @@
             "items": {
               "type": "string"
             },
-            "title": "cap_add"
+            "title": "cap_add",
+            "description": "Linux capabilities to add."
           },
           "capDrop": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "title": "cap_drop"
+            "title": "cap_drop",
+            "description": "Linux capabilities to drop."
           },
           "ulimits": {
             "type": "array",
@@ -227,23 +248,28 @@
           },
           "shmSize": {
             "type": "string",
-            "title": "shm_size"
+            "title": "shm_size",
+            "description": "Size of /dev/shm, e.g. \"64m\"."
           },
           "readOnly": {
             "type": "boolean",
-            "title": "read_only"
+            "title": "read_only",
+            "description": "Mount the root filesystem read-only."
           },
           "init": {
             "type": "boolean",
-            "title": "init"
+            "title": "init",
+            "description": "Run an init process as PID 1."
           },
           "tty": {
             "type": "boolean",
-            "title": "tty"
+            "title": "tty",
+            "description": "Allocate a pseudo-TTY."
           },
           "stdinOpen": {
             "type": "boolean",
-            "title": "stdin_open"
+            "title": "stdin_open",
+            "description": "Keep stdin open."
           },
           "privileged": {
             "type": "boolean",
@@ -255,7 +281,8 @@
             "items": {
               "type": "string"
             },
-            "title": "extra_hosts"
+            "title": "extra_hosts",
+            "description": "Extra /etc/hosts entries as \"host:ip\" pairs."
           },
           "dependsOnConditions": {
             "type": "object",
@@ -269,22 +296,26 @@
           "healthcheckIntervalSeconds": {
             "type": "integer",
             "title": "healthcheck_interval_seconds",
-            "format": "int32"
+            "format": "int32",
+            "description": "Seconds between healthcheck runs."
           },
           "healthcheckTimeoutSeconds": {
             "type": "integer",
             "title": "healthcheck_timeout_seconds",
-            "format": "int32"
+            "format": "int32",
+            "description": "Seconds before a healthcheck is considered failed."
           },
           "healthcheckRetries": {
             "type": "integer",
             "title": "healthcheck_retries",
-            "format": "int32"
+            "format": "int32",
+            "description": "Consecutive failures before the container is marked unhealthy."
           },
           "healthcheckStartPeriodSeconds": {
             "type": "integer",
             "title": "healthcheck_start_period_seconds",
-            "format": "int32"
+            "format": "int32",
+            "description": "Grace period at start during which failures don't count."
           },
           "buildTarget": {
             "type": "string",
@@ -316,12 +347,13 @@
           "stopSignal": {
             "type": "string",
             "title": "stop_signal",
-            "description": "Stop behaviour (parsed; stop_signal is not expressible, grace period\n maps to `container stop --time`)."
+            "description": "Stop behaviour (parsed; stop_signal is not expressible, grace period\n maps to `container stop --time`).\n Signal sent on stop (parsed; not expressible on the Apple runtime)."
           },
           "stopGracePeriodSeconds": {
             "type": "integer",
             "title": "stop_grace_period_seconds",
-            "format": "int32"
+            "format": "int32",
+            "description": "Seconds between SIGTERM and SIGKILL on stop."
           }
         },
         "title": "ComposeService",
@@ -348,18 +380,21 @@
         "properties": {
           "name": {
             "type": "string",
-            "title": "name"
+            "title": "name",
+            "description": "Compose project name (top-level `name:` or the directory name)."
           },
           "path": {
             "type": "string",
-            "title": "path"
+            "title": "path",
+            "description": "Absolute path of the docker-compose.yml this spec was parsed from."
           },
           "services": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/micropod.v1.ComposeService"
             },
-            "title": "services"
+            "title": "services",
+            "description": "Services in dependency order."
           },
           "volumes": {
             "type": "object",
@@ -367,7 +402,8 @@
             "additionalProperties": {
               "title": "value",
               "$ref": "#/components/schemas/micropod.v1.ComposeVolume"
-            }
+            },
+            "description": "Named volumes declared at the top level."
           },
           "networks": {
             "type": "object",
@@ -375,7 +411,8 @@
             "additionalProperties": {
               "title": "value",
               "$ref": "#/components/schemas/micropod.v1.ComposeNetwork"
-            }
+            },
+            "description": "Networks declared at the top level."
           }
         },
         "title": "ComposeSpec",
@@ -417,11 +454,13 @@
         "properties": {
           "name": {
             "type": "string",
-            "title": "name"
+            "title": "name",
+            "description": "Volume name within the compose project."
           },
           "external": {
             "type": "boolean",
-            "title": "external"
+            "title": "external",
+            "description": "References a pre-existing volume outside the project."
           },
           "driver": {
             "type": "string",
@@ -456,23 +495,33 @@
         "properties": {
           "hostPort": {
             "type": "integer",
-            "title": "host_port"
+            "title": "host_port",
+            "maximum": 65535,
+            "description": "Port on the host."
           },
           "containerPort": {
             "type": "integer",
-            "title": "container_port"
+            "title": "container_port",
+            "maximum": 65535,
+            "description": "Port inside the container."
           },
           "protocol": {
             "type": "string",
-            "title": "protocol"
+            "title": "protocol",
+            "description": "\"tcp\" or \"udp\"."
           },
           "hostIp": {
             "type": "string",
-            "title": "host_ip"
+            "title": "host_ip",
+            "description": "Host interface IP to bind (empty = all interfaces)."
           }
         },
         "title": "PortMapping",
-        "additionalProperties": false
+        "required": [
+          "containerPort"
+        ],
+        "additionalProperties": false,
+        "description": "A published port mapping between host and container."
       }
     }
   },

@@ -11,12 +11,14 @@
         "properties": {
           "id": {
             "type": "string",
-            "title": "id"
+            "title": "id",
+            "description": "Container ID."
           },
           "cpuPercent": {
             "type": "number",
             "title": "cpu_percent",
-            "format": "double"
+            "format": "double",
+            "description": "CPU usage as a percentage of one core."
           },
           "memoryUsedBytes": {
             "type": [
@@ -24,7 +26,8 @@
               "string"
             ],
             "title": "memory_used_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Resident memory in bytes."
           },
           "memoryLimitBytes": {
             "type": [
@@ -32,7 +35,8 @@
               "string"
             ],
             "title": "memory_limit_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Configured memory limit in bytes."
           },
           "networkRxBytes": {
             "type": [
@@ -40,7 +44,8 @@
               "string"
             ],
             "title": "network_rx_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Bytes received over the container network."
           },
           "networkTxBytes": {
             "type": [
@@ -48,7 +53,8 @@
               "string"
             ],
             "title": "network_tx_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Bytes transmitted over the container network."
           },
           "blockReadBytes": {
             "type": [
@@ -56,7 +62,8 @@
               "string"
             ],
             "title": "block_read_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Bytes read from the block device."
           },
           "blockWriteBytes": {
             "type": [
@@ -64,7 +71,8 @@
               "string"
             ],
             "title": "block_write_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Bytes written to the block device."
           },
           "pids": {
             "type": [
@@ -72,11 +80,13 @@
               "string"
             ],
             "title": "pids",
-            "format": "int64"
+            "format": "int64",
+            "description": "Number of processes inside the container."
           }
         },
         "title": "ContainerStats",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Per-container resource counters within a StatsSnapshot."
       },
       "micropod.v1.DiskCategory": {
         "type": "object",
@@ -87,7 +97,8 @@
               "string"
             ],
             "title": "total",
-            "format": "int64"
+            "format": "int64",
+            "description": "Total objects in the category."
           },
           "active": {
             "type": [
@@ -95,7 +106,8 @@
               "string"
             ],
             "title": "active",
-            "format": "int64"
+            "format": "int64",
+            "description": "Objects currently referenced by a running workload."
           },
           "sizeBytes": {
             "type": [
@@ -103,7 +115,8 @@
               "string"
             ],
             "title": "size_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "On-disk size of the category in bytes."
           },
           "reclaimableBytes": {
             "type": [
@@ -111,7 +124,8 @@
               "string"
             ],
             "title": "reclaimable_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Bytes freed if inactive objects were pruned."
           }
         },
         "title": "DiskCategory",
@@ -122,14 +136,17 @@
         "properties": {
           "containers": {
             "title": "containers",
+            "description": "Disk usage attributed to containers.",
             "$ref": "#/components/schemas/micropod.v1.DiskCategory"
           },
           "images": {
             "title": "images",
+            "description": "Disk usage attributed to images.",
             "$ref": "#/components/schemas/micropod.v1.DiskCategory"
           },
           "volumes": {
             "title": "volumes",
+            "description": "Disk usage attributed to volumes.",
             "$ref": "#/components/schemas/micropod.v1.DiskCategory"
           },
           "totalReclaimableBytes": {
@@ -138,7 +155,8 @@
               "string"
             ],
             "title": "total_reclaimable_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Bytes reclaimable by pruning across all categories."
           }
         },
         "title": "DiskUsage",
@@ -150,35 +168,43 @@
         "properties": {
           "id": {
             "type": "string",
-            "title": "id"
+            "title": "id",
+            "description": "Network ID (name)."
           },
           "plugin": {
             "type": "string",
-            "title": "plugin"
+            "title": "plugin",
+            "description": "Network plugin backing this network, e.g. \"vmnet\"."
           },
           "mode": {
             "type": "string",
-            "title": "mode"
+            "title": "mode",
+            "description": "Network mode, e.g. \"nat\"."
           },
           "ipv4Gateway": {
             "type": "string",
-            "title": "ipv4_gateway"
+            "title": "ipv4_gateway",
+            "description": "IPv4 gateway address."
           },
           "ipv4Subnet": {
             "type": "string",
-            "title": "ipv4_subnet"
+            "title": "ipv4_subnet",
+            "description": "IPv4 CIDR of the network."
           },
           "ipv6Subnet": {
             "type": "string",
-            "title": "ipv6_subnet"
+            "title": "ipv6_subnet",
+            "description": "IPv6 CIDR of the network, if any."
           },
           "createdAt": {
             "type": "string",
-            "title": "created_at"
+            "title": "created_at",
+            "description": "ISO8601 creation timestamp."
           },
           "builtin": {
             "type": "boolean",
-            "title": "builtin"
+            "title": "builtin",
+            "description": "True for runtime-managed networks that cannot be deleted."
           },
           "labels": {
             "type": "object",
@@ -186,7 +212,8 @@
             "additionalProperties": {
               "type": "string",
               "title": "value"
-            }
+            },
+            "description": "Metadata labels on the network."
           }
         },
         "title": "Network",
@@ -213,15 +240,18 @@
         "properties": {
           "server": {
             "type": "string",
-            "title": "server"
+            "title": "server",
+            "description": "Registry hostname, e.g. \"docker.io\"."
           },
           "username": {
             "type": "string",
-            "title": "username"
+            "title": "username",
+            "description": "Account username stored for the registry."
           },
           "scheme": {
             "type": "string",
-            "title": "scheme"
+            "title": "scheme",
+            "description": "Auth scheme in use, e.g. \"basic\" or \"oauth\"."
           }
         },
         "title": "RegistryLogin",
@@ -236,11 +266,13 @@
             "items": {
               "$ref": "#/components/schemas/micropod.v1.ContainerStats"
             },
-            "title": "containers"
+            "title": "containers",
+            "description": "Per-container stats, one entry per running container."
           },
           "sampledAt": {
             "type": "string",
-            "title": "sampled_at"
+            "title": "sampled_at",
+            "description": "ISO8601 timestamp the snapshot was taken."
           }
         },
         "title": "StatsSnapshot",
@@ -257,19 +289,23 @@
           },
           "appRoot": {
             "type": "string",
-            "title": "app_root"
+            "title": "app_root",
+            "description": "Path to the installed Micropod.app bundle."
           },
           "installRoot": {
             "type": "string",
-            "title": "install_root"
+            "title": "install_root",
+            "description": "Runtime install root (binaries, kernels, images)."
           },
           "apiServerVersion": {
             "type": "string",
-            "title": "api_server_version"
+            "title": "api_server_version",
+            "description": "Version of the embedded API server."
           },
           "cliVersion": {
             "type": "string",
-            "title": "cli_version"
+            "title": "cli_version",
+            "description": "Version of the bundled `container` CLI."
           }
         },
         "title": "SystemStatus",
@@ -281,15 +317,18 @@
         "properties": {
           "id": {
             "type": "string",
-            "title": "id"
+            "title": "id",
+            "description": "Volume name (used as the ID)."
           },
           "driver": {
             "type": "string",
-            "title": "driver"
+            "title": "driver",
+            "description": "Volume driver, e.g. \"local\"."
           },
           "format": {
             "type": "string",
-            "title": "format"
+            "title": "format",
+            "description": "Filesystem format, e.g. \"ext4\"."
           },
           "sizeBytes": {
             "type": [
@@ -297,15 +336,18 @@
               "string"
             ],
             "title": "size_bytes",
-            "format": "int64"
+            "format": "int64",
+            "description": "Volume size in bytes."
           },
           "source": {
             "type": "string",
-            "title": "source"
+            "title": "source",
+            "description": "Backing source (name or host path)."
           },
           "createdAt": {
             "type": "string",
-            "title": "created_at"
+            "title": "created_at",
+            "description": "ISO8601 creation timestamp."
           },
           "labels": {
             "type": "object",
@@ -313,7 +355,8 @@
             "additionalProperties": {
               "type": "string",
               "title": "value"
-            }
+            },
+            "description": "Metadata labels on the volume."
           }
         },
         "title": "Volume",

@@ -50,6 +50,7 @@ public nonisolated struct Micropod_V1_Container: @unchecked Sendable {
     set {_uniqueStorage()._createdAt = newValue}
   }
 
+  /// Configured CPU/memory limits.
   public var resources: Micropod_V1_ContainerResources {
     get {_storage._resources ?? Micropod_V1_ContainerResources()}
     set {_uniqueStorage()._resources = newValue}
@@ -65,11 +66,13 @@ public nonisolated struct Micropod_V1_Container: @unchecked Sendable {
     set {_uniqueStorage()._platform = newValue}
   }
 
+  /// Published host→container port mappings.
   public var publishedPorts: [Micropod_V1_PortMapping] {
     get {_storage._publishedPorts}
     set {_uniqueStorage()._publishedPorts = newValue}
   }
 
+  /// Mounted volumes and binds.
   public var mounts: [Micropod_V1_Mount] {
     get {_storage._mounts}
     set {_uniqueStorage()._mounts = newValue}
@@ -87,46 +90,55 @@ public nonisolated struct Micropod_V1_Container: @unchecked Sendable {
     set {_uniqueStorage()._ipv4Address = newValue}
   }
 
+  /// Environment variables as KEY=value pairs.
   public var env: [String] {
     get {_storage._env}
     set {_uniqueStorage()._env = newValue}
   }
 
+  /// Metadata labels on the container.
   public var labels: Dictionary<String,String> {
     get {_storage._labels}
     set {_uniqueStorage()._labels = newValue}
   }
 
+  /// Runs x86_64 binaries via Rosetta translation.
   public var rosetta: Bool {
     get {_storage._rosetta}
     set {_uniqueStorage()._rosetta = newValue}
   }
 
+  /// Root filesystem is read-only.
   public var readOnly: Bool {
     get {_storage._readOnly}
     set {_uniqueStorage()._readOnly = newValue}
   }
 
+  /// An init process runs as PID 1 inside the container.
   public var useInit: Bool {
     get {_storage._useInit}
     set {_uniqueStorage()._useInit = newValue}
   }
 
+  /// SSH access is enabled for the container.
   public var ssh: Bool {
     get {_storage._ssh}
     set {_uniqueStorage()._ssh = newValue}
   }
 
+  /// Uses full virtualization rather than the container runtime path.
   public var virtualization: Bool {
     get {_storage._virtualization}
     set {_uniqueStorage()._virtualization = newValue}
   }
 
+  /// OCI runtime handler in use, if any.
   public var runtimeHandler: String {
     get {_storage._runtimeHandler}
     set {_uniqueStorage()._runtimeHandler = newValue}
   }
 
+  /// Exit code once the container has stopped.
   public var exitCode: String {
     get {_storage._exitCode}
     set {_uniqueStorage()._exitCode = newValue}
@@ -144,8 +156,10 @@ public nonisolated struct Micropod_V1_ContainerResources: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// CPU limit in cores.
   public var cpus: Double = 0
 
+  /// Memory limit in bytes.
   public var memoryBytes: UInt64 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -153,17 +167,22 @@ public nonisolated struct Micropod_V1_ContainerResources: Sendable {
   public init() {}
 }
 
+/// A published port mapping between host and container.
 public nonisolated struct Micropod_V1_PortMapping: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Port on the host.
   public var hostPort: UInt32 = 0
 
+  /// Port inside the container.
   public var containerPort: UInt32 = 0
 
+  /// "tcp" or "udp".
   public var `protocol`: String = String()
 
+  /// Host interface IP to bind (empty = all interfaces).
   public var hostIp: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -171,17 +190,22 @@ public nonisolated struct Micropod_V1_PortMapping: Sendable {
   public init() {}
 }
 
+/// A volume or bind mount inside the container.
 public nonisolated struct Micropod_V1_Mount: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Mount kind: "volume" or "bind".
   public var type: String = String()
 
+  /// Volume name or host path.
   public var source: String = String()
 
+  /// Path inside the container.
   public var destination: String = String()
 
+  /// Mount is read-only.
   public var readOnly: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()

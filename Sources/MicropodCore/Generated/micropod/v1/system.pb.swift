@@ -29,12 +29,16 @@ public nonisolated struct Micropod_V1_SystemStatus: Sendable {
   /// "running" or "stopped".
   public var status: String = String()
 
+  /// Path to the installed Micropod.app bundle.
   public var appRoot: String = String()
 
+  /// Runtime install root (binaries, kernels, images).
   public var installRoot: String = String()
 
+  /// Version of the embedded API server.
   public var apiServerVersion: String = String()
 
+  /// Version of the bundled `container` CLI.
   public var cliVersion: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -48,6 +52,7 @@ public nonisolated struct Micropod_V1_DiskUsage: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Disk usage attributed to containers.
   public var containers: Micropod_V1_DiskCategory {
     get {_containers ?? Micropod_V1_DiskCategory()}
     set {_containers = newValue}
@@ -57,6 +62,7 @@ public nonisolated struct Micropod_V1_DiskUsage: Sendable {
   /// Clears the value of `containers`. Subsequent reads from it will return its default value.
   public mutating func clearContainers() {self._containers = nil}
 
+  /// Disk usage attributed to images.
   public var images: Micropod_V1_DiskCategory {
     get {_images ?? Micropod_V1_DiskCategory()}
     set {_images = newValue}
@@ -66,6 +72,7 @@ public nonisolated struct Micropod_V1_DiskUsage: Sendable {
   /// Clears the value of `images`. Subsequent reads from it will return its default value.
   public mutating func clearImages() {self._images = nil}
 
+  /// Disk usage attributed to volumes.
   public var volumes: Micropod_V1_DiskCategory {
     get {_volumes ?? Micropod_V1_DiskCategory()}
     set {_volumes = newValue}
@@ -75,6 +82,7 @@ public nonisolated struct Micropod_V1_DiskUsage: Sendable {
   /// Clears the value of `volumes`. Subsequent reads from it will return its default value.
   public mutating func clearVolumes() {self._volumes = nil}
 
+  /// Bytes reclaimable by pruning across all categories.
   public var totalReclaimableBytes: UInt64 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -91,12 +99,16 @@ public nonisolated struct Micropod_V1_DiskCategory: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Total objects in the category.
   public var total: UInt64 = 0
 
+  /// Objects currently referenced by a running workload.
   public var active: UInt64 = 0
 
+  /// On-disk size of the category in bytes.
   public var sizeBytes: UInt64 = 0
 
+  /// Bytes freed if inactive objects were pruned.
   public var reclaimableBytes: UInt64 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -111,8 +123,10 @@ public nonisolated struct Micropod_V1_StatsSnapshot: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Per-container stats, one entry per running container.
   public var containers: [Micropod_V1_ContainerStats] = []
 
+  /// ISO8601 timestamp the snapshot was taken.
   public var sampledAt: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -120,27 +134,37 @@ public nonisolated struct Micropod_V1_StatsSnapshot: Sendable {
   public init() {}
 }
 
+/// Per-container resource counters within a StatsSnapshot.
 public nonisolated struct Micropod_V1_ContainerStats: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Container ID.
   public var id: String = String()
 
+  /// CPU usage as a percentage of one core.
   public var cpuPercent: Double = 0
 
+  /// Resident memory in bytes.
   public var memoryUsedBytes: UInt64 = 0
 
+  /// Configured memory limit in bytes.
   public var memoryLimitBytes: UInt64 = 0
 
+  /// Bytes received over the container network.
   public var networkRxBytes: UInt64 = 0
 
+  /// Bytes transmitted over the container network.
   public var networkTxBytes: UInt64 = 0
 
+  /// Bytes read from the block device.
   public var blockReadBytes: UInt64 = 0
 
+  /// Bytes written to the block device.
   public var blockWriteBytes: UInt64 = 0
 
+  /// Number of processes inside the container.
   public var pids: UInt64 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -154,22 +178,31 @@ public nonisolated struct Micropod_V1_Network: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Network ID (name).
   public var id: String = String()
 
+  /// Network plugin backing this network, e.g. "vmnet".
   public var plugin: String = String()
 
+  /// Network mode, e.g. "nat".
   public var mode: String = String()
 
+  /// IPv4 gateway address.
   public var ipv4Gateway: String = String()
 
+  /// IPv4 CIDR of the network.
   public var ipv4Subnet: String = String()
 
+  /// IPv6 CIDR of the network, if any.
   public var ipv6Subnet: String = String()
 
+  /// ISO8601 creation timestamp.
   public var createdAt: String = String()
 
+  /// True for runtime-managed networks that cannot be deleted.
   public var builtin: Bool = false
 
+  /// Metadata labels on the network.
   public var labels: Dictionary<String,String> = [:]
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -183,18 +216,25 @@ public nonisolated struct Micropod_V1_Volume: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Volume name (used as the ID).
   public var id: String = String()
 
+  /// Volume driver, e.g. "local".
   public var driver: String = String()
 
+  /// Filesystem format, e.g. "ext4".
   public var format: String = String()
 
+  /// Volume size in bytes.
   public var sizeBytes: UInt64 = 0
 
+  /// Backing source (name or host path).
   public var source: String = String()
 
+  /// ISO8601 creation timestamp.
   public var createdAt: String = String()
 
+  /// Metadata labels on the volume.
   public var labels: Dictionary<String,String> = [:]
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -208,10 +248,13 @@ public nonisolated struct Micropod_V1_RegistryLogin: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Registry hostname, e.g. "docker.io".
   public var server: String = String()
 
+  /// Account username stored for the registry.
   public var username: String = String()
 
+  /// Auth scheme in use, e.g. "basic" or "oauth".
   public var scheme: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()

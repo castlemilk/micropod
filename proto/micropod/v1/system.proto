@@ -8,73 +8,116 @@ option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micro
 message SystemStatus {
   // "running" or "stopped".
   string status = 1;
+  // Path to the installed Micropod.app bundle.
   string app_root = 2;
+  // Runtime install root (binaries, kernels, images).
   string install_root = 3;
+  // Version of the embedded API server.
   string api_server_version = 4;
+  // Version of the bundled `container` CLI.
   string cli_version = 5;
 }
 
 // Disk usage, mapped from `container system df`.
 message DiskUsage {
+  // Disk usage attributed to containers.
   DiskCategory containers = 1;
+  // Disk usage attributed to images.
   DiskCategory images = 2;
+  // Disk usage attributed to volumes.
   DiskCategory volumes = 3;
+  // Bytes reclaimable by pruning across all categories.
   uint64 total_reclaimable_bytes = 4;
 }
 
 message DiskCategory {
+  // Total objects in the category.
   uint64 total = 1;
+  // Objects currently referenced by a running workload.
   uint64 active = 2;
+  // On-disk size of the category in bytes.
   uint64 size_bytes = 3;
+  // Bytes freed if inactive objects were pruned.
   uint64 reclaimable_bytes = 4;
 }
 
 // Single snapshot of runtime resource usage for all running containers,
 // mapped from `container stats --no-stream --format json`.
 message StatsSnapshot {
+  // Per-container stats, one entry per running container.
   repeated ContainerStats containers = 1;
+  // ISO8601 timestamp the snapshot was taken.
   string sampled_at = 2;
 }
 
+// Per-container resource counters within a StatsSnapshot.
 message ContainerStats {
+  // Container ID.
   string id = 1;
+  // CPU usage as a percentage of one core.
   double cpu_percent = 2;
+  // Resident memory in bytes.
   uint64 memory_used_bytes = 3;
+  // Configured memory limit in bytes.
   uint64 memory_limit_bytes = 4;
+  // Bytes received over the container network.
   uint64 network_rx_bytes = 5;
+  // Bytes transmitted over the container network.
   uint64 network_tx_bytes = 6;
+  // Bytes read from the block device.
   uint64 block_read_bytes = 7;
+  // Bytes written to the block device.
   uint64 block_write_bytes = 8;
+  // Number of processes inside the container.
   uint64 pids = 9;
 }
 
 // Curated network, mapped from `container network list`.
 message Network {
+  // Network ID (name).
   string id = 1;
+  // Network plugin backing this network, e.g. "vmnet".
   string plugin = 2;
+  // Network mode, e.g. "nat".
   string mode = 3;
+  // IPv4 gateway address.
   string ipv4_gateway = 4;
+  // IPv4 CIDR of the network.
   string ipv4_subnet = 5;
+  // IPv6 CIDR of the network, if any.
   string ipv6_subnet = 6;
+  // ISO8601 creation timestamp.
   string created_at = 7;
+  // True for runtime-managed networks that cannot be deleted.
   bool builtin = 8;
+  // Metadata labels on the network.
   map<string, string> labels = 9;
 }
 
 // Curated volume, mapped from `container volume list`.
 message Volume {
+  // Volume name (used as the ID).
   string id = 1;
+  // Volume driver, e.g. "local".
   string driver = 2;
+  // Filesystem format, e.g. "ext4".
   string format = 3;
+  // Volume size in bytes.
   uint64 size_bytes = 4;
+  // Backing source (name or host path).
   string source = 5;
+  // ISO8601 creation timestamp.
   string created_at = 6;
+  // Metadata labels on the volume.
   map<string, string> labels = 7;
 }
 
 // A registry login, mapped from `container registry list`.
 message RegistryLogin {
+  // Registry hostname, e.g. "docker.io".
   string server = 1;
+  // Account username stored for the registry.
   string username = 2;
+  // Auth scheme in use, e.g. "basic" or "oauth".
   string scheme = 3;
 }

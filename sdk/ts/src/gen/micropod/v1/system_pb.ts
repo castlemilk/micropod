@@ -26,21 +26,29 @@ export type SystemStatus = Message<"micropod.v1.SystemStatus"> & {
   status: string;
 
   /**
+   * Path to the installed Micropod.app bundle.
+   *
    * @generated from field: string app_root = 2;
    */
   appRoot: string;
 
   /**
+   * Runtime install root (binaries, kernels, images).
+   *
    * @generated from field: string install_root = 3;
    */
   installRoot: string;
 
   /**
+   * Version of the embedded API server.
+   *
    * @generated from field: string api_server_version = 4;
    */
   apiServerVersion: string;
 
   /**
+   * Version of the bundled `container` CLI.
+   *
    * @generated from field: string cli_version = 5;
    */
   cliVersion: string;
@@ -60,21 +68,29 @@ export const SystemStatusSchema: GenMessage<SystemStatus> = /*@__PURE__*/
  */
 export type DiskUsage = Message<"micropod.v1.DiskUsage"> & {
   /**
+   * Disk usage attributed to containers.
+   *
    * @generated from field: micropod.v1.DiskCategory containers = 1;
    */
   containers?: DiskCategory;
 
   /**
+   * Disk usage attributed to images.
+   *
    * @generated from field: micropod.v1.DiskCategory images = 2;
    */
   images?: DiskCategory;
 
   /**
+   * Disk usage attributed to volumes.
+   *
    * @generated from field: micropod.v1.DiskCategory volumes = 3;
    */
   volumes?: DiskCategory;
 
   /**
+   * Bytes reclaimable by pruning across all categories.
+   *
    * @generated from field: uint64 total_reclaimable_bytes = 4;
    */
   totalReclaimableBytes: bigint;
@@ -92,21 +108,29 @@ export const DiskUsageSchema: GenMessage<DiskUsage> = /*@__PURE__*/
  */
 export type DiskCategory = Message<"micropod.v1.DiskCategory"> & {
   /**
+   * Total objects in the category.
+   *
    * @generated from field: uint64 total = 1;
    */
   total: bigint;
 
   /**
+   * Objects currently referenced by a running workload.
+   *
    * @generated from field: uint64 active = 2;
    */
   active: bigint;
 
   /**
+   * On-disk size of the category in bytes.
+   *
    * @generated from field: uint64 size_bytes = 3;
    */
   sizeBytes: bigint;
 
   /**
+   * Bytes freed if inactive objects were pruned.
+   *
    * @generated from field: uint64 reclaimable_bytes = 4;
    */
   reclaimableBytes: bigint;
@@ -127,11 +151,15 @@ export const DiskCategorySchema: GenMessage<DiskCategory> = /*@__PURE__*/
  */
 export type StatsSnapshot = Message<"micropod.v1.StatsSnapshot"> & {
   /**
+   * Per-container stats, one entry per running container.
+   *
    * @generated from field: repeated micropod.v1.ContainerStats containers = 1;
    */
   containers: ContainerStats[];
 
   /**
+   * ISO8601 timestamp the snapshot was taken.
+   *
    * @generated from field: string sampled_at = 2;
    */
   sampledAt: string;
@@ -145,50 +173,70 @@ export const StatsSnapshotSchema: GenMessage<StatsSnapshot> = /*@__PURE__*/
   messageDesc(file_micropod_v1_system, 3);
 
 /**
+ * Per-container resource counters within a StatsSnapshot.
+ *
  * @generated from message micropod.v1.ContainerStats
  */
 export type ContainerStats = Message<"micropod.v1.ContainerStats"> & {
   /**
+   * Container ID.
+   *
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
+   * CPU usage as a percentage of one core.
+   *
    * @generated from field: double cpu_percent = 2;
    */
   cpuPercent: number;
 
   /**
+   * Resident memory in bytes.
+   *
    * @generated from field: uint64 memory_used_bytes = 3;
    */
   memoryUsedBytes: bigint;
 
   /**
+   * Configured memory limit in bytes.
+   *
    * @generated from field: uint64 memory_limit_bytes = 4;
    */
   memoryLimitBytes: bigint;
 
   /**
+   * Bytes received over the container network.
+   *
    * @generated from field: uint64 network_rx_bytes = 5;
    */
   networkRxBytes: bigint;
 
   /**
+   * Bytes transmitted over the container network.
+   *
    * @generated from field: uint64 network_tx_bytes = 6;
    */
   networkTxBytes: bigint;
 
   /**
+   * Bytes read from the block device.
+   *
    * @generated from field: uint64 block_read_bytes = 7;
    */
   blockReadBytes: bigint;
 
   /**
+   * Bytes written to the block device.
+   *
    * @generated from field: uint64 block_write_bytes = 8;
    */
   blockWriteBytes: bigint;
 
   /**
+   * Number of processes inside the container.
+   *
    * @generated from field: uint64 pids = 9;
    */
   pids: bigint;
@@ -208,46 +256,64 @@ export const ContainerStatsSchema: GenMessage<ContainerStats> = /*@__PURE__*/
  */
 export type Network = Message<"micropod.v1.Network"> & {
   /**
+   * Network ID (name).
+   *
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
+   * Network plugin backing this network, e.g. "vmnet".
+   *
    * @generated from field: string plugin = 2;
    */
   plugin: string;
 
   /**
+   * Network mode, e.g. "nat".
+   *
    * @generated from field: string mode = 3;
    */
   mode: string;
 
   /**
+   * IPv4 gateway address.
+   *
    * @generated from field: string ipv4_gateway = 4;
    */
   ipv4Gateway: string;
 
   /**
+   * IPv4 CIDR of the network.
+   *
    * @generated from field: string ipv4_subnet = 5;
    */
   ipv4Subnet: string;
 
   /**
+   * IPv6 CIDR of the network, if any.
+   *
    * @generated from field: string ipv6_subnet = 6;
    */
   ipv6Subnet: string;
 
   /**
+   * ISO8601 creation timestamp.
+   *
    * @generated from field: string created_at = 7;
    */
   createdAt: string;
 
   /**
+   * True for runtime-managed networks that cannot be deleted.
+   *
    * @generated from field: bool builtin = 8;
    */
   builtin: boolean;
 
   /**
+   * Metadata labels on the network.
+   *
    * @generated from field: map<string, string> labels = 9;
    */
   labels: { [key: string]: string };
@@ -267,36 +333,50 @@ export const NetworkSchema: GenMessage<Network> = /*@__PURE__*/
  */
 export type Volume = Message<"micropod.v1.Volume"> & {
   /**
+   * Volume name (used as the ID).
+   *
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
+   * Volume driver, e.g. "local".
+   *
    * @generated from field: string driver = 2;
    */
   driver: string;
 
   /**
+   * Filesystem format, e.g. "ext4".
+   *
    * @generated from field: string format = 3;
    */
   format: string;
 
   /**
+   * Volume size in bytes.
+   *
    * @generated from field: uint64 size_bytes = 4;
    */
   sizeBytes: bigint;
 
   /**
+   * Backing source (name or host path).
+   *
    * @generated from field: string source = 5;
    */
   source: string;
 
   /**
+   * ISO8601 creation timestamp.
+   *
    * @generated from field: string created_at = 6;
    */
   createdAt: string;
 
   /**
+   * Metadata labels on the volume.
+   *
    * @generated from field: map<string, string> labels = 7;
    */
   labels: { [key: string]: string };
@@ -316,16 +396,22 @@ export const VolumeSchema: GenMessage<Volume> = /*@__PURE__*/
  */
 export type RegistryLogin = Message<"micropod.v1.RegistryLogin"> & {
   /**
+   * Registry hostname, e.g. "docker.io".
+   *
    * @generated from field: string server = 1;
    */
   server: string;
 
   /**
+   * Account username stored for the registry.
+   *
    * @generated from field: string username = 2;
    */
   username: string;
 
   /**
+   * Auth scheme in use, e.g. "basic" or "oauth".
+   *
    * @generated from field: string scheme = 3;
    */
   scheme: string;

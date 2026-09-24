@@ -1,4 +1,5 @@
 import { Code, ConnectError, type Interceptor } from "@connectrpc/connect";
+import { createValidator } from "@bufbuild/protovalidate";
 import {
   context,
   metrics,
@@ -101,6 +102,29 @@ export function timeoutInterceptor(timeoutMs: number): Interceptor {
       clearTimeout(timer);
       req.signal?.removeEventListener("abort", onAbort);
     }
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Validation — evaluates the buf.validate constraints declared in the protos
+// against each request before it hits the wire; invalid requests fail fast
+// with invalid_argument instead of a server round-trip.
+// ---------------------------------------------------------------------------
+
+export function validationInterceptor(): Interceptor {
+  const validator = createValidator();
+  return (next) => async (req) => {
+    // Client/bidi streams send an AsyncIterable of messages — MicropodService
+    // has none, but guard so the interceptor stays safe on other services.
+    if (req.stream) return next(req);
+    const result = validator.validate(req.method.input, req.message);
+    if (result.kind === "invalid") {
+      const detail = result.violations
+        .map((v) => `${String(v.field)}: ${v.message}`)
+        .join("; ");
+      throw new ConnectError(`invalid request — ${detail}`, Code.InvalidArgument);
+    }
+    return next(req);
   };
 }
 

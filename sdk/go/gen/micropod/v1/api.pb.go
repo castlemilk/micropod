@@ -7,6 +7,7 @@
 package micropodv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -94,8 +95,9 @@ func (*GetStatsRequest) Descriptor() ([]byte, []int) {
 }
 
 type GetStatsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Snapshot      *StatsSnapshot         `protobuf:"bytes,1,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// One stats snapshot covering every running container.
+	Snapshot      *StatsSnapshot `protobuf:"bytes,1,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -138,9 +140,11 @@ func (x *GetStatsResponse) GetSnapshot() *StatsSnapshot {
 }
 
 type SystemSnapshot struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        *SystemStatus          `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	DiskUsage     *DiskUsage             `protobuf:"bytes,2,opt,name=disk_usage,json=diskUsage,proto3" json:"disk_usage,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Runtime health (status, versions, install paths).
+	Status *SystemStatus `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	// Disk usage grouped by resource kind.
+	DiskUsage     *DiskUsage `protobuf:"bytes,2,opt,name=disk_usage,json=diskUsage,proto3" json:"disk_usage,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -189,9 +193,11 @@ func (x *SystemSnapshot) GetDiskUsage() *DiskUsage {
 	return nil
 }
 
+// Reference to an existing container (or the ID returned by run/create).
 type ContainerRef struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Container ID — `container` uses the user-assigned name as the ID.
+	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -234,8 +240,9 @@ func (x *ContainerRef) GetId() string {
 }
 
 type ListContainersResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Containers    []*Container           `protobuf:"bytes,1,rep,name=containers,proto3" json:"containers,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Every container, in `container list` order.
+	Containers    []*Container `protobuf:"bytes,1,rep,name=containers,proto3" json:"containers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -277,19 +284,31 @@ func (x *ListContainersResponse) GetContainers() []*Container {
 	return nil
 }
 
+// Shared request shape for run + create (docker run / docker create).
 type RunContainerRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Image         string                 `protobuf:"bytes,1,opt,name=image,proto3" json:"image,omitempty"`
-	Name          *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Detach        bool                   `protobuf:"varint,3,opt,name=detach,proto3" json:"detach,omitempty"`
-	Cpus          *float64               `protobuf:"fixed64,4,opt,name=cpus,proto3,oneof" json:"cpus,omitempty"`
-	Memory        *string                `protobuf:"bytes,5,opt,name=memory,proto3,oneof" json:"memory,omitempty"`
-	Env           []string               `protobuf:"bytes,6,rep,name=env,proto3" json:"env,omitempty"`
-	Ports         []*PortMapping         `protobuf:"bytes,7,rep,name=ports,proto3" json:"ports,omitempty"`
-	Volumes       []string               `protobuf:"bytes,8,rep,name=volumes,proto3" json:"volumes,omitempty"`
-	Labels        map[string]string      `protobuf:"bytes,9,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Init          bool                   `protobuf:"varint,10,opt,name=init,proto3" json:"init,omitempty"`
-	Arguments     []string               `protobuf:"bytes,11,rep,name=arguments,proto3" json:"arguments,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Image reference to run, e.g. "alpine:3.20". Pulled if not present locally.
+	Image string `protobuf:"bytes,1,opt,name=image,proto3" json:"image,omitempty"`
+	// Optional container name; becomes the container ID.
+	Name *string `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	// Return immediately instead of streaming/attaching.
+	Detach bool `protobuf:"varint,3,opt,name=detach,proto3" json:"detach,omitempty"`
+	// CPU limit in cores, e.g. 0.5 for half a core.
+	Cpus *float64 `protobuf:"fixed64,4,opt,name=cpus,proto3,oneof" json:"cpus,omitempty"`
+	// Memory limit, e.g. "512m" or "4g".
+	Memory *string `protobuf:"bytes,5,opt,name=memory,proto3,oneof" json:"memory,omitempty"`
+	// Environment variables as KEY=value pairs.
+	Env []string `protobuf:"bytes,6,rep,name=env,proto3" json:"env,omitempty"`
+	// Published port mappings (host → container).
+	Ports []*PortMapping `protobuf:"bytes,7,rep,name=ports,proto3" json:"ports,omitempty"`
+	// Bind/volume mounts as "name-or-path:/mount" specs.
+	Volumes []string `protobuf:"bytes,8,rep,name=volumes,proto3" json:"volumes,omitempty"`
+	// Arbitrary metadata labels on the container.
+	Labels map[string]string `protobuf:"bytes,9,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Run an init process as PID 1 to reap zombies.
+	Init bool `protobuf:"varint,10,opt,name=init,proto3" json:"init,omitempty"`
+	// Command + args override (image entrypoint is used when empty).
+	Arguments     []string `protobuf:"bytes,11,rep,name=arguments,proto3" json:"arguments,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -402,9 +421,11 @@ func (x *RunContainerRequest) GetArguments() []string {
 }
 
 type DeleteContainerRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Force         bool                   `protobuf:"varint,2,opt,name=force,proto3" json:"force,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Container ID (or name).
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Remove even if the container is still running.
+	Force         bool `protobuf:"varint,2,opt,name=force,proto3" json:"force,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -454,10 +475,13 @@ func (x *DeleteContainerRequest) GetForce() bool {
 }
 
 type StreamLogsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Tail          int32                  `protobuf:"varint,2,opt,name=tail,proto3" json:"tail,omitempty"`
-	Boot          bool                   `protobuf:"varint,3,opt,name=boot,proto3" json:"boot,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Container ID (or name) to stream logs from.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Number of lines to replay from the end of the log before following.
+	Tail int32 `protobuf:"varint,2,opt,name=tail,proto3" json:"tail,omitempty"`
+	// Include the vminitd guest boot log.
+	Boot          bool `protobuf:"varint,3,opt,name=boot,proto3" json:"boot,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -513,9 +537,11 @@ func (x *StreamLogsRequest) GetBoot() bool {
 	return false
 }
 
+// One streamed log line (StreamContainerLogs event).
 type LogChunk struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A single line of container output.
+	Text          string `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -558,8 +584,9 @@ func (x *LogChunk) GetText() string {
 }
 
 type ListImagesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Images        []*Image               `protobuf:"bytes,1,rep,name=images,proto3" json:"images,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Every local image, in `container image list` order.
+	Images        []*Image `protobuf:"bytes,1,rep,name=images,proto3" json:"images,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -602,9 +629,11 @@ func (x *ListImagesResponse) GetImages() []*Image {
 }
 
 type PullImageRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Reference     string                 `protobuf:"bytes,1,opt,name=reference,proto3" json:"reference,omitempty"`
-	Platform      *string                `protobuf:"bytes,2,opt,name=platform,proto3,oneof" json:"platform,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Image reference to pull, e.g. "alpine:3.20" or a full registry path.
+	Reference string `protobuf:"bytes,1,opt,name=reference,proto3" json:"reference,omitempty"`
+	// Platform to pull, e.g. "linux/arm64". Defaults to the host platform.
+	Platform      *string `protobuf:"bytes,2,opt,name=platform,proto3,oneof" json:"platform,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -653,11 +682,15 @@ func (x *PullImageRequest) GetPlatform() string {
 	return ""
 }
 
+// One pull-progress event (PullImage stream).
 type ProgressLine struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Line          string                 `protobuf:"bytes,1,opt,name=line,proto3" json:"line,omitempty"`
-	Stage         *int32                 `protobuf:"varint,2,opt,name=stage,proto3,oneof" json:"stage,omitempty"`
-	TotalStages   *int32                 `protobuf:"varint,3,opt,name=total_stages,json=totalStages,proto3,oneof" json:"total_stages,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Human-readable progress text from the registry pull.
+	Line string `protobuf:"bytes,1,opt,name=line,proto3" json:"line,omitempty"`
+	// Current stage index (1-based), when the pull reports staged progress.
+	Stage *int32 `protobuf:"varint,2,opt,name=stage,proto3,oneof" json:"stage,omitempty"`
+	// Total number of stages, when known.
+	TotalStages   *int32 `protobuf:"varint,3,opt,name=total_stages,json=totalStages,proto3,oneof" json:"total_stages,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -714,9 +747,11 @@ func (x *ProgressLine) GetTotalStages() int32 {
 }
 
 type DeleteImageRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Reference     string                 `protobuf:"bytes,1,opt,name=reference,proto3" json:"reference,omitempty"`
-	Force         bool                   `protobuf:"varint,2,opt,name=force,proto3" json:"force,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Image reference or digest to remove.
+	Reference string `protobuf:"bytes,1,opt,name=reference,proto3" json:"reference,omitempty"`
+	// Remove even if containers reference the image.
+	Force         bool `protobuf:"varint,2,opt,name=force,proto3" json:"force,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -766,8 +801,9 @@ func (x *DeleteImageRequest) GetForce() bool {
 }
 
 type ListVolumesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Volumes       []*Volume              `protobuf:"bytes,1,rep,name=volumes,proto3" json:"volumes,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Every volume, in `container volume list` order.
+	Volumes       []*Volume `protobuf:"bytes,1,rep,name=volumes,proto3" json:"volumes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -810,11 +846,15 @@ func (x *ListVolumesResponse) GetVolumes() []*Volume {
 }
 
 type CreateVolumeRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Size          *string                `protobuf:"bytes,2,opt,name=size,proto3,oneof" json:"size,omitempty"`
-	Labels        []string               `protobuf:"bytes,3,rep,name=labels,proto3" json:"labels,omitempty"`
-	Options       []string               `protobuf:"bytes,4,rep,name=options,proto3" json:"options,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Volume name.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Optional size limit, e.g. "10g".
+	Size *string `protobuf:"bytes,2,opt,name=size,proto3,oneof" json:"size,omitempty"`
+	// Labels applied to the volume ("key=value").
+	Labels []string `protobuf:"bytes,3,rep,name=labels,proto3" json:"labels,omitempty"`
+	// Driver options passed through to the volume driver.
+	Options       []string `protobuf:"bytes,4,rep,name=options,proto3" json:"options,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -878,8 +918,9 @@ func (x *CreateVolumeRequest) GetOptions() []string {
 }
 
 type DeleteVolumeRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Volume name to remove.
+	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -922,8 +963,9 @@ func (x *DeleteVolumeRequest) GetName() string {
 }
 
 type ListNetworksResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Networks      []*Network             `protobuf:"bytes,1,rep,name=networks,proto3" json:"networks,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Every container network, in `container network list` order.
+	Networks      []*Network `protobuf:"bytes,1,rep,name=networks,proto3" json:"networks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -966,14 +1008,21 @@ func (x *ListNetworksResponse) GetNetworks() []*Network {
 }
 
 type CreateNetworkRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Internal      bool                   `protobuf:"varint,2,opt,name=internal,proto3" json:"internal,omitempty"`
-	Subnet        *string                `protobuf:"bytes,3,opt,name=subnet,proto3,oneof" json:"subnet,omitempty"`
-	SubnetV6      *string                `protobuf:"bytes,4,opt,name=subnet_v6,json=subnetV6,proto3,oneof" json:"subnet_v6,omitempty"`
-	Driver        *string                `protobuf:"bytes,5,opt,name=driver,proto3,oneof" json:"driver,omitempty"`
-	Options       []string               `protobuf:"bytes,6,rep,name=options,proto3" json:"options,omitempty"`
-	Labels        []string               `protobuf:"bytes,7,rep,name=labels,proto3" json:"labels,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Network name.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Isolate the network from external traffic.
+	Internal bool `protobuf:"varint,2,opt,name=internal,proto3" json:"internal,omitempty"`
+	// IPv4 CIDR for the network, e.g. "192.168.100.0/24".
+	Subnet *string `protobuf:"bytes,3,opt,name=subnet,proto3,oneof" json:"subnet,omitempty"`
+	// IPv6 CIDR for the network.
+	SubnetV6 *string `protobuf:"bytes,4,opt,name=subnet_v6,json=subnetV6,proto3,oneof" json:"subnet_v6,omitempty"`
+	// Network driver/plugin to use.
+	Driver *string `protobuf:"bytes,5,opt,name=driver,proto3,oneof" json:"driver,omitempty"`
+	// Driver options passed through to the network plugin.
+	Options []string `protobuf:"bytes,6,rep,name=options,proto3" json:"options,omitempty"`
+	// Labels applied to the network ("key=value").
+	Labels        []string `protobuf:"bytes,7,rep,name=labels,proto3" json:"labels,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1058,8 +1107,9 @@ func (x *CreateNetworkRequest) GetLabels() []string {
 }
 
 type DeleteNetworkRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Network name to remove.
+	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1102,11 +1152,15 @@ func (x *DeleteNetworkRequest) GetName() string {
 }
 
 type ExecRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Command       string                 `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
-	Workdir       *string                `protobuf:"bytes,3,opt,name=workdir,proto3,oneof" json:"workdir,omitempty"`
-	Env           []string               `protobuf:"bytes,4,rep,name=env,proto3" json:"env,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Container ID (or name) to exec into.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Command to run inside the container.
+	Command string `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
+	// Working directory for the command.
+	Workdir *string `protobuf:"bytes,3,opt,name=workdir,proto3,oneof" json:"workdir,omitempty"`
+	// Extra environment variables as KEY=value pairs.
+	Env           []string `protobuf:"bytes,4,rep,name=env,proto3" json:"env,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1170,8 +1224,9 @@ func (x *ExecRequest) GetEnv() []string {
 }
 
 type ExecResponse struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	Output string                 `protobuf:"bytes,1,opt,name=output,proto3" json:"output,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Combined stdout (and stderr when not separable) of the command.
+	Output string `protobuf:"bytes,1,opt,name=output,proto3" json:"output,omitempty"`
 	// Guest process exit code. 0 on success; when the native runtime backend
 	// is active this is the real exit status rather than a CLI approximation.
 	ExitCode int32 `protobuf:"varint,2,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
@@ -1236,7 +1291,7 @@ var File_micropod_v1_api_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_api_proto_rawDesc = "" +
 	"\n" +
-	"\x15micropod/v1/api.proto\x12\vmicropod.v1\x1a\x1bmicropod/v1/container.proto\x1a\x17micropod/v1/image.proto\x1a\x18micropod/v1/system.proto\"\a\n" +
+	"\x15micropod/v1/api.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1bmicropod/v1/container.proto\x1a\x17micropod/v1/image.proto\x1a\x18micropod/v1/system.proto\"\a\n" +
 	"\x05Empty\"\x11\n" +
 	"\x0fGetStatsRequest\"J\n" +
 	"\x10GetStatsResponse\x126\n" +
@@ -1244,18 +1299,20 @@ const file_micropod_v1_api_proto_rawDesc = "" +
 	"\x0eSystemSnapshot\x121\n" +
 	"\x06status\x18\x01 \x01(\v2\x19.micropod.v1.SystemStatusR\x06status\x125\n" +
 	"\n" +
-	"disk_usage\x18\x02 \x01(\v2\x16.micropod.v1.DiskUsageR\tdiskUsage\"\x1e\n" +
-	"\fContainerRef\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"P\n" +
+	"disk_usage\x18\x02 \x01(\v2\x16.micropod.v1.DiskUsageR\tdiskUsage\"*\n" +
+	"\fContainerRef\x12\x1a\n" +
+	"\x02id\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\"P\n" +
 	"\x16ListContainersResponse\x126\n" +
 	"\n" +
 	"containers\x18\x01 \x03(\v2\x16.micropod.v1.ContainerR\n" +
-	"containers\"\xbe\x03\n" +
-	"\x13RunContainerRequest\x12\x14\n" +
-	"\x05image\x18\x01 \x01(\tR\x05image\x12\x17\n" +
+	"containers\"\xda\x03\n" +
+	"\x13RunContainerRequest\x12 \n" +
+	"\x05image\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x05image\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x16\n" +
-	"\x06detach\x18\x03 \x01(\bR\x06detach\x12\x17\n" +
-	"\x04cpus\x18\x04 \x01(\x01H\x01R\x04cpus\x88\x01\x01\x12\x1b\n" +
+	"\x06detach\x18\x03 \x01(\bR\x06detach\x12'\n" +
+	"\x04cpus\x18\x04 \x01(\x01B\x0e\xbaH\v\x12\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x01R\x04cpus\x88\x01\x01\x12\x1b\n" +
 	"\x06memory\x18\x05 \x01(\tH\x02R\x06memory\x88\x01\x01\x12\x10\n" +
 	"\x03env\x18\x06 \x03(\tR\x03env\x12.\n" +
 	"\x05ports\x18\a \x03(\v2\x18.micropod.v1.PortMappingR\x05ports\x12\x18\n" +
@@ -1269,20 +1326,23 @@ const file_micropod_v1_api_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\a\n" +
 	"\x05_nameB\a\n" +
 	"\x05_cpusB\t\n" +
-	"\a_memory\">\n" +
-	"\x16DeleteContainerRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05force\x18\x02 \x01(\bR\x05force\"K\n" +
-	"\x11StreamLogsRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04tail\x18\x02 \x01(\x05R\x04tail\x12\x12\n" +
+	"\a_memory\"J\n" +
+	"\x16DeleteContainerRequest\x12\x1a\n" +
+	"\x02id\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x12\x14\n" +
+	"\x05force\x18\x02 \x01(\bR\x05force\"`\n" +
+	"\x11StreamLogsRequest\x12\x1a\n" +
+	"\x02id\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x12\x1b\n" +
+	"\x04tail\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x04tail\x12\x12\n" +
 	"\x04boot\x18\x03 \x01(\bR\x04boot\"\x1e\n" +
 	"\bLogChunk\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\"@\n" +
 	"\x12ListImagesResponse\x12*\n" +
-	"\x06images\x18\x01 \x03(\v2\x12.micropod.v1.ImageR\x06images\"^\n" +
-	"\x10PullImageRequest\x12\x1c\n" +
-	"\treference\x18\x01 \x01(\tR\treference\x12\x1f\n" +
+	"\x06images\x18\x01 \x03(\v2\x12.micropod.v1.ImageR\x06images\"j\n" +
+	"\x10PullImageRequest\x12(\n" +
+	"\treference\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\treference\x12\x1f\n" +
 	"\bplatform\x18\x02 \x01(\tH\x00R\bplatform\x88\x01\x01B\v\n" +
 	"\t_platform\"\x80\x01\n" +
 	"\fProgressLine\x12\x12\n" +
@@ -1290,24 +1350,28 @@ const file_micropod_v1_api_proto_rawDesc = "" +
 	"\x05stage\x18\x02 \x01(\x05H\x00R\x05stage\x88\x01\x01\x12&\n" +
 	"\ftotal_stages\x18\x03 \x01(\x05H\x01R\vtotalStages\x88\x01\x01B\b\n" +
 	"\x06_stageB\x0f\n" +
-	"\r_total_stages\"H\n" +
-	"\x12DeleteImageRequest\x12\x1c\n" +
-	"\treference\x18\x01 \x01(\tR\treference\x12\x14\n" +
+	"\r_total_stages\"T\n" +
+	"\x12DeleteImageRequest\x12(\n" +
+	"\treference\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\treference\x12\x14\n" +
 	"\x05force\x18\x02 \x01(\bR\x05force\"D\n" +
 	"\x13ListVolumesResponse\x12-\n" +
-	"\avolumes\x18\x01 \x03(\v2\x13.micropod.v1.VolumeR\avolumes\"}\n" +
-	"\x13CreateVolumeRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x17\n" +
+	"\avolumes\x18\x01 \x03(\v2\x13.micropod.v1.VolumeR\avolumes\"\x89\x01\n" +
+	"\x13CreateVolumeRequest\x12\x1e\n" +
+	"\x04name\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name\x12\x17\n" +
 	"\x04size\x18\x02 \x01(\tH\x00R\x04size\x88\x01\x01\x12\x16\n" +
 	"\x06labels\x18\x03 \x03(\tR\x06labels\x12\x18\n" +
 	"\aoptions\x18\x04 \x03(\tR\aoptionsB\a\n" +
-	"\x05_size\")\n" +
-	"\x13DeleteVolumeRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"H\n" +
+	"\x05_size\"5\n" +
+	"\x13DeleteVolumeRequest\x12\x1e\n" +
+	"\x04name\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name\"H\n" +
 	"\x14ListNetworksResponse\x120\n" +
-	"\bnetworks\x18\x01 \x03(\v2\x14.micropod.v1.NetworkR\bnetworks\"\xf8\x01\n" +
-	"\x14CreateNetworkRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
+	"\bnetworks\x18\x01 \x03(\v2\x14.micropod.v1.NetworkR\bnetworks\"\x84\x02\n" +
+	"\x14CreateNetworkRequest\x12\x1e\n" +
+	"\x04name\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name\x12\x1a\n" +
 	"\binternal\x18\x02 \x01(\bR\binternal\x12\x1b\n" +
 	"\x06subnet\x18\x03 \x01(\tH\x00R\x06subnet\x88\x01\x01\x12 \n" +
 	"\tsubnet_v6\x18\x04 \x01(\tH\x01R\bsubnetV6\x88\x01\x01\x12\x1b\n" +
@@ -1317,12 +1381,15 @@ const file_micropod_v1_api_proto_rawDesc = "" +
 	"\a_subnetB\f\n" +
 	"\n" +
 	"_subnet_v6B\t\n" +
-	"\a_driver\"*\n" +
-	"\x14DeleteNetworkRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"t\n" +
-	"\vExecRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\acommand\x18\x02 \x01(\tR\acommand\x12\x1d\n" +
+	"\a_driver\"6\n" +
+	"\x14DeleteNetworkRequest\x12\x1e\n" +
+	"\x04name\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name\"\x8c\x01\n" +
+	"\vExecRequest\x12\x1a\n" +
+	"\x02id\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x12$\n" +
+	"\acommand\x18\x02 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\acommand\x12\x1d\n" +
 	"\aworkdir\x18\x03 \x01(\tH\x00R\aworkdir\x88\x01\x01\x12\x10\n" +
 	"\x03env\x18\x04 \x03(\tR\x03envB\n" +
 	"\n" +

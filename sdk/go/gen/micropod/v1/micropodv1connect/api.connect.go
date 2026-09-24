@@ -107,24 +107,39 @@ type MicropodServiceClient interface {
 	RunContainer(context.Context, *connect.Request[v1.RunContainerRequest]) (*connect.Response[v1.ContainerRef], error)
 	// Create a container without starting it (docker create).
 	CreateContainer(context.Context, *connect.Request[v1.RunContainerRequest]) (*connect.Response[v1.ContainerRef], error)
+	// Start a stopped container.
 	StartContainer(context.Context, *connect.Request[v1.ContainerRef]) (*connect.Response[v1.Empty], error)
+	// Stop a running container (SIGTERM, then SIGKILL after the grace period).
 	StopContainer(context.Context, *connect.Request[v1.ContainerRef]) (*connect.Response[v1.Empty], error)
+	// Stop then start a container.
 	RestartContainer(context.Context, *connect.Request[v1.ContainerRef]) (*connect.Response[v1.Empty], error)
+	// SIGKILL a running container.
 	KillContainer(context.Context, *connect.Request[v1.ContainerRef]) (*connect.Response[v1.Empty], error)
+	// Remove a container. Running containers require force.
 	DeleteContainer(context.Context, *connect.Request[v1.DeleteContainerRequest]) (*connect.Response[v1.Empty], error)
 	// Live log stream (server streaming).
 	StreamContainerLogs(context.Context, *connect.Request[v1.StreamLogsRequest]) (*connect.ServerStreamForClient[v1.LogChunk], error)
+	// List all local images.
 	ListImages(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.ListImagesResponse], error)
 	// Pull an image, streaming progress events.
 	PullImage(context.Context, *connect.Request[v1.PullImageRequest]) (*connect.ServerStreamForClient[v1.ProgressLine], error)
+	// Remove an image. Images in use require force.
 	DeleteImage(context.Context, *connect.Request[v1.DeleteImageRequest]) (*connect.Response[v1.Empty], error)
+	// List all volumes.
 	ListVolumes(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.ListVolumesResponse], error)
+	// Create a named volume.
 	CreateVolume(context.Context, *connect.Request[v1.CreateVolumeRequest]) (*connect.Response[v1.Empty], error)
+	// Remove a named volume.
 	DeleteVolume(context.Context, *connect.Request[v1.DeleteVolumeRequest]) (*connect.Response[v1.Empty], error)
+	// List all container networks.
 	ListNetworks(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.ListNetworksResponse], error)
+	// Create a container network.
 	CreateNetwork(context.Context, *connect.Request[v1.CreateNetworkRequest]) (*connect.Response[v1.Empty], error)
+	// Remove a container network.
 	DeleteNetwork(context.Context, *connect.Request[v1.DeleteNetworkRequest]) (*connect.Response[v1.Empty], error)
+	// Point-in-time resource usage for all running containers.
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
+	// Run a command inside a running container and return its output.
 	Exec(context.Context, *connect.Request[v1.ExecRequest]) (*connect.Response[v1.ExecResponse], error)
 }
 
@@ -408,24 +423,39 @@ type MicropodServiceHandler interface {
 	RunContainer(context.Context, *connect.Request[v1.RunContainerRequest]) (*connect.Response[v1.ContainerRef], error)
 	// Create a container without starting it (docker create).
 	CreateContainer(context.Context, *connect.Request[v1.RunContainerRequest]) (*connect.Response[v1.ContainerRef], error)
+	// Start a stopped container.
 	StartContainer(context.Context, *connect.Request[v1.ContainerRef]) (*connect.Response[v1.Empty], error)
+	// Stop a running container (SIGTERM, then SIGKILL after the grace period).
 	StopContainer(context.Context, *connect.Request[v1.ContainerRef]) (*connect.Response[v1.Empty], error)
+	// Stop then start a container.
 	RestartContainer(context.Context, *connect.Request[v1.ContainerRef]) (*connect.Response[v1.Empty], error)
+	// SIGKILL a running container.
 	KillContainer(context.Context, *connect.Request[v1.ContainerRef]) (*connect.Response[v1.Empty], error)
+	// Remove a container. Running containers require force.
 	DeleteContainer(context.Context, *connect.Request[v1.DeleteContainerRequest]) (*connect.Response[v1.Empty], error)
 	// Live log stream (server streaming).
 	StreamContainerLogs(context.Context, *connect.Request[v1.StreamLogsRequest], *connect.ServerStream[v1.LogChunk]) error
+	// List all local images.
 	ListImages(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.ListImagesResponse], error)
 	// Pull an image, streaming progress events.
 	PullImage(context.Context, *connect.Request[v1.PullImageRequest], *connect.ServerStream[v1.ProgressLine]) error
+	// Remove an image. Images in use require force.
 	DeleteImage(context.Context, *connect.Request[v1.DeleteImageRequest]) (*connect.Response[v1.Empty], error)
+	// List all volumes.
 	ListVolumes(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.ListVolumesResponse], error)
+	// Create a named volume.
 	CreateVolume(context.Context, *connect.Request[v1.CreateVolumeRequest]) (*connect.Response[v1.Empty], error)
+	// Remove a named volume.
 	DeleteVolume(context.Context, *connect.Request[v1.DeleteVolumeRequest]) (*connect.Response[v1.Empty], error)
+	// List all container networks.
 	ListNetworks(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.ListNetworksResponse], error)
+	// Create a container network.
 	CreateNetwork(context.Context, *connect.Request[v1.CreateNetworkRequest]) (*connect.Response[v1.Empty], error)
+	// Remove a container network.
 	DeleteNetwork(context.Context, *connect.Request[v1.DeleteNetworkRequest]) (*connect.Response[v1.Empty], error)
+	// Point-in-time resource usage for all running containers.
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
+	// Run a command inside a running container and return its output.
 	Exec(context.Context, *connect.Request[v1.ExecRequest]) (*connect.Response[v1.ExecResponse], error)
 }
 

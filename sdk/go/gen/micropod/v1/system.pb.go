@@ -25,13 +25,17 @@ const (
 type SystemStatus struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// "running" or "stopped".
-	Status           string `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	AppRoot          string `protobuf:"bytes,2,opt,name=app_root,json=appRoot,proto3" json:"app_root,omitempty"`
-	InstallRoot      string `protobuf:"bytes,3,opt,name=install_root,json=installRoot,proto3" json:"install_root,omitempty"`
+	Status string `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	// Path to the installed Micropod.app bundle.
+	AppRoot string `protobuf:"bytes,2,opt,name=app_root,json=appRoot,proto3" json:"app_root,omitempty"`
+	// Runtime install root (binaries, kernels, images).
+	InstallRoot string `protobuf:"bytes,3,opt,name=install_root,json=installRoot,proto3" json:"install_root,omitempty"`
+	// Version of the embedded API server.
 	ApiServerVersion string `protobuf:"bytes,4,opt,name=api_server_version,json=apiServerVersion,proto3" json:"api_server_version,omitempty"`
-	CliVersion       string `protobuf:"bytes,5,opt,name=cli_version,json=cliVersion,proto3" json:"cli_version,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Version of the bundled `container` CLI.
+	CliVersion    string `protobuf:"bytes,5,opt,name=cli_version,json=cliVersion,proto3" json:"cli_version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SystemStatus) Reset() {
@@ -101,11 +105,15 @@ func (x *SystemStatus) GetCliVersion() string {
 
 // Disk usage, mapped from `container system df`.
 type DiskUsage struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	Containers            *DiskCategory          `protobuf:"bytes,1,opt,name=containers,proto3" json:"containers,omitempty"`
-	Images                *DiskCategory          `protobuf:"bytes,2,opt,name=images,proto3" json:"images,omitempty"`
-	Volumes               *DiskCategory          `protobuf:"bytes,3,opt,name=volumes,proto3" json:"volumes,omitempty"`
-	TotalReclaimableBytes uint64                 `protobuf:"varint,4,opt,name=total_reclaimable_bytes,json=totalReclaimableBytes,proto3" json:"total_reclaimable_bytes,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Disk usage attributed to containers.
+	Containers *DiskCategory `protobuf:"bytes,1,opt,name=containers,proto3" json:"containers,omitempty"`
+	// Disk usage attributed to images.
+	Images *DiskCategory `protobuf:"bytes,2,opt,name=images,proto3" json:"images,omitempty"`
+	// Disk usage attributed to volumes.
+	Volumes *DiskCategory `protobuf:"bytes,3,opt,name=volumes,proto3" json:"volumes,omitempty"`
+	// Bytes reclaimable by pruning across all categories.
+	TotalReclaimableBytes uint64 `protobuf:"varint,4,opt,name=total_reclaimable_bytes,json=totalReclaimableBytes,proto3" json:"total_reclaimable_bytes,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -169,11 +177,15 @@ func (x *DiskUsage) GetTotalReclaimableBytes() uint64 {
 }
 
 type DiskCategory struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Total            uint64                 `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
-	Active           uint64                 `protobuf:"varint,2,opt,name=active,proto3" json:"active,omitempty"`
-	SizeBytes        uint64                 `protobuf:"varint,3,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
-	ReclaimableBytes uint64                 `protobuf:"varint,4,opt,name=reclaimable_bytes,json=reclaimableBytes,proto3" json:"reclaimable_bytes,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Total objects in the category.
+	Total uint64 `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
+	// Objects currently referenced by a running workload.
+	Active uint64 `protobuf:"varint,2,opt,name=active,proto3" json:"active,omitempty"`
+	// On-disk size of the category in bytes.
+	SizeBytes uint64 `protobuf:"varint,3,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	// Bytes freed if inactive objects were pruned.
+	ReclaimableBytes uint64 `protobuf:"varint,4,opt,name=reclaimable_bytes,json=reclaimableBytes,proto3" json:"reclaimable_bytes,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -239,9 +251,11 @@ func (x *DiskCategory) GetReclaimableBytes() uint64 {
 // Single snapshot of runtime resource usage for all running containers,
 // mapped from `container stats --no-stream --format json`.
 type StatsSnapshot struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Containers    []*ContainerStats      `protobuf:"bytes,1,rep,name=containers,proto3" json:"containers,omitempty"`
-	SampledAt     string                 `protobuf:"bytes,2,opt,name=sampled_at,json=sampledAt,proto3" json:"sampled_at,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Per-container stats, one entry per running container.
+	Containers []*ContainerStats `protobuf:"bytes,1,rep,name=containers,proto3" json:"containers,omitempty"`
+	// ISO8601 timestamp the snapshot was taken.
+	SampledAt     string `protobuf:"bytes,2,opt,name=sampled_at,json=sampledAt,proto3" json:"sampled_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -290,19 +304,29 @@ func (x *StatsSnapshot) GetSampledAt() string {
 	return ""
 }
 
+// Per-container resource counters within a StatsSnapshot.
 type ContainerStats struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	CpuPercent       float64                `protobuf:"fixed64,2,opt,name=cpu_percent,json=cpuPercent,proto3" json:"cpu_percent,omitempty"`
-	MemoryUsedBytes  uint64                 `protobuf:"varint,3,opt,name=memory_used_bytes,json=memoryUsedBytes,proto3" json:"memory_used_bytes,omitempty"`
-	MemoryLimitBytes uint64                 `protobuf:"varint,4,opt,name=memory_limit_bytes,json=memoryLimitBytes,proto3" json:"memory_limit_bytes,omitempty"`
-	NetworkRxBytes   uint64                 `protobuf:"varint,5,opt,name=network_rx_bytes,json=networkRxBytes,proto3" json:"network_rx_bytes,omitempty"`
-	NetworkTxBytes   uint64                 `protobuf:"varint,6,opt,name=network_tx_bytes,json=networkTxBytes,proto3" json:"network_tx_bytes,omitempty"`
-	BlockReadBytes   uint64                 `protobuf:"varint,7,opt,name=block_read_bytes,json=blockReadBytes,proto3" json:"block_read_bytes,omitempty"`
-	BlockWriteBytes  uint64                 `protobuf:"varint,8,opt,name=block_write_bytes,json=blockWriteBytes,proto3" json:"block_write_bytes,omitempty"`
-	Pids             uint64                 `protobuf:"varint,9,opt,name=pids,proto3" json:"pids,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Container ID.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// CPU usage as a percentage of one core.
+	CpuPercent float64 `protobuf:"fixed64,2,opt,name=cpu_percent,json=cpuPercent,proto3" json:"cpu_percent,omitempty"`
+	// Resident memory in bytes.
+	MemoryUsedBytes uint64 `protobuf:"varint,3,opt,name=memory_used_bytes,json=memoryUsedBytes,proto3" json:"memory_used_bytes,omitempty"`
+	// Configured memory limit in bytes.
+	MemoryLimitBytes uint64 `protobuf:"varint,4,opt,name=memory_limit_bytes,json=memoryLimitBytes,proto3" json:"memory_limit_bytes,omitempty"`
+	// Bytes received over the container network.
+	NetworkRxBytes uint64 `protobuf:"varint,5,opt,name=network_rx_bytes,json=networkRxBytes,proto3" json:"network_rx_bytes,omitempty"`
+	// Bytes transmitted over the container network.
+	NetworkTxBytes uint64 `protobuf:"varint,6,opt,name=network_tx_bytes,json=networkTxBytes,proto3" json:"network_tx_bytes,omitempty"`
+	// Bytes read from the block device.
+	BlockReadBytes uint64 `protobuf:"varint,7,opt,name=block_read_bytes,json=blockReadBytes,proto3" json:"block_read_bytes,omitempty"`
+	// Bytes written to the block device.
+	BlockWriteBytes uint64 `protobuf:"varint,8,opt,name=block_write_bytes,json=blockWriteBytes,proto3" json:"block_write_bytes,omitempty"`
+	// Number of processes inside the container.
+	Pids          uint64 `protobuf:"varint,9,opt,name=pids,proto3" json:"pids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ContainerStats) Reset() {
@@ -400,16 +424,25 @@ func (x *ContainerStats) GetPids() uint64 {
 
 // Curated network, mapped from `container network list`.
 type Network struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Plugin        string                 `protobuf:"bytes,2,opt,name=plugin,proto3" json:"plugin,omitempty"`
-	Mode          string                 `protobuf:"bytes,3,opt,name=mode,proto3" json:"mode,omitempty"`
-	Ipv4Gateway   string                 `protobuf:"bytes,4,opt,name=ipv4_gateway,json=ipv4Gateway,proto3" json:"ipv4_gateway,omitempty"`
-	Ipv4Subnet    string                 `protobuf:"bytes,5,opt,name=ipv4_subnet,json=ipv4Subnet,proto3" json:"ipv4_subnet,omitempty"`
-	Ipv6Subnet    string                 `protobuf:"bytes,6,opt,name=ipv6_subnet,json=ipv6Subnet,proto3" json:"ipv6_subnet,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	Builtin       bool                   `protobuf:"varint,8,opt,name=builtin,proto3" json:"builtin,omitempty"`
-	Labels        map[string]string      `protobuf:"bytes,9,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Network ID (name).
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Network plugin backing this network, e.g. "vmnet".
+	Plugin string `protobuf:"bytes,2,opt,name=plugin,proto3" json:"plugin,omitempty"`
+	// Network mode, e.g. "nat".
+	Mode string `protobuf:"bytes,3,opt,name=mode,proto3" json:"mode,omitempty"`
+	// IPv4 gateway address.
+	Ipv4Gateway string `protobuf:"bytes,4,opt,name=ipv4_gateway,json=ipv4Gateway,proto3" json:"ipv4_gateway,omitempty"`
+	// IPv4 CIDR of the network.
+	Ipv4Subnet string `protobuf:"bytes,5,opt,name=ipv4_subnet,json=ipv4Subnet,proto3" json:"ipv4_subnet,omitempty"`
+	// IPv6 CIDR of the network, if any.
+	Ipv6Subnet string `protobuf:"bytes,6,opt,name=ipv6_subnet,json=ipv6Subnet,proto3" json:"ipv6_subnet,omitempty"`
+	// ISO8601 creation timestamp.
+	CreatedAt string `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// True for runtime-managed networks that cannot be deleted.
+	Builtin bool `protobuf:"varint,8,opt,name=builtin,proto3" json:"builtin,omitempty"`
+	// Metadata labels on the network.
+	Labels        map[string]string `protobuf:"bytes,9,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -509,14 +542,21 @@ func (x *Network) GetLabels() map[string]string {
 
 // Curated volume, mapped from `container volume list`.
 type Volume struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Driver        string                 `protobuf:"bytes,2,opt,name=driver,proto3" json:"driver,omitempty"`
-	Format        string                 `protobuf:"bytes,3,opt,name=format,proto3" json:"format,omitempty"`
-	SizeBytes     uint64                 `protobuf:"varint,4,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
-	Source        string                 `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	Labels        map[string]string      `protobuf:"bytes,7,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Volume name (used as the ID).
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Volume driver, e.g. "local".
+	Driver string `protobuf:"bytes,2,opt,name=driver,proto3" json:"driver,omitempty"`
+	// Filesystem format, e.g. "ext4".
+	Format string `protobuf:"bytes,3,opt,name=format,proto3" json:"format,omitempty"`
+	// Volume size in bytes.
+	SizeBytes uint64 `protobuf:"varint,4,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	// Backing source (name or host path).
+	Source string `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	// ISO8601 creation timestamp.
+	CreatedAt string `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Metadata labels on the volume.
+	Labels        map[string]string `protobuf:"bytes,7,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -602,10 +642,13 @@ func (x *Volume) GetLabels() map[string]string {
 
 // A registry login, mapped from `container registry list`.
 type RegistryLogin struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Server        string                 `protobuf:"bytes,1,opt,name=server,proto3" json:"server,omitempty"`
-	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
-	Scheme        string                 `protobuf:"bytes,3,opt,name=scheme,proto3" json:"scheme,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Registry hostname, e.g. "docker.io".
+	Server string `protobuf:"bytes,1,opt,name=server,proto3" json:"server,omitempty"`
+	// Account username stored for the registry.
+	Username string `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
+	// Auth scheme in use, e.g. "basic" or "oauth".
+	Scheme        string `protobuf:"bytes,3,opt,name=scheme,proto3" json:"scheme,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

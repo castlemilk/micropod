@@ -26,14 +26,19 @@ public nonisolated struct Micropod_V1_ComposeSpec: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Compose project name (top-level `name:` or the directory name).
   public var name: String = String()
 
+  /// Absolute path of the docker-compose.yml this spec was parsed from.
   public var path: String = String()
 
+  /// Services in dependency order.
   public var services: [Micropod_V1_ComposeService] = []
 
+  /// Named volumes declared at the top level.
   public var volumes: Dictionary<String,Micropod_V1_ComposeVolume> = [:]
 
+  /// Networks declared at the top level.
   public var networks: Dictionary<String,Micropod_V1_ComposeNetwork> = [:]
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -49,11 +54,13 @@ public nonisolated struct Micropod_V1_ComposeService: @unchecked Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Service name from the compose file.
   public var name: String {
     get {_storage._name}
     set {_uniqueStorage()._name = newValue}
   }
 
+  /// Image reference for the service.
   public var image: String {
     get {_storage._image}
     set {_uniqueStorage()._image = newValue}
@@ -65,46 +72,55 @@ public nonisolated struct Micropod_V1_ComposeService: @unchecked Sendable {
     set {_uniqueStorage()._buildContext = newValue}
   }
 
+  /// Dockerfile path relative to the build context.
   public var buildDockerfile: String {
     get {_storage._buildDockerfile}
     set {_uniqueStorage()._buildDockerfile = newValue}
   }
 
+  /// Build args as KEY=value pairs.
   public var buildArgs: [String] {
     get {_storage._buildArgs}
     set {_uniqueStorage()._buildArgs = newValue}
   }
 
+  /// Service names that must start before this one.
   public var dependsOn: [String] {
     get {_storage._dependsOn}
     set {_uniqueStorage()._dependsOn = newValue}
   }
 
+  /// Published port mappings.
   public var ports: [Micropod_V1_PortMapping] {
     get {_storage._ports}
     set {_uniqueStorage()._ports = newValue}
   }
 
+  /// Environment variables as KEY=value pairs.
   public var environment: [String] {
     get {_storage._environment}
     set {_uniqueStorage()._environment = newValue}
   }
 
+  /// Volume/bind mounts in compose syntax.
   public var volumes: [String] {
     get {_storage._volumes}
     set {_uniqueStorage()._volumes = newValue}
   }
 
+  /// Command override (compose `command`).
   public var commands: [String] {
     get {_storage._commands}
     set {_uniqueStorage()._commands = newValue}
   }
 
+  /// Working directory inside the container.
   public var workingDir: String {
     get {_storage._workingDir}
     set {_uniqueStorage()._workingDir = newValue}
   }
 
+  /// Restart policy: "no", "always", "unless-stopped", "on-failure[:N]".
   public var restart: String {
     get {_storage._restart}
     set {_uniqueStorage()._restart = newValue}
@@ -127,16 +143,19 @@ public nonisolated struct Micropod_V1_ComposeService: @unchecked Sendable {
     set {_uniqueStorage()._healthcheckCommand = newValue}
   }
 
+  /// Networks the service attaches to.
   public var networks: [String] {
     get {_storage._networks}
     set {_uniqueStorage()._networks = newValue}
   }
 
+  /// Explicit container name override (compose `container_name`).
   public var containerName: String {
     get {_storage._containerName}
     set {_uniqueStorage()._containerName = newValue}
   }
 
+  /// Entrypoint override (compose `entrypoint`).
   public var entrypoint: String {
     get {_storage._entrypoint}
     set {_uniqueStorage()._entrypoint = newValue}
@@ -166,11 +185,13 @@ public nonisolated struct Micropod_V1_ComposeService: @unchecked Sendable {
     set {_uniqueStorage()._dnsSearch = newValue}
   }
 
+  /// Linux capabilities to add.
   public var capAdd: [String] {
     get {_storage._capAdd}
     set {_uniqueStorage()._capAdd = newValue}
   }
 
+  /// Linux capabilities to drop.
   public var capDrop: [String] {
     get {_storage._capDrop}
     set {_uniqueStorage()._capDrop = newValue}
@@ -194,26 +215,31 @@ public nonisolated struct Micropod_V1_ComposeService: @unchecked Sendable {
     set {_uniqueStorage()._envFile = newValue}
   }
 
+  /// Size of /dev/shm, e.g. "64m".
   public var shmSize: String {
     get {_storage._shmSize}
     set {_uniqueStorage()._shmSize = newValue}
   }
 
+  /// Mount the root filesystem read-only.
   public var readOnly: Bool {
     get {_storage._readOnly}
     set {_uniqueStorage()._readOnly = newValue}
   }
 
+  /// Run an init process as PID 1.
   public var init_p: Bool {
     get {_storage._init_p}
     set {_uniqueStorage()._init_p = newValue}
   }
 
+  /// Allocate a pseudo-TTY.
   public var tty: Bool {
     get {_storage._tty}
     set {_uniqueStorage()._tty = newValue}
   }
 
+  /// Keep stdin open.
   public var stdinOpen: Bool {
     get {_storage._stdinOpen}
     set {_uniqueStorage()._stdinOpen = newValue}
@@ -225,6 +251,7 @@ public nonisolated struct Micropod_V1_ComposeService: @unchecked Sendable {
     set {_uniqueStorage()._privileged = newValue}
   }
 
+  /// Extra /etc/hosts entries as "host:ip" pairs.
   public var extraHosts: [String] {
     get {_storage._extraHosts}
     set {_uniqueStorage()._extraHosts = newValue}
@@ -237,21 +264,25 @@ public nonisolated struct Micropod_V1_ComposeService: @unchecked Sendable {
     set {_uniqueStorage()._dependsOnConditions = newValue}
   }
 
+  /// Seconds between healthcheck runs.
   public var healthcheckIntervalSeconds: Int32 {
     get {_storage._healthcheckIntervalSeconds}
     set {_uniqueStorage()._healthcheckIntervalSeconds = newValue}
   }
 
+  /// Seconds before a healthcheck is considered failed.
   public var healthcheckTimeoutSeconds: Int32 {
     get {_storage._healthcheckTimeoutSeconds}
     set {_uniqueStorage()._healthcheckTimeoutSeconds = newValue}
   }
 
+  /// Consecutive failures before the container is marked unhealthy.
   public var healthcheckRetries: Int32 {
     get {_storage._healthcheckRetries}
     set {_uniqueStorage()._healthcheckRetries = newValue}
   }
 
+  /// Grace period at start during which failures don't count.
   public var healthcheckStartPeriodSeconds: Int32 {
     get {_storage._healthcheckStartPeriodSeconds}
     set {_uniqueStorage()._healthcheckStartPeriodSeconds = newValue}
@@ -289,11 +320,13 @@ public nonisolated struct Micropod_V1_ComposeService: @unchecked Sendable {
 
   /// Stop behaviour (parsed; stop_signal is not expressible, grace period
   /// maps to `container stop --time`).
+  /// Signal sent on stop (parsed; not expressible on the Apple runtime).
   public var stopSignal: String {
     get {_storage._stopSignal}
     set {_uniqueStorage()._stopSignal = newValue}
   }
 
+  /// Seconds between SIGTERM and SIGKILL on stop.
   public var stopGracePeriodSeconds: Int32 {
     get {_storage._stopGracePeriodSeconds}
     set {_uniqueStorage()._stopGracePeriodSeconds = newValue}
@@ -311,8 +344,10 @@ public nonisolated struct Micropod_V1_ComposeVolume: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Volume name within the compose project.
   public var name: String = String()
 
+  /// References a pre-existing volume outside the project.
   public var external: Bool = false
 
   /// Driver + driver options (`driver_opts`), labels.
@@ -335,12 +370,16 @@ public nonisolated struct Micropod_V1_ComposeNetwork: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Network name within the compose project.
   public var name: String = String()
 
+  /// Isolate the network from external traffic.
   public var `internal`: Bool = false
 
+  /// References a pre-existing network outside the project.
   public var external: Bool = false
 
+  /// Network driver to use.
   public var driver: String = String()
 
   /// Plugin options (compose `driver_opts` -> `--option`).
@@ -349,8 +388,10 @@ public nonisolated struct Micropod_V1_ComposeNetwork: Sendable {
   public var labels: [String] = []
 
   /// From `ipam.config[0].subnet` / `subnet_v6`.
+  /// IPv4 CIDR (from `ipam.config[0].subnet`).
   public var subnet: String = String()
 
+  /// IPv6 CIDR.
   public var subnetV6: String = String()
 
   /// `external: {name: "…"}` override.

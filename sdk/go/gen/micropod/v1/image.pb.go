@@ -24,14 +24,17 @@ const (
 // Curated view of a local image, mapped from `container image list --verbose`.
 type Image struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Image ID (content-addressed digest prefix).
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// All tags/references pointing at this image.
 	Names []string `protobuf:"bytes,2,rep,name=names,proto3" json:"names,omitempty"`
 	// ISO8601 creation timestamp.
 	CreatedAt string `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Content digest.
-	Digest        string          `protobuf:"bytes,4,opt,name=digest,proto3" json:"digest,omitempty"`
-	SizeBytes     uint64          `protobuf:"varint,5,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	Digest string `protobuf:"bytes,4,opt,name=digest,proto3" json:"digest,omitempty"`
+	// Total unpacked size in bytes.
+	SizeBytes uint64 `protobuf:"varint,5,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	// Per-platform variants of this image.
 	Variants      []*ImageVariant `protobuf:"bytes,6,rep,name=variants,proto3" json:"variants,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -109,11 +112,15 @@ func (x *Image) GetVariants() []*ImageVariant {
 	return nil
 }
 
+// One platform variant of a multi-arch image.
 type ImageVariant struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Os            string                 `protobuf:"bytes,1,opt,name=os,proto3" json:"os,omitempty"`
-	Architecture  string                 `protobuf:"bytes,2,opt,name=architecture,proto3" json:"architecture,omitempty"`
-	Variant       string                 `protobuf:"bytes,3,opt,name=variant,proto3" json:"variant,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Operating system, e.g. "linux".
+	Os string `protobuf:"bytes,1,opt,name=os,proto3" json:"os,omitempty"`
+	// CPU architecture, e.g. "arm64".
+	Architecture string `protobuf:"bytes,2,opt,name=architecture,proto3" json:"architecture,omitempty"`
+	// Architecture variant, e.g. "v8".
+	Variant       string `protobuf:"bytes,3,opt,name=variant,proto3" json:"variant,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

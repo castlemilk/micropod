@@ -10,6 +10,7 @@ import {
   otelInterceptor,
   retryInterceptor,
   timeoutInterceptor,
+  validationInterceptor,
   type OtelOptions,
   type RetryPolicy,
 } from "./interceptors.js";
@@ -27,6 +28,12 @@ export interface MicropodClientOptions {
   timeoutMs?: number;
   /** OpenTelemetry tracing + metrics. `true` uses global providers. */
   otel?: boolean | OtelOptions;
+  /**
+   * Validate requests against the buf.validate constraints declared in the
+   * protos before sending (default true). Invalid requests throw a ConnectError
+   * with code `invalid_argument` without a network round-trip.
+   */
+  validate?: boolean;
   /** Extra interceptors, appended after the built-in chain. */
   interceptors?: Interceptor[];
 }
@@ -48,6 +55,7 @@ export function createMicropodClient(
   opts: MicropodClientOptions = {},
 ): MicropodClient {
   const interceptors: Interceptor[] = [];
+  if (opts.validate !== false) interceptors.push(validationInterceptor());
   if (opts.retry !== false) interceptors.push(retryInterceptor(opts.retry ?? {}));
   if (opts.timeoutMs !== undefined) interceptors.push(timeoutInterceptor(opts.timeoutMs));
   if (opts.otel) interceptors.push(otelInterceptor(opts.otel === true ? {} : opts.otel));

@@ -6,11 +6,15 @@ clean: true
 # driven by scripts/gen-sdk.sh.
 plugins:
   # TypeScript: protobuf-es v2 emits messages AND connect service stubs.
+  # buf.validate options land in the embedded descriptors; the generated
+  # files import the extension schema, which @bufbuild/protovalidate ships
+  # (that package also powers the SDK's client-side validation interceptor).
   - remote: buf.build/bufbuild/es:v2.9.0
     out: sdk/ts/src/gen
     opt:
       - target=ts
       - import_extension=js
+      - rewrite_imports=**/buf/validate/validate_pb.js:@bufbuild/protovalidate/gen
   # Swift: standalone copy for the MicropodSDK library target (kept
   # separate from MicropodCore/Generated so the SDK stays dependency-light).
   - remote: buf.build/apple/swift

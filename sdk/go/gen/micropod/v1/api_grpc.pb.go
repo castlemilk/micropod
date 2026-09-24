@@ -58,24 +58,39 @@ type MicropodServiceClient interface {
 	RunContainer(ctx context.Context, in *RunContainerRequest, opts ...grpc.CallOption) (*ContainerRef, error)
 	// Create a container without starting it (docker create).
 	CreateContainer(ctx context.Context, in *RunContainerRequest, opts ...grpc.CallOption) (*ContainerRef, error)
+	// Start a stopped container.
 	StartContainer(ctx context.Context, in *ContainerRef, opts ...grpc.CallOption) (*Empty, error)
+	// Stop a running container (SIGTERM, then SIGKILL after the grace period).
 	StopContainer(ctx context.Context, in *ContainerRef, opts ...grpc.CallOption) (*Empty, error)
+	// Stop then start a container.
 	RestartContainer(ctx context.Context, in *ContainerRef, opts ...grpc.CallOption) (*Empty, error)
+	// SIGKILL a running container.
 	KillContainer(ctx context.Context, in *ContainerRef, opts ...grpc.CallOption) (*Empty, error)
+	// Remove a container. Running containers require force.
 	DeleteContainer(ctx context.Context, in *DeleteContainerRequest, opts ...grpc.CallOption) (*Empty, error)
 	// Live log stream (server streaming).
 	StreamContainerLogs(ctx context.Context, in *StreamLogsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LogChunk], error)
+	// List all local images.
 	ListImages(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ListImagesResponse, error)
 	// Pull an image, streaming progress events.
 	PullImage(ctx context.Context, in *PullImageRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ProgressLine], error)
+	// Remove an image. Images in use require force.
 	DeleteImage(ctx context.Context, in *DeleteImageRequest, opts ...grpc.CallOption) (*Empty, error)
+	// List all volumes.
 	ListVolumes(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ListVolumesResponse, error)
+	// Create a named volume.
 	CreateVolume(ctx context.Context, in *CreateVolumeRequest, opts ...grpc.CallOption) (*Empty, error)
+	// Remove a named volume.
 	DeleteVolume(ctx context.Context, in *DeleteVolumeRequest, opts ...grpc.CallOption) (*Empty, error)
+	// List all container networks.
 	ListNetworks(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ListNetworksResponse, error)
+	// Create a container network.
 	CreateNetwork(ctx context.Context, in *CreateNetworkRequest, opts ...grpc.CallOption) (*Empty, error)
+	// Remove a container network.
 	DeleteNetwork(ctx context.Context, in *DeleteNetworkRequest, opts ...grpc.CallOption) (*Empty, error)
+	// Point-in-time resource usage for all running containers.
 	GetStats(ctx context.Context, in *GetStatsRequest, opts ...grpc.CallOption) (*GetStatsResponse, error)
+	// Run a command inside a running container and return its output.
 	Exec(ctx context.Context, in *ExecRequest, opts ...grpc.CallOption) (*ExecResponse, error)
 }
 
@@ -331,24 +346,39 @@ type MicropodServiceServer interface {
 	RunContainer(context.Context, *RunContainerRequest) (*ContainerRef, error)
 	// Create a container without starting it (docker create).
 	CreateContainer(context.Context, *RunContainerRequest) (*ContainerRef, error)
+	// Start a stopped container.
 	StartContainer(context.Context, *ContainerRef) (*Empty, error)
+	// Stop a running container (SIGTERM, then SIGKILL after the grace period).
 	StopContainer(context.Context, *ContainerRef) (*Empty, error)
+	// Stop then start a container.
 	RestartContainer(context.Context, *ContainerRef) (*Empty, error)
+	// SIGKILL a running container.
 	KillContainer(context.Context, *ContainerRef) (*Empty, error)
+	// Remove a container. Running containers require force.
 	DeleteContainer(context.Context, *DeleteContainerRequest) (*Empty, error)
 	// Live log stream (server streaming).
 	StreamContainerLogs(*StreamLogsRequest, grpc.ServerStreamingServer[LogChunk]) error
+	// List all local images.
 	ListImages(context.Context, *Empty) (*ListImagesResponse, error)
 	// Pull an image, streaming progress events.
 	PullImage(*PullImageRequest, grpc.ServerStreamingServer[ProgressLine]) error
+	// Remove an image. Images in use require force.
 	DeleteImage(context.Context, *DeleteImageRequest) (*Empty, error)
+	// List all volumes.
 	ListVolumes(context.Context, *Empty) (*ListVolumesResponse, error)
+	// Create a named volume.
 	CreateVolume(context.Context, *CreateVolumeRequest) (*Empty, error)
+	// Remove a named volume.
 	DeleteVolume(context.Context, *DeleteVolumeRequest) (*Empty, error)
+	// List all container networks.
 	ListNetworks(context.Context, *Empty) (*ListNetworksResponse, error)
+	// Create a container network.
 	CreateNetwork(context.Context, *CreateNetworkRequest) (*Empty, error)
+	// Remove a container network.
 	DeleteNetwork(context.Context, *DeleteNetworkRequest) (*Empty, error)
+	// Point-in-time resource usage for all running containers.
 	GetStats(context.Context, *GetStatsRequest) (*GetStatsResponse, error)
+	// Run a command inside a running container and return its output.
 	Exec(context.Context, *ExecRequest) (*ExecResponse, error)
 	mustEmbedUnimplementedMicropodServiceServer()
 }

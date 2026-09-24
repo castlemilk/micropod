@@ -19,6 +19,8 @@ export const file_micropod_v1_image: GenFile = /*@__PURE__*/
  */
 export type Image = Message<"micropod.v1.Image"> & {
   /**
+   * Image ID (content-addressed digest prefix).
+   *
    * @generated from field: string id = 1;
    */
   id: string;
@@ -45,11 +47,15 @@ export type Image = Message<"micropod.v1.Image"> & {
   digest: string;
 
   /**
+   * Total unpacked size in bytes.
+   *
    * @generated from field: uint64 size_bytes = 5;
    */
   sizeBytes: bigint;
 
   /**
+   * Per-platform variants of this image.
+   *
    * @generated from field: repeated micropod.v1.ImageVariant variants = 6;
    */
   variants: ImageVariant[];
@@ -63,20 +69,28 @@ export const ImageSchema: GenMessage<Image> = /*@__PURE__*/
   messageDesc(file_micropod_v1_image, 0);
 
 /**
+ * One platform variant of a multi-arch image.
+ *
  * @generated from message micropod.v1.ImageVariant
  */
 export type ImageVariant = Message<"micropod.v1.ImageVariant"> & {
   /**
+   * Operating system, e.g. "linux".
+   *
    * @generated from field: string os = 1;
    */
   os: string;
 
   /**
+   * CPU architecture, e.g. "arm64".
+   *
    * @generated from field: string architecture = 2;
    */
   architecture: string;
 
   /**
+   * Architecture variant, e.g. "v8".
+   *
    * @generated from field: string variant = 3;
    */
   variant: string;

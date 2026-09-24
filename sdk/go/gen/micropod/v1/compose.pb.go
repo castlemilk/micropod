@@ -23,11 +23,16 @@ const (
 
 // Parsed docker-compose.yml, produced by the compose importer.
 type ComposeSpec struct {
-	state         protoimpl.MessageState     `protogen:"open.v1"`
-	Name          string                     `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Path          string                     `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	Services      []*ComposeService          `protobuf:"bytes,3,rep,name=services,proto3" json:"services,omitempty"`
-	Volumes       map[string]*ComposeVolume  `protobuf:"bytes,4,rep,name=volumes,proto3" json:"volumes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Compose project name (top-level `name:` or the directory name).
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Absolute path of the docker-compose.yml this spec was parsed from.
+	Path string `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	// Services in dependency order.
+	Services []*ComposeService `protobuf:"bytes,3,rep,name=services,proto3" json:"services,omitempty"`
+	// Named volumes declared at the top level.
+	Volumes map[string]*ComposeVolume `protobuf:"bytes,4,rep,name=volumes,proto3" json:"volumes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Networks declared at the top level.
 	Networks      map[string]*ComposeNetwork `protobuf:"bytes,5,rep,name=networks,proto3" json:"networks,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -103,27 +108,41 @@ func (x *ComposeSpec) GetNetworks() map[string]*ComposeNetwork {
 // so the UI can show them as unsupported rather than silently dropping them.
 type ComposeService struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Image string                 `protobuf:"bytes,2,opt,name=image,proto3" json:"image,omitempty"`
+	// Service name from the compose file.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Image reference for the service.
+	Image string `protobuf:"bytes,2,opt,name=image,proto3" json:"image,omitempty"`
 	// Build context dir if the service is built from a Dockerfile.
-	BuildContext    string         `protobuf:"bytes,3,opt,name=build_context,json=buildContext,proto3" json:"build_context,omitempty"`
-	BuildDockerfile string         `protobuf:"bytes,4,opt,name=build_dockerfile,json=buildDockerfile,proto3" json:"build_dockerfile,omitempty"`
-	BuildArgs       []string       `protobuf:"bytes,5,rep,name=build_args,json=buildArgs,proto3" json:"build_args,omitempty"`
-	DependsOn       []string       `protobuf:"bytes,6,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
-	Ports           []*PortMapping `protobuf:"bytes,7,rep,name=ports,proto3" json:"ports,omitempty"`
-	Environment     []string       `protobuf:"bytes,8,rep,name=environment,proto3" json:"environment,omitempty"`
-	Volumes         []string       `protobuf:"bytes,9,rep,name=volumes,proto3" json:"volumes,omitempty"`
-	Commands        []string       `protobuf:"bytes,10,rep,name=commands,proto3" json:"commands,omitempty"`
-	WorkingDir      string         `protobuf:"bytes,11,opt,name=working_dir,json=workingDir,proto3" json:"working_dir,omitempty"`
-	Restart         string         `protobuf:"bytes,12,opt,name=restart,proto3" json:"restart,omitempty"`
+	BuildContext string `protobuf:"bytes,3,opt,name=build_context,json=buildContext,proto3" json:"build_context,omitempty"`
+	// Dockerfile path relative to the build context.
+	BuildDockerfile string `protobuf:"bytes,4,opt,name=build_dockerfile,json=buildDockerfile,proto3" json:"build_dockerfile,omitempty"`
+	// Build args as KEY=value pairs.
+	BuildArgs []string `protobuf:"bytes,5,rep,name=build_args,json=buildArgs,proto3" json:"build_args,omitempty"`
+	// Service names that must start before this one.
+	DependsOn []string `protobuf:"bytes,6,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
+	// Published port mappings.
+	Ports []*PortMapping `protobuf:"bytes,7,rep,name=ports,proto3" json:"ports,omitempty"`
+	// Environment variables as KEY=value pairs.
+	Environment []string `protobuf:"bytes,8,rep,name=environment,proto3" json:"environment,omitempty"`
+	// Volume/bind mounts in compose syntax.
+	Volumes []string `protobuf:"bytes,9,rep,name=volumes,proto3" json:"volumes,omitempty"`
+	// Command override (compose `command`).
+	Commands []string `protobuf:"bytes,10,rep,name=commands,proto3" json:"commands,omitempty"`
+	// Working directory inside the container.
+	WorkingDir string `protobuf:"bytes,11,opt,name=working_dir,json=workingDir,proto3" json:"working_dir,omitempty"`
+	// Restart policy: "no", "always", "unless-stopped", "on-failure[:N]".
+	Restart string `protobuf:"bytes,12,opt,name=restart,proto3" json:"restart,omitempty"`
 	// Resource caps (compose `cpus`, `mem_limit`).
 	Cpus   float64 `protobuf:"fixed64,13,opt,name=cpus,proto3" json:"cpus,omitempty"`
 	Memory string  `protobuf:"bytes,14,opt,name=memory,proto3" json:"memory,omitempty"`
 	// Healthcheck command; used for real readiness probes.
-	HealthcheckCommand string   `protobuf:"bytes,15,opt,name=healthcheck_command,json=healthcheckCommand,proto3" json:"healthcheck_command,omitempty"`
-	Networks           []string `protobuf:"bytes,16,rep,name=networks,proto3" json:"networks,omitempty"`
-	ContainerName      string   `protobuf:"bytes,17,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`
-	Entrypoint         string   `protobuf:"bytes,18,opt,name=entrypoint,proto3" json:"entrypoint,omitempty"`
+	HealthcheckCommand string `protobuf:"bytes,15,opt,name=healthcheck_command,json=healthcheckCommand,proto3" json:"healthcheck_command,omitempty"`
+	// Networks the service attaches to.
+	Networks []string `protobuf:"bytes,16,rep,name=networks,proto3" json:"networks,omitempty"`
+	// Explicit container name override (compose `container_name`).
+	ContainerName string `protobuf:"bytes,17,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`
+	// Entrypoint override (compose `entrypoint`).
+	Entrypoint string `protobuf:"bytes,18,opt,name=entrypoint,proto3" json:"entrypoint,omitempty"`
 	// User for the container process (format: name|uid[:gid]).
 	User string `protobuf:"bytes,19,opt,name=user,proto3" json:"user,omitempty"`
 	// key=value container labels.
@@ -132,29 +151,41 @@ type ComposeService struct {
 	Dns []string `protobuf:"bytes,21,rep,name=dns,proto3" json:"dns,omitempty"`
 	// DNS search domains (compose `dns_search`).
 	DnsSearch []string `protobuf:"bytes,22,rep,name=dns_search,json=dnsSearch,proto3" json:"dns_search,omitempty"`
-	CapAdd    []string `protobuf:"bytes,23,rep,name=cap_add,json=capAdd,proto3" json:"cap_add,omitempty"`
-	CapDrop   []string `protobuf:"bytes,24,rep,name=cap_drop,json=capDrop,proto3" json:"cap_drop,omitempty"`
+	// Linux capabilities to add.
+	CapAdd []string `protobuf:"bytes,23,rep,name=cap_add,json=capAdd,proto3" json:"cap_add,omitempty"`
+	// Linux capabilities to drop.
+	CapDrop []string `protobuf:"bytes,24,rep,name=cap_drop,json=capDrop,proto3" json:"cap_drop,omitempty"`
 	// Resource limits, format: type=soft[:hard].
 	Ulimits []string `protobuf:"bytes,25,rep,name=ulimits,proto3" json:"ulimits,omitempty"`
 	// tmpfs mounts: path or path:size.
 	Tmpfs []string `protobuf:"bytes,26,rep,name=tmpfs,proto3" json:"tmpfs,omitempty"`
 	// env_file paths (resolved against the compose file directory).
-	EnvFile   []string `protobuf:"bytes,27,rep,name=env_file,json=envFile,proto3" json:"env_file,omitempty"`
-	ShmSize   string   `protobuf:"bytes,28,opt,name=shm_size,json=shmSize,proto3" json:"shm_size,omitempty"`
-	ReadOnly  bool     `protobuf:"varint,29,opt,name=read_only,json=readOnly,proto3" json:"read_only,omitempty"`
-	Init      bool     `protobuf:"varint,30,opt,name=init,proto3" json:"init,omitempty"`
-	Tty       bool     `protobuf:"varint,31,opt,name=tty,proto3" json:"tty,omitempty"`
-	StdinOpen bool     `protobuf:"varint,32,opt,name=stdin_open,json=stdinOpen,proto3" json:"stdin_open,omitempty"`
+	EnvFile []string `protobuf:"bytes,27,rep,name=env_file,json=envFile,proto3" json:"env_file,omitempty"`
+	// Size of /dev/shm, e.g. "64m".
+	ShmSize string `protobuf:"bytes,28,opt,name=shm_size,json=shmSize,proto3" json:"shm_size,omitempty"`
+	// Mount the root filesystem read-only.
+	ReadOnly bool `protobuf:"varint,29,opt,name=read_only,json=readOnly,proto3" json:"read_only,omitempty"`
+	// Run an init process as PID 1.
+	Init bool `protobuf:"varint,30,opt,name=init,proto3" json:"init,omitempty"`
+	// Allocate a pseudo-TTY.
+	Tty bool `protobuf:"varint,31,opt,name=tty,proto3" json:"tty,omitempty"`
+	// Keep stdin open.
+	StdinOpen bool `protobuf:"varint,32,opt,name=stdin_open,json=stdinOpen,proto3" json:"stdin_open,omitempty"`
 	// Parsed but not expressible on the Apple runtime.
-	Privileged bool     `protobuf:"varint,33,opt,name=privileged,proto3" json:"privileged,omitempty"`
+	Privileged bool `protobuf:"varint,33,opt,name=privileged,proto3" json:"privileged,omitempty"`
+	// Extra /etc/hosts entries as "host:ip" pairs.
 	ExtraHosts []string `protobuf:"bytes,34,rep,name=extra_hosts,json=extraHosts,proto3" json:"extra_hosts,omitempty"`
 	// Conditions for depends_on entries (key = dependency name):
 	// "started" (default) or "service_healthy".
-	DependsOnConditions           map[string]string `protobuf:"bytes,35,rep,name=depends_on_conditions,json=dependsOnConditions,proto3" json:"depends_on_conditions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	HealthcheckIntervalSeconds    int32             `protobuf:"varint,36,opt,name=healthcheck_interval_seconds,json=healthcheckIntervalSeconds,proto3" json:"healthcheck_interval_seconds,omitempty"`
-	HealthcheckTimeoutSeconds     int32             `protobuf:"varint,37,opt,name=healthcheck_timeout_seconds,json=healthcheckTimeoutSeconds,proto3" json:"healthcheck_timeout_seconds,omitempty"`
-	HealthcheckRetries            int32             `protobuf:"varint,38,opt,name=healthcheck_retries,json=healthcheckRetries,proto3" json:"healthcheck_retries,omitempty"`
-	HealthcheckStartPeriodSeconds int32             `protobuf:"varint,39,opt,name=healthcheck_start_period_seconds,json=healthcheckStartPeriodSeconds,proto3" json:"healthcheck_start_period_seconds,omitempty"`
+	DependsOnConditions map[string]string `protobuf:"bytes,35,rep,name=depends_on_conditions,json=dependsOnConditions,proto3" json:"depends_on_conditions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Seconds between healthcheck runs.
+	HealthcheckIntervalSeconds int32 `protobuf:"varint,36,opt,name=healthcheck_interval_seconds,json=healthcheckIntervalSeconds,proto3" json:"healthcheck_interval_seconds,omitempty"`
+	// Seconds before a healthcheck is considered failed.
+	HealthcheckTimeoutSeconds int32 `protobuf:"varint,37,opt,name=healthcheck_timeout_seconds,json=healthcheckTimeoutSeconds,proto3" json:"healthcheck_timeout_seconds,omitempty"`
+	// Consecutive failures before the container is marked unhealthy.
+	HealthcheckRetries int32 `protobuf:"varint,38,opt,name=healthcheck_retries,json=healthcheckRetries,proto3" json:"healthcheck_retries,omitempty"`
+	// Grace period at start during which failures don't count.
+	HealthcheckStartPeriodSeconds int32 `protobuf:"varint,39,opt,name=healthcheck_start_period_seconds,json=healthcheckStartPeriodSeconds,proto3" json:"healthcheck_start_period_seconds,omitempty"`
 	// Build stage target / platform for `build:` sections.
 	BuildTarget   string `protobuf:"bytes,40,opt,name=build_target,json=buildTarget,proto3" json:"build_target,omitempty"`
 	BuildPlatform string `protobuf:"bytes,41,opt,name=build_platform,json=buildPlatform,proto3" json:"build_platform,omitempty"`
@@ -167,8 +198,10 @@ type ComposeService struct {
 	PullPolicy string `protobuf:"bytes,46,opt,name=pull_policy,json=pullPolicy,proto3" json:"pull_policy,omitempty"`
 	// Stop behaviour (parsed; stop_signal is not expressible, grace period
 	// maps to `container stop --time`).
-	StopSignal             string `protobuf:"bytes,42,opt,name=stop_signal,json=stopSignal,proto3" json:"stop_signal,omitempty"`
-	StopGracePeriodSeconds int32  `protobuf:"varint,43,opt,name=stop_grace_period_seconds,json=stopGracePeriodSeconds,proto3" json:"stop_grace_period_seconds,omitempty"`
+	// Signal sent on stop (parsed; not expressible on the Apple runtime).
+	StopSignal string `protobuf:"bytes,42,opt,name=stop_signal,json=stopSignal,proto3" json:"stop_signal,omitempty"`
+	// Seconds between SIGTERM and SIGKILL on stop.
+	StopGracePeriodSeconds int32 `protobuf:"varint,43,opt,name=stop_grace_period_seconds,json=stopGracePeriodSeconds,proto3" json:"stop_grace_period_seconds,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -526,9 +559,11 @@ func (x *ComposeService) GetStopGracePeriodSeconds() int32 {
 }
 
 type ComposeVolume struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Name     string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	External bool                   `protobuf:"varint,2,opt,name=external,proto3" json:"external,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Volume name within the compose project.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// References a pre-existing volume outside the project.
+	External bool `protobuf:"varint,2,opt,name=external,proto3" json:"external,omitempty"`
 	// Driver + driver options (`driver_opts`), labels.
 	Driver     string   `protobuf:"bytes,3,opt,name=driver,proto3" json:"driver,omitempty"`
 	DriverOpts []string `protobuf:"bytes,4,rep,name=driver_opts,json=driverOpts,proto3" json:"driver_opts,omitempty"`
@@ -612,16 +647,22 @@ func (x *ComposeVolume) GetExternalName() string {
 }
 
 type ComposeNetwork struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Name     string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Internal bool                   `protobuf:"varint,2,opt,name=internal,proto3" json:"internal,omitempty"`
-	External bool                   `protobuf:"varint,3,opt,name=external,proto3" json:"external,omitempty"`
-	Driver   string                 `protobuf:"bytes,4,opt,name=driver,proto3" json:"driver,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Network name within the compose project.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Isolate the network from external traffic.
+	Internal bool `protobuf:"varint,2,opt,name=internal,proto3" json:"internal,omitempty"`
+	// References a pre-existing network outside the project.
+	External bool `protobuf:"varint,3,opt,name=external,proto3" json:"external,omitempty"`
+	// Network driver to use.
+	Driver string `protobuf:"bytes,4,opt,name=driver,proto3" json:"driver,omitempty"`
 	// Plugin options (compose `driver_opts` -> `--option`).
 	DriverOpts []string `protobuf:"bytes,5,rep,name=driver_opts,json=driverOpts,proto3" json:"driver_opts,omitempty"`
 	Labels     []string `protobuf:"bytes,6,rep,name=labels,proto3" json:"labels,omitempty"`
 	// From `ipam.config[0].subnet` / `subnet_v6`.
-	Subnet   string `protobuf:"bytes,7,opt,name=subnet,proto3" json:"subnet,omitempty"`
+	// IPv4 CIDR (from `ipam.config[0].subnet`).
+	Subnet string `protobuf:"bytes,7,opt,name=subnet,proto3" json:"subnet,omitempty"`
+	// IPv6 CIDR.
 	SubnetV6 string `protobuf:"bytes,8,opt,name=subnet_v6,json=subnetV6,proto3" json:"subnet_v6,omitempty"`
 	// `external: {name: "…"}` override.
 	ExternalName  string `protobuf:"bytes,9,opt,name=external_name,json=externalName,proto3" json:"external_name,omitempty"`
