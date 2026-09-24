@@ -1,8 +1,17 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "micropod.v1",
-    "description": "## micropod.v1.MicropodService\n\nThe Micropod management API: container/image/volume/network operations on\n the Apple `container` runtime, served by the connect-go API server and\n consumable from any connect client (Go, Swift, TS, …)."
+    "title": "Micropod API",
+    "description": "## micropod.v1.MicropodService\n\nThe Micropod management API: container/image/volume/network operations on\n the Apple `container` runtime, served by the connect-go API server and\n consumable from any connect client (Go, Swift, TS, \u2026).",
+    "version": "0.8.0",
+    "contact": {
+      "name": "Micropod",
+      "url": "https://github.com/castlemilk/micropod"
+    },
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/castlemilk/micropod/blob/master/LICENSE"
+    }
   },
   "paths": {
     "/api/micropod.v1.MicropodService/CreateContainer": {
@@ -1585,7 +1594,7 @@
               "$ref": "#/components/schemas/micropod.v1.PortMapping"
             },
             "title": "published_ports",
-            "description": "Published host→container port mappings."
+            "description": "Published host\u2192container port mappings."
           },
           "mounts": {
             "type": "array",
@@ -1687,7 +1696,7 @@
             "type": "string",
             "title": "id",
             "minLength": 1,
-            "description": "Container ID — `container` uses the user-assigned name as the ID."
+            "description": "Container ID \u2014 `container` uses the user-assigned name as the ID."
           }
         },
         "title": "ContainerRef",
@@ -2521,7 +2530,7 @@
               "$ref": "#/components/schemas/micropod.v1.PortMapping"
             },
             "title": "ports",
-            "description": "Published port mappings (host → container)."
+            "description": "Published port mappings (host \u2192 container)."
           },
           "volumes": {
             "type": "array",
@@ -2747,7 +2756,17 @@
   "tags": [
     {
       "name": "micropod.v1.MicropodService",
-      "description": "The Micropod management API: container/image/volume/network operations on\n the Apple `container` runtime, served by the connect-go API server and\n consumable from any connect client (Go, Swift, TS, …)."
+      "description": "The Micropod management API: container/image/volume/network operations on\n the Apple `container` runtime, served by the connect-go API server and\n consumable from any connect client (Go, Swift, TS, \u2026)."
     }
-  ]
+  ],
+  "servers": [
+    {
+      "url": "http://localhost:45454",
+      "description": "Local Micropod daemon"
+    }
+  ],
+  "externalDocs": {
+    "description": "API explorer",
+    "url": "https://castlemilk.github.io/micropod/api/"
+  }
 }

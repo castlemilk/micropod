@@ -8,6 +8,7 @@ export default function OverviewPage() {
   const services = loadConnectServices();
   const tools = loadMcpTools();
   const rpcCount = services.reduce((n, s) => n + s.spec.endpoints.length, 0);
+  const version = services.find((s) => s.spec.info.version)?.spec.info.version;
 
   const surfaces = [
     {
@@ -54,7 +55,14 @@ export default function OverviewPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-12 px-6 py-10 md:px-10">
       <div className="space-y-4">
-        <h1 className="text-4xl font-extrabold tracking-tight">Micropod API</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-4xl font-extrabold tracking-tight">Micropod API</h1>
+          {version && (
+            <span className="rounded-md border border-border bg-card px-2 py-1 font-mono text-xs font-semibold text-muted">
+              v{version}
+            </span>
+          )}
+        </div>
         <p className="max-w-2xl text-lg text-muted">
           Three surfaces, one engine. The REST API serves the app and CLI locally,
           Connect-RPC serves programmatic clients, and the MCP server exposes the

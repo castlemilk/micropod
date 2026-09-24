@@ -168,6 +168,41 @@ def dump_mcp_tools():
     return True
 
 
+def git_version():
+    """Latest tag minus the leading v — the spec's info.version."""
+    tag = subprocess.run(
+        ["git", "describe", "--tags", "--abbrev=0", "--match", "v*"],
+        cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    return tag.lstrip("v") or None
+
+
+def enrich_openapi(version):
+    """Fill in document metadata the proto annotations don't carry.
+
+    The plugin emits a bare `info` (package title + service comment); we add
+    title/version/contact/license, the local-daemon server URL, and a link back
+    to the explorer — same effect as gnostic's (document) option without a
+    gnostic dependency leaking into the generated SDKs.
+    """
+    for spec in OUT.glob("micropod/v1/*.openapi.json"):
+        doc = json.loads(spec.read_text())
+        info = doc.setdefault("info", {})
+        info["title"] = "Micropod API" if spec.stem == "api.openapi" else \
+            f"micropod.v1 — {spec.stem.removesuffix('.openapi')} types"
+        if version:
+            info["version"] = version
+        info["contact"] = {"name": "Micropod",
+                           "url": "https://github.com/castlemilk/micropod"}
+        info["license"] = {"name": "Apache-2.0",
+                           "url": "https://github.com/castlemilk/micropod/blob/master/LICENSE"}
+        doc["servers"] = [{"url": "http://localhost:45454",
+                           "description": "Local Micropod daemon"}]
+        doc["externalDocs"] = {
+            "description": "API explorer",
+            "url": "https://castlemilk.github.io/micropod/api/"}
+        spec.write_text(json.dumps(doc, indent=2) + "\n")
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
 
@@ -179,6 +214,8 @@ def main():
         print(buf.stderr, file=sys.stderr)
         sys.exit("buf generate failed")
     print("openapi + proto-reference regenerated")
+
+    enrich_openapi(git_version())
 
     # 2. REST routes extracted from the handler's route table.
     routes = extract_rest_routes()

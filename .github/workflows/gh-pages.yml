@@ -23,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # gen-api-docs.py derives info.version from git describe
 
       - uses: bufbuild/buf-setup-action@v1
         with:
