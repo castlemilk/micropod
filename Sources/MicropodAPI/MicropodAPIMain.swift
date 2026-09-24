@@ -80,6 +80,7 @@ enum HTTPMethod: String {
     case post = "POST"
     case put = "PUT"
     case delete = "DELETE"
+    case options = "OPTIONS"
 }
 
 struct HTTPRequest {
@@ -87,6 +88,8 @@ struct HTTPRequest {
     let path: String
     let query: [String: String]
     let body: Data
+    /// Request headers, lowercased keys.
+    let headers: [String: String]
 
     func string(_ key: String) -> String { query[key] ?? "" }
 }
@@ -94,6 +97,9 @@ struct HTTPRequest {
 enum HTTPResponse {
     case json(Int, [String: Any])
     case text(Int, String)
+    /// Raw body + content type — for byte-exact payloads like proto-JSON
+    /// encodings and Connect error objects.
+    case data(Int, String, Data)
     case stream(Int, String, AsyncStream<Data>)
     /// Raw duplex take-over: the head is written, then the closure owns the
     /// connection until it returns (used by the guest vsock bridge).
@@ -144,21 +150,26 @@ final class HTTPServer: @unchecked Sendable {
     }
 
     private func dispatch(_ request: HTTPRequest, connection: NWConnection) {
+        // Browser-facing CORS/PNA headers — computed once per request so
+        // normal, streaming, and preflight responses are all covered.
+        let cors = CORSPolicy.responseHeaders(for: request)
         Task {
             let response = await handler(request)
             switch response {
             case .bridge(let status, let attach):
                 let head = Self.streamHead(
-                    status: status, contentType: "application/octet-stream")
+                    status: status, contentType: "application/octet-stream",
+                    extraHeaders: cors)
                 connection.send(
                     content: head,
                     completion: .contentProcessed { _ in
                         Task { await attach(connection) }
                     })
             case .stream(let status, let contentType, let events):
-                // SSE: write the head without Content-Length, then stream
-                // each event on the live connection, closing when done.
-                let head = Self.streamHead(status: status, contentType: contentType)
+                // SSE/connect-stream: write the head without Content-Length,
+                // then stream each event on the live connection.
+                let head = Self.streamHead(
+                    status: status, contentType: contentType, extraHeaders: cors)
                 connection.send(
                     content: head,
                     completion: .contentProcessed { _ in
@@ -170,7 +181,7 @@ final class HTTPServer: @unchecked Sendable {
                         }
                     })
             default:
-                let data = Self.serialize(response)
+                let data = Self.serialize(response, extraHeaders: cors)
                 connection.send(
                     content: data,
                     completion: .contentProcessed { _ in
@@ -180,15 +191,20 @@ final class HTTPServer: @unchecked Sendable {
         }
     }
 
-    static func streamHead(status: Int, contentType: String) -> Data {
+    static func streamHead(
+        status: Int, contentType: String, extraHeaders: [(String, String)] = []
+    ) -> Data {
         var head = "HTTP/1.1 \(status) \(reasonLine(for: status))\r\n"
         head += "Content-Type: \(contentType)\r\n"
+        for (key, value) in extraHeaders {
+            head += "\(key): \(value)\r\n"
+        }
         head += "Cache-Control: no-cache\r\n"
         head += "Connection: close\r\n\r\n"
         return Data(head.utf8)
     }
 
-    static func serialize(_ response: HTTPResponse) -> Data {
+    static func serialize(_ response: HTTPResponse, extraHeaders: [(String, String)] = []) -> Data {
         let statusLine: String
         var headers: [(String, String)] = []
         var body: Data = Data()
@@ -202,11 +218,16 @@ final class HTTPServer: @unchecked Sendable {
             statusLine = reasonLine(for: status)
             headers.append(("Content-Type", "text/plain"))
             body = Data(text.utf8)
+        case .data(let status, let contentType, let raw):
+            statusLine = reasonLine(for: status)
+            headers.append(("Content-Type", contentType))
+            body = raw
         case .stream, .bridge:
             // Streams/bridges are written via streamHead + live chunks;
             // this path is unreachable for well-formed responses.
             return Data()
         }
+        headers.append(contentsOf: extraHeaders)
 
         var head = "\(statusLine)\r\n"
         for (key, value) in headers {
@@ -252,6 +273,7 @@ enum HTTPParser {
         }
 
         var contentLength = 0
+        var headers: [String: String] = [:]
         var headerDone = false
         var bodyStart = 0
         for (index, line) in lines.enumerated() {
@@ -264,11 +286,16 @@ enum HTTPParser {
             if lower.hasPrefix("content-length:") {
                 contentLength = Int(line.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) ?? 0
             }
+            if let colon = line.firstIndex(of: ":") {
+                let key = String(line[..<colon]).lowercased()
+                let value = String(line[line.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
+                headers[key] = value
+            }
         }
         guard headerDone else { return nil }
         let bodyText = lines.dropFirst(bodyStart).joined(separator: "\r\n")
         let body = Data(bodyText.utf8)
         guard body.count >= contentLength else { return nil }
-        return HTTPRequest(method: method, path: path, query: query, body: body)
+        return HTTPRequest(method: method, path: path, query: query, body: body, headers: headers)
     }
 }

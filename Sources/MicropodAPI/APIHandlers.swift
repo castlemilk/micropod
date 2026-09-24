@@ -44,6 +44,7 @@ struct APIHandlers {
         switch resp {
         case .json(let code, _): return code
         case .text(let code, _): return code
+        case .data(let code, _, _): return code
         case .stream(let code, _, _): return code
         case .bridge(let code, _): return code
         }
@@ -60,9 +61,23 @@ struct APIHandlers {
         let method = request.method
         let segments = path.split(separator: "/").map(String.init)
 
+        // CORS preflight — the Allow-* headers are attached by dispatch.
+        if method == .options {
+            return .data(204, "text/plain", Data())
+        }
+
         // /health
         if path == "/health" || path == "/" {
             return HTTPResponse.json(200, ["status": "ok"])
+        }
+
+        // Connect-protocol mount — proto-JSON over POST, documented under
+        // the Connect section of the API explorer.
+        if segments.count == 3, segments[0] == "api",
+            segments[1] == "micropod.v1.MicropodService", method == .post,
+            let resp = await connectRPC(method: segments[2], body: request.body)
+        {
+            return resp
         }
 
         guard segments.first == "v1" else { return .json(404, ["error": "not found"]) }
