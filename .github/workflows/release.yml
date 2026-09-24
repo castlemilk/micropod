@@ -66,9 +66,14 @@ jobs:
             --keychain "$RUNNER_TEMP/ci.keychain-db"
 
       - name: Build + package app
+        timeout-minutes: 25
         run: bash scripts/package_app.sh "${VERSION#v}"
 
+      # codesign --timestamp and notarytool submit --wait have no built-in
+      # timeout — a stalled timestamp/notary connection would otherwise hang
+      # the job until the global job limit. ~2min of work + notary wait.
       - name: Build DMG
+        timeout-minutes: 20
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
