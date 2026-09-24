@@ -162,6 +162,16 @@ export interface ConnectService {
   spec: OpenAPISpec;
 }
 
+/** Last segment of the first `content[*].schema.$ref` — the proto type name. */
+function schemaRefName(node: any): string | undefined {
+  const content = node?.content ?? {};
+  for (const v of Object.values<any>(content)) {
+    const ref = v?.schema?.$ref;
+    if (typeof ref === "string") return ref.split("/").pop();
+  }
+  return undefined;
+}
+
 function parseSpec(file: string): OpenAPISpec {
   const raw = readJSON<any>(file, null);
   if (!raw) {
@@ -181,6 +191,14 @@ function parseSpec(file: string): OpenAPISpec {
     for (const [method, operation] of Object.entries<any>(methods)) {
       if (typeof operation !== "object") continue;
       const service = (operation.tags?.[0] as string | undefined) ?? "unknown";
+      // Capture proto message type names before resolveRefs dereferences them —
+      // SDK samples need e.g. "micropod.v1.RunContainerRequest".
+      const requestType = schemaRefName(operation.requestBody);
+      const okContent = operation.responses?.["200"]?.content ?? {};
+      const responseType = schemaRefName(operation.responses?.["200"]);
+      const serverStreaming = Object.keys(okContent).some(
+        (ct) => ct.includes("connect+") || ct.includes("grpc"),
+      );
       endpoints.push({
         id: `${method}-${pathKey.replace(/\//g, "-").replace(/[{}]/g, "")}`.toLowerCase(),
         method: method.toUpperCase() as HTTPMethod,
@@ -189,6 +207,9 @@ function parseSpec(file: string): OpenAPISpec {
         summary: operation.summary,
         description: operation.description,
         operationId: operation.operationId,
+        requestType,
+        responseType,
+        serverStreaming,
         parameters: resolveRefs(operation.parameters ?? [], schemas),
         requestBody: resolveRefs(operation.requestBody, schemas),
         responses: resolveRefs(operation.responses ?? {}, schemas),

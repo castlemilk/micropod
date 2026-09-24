@@ -2,7 +2,9 @@ import React from "react";
 import type { Metadata } from "next";
 import { Braces, Package, Repeat2, Timer, Activity } from "lucide-react";
 import { CodeBlock } from "@/components/code-block";
+import { GoIcon, SwiftIcon, TypeScriptIcon } from "@/components/lang-icons";
 import { REST_BASE_URL } from "@/lib/data";
+import { sdkCallMap } from "@/lib/sdk-samples";
 
 export const metadata: Metadata = {
   title: "Client SDKs",
@@ -14,8 +16,9 @@ const sdks = [
   {
     id: "go",
     name: "Go",
+    Icon: GoIcon,
     package: "github.com/castlemilk/micropod/sdk/go",
-    install: "go get github.com/castlemilk/micropod/sdk/go@sdk/go/v0.7.0",
+    install: "go get github.com/castlemilk/micropod/sdk/go@sdk/go/v0.8.0",
     source: "sdk/go",
     blurb:
       "connect-go generated stubs plus a configured client: unary retry on transient codes, per-call deadlines, and otelconnect instrumentation.",
@@ -38,6 +41,7 @@ resp, err := client.ListContainers(ctx,
   {
     id: "ts",
     name: "TypeScript",
+    Icon: TypeScriptIcon,
     package: "@micropod/sdk",
     install: "npm install @micropod/sdk",
     source: "sdk/ts",
@@ -62,8 +66,9 @@ for await (const line of client.pullImage({ image: "alpine:3.20" })) {
   {
     id: "swift",
     name: "Swift",
+    Icon: SwiftIcon,
     package: "MicropodSDK",
-    install: `.package(url: "https://github.com/castlemilk/micropod", from: "0.7.0")`,
+    install: `.package(url: "https://github.com/castlemilk/micropod", from: "0.8.0")`,
     source: "sdk/swift",
     blurb:
       "SwiftProtobuf messages + a dependency-light Connect transport over URLSession. The MicropodClient facade covers all 19 MicropodService RPCs.",
@@ -152,10 +157,63 @@ export default function SdkPage() {
         </div>
       </section>
 
+      <section className="space-y-3">
+        <h2 className="text-xl font-semibold">Call map</h2>
+        <p className="text-sm text-muted">
+          Every MicropodService RPC spelled in each SDK — Connect pages embed
+          the matching snippet under the <span className="font-mono text-xs">SDK</span>{" "}
+          toggle in the request panel.
+        </p>
+        <div className="overflow-hidden rounded-lg border border-border">
+          <table className="w-full text-left text-[12px]">
+            <thead>
+              <tr className="border-b border-border bg-secondary/40 font-mono text-[10px] uppercase tracking-wide text-muted">
+                <th className="px-4 py-2 font-semibold">RPC</th>
+                <th className="px-4 py-2 font-semibold">
+                  <span className="inline-flex items-center gap-1.5">
+                    <TypeScriptIcon className="h-3 w-3" /> TypeScript
+                  </span>
+                </th>
+                <th className="px-4 py-2 font-semibold">
+                  <span className="inline-flex items-center gap-1.5">
+                    <GoIcon className="h-3 w-3" /> Go
+                  </span>
+                </th>
+                <th className="px-4 py-2 font-semibold">
+                  <span className="inline-flex items-center gap-1.5">
+                    <SwiftIcon className="h-3 w-3" /> Swift
+                  </span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sdkCallMap().map((row) => (
+                <tr key={row.rpc} className="border-b border-border last:border-0">
+                  <td className="px-4 py-1.5 font-mono text-foreground">
+                    {row.rpc}
+                    {row.streaming && (
+                      <span className="ml-1.5 rounded-sm bg-primary/10 px-1 font-mono text-[9px] uppercase text-primary">
+                        stream
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-1.5 font-mono text-muted">{row.ts}</td>
+                  <td className="px-4 py-1.5 font-mono text-muted">{row.go}</td>
+                  <td className="px-4 py-1.5 font-mono text-muted">{row.swift}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       {sdks.map((sdk) => (
         <section key={sdk.id} id={sdk.id} className="space-y-5 border-t border-border pt-10">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-2xl font-bold tracking-tight">{sdk.name}</h2>
+            <h2 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight">
+              <sdk.Icon className="h-6 w-6" />
+              {sdk.name}
+            </h2>
             <code className="font-mono text-xs text-muted">{sdk.package}</code>
           </div>
           <p className="text-sm leading-relaxed text-muted">{sdk.blurb}</p>

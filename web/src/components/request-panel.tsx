@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Check, ChevronDown, Copy, Play } from "lucide-react";
 import { CodeBlock } from "./code-block";
 import { JsonView } from "./json-view";
+import { LangIcon } from "./lang-icons";
 import type { Sample } from "@/lib/code-samples";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +19,10 @@ export interface ResponseOption {
 }
 
 interface RequestPanelProps {
+  /** Raw-HTTP samples (cURL, fetch, requests, net/http, URLSession). */
   samples: Sample[];
+  /** Typed-client samples (TypeScript/Go/Swift SDKs) — shown under an SDK toggle. */
+  sdkSamples?: Sample[];
   /** Request line shown in the card header, e.g. "POST /v1/containers". */
   heading?: string;
   /** Full copyable request target, e.g. "POST http://localhost:45454/v1/containers". */
@@ -36,18 +40,27 @@ const METHOD_COLOR: Record<string, string> = {
   PATCH: "text-warn",
 };
 
-export function RequestPanel({ samples, heading, url, responses, playground }: RequestPanelProps) {
+export function RequestPanel({ samples, sdkSamples, heading, url, responses, playground }: RequestPanelProps) {
   const [active, setActive] = useState(playground ? TRY_IT : (samples[0]?.label ?? ""));
+  const [group, setGroup] = useState<"http" | "sdk">("http");
   const [respIdx, setRespIdx] = useState(0);
   const [copied, setCopied] = useState(false);
-  const current = samples.find((s) => s.label === active) ?? samples[0];
+  const groupSamples = group === "sdk" ? (sdkSamples ?? []) : samples;
+  const current = groupSamples.find((s) => s.label === active) ?? groupSamples[0];
   const response = responses?.[respIdx];
+  const hasSdk = (sdkSamples?.length ?? 0) > 0;
 
   const copyUrl = async () => {
     if (!url) return;
     await navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  };
+
+  const pickTab = (g: "http" | "sdk") => {
+    setGroup(g);
+    const list = g === "sdk" ? (sdkSamples ?? []) : samples;
+    setActive(list[0]?.label ?? "");
   };
 
   return (
@@ -79,36 +92,57 @@ export function RequestPanel({ samples, heading, url, responses, playground }: R
         </div>
       )}
 
-      {/* Tab strip */}
-      <div className="flex items-center gap-0.5 overflow-x-auto border-b border-border px-2">
-        {playground && (
-          <button
-            onClick={() => setActive(TRY_IT)}
-            className={cn(
-              "flex items-center gap-1 whitespace-nowrap border-b-2 border-transparent px-2.5 py-2 text-[11px] font-semibold",
-              active === TRY_IT
-                ? "border-primary text-foreground"
-                : "text-muted hover:text-foreground",
-            )}
-          >
-            <Play className="h-2.5 w-2.5" />
-            Try it
-          </button>
+      {/* Tab strip — Try it + per-language samples, with HTTP|SDK toggle */}
+      <div className="flex items-center border-b border-border">
+        <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto px-2">
+          {playground && (
+            <button
+              onClick={() => setActive(TRY_IT)}
+              className={cn(
+                "flex items-center gap-1 whitespace-nowrap border-b-2 border-transparent px-2.5 py-2 text-[11px] font-semibold",
+                active === TRY_IT
+                  ? "border-primary text-foreground"
+                  : "text-muted hover:text-foreground",
+              )}
+            >
+              <Play className="h-2.5 w-2.5" />
+              Try it
+            </button>
+          )}
+          {groupSamples.map((s) => (
+            <button
+              key={`${group}-${s.label}`}
+              onClick={() => setActive(s.label)}
+              className={cn(
+                "flex items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-2.5 py-2 text-[11px] font-medium",
+                active === s.label
+                  ? "border-primary text-foreground"
+                  : "text-muted hover:text-foreground",
+              )}
+            >
+              <LangIcon icon={s.icon} className="h-3 w-3" />
+              {s.label}
+            </button>
+          ))}
+        </div>
+        {hasSdk && (
+          <div className="mr-2 flex shrink-0 overflow-hidden rounded-md border border-border text-[10px] font-semibold">
+            {(["http", "sdk"] as const).map((g) => (
+              <button
+                key={g}
+                onClick={() => pickTab(g)}
+                className={cn(
+                  "px-2 py-1 uppercase tracking-wide transition-colors",
+                  group === g
+                    ? "bg-secondary text-foreground"
+                    : "text-muted hover:text-foreground",
+                )}
+              >
+                {g === "http" ? "HTTP" : "SDK"}
+              </button>
+            ))}
+          </div>
         )}
-        {samples.map((s) => (
-          <button
-            key={s.label}
-            onClick={() => setActive(s.label)}
-            className={cn(
-              "whitespace-nowrap border-b-2 border-transparent px-2.5 py-2 text-[11px] font-medium",
-              active === s.label
-                ? "border-primary text-foreground"
-                : "text-muted hover:text-foreground",
-            )}
-          >
-            {s.label}
-          </button>
-        ))}
       </div>
 
       {/* Body */}

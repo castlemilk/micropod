@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getRestRoute, loadRestRoutes, REST_BASE_URL } from "@/lib/data";
 import { restSamples } from "@/lib/code-samples";
+import { restSdkSamples } from "@/lib/sdk-samples";
 import { restShape } from "@/lib/rest-links";
 import { MethodBadge } from "@/components/method-badge";
 import { PageActions } from "@/components/page-actions";
@@ -51,6 +52,7 @@ export default function RestRoutePage({ params }: { params: { route: string } })
         ) : undefined
       }
       samples={restSamples(route, shape, REST_BASE_URL)}
+      sdkSamples={restSdkSamples(route)}
       heading={`${route.method} ${route.path}`}
       url={`${REST_BASE_URL}${route.path}`}
       responses={shape?.responses.map((r) => ({

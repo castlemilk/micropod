@@ -27,6 +27,12 @@ export interface ParsedEndpoint {
   summary?: string;
   description?: string;
   operationId?: string;
+  /** Proto message type of the request body, e.g. "micropod.v1.RunContainerRequest". */
+  requestType?: string;
+  /** Proto message type of the 200 response (stream item type for server-streams). */
+  responseType?: string;
+  /** True when the 200 response is a Connect/gRPC stream rather than JSON. */
+  serverStreaming?: boolean;
   parameters: Parameter[];
   requestBody?: RequestBody;
   responses: Record<string, Response>;

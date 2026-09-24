@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getConnectEndpoint, loadConnectServices, REST_BASE_URL } from "@/lib/data";
 import { connectSamples } from "@/lib/code-samples";
+import { connectSdkSamples } from "@/lib/sdk-samples";
 import { exampleForSchema, responseExampleFor } from "@/lib/examples";
 import { endpointMarkdown } from "@/lib/markdown";
 import { EndpointContent } from "@/components/endpoint-content";
@@ -57,6 +58,7 @@ export default function ConnectEndpointPage({
         ) : undefined
       }
       samples={samples}
+      sdkSamples={connectSdkSamples(endpoint)}
       heading={`${endpoint.method} ${endpoint.path}`}
       url={`${REST_BASE_URL}${endpoint.path}`}
       responses={

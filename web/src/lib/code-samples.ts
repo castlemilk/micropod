@@ -7,6 +7,8 @@ export interface Sample {
   label: string;
   lang: string;
   code: string;
+  /** Brand icon key — see components/lang-icons.tsx. */
+  icon?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -145,65 +147,24 @@ function swiftSample(method: string, url: string, body: any): string {
 
 function samplesForCall(method: string, url: string, body: any): Sample[] {
   return [
-    { label: "cURL", lang: "bash", code: curlSample(method, url, body) },
-    { label: "JavaScript", lang: "javascript", code: jsSample(method, url, body) },
-    { label: "Python", lang: "python", code: pySample(method, url, body) },
-    { label: "Go", lang: "go", code: goSample(method, url, body) },
-    { label: "Swift", lang: "swift", code: swiftSample(method, url, body) },
+    { label: "cURL", lang: "bash", icon: "bash", code: curlSample(method, url, body) },
+    { label: "JavaScript", lang: "javascript", icon: "javascript", code: jsSample(method, url, body) },
+    { label: "Python", lang: "python", icon: "python", code: pySample(method, url, body) },
+    { label: "Go", lang: "go", icon: "go", code: goSample(method, url, body) },
+    { label: "Swift", lang: "swift", icon: "swift", code: swiftSample(method, url, body) },
   ];
 }
 
 // ---------------------------------------------------------------------------
-// Connect endpoints — raw HTTP samples + a typed connect-go variant.
+// Connect endpoints — raw HTTP samples.
 // ---------------------------------------------------------------------------
-
-function goConnectSample(endpoint: ParsedEndpoint, baseUrl: string): string {
-  const op = (endpoint.operationId ?? endpoint.summary ?? "Call").split(".").pop() ?? "Call";
-  const serviceName = endpoint.service.split(".").pop() ?? "MicropodService";
-  const reqType = `${op}Request`;
-  const body = requestExampleFor(endpoint);
-  const fields = Object.entries<any>(body ?? {})
-    .slice(0, 6)
-    .map(([k, v]) => `\t\t${k[0].toUpperCase() + k.slice(1)}: ${goValue(v)},`)
-    .join("\n");
-  return `import (
-\t"context"
-\t"net/http"
-
-\t"connectrpc.com/connect"
-\tmicropodv1 "github.com/castlemilk/micropod/api/gen/micropod/v1"
-\t"github.com/castlemilk/micropod/api/gen/micropod/v1/micropodv1connect"
-)
-
-client := micropodv1connect.New${serviceName}Client(
-\thttp.DefaultClient, "${baseUrl}",
-)
-resp, err := client.${op}(
-\tcontext.Background(),
-\tconnect.NewRequest(&micropodv1.${reqType}{
-${fields}
-\t}),
-)`;
-}
-
-function goValue(v: any): string {
-  if (typeof v === "string") return `"${v}"`;
-  if (typeof v === "boolean") return String(v);
-  if (typeof v === "number") return String(v);
-  if (Array.isArray(v)) return `[]string{${v.map((x) => goValue(x)).join(", ")}}`;
-  return "/* … */ nil";
-}
 
 export function connectSamples(endpoint: ParsedEndpoint, baseUrl: string): Sample[] {
   const body = requestExampleFor(endpoint);
   const url = `${baseUrl}${endpoint.path}`;
-  const samples = samplesForCall(endpoint.method, url, body);
-  // MicropodService gets the typed connect-go client; the vendored Apple
-  // SandboxContext has no published Go module — keep raw net/http there.
-  if (endpoint.service.startsWith("micropod.")) {
-    samples[3] = { label: "Go (connect)", lang: "go", code: goConnectSample(endpoint, baseUrl) };
-  }
-  return samples;
+  // Typed-client snippets for MicropodService live in lib/sdk-samples.ts
+  // (rendered as the SDK tab group in the request panel).
+  return samplesForCall(endpoint.method, url, body);
 }
 
 // ---------------------------------------------------------------------------

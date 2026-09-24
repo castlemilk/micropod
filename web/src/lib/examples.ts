@@ -249,7 +249,7 @@ export const REQUEST_OVERRIDES: Record<string, any> = {
     env: [],
   },
   "micropod.v1.MicropodService.PullImage": { reference: "alpine:3.20", platform: "linux/arm64" },
-  "micropod.v1.MicropodService.StreamLogs": { id: "9f2e4a1b3c7d", tail: 200, boot: false },
+  "micropod.v1.MicropodService.StreamContainerLogs": { id: "9f2e4a1b3c7d", tail: 200, boot: false },
   "micropod.v1.MicropodService.CreateNetwork": {
     name: "frontend",
     internal: false,
