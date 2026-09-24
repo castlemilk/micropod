@@ -24,7 +24,7 @@ export interface ResponseOption {
 interface RequestPanelProps {
   /** Raw-HTTP samples (cURL, fetch, requests, net/http, URLSession). */
   samples: Sample[];
-  /** Typed-client samples (TypeScript/Go/Swift SDKs) — shown under an SDK toggle. */
+  /** Typed-client samples (TypeScript/Go/Swift SDKs) — shown first. */
   sdkSamples?: Sample[];
   /** Request line shown in the card header, e.g. "POST /v1/containers". */
   heading?: string;
@@ -137,26 +137,20 @@ export function ResponsePicker({
 }
 
 export function RequestPanel({ samples, sdkSamples, heading, url, responses, playground }: RequestPanelProps) {
-  const [active, setActive] = useState(playground ? TRY_IT : (samples[0]?.label ?? ""));
-  const [group, setGroup] = useState<"http" | "sdk">("http");
+  // One flat tab strip: typed SDK calls first (recommended path), then the
+  // raw-HTTP mechanisms hitting the same endpoint.
+  const allSamples = [...(sdkSamples ?? []), ...samples];
+  const [active, setActive] = useState(playground ? TRY_IT : (allSamples[0]?.label ?? ""));
   const [respIdx, setRespIdx] = useState(0);
   const [copied, setCopied] = useState(false);
-  const groupSamples = group === "sdk" ? (sdkSamples ?? []) : samples;
-  const current = groupSamples.find((s) => s.label === active) ?? groupSamples[0];
+  const current = allSamples.find((s) => s.label === active) ?? allSamples[0];
   const response = responses?.[respIdx];
-  const hasSdk = (sdkSamples?.length ?? 0) > 0;
 
   const copyUrl = async () => {
     if (!url) return;
     await navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
-  };
-
-  const pickTab = (g: "http" | "sdk") => {
-    setGroup(g);
-    const list = g === "sdk" ? (sdkSamples ?? []) : samples;
-    setActive(list[0]?.label ?? "");
   };
 
   return (
@@ -188,7 +182,7 @@ export function RequestPanel({ samples, sdkSamples, heading, url, responses, pla
         </div>
       )}
 
-      {/* Tab strip — Try it + per-language samples, with HTTP|SDK toggle */}
+      {/* Tab strip — Try it + SDK calls + raw-HTTP mechanisms */}
       <div className="flex items-center border-b border-border">
         <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto px-2">
           {playground && (
@@ -205,9 +199,9 @@ export function RequestPanel({ samples, sdkSamples, heading, url, responses, pla
               Try it
             </button>
           )}
-          {groupSamples.map((s) => (
+          {allSamples.map((s) => (
             <button
-              key={`${group}-${s.label}`}
+              key={s.label}
               onClick={() => setActive(s.label)}
               className={cn(
                 "flex items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-2.5 py-2 text-[11px] font-medium",
@@ -221,24 +215,6 @@ export function RequestPanel({ samples, sdkSamples, heading, url, responses, pla
             </button>
           ))}
         </div>
-        {hasSdk && (
-          <div className="mr-2 flex shrink-0 overflow-hidden rounded-md border border-border text-[10px] font-semibold">
-            {(["http", "sdk"] as const).map((g) => (
-              <button
-                key={g}
-                onClick={() => pickTab(g)}
-                className={cn(
-                  "px-2 py-1 uppercase tracking-wide transition-colors",
-                  group === g
-                    ? "bg-secondary text-foreground"
-                    : "text-muted hover:text-foreground",
-                )}
-              >
-                {g === "http" ? "HTTP" : "SDK"}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Body */}

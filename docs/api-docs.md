@@ -4,40 +4,51 @@ The API reference at <https://castlemilk.github.io/micropod/api/> is a Next.js
 static-export app in `web/` — a grouped sidebar, per-endpoint pages with a
 deep payload explorer (expandable field trees with type chips, required
 badges, enums, and inline example values, plus a syntax-highlighted Example
-view), generated curl/JavaScript/Python/Go/Swift samples with real request
-bodies, and ⌘K search across every surface.
+view), generated samples in one flat strip (typed SDKs first — TypeScript /
+Go / Swift — then raw HTTP: cURL, fetch, requests, net/http, URLSession),
+and ⌘K search across every surface.
 
-Every REST and Connect page also has a **Try it** playground (Fern-style) in
-the right rail — an editable base-URL bar with a live daemon-reachability
+**The daemon has one public API: `micropod.v1.MicropodService` over Connect.**
+Unary calls are plain `POST` + proto-JSON, so curl and browsers hit the same
+endpoints the typed SDKs do; server-streaming RPCs use the Connect envelope
+protocol. The legacy `/v1/*` REST facade still answers for compatibility but
+isn't documented as a separate API — `/rest/*` doc URLs redirect to their
+Connect counterparts (`REST_TO_RPC` in `web/src/lib/sdk-samples.ts`).
+`GET /health`, `GET /metrics`, and the vsock bridge are infra endpoints that
+stay outside the RPC surface (documented on the landing page instead).
+
+Every endpoint page also has a **Try it** playground (Fern-style) in the
+right rail — an editable base-URL bar with a live daemon-reachability
 indicator, per-field request editors seeded from the generated examples,
 and a Send button that calls the daemon directly from the browser (default
 `http://localhost:45454`). Server-streaming RPCs (`StreamContainerLogs`,
-`PullImage`) are decoded as Connect envelope frames; the REST logs endpoint
-reads SSE. The two pages without a playground are the vsock bridge (a raw
-duplex byte pipe) and the `SandboxContext` endpoints (guest-side, not host
-HTTP). Browser calls depend on the daemon's CORS policy in
+`PullImage`, `ComposeUp`) are decoded as Connect envelope frames. The
+`SandboxContext` endpoints (guest-side, over vsock) get docs but no
+playground. Browser calls depend on the daemon's CORS policy in
 `Sources/MicropodAPI/CORSPolicy.swift` — add new docs origins there.
 
 - `web/src/lib/examples.ts` — schema→example generator (field-name heuristics,
   proto JSON conventions like int64-as-string, curated overrides for flagship
   RPCs) and the MCP `Arguments:` description parser that synthesizes tool
   input schemas.
-- `web/src/lib/rest-links.ts` — per-route request/response shapes matching
-  `APIHandlers.swift` projections; update it when a REST handler's JSON
-  contract changes.
+- `web/src/lib/sdk-samples.ts` — typed-client samples per RPC (TS facade,
+  Go `NewClient` + `connect.NewRequest`, Swift `MicropodClient`), the
+  REST→RPC map behind `/rest/*` redirects, and the `/sdk` call-map table.
 
 ## Surfaces
 
 | Section | Source of truth | Artifact |
 |---------|-----------------|----------|
-| `/rest/` | `Sources/MicropodAPI/APIHandlers.swift` route table | `landing/api/rest-routes.json` |
-| `/grpc/` | `proto/**` via buf `sudorandom-connect-openapi` | `landing/api/**/*.openapi.json` |
+| `/grpc/` (the API) | `proto/**` via buf `sudorandom-connect-openapi` | `landing/api/**/*.openapi.json` |
+| `/rest/` | redirect stubs → `/grpc/*` | `landing/api/rest-routes.json` (legacy manifest) |
 | `/mcp/` | live `tools/list` from the `MicropodMCP` binary | `landing/api/mcp-tools.json` |
 | `/proto/` | buf `pseudomuto-doc` | `landing/api/proto-reference.html` |
+| `/sdk/` | method spellings from `sdk-samples.ts` | — |
 
 Nothing is hand-copied — every page renders from the generated artifacts. The
-Connect section covers `micropod.v1.MicropodService` (daemon, host HTTP) and
-`com.apple.containerization.sandbox.v3.SandboxContext` (vminitd, vsock 1024).
+API section covers `micropod.v1.MicropodService` (daemon, host HTTP) and
+`com.apple.containerization.sandbox.v3.SandboxContext` (vminitd, vsock 1024)
+under a separate "Guest API" heading.
 
 Proto field comments become OpenAPI `description`s and SDK doc comments — keep
 them accurate. `buf.validate` field options (`required`, `min_len`, `gt`, …)

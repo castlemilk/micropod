@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils";
 import { methodTextColor } from "./method-badge";
 
 const KIND_STYLES: Record<SearchItem["kind"], string> = {
-  REST: "text-success",
-  Connect: "text-primary",
+  API: "text-primary",
+  Guest: "text-muted",
   MCP: "text-warn",
   SDK: "text-foreground",
 };

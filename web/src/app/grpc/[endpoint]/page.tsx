@@ -58,27 +58,42 @@ export default function ConnectEndpointPage({
   };
   const resourceKeys = ["id", "name", "reference"];
   const hasResource = resourceKeys.some((k) => k in (reqExample ?? {}));
+  // Per-RPC honest errors — the update RPCs proxy the app's control socket:
+  // `unavailable` when the app isn't running, `failed_precondition` when the
+  // app answers but the call fails (e.g. nothing downloaded to apply).
+  const rpcErrorOverrides: Record<string, { status: string; label: string; body: any }[]> = {
+    CheckForUpdates: [
+      { status: "412", label: "Check failed", body: { code: "failed_precondition", message: "update check failed in app" } },
+      { status: "503", label: "App not running", body: { code: "unavailable", message: "no control socket at ~/.micropod/app-control.sock" } },
+    ],
+    GetUpdateStatus: [
+      { status: "412", label: "Status unavailable", body: { code: "failed_precondition", message: "update status call failed in app" } },
+      { status: "503", label: "App not running", body: { code: "unavailable", message: "no control socket at ~/.micropod/app-control.sock" } },
+    ],
+    ApplyUpdate: [
+      { status: "412", label: "No update staged", body: { code: "failed_precondition", message: "no downloaded update to apply" } },
+      { status: "503", label: "App not running", body: { code: "unavailable", message: "no control socket at ~/.micropod/app-control.sock" } },
+    ],
+  };
+  const rpcName = endpoint.operationId?.split(".").pop() ?? "";
   const errorResponses = [
-    ...(hasResource
+    ...(rpcErrorOverrides[rpcName] ?? (hasResource
       ? [{
           status: "404",
           label: "Not found",
-          schema: errorEnvelopeSchema,
           body: { code: "not_found", message: "resource not found" },
         }]
       : [{
           status: "400",
           label: "Invalid request",
-          schema: errorEnvelopeSchema,
           body: { code: "invalid_argument", message: "invalid request field" },
-        }]),
+        }])),
     {
       status: "500",
       label: "Internal error",
-      schema: errorEnvelopeSchema,
       body: { code: "internal", message: "internal error" },
     },
-  ];
+  ].map((r) => ({ ...r, schema: errorEnvelopeSchema }));
 
   const schema = endpoint.requestBody?.content?.["application/json"]?.schema;
   const isStreaming = Object.values(endpoint.responses).some((r) =>

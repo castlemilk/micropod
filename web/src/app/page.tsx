@@ -1,30 +1,30 @@
 import React from "react";
 import Link from "next/link";
-import { ArrowRight, Globe, Plug, TerminalSquare, FileCode2, Package } from "lucide-react";
-import { loadConnectServices, loadMcpTools, loadRestRoutes, REST_BASE_URL } from "@/lib/data";
+import { ArrowRight, Plug, TerminalSquare, FileCode2, Package } from "lucide-react";
+import { loadConnectServices, loadMcpTools, REST_BASE_URL } from "@/lib/data";
 
 export default function OverviewPage() {
-  const routes = loadRestRoutes();
   const services = loadConnectServices();
   const tools = loadMcpTools();
-  const rpcCount = services.reduce((n, s) => n + s.spec.endpoints.length, 0);
+  const micropod = services.find((s) => s.service.startsWith("micropod."));
+  const guest = services.filter((s) => !s.service.startsWith("micropod."));
   const version = services.find((s) => s.spec.info.version)?.spec.info.version;
 
   const surfaces = [
     {
-      href: "/rest/",
-      icon: Globe,
-      title: "REST API",
-      count: `${routes.length} routes`,
-      blurb: `HTTP API served by the Micropod daemon on ${REST_BASE_URL}. Powers the app, CLI, and Docker shim.`,
-    },
-    {
       href: "/grpc/",
       icon: Plug,
-      title: "Connect / gRPC",
-      count: `${rpcCount} RPCs`,
+      title: "Micropod API",
+      count: `${micropod?.spec.endpoints.length ?? 0} RPCs`,
+      blurb: `The daemon's Connect-RPC service on ${REST_BASE_URL} — unary JSON over plain POST, so curl, fetch, and the typed SDKs all speak the same contract.`,
+    },
+    {
+      href: "/sdk/",
+      icon: Package,
+      title: "Client SDKs",
+      count: "Go · TS · Swift",
       blurb:
-        "Protobuf-defined Connect services: MicropodService for the daemon, SandboxContext for the vminitd guest agent over vsock.",
+        "Generated clients with retry, timeouts, client-side validation, and OpenTelemetry instrumentation built in — one contract, three languages.",
     },
     {
       href: "/mcp/",
@@ -42,14 +42,6 @@ export default function OverviewPage() {
       blurb:
         "Generated message and service reference for proto/micropod/v1 plus the vendored Apple sandbox contract.",
     },
-    {
-      href: "/sdk/",
-      icon: Package,
-      title: "Client SDKs",
-      count: "Go · TS · Swift",
-      blurb:
-        "Generated clients with retry, timeouts, and OpenTelemetry instrumentation built in — one contract, three languages.",
-    },
   ];
 
   return (
@@ -64,10 +56,11 @@ export default function OverviewPage() {
           )}
         </div>
         <p className="max-w-2xl text-lg text-muted">
-          Three surfaces, one engine. The REST API serves the app and CLI locally,
-          Connect-RPC serves programmatic clients, and the MCP server exposes the
-          same operations to agents. Everything here is generated from the source
-          of truth — proto definitions, route handlers, and a live tools/list.
+          One API, three client styles. The daemon exposes a single Connect-RPC
+          service — proto-JSON over plain HTTP POST — so curl, browsers, and the
+          typed SDKs all call the same endpoints. The MCP server wraps the same
+          operations for agents, and the vminitd guest contract rides the vsock
+          bridge. Everything is generated from the protos.
         </p>
       </div>
 
@@ -95,17 +88,35 @@ export default function OverviewPage() {
       <section className="space-y-4">
         <h2 className="text-xl font-semibold">Quick start</h2>
         <div className="rounded-lg border border-border bg-card p-4 font-mono text-[13px] leading-relaxed">
-          <p className="text-muted"># REST — served by the daemon</p>
-          <p>curl {REST_BASE_URL}/v1/containers</p>
-          <p className="mt-3 text-muted"># Connect-RPC — unary JSON</p>
+          <p className="text-muted"># Connect unary — plain POST + JSON</p>
           <p>
             curl -X POST {REST_BASE_URL}/api/micropod.v1.MicropodService/ListContainers \
           </p>
           <p>{'  -H "Content-Type: application/json" -d \'{}\''}</p>
+          <p className="mt-3 text-muted"># TypeScript SDK — same call, typed</p>
+          <p>{`const res = await client.listContainers({});`}</p>
           <p className="mt-3 text-muted"># MCP — stdio JSON-RPC (MicropodMCP binary)</p>
           <p>{`echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | MicropodMCP`}</p>
         </div>
+        <p className="text-xs text-muted">
+          Infra endpoints outside the Connect mount:{" "}
+          <code className="font-mono">GET /health</code>,{" "}
+          <code className="font-mono">GET /metrics</code>, and{" "}
+          <code className="font-mono">GET /v1/containers/{"{id}"}/vsock/{"{port}"}</code>{" "}
+          (raw duplex bridge into guest vminitd — not Connect-expressible).
+        </p>
       </section>
+
+      {guest.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">Guest API</h2>
+          <p className="text-sm text-muted">
+            <code className="font-mono text-xs">SandboxContext</code> ({guest[0].spec.endpoints.length} RPCs)
+            is vminitd's contract inside each container VM — served over vsock port 1024,
+            reachable from the host via the bridge above, not via {REST_BASE_URL}.
+          </p>
+        </section>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Generated artifacts</h2>

@@ -5,8 +5,8 @@ import { loadConnectServices } from "@/lib/data";
 import { MethodBadge } from "@/components/method-badge";
 
 export const metadata: Metadata = {
-  title: "Connect API",
-  description: "Protobuf-defined Connect-RPC services exposed by Micropod.",
+  title: "Micropod API",
+  description: "The Micropod daemon's Connect-RPC API — proto-JSON over plain HTTP.",
 };
 
 export default function GrpcIndexPage() {
@@ -15,10 +15,12 @@ export default function GrpcIndexPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-10 px-6 py-10 md:px-10">
       <div className="space-y-3">
-        <h1 className="text-3xl font-bold tracking-tight">Connect / gRPC</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Micropod API</h1>
         <p className="text-muted">
-          Protobuf-defined services rendered from the connect-openapi specs. Connect
-          speaks unary JSON over plain HTTP — the same messages as the proto contract.
+          One protobuf-defined Connect service, rendered from the connect-openapi
+          spec. Unary calls are plain <code className="font-mono text-xs">POST</code> +
+          JSON, so curl, fetch, and the typed SDKs all hit the same endpoints;
+          streaming RPCs speak the Connect envelope protocol.
         </p>
       </div>
 

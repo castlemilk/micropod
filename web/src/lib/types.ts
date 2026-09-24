@@ -68,7 +68,7 @@ export interface McpTool {
 }
 
 export interface SearchItem {
-  kind: "REST" | "Connect" | "MCP" | "SDK";
+  kind: "API" | "Guest" | "MCP" | "SDK";
   title: string;
   subtitle: string;
   href: string;

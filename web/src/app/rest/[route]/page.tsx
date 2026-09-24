@@ -1,172 +1,25 @@
 import React from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getRestRoute, loadRestRoutes, REST_BASE_URL } from "@/lib/data";
-import { restSamples } from "@/lib/code-samples";
-import { restRpcEndpoint, restSdkSamples } from "@/lib/sdk-samples";
-import { intersectSchema, restShape } from "@/lib/rest-links";
-import { PageActions } from "@/components/page-actions";
-import { PayloadExplorer } from "@/components/payload-explorer";
-import { Playground } from "@/components/playground";
-import { RequestPanel, type ResponseOption } from "@/components/request-panel";
-import { ResponseExplorer } from "@/components/response-explorer";
-import { EndpointUrlBar } from "@/components/url-bar";
-import { endpointMarkdown } from "@/lib/markdown";
+import { getRestRoute, loadRestRoutes } from "@/lib/data";
+import { restRpcEndpoint } from "@/lib/sdk-samples";
+import { Redirect } from "@/components/redirect";
 
 export function generateStaticParams() {
   return loadRestRoutes().map((r) => ({ route: r.id }));
 }
 
-export function generateMetadata({ params }: { params: { route: string } }): Metadata {
-  const route = getRestRoute(params.route);
-  if (!route) return {};
-  return {
-    title: `${route.method} ${route.path}`,
-    description: route.description,
-  };
+export function generateMetadata(): Metadata {
+  return { title: "Moved", robots: { index: false } };
 }
 
-export default function RestRoutePage({ params }: { params: { route: string } }) {
+export default function RestRouteRedirect({ params }: { params: { route: string } }) {
   const route = getRestRoute(params.route);
   if (!route) return notFound();
-  const shape = restShape(route);
-
-  // The vsock bridge is a raw duplex byte pipe — not playable over fetch.
-  const playable = route.id !== "get-v1-containers-id-vsock-port";
-  const isSse = shape?.responses.some((r) => r.stream?.includes("event-stream")) ?? false;
-
-  // Response schemas: curated on the shape, otherwise trimmed from the backing
-  // RPC's proto contract (intersected with the projected example body).
   const rpc = restRpcEndpoint(route);
-  const rpcOkSchema = rpc?.responses?.["200"]?.content?.["application/json"]?.schema;
-  const responseItems: ResponseOption[] | undefined = shape?.responses.map((r) => {
-    const schema =
-      r.schema ??
-      (r.status.startsWith("2") && !r.stream && rpcOkSchema
-        ? intersectSchema(rpcOkSchema, r.example)
-        : undefined);
-    return {
-      status: r.status,
-      label: r.description,
-      schema,
-      body: typeof r.example === "string" ? undefined : r.example,
-      raw: typeof r.example === "string" ? r.example : undefined,
-      note: r.stream,
-    };
-  });
-
-  const panel = (
-    <RequestPanel
-      playground={
-        playable ? (
-          <Playground
-            method={route.method}
-            path={route.path}
-            requestSchema={shape?.requestSchema}
-            requestExample={shape?.requestExample}
-            query={shape?.query}
-            stream={isSse ? "sse" : null}
-          />
-        ) : undefined
-      }
-      samples={restSamples(route, shape, REST_BASE_URL)}
-      sdkSamples={restSdkSamples(route)}
-      heading={`${route.method} ${route.path}`}
-      url={`${REST_BASE_URL}${route.path}`}
-      responses={responseItems}
-    />
-  );
-
-  return (
-    <div className="xl:grid xl:grid-cols-[1fr_420px]">
-      <div className="space-y-8 px-6 py-8 pb-16 md:px-8">
-        <div className="space-y-4">
-          <div className="space-y-3">
-            <p className="text-[13px] font-medium text-primary">{route.group}</p>
-            <h1 className="text-3xl font-bold tracking-tight">{route.description}</h1>
-            <PageActions
-              markdown={endpointMarkdown({
-                title: route.description,
-                method: route.method,
-                url: `${REST_BASE_URL}${route.path}`,
-                requestExample: shape?.requestExample,
-                responses: shape?.responses.map((r) => ({
-                  status: r.status,
-                  description: r.description,
-                  example: r.example,
-                })),
-                notes: playable
-                  ? undefined
-                  : "Note: this endpoint bridges to a raw duplex byte stream — it cannot be exercised from a browser.",
-              })}
-              curl={restSamples(route, shape, REST_BASE_URL).find((s) => s.label === "cURL")?.code}
-            />
-            <EndpointUrlBar method={route.method} url={`${REST_BASE_URL}${route.path}`} />
-          </div>
-        </div>
-
-        {(route.pathParams.length > 0 || (shape?.query?.length ?? 0) > 0) && (
-          <section className="space-y-3">
-            <h2 className="border-b border-border pb-2 text-xl font-semibold">Parameters</h2>
-            <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
-              {route.pathParams.map((p) => (
-                <div key={p} className="flex flex-wrap items-baseline gap-x-3 px-4 py-3">
-                  <span className="font-mono text-[13px] font-medium">{p}</span>
-                  <span className="font-mono text-[11px] text-primary/80">string</span>
-                  <span className="text-[11px] text-muted">path</span>
-                  <span className="rounded-sm bg-destructive/15 px-1 font-mono text-[9.5px] font-semibold uppercase leading-4 text-destructive">
-                    required
-                  </span>
-                </div>
-              ))}
-              {shape?.query?.map((q) => (
-                <div key={q.name} className="flex flex-wrap items-baseline gap-x-3 px-4 py-3">
-                  <span className="font-mono text-[13px] font-medium">{q.name}</span>
-                  <span className="font-mono text-[11px] text-primary/80">string</span>
-                  <span className="text-[11px] text-muted">query</span>
-                  {q.required ? (
-                    <span className="rounded-sm bg-destructive/15 px-1 font-mono text-[9.5px] font-semibold uppercase leading-4 text-destructive">
-                      required
-                    </span>
-                  ) : (
-                    <span className="rounded-sm bg-secondary px-1 font-mono text-[9.5px] uppercase leading-4 text-muted">
-                      optional
-                    </span>
-                  )}
-                  {q.description && (
-                    <span className="w-full text-[12px] text-muted">{q.description}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {(shape?.requestSchema || shape?.requestExample) && (
-          <section className="space-y-3">
-            <h2 className="border-b border-border pb-2 text-xl font-semibold">Request body</h2>
-            <PayloadExplorer schema={shape.requestSchema} example={shape.requestExample} />
-          </section>
-        )}
-
-        <section className="space-y-4">
-          <h2 className="border-b border-border pb-2 text-xl font-semibold">Responses</h2>
-          {responseItems && responseItems.length > 0 ? (
-            <ResponseExplorer items={responseItems} />
-          ) : (
-            <p className="text-sm text-muted">
-              Returns a JSON status object; see the samples panel for the call shape.
-            </p>
-          )}
-        </section>
-      </div>
-
-      <div className="hidden xl:block">
-        <div className="sticky top-14 h-[calc(100vh-3.5rem)]">{panel}</div>
-      </div>
-      <div className="border-t border-border px-6 py-8 md:px-8 xl:hidden">
-        <div className="h-96 overflow-hidden rounded-lg border border-border">{panel}</div>
-      </div>
-    </div>
-  );
+  // Mapped routes forward to the Connect endpoint page; REST-only infra
+  // routes (health, metrics, vsock bridge) land on the API index.
+  const href = rpc ? `../../grpc/${rpc.id}/` : "../../grpc/";
+  const label = rpc ? `Connect · ${rpc.summary ?? rpc.path}` : "API reference";
+  return <Redirect href={href} label={label} />;
 }

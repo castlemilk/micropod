@@ -82,7 +82,7 @@ const FIELD_HINTS: [RegExp, () => any][] = [
   [/^networks$/, () => ["micropod0"]],
   [/usedbycontainerids/, () => ["9f2e4a1b3c7d"]],
   [/stoppedcontainercount/, () => 2],
-  [/^profiles$/, () => "debug,test"],
+  [/^profiles$/, () => ["debug", "test"]],
   [/goldenvolumes|^goldens$/, () => ["xcode-cache"]],
   [/^clonemode$/, () => "labels"],
   [/^sync$/, () => "fsync"],
@@ -148,7 +148,11 @@ function hinted(name: string | undefined, schema: any): any {
   if (!name) return undefined;
   const v = fieldHint(name);
   if (v === undefined) return undefined;
-  // Respect nullable hints loosely — a value is still a better example.
+  // Skip hints whose shape mismatches the schema (e.g. a string hint on a
+  // repeated field) — the type dispatch below produces a saner value.
+  const t = primaryType(schema);
+  if (t === "array" && !Array.isArray(v)) return undefined;
+  if (t === "string" && typeof v !== "string") return undefined;
   return v;
 }
 
@@ -173,7 +177,14 @@ export function exampleForSchema(schema: any, name?: string, depth = 0): any {
   if (!schema || typeof schema !== "object") return null;
   if (schema.example !== undefined) return schema.example;
   if (schema.default !== undefined) return schema.default;
-  if (schema.enum?.length) return schema.enum[0];
+  if (schema.enum?.length) {
+    // Proto enums lead with a *_UNSPECIFIED zero value — examples should
+    // show a real variant.
+    return (
+      schema.enum.find((v: any) => typeof v !== "string" || !/unspecified/i.test(v)) ??
+      schema.enum[0]
+    );
+  }
   if (depth > MAX_DEPTH) return fallbackScalar(schema);
 
   const h = hinted(name, schema);
@@ -263,6 +274,18 @@ export const REQUEST_OVERRIDES: Record<string, any> = {
     size: "10g",
     labels: [{ key: "com.micropod.cache.clone", value: "true" }],
     options: [],
+  },
+  "micropod.v1.MicropodService.ComposeUp": {
+    path: "/tmp/docker-compose.yml",
+    profiles: ["debug"],
+  },
+  "micropod.v1.MicropodService.ComposeDown": { name: "web" },
+  "micropod.v1.MicropodService.SetVolumePolicy": {
+    cloneMode: "CLONE_MODE_GOLDENS",
+    goldenVolumes: ["xcode-cache"],
+    jobsOnly: true,
+    sync: "SYNC_MODE_FSYNC",
+    cache: "CACHE_MODE_AUTO",
   },
 };
 

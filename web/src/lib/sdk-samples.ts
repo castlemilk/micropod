@@ -88,6 +88,14 @@ const SWIFT_FACADE: Record<string, { m: string; arg: "none" | "msg" | "ref" }> =
   ListNetworks: { m: "listNetworks", arg: "none" },
   CreateNetwork: { m: "createNetwork", arg: "msg" },
   DeleteNetwork: { m: "deleteNetwork", arg: "msg" },
+  GetUsage: { m: "usage", arg: "none" },
+  GetVolumePolicy: { m: "volumePolicy", arg: "none" },
+  SetVolumePolicy: { m: "setVolumePolicy", arg: "msg" },
+  CheckForUpdates: { m: "checkForUpdates", arg: "none" },
+  GetUpdateStatus: { m: "updateStatus", arg: "none" },
+  ApplyUpdate: { m: "applyUpdate", arg: "none" },
+  ComposeUp: { m: "composeUp", arg: "msg" },
+  ComposeDown: { m: "composeDown", arg: "msg" },
 };
 
 // ---------------------------------------------------------------------------
@@ -265,19 +273,23 @@ const REST_TO_RPC: Record<string, string> = {
   "delete-v1-networks-name": "DeleteNetwork",
   "get-v1-system": "GetSystem",
   "get-v1-stats": "GetStats",
+  "get-v1-usage": "GetUsage",
+  "get-v1-config-volumes": "GetVolumePolicy",
+  "put-v1-config-volumes": "SetVolumePolicy",
+  "post-v1-system-update": "CheckForUpdates",
+  "get-v1-system-update": "GetUpdateStatus",
+  "post-v1-system-update-apply": "ApplyUpdate",
+  "post-v1-compose-up": "ComposeUp",
+  "post-v1-compose-down": "ComposeDown",
 };
 
-/** The Connect endpoint backing a REST route; undefined when REST-only. */
+/** The Connect endpoint backing a legacy REST route; undefined for
+ * REST-only infra routes (health, metrics, vsock bridge). Used by the
+ * /rest/* redirect stubs. */
 export function restRpcEndpoint(route: RestRoute): ParsedEndpoint | undefined {
   const rpc = REST_TO_RPC[route.id];
   if (!rpc) return undefined;
   return loadConnectServices()
     .flatMap((s) => s.spec.endpoints)
     .find((e) => e.operationId?.endsWith(`.${rpc}`));
-}
-
-/** SDK samples for a REST route that maps to a Connect RPC; [] when REST-only. */
-export function restSdkSamples(route: RestRoute): Sample[] {
-  const endpoint = restRpcEndpoint(route);
-  return endpoint ? connectSdkSamples(endpoint) : [];
 }

@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { ParsedEndpoint, RestRoute } from "./types";
+import type { ParsedEndpoint } from "./types";
 import { requestExampleFor } from "./examples";
-import type { RouteShape } from "./rest-links";
 
 export interface Sample {
   label: string;
@@ -23,17 +22,6 @@ function jsLiteral(value: any, indent: string): string {
     .map((l, i) => (i === 0 ? l : indent + l))
     .join("\n");
 }
-
-function substitutePath(path: string, params: Record<string, string>): string {
-  return path.replace(/\{(\w+)\}/g, (_, k) => params[k] ?? `<${k}>`);
-}
-
-const PATH_PARAM_VALUES: Record<string, string> = {
-  id: "9f2e4a1b3c7d",
-  ref: "alpine:3.20",
-  name: "web-data",
-  port: "1024",
-};
 
 // ---------------------------------------------------------------------------
 // Language generators — one per call shape (method, url, body)
@@ -146,12 +134,15 @@ function swiftSample(method: string, url: string, body: any): string {
 }
 
 function samplesForCall(method: string, url: string, body: any): Sample[] {
+  // Raw-HTTP samples are labeled by mechanism (fetch, requests, …) so they
+  // don't collide with the typed SDK tabs (TypeScript, Go, Swift) when the
+  // panel flattens everything into one strip.
   return [
     { label: "cURL", lang: "bash", icon: "bash", code: curlSample(method, url, body) },
-    { label: "JavaScript", lang: "javascript", icon: "javascript", code: jsSample(method, url, body) },
-    { label: "Python", lang: "python", icon: "python", code: pySample(method, url, body) },
-    { label: "Go", lang: "go", icon: "go", code: goSample(method, url, body) },
-    { label: "Swift", lang: "swift", icon: "swift", code: swiftSample(method, url, body) },
+    { label: "fetch", lang: "javascript", icon: "javascript", code: jsSample(method, url, body) },
+    { label: "requests", lang: "python", icon: "python", code: pySample(method, url, body) },
+    { label: "net/http", lang: "go", icon: "go", code: goSample(method, url, body) },
+    { label: "URLSession", lang: "swift", icon: "swift", code: swiftSample(method, url, body) },
   ];
 }
 
@@ -162,20 +153,9 @@ function samplesForCall(method: string, url: string, body: any): Sample[] {
 export function connectSamples(endpoint: ParsedEndpoint, baseUrl: string): Sample[] {
   const body = requestExampleFor(endpoint);
   const url = `${baseUrl}${endpoint.path}`;
-  // Typed-client snippets for MicropodService live in lib/sdk-samples.ts
-  // (rendered as the SDK tab group in the request panel).
+  // Typed-client snippets for MicropodService live in lib/sdk-samples.ts;
+  // the request panel flattens both sets into one tab strip.
   return samplesForCall(endpoint.method, url, body);
-}
-
-// ---------------------------------------------------------------------------
-// REST routes — same five languages, bodies from the curated route shape.
-// ---------------------------------------------------------------------------
-
-export function restSamples(route: RestRoute, shape: RouteShape | undefined, baseUrl: string): Sample[] {
-  const url = `${baseUrl}${substitutePath(route.path, PATH_PARAM_VALUES)}`;
-  const hasBody = route.method === "POST" || route.method === "PUT";
-  const body = hasBody ? (shape?.requestExample ?? {}) : undefined;
-  return samplesForCall(route.method, url, body);
 }
 
 // ---------------------------------------------------------------------------

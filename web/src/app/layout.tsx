@@ -3,25 +3,17 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { SiteHeader } from "@/components/site-header";
 import { Sidebar, type NavSection } from "@/components/sidebar";
-import { buildSearchIndex, loadConnectServices, loadMcpTools, loadRestRoutes, mcpGroups } from "@/lib/data";
+import { buildSearchIndex, loadConnectServices, loadMcpTools, mcpGroups } from "@/lib/data";
 
 export const metadata: Metadata = {
   title: { default: "Micropod API Reference", template: "%s | Micropod API" },
   description:
-    "REST, Connect-RPC, and MCP API reference for Micropod — Docker Desktop-class container management on Apple's container runtime.",
+    "Connect-RPC and MCP API reference for Micropod — Docker Desktop-class container management on Apple's container runtime.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const routes = loadRestRoutes();
   const services = loadConnectServices();
   const tools = loadMcpTools();
-
-  const restByGroup = new Map<string, typeof routes>();
-  for (const r of routes) {
-    const list = restByGroup.get(r.group) ?? [];
-    list.push(r);
-    restByGroup.set(r.group, list);
-  }
 
   const sections: NavSection[] = [
     {
@@ -32,16 +24,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         { label: "Protobuf reference", href: "/proto/" },
       ],
     },
-    ...[...restByGroup.entries()].map(([group, rs]) => ({
-      title: `REST · ${group}`,
-      items: rs.map((r) => ({
-        label: r.path,
-        href: `/rest/${r.id}/`,
-        method: r.method,
-      })),
-    })),
     ...services.map((svc) => ({
-      title: `Connect · ${svc.title}`,
+      // MicropodService is THE daemon API; SandboxContext is the vminitd
+      // guest contract, only reachable over the vsock bridge.
+      title: svc.service.startsWith("micropod.") ? "Micropod API" : `Guest API · ${svc.title}`,
       items: svc.spec.endpoints.map((e) => ({
         label: e.summary ?? e.path,
         href: `/grpc/${e.id}/`,

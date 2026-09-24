@@ -17,8 +17,7 @@ export function SiteHeader({ searchItems }: { searchItems: SearchItem[] }) {
         </a>
 
         <nav className="ml-4 hidden items-center gap-4 text-sm text-muted md:flex">
-          <Link href="/rest/" className="hover:text-foreground">REST</Link>
-          <Link href="/grpc/" className="hover:text-foreground">Connect</Link>
+          <Link href="/grpc/" className="hover:text-foreground">API</Link>
           <Link href="/mcp/" className="hover:text-foreground">MCP</Link>
           <Link href="/proto/" className="hover:text-foreground">Proto</Link>
         </nav>

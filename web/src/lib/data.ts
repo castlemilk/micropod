@@ -269,19 +269,10 @@ export function buildSearchIndex(): SearchItem[] {
       href: "/sdk/",
     },
   ];
-  for (const r of loadRestRoutes()) {
-    items.push({
-      kind: "REST",
-      title: `${r.method} ${r.path}`,
-      subtitle: r.description,
-      href: `/rest/${r.id}/`,
-      method: r.method,
-    });
-  }
   for (const svc of loadConnectServices()) {
     for (const e of svc.spec.endpoints) {
       items.push({
-        kind: "Connect",
+        kind: svc.service.startsWith("micropod.") ? "API" : "Guest",
         title: e.summary ?? e.path,
         subtitle: `${svc.title} · ${e.description ?? ""}`.trim(),
         href: `/grpc/${e.id}/`,
