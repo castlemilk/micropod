@@ -15,6 +15,20 @@
   "paths": {},
   "components": {
     "schemas": {
+      "micropod.v1.ComposeDownRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name",
+            "minLength": 1,
+            "description": "Compose project name."
+          }
+        },
+        "title": "ComposeDownRequest",
+        "additionalProperties": false,
+        "description": "Tear down a compose project's containers."
+      },
       "micropod.v1.ComposeNetwork": {
         "type": "object",
         "properties": {
@@ -457,6 +471,51 @@
         },
         "title": "VolumesEntry",
         "additionalProperties": false
+      },
+      "micropod.v1.ComposeUpEvent": {
+        "type": "object",
+        "properties": {
+          "line": {
+            "type": "string",
+            "title": "line",
+            "description": "Progress output line \u2014 empty on the terminal event."
+          },
+          "name": {
+            "type": "string",
+            "title": "name",
+            "description": "Compose project name \u2014 set only on the terminal event."
+          },
+          "done": {
+            "type": "boolean",
+            "title": "done",
+            "description": "True on the terminal event once every service is up."
+          }
+        },
+        "title": "ComposeUpEvent",
+        "additionalProperties": false,
+        "description": "One ComposeUp stream event: progress output lines, then a terminal\n marker once every service is up."
+      },
+      "micropod.v1.ComposeUpRequest": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "path",
+            "minLength": 1,
+            "description": "Absolute path to the compose YAML on the host."
+          },
+          "profiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "profiles",
+            "description": "Compose profiles to enable (service runs only when one matches)."
+          }
+        },
+        "title": "ComposeUpRequest",
+        "additionalProperties": false,
+        "description": "Bring a compose project up from a spec file \u2014 ComposeUp streams progress."
       },
       "micropod.v1.ComposeVolume": {
         "type": "object",

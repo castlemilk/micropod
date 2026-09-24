@@ -14,6 +14,347 @@
     }
   },
   "paths": {
+    "/api/micropod.v1.MicropodService/ApplyUpdate": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "ApplyUpdate",
+        "description": "Quit the app so a downloaded update installs and relaunches. Fails\n with `failed_precondition` until `UpdateStatus.ready_to_install`.",
+        "operationId": "micropod.v1.MicropodService.ApplyUpdate",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.UpdateStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/CheckForUpdates": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "CheckForUpdates",
+        "description": "Trigger a background update check in the desktop app (Sparkle).\n Fails with `unavailable` when the app isn't running.",
+        "operationId": "micropod.v1.MicropodService.CheckForUpdates",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.UpdateStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/ComposeDown": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "ComposeDown",
+        "description": "Tear down a compose project's containers.",
+        "operationId": "micropod.v1.MicropodService.ComposeDown",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ComposeDownRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/ComposeUp": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "ComposeUp",
+        "description": "Run a compose spec file, streaming progress lines (server streaming).",
+        "operationId": "micropod.v1.MicropodService.ComposeUp",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/connect+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ComposeUpRequest"
+              }
+            },
+            "application/connect+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ComposeUpRequest"
+              }
+            },
+            "application/grpc": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ComposeUpRequest"
+              }
+            },
+            "application/grpc+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ComposeUpRequest"
+              }
+            },
+            "application/grpc+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ComposeUpRequest"
+              }
+            },
+            "application/grpc-web": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ComposeUpRequest"
+              }
+            },
+            "application/grpc-web+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ComposeUpRequest"
+              }
+            },
+            "application/grpc-web+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ComposeUpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ComposeUpEvent"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ComposeUpEvent"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ComposeUpEvent"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ComposeUpEvent"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ComposeUpEvent"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ComposeUpEvent"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ComposeUpEvent"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ComposeUpEvent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/micropod.v1.MicropodService/CreateContainer": {
       "post": {
         "tags": [
@@ -604,6 +945,183 @@
         }
       }
     },
+    "/api/micropod.v1.MicropodService/GetUpdateStatus": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "GetUpdateStatus",
+        "description": "Last-known updater status from the desktop app.",
+        "operationId": "micropod.v1.MicropodService.GetUpdateStatus",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.UpdateStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/GetUsage": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "GetUsage",
+        "description": "What a cleanup would reclaim: images and volumes annotated with the\n containers that reference them.",
+        "operationId": "micropod.v1.MicropodService.GetUsage",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.UsageReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MicropodService/GetVolumePolicy": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "GetVolumePolicy",
+        "description": "Named-volume mount policy applied on container create across every\n surface (API, shim, app, CLI, MCP).",
+        "operationId": "micropod.v1.MicropodService.GetVolumePolicy",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.VolumePolicy"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/micropod.v1.MicropodService/KillContainer": {
       "post": {
         "tags": [
@@ -1181,6 +1699,65 @@
         }
       }
     },
+    "/api/micropod.v1.MicropodService/SetVolumePolicy": {
+      "post": {
+        "tags": [
+          "micropod.v1.MicropodService"
+        ],
+        "summary": "SetVolumePolicy",
+        "description": "Replace the volume mount policy; returns the stored policy.",
+        "operationId": "micropod.v1.MicropodService.SetVolumePolicy",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.VolumePolicy"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.VolumePolicy"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/micropod.v1.MicropodService/StartContainer": {
       "post": {
         "tags": [
@@ -1554,6 +2131,65 @@
         },
         "additionalProperties": true,
         "description": "Contains an arbitrary serialized message along with a @type that describes the type of the serialized message, with an additional debug field for ConnectRPC error details."
+      },
+      "micropod.v1.ComposeDownRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name",
+            "minLength": 1,
+            "description": "Compose project name."
+          }
+        },
+        "title": "ComposeDownRequest",
+        "additionalProperties": false,
+        "description": "Tear down a compose project's containers."
+      },
+      "micropod.v1.ComposeUpEvent": {
+        "type": "object",
+        "properties": {
+          "line": {
+            "type": "string",
+            "title": "line",
+            "description": "Progress output line \u2014 empty on the terminal event."
+          },
+          "name": {
+            "type": "string",
+            "title": "name",
+            "description": "Compose project name \u2014 set only on the terminal event."
+          },
+          "done": {
+            "type": "boolean",
+            "title": "done",
+            "description": "True on the terminal event once every service is up."
+          }
+        },
+        "title": "ComposeUpEvent",
+        "additionalProperties": false,
+        "description": "One ComposeUp stream event: progress output lines, then a terminal\n marker once every service is up."
+      },
+      "micropod.v1.ComposeUpRequest": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "path",
+            "minLength": 1,
+            "description": "Absolute path to the compose YAML on the host."
+          },
+          "profiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "profiles",
+            "description": "Compose profiles to enable (service runs only when one matches)."
+          }
+        },
+        "title": "ComposeUpRequest",
+        "additionalProperties": false,
+        "description": "Bring a compose project up from a spec file \u2014 ComposeUp streams progress."
       },
       "micropod.v1.Container": {
         "type": "object",
@@ -2684,6 +3320,174 @@
         "additionalProperties": false,
         "description": "Runtime health, mapped from `container system status`."
       },
+      "micropod.v1.UpdateStatus": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "title": "state",
+            "description": "Updater lifecycle state.",
+            "$ref": "#/components/schemas/micropod.v1.UpdateStatus.State"
+          },
+          "feedConfigured": {
+            "type": "boolean",
+            "title": "feed_configured",
+            "description": "Whether a Sparkle feed URL is configured."
+          },
+          "currentVersion": {
+            "type": "string",
+            "title": "current_version",
+            "description": "Currently running app version."
+          },
+          "availableVersion": {
+            "type": "string",
+            "title": "available_version",
+            "description": "Version available on the feed, if an update was found."
+          },
+          "downloaded": {
+            "type": "boolean",
+            "title": "downloaded",
+            "description": "True once an update has finished downloading."
+          },
+          "downloadedVersion": {
+            "type": "string",
+            "title": "downloaded_version",
+            "description": "Version staged for install."
+          },
+          "readyToInstall": {
+            "type": "boolean",
+            "title": "ready_to_install",
+            "description": "True when ApplyUpdate will succeed immediately."
+          },
+          "error": {
+            "type": "string",
+            "title": "error",
+            "description": "Last updater error, when `state` is STATE_ERROR."
+          },
+          "checkedAt": {
+            "type": "string",
+            "title": "checked_at",
+            "description": "ISO8601 time of the last completed check."
+          }
+        },
+        "title": "UpdateStatus",
+        "additionalProperties": false,
+        "description": "Desktop-app updater status (Sparkle), proxied over the app control\n socket. Reported by CheckForUpdates, GetUpdateStatus, and ApplyUpdate."
+      },
+      "micropod.v1.UpdateStatus.State": {
+        "type": "string",
+        "title": "State",
+        "enum": [
+          "STATE_UNSPECIFIED",
+          "STATE_UNAVAILABLE",
+          "STATE_IDLE",
+          "STATE_CHECKING",
+          "STATE_UP_TO_DATE",
+          "STATE_UPDATE_AVAILABLE",
+          "STATE_INSTALLING",
+          "STATE_ERROR"
+        ],
+        "description": "Updater lifecycle state."
+      },
+      "micropod.v1.UsageReport": {
+        "type": "object",
+        "properties": {
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.UsageReport.ImageUsage"
+            },
+            "title": "images",
+            "description": "Every local image with its referencing containers."
+          },
+          "volumes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.UsageReport.VolumeUsage"
+            },
+            "title": "volumes",
+            "description": "Every local volume with its mounting containers."
+          },
+          "reclaimableImageBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "reclaimable_image_bytes",
+            "format": "int64",
+            "description": "Bytes reclaimable by pruning unreferenced images."
+          },
+          "reclaimableVolumeBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "reclaimable_volume_bytes",
+            "format": "int64",
+            "description": "Bytes reclaimable by pruning unmounted volumes."
+          },
+          "stoppedContainerCount": {
+            "type": "integer",
+            "title": "stopped_container_count",
+            "format": "int32",
+            "description": "Number of stopped containers."
+          }
+        },
+        "title": "UsageReport",
+        "additionalProperties": false,
+        "description": "What a cleanup would reclaim: every image and volume annotated with the\n containers that reference it."
+      },
+      "micropod.v1.UsageReport.ImageUsage": {
+        "type": "object",
+        "properties": {
+          "image": {
+            "title": "image",
+            "description": "The image.",
+            "$ref": "#/components/schemas/micropod.v1.Image"
+          },
+          "usedByContainerIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "used_by_container_ids",
+            "description": "IDs of containers referencing this image."
+          },
+          "inUse": {
+            "type": "boolean",
+            "title": "in_use",
+            "description": "True when at least one container references the image."
+          }
+        },
+        "title": "ImageUsage",
+        "additionalProperties": false,
+        "description": "An image plus the containers that reference it."
+      },
+      "micropod.v1.UsageReport.VolumeUsage": {
+        "type": "object",
+        "properties": {
+          "volume": {
+            "title": "volume",
+            "description": "The volume.",
+            "$ref": "#/components/schemas/micropod.v1.Volume"
+          },
+          "usedByContainerIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "used_by_container_ids",
+            "description": "IDs of containers mounting this volume."
+          },
+          "inUse": {
+            "type": "boolean",
+            "title": "in_use",
+            "description": "True when at least one container mounts the volume."
+          }
+        },
+        "title": "VolumeUsage",
+        "additionalProperties": false,
+        "description": "A volume plus the containers mounting it."
+      },
       "micropod.v1.Volume": {
         "type": "object",
         "properties": {
@@ -2749,6 +3553,75 @@
         },
         "title": "LabelsEntry",
         "additionalProperties": false
+      },
+      "micropod.v1.VolumePolicy": {
+        "type": "object",
+        "properties": {
+          "cloneMode": {
+            "title": "clone_mode",
+            "description": "Which named-volume mounts get clonefile-forked per container.",
+            "$ref": "#/components/schemas/micropod.v1.VolumePolicy.CloneMode"
+          },
+          "goldenVolumes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "golden_volumes",
+            "description": "Volume names auto-cloned under `CLONE_MODE_GOLDENS`."
+          },
+          "jobsOnly": {
+            "type": "boolean",
+            "title": "jobs_only",
+            "description": "Restrict cloning to job-labelled containers (`com.cuttlefish.job` /\n `com.micropod.job`). Per-container clone labels always apply."
+          },
+          "sync": {
+            "title": "sync",
+            "description": "Writeback sync mode override; `SYNC_MODE_UNSPECIFIED` keeps the\n per-mount default.",
+            "$ref": "#/components/schemas/micropod.v1.VolumePolicy.SyncMode"
+          },
+          "cache": {
+            "title": "cache",
+            "description": "VZ disk-image cache mode.",
+            "$ref": "#/components/schemas/micropod.v1.VolumePolicy.CacheMode"
+          }
+        },
+        "title": "VolumePolicy",
+        "additionalProperties": false,
+        "description": "Named-volume mount policy \u2014 read on container create by every surface\n (API, docker shim, app, CLI, MCP). Per-container `com.micropod.*` labels\n take precedence over this policy."
+      },
+      "micropod.v1.VolumePolicy.CacheMode": {
+        "type": "string",
+        "title": "CacheMode",
+        "enum": [
+          "CACHE_MODE_UNSPECIFIED",
+          "CACHE_MODE_ON",
+          "CACHE_MODE_OFF",
+          "CACHE_MODE_AUTO"
+        ],
+        "description": "VZ disk-image caching mode."
+      },
+      "micropod.v1.VolumePolicy.CloneMode": {
+        "type": "string",
+        "title": "CloneMode",
+        "enum": [
+          "CLONE_MODE_UNSPECIFIED",
+          "CLONE_MODE_LABELS",
+          "CLONE_MODE_GOLDENS",
+          "CLONE_MODE_ALL"
+        ],
+        "description": "Which named-volume mounts get clonefile-forked per container."
+      },
+      "micropod.v1.VolumePolicy.SyncMode": {
+        "type": "string",
+        "title": "SyncMode",
+        "enum": [
+          "SYNC_MODE_UNSPECIFIED",
+          "SYNC_MODE_FULL",
+          "SYNC_MODE_FSYNC",
+          "SYNC_MODE_NOSYNC"
+        ],
+        "description": "Writeback sync mode for volume disk images."
       }
     }
   },
