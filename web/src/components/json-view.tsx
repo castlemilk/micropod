@@ -110,13 +110,25 @@ export function JsonView({ value, raw }: { value?: any; raw?: string }) {
       >
         {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
       </button>
-      <pre className="overflow-auto p-4 font-mono text-[12.5px] leading-relaxed">
-        <code>
-          {tokens.map((t, i) => (
-            <span key={i} className={t.cls || undefined}>
-              {t.text}
-            </span>
-          ))}
+      <pre className="overflow-auto py-3 font-mono text-[12.5px] leading-relaxed">
+        <code className="grid grid-cols-[auto_1fr]">
+          <span
+            aria-hidden
+            className="sticky left-0 select-none border-r border-border/50 pr-3 pl-4 text-right text-muted/40"
+          >
+            {src.split("\n").map((_, i) => (
+              <span key={i} className="block">
+                {i + 1}
+              </span>
+            ))}
+          </span>
+          <span className="pl-3 pr-4">
+            {tokens.map((t, i) => (
+              <span key={i} className={t.cls || undefined}>
+                {t.text}
+              </span>
+            ))}
+          </span>
         </code>
       </pre>
     </div>

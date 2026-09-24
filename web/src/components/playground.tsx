@@ -191,7 +191,7 @@ export function Playground({ method, path, requestSchema, requestExample, query,
               "w-full rounded-md py-2 text-[12px] font-semibold transition-colors",
               sending
                 ? "bg-secondary text-muted"
-                : "bg-primary text-primary-foreground hover:opacity-90",
+                : "bg-success text-black hover:opacity-90",
             )}
           >
             {sending ? "Sending…" : "Send Request"}

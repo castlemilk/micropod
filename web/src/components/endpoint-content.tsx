@@ -1,21 +1,29 @@
 import React from "react";
 import type { ParsedEndpoint } from "@/lib/types";
 import { PayloadExplorer } from "./payload-explorer";
-import { MethodBadge } from "./method-badge";
 import { exampleForSchema, typeLabel } from "@/lib/examples";
 import { cn } from "@/lib/utils";
 
-export function EndpointContent({ endpoint }: { endpoint: ParsedEndpoint }) {
+export function EndpointContent({
+  endpoint,
+  eyebrow,
+  actions,
+  urlBar,
+}: {
+  endpoint: ParsedEndpoint;
+  eyebrow?: string;
+  actions?: React.ReactNode;
+  urlBar?: React.ReactNode;
+}) {
   return (
     <div className="space-y-8 pb-16">
       <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <MethodBadge method={endpoint.method} />
-          <code className="font-mono text-sm text-muted">{endpoint.path}</code>
-        </div>
+        {eyebrow && <p className="text-[13px] font-medium text-primary">{eyebrow}</p>}
         <h1 className="text-3xl font-bold tracking-tight">
           {endpoint.summary ?? endpoint.path}
         </h1>
+        {actions}
+        {urlBar}
         {endpoint.description && (
           <p className="text-muted">{endpoint.description}</p>
         )}

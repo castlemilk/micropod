@@ -8,6 +8,8 @@ import {
   mcpInputSchema,
 } from "@/lib/examples";
 import { mcpSamples } from "@/lib/code-samples";
+import { toolMarkdown } from "@/lib/markdown";
+import { PageActions } from "@/components/page-actions";
 import { PayloadExplorer } from "@/components/payload-explorer";
 import { RequestPanel } from "@/components/request-panel";
 import { TerminalSquare } from "lucide-react";
@@ -37,16 +39,19 @@ export default function McpToolPage({ params }: { params: { tool: string } }) {
     <div className="xl:grid xl:grid-cols-[1fr_420px]">
       <div className="space-y-8 px-6 py-8 pb-16 md:px-8">
         <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <TerminalSquare className="h-5 w-5 text-warn" />
-            <code className="font-mono text-sm text-muted">tools/call</code>
-          </div>
-          <h1 className="font-mono text-3xl font-bold tracking-tight">{tool.name}</h1>
-          <p className="text-muted">{description}</p>
-          <p className="text-sm text-muted">
-            MCP · JSON-RPC over stdin/stdout via the{" "}
-            <code className="font-mono text-xs">micropod-mcp</code> binary
+          <p className="flex items-center gap-1.5 text-[13px] font-medium text-primary">
+            <TerminalSquare className="h-3.5 w-3.5" /> MCP · tools/call
           </p>
+          <h1 className="font-mono text-3xl font-bold tracking-tight">{tool.name}</h1>
+          <PageActions
+            markdown={toolMarkdown({ name: tool.name, description, argsExample: args })}
+          />
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-card/60 px-3.5 py-2.5">
+            <code className="min-w-0 flex-1 truncate font-mono text-[13px] text-muted">
+              micropod-mcp · stdio JSON-RPC 2.0
+            </code>
+          </div>
+          <p className="text-muted">{description}</p>
         </div>
 
         {schema ? (

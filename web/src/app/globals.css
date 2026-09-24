@@ -27,3 +27,17 @@ body {
 ::selection {
   background: rgba(10, 132, 255, 0.35);
 }
+
+/* Prism token palette — matches JsonView (keys blue, strings green,
+   numbers amber, literals violet, punctuation muted). */
+.tok-comment { color: #5f7191; font-style: italic; }
+.tok-string { color: #5fd68b; }
+.tok-number { color: #ffd60a; }
+.tok-keyword { color: #bf8bff; }
+.tok-function { color: #7cb3ff; }
+.tok-property { color: #7cb3ff; }
+.tok-operator { color: #8b9bb8; }
+.tok-punct { color: #8b9bb8; }
+.tok-type { color: #6fd0e0; }
+.tok-variable { color: #ffb86c; }
+.tok-deleted { color: #ff453a; }

@@ -5,10 +5,13 @@ import { getRestRoute, loadRestRoutes, REST_BASE_URL } from "@/lib/data";
 import { restSamples } from "@/lib/code-samples";
 import { restShape } from "@/lib/rest-links";
 import { MethodBadge } from "@/components/method-badge";
+import { PageActions } from "@/components/page-actions";
 import { PayloadExplorer } from "@/components/payload-explorer";
 import { Playground } from "@/components/playground";
 import { RequestPanel } from "@/components/request-panel";
+import { EndpointUrlBar } from "@/components/url-bar";
 import { JsonView } from "@/components/json-view";
+import { endpointMarkdown } from "@/lib/markdown";
 import { cn } from "@/lib/utils";
 
 export function generateStaticParams() {
@@ -28,7 +31,6 @@ export default function RestRoutePage({ params }: { params: { route: string } })
   const route = getRestRoute(params.route);
   if (!route) return notFound();
   const shape = restShape(route);
-  const okResponse = shape?.responses.find((r) => r.status.startsWith("2"));
 
   // The vsock bridge is a raw duplex byte pipe — not playable over fetch.
   const playable = route.id !== "get-v1-containers-id-vsock-port";
@@ -50,31 +52,43 @@ export default function RestRoutePage({ params }: { params: { route: string } })
       }
       samples={restSamples(route, shape, REST_BASE_URL)}
       heading={`${route.method} ${route.path}`}
-      response={
-        okResponse
-          ? {
-              status: okResponse.status,
-              body: okResponse.example,
-              raw: typeof okResponse.example === "string" ? okResponse.example : undefined,
-              note: okResponse.stream,
-            }
-          : undefined
-      }
+      url={`${REST_BASE_URL}${route.path}`}
+      responses={shape?.responses.map((r) => ({
+        status: r.status,
+        label: r.description,
+        body: typeof r.example === "string" ? undefined : r.example,
+        raw: typeof r.example === "string" ? r.example : undefined,
+        note: r.stream,
+      }))}
     />
   );
 
   return (
     <div className="xl:grid xl:grid-cols-[1fr_420px]">
       <div className="space-y-8 px-6 py-8 pb-16 md:px-8">
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <MethodBadge method={route.method} />
-            <code className="font-mono text-sm text-muted">{route.path}</code>
+        <div className="space-y-4">
+          <div className="space-y-3">
+            <p className="text-[13px] font-medium text-primary">{route.group}</p>
+            <h1 className="text-3xl font-bold tracking-tight">{route.description}</h1>
+            <PageActions
+              markdown={endpointMarkdown({
+                title: route.description,
+                method: route.method,
+                url: `${REST_BASE_URL}${route.path}`,
+                requestExample: shape?.requestExample,
+                responses: shape?.responses.map((r) => ({
+                  status: r.status,
+                  description: r.description,
+                  example: r.example,
+                })),
+                notes: playable
+                  ? undefined
+                  : "Note: this endpoint bridges to a raw duplex byte stream — it cannot be exercised from a browser.",
+              })}
+              curl={restSamples(route, shape, REST_BASE_URL).find((s) => s.label === "cURL")?.code}
+            />
+            <EndpointUrlBar method={route.method} url={`${REST_BASE_URL}${route.path}`} />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">{route.description}</h1>
-          <p className="text-sm text-muted">
-            {route.group} · served on {REST_BASE_URL}
-          </p>
         </div>
 
         {(route.pathParams.length > 0 || (shape?.query?.length ?? 0) > 0) && (

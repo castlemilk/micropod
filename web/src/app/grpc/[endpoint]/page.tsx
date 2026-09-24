@@ -3,9 +3,12 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getConnectEndpoint, loadConnectServices, REST_BASE_URL } from "@/lib/data";
 import { connectSamples } from "@/lib/code-samples";
-import { responseExampleFor } from "@/lib/examples";
+import { exampleForSchema, responseExampleFor } from "@/lib/examples";
+import { endpointMarkdown } from "@/lib/markdown";
 import { EndpointContent } from "@/components/endpoint-content";
+import { PageActions } from "@/components/page-actions";
 import { Playground } from "@/components/playground";
+import { EndpointUrlBar } from "@/components/url-bar";
 import { RequestPanel } from "@/components/request-panel";
 
 export function generateStaticParams() {
@@ -55,7 +58,10 @@ export default function ConnectEndpointPage({
       }
       samples={samples}
       heading={`${endpoint.method} ${endpoint.path}`}
-      response={ok ? { status: ok.status, body: ok.body } : undefined}
+      url={`${REST_BASE_URL}${endpoint.path}`}
+      responses={
+        ok ? [{ status: ok.status, label: "OK", body: ok.body }] : undefined
+      }
     />
   );
 
@@ -69,7 +75,33 @@ export default function ConnectEndpointPage({
             <code className="mx-1 font-mono text-xs">/v1/containers/{"{id}"}/vsock/{"{port}"}</code>).
           </p>
         )}
-        <EndpointContent endpoint={endpoint} />
+        <EndpointContent
+          endpoint={endpoint}
+          eyebrow={service.title}
+          actions={
+            <PageActions
+              markdown={endpointMarkdown({
+                title: endpoint.summary ?? endpoint.path,
+                method: endpoint.method,
+                url: `${REST_BASE_URL}${endpoint.path}`,
+                description: endpoint.description,
+                requestExample: schema ? exampleForSchema(schema) : undefined,
+                responses: ok
+                  ? [{ status: ok.status, description: "Success", example: ok.body }]
+                  : undefined,
+                notes: isSandbox
+                  ? "Guest-side contract — served by vminitd over vsock port 1024 inside each container VM, not over host HTTP."
+                  : undefined,
+              })}
+              curl={samples.find((s) => s.label === "cURL")?.code}
+            />
+          }
+          urlBar={
+            !isSandbox ? (
+              <EndpointUrlBar method={endpoint.method} url={`${REST_BASE_URL}${endpoint.path}`} />
+            ) : undefined
+          }
+        />
       </div>
       <div className="hidden xl:block">
         <div className="sticky top-14 h-[calc(100vh-3.5rem)]">{panel}</div>
