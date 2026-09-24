@@ -3,17 +3,15 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getRestRoute, loadRestRoutes, REST_BASE_URL } from "@/lib/data";
 import { restSamples } from "@/lib/code-samples";
-import { restSdkSamples } from "@/lib/sdk-samples";
-import { restShape } from "@/lib/rest-links";
-import { MethodBadge } from "@/components/method-badge";
+import { restRpcEndpoint, restSdkSamples } from "@/lib/sdk-samples";
+import { intersectSchema, restShape } from "@/lib/rest-links";
 import { PageActions } from "@/components/page-actions";
 import { PayloadExplorer } from "@/components/payload-explorer";
 import { Playground } from "@/components/playground";
-import { RequestPanel } from "@/components/request-panel";
+import { RequestPanel, type ResponseOption } from "@/components/request-panel";
+import { ResponseExplorer } from "@/components/response-explorer";
 import { EndpointUrlBar } from "@/components/url-bar";
-import { JsonView } from "@/components/json-view";
 import { endpointMarkdown } from "@/lib/markdown";
-import { cn } from "@/lib/utils";
 
 export function generateStaticParams() {
   return loadRestRoutes().map((r) => ({ route: r.id }));
@@ -37,6 +35,26 @@ export default function RestRoutePage({ params }: { params: { route: string } })
   const playable = route.id !== "get-v1-containers-id-vsock-port";
   const isSse = shape?.responses.some((r) => r.stream?.includes("event-stream")) ?? false;
 
+  // Response schemas: curated on the shape, otherwise trimmed from the backing
+  // RPC's proto contract (intersected with the projected example body).
+  const rpc = restRpcEndpoint(route);
+  const rpcOkSchema = rpc?.responses?.["200"]?.content?.["application/json"]?.schema;
+  const responseItems: ResponseOption[] | undefined = shape?.responses.map((r) => {
+    const schema =
+      r.schema ??
+      (r.status.startsWith("2") && !r.stream && rpcOkSchema
+        ? intersectSchema(rpcOkSchema, r.example)
+        : undefined);
+    return {
+      status: r.status,
+      label: r.description,
+      schema,
+      body: typeof r.example === "string" ? undefined : r.example,
+      raw: typeof r.example === "string" ? r.example : undefined,
+      note: r.stream,
+    };
+  });
+
   const panel = (
     <RequestPanel
       playground={
@@ -55,13 +73,7 @@ export default function RestRoutePage({ params }: { params: { route: string } })
       sdkSamples={restSdkSamples(route)}
       heading={`${route.method} ${route.path}`}
       url={`${REST_BASE_URL}${route.path}`}
-      responses={shape?.responses.map((r) => ({
-        status: r.status,
-        label: r.description,
-        body: typeof r.example === "string" ? undefined : r.example,
-        raw: typeof r.example === "string" ? r.example : undefined,
-        note: r.stream,
-      }))}
+      responses={responseItems}
     />
   );
 
@@ -139,44 +151,13 @@ export default function RestRoutePage({ params }: { params: { route: string } })
 
         <section className="space-y-4">
           <h2 className="border-b border-border pb-2 text-xl font-semibold">Responses</h2>
-          <div className="space-y-4">
-            {shape?.responses.map((r, i) => (
-              <div key={i} className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      "rounded px-1.5 py-0.5 font-mono text-xs font-bold",
-                      r.status.startsWith("2")
-                        ? "bg-success/10 text-success"
-                        : "bg-destructive/10 text-destructive",
-                    )}
-                  >
-                    {r.status}
-                  </span>
-                  <span className="text-sm font-medium">{r.description}</span>
-                </div>
-                {r.stream && (
-                  <p className="pl-1 font-mono text-[11px] text-warn/90">{r.stream}</p>
-                )}
-                {r.example !== undefined && (
-                  <div className="overflow-hidden rounded-lg border border-border bg-card/60">
-                    {typeof r.example === "string" ? (
-                      <pre className="overflow-auto p-4 font-mono text-[12px] leading-relaxed text-muted">
-                        {r.example}
-                      </pre>
-                    ) : (
-                      <JsonView value={r.example} />
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-            {!shape && (
-              <p className="text-sm text-muted">
-                Returns a JSON status object; see the samples panel for the call shape.
-              </p>
-            )}
-          </div>
+          {responseItems && responseItems.length > 0 ? (
+            <ResponseExplorer items={responseItems} />
+          ) : (
+            <p className="text-sm text-muted">
+              Returns a JSON status object; see the samples panel for the call shape.
+            </p>
+          )}
         </section>
       </div>
 

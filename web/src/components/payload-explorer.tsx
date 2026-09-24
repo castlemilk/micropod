@@ -14,6 +14,23 @@ import {
 } from "@/lib/examples";
 import { JsonView } from "./json-view";
 
+// buf.validate constraints surfaced by the OpenAPI generator — shown as small
+// badges so rules like `image` being non-empty are visible next to the type.
+function constraints(schema: any): string[] {
+  const out: string[] = [];
+  if (schema.minLength !== undefined) out.push(`min length ${schema.minLength}`);
+  if (schema.maxLength !== undefined) out.push(`max length ${schema.maxLength}`);
+  if (schema.pattern !== undefined) out.push(`pattern ${schema.pattern}`);
+  if (schema.minimum !== undefined) out.push(`≥ ${schema.minimum}`);
+  if (schema.exclusiveMinimum !== undefined) out.push(`> ${schema.exclusiveMinimum}`);
+  if (schema.maximum !== undefined) out.push(`≤ ${schema.maximum}`);
+  if (schema.exclusiveMaximum !== undefined) out.push(`< ${schema.exclusiveMaximum}`);
+  if (schema.minItems !== undefined) out.push(`min items ${schema.minItems}`);
+  if (schema.maxItems !== undefined) out.push(`max items ${schema.maxItems}`);
+  if (schema.minProperties !== undefined) out.push(`min props ${schema.minProperties}`);
+  return out;
+}
+
 function shortExample(value: any): string | undefined {
   if (value === undefined) return undefined;
   if (typeof value === "object") return undefined;
@@ -167,6 +184,14 @@ function FieldNode({ schema, name, required, depth, expandAll }: NodeProps) {
             {schema.format && !isInt64(schema) && (
               <span className="font-mono text-[10px] text-muted/70">{schema.format}</span>
             )}
+            {constraints(schema).map((c) => (
+              <span
+                key={c}
+                className="rounded-sm bg-warn/10 px-1 font-mono text-[10px] leading-4 text-warn/90"
+              >
+                {c}
+              </span>
+            ))}
           </div>
           {schema.description && (
             <p className="mt-0.5 max-w-prose text-[12px] leading-snug text-muted">
@@ -218,9 +243,11 @@ interface PayloadExplorerProps {
   /** Section label shown above the toggle, e.g. "Request body". */
   label?: string;
   defaultView?: "fields" | "example";
+  /** Render without the outer card chrome — for embedding inside another card. */
+  bare?: boolean;
 }
 
-export function PayloadExplorer({ schema, example, label, defaultView = "fields" }: PayloadExplorerProps) {
+export function PayloadExplorer({ schema, example, label, defaultView = "fields", bare }: PayloadExplorerProps) {
   const hasFields =
     schema &&
     (schema.properties ||
@@ -238,8 +265,8 @@ export function PayloadExplorer({ schema, example, label, defaultView = "fields"
   const showExample = view === "example" || !hasFields;
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card/60">
-      <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
+    <div className={cn(!bare && "overflow-hidden rounded-lg border border-border bg-card/60")}>
+      <div className={cn("flex items-center justify-between px-3 py-1.5", !bare && "border-b border-border")}>
         <div className="flex items-center gap-2">
           {label && <span className="text-xs font-semibold">{label}</span>}
           <div className="flex rounded-md bg-secondary/60 p-0.5">

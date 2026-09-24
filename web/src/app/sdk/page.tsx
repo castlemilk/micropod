@@ -46,13 +46,15 @@ resp, err := client.ListContainers(ctx,
     install: "npm install @micropod/sdk",
     source: "sdk/ts",
     blurb:
-      "protobuf-es v2 messages + connect-es client. Fetch transport — runs on Node 18+, browsers, and edge runtimes.",
+      "protobuf-es v2 messages + connect-es client. Fetch transport — runs on Node 18+, browsers, and edge runtimes. Requests are checked against the buf.validate constraints before they hit the wire.",
     quickstart: `import { createMicropodClient } from "@micropod/sdk";
 
 const client = createMicropodClient("${REST_BASE_URL}", {
   retry: { maxAttempts: 3 },
   timeoutMs: 10_000,
   otel: true, // or { tracer, meter }
+  // validate: false disables client-side buf.validate checks
+  // (on by default — bad requests fail fast with invalid_argument)
 });
 
 const { containers } = await client.listContainers({});

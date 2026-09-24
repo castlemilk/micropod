@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Copy, Play } from "lucide-react";
 import { CodeBlock } from "./code-block";
 import { JsonView } from "./json-view";
 import { LangIcon } from "./lang-icons";
+import { PayloadExplorer } from "./payload-explorer";
 import type { Sample } from "@/lib/code-samples";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +14,8 @@ const TRY_IT = "__tryit";
 export interface ResponseOption {
   status: string;
   label?: string;
+  /** JSON Schema for the body — enables the field explorer. */
+  schema?: any;
   body?: any;
   raw?: string;
   note?: string;
@@ -39,6 +42,99 @@ const METHOD_COLOR: Record<string, string> = {
   DELETE: "text-destructive",
   PATCH: "text-warn",
 };
+
+function statusBadgeClass(status: string): string {
+  return status.startsWith("2")
+    ? "bg-success/15 text-success"
+    : status.startsWith("5") || status.startsWith("4")
+      ? "bg-destructive/15 text-destructive"
+      : "bg-warn/15 text-warn";
+}
+
+export function ResponsePicker({
+  responses,
+  index,
+  onChange,
+}: {
+  responses: ResponseOption[];
+  index: number;
+  onChange: (i: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const current = responses[index];
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+
+  if (responses.length === 1) {
+    return (
+      <span
+        className={cn(
+          "rounded px-1.5 py-0.5 font-mono text-[10px] font-bold",
+          statusBadgeClass(current.status),
+        )}
+      >
+        {current.status}
+      </span>
+    );
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-label="Response status"
+        className={cn(
+          "flex items-center gap-1.5 rounded py-0.5 pl-1.5 pr-1.5 font-mono text-[10px] font-bold",
+          statusBadgeClass(current.status),
+        )}
+      >
+        {current.status}
+        {current.label && (
+          <span className="font-sans font-medium normal-case">{current.label}</span>
+        )}
+        <ChevronDown className="h-3 w-3 opacity-70" />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-1 w-64 overflow-hidden rounded-md border border-border bg-card shadow-lg">
+          {responses.map((r, i) => (
+            <button
+              key={i}
+              onClick={() => {
+                onChange(i);
+                setOpen(false);
+              }}
+              className={cn(
+                "flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-secondary/70",
+                i === index && "bg-secondary/40",
+              )}
+            >
+              <span
+                className={cn(
+                  "rounded px-1.5 py-0.5 font-mono text-[10px] font-bold",
+                  statusBadgeClass(r.status),
+                )}
+              >
+                {r.status}
+              </span>
+              <span className="truncate text-[11.5px] text-foreground">
+                {r.label ?? "Response"}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function RequestPanel({ samples, sdkSamples, heading, url, responses, playground }: RequestPanelProps) {
   const [active, setActive] = useState(playground ? TRY_IT : (samples[0]?.label ?? ""));
@@ -167,42 +263,10 @@ export function RequestPanel({ samples, sdkSamples, heading, url, responses, pla
       )}
 
       {/* Example response card with status selector */}
-      {responses && responses.length > 0 && active !== TRY_IT && (
+      {responses && responses.length > 0 && (
         <div className="max-h-[45%] shrink-0 overflow-auto border-t border-border">
           <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2">
-            {responses.length > 1 ? (
-              <div className="relative">
-                <select
-                  value={respIdx}
-                  onChange={(e) => setRespIdx(Number(e.target.value))}
-                  className={cn(
-                    "appearance-none rounded py-0.5 pl-1.5 pr-6 font-mono text-[10px] font-bold outline-none",
-                    response!.status.startsWith("2")
-                      ? "bg-success/15 text-success"
-                      : "bg-destructive/15 text-destructive",
-                  )}
-                  aria-label="Response status"
-                >
-                  {responses.map((r, i) => (
-                    <option key={i} value={i}>
-                      {r.status} {r.label ?? ""}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-1 top-1/2 h-3 w-3 -translate-y-1/2 opacity-70" />
-              </div>
-            ) : (
-              <span
-                className={cn(
-                  "rounded px-1.5 py-0.5 font-mono text-[10px] font-bold",
-                  response!.status.startsWith("2")
-                    ? "bg-success/15 text-success"
-                    : "bg-destructive/15 text-destructive",
-                )}
-              >
-                {response!.status}
-              </span>
-            )}
+            <ResponsePicker responses={responses} index={respIdx} onChange={setRespIdx} />
             <span className="text-[11px] font-medium text-muted">Response</span>
           </div>
           {response?.note && (
@@ -212,6 +276,8 @@ export function RequestPanel({ samples, sdkSamples, heading, url, responses, pla
             <pre className="overflow-auto p-4 font-mono text-[12px] leading-relaxed text-muted">
               {response.raw}
             </pre>
+          ) : response?.schema ? (
+            <PayloadExplorer schema={response.schema} example={response.body} bare />
           ) : response?.body !== undefined ? (
             <JsonView value={response.body} />
           ) : (

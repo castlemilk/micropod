@@ -267,12 +267,17 @@ const REST_TO_RPC: Record<string, string> = {
   "get-v1-stats": "GetStats",
 };
 
-/** SDK samples for a REST route that maps to a Connect RPC; [] when REST-only. */
-export function restSdkSamples(route: RestRoute): Sample[] {
+/** The Connect endpoint backing a REST route; undefined when REST-only. */
+export function restRpcEndpoint(route: RestRoute): ParsedEndpoint | undefined {
   const rpc = REST_TO_RPC[route.id];
-  if (!rpc) return [];
-  const endpoint = loadConnectServices()
+  if (!rpc) return undefined;
+  return loadConnectServices()
     .flatMap((s) => s.spec.endpoints)
     .find((e) => e.operationId?.endsWith(`.${rpc}`));
+}
+
+/** SDK samples for a REST route that maps to a Connect RPC; [] when REST-only. */
+export function restSdkSamples(route: RestRoute): Sample[] {
+  const endpoint = restRpcEndpoint(route);
   return endpoint ? connectSdkSamples(endpoint) : [];
 }

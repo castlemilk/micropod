@@ -1,20 +1,47 @@
 import React from "react";
 import type { ParsedEndpoint } from "@/lib/types";
 import { PayloadExplorer } from "./payload-explorer";
+import { ResponseExplorer } from "./response-explorer";
+import type { ResponseOption } from "./request-panel";
 import { exampleForSchema, typeLabel } from "@/lib/examples";
-import { cn } from "@/lib/utils";
+
+/** Picks the best schema + stream note out of a response's content map. */
+function responseOption(code: string, response: any): ResponseOption {
+  const content = response.content ?? {};
+  const jsonCt = Object.keys(content).find((ct) => ct === "application/json");
+  const streamCt = Object.keys(content).find(
+    (ct) => ct.includes("connect+") || ct.includes("grpc"),
+  );
+  const ct = jsonCt ?? streamCt ?? Object.keys(content)[0];
+  return {
+    status: code,
+    label: response.description ?? "Response",
+    schema: ct ? content[ct]?.schema : undefined,
+    note: streamCt
+      ? `${streamCt} — server stream; each frame carries one message of this type`
+      : undefined,
+  };
+}
 
 export function EndpointContent({
   endpoint,
   eyebrow,
   actions,
   urlBar,
+  extraResponses,
 }: {
   endpoint: ParsedEndpoint;
   eyebrow?: string;
   actions?: React.ReactNode;
   urlBar?: React.ReactNode;
+  /** Additional response variants (e.g. Connect error envelopes). */
+  extraResponses?: ResponseOption[];
 }) {
+  const responseItems: ResponseOption[] = [
+    ...Object.entries(endpoint.responses).map(([code, r]) => responseOption(code, r)),
+    ...(extraResponses ?? []),
+  ];
+
   return (
     <div className="space-y-8 pb-16">
       <div className="space-y-3">
@@ -75,32 +102,7 @@ export function EndpointContent({
 
       <section className="space-y-4">
         <h2 className="border-b border-border pb-2 text-xl font-semibold">Responses</h2>
-        <div className="space-y-6">
-          {Object.entries(endpoint.responses).map(([code, response], i) => (
-            <div key={i} className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    "rounded px-1.5 py-0.5 font-mono text-xs font-bold",
-                    code.startsWith("2")
-                      ? "bg-success/10 text-success"
-                      : "bg-destructive/10 text-destructive",
-                  )}
-                >
-                  {code}
-                </span>
-                <span className="text-sm font-medium">{response.description}</span>
-              </div>
-              {response.content &&
-                Object.entries(response.content).map(([contentType, content], j) => (
-                  <div key={j} className="space-y-1">
-                    <span className="pl-1 font-mono text-xs text-muted">{contentType}</span>
-                    <PayloadExplorer schema={content.schema} defaultView="example" />
-                  </div>
-                ))}
-            </div>
-          ))}
-        </div>
+        <ResponseExplorer items={responseItems} />
       </section>
     </div>
   );

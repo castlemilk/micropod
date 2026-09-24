@@ -12,6 +12,8 @@ export interface RouteResponse {
   status: string;
   description: string;
   example?: any;
+  /** JSON Schema for the body — drives the response field explorer. */
+  schema?: any;
   stream?: string; // e.g. "text/event-stream of LogChunk lines"
 }
 
@@ -159,6 +161,51 @@ const POLICY_SCHEMA = {
   },
 };
 
+// Every REST handler funnels failures through the same JSON error body.
+export const ERROR_BODY_SCHEMA = {
+  type: "object",
+  title: "ErrorBody",
+  properties: {
+    error: { type: "string", description: "Human-readable error message." },
+  },
+  required: ["error"],
+};
+
+const RUNTIME_ERROR: RouteResponse = {
+  status: "500",
+  description: "Runtime error — any service failure surfaces as {\"error\": …}",
+  example: { error: "internal error" },
+  schema: ERROR_BODY_SCHEMA,
+};
+
+const USAGE_ENTRY = {
+  type: "object",
+  properties: {
+    id: { type: "string", description: "Image or volume identifier." },
+    names: { type: "array", items: { type: "string" }, description: "Image references (images only)." },
+    sizeBytes: { type: "string", description: "On-disk footprint, as a decimal string." },
+    createdAt: { type: "string", description: "Creation timestamp (RFC 3339)." },
+    usedByContainerIDs: {
+      type: "array",
+      items: { type: "string" },
+      description: "Containers currently referencing it.",
+    },
+    inUse: { type: "boolean", description: "True while at least one container references it." },
+  },
+};
+
+const USAGE_SCHEMA = {
+  type: "object",
+  title: "DiskUsage",
+  properties: {
+    images: { type: "array", items: USAGE_ENTRY, description: "Per-image disk usage." },
+    volumes: { type: "array", items: USAGE_ENTRY, description: "Per-volume disk usage." },
+    reclaimableImageBytes: { type: "string", description: "Bytes freed by pruning unused images." },
+    reclaimableVolumeBytes: { type: "string", description: "Bytes freed by pruning unused volumes." },
+    stoppedContainerCount: { type: "integer", description: "Stopped containers still holding disk." },
+  },
+};
+
 const SHAPES: Record<string, RouteShape> = {
   "get-health": {
     responses: [{ status: "200", description: "Liveness probe", example: { status: "ok" } }],
@@ -177,6 +224,7 @@ const SHAPES: Record<string, RouteShape> = {
       {
         status: "200",
         description: "Disk usage report",
+        schema: USAGE_SCHEMA,
         example: {
           images: [
             {
@@ -348,13 +396,15 @@ const SHAPES: Record<string, RouteShape> = {
     responses: [{ status: "200", description: "Deleted", example: { deleted: "web-data" } }],
   },
   "get-v1-config-volumes": {
-    responses: [{ status: "200", description: "Current volume policy", example: POLICY_BODY }],
+    responses: [
+      { status: "200", description: "Current volume policy", schema: POLICY_SCHEMA, example: POLICY_BODY },
+    ],
   },
   "put-v1-config-volumes": {
     requestSchema: POLICY_SCHEMA,
     requestExample: { cloneMode: "goldens", goldenVolumes: ["xcode-cache", "node-modules"], jobsOnly: false, cache: "auto" },
     responses: [
-      { status: "200", description: "Saved policy", example: POLICY_BODY },
+      { status: "200", description: "Saved policy", schema: POLICY_SCHEMA, example: POLICY_BODY },
       { status: "400", description: "Invalid policy", example: { error: "invalid policy — expected {cloneMode: labels|goldens|all, …}" } },
     ],
   },
@@ -418,6 +468,17 @@ const SHAPES: Record<string, RouteShape> = {
       {
         status: "200",
         description: "Stack started",
+        schema: {
+          type: "object",
+          properties: {
+            name: { type: "string", description: "Compose project name." },
+            progress: {
+              type: "array",
+              items: { type: "string" },
+              description: "Human-readable progress lines, in order.",
+            },
+          },
+        },
         example: { name: "demo", progress: ["pulled alpine:3.20", "created web", "started web"] },
       },
       { status: "400", description: "Missing path", example: { error: "path is required" } },
@@ -450,6 +511,14 @@ const SHAPES: Record<string, RouteShape> = {
       {
         status: "200",
         description: "Command result",
+        schema: {
+          type: "object",
+          properties: {
+            output: { type: "string", description: "Combined stdout of the command." },
+            error: { type: "string", description: "Combined stderr of the command." },
+            exitCode: { type: "integer", description: "Process exit code." },
+          },
+        },
         example: { output: "NAME=\"Alpine Linux\"\nID=alpine\nVERSION_ID=3.20.3\n", error: "", exitCode: 0 },
       },
       { status: "400", description: "Missing fields", example: { error: "id and command are required" } },
@@ -467,5 +536,39 @@ function actionShape(action: string): RouteShape {
 }
 
 export function restShape(route: RestRoute): RouteShape | undefined {
-  return SHAPES[route.id];
+  const shape = SHAPES[route.id];
+  if (!shape) return undefined;
+  // Every handler's catch-all maps service failures to 500 {"error": …} —
+  // attach it (and the shared error schema) to shapes that only list 2xx.
+  const responses = shape.responses.map((r) =>
+    !r.status.startsWith("2") && !r.schema && !r.stream
+      ? { ...r, schema: ERROR_BODY_SCHEMA }
+      : r,
+  );
+  const hasError = responses.some((r) => !r.status.startsWith("2"));
+  return hasError ? { ...shape, responses } : { ...shape, responses: [...responses, RUNTIME_ERROR] };
+}
+
+/**
+ * Trims a (proto-derived) response schema to the fields a REST projection
+ * actually emits — keeps the field names/types/descriptions but drops fields
+ * the REST handler never returns.
+ */
+export function intersectSchema(schema: any, example: any): any {
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) return schema;
+  const s = { ...schema };
+  if (s.properties && example && typeof example === "object" && !Array.isArray(example)) {
+    s.properties = Object.fromEntries(
+      Object.entries<any>(s.properties)
+        .filter(([k]) => k in example)
+        .map(([k, v]) => [k, intersectSchema(v, example[k])]),
+    );
+    if (Array.isArray(s.required)) {
+      s.required = s.required.filter((k: string) => k in example);
+    }
+  }
+  if (s.items && Array.isArray(example) && example.length > 0) {
+    s.items = intersectSchema(s.items, example[0]);
+  }
+  return s;
 }

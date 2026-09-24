@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { getConnectEndpoint, loadConnectServices, REST_BASE_URL } from "@/lib/data";
 import { connectSamples } from "@/lib/code-samples";
 import { connectSdkSamples } from "@/lib/sdk-samples";
-import { exampleForSchema, responseExampleFor } from "@/lib/examples";
+import { exampleForSchema, requestExampleFor, responseExampleFor } from "@/lib/examples";
 import { endpointMarkdown } from "@/lib/markdown";
 import { EndpointContent } from "@/components/endpoint-content";
 import { PageActions } from "@/components/page-actions";
@@ -39,11 +39,56 @@ export default function ConnectEndpointPage({
   const isSandbox = service.service.startsWith("com.apple");
   const samples = connectSamples(endpoint, REST_BASE_URL);
   const ok = responseExampleFor(endpoint);
+  const reqExample = requestExampleFor(endpoint);
+
+  // Connect errors are JSON envelopes; codes map to HTTP statuses
+  // (not_found → 404, invalid_argument → 400, internal → 500).
+  const errorEnvelopeSchema = {
+    type: "object",
+    title: "ConnectError",
+    properties: {
+      code: {
+        type: "string",
+        description:
+          "Connect error code — e.g. not_found, invalid_argument, internal.",
+      },
+      message: { type: "string", description: "Human-readable error detail." },
+    },
+    required: ["code", "message"],
+  };
+  const resourceKeys = ["id", "name", "reference"];
+  const hasResource = resourceKeys.some((k) => k in (reqExample ?? {}));
+  const errorResponses = [
+    ...(hasResource
+      ? [{
+          status: "404",
+          label: "Not found",
+          schema: errorEnvelopeSchema,
+          body: { code: "not_found", message: "resource not found" },
+        }]
+      : [{
+          status: "400",
+          label: "Invalid request",
+          schema: errorEnvelopeSchema,
+          body: { code: "invalid_argument", message: "invalid request field" },
+        }]),
+    {
+      status: "500",
+      label: "Internal error",
+      schema: errorEnvelopeSchema,
+      body: { code: "internal", message: "internal error" },
+    },
+  ];
 
   const schema = endpoint.requestBody?.content?.["application/json"]?.schema;
   const isStreaming = Object.values(endpoint.responses).some((r) =>
     Object.keys(r.content ?? {}).some((ct) => ct.includes("connect+json")),
   );
+  // Field explorer for the 200 body — skipped on streams, where the example
+  // shows multiple frames but the schema describes a single frame message.
+  const okSchema = !isStreaming
+    ? endpoint.responses?.["200"]?.content?.["application/json"]?.schema
+    : undefined;
 
   const panel = (
     <RequestPanel
@@ -62,7 +107,12 @@ export default function ConnectEndpointPage({
       heading={`${endpoint.method} ${endpoint.path}`}
       url={`${REST_BASE_URL}${endpoint.path}`}
       responses={
-        ok ? [{ status: ok.status, label: "OK", body: ok.body }] : undefined
+        ok
+          ? [
+              { status: ok.status, label: "OK", schema: okSchema, body: ok.body },
+              ...errorResponses,
+            ]
+          : undefined
       }
     />
   );
@@ -80,6 +130,7 @@ export default function ConnectEndpointPage({
         <EndpointContent
           endpoint={endpoint}
           eyebrow={service.title}
+          extraResponses={isSandbox ? undefined : errorResponses}
           actions={
             <PageActions
               markdown={endpointMarkdown({
