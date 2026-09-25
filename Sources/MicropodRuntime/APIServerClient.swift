@@ -15,6 +15,10 @@ public final class APIServerClient: Sendable {
         self.xpc = XPCConnection(service: service)
     }
 
+    /// True once XPC invalidated the connection (the apiserver was
+    /// unregistered). It never recovers: the backend must be resolved again.
+    public var isInvalidated: Bool { xpc.isInvalidated }
+
     // MARK: - Health
 
     /// `ping` — also our version/capability handshake.

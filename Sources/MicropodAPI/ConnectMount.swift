@@ -1,5 +1,6 @@
 import Foundation
 import MicropodCore
+import MicropodRuntime
 import SwiftProtobuf
 
 /// Connect-protocol mount: `POST /api/micropod.v1.<Service>/<Method>`.
@@ -21,12 +22,19 @@ extension APIHandlers {
     /// Route `/api/micropod.v1.<Service>/*`. Returns nil for methods that
     /// don't exist so the caller can fall through to 404.
     func connectRPC(method: String, body: Data) async -> HTTPResponse? {
+        // The liveness RPCs are where a CLI-started API notices the runtime
+        // came up: they re-resolve the backend (rate-limited) before
+        // answering, so `runtime_backend` flips to native on the first
+        // Ping/GetSystem after the swap.
+        let services =
+            method == "Ping" || method == "GetSystem"
+            ? await runtime.refreshIfNeeded() : await runtime.current
         do {
             switch method {
             case "GetSystem":
                 var snapshot = Micropod_V1_SystemSnapshot()
                 var status = try await system.status()
-                status.runtimeBackend = runtimeBackend.rawValue
+                status.runtimeBackend = services.kind.rawValue
                 snapshot.status = status
                 // A stopped runtime is a status, not an error — and it has no
                 // `df` to report (asking would fail the whole call).
@@ -36,73 +44,74 @@ extension APIHandlers {
                 return unary(snapshot)
 
             case "Ping":
-                return unary(await ping())
+                return unary(await ping(services))
 
             case "ListContainers":
                 var resp = Micropod_V1_ListContainersResponse()
-                resp.containers = await withExitCodes(try await containers.list())
+                resp.containers = await withExitCodes(
+                    try await services.containers.list(), from: services.exitCodes)
                 return unary(resp)
 
             case "GetContainer":
                 let req = try decode(Micropod_V1_ContainerRef.self, body)
                 try check(req)
-                return unary(try await lookupContainer(req.id))
+                return unary(try await lookupContainer(req.id, in: services))
 
             case "WaitContainer":
                 let req = try decode(Micropod_V1_WaitContainerRequest.self, body)
                 try check(req)
                 // Unknown ids fail fast — never a silent `exited: true`, and
                 // never a wait against a container that does not exist.
-                _ = try await lookupContainer(req.id)
+                _ = try await lookupContainer(req.id, in: services)
                 let seconds = req.timeoutSeconds == 0 ? 30 : min(req.timeoutSeconds, 300)
-                return unary(await waitContainer(id: req.id, timeout: .seconds(Int(seconds))))
+                return unary(await waitContainer(id: req.id, timeout: .seconds(Int(seconds)), in: services))
 
             case "RunContainer":
                 let req = try decode(Micropod_V1_RunContainerRequest.self, body)
                 try check(req)
-                let id = try await containers.run(runRequest(from: req))
+                let id = try await services.containers.run(runRequest(from: req))
                 return unary(Micropod_V1_ContainerRef.with { $0.id = id })
 
             case "CreateContainer":
                 let req = try decode(Micropod_V1_RunContainerRequest.self, body)
                 try check(req)
-                let id = try await containers.create(runRequest(from: req))
+                let id = try await services.containers.create(runRequest(from: req))
                 return unary(Micropod_V1_ContainerRef.with { $0.id = id })
 
             case "StartContainer":
                 let req = try decode(Micropod_V1_ContainerRef.self, body)
                 try check(req)
-                try await containers.start(req.id)
+                try await services.containers.start(req.id)
                 return unary(Micropod_V1_Empty())
 
             case "StopContainer":
                 let req = try decode(Micropod_V1_ContainerRef.self, body)
                 try check(req)
-                try await containers.stop(req.id)
+                try await services.containers.stop(req.id)
                 return unary(Micropod_V1_Empty())
 
             case "RestartContainer":
                 let req = try decode(Micropod_V1_ContainerRef.self, body)
                 try check(req)
-                try await containers.restart(req.id)
+                try await services.containers.restart(req.id)
                 return unary(Micropod_V1_Empty())
 
             case "KillContainer":
                 let req = try decode(Micropod_V1_ContainerRef.self, body)
                 try check(req)
-                try await containers.kill(req.id)
+                try await services.containers.kill(req.id)
                 return unary(Micropod_V1_Empty())
 
             case "DeleteContainer":
                 let req = try decode(Micropod_V1_DeleteContainerRequest.self, body)
                 try check(req)
-                try await containers.delete(req.id, force: req.force)
+                try await services.containers.delete(req.id, force: req.force)
                 return unary(Micropod_V1_Empty())
 
             case "StreamContainerLogs":
                 let req = try decodeStreamRequest(Micropod_V1_StreamLogsRequest.self, body)
                 try check(req)
-                let events = logs.stream(
+                let events = services.logs.stream(
                     id: req.id,
                     tail: req.tail > 0 ? Int(req.tail) : nil,
                     boot: req.boot)
@@ -139,13 +148,13 @@ extension APIHandlers {
 
             case "ListVolumes":
                 var resp = Micropod_V1_ListVolumesResponse()
-                resp.volumes = try await volumes.list()
+                resp.volumes = try await services.volumes.list()
                 return unary(resp)
 
             case "CreateVolume":
                 let req = try decode(Micropod_V1_CreateVolumeRequest.self, body)
                 try check(req)
-                try await volumes.create(
+                try await services.volumes.create(
                     name: req.name,
                     size: req.hasSize ? req.size : nil,
                     labels: req.labels,
@@ -155,14 +164,14 @@ extension APIHandlers {
             case "DeleteVolume":
                 let req = try decode(Micropod_V1_DeleteVolumeRequest.self, body)
                 try check(req)
-                try await volumes.delete(req.name)
+                try await services.volumes.delete(req.name)
                 return unary(Micropod_V1_Empty())
 
             case "CloneVolume":
                 let req = try decode(Micropod_V1_CloneVolumeRequest.self, body)
                 try check(req)
                 return unary(
-                    try await volumes.clone(
+                    try await services.volumes.clone(
                         source: req.source,
                         name: req.name,
                         size: req.hasSize ? req.size : nil,
@@ -171,7 +180,7 @@ extension APIHandlers {
             case "CommitVolumeClone":
                 let req = try decode(Micropod_V1_CommitVolumeCloneRequest.self, body)
                 try check(req)
-                let allocated = try await volumes.commitClone(containerID: req.containerID, volume: req.volume)
+                let allocated = try await services.volumes.commitClone(containerID: req.containerID, volume: req.volume)
                 return unary(Micropod_V1_CommitVolumeCloneResponse.with { $0.allocatedBytes = allocated })
 
             case "ListNetworks":
@@ -202,7 +211,7 @@ extension APIHandlers {
                 let req = try decode(Micropod_V1_GetStatsRequest.self, body)
                 var resp = Micropod_V1_GetStatsResponse()
                 // Empty ids = every running container (the pre-`ids` shape).
-                resp.snapshot = try await stats.snapshot(ids: req.ids)
+                resp.snapshot = try await services.stats.snapshot(ids: req.ids)
                 return unary(resp)
 
             case "Exec":
@@ -214,7 +223,7 @@ extension APIHandlers {
                     req.arguments.isEmpty
                     ? req.command.split(separator: " ").map(String.init)
                     : req.arguments
-                let result = try await containers.execDetailed(
+                let result = try await services.containers.execDetailed(
                     ContainerExecRequest(
                         containerID: req.id,
                         arguments: argv,
@@ -228,7 +237,7 @@ extension APIHandlers {
                     })
 
             case "GetUsage":
-                return unary(usageReportProto(try await usage.report()))
+                return unary(usageReportProto(try await usage(services).report()))
 
             case "GetVolumePolicy":
                 return unary(volumePolicyProto(VolumePolicyStore.load()))
@@ -296,6 +305,7 @@ extension APIHandlers {
             // Structured MicropodError cases, XPC transport failures and
             // upstream "code: detail" strings all classify through the shared
             // table (MicropodCore.ConnectCodeMapping) — tested in isolation.
+            scheduleRecovery(after: error)
             return connectError(code(for: error), error.localizedDescription)
         }
     }
@@ -306,16 +316,16 @@ extension APIHandlers {
     /// Native backend: XPC `ping` with a 2 s ceiling (the apiserver answers in
     /// milliseconds when up). CLI backend: `container system status`, which
     /// `SystemService` already reports as a status when the daemon is down.
-    private func ping() async -> Micropod_V1_PingResponse {
+    private func ping(_ services: RuntimeServices) async -> Micropod_V1_PingResponse {
         var response = Micropod_V1_PingResponse()
-        response.runtimeBackend = runtimeBackend.rawValue
-        if let api {
+        response.runtimeBackend = services.kind.rawValue
+        if let api = services.api {
             if let health = try? await api.ping(timeout: .seconds(2)) {
                 response.status = "running"
                 response.apiServerVersion = health.apiServerVersion
             } else {
                 response.status = "stopped"
-                response.apiServerVersion = runtimeHealth?.apiServerVersion ?? ""
+                response.apiServerVersion = services.health?.apiServerVersion ?? ""
             }
             // Cached after the first call — no CLI spawn on the hot path.
             response.cliVersion = (try? await system.cliVersion()) ?? ""
@@ -345,17 +355,21 @@ extension APIHandlers {
     /// `inspect` so absence is a plain "not in the list" instead of a
     /// backend-specific error text to classify; anything the list call
     /// throws (runtime down → `unavailable`) propagates untouched.
-    private func lookupContainer(_ id: String) async throws -> Micropod_V1_Container {
-        guard let container = try await containers.list().first(where: { $0.id == id }) else {
+    private func lookupContainer(
+        _ id: String, in services: RuntimeServices
+    ) async throws -> Micropod_V1_Container {
+        guard let container = try await services.containers.list().first(where: { $0.id == id }) else {
             throw ConnectDecodeError(code: .notFound, message: "container \(id) not found")
         }
-        return await withExitCodes([container])[0]
+        return await withExitCodes([container], from: services.exitCodes)[0]
     }
 
     /// Folds registry exit codes into `Container.exit_code`. Only the native
     /// backend records them; on CLI (`exitCodes == nil`) the field stays
     /// empty rather than fabricating a value.
-    func withExitCodes(_ list: [Micropod_V1_Container]) async -> [Micropod_V1_Container] {
+    func withExitCodes(
+        _ list: [Micropod_V1_Container], from exitCodes: ExitCodeRegistry?
+    ) async -> [Micropod_V1_Container] {
         guard let exitCodes else { return list }
         var out = list
         for index in out.indices {
@@ -375,12 +389,14 @@ extension APIHandlers {
     /// after the container vanished mid-wait) is `exited: true`, with
     /// `known: false` when no registry code exists (CLI backend, or the
     /// waiter aged out).
-    private func waitContainer(id: String, timeout: Duration) async -> Micropod_V1_WaitContainerResponse {
+    private func waitContainer(
+        id: String, timeout: Duration, in services: RuntimeServices
+    ) async -> Micropod_V1_WaitContainerResponse {
         let clock = ContinuousClock()
         let deadline = clock.now + timeout
         while true {
-            let entry = await exitCodes?.entry(for: id)
-            let state = await containers.state(of: id)
+            let entry = await services.exitCodes?.entry(for: id)
+            let state = await services.containers.state(of: id)
             if let code = entry?.exitCode {
                 return .with {
                     $0.exited = true
@@ -610,7 +626,9 @@ extension APIHandlers {
                     continuation.yield(ConnectEnvelope.frame(Data("{}".utf8), flags: 0x02))
                 } catch {
                     // Same table as unary errors: an unknown id is
-                    // `not_found`, a dropped XPC channel is `unavailable`.
+                    // `not_found`, a dropped XPC channel is `unavailable`
+                    // (and prompts a backend re-resolution).
+                    scheduleRecovery(after: error)
                     let code = ConnectCodeMapping.code(for: error)
                     let wire =
                         #"{"error":{"code":"\#(code)","message":"\#(Self.escapeJSON(error.localizedDescription))"}}"#

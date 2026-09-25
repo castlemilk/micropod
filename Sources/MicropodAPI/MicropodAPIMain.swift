@@ -45,20 +45,18 @@ struct MicropodAPI {
 
         let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: cliPath))
         let runtime = await RuntimeBackendResolver.resolve(client: client)
-        var api = APIHandlers(
-            client: client,
+        // Started before the runtime (or against an unverified apiserver):
+        // re-resolve lazily and swap to native once it answers. The request
+        // path never waits on more than a short ping for that.
+        let holder = RuntimeHolder(
+            initial: runtime,
+            resolve: { await RuntimeBackendResolver.resolve(client: client, pingTimeout: .seconds(2)) })
+        let api = APIHandlers(
             system: SystemService(client: client),
-            containers: runtime.containers,
             images: ImageService(client: client),
-            volumes: runtime.volumes,
             networks: NetworkService(client: client),
-            stats: runtime.stats,
-            logs: runtime.logs,
             compose: ComposeService(client: client),
-            api: runtime.api)
-        api.runtimeBackend = runtime.kind
-        api.runtimeHealth = runtime.health
-        api.exitCodes = runtime.exitCodes
+            runtime: holder)
 
         let server = HTTPServer(port: port, handler: api.handle)
         do {
