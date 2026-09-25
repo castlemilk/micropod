@@ -1,6 +1,6 @@
 ---
 name: micropod
-description: Use the Micropod container manager — the Apple `container` runtime via its MCP server (38 tools), Connect/REST API on :45454, or Docker Engine API shim. Use for running/managing containers and docker-compose stacks, worker orchestration (e.g. cuttlefish), and disposable test containers (real Testcontainers/Ryuk via the shim).
+description: Use the Micropod container manager — the Apple `container` runtime via its MCP server (40 tools), Connect/REST API on :45454, or Docker Engine API shim. Use for running/managing containers and docker-compose stacks, worker orchestration (e.g. cuttlefish), and disposable test containers (real Testcontainers/Ryuk via the shim).
 ---
 
 # Micropod
@@ -21,7 +21,7 @@ Prerequisite: Micropod.app installed and running (it owns the daemon, the
 :45454 API, and the shim). `curl -s http://127.0.0.1:45454/health` →
 `{"status":"ok"}` is the readiness probe.
 
-## MCP server (38 tools)
+## MCP server (40 tools)
 
 Config for any MCP client:
 
@@ -46,9 +46,12 @@ Tools — **containers**: `list_containers`, `run`, `start`, `stop`,
 `build_cache_stats`, `update_check`, `update_status`, `update_apply`.
 **kubernetes** (opt-in engine — `k8s_enable` persists config, or `MICROPOD_K8S=1`):
 `k8s_enable`, `k8s_disable`, `k8s_up`, `k8s_down`, `k8s_status`,
-`k8s_kubeconfig`. One call to `k8s_up` stands up a full k3s cluster in a
-micro-VM (~21s cold, ~550MB); MetalLB gives `type: LoadBalancer` real IPs
-on the VM subnet that route from the host.
+`k8s_kubeconfig`, `k8s_load_image`, `k8s_images`. One call to `k8s_up`
+stands up a full k3s cluster in a micro-VM (~21s cold, ~700MB); MetalLB
+gives `type: LoadBalancer` real IPs on the VM subnet that route from the
+host. `k8s_load_image` pushes an image (`ref` — host store first, pull on
+miss — or `path` to a save-tarball) straight into the cluster's containerd,
+sidestepping the guest's slow NAT pulls.
 
 Example tools/call (JSON-RPC over stdin/stdout):
 

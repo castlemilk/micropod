@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Blog — Micropod</title>
-  <meta name="description" content="Engineering notes on Micropod — benchmarks, internals, and the odd honest regression." />
-  <link rel="canonical" href="https://castlemilk.github.io/micropod/blog/" />
+  <title>Shipping images to a micro-VM cluster without the slow path — Micropod</title>
+  <meta name="description" content="Guest-side registry pulls over vmnet NAT were the one bad number in the k8s engine — so Micropod pushes images into the cluster's containerd from the host instead: local store first, registry only on a miss, tarballs straight over the API." />
+  <link rel="canonical" href="https://castlemilk.github.io/micropod/blog/micropod-k8s-image-pipeline/" />
   <link rel="icon" type="image/png" href="/micropod/icon.png" />
   <meta property="og:type" content="article" />
-  <meta property="og:title" content="Blog — Micropod" />
-  <meta property="og:description" content="Engineering notes on Micropod — benchmarks, internals, and the odd honest regression." />
+  <meta property="og:title" content="Shipping images to a micro-VM cluster without the slow path — Micropod" />
+  <meta property="og:description" content="Guest-side registry pulls over vmnet NAT were the one bad number in the k8s engine — so Micropod pushes images into the cluster's containerd from the host instead: local store first, registry only on a miss, tarballs straight over the API." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -256,52 +256,45 @@
   <main>
     <article class="article">
       <div class="article-meta">
-        <span></span>
-        <span></span>
-        
+        <span>2026-09-25</span>
+        <span>4 min read</span>
+        <span class="tag">kubernetes</span><span class="tag">images</span><span class="tag">performance</span><span class="tag">dx</span>
       </div>
-      <h1>Blog</h1>
-      <p class="standfirst"></p>
+      <h1>Shipping images to a micro-VM cluster without the slow path</h1>
+      <p class="standfirst">The one genuinely bad number in the k8s engine wasn't Kubernetes at all — it was pulling images through the guest's vmnet NAT (13 minutes for MetalLB's 60MB). The fix is a small image pipeline: pull on the host, inject into the cluster's containerd, tag the qualified name. `micropod k8s load` — and the same op on Connect, REST, MCP, and the SDKs.</p>
       
       <div class="article-body">
-<div class="post-list">
-        <a class="post-card" href="/micropod/blog/micropod-vs-docker-measured/">
-          <div class="post-card-thumb"><img src="/micropod/blog/assets/thumb-vs-docker.jpg" alt="" /></div>
-          <div>
-            <p class="post-date">2026-09-25</p>
-            <h2>Micropod vs Docker Desktop, measured on the same Mac</h2>
-            <p>We benchmarked Micropod's Docker Engine shim against Docker Desktop on the same Apple-silicon Mac, both engines warm, alpine:3.20 pre-pulled on both sides. API numbers are p50 over n=30; lifecycle over n=10. The result is not a uniform win, and we'd rather show the losses than hide them: Micropod's API surface is dramatically faster and it idles at a seventh of the memory, but a per-container micro-VM means a real kernel boot on every start — and that's a gap Docker's shared-VM model doesn't have.</p>
-            <div class="post-tags"><span class="tag">benchmarks</span><span class="tag">docker</span><span class="tag">performance</span></div>
-          </div>
-        </a>
-        <a class="post-card" href="/micropod/blog/micropod-optimizations/">
-          <div class="post-card-thumb"><img src="/micropod/blog/assets/thumb-optimizations.jpg" alt="" /></div>
-          <div>
-            <p class="post-date">2026-09-25</p>
-            <h2>The optimizations inside Micropod, and what they measured</h2>
-            <p>Every `container` CLI call costs 15–80 ms, so most of Micropod's speed comes from engineering the spawns away — cache, clonefile, chunk store, warm machines.</p>
-            <div class="post-tags"><span class="tag">internals</span><span class="tag">performance</span><span class="tag">apfs</span></div>
-          </div>
-        </a>
-        <a class="post-card" href="/micropod/blog/micropod-k8s-microvm/">
-          
-          <div>
-            <p class="post-date">2026-09-25</p>
-            <h2>A Kubernetes cluster that fits inside one Micropod micro-VM</h2>
-            <p>kind puts Kubernetes inside a container inside Docker Desktop's VM. Micropod's new opt-in engine runs k3s as a single Apple micro-VM instead — a real kernel, a real vmnet address, and MetalLB LoadBalancer IPs that actually route on macOS. Measured on the same machine: 21s to a Ready node vs kind's 53s, ~700MB in use, 2.4s to resume — and services you can curl.</p>
-            <div class="post-tags"><span class="tag">kubernetes</span><span class="tag">k3s</span><span class="tag">metallb</span><span class="tag">benchmarks</span></div>
-          </div>
-        </a>
-        <a class="post-card" href="/micropod/blog/micropod-k8s-image-pipeline/">
-          
-          <div>
-            <p class="post-date">2026-09-25</p>
-            <h2>Shipping images to a micro-VM cluster without the slow path</h2>
-            <p>The one genuinely bad number in the k8s engine wasn't Kubernetes at all — it was pulling images through the guest's vmnet NAT (13 minutes for MetalLB's 60MB). The fix is a small image pipeline: pull on the host, inject into the cluster's containerd, tag the qualified name. `micropod k8s load` — and the same op on Connect, REST, MCP, and the SDKs.</p>
-            <div class="post-tags"><span class="tag">kubernetes</span><span class="tag">images</span><span class="tag">performance</span><span class="tag">dx</span></div>
-          </div>
-        </a>
-      </div>
+<p>A local Kubernetes cluster lives or dies on its image story. kind has <code>kind load docker-image</code> — it exists because the same problem exists there: a registry pull that crosses a VM boundary you don&#x27;t control is the slowest possible way to get bytes from your laptop into a node.</p>
+<p>Micropod&#x27;s version of the problem is sharper. Every container is a micro-VM on vmnet&#x27;s NAT — and guest-side pulls through that NAT are <em>pathologically</em> slow, not just slow: the ~60MB MetalLB install took ~13 minutes through quay.io, and a 20MB pod image minutes more. Meanwhile the host&#x27;s puller moves at wire speed.</p>
+<p>So the cluster doesn&#x27;t pull images. The host does — and pushes.</p>
+<figure class="fig flow"><figcaption class="fig-title">Image path — ref to Running pod</figcaption><div class="flow-lanes"><div class="flow-lane"><span class="flow-seg"><span class="flow-node accent">local store</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">image save</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">container copy</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">ctr import</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">pod</span></span></div><div class="flow-lane"><span class="flow-seg"><span class="flow-node">registry</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node accent">host puller</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">image save</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">container copy</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">ctr import</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">pod</span></span></div></div></figure>
+<p>Three sources, one pipeline:</p>
+<ul>
+<li><strong><code>k8s load myapp:dev</code></strong> — image already in Micropod&#x27;s store? <code>container image save</code> writes the OCI archive locally, <code>container copy</code> pushes it into the VM, <code>ctr -n k8s.io images import</code> lands it in the cluster&#x27;s containerd. No network at all.</li>
+<li><strong><code>k8s load redis:alpine</code></strong> — not in the local store → the <em>host</em> puller fetches it, then the same inject path.</li>
+<li><strong><code>k8s load ./bundle.tar</code></strong> — a <code>container image save</code> or <code>docker save</code> tarball injects directly. For remote callers, <code>LoadK8sImage</code> accepts the archive as bytes (<code>base64</code> in Connect JSON) — no local file needed.</li>
+<li><strong><code>k8s images</code></strong> lists what&#x27;s in the cluster&#x27;s containerd.</li>
+</ul>
+<pre><code class="language-bash">$ micropod build -t myapp:dev .     # built on the host, APFS-native
+$ micropod k8s load myapp:dev       # save → copy → import — ~2s for 4MB
+  ▸ injecting into micropod-k3s containerd
+✓ loaded myapp:dev — reference it from a pod/deployment image: field
+$ kubectl run app --image=myapp:dev --restart=Never
+pod/app created          # Running immediately — zero pull
+</code></pre>
+<p>One subtlety worth knowing: kubelet resolves <code>myapp:dev</code> to <code>docker.io/library/myapp:dev</code>, while a bare <code>image save</code> keeps the short name — so the import is tagged with the fully-qualified ref automatically. Load <code>cachetest:2</code>, deploy <code>cachetest:2</code>, done. (That bug was found by a pod sitting in <code>ErrImagePull</code> with the image provably loaded — the tag mismatch is invisible until you know it&#x27;s there.)</p>
+<h2>Every surface, same op</h2>
+<p>The pipeline isn&#x27;t a CLI-only trick — it&#x27;s <code>LoadK8sImage</code> on the Connect API, streaming progress like <code>K8sUp</code> does:</p>
+<figure class="fig flow"><figcaption class="fig-title">Same pipeline, four callers</figcaption><div class="flow-lanes"><div class="flow-lane"><span class="flow-seg"><span class="flow-node">micropod k8s load</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node accent">K8sService.loadImage</span></span></div><div class="flow-lane"><span class="flow-seg"><span class="flow-node">Connect LoadK8sImage</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">stream progress</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">ref + bytes</span></span></div><div class="flow-lane"><span class="flow-seg"><span class="flow-node">POST /v1/k8s/images</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">{ref} or {archive: base64}</span></span></div><div class="flow-lane"><span class="flow-seg"><span class="flow-node">mcp k8s_load_image</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">ref | path args</span></span></div></div></figure>
+<p>The MCP tool means an agent&#x27;s loop looks like: <code>k8s_load_image {ref: &quot;redis:alpine&quot;}</code> → <code>k8s_images</code> to confirm → workload manifest with <code>imagePullPolicy: IfNotPresent</code>. No pull-through proxy, no registry mirror, no <code>kind load</code> archaeology.</p>
+<h2>Why this matters beyond speed</h2>
+<p><strong>Iterating on a workload</strong> is <code>build → k8s load → kubectl rollout</code> — the loop kind users know, minus the Docker Desktop dependency and with the host&#x27;s content store doing dedupe. The image that a pod runs is byte-identical to the one the host built, because it&#x27;s the same archive.</p>
+<p><strong>Offline/airgap workflows</strong> — a tarball on disk is a complete input: <code>micropod k8s load ./images.tar</code> on a plane, or in a CI sandbox with no registry access.</p>
+<p><strong>MetalLB itself</strong> seeds through this path now: the two add-on images are pulled by the host puller and injected before the manifest applies — the install that took ~13 minutes of stalled guest pulls is a few seconds of local I/O.</p>
+<p><strong>Determinism</strong> — a cluster&#x27;s image state is enumerable (<code>k8s images</code>) and writable (<code>k8s load</code>) through one API, which is what made the <code>ErrImagePull</code>-by-name-mismatch bug findable and fixable in the first place.</p>
+<figure class="fig sg"><div class="sg-grid"><div class="sg-item"><span class="sg-value">~2 s</span><span class="sg-label">load a 4MB image into the cluster</span></div><div class="sg-item"><span class="sg-value">0</span><span class="sg-label">registry pulls for a locally-built image</span></div><div class="sg-item"><span class="sg-value">13 min → s</span><span class="sg-label">MetalLB install, before → after seeding</span></div></div></figure>
+<aside class="callout callout-note"><span class="callout-title">[ Honest edge ]</span><div class="callout-body">Guest-side pulls still work — <code>imagePullPolicy: Always</code> or an unseeded ref pulls through the NAT as before (slowly). <code>k8s load</code> is the fast path, not a gate: nothing breaks if you skip it, you&#x27;re just paying the registry tax. Seeding at <code>up</code> time covers Micropod&#x27;s own add-ons; workload images are on you to <code>load</code> — or pull and wait.</div></aside>
+<p>API: <code>LoadK8sImage</code> / <code>ListK8sImages</code> on <code>micropod.v1.K8sService</code> — typed in the Go, TypeScript, and Swift SDKs. Reference: <code>docs/kubernetes.md</code>.</p>
       </div>
     </article>
   </main>

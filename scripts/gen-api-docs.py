@@ -64,6 +64,8 @@ REST_DESCRIPTIONS = {
     ("POST", "/v1/k8s/up"): "Create or resume the k3s cluster VM; returns progress lines + status.",
     ("POST", "/v1/k8s/down"): "Remove the cluster VM and its state.",
     ("GET", "/v1/k8s/kubeconfig"): "Host kubeconfig for the cluster (path + contents).",
+    ("GET", "/v1/k8s/images"): "Image refs in the cluster's containerd (k8s.io namespace).",
+    ("POST", "/v1/k8s/images"): "Push an image into the cluster via the host puller — {ref} (local store first, pulls on miss) or {archive: base64 tar}.",
     ("POST", "/v1/exec"): "Run a command in a container; returns exit code + output.",
 }
 

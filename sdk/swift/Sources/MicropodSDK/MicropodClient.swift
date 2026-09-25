@@ -46,6 +46,8 @@ public struct MicropodClient: Sendable {
         "K8sUp": "K8sService",
         "K8sDown": "K8sService",
         "GetKubeconfig": "K8sService",
+        "LoadK8sImage": "K8sService",
+        "ListK8sImages": "K8sService",
     ]
 
     public let connect: ConnectClient
@@ -251,11 +253,31 @@ public struct MicropodClient: Sendable {
 
     /// Remove the cluster VM and its state.
     public func k8sDown() async throws {
-        _ = try await connect.unary(path: path("K8sDown"), request: Micropod_V1_Empty(), response: Micropod_V1_Empty.self)
+        _ = try await connect.unary(
+            path: path("K8sDown"), request: Micropod_V1_Empty(), response: Micropod_V1_Empty.self)
     }
 
     /// Host kubeconfig (path + contents, server already at the VM address).
     public func kubeconfig() async throws -> Micropod_V1_GetKubeconfigResponse {
         try await connect.unary(path: path("GetKubeconfig"), request: Micropod_V1_Empty())
+    }
+
+    /// Push an image into the cluster's containerd via the host puller —
+    /// server-streaming progress; the terminal event carries `ref`/`bytes`.
+    public func loadK8sImage(
+        _ request: Micropod_V1_LoadK8sImageRequest
+    ) -> AsyncThrowingStream<Micropod_V1_K8sLoadEvent, Error> {
+        connect.serverStream(path: path("LoadK8sImage"), request: request)
+    }
+
+    /// Image refs present in the cluster's containerd (k8s.io namespace).
+    public func listK8sImages(
+        clusterName: String? = nil
+    ) async throws -> [String] {
+        var req = Micropod_V1_ListK8sImagesRequest()
+        if let clusterName { req.clusterName = clusterName }
+        let res: Micropod_V1_ListK8sImagesResponse =
+            try await connect.unary(path: path("ListK8sImages"), request: req)
+        return res.refs
     }
 }

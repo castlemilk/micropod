@@ -410,6 +410,37 @@ struct APIHandlers {
                 }
                 return .json(200, ["path": k8s.kubeconfigURL.path, "contents": contents])
 
+            case ("k8s", .get) where segments.count == 3 && segments[2] == "images":
+                let refs = try await k8s.listImages()
+                return .json(200, ["refs": refs])
+
+            case ("k8s", .post) where segments.count == 3 && segments[2] == "images":
+                guard k8s.isEnabled else {
+                    return .json(412, ["error": "k8s engine is not enabled"])
+                }
+                let payload = try decodeBody(request.body)
+                let ref = payload["ref"] as? String
+                let archive =
+                    (payload["archive"] as? String).flatMap { Data(base64Encoded: $0) }
+                guard ref != nil || archive != nil else {
+                    return .json(
+                        400,
+                        [
+                            "error":
+                                "POST /v1/k8s/images needs {\"ref\": \"image:tag\"} or {\"archive\": \"<base64 tar>\"}"
+                        ])
+                }
+                final class LoadLines: @unchecked Sendable {
+                    var items: [String] = []
+                }
+                let progress = LoadLines()
+                let loaded = try await k8s.loadImage(ref: ref, archiveData: archive) {
+                    progress.items.append($0)
+                }
+                return .json(
+                    200,
+                    ["progress": progress.items, "ref": loaded.ref, "bytes": loaded.bytes])
+
             // MARK: Exec
             case ("exec", .post):
                 let payload = try decodeBody(request.body)

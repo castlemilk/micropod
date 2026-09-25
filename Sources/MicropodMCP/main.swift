@@ -314,6 +314,15 @@ private actor MCPServer {
         ),
         ("k8s_down", "Remove the cluster VM and its state."),
         ("k8s_kubeconfig", "Return the host kubeconfig contents for the cluster."),
+        (
+            "k8s_load_image",
+            """
+            Push an image into the cluster's containerd via the host puller — bypasses the \
+            guest's slow NAT registry path. Args: `ref` (registry ref; uses the local image \
+            store first, pulls on miss) or `path` (local image-save tarball, no registry at all).
+            """
+        ),
+        ("k8s_images", "List image refs present in the cluster's containerd (k8s.io namespace)."),
     ]
 
     private func callTool(id: Int?, _ call: MCPToolCall) async -> Data? {
@@ -680,6 +689,36 @@ private actor MCPServer {
                     return toolResult(id, "no kubeconfig — run k8s_up first", isError: true)
                 }
                 return toolResult(id, contents)
+
+            case "k8s_load_image":
+                let k8s = K8sService(client: client)
+                guard k8s.isEnabled else {
+                    return toolResult(id, "k8s engine disabled — call k8s_enable first", isError: true)
+                }
+                let ref = string("ref")
+                let path = string("path")
+                guard !ref.isEmpty || !path.isEmpty else {
+                    return toolResult(id, "k8s_load_image needs `ref` or `path`", isError: true)
+                }
+                final class LoadLines: @unchecked Sendable {
+                    var items: [String] = []
+                }
+                let progress = LoadLines()
+                let archivePath = path.isEmpty ? nil : URL(fileURLWithPath: path)
+                let loaded = try await k8s.loadImage(
+                    ref: ref.isEmpty ? nil : ref,
+                    archivePath: archivePath
+                ) { progress.items.append($0) }
+                progress.items.append("loaded \(loaded.ref) (\(loaded.bytes) bytes)")
+                return toolResult(id, progress.items.joined(separator: "\n"))
+
+            case "k8s_images":
+                let k8s = K8sService(client: client)
+                guard k8s.isEnabled else {
+                    return toolResult(id, "k8s engine disabled", isError: true)
+                }
+                let refs = try await k8s.listImages()
+                return toolResult(id, refs.isEmpty ? "(no images)" : refs.joined(separator: "\n"))
 
             default:
                 return respondError(id: id, code: -32601, message: "Unknown tool: \(call.name)")

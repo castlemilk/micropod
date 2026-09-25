@@ -59,9 +59,32 @@ enum K8sCommands {
         case "kubeconfig":
             print(service.kubeconfigURL.path)
 
+        case "load":
+            try requireEnabled(service)
+            guard let source = args.dropFirst().first(where: { !$0.hasPrefix("-") }) else {
+                throw UsageError(message: "k8s load needs an image ref or a .tar path")
+            }
+            let url = URL(fileURLWithPath: source)
+            let isFile = FileManager.default.fileExists(atPath: url.path)
+            let loaded = try await service.loadImage(
+                ref: isFile ? nil : source,
+                archivePath: isFile ? url : nil
+            ) { print("  ▸ \($0)") }
+            let mb = loaded.bytes > 0 ? " (\(loaded.bytes / 1_048_576) MB)" : ""
+            print("✓ loaded \(loaded.ref)\(mb) — reference it from a pod/deployment image: field")
+
+        case "images":
+            try requireEnabled(service)
+            let refs = try await service.listImages()
+            if refs.isEmpty {
+                print("no images in the cluster's containerd — `micropod k8s load <ref>`")
+            } else {
+                refs.forEach { print($0) }
+            }
+
         default:
             throw UsageError(
-                message: "unknown k8s command '\(sub)' — expected enable|disable|up|down|status|kubeconfig")
+                message: "unknown k8s command '\(sub)' — expected enable|disable|up|down|status|kubeconfig|load|images")
         }
     }
 

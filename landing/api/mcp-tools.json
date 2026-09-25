@@ -1,17 +1,17 @@
 [
   {
     "description": "Content-addressed build contexts: entries, bytes, shared bytes, cap. Arguments: path (optional cache root).",
-    "name": "build_cache_stats",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "build_cache_stats"
   },
   {
     "description": "Tear down a compose stack by its compose name. Arguments: name.",
-    "name": "compose_down",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "compose_down"
   },
   {
     "description": "List containers belonging to a compose stack. Arguments: name.",
@@ -43,17 +43,17 @@
   },
   {
     "description": "Run a command in a running container. Arguments: id (required), command (required).",
-    "name": "exec",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "exec"
   },
   {
     "description": "Pretty-printed container inspect JSON. Arguments: id.",
-    "name": "inspect",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "inspect"
   },
   {
     "description": "Disable the Kubernetes engine (a running cluster is left up).",
@@ -77,8 +77,22 @@
     }
   },
   {
+    "description": "List image refs present in the cluster's containerd (k8s.io namespace).",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "k8s_images"
+  },
+  {
     "description": "Return the host kubeconfig contents for the cluster.",
-    "name": "k8s_kubeconfig",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "k8s_kubeconfig"
+  },
+  {
+    "description": "Push an image into the cluster's containerd via the host puller \u2014 bypasses the guest's slow NAT registry path. Args: `ref` (registry ref; uses the local image store first, pulls on miss) or `path` (local image-save tarball, no registry at all).",
+    "name": "k8s_load_image",
     "inputSchema": {
       "type": "object"
     }
@@ -113,24 +127,24 @@
   },
   {
     "description": "List local images (name, id, size, variants).",
-    "name": "list_images",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "list_images"
   },
   {
     "description": "List networks (name, mode, subnet).",
-    "name": "list_networks",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "list_networks"
   },
   {
     "description": "List volumes (name, size, driver).",
-    "name": "list_volumes",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "list_volumes"
   },
   {
     "description": "Last 100 log lines of a container. Arguments: id.",
@@ -148,10 +162,10 @@
   },
   {
     "description": "Push an image. Arguments: reference.",
-    "name": "push",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "push"
   },
   {
     "description": "Restart a container (stop then start). Arguments: id.",
@@ -169,10 +183,10 @@
   },
   {
     "description": "Remove unreferenced chunks from the shared cache.",
-    "name": "share_gc",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "share_gc"
   },
   {
     "description": "List active synchronized file shares.",
@@ -204,38 +218,38 @@
   },
   {
     "description": "Start a container. Arguments: id.",
-    "name": "start",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "start"
   },
   {
     "description": "Resource usage for all running containers (memory/CPU/net).",
-    "name": "stats",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "stats"
   },
   {
-    "description": "Runtime status: running/stopped + CLI + apiserver versions.",
     "name": "status",
+    "description": "Runtime status: running/stopped + CLI + apiserver versions.",
     "inputSchema": {
       "type": "object"
     }
   },
   {
     "description": "Stop a container. Arguments: id.",
-    "name": "stop",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "stop"
   },
   {
     "description": "Install a downloaded app update: quits Micropod, Sparkle applies it, app relaunches.",
-    "name": "update_apply",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "update_apply"
   },
   {
     "description": "Trigger a background app update check (Sparkle) via the Micropod app.",

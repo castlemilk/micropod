@@ -66,6 +66,28 @@ don't move ours); everywhere else the vmnet path wins or ties.
 Reproduce: `scripts/bench_k8s.sh` (lifecycle), `scripts/bench_k8s_perf.sh`
 (pod launch / apiserver / ingress / footprint).
 
+## Loading images
+
+Workload `image:` references pull through the guest's vmnet NAT, which is
+slow (minutes for ~20 MB). `k8s load` bypasses it entirely — the host puller
+fetches (or the local image store supplies) and the archive is injected
+straight into the cluster's containerd:
+
+```bash
+micropod build -t myapp:dev .            # any Micropod-built or pulled image
+micropod k8s load myapp:dev              # local store → guest, no network
+micropod k8s load redis:alpine           # host pull → guest, on a miss
+micropod k8s load ./myapp.tar            # `container image save`/`docker save` tarball
+micropod k8s images                      # what's in the cluster's containerd
+```
+
+Then reference the ref normally — `image: myapp:dev` with
+`imagePullPolicy: IfNotPresent` (or `Never`) and the pod starts in ~1s with
+no pull at all. The same ops exist on every surface:
+`LoadK8sImage`/`ListK8sImages` on Connect (`archive` accepts tarball bytes —
+base64 in Connect JSON), `GET|POST /v1/k8s/images` on REST, and
+`k8s_load_image`/`k8s_images` MCP tools.
+
 ## Configuration
 
 `k8s.json` (edit or pass flags to `enable`/`up`):

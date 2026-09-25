@@ -832,6 +832,10 @@
                 </li>
               
                 <li>
+                  <a href="#micropod.v1.K8sLoadEvent"><span class="badge">M</span>K8sLoadEvent</a>
+                </li>
+              
+                <li>
                   <a href="#micropod.v1.K8sStatus"><span class="badge">M</span>K8sStatus</a>
                 </li>
               
@@ -841,6 +845,18 @@
               
                 <li>
                   <a href="#micropod.v1.K8sUpRequest"><span class="badge">M</span>K8sUpRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ListK8sImagesRequest"><span class="badge">M</span>ListK8sImagesRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ListK8sImagesResponse"><span class="badge">M</span>ListK8sImagesResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.LoadK8sImageRequest"><span class="badge">M</span>LoadK8sImageRequest</a>
                 </li>
               
               
@@ -6622,6 +6638,51 @@ Signal sent on stop (parsed; not expressible on the Apple runtime). </p></td>
 
         
       
+        <h3 id="micropod.v1.K8sLoadEvent">K8sLoadEvent</h3>
+        <p>One LoadK8sImage stream event — progress lines, then the loaded ref.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>line</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Progress output line — empty on the terminal event. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>done</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>True on the terminal event once the image is imported. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ref</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The loaded ref (terminal event only). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>bytes</td>
+                  <td><a href="#int64">int64</a></td>
+                  <td></td>
+                  <td><p>Archive bytes pushed into the guest (terminal event only). </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
         <h3 id="micropod.v1.K8sStatus">K8sStatus</h3>
         <p>Live cluster state as the engine sees it.</p>
 
@@ -6785,6 +6846,95 @@ Signal sent on stop (parsed; not expressible on the Apple runtime). </p></td>
 
         
       
+        <h3 id="micropod.v1.ListK8sImagesRequest">ListK8sImagesRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>cluster_name</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>Cluster VM override; empty = the configured cluster. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ListK8sImagesResponse">ListK8sImagesResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>refs</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Image refs in the cluster&#39;s containerd (k8s.io namespace). </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.LoadK8sImageRequest">LoadK8sImageRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>ref</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Registry ref, e.g. &#34;docker.io/library/redis:alpine&#34;. Resolved from the
+host&#39;s local image store first; pulled by the host puller on a miss.
+Mutually exclusive with `archive`. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>archive</td>
+                  <td><a href="#bytes">bytes</a></td>
+                  <td></td>
+                  <td><p>OCI/docker save tarball bytes — injected into the guest&#39;s containerd
+with no registry round trip. Base64 in Connect JSON. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cluster_name</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>Cluster VM override; empty = the configured cluster. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
 
       
 
@@ -6841,6 +6991,25 @@ lines; the terminal event carries the cluster status.</p></td>
                 <td><a href="#micropod.v1.GetKubeconfigResponse">GetKubeconfigResponse</a></td>
                 <td><p>Host kubeconfig for the cluster — server already rewritten to the VM
 address; save and `export KUBECONFIG=&lt;path&gt;` (or use contents directly).</p></td>
+              </tr>
+            
+              <tr>
+                <td>LoadK8sImage</td>
+                <td><a href="#micropod.v1.LoadK8sImageRequest">LoadK8sImageRequest</a></td>
+                <td><a href="#micropod.v1.K8sLoadEvent">K8sLoadEvent</a> stream</td>
+                <td><p>Push an image into the cluster&#39;s containerd via the host puller —
+bypasses the guest&#39;s slow NAT registry path. `ref` resolves from the
+host&#39;s local image store first and pulls only on a miss; `archive`
+pushes a `container image save`/`docker save` tarball with no registry
+round trip at all. Streams progress lines; the terminal event carries
+the loaded ref &#43; byte count.</p></td>
+              </tr>
+            
+              <tr>
+                <td>ListK8sImages</td>
+                <td><a href="#micropod.v1.ListK8sImagesRequest">ListK8sImagesRequest</a></td>
+                <td><a href="#micropod.v1.ListK8sImagesResponse">ListK8sImagesResponse</a></td>
+                <td><p>Image refs present in the cluster&#39;s containerd (k8s.io namespace).</p></td>
               </tr>
             
           </tbody>

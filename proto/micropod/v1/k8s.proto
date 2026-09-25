@@ -26,6 +26,15 @@ service K8sService {
   // Host kubeconfig for the cluster — server already rewritten to the VM
   // address; save and `export KUBECONFIG=<path>` (or use contents directly).
   rpc GetKubeconfig(Empty) returns (GetKubeconfigResponse);
+  // Push an image into the cluster's containerd via the host puller —
+  // bypasses the guest's slow NAT registry path. `ref` resolves from the
+  // host's local image store first and pulls only on a miss; `archive`
+  // pushes a `container image save`/`docker save` tarball with no registry
+  // round trip at all. Streams progress lines; the terminal event carries
+  // the loaded ref + byte count.
+  rpc LoadK8sImage(LoadK8sImageRequest) returns (stream K8sLoadEvent);
+  // Image refs present in the cluster's containerd (k8s.io namespace).
+  rpc ListK8sImages(ListK8sImagesRequest) returns (ListK8sImagesResponse);
 }
 
 // Engine configuration, persisted at
@@ -91,4 +100,38 @@ message GetKubeconfigResponse {
   string path = 1 [(gnostic.openapi.v3.property).example = {yaml: "'/Users/me/.micropod/k8s/kubeconfig'"}];
   // Full kubeconfig YAML, server already rewritten to the VM address.
   string contents = 2;
+}
+
+message LoadK8sImageRequest {
+  // Registry ref, e.g. "docker.io/library/redis:alpine". Resolved from the
+  // host's local image store first; pulled by the host puller on a miss.
+  // Mutually exclusive with `archive`.
+  string ref = 1 [(gnostic.openapi.v3.property).example = {yaml: "'docker.io/library/redis:alpine'"}];
+  // OCI/docker save tarball bytes — injected into the guest's containerd
+  // with no registry round trip. Base64 in Connect JSON.
+  bytes archive = 2;
+  // Cluster VM override; empty = the configured cluster.
+  optional string cluster_name = 3;
+}
+
+// One LoadK8sImage stream event — progress lines, then the loaded ref.
+message K8sLoadEvent {
+  // Progress output line — empty on the terminal event.
+  string line = 1 [(gnostic.openapi.v3.property).example = {yaml: "'injecting into micropod-k3s containerd'"}];
+  // True on the terminal event once the image is imported.
+  bool done = 2;
+  // The loaded ref (terminal event only).
+  string ref = 3 [(gnostic.openapi.v3.property).example = {yaml: "'docker.io/library/redis:alpine'"}];
+  // Archive bytes pushed into the guest (terminal event only).
+  int64 bytes = 4;
+}
+
+message ListK8sImagesRequest {
+  // Cluster VM override; empty = the configured cluster.
+  optional string cluster_name = 1;
+}
+
+message ListK8sImagesResponse {
+  // Image refs in the cluster's containerd (k8s.io namespace).
+  repeated string refs = 1;
 }

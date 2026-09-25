@@ -106,4 +106,17 @@ final class K8sServiceTests: XCTestCase {
         XCTAssertTrue(yaml.contains("192.168.64.240-192.168.64.250"))
         XCTAssertTrue(yaml.contains("metallb-system"))
     }
+
+    // MARK: - Image ref normalization (kubelet resolves to docker.io/…)
+
+    func testQualifiedRefNormalizesLikeDocker() {
+        XCTAssertEqual(K8sService.qualifiedRef("redis"), "docker.io/library/redis:latest")
+        XCTAssertEqual(K8sService.qualifiedRef("redis:alpine"), "docker.io/library/redis:alpine")
+        XCTAssertEqual(K8sService.qualifiedRef("org/img:1"), "docker.io/org/img:1")
+        XCTAssertEqual(
+            K8sService.qualifiedRef("quay.io/metallb/controller:v0.14.9"),
+            "quay.io/metallb/controller:v0.14.9")
+        XCTAssertEqual(K8sService.qualifiedRef("localhost:5000/img"), "localhost:5000/img:latest")
+        XCTAssertEqual(K8sService.qualifiedRef("ghcr.io/x/y"), "ghcr.io/x/y:latest")
+    }
 }

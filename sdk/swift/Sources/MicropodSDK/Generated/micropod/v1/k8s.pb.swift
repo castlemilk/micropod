@@ -8,6 +8,11 @@
 // For information on using the generated types, please see the documentation:
 //   https://github.com/apple/swift-protobuf/
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 import SwiftProtobuf
 
 // If the compiler emits an error on this type, it is because this file
@@ -215,6 +220,95 @@ public nonisolated struct Micropod_V1_GetKubeconfigResponse: Sendable {
 
   /// Full kubeconfig YAML, server already rewritten to the VM address.
   public var contents: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Micropod_V1_LoadK8sImageRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Registry ref, e.g. "docker.io/library/redis:alpine". Resolved from the
+  /// host's local image store first; pulled by the host puller on a miss.
+  /// Mutually exclusive with `archive`.
+  public var ref: String = String()
+
+  /// OCI/docker save tarball bytes — injected into the guest's containerd
+  /// with no registry round trip. Base64 in Connect JSON.
+  public var archive: Data = Data()
+
+  /// Cluster VM override; empty = the configured cluster.
+  public var clusterName: String {
+    get {_clusterName ?? String()}
+    set {_clusterName = newValue}
+  }
+  /// Returns true if `clusterName` has been explicitly set.
+  public var hasClusterName: Bool {self._clusterName != nil}
+  /// Clears the value of `clusterName`. Subsequent reads from it will return its default value.
+  public mutating func clearClusterName() {self._clusterName = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _clusterName: String? = nil
+}
+
+/// One LoadK8sImage stream event — progress lines, then the loaded ref.
+public nonisolated struct Micropod_V1_K8sLoadEvent: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Progress output line — empty on the terminal event.
+  public var line: String = String()
+
+  /// True on the terminal event once the image is imported.
+  public var done: Bool = false
+
+  /// The loaded ref (terminal event only).
+  public var ref: String = String()
+
+  /// Archive bytes pushed into the guest (terminal event only).
+  public var bytes: Int64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Micropod_V1_ListK8sImagesRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Cluster VM override; empty = the configured cluster.
+  public var clusterName: String {
+    get {_clusterName ?? String()}
+    set {_clusterName = newValue}
+  }
+  /// Returns true if `clusterName` has been explicitly set.
+  public var hasClusterName: Bool {self._clusterName != nil}
+  /// Clears the value of `clusterName`. Subsequent reads from it will return its default value.
+  public mutating func clearClusterName() {self._clusterName = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _clusterName: String? = nil
+}
+
+public nonisolated struct Micropod_V1_ListK8sImagesResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Image refs in the cluster's containerd (k8s.io namespace).
+  public var refs: [String] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -487,6 +581,159 @@ nonisolated extension Micropod_V1_GetKubeconfigResponse: SwiftProtobuf.Message, 
   public static func ==(lhs: Micropod_V1_GetKubeconfigResponse, rhs: Micropod_V1_GetKubeconfigResponse) -> Bool {
     if lhs.path != rhs.path {return false}
     if lhs.contents != rhs.contents {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_LoadK8sImageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LoadK8sImageRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ref\0\u{1}archive\0\u{3}cluster_name\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.ref) }()
+      case 2: try { try decoder.decodeSingularBytesField(value: &self.archive) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._clusterName) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.ref.isEmpty {
+      try visitor.visitSingularStringField(value: self.ref, fieldNumber: 1)
+    }
+    if !self.archive.isEmpty {
+      try visitor.visitSingularBytesField(value: self.archive, fieldNumber: 2)
+    }
+    try { if let v = self._clusterName {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_LoadK8sImageRequest, rhs: Micropod_V1_LoadK8sImageRequest) -> Bool {
+    if lhs.ref != rhs.ref {return false}
+    if lhs.archive != rhs.archive {return false}
+    if lhs._clusterName != rhs._clusterName {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_K8sLoadEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".K8sLoadEvent"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}line\0\u{1}done\0\u{1}ref\0\u{1}bytes\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.line) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.done) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.ref) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self.bytes) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.line.isEmpty {
+      try visitor.visitSingularStringField(value: self.line, fieldNumber: 1)
+    }
+    if self.done != false {
+      try visitor.visitSingularBoolField(value: self.done, fieldNumber: 2)
+    }
+    if !self.ref.isEmpty {
+      try visitor.visitSingularStringField(value: self.ref, fieldNumber: 3)
+    }
+    if self.bytes != 0 {
+      try visitor.visitSingularInt64Field(value: self.bytes, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_K8sLoadEvent, rhs: Micropod_V1_K8sLoadEvent) -> Bool {
+    if lhs.line != rhs.line {return false}
+    if lhs.done != rhs.done {return false}
+    if lhs.ref != rhs.ref {return false}
+    if lhs.bytes != rhs.bytes {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_ListK8sImagesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListK8sImagesRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}cluster_name\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._clusterName) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._clusterName {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_ListK8sImagesRequest, rhs: Micropod_V1_ListK8sImagesRequest) -> Bool {
+    if lhs._clusterName != rhs._clusterName {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_ListK8sImagesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListK8sImagesResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}refs\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedStringField(value: &self.refs) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.refs.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.refs, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_ListK8sImagesResponse, rhs: Micropod_V1_ListK8sImagesResponse) -> Bool {
+    if lhs.refs != rhs.refs {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

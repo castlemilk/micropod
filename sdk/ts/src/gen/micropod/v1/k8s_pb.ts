@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file micropod/v1/k8s.proto.
  */
 export const file_micropod_v1_k8s: GenFile = /*@__PURE__*/
-  fileDesc("ChVtaWNyb3BvZC92MS9rOHMucHJvdG8SC21pY3JvcG9kLnYxIqcCCglLOHNDb25maWcSDwoHZW5hYmxlZBgBIAEoCBI6CgVpbWFnZRgCIAEoCUIrukcoOiYSJCdkb2NrZXIuaW8vcmFuY2hlci9rM3M6djEuMzQuMS1rM3MxJxIbCgZtZW1vcnkYAyABKAlCC7pHCDoGEgQnMUcnEhYKBGNwdXMYBCABKAFCCLpHBToDEgEyEhAKCG1ldGFsX2xiGAUgASgIEg8KB2luZ3Jlc3MYBiABKAgSPAoHbGJfcG9vbBgHIAEoCUImukcjOiESHycxOTIuMTY4LjY0LjI0MC0xOTIuMTY4LjY0LjI1MCdIAIgBARIrCgxjbHVzdGVyX25hbWUYCCABKAlCFbpHEjoQEg4nbWljcm9wb2QtazNzJ0IKCghfbGJfcG9vbCLGAQoJSzhzU3RhdHVzEg8KB2VuYWJsZWQYASABKAgSDgoGZXhpc3RzGAIgASgIEg8KB3J1bm5pbmcYAyABKAgSLQoHYWRkcmVzcxgEIAEoCUIcukcZOhASDicxOTIuMTY4LjY0LjknmgIEaXB2NBISCgpub2RlX3JlYWR5GAUgASgIEkQKD2t1YmVjb25maWdfcGF0aBgGIAEoCUIrukcoOiYSJCcvVXNlcnMvbWUvLm1pY3JvcG9kL2s4cy9rdWJlY29uZmlnJyLoAgoMSzhzVXBSZXF1ZXN0Ej8KBWltYWdlGAEgASgJQiu6Ryg6JhIkJ2RvY2tlci5pby9yYW5jaGVyL2szczp2MS4zNC4xLWszczEnSACIAQESIAoGbWVtb3J5GAIgASgJQgu6Rwg6BhIEJzJHJ0gBiAEBEhsKBGNwdXMYAyABKAFCCLpHBToDEgE0SAKIAQESFQoIbWV0YWxfbGIYBCABKAhIA4gBARIUCgdpbmdyZXNzGAUgASgISASIAQESPAoHbGJfcG9vbBgGIAEoCUImukcjOiESHycxOTIuMTY4LjY0LjI0MC0xOTIuMTY4LjY0LjI1MCdIBYgBARIZCgxjbHVzdGVyX25hbWUYByABKAlIBogBAUIICgZfaW1hZ2VCCQoHX21lbW9yeUIHCgVfY3B1c0ILCglfbWV0YWxfbGJCCgoIX2luZ3Jlc3NCCgoIX2xiX3Bvb2xCDwoNX2NsdXN0ZXJfbmFtZSKRAQoKSzhzVXBFdmVudBI9CgRsaW5lGAEgASgJQi+6Ryw6KhIoJ3dhaXRpbmcgZm9yIHRoZSBBUEkgKGszcyBib290IH4zMC02MHMpJxIMCgRkb25lGAIgASgIEisKBnN0YXR1cxgDIAEoCzIWLm1pY3JvcG9kLnYxLks4c1N0YXR1c0gAiAEBQgkKB19zdGF0dXMiZAoVR2V0S3ViZWNvbmZpZ1Jlc3BvbnNlEjkKBHBhdGgYASABKAlCK7pHKDomEiQnL1VzZXJzL21lLy5taWNyb3BvZC9rOHMva3ViZWNvbmZpZycSEAoIY29udGVudHMYAiABKAky/wIKCks4c1NlcnZpY2USOgoMR2V0SzhzU3RhdHVzEhIubWljcm9wb2QudjEuRW1wdHkaFi5taWNyb3BvZC52MS5LOHNTdGF0dXMSOgoMR2V0SzhzQ29uZmlnEhIubWljcm9wb2QudjEuRW1wdHkaFi5taWNyb3BvZC52MS5LOHNDb25maWcSPgoMU2V0SzhzQ29uZmlnEhYubWljcm9wb2QudjEuSzhzQ29uZmlnGhYubWljcm9wb2QudjEuSzhzQ29uZmlnEj0KBUs4c1VwEhkubWljcm9wb2QudjEuSzhzVXBSZXF1ZXN0GhcubWljcm9wb2QudjEuSzhzVXBFdmVudDABEjEKB0s4c0Rvd24SEi5taWNyb3BvZC52MS5FbXB0eRoSLm1pY3JvcG9kLnYxLkVtcHR5EkcKDUdldEt1YmVjb25maWcSEi5taWNyb3BvZC52MS5FbXB0eRoiLm1pY3JvcG9kLnYxLkdldEt1YmVjb25maWdSZXNwb25zZUJCWkBnaXRodWIuY29tL2Nhc3RsZW1pbGsvbWljcm9wb2Qvc2RrL2dvL2dlbi9taWNyb3BvZC92MTttaWNyb3BvZHYxYgZwcm90bzM", [file_buf_validate_validate, file_gnostic_openapi_v3_annotations, file_micropod_v1_api]);
+  fileDesc("ChVtaWNyb3BvZC92MS9rOHMucHJvdG8SC21pY3JvcG9kLnYxIqcCCglLOHNDb25maWcSDwoHZW5hYmxlZBgBIAEoCBI6CgVpbWFnZRgCIAEoCUIrukcoOiYSJCdkb2NrZXIuaW8vcmFuY2hlci9rM3M6djEuMzQuMS1rM3MxJxIbCgZtZW1vcnkYAyABKAlCC7pHCDoGEgQnMUcnEhYKBGNwdXMYBCABKAFCCLpHBToDEgEyEhAKCG1ldGFsX2xiGAUgASgIEg8KB2luZ3Jlc3MYBiABKAgSPAoHbGJfcG9vbBgHIAEoCUImukcjOiESHycxOTIuMTY4LjY0LjI0MC0xOTIuMTY4LjY0LjI1MCdIAIgBARIrCgxjbHVzdGVyX25hbWUYCCABKAlCFbpHEjoQEg4nbWljcm9wb2QtazNzJ0IKCghfbGJfcG9vbCLGAQoJSzhzU3RhdHVzEg8KB2VuYWJsZWQYASABKAgSDgoGZXhpc3RzGAIgASgIEg8KB3J1bm5pbmcYAyABKAgSLQoHYWRkcmVzcxgEIAEoCUIcukcZOhASDicxOTIuMTY4LjY0LjknmgIEaXB2NBISCgpub2RlX3JlYWR5GAUgASgIEkQKD2t1YmVjb25maWdfcGF0aBgGIAEoCUIrukcoOiYSJCcvVXNlcnMvbWUvLm1pY3JvcG9kL2s4cy9rdWJlY29uZmlnJyLoAgoMSzhzVXBSZXF1ZXN0Ej8KBWltYWdlGAEgASgJQiu6Ryg6JhIkJ2RvY2tlci5pby9yYW5jaGVyL2szczp2MS4zNC4xLWszczEnSACIAQESIAoGbWVtb3J5GAIgASgJQgu6Rwg6BhIEJzJHJ0gBiAEBEhsKBGNwdXMYAyABKAFCCLpHBToDEgE0SAKIAQESFQoIbWV0YWxfbGIYBCABKAhIA4gBARIUCgdpbmdyZXNzGAUgASgISASIAQESPAoHbGJfcG9vbBgGIAEoCUImukcjOiESHycxOTIuMTY4LjY0LjI0MC0xOTIuMTY4LjY0LjI1MCdIBYgBARIZCgxjbHVzdGVyX25hbWUYByABKAlIBogBAUIICgZfaW1hZ2VCCQoHX21lbW9yeUIHCgVfY3B1c0ILCglfbWV0YWxfbGJCCgoIX2luZ3Jlc3NCCgoIX2xiX3Bvb2xCDwoNX2NsdXN0ZXJfbmFtZSKRAQoKSzhzVXBFdmVudBI9CgRsaW5lGAEgASgJQi+6Ryw6KhIoJ3dhaXRpbmcgZm9yIHRoZSBBUEkgKGszcyBib290IH4zMC02MHMpJxIMCgRkb25lGAIgASgIEisKBnN0YXR1cxgDIAEoCzIWLm1pY3JvcG9kLnYxLks4c1N0YXR1c0gAiAEBQgkKB19zdGF0dXMiZAoVR2V0S3ViZWNvbmZpZ1Jlc3BvbnNlEjkKBHBhdGgYASABKAlCK7pHKDomEiQnL1VzZXJzL21lLy5taWNyb3BvZC9rOHMva3ViZWNvbmZpZycSEAoIY29udGVudHMYAiABKAkiiAEKE0xvYWRLOHNJbWFnZVJlcXVlc3QSNAoDcmVmGAEgASgJQie6RyQ6IhIgJ2RvY2tlci5pby9saWJyYXJ5L3JlZGlzOmFscGluZScSDwoHYXJjaGl2ZRgCIAEoDBIZCgxjbHVzdGVyX25hbWUYAyABKAlIAIgBAUIPCg1fY2x1c3Rlcl9uYW1lIqABCgxLOHNMb2FkRXZlbnQSPQoEbGluZRgBIAEoCUIvukcsOioSKCdpbmplY3RpbmcgaW50byBtaWNyb3BvZC1rM3MgY29udGFpbmVyZCcSDAoEZG9uZRgCIAEoCBI0CgNyZWYYAyABKAlCJ7pHJDoiEiAnZG9ja2VyLmlvL2xpYnJhcnkvcmVkaXM6YWxwaW5lJxINCgVieXRlcxgEIAEoAyJCChRMaXN0SzhzSW1hZ2VzUmVxdWVzdBIZCgxjbHVzdGVyX25hbWUYASABKAlIAIgBAUIPCg1fY2x1c3Rlcl9uYW1lIiUKFUxpc3RLOHNJbWFnZXNSZXNwb25zZRIMCgRyZWZzGAEgAygJMqYECgpLOHNTZXJ2aWNlEjoKDEdldEs4c1N0YXR1cxISLm1pY3JvcG9kLnYxLkVtcHR5GhYubWljcm9wb2QudjEuSzhzU3RhdHVzEjoKDEdldEs4c0NvbmZpZxISLm1pY3JvcG9kLnYxLkVtcHR5GhYubWljcm9wb2QudjEuSzhzQ29uZmlnEj4KDFNldEs4c0NvbmZpZxIWLm1pY3JvcG9kLnYxLks4c0NvbmZpZxoWLm1pY3JvcG9kLnYxLks4c0NvbmZpZxI9CgVLOHNVcBIZLm1pY3JvcG9kLnYxLks4c1VwUmVxdWVzdBoXLm1pY3JvcG9kLnYxLks4c1VwRXZlbnQwARIxCgdLOHNEb3duEhIubWljcm9wb2QudjEuRW1wdHkaEi5taWNyb3BvZC52MS5FbXB0eRJHCg1HZXRLdWJlY29uZmlnEhIubWljcm9wb2QudjEuRW1wdHkaIi5taWNyb3BvZC52MS5HZXRLdWJlY29uZmlnUmVzcG9uc2USTQoMTG9hZEs4c0ltYWdlEiAubWljcm9wb2QudjEuTG9hZEs4c0ltYWdlUmVxdWVzdBoZLm1pY3JvcG9kLnYxLks4c0xvYWRFdmVudDABElYKDUxpc3RLOHNJbWFnZXMSIS5taWNyb3BvZC52MS5MaXN0SzhzSW1hZ2VzUmVxdWVzdBoiLm1pY3JvcG9kLnYxLkxpc3RLOHNJbWFnZXNSZXNwb25zZUJCWkBnaXRodWIuY29tL2Nhc3RsZW1pbGsvbWljcm9wb2Qvc2RrL2dvL2dlbi9taWNyb3BvZC92MTttaWNyb3BvZHYxYgZwcm90bzM", [file_buf_validate_validate, file_gnostic_openapi_v3_annotations, file_micropod_v1_api]);
 
 /**
  * Engine configuration, persisted at
@@ -254,6 +254,122 @@ export const GetKubeconfigResponseSchema: GenMessage<GetKubeconfigResponse> = /*
   messageDesc(file_micropod_v1_k8s, 4);
 
 /**
+ * @generated from message micropod.v1.LoadK8sImageRequest
+ */
+export type LoadK8sImageRequest = Message<"micropod.v1.LoadK8sImageRequest"> & {
+  /**
+   * Registry ref, e.g. "docker.io/library/redis:alpine". Resolved from the
+   * host's local image store first; pulled by the host puller on a miss.
+   * Mutually exclusive with `archive`.
+   *
+   * @generated from field: string ref = 1;
+   */
+  ref: string;
+
+  /**
+   * OCI/docker save tarball bytes — injected into the guest's containerd
+   * with no registry round trip. Base64 in Connect JSON.
+   *
+   * @generated from field: bytes archive = 2;
+   */
+  archive: Uint8Array;
+
+  /**
+   * Cluster VM override; empty = the configured cluster.
+   *
+   * @generated from field: optional string cluster_name = 3;
+   */
+  clusterName?: string;
+};
+
+/**
+ * Describes the message micropod.v1.LoadK8sImageRequest.
+ * Use `create(LoadK8sImageRequestSchema)` to create a new message.
+ */
+export const LoadK8sImageRequestSchema: GenMessage<LoadK8sImageRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_k8s, 5);
+
+/**
+ * One LoadK8sImage stream event — progress lines, then the loaded ref.
+ *
+ * @generated from message micropod.v1.K8sLoadEvent
+ */
+export type K8sLoadEvent = Message<"micropod.v1.K8sLoadEvent"> & {
+  /**
+   * Progress output line — empty on the terminal event.
+   *
+   * @generated from field: string line = 1;
+   */
+  line: string;
+
+  /**
+   * True on the terminal event once the image is imported.
+   *
+   * @generated from field: bool done = 2;
+   */
+  done: boolean;
+
+  /**
+   * The loaded ref (terminal event only).
+   *
+   * @generated from field: string ref = 3;
+   */
+  ref: string;
+
+  /**
+   * Archive bytes pushed into the guest (terminal event only).
+   *
+   * @generated from field: int64 bytes = 4;
+   */
+  bytes: bigint;
+};
+
+/**
+ * Describes the message micropod.v1.K8sLoadEvent.
+ * Use `create(K8sLoadEventSchema)` to create a new message.
+ */
+export const K8sLoadEventSchema: GenMessage<K8sLoadEvent> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_k8s, 6);
+
+/**
+ * @generated from message micropod.v1.ListK8sImagesRequest
+ */
+export type ListK8sImagesRequest = Message<"micropod.v1.ListK8sImagesRequest"> & {
+  /**
+   * Cluster VM override; empty = the configured cluster.
+   *
+   * @generated from field: optional string cluster_name = 1;
+   */
+  clusterName?: string;
+};
+
+/**
+ * Describes the message micropod.v1.ListK8sImagesRequest.
+ * Use `create(ListK8sImagesRequestSchema)` to create a new message.
+ */
+export const ListK8sImagesRequestSchema: GenMessage<ListK8sImagesRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_k8s, 7);
+
+/**
+ * @generated from message micropod.v1.ListK8sImagesResponse
+ */
+export type ListK8sImagesResponse = Message<"micropod.v1.ListK8sImagesResponse"> & {
+  /**
+   * Image refs in the cluster's containerd (k8s.io namespace).
+   *
+   * @generated from field: repeated string refs = 1;
+   */
+  refs: string[];
+};
+
+/**
+ * Describes the message micropod.v1.ListK8sImagesResponse.
+ * Use `create(ListK8sImagesResponseSchema)` to create a new message.
+ */
+export const ListK8sImagesResponseSchema: GenMessage<ListK8sImagesResponse> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_k8s, 8);
+
+/**
  * The opt-in lightweight Kubernetes engine: a single micro-VM running
  * `k3s server` (etcd + apiserver + kubelet + containerd), MetalLB on the
  * vmnet subnet for real LoadBalancer IPs, and a host kubeconfig.
@@ -322,6 +438,31 @@ export const K8sService: GenService<{
     methodKind: "unary";
     input: typeof EmptySchema;
     output: typeof GetKubeconfigResponseSchema;
+  },
+  /**
+   * Push an image into the cluster's containerd via the host puller —
+   * bypasses the guest's slow NAT registry path. `ref` resolves from the
+   * host's local image store first and pulls only on a miss; `archive`
+   * pushes a `container image save`/`docker save` tarball with no registry
+   * round trip at all. Streams progress lines; the terminal event carries
+   * the loaded ref + byte count.
+   *
+   * @generated from rpc micropod.v1.K8sService.LoadK8sImage
+   */
+  loadK8sImage: {
+    methodKind: "server_streaming";
+    input: typeof LoadK8sImageRequestSchema;
+    output: typeof K8sLoadEventSchema;
+  },
+  /**
+   * Image refs present in the cluster's containerd (k8s.io namespace).
+   *
+   * @generated from rpc micropod.v1.K8sService.ListK8sImages
+   */
+  listK8sImages: {
+    methodKind: "unary";
+    input: typeof ListK8sImagesRequestSchema;
+    output: typeof ListK8sImagesResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_micropod_v1_k8s, 0);

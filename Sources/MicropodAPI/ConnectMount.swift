@@ -285,6 +285,39 @@ extension APIHandlers {
                         $0.contents = contents
                     })
 
+            case "LoadK8sImage":
+                guard k8s.isEnabled else {
+                    return connectError(.unavailable, K8sError.disabled.description)
+                }
+                let req = try decodeStreamRequest(Micropod_V1_LoadK8sImageRequest.self, body)
+                guard !req.ref.isEmpty || !req.archive.isEmpty else {
+                    return connectError(.invalidArgument, "LoadK8sImage needs a ref or archive bytes")
+                }
+                let events = k8s.loadImageEvents(
+                    ref: req.ref.isEmpty ? nil : req.ref,
+                    archiveData: req.archive.isEmpty ? nil : req.archive,
+                    name: req.hasClusterName ? req.clusterName : nil)
+                return streamEnvelope(events) { event in
+                    Micropod_V1_K8sLoadEvent.with {
+                        $0.line = event.line
+                        if let image = event.image {
+                            $0.done = true
+                            $0.ref = image.ref
+                            $0.bytes = image.bytes
+                        }
+                    }
+                }
+
+            case "ListK8sImages":
+                let req =
+                    body.isEmpty
+                    ? Micropod_V1_ListK8sImagesRequest()
+                    : (try? decode(Micropod_V1_ListK8sImagesRequest.self, body))
+                        ?? Micropod_V1_ListK8sImagesRequest()
+                let refs = try await k8s.listImages(
+                    name: req.hasClusterName ? req.clusterName : nil)
+                return unary(Micropod_V1_ListK8sImagesResponse.with { $0.refs = refs })
+
             default:
                 return nil
             }

@@ -173,6 +173,125 @@ public struct K8sService: Sendable {
         }
     }
 
+    /// Streaming variant of `down`-less image loading for the Connect API.
+    public struct LoadedImage: Sendable {
+        public var ref: String
+        public var bytes: Int64
+    }
+
+    /// Push an image into the cluster's containerd (`k8s.io` namespace) via
+    /// the host — bypasses the guest's slow NAT registry path entirely.
+    ///
+    /// Sources, in order: `archivePath`/`archiveData` (a `container image
+    /// save`/`docker save` tarball) injects directly; `ref` saves from the
+    /// local image store first and pulls only on a miss.
+    @discardableResult
+    public func loadImage(
+        name: String? = nil,
+        ref: String? = nil,
+        archivePath: URL? = nil,
+        archiveData: Data? = nil,
+        progress: @Sendable (String) -> Void = { _ in }
+    ) async throws -> LoadedImage {
+        guard isEnabled else { throw K8sError.disabled }
+        let name = name ?? (loadConfig() ?? .defaults).clusterName
+        let st = try await status(name: name)
+        guard st.running else {
+            throw K8sError.cliFailure("cluster \(name) is not running — `micropod k8s up` first")
+        }
+
+        var tmp: URL? = archivePath
+        var ownedTmp: URL? = nil
+        defer { if let ownedTmp { try? FileManager.default.removeItem(at: ownedTmp) } }
+
+        if let archiveData {
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("micropod-seed-\(UUID().uuidString).tar")
+            try archiveData.write(to: url)
+            tmp = url
+            ownedTmp = url
+        } else if let ref {
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("micropod-seed-\(UUID().uuidString).tar")
+            ownedTmp = url
+            // Local store first — `image save` on a present image never
+            // touches the network; pull only when the ref is missing.
+            if (try? await client.run(
+                ContainerCommand(arguments: ["image", "save", ref, "-o", url.path]),
+                timeout: .seconds(120))) == nil
+            {
+                progress("pulling \(ref) (host puller)")
+                _ = try await client.run(
+                    ContainerCommand(arguments: ["image", "pull", ref]), timeout: .seconds(600))
+                _ = try await client.run(
+                    ContainerCommand(arguments: ["image", "save", ref, "-o", url.path]),
+                    timeout: .seconds(120))
+            }
+            tmp = url
+        }
+        guard let tar = tmp else {
+            throw K8sError.cliFailure("loadImage needs a ref, a tar path, or archive bytes")
+        }
+
+        let bytes = (try? FileManager.default.attributesOfItem(atPath: tar.path)[.size] as? Int64) ?? nil
+        progress("injecting into \(name) containerd")
+        let guestPath = "/tmp/\(tar.lastPathComponent)"
+        _ = try await client.run(
+            ContainerCommand(arguments: ["copy", tar.path, "\(name):\(guestPath)"]),
+            timeout: .seconds(300))
+        _ = try await client.run(
+            ContainerCommand(
+                arguments: ["exec", name, "ctr", "-n", "k8s.io", "images", "import", guestPath]),
+            timeout: .seconds(120))
+        // kubelet resolves unqualified refs (`redis:alpine`) to
+        // `docker.io/library/…`; tag that form so `image:` matches what
+        // was loaded.
+        if let ref, let qualified = Self.qualifiedRef(ref), qualified != ref {
+            _ = try? await client.run(
+                ContainerCommand(
+                    arguments: [
+                        "exec", name, "ctr", "-n", "k8s.io", "images", "tag", "--force", ref, qualified,
+                    ]),
+                timeout: .seconds(30))
+        }
+        _ = try? await client.run(
+            ContainerCommand(arguments: ["exec", name, "rm", "-f", guestPath]), timeout: .seconds(15))
+        return LoadedImage(ref: ref ?? archivePath?.lastPathComponent ?? "archive", bytes: bytes ?? 0)
+    }
+
+    /// Image refs present in the cluster's containerd (`k8s.io` namespace).
+    public func listImages(name: String? = nil) async throws -> [String] {
+        guard isEnabled else { throw K8sError.disabled }
+        let name = name ?? (loadConfig() ?? .defaults).clusterName
+        let out = try await client.run(
+            ContainerCommand(
+                arguments: ["exec", name, "ctr", "-n", "k8s.io", "images", "list", "-q"]),
+            timeout: .seconds(30))
+        return out.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && !$0.hasPrefix("sha256:") }
+    }
+
+    /// LoadK8sImage over the Connect API — progress lines then the loaded ref.
+    public func loadImageEvents(
+        ref: String?, archiveData: Data?, name: String? = nil
+    ) -> AsyncThrowingStream<(line: String, image: LoadedImage?), Error> {
+        AsyncThrowingStream { cont in
+            Task {
+                do {
+                    let loaded = try await loadImage(
+                        name: name, ref: ref, archiveData: archiveData
+                    ) {
+                        cont.yield(($0, nil))
+                    }
+                    cont.yield(("", loaded))
+                    cont.finish()
+                } catch {
+                    cont.finish(throwing: error)
+                }
+            }
+        }
+    }
+
     public func down(_ config: K8sConfig) async throws {
         let name = config.clusterName
         guard await containerExists(name) else { return }
@@ -215,6 +334,24 @@ public struct K8sService: Sendable {
         ]
         if !config.ingress { args.append("--disable=traefik") }
         return args
+    }
+
+    /// Docker-style normalization for image refs: `redis:alpine` →
+    /// `docker.io/library/redis:alpine`, `org/img:1` → `docker.io/org/img:1`;
+    /// refs whose first component is a registry (contains `.`/`:` or is
+    /// `localhost`) pass through unchanged.
+    static func qualifiedRef(_ ref: String) -> String? {
+        var ref = ref
+        // tag-less refs resolve to :latest
+        let last = ref.split(separator: "/").last.map(String.init) ?? ref
+        if !last.contains(":") { ref += ":latest" }
+        let first = ref.split(separator: "/").first.map(String.init) ?? ref
+        if ref.contains("/"),
+            first.contains(".") || first.contains(":") || first == "localhost"
+        {
+            return ref
+        }
+        return ref.contains("/") ? "docker.io/\(ref)" : "docker.io/library/\(ref)"
     }
 
     /// kubeconfig served inside the VM points at 127.0.0.1 — the apiserver
@@ -327,29 +464,11 @@ public struct K8sService: Sendable {
         progress("MetalLB pool \(pool) (L2 on the VM subnet)")
     }
 
-    /// Pull `ref` with the host puller (fast path through vmnet), then push the
-    /// OCI archive into the guest's `k8s.io` containerd namespace — avoids the
-    /// guest's slow registry path entirely. Idempotent: a `save` on an already-
-    /// pulled image is local-only, and `ctr import` no-ops on present digests.
+    /// Pull `ref` with the host puller (local store first), then inject into
+    /// the guest's `k8s.io` containerd namespace — thin wrapper over
+    /// `loadImage` used by `installMetalLB` before apply.
     private func seedImage(name: String, ref: String) async throws {
-        let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("micropod-seed-\(UUID().uuidString).tar")
-        defer { try? FileManager.default.removeItem(at: tmp) }
-        _ = try? await client.run(
-            ContainerCommand(arguments: ["image", "pull", ref]), timeout: .seconds(300))
-        _ = try await client.run(
-            ContainerCommand(arguments: ["image", "save", ref, "-o", tmp.path]),
-            timeout: .seconds(60))
-        let guestPath = "/tmp/\(tmp.lastPathComponent)"
-        _ = try await client.run(
-            ContainerCommand(arguments: ["copy", tmp.path, "\(name):\(guestPath)"]),
-            timeout: .seconds(120))
-        _ = try await client.run(
-            ContainerCommand(
-                arguments: ["exec", name, "ctr", "-n", "k8s.io", "images", "import", guestPath]),
-            timeout: .seconds(60))
-        _ = try? await client.run(
-            ContainerCommand(arguments: ["exec", name, "rm", "-f", guestPath]), timeout: .seconds(15))
+        _ = try await loadImage(name: name, ref: ref)
     }
 
     private func waitForAPI(_ name: String, timeout: Int) async throws {

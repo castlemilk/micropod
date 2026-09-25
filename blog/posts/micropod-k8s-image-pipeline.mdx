@@ -1,0 +1,78 @@
+---
+title: "Shipping images to a micro-VM cluster without the slow path"
+date: 2026-09-25
+reading: 4 min read
+tags: [kubernetes, images, performance, dx]
+description: "Guest-side registry pulls over vmnet NAT were the one bad number in the k8s engine — so Micropod pushes images into the cluster's containerd from the host instead: local store first, registry only on a miss, tarballs straight over the API."
+standfirst: "The one genuinely bad number in the k8s engine wasn't Kubernetes at all — it was pulling images through the guest's vmnet NAT (13 minutes for MetalLB's 60MB). The fix is a small image pipeline: pull on the host, inject into the cluster's containerd, tag the qualified name. `micropod k8s load` — and the same op on Connect, REST, MCP, and the SDKs."
+---
+
+A local Kubernetes cluster lives or dies on its image story. kind has `kind load docker-image` — it exists because the same problem exists there: a registry pull that crosses a VM boundary you don't control is the slowest possible way to get bytes from your laptop into a node.
+
+Micropod's version of the problem is sharper. Every container is a micro-VM on vmnet's NAT — and guest-side pulls through that NAT are *pathologically* slow, not just slow: the ~60MB MetalLB install took ~13 minutes through quay.io, and a 20MB pod image minutes more. Meanwhile the host's puller moves at wire speed.
+
+So the cluster doesn't pull images. The host does — and pushes.
+
+<Flow
+  title="Image path — ref to Running pod"
+  lanes={[
+    { steps: ["local store", "image save", "container copy", "ctr import", "pod"], accent: 0 },
+    { steps: ["registry", "host puller", "image save", "container copy", "ctr import", "pod"], accent: 1 },
+  ]}
+/>
+
+Three sources, one pipeline:
+
+- **`k8s load myapp:dev`** — image already in Micropod's store? `container image save` writes the OCI archive locally, `container copy` pushes it into the VM, `ctr -n k8s.io images import` lands it in the cluster's containerd. No network at all.
+- **`k8s load redis:alpine`** — not in the local store → the *host* puller fetches it, then the same inject path.
+- **`k8s load ./bundle.tar`** — a `container image save` or `docker save` tarball injects directly. For remote callers, `LoadK8sImage` accepts the archive as bytes (`base64` in Connect JSON) — no local file needed.
+- **`k8s images`** lists what's in the cluster's containerd.
+
+```bash
+$ micropod build -t myapp:dev .     # built on the host, APFS-native
+$ micropod k8s load myapp:dev       # save → copy → import — ~2s for 4MB
+  ▸ injecting into micropod-k3s containerd
+✓ loaded myapp:dev — reference it from a pod/deployment image: field
+$ kubectl run app --image=myapp:dev --restart=Never
+pod/app created          # Running immediately — zero pull
+```
+
+One subtlety worth knowing: kubelet resolves `myapp:dev` to `docker.io/library/myapp:dev`, while a bare `image save` keeps the short name — so the import is tagged with the fully-qualified ref automatically. Load `cachetest:2`, deploy `cachetest:2`, done. (That bug was found by a pod sitting in `ErrImagePull` with the image provably loaded — the tag mismatch is invisible until you know it's there.)
+
+## Every surface, same op
+
+The pipeline isn't a CLI-only trick — it's `LoadK8sImage` on the Connect API, streaming progress like `K8sUp` does:
+
+<Flow
+  title="Same pipeline, four callers"
+  lanes={[
+    { steps: ["micropod k8s load", "K8sService.loadImage"], accent: 1 },
+    { steps: ["Connect LoadK8sImage", "stream progress", "ref + bytes"] },
+    { steps: ["POST /v1/k8s/images", "{ref} or {archive: base64}"] },
+    { steps: ["mcp k8s_load_image", "ref | path args"], accent: 3 },
+  ]}
+/>
+
+The MCP tool means an agent's loop looks like: `k8s_load_image {ref: "redis:alpine"}` → `k8s_images` to confirm → workload manifest with `imagePullPolicy: IfNotPresent`. No pull-through proxy, no registry mirror, no `kind load` archaeology.
+
+## Why this matters beyond speed
+
+**Iterating on a workload** is `build → k8s load → kubectl rollout` — the loop kind users know, minus the Docker Desktop dependency and with the host's content store doing dedupe. The image that a pod runs is byte-identical to the one the host built, because it's the same archive.
+
+**Offline/airgap workflows** — a tarball on disk is a complete input: `micropod k8s load ./images.tar` on a plane, or in a CI sandbox with no registry access.
+
+**MetalLB itself** seeds through this path now: the two add-on images are pulled by the host puller and injected before the manifest applies — the install that took ~13 minutes of stalled guest pulls is a few seconds of local I/O.
+
+**Determinism** — a cluster's image state is enumerable (`k8s images`) and writable (`k8s load`) through one API, which is what made the `ErrImagePull`-by-name-mismatch bug findable and fixable in the first place.
+
+<StatGrid
+  items={[
+    { value: "~2 s", label: "load a 4MB image into the cluster" },
+    { value: "0", label: "registry pulls for a locally-built image" },
+    { value: "13 min → s", label: "MetalLB install, before → after seeding" },
+  ]}
+/>
+
+<Callout tone="note" title="Honest edge">Guest-side pulls still work — `imagePullPolicy: Always` or an unseeded ref pulls through the NAT as before (slowly). `k8s load` is the fast path, not a gate: nothing breaks if you skip it, you're just paying the registry tax. Seeding at `up` time covers Micropod's own add-ons; workload images are on you to `load` — or pull and wait.</Callout>
+
+API: `LoadK8sImage` / `ListK8sImages` on `micropod.v1.K8sService` — typed in the Go, TypeScript, and Swift SDKs. Reference: `docs/kubernetes.md`.

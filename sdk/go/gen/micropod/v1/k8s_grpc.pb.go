@@ -25,6 +25,8 @@ const (
 	K8SService_K8SUp_FullMethodName         = "/micropod.v1.K8sService/K8sUp"
 	K8SService_K8SDown_FullMethodName       = "/micropod.v1.K8sService/K8sDown"
 	K8SService_GetKubeconfig_FullMethodName = "/micropod.v1.K8sService/GetKubeconfig"
+	K8SService_LoadK8SImage_FullMethodName  = "/micropod.v1.K8sService/LoadK8sImage"
+	K8SService_ListK8SImages_FullMethodName = "/micropod.v1.K8sService/ListK8sImages"
 )
 
 // K8SServiceClient is the client API for K8SService service.
@@ -49,6 +51,15 @@ type K8SServiceClient interface {
 	// Host kubeconfig for the cluster — server already rewritten to the VM
 	// address; save and `export KUBECONFIG=<path>` (or use contents directly).
 	GetKubeconfig(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetKubeconfigResponse, error)
+	// Push an image into the cluster's containerd via the host puller —
+	// bypasses the guest's slow NAT registry path. `ref` resolves from the
+	// host's local image store first and pulls only on a miss; `archive`
+	// pushes a `container image save`/`docker save` tarball with no registry
+	// round trip at all. Streams progress lines; the terminal event carries
+	// the loaded ref + byte count.
+	LoadK8SImage(ctx context.Context, in *LoadK8SImageRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[K8SLoadEvent], error)
+	// Image refs present in the cluster's containerd (k8s.io namespace).
+	ListK8SImages(ctx context.Context, in *ListK8SImagesRequest, opts ...grpc.CallOption) (*ListK8SImagesResponse, error)
 }
 
 type k8SServiceClient struct {
@@ -128,6 +139,35 @@ func (c *k8SServiceClient) GetKubeconfig(ctx context.Context, in *Empty, opts ..
 	return out, nil
 }
 
+func (c *k8SServiceClient) LoadK8SImage(ctx context.Context, in *LoadK8SImageRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[K8SLoadEvent], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &K8SService_ServiceDesc.Streams[1], K8SService_LoadK8SImage_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[LoadK8SImageRequest, K8SLoadEvent]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type K8SService_LoadK8SImageClient = grpc.ServerStreamingClient[K8SLoadEvent]
+
+func (c *k8SServiceClient) ListK8SImages(ctx context.Context, in *ListK8SImagesRequest, opts ...grpc.CallOption) (*ListK8SImagesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListK8SImagesResponse)
+	err := c.cc.Invoke(ctx, K8SService_ListK8SImages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // K8SServiceServer is the server API for K8SService service.
 // All implementations must embed UnimplementedK8SServiceServer
 // for forward compatibility.
@@ -150,6 +190,15 @@ type K8SServiceServer interface {
 	// Host kubeconfig for the cluster — server already rewritten to the VM
 	// address; save and `export KUBECONFIG=<path>` (or use contents directly).
 	GetKubeconfig(context.Context, *Empty) (*GetKubeconfigResponse, error)
+	// Push an image into the cluster's containerd via the host puller —
+	// bypasses the guest's slow NAT registry path. `ref` resolves from the
+	// host's local image store first and pulls only on a miss; `archive`
+	// pushes a `container image save`/`docker save` tarball with no registry
+	// round trip at all. Streams progress lines; the terminal event carries
+	// the loaded ref + byte count.
+	LoadK8SImage(*LoadK8SImageRequest, grpc.ServerStreamingServer[K8SLoadEvent]) error
+	// Image refs present in the cluster's containerd (k8s.io namespace).
+	ListK8SImages(context.Context, *ListK8SImagesRequest) (*ListK8SImagesResponse, error)
 	mustEmbedUnimplementedK8SServiceServer()
 }
 
@@ -177,6 +226,12 @@ func (UnimplementedK8SServiceServer) K8SDown(context.Context, *Empty) (*Empty, e
 }
 func (UnimplementedK8SServiceServer) GetKubeconfig(context.Context, *Empty) (*GetKubeconfigResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetKubeconfig not implemented")
+}
+func (UnimplementedK8SServiceServer) LoadK8SImage(*LoadK8SImageRequest, grpc.ServerStreamingServer[K8SLoadEvent]) error {
+	return status.Error(codes.Unimplemented, "method LoadK8SImage not implemented")
+}
+func (UnimplementedK8SServiceServer) ListK8SImages(context.Context, *ListK8SImagesRequest) (*ListK8SImagesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListK8SImages not implemented")
 }
 func (UnimplementedK8SServiceServer) mustEmbedUnimplementedK8SServiceServer() {}
 func (UnimplementedK8SServiceServer) testEmbeddedByValue()                    {}
@@ -300,6 +355,35 @@ func _K8SService_GetKubeconfig_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _K8SService_LoadK8SImage_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(LoadK8SImageRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(K8SServiceServer).LoadK8SImage(m, &grpc.GenericServerStream[LoadK8SImageRequest, K8SLoadEvent]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type K8SService_LoadK8SImageServer = grpc.ServerStreamingServer[K8SLoadEvent]
+
+func _K8SService_ListK8SImages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListK8SImagesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(K8SServiceServer).ListK8SImages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: K8SService_ListK8SImages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(K8SServiceServer).ListK8SImages(ctx, req.(*ListK8SImagesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // K8SService_ServiceDesc is the grpc.ServiceDesc for K8SService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -327,11 +411,20 @@ var K8SService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "GetKubeconfig",
 			Handler:    _K8SService_GetKubeconfig_Handler,
 		},
+		{
+			MethodName: "ListK8sImages",
+			Handler:    _K8SService_ListK8SImages_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "K8sUp",
 			Handler:       _K8SService_K8SUp_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "LoadK8sImage",
+			Handler:       _K8SService_LoadK8SImage_Handler,
 			ServerStreams: true,
 		},
 	},

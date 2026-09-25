@@ -435,6 +435,235 @@ func (x *GetKubeconfigResponse) GetContents() string {
 	return ""
 }
 
+type LoadK8SImageRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Registry ref, e.g. "docker.io/library/redis:alpine". Resolved from the
+	// host's local image store first; pulled by the host puller on a miss.
+	// Mutually exclusive with `archive`.
+	Ref string `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
+	// OCI/docker save tarball bytes — injected into the guest's containerd
+	// with no registry round trip. Base64 in Connect JSON.
+	Archive []byte `protobuf:"bytes,2,opt,name=archive,proto3" json:"archive,omitempty"`
+	// Cluster VM override; empty = the configured cluster.
+	ClusterName   *string `protobuf:"bytes,3,opt,name=cluster_name,json=clusterName,proto3,oneof" json:"cluster_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LoadK8SImageRequest) Reset() {
+	*x = LoadK8SImageRequest{}
+	mi := &file_micropod_v1_k8s_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LoadK8SImageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoadK8SImageRequest) ProtoMessage() {}
+
+func (x *LoadK8SImageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_k8s_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoadK8SImageRequest.ProtoReflect.Descriptor instead.
+func (*LoadK8SImageRequest) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_k8s_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *LoadK8SImageRequest) GetRef() string {
+	if x != nil {
+		return x.Ref
+	}
+	return ""
+}
+
+func (x *LoadK8SImageRequest) GetArchive() []byte {
+	if x != nil {
+		return x.Archive
+	}
+	return nil
+}
+
+func (x *LoadK8SImageRequest) GetClusterName() string {
+	if x != nil && x.ClusterName != nil {
+		return *x.ClusterName
+	}
+	return ""
+}
+
+// One LoadK8sImage stream event — progress lines, then the loaded ref.
+type K8SLoadEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Progress output line — empty on the terminal event.
+	Line string `protobuf:"bytes,1,opt,name=line,proto3" json:"line,omitempty"`
+	// True on the terminal event once the image is imported.
+	Done bool `protobuf:"varint,2,opt,name=done,proto3" json:"done,omitempty"`
+	// The loaded ref (terminal event only).
+	Ref string `protobuf:"bytes,3,opt,name=ref,proto3" json:"ref,omitempty"`
+	// Archive bytes pushed into the guest (terminal event only).
+	Bytes         int64 `protobuf:"varint,4,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *K8SLoadEvent) Reset() {
+	*x = K8SLoadEvent{}
+	mi := &file_micropod_v1_k8s_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *K8SLoadEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*K8SLoadEvent) ProtoMessage() {}
+
+func (x *K8SLoadEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_k8s_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use K8SLoadEvent.ProtoReflect.Descriptor instead.
+func (*K8SLoadEvent) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_k8s_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *K8SLoadEvent) GetLine() string {
+	if x != nil {
+		return x.Line
+	}
+	return ""
+}
+
+func (x *K8SLoadEvent) GetDone() bool {
+	if x != nil {
+		return x.Done
+	}
+	return false
+}
+
+func (x *K8SLoadEvent) GetRef() string {
+	if x != nil {
+		return x.Ref
+	}
+	return ""
+}
+
+func (x *K8SLoadEvent) GetBytes() int64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
+type ListK8SImagesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Cluster VM override; empty = the configured cluster.
+	ClusterName   *string `protobuf:"bytes,1,opt,name=cluster_name,json=clusterName,proto3,oneof" json:"cluster_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListK8SImagesRequest) Reset() {
+	*x = ListK8SImagesRequest{}
+	mi := &file_micropod_v1_k8s_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListK8SImagesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListK8SImagesRequest) ProtoMessage() {}
+
+func (x *ListK8SImagesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_k8s_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListK8SImagesRequest.ProtoReflect.Descriptor instead.
+func (*ListK8SImagesRequest) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_k8s_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ListK8SImagesRequest) GetClusterName() string {
+	if x != nil && x.ClusterName != nil {
+		return *x.ClusterName
+	}
+	return ""
+}
+
+type ListK8SImagesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Image refs in the cluster's containerd (k8s.io namespace).
+	Refs          []string `protobuf:"bytes,1,rep,name=refs,proto3" json:"refs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListK8SImagesResponse) Reset() {
+	*x = ListK8SImagesResponse{}
+	mi := &file_micropod_v1_k8s_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListK8SImagesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListK8SImagesResponse) ProtoMessage() {}
+
+func (x *ListK8SImagesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_k8s_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListK8SImagesResponse.ProtoReflect.Descriptor instead.
+func (*ListK8SImagesResponse) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_k8s_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ListK8SImagesResponse) GetRefs() []string {
+	if x != nil {
+		return x.Refs
+	}
+	return nil
+}
+
 var File_micropod_v1_k8s_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_k8s_proto_rawDesc = "" +
@@ -484,7 +713,22 @@ const file_micropod_v1_k8s_proto_rawDesc = "" +
 	"\a_status\"t\n" +
 	"\x15GetKubeconfigResponse\x12?\n" +
 	"\x04path\x18\x01 \x01(\tB+\xbaG(:&\x12$'/Users/me/.micropod/k8s/kubeconfig'R\x04path\x12\x1a\n" +
-	"\bcontents\x18\x02 \x01(\tR\bcontents2\xff\x02\n" +
+	"\bcontents\x18\x02 \x01(\tR\bcontents\"\xa3\x01\n" +
+	"\x13LoadK8sImageRequest\x129\n" +
+	"\x03ref\x18\x01 \x01(\tB'\xbaG$:\"\x12 'docker.io/library/redis:alpine'R\x03ref\x12\x18\n" +
+	"\aarchive\x18\x02 \x01(\fR\aarchive\x12&\n" +
+	"\fcluster_name\x18\x03 \x01(\tH\x00R\vclusterName\x88\x01\x01B\x0f\n" +
+	"\r_cluster_name\"\xb8\x01\n" +
+	"\fK8sLoadEvent\x12C\n" +
+	"\x04line\x18\x01 \x01(\tB/\xbaG,:*\x12('injecting into micropod-k3s containerd'R\x04line\x12\x12\n" +
+	"\x04done\x18\x02 \x01(\bR\x04done\x129\n" +
+	"\x03ref\x18\x03 \x01(\tB'\xbaG$:\"\x12 'docker.io/library/redis:alpine'R\x03ref\x12\x14\n" +
+	"\x05bytes\x18\x04 \x01(\x03R\x05bytes\"O\n" +
+	"\x14ListK8sImagesRequest\x12&\n" +
+	"\fcluster_name\x18\x01 \x01(\tH\x00R\vclusterName\x88\x01\x01B\x0f\n" +
+	"\r_cluster_name\"+\n" +
+	"\x15ListK8sImagesResponse\x12\x12\n" +
+	"\x04refs\x18\x01 \x03(\tR\x04refs2\xa6\x04\n" +
 	"\n" +
 	"K8sService\x12:\n" +
 	"\fGetK8sStatus\x12\x12.micropod.v1.Empty\x1a\x16.micropod.v1.K8sStatus\x12:\n" +
@@ -492,7 +736,9 @@ const file_micropod_v1_k8s_proto_rawDesc = "" +
 	"\fSetK8sConfig\x12\x16.micropod.v1.K8sConfig\x1a\x16.micropod.v1.K8sConfig\x12=\n" +
 	"\x05K8sUp\x12\x19.micropod.v1.K8sUpRequest\x1a\x17.micropod.v1.K8sUpEvent0\x01\x121\n" +
 	"\aK8sDown\x12\x12.micropod.v1.Empty\x1a\x12.micropod.v1.Empty\x12G\n" +
-	"\rGetKubeconfig\x12\x12.micropod.v1.Empty\x1a\".micropod.v1.GetKubeconfigResponseBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
+	"\rGetKubeconfig\x12\x12.micropod.v1.Empty\x1a\".micropod.v1.GetKubeconfigResponse\x12M\n" +
+	"\fLoadK8sImage\x12 .micropod.v1.LoadK8sImageRequest\x1a\x19.micropod.v1.K8sLoadEvent0\x01\x12V\n" +
+	"\rListK8sImages\x12!.micropod.v1.ListK8sImagesRequest\x1a\".micropod.v1.ListK8sImagesResponseBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
 
 var (
 	file_micropod_v1_k8s_proto_rawDescOnce sync.Once
@@ -506,31 +752,39 @@ func file_micropod_v1_k8s_proto_rawDescGZIP() []byte {
 	return file_micropod_v1_k8s_proto_rawDescData
 }
 
-var file_micropod_v1_k8s_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_micropod_v1_k8s_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_micropod_v1_k8s_proto_goTypes = []any{
 	(*K8SConfig)(nil),             // 0: micropod.v1.K8sConfig
 	(*K8SStatus)(nil),             // 1: micropod.v1.K8sStatus
 	(*K8SUpRequest)(nil),          // 2: micropod.v1.K8sUpRequest
 	(*K8SUpEvent)(nil),            // 3: micropod.v1.K8sUpEvent
 	(*GetKubeconfigResponse)(nil), // 4: micropod.v1.GetKubeconfigResponse
-	(*Empty)(nil),                 // 5: micropod.v1.Empty
+	(*LoadK8SImageRequest)(nil),   // 5: micropod.v1.LoadK8sImageRequest
+	(*K8SLoadEvent)(nil),          // 6: micropod.v1.K8sLoadEvent
+	(*ListK8SImagesRequest)(nil),  // 7: micropod.v1.ListK8sImagesRequest
+	(*ListK8SImagesResponse)(nil), // 8: micropod.v1.ListK8sImagesResponse
+	(*Empty)(nil),                 // 9: micropod.v1.Empty
 }
 var file_micropod_v1_k8s_proto_depIdxs = []int32{
 	1, // 0: micropod.v1.K8sUpEvent.status:type_name -> micropod.v1.K8sStatus
-	5, // 1: micropod.v1.K8sService.GetK8sStatus:input_type -> micropod.v1.Empty
-	5, // 2: micropod.v1.K8sService.GetK8sConfig:input_type -> micropod.v1.Empty
+	9, // 1: micropod.v1.K8sService.GetK8sStatus:input_type -> micropod.v1.Empty
+	9, // 2: micropod.v1.K8sService.GetK8sConfig:input_type -> micropod.v1.Empty
 	0, // 3: micropod.v1.K8sService.SetK8sConfig:input_type -> micropod.v1.K8sConfig
 	2, // 4: micropod.v1.K8sService.K8sUp:input_type -> micropod.v1.K8sUpRequest
-	5, // 5: micropod.v1.K8sService.K8sDown:input_type -> micropod.v1.Empty
-	5, // 6: micropod.v1.K8sService.GetKubeconfig:input_type -> micropod.v1.Empty
-	1, // 7: micropod.v1.K8sService.GetK8sStatus:output_type -> micropod.v1.K8sStatus
-	0, // 8: micropod.v1.K8sService.GetK8sConfig:output_type -> micropod.v1.K8sConfig
-	0, // 9: micropod.v1.K8sService.SetK8sConfig:output_type -> micropod.v1.K8sConfig
-	3, // 10: micropod.v1.K8sService.K8sUp:output_type -> micropod.v1.K8sUpEvent
-	5, // 11: micropod.v1.K8sService.K8sDown:output_type -> micropod.v1.Empty
-	4, // 12: micropod.v1.K8sService.GetKubeconfig:output_type -> micropod.v1.GetKubeconfigResponse
-	7, // [7:13] is the sub-list for method output_type
-	1, // [1:7] is the sub-list for method input_type
+	9, // 5: micropod.v1.K8sService.K8sDown:input_type -> micropod.v1.Empty
+	9, // 6: micropod.v1.K8sService.GetKubeconfig:input_type -> micropod.v1.Empty
+	5, // 7: micropod.v1.K8sService.LoadK8sImage:input_type -> micropod.v1.LoadK8sImageRequest
+	7, // 8: micropod.v1.K8sService.ListK8sImages:input_type -> micropod.v1.ListK8sImagesRequest
+	1, // 9: micropod.v1.K8sService.GetK8sStatus:output_type -> micropod.v1.K8sStatus
+	0, // 10: micropod.v1.K8sService.GetK8sConfig:output_type -> micropod.v1.K8sConfig
+	0, // 11: micropod.v1.K8sService.SetK8sConfig:output_type -> micropod.v1.K8sConfig
+	3, // 12: micropod.v1.K8sService.K8sUp:output_type -> micropod.v1.K8sUpEvent
+	9, // 13: micropod.v1.K8sService.K8sDown:output_type -> micropod.v1.Empty
+	4, // 14: micropod.v1.K8sService.GetKubeconfig:output_type -> micropod.v1.GetKubeconfigResponse
+	6, // 15: micropod.v1.K8sService.LoadK8sImage:output_type -> micropod.v1.K8sLoadEvent
+	8, // 16: micropod.v1.K8sService.ListK8sImages:output_type -> micropod.v1.ListK8sImagesResponse
+	9, // [9:17] is the sub-list for method output_type
+	1, // [1:9] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -545,13 +799,15 @@ func file_micropod_v1_k8s_proto_init() {
 	file_micropod_v1_k8s_proto_msgTypes[0].OneofWrappers = []any{}
 	file_micropod_v1_k8s_proto_msgTypes[2].OneofWrappers = []any{}
 	file_micropod_v1_k8s_proto_msgTypes[3].OneofWrappers = []any{}
+	file_micropod_v1_k8s_proto_msgTypes[5].OneofWrappers = []any{}
+	file_micropod_v1_k8s_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_micropod_v1_k8s_proto_rawDesc), len(file_micropod_v1_k8s_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

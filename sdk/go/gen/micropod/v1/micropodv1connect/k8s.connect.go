@@ -46,6 +46,11 @@ const (
 	// K8SServiceGetKubeconfigProcedure is the fully-qualified name of the K8sService's GetKubeconfig
 	// RPC.
 	K8SServiceGetKubeconfigProcedure = "/micropod.v1.K8sService/GetKubeconfig"
+	// K8SServiceLoadK8SImageProcedure is the fully-qualified name of the K8sService's LoadK8sImage RPC.
+	K8SServiceLoadK8SImageProcedure = "/micropod.v1.K8sService/LoadK8sImage"
+	// K8SServiceListK8SImagesProcedure is the fully-qualified name of the K8sService's ListK8sImages
+	// RPC.
+	K8SServiceListK8SImagesProcedure = "/micropod.v1.K8sService/ListK8sImages"
 )
 
 // K8SServiceClient is a client for the micropod.v1.K8sService service.
@@ -64,6 +69,15 @@ type K8SServiceClient interface {
 	// Host kubeconfig for the cluster — server already rewritten to the VM
 	// address; save and `export KUBECONFIG=<path>` (or use contents directly).
 	GetKubeconfig(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.GetKubeconfigResponse], error)
+	// Push an image into the cluster's containerd via the host puller —
+	// bypasses the guest's slow NAT registry path. `ref` resolves from the
+	// host's local image store first and pulls only on a miss; `archive`
+	// pushes a `container image save`/`docker save` tarball with no registry
+	// round trip at all. Streams progress lines; the terminal event carries
+	// the loaded ref + byte count.
+	LoadK8SImage(context.Context, *connect.Request[v1.LoadK8SImageRequest]) (*connect.ServerStreamForClient[v1.K8SLoadEvent], error)
+	// Image refs present in the cluster's containerd (k8s.io namespace).
+	ListK8SImages(context.Context, *connect.Request[v1.ListK8SImagesRequest]) (*connect.Response[v1.ListK8SImagesResponse], error)
 }
 
 // NewK8SServiceClient constructs a client for the micropod.v1.K8sService service. By default, it
@@ -113,6 +127,18 @@ func NewK8SServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(k8SServiceMethods.ByName("GetKubeconfig")),
 			connect.WithClientOptions(opts...),
 		),
+		loadK8SImage: connect.NewClient[v1.LoadK8SImageRequest, v1.K8SLoadEvent](
+			httpClient,
+			baseURL+K8SServiceLoadK8SImageProcedure,
+			connect.WithSchema(k8SServiceMethods.ByName("LoadK8sImage")),
+			connect.WithClientOptions(opts...),
+		),
+		listK8SImages: connect.NewClient[v1.ListK8SImagesRequest, v1.ListK8SImagesResponse](
+			httpClient,
+			baseURL+K8SServiceListK8SImagesProcedure,
+			connect.WithSchema(k8SServiceMethods.ByName("ListK8sImages")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -124,6 +150,8 @@ type k8SServiceClient struct {
 	k8SUp         *connect.Client[v1.K8SUpRequest, v1.K8SUpEvent]
 	k8SDown       *connect.Client[v1.Empty, v1.Empty]
 	getKubeconfig *connect.Client[v1.Empty, v1.GetKubeconfigResponse]
+	loadK8SImage  *connect.Client[v1.LoadK8SImageRequest, v1.K8SLoadEvent]
+	listK8SImages *connect.Client[v1.ListK8SImagesRequest, v1.ListK8SImagesResponse]
 }
 
 // GetK8SStatus calls micropod.v1.K8sService.GetK8sStatus.
@@ -156,6 +184,16 @@ func (c *k8SServiceClient) GetKubeconfig(ctx context.Context, req *connect.Reque
 	return c.getKubeconfig.CallUnary(ctx, req)
 }
 
+// LoadK8SImage calls micropod.v1.K8sService.LoadK8sImage.
+func (c *k8SServiceClient) LoadK8SImage(ctx context.Context, req *connect.Request[v1.LoadK8SImageRequest]) (*connect.ServerStreamForClient[v1.K8SLoadEvent], error) {
+	return c.loadK8SImage.CallServerStream(ctx, req)
+}
+
+// ListK8SImages calls micropod.v1.K8sService.ListK8sImages.
+func (c *k8SServiceClient) ListK8SImages(ctx context.Context, req *connect.Request[v1.ListK8SImagesRequest]) (*connect.Response[v1.ListK8SImagesResponse], error) {
+	return c.listK8SImages.CallUnary(ctx, req)
+}
+
 // K8SServiceHandler is an implementation of the micropod.v1.K8sService service.
 type K8SServiceHandler interface {
 	// Engine enablement + live cluster state.
@@ -172,6 +210,15 @@ type K8SServiceHandler interface {
 	// Host kubeconfig for the cluster — server already rewritten to the VM
 	// address; save and `export KUBECONFIG=<path>` (or use contents directly).
 	GetKubeconfig(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.GetKubeconfigResponse], error)
+	// Push an image into the cluster's containerd via the host puller —
+	// bypasses the guest's slow NAT registry path. `ref` resolves from the
+	// host's local image store first and pulls only on a miss; `archive`
+	// pushes a `container image save`/`docker save` tarball with no registry
+	// round trip at all. Streams progress lines; the terminal event carries
+	// the loaded ref + byte count.
+	LoadK8SImage(context.Context, *connect.Request[v1.LoadK8SImageRequest], *connect.ServerStream[v1.K8SLoadEvent]) error
+	// Image refs present in the cluster's containerd (k8s.io namespace).
+	ListK8SImages(context.Context, *connect.Request[v1.ListK8SImagesRequest]) (*connect.Response[v1.ListK8SImagesResponse], error)
 }
 
 // NewK8SServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -217,6 +264,18 @@ func NewK8SServiceHandler(svc K8SServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(k8SServiceMethods.ByName("GetKubeconfig")),
 		connect.WithHandlerOptions(opts...),
 	)
+	k8SServiceLoadK8SImageHandler := connect.NewServerStreamHandler(
+		K8SServiceLoadK8SImageProcedure,
+		svc.LoadK8SImage,
+		connect.WithSchema(k8SServiceMethods.ByName("LoadK8sImage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	k8SServiceListK8SImagesHandler := connect.NewUnaryHandler(
+		K8SServiceListK8SImagesProcedure,
+		svc.ListK8SImages,
+		connect.WithSchema(k8SServiceMethods.ByName("ListK8sImages")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/micropod.v1.K8sService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case K8SServiceGetK8SStatusProcedure:
@@ -231,6 +290,10 @@ func NewK8SServiceHandler(svc K8SServiceHandler, opts ...connect.HandlerOption) 
 			k8SServiceK8SDownHandler.ServeHTTP(w, r)
 		case K8SServiceGetKubeconfigProcedure:
 			k8SServiceGetKubeconfigHandler.ServeHTTP(w, r)
+		case K8SServiceLoadK8SImageProcedure:
+			k8SServiceLoadK8SImageHandler.ServeHTTP(w, r)
+		case K8SServiceListK8SImagesProcedure:
+			k8SServiceListK8SImagesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -262,4 +325,12 @@ func (UnimplementedK8SServiceHandler) K8SDown(context.Context, *connect.Request[
 
 func (UnimplementedK8SServiceHandler) GetKubeconfig(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.GetKubeconfigResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.K8sService.GetKubeconfig is not implemented"))
+}
+
+func (UnimplementedK8SServiceHandler) LoadK8SImage(context.Context, *connect.Request[v1.LoadK8SImageRequest], *connect.ServerStream[v1.K8SLoadEvent]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.K8sService.LoadK8sImage is not implemented"))
+}
+
+func (UnimplementedK8SServiceHandler) ListK8SImages(context.Context, *connect.Request[v1.ListK8SImagesRequest]) (*connect.Response[v1.ListK8SImagesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.K8sService.ListK8sImages is not implemented"))
 }
