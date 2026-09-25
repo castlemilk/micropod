@@ -153,6 +153,8 @@ public enum ModelMapper {
         if let labels = entry.configuration.labels {
             volume.labels = labels
         }
+        // Real usage of the backing image; `sizeBytes` stays the provisioned size.
+        volume.allocatedBytes = VolumeClone.allocatedBytes(atPath: volume.source)
         return volume
     }
 }

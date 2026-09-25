@@ -44,6 +44,9 @@ final class MicropodAPITests: XCTestCase {
                 "MICROPOD_MOCK_STATE_DIR": stateDir.path,
                 "MICROPOD_API_PORT": String(port),
                 "MICROPOD_VOLUME_POLICY": stateDir.appendingPathComponent("policy.json").path,
+                // Clone images never leave the test's state dir — commit
+                // tests pre-create `<root>/<container>/<volume>.img` here.
+                "MICROPOD_VOLUME_CLONE_ROOT": stateDir.appendingPathComponent("clones").path,
             ]
             .merging(extraEnvironment) { _, new in new }
         ) { _, new in new }
@@ -727,6 +730,301 @@ final class MicropodAPITests: XCTestCase {
             _ = try await json("POST", "v1/containers/\(id)/stop")
             _ = try await json("DELETE", "v1/containers/\(id)")
         }
+    }
+
+    // MARK: Volumes: CloneVolume / CommitVolumeClone / RW multi-attach guard
+
+    /// `source` of a volume as the API reports it (the mock backs every
+    /// volume with a real image file under the state dir).
+    private func volumeSource(_ name: String) async throws -> String {
+        let (status, list) = try await jsonStatus("POST", "api/micropod.v1.VolumeService/ListVolumes", body: [:])
+        XCTAssertEqual(status, 200, "ListVolumes: \(list)")
+        let volume = (list["volumes"] as? [[String: Any]])?.first { $0["id"] as? String == name }
+        let source = volume?["source"] as? String ?? ""
+        XCTAssertFalse(source.isEmpty, "volume \(name) has no source: \(list)")
+        return source
+    }
+
+    /// Where the server expects container `id`'s clone of `volume`
+    /// (`MICROPOD_VOLUME_CLONE_ROOT/<id>/<volume>.img`).
+    private func clonePath(container id: String, volume: String) -> URL {
+        stateDir.appendingPathComponent("clones/\(id)/\(volume).img")
+    }
+
+    private func writeClone(container id: String, volume: String, marker: Data) throws {
+        let url = clonePath(container: id, volume: volume)
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try marker.write(to: url)
+    }
+
+    /// Flips a mock container's recorded state without going through the
+    /// CLI — the only way to observe transitional states like `stopping`.
+    private func setMockState(_ id: String, to state: String) throws {
+        let url = stateDir.appendingPathComponent("containers.json")
+        let lines = try String(contentsOf: url, encoding: .utf8).components(separatedBy: "\n")
+        let rewritten = lines.map { line -> String in
+            guard line.contains("\"id\":\"\(id)\"") else { return line }
+            return line.replacingOccurrences(
+                of: #""state":"[a-z]+""#, with: "\"state\":\"\(state)\"", options: .regularExpression)
+        }
+        try rewritten.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    /// `CloneVolume` creates the new volume (size defaulting to the source's
+    /// provisioned size, plus a `com.micropod.clone-of` label) and clonefiles
+    /// the golden image over its backing file; the golden is never touched,
+    /// and both volumes report real allocated bytes.
+    func testCloneVolumeCopiesTheGoldenImage() async throws {
+        _ = try await json("POST", "v1/volumes", body: ["name": "g", "size": "20M"])
+        let goldenSource = try await volumeSource("g")
+        XCTAssertTrue(goldenSource.hasPrefix(stateDir.path), "the mock backs volumes with real files: \(goldenSource)")
+        let marker = Data("golden-marker-\(UUID().uuidString)".utf8)
+        try marker.write(to: URL(fileURLWithPath: goldenSource))
+
+        let (status, clone) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CloneVolume",
+            body: ["source": "g", "name": "c", "labels": ["cuttle.kind=cache"]])
+        XCTAssertEqual(status, 200, "CloneVolume: \(clone)")
+        XCTAssertEqual(clone["id"] as? String, "c")
+        XCTAssertEqual(clone["sizeBytes"] as? String, "20971520", "size defaults to the source's: \(clone)")
+        let cloneSource = clone["source"] as? String ?? ""
+        XCTAssertFalse(cloneSource.isEmpty, "\(clone)")
+        XCTAssertNotEqual(cloneSource, goldenSource)
+        XCTAssertEqual(
+            try Data(contentsOf: URL(fileURLWithPath: cloneSource)), marker, "the clone carries the golden's bytes")
+        XCTAssertGreaterThan(UInt64(clone["allocatedBytes"] as? String ?? "0") ?? 0, 0, "\(clone)")
+        let labels = clone["labels"] as? [String: String] ?? [:]
+        XCTAssertEqual(labels["cuttle.kind"], "cache", "\(clone)")
+        XCTAssertEqual(labels["com.micropod.clone-of"], "g", "\(clone)")
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: goldenSource)), marker, "the golden is untouched")
+
+        let createLine = mockCalls().last { $0.hasPrefix("volume create") } ?? ""
+        XCTAssertTrue(createLine.contains(" -s 20971520 "), "provisioned size in bytes: \(createLine)")
+        XCTAssertTrue(createLine.contains(" --label com.micropod.clone-of=g "), createLine)
+        XCTAssertTrue(createLine.hasSuffix(" c"), createLine)
+
+        // Both are listed; `allocatedBytes` is real usage, `sizeBytes` the provisioned size.
+        let (listStatus, list) = try await jsonStatus("POST", "api/micropod.v1.VolumeService/ListVolumes", body: [:])
+        XCTAssertEqual(listStatus, 200)
+        let volumes = list["volumes"] as? [[String: Any]] ?? []
+        for name in ["g", "c"] {
+            let entry = volumes.first { $0["id"] as? String == name }
+            XCTAssertNotNil(entry, "\(name) missing from \(list)")
+            XCTAssertGreaterThan(
+                UInt64(entry?["allocatedBytes"] as? String ?? "0") ?? 0, 0, "\(String(describing: entry))")
+        }
+        let rest = try await json("GET", "v1/volumes")
+        let restEntry = (rest["volumes"] as? [[String: Any]])?.first { $0["id"] as? String == "c" }
+        XCTAssertGreaterThan(restEntry?["allocatedBytes"] as? UInt64 ?? 0, 0, "\(rest)")
+
+        // An explicit size wins over the source's.
+        let (sizedStatus, sized) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CloneVolume", body: ["source": "g", "name": "c2", "size": "40M"])
+        XCTAssertEqual(sizedStatus, 200, "CloneVolume with size: \(sized)")
+        XCTAssertEqual(sized["sizeBytes"] as? String, "41943040", "\(sized)")
+
+        // An unknown source is not_found — and nothing was created for it.
+        let (missingStatus, missing) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CloneVolume", body: ["source": "ghost", "name": "c3"])
+        XCTAssertEqual(missingStatus, 404, "CloneVolume: \(missing)")
+        XCTAssertEqual(missing["code"] as? String, "not_found")
+        XCTAssertTrue((missing["message"] as? String ?? "").contains("ghost"), "\(missing)")
+        XCTAssertFalse(mockCalls().contains { $0.hasPrefix("volume create") && $0.hasSuffix(" c3") }, "\(mockCalls())")
+
+        // Validation mirrors the proto: both names are required.
+        let (badStatus, bad) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CloneVolume", body: ["source": "g"])
+        XCTAssertEqual(badStatus, 400, "CloneVolume: \(bad)")
+        XCTAssertEqual(bad["code"] as? String, "invalid_argument")
+    }
+
+    /// A golden attached read-write to a running container would yield a
+    /// crash-consistent clone — `CloneVolume` refuses with
+    /// `failed_precondition` naming that container, and creates nothing.
+    func testCloneVolumeSourceInUseIsFailedPrecondition() async throws {
+        _ = try await json("POST", "v1/volumes", body: ["name": "g"])
+        let run = try await json(
+            "POST", "v1/containers", body: ["image": "nginx:1.27", "name": "api-golden-writer", "volumes": ["g:/x"]])
+        let id = run["id"] as? String ?? ""
+        XCTAssertFalse(id.isEmpty)
+
+        let (status, body) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CloneVolume", body: ["source": "g", "name": "c"])
+        XCTAssertEqual(status, 412, "CloneVolume: \(body)")
+        XCTAssertEqual(body["code"] as? String, "failed_precondition")
+        let message = body["message"] as? String ?? ""
+        XCTAssertTrue(message.contains("g") && message.contains(id), "names the volume and the writer: \(message)")
+        XCTAssertFalse(mockCalls().contains { $0.hasPrefix("volume create") && $0.hasSuffix(" c") }, "\(mockCalls())")
+
+        // Once the writer is stopped the golden is quiescent and clonable.
+        _ = try await json("POST", "v1/containers/\(id)/stop")
+        let (okStatus, clone) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CloneVolume", body: ["source": "g", "name": "c"])
+        XCTAssertEqual(okStatus, 200, "CloneVolume after stop: \(clone)")
+        XCTAssertEqual(clone["id"] as? String, "c")
+    }
+
+    /// Attaching a named volume that a running container already has
+    /// read-write is refused before the CLI is spawned — Apple named volumes
+    /// are ext4 block images with no multi-attach protection. The message
+    /// names the volume and the running container; host-path bind mounts are
+    /// unaffected; `MICROPOD_ALLOW_MULTI_ATTACH=1` restores the old behaviour.
+    func testCreateContainerVolumeAttachedRWIsFailedPrecondition() async throws {
+        _ = try await json("POST", "v1/volumes", body: ["name": "v"])
+        let a = try await json(
+            "POST", "v1/containers", body: ["image": "nginx:1.27", "name": "api-attach-a", "volumes": ["v:/x"]])
+        let aID = a["id"] as? String ?? ""
+        XCTAssertFalse(aID.isEmpty)
+
+        for method in ["RunContainer", "CreateContainer"] {
+            let (status, body) = try await jsonStatus(
+                "POST", "api/micropod.v1.ContainerService/\(method)",
+                body: ["image": "nginx:1.27", "name": "api-attach-b", "volumes": ["v:/y"]])
+            XCTAssertEqual(status, 412, "\(method): \(body)")
+            XCTAssertEqual(body["code"] as? String, "failed_precondition", "\(method): \(body)")
+            let message = body["message"] as? String ?? ""
+            XCTAssertTrue(
+                message.contains("'v'") && message.contains(aID), "\(method) must name volume and holder: \(message)")
+        }
+        XCTAssertFalse(
+            mockCalls().contains { ($0.hasPrefix("run ") || $0.hasPrefix("create ")) && $0.contains("api-attach-b") },
+            "the CLI must never be asked to attach: \(mockCalls())")
+
+        // A host directory is a bind mount, not a volume — never guarded.
+        let (bindStatus, bind) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/RunContainer",
+            body: ["image": "nginx:1.27", "name": "api-attach-bind", "volumes": ["\(stateDir.path):/host"]])
+        XCTAssertEqual(bindStatus, 200, "RunContainer with a bind mount: \(bind)")
+
+        // A stopped holder releases the volume.
+        _ = try await json("POST", "v1/containers/\(aID)/stop")
+        let (okStatus, ok) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/RunContainer",
+            body: ["image": "nginx:1.27", "name": "api-attach-b", "volumes": ["v:/y"]])
+        XCTAssertEqual(okStatus, 200, "RunContainer after the holder stopped: \(ok)")
+
+        // Opt-out: the operator takes responsibility for multi-attach.
+        try await relaunchServer(extraEnvironment: ["MICROPOD_ALLOW_MULTI_ATTACH": "1"])
+        let (allowedStatus, allowed) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/RunContainer",
+            body: ["image": "nginx:1.27", "name": "api-attach-c", "volumes": ["v:/z"]])
+        XCTAssertEqual(allowedStatus, 200, "RunContainer under MICROPOD_ALLOW_MULTI_ATTACH=1: \(allowed)")
+    }
+
+    /// `CommitVolumeClone` is `not_found` for an unknown container, for a
+    /// container that has no clone of the volume, and for a volume that does
+    /// not exist — the golden is never touched in any of those cases.
+    func testCommitVolumeCloneWithoutCloneIsNotFound() async throws {
+        _ = try await json("POST", "v1/volumes", body: ["name": "g"])
+        let goldenSource = try await volumeSource("g")
+        let goldenBefore = try Data(contentsOf: URL(fileURLWithPath: goldenSource))
+        let run = try await json("POST", "v1/containers", body: ["image": "nginx:1.27", "name": "api-commit-noclone"])
+        let id = run["id"] as? String ?? ""
+        XCTAssertFalse(id.isEmpty)
+        _ = try await json("POST", "v1/containers/\(id)/stop")
+
+        let (status, body) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CommitVolumeClone", body: ["containerId": id, "volume": "g"])
+        XCTAssertEqual(status, 404, "CommitVolumeClone without a clone: \(body)")
+        XCTAssertEqual(body["code"] as? String, "not_found")
+        XCTAssertTrue((body["message"] as? String ?? "").contains("clone"), "\(body)")
+
+        let (ghostStatus, ghost) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CommitVolumeClone", body: ["containerId": "ghost", "volume": "g"])
+        XCTAssertEqual(ghostStatus, 404, "CommitVolumeClone for an unknown container: \(ghost)")
+        XCTAssertEqual(ghost["code"] as? String, "not_found")
+
+        // A clone of a volume that does not exist cannot be promoted.
+        try writeClone(container: id, volume: "nope", marker: Data("orphan".utf8))
+        let (noVolumeStatus, noVolume) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CommitVolumeClone", body: ["containerId": id, "volume": "nope"])
+        XCTAssertEqual(noVolumeStatus, 404, "CommitVolumeClone for an unknown volume: \(noVolume)")
+        XCTAssertEqual(noVolume["code"] as? String, "not_found")
+        XCTAssertTrue((noVolume["message"] as? String ?? "").contains("nope"), "\(noVolume)")
+
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: goldenSource)), goldenBefore, "golden untouched")
+
+        let (badStatus, bad) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CommitVolumeClone", body: ["containerId": id])
+        XCTAssertEqual(badStatus, 400, "CommitVolumeClone: \(bad)")
+        XCTAssertEqual(bad["code"] as? String, "invalid_argument")
+    }
+
+    /// A clone may only be promoted once its container has fully stopped:
+    /// `running` and `stopping` are both `failed_precondition` (a stopping
+    /// container may still be flushing the image), and the golden stays as
+    /// it was.
+    func testCommitVolumeCloneRunningIsFailedPrecondition() async throws {
+        _ = try await json("POST", "v1/volumes", body: ["name": "g"])
+        let goldenSource = try await volumeSource("g")
+        let goldenBefore = try Data(contentsOf: URL(fileURLWithPath: goldenSource))
+        let run = try await json(
+            "POST", "v1/containers", body: ["image": "nginx:1.27", "name": "api-commit-running", "volumes": ["g:/x"]])
+        let id = run["id"] as? String ?? ""
+        XCTAssertFalse(id.isEmpty)
+        try writeClone(container: id, volume: "g", marker: Data("dirty".utf8))
+
+        for state in ["running", "stopping"] {
+            try setMockState(id, to: state)
+            let (status, body) = try await jsonStatus(
+                "POST", "api/micropod.v1.VolumeService/CommitVolumeClone", body: ["containerId": id, "volume": "g"])
+            XCTAssertEqual(status, 412, "CommitVolumeClone while \(state): \(body)")
+            XCTAssertEqual(body["code"] as? String, "failed_precondition", "\(state): \(body)")
+            XCTAssertTrue((body["message"] as? String ?? "").contains(state), "\(state): \(body)")
+            XCTAssertEqual(
+                try Data(contentsOf: URL(fileURLWithPath: goldenSource)), goldenBefore,
+                "golden untouched while \(state)")
+        }
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: clonePath(container: id, volume: "g").path), "the clone is kept")
+    }
+
+    /// The happy path: a stopped container's clone replaces the golden's
+    /// backing image atomically; the response reports the promoted image's
+    /// allocated bytes. A golden that another running container has attached
+    /// read-write is not replaceable underneath it.
+    func testCommitVolumeCloneStoppedPromotesTheClone() async throws {
+        _ = try await json("POST", "v1/volumes", body: ["name": "g", "size": "20M"])
+        let goldenSource = try await volumeSource("g")
+        let run = try await json(
+            "POST", "v1/containers", body: ["image": "nginx:1.27", "name": "api-commit-ok", "volumes": ["g:/x"]])
+        let id = run["id"] as? String ?? ""
+        XCTAssertFalse(id.isEmpty)
+        _ = try await json("POST", "v1/containers/\(id)/stop")
+        let marker = Data("promoted-\(UUID().uuidString)".utf8)
+        try writeClone(container: id, volume: "g", marker: marker)
+
+        let (status, body) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CommitVolumeClone", body: ["containerId": id, "volume": "g"])
+        XCTAssertEqual(status, 200, "CommitVolumeClone: \(body)")
+        XCTAssertGreaterThan(UInt64(body["allocatedBytes"] as? String ?? "0") ?? 0, 0, "\(body)")
+        XCTAssertEqual(
+            try Data(contentsOf: URL(fileURLWithPath: goldenSource)), marker, "the golden now carries the clone's bytes"
+        )
+        let goldenDir = URL(fileURLWithPath: goldenSource).deletingLastPathComponent()
+        XCTAssertEqual(
+            try FileManager.default.contentsOfDirectory(atPath: goldenDir.path), ["volume.img"],
+            "no temp file left behind")
+        let (listStatus, list) = try await jsonStatus("POST", "api/micropod.v1.VolumeService/ListVolumes", body: [:])
+        XCTAssertEqual(listStatus, 200)
+        let golden = (list["volumes"] as? [[String: Any]])?.first { $0["id"] as? String == "g" }
+        XCTAssertEqual(
+            golden?["sizeBytes"] as? String, "20971520", "provisioned size is unchanged: \(String(describing: golden))")
+
+        // The golden is attached read-write elsewhere: no rename underneath it.
+        let writer = try await json(
+            "POST", "v1/containers", body: ["image": "nginx:1.27", "name": "api-commit-writer", "volumes": ["g:/y"]])
+        let writerID = writer["id"] as? String ?? ""
+        let (busyStatus, busy) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CommitVolumeClone", body: ["containerId": id, "volume": "g"])
+        XCTAssertEqual(busyStatus, 412, "CommitVolumeClone with the golden in use: \(busy)")
+        XCTAssertEqual(busy["code"] as? String, "failed_precondition")
+        XCTAssertTrue((busy["message"] as? String ?? "").contains(writerID), "\(busy)")
+
+        // The promoted bytes belong to the golden, not to the container.
+        _ = try await json("DELETE", "v1/containers/\(id)")
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: goldenSource)), marker)
     }
 }
 

@@ -84,10 +84,15 @@ public struct ContainerService: ContainerServing {
     }
 
     public func list() async throws -> [Micropod_V1_Container] {
+        try await entries().map(ModelMapper.container(from:))
+    }
+
+    /// `container list --all --format json` as decoded entries — the mount
+    /// detail (volume names, `ro`) that the curated proto model drops.
+    public func entries() async throws -> [ContainerListEntry] {
         let output = try await client.run(ContainerCommandFactory.listContainers(all: true), timeout: .seconds(30))
-        let entries = try MicropodJSON.decodeArray(
+        return try MicropodJSON.decodeArray(
             ContainerListEntry.self, from: Data(output.utf8), context: "container list")
-        return entries.map(ModelMapper.container(from:))
     }
 
     public func inspect(_ id: String) async throws -> Data {
@@ -97,14 +102,37 @@ public struct ContainerService: ContainerServing {
 
     public func run(_ request: ContainerRunRequest) async throws -> String {
         try await refuseIfNoPullAndAbsent(request)
+        try await refuseIfVolumeHeldElsewhere(request)
         let output = try await client.run(ContainerCommandFactory.run(request), timeout: .seconds(120))
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     public func create(_ request: ContainerRunRequest) async throws -> String {
         try await refuseIfNoPullAndAbsent(request)
+        try await refuseIfVolumeHeldElsewhere(request)
         let output = try await client.run(ContainerCommandFactory.create(request), timeout: .seconds(120))
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// RW multi-attach guard: a named volume that a running container holds
+    /// read-write is an ext4 image with a live writer — attaching it again
+    /// corrupts both views, and the runtime does not check. Refused with a
+    /// `failedPrecondition:` naming volume and holder before the CLI is
+    /// spawned; `MICROPOD_ALLOW_MULTI_ATTACH=1` downgrades that to a warning.
+    /// Only requests that name a volume pay for the list.
+    private func refuseIfVolumeHeldElsewhere(_ request: ContainerRunRequest) async throws {
+        let names = VolumeAttachments.namedVolumes(in: request.volumes)
+        guard !names.isEmpty else { return }
+        let attachments = VolumeAttachments(entries: try await entries())
+        for name in names {
+            guard let holder = attachments.holder(of: name) else { continue }
+            let error = VolumeAttachments.inUseError(volume: name, holder: holder)
+            guard VolumeAttachments.multiAttachAllowed() else { throw error }
+            FileHandle.standardError.write(
+                Data(
+                    "micropod: \(error.localizedDescription) — attaching anyway (MICROPOD_ALLOW_MULTI_ATTACH=1)\n".utf8)
+            )
+        }
     }
 
     /// `no_pull` on the CLI backend: `container create`/`run` pull a missing

@@ -221,6 +221,22 @@ public final class APIServerClient: Sendable {
         return try MicropodJSON.decoder.decode(JSONValue.self, from: data)
     }
 
+    /// `volumeList` → `[VolumeConfiguration]` (flat `{name, format, source,
+    /// creationDate, sizeInBytes, labels, …}` objects; see
+    /// ``VolumeTransform`` for the `{id, configuration}` listing shape).
+    public func volumeList() async throws -> [JSONValue] {
+        let reply = try await send(XPCMessage(route: XPCRoute.volumeList.rawValue), timeout: .seconds(10))
+        guard let data = reply.data(key: .volumes) else { return [] }
+        return try MicropodJSON.decoder.decode([JSONValue].self, from: data)
+    }
+
+    /// `volumeDelete`.
+    public func volumeDelete(name: String) async throws {
+        let request = XPCMessage(route: XPCRoute.volumeDelete.rawValue)
+        request.set(key: .volumeName, value: name)
+        try await send(request, timeout: .seconds(30))
+    }
+
     /// `volumeInspect` → `VolumeConfiguration`, nil when absent.
     public func volumeInspect(name: String) async throws -> JSONValue? {
         let request = XPCMessage(route: XPCRoute.volumeInspect.rawValue)

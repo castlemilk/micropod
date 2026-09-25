@@ -815,8 +815,14 @@ cmd_volume_create() {
         for o in "${opts[@]}"; do oparts+=("\"$(jesc "${o%%=*}")\":\"$(jesc "${o#*=}")\""); done
         opt_json="$(IFS=,; printf '{%s}' "${oparts[*]-}")"
     fi
-    printf '{"configuration":{"creationDate":"%s","driver":"local","format":"ext4","labels":%s,"name":"%s","options":%s,"sizeInBytes":%s,"source":"/mock/volumes/%s/volume.img"},"id":"%s"}\n' \
-        "$(iso_now)" "$label_json" "$(jesc "$name")" "$opt_json" "$bytes" "$(jesc "$name")" "$(jesc "$name")" >>"$VOLUMES_FILE"
+    # Like the real runtime, every volume has a backing image at `source`
+    # (a real, fully allocated 1 MiB file here so clonefile/commit flows
+    # have bytes to move) — the reported size stays the provisioned one.
+    local vol_dir="$STATE_DIR/volumes/$name"
+    mkdir -p "$vol_dir"
+    [ -f "$vol_dir/volume.img" ] || head -c 1048576 /dev/zero >"$vol_dir/volume.img"
+    printf '{"configuration":{"creationDate":"%s","driver":"local","format":"ext4","labels":%s,"name":"%s","options":%s,"sizeInBytes":%s,"source":"%s"},"id":"%s"}\n' \
+        "$(iso_now)" "$label_json" "$(jesc "$name")" "$opt_json" "$bytes" "$(jesc "$vol_dir/volume.img")" "$(jesc "$name")" >>"$VOLUMES_FILE"
     printf '%s\n' "$name"
 }
 
@@ -831,10 +837,12 @@ cmd_volume_delete() {
         exit 1
     fi
     printf '%s\n' "${out[@]-}" >"$VOLUMES_FILE"
+    rm -rf "$STATE_DIR/volumes/$name"
 }
 
 cmd_volume_prune() {
     : >"$VOLUMES_FILE"
+    rm -rf "$STATE_DIR/volumes"
     printf 'Total reclaimed space: 0B\n'
 }
 

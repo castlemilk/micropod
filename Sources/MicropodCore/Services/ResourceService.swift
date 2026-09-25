@@ -5,6 +5,18 @@ public protocol VolumeServing: Sendable {
     func create(name: String, size: String?, labels: [String], options: [String]) async throws
     func delete(_ name: String) async throws
     func prune() async throws -> String
+    /// Creates `name` (size defaulting to the source's provisioned size,
+    /// labels gaining `com.micropod.clone-of=<source>`) and clonefiles the
+    /// source's backing image over the new volume's. `not_found` when the
+    /// source does not exist; `failed_precondition` when a running container
+    /// has it attached read-write (the clone would be crash-consistent).
+    func clone(source: String, name: String, size: String?, labels: [String]) async throws -> Micropod_V1_Volume
+    /// Promotes container `containerID`'s clone of `volume` to be the golden
+    /// image (fsync + atomic rename under the per-volume lock). The
+    /// container must be `stopped` and the golden not attached read-write
+    /// (`failed_precondition`); a missing container, clone or volume is
+    /// `not_found`. Returns the promoted image's allocated bytes.
+    func commitClone(containerID: String, volume: String) async throws -> UInt64
 }
 
 public protocol NetworkServing: Sendable {
@@ -25,9 +37,12 @@ public protocol RegistryServing: Sendable {
 
 public struct VolumeService: VolumeServing {
     private let client: ContainerCLIClient
+    /// Attachment checks read the container list.
+    private let containers: ContainerService
 
     public init(client: ContainerCLIClient) {
         self.client = client
+        self.containers = ContainerService(client: client)
     }
 
     public func list() async throws -> [Micropod_V1_Volume] {
@@ -52,6 +67,48 @@ public struct VolumeService: VolumeServing {
     public func prune() async throws -> String {
         let output = try await client.run(ContainerCommandFactory.pruneVolumes(), timeout: .seconds(60))
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    public func clone(source: String, name: String, size: String?, labels: [String]) async throws
+        -> Micropod_V1_Volume
+    {
+        // Absence is a plain "not in the list": the CLI's own inspect error
+        // text carries no code the Connect table could classify.
+        let golden = try VolumeClone.requireVolume(try await volume(named: source), named: source)
+        try VolumeClone.requireBackingImage(golden)
+        try VolumeClone.requireQuiescent(
+            golden, attachments: VolumeAttachments(entries: try await containers.entries()))
+        try await create(
+            name: name,
+            size: VolumeClone.cloneSize(requested: size, source: golden),
+            labels: VolumeClone.cloneLabels(labels, source: source),
+            options: [])
+        do {
+            let created = try VolumeClone.requireVolume(try await volume(named: name), named: name)
+            try VolumeClone.cloneImage(from: golden.source, to: created.source)
+            return VolumeClone.withAllocatedBytes(created)
+        } catch {
+            // Never leave a half-made volume behind (an empty image under the
+            // clone's name would masquerade as a cache miss forever).
+            try? await delete(name)
+            throw error
+        }
+    }
+
+    public func commitClone(containerID: String, volume: String) async throws -> UInt64 {
+        try await VolumeLocks.shared.withLock(volume) {
+            let entries = try await containers.entries()
+            try VolumeClone.requireStopped(containerID: containerID, in: entries)
+            let clone = try VolumeClone.requireClone(containerID: containerID, volume: volume)
+            let golden = try VolumeClone.requireVolume(try await self.volume(named: volume), named: volume)
+            try VolumeClone.requireBackingImage(golden)
+            try VolumeClone.requireQuiescent(golden, attachments: VolumeAttachments(entries: entries))
+            return try VolumeClone.commit(clonePath: clone, goldenPath: golden.source)
+        }
+    }
+
+    private func volume(named name: String) async throws -> Micropod_V1_Volume? {
+        try await list().first { $0.id == name }
     }
 }
 

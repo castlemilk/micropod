@@ -72,7 +72,7 @@ public struct NativeContainerService: ContainerServing {
         } catch {
             // Match the CLI: a failed start cleans up the created container.
             try? await api.delete(id: id, force: true)
-            Self.removeClones(containerID: id)
+            await Self.removeClones(containerID: id)
             throw error
         }
         return id
@@ -110,7 +110,7 @@ public struct NativeContainerService: ContainerServing {
             return try await createNativeInner(request, id: id)
         } catch {
             if !Self.isAlreadyExists(error) {
-                Self.removeClones(containerID: id)
+                await Self.removeClones(containerID: id)
             }
             throw error
         }
@@ -149,22 +149,34 @@ public struct NativeContainerService: ContainerServing {
         let labelMap = Self.labelMap(request.labels)
         let policy = self.policy()
         let cloneSet = policy.cloneSet(labels: labelMap)
-        if !cloneSet.isEmpty {
+        let parsedMounts = try NativeConfigBuilder.parseMounts(request: request)
+        func isClone(_ name: String) -> Bool { cloneSet.contains(name) || cloneSet.contains("*") }
+        let attachesDirectly = parsedMounts.contains { mount in
+            if case .volume(let name, _, _) = mount { return !isClone(name) }
+            return false
+        }
+        // One container list serves both the clone pre-checks and the RW
+        // multi-attach guard; requests without named volumes skip it.
+        var volumeHolders = VolumeAttachments(entries: [])
+        if !cloneSet.isEmpty || attachesDirectly {
             let entries = await listEntries()
-            // A duplicate id must fail *before* any clone is written: the
-            // clone dir is keyed by id, so cloning here would overwrite the
-            // existing container's images. Same error shape as the
-            // apiserver's own check, which still runs for the non-clone path.
-            if entries.contains(where: { $0.id == id }) {
-                throw MicropodError.message("alreadyExists: container with ID \(id) already exists")
+            volumeHolders = VolumeAttachments(entries: entries)
+            if !cloneSet.isEmpty {
+                // A duplicate id must fail *before* any clone is written: the
+                // clone dir is keyed by id, so cloning here would overwrite the
+                // existing container's images. Same error shape as the
+                // apiserver's own check, which still runs for the non-clone path.
+                if entries.contains(where: { $0.id == id }) {
+                    throw MicropodError.message("alreadyExists: container with ID \(id) already exists")
+                }
+                // Self-heal: a clone dir orphaned by a raw `container delete`
+                // (or a crashed runtime) is swept on the next cloning create.
+                await sweepOrphanClones(live: Set(entries.map(\.id)))
+                warnIfGoldensInUse(cloneSet, entries: entries)
             }
-            // Self-heal: a clone dir orphaned by a raw `container delete`
-            // (or a crashed runtime) is swept on the next cloning create.
-            sweepOrphanClones(live: Set(entries.map(\.id)))
-            warnIfGoldensInUse(cloneSet, entries: entries)
         }
         var mounts: [JSONValue] = []
-        for mount in try NativeConfigBuilder.parseMounts(request: request) {
+        for mount in parsedMounts {
             switch mount {
             case .tmpfs(let destination, let options):
                 mounts.append(
@@ -182,7 +194,7 @@ public struct NativeContainerService: ContainerServing {
                 // wrapper is only how `volume inspect` pretty-prints.
                 // FSType encodes enums as nested case objects, so
                 // cache/sync are {"on":{}} / {"fsync":{}} not strings.
-                if cloneSet.contains(name) || cloneSet.contains("*") {
+                if isClone(name) {
                     guard let volume = try await api.volumeInspect(name: name) else {
                         throw MicropodError.message(
                             "cache clone source volume '\(name)' not found")
@@ -209,7 +221,15 @@ public struct NativeContainerService: ContainerServing {
                             source: clone,
                             destination: destination, options: options))
                 } else {
+                    // A direct attach shares the golden's block image with
+                    // whoever else has it: refuse while a running container
+                    // holds it read-write (clone mounts above never touch the
+                    // golden, so they are exempt). `getOrCreate` is idempotent,
+                    // so checking after it costs nothing and also catches a
+                    // holder that mounted the image by path.
                     let volume = try await api.getOrCreateVolume(name: name)
+                    let source = NativeConfigBuilder.string(volume["source"]) ?? ""
+                    try Self.requireNotHeld(name, source: source, holders: volumeHolders)
                     mounts.append(
                         NativeConfigBuilder.filesystemObject(
                             type: "volume",
@@ -222,7 +242,7 @@ public struct NativeContainerService: ContainerServing {
                                         .object([:])
                                 ]),
                             ],
-                            source: NativeConfigBuilder.string(volume["source"]) ?? "",
+                            source: source,
                             destination: destination, options: options))
                 }
             }
@@ -468,7 +488,7 @@ public struct NativeContainerService: ContainerServing {
     public func delete(_ id: String, force: Bool = false) async throws {
         try await api.delete(id: id, force: force)
         await exitCodes.forget(id: id)
-        Self.removeClones(containerID: id)
+        await Self.removeClones(containerID: id)
     }
 
     public func deleteAll(force: Bool = false) async throws {
@@ -479,7 +499,7 @@ public struct NativeContainerService: ContainerServing {
                 group.addTask {
                     try await self.api.delete(id: entry.id, force: force)
                     await self.exitCodes.forget(id: entry.id)
-                    Self.removeClones(containerID: entry.id)
+                    await Self.removeClones(containerID: entry.id)
                 }
             }
             try await group.waitForAll()
@@ -499,7 +519,7 @@ public struct NativeContainerService: ContainerServing {
                 totalSize += (try? await api.diskUsage(id: entry.id)) ?? 0
                 try await api.delete(id: entry.id)
                 await exitCodes.forget(id: entry.id)
-                Self.removeClones(containerID: entry.id)
+                await Self.removeClones(containerID: entry.id)
                 pruned.append(entry.id)
             } catch {
                 continue
@@ -507,7 +527,7 @@ public struct NativeContainerService: ContainerServing {
         }
         // Orphan sweep: clone dirs whose container is already gone (e.g.
         // deleted via the raw `container` CLI) would otherwise leak.
-        sweepOrphanClones(live: Set((await listEntries()).map(\.id)))
+        await sweepOrphanClones(live: Set((await listEntries()).map(\.id)))
         let freed = ByteCountFormatter().string(fromByteCount: Int64(totalSize))
         return pruned.joined(separator: "\n") + (pruned.isEmpty ? "" : "\nReclaimed \(freed) in disk space")
     }
@@ -574,38 +594,42 @@ public struct NativeContainerService: ContainerServing {
     }
 
     /// Per-container clone root: `~/Library/Application Support/
-    /// micropod/volume-clones/<containerID>/<volume>.img`.
-    /// `MICROPOD_VOLUME_CLONE_ROOT` overrides the root (tests/ops).
-    public static var cloneRoot: URL {
-        if let override = ProcessInfo.processInfo.environment["MICROPOD_VOLUME_CLONE_ROOT"],
-            !override.isEmpty
-        {
-            return URL(fileURLWithPath: override, isDirectory: true)
-        }
-        let base =
-            FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? URL(fileURLWithPath: NSHomeDirectory())
-            .appendingPathComponent("Library/Application Support")
-        return base.appendingPathComponent("micropod/volume-clones", isDirectory: true)
-    }
+    /// micropod/volume-clones/<containerID>/<volume>.img`
+    /// (`MICROPOD_VOLUME_CLONE_ROOT` overrides it) — see `VolumeClone`.
+    public static var cloneRoot: URL { VolumeClone.cloneRoot }
 
-    /// APFS copy-on-write clone of a volume's backing image. `COPYFILE_CLONE`
-    /// falls back to a regular copy on non-APFS volumes.
+    /// APFS copy-on-write clone of a volume's backing image at
+    /// `cloneRoot/<containerID>/<volume>.img`; returns that path.
     public static func cloneVolumeImage(source: String, containerID: String, volume: String) throws -> String {
-        let dir = cloneRoot.appendingPathComponent(containerID, isDirectory: true)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let dst = dir.appendingPathComponent("\(volume).img")
-        try? FileManager.default.removeItem(at: dst)
-        guard copyfile(source, dst.path, nil, copyfile_flags_t(COPYFILE_CLONE)) == 0 else {
-            throw MicropodError.message(
-                "failed to clone volume '\(volume)' (\(source)): \(String(cString: strerror(errno)))")
-        }
-        return dst.path
+        let destination = VolumeClone.clonePath(containerID: containerID, volume: volume)
+        try VolumeClone.cloneImage(from: source, to: destination.path)
+        return destination.path
     }
 
-    static func removeClones(containerID: String) {
+    /// Removes the container's clone images, each under its volume's lock:
+    /// a `CommitVolumeClone` in flight for that volume either completes
+    /// first or finds the clone gone (`not_found`) — never a rename of a
+    /// file that is being unlinked.
+    static func removeClones(containerID: String) async {
+        for volume in VolumeClone.clonedVolumes(containerID: containerID) {
+            await VolumeLocks.shared.withLock(volume) {
+                try? FileManager.default.removeItem(
+                    at: VolumeClone.clonePath(containerID: containerID, volume: volume))
+            }
+        }
         try? FileManager.default.removeItem(
-            at: cloneRoot.appendingPathComponent(containerID, isDirectory: true))
+            at: VolumeClone.cloneRoot.appendingPathComponent(containerID, isDirectory: true))
+    }
+
+    /// RW multi-attach guard (see `VolumeAttachments`): a `failedPrecondition:`
+    /// naming volume and holder, or a warning when
+    /// `MICROPOD_ALLOW_MULTI_ATTACH=1` restores the historic behaviour.
+    private static func requireNotHeld(_ name: String, source: String, holders: VolumeAttachments) throws {
+        guard let holder = holders.holder(of: name, source: source) else { return }
+        let error = VolumeAttachments.inUseError(volume: name, holder: holder)
+        guard VolumeAttachments.multiAttachAllowed() else { throw error }
+        FileHandle.standardError.write(
+            Data("micropod: \(error.localizedDescription) — attaching anyway (MICROPOD_ALLOW_MULTI_ATTACH=1)\n".utf8))
     }
 
     private func listEntries() async -> [ContainerListEntry] {
@@ -621,7 +645,7 @@ public struct NativeContainerService: ContainerServing {
     /// reached `containerCreate` yet, so they aren't yet in `live`.
     private static let orphanGrace: TimeInterval = 60
 
-    private func sweepOrphanClones(live: Set<String>) {
+    private func sweepOrphanClones(live: Set<String>) async {
         let cutoff = Date().addingTimeInterval(-Self.orphanGrace)
         for dir
             in (try? FileManager.default.contentsOfDirectory(
@@ -632,7 +656,7 @@ public struct NativeContainerService: ContainerServing {
             && ((try? dir.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast)
                 < cutoff
         {
-            try? FileManager.default.removeItem(at: dir)
+            await Self.removeClones(containerID: dir.lastPathComponent)
         }
     }
 

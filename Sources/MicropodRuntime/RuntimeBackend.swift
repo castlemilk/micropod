@@ -16,6 +16,9 @@ public struct RuntimeServices: Sendable {
     public let containers: any ContainerServing
     public let logs: any LogStreaming
     public let stats: any StatsSampling
+    /// Volume list/create/delete/clone/commit — XPC routes when native
+    /// (no process spawns on the cache hot path), the CLI otherwise.
+    public let volumes: any VolumeServing
     /// Present when the native backend is active — the XPC client for
     /// guest/vsock consumers (vminitd, the API bridge endpoint).
     public let api: APIServerClient?
@@ -54,6 +57,7 @@ public enum RuntimeBackendResolver {
         let cliContainers = ContainerService(client: client)
         let cliLogs = LogStreamer(client: client)
         let cliStats = StatsSampler(client: client)
+        let cliVolumes = VolumeService(client: client)
 
         func cliServices(health: APIServerHealth? = nil) -> RuntimeServices {
             RuntimeServices(
@@ -61,6 +65,7 @@ public enum RuntimeBackendResolver {
                 containers: cliContainers,
                 logs: cliLogs,
                 stats: cliStats,
+                volumes: cliVolumes,
                 api: nil,
                 health: health,
                 exitCodes: nil
@@ -86,6 +91,7 @@ public enum RuntimeBackendResolver {
                 containers: NativeContainerService(api: api, cli: cliContainers, exitCodes: exitCodes),
                 logs: NativeLogStreamer(api: api, exitCodes: exitCodes),
                 stats: NativeStatsSampler(api: api),
+                volumes: NativeVolumeService(api: api, cli: cliVolumes),
                 api: api,
                 health: health,
                 exitCodes: exitCodes

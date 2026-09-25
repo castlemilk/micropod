@@ -9,7 +9,8 @@ struct APIHandlers {
     let system: SystemService
     let containers: any ContainerServing
     let images: ImageService
-    let volumes: VolumeService
+    /// Native XPC when the native backend is active, CLI otherwise.
+    let volumes: any VolumeServing
     let networks: NetworkService
     let stats: any StatsSampling
     let logs: any LogStreaming
@@ -270,7 +271,7 @@ struct APIHandlers {
                 let payload = try decodeBody(request.body)
                 let name = payload["name"] as? String ?? ""
                 guard !name.isEmpty else { return .json(400, ["error": "name is required"]) }
-                try await volumes.create(name: name, size: payload["size"] as? String)
+                try await volumes.create(name: name, size: payload["size"] as? String, labels: [], options: [])
                 return .json(201, ["name": name])
 
             case ("volumes", .delete) where segments.count == 3:
@@ -482,7 +483,8 @@ struct APIHandlers {
     private func projection(_ volume: Micropod_V1_Volume) -> [String: Any] {
         [
             "id": volume.id, "driver": volume.driver, "format": volume.format,
-            "sizeBytes": volume.sizeBytes, "source": volume.source, "createdAt": volume.createdAt,
+            "sizeBytes": volume.sizeBytes, "allocatedBytes": volume.allocatedBytes,
+            "source": volume.source, "createdAt": volume.createdAt,
             "labels": volume.labels,
         ]
     }

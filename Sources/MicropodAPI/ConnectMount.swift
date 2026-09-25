@@ -158,6 +158,22 @@ extension APIHandlers {
                 try await volumes.delete(req.name)
                 return unary(Micropod_V1_Empty())
 
+            case "CloneVolume":
+                let req = try decode(Micropod_V1_CloneVolumeRequest.self, body)
+                try check(req)
+                return unary(
+                    try await volumes.clone(
+                        source: req.source,
+                        name: req.name,
+                        size: req.hasSize ? req.size : nil,
+                        labels: req.labels))
+
+            case "CommitVolumeClone":
+                let req = try decode(Micropod_V1_CommitVolumeCloneRequest.self, body)
+                try check(req)
+                let allocated = try await volumes.commitClone(containerID: req.containerID, volume: req.volume)
+                return unary(Micropod_V1_CommitVolumeCloneResponse.with { $0.allocatedBytes = allocated })
+
             case "ListNetworks":
                 var resp = Micropod_V1_ListNetworksResponse()
                 resp.networks = try await networks.list()
@@ -477,6 +493,16 @@ extension APIHandlers {
 
     private func check(_ req: Micropod_V1_DeleteVolumeRequest) throws {
         try required(req.name, "name")
+    }
+
+    private func check(_ req: Micropod_V1_CloneVolumeRequest) throws {
+        try required(req.source, "source")
+        try required(req.name, "name")
+    }
+
+    private func check(_ req: Micropod_V1_CommitVolumeCloneRequest) throws {
+        try required(req.containerID, "containerId")
+        try required(req.volume, "volume")
     }
 
     private func check(_ req: Micropod_V1_CreateNetworkRequest) throws {

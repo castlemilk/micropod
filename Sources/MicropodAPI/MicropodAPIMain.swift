@@ -50,7 +50,7 @@ struct MicropodAPI {
             system: SystemService(client: client),
             containers: runtime.containers,
             images: ImageService(client: client),
-            volumes: VolumeService(client: client),
+            volumes: runtime.volumes,
             networks: NetworkService(client: client),
             stats: runtime.stats,
             logs: runtime.logs,
