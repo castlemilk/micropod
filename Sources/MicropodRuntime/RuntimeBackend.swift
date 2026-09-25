@@ -84,7 +84,7 @@ public enum RuntimeBackendResolver {
             let services = RuntimeServices(
                 kind: .native,
                 containers: NativeContainerService(api: api, cli: cliContainers, exitCodes: exitCodes),
-                logs: NativeLogStreamer(api: api),
+                logs: NativeLogStreamer(api: api, exitCodes: exitCodes),
                 stats: NativeStatsSampler(api: api),
                 api: api,
                 health: health,
