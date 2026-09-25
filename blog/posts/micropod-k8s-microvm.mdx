@@ -3,8 +3,8 @@ title: "A Kubernetes cluster that fits inside one Micropod micro-VM"
 date: 2026-09-25
 reading: 5 min read
 tags: [kubernetes, k3s, metallb, benchmarks]
-description: "Micropod's opt-in k8s engine runs k3s as a single micro-VM: 21s to node Ready vs kind's 53s, ~550MB in use vs ~760MB on Docker Desktop — plus MetalLB LoadBalancer IPs that actually route on macOS."
-standfirst: "kind puts Kubernetes inside a container inside Docker Desktop's VM. Micropod's new opt-in engine runs k3s as a single Apple micro-VM instead — a real kernel, a real vmnet address, and MetalLB LoadBalancer IPs that actually route on macOS. Measured on the same machine: 21s to a Ready node vs kind's 53s, ~550MB in use, 2.4s to resume — and services you can curl."
+description: "Micropod's opt-in k8s engine runs k3s as a single micro-VM: 21s to node Ready vs kind's 53s, ~700MB in use vs ~760MB + Docker Desktop's VM — plus MetalLB LoadBalancer IPs that actually route on macOS."
+standfirst: "kind puts Kubernetes inside a container inside Docker Desktop's VM. Micropod's new opt-in engine runs k3s as a single Apple micro-VM instead — a real kernel, a real vmnet address, and MetalLB LoadBalancer IPs that actually route on macOS. Measured on the same machine: 21s to a Ready node vs kind's 53s, ~700MB in use, 2.4s to resume — and services you can curl."
 ---
 
 Every local-Kubernetes option on macOS pays the same tax: a Linux VM to host containers, then a cluster nested inside it. kind nests a k8s node inside a Docker container inside Docker Desktop's VM. colima nests it inside a Lima VM. The nesting is where the overhead and the networking weirdness come from — a kind `LoadBalancer` service can never get an IP your Mac can actually route to, because the whole topology lives behind Docker's VM NAT.
@@ -66,7 +66,22 @@ The engine isn't just a CLI trick — it's a first-class API. `K8sService` joins
 
 ## Measured against kind
 
-Same MacBook, both runtimes warm, images cached on both sides. `micropod k8s up` measured end-to-end including API-ready wait and kubeconfig write; `kind create cluster` measured the same way.
+Same MacBook, both runtimes warm, workload images cached on both sides. `micropod k8s up` measured end-to-end including API-ready wait and kubeconfig write; `kind create cluster` measured the same way. The losses are reported first because they're real.
+
+<DataTable
+  title="Head-to-head — warm, this machine"
+  align="left right right left"
+  columns={["probe", "micropod k8s", "kind", "winner"]}
+  rows={[
+    ["create → node Ready", "21 s (2.4 s resume)", "53 s", "micropod 2.5×"],
+    ["pod → Ready, cached (p50)", "1.1 s", "0.6 s", "kind 1.8×"],
+    ["5-pod burst → Ready", "1.5–1.9 s", "1.0 s", "kind"],
+    ["apiserver get (p50)", "41 ms", "39 ms", "parity"],
+    ["ingress → pod (p50)", "20 ms NodePort / 3 ms via LB IP", "not routable", "micropod"],
+    ["LoadBalancer from host", "real IP, curlable", "<pending> forever", "micropod"],
+    ["guest memory in use", "~700 MB", "602 MB + ~1.2 GB VM", "micropod"],
+  ]}
+/>
 
 <PerfChart
   title="Cluster create → node Ready"
@@ -81,10 +96,18 @@ Same MacBook, both runtimes warm, images cached on both sides. `micropod k8s up`
 <StatGrid
   items={[
     { value: "21 s", label: "micropod k8s up (cold)" },
-    { value: "53 s", label: "kind create cluster" },
-    { value: "2.4 s", label: "micropod resume — VM just restarts" },
+    { value: "2.4 s", label: "resume — VM just restarts" },
+    { value: "41 ms", label: "apiserver p50 — parity with kind" },
   ]}
 />
+
+Where kind wins: single-pod launch (~0.6s vs our ~1.1s). The gap isn't vCPUs — bumping the guest to 4 didn't move it; it's kind's pod-sandbox path inside an already-warm Docker VM. Where it loses everything else: the network. Our VM is a real vmnet peer, so service traffic crosses one bridge hop — kind's can't reach the host at all without `kubectl port-forward` or a tunnel, and its ingress story starts with extra plumbing ours doesn't need.
+
+## The slow path: image pulls
+
+The one genuinely bad number in profiling wasn't in the table because we fixed it during the profiling. Image pulls through the guest's vmnet NAT are pathological — a ~60MB MetalLB install took ~13 minutes from quay.io, and a 20MB pod image minutes more. Docker's puller doesn't have this problem.
+
+The fix is architectural, and it's why MetalLB works well here: `k8s up` now pulls add-on images with the host puller, then injects the OCI archive straight into k3s's containerd — `container image save` → `container copy` → `ctr -n k8s.io images import`. Seconds, not minutes, and idempotent on reruns. It also means the MetalLB install is deterministic enough to pin and test.
 
 <PerfChart
   title="Memory in use — idle cluster"
@@ -92,17 +115,17 @@ Same MacBook, both runtimes warm, images cached on both sides. `micropod k8s up`
   scale="global"
   columns={["micropod k8s", "kind node"]}
   rows={[
-    { label: "in use", values: [550, 762] },
+    { label: "in use", values: [700, 762] },
   ]}
 />
 
-The memory comparison undersells it: kind's 762 MB is the node container alone — Docker Desktop's VM costs another ~1.2 GB at idle before any cluster exists. Micropod's ~550 MB is the whole thing: kernel, k3s, and pods included.
+The memory comparison undersells it: kind's 762 MB is the node container alone — Docker Desktop's VM costs another ~1.2 GB at idle before any cluster exists. Micropod's ~700 MB is the whole thing: kernel, k3s, and pods included. (The hypervisor process itself reserves the configured guest RAM, ~1.8GB RSS on the host for a 1GB guest — Apple's VZ doesn't balloon that down, which is the honest ceiling on the "tiny" claim.)
 
 ## Caveats worth stating
 
 - **Single-node by design.** One VM is one node — this is the cheap local-cluster story, not multi-node scheduling.
 - **Privileged guest.** The VM runs with `--cap-add ALL` and the runtime's read-only procfs paths cleared — kubelet writes `/proc/sys/kernel/panic` on boot and dies without it. It's still a hardware VM boundary, but treat the guest as trusted.
-- **First MetalLB install is slow.** The guest pulls ~60MB from quay.io over NAT; cold installs have taken several minutes in our testing. It retries a stalled pull once and reports rather than failing the cluster — MetalLB is additive, not required for `kubectl`.
+- **Pod images still pull through the guest.** Seed-by-host applies to the add-ons Micropod installs (MetalLB today); a workload `image:` you reference still pulls over guest NAT the first time. Pre-seeding workload images via the same path is the obvious next step.
 - **State lives in the VM.** `k8s down` removes it — etcd, images, everything. Ephemeral is the point; persistent clusters are a different tool's job.
 
-Reproduce: `scripts/bench_k8s.sh`. Configuration surface: `docs/kubernetes.md`.
+Reproduce: `scripts/bench_k8s.sh` (cluster lifecycle) and `scripts/bench_k8s_perf.sh` (pod launch / apiserver / ingress / footprint). Configuration surface: `docs/kubernetes.md`.

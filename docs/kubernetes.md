@@ -2,7 +2,7 @@
 
 Micropod can run a full Kubernetes cluster as **one micro-VM**: a k3s image
 whose `server` command is the VM's workload — etcd, apiserver, kubelet, and
-containerd inside a single ~550 MB guest. No second runtime daemon, no
+containerd inside a single ~700 MB guest. No second runtime daemon, no
 nested docker-in-docker, no Desktop-grade VM underneath.
 
 It's an **opt-in** feature:
@@ -53,10 +53,18 @@ because the VM owns its kernel.
 |                       | micropod k8s | kind (Docker Desktop) |
 |-----------------------|--------------|-----------------------|
 | create → node Ready   | **21 s** cold, 2.4 s resume | 53–70 s |
-| memory in use         | **~550 MB** guest | ~760 MB container + Docker Desktop's ~1.2 GB VM |
+| pod create → Ready (cached, p50) | ~1.1 s | ~0.6 s |
+| 5-pod burst → all Ready | 1.5–1.9 s | ~1.0 s |
+| apiserver `kubectl get` (p50) | 41 ms | 39 ms |
+| ingress → pod (p50) | ~20 ms via NodePort; ~3 ms via LB IP | not host-routable |
 | `LoadBalancer` svc    | real IP, curlable | `<pending>` without extra tooling |
+| memory in use         | **~700 MB** guest | ~760 MB container + Docker Desktop's ~1.2 GB VM |
 
-Reproduce: `scripts/bench_k8s.sh`
+kind launches pods ~2x faster (warm Docker VM sandbox path — extra vCPUs
+don't move ours); everywhere else the vmnet path wins or ties.
+
+Reproduce: `scripts/bench_k8s.sh` (lifecycle), `scripts/bench_k8s_perf.sh`
+(pod launch / apiserver / ingress / footprint).
 
 ## Configuration
 
@@ -80,9 +88,10 @@ Flags: `--image`, `--memory`/`-m`, `--cpus`/`-c`, `--metallb`/`--no-metallb`,
 
 ## Known caveats
 
-- First MetalLB install pulls ~60 MB from quay.io inside the guest; cold
-  egress can take several minutes (the installer retries a stalled pull once
-  and then reports instead of failing the cluster).
+- Workload `image:` references still pull through the guest's vmnet NAT,
+  which is slow (minutes for ~20 MB). MetalLB's own images are seeded by the
+  host puller (`image save` → `copy` → `ctr import`) so add-on install is
+  fast; workload seeding is the obvious next step.
 - One VM = one node. Multi-node is not the design goal; this is the
   cheap-local-cluster story, not a cluster-autoscaler story.
 - The VM is privileged (`--cap-add ALL`). It's still a VM boundary, but don't

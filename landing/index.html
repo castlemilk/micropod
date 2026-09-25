@@ -540,7 +540,7 @@
         <div class="reveal" style="transition-delay:0.1s"><p class="section-desc">Turn on the k8s engine and Micropod runs k3s as a single lightweight VM — apiserver, kubelet, containerd and all — with MetalLB handing out real LoadBalancer IPs on your VM subnet and traefik for ingress. The thing kind can't do on macOS without a tunnel.</p></div>
         <div class="stats reveal" style="transition-delay:0.15s">
           <div class="stat"><span class="num">21 s</span><span class="lbl">cluster create → node Ready<br />vs kind's 53 s on Docker Desktop</span></div>
-          <div class="stat"><span class="num">~550 MB</span><span class="lbl">whole cluster in use<br />vs ~760 MB + Docker Desktop's 1.2 GB VM</span></div>
+          <div class="stat"><span class="num">~700 MB</span><span class="lbl">whole cluster in use<br />vs ~760 MB + Docker Desktop's 1.2 GB VM</span></div>
           <div class="stat"><span class="num">2.4 s</span><span class="lbl">cluster resume<br />the VM just starts again</span></div>
           <div class="stat"><span class="num">real LB</span><span class="lbl">MetalLB on the vmnet subnet<br />curl your services from the host</span></div>
         </div>

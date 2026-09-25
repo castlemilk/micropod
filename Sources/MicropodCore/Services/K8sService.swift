@@ -310,15 +310,46 @@ public struct K8sService: Sendable {
         guard let pool else {
             throw K8sError.cliFailure("could not derive a MetalLB pool — pass --lb-pool explicitly")
         }
+        // Registry pulls through the guest's NAT are 10–20x slower than the
+        // host puller; fetch host-side and inject into k3s's containerd.
+        for ref in ["quay.io/metallb/controller:v0.14.9", "quay.io/metallb/speaker:v0.14.9"] {
+            progress("seeding \(ref.split(separator: "/").last ?? "") via host puller")
+            try await seedImage(name: name, ref: ref)
+        }
         _ = try await kubectl(
             name,
             [
                 "apply", "-f", Self.metalLBManifestURL("v0.14.9"),
             ])
-        progress("waiting for MetalLB pods (first install pulls ~60MB from quay.io — can take several minutes)")
-        try await waitForNamespace(name, namespace: "metallb-system", timeout: 900, progress: progress)
+        progress("waiting for MetalLB pods")
+        try await waitForNamespace(name, namespace: "metallb-system", timeout: 300, progress: progress)
         _ = try await kubectl(name, ["apply", "-f", "-"], stdin: Self.poolManifest(pool))
         progress("MetalLB pool \(pool) (L2 on the VM subnet)")
+    }
+
+    /// Pull `ref` with the host puller (fast path through vmnet), then push the
+    /// OCI archive into the guest's `k8s.io` containerd namespace — avoids the
+    /// guest's slow registry path entirely. Idempotent: a `save` on an already-
+    /// pulled image is local-only, and `ctr import` no-ops on present digests.
+    private func seedImage(name: String, ref: String) async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("micropod-seed-\(UUID().uuidString).tar")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        _ = try? await client.run(
+            ContainerCommand(arguments: ["image", "pull", ref]), timeout: .seconds(300))
+        _ = try await client.run(
+            ContainerCommand(arguments: ["image", "save", ref, "-o", tmp.path]),
+            timeout: .seconds(60))
+        let guestPath = "/tmp/\(tmp.lastPathComponent)"
+        _ = try await client.run(
+            ContainerCommand(arguments: ["copy", tmp.path, "\(name):\(guestPath)"]),
+            timeout: .seconds(120))
+        _ = try await client.run(
+            ContainerCommand(
+                arguments: ["exec", name, "ctr", "-n", "k8s.io", "images", "import", guestPath]),
+            timeout: .seconds(60))
+        _ = try? await client.run(
+            ContainerCommand(arguments: ["exec", name, "rm", "-f", guestPath]), timeout: .seconds(15))
     }
 
     private func waitForAPI(_ name: String, timeout: Int) async throws {
