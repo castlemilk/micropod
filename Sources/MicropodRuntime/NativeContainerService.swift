@@ -660,13 +660,14 @@ public struct NativeContainerService: ContainerServing {
         }
     }
 
-    /// Cloning a golden that a running container still has attached RW
-    /// yields a crash-consistent clone (like an unfrozen disk snapshot) —
-    /// usually mountable after journal replay, but worth telling the user
-    /// so goldens are quiesced before use.
+    /// Cloning a golden that a running (or still stopping) container has
+    /// attached RW yields a crash-consistent clone (like an unfrozen disk
+    /// snapshot) — usually mountable after journal replay, but worth telling
+    /// the user so goldens are quiesced before use.
     private func warnIfGoldensInUse(_ cloneSet: Set<String>, entries: [ContainerListEntry]) {
         let wildcard = cloneSet.contains("*")
-        for entry in entries where entry.status.state == "running" {
+        for entry in entries {
+            guard let state = entry.status.state, VolumeAttachments.holdsVolumes(state: state) else { continue }
             for mount in entry.configuration.mounts ?? [] {
                 guard mount.typeName == "volume",
                     !(mount.options ?? []).contains("ro"),
@@ -675,7 +676,7 @@ public struct NativeContainerService: ContainerServing {
                     wildcard || cloneSet.contains(name)
                 else { continue }
                 let notice =
-                    "micropod: golden volume '\(name)' is attached read-write to running "
+                    "micropod: golden volume '\(name)' is attached read-write to \(state) "
                     + "container '\(entry.id)' — clone is crash-consistent; quiesce or "
                     + "stop it for a clean snapshot\n"
                 FileHandle.standardError.write(Data(notice.utf8))

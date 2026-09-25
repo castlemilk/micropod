@@ -109,6 +109,27 @@ final class VolumeCloneTests: XCTestCase {
             try VolumeClone.commit(clonePath: path("clone.img"), goldenPath: path("no-such-dir/golden.img")))
     }
 
+    /// A crash between staging and rename leaves `.golden.img.tmp-*` next to
+    /// the golden; the next commit sweeps such leftovers — and only those,
+    /// the sweep is keyed to this golden's staging prefix.
+    func testCommitSweepsStagingLeftByACrashedCommit() throws {
+        try payload(seed: 7).write(to: URL(fileURLWithPath: path("golden.img")))
+        try FileManager.default.createDirectory(atPath: path("clones/job-2"), withIntermediateDirectories: true)
+        let after = payload(seed: 8)
+        try after.write(to: URL(fileURLWithPath: path("clones/job-2/golden.img")))
+        try Data("stale".utf8).write(to: URL(fileURLWithPath: path(".golden.img.tmp-dead0000")))
+        try Data("stale".utf8).write(to: URL(fileURLWithPath: path(".golden.img.tmp-cafe1111")))
+        try Data("keep".utf8).write(to: URL(fileURLWithPath: path(".other.img.tmp-00000000")))
+
+        _ = try VolumeClone.commit(clonePath: path("clones/job-2/golden.img"), goldenPath: path("golden.img"))
+
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: path("golden.img"))), after)
+        XCTAssertEqual(
+            try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted(),
+            [".other.img.tmp-00000000", "clones", "golden.img"],
+            "stale staging files for this golden are swept; other names are untouched")
+    }
+
     // MARK: - allocatedBytes / clone paths
 
     func testAllocatedBytesOfMissingFileIsZero() {

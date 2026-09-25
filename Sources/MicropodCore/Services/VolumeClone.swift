@@ -45,8 +45,11 @@ public enum VolumeClone {
     }
 
     /// Bytes actually allocated to the file (`st_blocks × 512`): sparse
-    /// holes and extents still shared with a clone source are excluded, so
-    /// this is real usage rather than the provisioned size. 0 when absent.
+    /// holes are excluded, so this is real usage rather than the provisioned
+    /// size. Extents shared with a clone source *are* counted — APFS reports
+    /// a fresh clonefile at its source's full allocation, not its private
+    /// delta — so a golden's figure and its clones' overlap and must not be
+    /// summed as if they were disjoint. 0 when absent.
     public static func allocatedBytes(atPath path: String) -> UInt64 {
         var info = Darwin.stat()
         guard stat(path, &info) == 0 else { return 0 }
@@ -85,6 +88,9 @@ public enum VolumeClone {
     /// (it goes with the container on delete), so a stopped container remains
     /// startable after its clone was promoted.
     ///
+    /// Staging files a commit that crashed between clone and rename left next
+    /// to the golden (`.volume.img.tmp-*`) are swept first.
+    ///
     /// Returns the clone's allocated bytes — what was promoted. The caller
     /// holds the volume's ``VolumeLocks`` lock and has verified the
     /// container is stopped and the golden is not attached read-write.
@@ -118,6 +124,7 @@ public enum VolumeClone {
         else {
             throw MicropodError.message("golden image directory \(goldenDir) does not exist")
         }
+        removeStaleStaging(nextTo: golden)
 
         let temp = tempPath(nextTo: golden)
         guard copyfile(clonePath, temp, nil, copyfile_flags_t(COPYFILE_CLONE)) == 0 else {
@@ -169,9 +176,9 @@ public enum VolumeClone {
         }
     }
 
-    /// No running container may have the golden attached read-write: a
-    /// clone of it would be crash-consistent at best, and replacing it
-    /// underneath the writer would corrupt both.
+    /// No running or stopping container may have the golden attached
+    /// read-write: a clone of it would be crash-consistent at best, and
+    /// replacing it underneath the writer would corrupt both.
     public static func requireQuiescent(_ volume: Micropod_V1_Volume, attachments: VolumeAttachments) throws {
         if let holder = attachments.holder(of: volume.id, source: volume.source) {
             throw VolumeAttachments.inUseError(volume: volume.id, holder: holder)
@@ -233,6 +240,18 @@ public enum VolumeClone {
 
     // MARK: - Internals
 
+    /// Unlinks staging files (`.<name>.tmp-*`) a crashed commit left next to
+    /// `file`. Only this volume's commit creates them and the caller holds
+    /// that volume's lock, so nothing live can be swept.
+    private static func removeStaleStaging(nextTo file: URL) {
+        let dir = file.deletingLastPathComponent()
+        let prefix = ".\(file.lastPathComponent).tmp-"
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+        for name in names where name.hasPrefix(prefix) {
+            unlink(dir.appendingPathComponent(name).path)
+        }
+    }
+
     private static func tempPath(nextTo file: URL) -> String {
         file.deletingLastPathComponent()
             .appendingPathComponent(".\(file.lastPathComponent).tmp-\(UUID().uuidString.prefix(8).lowercased())")
@@ -290,45 +309,65 @@ public actor VolumeLocks {
     }
 }
 
-/// Which named volumes running containers hold read-write — the precondition
+/// Which named volumes containers hold read-write — the precondition
 /// `CloneVolume`, `CommitVolumeClone` and create's multi-attach guard share.
-/// Apple named volumes are ext4 block images with no multi-attach
-/// protection in the runtime, so this is the only guard there is.
+/// A container holds its volumes while `running` and while `stopping`: the
+/// runtime keeps the block image attached, and flushes it, until the
+/// container is `stopped`, so both states count as writers. Apple named
+/// volumes are ext4 block images with no multi-attach protection in the
+/// runtime, so this is the only guard there is.
 public struct VolumeAttachments: Sendable {
-    /// Running container id keyed by volume name (`type.volume.name`, the
-    /// real runtime's named-volume mount) and by mount source (a backing
-    /// image path; the volume name itself under the mock CLI).
-    private let holders: [String: String]
+    /// A container holding a volume read-write, and the state (`running` or
+    /// `stopping`) that keeps the image attached.
+    public struct Holder: Sendable, Equatable {
+        public let id: String
+        public let state: String
+    }
+
+    /// Holder keyed by volume name (`type.volume.name`, the real runtime's
+    /// named-volume mount) and by mount source (a backing image path; the
+    /// volume name itself under the mock CLI). tmpfs mounts are skipped:
+    /// their source is the literal `tmpfs`, which would otherwise mark a
+    /// volume of that name as held.
+    private let holders: [String: Holder]
+
+    /// Whether a container in `state` still has its block images attached.
+    public static func holdsVolumes(state: String?) -> Bool {
+        state == "running" || state == "stopping"
+    }
 
     public init(entries: [ContainerListEntry]) {
-        var holders: [String: String] = [:]
-        for entry in entries where entry.status.state == "running" {
+        var holders: [String: Holder] = [:]
+        for entry in entries {
+            guard let state = entry.status.state, Self.holdsVolumes(state: state) else { continue }
+            let holder = Holder(id: entry.id, state: state)
             for mount in entry.configuration.mounts ?? [] where !(mount.options ?? []).contains("ro") {
                 if case .object(let fields)? = mount.type?["volume"],
                     case .string(let name)? = fields["name"]
                 {
-                    holders[name] = holders[name] ?? entry.id
+                    holders[name] = holders[name] ?? holder
                 }
-                if let source = mount.source, !source.isEmpty {
-                    holders[source] = holders[source] ?? entry.id
+                if mount.typeName != "tmpfs", let source = mount.source, !source.isEmpty {
+                    holders[source] = holders[source] ?? holder
                 }
             }
         }
         self.holders = holders
     }
 
-    /// The running container holding `volume` read-write — matched by name
-    /// or, when given, by the volume's backing image path.
-    public func holder(of volume: String, source: String? = nil) -> String? {
-        if let id = holders[volume] { return id }
-        if let source, !source.isEmpty, let id = holders[source] { return id }
+    /// The running or stopping container holding `volume` read-write —
+    /// matched by name or, when given, by the volume's backing image path.
+    public func holder(of volume: String, source: String? = nil) -> Holder? {
+        if let holder = holders[volume] { return holder }
+        if let source, !source.isEmpty, let holder = holders[source] { return holder }
         return nil
     }
 
-    /// `failedPrecondition:`-prefixed error naming volume and holder.
-    public static func inUseError(volume: String, holder: String) -> MicropodError {
+    /// `failedPrecondition:`-prefixed error naming volume, holder and the
+    /// holder's state (so a `stopping` writer reads as "wait", not "stop").
+    public static func inUseError(volume: String, holder: Holder) -> MicropodError {
         VolumeClone.failedPrecondition(
-            "volume '\(volume)' is attached read-write to running container '\(holder)'")
+            "volume '\(volume)' is attached read-write to \(holder.state) container '\(holder.id)'")
     }
 
     /// Named volumes among `-v` specs (`name:/dst[:opts]`), in order. Host

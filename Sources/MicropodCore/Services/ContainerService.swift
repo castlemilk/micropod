@@ -114,8 +114,9 @@ public struct ContainerService: ContainerServing {
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// RW multi-attach guard: a named volume that a running container holds
-    /// read-write is an ext4 image with a live writer — attaching it again
+    /// RW multi-attach guard: a named volume that a running or stopping
+    /// container holds read-write is an ext4 image with a live writer (a
+    /// stopping one is still flushing it) — attaching it again
     /// corrupts both views, and the runtime does not check. Refused with a
     /// `failedPrecondition:` naming volume and holder before the CLI is
     /// spawned; `MICROPOD_ALLOW_MULTI_ATTACH=1` downgrades that to a warning.

@@ -842,6 +842,8 @@ final class MicropodAPITests: XCTestCase {
     /// A golden attached read-write to a running container would yield a
     /// crash-consistent clone — `CloneVolume` refuses with
     /// `failed_precondition` naming that container, and creates nothing.
+    /// A `stopping` writer still has the image attached (and may be flushing
+    /// it), so it counts as a writer too.
     func testCloneVolumeSourceInUseIsFailedPrecondition() async throws {
         _ = try await json("POST", "v1/volumes", body: ["name": "g"])
         let run = try await json(
@@ -855,6 +857,17 @@ final class MicropodAPITests: XCTestCase {
         XCTAssertEqual(body["code"] as? String, "failed_precondition")
         let message = body["message"] as? String ?? ""
         XCTAssertTrue(message.contains("g") && message.contains(id), "names the volume and the writer: \(message)")
+        XCTAssertFalse(mockCalls().contains { $0.hasPrefix("volume create") && $0.hasSuffix(" c") }, "\(mockCalls())")
+
+        try setMockState(id, to: "stopping")
+        let (stoppingStatus, stopping) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CloneVolume", body: ["source": "g", "name": "c"])
+        XCTAssertEqual(stoppingStatus, 412, "CloneVolume while the writer is stopping: \(stopping)")
+        XCTAssertEqual(stopping["code"] as? String, "failed_precondition")
+        let stoppingMessage = stopping["message"] as? String ?? ""
+        XCTAssertTrue(
+            stoppingMessage.contains(id) && stoppingMessage.contains("stopping"),
+            "names the stopping writer: \(stoppingMessage)")
         XCTAssertFalse(mockCalls().contains { $0.hasPrefix("volume create") && $0.hasSuffix(" c") }, "\(mockCalls())")
 
         // Once the writer is stopped the golden is quiescent and clonable.
@@ -982,8 +995,9 @@ final class MicropodAPITests: XCTestCase {
 
     /// The happy path: a stopped container's clone replaces the golden's
     /// backing image atomically; the response reports the promoted image's
-    /// allocated bytes. A golden that another running container has attached
-    /// read-write is not replaceable underneath it.
+    /// allocated bytes. A golden that another container has attached
+    /// read-write — running or still `stopping` — is not replaceable
+    /// underneath it.
     func testCommitVolumeCloneStoppedPromotesTheClone() async throws {
         _ = try await json("POST", "v1/volumes", body: ["name": "g", "size": "20M"])
         let goldenSource = try await volumeSource("g")
@@ -1012,6 +1026,10 @@ final class MicropodAPITests: XCTestCase {
         XCTAssertEqual(
             golden?["sizeBytes"] as? String, "20971520", "provisioned size is unchanged: \(String(describing: golden))")
 
+        // The clone diverges from the golden again, so a refused commit below
+        // is provably not a rename.
+        try writeClone(container: id, volume: "g", marker: Data("dirty-\(UUID().uuidString)".utf8))
+
         // The golden is attached read-write elsewhere: no rename underneath it.
         let writer = try await json(
             "POST", "v1/containers", body: ["image": "nginx:1.27", "name": "api-commit-writer", "volumes": ["g:/y"]])
@@ -1021,6 +1039,22 @@ final class MicropodAPITests: XCTestCase {
         XCTAssertEqual(busyStatus, 412, "CommitVolumeClone with the golden in use: \(busy)")
         XCTAssertEqual(busy["code"] as? String, "failed_precondition")
         XCTAssertTrue((busy["message"] as? String ?? "").contains(writerID), "\(busy)")
+        XCTAssertEqual(
+            try Data(contentsOf: URL(fileURLWithPath: goldenSource)), marker, "no rename under a running writer")
+
+        // Nor while that writer is `stopping`: its block image is still
+        // attached and being flushed, so a rename would orphan its writes.
+        try setMockState(writerID, to: "stopping")
+        let (stoppingStatus, stopping) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CommitVolumeClone", body: ["containerId": id, "volume": "g"])
+        XCTAssertEqual(stoppingStatus, 412, "CommitVolumeClone with the golden's writer stopping: \(stopping)")
+        XCTAssertEqual(stopping["code"] as? String, "failed_precondition")
+        let stoppingMessage = stopping["message"] as? String ?? ""
+        XCTAssertTrue(
+            stoppingMessage.contains(writerID) && stoppingMessage.contains("stopping"),
+            "names the stopping writer: \(stoppingMessage)")
+        XCTAssertEqual(
+            try Data(contentsOf: URL(fileURLWithPath: goldenSource)), marker, "no rename under a stopping writer")
 
         // The promoted bytes belong to the golden, not to the container.
         _ = try await json("DELETE", "v1/containers/\(id)")

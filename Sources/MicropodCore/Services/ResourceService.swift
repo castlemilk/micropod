@@ -8,8 +8,9 @@ public protocol VolumeServing: Sendable {
     /// Creates `name` (size defaulting to the source's provisioned size,
     /// labels gaining `com.micropod.clone-of=<source>`) and clonefiles the
     /// source's backing image over the new volume's. `not_found` when the
-    /// source does not exist; `failed_precondition` when a running container
-    /// has it attached read-write (the clone would be crash-consistent).
+    /// source does not exist; `failed_precondition` when a running or
+    /// stopping container has it attached read-write (the clone would be
+    /// crash-consistent).
     func clone(source: String, name: String, size: String?, labels: [String]) async throws -> Micropod_V1_Volume
     /// Promotes container `containerID`'s clone of `volume` to be the golden
     /// image (fsync + atomic rename under the per-volume lock). The
