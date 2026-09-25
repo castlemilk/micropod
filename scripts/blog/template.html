@@ -55,6 +55,11 @@
     .nav-links { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--fg-muted); }
     .nav-links a { color: var(--fg-muted); }
     .nav-links a:hover { color: var(--fg); text-decoration: none; }
+    /* below ~720px the links outgrow the bar — keep the wayfinding ones */
+    @media (max-width: 720px) {
+      .nav-links { gap: 1rem; }
+      .nav-links a.nav-sub { display: none; }
+    }
 
     /* Article */
     .article { max-width: 46rem; margin: 0 auto; padding: 4rem 1.5rem 6rem; }
@@ -78,6 +83,7 @@
       font-family: var(--font-mono); font-size: 0.8125rem; color: var(--primary);
       background: color-mix(in srgb, var(--primary) 7%, transparent);
       padding: 0.125rem 0.375rem; border-radius: 0.25rem;
+      overflow-wrap: anywhere;
     }
     .article-body pre {
       margin-top: 1.25rem; border-radius: 0.5rem; border: 1px solid var(--border);
@@ -88,14 +94,21 @@
       color: var(--fg); background: none; padding: 0.875rem 1rem;
     }
     .article-body table {
-      width: 100%; margin-top: 1.25rem; border-collapse: collapse;
-      font-size: 0.8125rem; border: 1px solid var(--border); border-radius: var(--radius);
-      overflow: hidden; display: block; overflow-x: auto;
+      width: 100%; margin-top: 1.25rem;
+      border-collapse: separate; border-spacing: 0;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; font-size: 0.8125rem;
     }
     .article-body thead { background: var(--bg-card); }
-    .article-body th, .article-body td { padding: 0.625rem 0.875rem; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .article-body th, .article-body td { padding: 0.625rem 0.875rem; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
     .article-body th { font-weight: 600; }
     .article-body tbody tr:last-child td { border-bottom: none; }
+    /* first column wraps (labels can be long); numeric/note columns stay tight */
+    .article-body td:not(:first-child), .article-body th:not(:first-child) { white-space: nowrap; }
+    /* below ~640px the nowrap columns overflow — let the table scroll */
+    @media (max-width: 640px) {
+      .article-body table { display: block; overflow-x: auto; }
+    }
     .article-body blockquote {
       margin-top: 1.25rem; padding-left: 1rem; border-left: 2px solid var(--primary);
       color: var(--fg-muted);
@@ -140,8 +153,8 @@
         <span>Micropod</span>
       </a>
       <div class="nav-links">
-        <a href="/micropod/#features">Features</a>
-        <a href="/micropod/#agents">Agents</a>
+        <a class="nav-sub" href="/micropod/#features">Features</a>
+        <a class="nav-sub" href="/micropod/#agents">Agents</a>
         <a href="/micropod/api/">API Docs</a>
         <a href="/micropod/blog/">Blog</a>
         <a href="https://github.com/castlemilk/micropod" target="_blank" rel="noopener">GitHub</a>

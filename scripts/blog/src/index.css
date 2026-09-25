@@ -72,6 +72,18 @@
     background-image: repeating-linear-gradient(to right, var(--graph-frame) 0 2px, transparent 2px 7px);
 }
 
+/* Referenced by components but not shipped by the registry: */
+@utility graph-scroll-x {
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--graph-frame) transparent;
+}
+
+@utility graph-title-ink {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.06em;
+}
+
 @utility graph-rule-y {
     width: 1px;
     background-image: repeating-linear-gradient(to bottom, var(--graph-frame) 0 2px, transparent 2px 7px);
