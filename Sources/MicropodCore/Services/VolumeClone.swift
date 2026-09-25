@@ -137,7 +137,7 @@ public enum VolumeClone {
     private static func unlinkClones(containerID: String, volumes: [String]) async {
         for volume in Array(Set(volumes)).sorted() {
             await VolumeLocks.shared.withLock(volume) {
-                unlink(clonePath(containerID: containerID, volume: volume).path)
+                _ = unlink(clonePath(containerID: containerID, volume: volume).path)
             }
         }
     }
@@ -145,11 +145,14 @@ public enum VolumeClone {
     /// Removes container `containerID`'s clone dir whatever its age when no
     /// container of that id exists (`live` is the runtime's answer, as for
     /// ``sweepOrphanClones``). The orphan grace protects a create that has
-    /// placed its clones but not yet reached the runtime; the caller vouches
-    /// that no create of this id is in flight in this process, so the dir
-    /// can only be the leftover of a create that died with its process — and
-    /// a retried create of the same id must not be refused `already_exists`
-    /// for a container that never was. Returns whether a dir was removed.
+    /// placed its clones but not yet reached the runtime, so this may only
+    /// be called by a create that holds the id's in-process create mutex
+    /// (the native backend's `InFlightCreates.withExclusive`) for its whole
+    /// duration — then no other create of this id can be placing under the
+    /// dir, and it can only be the leftover of a create that died with its
+    /// process. A retried create of the same id must not be refused
+    /// `already_exists` for a container that never was. Returns whether a
+    /// dir was removed.
     @discardableResult
     public static func reclaimStaleCloneDir(containerID: String, live: Set<String>) async -> Bool {
         guard !live.contains(containerID) else { return false }

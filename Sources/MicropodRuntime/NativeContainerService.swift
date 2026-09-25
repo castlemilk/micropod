@@ -68,8 +68,13 @@ public struct NativeContainerService: ContainerServing {
             try await startTracked(id)
         } catch {
             // Match the CLI: a failed start cleans up the created container.
-            try? await api.delete(id: id, force: true)
-            await VolumeClone.removeClones(containerID: id)
+            // Under the id's create mutex, so a replayed create of this id
+            // waits for the cleanup and then finds neither container nor
+            // clone dir, instead of having a clone it just placed unlinked.
+            await InFlightCreates.shared.withExclusive(id) {
+                try? await api.delete(id: id, force: true)
+                await VolumeClone.removeClones(containerID: id)
+            }
             throw error
         }
         return id
@@ -96,34 +101,39 @@ public struct NativeContainerService: ContainerServing {
     /// Native `container create`: resolve image → build
     /// `ContainerConfiguration` → `containerCreate` XPC.
     ///
-    /// A failed create removes exactly the clone images it placed. With
-    /// exclusive placement any other clone under this id belongs to the
-    /// create that won the name — a replay of the same request, possibly
-    /// already running on that clone as its block device — so it stays,
-    /// whatever this create's failure was (`already_exists` from the list
-    /// check, from the placement or from the apiserver, or anything else).
+    /// The whole create — list check, orphan sweep, stale-dir reclaim,
+    /// clone placement, `containerCreate` and the failure cleanup — runs
+    /// under the id's in-process create mutex (`InFlightCreates`), so two
+    /// creates of the same id never overlap: this create is the sole placer
+    /// under `<cloneRoot>/<id>` for its whole duration. A replay of the same
+    /// request waits for the winner; if the winner succeeded the replay's
+    /// list check answers `already_exists` before it places or reclaims
+    /// anything, and if the winner failed the replay finds the dir the
+    /// loser cleaned and proceeds as a genuine create.
+    ///
+    /// A failed create removes exactly the clone images it placed. Anything
+    /// else under this id — a clone of a container that exists, possibly its
+    /// live block device — stays, whatever this create's failure was
+    /// (`already_exists` from the list check, from the exclusive placement
+    /// or from the apiserver, or anything else).
     private func createNative(_ request: ContainerRunRequest) async throws -> String {
         let id = request.name ?? UUID().uuidString.lowercased()
-        // Only the sole create of this id in this process may reclaim a
-        // stale clone dir under it (see `createNativeInner`); a concurrent
-        // create of the same id is left to exclusive placement to arbitrate.
-        let solePlacer = await InFlightCreates.shared.begin(id)
-        var placed: [String] = []
-        do {
-            let created = try await createNativeInner(request, id: id, solePlacer: solePlacer, placed: &placed)
-            if solePlacer { await InFlightCreates.shared.end(id) }
-            return created
-        } catch {
-            await VolumeClone.removeClones(containerID: id, volumes: placed)
-            if solePlacer { await InFlightCreates.shared.end(id) }
-            throw error
+        return try await InFlightCreates.shared.withExclusive(id) {
+            var placed: [String] = []
+            do {
+                return try await createNativeInner(request, id: id, placed: &placed)
+            } catch {
+                await VolumeClone.removeClones(containerID: id, volumes: placed)
+                throw error
+            }
         }
     }
 
-    /// `placed` receives the name of every clone volume this create placed,
-    /// as it places it, so the caller can remove exactly those on failure.
+    /// Runs under the id's create mutex (see `createNative`). `placed`
+    /// receives the name of every clone volume this create placed, as it
+    /// places it, so the caller can remove exactly those on failure.
     private func createNativeInner(
-        _ request: ContainerRunRequest, id: String, solePlacer: Bool, placed: inout [String]
+        _ request: ContainerRunRequest, id: String, placed: inout [String]
     ) async throws -> String {
         let sysConfig = NativeConfigBuilder.loadSystemConfig()
         let platform = try NativeConfigBuilder.ociPlatform(request.platform)
@@ -179,16 +189,13 @@ public struct NativeContainerService: ContainerServing {
                 // (or a crashed runtime) is swept on the next cloning create.
                 let live = Set(entries.map(\.id))
                 await VolumeClone.sweepOrphanClones(live: live)
-                if solePlacer {
-                    // No container has this id (checked above) and no other
-                    // create in this process is placing under it, so a clone
-                    // dir here is the leftover of a create that died with its
-                    // process. Reclaimed whatever its age — the retry must not
-                    // be refused `already_exists` for a container that never
-                    // was. A concurrent create of the same id (not the sole
-                    // placer) leaves the dir to exclusive placement.
-                    await VolumeClone.reclaimStaleCloneDir(containerID: id, live: live)
-                }
+                // No container has this id (checked above) and, under the
+                // id's create mutex, no other create in this process is
+                // placing under it, so a clone dir here is the leftover of a
+                // create that died with its process. Reclaimed whatever its
+                // age — the retry must not be refused `already_exists` for a
+                // container that never was.
+                await VolumeClone.reclaimStaleCloneDir(containerID: id, live: live)
                 warnIfGoldensInUse(cloneSet, entries: entries)
             }
         }

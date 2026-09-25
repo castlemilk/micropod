@@ -7,8 +7,9 @@ import XCTest
 ///  - a failed create removes exactly the clone images it placed — never a
 ///    clone the create that won a replayed name placed (and may be running
 ///    on) — and places each clone under its volume's lock;
-///  - one create per id per process is the sole placer, the only one that
-///    may reclaim a stale clone dir;
+///  - creates of the same id are mutually exclusive in the process for their
+///    whole duration (`InFlightCreates.withExclusive`), so a create is the
+///    sole placer under its id when it reclaims a stale clone dir;
 ///  - `no_pull` refuses a missing image with a `notFound:`-prefixed message
 ///    naming the platform, which the Connect table maps to `not_found`.
 final class NativeCreateGuardsTests: XCTestCase {
@@ -107,20 +108,62 @@ final class NativeCreateGuardsTests: XCTestCase {
         XCTAssertEqual(late, 1)
     }
 
-    /// One placer per id per process: the first `begin` admits, a second
-    /// while the first is in flight does not, other ids are independent, and
-    /// after `end` the id is free again.
-    func testInFlightCreatesAdmitOneSolePlacerPerID() async {
-        let registry = InFlightCreates()
-        let first = await registry.begin("job-3")
-        XCTAssertTrue(first)
-        let second = await registry.begin("job-3")
-        XCTAssertFalse(second, "a concurrent create of the same id is not the sole placer")
-        let other = await registry.begin("job-4")
-        XCTAssertTrue(other)
-        await registry.end("job-3")
-        let again = await registry.begin("job-3")
-        XCTAssertTrue(again, "the id is free once its sole placer ended")
+    /// Same-id creates are mutually exclusive for their whole duration: the
+    /// second `withExclusive("job")` body does not start until the first
+    /// ended, another id is not held up, and every waiter gets its turn.
+    func testWithExclusiveSerialisesCreatesOfTheSameID() async throws {
+        let creates = InFlightCreates()
+        let events = Events()
+        let firstStarted = Gate()
+        let releaseFirst = Gate()
+
+        let first = Task {
+            await creates.withExclusive("job") {
+                await events.record("first-start")
+                await firstStarted.open()
+                await releaseFirst.wait()
+                await events.record("first-end")
+            }
+        }
+        await firstStarted.wait()
+
+        let second = Task {
+            await creates.withExclusive("job") { await events.record("second-start") }
+        }
+        let third = Task {
+            await creates.withExclusive("job") { await events.record("third-start") }
+        }
+        // Another id is independent of `job`.
+        await creates.withExclusive("other") { await events.record("other-start") }
+        try await Task.sleep(for: .milliseconds(200))
+        let whileHeld = await events.list
+        XCTAssertEqual(
+            whileHeld, ["first-start", "other-start"], "a second create of `job` started while the first was in flight")
+
+        await releaseFirst.open()
+        await first.value
+        await second.value
+        await third.value
+        let after = await events.list
+        XCTAssertEqual(
+            Array(after.prefix(3)), ["first-start", "other-start", "first-end"],
+            "the replays' bodies run only after the winner's ended")
+        XCTAssertEqual(Set(after.dropFirst(3)), ["second-start", "third-start"], "\(after)")
+    }
+
+    /// A create that throws releases its id — the failure path (clone
+    /// removal) runs inside the body, so the next same-id create finds a
+    /// clean dir — and the error reaches the caller.
+    func testWithExclusiveReleasesTheIDWhenTheBodyThrows() async throws {
+        let creates = InFlightCreates()
+        struct Failed: Error {}
+        do {
+            try await creates.withExclusive("job") { throw Failed() }
+            XCTFail("the body's error must propagate")
+        } catch is Failed {
+        }
+        let ran = await creates.withExclusive("job") { true }
+        XCTAssertTrue(ran, "the id is free once the throwing create ended")
     }
 
     /// Two creates for the same id that both pass the duplicate-id list check
@@ -172,6 +215,12 @@ final class NativeCreateGuardsTests: XCTestCase {
 private actor Counter {
     private(set) var count = 0
     func bump() { count += 1 }
+}
+
+/// Ordered record of what happened, for asserting interleavings.
+private actor Events {
+    private(set) var list: [String] = []
+    func record(_ event: String) { list.append(event) }
 }
 
 /// One-shot async gate: `wait()` suspends until `open()`.

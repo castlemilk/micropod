@@ -246,17 +246,27 @@ destination is the empty image the runtime just made, still replaces).
 The lock is the one `DeleteVolume` and `volume prune` hold, so the golden
 cannot be removed between the inspect and the clonefile.
 
+Creates of the same id are mutually exclusive in the process
+(`InFlightCreates.withExclusive`, a per-id FIFO async mutex like
+`VolumeLocks`): the whole create — list check, orphan sweep, stale-dir
+reclaim, clone placement, `containerCreate` and the failure cleanup — runs
+under it, so a create is the *sole placer* under `<root>/<id>` for its
+whole duration. A replay of the same request waits for the winner: if the
+winner succeeded, the replay's list check answers `already_exists` before
+it places or reclaims anything; if the winner failed, the replay finds the
+dir the loser already cleaned and proceeds as a genuine create. A failed
+`run` cleans up (delete + clone dir) under the same mutex.
+
 A create that dies with its process (not one that fails — that cleans up)
-leaves a clone dir with no container behind it. One create per id per
-process is the *sole placer* (`InFlightCreates`); finding no container of
-its id in the list, it reclaims such a dir whatever its age, so the retry
-is not refused `already_exists` for a container that never was (the
-Cuttlefish adopt path would then hit `not_found`). A concurrent create of
-the same id in the process is not the sole placer and is left to
-exclusive placement. Residual: a create of the same id in flight in
+leaves a clone dir with no container behind it. Finding no container of
+its id in the list, a create reclaims such a dir whatever its age, so the
+retry is not refused `already_exists` for a container that never was (the
+Cuttlefish adopt path would then hit `not_found`); the mutex is what makes
+that safe — without it a slow create being replayed could have its clones
+unlinked by the reclaim. Residual: a create of the same id in flight in
 *another* process on the same clone root is indistinguishable from a dead
-one and its dir would be reclaimed — the orphan grace (below) no longer
-covers that case for the sole placer.
+one and its dir would be reclaimed — the orphan grace (below) does not
+cover that case for the create's own id.
 
 Verified flag-for-flag against `container inspect` on CLI-created
 containers (`NativeCreateIntegrationTests/testCLIvsNativeConfigParity`):
@@ -313,13 +323,18 @@ Clone lifecycle hardening:
   volume's lock; the CLI backend diffs `container list` before/after a
   bulk delete). The runtime's ids are its names, so a stale dir would
   otherwise be inherited by the next container of that name and
-  `CommitVolumeClone` would promote a dead container's bytes.
+  `CommitVolumeClone` would promote a dead container's bytes. On both
+  backends the dir is removed only after the runtime's delete succeeded,
+  so a container already removed by a raw `container delete` (the CLI
+  answers `not_found`, from its `(cause: "notFound: …")`) keeps its clone
+  dir until the next orphan sweep (below) takes it.
 - **Orphan sweep** — a cloning `create` or `prune` removes clone dirs
   whose container no longer exists (raw `container delete`, crashed
   runtime). Dirs younger than 60s are skipped so an in-flight create's
   dir can't be swept by a concurrent create before `containerCreate`
-  registers it — except the dir of the sweeping create's own id when it
-  is that id's sole placer in the process (above).
+  registers it — except the dir of the sweeping create's own id, which
+  no other create in the process can be placing under (the per-id create
+  mutex, above).
   `MICROPOD_VOLUME_CLONE_ROOT` overrides the clone root.
 - **Volume prune under the locks** — `volume prune` runs holding every
   volume's lock (sorted acquisition), so it never removes a golden's
@@ -670,7 +685,8 @@ Regenerate after proto edits; never hand-edit generated files.
   `force`, shared in-flight resolution, invalidated native re-resolved),
   `NativeCreateGuardsTests` (`no_pull` names image and platform, a failed
   create removes only the clones it placed, placement waits for the
-  volume lock, one sole placer per id) and `StatsSamplingIDsTests`;
+  volume lock, same-id creates are mutually exclusive and the id is
+  released on a throw) and `StatsSamplingIDsTests`;
   in `MicropodCoreTests`, `ConnectCodeMappingTests` (transport and
   runtime-down → `unavailable`), `SystemStatusStoppedTests` and
   `VolumeCloneTests` (clonefile, atomic commit, staging sweep, per-volume
