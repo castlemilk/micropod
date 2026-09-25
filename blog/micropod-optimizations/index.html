@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The optimizations inside Micropod, and what they measured — Micropod</title>
+  <meta name="description" content="How Micropod gets a 2.7x lifecycle win over Docker Desktop despite spawning a CLI per operation: a read-through cache with real guardrails, APFS clonefile volumes, a content-addressed chunk store, keep-alive micro-VMs, and kill-first cleanup." />
+  <link rel="canonical" href="https://castlemilk.github.io/micropod/blog/micropod-optimizations/" />
+  <link rel="icon" type="image/png" href="/micropod/icon.png" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="The optimizations inside Micropod, and what they measured — Micropod" />
+  <meta property="og:description" content="How Micropod gets a 2.7x lifecycle win over Docker Desktop despite spawning a CLI per operation: a read-through cache with real guardrails, APFS clonefile volumes, a content-addressed chunk store, keep-alive micro-VMs, and kill-first cleanup." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --font-sans: 'Instrument Sans', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --bg: #070d16;
+      --bg-card: #0d1626;
+      --bg-secondary: #111c30;
+      --fg: #e8eefc;
+      --fg-muted: #8b9bb8;
+      --border: #1b2a45;
+      --primary: #0a84ff;
+      --primary-fg: #050b14;
+      --success: #32d74b;
+      --warn: #ffd60a;
+      --destructive: #ff453a;
+      --radius: 0.75rem;
+    }
+    body {
+      font-family: var(--font-sans); background: var(--bg); color: var(--fg);
+      line-height: 1.5; -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .nav {
+      position: sticky; top: 0; z-index: 50;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--bg) 80%, transparent);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    }
+    .nav-inner { display: flex; align-items: center; justify-content: space-between; max-width: 80rem; margin: 0 auto; padding: 0.875rem 1.5rem; }
+    .nav-logo { display: flex; align-items: center; gap: 0.625rem; font-weight: 600; color: var(--fg); }
+    .nav-logo:hover { text-decoration: none; }
+    .nav-logo-mark {
+      display: flex; align-items: center; justify-content: center;
+      width: 1.75rem; height: 1.75rem; border-radius: 0.5rem;
+      background: var(--primary); color: var(--primary-fg);
+      font-weight: 700; font-size: 0.875rem;
+    }
+    .nav-links { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--fg-muted); }
+    .nav-links a { color: var(--fg-muted); }
+    .nav-links a:hover { color: var(--fg); text-decoration: none; }
+
+    /* Article */
+    .article { max-width: 46rem; margin: 0 auto; padding: 4rem 1.5rem 6rem; }
+    .article-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; font-size: 0.75rem; color: var(--fg-muted); margin-bottom: 1.5rem; }
+    .article h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+    .standfirst { margin-top: 1rem; font-size: 1.0625rem; line-height: 1.6; color: var(--fg-muted); }
+    .tag {
+      font-family: var(--font-mono); font-size: 0.6875rem; color: var(--primary);
+      border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+      border-radius: 9999px; padding: 0.0625rem 0.5rem;
+    }
+    .article-body { margin-top: 3rem; }
+    .article-body h2 { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.02em; margin-top: 2.75rem; margin-bottom: 0.875rem; }
+    .article-body h3 { font-size: 1.0625rem; font-weight: 600; margin-top: 2rem; margin-bottom: 0.625rem; }
+    .article-body p { font-size: 0.9375rem; line-height: 1.75; color: var(--fg); margin-top: 1rem; }
+    .article-body p:first-child { margin-top: 0; }
+    .article-body strong { font-weight: 600; }
+    .article-body ul, .article-body ol { margin-top: 1rem; padding-left: 1.5rem; }
+    .article-body li { font-size: 0.9375rem; line-height: 1.75; margin-top: 0.375rem; }
+    .article-body code {
+      font-family: var(--font-mono); font-size: 0.8125rem; color: var(--primary);
+      background: color-mix(in srgb, var(--primary) 7%, transparent);
+      padding: 0.125rem 0.375rem; border-radius: 0.25rem;
+    }
+    .article-body pre {
+      margin-top: 1.25rem; border-radius: 0.5rem; border: 1px solid var(--border);
+      background: var(--bg-secondary); overflow-x: auto;
+    }
+    .article-body pre code {
+      display: block; padding: 0.875rem 1rem; font-size: 0.75rem; line-height: 1.65;
+      color: var(--fg); background: none; padding: 0.875rem 1rem;
+    }
+    .article-body table {
+      width: 100%; margin-top: 1.25rem; border-collapse: collapse;
+      font-size: 0.8125rem; border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; display: block; overflow-x: auto;
+    }
+    .article-body thead { background: var(--bg-card); }
+    .article-body th, .article-body td { padding: 0.625rem 0.875rem; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .article-body th { font-weight: 600; }
+    .article-body tbody tr:last-child td { border-bottom: none; }
+    .article-body blockquote {
+      margin-top: 1.25rem; padding-left: 1rem; border-left: 2px solid var(--primary);
+      color: var(--fg-muted);
+    }
+    .article-body hr { margin: 2.5rem 0; border: none; border-top: 1px solid var(--border); }
+    .callout {
+      margin-top: 1.25rem; padding: 1rem 1.25rem; border-radius: 0.5rem;
+      border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
+      background: color-mix(in srgb, var(--warn) 5%, transparent);
+      font-size: 0.875rem; line-height: 1.7;
+    }
+    .callout-title { font-weight: 600; margin-bottom: 0.25rem !important; }
+    .callout p { font-size: 0.875rem !important; }
+
+    /* Blog index */
+    .post-list { margin-top: 3rem; display: grid; gap: 1rem; }
+    .post-card {
+      display: block; border-radius: var(--radius); border: 1px solid var(--border);
+      background: var(--bg-card); padding: 1.5rem; color: var(--fg);
+      transition: border-color 0.2s;
+    }
+    .post-card:hover { border-color: color-mix(in srgb, var(--primary) 25%, transparent); text-decoration: none; }
+    .post-card h2 { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.02em; }
+    .post-card > p { margin-top: 0.5rem; font-size: 0.8125rem; color: var(--fg-muted); line-height: 1.6; }
+    .post-date { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--fg-muted); margin-bottom: 0.5rem; }
+    .post-tags { margin-top: 0.875rem; display: flex; gap: 0.5rem; }
+
+    .footer { border-top: 1px solid var(--border); padding: 2rem 0; font-size: 0.75rem; color: var(--fg-muted); }
+    .footer-inner { max-width: 80rem; margin: 0 auto; padding: 0 1.5rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <a href="/micropod/" class="nav-logo">
+        <span class="nav-logo-mark">M</span>
+        <span>Micropod</span>
+      </a>
+      <div class="nav-links">
+        <a href="/micropod/#features">Features</a>
+        <a href="/micropod/#agents">Agents</a>
+        <a href="/micropod/api/">API Docs</a>
+        <a href="/micropod/blog/">Blog</a>
+        <a href="https://github.com/castlemilk/micropod" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <article class="article">
+      <div class="article-meta">
+        <span>2026-09-25</span>
+        <span>8 min read</span>
+        <span class="tag">internals</span><span class="tag">performance</span><span class="tag">apfs</span>
+      </div>
+      <h1>The optimizations inside Micropod, and what they measured</h1>
+      <p class="standfirst">Every `container` CLI call costs 15–80 ms, so most of Micropod's speed comes from engineering the spawns away — cache, clonefile, chunk store, warm machines.</p>
+      <div class="article-body">
+<p>Micropod&#x27;s daemon has an unusual cost structure: underneath every API surface — the app, the MCP server, the Connect API, the Docker shim — sits Apple&#x27;s <code>container</code> CLI, and each invocation is a <code>Process</code> spawn plus a ~23 ms XPC call into <code>container-apiserver</code>. Measured, that&#x27;s 15–80 ms of overhead per operation. You can&#x27;t optimize the runtime from outside it, so the engineering went where the leverage is: stop spawning.</p>
+<h2>The read-through cache is the whole game</h2>
+<p>The first <code>/metrics</code> dump after a bench run was unflattering: the cache was serving HTTP reads but internal service calls were bypassing it — <code>image list --verbose</code> spawned 111 times, <code>list --all</code> 118 times, one <code>container inspect</code> per inspect request. <code>info</code>, <code>system df</code>, and <code>resolveID</code> all spawned fresh CLIs to answer questions whose answers were already in memory.</p>
+<p>The fix is a two-tier read-through cache — a decoded model tier and an encoded-body tier — with synchronous invalidation on every mutation, an events-loop invalidation on state transitions, and a 1 s TTL bound for out-of-band changes.</p>
+<pre><code>+----------------- [ BEFORE -&gt; AFTER ] -------------+
+|                                                  |
+|              before    after                     |
+| list p50    39 ms   →   2.5 ms                   |
+| images p50  13 ms   →   1.9 ms                   |
+| info        280 ms  →   0.4 ms                   |
+| df          287 ms  →   3.0 ms                   |
+| inspect     16 ms   →   0.5 ms                   |
+|                                                  |
++--------------------------------------------------+
+</code></pre>
+<p>The guardrails are what make this honest rather than fast-looking: the cache only serves reads — every mutation resolves against a fresh list. <code>MICROPOD_SHIM_CACHE_DISABLE=1</code> measures the cacheless floor, and the bench&#x27;s <code>--baseline</code> flag fails on &gt;20% p50 regression so the wins can&#x27;t silently rot. After the fix: 237 hits / 38 misses (86%), <code>image list</code> spawns 111→6, <code>list --all</code> 118→8.</p>
+<h2>APFS clonefile: zero-cost copies everywhere</h2>
+<p>Apple&#x27;s filesystem does copy-on-write at the directory level, and Micropod leans on it in three places:</p>
+<ul>
+<li><strong>Per-container files.</strong> Each container&#x27;s initfs and kernel are APFS clones — the marginal disk cost of a new container is ~0 (verified by <code>df</code> deltas across creates). The 513 GB <code>rootfs.ext4</code> is sparse; extents materialize only on write.</li>
+<li><strong>Named volumes.</strong> <code>VolumePolicy</code> can clone volumes per container — <code>CLONE_MODE_GOLDENS</code> auto-clones named goldens, <code>CLONE_MODE_LABELS</code> clones on a per-container label. A 1,000-file mount dropped from 4,035 ms to 677 ms when it became one <code>clonefile</code> syscall instead of a thousand copies.</li>
+<li><strong>Shared mounts.</strong> A host directory becomes a content-addressed chunk store (SHA256, 256 KiB chunks) plus a clonefile view per container — isolated writes, shared blocks. FSEvents watchers (100 ms, per-file, hash-checked to kill loops) propagate host edits into live views and container writes back to the host and sibling views. <code>--shared</code> mounts collapse to one view when you want true shared writes.</li>
+</ul>
+<p>The chunk store also does LZ4 transcoding behind <code>MICROPOD_SHAREDFS_TRANSCODE=1</code>: 2.7–5.9x density on a Go build cache at full ingest speed, with legacy identity-hash files still readable. The same store backs the shared package-manager cache — <code>~/.npm</code>, <code>/go/pkg/mod</code>, <code>/root/.cache/go-build</code>, <code>~/.cache/pip</code> keyed by lockfile hash, so the same <code>package-lock.json</code> shares chunks across repos and a global 10 GB LRU cap keeps it bounded.</p>
+<h2>Keep-alive machines: trading a little isolation for warm starts</h2>
+<p>A stopped container restarts in ~0.5 s with full entrypoint fidelity — but <code>micropod machines run &lt;name&gt; -- &lt;exe&gt;</code> goes further: a persistent named micro-VM you exec into repeatedly at ~0.1 s per exec versus ~1.5 s for an ephemeral boot. It&#x27;s the same isolation shape (a real VM, not a container sharing your kernel) with the boot cost paid once. For CI, the sleeper-pool pattern — warm RUNNING containers per image you <code>exec</code> into — lands at 0.06 s native / 0.5 s through the shim, and it&#x27;s the correct answer to the 10×-concurrent-boots gap rather than pretending VM boot is free.</p>
+<h2>Kill-first cleanup: the 5-second bug you can&#x27;t see</h2>
+<p>Runtime 1.3.1 delivers SIGTERM to guests, but a guest that ignores it — and <code>sleep</code> as PID 1 ignores it — always pays the ~5 s grace. Worse, <code>--init</code> doesn&#x27;t forward TERM at all (verified: no GOTTERM, 5.25 s stop — reported upstream). The consequence: every cleanup path in Micropod uses kill semantics — <code>stop -t 0</code>, <code>kill</code>, <code>rm -f</code> — never bare <code>stop</code>. That single choice is most of why the shim&#x27;s <code>stop</code> lands at 72 ms while Docker Desktop sits in its 2-second grace. Cuttlefish&#x27;s executor switched the same way and saved up to 5 s per teardown.</p>
+<pre><code>+----------------- [ NUMBERS ] --------------------+
+|                                                  |
+| 86%        0.1s        677ms                     |
+| cache hit  warm exec   1k-file mount             |
+|                                                  |
++--------------------------------------------------+
+</code></pre>
+<h2>Pulls and builds</h2>
+<p>Two smaller levers, both one-line-shaped: image pulls fetch 8 layers in parallel (Apple&#x27;s default is 3) — meaningful on fat CI images — and <code>RUN --mount=type=cache</code> works in <code>container build</code>, so Go mod/npm/apk caches persist across builds the way BuildKit users expect. The builder config (8 CPUs, rosetta off for native-only compiles) is staged at <code>~/.config/container/config.toml</code>.</p>
+<h2>What isn&#x27;t optimized</h2>
+<p>Honesty section, because the gaps are the point of the benchmark post: <code>start</code> is still ~0.5–1.0 s of real micro-VM boot — VM create, kernel boot, DHCP, virtiofs attach, init. <code>exec</code>, <code>logs</code>, and <code>rm</code> each still pay one CLI spawn. And 10 parallel boots still contend on CPU. The first is the isolation price — a real kernel per container instead of a process in a shared VM. The second and third are structural floors with known mitigations (persistent apiserver sessions, warm pools), and the benchmark suite&#x27;s regression baseline keeps them visible.</p>
+<p>The full measurement methodology and the raw tables are in <a href="/micropod/blog/micropod-vs-docker-measured/">the benchmarks post</a> and <code>docs/performance.md</code>.</p>
+      </div>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span>© 2026 Micropod — a skunkworq project</span>
+      <span>Built on <a href="https://github.com/apple/container" target="_blank" rel="noopener" style="color:var(--primary)">apple/container</a></span>
+    </div>
+  </footer>
+</body>
+</html>
