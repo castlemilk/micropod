@@ -24,6 +24,7 @@ const (
 	SystemService_CheckForUpdates_FullMethodName = "/micropod.v1.SystemService/CheckForUpdates"
 	SystemService_GetUpdateStatus_FullMethodName = "/micropod.v1.SystemService/GetUpdateStatus"
 	SystemService_ApplyUpdate_FullMethodName     = "/micropod.v1.SystemService/ApplyUpdate"
+	SystemService_Ping_FullMethodName            = "/micropod.v1.SystemService/Ping"
 )
 
 // SystemServiceClient is the client API for SystemService service.
@@ -46,6 +47,10 @@ type SystemServiceClient interface {
 	// Quit the app so a downloaded update installs and relaunches. Fails
 	// with `failed_precondition` until `UpdateStatus.ready_to_install`.
 	ApplyUpdate(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*UpdateStatus, error)
+	// Millisecond liveness: runtime status and active backend without disk
+	// usage. Answers `status: stopped` (never an error) when the runtime is
+	// down but the API server is up.
+	Ping(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*PingResponse, error)
 }
 
 type systemServiceClient struct {
@@ -106,6 +111,16 @@ func (c *systemServiceClient) ApplyUpdate(ctx context.Context, in *Empty, opts .
 	return out, nil
 }
 
+func (c *systemServiceClient) Ping(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*PingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PingResponse)
+	err := c.cc.Invoke(ctx, SystemService_Ping_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SystemServiceServer is the server API for SystemService service.
 // All implementations must embed UnimplementedSystemServiceServer
 // for forward compatibility.
@@ -126,6 +141,10 @@ type SystemServiceServer interface {
 	// Quit the app so a downloaded update installs and relaunches. Fails
 	// with `failed_precondition` until `UpdateStatus.ready_to_install`.
 	ApplyUpdate(context.Context, *Empty) (*UpdateStatus, error)
+	// Millisecond liveness: runtime status and active backend without disk
+	// usage. Answers `status: stopped` (never an error) when the runtime is
+	// down but the API server is up.
+	Ping(context.Context, *Empty) (*PingResponse, error)
 	mustEmbedUnimplementedSystemServiceServer()
 }
 
@@ -150,6 +169,9 @@ func (UnimplementedSystemServiceServer) GetUpdateStatus(context.Context, *Empty)
 }
 func (UnimplementedSystemServiceServer) ApplyUpdate(context.Context, *Empty) (*UpdateStatus, error) {
 	return nil, status.Error(codes.Unimplemented, "method ApplyUpdate not implemented")
+}
+func (UnimplementedSystemServiceServer) Ping(context.Context, *Empty) (*PingResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Ping not implemented")
 }
 func (UnimplementedSystemServiceServer) mustEmbedUnimplementedSystemServiceServer() {}
 func (UnimplementedSystemServiceServer) testEmbeddedByValue()                       {}
@@ -262,6 +284,24 @@ func _SystemService_ApplyUpdate_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SystemService_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SystemServiceServer).Ping(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SystemService_Ping_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SystemServiceServer).Ping(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SystemService_ServiceDesc is the grpc.ServiceDesc for SystemService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -288,6 +328,10 @@ var SystemService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ApplyUpdate",
 			Handler:    _SystemService_ApplyUpdate_Handler,
+		},
+		{
+			MethodName: "Ping",
+			Handler:    _SystemService_Ping_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file micropod/v1/volume.proto.
  */
 export const file_micropod_v1_volume: GenFile = /*@__PURE__*/
-  fileDesc("ChhtaWNyb3BvZC92MS92b2x1bWUucHJvdG8SC21pY3JvcG9kLnYxIsgCCgZWb2x1bWUSGQoCaWQYASABKAlCDbpHCjoIEgYnZGF0YScSHgoGZHJpdmVyGAIgASgJQg66Rws6CRIHJ2xvY2FsJxIdCgZmb3JtYXQYAyABKAlCDbpHCjoIEgYnZXh0NCcSJgoKc2l6ZV9ieXRlcxgEIAEoBEISukcPOg0SCzEwNzM3NDE4MjQwEh0KBnNvdXJjZRgFIAEoCUINukcKOggSBidkYXRhJxI9CgpjcmVhdGVkX2F0GAYgASgJQim6RyY6GBIWJzIwMjYtMDEtMTVUMTA6MzA6MDBaJ5oCCWRhdGUtdGltZRIvCgZsYWJlbHMYByADKAsyHy5taWNyb3BvZC52MS5Wb2x1bWUuTGFiZWxzRW50cnkaLQoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASL3BAoMVm9sdW1lUG9saWN5ElMKCmNsb25lX21vZGUYASABKA4yIy5taWNyb3BvZC52MS5Wb2x1bWVQb2xpY3kuQ2xvbmVNb2RlQhq6Rxc6FRITJ0NMT05FX01PREVfTEFCRUxTJxIwCg5nb2xkZW5fdm9sdW1lcxgCIAMoCUIYukcVOhMSEVsneGNvZGUtZGVyaXZlZCddEhEKCWpvYnNfb25seRgDIAEoCBJKCgRzeW5jGAQgASgOMiIubWljcm9wb2QudjEuVm9sdW1lUG9saWN5LlN5bmNNb2RlQhi6RxU6ExIRJ1NZTkNfTU9ERV9GU1lOQycSSgoFY2FjaGUYBSABKA4yIy5taWNyb3BvZC52MS5Wb2x1bWVQb2xpY3kuQ2FjaGVNb2RlQha6RxM6ERIPJ0NBQ0hFX01PREVfT04nImoKCUNsb25lTW9kZRIaChZDTE9ORV9NT0RFX1VOU1BFQ0lGSUVEEAASFQoRQ0xPTkVfTU9ERV9MQUJFTFMQARIWChJDTE9ORV9NT0RFX0dPTERFTlMQAhISCg5DTE9ORV9NT0RFX0FMTBADImQKCFN5bmNNb2RlEhkKFVNZTkNfTU9ERV9VTlNQRUNJRklFRBAAEhIKDlNZTkNfTU9ERV9GVUxMEAESEwoPU1lOQ19NT0RFX0ZTWU5DEAISFAoQU1lOQ19NT0RFX05PU1lOQxADImMKCUNhY2hlTW9kZRIaChZDQUNIRV9NT0RFX1VOU1BFQ0lGSUVEEAASEQoNQ0FDSEVfTU9ERV9PThABEhIKDkNBQ0hFX01PREVfT0ZGEAISEwoPQ0FDSEVfTU9ERV9BVVRPEAMiOwoTTGlzdFZvbHVtZXNSZXNwb25zZRIkCgd2b2x1bWVzGAEgAygLMhMubWljcm9wb2QudjEuVm9sdW1lIqsBChNDcmVhdGVWb2x1bWVSZXF1ZXN0EiUKBG5hbWUYASABKAlCF7pHCjoIEgYnZGF0YSe6SAfIAQFyAhABEh8KBHNpemUYAiABKAlCDLpHCToHEgUnMTBnJ0gAiAEBEjIKBmxhYmVscxgDIAMoCUIiukcfOh0SG1snY29tLmV4YW1wbGUucHJvamVjdD13ZWInXRIPCgdvcHRpb25zGAQgAygJQgcKBV9zaXplIjwKE0RlbGV0ZVZvbHVtZVJlcXVlc3QSJQoEbmFtZRgBIAEoCUIXukcKOggSBidkYXRhJ7pIB8gBAXICEAEy6wIKDVZvbHVtZVNlcnZpY2USQwoLTGlzdFZvbHVtZXMSEi5taWNyb3BvZC52MS5FbXB0eRogLm1pY3JvcG9kLnYxLkxpc3RWb2x1bWVzUmVzcG9uc2USRAoMQ3JlYXRlVm9sdW1lEiAubWljcm9wb2QudjEuQ3JlYXRlVm9sdW1lUmVxdWVzdBoSLm1pY3JvcG9kLnYxLkVtcHR5EkQKDERlbGV0ZVZvbHVtZRIgLm1pY3JvcG9kLnYxLkRlbGV0ZVZvbHVtZVJlcXVlc3QaEi5taWNyb3BvZC52MS5FbXB0eRJACg9HZXRWb2x1bWVQb2xpY3kSEi5taWNyb3BvZC52MS5FbXB0eRoZLm1pY3JvcG9kLnYxLlZvbHVtZVBvbGljeRJHCg9TZXRWb2x1bWVQb2xpY3kSGS5taWNyb3BvZC52MS5Wb2x1bWVQb2xpY3kaGS5taWNyb3BvZC52MS5Wb2x1bWVQb2xpY3lCQlpAZ2l0aHViLmNvbS9jYXN0bGVtaWxrL21pY3JvcG9kL3Nkay9nby9nZW4vbWljcm9wb2QvdjE7bWljcm9wb2R2MWIGcHJvdG8z", [file_buf_validate_validate, file_gnostic_openapi_v3_annotations, file_micropod_v1_api]);
+  fileDesc("ChhtaWNyb3BvZC92MS92b2x1bWUucHJvdG8SC21pY3JvcG9kLnYxIvMCCgZWb2x1bWUSGQoCaWQYASABKAlCDbpHCjoIEgYnZGF0YScSHgoGZHJpdmVyGAIgASgJQg66Rws6CRIHJ2xvY2FsJxIdCgZmb3JtYXQYAyABKAlCDbpHCjoIEgYnZXh0NCcSJgoKc2l6ZV9ieXRlcxgEIAEoBEISukcPOg0SCzEwNzM3NDE4MjQwEh0KBnNvdXJjZRgFIAEoCUINukcKOggSBidkYXRhJxI9CgpjcmVhdGVkX2F0GAYgASgJQim6RyY6GBIWJzIwMjYtMDEtMTVUMTA6MzA6MDBaJ5oCCWRhdGUtdGltZRIvCgZsYWJlbHMYByADKAsyHy5taWNyb3BvZC52MS5Wb2x1bWUuTGFiZWxzRW50cnkSKQoPYWxsb2NhdGVkX2J5dGVzGAggASgEQhC6Rw06CxIJMjY4NDM1NDU2Gi0KC0xhYmVsc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEi9wQKDFZvbHVtZVBvbGljeRJTCgpjbG9uZV9tb2RlGAEgASgOMiMubWljcm9wb2QudjEuVm9sdW1lUG9saWN5LkNsb25lTW9kZUIaukcXOhUSEydDTE9ORV9NT0RFX0xBQkVMUycSMAoOZ29sZGVuX3ZvbHVtZXMYAiADKAlCGLpHFToTEhFbJ3hjb2RlLWRlcml2ZWQnXRIRCglqb2JzX29ubHkYAyABKAgSSgoEc3luYxgEIAEoDjIiLm1pY3JvcG9kLnYxLlZvbHVtZVBvbGljeS5TeW5jTW9kZUIYukcVOhMSESdTWU5DX01PREVfRlNZTkMnEkoKBWNhY2hlGAUgASgOMiMubWljcm9wb2QudjEuVm9sdW1lUG9saWN5LkNhY2hlTW9kZUIWukcTOhESDydDQUNIRV9NT0RFX09OJyJqCglDbG9uZU1vZGUSGgoWQ0xPTkVfTU9ERV9VTlNQRUNJRklFRBAAEhUKEUNMT05FX01PREVfTEFCRUxTEAESFgoSQ0xPTkVfTU9ERV9HT0xERU5TEAISEgoOQ0xPTkVfTU9ERV9BTEwQAyJkCghTeW5jTW9kZRIZChVTWU5DX01PREVfVU5TUEVDSUZJRUQQABISCg5TWU5DX01PREVfRlVMTBABEhMKD1NZTkNfTU9ERV9GU1lOQxACEhQKEFNZTkNfTU9ERV9OT1NZTkMQAyJjCglDYWNoZU1vZGUSGgoWQ0FDSEVfTU9ERV9VTlNQRUNJRklFRBAAEhEKDUNBQ0hFX01PREVfT04QARISCg5DQUNIRV9NT0RFX09GRhACEhMKD0NBQ0hFX01PREVfQVVUTxADIjsKE0xpc3RWb2x1bWVzUmVzcG9uc2USJAoHdm9sdW1lcxgBIAMoCzITLm1pY3JvcG9kLnYxLlZvbHVtZSKrAQoTQ3JlYXRlVm9sdW1lUmVxdWVzdBIlCgRuYW1lGAEgASgJQhe6Rwo6CBIGJ2RhdGEnukgHyAEBcgIQARIfCgRzaXplGAIgASgJQgy6Rwk6BxIFJzEwZydIAIgBARIyCgZsYWJlbHMYAyADKAlCIrpHHzodEhtbJ2NvbS5leGFtcGxlLnByb2plY3Q9d2ViJ10SDwoHb3B0aW9ucxgEIAMoCUIHCgVfc2l6ZSI8ChNEZWxldGVWb2x1bWVSZXF1ZXN0EiUKBG5hbWUYASABKAlCF7pHCjoIEgYnZGF0YSe6SAfIAQFyAhABIs0BChJDbG9uZVZvbHVtZVJlcXVlc3QSLwoGc291cmNlGAEgASgJQh+6RxI6EBIOJ2dvbGRlbi1jYWNoZSe6SAfIAQFyAhABEi0KBG5hbWUYAiABKAlCH7pHEjoQEg4nam9iLTQyLWNhY2hlJ7pIB8gBAXICEAESHwoEc2l6ZRgDIAEoCUIMukcJOgcSBScxMGcnSACIAQESLQoGbGFiZWxzGAQgAygJQh26Rxo6GBIWWydjb20uZXhhbXBsZS5qb2I9NDInXUIHCgVfc2l6ZSJ8ChhDb21taXRWb2x1bWVDbG9uZVJlcXVlc3QSLwoMY29udGFpbmVyX2lkGAEgASgJQhm6Rww6ChIIJ2pvYi00Mie6SAfIAQFyAhABEi8KBnZvbHVtZRgCIAEoCUIfukcSOhASDidnb2xkZW4tY2FjaGUnukgHyAEBcgIQASJGChlDb21taXRWb2x1bWVDbG9uZVJlc3BvbnNlEikKD2FsbG9jYXRlZF9ieXRlcxgBIAEoBEIQukcNOgsSCTI2ODQzNTQ1NjKUBAoNVm9sdW1lU2VydmljZRJDCgtMaXN0Vm9sdW1lcxISLm1pY3JvcG9kLnYxLkVtcHR5GiAubWljcm9wb2QudjEuTGlzdFZvbHVtZXNSZXNwb25zZRJECgxDcmVhdGVWb2x1bWUSIC5taWNyb3BvZC52MS5DcmVhdGVWb2x1bWVSZXF1ZXN0GhIubWljcm9wb2QudjEuRW1wdHkSRAoMRGVsZXRlVm9sdW1lEiAubWljcm9wb2QudjEuRGVsZXRlVm9sdW1lUmVxdWVzdBoSLm1pY3JvcG9kLnYxLkVtcHR5EkAKD0dldFZvbHVtZVBvbGljeRISLm1pY3JvcG9kLnYxLkVtcHR5GhkubWljcm9wb2QudjEuVm9sdW1lUG9saWN5EkcKD1NldFZvbHVtZVBvbGljeRIZLm1pY3JvcG9kLnYxLlZvbHVtZVBvbGljeRoZLm1pY3JvcG9kLnYxLlZvbHVtZVBvbGljeRJDCgtDbG9uZVZvbHVtZRIfLm1pY3JvcG9kLnYxLkNsb25lVm9sdW1lUmVxdWVzdBoTLm1pY3JvcG9kLnYxLlZvbHVtZRJiChFDb21taXRWb2x1bWVDbG9uZRIlLm1pY3JvcG9kLnYxLkNvbW1pdFZvbHVtZUNsb25lUmVxdWVzdBomLm1pY3JvcG9kLnYxLkNvbW1pdFZvbHVtZUNsb25lUmVzcG9uc2VCQlpAZ2l0aHViLmNvbS9jYXN0bGVtaWxrL21pY3JvcG9kL3Nkay9nby9nZW4vbWljcm9wb2QvdjE7bWljcm9wb2R2MWIGcHJvdG8z", [file_buf_validate_validate, file_gnostic_openapi_v3_annotations, file_micropod_v1_api]);
 
 /**
  * Curated volume, mapped from `container volume list`.
@@ -70,6 +70,14 @@ export type Volume = Message<"micropod.v1.Volume"> & {
    * @generated from field: map<string, string> labels = 7;
    */
   labels: { [key: string]: string };
+
+  /**
+   * Bytes actually allocated on disk by the backing image (st_blocks × 512).
+   * `size_bytes` is the provisioned size; sparse images allocate far less.
+   *
+   * @generated from field: uint64 allocated_bytes = 8;
+   */
+  allocatedBytes: bigint;
 };
 
 /**
@@ -334,6 +342,92 @@ export const DeleteVolumeRequestSchema: GenMessage<DeleteVolumeRequest> = /*@__P
   messageDesc(file_micropod_v1_volume, 4);
 
 /**
+ * @generated from message micropod.v1.CloneVolumeRequest
+ */
+export type CloneVolumeRequest = Message<"micropod.v1.CloneVolumeRequest"> & {
+  /**
+   * Existing volume to clone from.
+   *
+   * @generated from field: string source = 1;
+   */
+  source: string;
+
+  /**
+   * Name of the new volume.
+   *
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * Optional size for the new volume, e.g. "10g". Defaults to the source's
+   * provisioned size.
+   *
+   * @generated from field: optional string size = 3;
+   */
+  size?: string;
+
+  /**
+   * Labels applied to the new volume ("key=value").
+   *
+   * @generated from field: repeated string labels = 4;
+   */
+  labels: string[];
+};
+
+/**
+ * Describes the message micropod.v1.CloneVolumeRequest.
+ * Use `create(CloneVolumeRequestSchema)` to create a new message.
+ */
+export const CloneVolumeRequestSchema: GenMessage<CloneVolumeRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_volume, 5);
+
+/**
+ * @generated from message micropod.v1.CommitVolumeCloneRequest
+ */
+export type CommitVolumeCloneRequest = Message<"micropod.v1.CommitVolumeCloneRequest"> & {
+  /**
+   * Stopped container whose clone of `volume` is promoted.
+   *
+   * @generated from field: string container_id = 1;
+   */
+  containerId: string;
+
+  /**
+   * Volume whose backing image is replaced by the container's clone.
+   *
+   * @generated from field: string volume = 2;
+   */
+  volume: string;
+};
+
+/**
+ * Describes the message micropod.v1.CommitVolumeCloneRequest.
+ * Use `create(CommitVolumeCloneRequestSchema)` to create a new message.
+ */
+export const CommitVolumeCloneRequestSchema: GenMessage<CommitVolumeCloneRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_volume, 6);
+
+/**
+ * @generated from message micropod.v1.CommitVolumeCloneResponse
+ */
+export type CommitVolumeCloneResponse = Message<"micropod.v1.CommitVolumeCloneResponse"> & {
+  /**
+   * Bytes allocated on disk by the promoted image (st_blocks × 512).
+   *
+   * @generated from field: uint64 allocated_bytes = 1;
+   */
+  allocatedBytes: bigint;
+};
+
+/**
+ * Describes the message micropod.v1.CommitVolumeCloneResponse.
+ * Use `create(CommitVolumeCloneResponseSchema)` to create a new message.
+ */
+export const CommitVolumeCloneResponseSchema: GenMessage<CommitVolumeCloneResponse> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_volume, 7);
+
+/**
  * Named volumes plus the mount policy applied on container create.
  *
  * @generated from service micropod.v1.VolumeService
@@ -389,6 +483,34 @@ export const VolumeService: GenService<{
     methodKind: "unary";
     input: typeof VolumePolicySchema;
     output: typeof VolumePolicySchema;
+  },
+  /**
+   * Create a new volume whose backing image is a clonefile copy of the
+   * source volume's image (O(1) on APFS). Fails with `not_found` when the
+   * source does not exist and `failed_precondition` when the source is
+   * attached read-write to a running container.
+   *
+   * @generated from rpc micropod.v1.VolumeService.CloneVolume
+   */
+  cloneVolume: {
+    methodKind: "unary";
+    input: typeof CloneVolumeRequestSchema;
+    output: typeof VolumeSchema;
+  },
+  /**
+   * Promote a container's per-container clone of `volume` to be the
+   * volume's backing image (fsync + atomic rename, serialised per volume).
+   * Fails with `not_found` when the clone or the volume's source is absent
+   * and `failed_precondition` unless the container is `stopped` and the
+   * volume is not attached to a running container. `unimplemented` on
+   * backends that never create clones.
+   *
+   * @generated from rpc micropod.v1.VolumeService.CommitVolumeClone
+   */
+  commitVolumeClone: {
+    methodKind: "unary";
+    input: typeof CommitVolumeCloneRequestSchema;
+    output: typeof CommitVolumeCloneResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_micropod_v1_volume, 0);

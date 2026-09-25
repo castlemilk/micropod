@@ -48,6 +48,12 @@ const (
 	// VolumeServiceSetVolumePolicyProcedure is the fully-qualified name of the VolumeService's
 	// SetVolumePolicy RPC.
 	VolumeServiceSetVolumePolicyProcedure = "/micropod.v1.VolumeService/SetVolumePolicy"
+	// VolumeServiceCloneVolumeProcedure is the fully-qualified name of the VolumeService's CloneVolume
+	// RPC.
+	VolumeServiceCloneVolumeProcedure = "/micropod.v1.VolumeService/CloneVolume"
+	// VolumeServiceCommitVolumeCloneProcedure is the fully-qualified name of the VolumeService's
+	// CommitVolumeClone RPC.
+	VolumeServiceCommitVolumeCloneProcedure = "/micropod.v1.VolumeService/CommitVolumeClone"
 )
 
 // VolumeServiceClient is a client for the micropod.v1.VolumeService service.
@@ -63,6 +69,18 @@ type VolumeServiceClient interface {
 	GetVolumePolicy(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.VolumePolicy], error)
 	// Replace the volume mount policy; returns the stored policy.
 	SetVolumePolicy(context.Context, *connect.Request[v1.VolumePolicy]) (*connect.Response[v1.VolumePolicy], error)
+	// Create a new volume whose backing image is a clonefile copy of the
+	// source volume's image (O(1) on APFS). Fails with `not_found` when the
+	// source does not exist and `failed_precondition` when the source is
+	// attached read-write to a running container.
+	CloneVolume(context.Context, *connect.Request[v1.CloneVolumeRequest]) (*connect.Response[v1.Volume], error)
+	// Promote a container's per-container clone of `volume` to be the
+	// volume's backing image (fsync + atomic rename, serialised per volume).
+	// Fails with `not_found` when the clone or the volume's source is absent
+	// and `failed_precondition` unless the container is `stopped` and the
+	// volume is not attached to a running container. `unimplemented` on
+	// backends that never create clones.
+	CommitVolumeClone(context.Context, *connect.Request[v1.CommitVolumeCloneRequest]) (*connect.Response[v1.CommitVolumeCloneResponse], error)
 }
 
 // NewVolumeServiceClient constructs a client for the micropod.v1.VolumeService service. By default,
@@ -106,16 +124,30 @@ func NewVolumeServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(volumeServiceMethods.ByName("SetVolumePolicy")),
 			connect.WithClientOptions(opts...),
 		),
+		cloneVolume: connect.NewClient[v1.CloneVolumeRequest, v1.Volume](
+			httpClient,
+			baseURL+VolumeServiceCloneVolumeProcedure,
+			connect.WithSchema(volumeServiceMethods.ByName("CloneVolume")),
+			connect.WithClientOptions(opts...),
+		),
+		commitVolumeClone: connect.NewClient[v1.CommitVolumeCloneRequest, v1.CommitVolumeCloneResponse](
+			httpClient,
+			baseURL+VolumeServiceCommitVolumeCloneProcedure,
+			connect.WithSchema(volumeServiceMethods.ByName("CommitVolumeClone")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // volumeServiceClient implements VolumeServiceClient.
 type volumeServiceClient struct {
-	listVolumes     *connect.Client[v1.Empty, v1.ListVolumesResponse]
-	createVolume    *connect.Client[v1.CreateVolumeRequest, v1.Empty]
-	deleteVolume    *connect.Client[v1.DeleteVolumeRequest, v1.Empty]
-	getVolumePolicy *connect.Client[v1.Empty, v1.VolumePolicy]
-	setVolumePolicy *connect.Client[v1.VolumePolicy, v1.VolumePolicy]
+	listVolumes       *connect.Client[v1.Empty, v1.ListVolumesResponse]
+	createVolume      *connect.Client[v1.CreateVolumeRequest, v1.Empty]
+	deleteVolume      *connect.Client[v1.DeleteVolumeRequest, v1.Empty]
+	getVolumePolicy   *connect.Client[v1.Empty, v1.VolumePolicy]
+	setVolumePolicy   *connect.Client[v1.VolumePolicy, v1.VolumePolicy]
+	cloneVolume       *connect.Client[v1.CloneVolumeRequest, v1.Volume]
+	commitVolumeClone *connect.Client[v1.CommitVolumeCloneRequest, v1.CommitVolumeCloneResponse]
 }
 
 // ListVolumes calls micropod.v1.VolumeService.ListVolumes.
@@ -143,6 +175,16 @@ func (c *volumeServiceClient) SetVolumePolicy(ctx context.Context, req *connect.
 	return c.setVolumePolicy.CallUnary(ctx, req)
 }
 
+// CloneVolume calls micropod.v1.VolumeService.CloneVolume.
+func (c *volumeServiceClient) CloneVolume(ctx context.Context, req *connect.Request[v1.CloneVolumeRequest]) (*connect.Response[v1.Volume], error) {
+	return c.cloneVolume.CallUnary(ctx, req)
+}
+
+// CommitVolumeClone calls micropod.v1.VolumeService.CommitVolumeClone.
+func (c *volumeServiceClient) CommitVolumeClone(ctx context.Context, req *connect.Request[v1.CommitVolumeCloneRequest]) (*connect.Response[v1.CommitVolumeCloneResponse], error) {
+	return c.commitVolumeClone.CallUnary(ctx, req)
+}
+
 // VolumeServiceHandler is an implementation of the micropod.v1.VolumeService service.
 type VolumeServiceHandler interface {
 	// List all volumes.
@@ -156,6 +198,18 @@ type VolumeServiceHandler interface {
 	GetVolumePolicy(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.VolumePolicy], error)
 	// Replace the volume mount policy; returns the stored policy.
 	SetVolumePolicy(context.Context, *connect.Request[v1.VolumePolicy]) (*connect.Response[v1.VolumePolicy], error)
+	// Create a new volume whose backing image is a clonefile copy of the
+	// source volume's image (O(1) on APFS). Fails with `not_found` when the
+	// source does not exist and `failed_precondition` when the source is
+	// attached read-write to a running container.
+	CloneVolume(context.Context, *connect.Request[v1.CloneVolumeRequest]) (*connect.Response[v1.Volume], error)
+	// Promote a container's per-container clone of `volume` to be the
+	// volume's backing image (fsync + atomic rename, serialised per volume).
+	// Fails with `not_found` when the clone or the volume's source is absent
+	// and `failed_precondition` unless the container is `stopped` and the
+	// volume is not attached to a running container. `unimplemented` on
+	// backends that never create clones.
+	CommitVolumeClone(context.Context, *connect.Request[v1.CommitVolumeCloneRequest]) (*connect.Response[v1.CommitVolumeCloneResponse], error)
 }
 
 // NewVolumeServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -195,6 +249,18 @@ func NewVolumeServiceHandler(svc VolumeServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(volumeServiceMethods.ByName("SetVolumePolicy")),
 		connect.WithHandlerOptions(opts...),
 	)
+	volumeServiceCloneVolumeHandler := connect.NewUnaryHandler(
+		VolumeServiceCloneVolumeProcedure,
+		svc.CloneVolume,
+		connect.WithSchema(volumeServiceMethods.ByName("CloneVolume")),
+		connect.WithHandlerOptions(opts...),
+	)
+	volumeServiceCommitVolumeCloneHandler := connect.NewUnaryHandler(
+		VolumeServiceCommitVolumeCloneProcedure,
+		svc.CommitVolumeClone,
+		connect.WithSchema(volumeServiceMethods.ByName("CommitVolumeClone")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/micropod.v1.VolumeService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case VolumeServiceListVolumesProcedure:
@@ -207,6 +273,10 @@ func NewVolumeServiceHandler(svc VolumeServiceHandler, opts ...connect.HandlerOp
 			volumeServiceGetVolumePolicyHandler.ServeHTTP(w, r)
 		case VolumeServiceSetVolumePolicyProcedure:
 			volumeServiceSetVolumePolicyHandler.ServeHTTP(w, r)
+		case VolumeServiceCloneVolumeProcedure:
+			volumeServiceCloneVolumeHandler.ServeHTTP(w, r)
+		case VolumeServiceCommitVolumeCloneProcedure:
+			volumeServiceCommitVolumeCloneHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -234,4 +304,12 @@ func (UnimplementedVolumeServiceHandler) GetVolumePolicy(context.Context, *conne
 
 func (UnimplementedVolumeServiceHandler) SetVolumePolicy(context.Context, *connect.Request[v1.VolumePolicy]) (*connect.Response[v1.VolumePolicy], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.VolumeService.SetVolumePolicy is not implemented"))
+}
+
+func (UnimplementedVolumeServiceHandler) CloneVolume(context.Context, *connect.Request[v1.CloneVolumeRequest]) (*connect.Response[v1.Volume], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.VolumeService.CloneVolume is not implemented"))
+}
+
+func (UnimplementedVolumeServiceHandler) CommitVolumeClone(context.Context, *connect.Request[v1.CommitVolumeCloneRequest]) (*connect.Response[v1.CommitVolumeCloneResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.VolumeService.CommitVolumeClone is not implemented"))
 }

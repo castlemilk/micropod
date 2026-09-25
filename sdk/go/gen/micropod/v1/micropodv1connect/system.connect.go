@@ -46,6 +46,8 @@ const (
 	// SystemServiceApplyUpdateProcedure is the fully-qualified name of the SystemService's ApplyUpdate
 	// RPC.
 	SystemServiceApplyUpdateProcedure = "/micropod.v1.SystemService/ApplyUpdate"
+	// SystemServicePingProcedure is the fully-qualified name of the SystemService's Ping RPC.
+	SystemServicePingProcedure = "/micropod.v1.SystemService/Ping"
 )
 
 // SystemServiceClient is a client for the micropod.v1.SystemService service.
@@ -63,6 +65,10 @@ type SystemServiceClient interface {
 	// Quit the app so a downloaded update installs and relaunches. Fails
 	// with `failed_precondition` until `UpdateStatus.ready_to_install`.
 	ApplyUpdate(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error)
+	// Millisecond liveness: runtime status and active backend without disk
+	// usage. Answers `status: stopped` (never an error) when the runtime is
+	// down but the API server is up.
+	Ping(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.PingResponse], error)
 }
 
 // NewSystemServiceClient constructs a client for the micropod.v1.SystemService service. By default,
@@ -106,6 +112,12 @@ func NewSystemServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(systemServiceMethods.ByName("ApplyUpdate")),
 			connect.WithClientOptions(opts...),
 		),
+		ping: connect.NewClient[v1.Empty, v1.PingResponse](
+			httpClient,
+			baseURL+SystemServicePingProcedure,
+			connect.WithSchema(systemServiceMethods.ByName("Ping")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -116,6 +128,7 @@ type systemServiceClient struct {
 	checkForUpdates *connect.Client[v1.Empty, v1.UpdateStatus]
 	getUpdateStatus *connect.Client[v1.Empty, v1.UpdateStatus]
 	applyUpdate     *connect.Client[v1.Empty, v1.UpdateStatus]
+	ping            *connect.Client[v1.Empty, v1.PingResponse]
 }
 
 // GetSystem calls micropod.v1.SystemService.GetSystem.
@@ -143,6 +156,11 @@ func (c *systemServiceClient) ApplyUpdate(ctx context.Context, req *connect.Requ
 	return c.applyUpdate.CallUnary(ctx, req)
 }
 
+// Ping calls micropod.v1.SystemService.Ping.
+func (c *systemServiceClient) Ping(ctx context.Context, req *connect.Request[v1.Empty]) (*connect.Response[v1.PingResponse], error) {
+	return c.ping.CallUnary(ctx, req)
+}
+
 // SystemServiceHandler is an implementation of the micropod.v1.SystemService service.
 type SystemServiceHandler interface {
 	// Runtime status + disk usage.
@@ -158,6 +176,10 @@ type SystemServiceHandler interface {
 	// Quit the app so a downloaded update installs and relaunches. Fails
 	// with `failed_precondition` until `UpdateStatus.ready_to_install`.
 	ApplyUpdate(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error)
+	// Millisecond liveness: runtime status and active backend without disk
+	// usage. Answers `status: stopped` (never an error) when the runtime is
+	// down but the API server is up.
+	Ping(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.PingResponse], error)
 }
 
 // NewSystemServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -197,6 +219,12 @@ func NewSystemServiceHandler(svc SystemServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(systemServiceMethods.ByName("ApplyUpdate")),
 		connect.WithHandlerOptions(opts...),
 	)
+	systemServicePingHandler := connect.NewUnaryHandler(
+		SystemServicePingProcedure,
+		svc.Ping,
+		connect.WithSchema(systemServiceMethods.ByName("Ping")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/micropod.v1.SystemService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SystemServiceGetSystemProcedure:
@@ -209,6 +237,8 @@ func NewSystemServiceHandler(svc SystemServiceHandler, opts ...connect.HandlerOp
 			systemServiceGetUpdateStatusHandler.ServeHTTP(w, r)
 		case SystemServiceApplyUpdateProcedure:
 			systemServiceApplyUpdateHandler.ServeHTTP(w, r)
+		case SystemServicePingProcedure:
+			systemServicePingHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -236,4 +266,8 @@ func (UnimplementedSystemServiceHandler) GetUpdateStatus(context.Context, *conne
 
 func (UnimplementedSystemServiceHandler) ApplyUpdate(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.SystemService.ApplyUpdate is not implemented"))
+}
+
+func (UnimplementedSystemServiceHandler) Ping(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.PingResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.SystemService.Ping is not implemented"))
 }

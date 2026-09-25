@@ -57,6 +57,12 @@ const (
 	// ContainerServiceDeleteContainerProcedure is the fully-qualified name of the ContainerService's
 	// DeleteContainer RPC.
 	ContainerServiceDeleteContainerProcedure = "/micropod.v1.ContainerService/DeleteContainer"
+	// ContainerServiceGetContainerProcedure is the fully-qualified name of the ContainerService's
+	// GetContainer RPC.
+	ContainerServiceGetContainerProcedure = "/micropod.v1.ContainerService/GetContainer"
+	// ContainerServiceWaitContainerProcedure is the fully-qualified name of the ContainerService's
+	// WaitContainer RPC.
+	ContainerServiceWaitContainerProcedure = "/micropod.v1.ContainerService/WaitContainer"
 	// ContainerServiceStreamContainerLogsProcedure is the fully-qualified name of the
 	// ContainerService's StreamContainerLogs RPC.
 	ContainerServiceStreamContainerLogsProcedure = "/micropod.v1.ContainerService/StreamContainerLogs"
@@ -85,6 +91,15 @@ type ContainerServiceClient interface {
 	KillContainer(context.Context, *connect.Request[v1.ContainerRef]) (*connect.Response[v1.Empty], error)
 	// Remove a container. Running containers require force.
 	DeleteContainer(context.Context, *connect.Request[v1.DeleteContainerRequest]) (*connect.Response[v1.Empty], error)
+	// Inspect one container by ID. Fails with `not_found` when no container
+	// has that ID. `exit_code` is populated from the exit-code registry when
+	// the native backend recorded the container's exit.
+	GetContainer(context.Context, *connect.Request[v1.ContainerRef]) (*connect.Response[v1.Container], error)
+	// Block until the container exits or `timeout_seconds` elapses. Polls the
+	// exit-code registry and runtime state server-side (no blocking runtime
+	// wait); returns immediately when the container is already stopped.
+	// Fails with `not_found` when no container has that ID.
+	WaitContainer(context.Context, *connect.Request[v1.WaitContainerRequest]) (*connect.Response[v1.WaitContainerResponse], error)
 	// Live log stream (server streaming).
 	StreamContainerLogs(context.Context, *connect.Request[v1.StreamLogsRequest]) (*connect.ServerStreamForClient[v1.LogChunk], error)
 	// Point-in-time resource usage for all running containers.
@@ -152,6 +167,18 @@ func NewContainerServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(containerServiceMethods.ByName("DeleteContainer")),
 			connect.WithClientOptions(opts...),
 		),
+		getContainer: connect.NewClient[v1.ContainerRef, v1.Container](
+			httpClient,
+			baseURL+ContainerServiceGetContainerProcedure,
+			connect.WithSchema(containerServiceMethods.ByName("GetContainer")),
+			connect.WithClientOptions(opts...),
+		),
+		waitContainer: connect.NewClient[v1.WaitContainerRequest, v1.WaitContainerResponse](
+			httpClient,
+			baseURL+ContainerServiceWaitContainerProcedure,
+			connect.WithSchema(containerServiceMethods.ByName("WaitContainer")),
+			connect.WithClientOptions(opts...),
+		),
 		streamContainerLogs: connect.NewClient[v1.StreamLogsRequest, v1.LogChunk](
 			httpClient,
 			baseURL+ContainerServiceStreamContainerLogsProcedure,
@@ -183,6 +210,8 @@ type containerServiceClient struct {
 	restartContainer    *connect.Client[v1.ContainerRef, v1.Empty]
 	killContainer       *connect.Client[v1.ContainerRef, v1.Empty]
 	deleteContainer     *connect.Client[v1.DeleteContainerRequest, v1.Empty]
+	getContainer        *connect.Client[v1.ContainerRef, v1.Container]
+	waitContainer       *connect.Client[v1.WaitContainerRequest, v1.WaitContainerResponse]
 	streamContainerLogs *connect.Client[v1.StreamLogsRequest, v1.LogChunk]
 	getStats            *connect.Client[v1.GetStatsRequest, v1.GetStatsResponse]
 	exec                *connect.Client[v1.ExecRequest, v1.ExecResponse]
@@ -228,6 +257,16 @@ func (c *containerServiceClient) DeleteContainer(ctx context.Context, req *conne
 	return c.deleteContainer.CallUnary(ctx, req)
 }
 
+// GetContainer calls micropod.v1.ContainerService.GetContainer.
+func (c *containerServiceClient) GetContainer(ctx context.Context, req *connect.Request[v1.ContainerRef]) (*connect.Response[v1.Container], error) {
+	return c.getContainer.CallUnary(ctx, req)
+}
+
+// WaitContainer calls micropod.v1.ContainerService.WaitContainer.
+func (c *containerServiceClient) WaitContainer(ctx context.Context, req *connect.Request[v1.WaitContainerRequest]) (*connect.Response[v1.WaitContainerResponse], error) {
+	return c.waitContainer.CallUnary(ctx, req)
+}
+
 // StreamContainerLogs calls micropod.v1.ContainerService.StreamContainerLogs.
 func (c *containerServiceClient) StreamContainerLogs(ctx context.Context, req *connect.Request[v1.StreamLogsRequest]) (*connect.ServerStreamForClient[v1.LogChunk], error) {
 	return c.streamContainerLogs.CallServerStream(ctx, req)
@@ -261,6 +300,15 @@ type ContainerServiceHandler interface {
 	KillContainer(context.Context, *connect.Request[v1.ContainerRef]) (*connect.Response[v1.Empty], error)
 	// Remove a container. Running containers require force.
 	DeleteContainer(context.Context, *connect.Request[v1.DeleteContainerRequest]) (*connect.Response[v1.Empty], error)
+	// Inspect one container by ID. Fails with `not_found` when no container
+	// has that ID. `exit_code` is populated from the exit-code registry when
+	// the native backend recorded the container's exit.
+	GetContainer(context.Context, *connect.Request[v1.ContainerRef]) (*connect.Response[v1.Container], error)
+	// Block until the container exits or `timeout_seconds` elapses. Polls the
+	// exit-code registry and runtime state server-side (no blocking runtime
+	// wait); returns immediately when the container is already stopped.
+	// Fails with `not_found` when no container has that ID.
+	WaitContainer(context.Context, *connect.Request[v1.WaitContainerRequest]) (*connect.Response[v1.WaitContainerResponse], error)
 	// Live log stream (server streaming).
 	StreamContainerLogs(context.Context, *connect.Request[v1.StreamLogsRequest], *connect.ServerStream[v1.LogChunk]) error
 	// Point-in-time resource usage for all running containers.
@@ -324,6 +372,18 @@ func NewContainerServiceHandler(svc ContainerServiceHandler, opts ...connect.Han
 		connect.WithSchema(containerServiceMethods.ByName("DeleteContainer")),
 		connect.WithHandlerOptions(opts...),
 	)
+	containerServiceGetContainerHandler := connect.NewUnaryHandler(
+		ContainerServiceGetContainerProcedure,
+		svc.GetContainer,
+		connect.WithSchema(containerServiceMethods.ByName("GetContainer")),
+		connect.WithHandlerOptions(opts...),
+	)
+	containerServiceWaitContainerHandler := connect.NewUnaryHandler(
+		ContainerServiceWaitContainerProcedure,
+		svc.WaitContainer,
+		connect.WithSchema(containerServiceMethods.ByName("WaitContainer")),
+		connect.WithHandlerOptions(opts...),
+	)
 	containerServiceStreamContainerLogsHandler := connect.NewServerStreamHandler(
 		ContainerServiceStreamContainerLogsProcedure,
 		svc.StreamContainerLogs,
@@ -360,6 +420,10 @@ func NewContainerServiceHandler(svc ContainerServiceHandler, opts ...connect.Han
 			containerServiceKillContainerHandler.ServeHTTP(w, r)
 		case ContainerServiceDeleteContainerProcedure:
 			containerServiceDeleteContainerHandler.ServeHTTP(w, r)
+		case ContainerServiceGetContainerProcedure:
+			containerServiceGetContainerHandler.ServeHTTP(w, r)
+		case ContainerServiceWaitContainerProcedure:
+			containerServiceWaitContainerHandler.ServeHTTP(w, r)
 		case ContainerServiceStreamContainerLogsProcedure:
 			containerServiceStreamContainerLogsHandler.ServeHTTP(w, r)
 		case ContainerServiceGetStatsProcedure:
@@ -405,6 +469,14 @@ func (UnimplementedContainerServiceHandler) KillContainer(context.Context, *conn
 
 func (UnimplementedContainerServiceHandler) DeleteContainer(context.Context, *connect.Request[v1.DeleteContainerRequest]) (*connect.Response[v1.Empty], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.ContainerService.DeleteContainer is not implemented"))
+}
+
+func (UnimplementedContainerServiceHandler) GetContainer(context.Context, *connect.Request[v1.ContainerRef]) (*connect.Response[v1.Container], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.ContainerService.GetContainer is not implemented"))
+}
+
+func (UnimplementedContainerServiceHandler) WaitContainer(context.Context, *connect.Request[v1.WaitContainerRequest]) (*connect.Response[v1.WaitContainerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.ContainerService.WaitContainer is not implemented"))
 }
 
 func (UnimplementedContainerServiceHandler) StreamContainerLogs(context.Context, *connect.Request[v1.StreamLogsRequest], *connect.ServerStream[v1.LogChunk]) error {

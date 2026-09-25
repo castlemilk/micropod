@@ -308,6 +308,65 @@
           }
         }
       }
+    },
+    "/api/micropod.v1.SystemService/Ping": {
+      "post": {
+        "tags": [
+          "micropod.v1.SystemService"
+        ],
+        "summary": "Ping",
+        "description": "Millisecond liveness: runtime status and active backend without disk\n usage. Answers `status: stopped` (never an error) when the runtime is\n down but the API server is up.",
+        "operationId": "micropod.v1.SystemService.Ping",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.PingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -708,6 +767,46 @@
         "additionalProperties": false,
         "description": "One platform variant of a multi-arch image."
       },
+      "micropod.v1.PingResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "examples": [
+              "running"
+            ],
+            "title": "status",
+            "description": "\"running\" or \"stopped\"."
+          },
+          "runtimeBackend": {
+            "type": "string",
+            "examples": [
+              "native"
+            ],
+            "title": "runtime_backend",
+            "description": "Backend the API server is currently driving: \"native\" (XPC) or \"cli\"."
+          },
+          "apiServerVersion": {
+            "type": "string",
+            "examples": [
+              "0.8.0"
+            ],
+            "title": "api_server_version",
+            "description": "Version of the embedded API server."
+          },
+          "cliVersion": {
+            "type": "string",
+            "examples": [
+              "0.7.0"
+            ],
+            "title": "cli_version",
+            "description": "Version of the bundled `container` CLI."
+          }
+        },
+        "title": "PingResponse",
+        "additionalProperties": false,
+        "description": "Cheap liveness reply for detection and health ticks (see Ping)."
+      },
       "micropod.v1.RegistryLogin": {
         "type": "object",
         "properties": {
@@ -824,6 +923,14 @@
             ],
             "title": "cli_version",
             "description": "Version of the bundled `container` CLI."
+          },
+          "runtimeBackend": {
+            "type": "string",
+            "examples": [
+              "native"
+            ],
+            "title": "runtime_backend",
+            "description": "Backend the API server is currently driving: \"native\" (XPC) or \"cli\"."
           }
         },
         "title": "SystemStatus",
@@ -1087,6 +1194,18 @@
               "title": "value"
             },
             "description": "Metadata labels on the volume."
+          },
+          "allocatedBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "examples": [
+              "268435456"
+            ],
+            "title": "allocated_bytes",
+            "format": "int64",
+            "description": "Bytes actually allocated on disk by the backing image (st_blocks \u00d7 512).\n `size_bytes` is the provisioned size; sparse images allocate far less."
           }
         },
         "title": "Volume",

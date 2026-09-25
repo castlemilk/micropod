@@ -25,6 +25,22 @@ service SystemService {
   // Quit the app so a downloaded update installs and relaunches. Fails
   // with `failed_precondition` until `UpdateStatus.ready_to_install`.
   rpc ApplyUpdate(Empty) returns (UpdateStatus);
+  // Millisecond liveness: runtime status and active backend without disk
+  // usage. Answers `status: stopped` (never an error) when the runtime is
+  // down but the API server is up.
+  rpc Ping(Empty) returns (PingResponse);
+}
+
+// Cheap liveness reply for detection and health ticks (see Ping).
+message PingResponse {
+  // "running" or "stopped".
+  string status = 1 [(gnostic.openapi.v3.property).example = {yaml: "'running'"}];
+  // Backend the API server is currently driving: "native" (XPC) or "cli".
+  string runtime_backend = 2 [(gnostic.openapi.v3.property).example = {yaml: "'native'"}];
+  // Version of the embedded API server.
+  string api_server_version = 3 [(gnostic.openapi.v3.property).example = {yaml: "'0.8.0'"}];
+  // Version of the bundled `container` CLI.
+  string cli_version = 4 [(gnostic.openapi.v3.property).example = {yaml: "'0.7.0'"}];
 }
 
 message SystemSnapshot {
@@ -46,6 +62,8 @@ message SystemStatus {
   string api_server_version = 4 [(gnostic.openapi.v3.property).example = {yaml: "'0.8.0'"}];
   // Version of the bundled `container` CLI.
   string cli_version = 5 [(gnostic.openapi.v3.property).example = {yaml: "'0.7.0'"}];
+  // Backend the API server is currently driving: "native" (XPC) or "cli".
+  string runtime_backend = 6 [(gnostic.openapi.v3.property).example = {yaml: "'native'"}];
 }
 
 // Disk usage, mapped from `container system df`.
