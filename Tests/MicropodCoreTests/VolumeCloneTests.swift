@@ -436,6 +436,27 @@ final class VolumeCloneTests: XCTestCase {
             try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted(), ["live", "stray-file", "young"])
     }
 
+    /// A dir under the clone root whose name is outside the id grammar
+    /// (only a pre-guard build or a hand can put one there) was never
+    /// built by this code: the sweep leaves it — and everything in it —
+    /// where it is whatever its age, and says so on stderr, while an
+    /// orphan next to it is still swept.
+    func testSweepOrphanClonesLeavesADirOutsideTheGrammar() async throws {
+        setenv("MICROPOD_VOLUME_CLONE_ROOT", dir.path, 1)
+        defer { unsetenv("MICROPOD_VOLUME_CLONE_ROOT") }
+        let old = Date().addingTimeInterval(-(VolumeClone.orphanGrace + 60))
+        for name in ["-not-an-id", "ghost"] {
+            try FileManager.default.createDirectory(atPath: path(name), withIntermediateDirectories: true)
+            try Data("x".utf8).write(to: URL(fileURLWithPath: path("\(name)/npm.img")))
+            try FileManager.default.setAttributes([.creationDate: old], ofItemAtPath: path(name))
+        }
+
+        await VolumeClone.sweepOrphanClones(live: [])
+
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path), ["-not-an-id"])
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: path("-not-an-id")), ["npm.img"])
+    }
+
     // MARK: - VolumeLocks
 
     func testVolumeLocksSerialisePerNameAndRunOtherNamesConcurrently() async throws {

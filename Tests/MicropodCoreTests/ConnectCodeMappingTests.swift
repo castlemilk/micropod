@@ -204,6 +204,21 @@ final class ConnectCodeMappingTests: XCTestCase {
             ConnectCodeMapping.relaysGuestStderr(command: "container run nginx:1.27 --detach"), "an argv, not a flag")
         XCTAssertFalse(ConnectCodeMapping.relaysGuestStderr(command: "container run --detach --name x nginx:1.27"))
         XCTAssertFalse(ConnectCodeMapping.relaysGuestStderr(command: "container run -d nginx:1.27"))
+        // `command` is the argv joined by spaces (`ContainerCommand.displayName`):
+        // a value with a space and a dash-word in it is not a flag. The
+        // factory emits `--detach` right after the verb or not at all.
+        XCTAssertTrue(
+            ConnectCodeMapping.relaysGuestStderr(command: "container run --env OPTS=-v --detach nginx:1.27"),
+            "a value, not a flag")
+        XCTAssertTrue(
+            ConnectCodeMapping.relaysGuestStderr(command: "container run --label k=a -d nginx:1.27"),
+            "a value, not a flag")
+        XCTAssertEqual(
+            code(
+                .cliFailure(
+                    command: "container run --env OPTS=-v --detach nginx:1.27 sh -c 'exit 2'", exitCode: 2,
+                    stderr: "Error: notFound: \"config.yaml\"\n")),
+            "internal", "an attached run whose env value spells --detach")
         XCTAssertFalse(ConnectCodeMapping.relaysGuestStderr(command: "container create --name exec nginx:1.27"))
         XCTAssertFalse(ConnectCodeMapping.relaysGuestStderr(command: "container delete run"))
         XCTAssertFalse(ConnectCodeMapping.relaysGuestStderr(command: "exec web"))

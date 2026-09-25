@@ -680,11 +680,31 @@ extension APIHandlers {
         return .data(code.httpStatus, "application/json", Data(body.utf8))
     }
 
+    /// JSON string-literal escaping for the hand-built error bodies —
+    /// `connectError` and the stream trailer. A refused client value, a CLI
+    /// stderr line or a `requireDistinct` message reaches the body verbatim,
+    /// so every control character U+0000–U+001F is escaped too (`\t`, `\n`,
+    /// `\r`, `\b`, `\f` short forms, the rest as `\u00XX`): with one left
+    /// bare the body is not JSON, and connect-go reads an unparseable 400 as
+    /// `internal` — the client would see `internal` for precisely the inputs
+    /// the guard refuses.
     private static func escapeJSON(_ text: String) -> String {
-        text.replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-            .replacingOccurrences(of: "\n", with: "\\n")
-            .replacingOccurrences(of: "\r", with: "\\r")
+        var escaped = ""
+        escaped.reserveCapacity(text.utf8.count)
+        for scalar in text.unicodeScalars {
+            switch scalar {
+            case "\\": escaped += "\\\\"
+            case "\"": escaped += "\\\""
+            case "\n": escaped += "\\n"
+            case "\r": escaped += "\\r"
+            case "\t": escaped += "\\t"
+            case "\u{08}": escaped += "\\b"
+            case "\u{0C}": escaped += "\\f"
+            case "\u{00}"..."\u{1F}": escaped += String(format: "\\u%04x", scalar.value)
+            default: escaped.unicodeScalars.append(scalar)
+            }
+        }
+        return escaped
     }
 
     // MARK: - Proto → service conversion

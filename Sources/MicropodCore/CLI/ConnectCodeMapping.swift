@@ -70,11 +70,14 @@ public enum ConnectCodeMapping {
     private static let cliCausePrefix = "(cause: \""
 
     /// Commands whose stderr and exit code are the guest process's, not the
-    /// CLI's: `container exec …`, and `container run …` without `--detach`
-    /// (`-d`) among its options — an attached run (REST `detach: false`;
-    /// Connect always runs detached) relays the guest's output. The verb is
-    /// the first argument after the binary name; a `cliFailure` names the
-    /// command that way.
+    /// CLI's: `container exec …`, and an attached `container run …` — one
+    /// without `--detach` (`-d`) right after the verb (REST `detach: false`;
+    /// Connect always runs detached). `ContainerCommandFactory.run` emits
+    /// `--detach` first or not at all, and only that position is read:
+    /// `command` is the argv joined by spaces (`ContainerCommand.displayName`),
+    /// so a later value with a space in it — `--env "OPTS=-v --detach"` —
+    /// must not read as a flag. The verb is the first word after the binary
+    /// name; a `cliFailure` names the command that way.
     static func relaysGuestStderr(command: String) -> Bool {
         let words = command.split(separator: " ", omittingEmptySubsequences: true)
         guard words.count >= 2, words[0] == "container" else { return false }
@@ -82,32 +85,11 @@ public enum ConnectCodeMapping {
         case "exec":
             return true
         case "run":
-            return !runOptions(in: Array(words.dropFirst(2))).contains { $0 == "--detach" || $0 == "-d" }
+            return !(words.count > 2 && (words[2] == "--detach" || words[2] == "-d"))
         default:
             return false
         }
     }
-
-    /// The option words of a `container run` argv: `ContainerCommandFactory.run`
-    /// emits `[--flag [value]]…` and then the image, so the options end at
-    /// the first word that is neither an option nor an option's value —
-    /// a `--detach` after the image belongs to the guest's argv.
-    private static func runOptions(in words: [Substring]) -> [Substring] {
-        var options: [Substring] = []
-        var index = 0
-        while index < words.count, words[index].hasPrefix("-") {
-            options.append(words[index])
-            index += valueTakingRunOptions.contains(String(words[index])) ? 2 : 1
-        }
-        return options
-    }
-
-    /// `container run` options that take a value (`ContainerCommandFactory.run`).
-    private static let valueTakingRunOptions: Set<String> = [
-        "--name", "--cpus", "--memory", "--env", "--env-file", "--publish", "--volume", "--tmpfs", "--label",
-        "--user", "--shm-size", "--dns", "--dns-search", "--cap-add", "--cap-drop", "--ulimit", "--network",
-        "--platform", "--workdir", "--entrypoint", "--mount", "--os", "--arch",
-    ]
 
     /// The text after `Error: ` → wire code (see ``cliStderrCode``).
     static func classifyCLIErrorLine(_ text: String) -> String {

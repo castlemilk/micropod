@@ -274,7 +274,16 @@ mutex and before any filesystem or XPC work; and inside every `VolumeClone`
 function that builds a path from an id or a volume name, none of which
 touches the filesystem for an unsafe one. Without that, a name such as
 `../../com.apple.container/volumes/<golden>` would make the stale-dir
-reclaim unlink the golden's own `volume.img`.
+reclaim unlink the golden's own `volume.img`. The grammar is ASCII, as the
+runtime's is (`container` 1.3.1 refuses `café`: `container ID café is not a
+valid container ID`); the Docker shim's `DockerNaming.isRuntimeValid` is the
+same predicate, so a Docker name outside it is aliased to a sanitised
+runtime name rather than passed through to that refusal. A dir under the
+clone root whose name is outside the grammar — only a pre-guard build or a
+hand can put one there — is never a path this code builds: the orphan sweep
+leaves it in place and says so on stderr. A refusal's message echoes the
+value, so the Connect error body escapes every control character (an
+unparseable 400 would reach a connect-go client as `internal`).
 
 A create that dies with its process (not one that fails — that cleans up)
 leaves a clone dir with no container behind it. Finding no container of

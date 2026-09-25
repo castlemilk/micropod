@@ -106,6 +106,14 @@ final class MicropodAPITests: XCTestCase {
     private func jsonStatus(_ method: String, _ path: String, body: [String: Any]? = nil) async throws
         -> (Int, [String: Any])
     {
+        let (status, data) = try await rawStatus(method, path, body: body)
+        return (status, (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:])
+    }
+
+    /// The status and the raw body — for asserting that a body parses at all.
+    private func rawStatus(_ method: String, _ path: String, body: [String: Any]? = nil) async throws
+        -> (Int, Data)
+    {
         var request = URLRequest(url: baseURL.appendingPathComponent(path))
         request.httpMethod = method
         if let body {
@@ -113,8 +121,7 @@ final class MicropodAPITests: XCTestCase {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
         let (data, response) = try await URLSession.shared.data(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        return (status, (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:])
+        return ((response as? HTTPURLResponse)?.statusCode ?? 0, data)
     }
 
     func testVolumePolicyEndpoints() async throws {
@@ -1297,6 +1304,27 @@ final class MicropodAPITests: XCTestCase {
             XCTAssertEqual(reply["code"] as? String, "invalid_argument", "CommitVolumeClone \(field): \(reply)")
             XCTAssertTrue(
                 (reply["message"] as? String ?? "").hasPrefix("\(field):"), "CommitVolumeClone \(field): \(reply)")
+        }
+        // A refused value is echoed in the message. A control character in
+        // it must not break the body: connect-go reads an unparseable 400
+        // as `internal`, so the client would see `internal` for precisely
+        // the inputs the guard refuses.
+        for (path, body, field) in [
+            ("api/micropod.v1.ContainerService/CreateContainer", ["image": "nginx:1.27", "name": "a\u{0}b"], "name"),
+            (
+                "api/micropod.v1.ContainerService/CreateContainer",
+                ["image": "nginx:1.27", "name": "job", "volumes": ["a\tb:/x"]], "volumes"
+            ),
+            ("api/micropod.v1.VolumeService/CloneVolume", ["source": "g", "name": "a\u{1f}b"], "name"),
+        ] as [(String, [String: Any], String)] {
+            let (status, data) = try await rawStatus("POST", path, body: body)
+            let text = String(decoding: data, as: UTF8.self).debugDescription
+            XCTAssertEqual(status, 400, "\(path) \(field): \(text)")
+            let reply = try XCTUnwrap(
+                try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                "\(path) \(field): the body must parse: \(text)")
+            XCTAssertEqual(reply["code"] as? String, "invalid_argument", "\(path) \(field): \(reply)")
+            XCTAssertTrue((reply["message"] as? String ?? "").hasPrefix("\(field):"), "\(path) \(field): \(reply)")
         }
 
         let later = mockCalls().dropFirst(callsBefore)

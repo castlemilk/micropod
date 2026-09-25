@@ -606,9 +606,14 @@ enum IDGenerator {
 
 /// Docker↔Apple container-name translation.
 /// Docker accepts `/?[a-zA-Z0-9][a-zA-Z0-9_.-]+` with no practical length
-/// cap; the Apple runtime additionally requires ≤ 63 bytes and rejects
-/// leading `_` (probed: 63 ok, 64+ "not a valid container ID", `_foo`
-/// rejected, `UPPER`/`9foo`/`foo.bar` accepted). Stock clients hit this with
+/// cap and (in practice) non-ASCII letters; the Apple runtime additionally
+/// requires ≤ 63 bytes, ASCII only, and rejects leading `_` (probed on
+/// `container` 1.3.1: 63 ok, 64+ "not a valid container ID", `_foo` and
+/// `café` rejected, `UPPER`/`9foo`/`foo.bar` accepted) — the grammar
+/// `VolumeClone.isSafeComponent` encodes, shared here so the shim's idea of
+/// a valid runtime name cannot drift from the clone-path guard's (a name it
+/// passed through untouched would otherwise be refused `invalid_argument`
+/// by the native create). Stock clients hit this with
 /// long generated names — notably testcontainers' `reaper_<session>` (71
 /// chars). When the requested name is already valid it passes through
 /// untouched; otherwise a deterministic sanitized runtime name is derived
@@ -621,13 +626,11 @@ enum DockerNaming {
     static let maxLength = 63
 
     static func isRuntimeValid(_ name: String) -> Bool {
-        guard !name.isEmpty, name.count <= maxLength else { return false }
-        guard let first = name.first, first.isLetter || first.isNumber else { return false }
-        return name.allSatisfy(Self.isRuntimeChar)
+        VolumeClone.isSafeComponent(name)
     }
 
     private static func isRuntimeChar(_ ch: Character) -> Bool {
-        ch.isLetter || ch.isNumber || ch == "_" || ch == "." || ch == "-"
+        ch.isASCII && (ch.isLetter || ch.isNumber || ch == "_" || ch == "." || ch == "-")
     }
 
     private static func sanitizedChar(_ ch: Character) -> Character {

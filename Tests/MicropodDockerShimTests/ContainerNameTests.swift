@@ -53,4 +53,21 @@ final class ContainerNameTests: XCTestCase {
         XCTAssertTrue(DockerNaming.isRuntimeValid(String(repeating: "a", count: 63)))
         XCTAssertFalse(DockerNaming.isRuntimeValid("_foo"))
     }
+
+    /// The runtime's id grammar is ASCII — `container` 1.3.1 answers
+    /// `container ID café is not a valid container ID` — and so is the
+    /// clone-path grammar (`VolumeClone.isSafeComponent`) this check
+    /// shares: a name Docker accepts but the runtime does not is aliased,
+    /// never passed through to a hard failure.
+    func testNonASCIINamesAreAliased() {
+        for name in ["café", "日本", "naïve-1"] {
+            XCTAssertFalse(DockerNaming.isRuntimeValid(name), name)
+            let mapping = DockerNaming.runtimeName(for: name)
+            XCTAssertTrue(mapping.aliased, name)
+            XCTAssertTrue(DockerNaming.isRuntimeValid(mapping.name), mapping.name)
+            XCTAssertTrue(mapping.name.allSatisfy(\.isASCII), mapping.name)
+            XCTAssertEqual(mapping.name, DockerNaming.runtimeName(for: name).name, "must be stable across restarts")
+        }
+        XCTAssertEqual(DockerNaming.runtimeName(for: "café").name, "caf-")
+    }
 }

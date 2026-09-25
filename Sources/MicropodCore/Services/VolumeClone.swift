@@ -223,6 +223,9 @@ public enum VolumeClone {
     /// by a raw `container delete` or a crashed runtime. Callers pass a list
     /// the runtime answered, never an empty one standing in for a failed
     /// list: sweeping against that would unlink live containers' clones.
+    /// A dir whose name is outside ``componentGrammar`` (only a pre-guard
+    /// build or a hand can have put one here) is never a path this code
+    /// builds: it is left in place, and said so on stderr.
     public static func sweepOrphanClones(live: Set<String>) async {
         let cutoff = Date().addingTimeInterval(-orphanGrace)
         for dir
@@ -232,7 +235,15 @@ public enum VolumeClone {
             && (try? dir.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
             && ((try? dir.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast) < cutoff
         {
-            await removeClones(containerID: dir.lastPathComponent)
+            let id = dir.lastPathComponent
+            guard isSafeComponent(id) else {
+                FileHandle.standardError.write(
+                    Data(
+                        ("micropod: clone dir \(id.debugDescription) under \(cloneRoot.path) is not a container id "
+                            + "(\(componentGrammar)); left in place\n").utf8))
+                continue
+            }
+            await removeClones(containerID: id)
         }
     }
 
