@@ -125,7 +125,12 @@
 
     .footer { border-top: 1px solid var(--border); padding: 2rem 0; font-size: 0.75rem; color: var(--fg-muted); }
     .footer-inner { max-width: 80rem; margin: 0 auto; padding: 0 1.5rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+
+    /* mdxcn graph components — landing-flavoured overrides */
+    .article-body > figure, .article-body figure[class], .article-body > div[data-slot] { margin-top: 1.5rem; }
+    .article-body figure { margin-top: 1.5rem; }
   </style>
+  {{GRAPH_CSS}}
 </head>
 <body>
   <header class="nav">

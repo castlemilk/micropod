@@ -15,15 +15,6 @@ We benchmarked Micropod's Docker Engine shim against Docker Desktop on the same 
 
 ## API latency — where the shim wins outright
 
-```
-+----------------- [ P50 API, MS ] ----------------+
-|                                                  |
-| 512x      3000x      117x                        |
-| images    df         containers                  |
-|                                                  |
-+--------------------------------------------------+
-```
-
 | op | micropod | docker | verdict |
 |---|---|---|---|
 | ping | 0.3 ms | 1.9 ms | 6x faster |
@@ -33,6 +24,12 @@ We benchmarked Micropod's Docker Engine shim against Docker Desktop on the same 
 | inspect container | 0.5 ms | 1.8 ms | 3.6x faster |
 | system df | 3.0 ms | 9,003 ms | ~3000x faster |
 | info | 0.4 ms | 4.6 ms | 11x faster |
+
+<GraphStat title="P50 API, MS — SPEEDUP VS DOCKER" items={[
+  { value: "512x", label: "images/json" },
+  { value: "3000x", label: "system df" },
+  { value: "117x", label: "containers list" },
+]} />
 
 The big multipliers are honest but need the caveat attached: list and image reads are served from a read-through cache with a 1 s TTL bound, so they're effectively `memcpy` of an encoded body. Docker Desktop's `images/json` walks its storage layer every call. The cache is a real engineering choice with real guardrails (reads only; mutations always resolve fresh) — it's covered in detail in [the optimizations post](/micropod/blog/micropod-optimizations/). The uncached paths matter too: `inspect` at 0.5 ms is a genuine in-process lookup, not a spawn.
 
@@ -57,19 +54,12 @@ The headline number holds up: a complete create→start→exec→logs→stop→r
 
 **`start` at 529 ms vs 70 ms** is the structural gap, and it isn't shim overhead — it's the price of the isolation model. Docker Desktop's `start` is a process spawn inside one warm, shared Linux VM. Micropod's `start` is a real micro-VM: VM create, kernel boot, DHCP lease, virtiofs rootfs attach, init. That ~0.5–1.0 s is the floor of actually giving every container its own kernel.
 
-```
-+------------------ [ MODEL ] --------------------+
-|                                                  |
-|                    | Docker | Micropod           |
-| -------------------+--------+---------           |
-| Shared kernel      |    ✓   |      –             |
-| Per-container VM   |    –   |      ✓             |
-| ~70 ms start       |    ✓   |      –             |
-| Guest escape risk  |  high  |    low             |
-| Idle RSS           | 1.2 GB |  169 MB            |
-|                                                  |
-+--------------------------------------------------+
-```
+<GraphCompare title="SHARED VM VS PER-CONTAINER MICRO-VM" columns={["Docker Desktop", "Micropod"]} rows={[
+  { label: "Shared kernel", values: ["yes", "no"] },
+  { label: "Per-container VM", values: ["no", "yes"] },
+  { label: "~70 ms start", values: ["yes", "no"] },
+  { label: "Idle RSS", values: ["1.2 GB", "169 MB"] },
+]} />
 
 **`exec`, `logs`, `rm` at ~30–75 ms** each pay ~1 CLI spawn (~15–80 ms measured per `Process` invocation into `container-apiserver`). That's a structural floor unless a persistent apiserver session replaces per-call spawns — it's on the backlog.
 
@@ -90,10 +80,12 @@ If your workload is API-shaped — dashboards, agents polling state, testcontain
 
 Reproduce it yourself:
 
-```bash
-python3 scripts/bench_shim_vs_docker.py unix:///~/.micropod/docker.sock shim --json bench/shim.json
-python3 scripts/bench_shim_vs_docker.py unix:///var/run/docker.sock docker --json bench/docker.json
-bash scripts/bench_runtime.sh idle    # RSS sums — intrusive, stops both runtimes
-```
+<Terminal title="BENCH">
+{`$ python3 scripts/bench_shim_vs_docker.py unix:///~/.micropod/docker.sock shim --json bench/shim.json
+$ python3 scripts/bench_shim_vs_docker.py unix:///var/run/docker.sock docker --json bench/docker.json
+$ bash scripts/bench_runtime.sh idle    # RSS sums — intrusive, stops both runtimes`}
+</Terminal>
 
-<Callout title="Guardrail">`--baseline bench/shim.json` fails the bench if any p50 regresses more than 20% against a saved run — the numbers above can't quietly rot.</Callout>
+<Callout type="tip" title="GUARDRAIL">
+`--baseline bench/shim.json` fails the bench if any p50 regresses more than 20% against a saved run — the numbers above can't quietly rot.
+</Callout>
