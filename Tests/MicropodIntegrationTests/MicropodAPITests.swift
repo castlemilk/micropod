@@ -1346,12 +1346,14 @@ final class MicropodAPITests: XCTestCase {
     /// 64-character volume name passes every edge: `CreateContainer` on
     /// Connect and REST (the CLI is asked, with the volume), `CloneVolume`
     /// (the clone is made) and `CommitVolumeClone` (past the grammar to the
-    /// clone check, `not_found`). One past the filename limit (`<name>.img`
-    /// must fit `NAME_MAX`) is `invalid_argument`/400 naming the field, and
-    /// the CLI is never asked.
+    /// clone check, `not_found`); `CloneVolume` takes the longest name the
+    /// grammar admits (237). One past the filename limit (the clone's
+    /// staging file `.<name>.img.tmp-<8 hex>` must fit `NAME_MAX`: 238, and
+    /// 252) is `invalid_argument`/400 naming the field, and the CLI is never
+    /// asked.
     func testLongVolumeNamesReachTheCLI() async throws {
         let long = String(repeating: "v", count: 64)
-        let tooLong = String(repeating: "x", count: 252)
+        let longest = String(repeating: "w", count: 237)
         _ = try await json("POST", "v1/volumes", body: ["name": long])
 
         let created = try await json(
@@ -1373,6 +1375,10 @@ final class MicropodAPITests: XCTestCase {
             "POST", "api/micropod.v1.VolumeService/CloneVolume", body: ["source": long, "name": "c-\(long)"])
         XCTAssertEqual(cloneStatus, 200, "CloneVolume: \(clone)")
         XCTAssertEqual(clone["id"] as? String, "c-\(long)", "\(clone)")
+        let (longestStatus, longestClone) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CloneVolume", body: ["source": long, "name": longest])
+        XCTAssertEqual(longestStatus, 200, "CloneVolume: \(longestClone)")
+        XCTAssertEqual(longestClone["id"] as? String, longest, "\(longestClone)")
         try setMockState(connectID, to: "stopped")
         let (commitStatus, commit) = try await jsonStatus(
             "POST", "api/micropod.v1.VolumeService/CommitVolumeClone",
@@ -1382,25 +1388,29 @@ final class MicropodAPITests: XCTestCase {
         XCTAssertTrue((commit["message"] as? String ?? "").contains("clone"), "\(commit)")
 
         let callsBefore = mockCalls().count
-        let create: [String: Any] = ["image": "nginx:1.27", "name": "job-2", "volumes": ["\(tooLong):/x"]]
-        for (path, body, field) in [
-            ("api/micropod.v1.ContainerService/CreateContainer", create, "volumes"),
-            ("api/micropod.v1.ContainerService/RunContainer", create, "volumes"),
-            ("api/micropod.v1.VolumeService/CloneVolume", ["source": long, "name": tooLong], "name"),
-            ("api/micropod.v1.VolumeService/CloneVolume", ["source": tooLong, "name": "c2"], "source"),
-            (
-                "api/micropod.v1.VolumeService/CommitVolumeClone", ["containerId": connectID, "volume": tooLong],
-                "volume"
-            ),
-        ] as [(String, [String: Any], String)] {
-            let (status, reply) = try await jsonStatus("POST", path, body: body)
-            XCTAssertEqual(status, 400, "\(path) \(field): \(reply)")
-            XCTAssertEqual(reply["code"] as? String, "invalid_argument", "\(path) \(field): \(reply)")
-            XCTAssertTrue((reply["message"] as? String ?? "").hasPrefix("\(field):"), "\(path) \(field): \(reply)")
+        for tooLong in [longest + "x", String(repeating: "x", count: 252)] {
+            let count = tooLong.count
+            let create: [String: Any] = ["image": "nginx:1.27", "name": "job-2", "volumes": ["\(tooLong):/x"]]
+            for (path, body, field) in [
+                ("api/micropod.v1.ContainerService/CreateContainer", create, "volumes"),
+                ("api/micropod.v1.ContainerService/RunContainer", create, "volumes"),
+                ("api/micropod.v1.VolumeService/CloneVolume", ["source": long, "name": tooLong], "name"),
+                ("api/micropod.v1.VolumeService/CloneVolume", ["source": tooLong, "name": "c2"], "source"),
+                (
+                    "api/micropod.v1.VolumeService/CommitVolumeClone", ["containerId": connectID, "volume": tooLong],
+                    "volume"
+                ),
+            ] as [(String, [String: Any], String)] {
+                let (status, reply) = try await jsonStatus("POST", path, body: body)
+                XCTAssertEqual(status, 400, "\(count) \(path) \(field): \(reply)")
+                XCTAssertEqual(reply["code"] as? String, "invalid_argument", "\(count) \(path) \(field): \(reply)")
+                XCTAssertTrue(
+                    (reply["message"] as? String ?? "").hasPrefix("\(field):"), "\(count) \(path) \(field): \(reply)")
+            }
+            let (restStatus, restReply) = try await jsonStatus("POST", "v1/containers", body: create)
+            XCTAssertEqual(restStatus, 400, "\(count): \(restReply)")
+            XCTAssertTrue((restReply["error"] as? String ?? "").contains(tooLong), "\(count): \(restReply)")
         }
-        let (restStatus, restReply) = try await jsonStatus("POST", "v1/containers", body: create)
-        XCTAssertEqual(restStatus, 400, "\(restReply)")
-        XCTAssertTrue((restReply["error"] as? String ?? "").contains(tooLong), "\(restReply)")
         let later = mockCalls().dropFirst(callsBefore)
         XCTAssertFalse(
             later.contains { call in ["run ", "create ", "volume create"].contains { call.hasPrefix($0) } },

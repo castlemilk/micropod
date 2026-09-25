@@ -212,23 +212,28 @@ final class VolumeCloneTests: XCTestCase {
     /// characters and no cap of its own (`container` 1.3.1 creates a
     /// 64-character volume; `café`, `.h` and `a/b` are refused `must match
     /// ^[A-Za-z0-9][A-Za-z0-9_.-]*$`). The only bound is the filename
-    /// limit: `<name>.img` must fit `NAME_MAX`, so 251 characters fit and
-    /// 252 do not. The id cap does not apply to volume names, and the
-    /// volume bound does not loosen ids.
+    /// limit, and the longest name the clone places is not `<name>.img` but
+    /// its staging file `.<name>.img.tmp-<8 hex>` — 18 bytes more than the
+    /// name — so on APFS (`NAME_MAX` 255) 237 characters fit and 238 do
+    /// not. The id cap does not apply to volume names, and the volume bound
+    /// does not loosen ids.
     func testSafeVolumeNameIsTheRuntimeVolumeGrammar() {
-        XCTAssertEqual(VolumeClone.maxVolumeNameLength, 251)
-        XCTAssertEqual(VolumeClone.volumeNameGrammar, "[A-Za-z0-9][A-Za-z0-9_.-]{0,250}")
+        XCTAssertEqual(VolumeClone.stagingOverhead, 18, "`.` + `.img` + `.tmp-` + 8 hex")
+        XCTAssertEqual(VolumeClone.maxVolumeNameLength, Int(NAME_MAX) - VolumeClone.stagingOverhead)
+        XCTAssertEqual(VolumeClone.maxVolumeNameLength, 237)
+        XCTAssertEqual(VolumeClone.volumeNameGrammar, "[A-Za-z0-9][A-Za-z0-9_.-]{0,236}")
         for good in [
             "a", "7", "npm", "A.b_c-9", "9foo", "foo.bar", String(repeating: "v", count: 63),
             String(repeating: "v", count: 64), "cf-cache-" + String(repeating: "k", count: 120),
-            String(repeating: "v", count: 251),
+            String(repeating: "v", count: 237),
         ] {
             XCTAssertTrue(VolumeClone.isSafeVolumeName(good), good)
             XCTAssertNoThrow(try VolumeClone.requireSafeVolumeName(good), good)
         }
         for bad in [
             "", ".", "..", "../x", "a/b", "/a", "a/", "-a", "_a", ".a", "a b", "a:b", "é", "a\u{0}b", "ab\n",
-            String(repeating: "v", count: 252), "../../com.apple.container/volumes/golden",
+            String(repeating: "v", count: 238), String(repeating: "v", count: 252),
+            "../../com.apple.container/volumes/golden",
         ] {
             XCTAssertFalse(VolumeClone.isSafeVolumeName(bad), bad.debugDescription)
             XCTAssertThrowsError(try VolumeClone.requireSafeVolumeName(bad), bad.debugDescription) { error in
@@ -236,6 +241,7 @@ final class VolumeCloneTests: XCTestCase {
                 XCTAssertTrue(error.localizedDescription.contains(VolumeClone.volumeNameGrammar), "\(error)")
             }
         }
+        XCTAssertTrue(VolumeClone.isSafeComponent(String(repeating: "v", count: 63)), "the id cap stays 63")
         XCTAssertFalse(VolumeClone.isSafeComponent(String(repeating: "v", count: 64)), "the id cap stays 63")
     }
 
@@ -245,14 +251,14 @@ final class VolumeCloneTests: XCTestCase {
     /// `clonedVolumes` lists it, `requireClone` finds it and both
     /// `removeClones` unlink it — a pre-guard build placed such clones, and
     /// a dir left behind with the file in it would never be reclaimed. A
-    /// name past the filename limit is refused before any look at the
-    /// filesystem.
+    /// name past the filename limit (the staging name must fit `NAME_MAX`)
+    /// is refused before any look at the filesystem.
     func testLongVolumeNamesAreClonePathComponents() async throws {
         setenv("MICROPOD_VOLUME_CLONE_ROOT", dir.path, 1)
         defer { unsetenv("MICROPOD_VOLUME_CLONE_ROOT") }
         let long = String(repeating: "v", count: 64)
-        let longest = String(repeating: "w", count: 251)
-        let tooLong = String(repeating: "x", count: 252)
+        let longest = String(repeating: "w", count: 237)
+        let tooLong = String(repeating: "x", count: 238)
 
         let clone = try VolumeClone.clonePath(containerID: "job-long", volume: long)
         XCTAssertEqual(clone.path, path("job-long/\(long).img"))
@@ -278,6 +284,63 @@ final class VolumeCloneTests: XCTestCase {
         XCTAssertEqual(VolumeClone.clonedVolumes(containerID: "job-long"), [longest], "only the named one")
         await VolumeClone.removeClones(containerID: "job-long")
         XCTAssertFalse(FileManager.default.fileExists(atPath: path("job-long")), "every clone and the dir are gone")
+    }
+
+    /// The longest name the volume grammar admits is placed for real, not
+    /// just named: `cloneImage` stages the clone as `.<name>.img.tmp-<8
+    /// hex>` beside its destination before the rename, so that staging name
+    /// — 18 bytes more than the volume name — is what must fit `NAME_MAX`.
+    /// A 237-character name (255 bytes staged on APFS) is placed exclusively
+    /// at its `clonePath`, leaves no staging file, and commits back over the
+    /// golden. One more character is refused `invalid_argument` by the
+    /// grammar before any filesystem work — the bound is tight: past the
+    /// grammar, the placement itself fails `File name too long`, which would
+    /// surface as `internal` from a create that passed every guard.
+    func testTheLongestVolumeNameIsPlacedAndCommitted() throws {
+        let root = dir.appendingPathComponent("clones", isDirectory: true)
+        setenv("MICROPOD_VOLUME_CLONE_ROOT", root.path, 1)
+        defer { unsetenv("MICROPOD_VOLUME_CLONE_ROOT") }
+        let store = dir.appendingPathComponent("store/cache", isDirectory: true)
+        try FileManager.default.createDirectory(at: store, withIntermediateDirectories: true)
+        let golden = store.appendingPathComponent("volume.img").path
+        try payload(seed: 30, count: 4096).write(to: URL(fileURLWithPath: golden))
+
+        let longest = String(repeating: "w", count: VolumeClone.maxVolumeNameLength)
+        XCTAssertEqual(longest.utf8.count, 237)
+        let clone = try VolumeClone.clonePath(containerID: "job-max", volume: longest)
+        let staging = URL(fileURLWithPath: VolumeClone.tempPath(nextTo: clone)).lastPathComponent
+        XCTAssertTrue(staging.hasPrefix(".\(longest).img.tmp-"), staging)
+        XCTAssertEqual(staging.utf8.count, longest.utf8.count + VolumeClone.stagingOverhead, staging)
+        XCTAssertEqual(staging.utf8.count, Int(NAME_MAX), "the staging name just fits")
+        try VolumeClone.cloneImage(from: golden, to: clone.path, placement: .exclusive)
+        XCTAssertEqual(try Data(contentsOf: clone), payload(seed: 30, count: 4096))
+        XCTAssertEqual(
+            try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("job-max").path),
+            ["\(longest).img"], "no staging file left beside the clone")
+
+        // The container wrote into its clone; the commit promotes those bytes.
+        let written = payload(seed: 31, count: 4096)
+        let handle = try FileHandle(forWritingTo: clone)
+        try handle.write(contentsOf: written)
+        try handle.close()
+        XCTAssertGreaterThan(try VolumeClone.commit(clonePath: clone.path, goldenPath: golden), 0)
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: golden)), written)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: store.path), ["volume.img"])
+
+        let tooLong = longest + "w"
+        XCTAssertThrowsError(try VolumeClone.clonePath(containerID: "job-over", volume: tooLong)) { error in
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "invalid_argument", "\(error)")
+        }
+        XCTAssertThrowsError(try VolumeClone.requireClone(containerID: "job-over", volume: tooLong)) { error in
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "invalid_argument", "\(error)")
+        }
+        XCTAssertEqual(
+            try FileManager.default.contentsOfDirectory(atPath: root.path), ["job-max"], "nothing placed for 238")
+
+        let unguarded = dir.appendingPathComponent("unguarded/\(tooLong).img").path
+        XCTAssertThrowsError(try VolumeClone.cloneImage(from: golden, to: unguarded, placement: .exclusive)) { error in
+            XCTAssertTrue(error.localizedDescription.contains("File name too long"), "\(error)")
+        }
     }
 
     /// The clone root's sibling store holds a golden, exactly where

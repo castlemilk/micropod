@@ -277,8 +277,13 @@ runtime's container-ID grammar, `[A-Za-z0-9][A-Za-z0-9_.-]{0,62}`
 and refuses 64+). A volume name must match the runtime's volume grammar,
 `^[A-Za-z0-9][A-Za-z0-9_.-]*$` — the same characters with no cap of its
 own (`container volume create` takes a 64-character name) — bounded only
-by the filename limit, since the clone is `<name>.img`: 251 characters
-(`VolumeClone.requireSafeVolumeName`, `maxVolumeNameLength`). The
+by the filename limit. The clone `<name>.img` is placed through a staging
+file beside it, `.<name>.img.tmp-<8 hex>`, 18 bytes longer than the name
+(`VolumeClone.stagingOverhead`, derived from the format `tempPath` emits),
+and that name must fit `NAME_MAX` (255 on APFS): 237 characters
+(`VolumeClone.requireSafeVolumeName`, `maxVolumeNameLength`). A longer
+name would pass every guard and then fail inside the placement with `File
+name too long`, as `internal` rather than `invalid_argument`. The
 container-id cap is deliberately not applied to volume names: a plain
 `-v <name>:/x` attach of a long name (cuttlefish's
 `cf-cache-<project>-<node>-<path>-<key>` volumes have no length bound)

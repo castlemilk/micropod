@@ -37,7 +37,7 @@ public enum VolumeClone {
     public static func clonePath(containerID: String, volume: String) throws -> URL {
         try requireSafeComponent(containerID, as: "container id")
         try requireSafeVolumeName(volume, as: "volume name")
-        return cloneDir(containerID).appendingPathComponent("\(volume).img")
+        return cloneDir(containerID).appendingPathComponent("\(volume)\(cloneSuffix)")
     }
 
     /// `<cloneRoot>/<containerID>` — callers have checked the id.
@@ -51,7 +51,7 @@ public enum VolumeClone {
     public static func clonedVolumes(containerID: String) -> [String] {
         guard isSafeComponent(containerID) else { return [] }
         let names = (try? FileManager.default.contentsOfDirectory(atPath: cloneDir(containerID).path)) ?? []
-        return names.filter { $0.hasSuffix(".img") }.map { String($0.dropLast(4)) }.sorted()
+        return names.filter { $0.hasSuffix(cloneSuffix) }.map { String($0.dropLast(cloneSuffix.count)) }.sorted()
     }
 
     // MARK: - Path-component grammars
@@ -71,16 +71,38 @@ public enum VolumeClone {
     /// grammar — the id grammar's characters with no cap of its own
     /// (`container` 1.3.1 creates a 64-character volume; `café`, `.h` and
     /// `a/b` are refused `invalid volume name … must match
-    /// ^[A-Za-z0-9][A-Za-z0-9_.-]*$`). The only bound is the filename limit:
-    /// `<name>.img` must fit `NAME_MAX`, so ``maxVolumeNameLength`` (251)
-    /// characters. A consumer's cache volumes (cuttlefish's
+    /// ^[A-Za-z0-9][A-Za-z0-9_.-]*$`). The only bound is the filename limit,
+    /// and the longest name a clone puts on disk is not `<name>.img` but the
+    /// staging file ``cloneImage(from:to:placement:)`` lands it through,
+    /// `.<name>.img.tmp-<8 hex>`: that must fit `NAME_MAX`, so
+    /// ``maxVolumeNameLength`` (237 on APFS) characters. A name past it
+    /// would pass every guard and then fail inside the placement with
+    /// `File name too long` (`internal`) instead of `invalid_argument`. A
+    /// consumer's cache volumes (cuttlefish's
     /// `cf-cache-<project>-<node>-<path>-<key>`) have no length bound and
     /// must not be refused for a cap the runtime does not have.
     public static let volumeNameGrammar = "[A-Za-z0-9][A-Za-z0-9_.-]{0,\(maxVolumeNameLength - 1)}"
 
-    /// `NAME_MAX` less the `.img` suffix. The grammar is ASCII, so
-    /// characters are bytes.
-    public static let maxVolumeNameLength = Int(NAME_MAX) - ".img".utf8.count
+    /// `NAME_MAX` less ``stagingOverhead``: the longest volume name whose
+    /// clone's staging file still fits. The grammar is ASCII, so characters
+    /// are bytes.
+    public static let maxVolumeNameLength = Int(NAME_MAX) - stagingOverhead
+
+    /// Bytes a clone's staging file adds to its volume name, from the exact
+    /// format ``tempPath(nextTo:)`` emits beside `<name>.img`: the leading
+    /// `.`, ``cloneSuffix``, ``stagingMarker`` and ``stagingTagLength`` hex
+    /// digits (1 + 4 + 5 + 8 = 18).
+    public static let stagingOverhead = 1 + cloneSuffix.utf8.count + stagingMarker.utf8.count + stagingTagLength
+
+    /// A clone image's file suffix: `<cloneRoot>/<id>/<volume>.img`.
+    static let cloneSuffix = ".img"
+
+    /// What ``tempPath(nextTo:)`` puts between the staged file's name and
+    /// its tag: `.<file>.tmp-<tag>`.
+    static let stagingMarker = ".tmp-"
+
+    /// Length of a staging file's tag: a UUID's first group, 8 hex digits.
+    static let stagingTagLength = 8
 
     public static func isSafeComponent(_ value: String) -> Bool {
         matchesRuntimeCharset(value, maxLength: 63)
@@ -202,7 +224,7 @@ public enum VolumeClone {
         let dir = cloneDir(containerID)
         await unlinkClones(containerID: containerID, volumes: clonedVolumes(containerID: containerID))
         let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
-        for name in names where name.hasPrefix(".") && name.contains(".img.tmp-") {
+        for name in names where name.hasPrefix(".") && name.contains(cloneSuffix + stagingMarker) {
             unlink(dir.appendingPathComponent(name).path)
         }
         rmdir(dir.path)
@@ -487,16 +509,20 @@ public enum VolumeClone {
     /// that volume's lock, so nothing live can be swept.
     private static func removeStaleStaging(nextTo file: URL) {
         let dir = file.deletingLastPathComponent()
-        let prefix = ".\(file.lastPathComponent).tmp-"
+        let prefix = ".\(file.lastPathComponent)\(stagingMarker)"
         let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
         for name in names where name.hasPrefix(prefix) {
             unlink(dir.appendingPathComponent(name).path)
         }
     }
 
-    private static func tempPath(nextTo file: URL) -> String {
-        file.deletingLastPathComponent()
-            .appendingPathComponent(".\(file.lastPathComponent).tmp-\(UUID().uuidString.prefix(8).lowercased())")
+    /// `.<file>.tmp-<8 hex>` beside `file` — ``stagingOverhead`` bytes past
+    /// a clone's volume name, the bound ``maxVolumeNameLength`` is derived
+    /// from.
+    static func tempPath(nextTo file: URL) -> String {
+        let tag = UUID().uuidString.prefix(stagingTagLength).lowercased()
+        return file.deletingLastPathComponent()
+            .appendingPathComponent(".\(file.lastPathComponent)\(stagingMarker)\(tag)")
             .path
     }
 

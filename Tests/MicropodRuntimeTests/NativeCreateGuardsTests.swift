@@ -194,6 +194,35 @@ final class NativeCreateGuardsTests: XCTestCase {
             ["cache.img"], "no staging file left next to the winner's clone")
     }
 
+    /// The longest volume name the grammar admits is placed for real on the
+    /// create path — `placeClone` stages the clone as `.<name>.img.tmp-<8
+    /// hex>` beside it, which must fit `NAME_MAX` — rather than passing
+    /// every guard and failing inside the placement as `internal`. One more
+    /// character is `invalid_argument` and nothing is placed.
+    func testPlaceCloneTakesTheLongestVolumeName() async throws {
+        let golden = root.appendingPathComponent("golden.img")
+        try Data("golden".utf8).write(to: golden)
+        let longest = String(repeating: "w", count: VolumeClone.maxVolumeNameLength)
+
+        let placed = try await NativeContainerService.placeClone(volume: longest, containerID: "job-max") {
+            self.inspectReply(source: golden)
+        }
+        XCTAssertEqual(placed.clone, root.appendingPathComponent("job-max/\(longest).img").path)
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: placed.clone)), Data("golden".utf8))
+
+        do {
+            _ = try await NativeContainerService.placeClone(volume: longest + "w", containerID: "job-over") {
+                self.inspectReply(source: golden)
+            }
+            XCTFail("a 238-character volume name must be refused")
+        } catch {
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "invalid_argument", "\(error)")
+        }
+        XCTAssertEqual(
+            try FileManager.default.contentsOfDirectory(atPath: root.path).sorted(), ["golden.img", "job-max"],
+            "nothing placed for 238")
+    }
+
     /// The container name is `<cloneRoot>/<name>`'s path component and
     /// reaches the clone-dir lifecycle (orphan sweep, stale-dir reclaim,
     /// placement, failure removal) before the runtime validates it. `create`
@@ -236,9 +265,10 @@ final class NativeCreateGuardsTests: XCTestCase {
             }
         }
         // A named volume is a path component too (`<root>/<id>/<volume>.img`):
-        // the runtime's volume grammar, bounded by the filename limit
-        // (`<name>.img` must fit `NAME_MAX`).
-        for volume in ["-g", String(repeating: "v", count: 252)] {
+        // the runtime's volume grammar, bounded by the filename limit (the
+        // clone's staging file `.<name>.img.tmp-<8 hex>` must fit
+        // `NAME_MAX`, so 237 characters on APFS).
+        for volume in ["-g", String(repeating: "v", count: 238), String(repeating: "v", count: 252)] {
             do {
                 _ = try await service.create(
                     ContainerRunRequest(
