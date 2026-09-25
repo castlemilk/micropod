@@ -116,11 +116,17 @@ public struct ImagesServiceClient: Sendable {
 
     /// `ClientImage.fetch`: local match, else pull. Returns the image
     /// `description` object to embed in `ContainerConfiguration.image`.
+    ///
+    /// `noPull` (`RunContainerRequest.no_pull`) turns the pull step into a
+    /// `notFound:` refusal — the caller owns bounded pulls; the runtime's
+    /// `imagePull` has no timeout. A local copy that lacks the requested
+    /// platform's manifest counts as absent, and the message says which.
     public func ensure(
         reference: String,
         platform: JSONValue?,
         registryDomain: String,
-        insecure: Bool = false
+        insecure: Bool = false,
+        noPull: Bool = false
     ) async throws -> JSONValue {
         if let match = try await find(reference: reference, registryDomain: registryDomain) {
             // Exists locally — usable only if it carries the requested
@@ -132,11 +138,32 @@ public struct ImagesServiceClient: Sendable {
                 return match
             }
         }
+        if noPull {
+            throw Self.notPresentLocally(reference: reference, platform: platform)
+        }
         return try await pull(
             reference: try Self.normalizeReference(reference, registryDomain: registryDomain),
             platform: platform,
             insecure: insecure
         )
+    }
+
+    /// The `no_pull` refusal. `notFound:` is the upstream-style prefix
+    /// `ConnectCodeMapping` reads as `not_found`; the platform is spelled
+    /// `os/arch[/variant]` so a caller can pull exactly the missing variant.
+    static func notPresentLocally(reference: String, platform: JSONValue?) -> MicropodError {
+        .message("notFound: image \(reference) not present locally for \(platformDescription(platform))")
+    }
+
+    static func platformDescription(_ platform: JSONValue?) -> String {
+        guard case .object(let fields)? = platform,
+            case .string(let os) = fields["os"],
+            case .string(let arch) = fields["architecture"]
+        else { return "any platform" }
+        if case .string(let variant) = fields["variant"], !variant.isEmpty {
+            return "\(os)/\(arch)/\(variant)"
+        }
+        return "\(os)/\(arch)"
     }
 
     /// Resolve the OCI `Image` (root doc holding `config`) for a stored

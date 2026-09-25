@@ -450,6 +450,12 @@ public struct ContainerRunRequest: Sendable, Equatable {
     public var workdir: String?
     public var entrypoint: String?
     public var arguments: [String]
+    /// Refuse instead of pulling when the image is not present locally
+    /// (`RunContainerRequest.no_pull`). The `container` CLI pulls implicitly
+    /// with no timeout, so the CLI backend checks `image list` before it
+    /// spawns `create`/`run`; the native backend skips `imagePull`. Not a
+    /// CLI flag — it never appears in the argv.
+    public var noPull: Bool
 
     public init(
         image: String,
@@ -479,7 +485,8 @@ public struct ContainerRunRequest: Sendable, Equatable {
         platform: String? = nil,
         workdir: String? = nil,
         entrypoint: String? = nil,
-        arguments: [String] = []
+        arguments: [String] = [],
+        noPull: Bool = false
     ) {
         self.image = image
         self.name = name
@@ -509,6 +516,7 @@ public struct ContainerRunRequest: Sendable, Equatable {
         self.workdir = workdir
         self.entrypoint = entrypoint
         self.arguments = arguments
+        self.noPull = noPull
     }
 }
 

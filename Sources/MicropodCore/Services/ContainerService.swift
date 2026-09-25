@@ -96,13 +96,32 @@ public struct ContainerService: ContainerServing {
     }
 
     public func run(_ request: ContainerRunRequest) async throws -> String {
+        try await refuseIfNoPullAndAbsent(request)
         let output = try await client.run(ContainerCommandFactory.run(request), timeout: .seconds(120))
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     public func create(_ request: ContainerRunRequest) async throws -> String {
+        try await refuseIfNoPullAndAbsent(request)
         let output = try await client.run(ContainerCommandFactory.create(request), timeout: .seconds(120))
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// `no_pull` on the CLI backend: `container create`/`run` pull a missing
+    /// image implicitly (no timeout, no way to opt out), so the only honest
+    /// refusal is a presence check *before* the CLI is spawned. The image
+    /// must be stored under the requested tag/digest and, when the local
+    /// copy advertises its variants, carry one for the requested platform
+    /// (the CLI's default is `linux/<host arch>`, like `container run`).
+    /// The `notFound:` prefix is what the Connect table maps to `not_found`.
+    private func refuseIfNoPullAndAbsent(_ request: ContainerRunRequest) async throws {
+        guard request.noPull else { return }
+        let platform = try LocalImagePresence.platform(request.platform)
+        let local = try await ImageService(client: client).list()
+        guard LocalImagePresence.contains(request.image, platform: platform, in: local) else {
+            throw MicropodError.message(
+                "notFound: image \(request.image) not present locally for \(platform.os)/\(platform.architecture)")
+        }
     }
 
     public func exec(_ request: ContainerExecRequest) async throws -> String {
@@ -151,5 +170,64 @@ public struct ContainerService: ContainerServing {
 
     public func copy(from: String, to: String) async throws {
         _ = try await client.run(ContainerCommandFactory.copyFile(from: from, to: to), timeout: .seconds(120))
+    }
+}
+
+/// Presence check for `no_pull` on the CLI backend (see
+/// `ContainerService.refuseIfNoPullAndAbsent`). Kept free of I/O so the
+/// matching rules are testable against `image list` fixtures.
+enum LocalImagePresence {
+    struct Platform: Equatable {
+        let os: String
+        let architecture: String
+    }
+
+    /// `os/arch[/variant]` → normalised (os, arch); nil/empty means the CLI's
+    /// default of `linux/<host arch>`. Malformed specs are `invalidArgument`.
+    static func platform(_ raw: String?) throws -> Platform {
+        guard let raw, !raw.isEmpty else {
+            return Platform(os: "linux", architecture: hostArchitecture)
+        }
+        let parts = raw.split(separator: "/").map(String.init)
+        guard parts.count >= 2, parts.count <= 3, parts.allSatisfy({ !$0.isEmpty }) else {
+            throw MicropodError.message("invalidArgument: platform '\(raw)' must be os/arch[/variant]")
+        }
+        return Platform(os: parts[0].lowercased(), architecture: normalizeArchitecture(parts[1]))
+    }
+
+    /// True when some local image is stored under `reference` (tag or digest
+    /// form, via `localImageIsPresent`) and either advertises no platform
+    /// information at all, or advertises a variant for `platform`.
+    static func contains(_ reference: String, platform: Platform, in images: [Micropod_V1_Image]) -> Bool {
+        images.contains { image in
+            guard localImageIsPresent(reference, in: localImageReferenceInventory(from: [image])) else {
+                return false
+            }
+            let advertised = image.variants.filter { !$0.os.isEmpty || !$0.architecture.isEmpty }
+            guard !advertised.isEmpty else { return true }
+            return advertised.contains {
+                $0.os.lowercased() == platform.os
+                    && normalizeArchitecture($0.architecture) == platform.architecture
+            }
+        }
+    }
+
+    /// OCI spellings the CLI and registries use interchangeably.
+    static func normalizeArchitecture(_ raw: String) -> String {
+        switch raw.lowercased() {
+        case "aarch64", "arm64": return "arm64"
+        case "x86_64", "x86-64", "amd64": return "amd64"
+        default: return raw.lowercased()
+        }
+    }
+
+    static var hostArchitecture: String {
+        #if arch(arm64)
+            return "arm64"
+        #elseif arch(x86_64)
+            return "amd64"
+        #else
+            return "unknown"
+        #endif
     }
 }

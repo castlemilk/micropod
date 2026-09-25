@@ -66,9 +66,24 @@ final class MicropodAPITests: XCTestCase {
     /// Replaces the running server with one whose mock CLI emulates a stopped
     /// runtime (`MICROPOD_MOCK_RUNTIME_STOPPED=1`, see `Support/mock-container`).
     private func relaunchServerWithStoppedRuntime() async throws {
+        try await relaunchServer(extraEnvironment: ["MICROPOD_MOCK_RUNTIME_STOPPED": "1"])
+    }
+
+    /// Replaces the running server with one started under extra environment
+    /// (mock modes are env-driven; the state directory is kept).
+    private func relaunchServer(extraEnvironment: [String: String]) async throws {
         server.terminate()
         server.waitUntilExit()
-        try await launchServer(extraEnvironment: ["MICROPOD_MOCK_RUNTIME_STOPPED": "1"])
+        try await launchServer(extraEnvironment: extraEnvironment)
+    }
+
+    /// Every argv the mock CLI has received so far, one line per call with
+    /// each element `%q`-quoted (see `Support/mock-container`). The lines
+    /// are the ground truth for "what did the server ask the CLI to do".
+    private func mockCalls() -> [String] {
+        let url = stateDir.appendingPathComponent("calls.log")
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return [] }
+        return text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
     }
 
     private func json(_ method: String, _ path: String, body: [String: Any]? = nil) async throws -> [String: Any] {
@@ -472,6 +487,246 @@ final class MicropodAPITests: XCTestCase {
             body: ["id": "ghost-container", "timeoutSeconds": -1])
         XCTAssertEqual(badStatus, 400, "WaitContainer: \(bad)")
         XCTAssertEqual(bad["code"] as? String, "invalid_argument")
+    }
+
+    // MARK: RunContainer fields / no_pull / Exec argv / skip_lines / stats ids
+
+    /// The proto's `entrypoint`, `platform`, `workdir` and `user` reach the
+    /// CLI verbatim — a task package pins `--platform`, an inline script
+    /// overrides the entrypoint — and `arguments` follow the image untouched.
+    func testRunContainerPassesEntrypointPlatformWorkdirUser() async throws {
+        let (status, ref) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/RunContainer",
+            body: [
+                "image": "nginx:1.27", "name": "api-run-fields",
+                "entrypoint": "/bin/sh", "platform": "linux/arm64",
+                "workdir": "/w", "user": "1000:1000",
+                "arguments": ["-c", "true"],
+            ])
+        XCTAssertEqual(status, 200, "RunContainer: \(ref)")
+        let id = ref["id"] as? String ?? ""
+        XCTAssertFalse(id.isEmpty)
+
+        guard let line = mockCalls().last(where: { $0.hasPrefix("run ") }) else {
+            return XCTFail("no `run` invocation recorded: \(mockCalls())")
+        }
+        XCTAssertTrue(line.contains(" --entrypoint /bin/sh "), line)
+        XCTAssertTrue(line.contains(" --platform linux/arm64 "), line)
+        XCTAssertTrue(line.contains(" --workdir /w "), line)
+        XCTAssertTrue(line.contains(" --user 1000:1000 "), line)
+        XCTAssertTrue(line.hasSuffix(" nginx:1.27 -c true"), "image then argv must end the line: \(line)")
+
+        // The runtime saw the same values.
+        let (getStatus, container) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/GetContainer", body: ["id": id])
+        XCTAssertEqual(getStatus, 200, "GetContainer: \(container)")
+        XCTAssertEqual(container["platform"] as? String, "linux/arm64")
+
+        // A malformed platform is a caller error, not a CLI failure.
+        let (badStatus, bad) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/RunContainer",
+            body: ["image": "nginx:1.27", "platform": "arm64"])
+        XCTAssertEqual(badStatus, 400, "RunContainer: \(bad)")
+        XCTAssertEqual(bad["code"] as? String, "invalid_argument")
+    }
+
+    /// `no_pull` turns "image absent locally" into `not_found` *before* the
+    /// CLI is spawned — the CLI would otherwise pull with no timeout. The
+    /// message names the platform so the caller knows which variant to
+    /// fetch, and an image present only for another platform is equally
+    /// `not_found` (never a silent pull for the missing variant).
+    func testCreateNoPullMissingImageIsNotFound() async throws {
+        let (status, body) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/CreateContainer",
+            body: ["image": "ghost/none:1", "noPull": true, "name": "api-nopull"])
+        XCTAssertEqual(status, 404, "CreateContainer: \(body)")
+        XCTAssertEqual(body["code"] as? String, "not_found")
+        let message = body["message"] as? String ?? ""
+        XCTAssertTrue(message.contains("ghost/none:1"), message)
+        XCTAssertTrue(message.contains("linux/"), "the message names the platform: \(message)")
+
+        var calls = mockCalls()
+        XCTAssertFalse(calls.contains { $0.hasPrefix("image pull") }, "no_pull must never pull: \(calls)")
+        XCTAssertFalse(
+            calls.contains { ($0.hasPrefix("create ") || $0.hasPrefix("run ")) && $0.contains("ghost/none:1") },
+            "the CLI must not be asked to create (it would pull): \(calls)")
+        XCTAssertTrue(calls.contains { $0.hasPrefix("image list") }, "presence is a list check: \(calls)")
+
+        // Same request without no_pull still goes through (the mock's
+        // `create` succeeds for any image, like the CLI's implicit pull).
+        let (plainStatus, plain) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/CreateContainer",
+            body: ["image": "ghost/none:1", "name": "api-nopull-plain"])
+        XCTAssertEqual(plainStatus, 200, "CreateContainer without no_pull: \(plain)")
+
+        // Once the image is local (mock pull registers linux/arm64 only),
+        // no_pull creates normally …
+        _ = try await json("POST", "v1/images/pull", body: ["reference": "ghost/none:1"])
+        let (okStatus, created) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/CreateContainer",
+            body: ["image": "ghost/none:1", "noPull": true, "name": "api-nopull"])
+        XCTAssertEqual(okStatus, 200, "CreateContainer with the image present: \(created)")
+        XCTAssertFalse((created["id"] as? String ?? "").isEmpty)
+
+        // … but asking for a platform the local copy lacks is not_found,
+        // naming that platform.
+        let (variantStatus, variant) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/CreateContainer",
+            body: ["image": "ghost/none:1", "noPull": true, "platform": "linux/amd64"])
+        XCTAssertEqual(variantStatus, 404, "CreateContainer for a missing variant: \(variant)")
+        XCTAssertEqual(variant["code"] as? String, "not_found")
+        XCTAssertTrue((variant["message"] as? String ?? "").contains("linux/amd64"), "\(variant)")
+
+        calls = mockCalls()
+        XCTAssertEqual(
+            calls.filter { $0.hasPrefix("image pull") }.count, 1,
+            "only the explicit PullImage may pull: \(calls)")
+    }
+
+    /// `arguments` is a verbatim argv — an element with embedded spaces
+    /// stays one element. `command` keeps its split-on-spaces behaviour for
+    /// old clients, and a request with neither is a caller error.
+    func testExecArgumentsVerbatim() async throws {
+        let run = try await json(
+            "POST", "v1/containers", body: ["image": "nginx:1.27", "name": "api-exec-argv"])
+        let id = run["id"] as? String ?? ""
+        XCTAssertFalse(id.isEmpty)
+
+        let (status, exec) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/Exec",
+            body: ["id": id, "arguments": ["sh", "-c", "echo a  b"]])
+        XCTAssertEqual(status, 200, "Exec: \(exec)")
+        let argvLine = mockCalls().last { $0.hasPrefix("exec ") } ?? ""
+        XCTAssertTrue(
+            argvLine.hasSuffix(" \(id) sh -c echo\\ a\\ \\ b"),
+            "argv must reach the CLI verbatim (%q-quoted in the log): \(argvLine)")
+
+        let (legacyStatus, legacy) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/Exec",
+            body: ["id": id, "command": "echo hi"])
+        XCTAssertEqual(legacyStatus, 200, "Exec(command): \(legacy)")
+        let legacyLine = mockCalls().last { $0.hasPrefix("exec ") } ?? ""
+        XCTAssertTrue(legacyLine.hasSuffix(" \(id) echo hi"), legacyLine)
+
+        // When both are set, arguments win — command is the compatibility field.
+        let (bothStatus, _) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/Exec",
+            body: ["id": id, "command": "echo ignored", "arguments": ["true"]])
+        XCTAssertEqual(bothStatus, 200)
+        let bothLine = mockCalls().last { $0.hasPrefix("exec ") } ?? ""
+        XCTAssertTrue(bothLine.hasSuffix(" \(id) true"), bothLine)
+
+        let (badStatus, bad) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/Exec", body: ["id": id])
+        XCTAssertEqual(badStatus, 400, "Exec with neither command nor arguments: \(bad)")
+        XCTAssertEqual(bad["code"] as? String, "invalid_argument")
+        XCTAssertTrue((bad["message"] as? String ?? "").contains("command"), "\(bad)")
+    }
+
+    /// `skip_lines` lets a client re-open a log stream after a transport
+    /// error without replaying lines it already has: the first N lines are
+    /// dropped server-side and the stream still ends cleanly. A skip past
+    /// the end of the backlog yields no data frames — not an error.
+    func testStreamLogsSkipLines() async throws {
+        // The mock's follow appends one extra line after the backlog by
+        // default; a stopped container's stream is the backlog alone.
+        try await relaunchServer(extraEnvironment: ["MICROPOD_MOCK_FOLLOW_LINES": "0"])
+        let run = try await json(
+            "POST", "v1/containers",
+            body: ["image": "nginx:1.27", "name": "api-skip-lines", "arguments": ["echo", "api-boot"]])
+        let id = run["id"] as? String ?? ""
+        XCTAssertFalse(id.isEmpty)
+        _ = try await json("POST", "v1/containers/\(id)/stop")
+
+        func stream(_ payload: [String: Any]) async throws -> (frames: [ConnectFrames.Frame], status: Int) {
+            var request = URLRequest(
+                url: baseURL.appendingPathComponent("api/micropod.v1.ContainerService/StreamContainerLogs"))
+            request.httpMethod = "POST"
+            request.setValue("application/connect+json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = ConnectFrames.envelope(
+                try JSONSerialization.data(withJSONObject: payload), flags: 0)
+            request.timeoutInterval = 20
+            let (data, response) = try await URLSession.shared.data(for: request)
+            let parsed = ConnectFrames.parse(data)
+            XCTAssertEqual(parsed.trailing, 0)
+            return (parsed.frames, (response as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+
+        // Baseline: tail 3 → exactly three lines.
+        let all = try await stream(["id": id, "tail": 3])
+        XCTAssertEqual(all.status, 200)
+        XCTAssertEqual(all.frames.filter { $0.flags == 0 }.count, 3, "baseline backlog")
+
+        let skipped = try await stream(["id": id, "tail": 3, "skipLines": 2])
+        XCTAssertEqual(skipped.status, 200)
+        let dataFrames = skipped.frames.filter { $0.flags == 0 }
+        XCTAssertEqual(dataFrames.count, 1, "skip_lines: 2 of 3 lines leaves one: \(dataFrames.count)")
+        let chunk = try JSONSerialization.jsonObject(with: dataFrames.first?.payload ?? Data()) as? [String: Any]
+        XCTAssertEqual(chunk?["text"] as? String, "mock log line 3 from \(id)")
+        XCTAssertEqual(skipped.frames.last?.flags, 0x02, "stream must still end with the EndStream frame")
+        XCTAssertEqual(String(decoding: skipped.frames.last?.payload ?? Data(), as: UTF8.self), "{}")
+
+        let overshoot = try await stream(["id": id, "tail": 3, "skipLines": 10])
+        XCTAssertEqual(overshoot.status, 200)
+        XCTAssertEqual(overshoot.frames.filter { $0.flags == 0 }.count, 0, "nothing left after the skip")
+        XCTAssertEqual(overshoot.frames.last?.flags, 0x02)
+        XCTAssertEqual(String(decoding: overshoot.frames.last?.payload ?? Data(), as: UTF8.self), "{}")
+
+        // Negative skips are a caller error (rejected before any stream opens).
+        var bad = URLRequest(
+            url: baseURL.appendingPathComponent("api/micropod.v1.ContainerService/StreamContainerLogs"))
+        bad.httpMethod = "POST"
+        bad.setValue("application/connect+json", forHTTPHeaderField: "Content-Type")
+        bad.httpBody = ConnectFrames.envelope(
+            try JSONSerialization.data(withJSONObject: ["id": id, "skipLines": -1]), flags: 0)
+        let (badData, badResponse) = try await URLSession.shared.data(for: bad)
+        let badBody = String(decoding: badData, as: UTF8.self)
+        XCTAssertEqual((badResponse as? HTTPURLResponse)?.statusCode, 400, "StreamContainerLogs: \(badBody)")
+        XCTAssertTrue(badBody.contains("\"invalid_argument\""), badBody)
+    }
+
+    /// `GetStats{ids}` samples only the requested containers; an empty list
+    /// keeps the old "every running container" behaviour, and unknown ids
+    /// simply contribute nothing.
+    func testGetStatsIdsFilter() async throws {
+        let a =
+            try await json("POST", "v1/containers", body: ["image": "nginx:1.27", "name": "api-stats-a"])["id"]
+            as? String ?? ""
+        let b =
+            try await json("POST", "v1/containers", body: ["image": "nginx:1.27", "name": "api-stats-b"])["id"]
+            as? String ?? ""
+        XCTAssertFalse(a.isEmpty)
+        XCTAssertFalse(b.isEmpty)
+
+        func ids(of response: [String: Any]) -> [String] {
+            ((response["snapshot"] as? [String: Any])?["containers"] as? [[String: Any]] ?? [])
+                .compactMap { $0["id"] as? String }
+        }
+
+        let (status, filtered) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/GetStats", body: ["ids": [a]])
+        XCTAssertEqual(status, 200, "GetStats: \(filtered)")
+        XCTAssertEqual(ids(of: filtered), [a], "exactly the requested container: \(filtered)")
+        XCTAssertFalse(((filtered["snapshot"] as? [String: Any])?["sampledAt"] as? String ?? "").isEmpty)
+
+        let (allStatus, all) = try await jsonStatus("POST", "api/micropod.v1.ContainerService/GetStats", body: [:])
+        XCTAssertEqual(allStatus, 200)
+        XCTAssertTrue(Set(ids(of: all)).isSuperset(of: [a, b]), "empty ids = everything: \(all)")
+
+        let (bothStatus, both) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/GetStats", body: ["ids": [b, a, "ghost"]])
+        XCTAssertEqual(bothStatus, 200)
+        XCTAssertEqual(Set(ids(of: both)), [a, b], "unknown ids contribute nothing: \(both)")
+
+        let (noneStatus, none) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/GetStats", body: ["ids": ["ghost"]])
+        XCTAssertEqual(noneStatus, 200, "GetStats for unknown ids is empty, not an error: \(none)")
+        XCTAssertEqual(ids(of: none), [])
+
+        for id in [a, b] {
+            _ = try await json("POST", "v1/containers/\(id)/stop")
+            _ = try await json("DELETE", "v1/containers/\(id)")
+        }
     }
 }
 

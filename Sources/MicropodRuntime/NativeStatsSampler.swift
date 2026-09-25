@@ -20,22 +20,53 @@ public actor NativeStatsSampler: StatsSampling {
         let listData = try await api.list(status: "running")
         let entries = try MicropodJSON.decodeArray(
             ContainerListEntry.self, from: listData, context: "container list")
+        return try await sample(ids: entries.map(\.id), forgetOthers: true)
+    }
 
-        // Fan out stats calls; skip containers whose stats fail (they may
-        // have exited between list and stats).
-        let statsEntries = await withTaskGroup(
-            of: ContainerStatsEntry?.self, returning: [ContainerStatsEntry].self
+    /// `GetStatsRequest.ids`: skips `containerList` and calls `containerStats`
+    /// only for the requested ids. Unknown or stopped ids contribute nothing;
+    /// CPU baselines for containers *not* asked about are kept so a later
+    /// unfiltered sample still has its deltas.
+    public func snapshot(ids: [String]) async throws -> Micropod_V1_StatsSnapshot {
+        guard !ids.isEmpty else { return try await snapshot() }
+        var unique: [String] = []
+        for id in ids where !unique.contains(id) { unique.append(id) }
+        return try await sample(ids: unique, forgetOthers: false)
+    }
+
+    /// Fan out stats calls in parallel; a container whose stats fail (it
+    /// exited between list and stats, or was never running) is skipped. A
+    /// transport failure is not "no stats" — it is rethrown so the caller
+    /// sees `unavailable` instead of an empty, plausible-looking snapshot.
+    private func sample(ids: [String], forgetOthers: Bool) async throws -> Micropod_V1_StatsSnapshot {
+        let results = await withTaskGroup(
+            of: (String, Result<ContainerStatsEntry, Error>).self,
+            returning: [(String, Result<ContainerStatsEntry, Error>)].self
         ) { group in
-            for entry in entries {
+            for id in ids {
                 group.addTask {
-                    try? await self.api.stats(id: entry.id)
+                    do {
+                        return (id, .success(try await self.api.stats(id: id)))
+                    } catch {
+                        return (id, .failure(error))
+                    }
                 }
             }
-            var out: [ContainerStatsEntry] = []
-            for await item in group {
-                if let item { out.append(item) }
-            }
+            var out: [(String, Result<ContainerStatsEntry, Error>)] = []
+            for await item in group { out.append(item) }
             return out
+        }
+        // Keep the request order for a stable wire shape.
+        var byID: [String: Result<ContainerStatsEntry, Error>] = [:]
+        for (id, result) in results { byID[id] = result }
+        var statsEntries: [ContainerStatsEntry] = []
+        for id in ids {
+            switch byID[id] {
+            case .success(let entry)?: statsEntries.append(entry)
+            case .failure(let error)?:
+                if case MicropodError.transport = error { throw error }
+            case nil: break
+            }
         }
 
         let now = ContinuousClock.now
@@ -67,8 +98,11 @@ public actor NativeStatsSampler: StatsSampling {
             snapshot.containers.append(stats)
         }
 
+        // Forget baselines for containers that disappeared — among the ones
+        // this sample actually looked at.
         let liveIDs = Set(statsEntries.map(\.id))
-        previous = previous.filter { liveIDs.contains($0.key) }
+        let asked = Set(ids)
+        previous = previous.filter { liveIDs.contains($0.key) || (!forgetOthers && !asked.contains($0.key)) }
         return snapshot
     }
 }

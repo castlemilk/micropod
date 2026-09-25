@@ -98,25 +98,42 @@ public struct NativeContainerService: ContainerServing {
 
     /// Native `container create`: resolve image → build
     /// `ContainerConfiguration` → `containerCreate` XPC.
+    ///
+    /// A failed create removes the clone images it made — except when the
+    /// failure is `already_exists`: then the clone directory belongs to the
+    /// container that won the race (a retried create with the same name),
+    /// and deleting it would pull the block device out from under a running
+    /// container.
     private func createNative(_ request: ContainerRunRequest) async throws -> String {
         let id = request.name ?? UUID().uuidString.lowercased()
         do {
             return try await createNativeInner(request, id: id)
         } catch {
-            Self.removeClones(containerID: id)
+            if !Self.isAlreadyExists(error) {
+                Self.removeClones(containerID: id)
+            }
             throw error
         }
+    }
+
+    /// The apiserver reports a duplicate id as an `alreadyExists:`-prefixed
+    /// error (the same prefix `ConnectCodeMapping` turns into
+    /// `already_exists`); the pre-clone check below raises the same shape.
+    static func isAlreadyExists(_ error: Error) -> Bool {
+        error.localizedDescription.hasPrefix("alreadyExists")
     }
 
     private func createNativeInner(_ request: ContainerRunRequest, id: String) async throws -> String {
         let sysConfig = NativeConfigBuilder.loadSystemConfig()
         let platform = try NativeConfigBuilder.ociPlatform(request.platform)
 
-        // Image resolution (ClientImage.fetch): local match or pull.
+        // Image resolution (ClientImage.fetch): local match or pull —
+        // or, under `no_pull`, `not_found` naming the missing platform.
         let imageDescription = try await images.ensure(
             reference: request.image,
             platform: platform,
-            registryDomain: sysConfig.registryDomain
+            registryDomain: sysConfig.registryDomain,
+            noPull: request.noPull
         )
         let imageConfig = try await images.imageConfig(description: imageDescription, platform: platform)
 
@@ -134,6 +151,13 @@ public struct NativeContainerService: ContainerServing {
         let cloneSet = policy.cloneSet(labels: labelMap)
         if !cloneSet.isEmpty {
             let entries = await listEntries()
+            // A duplicate id must fail *before* any clone is written: the
+            // clone dir is keyed by id, so cloning here would overwrite the
+            // existing container's images. Same error shape as the
+            // apiserver's own check, which still runs for the non-clone path.
+            if entries.contains(where: { $0.id == id }) {
+                throw MicropodError.message("alreadyExists: container with ID \(id) already exists")
+            }
             // Self-heal: a clone dir orphaned by a raw `container delete`
             // (or a crashed runtime) is swept on the next cloning create.
             sweepOrphanClones(live: Set(entries.map(\.id)))

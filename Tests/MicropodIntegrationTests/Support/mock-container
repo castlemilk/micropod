@@ -18,6 +18,14 @@
 #     `Error: interrupted: "XPC connection error: ..."` text on stderr, exit 1.
 #   - `system version|start|stop|logs|property|kernel` keep working: they
 #     never talk to the apiserver.
+#
+# Every invocation's argv is appended to $STATE_DIR/calls.log, one line per
+# call, each element `printf %q`-quoted and space-joined (so an argument
+# that itself contains spaces stays distinguishable from two arguments).
+# Tests read it to assert exactly what the CLI was asked to do.
+#
+# MICROPOD_MOCK_FOLLOW_LINES (default 1) is how many `logs --follow` lines
+# are emitted after the backlog; 0 makes a follow return the backlog only.
 set -u
 
 STATE_DIR="${MICROPOD_MOCK_STATE_DIR:-${TMPDIR:-/tmp}/micropod-mock-state-$(id -u)}"
@@ -35,6 +43,9 @@ until mkdir "$MOCK_LOCK" 2>/dev/null; do
 done
 release_mock_lock() { rmdir "$MOCK_LOCK" 2>/dev/null || true; }
 trap release_mock_lock EXIT
+
+# Argv record (see header). Written under the lock so lines never interleave.
+{ printf '%q ' "$@"; printf '\n'; } >>"$STATE_DIR/calls.log"
 
 CONTAINERS_FILE="$STATE_DIR/containers.json"
 IMAGES_FILE="$STATE_DIR/images.json"
@@ -487,6 +498,9 @@ cmd_logs() {
             sleep 60
             return 0
         fi
+        # MICROPOD_MOCK_FOLLOW_LINES=0: the backlog is the whole stream (a
+        # container that exited before the follow began).
+        [ "${MICROPOD_MOCK_FOLLOW_LINES:-1}" = "0" ] && return 0
         sleep 0.2
         printf 'mock log line after-follow %d\n' "$n"
     fi

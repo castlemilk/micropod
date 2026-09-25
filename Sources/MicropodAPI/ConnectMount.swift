@@ -106,7 +106,9 @@ extension APIHandlers {
                     id: req.id,
                     tail: req.tail > 0 ? Int(req.tail) : nil,
                     boot: req.boot)
-                return streamEnvelope(events) { line in
+                // `skip_lines`: a client re-opening after a transport error
+                // already holds the first N lines — drop them server-side.
+                return streamEnvelope(dropping(req.skipLines, from: events)) { line in
                     Micropod_V1_LogChunk.with { $0.text = line.text }
                 }
 
@@ -181,17 +183,25 @@ extension APIHandlers {
                 return unary(Micropod_V1_Empty())
 
             case "GetStats":
+                let req = try decode(Micropod_V1_GetStatsRequest.self, body)
                 var resp = Micropod_V1_GetStatsResponse()
-                resp.snapshot = try await stats.snapshot()
+                // Empty ids = every running container (the pre-`ids` shape).
+                resp.snapshot = try await stats.snapshot(ids: req.ids)
                 return unary(resp)
 
             case "Exec":
                 let req = try decode(Micropod_V1_ExecRequest.self, body)
                 try check(req)
+                // `arguments` is a verbatim argv; `command` is the older
+                // split-on-spaces field and only consulted when it is empty.
+                let argv =
+                    req.arguments.isEmpty
+                    ? req.command.split(separator: " ").map(String.init)
+                    : req.arguments
                 let result = try await containers.execDetailed(
                     ContainerExecRequest(
                         containerID: req.id,
-                        arguments: req.command.split(separator: " ").map(String.init),
+                        arguments: argv,
                         workdir: req.hasWorkdir ? req.workdir : nil,
                         env: req.env))
                 return unary(
@@ -408,6 +418,13 @@ extension APIHandlers {
             throw ConnectDecodeError(
                 code: .invalidArgument, message: "cpus: must be greater than 0")
         }
+        if req.hasPlatform {
+            let parts = req.platform.split(separator: "/", omittingEmptySubsequences: false)
+            if parts.count < 2 || parts.count > 3 || parts.contains(where: \.isEmpty) {
+                throw ConnectDecodeError(
+                    code: .invalidArgument, message: "platform: must be os/arch[/variant]")
+            }
+        }
         for port in req.ports {
             if port.containerPort == 0 || port.containerPort > 65535 {
                 throw ConnectDecodeError(
@@ -440,6 +457,10 @@ extension APIHandlers {
             throw ConnectDecodeError(
                 code: .invalidArgument, message: "tail: must be 0 or greater")
         }
+        if req.skipLines < 0 {
+            throw ConnectDecodeError(
+                code: .invalidArgument, message: "skipLines: must be 0 or greater")
+        }
     }
 
     private func check(_ req: Micropod_V1_PullImageRequest) throws {
@@ -466,9 +487,14 @@ extension APIHandlers {
         try required(req.name, "name")
     }
 
+    /// `command` lost its `required` constraint when `arguments` arrived:
+    /// exactly one of them has to carry the argv.
     private func check(_ req: Micropod_V1_ExecRequest) throws {
         try required(req.id, "id")
-        try required(req.command, "command")
+        if req.command.isEmpty && req.arguments.isEmpty {
+            throw ConnectDecodeError(
+                code: .invalidArgument, message: "command: value is required when arguments is empty")
+        }
     }
 
     private func check(_ req: Micropod_V1_ComposeUpRequest) throws {
@@ -507,6 +533,32 @@ extension APIHandlers {
     private func unary<M: Message>(_ message: M) -> HTTPResponse {
         let body = (try? message.jsonUTF8Data()) ?? Data("{}".utf8)
         return .data(200, "application/json", body)
+    }
+
+    /// Drops the first `count` events and forwards the rest (and the
+    /// terminal error, if any) unchanged. `count <= 0` is the identity.
+    private func dropping<E: Sendable>(
+        _ count: Int64, from events: AsyncThrowingStream<E, Error>
+    ) -> AsyncThrowingStream<E, Error> {
+        guard count > 0 else { return events }
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                var remaining = count
+                do {
+                    for try await event in events {
+                        if remaining > 0 {
+                            remaining -= 1
+                            continue
+                        }
+                        continuation.yield(event)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
     }
 
     /// Wraps a throwing event stream into Connect envelopes: each message as
@@ -573,7 +625,12 @@ extension APIHandlers {
             volumes: proto.volumes,
             labels: proto.labels.map { LabelSpec(key: $0.key, value: $0.value) },
             useInit: proto.init_p,
-            arguments: proto.arguments)
+            user: proto.hasUser ? proto.user : nil,
+            platform: proto.hasPlatform ? proto.platform : nil,
+            workdir: proto.hasWorkdir ? proto.workdir : nil,
+            entrypoint: proto.hasEntrypoint ? proto.entrypoint : nil,
+            arguments: proto.arguments,
+            noPull: proto.noPull)
     }
 
     private func usageReportProto(_ report: UsageService.Report) -> Micropod_V1_UsageReport {
