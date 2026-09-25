@@ -1106,7 +1106,11 @@ final class MicropodAPITests: XCTestCase {
         let goldenSource = try await volumeSource("g")
         let goldenBefore = try Data(contentsOf: URL(fileURLWithPath: goldenSource))
         let run = try await json(
-            "POST", "v1/containers", body: ["image": "nginx:1.27", "name": "api-commit-running", "volumes": ["g:/x"]])
+            "POST", "v1/containers",
+            body: [
+                "image": "nginx:1.27", "name": "api-commit-running", "volumes": ["g:/x"],
+                "labels": ["com.micropod.cache.clone": "g"],
+            ])
         let id = run["id"] as? String ?? ""
         XCTAssertFalse(id.isEmpty)
         try writeClone(container: id, volume: "g", marker: Data("dirty".utf8))
@@ -1134,8 +1138,15 @@ final class MicropodAPITests: XCTestCase {
     func testCommitVolumeCloneStoppedPromotesTheClone() async throws {
         _ = try await json("POST", "v1/volumes", body: ["name": "g", "size": "20M"])
         let goldenSource = try await volumeSource("g")
+        // The clone label makes the mock list the container with a `block`
+        // mount of `<clone root>/<id>/g.img` — as the native backend's create
+        // records it — which is what entitles the container to promote it.
         let run = try await json(
-            "POST", "v1/containers", body: ["image": "nginx:1.27", "name": "api-commit-ok", "volumes": ["g:/x"]])
+            "POST", "v1/containers",
+            body: [
+                "image": "nginx:1.27", "name": "api-commit-ok", "volumes": ["g:/x"],
+                "labels": ["com.micropod.cache.clone": "g"],
+            ])
         let id = run["id"] as? String ?? ""
         XCTAssertFalse(id.isEmpty)
         _ = try await json("POST", "v1/containers/\(id)/stop")
@@ -1194,6 +1205,125 @@ final class MicropodAPITests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: goldenSource)), marker)
     }
 
+    /// Only the container that mounts a clone can promote it. A clone file
+    /// under a container's id that the container's configuration does not
+    /// mount is a leftover — the dir a raw `container delete` left behind,
+    /// inherited by a same-name container created directly on the golden —
+    /// and `CommitVolumeClone` answers `not_found` for it, leaving both the
+    /// golden and the file alone.
+    func testCommitVolumeCloneRequiresTheContainerToMountTheClone() async throws {
+        _ = try await json("POST", "v1/volumes", body: ["name": "g"])
+        let goldenSource = try await volumeSource("g")
+        let goldenBefore = try Data(contentsOf: URL(fileURLWithPath: goldenSource))
+        // No clone label: the container attaches the golden directly.
+        let run = try await json(
+            "POST", "v1/containers",
+            body: ["image": "nginx:1.27", "name": "api-commit-unmounted", "volumes": ["g:/x"]])
+        let id = run["id"] as? String ?? ""
+        XCTAssertFalse(id.isEmpty)
+        _ = try await json("POST", "v1/containers/\(id)/stop")
+        try writeClone(container: id, volume: "g", marker: Data("stale".utf8))
+
+        let (status, body) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CommitVolumeClone", body: ["containerId": id, "volume": "g"])
+        XCTAssertEqual(status, 404, "CommitVolumeClone of a clone the container does not mount: \(body)")
+        XCTAssertEqual(body["code"] as? String, "not_found")
+        let message = body["message"] as? String ?? ""
+        XCTAssertTrue(message.contains("mount") && message.contains(id), "\(body)")
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: goldenSource)), goldenBefore, "golden untouched")
+        XCTAssertEqual(
+            try Data(contentsOf: clonePath(container: id, volume: "g")), Data("stale".utf8), "the file is left alone")
+    }
+
+    /// A container id or volume name is a clone-path component
+    /// (`<clone root>/<id>/<volume>.img`) and reaches the clone-dir lifecycle
+    /// before the runtime validates it, so the API edge enforces the
+    /// runtime's id grammar before dispatch: Connect answers 400
+    /// `invalid_argument` naming the field, REST answers 400, the CLI is
+    /// never asked, nothing is placed, and the golden a traversal name points
+    /// at — `<clone root>/../golden-store/volume.img` here — survives.
+    func testTraversalNamesAreInvalidArgumentBeforeDispatch() async throws {
+        let store = stateDir.appendingPathComponent("golden-store", isDirectory: true)
+        try FileManager.default.createDirectory(at: store, withIntermediateDirectories: true)
+        let goldenImage = store.appendingPathComponent("volume.img")
+        try Data("golden".utf8).write(to: goldenImage)
+        _ = try await json("POST", "v1/volumes", body: ["name": "g"])
+        let traversal = "../golden-store"
+        let callsBefore = mockCalls().count
+
+        let create: [String: Any] = [
+            "image": "nginx:1.27", "name": traversal, "volumes": ["g:/x"],
+            "labels": ["com.micropod.cache.clone": "g"],
+        ]
+        for method in ["CreateContainer", "RunContainer"] {
+            let (status, body) = try await jsonStatus(
+                "POST", "api/micropod.v1.ContainerService/\(method)", body: create)
+            XCTAssertEqual(status, 400, "\(method): \(body)")
+            XCTAssertEqual(body["code"] as? String, "invalid_argument", "\(method): \(body)")
+            XCTAssertTrue((body["message"] as? String ?? "").hasPrefix("name:"), "\(method): \(body)")
+        }
+        for path in ["v1/containers", "v1/containers/create"] {
+            let (status, body) = try await jsonStatus("POST", path, body: create)
+            XCTAssertEqual(status, 400, "\(path): \(body)")
+            XCTAssertTrue((body["error"] as? String ?? "").contains(traversal), "\(path): \(body)")
+        }
+        // A named volume is a path component too.
+        let badVolume: [String: Any] = ["image": "nginx:1.27", "name": "job", "volumes": ["-g:/x"]]
+        let (volumeStatus, volume) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/CreateContainer", body: badVolume)
+        XCTAssertEqual(volumeStatus, 400, "\(volume)")
+        XCTAssertEqual(volume["code"] as? String, "invalid_argument", "\(volume)")
+        XCTAssertTrue((volume["message"] as? String ?? "").hasPrefix("volumes:"), "\(volume)")
+        let (restVolumeStatus, restVolume) = try await jsonStatus("POST", "v1/containers", body: badVolume)
+        XCTAssertEqual(restVolumeStatus, 400, "\(restVolume)")
+        XCTAssertTrue((restVolume["error"] as? String ?? "").contains("-g"), "\(restVolume)")
+
+        for (body, field) in [
+            (["source": "g", "name": traversal], "name"),
+            (["source": traversal, "name": "c"], "source"),
+        ] {
+            let (status, reply) = try await jsonStatus("POST", "api/micropod.v1.VolumeService/CloneVolume", body: body)
+            XCTAssertEqual(status, 400, "CloneVolume \(field): \(reply)")
+            XCTAssertEqual(reply["code"] as? String, "invalid_argument", "CloneVolume \(field): \(reply)")
+            XCTAssertTrue((reply["message"] as? String ?? "").hasPrefix("\(field):"), "CloneVolume \(field): \(reply)")
+        }
+        for (body, field) in [
+            (["containerId": traversal, "volume": "g"], "containerId"),
+            (["containerId": "job", "volume": traversal], "volume"),
+        ] {
+            let (status, reply) = try await jsonStatus(
+                "POST", "api/micropod.v1.VolumeService/CommitVolumeClone", body: body)
+            XCTAssertEqual(status, 400, "CommitVolumeClone \(field): \(reply)")
+            XCTAssertEqual(reply["code"] as? String, "invalid_argument", "CommitVolumeClone \(field): \(reply)")
+            XCTAssertTrue(
+                (reply["message"] as? String ?? "").hasPrefix("\(field):"), "CommitVolumeClone \(field): \(reply)")
+        }
+
+        let later = mockCalls().dropFirst(callsBefore)
+        XCTAssertFalse(
+            later.contains { call in
+                ["run ", "create ", "volume create", "volume delete", "delete "].contains { call.hasPrefix($0) }
+            }, "a refused request reached the CLI: \(later)")
+        XCTAssertEqual(try Data(contentsOf: goldenImage), Data("golden".utf8), "the golden's bytes survive")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: store.path), ["volume.img"])
+        let cloneRoot = stateDir.appendingPathComponent("clones").path
+        XCTAssertEqual(
+            (try? FileManager.default.contentsOfDirectory(atPath: cloneRoot)) ?? [], [], "nothing was placed")
+    }
+
+    /// `DeleteContainer` of a missing id on the CLI backend is `not_found`:
+    /// the mock prints the real CLI's `internalError: … (cause: "notFound:
+    /// …")` text, which the classifier reads through to the cause.
+    func testDeleteMissingContainerIsNotFound() async throws {
+        let (status, body) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/DeleteContainer", body: ["id": "ghost", "force": true])
+        XCTAssertEqual(status, 404, "DeleteContainer of a missing id: \(body)")
+        XCTAssertEqual(body["code"] as? String, "not_found", "\(body)")
+        let message = body["message"] as? String ?? ""
+        XCTAssertTrue(
+            message.contains("(cause: \"notFound: \"container with ID ghost not found\"\")"), "\(body)")
+    }
+
     /// `DeleteContainer` on the CLI backend removes the container's clone
     /// dir like the native backend does. Without that, a later container
     /// reusing the name (the runtime's ids are its names) would inherit the
@@ -1205,7 +1335,11 @@ final class MicropodAPITests: XCTestCase {
         _ = try await json("POST", "v1/volumes", body: ["name": "g"])
         let goldenSource = try await volumeSource("g")
         let run = try await json(
-            "POST", "v1/containers", body: ["image": "nginx:1.27", "name": "api-delete-clones", "volumes": ["g:/x"]])
+            "POST", "v1/containers",
+            body: [
+                "image": "nginx:1.27", "name": "api-delete-clones", "volumes": ["g:/x"],
+                "labels": ["com.micropod.cache.clone": "g"],
+            ])
         let id = run["id"] as? String ?? ""
         XCTAssertFalse(id.isEmpty)
         let other = try await json(

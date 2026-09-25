@@ -30,18 +30,62 @@ public enum VolumeClone {
         return base.appendingPathComponent("micropod/volume-clones", isDirectory: true)
     }
 
-    /// Where container `containerID`'s clone of `volume` lives.
-    public static func clonePath(containerID: String, volume: String) -> URL {
+    /// Where container `containerID`'s clone of `volume` lives. Both are
+    /// path components: an id or a name outside ``componentGrammar`` is
+    /// `invalid_argument` (``requireSafeComponent(_:as:)``).
+    public static func clonePath(containerID: String, volume: String) throws -> URL {
+        try requireSafeComponent(containerID, as: "container id")
+        try requireSafeComponent(volume, as: "volume name")
+        return cloneDir(containerID).appendingPathComponent("\(volume).img")
+    }
+
+    /// `<cloneRoot>/<containerID>` — callers have checked the id.
+    private static func cloneDir(_ containerID: String) -> URL {
         cloneRoot.appendingPathComponent(containerID, isDirectory: true)
-            .appendingPathComponent("\(volume).img")
     }
 
     /// Names of the volumes with a clone image in the container's clone
-    /// dir (sorted; empty when the dir does not exist).
+    /// dir (sorted; empty when the dir does not exist or the id is not a
+    /// safe path component).
     public static func clonedVolumes(containerID: String) -> [String] {
-        let dir = cloneRoot.appendingPathComponent(containerID, isDirectory: true)
-        let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+        guard isSafeComponent(containerID) else { return [] }
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: cloneDir(containerID).path)) ?? []
         return names.filter { $0.hasSuffix(".img") }.map { String($0.dropLast(4)) }.sorted()
+    }
+
+    // MARK: - Path-component grammar
+
+    /// What a container id or volume name must look like to become a
+    /// component of a clone path: the runtime's own container-ID grammar —
+    /// an ASCII letter or digit, then letters, digits, `_`, `.` and `-`, at
+    /// most 63 characters. No separator can pass, so neither `..` nor `a/b`
+    /// can steer a clone-dir operation outside `<cloneRoot>/<id>/`.
+    public static let componentGrammar = "[A-Za-z0-9][A-Za-z0-9_.-]{0,62}"
+
+    public static func isSafeComponent(_ value: String) -> Bool {
+        let scalars = value.unicodeScalars
+        guard let first = scalars.first, isASCIIAlphanumeric(first), scalars.count <= 63 else { return false }
+        return scalars.allSatisfy { isASCIIAlphanumeric($0) || $0 == "_" || $0 == "." || $0 == "-" }
+    }
+
+    /// `invalidArgument:` (→ `invalid_argument`) unless `value` matches
+    /// ``componentGrammar``. A request's container name reaches the
+    /// clone-dir lifecycle — orphan sweep, stale-dir reclaim, placement,
+    /// removal — before the runtime validates it, so the grammar is enforced
+    /// at the API edge, by the native create before its mutex, and again
+    /// inside every function here that builds a path from an id or a volume
+    /// name: none of them touches the filesystem for an unsafe one.
+    public static func requireSafeComponent(_ value: String, as kind: String = "name") throws {
+        guard isSafeComponent(value) else {
+            throw MicropodError.message("invalidArgument: \(kind) '\(value)' must match \(componentGrammar)")
+        }
+    }
+
+    private static func isASCIIAlphanumeric(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar {
+        case "A"..."Z", "a"..."z", "0"..."9": return true
+        default: return false
+        }
     }
 
     /// Bytes actually allocated to the file (`st_blocks × 512`): sparse
@@ -111,9 +155,11 @@ public enum VolumeClone {
     /// left, then the dir itself. The dir is only removed while empty, so a
     /// clone a concurrent create placed for a new container of the same id
     /// after the listing keeps its dir. Never throws: a dir that is already
-    /// gone is the desired end state.
+    /// gone is the desired end state. An id that is not a safe path
+    /// component names nothing under the root and is a no-op.
     public static func removeClones(containerID: String) async {
-        let dir = cloneRoot.appendingPathComponent(containerID, isDirectory: true)
+        guard isSafeComponent(containerID) else { return }
+        let dir = cloneDir(containerID)
         await unlinkClones(containerID: containerID, volumes: clonedVolumes(containerID: containerID))
         let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
         for name in names where name.hasPrefix(".") && name.contains(".img.tmp-") {
@@ -128,16 +174,19 @@ public enum VolumeClone {
     /// exclusive placement, a clone it did not place belongs to the create
     /// that did — a replay of the same id that won the name, possibly
     /// running on it — and stays, as does any staging file (a placement of
-    /// that create may be in flight). Never throws.
+    /// that create may be in flight). Never throws; an unsafe id is a no-op.
     public static func removeClones(containerID: String, volumes: [String]) async {
+        guard isSafeComponent(containerID) else { return }
         await unlinkClones(containerID: containerID, volumes: volumes)
-        rmdir(cloneRoot.appendingPathComponent(containerID, isDirectory: true).path)
+        rmdir(cloneDir(containerID).path)
     }
 
     private static func unlinkClones(containerID: String, volumes: [String]) async {
         for volume in Array(Set(volumes)).sorted() {
+            // A name that is not a safe path component never names a clone.
+            guard let clone = try? clonePath(containerID: containerID, volume: volume) else { continue }
             await VolumeLocks.shared.withLock(volume) {
-                _ = unlink(clonePath(containerID: containerID, volume: volume).path)
+                _ = unlink(clone.path)
             }
         }
     }
@@ -152,11 +201,12 @@ public enum VolumeClone {
     /// dir, and it can only be the leftover of a create that died with its
     /// process. A retried create of the same id must not be refused
     /// `already_exists` for a container that never was. Returns whether a
-    /// dir was removed.
+    /// dir was removed; an id that is not a safe path component is refused
+    /// without a look at the filesystem.
     @discardableResult
     public static func reclaimStaleCloneDir(containerID: String, live: Set<String>) async -> Bool {
-        guard !live.contains(containerID) else { return false }
-        let dir = cloneRoot.appendingPathComponent(containerID, isDirectory: true)
+        guard isSafeComponent(containerID), !live.contains(containerID) else { return false }
+        let dir = cloneDir(containerID)
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDirectory), isDirectory.boolValue
         else { return false }
@@ -314,12 +364,36 @@ public enum VolumeClone {
     }
 
     /// The container's clone of the volume must exist; returns its path.
+    /// An id or volume name outside ``componentGrammar`` is
+    /// `invalid_argument` before any look at the filesystem.
     public static func requireClone(containerID: String, volume: String) throws -> String {
-        let path = clonePath(containerID: containerID, volume: volume).path
+        let path = try clonePath(containerID: containerID, volume: volume).path
         guard FileManager.default.fileExists(atPath: path) else {
             throw notFound("container '\(containerID)' has no clone of volume '\(volume)'")
         }
         return path
+    }
+
+    /// The container's configuration must carry a mount whose source is the
+    /// clone — the block device it ran on. A clone file under a container's
+    /// id that the container does not mount is the leftover of an earlier
+    /// container of that name (a raw `container delete` keeps the dir, and
+    /// a same-name container attaching the golden directly inherits it),
+    /// not this container's writes: `not_found`. Only the container that
+    /// mounts a clone can promote it.
+    public static func requireMounted(
+        clone: String, containerID: String, volume: String, in entries: [ContainerListEntry]
+    ) throws {
+        let wanted = URL(fileURLWithPath: clone).standardizedFileURL.path
+        let mounted = entries.first { $0.id == containerID }?.configuration.mounts?.contains { mount in
+            guard mount.typeName != "tmpfs", let source = mount.source, !source.isEmpty else { return false }
+            return URL(fileURLWithPath: source).standardizedFileURL.path == wanted
+        }
+        guard mounted == true else {
+            throw notFound(
+                "container '\(containerID)' does not mount its clone of volume '\(volume)' (\(clone)): "
+                    + "only the container that mounts a clone can promote it")
+        }
     }
 
     /// Size for a clone: the request's, else the source's provisioned size

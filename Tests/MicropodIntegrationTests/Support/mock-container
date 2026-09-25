@@ -236,6 +236,10 @@ cmd_kill() {
     set_container_state "$id" stopped
 }
 cmd_delete() {
+    # A missing id prints the real CLI's wrapped answer (`container` 1.3.1):
+    # `Error: internalError: "failed to delete container" (cause: "notFound:
+    # "container with ID x not found"")` — classified as `not_found` from
+    # the cause.
     local force="" all=""
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -260,7 +264,7 @@ cmd_delete() {
         return 0
     fi
     local id="$1" resolved out=() line found=""
-    resolved=$(resolve_id "$id") || { echo "Error: no such container: $id" >&2; exit 1; }
+    resolved=$(resolve_id "$id") || { echo "Error: internalError: \"failed to delete container\" (cause: \"notFound: \"container with ID $id not found\"\")" >&2; exit 1; }
     id="$resolved"
     while IFS= read -r line; do
         if [[ "$line" == *"\"id\":\"$id\""* ]]; then
@@ -274,7 +278,7 @@ cmd_delete() {
         out+=("$line")
     done <"$CONTAINERS_FILE"
     if [ -z "$found" ]; then
-        echo "Error: no such container: $id" >&2
+        echo "Error: internalError: \"failed to delete container\" (cause: \"notFound: \"container with ID $id not found\"\")" >&2
         exit 1
     fi
     printf '%s\n' "${out[@]-}" >"$CONTAINERS_FILE"
@@ -419,6 +423,20 @@ cmd_run() {
         port_json="$(IFS=,; printf '%s' "${pparts[*]}")"
     fi
 
+    # `--label com.micropod.cache.clone=<names|*>`: the named volumes it
+    # selects are listed the way the native backend's create records them —
+    # a `block` mount whose source is the container's clone image under the
+    # clone root (`MICROPOD_VOLUME_CLONE_ROOT`, else micropod's Application
+    # Support dir) — so a `CommitVolumeClone` against this mock sees the
+    # mount that entitles the container to promote the clone. Every other
+    # volume keeps its name as the source.
+    local clone_set=""
+    for l in "${labels[@]-}"; do
+        case "$l" in
+            com.micropod.cache.clone=*) clone_set="${l#*=}" ;;
+        esac
+    done
+    local clone_root="${MICROPOD_VOLUME_CLONE_ROOT:-$HOME/Library/Application Support/micropod/volume-clones}"
     local mount_json=""
     if [ ${#volumes[@]} -gt 0 ]; then
         local mparts=()
@@ -426,7 +444,12 @@ cmd_run() {
             local src dst
             src="${v%%:*}"
             dst="${v#*:}"
-            mparts+=("{\"destination\":\"$(jesc "$dst")\",\"source\":\"$(jesc "$src")\",\"options\":[],\"type\":{\"virtiofs\":{}}}")
+            if [ -n "$clone_set" ] && [[ "$src" != */* ]] \
+                && { [ "$clone_set" = "*" ] || [[ ",$clone_set," == *",$src,"* ]]; }; then
+                mparts+=("{\"destination\":\"$(jesc "$dst")\",\"source\":\"$(jesc "$clone_root/$id/$src.img")\",\"options\":[],\"type\":{\"block\":{\"format\":\"ext4\",\"cache\":{\"on\":{}},\"sync\":{\"nosync\":{}}}}}")
+            else
+                mparts+=("{\"destination\":\"$(jesc "$dst")\",\"source\":\"$(jesc "$src")\",\"options\":[],\"type\":{\"virtiofs\":{}}}")
+            fi
         done
         mount_json="$(IFS=,; printf '%s' "${mparts[*]}")"
     fi

@@ -52,12 +52,12 @@ public enum ConnectCodeMapping {
     ///    <id>` and `container run` prints `container with id <id> already
     ///    exists`. An `already exists` phrase is `already_exists`.
     ///
-    /// Everything else is `internal`, and so is every `container exec`
-    /// failure: its stderr is the guest process's, which may print an
-    /// `Error:` line of its own (`execDetailed` reports the exit code and
-    /// text instead of classifying).
+    /// Everything else is `internal`, and so is every failure of a command
+    /// that relays the guest's stderr (``relaysGuestStderr(command:)``):
+    /// the guest may print an `Error:` line of its own (`execDetailed`
+    /// reports the exit code and text instead of classifying).
     static func cliStderrCode(command: String, stderr: String) -> String {
-        guard !isExecCommand(command) else { return "internal" }
+        guard !relaysGuestStderr(command: command) else { return "internal" }
         for line in stderr.split(whereSeparator: \.isNewline) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             guard trimmed.hasPrefix(cliErrorPrefix) else { continue }
@@ -69,12 +69,45 @@ public enum ConnectCodeMapping {
     private static let cliErrorPrefix = "Error: "
     private static let cliCausePrefix = "(cause: \""
 
-    /// `container exec …` (the CLI's verb is the first argument after the
-    /// binary name; a `cliFailure` names the command that way).
-    static func isExecCommand(_ command: String) -> Bool {
+    /// Commands whose stderr and exit code are the guest process's, not the
+    /// CLI's: `container exec …`, and `container run …` without `--detach`
+    /// (`-d`) among its options — an attached run (REST `detach: false`;
+    /// Connect always runs detached) relays the guest's output. The verb is
+    /// the first argument after the binary name; a `cliFailure` names the
+    /// command that way.
+    static func relaysGuestStderr(command: String) -> Bool {
         let words = command.split(separator: " ", omittingEmptySubsequences: true)
-        return words.count >= 2 && words[0] == "container" && words[1] == "exec"
+        guard words.count >= 2, words[0] == "container" else { return false }
+        switch words[1] {
+        case "exec":
+            return true
+        case "run":
+            return !runOptions(in: Array(words.dropFirst(2))).contains { $0 == "--detach" || $0 == "-d" }
+        default:
+            return false
+        }
     }
+
+    /// The option words of a `container run` argv: `ContainerCommandFactory.run`
+    /// emits `[--flag [value]]…` and then the image, so the options end at
+    /// the first word that is neither an option nor an option's value —
+    /// a `--detach` after the image belongs to the guest's argv.
+    private static func runOptions(in words: [Substring]) -> [Substring] {
+        var options: [Substring] = []
+        var index = 0
+        while index < words.count, words[index].hasPrefix("-") {
+            options.append(words[index])
+            index += valueTakingRunOptions.contains(String(words[index])) ? 2 : 1
+        }
+        return options
+    }
+
+    /// `container run` options that take a value (`ContainerCommandFactory.run`).
+    private static let valueTakingRunOptions: Set<String> = [
+        "--name", "--cpus", "--memory", "--env", "--env-file", "--publish", "--volume", "--tmpfs", "--label",
+        "--user", "--shm-size", "--dns", "--dns-search", "--cap-add", "--cap-drop", "--ulimit", "--network",
+        "--platform", "--workdir", "--entrypoint", "--mount", "--os", "--arch",
+    ]
 
     /// The text after `Error: ` → wire code (see ``cliStderrCode``).
     static func classifyCLIErrorLine(_ text: String) -> String {

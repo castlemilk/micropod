@@ -173,7 +173,7 @@ final class VolumeCloneTests: XCTestCase {
         defer { unsetenv("MICROPOD_VOLUME_CLONE_ROOT") }
         XCTAssertEqual(VolumeClone.cloneRoot.path, dir.path)
         XCTAssertEqual(
-            VolumeClone.clonePath(containerID: "job-7", volume: "npm").path,
+            try VolumeClone.clonePath(containerID: "job-7", volume: "npm").path,
             dir.appendingPathComponent("job-7/npm.img").path)
 
         XCTAssertEqual(VolumeClone.clonedVolumes(containerID: "job-7"), [])
@@ -182,6 +182,116 @@ final class VolumeCloneTests: XCTestCase {
         try Data().write(to: URL(fileURLWithPath: path("job-7/go-mod.img")))
         try Data().write(to: URL(fileURLWithPath: path("job-7/notes.txt")))
         XCTAssertEqual(VolumeClone.clonedVolumes(containerID: "job-7"), ["go-mod", "npm"])
+    }
+
+    // MARK: - Path-component grammar (container ids and volume names)
+
+    /// A container id or volume name is a component of a clone path
+    /// (`<root>/<id>/<volume>.img`), so it must match the runtime's own id
+    /// grammar, `[A-Za-z0-9][A-Za-z0-9_.-]{0,62}`: no separator can pass, so
+    /// neither `..` nor `a/b` can steer a clone-dir operation elsewhere.
+    func testSafeComponentIsTheRuntimeIDGrammar() {
+        for good in ["a", "7", "job-7", "A.b_c-9", "npm", "9foo", "foo.bar", String(repeating: "x", count: 63)] {
+            XCTAssertTrue(VolumeClone.isSafeComponent(good), good)
+            XCTAssertNoThrow(try VolumeClone.requireSafeComponent(good), good)
+        }
+        for bad in [
+            "", ".", "..", "../x", "a/b", "/a", "a/", "-a", "_a", ".a", "a b", "a:b", "é", "a\u{0}b", "ab\n",
+            String(repeating: "x", count: 64), "../../com.apple.container/volumes/golden",
+        ] {
+            XCTAssertFalse(VolumeClone.isSafeComponent(bad), bad.debugDescription)
+            XCTAssertThrowsError(try VolumeClone.requireSafeComponent(bad), bad.debugDescription) { error in
+                XCTAssertEqual(ConnectCodeMapping.code(for: error), "invalid_argument", "\(error)")
+                XCTAssertTrue(error.localizedDescription.contains(VolumeClone.componentGrammar), "\(error)")
+            }
+        }
+    }
+
+    /// The clone root's sibling store holds a golden, exactly where
+    /// `<root>/../../com.apple.container/volumes/<golden>/volume.img` points
+    /// (Apple's volume store next to micropod's clone root under Application
+    /// Support). A request's name reaches the clone-dir lifecycle before the
+    /// runtime validates it, so every function that builds a path from an id
+    /// or a volume name must refuse an unsafe one without touching the
+    /// filesystem: the golden's image and directory survive, nothing is
+    /// placed, and the refusal is `invalid_argument`.
+    func testTraversalIDsAndVolumeNamesNeverReachTheFilesystem() async throws {
+        let store = dir.appendingPathComponent("com.apple.container/volumes/golden", isDirectory: true)
+        try FileManager.default.createDirectory(at: store, withIntermediateDirectories: true)
+        let golden = payload(seed: 12, count: 4096)
+        try golden.write(to: store.appendingPathComponent("volume.img"))
+        let root = dir.appendingPathComponent("micropod/volume-clones", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        setenv("MICROPOD_VOLUME_CLONE_ROOT", root.path, 1)
+        defer { unsetenv("MICROPOD_VOLUME_CLONE_ROOT") }
+        let traversal = "../../com.apple.container/volumes/golden"
+        let traversalVolume = "../../../com.apple.container/volumes/golden/volume"
+        // What a naive join would produce — the golden itself.
+        XCTAssertEqual(
+            root.appendingPathComponent(traversal).appendingPathComponent("volume.img").standardizedFileURL.path,
+            store.appendingPathComponent("volume.img").path)
+        XCTAssertEqual(
+            root.appendingPathComponent("job").appendingPathComponent("\(traversalVolume).img").standardizedFileURL
+                .path,
+            store.appendingPathComponent("volume.img").path)
+
+        XCTAssertThrowsError(try VolumeClone.clonePath(containerID: traversal, volume: "volume")) { error in
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "invalid_argument", "\(error)")
+        }
+        XCTAssertThrowsError(try VolumeClone.clonePath(containerID: "job", volume: traversalVolume)) { error in
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "invalid_argument", "\(error)")
+        }
+        XCTAssertEqual(VolumeClone.clonedVolumes(containerID: traversal), [])
+        let reclaimed = await VolumeClone.reclaimStaleCloneDir(containerID: traversal, live: [])
+        XCTAssertFalse(reclaimed, "a traversal id is never reclaimed")
+        await VolumeClone.removeClones(containerID: traversal)
+        await VolumeClone.removeClones(containerID: traversal, volumes: ["volume"])
+        await VolumeClone.removeClones(containerID: "job", volumes: [traversalVolume])
+        XCTAssertThrowsError(try VolumeClone.requireClone(containerID: traversal, volume: "volume")) { error in
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "invalid_argument", "\(error)")
+        }
+        XCTAssertThrowsError(try VolumeClone.requireClone(containerID: "job", volume: traversalVolume)) { error in
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "invalid_argument", "\(error)")
+        }
+
+        XCTAssertEqual(
+            try Data(contentsOf: store.appendingPathComponent("volume.img")), golden, "the golden's bytes survive")
+        XCTAssertEqual(
+            try FileManager.default.contentsOfDirectory(atPath: store.path), ["volume.img"],
+            "the golden's directory survives, with nothing staged next to it")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.path), [], "nothing was placed")
+    }
+
+    /// Only the container that mounts a clone may promote it: a clone file
+    /// under a container's id that the container's configuration does not
+    /// mount is a leftover of an earlier container of that name (a raw
+    /// `container delete` keeps the dir), not this container's writes.
+    func testRequireMountedNeedsAMountWhoseSourceIsTheClone() throws {
+        let clone = path("clones/job-8/g.img")
+        let entries = try MicropodJSON.decodeArray(
+            ContainerListEntry.self,
+            from: Data(
+                """
+                [{"id":"job-8","configuration":{"mounts":[
+                    {"destination":"/x","source":"\(clone)","options":[],"type":{"block":{}}},
+                    {"destination":"/y","source":"g","options":[],"type":{"volume":{"name":"g"}}}]},
+                  "status":{"state":"stopped"}},
+                 {"id":"job-9","configuration":{"mounts":[
+                    {"destination":"/x","source":"g","options":[],"type":{"virtiofs":{}}}]},
+                  "status":{"state":"stopped"}},
+                 {"id":"job-10","configuration":{},"status":{"state":"stopped"}}]
+                """.utf8), context: "test entries")
+
+        XCTAssertNoThrow(try VolumeClone.requireMounted(clone: clone, containerID: "job-8", volume: "g", in: entries))
+        for id in ["job-9", "job-10", "ghost"] {
+            XCTAssertThrowsError(
+                try VolumeClone.requireMounted(clone: clone, containerID: id, volume: "g", in: entries), id
+            ) { error in
+                XCTAssertEqual(ConnectCodeMapping.code(for: error), "not_found", "\(id): \(error)")
+                XCTAssertTrue(error.localizedDescription.contains("'\(id)'"), "\(error)")
+                XCTAssertTrue(error.localizedDescription.contains("mount"), "\(error)")
+            }
+        }
     }
 
     // MARK: - removeClones / sweepOrphanClones (shared by the CLI and native container services)

@@ -116,7 +116,20 @@ public struct NativeContainerService: ContainerServing {
     /// live block device — stays, whatever this create's failure was
     /// (`already_exists` from the list check, from the exclusive placement
     /// or from the apiserver, or anything else).
+    ///
+    /// The name and every named volume are clone-path components
+    /// (`<cloneRoot>/<id>/<volume>.img`) that reach the clone-dir lifecycle
+    /// — orphan sweep, stale-dir reclaim, placement, failure removal —
+    /// before the runtime sees them, so the runtime's id grammar is enforced
+    /// first (`invalid_argument`, as the runtime itself would answer),
+    /// before the mutex and before any filesystem or XPC work.
     private func createNative(_ request: ContainerRunRequest) async throws -> String {
+        if let name = request.name {
+            try VolumeClone.requireSafeComponent(name, as: "container id")
+        }
+        for volume in VolumeAttachments.namedVolumes(in: request.volumes) {
+            try VolumeClone.requireSafeComponent(volume, as: "volume name")
+        }
         let id = request.name ?? UUID().uuidString.lowercased()
         return try await InFlightCreates.shared.withExclusive(id) {
             var placed: [String] = []
@@ -621,7 +634,7 @@ public struct NativeContainerService: ContainerServing {
     /// over; the loser fails `already_exists` and removes only what it
     /// placed itself.
     public static func cloneVolumeImage(source: String, containerID: String, volume: String) throws -> String {
-        let destination = VolumeClone.clonePath(containerID: containerID, volume: volume)
+        let destination = try VolumeClone.clonePath(containerID: containerID, volume: volume)
         try VolumeClone.cloneImage(from: source, to: destination.path, placement: .exclusive)
         return destination.path
     }

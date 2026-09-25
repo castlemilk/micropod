@@ -84,6 +84,7 @@ public struct NativeVolumeService: VolumeServing {
             let entries = try await entries()
             try VolumeClone.requireStopped(containerID: containerID, in: entries)
             let clone = try VolumeClone.requireClone(containerID: containerID, volume: volume)
+            try VolumeClone.requireMounted(clone: clone, containerID: containerID, volume: volume, in: entries)
             let golden = try VolumeClone.requireVolume(try await self.volume(named: volume), named: volume)
             try VolumeClone.requireBackingImage(golden)
             try VolumeClone.requireQuiescent(golden, attachments: VolumeAttachments(entries: entries))

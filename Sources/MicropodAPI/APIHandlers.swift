@@ -388,6 +388,8 @@ final class APIHandlers: Sendable {
             default:
                 return .json(404, ["error": "not found: \(method.rawValue) \(path)"])
             }
+        } catch let error as BadRequest {
+            return .json(400, ["error": error.message])
         } catch let error as AppControlError {
             // App down / socket broken / updater refused → service unavailable.
             return .json(503, ["error": error.localizedDescription])
@@ -426,6 +428,18 @@ final class APIHandlers: Sendable {
         let labels: [LabelSpec] = ((payload["labels"] as? [String: String]) ?? [:]).map {
             LabelSpec(key: $0.key, value: $0.value)
         }
+        let volumes = (payload["volumes"] as? [String]) ?? []
+        // Container ids and volume names are clone-path components
+        // (`<cloneRoot>/<id>/<volume>.img`) that reach the clone-dir
+        // lifecycle before the runtime validates them: the runtime's id
+        // grammar is enforced before dispatch (`VolumeClone.requireSafeComponent`
+        // guards the paths themselves).
+        if let name = payload["name"] as? String, !VolumeClone.isSafeComponent(name) {
+            throw BadRequest(message: "name '\(name)' must match \(VolumeClone.componentGrammar)")
+        }
+        if let volume = VolumeAttachments.namedVolumes(in: volumes).first(where: { !VolumeClone.isSafeComponent($0) }) {
+            throw BadRequest(message: "volume name '\(volume)' must match \(VolumeClone.componentGrammar)")
+        }
         return ContainerRunRequest(
             image: payload["image"] as? String ?? "",
             name: payload["name"] as? String,
@@ -434,7 +448,7 @@ final class APIHandlers: Sendable {
             memory: payload["memory"] as? String,
             env: env,
             publishedPorts: ports,
-            volumes: (payload["volumes"] as? [String]) ?? [],
+            volumes: volumes,
             labels: labels,
             useInit: (payload["init"] as? Bool) ?? false,
             arguments: (payload["arguments"] as? [String]) ?? [])
@@ -550,4 +564,9 @@ final class APIHandlers: Sendable {
             "totalReclaimableBytes": usage.totalReclaimableBytes,
         ]
     }
+}
+
+/// A request the REST handlers refuse before it reaches a service — `400`.
+private struct BadRequest: Error {
+    let message: String
 }

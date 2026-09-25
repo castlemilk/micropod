@@ -70,9 +70,10 @@ final class ConnectCodeMappingTests: XCTestCase {
             code(cli("Warning: rosetta is not available\nError: notFound: \"image ghost:1 not found\"\n")),
             "not_found")
         // Not in the table: the runtime's `invalidState`, the mock's plain
-        // phrasing, and a guest process's own stderr.
+        // phrasing for `stop`/`start` of a missing id, and a guest process's
+        // own stderr.
         XCTAssertEqual(code(cli("Error: invalidState: \"container web is not running\"\n")), "internal")
-        XCTAssertEqual(code(cli("Error: no such container: web\n", command: "container delete")), "internal")
+        XCTAssertEqual(code(cli("Error: no such container: web\n", command: "container stop")), "internal")
         XCTAssertEqual(code(cli("sh: notFound: command not found\n", command: "container exec")), "internal")
         XCTAssertEqual(code(cli("", command: "container exec")), "internal")
         // The message keeps its wrapper: only the code is read from stderr.
@@ -153,10 +154,12 @@ final class ConnectCodeMappingTests: XCTestCase {
             "internal")
     }
 
-    /// `container exec` relays the guest process's stderr, which may carry
-    /// an `Error:` line of its own: an exec failure is never classified from
-    /// it. (`execDetailed` reports the exit code and text instead.)
-    func testExecFailuresAreNeverClassifiedFromStderr() {
+    /// `container exec` and an attached `container run` (no `--detach`)
+    /// relay the guest process's stderr, which may carry an `Error:` line of
+    /// its own: a failure there is never classified from it. (`execDetailed`
+    /// reports the exit code and text instead.) A detached run's stderr is
+    /// the CLI's and classifies as usual.
+    func testGuestStderrIsNeverClassified() {
         XCTAssertEqual(
             code(
                 .cliFailure(
@@ -166,10 +169,44 @@ final class ConnectCodeMappingTests: XCTestCase {
         XCTAssertEqual(
             code(.cliFailure(command: "container exec web true", exitCode: 1, stderr: "Error: web already exists\n")),
             "internal")
-        XCTAssertTrue(ConnectCodeMapping.isExecCommand("container exec web true"))
-        XCTAssertTrue(ConnectCodeMapping.isExecCommand("container exec --detach web true"))
-        XCTAssertFalse(ConnectCodeMapping.isExecCommand("container create --name exec nginx:1.27"))
-        XCTAssertFalse(ConnectCodeMapping.isExecCommand("exec web"))
+        // REST `detach: false` runs attached: the guest's exit code and stderr
+        // come back through the CLI.
+        XCTAssertEqual(
+            code(
+                .cliFailure(
+                    command: "container run --name job nginx:1.27 sh -c 'exit 2'", exitCode: 2,
+                    stderr: "Error: notFound: \"config.yaml\"\n")),
+            "internal")
+        XCTAssertEqual(
+            code(
+                .cliFailure(
+                    command: "container run --name job nginx:1.27", exitCode: 1,
+                    stderr: "Error: job already exists\n")),
+            "internal")
+        // Detached, the stderr is the CLI's own.
+        XCTAssertEqual(
+            code(
+                .cliFailure(
+                    command: "container run --detach --name job nginx:1.27", exitCode: 1,
+                    stderr: "Error: container with id job already exists\n")),
+            "already_exists")
+        XCTAssertEqual(
+            code(
+                .cliFailure(
+                    command: "container run -d --name job nginx:1.27", exitCode: 1,
+                    stderr: "Error: notFound: \"image nginx:1.27 not found\"\n")),
+            "not_found")
+
+        XCTAssertTrue(ConnectCodeMapping.relaysGuestStderr(command: "container exec web true"))
+        XCTAssertTrue(ConnectCodeMapping.relaysGuestStderr(command: "container exec --detach web true"))
+        XCTAssertTrue(ConnectCodeMapping.relaysGuestStderr(command: "container run --name x nginx:1.27"))
+        XCTAssertTrue(
+            ConnectCodeMapping.relaysGuestStderr(command: "container run nginx:1.27 --detach"), "an argv, not a flag")
+        XCTAssertFalse(ConnectCodeMapping.relaysGuestStderr(command: "container run --detach --name x nginx:1.27"))
+        XCTAssertFalse(ConnectCodeMapping.relaysGuestStderr(command: "container run -d nginx:1.27"))
+        XCTAssertFalse(ConnectCodeMapping.relaysGuestStderr(command: "container create --name exec nginx:1.27"))
+        XCTAssertFalse(ConnectCodeMapping.relaysGuestStderr(command: "container delete run"))
+        XCTAssertFalse(ConnectCodeMapping.relaysGuestStderr(command: "exec web"))
     }
 
     func testIndicatesRuntimeDownMatchesCLISignaturesOnly() {

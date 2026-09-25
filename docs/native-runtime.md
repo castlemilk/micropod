@@ -137,7 +137,7 @@ table used by the Connect mount:
 | stalled image pull | `aborted` |
 | operation with no implementation on this backend | `unimplemented` |
 | upstream `notFound:` / `invalidArgument:` / `exists:` (`alreadyExists:`) / `failedPrecondition:` … prefixes | the matching snake_case code |
-| a `container` CLI failure, from the first `Error:` line of its stderr (verified against `container` 1.3.1) | `Error: <code>: "…"` reads through the same prefix table; `Error: internalError: "…" (cause: "<code>: …")` reads the cause (`container delete <missing>` prints `internalError: "failed to delete container" (cause: "notFound: "container with ID x not found"")` → `not_found`); the CLI's bare duplicate-id lines — `container create`: `Error: container already exists: x`, `container run`: `Error: container with id x already exists` — are `already_exists`. The error message keeps its "`cmd` failed (exit N): …" wrapper. `container exec` failures are never classified from stderr (it is the guest's; `execDetailed` reports exit code and text instead) |
+| a `container` CLI failure, from the first `Error:` line of its stderr (verified against `container` 1.3.1) | `Error: <code>: "…"` reads through the same prefix table; `Error: internalError: "…" (cause: "<code>: …")` reads the cause (`container delete <missing>` prints `internalError: "failed to delete container" (cause: "notFound: "container with ID x not found"")` → `not_found`); the CLI's bare duplicate-id lines — `container create`: `Error: container already exists: x`, `container run`: `Error: container with id x already exists` — are `already_exists`. The error message keeps its "`cmd` failed (exit N): …" wrapper. `container exec` failures, and those of an attached `container run` (REST `detach: false`; Connect always runs detached), are never classified from stderr (it is the guest's; `execDetailed` reports exit code and text instead) |
 | anything else | `internal` |
 
 The REST facade answers `503` for transport errors. Clients should treat
@@ -255,7 +255,26 @@ whole duration. A replay of the same request waits for the winner: if the
 winner succeeded, the replay's list check answers `already_exists` before
 it places or reclaims anything; if the winner failed, the replay finds the
 dir the loser already cleaned and proceeds as a genuine create. A failed
-`run` cleans up (delete + clone dir) under the same mutex.
+`run` cleans up (delete + clone dir) under the same mutex — but the window
+between `createNative` returning and the failed start's cleanup taking the
+mutex is outside it: a replay of the id in that window is answered
+`already_exists` for a container that is about to be deleted, and its
+adopt path then finds `not_found`; inherent to the CLI's own run semantics
+(create, start, delete on failure), not to the mutex.
+
+The container name and every named volume are clone-path components
+(`<cloneRoot>/<id>/<volume>.img`) and reach the clone-dir lifecycle —
+orphan sweep, stale-dir reclaim, placement, failure removal — before the
+runtime validates them, so the runtime's id grammar
+(`[A-Za-z0-9][A-Za-z0-9_.-]{0,62}`, `VolumeClone.requireSafeComponent`) is
+enforced three times over: at the API edge (Connect `invalid_argument`,
+REST 400) for `CreateContainer`/`RunContainer` names and named volumes and
+for `CloneVolume`/`CommitVolumeClone` names; by `createNative` before the
+mutex and before any filesystem or XPC work; and inside every `VolumeClone`
+function that builds a path from an id or a volume name, none of which
+touches the filesystem for an unsafe one. Without that, a name such as
+`../../com.apple.container/volumes/<golden>` would make the stale-dir
+reclaim unlink the golden's own `volume.img`.
 
 A create that dies with its process (not one that fails — that cleans up)
 leaves a clone dir with no container behind it. Finding no container of
@@ -327,7 +346,9 @@ Clone lifecycle hardening:
   backends the dir is removed only after the runtime's delete succeeded,
   so a container already removed by a raw `container delete` (the CLI
   answers `not_found`, from its `(cause: "notFound: …")`) keeps its clone
-  dir until the next orphan sweep (below) takes it.
+  dir until the next orphan sweep (below) takes it — and a same-name
+  container created in between cannot promote it, as `CommitVolumeClone`
+  requires the container to mount the clone.
 - **Orphan sweep** — a cloning `create` or `prune` removes clone dirs
   whose container no longer exists (raw `container delete`, crashed
   runtime). Dirs younger than 60s are skipped so an in-flight create's
@@ -389,7 +410,12 @@ implements `CloneVolume` and answers `unimplemented` for
   `stopped` (`stopping` is not stopped: the VM may still be flushing)
   and the volume not attached read-write to a running or stopping
   container (`failed_precondition`); a missing container, clone or
-  volume is `not_found`. It then fsyncs the clone, makes a CoW twin next
+  volume is `not_found`, and so is a clone the container's configuration
+  does not mount (no mount whose source is the clone's path): a file left
+  under the id by an earlier container of that name — a raw `container
+  delete` keeps the dir, and a same-name container created directly on
+  the golden inherits it — is never promoted; only the container that
+  mounts a clone can. It then fsyncs the clone, makes a CoW twin next
   to the golden, fsyncs it, `rename(2)`s it over `volume.img` and fsyncs
   the directory. Readers see the old image or the new one, never a partial
   one. The clone itself stays where the container's configuration points,

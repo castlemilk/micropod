@@ -10,6 +10,9 @@ import XCTest
 ///  - creates of the same id are mutually exclusive in the process for their
 ///    whole duration (`InFlightCreates.withExclusive`), so a create is the
 ///    sole placer under its id when it reclaims a stale clone dir;
+///  - a container name outside the runtime's id grammar is refused
+///    `invalid_argument` before the mutex and before any filesystem or XPC
+///    work: the name is the clone dir's path component;
 ///  - `no_pull` refuses a missing image with a `notFound:`-prefixed message
 ///    naming the platform, which the Connect table maps to `not_found`.
 final class NativeCreateGuardsTests: XCTestCase {
@@ -189,6 +192,62 @@ final class NativeCreateGuardsTests: XCTestCase {
         XCTAssertEqual(
             try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("job-9").path),
             ["cache.img"], "no staging file left next to the winner's clone")
+    }
+
+    /// The container name is `<cloneRoot>/<name>`'s path component and
+    /// reaches the clone-dir lifecycle (orphan sweep, stale-dir reclaim,
+    /// placement, failure removal) before the runtime validates it. `create`
+    /// and `run` refuse a name outside the runtime's id grammar as
+    /// `invalid_argument` before the create mutex and before any filesystem
+    /// or XPC work — there is no runtime behind this service, so a refusal
+    /// that reached XPC would surface as something other than
+    /// `invalid_argument`. The golden the traversal names — in the clone
+    /// root's sibling store, as Apple's volume store sits next to micropod's
+    /// under Application Support — survives, and nothing is placed.
+    func testCreateRefusesATraversalNameBeforeAnyFilesystemWork() async throws {
+        let cloneRoot = root.appendingPathComponent("micropod/volume-clones", isDirectory: true)
+        let store = root.appendingPathComponent("com.apple.container/volumes/g", isDirectory: true)
+        try FileManager.default.createDirectory(at: cloneRoot, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: store, withIntermediateDirectories: true)
+        let golden = store.appendingPathComponent("volume.img")
+        try Data("golden".utf8).write(to: golden)
+        setenv("MICROPOD_VOLUME_CLONE_ROOT", cloneRoot.path, 1)
+        let traversal = "../../com.apple.container/volumes/g"
+        XCTAssertEqual(
+            cloneRoot.appendingPathComponent(traversal).appendingPathComponent("volume.img").standardizedFileURL.path,
+            golden.path, "the traversal names the golden")
+
+        let service = NativeContainerService(
+            api: APIServerClient(service: "com.micropod.tests.no-such-apiserver"),
+            cli: ContainerService(
+                client: ContainerCLIClient(executableURL: root.appendingPathComponent("no-such-cli"))),
+            images: ImagesServiceClient(service: "com.micropod.tests.no-such-images"))
+        let cloneLabel = LabelSpec(key: "com.micropod.cache.clone", value: "g")
+        for name in [traversal, "a/b", "..", "-job", String(repeating: "x", count: 64)] {
+            let request = ContainerRunRequest(image: "nginx:1.27", name: name, volumes: ["g:/x"], labels: [cloneLabel])
+            for verb in ["create", "run"] {
+                do {
+                    _ = try await verb == "create" ? service.create(request) : service.run(request)
+                    XCTFail("\(verb) with name \(name.debugDescription) must be refused")
+                } catch {
+                    XCTAssertEqual(ConnectCodeMapping.code(for: error), "invalid_argument", "\(verb) \(name): \(error)")
+                    XCTAssertTrue(error.localizedDescription.contains(name), "\(verb) \(name): \(error)")
+                }
+            }
+        }
+        // A named volume is a path component too (`<root>/<id>/<volume>.img`).
+        do {
+            _ = try await service.create(
+                ContainerRunRequest(image: "nginx:1.27", name: "job", volumes: ["-g:/x"], labels: [cloneLabel]))
+            XCTFail("a volume name outside the grammar must be refused")
+        } catch {
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "invalid_argument", "\(error)")
+            XCTAssertTrue(error.localizedDescription.contains("-g"), "\(error)")
+        }
+
+        XCTAssertEqual(try Data(contentsOf: golden), Data("golden".utf8), "the golden's bytes survive")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: store.path), ["volume.img"])
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: cloneRoot.path), [], "nothing was placed")
     }
 
     func testNoPullRefusalNamesImageAndPlatformAsNotFound() {
