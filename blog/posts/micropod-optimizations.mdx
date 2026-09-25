@@ -9,10 +9,10 @@ standfirst: "Every `container` CLI call costs 15–80 ms, so most of Micropod's 
 
 Micropod's daemon has an unusual cost structure: underneath every API surface — the app, the MCP server, the Connect API, the Docker shim — sits Apple's `container` CLI, and each invocation is a `Process` spawn plus a ~23 ms XPC call into `container-apiserver`. Measured, that's 15–80 ms of overhead per operation. You can't optimize the runtime from outside it, so the engineering went where the leverage is: stop spawning.
 
-<GraphFlow title="A SHIM REQUEST">
-  <Path>request → **cache** → cli spawn → response</Path>
-  <Path>mutation → **invalidate** → fresh list</Path>
-</GraphFlow>
+<Flow title="a shim request" lanes={[
+  { steps: ["request", "cache", "cli spawn", "response"], accent: 1 },
+  { steps: ["mutation", "invalidate", "fresh list"], accent: 1 },
+]} />
 
 ## The read-through cache is the whole game
 
@@ -20,13 +20,18 @@ The first `/metrics` dump after a bench run was unflattering: the cache was serv
 
 The fix is a two-tier read-through cache — a decoded model tier and an encoded-body tier — with synchronous invalidation on every mutation, an events-loop invalidation on state transitions, and a 1 s TTL bound for out-of-band changes.
 
-<GraphSlope title="P50, MS" fromLabel="before" toLabel="after" items={[
-  { label: "list", from: "39", to: "2.5" },
-  { label: "images", from: "13", to: "1.9" },
-  { label: "info", from: "280", to: "0.4" },
-  { label: "df", from: "287", to: "3.0" },
-  { label: "inspect", from: "16", to: "0.5" },
-]} />
+<PerfChart
+  title="p50 (ms) — before / after the cache"
+  unit="ms"
+  columns={["before", "after"]}
+  rows={[
+    { label: "list", values: [39, 2.5] },
+    { label: "images", values: [13, 1.9] },
+    { label: "info", values: [280, 0.4] },
+    { label: "df", values: [287, 3.0] },
+    { label: "inspect", values: [16, 0.5] },
+  ]}
+/>
 
 The guardrails are what make this honest rather than fast-looking: the cache only serves reads — every mutation resolves against a fresh list. `MICROPOD_SHIM_CACHE_DISABLE=1` measures the cacheless floor, and the bench's `--baseline` flag fails on >20% p50 regression so the wins can't silently rot. After the fix: 237 hits / 38 misses (86%), `image list` spawns 111→6, `list --all` 118→8.
 
@@ -48,7 +53,7 @@ A stopped container restarts in ~0.5 s with full entrypoint fidelity — but `mi
 
 Runtime 1.3.1 delivers SIGTERM to guests, but a guest that ignores it — and `sleep` as PID 1 ignores it — always pays the ~5 s grace. Worse, `--init` doesn't forward TERM at all (verified: no GOTTERM, 5.25 s stop — reported upstream). The consequence: every cleanup path in Micropod uses kill semantics — `stop -t 0`, `kill`, `rm -f` — never bare `stop`. That single choice is most of why the shim's `stop` lands at 72 ms while Docker Desktop sits in its 2-second grace. Cuttlefish's executor switched the same way and saved up to 5 s per teardown.
 
-<GraphStat title="HEADLINE NUMBERS" items={[
+<StatGrid items={[
   { value: "86%", label: "cache hit rate" },
   { value: "0.1 s", label: "warm machine exec" },
   { value: "677 ms", label: "1k-file mount, cloned" },
