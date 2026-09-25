@@ -236,4 +236,144 @@ final class MicropodAPITests: XCTestCase {
         }
         XCTAssertTrue(collected.contains("data: mock log line"), "SSE events: \(collected)")
     }
+    /// Connect server-streams end with an EndStream frame (flag 0x02). The
+    /// server must not close the socket until that frame has been flushed —
+    /// connect-go otherwise fails the stream with "protocol error: unexpected
+    /// EOF". Streams a container that has already stopped so the backlog is
+    /// finite and the trailer is the very last thing on the wire.
+    func testConnectStreamEndFrameIsDelivered() async throws {
+        let run = try await json(
+            "POST", "v1/containers",
+            body: ["image": "nginx:1.27", "name": "api-endframe", "arguments": ["echo", "api-boot"]])
+        let id = run["id"] as? String ?? ""
+        XCTAssertFalse(id.isEmpty)
+        _ = try await json("POST", "v1/containers/\(id)/stop")
+
+        let payload = try JSONSerialization.data(withJSONObject: ["id": id, "tail": 5])
+        var request = URLRequest(
+            url: baseURL.appendingPathComponent("api/micropod.v1.ContainerService/StreamContainerLogs"))
+        request.httpMethod = "POST"
+        request.setValue("application/connect+json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = ConnectFrames.envelope(payload, flags: 0)
+        request.timeoutInterval = 20
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let http = response as? HTTPURLResponse
+        XCTAssertEqual(http?.statusCode, 200)
+        XCTAssertEqual(http?.value(forHTTPHeaderField: "Content-Type"), "application/connect+json")
+
+        let parsed = ConnectFrames.parse(data)
+        XCTAssertEqual(parsed.trailing, 0, "response ended mid-frame with \(parsed.trailing) stray bytes")
+        let dataFrames = parsed.frames.filter { $0.flags == 0 }
+        XCTAssertGreaterThanOrEqual(dataFrames.count, 1, "expected at least one LogChunk data frame")
+        for frame in dataFrames {
+            let chunk = try JSONSerialization.jsonObject(with: frame.payload) as? [String: Any]
+            XCTAssertTrue(
+                (chunk?["text"] as? String ?? "").contains("mock log line"),
+                "unexpected LogChunk: \(String(decoding: frame.payload, as: UTF8.self))")
+        }
+        guard let last = parsed.frames.last else {
+            return XCTFail("no complete frames in a \(data.count)-byte body")
+        }
+        XCTAssertEqual(last.flags, 0x02, "last frame must be the EndStream trailer, got flags \(last.flags)")
+        let trailer = String(decoding: last.payload, as: UTF8.self)
+        XCTAssertTrue(trailer == "{}" || trailer.contains("\"error\""), "EndStream body: \(trailer)")
+    }
+
+    /// URLSession hides the reason phrase, so read the status line off the
+    /// socket: a Connect validation failure must be `400 Bad Request`, not
+    /// `400 Unknown`. (503/504/412 paths need a runtime that can fail — the
+    /// mock CLI cannot produce them until the stopped-runtime mode lands.)
+    func testConnectErrorStatusLineCarriesReasonPhrase() async throws {
+        let port = UInt16(baseURL.port ?? 0)
+        let body = "{}"
+        let request =
+            "POST /api/micropod.v1.ContainerService/StartContainer HTTP/1.1\r\n"
+            + "Host: 127.0.0.1:\(port)\r\n"
+            + "Content-Type: application/json\r\n"
+            + "Content-Length: \(body.utf8.count)\r\n"
+            + "Connection: close\r\n\r\n" + body
+        let response = try await Task.detached { try RawHTTP.exchange(port: port, request: request) }.value
+        let statusLine = response.components(separatedBy: "\r\n").first ?? ""
+        XCTAssertEqual(statusLine, "HTTP/1.1 400 Bad Request", "raw response:\n\(response)")
+        XCTAssertTrue(response.contains("\"code\":\"invalid_argument\""), "raw response:\n\(response)")
+    }
+}
+
+/// Connect envelope framing for the tests — [flags:1][length:4 big-endian][payload].
+enum ConnectFrames {
+    struct Frame {
+        let flags: UInt8
+        let payload: Data
+    }
+
+    static func envelope(_ payload: Data, flags: UInt8) -> Data {
+        let length = UInt32(payload.count)
+        var out = Data([flags])
+        out.append(contentsOf: [
+            UInt8(length >> 24), UInt8((length >> 16) & 0xff), UInt8((length >> 8) & 0xff), UInt8(length & 0xff),
+        ])
+        out.append(payload)
+        return out
+    }
+
+    /// Splits a response body into complete frames. `trailing` is the number
+    /// of bytes left after the last complete frame — non-zero means the
+    /// connection was cut mid-frame.
+    static func parse(_ data: Data) -> (frames: [Frame], trailing: Int) {
+        var frames: [Frame] = []
+        var offset = data.startIndex
+        while data.endIndex - offset >= 5 {
+            let flags = data[offset]
+            let length =
+                Int(data[offset + 1]) << 24 | Int(data[offset + 2]) << 16
+                | Int(data[offset + 3]) << 8 | Int(data[offset + 4])
+            let start = offset + 5
+            guard data.endIndex - start >= length else { break }
+            frames.append(Frame(flags: flags, payload: Data(data[start..<(start + length)])))
+            offset = start + length
+        }
+        return (frames, data.endIndex - offset)
+    }
+}
+
+/// Minimal blocking HTTP/1.1 exchange over a POSIX socket, for tests that
+/// need the raw status line (reason phrase) URLSession does not expose.
+enum RawHTTP {
+    static func exchange(port: UInt16, request: String) throws -> String {
+        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        guard fd >= 0 else { throw POSIXError(.EIO) }
+        defer { close(fd) }
+
+        var timeout = timeval(tv_sec: 10, tv_usec: 0)
+        _ = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+
+        var addr = sockaddr_in()
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = port.bigEndian
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+        let connected = withUnsafePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                connect(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        guard connected == 0 else { throw POSIXError(.ECONNREFUSED) }
+
+        let bytes = Array(request.utf8)
+        var sent = 0
+        while sent < bytes.count {
+            let n = bytes.withUnsafeBufferPointer { send(fd, $0.baseAddress! + sent, bytes.count - sent, 0) }
+            guard n > 0 else { throw POSIXError(.EPIPE) }
+            sent += n
+        }
+
+        var out = Data()
+        var buffer = [UInt8](repeating: 0, count: 4096)
+        while true {
+            let n = recv(fd, &buffer, buffer.count, 0)
+            if n <= 0 { break }
+            out.append(buffer, count: n)
+        }
+        return String(decoding: out, as: UTF8.self)
+    }
 }
