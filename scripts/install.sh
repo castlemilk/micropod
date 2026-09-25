@@ -89,6 +89,16 @@ if [ -f "$ROOT/dist/micropod" ]; then
     chmod +x "$CLI_BIN"
 fi
 
+# Agent skill: canonical copy lives at plugins/micropod/skills/micropod/
+# (also shipped via the Claude Code plugin marketplace). Install it where
+# Claude Code auto-discovers personal skills.
+if [ -f "$ROOT/plugins/micropod/skills/micropod/SKILL.md" ]; then
+    mkdir -p "$HOME/.claude/skills"
+    rm -rf "$HOME/.claude/skills/micropod"
+    cp -R "$ROOT/plugins/micropod/skills/micropod" "$HOME/.claude/skills/micropod"
+    echo "==> Installed agent skill to ~/.claude/skills/micropod"
+fi
+
 # Refresh Launch Services so the app appears (with its icon) in
 # Launchpad/Finder immediately instead of on next login.
 echo "==> Refreshing Launch Services registration"

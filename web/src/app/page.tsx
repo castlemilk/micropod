@@ -33,7 +33,7 @@ export default function OverviewPage() {
       title: "MCP tools",
       count: `${tools.length} tools`,
       blurb:
-        "Model Context Protocol server (MicropodMCP) exposing container, image, volume, and compose operations to agents.",
+        "Model Context Protocol server (MicropodMCP) exposing container, image, volume, and compose operations to agents — installable as a Claude Code plugin from the repo.",
     },
     {
       href: "/proto/",

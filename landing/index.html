@@ -284,6 +284,38 @@
     .stat .lbl { display: block; margin-top: 0.375rem; font-size: 0.75rem; color: var(--fg-muted); line-height: 1.5; }
     .stats-note { margin-top: 1rem; font-size: 0.6875rem; color: var(--fg-muted); }
 
+    /* Agents section */
+    .agents-grid { display: grid; gap: 1rem; margin-top: 3rem; text-align: left; }
+    .agent-card {
+      border-radius: var(--radius); border: 1px solid var(--border);
+      background: var(--bg-card); padding: 1.5rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      display: flex; flex-direction: column;
+    }
+    .agent-card:hover { border-color: color-mix(in srgb, var(--primary) 25%, transparent); }
+    .agent-card h3 { font-size: 1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+    .agent-card h3 svg { color: var(--primary); flex-shrink: 0; }
+    .agent-card > p { margin-top: 0.5rem; font-size: 0.8125rem; color: var(--fg-muted); line-height: 1.6; flex-grow: 1; }
+    .agent-card .tag {
+      font-family: var(--font-mono); font-size: 0.6875rem; color: var(--primary);
+      border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+      border-radius: 9999px; padding: 0.0625rem 0.5rem; margin-left: auto;
+    }
+    .codeblock {
+      margin-top: 1rem; border-radius: 0.5rem; border: 1px solid var(--border);
+      background: var(--bg-secondary); overflow-x: auto;
+    }
+    .codeblock pre {
+      padding: 0.875rem 1rem; font-family: var(--font-mono); font-size: 0.75rem;
+      line-height: 1.6; color: var(--fg);
+    }
+    .codeblock .c { color: var(--fg-muted); }
+    .codeblock .s { color: var(--success); }
+    .agent-card .links { margin-top: 0.875rem; font-size: 0.75rem; }
+    .agent-card .links a { color: var(--primary); }
+    .agent-card .links a:hover { text-decoration: underline; }
+    @media (min-width: 900px) { .agents-grid { grid-template-columns: repeat(3, 1fr); } }
+
     /* CTA */
     .cta { position: relative; padding: 6rem 0; overflow: hidden; border-top: 1px solid var(--border); text-align: center; }
     .cta-glow {
@@ -332,6 +364,7 @@
       </a>
       <div class="nav-links">
         <a href="#features">Features</a>
+        <a href="#agents">Agents</a>
         <a href="api/">API Docs</a>
         <a href="https://github.com/castlemilk/micropod/releases/latest/download/Micropod.dmg">Download</a>
         <a href="https://github.com/castlemilk/micropod" target="_blank" rel="noopener">
@@ -544,6 +577,50 @@
               <tr><td>License</td><td class="col-micropod"><span class="yes">open source</span></td><td><span class="no">paid for pros</span></td><td><span class="yes">open source</span></td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- For agents -->
+    <section class="py-24" id="agents">
+      <div class="max-w-7xl text-center">
+        <div class="reveal"><p class="section-label">For agents</p></div>
+        <div class="reveal" style="transition-delay:0.05s"><h2 class="section-title">Containers your agents<br /><span>can actually drive.</span></h2></div>
+        <div class="reveal" style="transition-delay:0.1s"><p class="section-desc">A built-in MCP server (32 tools), a typed Connect API with TypeScript/Go/Swift SDKs, and a Docker Engine shim for unmodified clients — plus an agent skill that ties it together. The repo doubles as a Claude Code plugin marketplace.</p></div>
+        <div class="agents-grid">
+          <div class="agent-card reveal" style="transition-delay:0s">
+            <h3>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              Claude Code plugin
+              <span class="tag">marketplace</span>
+            </h3>
+            <p>Add the repo as a marketplace and install the plugin — it registers the MCP server and installs the <code style="font-family:var(--font-mono);font-size:0.75rem;color:var(--primary)">micropod</code> skill in one shot.</p>
+            <div class="codeblock"><pre>/plugin marketplace add <span class="s">castlemilk/micropod</span>
+/plugin install <span class="s">micropod@micropod</span></pre></div>
+            <p class="links"><a href="https://github.com/castlemilk/micropod/tree/master/plugins/micropod" target="_blank" rel="noopener">plugins/micropod ↗</a></p>
+          </div>
+          <div class="agent-card reveal" style="transition-delay:0.05s">
+            <h3>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg>
+              MCP server
+              <span class="tag">32 tools</span>
+            </h3>
+            <p>Containers, images, volumes, networks, compose, shared mounts, build cache, app updates. Installed to <code style="font-family:var(--font-mono);font-size:0.75rem;color:var(--primary)">~/.local/bin/micropod-mcp</code> — point any MCP client at it.</p>
+            <div class="codeblock"><pre><span class="c">// any client's MCP config</span>
+{"mcpServers":{"micropod":{"command":"micropod-mcp"}}}</pre></div>
+            <p class="links"><a href="api/" target="_blank" rel="noopener">MCP tool reference ↗</a></p>
+          </div>
+          <div class="agent-card reveal" style="transition-delay:0.1s">
+            <h3>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/></svg>
+              Typed API + SDKs
+              <span class="tag">connect</span>
+            </h3>
+            <p>Six protobuf services over Connect — plain POST + JSON for curl, or typed TS/Go/Swift clients with retries, timeouts, and OTel baked in.</p>
+            <div class="codeblock"><pre><span class="c">// plain curl — no client needed</span>
+curl -X POST localhost:45454/api/micropod.v1.<span class="s">ContainerService/ListContainers</span> -d '{}'</pre></div>
+            <p class="links"><a href="api/" target="_blank" rel="noopener">API explorer ↗</a> · <a href="https://github.com/castlemilk/micropod/tree/master/plugins/micropod/skills/micropod/SKILL.md" target="_blank" rel="noopener">agent skill ↗</a></p>
+          </div>
         </div>
       </div>
     </section>

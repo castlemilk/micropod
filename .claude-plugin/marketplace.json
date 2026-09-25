@@ -1,0 +1,37 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "micropod",
+  "owner": {
+    "name": "castlemilk",
+    "url": "https://github.com/castlemilk"
+  },
+  "metadata": {
+    "description": "Micropod — Docker Desktop-class container management on Apple's native container runtime. Ships an MCP server and an agent skill.",
+    "version": "0.8.0"
+  },
+  "plugins": [
+    {
+      "name": "micropod",
+      "source": "./plugins/micropod",
+      "description": "Drive Apple's container runtime from agents: registers the micropod MCP server (32 tools) and installs the micropod skill with API/SDK recipes.",
+      "version": "0.8.0",
+      "author": {
+        "name": "castlemilk",
+        "url": "https://github.com/castlemilk"
+      },
+      "homepage": "https://castlemilk.github.io/micropod/",
+      "repository": "https://github.com/castlemilk/micropod",
+      "license": "Apache-2.0",
+      "keywords": [
+        "containers",
+        "docker",
+        "apple-container",
+        "oci",
+        "compose",
+        "mcp",
+        "macos",
+        "testcontainers"
+      ]
+    }
+  ]
+}

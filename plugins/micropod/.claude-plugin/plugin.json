@@ -1,0 +1,23 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "micropod",
+  "version": "0.8.0",
+  "description": "Apple container runtime management for agents — registers the micropod MCP server (containers, images, volumes, networks, compose, shared mounts, build cache, app updates) and adds the micropod skill covering the MCP tools, the Connect/REST API, and the Go/TS/Swift SDKs.",
+  "author": {
+    "name": "castlemilk",
+    "url": "https://github.com/castlemilk"
+  },
+  "homepage": "https://castlemilk.github.io/micropod/",
+  "repository": "https://github.com/castlemilk/micropod",
+  "license": "Apache-2.0",
+  "keywords": [
+    "containers",
+    "docker",
+    "apple-container",
+    "oci",
+    "compose",
+    "mcp",
+    "macos",
+    "testcontainers"
+  ]
+}

@@ -520,12 +520,25 @@ connect/client server test suite (`cd api && go test ./...`) are included.
 
 ## Agent skills
 
-A complete agent skill (`micropod`) for using the MCP server, HTTP API and
-connect-go API — including recipes for cuttlefish-style worker orchestration
-and testcontainers/Ryuk-style disposable test containers — lives at
-[`docs/agent/micropod-skill.md`](docs/agent/micropod-skill.md) and is
-installed to `~/.claude/skills/micropod`. The MCP server is registered in
-Claude Code config (`~/.claude.json` → `mcpServers.micropod`).
+The repo ships a **Claude Code plugin marketplace** — one command installs
+the plugin, which registers the `micropod` MCP server (32 tools) and adds
+the agent skill:
+
+```
+/plugin marketplace add castlemilk/micropod
+/plugin install micropod@micropod
+```
+
+Outside Claude Code, the skill is at
+[`plugins/micropod/skills/micropod/SKILL.md`](plugins/micropod/skills/micropod/SKILL.md)
+— drop it into any agent's skills dir and register `micropod-mcp` in your
+client's MCP config. `scripts/install.sh` also installs the skill to
+`~/.claude/skills/micropod` alongside the app and binaries.
+
+The skill covers the MCP tools, the Connect API (six `micropod.v1` domain
+services), the `/v1/*` REST facade, the Docker Engine shim, and recipes for
+cuttlefish-style worker orchestration + Testcontainers/Ryuk disposable test
+containers. See [`docs/agent/micropod-skill.md`](docs/agent/micropod-skill.md).
 
 ## CI pipelines on micropod
 
