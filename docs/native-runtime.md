@@ -265,25 +265,36 @@ adopt path then finds `not_found`; inherent to the CLI's own run semantics
 The container name and every named volume are clone-path components
 (`<cloneRoot>/<id>/<volume>.img`) and reach the clone-dir lifecycle —
 orphan sweep, stale-dir reclaim, placement, failure removal — before the
-runtime validates them, so the runtime's id grammar
-(`[A-Za-z0-9][A-Za-z0-9_.-]{0,62}`, `VolumeClone.requireSafeComponent`) is
-enforced three times over: at the API edge (Connect `invalid_argument`,
-REST 400) for `CreateContainer`/`RunContainer` names and named volumes and
-for `CloneVolume`/`CommitVolumeClone` names; by `createNative` before the
+runtime validates them, so the runtime's own grammars are enforced three
+times over: at the API edge (Connect `invalid_argument`, REST 400) for
+`CreateContainer`/`RunContainer` names and named volumes and for
+`CloneVolume`/`CommitVolumeClone` names; by `createNative` before the
 mutex and before any filesystem or XPC work; and inside every `VolumeClone`
 function that builds a path from an id or a volume name, none of which
-touches the filesystem for an unsafe one. Without that, a name such as
+touches the filesystem for an unsafe one. A container id must match the
+runtime's container-ID grammar, `[A-Za-z0-9][A-Za-z0-9_.-]{0,62}`
+(`VolumeClone.requireSafeComponent`; `container` 1.3.1 takes 63 characters
+and refuses 64+). A volume name must match the runtime's volume grammar,
+`^[A-Za-z0-9][A-Za-z0-9_.-]*$` — the same characters with no cap of its
+own (`container volume create` takes a 64-character name) — bounded only
+by the filename limit, since the clone is `<name>.img`: 251 characters
+(`VolumeClone.requireSafeVolumeName`, `maxVolumeNameLength`). The
+container-id cap is deliberately not applied to volume names: a plain
+`-v <name>:/x` attach of a long name (cuttlefish's
+`cf-cache-<project>-<node>-<path>-<key>` volumes have no length bound)
+reaches the CLI as it always did. Without the grammars, a name such as
 `../../com.apple.container/volumes/<golden>` would make the stale-dir
-reclaim unlink the golden's own `volume.img`. The grammar is ASCII, as the
-runtime's is (`container` 1.3.1 refuses `café`: `container ID café is not a
-valid container ID`); the Docker shim's `DockerNaming.isRuntimeValid` is the
-same predicate, so a Docker name outside it is aliased to a sanitised
-runtime name rather than passed through to that refusal. A dir under the
-clone root whose name is outside the grammar — only a pre-guard build or a
-hand can put one there — is never a path this code builds: the orphan sweep
-leaves it in place and says so on stderr. A refusal's message echoes the
-value, so the Connect error body escapes every control character (an
-unparseable 400 would reach a connect-go client as `internal`).
+reclaim unlink the golden's own `volume.img`. Both grammars are ASCII, as
+the runtime's are (`container` 1.3.1 refuses `café` as a container id and
+as a volume name); the Docker shim's `DockerNaming.isRuntimeValid` is the
+container-id predicate, so a Docker name outside it is aliased to a
+sanitised runtime name rather than passed through to that refusal. A dir
+under the clone root whose name is outside the id grammar — only a
+pre-guard build or a hand can put one there — is never a path this code
+builds: the orphan sweep leaves it in place and says so on stderr. A
+refusal's message echoes the value, so the Connect error body escapes every
+control character (an unparseable 400 would reach a connect-go client as
+`internal`).
 
 A create that dies with its process (not one that fails — that cleans up)
 leaves a clone dir with no container behind it. Finding no container of

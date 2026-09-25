@@ -120,15 +120,17 @@ public struct NativeContainerService: ContainerServing {
     /// The name and every named volume are clone-path components
     /// (`<cloneRoot>/<id>/<volume>.img`) that reach the clone-dir lifecycle
     /// — orphan sweep, stale-dir reclaim, placement, failure removal —
-    /// before the runtime sees them, so the runtime's id grammar is enforced
-    /// first (`invalid_argument`, as the runtime itself would answer),
-    /// before the mutex and before any filesystem or XPC work.
+    /// before the runtime sees them, so the runtime's grammars are enforced
+    /// first (`invalid_argument`, as the runtime itself would answer) — the
+    /// container-id grammar for the name, the volume grammar (no
+    /// 63-character cap) for the volumes — before the mutex and before any
+    /// filesystem or XPC work.
     private func createNative(_ request: ContainerRunRequest) async throws -> String {
         if let name = request.name {
             try VolumeClone.requireSafeComponent(name, as: "container id")
         }
         for volume in VolumeAttachments.namedVolumes(in: request.volumes) {
-            try VolumeClone.requireSafeComponent(volume, as: "volume name")
+            try VolumeClone.requireSafeVolumeName(volume, as: "volume name")
         }
         let id = request.name ?? UUID().uuidString.lowercased()
         return try await InFlightCreates.shared.withExclusive(id) {

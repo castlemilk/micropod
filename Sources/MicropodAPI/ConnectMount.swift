@@ -463,7 +463,7 @@ extension APIHandlers {
     private func check(_ req: Micropod_V1_RunContainerRequest) throws {
         try required(req.image, "image")
         if req.hasName { try safeComponent(req.name, "name") }
-        for volume in VolumeAttachments.namedVolumes(in: req.volumes) { try safeComponent(volume, "volumes") }
+        for volume in VolumeAttachments.namedVolumes(in: req.volumes) { try safeVolumeName(volume, "volumes") }
         if req.hasCpus && req.cpus <= 0 {
             throw ConnectDecodeError(
                 code: .invalidArgument, message: "cpus: must be greater than 0")
@@ -532,8 +532,8 @@ extension APIHandlers {
     private func check(_ req: Micropod_V1_CloneVolumeRequest) throws {
         try required(req.source, "source")
         try required(req.name, "name")
-        try safeComponent(req.source, "source")
-        try safeComponent(req.name, "name")
+        try safeVolumeName(req.source, "source")
+        try safeVolumeName(req.name, "name")
         // Cloning a volume onto itself would create a duplicate listing (or
         // trip the runtime's own already-exists) and clonefile the image
         // over itself — never meaningful.
@@ -546,18 +546,28 @@ extension APIHandlers {
         try required(req.containerID, "containerId")
         try required(req.volume, "volume")
         try safeComponent(req.containerID, "containerId")
-        try safeComponent(req.volume, "volume")
+        try safeVolumeName(req.volume, "volume")
     }
 
     /// Container ids and volume names are clone-path components
     /// (`<cloneRoot>/<id>/<volume>.img`) that reach the clone-dir lifecycle
-    /// before the runtime validates them, so the runtime's id grammar is
+    /// before the runtime validates them, so the runtime's grammars are
     /// enforced here, before dispatch (`VolumeClone.requireSafeComponent`
-    /// guards the paths themselves).
+    /// and `requireSafeVolumeName` guard the paths themselves): the
+    /// container-id grammar for ids, and for volume names the volume
+    /// grammar, which has no 63-character cap and is bounded only by the
+    /// filename limit.
     private func safeComponent(_ value: String, _ field: String) throws {
         guard VolumeClone.isSafeComponent(value) else {
             throw ConnectDecodeError(
                 code: .invalidArgument, message: "\(field): '\(value)' must match \(VolumeClone.componentGrammar)")
+        }
+    }
+
+    private func safeVolumeName(_ value: String, _ field: String) throws {
+        guard VolumeClone.isSafeVolumeName(value) else {
+            throw ConnectDecodeError(
+                code: .invalidArgument, message: "\(field): '\(value)' must match \(VolumeClone.volumeNameGrammar)")
         }
     }
 

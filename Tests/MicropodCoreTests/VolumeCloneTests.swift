@@ -184,10 +184,10 @@ final class VolumeCloneTests: XCTestCase {
         XCTAssertEqual(VolumeClone.clonedVolumes(containerID: "job-7"), ["go-mod", "npm"])
     }
 
-    // MARK: - Path-component grammar (container ids and volume names)
+    // MARK: - Path-component grammars (container ids and volume names)
 
-    /// A container id or volume name is a component of a clone path
-    /// (`<root>/<id>/<volume>.img`), so it must match the runtime's own id
+    /// A container id is the directory component of a clone path
+    /// (`<root>/<id>/`), so it must match the runtime's own container-ID
     /// grammar, `[A-Za-z0-9][A-Za-z0-9_.-]{0,62}`: no separator can pass, so
     /// neither `..` nor `a/b` can steer a clone-dir operation elsewhere.
     func testSafeComponentIsTheRuntimeIDGrammar() {
@@ -205,6 +205,79 @@ final class VolumeCloneTests: XCTestCase {
                 XCTAssertTrue(error.localizedDescription.contains(VolumeClone.componentGrammar), "\(error)")
             }
         }
+    }
+
+    /// A volume name is the file component (`<root>/<id>/<name>.img`) and
+    /// must match the runtime's own *volume* grammar: the id grammar's
+    /// characters and no cap of its own (`container` 1.3.1 creates a
+    /// 64-character volume; `café`, `.h` and `a/b` are refused `must match
+    /// ^[A-Za-z0-9][A-Za-z0-9_.-]*$`). The only bound is the filename
+    /// limit: `<name>.img` must fit `NAME_MAX`, so 251 characters fit and
+    /// 252 do not. The id cap does not apply to volume names, and the
+    /// volume bound does not loosen ids.
+    func testSafeVolumeNameIsTheRuntimeVolumeGrammar() {
+        XCTAssertEqual(VolumeClone.maxVolumeNameLength, 251)
+        XCTAssertEqual(VolumeClone.volumeNameGrammar, "[A-Za-z0-9][A-Za-z0-9_.-]{0,250}")
+        for good in [
+            "a", "7", "npm", "A.b_c-9", "9foo", "foo.bar", String(repeating: "v", count: 63),
+            String(repeating: "v", count: 64), "cf-cache-" + String(repeating: "k", count: 120),
+            String(repeating: "v", count: 251),
+        ] {
+            XCTAssertTrue(VolumeClone.isSafeVolumeName(good), good)
+            XCTAssertNoThrow(try VolumeClone.requireSafeVolumeName(good), good)
+        }
+        for bad in [
+            "", ".", "..", "../x", "a/b", "/a", "a/", "-a", "_a", ".a", "a b", "a:b", "é", "a\u{0}b", "ab\n",
+            String(repeating: "v", count: 252), "../../com.apple.container/volumes/golden",
+        ] {
+            XCTAssertFalse(VolumeClone.isSafeVolumeName(bad), bad.debugDescription)
+            XCTAssertThrowsError(try VolumeClone.requireSafeVolumeName(bad), bad.debugDescription) { error in
+                XCTAssertEqual(ConnectCodeMapping.code(for: error), "invalid_argument", "\(error)")
+                XCTAssertTrue(error.localizedDescription.contains(VolumeClone.volumeNameGrammar), "\(error)")
+            }
+        }
+        XCTAssertFalse(VolumeClone.isSafeComponent(String(repeating: "v", count: 64)), "the id cap stays 63")
+    }
+
+    /// A 64-character volume name (cuttlefish's `cf-cache-<project>-<node>-
+    /// <path>-<key>` names have no length bound) is a clone-path component
+    /// like any other: `clonePath` names `<root>/<id>/<name>.img`,
+    /// `clonedVolumes` lists it, `requireClone` finds it and both
+    /// `removeClones` unlink it — a pre-guard build placed such clones, and
+    /// a dir left behind with the file in it would never be reclaimed. A
+    /// name past the filename limit is refused before any look at the
+    /// filesystem.
+    func testLongVolumeNamesAreClonePathComponents() async throws {
+        setenv("MICROPOD_VOLUME_CLONE_ROOT", dir.path, 1)
+        defer { unsetenv("MICROPOD_VOLUME_CLONE_ROOT") }
+        let long = String(repeating: "v", count: 64)
+        let longest = String(repeating: "w", count: 251)
+        let tooLong = String(repeating: "x", count: 252)
+
+        let clone = try VolumeClone.clonePath(containerID: "job-long", volume: long)
+        XCTAssertEqual(clone.path, path("job-long/\(long).img"))
+        XCTAssertEqual(
+            try VolumeClone.clonePath(containerID: "job-long", volume: longest).path, path("job-long/\(longest).img"))
+        XCTAssertThrowsError(try VolumeClone.clonePath(containerID: "job-long", volume: tooLong)) { error in
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "invalid_argument", "\(error)")
+        }
+        XCTAssertThrowsError(try VolumeClone.requireClone(containerID: "job-long", volume: tooLong)) { error in
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "invalid_argument", "\(error)")
+        }
+
+        try FileManager.default.createDirectory(atPath: path("job-long"), withIntermediateDirectories: true)
+        try Data("x".utf8).write(to: clone)
+        try Data("y".utf8).write(to: URL(fileURLWithPath: path("job-long/\(longest).img")))
+        XCTAssertEqual(VolumeClone.clonedVolumes(containerID: "job-long"), [long, longest])
+        XCTAssertEqual(try VolumeClone.requireClone(containerID: "job-long", volume: long), clone.path)
+        XCTAssertEqual(
+            try VolumeClone.requireClone(containerID: "job-long", volume: longest), path("job-long/\(longest).img"))
+
+        await VolumeClone.removeClones(containerID: "job-long", volumes: [long])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: clone.path), "the named 64-character clone is unlinked")
+        XCTAssertEqual(VolumeClone.clonedVolumes(containerID: "job-long"), [longest], "only the named one")
+        await VolumeClone.removeClones(containerID: "job-long")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: path("job-long")), "every clone and the dir are gone")
     }
 
     /// The clone root's sibling store holds a golden, exactly where

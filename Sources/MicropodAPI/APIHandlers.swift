@@ -432,13 +432,15 @@ final class APIHandlers: Sendable {
         // Container ids and volume names are clone-path components
         // (`<cloneRoot>/<id>/<volume>.img`) that reach the clone-dir
         // lifecycle before the runtime validates them: the runtime's id
-        // grammar is enforced before dispatch (`VolumeClone.requireSafeComponent`
-        // guards the paths themselves).
+        // grammar (names) and volume grammar (named volumes; no 63-character
+        // cap) are enforced before dispatch (`VolumeClone.requireSafeComponent`
+        // and `requireSafeVolumeName` guard the paths themselves).
         if let name = payload["name"] as? String, !VolumeClone.isSafeComponent(name) {
             throw BadRequest(message: "name '\(name)' must match \(VolumeClone.componentGrammar)")
         }
-        if let volume = VolumeAttachments.namedVolumes(in: volumes).first(where: { !VolumeClone.isSafeComponent($0) }) {
-            throw BadRequest(message: "volume name '\(volume)' must match \(VolumeClone.componentGrammar)")
+        let named = VolumeAttachments.namedVolumes(in: volumes)
+        if let volume = named.first(where: { !VolumeClone.isSafeVolumeName($0) }) {
+            throw BadRequest(message: "volume name '\(volume)' must match \(VolumeClone.volumeNameGrammar)")
         }
         return ContainerRunRequest(
             image: payload["image"] as? String ?? "",

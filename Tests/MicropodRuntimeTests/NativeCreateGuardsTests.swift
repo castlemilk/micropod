@@ -235,14 +235,19 @@ final class NativeCreateGuardsTests: XCTestCase {
                 }
             }
         }
-        // A named volume is a path component too (`<root>/<id>/<volume>.img`).
-        do {
-            _ = try await service.create(
-                ContainerRunRequest(image: "nginx:1.27", name: "job", volumes: ["-g:/x"], labels: [cloneLabel]))
-            XCTFail("a volume name outside the grammar must be refused")
-        } catch {
-            XCTAssertEqual(ConnectCodeMapping.code(for: error), "invalid_argument", "\(error)")
-            XCTAssertTrue(error.localizedDescription.contains("-g"), "\(error)")
+        // A named volume is a path component too (`<root>/<id>/<volume>.img`):
+        // the runtime's volume grammar, bounded by the filename limit
+        // (`<name>.img` must fit `NAME_MAX`).
+        for volume in ["-g", String(repeating: "v", count: 252)] {
+            do {
+                _ = try await service.create(
+                    ContainerRunRequest(
+                        image: "nginx:1.27", name: "job", volumes: ["\(volume):/x"], labels: [cloneLabel]))
+                XCTFail("volume name \(volume.debugDescription) must be refused")
+            } catch {
+                XCTAssertEqual(ConnectCodeMapping.code(for: error), "invalid_argument", "\(volume): \(error)")
+                XCTAssertTrue(error.localizedDescription.contains(volume), "\(volume): \(error)")
+            }
         }
 
         XCTAssertEqual(try Data(contentsOf: golden), Data("golden".utf8), "the golden's bytes survive")

@@ -31,11 +31,12 @@ public enum VolumeClone {
     }
 
     /// Where container `containerID`'s clone of `volume` lives. Both are
-    /// path components: an id or a name outside ``componentGrammar`` is
-    /// `invalid_argument` (``requireSafeComponent(_:as:)``).
+    /// path components: an id outside ``componentGrammar`` or a name
+    /// outside ``volumeNameGrammar`` is `invalid_argument`
+    /// (``requireSafeComponent(_:as:)``, ``requireSafeVolumeName(_:as:)``).
     public static func clonePath(containerID: String, volume: String) throws -> URL {
         try requireSafeComponent(containerID, as: "container id")
-        try requireSafeComponent(volume, as: "volume name")
+        try requireSafeVolumeName(volume, as: "volume name")
         return cloneDir(containerID).appendingPathComponent("\(volume).img")
     }
 
@@ -53,19 +54,40 @@ public enum VolumeClone {
         return names.filter { $0.hasSuffix(".img") }.map { String($0.dropLast(4)) }.sorted()
     }
 
-    // MARK: - Path-component grammar
+    // MARK: - Path-component grammars
 
-    /// What a container id or volume name must look like to become a
-    /// component of a clone path: the runtime's own container-ID grammar —
-    /// an ASCII letter or digit, then letters, digits, `_`, `.` and `-`, at
-    /// most 63 characters. No separator can pass, so neither `..` nor `a/b`
-    /// can steer a clone-dir operation outside `<cloneRoot>/<id>/`.
+    /// What a container id must look like to become the directory component
+    /// of a clone path (`<cloneRoot>/<id>/`): the runtime's own container-ID
+    /// grammar — an ASCII letter or digit, then letters, digits, `_`, `.`
+    /// and `-`, at most 63 characters (`container` 1.3.1 takes 63 and
+    /// refuses 64+ as `not a valid container ID`). No separator can pass, so
+    /// neither `..` nor `a/b` can steer a clone-dir operation outside
+    /// `<cloneRoot>/<id>/`. Container ids only: the runtime's volume grammar
+    /// has no such cap (``volumeNameGrammar``).
     public static let componentGrammar = "[A-Za-z0-9][A-Za-z0-9_.-]{0,62}"
 
+    /// What a volume name must look like to become the file component of a
+    /// clone path (`<cloneRoot>/<id>/<name>.img`): the runtime's own volume
+    /// grammar — the id grammar's characters with no cap of its own
+    /// (`container` 1.3.1 creates a 64-character volume; `café`, `.h` and
+    /// `a/b` are refused `invalid volume name … must match
+    /// ^[A-Za-z0-9][A-Za-z0-9_.-]*$`). The only bound is the filename limit:
+    /// `<name>.img` must fit `NAME_MAX`, so ``maxVolumeNameLength`` (251)
+    /// characters. A consumer's cache volumes (cuttlefish's
+    /// `cf-cache-<project>-<node>-<path>-<key>`) have no length bound and
+    /// must not be refused for a cap the runtime does not have.
+    public static let volumeNameGrammar = "[A-Za-z0-9][A-Za-z0-9_.-]{0,\(maxVolumeNameLength - 1)}"
+
+    /// `NAME_MAX` less the `.img` suffix. The grammar is ASCII, so
+    /// characters are bytes.
+    public static let maxVolumeNameLength = Int(NAME_MAX) - ".img".utf8.count
+
     public static func isSafeComponent(_ value: String) -> Bool {
-        let scalars = value.unicodeScalars
-        guard let first = scalars.first, isASCIIAlphanumeric(first), scalars.count <= 63 else { return false }
-        return scalars.allSatisfy { isASCIIAlphanumeric($0) || $0 == "_" || $0 == "." || $0 == "-" }
+        matchesRuntimeCharset(value, maxLength: 63)
+    }
+
+    public static func isSafeVolumeName(_ value: String) -> Bool {
+        matchesRuntimeCharset(value, maxLength: maxVolumeNameLength)
     }
 
     /// `invalidArgument:` (→ `invalid_argument`) unless `value` matches
@@ -73,12 +95,30 @@ public enum VolumeClone {
     /// clone-dir lifecycle — orphan sweep, stale-dir reclaim, placement,
     /// removal — before the runtime validates it, so the grammar is enforced
     /// at the API edge, by the native create before its mutex, and again
-    /// inside every function here that builds a path from an id or a volume
-    /// name: none of them touches the filesystem for an unsafe one.
-    public static func requireSafeComponent(_ value: String, as kind: String = "name") throws {
+    /// inside every function here that builds a path from an id: none of
+    /// them touches the filesystem for an unsafe one.
+    public static func requireSafeComponent(_ value: String, as kind: String = "container id") throws {
         guard isSafeComponent(value) else {
             throw MicropodError.message("invalidArgument: \(kind) '\(value)' must match \(componentGrammar)")
         }
+    }
+
+    /// `invalidArgument:` unless `value` matches ``volumeNameGrammar`` — at
+    /// the same three places as ``requireSafeComponent(_:as:)``, for the
+    /// volume names that become the file component of a clone path.
+    public static func requireSafeVolumeName(_ value: String, as kind: String = "volume name") throws {
+        guard isSafeVolumeName(value) else {
+            throw MicropodError.message("invalidArgument: \(kind) '\(value)' must match \(volumeNameGrammar)")
+        }
+    }
+
+    /// An ASCII letter or digit, then letters, digits, `_`, `.` and `-`, at
+    /// most `maxLength` of them — the character set the runtime's id and
+    /// volume grammars share.
+    private static func matchesRuntimeCharset(_ value: String, maxLength: Int) -> Bool {
+        let scalars = value.unicodeScalars
+        guard let first = scalars.first, isASCIIAlphanumeric(first), scalars.count <= maxLength else { return false }
+        return scalars.allSatisfy { isASCIIAlphanumeric($0) || $0 == "_" || $0 == "." || $0 == "-" }
     }
 
     private static func isASCIIAlphanumeric(_ scalar: Unicode.Scalar) -> Bool {
@@ -375,8 +415,9 @@ public enum VolumeClone {
     }
 
     /// The container's clone of the volume must exist; returns its path.
-    /// An id or volume name outside ``componentGrammar`` is
-    /// `invalid_argument` before any look at the filesystem.
+    /// An id outside ``componentGrammar`` or a volume name outside
+    /// ``volumeNameGrammar`` is `invalid_argument` before any look at the
+    /// filesystem.
     public static func requireClone(containerID: String, volume: String) throws -> String {
         let path = try clonePath(containerID: containerID, volume: volume).path
         guard FileManager.default.fileExists(atPath: path) else {
