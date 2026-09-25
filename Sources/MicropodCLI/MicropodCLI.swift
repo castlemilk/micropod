@@ -137,6 +137,7 @@ struct MicropodCLI {
             try await ResourceCommands.registry(args, services)
 
         case "compose": try await ComposeCommands.dispatch(args, services)
+        case "k8s", "kubernetes": try await K8sCommands.run(args, services)
 
         case "df": try await SystemCommands.df(args, services)
         case "machines", "machine":
@@ -197,6 +198,7 @@ struct MicropodCLI {
           share mount|list|inspect|sync|gc   synchronized file shares
           build-cache stats|inspect        content-addressed build contexts
           machines [--json]                  runtime VMs (create/run/stop/rm for keep-alive CI)
+          k8s enable|up|down|status          lightweight Kubernetes (opt-in; k3s micro-VM + MetalLB)
           system start|stop|logs             daemon control + log access
           status / version                   runtime + version info
 

@@ -21,6 +21,11 @@ agent-driven container management.
   networks, named volumes, builds, dependency-ordered starts, and real
   healthcheck-based readiness probes. Save environments for one-click up/down.
 - **Registry** — login/logout/list creds.
+- **Kubernetes (opt-in)** — `micropod k8s enable && micropod k8s up` runs a full
+  k3s cluster as one micro-VM: ~21 s to a Ready node, ~550 MB in use, MetalLB
+  LoadBalancer IPs that route on the host's vmnet subnet (the part kind can't
+  do on macOS), traefik ingress, and a host kubeconfig at
+  `~/.micropod/k8s/kubeconfig`. See `docs/kubernetes.md`.
 - **Menu bar** — running-container count, quick stop-all/start-runtime, and a
   dashboard glance.
 - **MCP server** — STDIO JSON-RPC 2.0 (`tools/call`: status, list_containers,
