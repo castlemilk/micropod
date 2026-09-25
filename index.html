@@ -108,6 +108,11 @@
     .nav-links { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--fg-muted); }
     .nav-links a:hover { color: var(--fg); }
     .nav-links a { display: inline-flex; align-items: center; gap: 0.375rem; }
+    /* below ~720px the links outgrow the bar — keep the wayfinding ones */
+    @media (max-width: 720px) {
+      .nav-links { gap: 1rem; }
+      .nav-links a.nav-sub { display: none; }
+    }
 
     /* Buttons */
     .btn-primary {
@@ -363,8 +368,8 @@
         <span>Micropod</span>
       </a>
       <div class="nav-links">
-        <a href="#features">Features</a>
-        <a href="#agents">Agents</a>
+        <a class="nav-sub" href="#features">Features</a>
+        <a class="nav-sub" href="#agents">Agents</a>
         <a href="api/">API Docs</a>
         <a href="blog/">Blog</a>
         <a href="https://github.com/castlemilk/micropod/releases/latest/download/Micropod.dmg">Download</a>
