@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Blog — Micropod</title>
-  <meta name="description" content="Engineering notes on Micropod — benchmarks, internals, and the odd honest regression." />
-  <link rel="canonical" href="https://castlemilk.github.io/micropod/blog/" />
+  <title>A Kubernetes cluster that fits inside one Micropod micro-VM — Micropod</title>
+  <meta name="description" content="Micropod's opt-in k8s engine runs k3s as a single micro-VM: 21s to node Ready vs kind's 53s, ~550MB in use vs ~760MB on Docker Desktop — plus MetalLB LoadBalancer IPs that actually route on macOS." />
+  <link rel="canonical" href="https://castlemilk.github.io/micropod/blog/micropod-k8s-microvm/" />
   <link rel="icon" type="image/png" href="/micropod/icon.png" />
   <meta property="og:type" content="article" />
-  <meta property="og:title" content="Blog — Micropod" />
-  <meta property="og:description" content="Engineering notes on Micropod — benchmarks, internals, and the odd honest regression." />
+  <meta property="og:title" content="A Kubernetes cluster that fits inside one Micropod micro-VM — Micropod" />
+  <meta property="og:description" content="Micropod's opt-in k8s engine runs k3s as a single micro-VM: 21s to node Ready vs kind's 53s, ~550MB in use vs ~760MB on Docker Desktop — plus MetalLB LoadBalancer IPs that actually route on macOS." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -256,43 +256,49 @@
   <main>
     <article class="article">
       <div class="article-meta">
-        <span></span>
-        <span></span>
-        
+        <span>2026-09-25</span>
+        <span>5 min read</span>
+        <span class="tag">kubernetes</span><span class="tag">k3s</span><span class="tag">metallb</span><span class="tag">benchmarks</span>
       </div>
-      <h1>Blog</h1>
-      <p class="standfirst"></p>
+      <h1>A Kubernetes cluster that fits inside one Micropod micro-VM</h1>
+      <p class="standfirst">kind puts Kubernetes inside a container inside Docker Desktop's VM. Micropod's new opt-in engine puts a k3s image inside one of Apple's micro-VMs instead — a real kernel, a real vmnet address, and MetalLB for LoadBalancer IPs that resolve from the host. Measured: 21s to a Ready node, ~550MB in use, and services you can curl.</p>
       
       <div class="article-body">
-<div class="post-list">
-        <a class="post-card" href="/micropod/blog/micropod-vs-docker-measured/">
-          <div class="post-card-thumb"><img src="/micropod/blog/assets/thumb-vs-docker.jpg" alt="" /></div>
-          <div>
-            <p class="post-date">2026-09-25</p>
-            <h2>Micropod vs Docker Desktop, measured on the same Mac</h2>
-            <p>We benchmarked Micropod's Docker Engine shim against Docker Desktop on the same Apple-silicon Mac, both engines warm, alpine:3.20 pre-pulled on both sides. API numbers are p50 over n=30; lifecycle over n=10. The result is not a uniform win, and we'd rather show the losses than hide them: Micropod's API surface is dramatically faster and it idles at a seventh of the memory, but a per-container micro-VM means a real kernel boot on every start — and that's a gap Docker's shared-VM model doesn't have.</p>
-            <div class="post-tags"><span class="tag">benchmarks</span><span class="tag">docker</span><span class="tag">performance</span></div>
-          </div>
-        </a>
-        <a class="post-card" href="/micropod/blog/micropod-optimizations/">
-          <div class="post-card-thumb"><img src="/micropod/blog/assets/thumb-optimizations.jpg" alt="" /></div>
-          <div>
-            <p class="post-date">2026-09-25</p>
-            <h2>The optimizations inside Micropod, and what they measured</h2>
-            <p>Every `container` CLI call costs 15–80 ms, so most of Micropod's speed comes from engineering the spawns away — cache, clonefile, chunk store, warm machines.</p>
-            <div class="post-tags"><span class="tag">internals</span><span class="tag">performance</span><span class="tag">apfs</span></div>
-          </div>
-        </a>
-        <a class="post-card" href="/micropod/blog/micropod-k8s-microvm/">
-          
-          <div>
-            <p class="post-date">2026-09-25</p>
-            <h2>A Kubernetes cluster that fits inside one Micropod micro-VM</h2>
-            <p>kind puts Kubernetes inside a container inside Docker Desktop's VM. Micropod's new opt-in engine puts a k3s image inside one of Apple's micro-VMs instead — a real kernel, a real vmnet address, and MetalLB for LoadBalancer IPs that resolve from the host. Measured: 21s to a Ready node, ~550MB in use, and services you can curl.</p>
-            <div class="post-tags"><span class="tag">kubernetes</span><span class="tag">k3s</span><span class="tag">metallb</span><span class="tag">benchmarks</span></div>
-          </div>
-        </a>
-      </div>
+<p>Every local-Kubernetes option on macOS pays the same tax: a Linux VM to host containers, then a cluster nested inside it. kind nests a k8s node inside a Docker container inside Docker Desktop&#x27;s VM. colima nests it inside a Lima VM. The nesting is where the overhead and the networking weirdness come from — a kind <code>LoadBalancer</code> service can never get an IP your Mac can actually route to, because the whole topology lives behind Docker&#x27;s VM NAT.</p>
+<p>Micropod&#x27;s container model removes a layer: every container <strong>is</strong> a micro-VM with its own kernel on Apple&#x27;s vmnet shared network. Kubernetes doesn&#x27;t need to be nested at all — <code>k3s server</code> can just be a VM&#x27;s workload.</p>
+<h2>One VM, whole cluster</h2>
+<pre><code class="language-bash">micropod k8s enable   # opt-in; writes a small config file
+micropod k8s up       # ~21s to a Ready node, image cached
+export KUBECONFIG=~/.micropod/k8s/kubeconfig
+kubectl get nodes
+# NAME           Ready   control-plane   v1.34.1+k3s1
+</code></pre>
+<p>Inside the VM, <code>k3s server</code> brings up etcd, the apiserver, scheduler, controller-manager, kubelet, and its own containerd — the usual k3s all-in-one layout. From the host you see a single container entry; from <code>kubectl</code> you see a fully working cluster with coredns, metrics-server, and local-path-provisioner running.</p>
+<figure class="fig flow"><figcaption class="fig-title">Request path — kubectl to pod</figcaption><div class="flow-lanes"><div class="flow-lane"><span class="flow-seg"><span class="flow-node">kubectl</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">https://vm-ip:6443</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">k3s apiserver</span></span></div><div class="flow-lane"><span class="flow-seg"><span class="flow-node">host curl</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node accent">svc IP (metallb)</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">traefik</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">pod</span></span></div></div></figure>
+<p>The VM gets a real address on the vmnet subnet (<code>192.168.64.x/24</code> on this machine). The apiserver&#x27;s TLS SANs already cover it, so the host kubeconfig is the in-VM kubeconfig with one string rewritten — <code>127.0.0.1</code> to the VM address.</p>
+<h2>MetalLB: the part kind can&#x27;t do</h2>
+<p><code>k8s up</code> installs MetalLB v0.14.9 and hands it the tail of the VM&#x27;s subnet (<code>x.x.x.240–250</code>, override with <code>--lb-pool</code>). Because the VM sits on vmnet as a real L2 peer, MetalLB&#x27;s ARP announcements reach the Mac directly — <code>type: LoadBalancer</code> services get IPs you can curl:</p>
+<pre><code>$ kubectl expose deploy web --type=LoadBalancer --port=80
+$ kubectl get svc web
+web   LoadBalancer   10.43.68.246   192.168.64.240   80:31224/TCP
+$ curl http://192.168.64.240/        # HTTP 200, ~3ms from the host
+</code></pre>
+<p>On kind this ends at <code>&lt;pending&gt;</code> — the LoadBalancer type doesn&#x27;t resolve at all unless you bolt on MetalLB yourself, and even then the IPs live inside Docker&#x27;s VM where the host can&#x27;t reach them without a user-space tunnel. We consider this the headline difference, not the boot time.</p>
+<p>Traefik stays installed for <code>Ingress</code> resources on the node address (disable with <code>--no-ingress</code>), and servicelb is always off so MetalLB owns the type cleanly.</p>
+<h2>Measured against kind</h2>
+<p>Same MacBook, both runtimes warm, images cached on both sides. <code>micropod k8s up</code> measured end-to-end including API-ready wait and kubeconfig write; <code>kind create cluster</code> measured the same way.</p>
+<figure class="fig pc"><figcaption class="fig-title pc-head"><span>Cluster create → node Ready</span><span class="pc-legend"><span class="pc-key"><i class="pc-swatch pc-s0"></i>micropod k8s</span><span class="pc-key"><i class="pc-swatch pc-s1"></i>kind (docker desktop)</span></span></figcaption><div class="pc-rows"><div class="pc-row"><span class="pc-label">create→ready</span><div class="pc-bars"><div class="pc-track"><div class="pc-bar pc-s0" style="width:39.62264150943396%"></div></div><div class="pc-track"><div class="pc-bar pc-s1" style="width:100%"></div></div></div><div class="pc-vals"><span class="pc-val pc-win">21 s</span><span class="pc-val ">53 s</span></div><span class="pc-ratio">2.5x</span></div></div></figure>
+<figure class="fig sg"><div class="sg-grid"><div class="sg-item"><span class="sg-value">21 s</span><span class="sg-label">micropod k8s up (cold)</span></div><div class="sg-item"><span class="sg-value">53 s</span><span class="sg-label">kind create cluster</span></div><div class="sg-item"><span class="sg-value">2.4 s</span><span class="sg-label">micropod resume — VM just restarts</span></div></div></figure>
+<figure class="fig pc"><figcaption class="fig-title pc-head"><span>Memory in use — idle cluster</span><span class="pc-legend"><span class="pc-key"><i class="pc-swatch pc-s0"></i>micropod k8s</span><span class="pc-key"><i class="pc-swatch pc-s1"></i>kind node</span></span></figcaption><div class="pc-rows"><div class="pc-row"><span class="pc-label">in use</span><div class="pc-bars"><div class="pc-track"><div class="pc-bar pc-s0" style="width:72.17847769028872%"></div></div><div class="pc-track"><div class="pc-bar pc-s1" style="width:100%"></div></div></div><div class="pc-vals"><span class="pc-val pc-win">550 MB</span><span class="pc-val ">762 MB</span></div><span class="pc-ratio"></span></div></div></figure>
+<p>The memory comparison undersells it: kind&#x27;s 762 MB is the node container alone — Docker Desktop&#x27;s VM costs another ~1.2 GB at idle before any cluster exists. Micropod&#x27;s ~550 MB is the whole thing: kernel, k3s, and pods included.</p>
+<h2>Caveats worth stating</h2>
+<ul>
+<li><strong>Single-node by design.</strong> One VM is one node — this is the cheap local-cluster story, not multi-node scheduling.</li>
+<li><strong>Privileged guest.</strong> The VM runs with <code>--cap-add ALL</code> and the runtime&#x27;s read-only procfs paths cleared — kubelet writes <code>/proc/sys/kernel/panic</code> on boot and dies without it. It&#x27;s still a hardware VM boundary, but treat the guest as trusted.</li>
+<li><strong>First MetalLB install is slow.</strong> The guest pulls ~60MB from quay.io over NAT; cold installs have taken several minutes in our testing. It retries a stalled pull once and reports rather than failing the cluster — MetalLB is additive, not required for <code>kubectl</code>.</li>
+<li><strong>State lives in the VM.</strong> <code>k8s down</code> removes it — etcd, images, everything. Ephemeral is the point; persistent clusters are a different tool&#x27;s job.</li>
+</ul>
+<p>Reproduce: <code>scripts/bench_k8s.sh</code>. Configuration surface: <code>docs/kubernetes.md</code>.</p>
       </div>
     </article>
   </main>
