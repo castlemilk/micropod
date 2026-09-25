@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Branch `feat/connect-api-cuttlefish-hardening`; commit per task; never push or tag.
+- Work in the dedicated worktree `/Users/benebsworth/projects/micropod-connect` on branch `feat/connect-api-cuttlefish-hardening` (the main checkout `~/projects/micropod` is in use by another session — never switch its branch); commit per task; never push or tag.
 - Every proto change regenerates: `buf generate --template buf.gen.yaml`, `buf generate --template buf.gen.sdk.yaml`, `buf generate --template buf.gen.docs.yaml`; commit generated files (`Sources/MicropodCore/Generated`, `sdk/go/gen`, `sdk/ts/src/gen`, `sdk/swift/Sources/MicropodSDK/Generated`, `landing/api`). `scripts/gen-sdk.sh --check` must pass.
 - New proto fields use the exact numbers in the spec (§3.1): `RunContainerRequest` 12–16, `ExecRequest.arguments = 5`, `StreamLogsRequest.skip_lines = 4`, `GetStatsRequest.ids = 1`, `Volume.allocated_bytes = 8`, `SystemStatus.runtime_backend = 6`.
 - Connect codes: XPC transport errors → `unavailable`; unknown clone/volume → `not_found`; wrong state → `failed_precondition`.
