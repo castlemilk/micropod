@@ -373,22 +373,15 @@ func TestPingRunning(t *testing.T) {
 	}
 }
 
-// stoppedRuntimeShim reproduces what the real CLI prints when the Apple
-// runtime is down: `system status` fails with "not running" and the
-// listing commands fail the same way.
-const stoppedRuntimeShim = `
-if [ "${1:-}" = system ] && [ "${2:-}" = status ]; then
-  echo "Error: apiserver is not running and not registered with launchd" >&2
-  exit 1
-fi
-if [ "${1:-}" = list ] || { [ "${1:-}" = volume ] && [ "${2:-}" = list ]; }; then
-  echo "Error: apiserver is not running and not registered with launchd" >&2
-  exit 1
-fi
-`
-
+// TestPingAndGetSystemReportStoppedRuntime runs against the shared mock's
+// stopped mode, which reproduces `container` 1.3.1 byte-for-byte: `system
+// status --format json` prints {"status":"unregistered"} on STDOUT and exits
+// 1 with an empty stderr (the "apiserver is not running" sentence is
+// table-mode only), and every apiserver-backed command fails with the XPC
+// "connection invalid" text on stderr.
 func TestPingAndGetSystemReportStoppedRuntime(t *testing.T) {
-	c := newTestServerWithShim(t, stoppedRuntimeShim)
+	t.Setenv("MICROPOD_MOCK_RUNTIME_STOPPED", "1")
+	c := newTestServer(t)
 	ctx := context.Background()
 
 	start := time.Now()
@@ -416,30 +409,140 @@ func TestPingAndGetSystemReportStoppedRuntime(t *testing.T) {
 	if sys.Msg.GetDiskUsage() != nil {
 		t.Fatalf("stopped runtime must not fabricate disk usage: %v", sys.Msg.GetDiskUsage())
 	}
+
+	// Anything that needs the apiserver is a transport failure: unavailable,
+	// never not_found or internal.
+	_, err = c.containers.ListContainers(ctx, connect.NewRequest(&micropodv1.Empty{}))
+	requireCode(t, err, connect.CodeUnavailable)
 }
 
 func TestRuntimeErrorClassification(t *testing.T) {
-	stopped := &clicli.CommandError{Args: []string{"system", "status"}, Stderr: "Error: apiserver is not running and not registered with launchd"}
-	if !clicli.IsRuntimeStopped(stopped) {
-		t.Fatal("expected IsRuntimeStopped for the launchd message")
+	statusArgs := []string{"system", "status", "--format", "json"}
+	xpcDown := "Error: interrupted: \"XPC connection error: Connection invalid\nEnsure container system service has been started with `container system start`.\"\n"
+
+	stoppedCases := map[string]*clicli.CommandError{
+		// `container` 1.3.1 json mode: payload on stdout, exit 1, empty stderr.
+		"unregistered on stdout": {Args: statusArgs, Stdout: "{\"status\":\"unregistered\"}\n", ExitCode: 1},
+		"not running on stdout":  {Args: statusArgs, Stdout: "{\"status\":\"not running\"}\n", ExitCode: 1},
+		// Any encoder whitespace still decodes to the same status word.
+		"pretty-printed stdout": {Args: statusArgs, Stdout: "{\n  \"status\" : \"unregistered\"\n}\n", ExitCode: 1},
+		// Exit 1 with nothing on either stream from `system status` is a
+		// stopped runtime too (usage errors exit 64 and print to stderr).
+		"silent exit 1": {Args: statusArgs, ExitCode: 1},
+		// Table mode / older builds print the sentence on stderr.
+		"launchd sentence": {Args: []string{"system", "status"}, Stderr: "Error: apiserver is not running and not registered with launchd\n", ExitCode: 1},
+		// Every other apiserver-backed command fails with XPC's text.
+		"xpc on list": {Args: []string{"list", "--all", "--format", "json"}, Stderr: xpcDown, ExitCode: 1},
+		"xpc on df":   {Args: []string{"system", "df", "--format", "json"}, Stderr: xpcDown, ExitCode: 1},
 	}
-	if clicli.IsNotFound(stopped) {
-		t.Fatal("stopped runtime must not be classified as not found")
+	for name, ce := range stoppedCases {
+		if !clicli.IsRuntimeStopped(ce) {
+			t.Errorf("%s: expected IsRuntimeStopped", name)
+		}
+		if clicli.IsNotFound(ce) {
+			t.Errorf("%s: stopped runtime must not be classified as not found", name)
+		}
 	}
-	missing := &clicli.CommandError{Args: []string{"inspect", "ghost"}, Stderr: "Error: no such container: ghost"}
-	if !clicli.IsNotFound(missing) {
-		t.Fatal("expected IsNotFound for 'no such container'")
+
+	// A stopped *container* is not a stopped runtime, and a silent exit 1
+	// only means "stopped" for `system status`.
+	notStopped := map[string]*clicli.CommandError{
+		"stopped container": {Args: []string{"start", "web"}, Stderr: "Error: invalidState: \"container web is not running\"\n", ExitCode: 1},
+		"silent stop":       {Args: []string{"stop", "web"}, ExitCode: 1},
+		"usage error":       {Args: statusArgs, Stderr: "Error: Unknown option '--bogus'\n", ExitCode: 64},
 	}
-	if clicli.IsRuntimeStopped(missing) {
-		t.Fatal("missing container must not be classified as a stopped runtime")
+	for name, ce := range notStopped {
+		if clicli.IsRuntimeStopped(ce) {
+			t.Errorf("%s: must not be classified as a stopped runtime", name)
+		}
+		if clicli.IsNotFound(ce) {
+			t.Errorf("%s: must not be classified as not found", name)
+		}
 	}
-	missingImage := &clicli.CommandError{Args: []string{"image", "inspect", "x"}, Stderr: `Error: not found: "x"`}
-	if !clicli.IsNotFound(missingImage) {
-		t.Fatal("expected IsNotFound for the real CLI's 'not found:' message")
+
+	notFound := map[string]*clicli.CommandError{
+		// Mock wording.
+		"mock no such container": {Args: []string{"inspect", "ghost"}, Stderr: "Error: no such container: ghost\n", ExitCode: 1},
+		// Real CLI inspect commands.
+		"inspect container": {Args: []string{"inspect", "ghost"}, Stderr: "Error: container not found: ghost\n", ExitCode: 1},
+		"inspect image":     {Args: []string{"image", "inspect", "x"}, Stderr: "Error: image not found: x\n", ExitCode: 1},
+		"inspect volume":    {Args: []string{"volume", "inspect", "v"}, Stderr: "Error: volume not found: v\n", ExitCode: 1},
+		"inspect network":   {Args: []string{"network", "inspect", "n"}, Stderr: "Error: network not found: n\n", ExitCode: 1},
+		"legacy not found:": {Args: []string{"image", "inspect", "x"}, Stderr: "Error: not found: \"x\"\n", ExitCode: 1},
+		// Runtime-originated ContainerizationError(.notFound) as rendered by
+		// start/stop/delete/exec on a missing id.
+		"runtime notFound":        {Args: []string{"start", "ghost"}, Stderr: "Error: notFound: \"container with ID ghost not found\"\n", ExitCode: 1},
+		"runtime notFound volume": {Args: []string{"volume", "delete", "v"}, Stderr: "Error: notFound: \"volume 'v' not found\"\n", ExitCode: 1},
 	}
+	for name, ce := range notFound {
+		if !clicli.IsNotFound(ce) {
+			t.Errorf("%s: expected IsNotFound", name)
+		}
+		if clicli.IsRuntimeStopped(ce) {
+			t.Errorf("%s: missing resource must not be classified as a stopped runtime", name)
+		}
+	}
+
+	// Guest output is never a CLI not-found: the shell's phrase has the colon
+	// before "not found". The exec pre-filter is deliberately broad (it only
+	// gates an inspect that confirms), the mapError classifier is not.
+	guest := &clicli.CommandError{Args: []string{"exec", "web", "sh", "-c", "foo"}, Stderr: "sh: foo: not found\n", ExitCode: 127}
+	if clicli.IsNotFound(guest) {
+		t.Error("guest 'sh: foo: not found' must not satisfy IsNotFound")
+	}
+	if !clicli.LooksLikeNotFound(guest.Stderr) {
+		t.Error("exec pre-filter should be broad enough to trigger the inspect confirmation")
+	}
+	if !clicli.LooksLikeNotFound("Error: notFound: \"container with ID ghost not found\"") {
+		t.Error("exec pre-filter must match the runtime's notFound rendering")
+	}
+
 	if clicli.IsNotFound(nil) || clicli.IsRuntimeStopped(nil) {
 		t.Fatal("nil is neither not-found nor stopped")
 	}
+}
+
+// realCLINotFoundShim answers with the wording `container` 1.3.1 really
+// prints for a missing id: the runtime's ContainerizationError(.notFound) on
+// start/stop/delete/exec and the inspect command's own phrase on inspect. The
+// mock's "no such container" is never seen.
+const realCLINotFoundShim = `
+has_ghost=0
+for a in "$@"; do [ "$a" = ghost ] && has_ghost=1; done
+if [ "$has_ghost" = 1 ]; then
+  case "${1:-}" in
+    start|stop|kill|delete|exec)
+      echo 'Error: notFound: "container with ID ghost not found"' >&2
+      exit 1 ;;
+    inspect)
+      echo 'Error: container not found: ghost' >&2
+      exit 1 ;;
+  esac
+fi
+`
+
+func TestRealCLINotFoundWordingMapsToNotFound(t *testing.T) {
+	c := newTestServerWithShim(t, realCLINotFoundShim)
+	ctx := context.Background()
+	ghost := &micropodv1.ContainerRef{Id: "ghost"}
+
+	_, err := c.containers.StartContainer(ctx, connect.NewRequest(ghost))
+	requireCode(t, err, connect.CodeNotFound)
+	_, err = c.containers.StopContainer(ctx, connect.NewRequest(ghost))
+	requireCode(t, err, connect.CodeNotFound)
+	_, err = c.containers.RestartContainer(ctx, connect.NewRequest(ghost))
+	requireCode(t, err, connect.CodeNotFound)
+	_, err = c.containers.KillContainer(ctx, connect.NewRequest(ghost))
+	requireCode(t, err, connect.CodeNotFound)
+	_, err = c.containers.DeleteContainer(ctx, connect.NewRequest(&micropodv1.DeleteContainerRequest{Id: "ghost", Force: true}))
+	requireCode(t, err, connect.CodeNotFound)
+	_, err = c.containers.GetContainer(ctx, connect.NewRequest(ghost))
+	requireCode(t, err, connect.CodeNotFound)
+
+	// Exec must surface not_found, not an ExecResponse carrying the CLI's
+	// exit status and error text.
+	_, err = c.containers.Exec(ctx, connect.NewRequest(&micropodv1.ExecRequest{Id: "ghost", Arguments: []string{"sh", "-c", "true"}}))
+	requireCode(t, err, connect.CodeNotFound)
 }
 
 // --- run flags / no_pull ---

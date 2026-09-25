@@ -36,23 +36,30 @@ func (c *CLI) Available() bool {
 }
 
 // CommandError is returned by Run when the CLI exits non-zero. It keeps the
-// argv and stderr so callers can classify the failure (IsNotFound,
-// IsRuntimeStopped) instead of pattern-matching a flattened message.
+// argv, both output streams and the exit status so callers can classify the
+// failure (IsNotFound, IsRuntimeStopped) instead of pattern-matching a
+// flattened message. Stdout matters: `system status --format json` reports
+// a down apiserver as a JSON payload on stdout with an empty stderr.
 type CommandError struct {
-	Args   []string
-	Stderr string
-	Err    error
+	Args     []string
+	Stdout   string
+	Stderr   string
+	ExitCode int // process exit status; -1 when the process did not exit on its own
+	Err      error
 }
 
 func (e *CommandError) Error() string {
-	return fmt.Sprintf("`container %s` failed: %v: %s", strings.Join(e.Args, " "), e.Err, strings.TrimSpace(e.Stderr))
+	detail := strings.TrimSpace(e.Stderr)
+	if detail == "" {
+		detail = strings.TrimSpace(e.Stdout)
+	}
+	return fmt.Sprintf("`container %s` failed: %v: %s", strings.Join(e.Args, " "), e.Err, detail)
 }
 
 func (e *CommandError) Unwrap() error { return e.Err }
 
-// IsNotFound reports whether err is a CLI failure naming a missing resource
-// ("no such container: x", `not found: "x"`). Only CLI-originated stderr is
-// consulted, never guest process output.
+// IsNotFound reports whether err is a CLI failure naming a missing resource.
+// Only CLI-originated stderr is consulted, never guest process output.
 func IsNotFound(err error) bool {
 	var ce *CommandError
 	if !errors.As(err, &ce) {
@@ -61,27 +68,97 @@ func IsNotFound(err error) bool {
 	return looksLikeNotFound(ce.Stderr)
 }
 
-// looksLikeNotFound matches the CLI's own missing-resource phrasing. A guest
-// shell's "sh: foo: not found" has the colon before the phrase and does not
-// match; the CLI's `not found: "x"` and "no such container" do.
+// looksLikeNotFound matches the CLI's own missing-resource phrasing:
+//
+//   - the inspect commands' "container|image|volume|network not found: x"
+//     (ContainerInspect.swift and friends);
+//   - the runtime's ContainerizationError(.notFound, …), which every other
+//     verb (start, stop, delete, exec, volume delete, …) renders as
+//     `notFound: "container with ID x not found"` — the same prefix table
+//     MicropodCore's ConnectCodeMapping.prefixed reads;
+//   - the mock's "no such container: x".
+//
+// A guest shell's "sh: foo: not found" has the colon before the phrase and
+// matches none of these.
 func looksLikeNotFound(stderr string) bool {
 	text := strings.ToLower(stderr)
 	return strings.Contains(text, "no such ") ||
 		strings.Contains(text, "not found:") ||
+		strings.Contains(text, "notfound:") ||
 		strings.Contains(text, "container not found") ||
 		strings.Contains(text, "image not found") ||
-		strings.Contains(text, "volume not found")
+		strings.Contains(text, "volume not found") ||
+		strings.Contains(text, "network not found")
+}
+
+// runtimeDownSignatures are the CLI's own words for a down apiserver,
+// lowercased — the same list as MicropodCore's
+// ConnectCodeMapping.runtimeDownSignatures, sourced from `container` 1.3.1
+// (SystemStatus.swift, Application.swift) and XPC's error strings. The bare
+// "not running" is deliberately absent: `invalidState: container X is not
+// running` is a stopped container, not a stopped runtime.
+var runtimeDownSignatures = []string{
+	"apiserver is not running",
+	"not registered with launchd",
+	"xpc connection error",
+	"connection invalid",
+	"connection interrupted",
+	"ensure container system service has been started",
+	`"status":"unregistered"`,
+	`"status":"not running"`,
+}
+
+// stoppedStatusValues are the `status` words `system status --format json`
+// renders when the apiserver is down (mirrors SystemService.stoppedStatusValues).
+var stoppedStatusValues = map[string]bool{"unregistered": true, "not running": true}
+
+// IndicatesRuntimeDown reports whether CLI output carries one of the
+// runtime-down signatures.
+func IndicatesRuntimeDown(text string) bool {
+	lower := strings.ToLower(text)
+	for _, signature := range runtimeDownSignatures {
+		if strings.Contains(lower, signature) {
+			return true
+		}
+	}
+	return false
 }
 
 // IsRuntimeStopped reports whether err is the CLI telling us the Apple
-// runtime is down ("apiserver is not running and not registered with
-// launchd"). Callers surface this as status "stopped", not as an error.
+// runtime is down. Callers surface this as status "stopped", not as an error.
+//
+// `container system status --format json` renders {"status":"unregistered"}
+// or {"status":"not running"} on STDOUT and exits 1 with an EMPTY stderr (the
+// "apiserver is not running …" sentence is table-mode only), so for that
+// command the stdout payload — or simply exit 1 with nothing on stderr — is
+// a stopped runtime (mirrors SystemService.isStoppedRuntime). Every other
+// apiserver-backed command fails with the XPC "connection invalid" text on
+// stderr, which matches runtimeDownSignatures.
 func IsRuntimeStopped(err error) bool {
 	var ce *CommandError
 	if !errors.As(err, &ce) {
 		return false
 	}
-	return strings.Contains(strings.ToLower(ce.Stderr), "not running")
+	if IndicatesRuntimeDown(ce.Stderr) || IndicatesRuntimeDown(ce.Stdout) {
+		return true
+	}
+	if !ce.isSystemStatus() {
+		return false
+	}
+	var payload struct {
+		Status string `json:"status"`
+	}
+	if json.Unmarshal([]byte(ce.Stdout), &payload) == nil && stoppedStatusValues[strings.ToLower(payload.Status)] {
+		return true
+	}
+	// Usage errors exit 64 and print to stderr; a missing binary never
+	// yields an exit status. Exit 1 with a silent stderr is the daemon down.
+	return ce.ExitCode == 1 && strings.TrimSpace(ce.Stderr) == ""
+}
+
+// isSystemStatus reports whether the failed command was `system status`.
+func (e *CommandError) isSystemStatus() bool {
+	return len(e.Args) >= 2 && e.Args[0] == "system" && e.Args[1] == "status"
 }
 
 // Run executes a short command and returns trimmed stdout.
@@ -93,9 +170,19 @@ func (c *CLI) Run(ctx context.Context, args ...string) (string, error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return "", &CommandError{Args: args, Stderr: stderr.String(), Err: err}
+		return "", &CommandError{Args: args, Stdout: stdout.String(), Stderr: stderr.String(), ExitCode: exitStatus(err), Err: err}
 	}
 	return stdout.String(), nil
+}
+
+// exitStatus extracts the process exit code from a cmd.Run error, or -1 when
+// the process never produced one (binary missing, killed by the context).
+func exitStatus(err error) int {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		return exitErr.ExitCode()
+	}
+	return -1
 }
 
 // Stream runs a long-lived command, yielding stdout/stderr chunks.
@@ -338,12 +425,23 @@ type DiskCategory struct {
 
 // --- Operations ---
 
+// SystemStatus runs `system status --format json`. A down apiserver comes
+// back as a CommandError satisfying IsRuntimeStopped; should the CLI ever
+// exit 0 with one of its stopped words, Status is normalised to "stopped" so
+// callers compare against a single value (as SystemService.status does).
 func (c *CLI) SystemStatus(ctx context.Context) (*SystemStatus, error) {
 	out, err := c.Run(ctx, "system", "status", "--format", "json")
 	if err != nil {
 		return nil, err
 	}
-	return decode[*SystemStatus](out)
+	status, err := decode[*SystemStatus](out)
+	if err != nil {
+		return nil, err
+	}
+	if stoppedStatusValues[strings.ToLower(status.Status)] {
+		status.Status = "stopped"
+	}
+	return status, nil
 }
 
 func (c *CLI) SystemVersion(ctx context.Context) (string, error) {
@@ -620,10 +718,16 @@ func (c *CLI) ExecDetailed(ctx context.Context, spec ExecSpec) (*ExecResult, err
 		}
 		return res, nil
 	}
-	return nil, &CommandError{Args: args, Stderr: res.Error, Err: err}
+	return nil, &CommandError{Args: args, Stdout: res.Output, Stderr: res.Error, ExitCode: exitStatus(err), Err: err}
 }
 
-// LooksLikeNotFound reports whether CLI stderr text names a missing
-// resource. Exposed for exec results, where the exit status alone cannot
-// distinguish "no such container" from a guest process exiting 1.
-func LooksLikeNotFound(stderr string) bool { return looksLikeNotFound(stderr) }
+// LooksLikeNotFound is the exec-side pre-filter: does the stderr of a failed
+// `container exec` mention a missing resource at all? It is deliberately
+// broader than IsNotFound (any "not found", any "no such") because the exit
+// status alone cannot distinguish "container with ID x not found" from a
+// guest process exiting 1, and the caller confirms with InspectContainer
+// before returning not_found — so a guest's own "sh: foo: not found" only
+// costs one extra inspect and is never misclassified.
+func LooksLikeNotFound(stderr string) bool {
+	return looksLikeNotFound(stderr) || strings.Contains(strings.ToLower(stderr), "not found")
+}

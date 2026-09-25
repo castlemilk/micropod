@@ -87,18 +87,39 @@ func (s *Server) cachedCLIVersion(ctx context.Context) (string, error) {
 	return version, nil
 }
 
+// systemStatus runs `container system status` and folds every shape the CLI
+// uses for a down apiserver — the {"status":"unregistered"|"not running"}
+// stdout payload with exit 1 and an empty stderr, the table-mode sentence,
+// the XPC transport text (see clicli.IsRuntimeStopped) — into stopped=true.
+// Any other failure is returned as err.
+func (s *Server) systemStatus(ctx context.Context) (status *clicli.SystemStatus, stopped bool, err error) {
+	status, err = s.cli.SystemStatus(ctx)
+	switch {
+	case err == nil && status.Status == "stopped":
+		return nil, true, nil
+	case err == nil:
+		return status, false, nil
+	case clicli.IsRuntimeStopped(err):
+		return nil, true, nil
+	default:
+		return nil, false, err
+	}
+}
+
 // GetSystem reports status plus disk usage. A stopped runtime is a status
 // ("stopped", no disk usage), not an error; use Ping when df is not needed.
 func (s *Server) GetSystem(ctx context.Context, req *connect.Request[micropodv1.Empty]) (*connect.Response[micropodv1.SystemSnapshot], error) {
-	status, err := s.cli.SystemStatus(ctx)
+	status, stopped, err := s.systemStatus(ctx)
 	if err != nil {
-		if clicli.IsRuntimeStopped(err) {
-			version, _ := s.cachedCLIVersion(ctx)
-			return connect.NewResponse(&micropodv1.SystemSnapshot{
-				Status: &micropodv1.SystemStatus{Status: "stopped", CliVersion: version, RuntimeBackend: runtimeBackend},
-			}), nil
-		}
 		return nil, mapError(err)
+	}
+	if stopped {
+		// `system version` never talks to the apiserver, so the CLI version
+		// stays known while the daemon is down.
+		version, _ := s.cachedCLIVersion(ctx)
+		return connect.NewResponse(&micropodv1.SystemSnapshot{
+			Status: &micropodv1.SystemStatus{Status: "stopped", CliVersion: version, RuntimeBackend: runtimeBackend},
+		}), nil
 	}
 	version, err := s.cachedCLIVersion(ctx)
 	if err != nil {
@@ -130,15 +151,15 @@ func (s *Server) GetSystem(ctx context.Context, req *connect.Request[micropodv1.
 func (s *Server) Ping(ctx context.Context, req *connect.Request[micropodv1.Empty]) (*connect.Response[micropodv1.PingResponse], error) {
 	version, _ := s.cachedCLIVersion(ctx)
 	res := &micropodv1.PingResponse{RuntimeBackend: runtimeBackend, CliVersion: version}
-	status, err := s.cli.SystemStatus(ctx)
+	status, stopped, err := s.systemStatus(ctx)
 	switch {
-	case err == nil:
-		res.Status = "running"
-		res.ApiServerVersion = status.APIServerVersion
-	case clicli.IsRuntimeStopped(err):
+	case err != nil:
+		return nil, mapError(err)
+	case stopped:
 		res.Status = "stopped"
 	default:
-		return nil, mapError(err)
+		res.Status = "running"
+		res.ApiServerVersion = status.APIServerVersion
 	}
 	return connect.NewResponse(res), nil
 }
