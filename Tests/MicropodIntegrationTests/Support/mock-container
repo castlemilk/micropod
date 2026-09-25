@@ -18,6 +18,8 @@
 #     `Error: interrupted: "XPC connection error: ..."` text on stderr, exit 1.
 #   - `system version|start|stop|logs|property|kernel` keep working: they
 #     never talk to the apiserver.
+# Creating $STATE_DIR/runtime-stopped does the same from the next
+# invocation on, so a test can stop the runtime under a running server.
 #
 # Every invocation's argv is appended to $STATE_DIR/calls.log, one line per
 # call, each element `printf %q`-quoted and space-joined (so an argument
@@ -1058,7 +1060,7 @@ runtime_stopped_fail() {
     printf 'Error: interrupted: "XPC connection error: Connection invalid\nEnsure container system service has been started with `container system start`."\n' >&2
     exit 1
 }
-if [ -n "${MICROPOD_MOCK_RUNTIME_STOPPED:-}" ]; then
+if [ -n "${MICROPOD_MOCK_RUNTIME_STOPPED:-}" ] || [ -f "$STATE_DIR/runtime-stopped" ]; then
     case "$cmd" in
         system)
             case "${1:-}" in

@@ -538,9 +538,11 @@ Readers never block on XPC in the request path:
   exit_code}`, even if the snapshot has not flipped to `stopped` yet.
   `running`, `stopping` and `created` are non-terminal. Any other state
   (`stopped`, or `unknown` when the container vanished mid-wait) returns
-  `exited: true, known: false`. When the timeout elapses first it returns
-  `exited: false`, and the caller re-issues. An unknown id is `not_found`
-  up front.
+  `exited: true, known: false`. A failed inspect alone never counts as
+  vanished: the wait re-lists, so a runtime that stops answering mid-wait
+  fails the call `unavailable` instead of reporting a false exit. When the
+  timeout elapses first it returns `exited: false`, and the caller
+  re-issues. An unknown id is `not_found` up front.
 
 `known: false` is expected for containers this API process did not start
 (the shim, the app, the CLI, before a backend swap or an API restart), on
@@ -633,7 +635,8 @@ Regenerate after proto edits; never hand-edit generated files.
 - **API, mock CLI** (`MicropodAPITests`, `VolumeDeleteLockTests`): the
   Connect surface end-to-end against the spawned `MicropodAPI` binary:
   `Ping` running and stopped (fast), `GetContainer`, `WaitContainer`
-  (stopped, running → timeout, unknown id), `RunContainer` argv for
+  (stopped, running → timeout, unknown id, vanished mid-wait, runtime
+  stopped mid-wait → `unavailable`), `RunContainer` argv for
   entrypoint/platform/workdir/user, `no_pull` without an `image pull`,
   `Exec` argv, `skip_lines`, `GetStats` ids, `CloneVolume` (clone,
   source in use), `CommitVolumeClone` (no clone, running container,

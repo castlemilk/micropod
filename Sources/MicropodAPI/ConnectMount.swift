@@ -64,7 +64,7 @@ extension APIHandlers {
                 // never a wait against a container that does not exist.
                 _ = try await lookupContainer(req.id, in: services)
                 let seconds = req.timeoutSeconds == 0 ? 30 : min(req.timeoutSeconds, 300)
-                return unary(await waitContainer(id: req.id, timeout: .seconds(Int(seconds)), in: services))
+                return unary(try await waitContainer(id: req.id, timeout: .seconds(Int(seconds)), in: services))
 
             case "RunContainer":
                 let req = try decode(Micropod_V1_RunContainerRequest.self, body)
@@ -358,10 +358,18 @@ extension APIHandlers {
     private func lookupContainer(
         _ id: String, in services: RuntimeServices
     ) async throws -> Micropod_V1_Container {
-        guard let container = try await services.containers.list().first(where: { $0.id == id }) else {
+        guard let container = try await listedContainer(id, in: services) else {
             throw ConnectDecodeError(code: .notFound, message: "container \(id) not found")
         }
         return await withExitCodes([container], from: services.exitCodes)[0]
+    }
+
+    /// The container as the runtime lists it, nil when it is not listed.
+    /// Throws whatever the list call throws (runtime down → `unavailable`).
+    private func listedContainer(
+        _ id: String, in services: RuntimeServices
+    ) async throws -> Micropod_V1_Container? {
+        try await services.containers.list().first(where: { $0.id == id })
     }
 
     /// Folds registry exit codes into `Container.exit_code`. Only the native
@@ -388,15 +396,23 @@ extension APIHandlers {
     /// started — it may still be). Anything else (`stopped`, or `unknown`
     /// after the container vanished mid-wait) is `exited: true`, with
     /// `known: false` when no registry code exists (CLI backend, or the
-    /// waiter aged out).
+    /// waiter aged out). A runtime that stops answering mid-wait throws
+    /// (`unavailable`) instead of reporting a false exit.
     private func waitContainer(
         id: String, timeout: Duration, in services: RuntimeServices
-    ) async -> Micropod_V1_WaitContainerResponse {
+    ) async throws -> Micropod_V1_WaitContainerResponse {
         let clock = ContinuousClock()
         let deadline = clock.now + timeout
         while true {
             let entry = await services.exitCodes?.entry(for: id)
-            let state = await services.containers.state(of: id)
+            var state = await services.containers.state(of: id)
+            if state == "unknown", entry?.exitCode == nil {
+                // `state(of:)` answers `unknown` both for a container that is
+                // gone and for a runtime that is not answering. The list
+                // tells them apart: it throws when the runtime is down, and a
+                // container it no longer lists has really vanished.
+                state = try await listedContainer(id, in: services)?.state ?? "unknown"
+            }
             if let code = entry?.exitCode {
                 return .with {
                     $0.exited = true

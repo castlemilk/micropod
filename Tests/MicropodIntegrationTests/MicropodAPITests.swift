@@ -492,6 +492,77 @@ final class MicropodAPITests: XCTestCase {
         XCTAssertEqual(bad["code"] as? String, "invalid_argument")
     }
 
+    /// A runtime that stops answering mid-wait fails the call `unavailable`,
+    /// never a false `exited: true`: callers treat `known: false` as a failed
+    /// job, and the container may well still be running. The failed poll
+    /// ends the wait at once rather than sitting out `timeout_seconds`.
+    func testWaitContainerRuntimeStopsMidWaitIsUnavailable() async throws {
+        let run = try await json(
+            "POST", "v1/containers",
+            body: ["image": "nginx:1.27", "name": "api-wait-outage"])
+        let id = run["id"] as? String ?? ""
+        XCTAssertFalse(id.isEmpty)
+
+        let clock = ContinuousClock()
+        let started = clock.now
+        let wait = try startWait(id: id, timeoutSeconds: 10)
+        try await Task.sleep(for: .milliseconds(500))
+        try Data().write(to: stateDir.appendingPathComponent("runtime-stopped"))
+        let (status, data) = try await wait.value
+        let elapsed = started.duration(to: clock.now)
+        let body = try decodeObject(data)
+
+        XCTAssertEqual(status, 503, "WaitContainer: \(body)")
+        XCTAssertEqual(body["code"] as? String, "unavailable", "WaitContainer: \(body)")
+        XCTAssertLessThan(elapsed, .seconds(5), "an outage must end the wait, not sit out timeout_seconds")
+    }
+
+    /// A container removed mid-wait while the runtime keeps answering is
+    /// terminal: `exited: true, known: false` with `state: "unknown"`.
+    func testWaitContainerVanishedMidWaitIsExited() async throws {
+        let run = try await json(
+            "POST", "v1/containers",
+            body: ["image": "nginx:1.27", "name": "api-wait-vanished"])
+        let id = run["id"] as? String ?? ""
+        XCTAssertFalse(id.isEmpty)
+
+        let clock = ContinuousClock()
+        let started = clock.now
+        let wait = try startWait(id: id, timeoutSeconds: 10)
+        try await Task.sleep(for: .milliseconds(500))
+        let (deleteStatus, deleted) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/DeleteContainer", body: ["id": id, "force": true])
+        XCTAssertEqual(deleteStatus, 200, "DeleteContainer: \(deleted)")
+        let (status, data) = try await wait.value
+        let elapsed = started.duration(to: clock.now)
+        let body = try decodeObject(data)
+
+        XCTAssertEqual(status, 200, "WaitContainer: \(body)")
+        XCTAssertEqual(body["exited"] as? Bool, true, "WaitContainer: \(body)")
+        XCTAssertEqual(body["known"] as? Bool ?? false, false, "WaitContainer: \(body)")
+        XCTAssertEqual(body["state"] as? String, "unknown", "WaitContainer: \(body)")
+        XCTAssertLessThan(elapsed, .seconds(5), "a vanished container must end the wait")
+    }
+
+    /// Issues `WaitContainer` in the background so the test can change the
+    /// runtime under it. The task captures only the (Sendable) request and
+    /// yields the raw status and body; decode with `decodeObject`.
+    private func startWait(id: String, timeoutSeconds: Int) throws -> Task<(Int, Data), any Error> {
+        var request = URLRequest(
+            url: baseURL.appendingPathComponent("api/micropod.v1.ContainerService/WaitContainer"))
+        request.httpMethod = "POST"
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["id": id, "timeoutSeconds": timeoutSeconds])
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        return Task.detached { [request] in
+            let (data, response) = try await URLSession.shared.data(for: request)
+            return ((response as? HTTPURLResponse)?.statusCode ?? 0, data)
+        }
+    }
+
+    private func decodeObject(_ data: Data) throws -> [String: Any] {
+        (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+    }
+
     // MARK: RunContainer fields / no_pull / Exec argv / skip_lines / stats ids
 
     /// The proto's `entrypoint`, `platform`, `workdir` and `user` reach the
