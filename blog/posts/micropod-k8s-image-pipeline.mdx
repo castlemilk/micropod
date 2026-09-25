@@ -64,6 +64,22 @@ And because the k8s engine shares Micropod's image store with the Docker Engine 
 
 The first version of this pipeline was honest but slow: `image save` → `container copy` → `ctr import` of a guest-side file. Profiling a 273MB image showed copy at ~57MB/s over vsock plus a second full read of the staged tar inside the guest — 11.5s end to end. The fix was to delete a hop: `container exec -i` forwards pipe stdin into the VM at ~170MB/s, so the archive now streams straight into `ctr images import -` with no file on either side. Two traps found along the way: a *regular file* as exec stdin is 10x slower than a pipe (the forwarder poller is pipe-shaped), and a fifo deadlocks entirely — so `loadImage` pumps the staged tar through a real pipe on a detached thread. `ctr import` still unpacks into the snapshotter — that ~3.5s on big images is guest CPU pod-start would otherwise pay later; keeping it here keeps `kubectl run` at ~1s.
 
+## Head to head: load → pod Ready
+
+Same 181MB image, same machine, each engine fed from its own native path — `kind load docker-image` / `minikube image load` / `micropod k8s load`, then `kubectl run` → Ready (`scripts/bench_k8s_e2e.sh`, p50 of 2 runs):
+
+<DataTable
+  title="image → pod Ready, 181MB alpine+payload"
+  columns={["engine", "load", "run → Ready", "total", "needs Docker Desktop?"]}
+  rows={[
+    ["kind", "2.48s", "0.52s", "3.00s", "yes"],
+    ["micropod k8s", "2.23s", "1.15s", "3.17s", "no"],
+    ["minikube (docker driver)", "8.24s", "0.43s", "8.67s", "yes"],
+  ]}
+/>
+
+Honest read: kind is marginally quicker per-op — its node is a container on the same Docker daemon, so "loading" is a `docker exec ctr import` with no VM boundary to cross, and its pod sandbox path is ~0.6s warmer. Minikube loses ~4x on the load stage. Micropod is the only one that works at all without Docker Desktop underneath, and the only one whose `load` *finds* an image wherever it lives — kind and minikube fail hard (`image: "x" not present locally`) when the ref isn't in the daemon's store. On a 13.6MB image the same shape holds: kind 1.2s / micropod 1.7s / minikube 5.6s.
+
 ## Why this matters beyond speed
 
 **Iterating on a workload** is `build → k8s load → kubectl rollout` — the loop kind users know, minus the Docker Desktop dependency and with the host's content store doing dedupe. The image that a pod runs is byte-identical to the one the host built, because it's the same archive.

@@ -63,8 +63,21 @@ because the VM owns its kernel.
 kind launches pods ~2x faster (warm Docker VM sandbox path — extra vCPUs
 don't move ours); everywhere else the vmnet path wins or ties.
 
+E2E image → pod-Ready, 181MB image, all three engines (p50 of 2):
+
+| engine | load | run→Ready | total |
+|---|---|---|---|
+| kind | 2.48s | 0.52s | 3.00s |
+| **micropod k8s** | **2.23s** | 1.15s | **3.17s** |
+| minikube (docker driver) | 8.24s | 0.43s | 8.67s |
+
+kind stays marginally quicker on pod start; micropod is at parity on the
+load path and needs no Docker Desktop underneath. On a 13.6MB image the
+shape holds (1.2s / 1.7s / 5.6s).
+
 Reproduce: `scripts/bench_k8s.sh` (lifecycle), `scripts/bench_k8s_perf.sh`
-(pod launch / apiserver / ingress / footprint).
+(pod launch / apiserver / ingress / footprint / load),
+`scripts/bench_k8s_e2e.sh` (image → pod Ready, all engines).
 
 ## Loading images
 
