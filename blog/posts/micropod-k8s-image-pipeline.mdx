@@ -17,14 +17,16 @@ So the cluster doesn't pull images. The host does — and pushes.
   title="Image path — ref to Running pod"
   lanes={[
     { steps: ["local store", "image save", "container copy", "ctr import", "pod"], accent: 0 },
+    { steps: ["docker daemon", "socket save", "container copy", "ctr import", "pod"], accent: 0 },
     { steps: ["registry", "host puller", "image save", "container copy", "ctr import", "pod"], accent: 1 },
   ]}
 />
 
-Three sources, one pipeline:
+Four sources, one pipeline:
 
 - **`k8s load myapp:dev`** — image already in Micropod's store? `container image save` writes the OCI archive locally, `container copy` pushes it into the VM, `ctr -n k8s.io images import` lands it in the cluster's containerd. No network at all.
-- **`k8s load redis:alpine`** — not in the local store → the *host* puller fetches it, then the same inject path.
+- **`k8s load some.docker/image:tag`** — not in Micropod's store but in a *local Docker daemon's*? Probed over its socket (`$DOCKER_HOST`, Docker Desktop, colima, Lima) and `docker save`-ed straight into the cluster — images you already have in Docker move at disk speed.
+- **`k8s load redis:alpine`** — nowhere local → the *host* puller fetches it, then the same inject path.
 - **`k8s load ./bundle.tar`** — a `container image save` or `docker save` tarball injects directly. For remote callers, `LoadK8sImage` accepts the archive as bytes (`base64` in Connect JSON) — no local file needed.
 - **`k8s images`** lists what's in the cluster's containerd.
 

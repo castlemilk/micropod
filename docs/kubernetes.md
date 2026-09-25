@@ -81,6 +81,15 @@ micropod k8s load ./myapp.tar            # `container image save`/`docker save` 
 micropod k8s images                      # what's in the cluster's containerd
 ```
 
+Source resolution for a ref: Micropod's store → a **local Docker daemon's
+store** (Docker Desktop, colima, Lima — probed via `DOCKER_HOST`,
+`~/.docker/run/docker.sock`, `~/.colima/default/docker.sock`, lima
+instance sockets, `/var/run/docker.sock`; fetched with
+`GET /images/{ref}/get` — `docker save` over the socket, no copy through a
+registry) → the host puller as the last resort. An image that exists in
+Docker Desktop transfers at disk speed; one that exists nowhere pulls once
+on the host.
+
 Then reference the ref normally — `image: myapp:dev` with
 `imagePullPolicy: IfNotPresent` (or `Never`) and the pod starts in ~1s with
 no pull at all. The same ops exist on every surface:

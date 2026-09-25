@@ -217,18 +217,25 @@ public struct K8sService: Sendable {
         } else if let ref {
             let url = stageDir.appendingPathComponent("seed-\(UUID().uuidString).tar")
             ownedTmp = url
-            // Local store first — `image save` on a present image never
-            // touches the network; pull only when the ref is missing.
-            if (try? await client.run(
-                ContainerCommand(arguments: ["image", "save", ref, "-o", url.path]),
-                timeout: .seconds(120))) == nil
-            {
-                progress("pulling \(ref) (host puller)")
-                _ = try await client.run(
-                    ContainerCommand(arguments: ["image", "pull", ref]), timeout: .seconds(600))
-                _ = try await client.run(
+            // Source order: 1) Micropod's local image store (`image save` on a
+            // present image never touches the network), 2) a local Docker
+            // daemon's store via `docker save`-equivalent, 3) the registry via
+            // the host puller.
+            let saved =
+                (try? await client.run(
                     ContainerCommand(arguments: ["image", "save", ref, "-o", url.path]),
-                    timeout: .seconds(120))
+                    timeout: .seconds(120))) != nil
+            if !saved {
+                if let sock = await daemonSave(ref: ref, to: url) {
+                    progress("loaded \(ref) from \(sock)")
+                } else {
+                    progress("pulling \(ref) (host puller)")
+                    _ = try await client.run(
+                        ContainerCommand(arguments: ["image", "pull", ref]), timeout: .seconds(600))
+                    _ = try await client.run(
+                        ContainerCommand(arguments: ["image", "save", ref, "-o", url.path]),
+                        timeout: .seconds(120))
+                }
             }
             tmp = url
         }
@@ -271,6 +278,78 @@ public struct K8sService: Sendable {
             ContainerCommand(arguments: ["exec", name, "rm", "-f", guestPath]), timeout: .seconds(15))
         let resolved = ref ?? imported.first ?? archivePath?.lastPathComponent ?? "archive"
         return LoadedImage(ref: resolved, bytes: bytes ?? 0)
+    }
+
+    /// Local docker-daemon sockets to probe, in order: DOCKER_HOST, Docker
+    /// Desktop, colima, Lima, then the system path.
+    static func dockerSocketPaths() -> [String] {
+        var paths: [String] = []
+        if let host = ProcessInfo.processInfo.environment["DOCKER_HOST"],
+            host.hasPrefix("unix://")
+        {
+            paths.append(String(host.dropFirst("unix://".count)))
+        }
+        let home = NSHomeDirectory()
+        paths += [
+            "\(home)/.docker/run/docker.sock",
+            "\(home)/.colima/default/docker.sock",
+            "\(home)/.lima/*/sock/docker.sock",
+            "/var/run/docker.sock",
+        ]
+        // Expand the lima glob manually — FileManager has no glob.
+        var out: [String] = []
+        for p in paths {
+            if p.contains("*") {
+                let dir = (p as NSString).deletingLastPathComponent
+                let sock = (p as NSString).lastPathComponent
+                for entry in (try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? [] {
+                    out.append("\(dir)/\(entry)/\(sock)")
+                }
+            } else {
+                out.append(p)
+            }
+        }
+        return out.filter { FileManager.default.fileExists(atPath: $0) }
+    }
+
+    /// `docker save` equivalent against a local Docker daemon over its unix
+    /// socket — `GET /images/{ref}/get` returns the OCI tar. Returns the
+    /// socket that produced it, nil when no daemon has the image.
+    private func daemonSave(ref: String, to url: URL) async -> String? {
+        for sock in Self.dockerSocketPaths() {
+            // Path form works for repo:tag and repo/name:tag refs.
+            let code = try? await runProcess(
+                "/usr/bin/curl",
+                [
+                    "-sf", "--max-time", "300", "--unix-socket", sock,
+                    "http://localhost/images/\(ref)/get", "-o", url.path,
+                ])
+            if code == 0,
+                (try? FileManager.default.attributesOfItem(atPath: url.path)[.size]
+                    as? Int64) ?? 0 > 0
+            {
+                return sock
+            }
+        }
+        return nil
+    }
+
+    /// Minimal process spawn for non-`container` tools (curl over a unix
+    /// socket). Returns the exit code.
+    private func runProcess(_ path: String, _ args: [String]) async throws -> Int32 {
+        try await withCheckedThrowingContinuation { cont in
+            let proc = Process()
+            proc.executableURL = URL(fileURLWithPath: path)
+            proc.arguments = args
+            proc.standardOutput = FileHandle.nullDevice
+            proc.standardError = FileHandle.nullDevice
+            proc.terminationHandler = { p in cont.resume(returning: p.terminationStatus) }
+            do {
+                try proc.run()
+            } catch {
+                cont.resume(throwing: error)
+            }
+        }
     }
 
     /// Image refs present in the cluster's containerd (`k8s.io` namespace).
