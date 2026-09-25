@@ -498,6 +498,12 @@ extension APIHandlers {
     private func check(_ req: Micropod_V1_CloneVolumeRequest) throws {
         try required(req.source, "source")
         try required(req.name, "name")
+        // Cloning a volume onto itself would create a duplicate listing (or
+        // trip the runtime's own already-exists) and clonefile the image
+        // over itself — never meaningful.
+        guard req.source != req.name else {
+            throw ConnectDecodeError(code: .invalidArgument, message: "name: must differ from source")
+        }
     }
 
     private func check(_ req: Micropod_V1_CommitVolumeCloneRequest) throws {

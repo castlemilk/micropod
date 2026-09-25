@@ -837,6 +837,17 @@ final class MicropodAPITests: XCTestCase {
             "POST", "api/micropod.v1.VolumeService/CloneVolume", body: ["source": "g"])
         XCTAssertEqual(badStatus, 400, "CloneVolume: \(bad)")
         XCTAssertEqual(bad["code"] as? String, "invalid_argument")
+
+        // A volume cannot be cloned onto itself — rejected before anything
+        // is created or clonefiled.
+        let (selfStatus, selfClone) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CloneVolume", body: ["source": "g", "name": "g"])
+        XCTAssertEqual(selfStatus, 400, "CloneVolume onto itself: \(selfClone)")
+        XCTAssertEqual(selfClone["code"] as? String, "invalid_argument")
+        XCTAssertEqual(
+            mockCalls().filter { $0.hasPrefix("volume create") && $0.hasSuffix(" g") }.count, 1,
+            "only the golden's own create: \(mockCalls())")
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: goldenSource)), marker, "the golden is untouched")
     }
 
     /// A golden attached read-write to a running container would yield a
@@ -923,6 +934,44 @@ final class MicropodAPITests: XCTestCase {
             "POST", "api/micropod.v1.ContainerService/RunContainer",
             body: ["image": "nginx:1.27", "name": "api-attach-c", "volumes": ["v:/z"]])
         XCTAssertEqual(allowedStatus, 200, "RunContainer under MICROPOD_ALLOW_MULTI_ATTACH=1: \(allowed)")
+    }
+
+    /// A create replayed under a name that is already running (a client
+    /// retrying after a lost reply) must get the runtime's `already_exists`
+    /// answer, not a multi-attach refusal naming that container as the
+    /// holder of its own volumes. The runtime's container ids are their
+    /// names, so the guard stands aside for a holder whose id is the
+    /// requested name — the mock's name-is-id mode reproduces that.
+    func testCreateContainerReplayedNameIsNotRefusedAsItsOwnHolder() async throws {
+        try await relaunchServer(extraEnvironment: ["MICROPOD_MOCK_NAME_IS_ID": "1"])
+        _ = try await json("POST", "v1/volumes", body: ["name": "v"])
+        let first = try await json(
+            "POST", "v1/containers", body: ["image": "nginx:1.27", "name": "dup", "volumes": ["v:/x"]])
+        XCTAssertEqual(first["id"] as? String, "dup", "name-is-id mode: \(first)")
+
+        for method in ["CreateContainer", "RunContainer"] {
+            let callsBefore = mockCalls().count
+            let (status, body) = try await jsonStatus(
+                "POST", "api/micropod.v1.ContainerService/\(method)",
+                body: ["image": "nginx:1.27", "name": "dup", "volumes": ["v:/y"]])
+            XCTAssertNotEqual(status, 412, "\(method) replay refused as its own holder: \(body)")
+            XCTAssertNotEqual(body["code"] as? String, "failed_precondition", "\(method): \(body)")
+            // The guard stood aside: the CLI was asked, and it is the CLI's
+            // duplicate-name answer that comes back.
+            XCTAssertTrue(
+                mockCalls().dropFirst(callsBefore).contains {
+                    ($0.hasPrefix("run ") || $0.hasPrefix("create ")) && $0.contains(" --name dup ")
+                },
+                "\(method) replay must reach the CLI: \(mockCalls())")
+        }
+
+        // Any other name attaching the same volume is still refused, naming `dup`.
+        let (status, body) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/RunContainer",
+            body: ["image": "nginx:1.27", "name": "other", "volumes": ["v:/y"]])
+        XCTAssertEqual(status, 412, "RunContainer under another name: \(body)")
+        XCTAssertEqual(body["code"] as? String, "failed_precondition")
+        XCTAssertTrue((body["message"] as? String ?? "").contains("'dup'"), "names the holder: \(body)")
     }
 
     /// `CommitVolumeClone` is `not_found` for an unknown container, for a

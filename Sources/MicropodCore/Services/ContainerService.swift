@@ -121,12 +121,17 @@ public struct ContainerService: ContainerServing {
     /// `failedPrecondition:` naming volume and holder before the CLI is
     /// spawned; `MICROPOD_ALLOW_MULTI_ATTACH=1` downgrades that to a warning.
     /// Only requests that name a volume pay for the list.
+    ///
+    /// A holder whose id is the requested name is the container this request
+    /// replays (the runtime's ids are its names): the CLI's own duplicate-
+    /// name refusal is the right answer there, not a guard naming the caller
+    /// as the holder of its own volumes.
     private func refuseIfVolumeHeldElsewhere(_ request: ContainerRunRequest) async throws {
         let names = VolumeAttachments.namedVolumes(in: request.volumes)
         guard !names.isEmpty else { return }
         let attachments = VolumeAttachments(entries: try await entries())
         for name in names {
-            guard let holder = attachments.holder(of: name) else { continue }
+            guard let holder = attachments.holder(of: name), holder.id != request.name else { continue }
             let error = VolumeAttachments.inUseError(volume: name, holder: holder)
             guard VolumeAttachments.multiAttachAllowed() else { throw error }
             FileHandle.standardError.write(

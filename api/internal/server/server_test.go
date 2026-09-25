@@ -752,22 +752,6 @@ func TestGetStatsFiltersIds(t *testing.T) {
 
 // --- volumes: clone / commit ---
 
-// volumeBackingShim gives every mock volume a real 1 MiB backing file under
-// the state dir (what the real runtime does at `source`), so clonefile has
-// something to clone. The shared mock reports an unwritable /mock/... path.
-const volumeBackingShim = `
-if [ "${1:-}" = volume ] && [ "${2:-}" = create ]; then
-  out=$("$MOCK" "$@") || exit $?
-  name=$(printf '%s' "$out" | tail -n 1)
-  dir="$MICROPOD_MOCK_STATE_DIR/volumes/$name"
-  mkdir -p "$dir"
-  [ -f "$dir/volume.img" ] || head -c 1048576 /dev/zero >"$dir/volume.img"
-  sed -i '' "s|/mock/volumes/|$MICROPOD_MOCK_STATE_DIR/volumes/|g" "$MICROPOD_MOCK_STATE_DIR/volumes.json"
-  printf '%s\n' "$out"
-  exit 0
-fi
-`
-
 func (c *clients) volumeByName(t *testing.T, ctx context.Context, name string) *micropodv1.Volume {
 	t.Helper()
 	list, err := c.volumes.ListVolumes(ctx, connect.NewRequest(&micropodv1.Empty{}))
@@ -784,7 +768,7 @@ func (c *clients) volumeByName(t *testing.T, ctx context.Context, name string) *
 }
 
 func TestCloneVolume(t *testing.T) {
-	c := newTestServerWithShim(t, volumeBackingShim)
+	c := newTestServer(t)
 	ctx := context.Background()
 
 	size := "2M"
@@ -793,7 +777,7 @@ func TestCloneVolume(t *testing.T) {
 	}
 	golden := c.volumeByName(t, ctx, "golden")
 	if !strings.HasPrefix(golden.GetSource(), c.stateDir) {
-		t.Fatalf("shim did not relocate the backing file: %q", golden.GetSource())
+		t.Fatalf("the mock backs volumes with real files under the state dir: %q", golden.GetSource())
 	}
 	marker := []byte("golden-marker-bytes")
 	f, err := os.OpenFile(golden.GetSource(), os.O_WRONLY, 0)
@@ -868,7 +852,7 @@ func TestCloneVolume(t *testing.T) {
 }
 
 func TestCloneVolumeSourceInUseIsFailedPrecondition(t *testing.T) {
-	c := newTestServerWithShim(t, volumeBackingShim)
+	c := newTestServer(t)
 	ctx := context.Background()
 	if _, err := c.volumes.CreateVolume(ctx, connect.NewRequest(&micropodv1.CreateVolumeRequest{Name: "golden"})); err != nil {
 		t.Fatal(err)
@@ -895,7 +879,7 @@ func TestCommitVolumeCloneIsUnimplemented(t *testing.T) {
 }
 
 func TestListVolumesReportsAllocatedBytes(t *testing.T) {
-	c := newTestServerWithShim(t, volumeBackingShim)
+	c := newTestServer(t)
 	ctx := context.Background()
 	if _, err := c.volumes.CreateVolume(ctx, connect.NewRequest(&micropodv1.CreateVolumeRequest{Name: "v"})); err != nil {
 		t.Fatal(err)

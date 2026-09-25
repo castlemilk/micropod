@@ -61,8 +61,12 @@ public struct VolumeService: VolumeServing {
             timeout: .seconds(30))
     }
 
+    /// Under the volume's lock, so a delete never lands between a
+    /// `CommitVolumeClone`'s checks and its rename into this volume's dir.
     public func delete(_ name: String) async throws {
-        _ = try await client.run(ContainerCommandFactory.deleteVolume(name), timeout: .seconds(30))
+        try await VolumeLocks.shared.withLock(name) {
+            _ = try await client.run(ContainerCommandFactory.deleteVolume(name), timeout: .seconds(30))
+        }
     }
 
     public func prune() async throws -> String {

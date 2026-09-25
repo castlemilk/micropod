@@ -26,6 +26,11 @@
 #
 # MICROPOD_MOCK_FOLLOW_LINES (default 1) is how many `logs --follow` lines
 # are emitted after the backlog; 0 makes a follow return the backlog only.
+#
+# MICROPOD_MOCK_NAME_IS_ID=1 gives `run`/`create --name X` the id X, as the
+# real runtime does (its container ids *are* their names), and refuses a
+# second container with that name the way the apiserver does. Off by
+# default: the app and shim suites pin the sequential `mpc-NNNN` ids.
 set -u
 
 STATE_DIR="${MICROPOD_MOCK_STATE_DIR:-${TMPDIR:-/tmp}/micropod-mock-state-$(id -u)}"
@@ -339,7 +344,15 @@ cmd_run() {
     done
 
     local id
-    id=$(next_id)
+    if [ "${MICROPOD_MOCK_NAME_IS_ID:-0}" = "1" ] && [ -n "$name" ]; then
+        if container_exists "$name"; then
+            echo "Error: alreadyExists: \"container with ID $name already exists\"" >&2
+            exit 1
+        fi
+        id="$name"
+    else
+        id=$(next_id)
+    fi
 
     local label_json=""
     if [ ${#labels[@]} -gt 0 ]; then

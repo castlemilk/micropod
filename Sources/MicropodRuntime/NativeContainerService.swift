@@ -38,10 +38,7 @@ public struct NativeContainerService: ContainerServing {
     }
 
     public func list() async throws -> [Micropod_V1_Container] {
-        let data = try await api.list()
-        let entries = try MicropodJSON.decodeArray(
-            ContainerListEntry.self, from: data, context: "container list")
-        return entries.map(ModelMapper.container(from:))
+        try await entries().map(ModelMapper.container(from:))
     }
 
     public func inspect(_ id: String) async throws -> Data {
@@ -155,20 +152,25 @@ public struct NativeContainerService: ContainerServing {
             if case .volume(let name, _, _) = mount { return !isClone(name) }
             return false
         }
-        // One container list serves both the clone pre-checks and the RW
-        // multi-attach guard; requests without named volumes skip it.
+        // One container list serves the duplicate-id check, the clone
+        // pre-checks and the RW multi-attach guard; requests without named
+        // volumes skip it. The list must succeed: an XPC failure is
+        // `unavailable`, never an empty list that would wave the attach
+        // through (or make every clone dir look orphaned).
         var volumeHolders = VolumeAttachments(entries: [])
         if !cloneSet.isEmpty || attachesDirectly {
-            let entries = await listEntries()
+            let entries = try await entries()
+            // A duplicate id fails first: before any clone is written (the
+            // clone dir is keyed by id, so cloning would overwrite the existing
+            // container's images) and before the multi-attach guard, which
+            // would otherwise refuse a replayed create by naming the container
+            // it replays as the holder of its own volumes. Same error shape as
+            // the apiserver's own check, which still runs for the no-volume path.
+            if entries.contains(where: { $0.id == id }) {
+                throw MicropodError.message("alreadyExists: container with ID \(id) already exists")
+            }
             volumeHolders = VolumeAttachments(entries: entries)
             if !cloneSet.isEmpty {
-                // A duplicate id must fail *before* any clone is written: the
-                // clone dir is keyed by id, so cloning here would overwrite the
-                // existing container's images. Same error shape as the
-                // apiserver's own check, which still runs for the non-clone path.
-                if entries.contains(where: { $0.id == id }) {
-                    throw MicropodError.message("alreadyExists: container with ID \(id) already exists")
-                }
                 // Self-heal: a clone dir orphaned by a raw `container delete`
                 // (or a crashed runtime) is swept on the next cloning create.
                 await sweepOrphanClones(live: Set(entries.map(\.id)))
@@ -470,11 +472,9 @@ public struct NativeContainerService: ContainerServing {
 
     public func stopAll() async throws {
         // No bulk-stop route; stop each running container concurrently.
-        let entries = try MicropodJSON.decodeArray(
-            ContainerListEntry.self, from: await api.list(status: "running"),
-            context: "container list")
+        let running = try await entries(status: "running")
         try await withThrowingTaskGroup(of: Void.self) { group in
-            for entry in entries {
+            for entry in running {
                 group.addTask { try await self.api.stop(id: entry.id) }
             }
             try await group.waitForAll()
@@ -492,10 +492,9 @@ public struct NativeContainerService: ContainerServing {
     }
 
     public func deleteAll(force: Bool = false) async throws {
-        let entries = try MicropodJSON.decodeArray(
-            ContainerListEntry.self, from: await api.list(), context: "container list")
+        let all = try await entries()
         try await withThrowingTaskGroup(of: Void.self) { group in
-            for entry in entries {
+            for entry in all {
                 group.addTask {
                     try await self.api.delete(id: entry.id, force: force)
                     await self.exitCodes.forget(id: entry.id)
@@ -509,12 +508,10 @@ public struct NativeContainerService: ContainerServing {
     /// `container prune` — the CLI composes list(stopped) → diskUsage →
     /// delete; every route it uses is native here.
     public func prune() async throws -> String {
-        let entries = try MicropodJSON.decodeArray(
-            ContainerListEntry.self, from: await api.list(status: "stopped"),
-            context: "container list")
+        let stopped = try await entries(status: "stopped")
         var pruned: [String] = []
         var totalSize: UInt64 = 0
-        for entry in entries {
+        for entry in stopped {
             do {
                 totalSize += (try? await api.diskUsage(id: entry.id)) ?? 0
                 try await api.delete(id: entry.id)
@@ -526,8 +523,12 @@ public struct NativeContainerService: ContainerServing {
             }
         }
         // Orphan sweep: clone dirs whose container is already gone (e.g.
-        // deleted via the raw `container` CLI) would otherwise leak.
-        await sweepOrphanClones(live: Set((await listEntries()).map(\.id)))
+        // deleted via the raw `container` CLI) would otherwise leak. Only
+        // with the runtime's answer in hand — a failed list is not an empty
+        // one, and sweeping against it would unlink live containers' clones.
+        if let live = try? await entries() {
+            await sweepOrphanClones(live: Set(live.map(\.id)))
+        }
         let freed = ByteCountFormatter().string(fromByteCount: Int64(totalSize))
         return pruned.joined(separator: "\n") + (pruned.isEmpty ? "" : "\nReclaimed \(freed) in disk space")
     }
@@ -632,10 +633,12 @@ public struct NativeContainerService: ContainerServing {
             Data("micropod: \(error.localizedDescription) — attaching anyway (MICROPOD_ALLOW_MULTI_ATTACH=1)\n".utf8))
     }
 
-    private func listEntries() async -> [ContainerListEntry] {
-        (try? MicropodJSON.decodeArray(
-            ContainerListEntry.self, from: await api.list(),
-            context: "container list")) ?? []
+    /// `containerList` as decoded entries. Throws like every other XPC call
+    /// (a transport failure is `unavailable`): callers that guard on who
+    /// holds what must fail closed rather than reason from an empty list.
+    private func entries(status: String? = nil) async throws -> [ContainerListEntry] {
+        try MicropodJSON.decodeArray(
+            ContainerListEntry.self, from: await api.list(status: status), context: "container list")
     }
 
     /// Removes clone dirs whose container no longer exists. Called on

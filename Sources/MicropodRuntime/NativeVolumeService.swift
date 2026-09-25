@@ -30,8 +30,12 @@ public struct NativeVolumeService: VolumeServing {
         _ = try await api.volumeCreate(name: name, driverOpts: driverOpts, labels: Self.keyValues(labels))
     }
 
+    /// Under the volume's lock, so a delete never lands between a
+    /// `CommitVolumeClone`'s checks and its rename into this volume's dir.
     public func delete(_ name: String) async throws {
-        try await api.volumeDelete(name: name)
+        try await VolumeLocks.shared.withLock(name) {
+            try await api.volumeDelete(name: name)
+        }
     }
 
     public func prune() async throws -> String {
