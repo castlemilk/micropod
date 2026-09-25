@@ -1,0 +1,828 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Micropod API \u00b7 K8sService",
+    "description": "## micropod.v1.K8sService\n\nThe opt-in lightweight Kubernetes engine: a single micro-VM running\n `k3s server` (etcd + apiserver + kubelet + containerd), MetalLB on the\n vmnet subnet for real LoadBalancer IPs, and a host kubeconfig.",
+    "version": "0.8.0",
+    "contact": {
+      "name": "Micropod",
+      "url": "https://github.com/castlemilk/micropod"
+    },
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/castlemilk/micropod/blob/master/LICENSE"
+    }
+  },
+  "paths": {
+    "/api/micropod.v1.K8sService/GetK8sConfig": {
+      "post": {
+        "tags": [
+          "micropod.v1.K8sService"
+        ],
+        "summary": "GetK8sConfig",
+        "description": "The persisted engine configuration (defaults if never enabled).",
+        "operationId": "micropod.v1.K8sService.GetK8sConfig",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sConfig"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.K8sService/GetK8sStatus": {
+      "post": {
+        "tags": [
+          "micropod.v1.K8sService"
+        ],
+        "summary": "GetK8sStatus",
+        "description": "Engine enablement + live cluster state.",
+        "operationId": "micropod.v1.K8sService.GetK8sStatus",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.K8sService/GetKubeconfig": {
+      "post": {
+        "tags": [
+          "micropod.v1.K8sService"
+        ],
+        "summary": "GetKubeconfig",
+        "description": "Host kubeconfig for the cluster \u2014 server already rewritten to the VM\n address; save and `export KUBECONFIG=<path>` (or use contents directly).",
+        "operationId": "micropod.v1.K8sService.GetKubeconfig",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.GetKubeconfigResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.K8sService/K8sDown": {
+      "post": {
+        "tags": [
+          "micropod.v1.K8sService"
+        ],
+        "summary": "K8sDown",
+        "description": "Remove the cluster VM and its state (etcd included).",
+        "operationId": "micropod.v1.K8sService.K8sDown",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.K8sService/K8sUp": {
+      "post": {
+        "tags": [
+          "micropod.v1.K8sService"
+        ],
+        "summary": "K8sUp",
+        "description": "Create or resume the cluster VM and wait for the API. Streams progress\n lines; the terminal event carries the cluster status.",
+        "operationId": "micropod.v1.K8sService.K8sUp",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/connect+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.K8sUpRequest"
+              }
+            },
+            "application/connect+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.K8sUpRequest"
+              }
+            },
+            "application/grpc": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.K8sUpRequest"
+              }
+            },
+            "application/grpc+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.K8sUpRequest"
+              }
+            },
+            "application/grpc+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.K8sUpRequest"
+              }
+            },
+            "application/grpc-web": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.K8sUpRequest"
+              }
+            },
+            "application/grpc-web+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.K8sUpRequest"
+              }
+            },
+            "application/grpc-web+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.K8sUpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sUpEvent"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sUpEvent"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sUpEvent"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sUpEvent"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sUpEvent"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sUpEvent"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sUpEvent"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sUpEvent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.K8sService/SetK8sConfig": {
+      "post": {
+        "tags": [
+          "micropod.v1.K8sService"
+        ],
+        "summary": "SetK8sConfig",
+        "description": "Persist engine configuration; `enabled=false` disables the feature.",
+        "operationId": "micropod.v1.K8sService.SetK8sConfig",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.K8sConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sConfig"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "connect-protocol-version": {
+        "type": "number",
+        "title": "Connect-Protocol-Version",
+        "enum": [
+          1
+        ],
+        "description": "Define the version of the Connect protocol",
+        "const": 1
+      },
+      "connect-timeout-header": {
+        "type": "number",
+        "title": "Connect-Timeout-Ms",
+        "description": "Define the timeout, in ms"
+      },
+      "connect.error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "examples": [
+              "not_found"
+            ],
+            "enum": [
+              "canceled",
+              "unknown",
+              "invalid_argument",
+              "deadline_exceeded",
+              "not_found",
+              "already_exists",
+              "permission_denied",
+              "resource_exhausted",
+              "failed_precondition",
+              "aborted",
+              "out_of_range",
+              "unimplemented",
+              "internal",
+              "unavailable",
+              "data_loss",
+              "unauthenticated"
+            ],
+            "description": "The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code]."
+          },
+          "message": {
+            "type": "string",
+            "description": "A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the [google.rpc.Status.details][google.rpc.Status.details] field, or localized by the client."
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/connect.error_details.Any"
+            },
+            "description": "A list of messages that carry the error details. There is no limit on the number of messages."
+          }
+        },
+        "title": "Connect Error",
+        "additionalProperties": true,
+        "description": "Error type returned by Connect: https://connectrpc.com/docs/go/errors/#http-representation"
+      },
+      "connect.error_details.Any": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "A URL that acts as a globally unique identifier for the type of the serialized message. For example: `type.googleapis.com/google.rpc.ErrorInfo`. This is used to determine the schema of the data in the `value` field and is the discriminator for the `debug` field."
+          },
+          "value": {
+            "type": "string",
+            "format": "binary",
+            "description": "The Protobuf message, serialized as bytes and base64-encoded. The specific message type is identified by the `type` field."
+          },
+          "debug": {
+            "oneOf": [
+              {
+                "type": "object",
+                "title": "Any",
+                "additionalProperties": true,
+                "description": "Detailed error information."
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type"
+            },
+            "title": "Debug",
+            "description": "Deserialized error detail payload. The 'type' field indicates the schema. This field is for easier debugging and should not be relied upon for application logic."
+          }
+        },
+        "additionalProperties": true,
+        "description": "Contains an arbitrary serialized message along with a @type that describes the type of the serialized message, with an additional debug field for ConnectRPC error details."
+      },
+      "micropod.v1.Empty": {
+        "type": "object",
+        "title": "Empty",
+        "additionalProperties": false,
+        "description": "The Micropod daemon API is grouped into per-domain services, one per file:\n\n   container.proto \u2014 ContainerService (lifecycle, logs, stats, exec)\n   image.proto     \u2014 ImageService (list, pull, delete)\n   volume.proto    \u2014 VolumeService (volumes + mount policy)\n   network.proto   \u2014 NetworkService\n   compose.proto   \u2014 Compose (up/down over a compose spec)\n   system.proto    \u2014 SystemService (snapshot, usage, app updates)\n\n Empty is shared by every service, so it lives here."
+      },
+      "micropod.v1.GetKubeconfigResponse": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "examples": [
+              "/Users/me/.micropod/k8s/kubeconfig"
+            ],
+            "title": "path",
+            "description": "Absolute path of the kubeconfig on the host."
+          },
+          "contents": {
+            "type": "string",
+            "title": "contents",
+            "description": "Full kubeconfig YAML, server already rewritten to the VM address."
+          }
+        },
+        "title": "GetKubeconfigResponse",
+        "additionalProperties": false
+      },
+      "micropod.v1.K8sConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "enabled",
+            "description": "Feature toggle \u2014 RPCs other than status/config refuse when false."
+          },
+          "image": {
+            "type": "string",
+            "examples": [
+              "docker.io/rancher/k3s:v1.34.1-k3s1"
+            ],
+            "title": "image",
+            "description": "OCI image providing `k3s` (default rancher/k3s pinned tag)."
+          },
+          "memory": {
+            "type": "string",
+            "examples": [
+              "1G"
+            ],
+            "title": "memory",
+            "description": "VM memory limit (\"512M\"\u2013\"4G\" style)."
+          },
+          "cpus": {
+            "type": "number",
+            "examples": [
+              "2"
+            ],
+            "title": "cpus",
+            "format": "double",
+            "description": "vCPUs for the VM."
+          },
+          "metalLb": {
+            "type": "boolean",
+            "title": "metal_lb",
+            "description": "Install MetalLB + an L2 pool after the API is ready."
+          },
+          "ingress": {
+            "type": "boolean",
+            "title": "ingress",
+            "description": "Keep k3s's bundled traefik ingress (disable for a bare API)."
+          },
+          "lbPool": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "examples": [
+              "192.168.64.240-192.168.64.250"
+            ],
+            "title": "lb_pool",
+            "description": "MetalLB address range (\"a.b.c.d-e.f.g.h\"); empty = subnet tail .240-.250."
+          },
+          "clusterName": {
+            "type": "string",
+            "examples": [
+              "micropod-k3s"
+            ],
+            "title": "cluster_name",
+            "description": "VM/container name for the cluster node."
+          }
+        },
+        "title": "K8sConfig",
+        "additionalProperties": false,
+        "description": "Engine configuration, persisted at\n ~/Library/Application Support/micropod/k8s.json."
+      },
+      "micropod.v1.K8sStatus": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "enabled",
+            "description": "Whether the feature is enabled (config file or MICROPOD_K8S=1)."
+          },
+          "exists": {
+            "type": "boolean",
+            "title": "exists",
+            "description": "The cluster VM exists on the runtime."
+          },
+          "running": {
+            "type": "boolean",
+            "title": "running",
+            "description": "The VM is running (has a vmnet address)."
+          },
+          "address": {
+            "type": "string",
+            "examples": [
+              "192.168.64.9"
+            ],
+            "title": "address",
+            "format": "ipv4",
+            "description": "The node's vmnet IPv4, e.g. \"192.168.64.9\" (empty when stopped)."
+          },
+          "nodeReady": {
+            "type": "boolean",
+            "title": "node_ready",
+            "description": "`kubectl get nodes` reports the node Ready."
+          },
+          "kubeconfigPath": {
+            "type": "string",
+            "examples": [
+              "/Users/me/.micropod/k8s/kubeconfig"
+            ],
+            "title": "kubeconfig_path",
+            "description": "Absolute path of the host kubeconfig written by K8sUp."
+          }
+        },
+        "title": "K8sStatus",
+        "additionalProperties": false,
+        "description": "Live cluster state as the engine sees it."
+      },
+      "micropod.v1.K8sUpEvent": {
+        "type": "object",
+        "properties": {
+          "line": {
+            "type": "string",
+            "examples": [
+              "waiting for the API (k3s boot ~30-60s)"
+            ],
+            "title": "line",
+            "description": "Progress output line \u2014 empty on the terminal event."
+          },
+          "done": {
+            "type": "boolean",
+            "title": "done",
+            "description": "True on the terminal event once the cluster is ready."
+          },
+          "status": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/micropod.v1.K8sStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "status",
+            "description": "Cluster status on the terminal event."
+          }
+        },
+        "title": "K8sUpEvent",
+        "additionalProperties": false,
+        "description": "One K8sUp stream event \u2014 progress lines, then a terminal status."
+      },
+      "micropod.v1.K8sUpRequest": {
+        "type": "object",
+        "properties": {
+          "image": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "examples": [
+              "docker.io/rancher/k3s:v1.34.1-k3s1"
+            ],
+            "title": "image"
+          },
+          "memory": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "examples": [
+              "2G"
+            ],
+            "title": "memory"
+          },
+          "cpus": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "examples": [
+              "4"
+            ],
+            "title": "cpus",
+            "format": "double"
+          },
+          "metalLb": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "metal_lb"
+          },
+          "ingress": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "ingress"
+          },
+          "lbPool": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "examples": [
+              "192.168.64.240-192.168.64.250"
+            ],
+            "title": "lb_pool"
+          },
+          "clusterName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "cluster_name"
+          }
+        },
+        "title": "K8sUpRequest",
+        "additionalProperties": false,
+        "description": "Overrides for K8sUp \u2014 unset fields inherit the persisted config."
+      }
+    }
+  },
+  "security": [],
+  "tags": [
+    {
+      "name": "micropod.v1.K8sService",
+      "description": "The opt-in lightweight Kubernetes engine: a single micro-VM running\n `k3s server` (etcd + apiserver + kubelet + containerd), MetalLB on the\n vmnet subnet for real LoadBalancer IPs, and a host kubeconfig."
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://localhost:45454",
+      "description": "Local Micropod daemon"
+    }
+  ],
+  "externalDocs": {
+    "description": "API explorer",
+    "url": "https://castlemilk.github.io/micropod/api/"
+  }
+}

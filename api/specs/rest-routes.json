@@ -155,6 +155,36 @@
     "description": "docker-compose down."
   },
   {
+    "method": "GET",
+    "path": "/v1/k8s",
+    "description": "Kubernetes engine + cluster status (opt-in feature)."
+  },
+  {
+    "method": "GET",
+    "path": "/v1/k8s/config",
+    "description": "Read the persisted k8s engine config."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/k8s/config",
+    "description": "Persist k8s engine config; {enabled:true} turns the feature on."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/k8s/up",
+    "description": "Create or resume the k3s cluster VM; returns progress lines + status."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/k8s/down",
+    "description": "Remove the cluster VM and its state."
+  },
+  {
+    "method": "GET",
+    "path": "/v1/k8s/kubeconfig",
+    "description": "Host kubeconfig for the cluster (path + contents)."
+  },
+  {
     "method": "POST",
     "path": "/v1/exec",
     "description": "Run a command in a container; returns exit code + output."
