@@ -86,7 +86,10 @@ public struct NativeContainerService: ContainerServing {
     /// waiter is registered in between so the helper already has it when
     /// the process starts (and exits, however quickly).
     private func startTracked(_ id: String) async throws {
-        try await api.bootstrap(id: id)
+        try await Self.bootstrapForStart(
+            id: id,
+            bootstrap: { try await api.bootstrap(id: id) },
+            exists: { try await api.get(id: id) != nil })
         await exitCodes.track(id: id) { [api] in
             try await api.waitProcess(containerId: id, processId: id)
         }
@@ -95,6 +98,70 @@ public struct NativeContainerService: ContainerServing {
         } catch {
             await exitCodes.forget(id: id)
             throw error
+        }
+    }
+
+    /// Waits between bootstraps that answered `notFound` while the runtime
+    /// still listed the container (see `bootstrapForStart`).
+    static let bootstrapNotFoundBackoff: [Duration] = [.milliseconds(50), .milliseconds(150), .milliseconds(400)]
+
+    /// `containerBootstrap` for a start, looking into a `notFound` answer.
+    ///
+    /// container-apiserver answers bootstrap `notFound: container with ID
+    /// <id> not found` only when the id is missing from its container table;
+    /// `containerCreate` fills that table under the same service lock before
+    /// it replies, and only a delete of that id (or an auto-remove exit)
+    /// empties it. A `notFound` right after a successful create therefore
+    /// means another client deleted the container in between — typically an
+    /// unfiltered prune, since the runtime lists a created, never-started
+    /// container as `stopped` (`isPrunable` now keeps our own prune off it).
+    /// So the container is looked up again:
+    ///  - gone: the start fails `not_found` at once, saying it was deleted —
+    ///    a real deletion is never retried or masked;
+    ///  - still listed: bootstrap is retried after each `backoff` step, each
+    ///    retry logged; when the steps run out the last `notFound` stands.
+    /// Any other bootstrap error, and a `notFound` whose lookup fails, is
+    /// thrown as it came.
+    static func bootstrapForStart(
+        id: String,
+        backoff: [Duration] = bootstrapNotFoundBackoff,
+        bootstrap: () async throws -> Void,
+        exists: () async throws -> Bool,
+        log: (String) -> Void = { FileHandle.standardError.write(Data("micropod: \($0)\n".utf8)) }
+    ) async throws {
+        var retries = 0
+        while true {
+            do {
+                try await bootstrap()
+                return
+            } catch {
+                guard ConnectCodeMapping.code(for: error) == "not_found" else { throw error }
+                let listed: Bool
+                do {
+                    listed = try await exists()
+                } catch let lookup {
+                    log(
+                        "start \(id): bootstrap answered not found and the lookup failed "
+                            + "(\(lookup.localizedDescription))")
+                    throw error
+                }
+                guard listed else {
+                    log("start \(id): the container was deleted by another client before it started")
+                    throw MicropodError.message(
+                        "notFound: container with ID \(id) not found: it was deleted before it could start "
+                            + "(another client removed it between create and start, e.g. a prune)")
+                }
+                guard retries < backoff.count else {
+                    log("start \(id): bootstrap still answers not found after \(retries) retries; giving up")
+                    throw error
+                }
+                let wait = backoff[retries]
+                retries += 1
+                log(
+                    "start \(id): bootstrap answered not found but the runtime still lists the container; "
+                        + "retrying in \(wait) (\(retries)/\(backoff.count))")
+                try await Task.sleep(for: wait)
+            }
         }
     }
 
@@ -540,7 +607,8 @@ public struct NativeContainerService: ContainerServing {
         let stopped = try await entries(status: "stopped")
         var pruned: [String] = []
         var totalSize: UInt64 = 0
-        for entry in stopped {
+        let now = Date()
+        for entry in stopped where Self.isPrunable(entry, now: now) {
             do {
                 totalSize += (try? await api.diskUsage(id: entry.id)) ?? 0
                 try await api.delete(id: entry.id)
@@ -560,6 +628,30 @@ public struct NativeContainerService: ContainerServing {
         }
         let freed = ByteCountFormatter().string(fromByteCount: Int64(totalSize))
         return pruned.joined(separator: "\n") + (pruned.isEmpty ? "" : "\nReclaimed \(freed) in disk space")
+    }
+
+    /// How long after its creation a never-started container is safe from
+    /// `prune`: far longer than any client's create → start gap (the
+    /// Connect `CreateContainer` → `StartContainer` pair, `docker run`, a
+    /// compose project starting services in dependency order), short
+    /// enough that an abandoned create goes with the next periodic prune.
+    static let unstartedPruneGrace: TimeInterval = 300
+
+    /// Whether `prune` may delete this stopped container. The runtime lists
+    /// a container that was created and never started as `stopped`, exactly
+    /// like one that ran and exited; deleting it between its client's create
+    /// and start fails that start `not_found` (live defect 4: an agent's
+    /// periodic `container prune` landed between an attempt's
+    /// `CreateContainer` and `StartContainer`). So a container without a
+    /// start date that was created within `unstartedPruneGrace` is kept. A
+    /// container without a readable creation date has nothing proving it
+    /// fresh and is prunable, as before.
+    static func isPrunable(_ entry: ContainerListEntry, now: Date) -> Bool {
+        if let started = entry.status.startedDate, !started.isEmpty { return true }
+        guard let raw = entry.configuration.creationDate,
+            let created = try? Date(raw, strategy: .iso8601)
+        else { return true }
+        return now.timeIntervalSince(created) >= unstartedPruneGrace
     }
 
     public func export(_ id: String, to outputPath: String) async throws {

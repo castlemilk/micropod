@@ -231,6 +231,16 @@ exit-code waiter + `containerStartProcess(id, id)`; `start` does the same
 for a created container. A failed bootstrap/start force-deletes the
 container, matching the CLI.
 
+A bootstrap that answers `notFound: container with ID <id> not found` is
+looked into before it is returned: the apiserver answers that only when the
+id is missing from its container table, which `containerCreate` fills under
+the same lock before replying, so right after a create it means another
+client deleted the container in between. If the container is gone the start
+fails `not_found` at once and says it was deleted before it could start (a
+real deletion is never retried or masked); if the runtime still lists it,
+bootstrap is retried after 50, 150 and 400 ms, each retry logged, before the
+`notFound` stands.
+
 A failed create removes exactly the clone images it placed, whatever the
 failure: the clone directory is keyed by container id, so any other image
 under it belongs to the create that won the name (a replay of the same
@@ -333,7 +343,13 @@ platform all produce identical stored configs.
 ### `prune` and `cp`
 
 `prune` is client-side composition — `containerList(status: stopped)` →
-`containerDiskUsage` → `containerDelete` — all native. `cp` parses
+`containerDiskUsage` → `containerDelete` — all native. The runtime lists a
+created, never-started container as `stopped`, just like an exited one, so
+`prune` skips a container with no start date created in the last five
+minutes: a prune landing between a client's create and its start (the
+Connect `CreateContainer` → `StartContainer` pair, `docker run`) would
+otherwise fail that start `not_found`. The next prune after the grace takes
+an abandoned create. `cp` parses
 `id:/abs/path` refs exactly like `ContainerCopy` and drives
 `containerCopyIn`/`containerCopyOut` directly.
 
