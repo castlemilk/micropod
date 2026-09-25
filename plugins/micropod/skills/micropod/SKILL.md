@@ -1,6 +1,6 @@
 ---
 name: micropod
-description: Use the Micropod container manager — the Apple `container` runtime via its MCP server (32 tools), Connect/REST API on :45454, or Docker Engine API shim. Use for running/managing containers and docker-compose stacks, worker orchestration (e.g. cuttlefish), and disposable test containers (real Testcontainers/Ryuk via the shim).
+description: Use the Micropod container manager — the Apple `container` runtime via its MCP server (38 tools), Connect/REST API on :45454, or Docker Engine API shim. Use for running/managing containers and docker-compose stacks, worker orchestration (e.g. cuttlefish), and disposable test containers (real Testcontainers/Ryuk via the shim).
 ---
 
 # Micropod
@@ -11,7 +11,7 @@ Programmatic surfaces, best first:
 
 | Surface | How to reach it | When to use |
 |---|---|---|
-| **MCP server** (STDIO JSON-RPC 2.0, 32 tools) | `micropod-mcp` (installed to `~/.local/bin/`) | Claude/agent-driven work; the richest surface |
+| **MCP server** (STDIO JSON-RPC 2.0, 38 tools) | `micropod-mcp` (installed to `~/.local/bin/`) | Claude/agent-driven work; the richest surface |
 | **Connect API** (proto-JSON over POST) | `http://127.0.0.1:45454/api/micropod.v1.<Service>/<Method>` | Typed clients — TS/Go/Swift SDKs, or curl |
 | **REST facade** (JSON) | `http://127.0.0.1:45454/v1/*` | Quick curl/scripts; SSE logs |
 | **Docker Engine shim** | unix `~/.micropod/docker.sock` + tcp `:45455` | Unmodified Docker clients: docker-py, Testcontainers, Ryuk |
@@ -21,7 +21,7 @@ Prerequisite: Micropod.app installed and running (it owns the daemon, the
 :45454 API, and the shim). `curl -s http://127.0.0.1:45454/health` →
 `{"status":"ok"}` is the readiness probe.
 
-## MCP server (32 tools)
+## MCP server (38 tools)
 
 Config for any MCP client:
 
@@ -44,6 +44,11 @@ Tools — **containers**: `list_containers`, `run`, `start`, `stop`,
 `compose_ps`. **shared mounts**: `share_mount`, `share_unmount`,
 `share_list`, `share_sync`, `share_gc`. **system**: `status`, `df`,
 `build_cache_stats`, `update_check`, `update_status`, `update_apply`.
+**kubernetes** (opt-in engine — `k8s_enable` persists config, or `MICROPOD_K8S=1`):
+`k8s_enable`, `k8s_disable`, `k8s_up`, `k8s_down`, `k8s_status`,
+`k8s_kubeconfig`. One call to `k8s_up` stands up a full k3s cluster in a
+micro-VM (~21s cold, ~550MB); MetalLB gives `type: LoadBalancer` real IPs
+on the VM subnet that route from the host.
 
 Example tools/call (JSON-RPC over stdin/stdout):
 

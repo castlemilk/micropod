@@ -24,6 +24,7 @@ type Server struct {
 	micropodv1connect.UnimplementedNetworkServiceHandler
 	micropodv1connect.UnimplementedComposeServiceHandler
 	micropodv1connect.UnimplementedSystemServiceHandler
+	micropodv1connect.UnimplementedK8sServiceHandler
 	cli *clicli.CLI
 }
 

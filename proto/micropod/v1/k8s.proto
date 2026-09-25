@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package micropod.v1;
+
+option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
+
+import "buf/validate/validate.proto";
+import "gnostic/openapi/v3/annotations.proto";
+import "micropod/v1/api.proto";
+
+// The opt-in lightweight Kubernetes engine: a single micro-VM running
+// `k3s server` (etcd + apiserver + kubelet + containerd), MetalLB on the
+// vmnet subnet for real LoadBalancer IPs, and a host kubeconfig.
+service K8sService {
+  // Engine enablement + live cluster state.
+  rpc GetK8sStatus(Empty) returns (K8sStatus);
+  // The persisted engine configuration (defaults if never enabled).
+  rpc GetK8sConfig(Empty) returns (K8sConfig);
+  // Persist engine configuration; `enabled=false` disables the feature.
+  rpc SetK8sConfig(K8sConfig) returns (K8sConfig);
+  // Create or resume the cluster VM and wait for the API. Streams progress
+  // lines; the terminal event carries the cluster status.
+  rpc K8sUp(K8sUpRequest) returns (stream K8sUpEvent);
+  // Remove the cluster VM and its state (etcd included).
+  rpc K8sDown(Empty) returns (Empty);
+  // Host kubeconfig for the cluster — server already rewritten to the VM
+  // address; save and `export KUBECONFIG=<path>` (or use contents directly).
+  rpc GetKubeconfig(Empty) returns (GetKubeconfigResponse);
+}
+
+// Engine configuration, persisted at
+// ~/Library/Application Support/micropod/k8s.json.
+message K8sConfig {
+  // Feature toggle — RPCs other than status/config refuse when false.
+  bool enabled = 1;
+  // OCI image providing `k3s` (default rancher/k3s pinned tag).
+  string image = 2 [(gnostic.openapi.v3.property).example = {yaml: "'docker.io/rancher/k3s:v1.34.1-k3s1'"}];
+  // VM memory limit ("512M"–"4G" style).
+  string memory = 3 [(gnostic.openapi.v3.property).example = {yaml: "'1G'"}];
+  // vCPUs for the VM.
+  double cpus = 4 [(gnostic.openapi.v3.property).example = {yaml: "2"}];
+  // Install MetalLB + an L2 pool after the API is ready.
+  bool metal_lb = 5;
+  // Keep k3s's bundled traefik ingress (disable for a bare API).
+  bool ingress = 6;
+  // MetalLB address range ("a.b.c.d-e.f.g.h"); empty = subnet tail .240-.250.
+  optional string lb_pool = 7 [(gnostic.openapi.v3.property).example = {yaml: "'192.168.64.240-192.168.64.250'"}];
+  // VM/container name for the cluster node.
+  string cluster_name = 8 [(gnostic.openapi.v3.property).example = {yaml: "'micropod-k3s'"}];
+}
+
+// Live cluster state as the engine sees it.
+message K8sStatus {
+  // Whether the feature is enabled (config file or MICROPOD_K8S=1).
+  bool enabled = 1;
+  // The cluster VM exists on the runtime.
+  bool exists = 2;
+  // The VM is running (has a vmnet address).
+  bool running = 3;
+  // The node's vmnet IPv4, e.g. "192.168.64.9" (empty when stopped).
+  string address = 4 [(gnostic.openapi.v3.property).example = {yaml: "'192.168.64.9'"}, (gnostic.openapi.v3.property).format = "ipv4"];
+  // `kubectl get nodes` reports the node Ready.
+  bool node_ready = 5;
+  // Absolute path of the host kubeconfig written by K8sUp.
+  string kubeconfig_path = 6 [(gnostic.openapi.v3.property).example = {yaml: "'/Users/me/.micropod/k8s/kubeconfig'"}];
+}
+
+// Overrides for K8sUp — unset fields inherit the persisted config.
+message K8sUpRequest {
+  optional string image = 1 [(gnostic.openapi.v3.property).example = {yaml: "'docker.io/rancher/k3s:v1.34.1-k3s1'"}];
+  optional string memory = 2 [(gnostic.openapi.v3.property).example = {yaml: "'2G'"}];
+  optional double cpus = 3 [(gnostic.openapi.v3.property).example = {yaml: "4"}];
+  optional bool metal_lb = 4;
+  optional bool ingress = 5;
+  optional string lb_pool = 6 [(gnostic.openapi.v3.property).example = {yaml: "'192.168.64.240-192.168.64.250'"}];
+  optional string cluster_name = 7;
+}
+
+// One K8sUp stream event — progress lines, then a terminal status.
+message K8sUpEvent {
+  // Progress output line — empty on the terminal event.
+  string line = 1 [(gnostic.openapi.v3.property).example = {yaml: "'waiting for the API (k3s boot ~30-60s)'"}];
+  // True on the terminal event once the cluster is ready.
+  bool done = 2;
+  // Cluster status on the terminal event.
+  optional K8sStatus status = 3;
+}
+
+message GetKubeconfigResponse {
+  // Absolute path of the kubeconfig on the host.
+  string path = 1 [(gnostic.openapi.v3.property).example = {yaml: "'/Users/me/.micropod/k8s/kubeconfig'"}];
+  // Full kubeconfig YAML, server already rewritten to the VM address.
+  string contents = 2;
+}

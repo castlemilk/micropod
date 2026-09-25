@@ -157,6 +157,22 @@ public struct K8sService: Sendable {
         return try await status(name: name)
     }
 
+    /// Streaming variant of `up` for the Connect API — yields progress lines
+    /// and finishes with the terminal cluster status.
+    public func upEvents(_ config: K8sConfig) -> AsyncThrowingStream<(line: String, status: K8sStatus?), Error> {
+        AsyncThrowingStream { cont in
+            Task {
+                do {
+                    let final = try await up(config) { line in cont.yield((line, nil)) }
+                    cont.yield(("", final))
+                    cont.finish()
+                } catch {
+                    cont.finish(throwing: error)
+                }
+            }
+        }
+    }
+
     public func down(_ config: K8sConfig) async throws {
         let name = config.clusterName
         guard await containerExists(name) else { return }

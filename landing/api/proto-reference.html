@@ -820,6 +820,41 @@
         
           
           <li>
+            <a href="#micropod%2fv1%2fk8s.proto">micropod/v1/k8s.proto</a>
+            <ul>
+              
+                <li>
+                  <a href="#micropod.v1.GetKubeconfigResponse"><span class="badge">M</span>GetKubeconfigResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.K8sConfig"><span class="badge">M</span>K8sConfig</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.K8sStatus"><span class="badge">M</span>K8sStatus</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.K8sUpEvent"><span class="badge">M</span>K8sUpEvent</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.K8sUpRequest"><span class="badge">M</span>K8sUpRequest</a>
+                </li>
+              
+              
+              
+              
+                <li>
+                  <a href="#micropod.v1.K8sService"><span class="badge">S</span>K8sService</a>
+                </li>
+              
+            </ul>
+          </li>
+        
+          
+          <li>
             <a href="#micropod%2fv1%2fnetwork.proto">micropod/v1/network.proto</a>
             <ul>
               
@@ -6469,6 +6504,343 @@ Signal sent on stop (parsed; not expressible on the Apple runtime). </p></td>
                 <td><a href="#micropod.v1.ComposeDownRequest">ComposeDownRequest</a></td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
                 <td><p>Tear down a compose project&#39;s containers.</p></td>
+              </tr>
+            
+          </tbody>
+        </table>
+
+        
+    
+      
+      <div class="file-heading">
+        <h2 id="micropod/v1/k8s.proto">micropod/v1/k8s.proto</h2><a href="#title">Top</a>
+      </div>
+      <p></p>
+
+      
+        <h3 id="micropod.v1.GetKubeconfigResponse">GetKubeconfigResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Absolute path of the kubeconfig on the host. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>contents</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Full kubeconfig YAML, server already rewritten to the VM address. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.K8sConfig">K8sConfig</h3>
+        <p>Engine configuration, persisted at</p><p>~/Library/Application Support/micropod/k8s.json.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>enabled</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Feature toggle — RPCs other than status/config refuse when false. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>image</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>OCI image providing `k3s` (default rancher/k3s pinned tag). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>VM memory limit (&#34;512M&#34;–&#34;4G&#34; style). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cpus</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p>vCPUs for the VM. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>metal_lb</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Install MetalLB &#43; an L2 pool after the API is ready. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ingress</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Keep k3s&#39;s bundled traefik ingress (disable for a bare API). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>lb_pool</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>MetalLB address range (&#34;a.b.c.d-e.f.g.h&#34;); empty = subnet tail .240-.250. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cluster_name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>VM/container name for the cluster node. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.K8sStatus">K8sStatus</h3>
+        <p>Live cluster state as the engine sees it.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>enabled</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Whether the feature is enabled (config file or MICROPOD_K8S=1). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>exists</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>The cluster VM exists on the runtime. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>running</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>The VM is running (has a vmnet address). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>address</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The node&#39;s vmnet IPv4, e.g. &#34;192.168.64.9&#34; (empty when stopped). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>node_ready</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>`kubectl get nodes` reports the node Ready. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>kubeconfig_path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Absolute path of the host kubeconfig written by K8sUp. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.K8sUpEvent">K8sUpEvent</h3>
+        <p>One K8sUp stream event — progress lines, then a terminal status.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>line</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Progress output line — empty on the terminal event. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>done</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>True on the terminal event once the cluster is ready. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>status</td>
+                  <td><a href="#micropod.v1.K8sStatus">K8sStatus</a></td>
+                  <td>optional</td>
+                  <td><p>Cluster status on the terminal event. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.K8sUpRequest">K8sUpRequest</h3>
+        <p>Overrides for K8sUp — unset fields inherit the persisted config.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>image</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cpus</td>
+                  <td><a href="#double">double</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>metal_lb</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ingress</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>lb_pool</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cluster_name</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+
+      
+
+      
+
+      
+        <h3 id="micropod.v1.K8sService">K8sService</h3>
+        <p>The opt-in lightweight Kubernetes engine: a single micro-VM running</p><p>`k3s server` (etcd + apiserver + kubelet + containerd), MetalLB on the</p><p>vmnet subnet for real LoadBalancer IPs, and a host kubeconfig.</p>
+        <table class="enum-table">
+          <thead>
+            <tr><td>Method Name</td><td>Request Type</td><td>Response Type</td><td>Description</td></tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>GetK8sStatus</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.K8sStatus">K8sStatus</a></td>
+                <td><p>Engine enablement &#43; live cluster state.</p></td>
+              </tr>
+            
+              <tr>
+                <td>GetK8sConfig</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.K8sConfig">K8sConfig</a></td>
+                <td><p>The persisted engine configuration (defaults if never enabled).</p></td>
+              </tr>
+            
+              <tr>
+                <td>SetK8sConfig</td>
+                <td><a href="#micropod.v1.K8sConfig">K8sConfig</a></td>
+                <td><a href="#micropod.v1.K8sConfig">K8sConfig</a></td>
+                <td><p>Persist engine configuration; `enabled=false` disables the feature.</p></td>
+              </tr>
+            
+              <tr>
+                <td>K8sUp</td>
+                <td><a href="#micropod.v1.K8sUpRequest">K8sUpRequest</a></td>
+                <td><a href="#micropod.v1.K8sUpEvent">K8sUpEvent</a> stream</td>
+                <td><p>Create or resume the cluster VM and wait for the API. Streams progress
+lines; the terminal event carries the cluster status.</p></td>
+              </tr>
+            
+              <tr>
+                <td>K8sDown</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p>Remove the cluster VM and its state (etcd included).</p></td>
+              </tr>
+            
+              <tr>
+                <td>GetKubeconfig</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.GetKubeconfigResponse">GetKubeconfigResponse</a></td>
+                <td><p>Host kubeconfig for the cluster — server already rewritten to the VM
+address; save and `export KUBECONFIG=&lt;path&gt;` (or use contents directly).</p></td>
               </tr>
             
           </tbody>

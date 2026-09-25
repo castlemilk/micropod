@@ -293,6 +293,27 @@ private actor MCPServer {
             "update_apply",
             "Install a downloaded app update: quits Micropod, Sparkle applies it, app relaunches."
         ),
+        (
+            "k8s_status",
+            "Kubernetes engine state: enabled, cluster VM state, node Ready, kubeconfig path."
+        ),
+        (
+            "k8s_enable",
+            """
+            Enable the lightweight Kubernetes engine (opt-in). Optional args: image, memory, cpus, \
+            metallb (true|false), ingress (true|false), lb_pool (a.b.c.d-e.f.g.h), name.
+            """
+        ),
+        ("k8s_disable", "Disable the Kubernetes engine (a running cluster is left up)."),
+        (
+            "k8s_up",
+            """
+            Create or resume the k3s cluster VM and wait for Ready. Streams progress; \
+            writes ~/.micropod/k8s/kubeconfig. Accepts the same optional args as k8s_enable.
+            """
+        ),
+        ("k8s_down", "Remove the cluster VM and its state."),
+        ("k8s_kubeconfig", "Return the host kubeconfig contents for the cluster."),
     ]
 
     private func callTool(id: Int?, _ call: MCPToolCall) async -> Data? {
@@ -303,6 +324,15 @@ private actor MCPServer {
         }
         func flag(_ key: String) -> Bool {
             ["true", "1", "yes"].contains(string(key).lowercased())
+        }
+        func applyK8sArgs(config: inout K8sConfig) throws {
+            if !string("image").isEmpty { config.image = string("image") }
+            if !string("memory").isEmpty { config.memory = string("memory") }
+            if let c = Double(string("cpus")), c > 0 { config.cpus = c }
+            if !string("metallb").isEmpty { config.metalLB = flag("metallb") }
+            if !string("ingress").isEmpty { config.ingress = flag("ingress") }
+            if !string("lb_pool").isEmpty { config.lbPool = string("lb_pool") }
+            if !string("name").isEmpty { config.clusterName = string("name") }
         }
 
         do {
@@ -596,6 +626,60 @@ private actor MCPServer {
                 let report = try await appControl.applyUpdate()
                 return toolResult(
                     id, "\(describeUpdate(report)) — app is quitting to install; it will relaunch")
+
+            case "k8s_status":
+                let k8s = K8sService(client: client)
+                let config = k8s.loadConfig() ?? .defaults
+                let s = try await k8s.status(name: config.clusterName)
+                var lines = [
+                    "enabled=\(k8s.isEnabled)",
+                    "exists=\(s.exists) running=\(s.running) nodeReady=\(s.nodeReady)",
+                ]
+                if let ip = s.address { lines.append("api=https://\(ip):6443") }
+                lines.append("kubeconfig=\(s.kubeconfigPath)")
+                return toolResult(id, lines.joined(separator: "\n"))
+
+            case "k8s_enable", "k8s_disable":
+                let k8s = K8sService(client: client)
+                var config = k8s.loadConfig() ?? .defaults
+                config.enabled = call.name == "k8s_enable"
+                try applyK8sArgs(config: &config)
+                try k8s.saveConfig(config)
+                return toolResult(
+                    id, config.enabled ? "k8s engine enabled — k8s_up creates the cluster" : "k8s engine disabled")
+
+            case "k8s_up":
+                let k8s = K8sService(client: client)
+                guard k8s.isEnabled else {
+                    return toolResult(id, "k8s engine disabled — call k8s_enable first", isError: true)
+                }
+                var config = k8s.loadConfig() ?? .defaults
+                try applyK8sArgs(config: &config)
+                final class Lines: @unchecked Sendable {
+                    var items: [String] = []
+                }
+                let progress = Lines()
+                let s = try await k8s.up(config) { progress.items.append($0) }
+                var out = progress.items.joined(separator: "\n")
+                if let ip = s.address { out += "\napi=https://\(ip):6443" }
+                out += "\nkubeconfig=\(s.kubeconfigPath)"
+                return toolResult(id, out)
+
+            case "k8s_down":
+                let k8s = K8sService(client: client)
+                guard k8s.isEnabled else {
+                    return toolResult(id, "k8s engine disabled", isError: true)
+                }
+                let config = k8s.loadConfig() ?? .defaults
+                try await k8s.down(config)
+                return toolResult(id, "removed \(config.clusterName)")
+
+            case "k8s_kubeconfig":
+                let k8s = K8sService(client: client)
+                guard let contents = try? String(contentsOf: k8s.kubeconfigURL, encoding: .utf8) else {
+                    return toolResult(id, "no kubeconfig — run k8s_up first", isError: true)
+                }
+                return toolResult(id, contents)
 
             default:
                 return respondError(id: id, code: -32601, message: "Unknown tool: \(call.name)")

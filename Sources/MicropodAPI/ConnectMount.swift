@@ -230,6 +230,61 @@ extension APIHandlers {
                 try await compose.down(composeName: req.name)
                 return unary(Micropod_V1_Empty())
 
+            case "GetK8sStatus":
+                let config = k8s.loadConfig() ?? .defaults
+                let s = try await k8s.status(name: config.clusterName)
+                return unary(k8sStatus(from: s))
+
+            case "GetK8sConfig":
+                return unary(k8sConfigProto(from: k8s.loadConfig() ?? .defaults))
+
+            case "SetK8sConfig":
+                let req = try decode(Micropod_V1_K8sConfig.self, body)
+                try k8s.saveConfig(k8sConfig(from: req))
+                return unary(req)
+
+            case "K8sUp":
+                guard k8s.isEnabled else {
+                    return connectError(.unavailable, K8sError.disabled.description)
+                }
+                let req = try decodeStreamRequest(Micropod_V1_K8sUpRequest.self, body)
+                var config = k8s.loadConfig() ?? .defaults
+                if req.hasImage { config.image = req.image }
+                if req.hasMemory { config.memory = req.memory }
+                if req.hasCpus { config.cpus = req.cpus }
+                if req.hasMetalLb { config.metalLB = req.metalLb }
+                if req.hasIngress { config.ingress = req.ingress }
+                if req.hasLbPool { config.lbPool = req.lbPool }
+                if req.hasClusterName { config.clusterName = req.clusterName }
+                let events = k8s.upEvents(config)
+                return streamEnvelope(events) { event in
+                    Micropod_V1_K8sUpEvent.with {
+                        $0.line = event.line
+                        if let status = event.status {
+                            $0.done = true
+                            $0.status = k8sStatus(from: status)
+                        }
+                    }
+                }
+
+            case "K8sDown":
+                guard k8s.isEnabled else {
+                    return connectError(.unavailable, K8sError.disabled.description)
+                }
+                try await k8s.down(k8s.loadConfig() ?? .defaults)
+                return unary(Micropod_V1_Empty())
+
+            case "GetKubeconfig":
+                let path = k8s.kubeconfigURL.path
+                guard let contents = try? String(contentsOfFile: path, encoding: .utf8) else {
+                    return connectError(.notFound, "no kubeconfig — run K8sUp first")
+                }
+                return unary(
+                    Micropod_V1_GetKubeconfigResponse.with {
+                        $0.path = path
+                        $0.contents = contents
+                    })
+
             default:
                 return nil
             }
@@ -461,6 +516,43 @@ extension APIHandlers {
             labels: proto.labels.map { LabelSpec(key: $0.key, value: $0.value) },
             useInit: proto.init_p,
             arguments: proto.arguments)
+    }
+
+    private func k8sStatus(from s: K8sStatus) -> Micropod_V1_K8sStatus {
+        Micropod_V1_K8sStatus.with {
+            $0.enabled = k8s.isEnabled
+            $0.exists = s.exists
+            $0.running = s.running
+            $0.address = s.address ?? ""
+            $0.nodeReady = s.nodeReady
+            $0.kubeconfigPath = s.kubeconfigPath
+        }
+    }
+
+    private func k8sConfigProto(from c: K8sConfig) -> Micropod_V1_K8sConfig {
+        Micropod_V1_K8sConfig.with {
+            $0.enabled = c.enabled
+            $0.image = c.image
+            $0.memory = c.memory
+            $0.cpus = c.cpus
+            $0.metalLb = c.metalLB
+            $0.ingress = c.ingress
+            if let pool = c.lbPool { $0.lbPool = pool }
+            $0.clusterName = c.clusterName
+        }
+    }
+
+    private func k8sConfig(from p: Micropod_V1_K8sConfig) -> K8sConfig {
+        var c = K8sConfig.defaults
+        c.enabled = p.enabled
+        if !p.image.isEmpty { c.image = p.image }
+        if !p.memory.isEmpty { c.memory = p.memory }
+        if p.cpus > 0 { c.cpus = p.cpus }
+        c.metalLB = p.metalLb
+        c.ingress = p.ingress
+        if p.hasLbPool { c.lbPool = p.lbPool }
+        if !p.clusterName.isEmpty { c.clusterName = p.clusterName }
+        return c
     }
 
     private func usageReportProto(_ report: UsageService.Report) -> Micropod_V1_UsageReport {

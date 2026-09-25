@@ -4,7 +4,7 @@ date: 2026-09-25
 reading: 5 min read
 tags: [kubernetes, k3s, metallb, benchmarks]
 description: "Micropod's opt-in k8s engine runs k3s as a single micro-VM: 21s to node Ready vs kind's 53s, ~550MB in use vs ~760MB on Docker Desktop — plus MetalLB LoadBalancer IPs that actually route on macOS."
-standfirst: "kind puts Kubernetes inside a container inside Docker Desktop's VM. Micropod's new opt-in engine puts a k3s image inside one of Apple's micro-VMs instead — a real kernel, a real vmnet address, and MetalLB for LoadBalancer IPs that resolve from the host. Measured: 21s to a Ready node, ~550MB in use, and services you can curl."
+standfirst: "kind puts Kubernetes inside a container inside Docker Desktop's VM. Micropod's new opt-in engine runs k3s as a single Apple micro-VM instead — a real kernel, a real vmnet address, and MetalLB LoadBalancer IPs that actually route on macOS. Measured on the same machine: 21s to a Ready node vs kind's 53s, ~550MB in use, 2.4s to resume — and services you can curl."
 ---
 
 Every local-Kubernetes option on macOS pays the same tax: a Linux VM to host containers, then a cluster nested inside it. kind nests a k8s node inside a Docker container inside Docker Desktop's VM. colima nests it inside a Lima VM. The nesting is where the overhead and the networking weirdness come from — a kind `LoadBalancer` service can never get an IP your Mac can actually route to, because the whole topology lives behind Docker's VM NAT.
@@ -47,6 +47,22 @@ $ curl http://192.168.64.240/        # HTTP 200, ~3ms from the host
 On kind this ends at `<pending>` — the LoadBalancer type doesn't resolve at all unless you bolt on MetalLB yourself, and even then the IPs live inside Docker's VM where the host can't reach them without a user-space tunnel. We consider this the headline difference, not the boot time.
 
 Traefik stays installed for `Ingress` resources on the node address (disable with `--no-ingress`), and servicelb is always off so MetalLB owns the type cleanly.
+
+## Programmable from every surface
+
+The engine isn't just a CLI trick — it's a first-class API. `K8sService` joins the Connect surface (typed in the Go, TS, and Swift SDKs), REST aliases land under `/v1/k8s/*`, and six MCP tools (`k8s_enable`, `k8s_up`, `k8s_down`, `k8s_status`, `k8s_kubeconfig`, `k8s_disable`) mean an agent can spin a cluster without knowing any of this exists:
+
+<Flow
+  title="Every surface reaches the engine"
+  lanes={[
+    { steps: ["micropod k8s up", "K8sService"], accent: 1 },
+    { steps: ["POST /api/.../K8sUp", "stream progress", "k3s VM"] },
+    { steps: ["POST /v1/k8s/up", "progress[] + status"] },
+    { steps: ["mcp k8s_up", "agent → cluster in one call"], accent: 3 },
+  ]}
+/>
+
+`K8sUp` streams progress events over Connect; the REST alias collects them into a `progress` array. `GetKubeconfig` returns the rewritten kubeconfig contents directly — no SSH, no `docker exec` archaeology.
 
 ## Measured against kind
 

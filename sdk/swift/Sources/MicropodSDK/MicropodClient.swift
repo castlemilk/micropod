@@ -40,6 +40,12 @@ public struct MicropodClient: Sendable {
         "CheckForUpdates": "SystemService",
         "GetUpdateStatus": "SystemService",
         "ApplyUpdate": "SystemService",
+        "GetK8sStatus": "K8sService",
+        "GetK8sConfig": "K8sService",
+        "SetK8sConfig": "K8sService",
+        "K8sUp": "K8sService",
+        "K8sDown": "K8sService",
+        "GetKubeconfig": "K8sService",
     ]
 
     public let connect: ConnectClient
@@ -216,5 +222,40 @@ public struct MicropodClient: Sendable {
 
     public func composeDown(_ request: Micropod_V1_ComposeDownRequest) async throws {
         _ = try await connect.unary(path: path("ComposeDown"), request: request, response: Micropod_V1_Empty.self)
+    }
+
+    // MARK: - Kubernetes (opt-in engine)
+
+    /// Engine enablement + live cluster state.
+    public func k8sStatus() async throws -> Micropod_V1_K8sStatus {
+        try await connect.unary(path: path("GetK8sStatus"), request: Micropod_V1_Empty())
+    }
+
+    /// Persisted engine config (defaults if never enabled).
+    public func k8sConfig() async throws -> Micropod_V1_K8sConfig {
+        try await connect.unary(path: path("GetK8sConfig"), request: Micropod_V1_Empty())
+    }
+
+    /// Persist engine config; `enabled=false` disables the feature.
+    public func setK8sConfig(_ config: Micropod_V1_K8sConfig) async throws -> Micropod_V1_K8sConfig {
+        try await connect.unary(path: path("SetK8sConfig"), request: config)
+    }
+
+    /// Create or resume the cluster VM — server-streaming progress; the
+    /// terminal event carries `done` and the cluster `status`.
+    public func k8sUp(
+        _ request: Micropod_V1_K8sUpRequest = .init()
+    ) -> AsyncThrowingStream<Micropod_V1_K8sUpEvent, Error> {
+        connect.serverStream(path: path("K8sUp"), request: request)
+    }
+
+    /// Remove the cluster VM and its state.
+    public func k8sDown() async throws {
+        _ = try await connect.unary(path: path("K8sDown"), request: Micropod_V1_Empty(), response: Micropod_V1_Empty.self)
+    }
+
+    /// Host kubeconfig (path + contents, server already at the VM address).
+    public func kubeconfig() async throws -> Micropod_V1_GetKubeconfigResponse {
+        try await connect.unary(path: path("GetKubeconfig"), request: Micropod_V1_Empty())
     }
 }

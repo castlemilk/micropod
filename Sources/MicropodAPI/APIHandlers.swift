@@ -23,6 +23,9 @@ struct APIHandlers {
     var runtimeHealth: APIServerHealth?
     let metrics = APIMetrics()
     let appControl = AppControlClient()
+    var k8s: K8sService {
+        K8sService(client: client)
+    }
     var usage: UsageService {
         UsageService(containers: containers, images: images, volumes: volumes)
     }
@@ -333,6 +336,80 @@ struct APIHandlers {
                 try await compose.down(composeName: name)
                 return .json(200, ["toreDown": name])
 
+            // MARK: Kubernetes (opt-in engine)
+            case ("k8s", .get) where segments.count == 2:
+                let config = k8s.loadConfig() ?? .defaults
+                let s = try await k8s.status(name: config.clusterName)
+                return .json(
+                    200,
+                    [
+                        "enabled": k8s.isEnabled, "exists": s.exists, "running": s.running,
+                        "address": s.address ?? "", "nodeReady": s.nodeReady,
+                        "kubeconfigPath": s.kubeconfigPath,
+                    ])
+
+            case ("k8s", .get) where segments.count == 3 && segments[2] == "config":
+                return .json(200, k8sConfigDict(k8s.loadConfig() ?? .defaults))
+
+            case ("k8s", .post) where segments.count == 3 && segments[2] == "config":
+                let payload = try decodeBody(request.body)
+                var config = k8s.loadConfig() ?? .defaults
+                if let v = payload["enabled"] as? Bool { config.enabled = v }
+                if let v = payload["image"] as? String { config.image = v }
+                if let v = payload["memory"] as? String { config.memory = v }
+                if let v = payload["cpus"] as? Double { config.cpus = v }
+                if let v = payload["metalLB"] as? Bool { config.metalLB = v }
+                if let v = payload["ingress"] as? Bool { config.ingress = v }
+                if let v = payload["lbPool"] as? String { config.lbPool = v }
+                if let v = payload["clusterName"] as? String { config.clusterName = v }
+                try k8s.saveConfig(config)
+                return .json(200, k8sConfigDict(config))
+
+            case ("k8s", .post) where segments.count == 3 && segments[2] == "up":
+                guard k8s.isEnabled else {
+                    return .json(
+                        412,
+                        [
+                            "error":
+                                "k8s engine is not enabled — POST /v1/k8s/config {enabled:true} or `micropod k8s enable`"
+                        ])
+                }
+                let payload = try decodeBody(request.body)
+                var config = k8s.loadConfig() ?? .defaults
+                if let v = payload["image"] as? String { config.image = v }
+                if let v = payload["memory"] as? String { config.memory = v }
+                if let v = payload["cpus"] as? Double { config.cpus = v }
+                if let v = payload["metalLB"] as? Bool { config.metalLB = v }
+                if let v = payload["ingress"] as? Bool { config.ingress = v }
+                if let v = payload["lbPool"] as? String { config.lbPool = v }
+                if let v = payload["clusterName"] as? String { config.clusterName = v }
+                final class Lines: @unchecked Sendable {
+                    var items: [String] = []
+                }
+                let progress = Lines()
+                let s = try await k8s.up(config) { progress.items.append($0) }
+                return .json(
+                    200,
+                    [
+                        "progress": progress.items, "address": s.address ?? "",
+                        "nodeReady": s.nodeReady, "kubeconfigPath": s.kubeconfigPath,
+                    ])
+
+            case ("k8s", .post) where segments.count == 3 && segments[2] == "down":
+                guard k8s.isEnabled else {
+                    return .json(412, ["error": "k8s engine is not enabled"])
+                }
+                let config = k8s.loadConfig() ?? .defaults
+                try await k8s.down(config)
+                return .json(200, ["removed": config.clusterName])
+
+            case ("k8s", .get) where segments.count == 3 && segments[2] == "kubeconfig":
+                guard let contents = try? String(contentsOf: k8s.kubeconfigURL, encoding: .utf8)
+                else {
+                    return .json(404, ["error": "no kubeconfig — POST /v1/k8s/up first"])
+                }
+                return .json(200, ["path": k8s.kubeconfigURL.path, "contents": contents])
+
             // MARK: Exec
             case ("exec", .post):
                 let payload = try decodeBody(request.body)
@@ -420,6 +497,14 @@ struct APIHandlers {
         ]
         if let sync = policy.sync { body["sync"] = sync.rawValue }
         return body
+    }
+
+    private func k8sConfigDict(_ c: K8sConfig) -> [String: Any] {
+        [
+            "enabled": c.enabled, "image": c.image, "memory": c.memory,
+            "cpus": c.cpus, "metalLB": c.metalLB, "ingress": c.ingress,
+            "lbPool": c.lbPool ?? "", "clusterName": c.clusterName,
+        ]
     }
 
     private func projection(_ container: Micropod_V1_Container) -> [String: Any] {

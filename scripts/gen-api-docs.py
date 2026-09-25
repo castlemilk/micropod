@@ -58,6 +58,12 @@ REST_DESCRIPTIONS = {
     ("GET", "/v1/stats"): "Resource usage snapshot for running containers.",
     ("POST", "/v1/compose/up"): "docker-compose up from a compose file.",
     ("POST", "/v1/compose/down"): "docker-compose down.",
+    ("GET", "/v1/k8s"): "Kubernetes engine + cluster status (opt-in feature).",
+    ("GET", "/v1/k8s/config"): "Read the persisted k8s engine config.",
+    ("POST", "/v1/k8s/config"): "Persist k8s engine config; {enabled:true} turns the feature on.",
+    ("POST", "/v1/k8s/up"): "Create or resume the k3s cluster VM; returns progress lines + status.",
+    ("POST", "/v1/k8s/down"): "Remove the cluster VM and its state.",
+    ("GET", "/v1/k8s/kubeconfig"): "Host kubeconfig for the cluster (path + contents).",
     ("POST", "/v1/exec"): "Run a command in a container; returns exit code + output.",
 }
 

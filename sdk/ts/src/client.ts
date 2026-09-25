@@ -11,6 +11,7 @@ import { VolumeService } from "./gen/micropod/v1/volume_pb.js";
 import { NetworkService } from "./gen/micropod/v1/network_pb.js";
 import { ComposeService } from "./gen/micropod/v1/compose_pb.js";
 import { SystemService } from "./gen/micropod/v1/system_pb.js";
+import { K8sService } from "./gen/micropod/v1/k8s_pb.js";
 import {
   otelInterceptor,
   retryInterceptor,
@@ -46,7 +47,7 @@ export interface MicropodClientOptions {
 /**
  * The daemon API is grouped into per-domain services (ContainerService,
  * ImageService, VolumeService, NetworkService, ComposeService,
- * SystemService). Method names are unique across services, so the facade
+ * SystemService, K8sService). Method names are unique across services, so the facade
  * merges them into one flat call surface — `client.listContainers()`,
  * `client.composeUp()`, etc.
  */
@@ -55,7 +56,8 @@ export type MicropodClient = Client<typeof ContainerService> &
   Client<typeof VolumeService> &
   Client<typeof NetworkService> &
   Client<typeof ComposeService> &
-  Client<typeof SystemService>;
+  Client<typeof SystemService> &
+  Client<typeof K8sService>;
 
 /**
  * Create a typed client for all micropod.v1 services with the resiliency +
@@ -79,7 +81,7 @@ export function createMicropodClient(
   interceptors.push(...(opts.interceptors ?? []));
 
   // Interceptors attach to the transport, not the client, in connect-es v2.
-  // One transport shared by all six service clients.
+  // One transport shared by all seven service clients.
   const transport =
     opts.transport ?? createConnectTransport({ baseUrl, interceptors });
   return Object.assign(
@@ -91,6 +93,7 @@ export function createMicropodClient(
       NetworkService,
       ComposeService,
       SystemService,
+      K8sService,
     ].map((svc) => createConnectClient(svc, transport)),
   ) as MicropodClient;
 }
