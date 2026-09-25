@@ -69,7 +69,7 @@ public struct NativeContainerService: ContainerServing {
         } catch {
             // Match the CLI: a failed start cleans up the created container.
             try? await api.delete(id: id, force: true)
-            await Self.removeClones(containerID: id)
+            await VolumeClone.removeClones(containerID: id)
             throw error
         }
         return id
@@ -107,17 +107,20 @@ public struct NativeContainerService: ContainerServing {
             return try await createNativeInner(request, id: id)
         } catch {
             if !Self.isAlreadyExists(error) {
-                await Self.removeClones(containerID: id)
+                await VolumeClone.removeClones(containerID: id)
             }
             throw error
         }
     }
 
-    /// The apiserver reports a duplicate id as an `alreadyExists:`-prefixed
-    /// error (the same prefix `ConnectCodeMapping` turns into
-    /// `already_exists`); the pre-clone check below raises the same shape.
+    /// Whether `error` is a duplicate-id refusal — the apiserver's own
+    /// (`ContainerizationError(.exists, …)`, which arrives as `exists: …`
+    /// over XPC), the pre-clone check below (`alreadyExists: …`), or an
+    /// exclusive clone placement that found the winner's clone in place.
+    /// One table decides (`ConnectCodeMapping`), so this and the wire code
+    /// cannot disagree.
     static func isAlreadyExists(_ error: Error) -> Bool {
-        error.localizedDescription.hasPrefix("alreadyExists")
+        ConnectCodeMapping.code(for: error) == "already_exists"
     }
 
     private func createNativeInner(_ request: ContainerRunRequest, id: String) async throws -> String {
@@ -173,7 +176,7 @@ public struct NativeContainerService: ContainerServing {
             if !cloneSet.isEmpty {
                 // Self-heal: a clone dir orphaned by a raw `container delete`
                 // (or a crashed runtime) is swept on the next cloning create.
-                await sweepOrphanClones(live: Set(entries.map(\.id)))
+                await VolumeClone.sweepOrphanClones(live: Set(entries.map(\.id)))
                 warnIfGoldensInUse(cloneSet, entries: entries)
             }
         }
@@ -488,7 +491,7 @@ public struct NativeContainerService: ContainerServing {
     public func delete(_ id: String, force: Bool = false) async throws {
         try await api.delete(id: id, force: force)
         await exitCodes.forget(id: id)
-        await Self.removeClones(containerID: id)
+        await VolumeClone.removeClones(containerID: id)
     }
 
     public func deleteAll(force: Bool = false) async throws {
@@ -498,7 +501,7 @@ public struct NativeContainerService: ContainerServing {
                 group.addTask {
                     try await self.api.delete(id: entry.id, force: force)
                     await self.exitCodes.forget(id: entry.id)
-                    await Self.removeClones(containerID: entry.id)
+                    await VolumeClone.removeClones(containerID: entry.id)
                 }
             }
             try await group.waitForAll()
@@ -516,7 +519,7 @@ public struct NativeContainerService: ContainerServing {
                 totalSize += (try? await api.diskUsage(id: entry.id)) ?? 0
                 try await api.delete(id: entry.id)
                 await exitCodes.forget(id: entry.id)
-                await Self.removeClones(containerID: entry.id)
+                await VolumeClone.removeClones(containerID: entry.id)
                 pruned.append(entry.id)
             } catch {
                 continue
@@ -527,7 +530,7 @@ public struct NativeContainerService: ContainerServing {
         // with the runtime's answer in hand — a failed list is not an empty
         // one, and sweeping against it would unlink live containers' clones.
         if let live = try? await entries() {
-            await sweepOrphanClones(live: Set(live.map(\.id)))
+            await VolumeClone.sweepOrphanClones(live: Set(live.map(\.id)))
         }
         let freed = ByteCountFormatter().string(fromByteCount: Int64(totalSize))
         return pruned.joined(separator: "\n") + (pruned.isEmpty ? "" : "\nReclaimed \(freed) in disk space")
@@ -600,26 +603,16 @@ public struct NativeContainerService: ContainerServing {
     public static var cloneRoot: URL { VolumeClone.cloneRoot }
 
     /// APFS copy-on-write clone of a volume's backing image at
-    /// `cloneRoot/<containerID>/<volume>.img`; returns that path.
+    /// `cloneRoot/<containerID>/<volume>.img`; returns that path. Placed
+    /// exclusively: the duplicate-id list check above is a snapshot, so a
+    /// replayed create that lost the race may get here after the winner
+    /// placed — and started writing — its clone. That clone is never renamed
+    /// over; the loser fails `already_exists` (and, as for the apiserver's
+    /// own duplicate refusal, removes nothing).
     public static func cloneVolumeImage(source: String, containerID: String, volume: String) throws -> String {
         let destination = VolumeClone.clonePath(containerID: containerID, volume: volume)
-        try VolumeClone.cloneImage(from: source, to: destination.path)
+        try VolumeClone.cloneImage(from: source, to: destination.path, placement: .exclusive)
         return destination.path
-    }
-
-    /// Removes the container's clone images, each under its volume's lock:
-    /// a `CommitVolumeClone` in flight for that volume either completes
-    /// first or finds the clone gone (`not_found`) — never a rename of a
-    /// file that is being unlinked.
-    static func removeClones(containerID: String) async {
-        for volume in VolumeClone.clonedVolumes(containerID: containerID) {
-            await VolumeLocks.shared.withLock(volume) {
-                try? FileManager.default.removeItem(
-                    at: VolumeClone.clonePath(containerID: containerID, volume: volume))
-            }
-        }
-        try? FileManager.default.removeItem(
-            at: VolumeClone.cloneRoot.appendingPathComponent(containerID, isDirectory: true))
     }
 
     /// RW multi-attach guard (see `VolumeAttachments`): a `failedPrecondition:`
@@ -639,28 +632,6 @@ public struct NativeContainerService: ContainerServing {
     private func entries(status: String? = nil) async throws -> [ContainerListEntry] {
         try MicropodJSON.decodeArray(
             ContainerListEntry.self, from: await api.list(status: status), context: "container list")
-    }
-
-    /// Removes clone dirs whose container no longer exists. Called on
-    /// cloning creates and prune so clone storage can't leak when a
-    /// container is deleted outside this service. Dirs younger than 60s
-    /// are skipped — they may belong to an in-flight create that hasn't
-    /// reached `containerCreate` yet, so they aren't yet in `live`.
-    private static let orphanGrace: TimeInterval = 60
-
-    private func sweepOrphanClones(live: Set<String>) async {
-        let cutoff = Date().addingTimeInterval(-Self.orphanGrace)
-        for dir
-            in (try? FileManager.default.contentsOfDirectory(
-                at: Self.cloneRoot,
-                includingPropertiesForKeys: [.isDirectoryKey, .creationDateKey])) ?? []
-        where !live.contains(dir.lastPathComponent)
-            && (try? dir.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
-            && ((try? dir.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast)
-                < cutoff
-        {
-            await Self.removeClones(containerID: dir.lastPathComponent)
-        }
     }
 
     /// Cloning a golden that a running (or still stopping) container has

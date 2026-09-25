@@ -136,7 +136,8 @@ table used by the Connect mount:
 | CLI call over its ceiling | `deadline_exceeded` |
 | stalled image pull | `aborted` |
 | operation with no implementation on this backend | `unimplemented` |
-| upstream `notFound:` / `invalidArgument:` / `alreadyExists:` / `failedPrecondition:` … prefixes | the matching snake_case code |
+| upstream `notFound:` / `invalidArgument:` / `exists:` (`alreadyExists:`) / `failedPrecondition:` … prefixes | the matching snake_case code |
+| a `container` CLI failure whose stderr has an `Error: <code>: "…"` line (ArgumentParser's wrapper around the runtime's `ContainerizationError`) | the same prefix table, read from that line — `Error: exists: "container with id x already exists"` is `already_exists`; the error message keeps its "`cmd` failed (exit N): …" wrapper |
 | anything else | `internal` |
 
 The REST facade answers `503` for transport errors. Clients should treat
@@ -233,7 +234,12 @@ container, matching the CLI.
 A create that fails `already_exists` never removes clone images: the
 clone directory is keyed by container id, so it belongs to the container
 that already won the name, and a replayed create must not destroy its
-clones.
+clones. The clone itself is placed with `renamex_np(RENAME_EXCL)`: the
+duplicate-id list check is a snapshot, so a replay that lost the race can
+reach the clone step after the winner placed — and started writing — its
+image; the placement then fails `already_exists` instead of renaming a
+pristine image over the winner's live block device (`CloneVolume`, whose
+destination is the empty image the runtime just made, still replaces).
 
 Verified flag-for-flag against `container inspect` on CLI-created
 containers (`NativeCreateIntegrationTests/testCLIvsNativeConfigParity`):
@@ -284,11 +290,21 @@ labels tune how `-v`/`--volume` mounts reach the VM:
 
 Clone lifecycle hardening:
 
+- **Clone dir goes with the container** — `delete`, `deleteAll` and
+  `prune` remove the deleted containers' clone dirs on both backends
+  (`VolumeClone.removeClones` in MicropodCore, each image under its
+  volume's lock; the CLI backend diffs `container list` before/after a
+  bulk delete). The runtime's ids are its names, so a stale dir would
+  otherwise be inherited by the next container of that name and
+  `CommitVolumeClone` would promote a dead container's bytes.
 - **Orphan sweep** — a cloning `create` or `prune` removes clone dirs
   whose container no longer exists (raw `container delete`, crashed
   runtime). Dirs younger than 60s are skipped so an in-flight create's
   dir can't be swept by a concurrent create before `containerCreate`
   registers it. `MICROPOD_VOLUME_CLONE_ROOT` overrides the clone root.
+- **Volume prune under the locks** — `volume prune` runs holding every
+  volume's lock (sorted acquisition), so it never removes a golden's
+  directory between a commit's checks and its rename.
 - **Golden in use** — if a running (or still stopping) container has a
   golden attached read-write, a clone *mount* at create proceeds but logs
   a warning to stderr: the clone is crash-consistent (journal replay on

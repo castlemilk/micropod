@@ -23,12 +23,32 @@ public enum ConnectCodeMapping {
                 return "aborted"
             case .cliFailure(_, _, let stderr) where indicatesRuntimeDown(stderr):
                 return "unavailable"
-            case .cliFailure, .decode, .message:
+            case .cliFailure(_, _, let stderr):
+                return cliStderrCode(stderr)
+            case .decode, .message:
                 return prefixed(error.localizedDescription)
             }
         }
         return prefixed(error.localizedDescription)
     }
+
+    /// The `container` CLI renders a runtime error as `Error: <code>: "<detail>"`
+    /// — ArgumentParser's wrapper around `ContainerizationError`'s
+    /// description — so the code is read from the first such line of stderr
+    /// through the same prefix table the native backend's XPC errors use.
+    /// `cliFailure`'s own message keeps its "`cmd` failed (exit N): …"
+    /// wrapper; only the classification looks inside. No `Error:` line
+    /// (a guest process's stderr, the mock's plain phrasing) is `internal`.
+    static func cliStderrCode(_ stderr: String) -> String {
+        for line in stderr.split(whereSeparator: \.isNewline) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix(cliErrorPrefix) else { continue }
+            return prefixed(String(trimmed.dropFirst(cliErrorPrefix.count)))
+        }
+        return "internal"
+    }
+
+    private static let cliErrorPrefix = "Error: "
 
     /// True when CLI output carries one of the `container` CLI's own
     /// runtime-down signatures: the apiserver is unregistered with launchd,
@@ -61,7 +81,9 @@ public enum ConnectCodeMapping {
         switch String(text[..<colon]) {
         case "notFound": return "not_found"
         case "invalidArgument": return "invalid_argument"
-        case "alreadyExists": return "already_exists"
+        // `exists` is `ContainerizationError.Code.exists` as the runtime
+        // prints it (XPC error payloads and the CLI's `Error:` line alike).
+        case "alreadyExists", "exists": return "already_exists"
         case "unavailable", "runtimeNotRunning": return "unavailable"
         case "unauthenticated": return "unauthenticated"
         case "permissionDenied": return "permission_denied"

@@ -1027,6 +1027,12 @@ final class MicropodAPITests: XCTestCase {
                 body: ["image": "nginx:1.27", "name": "dup", "volumes": ["v:/y"]])
             XCTAssertNotEqual(status, 412, "\(method) replay refused as its own holder: \(body)")
             XCTAssertNotEqual(body["code"] as? String, "failed_precondition", "\(method): \(body)")
+            // The CLI's `Error: exists: "…"` line is the runtime's own
+            // duplicate-id refusal — `already_exists`, the answer a client
+            // adopting the container it already created relies on.
+            XCTAssertEqual(status, 409, "\(method) replay: \(body)")
+            XCTAssertEqual(body["code"] as? String, "already_exists", "\(method): \(body)")
+            XCTAssertTrue((body["message"] as? String ?? "").contains("dup"), "\(method): \(body)")
             // The guard stood aside: the CLI was asked, and it is the CLI's
             // duplicate-name answer that comes back.
             XCTAssertTrue(
@@ -1179,6 +1185,56 @@ final class MicropodAPITests: XCTestCase {
         // The promoted bytes belong to the golden, not to the container.
         _ = try await json("DELETE", "v1/containers/\(id)")
         XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: goldenSource)), marker)
+    }
+
+    /// `DeleteContainer` on the CLI backend removes the container's clone
+    /// dir like the native backend does. Without that, a later container
+    /// reusing the name (the runtime's ids are its names) would inherit the
+    /// dead container's clone and `CommitVolumeClone` would promote stale
+    /// bytes over the golden. After the delete a second commit is `not_found`
+    /// and the golden keeps what the first commit promoted; another
+    /// container's clone dir is untouched.
+    func testDeleteContainerRemovesItsCloneDir() async throws {
+        _ = try await json("POST", "v1/volumes", body: ["name": "g"])
+        let goldenSource = try await volumeSource("g")
+        let run = try await json(
+            "POST", "v1/containers", body: ["image": "nginx:1.27", "name": "api-delete-clones", "volumes": ["g:/x"]])
+        let id = run["id"] as? String ?? ""
+        XCTAssertFalse(id.isEmpty)
+        let other = try await json(
+            "POST", "v1/containers", body: ["image": "nginx:1.27", "name": "api-delete-clones-other"])
+        let otherID = other["id"] as? String ?? ""
+        _ = try await json("POST", "v1/containers/\(id)/stop")
+        let marker = Data("promoted-\(UUID().uuidString)".utf8)
+        try writeClone(container: id, volume: "g", marker: marker)
+        try writeClone(container: otherID, volume: "g", marker: Data("other".utf8))
+
+        let (status, body) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CommitVolumeClone", body: ["containerId": id, "volume": "g"])
+        XCTAssertEqual(status, 200, "CommitVolumeClone: \(body)")
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: goldenSource)), marker)
+
+        let (deleteStatus, deleted) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/DeleteContainer", body: ["id": id, "force": true])
+        XCTAssertEqual(deleteStatus, 200, "DeleteContainer: \(deleted)")
+        let (listStatus, list) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/ListContainers", body: [:])
+        XCTAssertEqual(listStatus, 200)
+        let listed = (list["containers"] as? [[String: Any]])?.compactMap { $0["id"] as? String } ?? []
+        XCTAssertFalse(listed.contains(id), "the container is gone: \(listed)")
+        let cloneDir = stateDir.appendingPathComponent("clones/\(id)")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: cloneDir.path), "clone dir survives the delete")
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: clonePath(container: otherID, volume: "g").path),
+            "another container's clone dir is untouched")
+
+        // Same id, now a name nothing owns: nothing stale is left to promote.
+        let (againStatus, again) = try await jsonStatus(
+            "POST", "api/micropod.v1.VolumeService/CommitVolumeClone", body: ["containerId": id, "volume": "g"])
+        XCTAssertEqual(againStatus, 404, "CommitVolumeClone after delete: \(again)")
+        XCTAssertEqual(again["code"] as? String, "not_found")
+        XCTAssertTrue((again["message"] as? String ?? "").contains("not found"), "\(again)")
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: goldenSource)), marker, "golden untouched")
     }
 }
 

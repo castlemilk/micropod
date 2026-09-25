@@ -46,7 +46,39 @@ final class ConnectCodeMappingTests: XCTestCase {
         let ordinary = MicropodError.cliFailure(
             command: "container delete", exitCode: 1,
             stderr: "Error: notFound: \"container web not found\"\n")
-        XCTAssertEqual(code(ordinary), "internal", "unrelated CLI failures are not transport errors")
+        XCTAssertEqual(code(ordinary), "not_found", "unrelated CLI failures are not transport errors")
+    }
+
+    /// The `container` CLI renders a runtime error as `Error: <code>: "<detail>"`
+    /// (ArgumentParser's wrapper around `ContainerizationError`'s description),
+    /// so the code is read from that line through the same prefix table the
+    /// native backend uses — `exists` is the runtime's own duplicate-id code.
+    /// A failure with no such line, or an unknown code, stays `internal`.
+    func testCLIFailureStderrClassifiesThroughThePrefixTable() {
+        func cli(_ stderr: String, command: String = "container create") -> MicropodError {
+            .cliFailure(command: command, exitCode: 1, stderr: stderr)
+        }
+        XCTAssertEqual(code(cli("Error: exists: \"container with id dup already exists\"\n")), "already_exists")
+        XCTAssertEqual(code(cli("Error: alreadyExists: \"container with ID dup already exists\"\n")), "already_exists")
+        XCTAssertEqual(code(cli("Error: notFound: \"container with ID web not found\"\n")), "not_found")
+        XCTAssertEqual(code(cli("Error: failedPrecondition: \"volume in use\"\n")), "failed_precondition")
+        XCTAssertEqual(
+            code(cli("Error: invalidArgument: \"container ID a/b is not a valid container ID\"\n")),
+            "invalid_argument")
+        // A warning line ahead of the error line does not hide the code.
+        XCTAssertEqual(
+            code(cli("Warning: rosetta is not available\nError: notFound: \"image ghost:1 not found\"\n")),
+            "not_found")
+        // Not in the table: the runtime's `invalidState`, the mock's plain
+        // phrasing, and a guest process's own stderr.
+        XCTAssertEqual(code(cli("Error: invalidState: \"container web is not running\"\n")), "internal")
+        XCTAssertEqual(code(cli("Error: no such container: web\n", command: "container delete")), "internal")
+        XCTAssertEqual(code(cli("sh: notFound: command not found\n", command: "container exec")), "internal")
+        XCTAssertEqual(code(cli("", command: "container exec")), "internal")
+        // The message keeps its wrapper: only the code is read from stderr.
+        XCTAssertEqual(
+            cli("Error: exists: \"container with id dup already exists\"\n").localizedDescription,
+            "`container create` failed (exit 1): Error: exists: \"container with id dup already exists\"")
     }
 
     func testIndicatesRuntimeDownMatchesCLISignaturesOnly() {
@@ -63,6 +95,9 @@ final class ConnectCodeMappingTests: XCTestCase {
     func testUpstreamPrefixTable() {
         XCTAssertEqual(code(.message("notFound: container mpc-1 not found")), "not_found")
         XCTAssertEqual(code(.message("alreadyExists: container web exists")), "already_exists")
+        // What the apiserver actually sends for a duplicate id over XPC
+        // (`ContainerizationError(.exists, …)` — its code prints as `exists`).
+        XCTAssertEqual(code(.message("exists: container already exists: web")), "already_exists")
         XCTAssertEqual(code(.message("invalidArgument: bad mount")), "invalid_argument")
         XCTAssertEqual(code(.message("failedPrecondition: volume in use")), "failed_precondition")
         XCTAssertEqual(code(.message("resourceExhausted: no ips")), "resource_exhausted")

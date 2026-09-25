@@ -185,17 +185,49 @@ public struct ContainerService: ContainerServing {
             ContainerCommandFactory.killContainer(id, signal: signal), timeout: .seconds(30))
     }
 
+    /// A deleted container's clone dir goes with it (under the per-volume
+    /// lock, see `VolumeClone.removeClones`), exactly as on the native
+    /// backend: the runtime's ids are its names, so a later container
+    /// reusing the name would otherwise inherit the dead container's clone
+    /// and `CommitVolumeClone` would promote stale bytes over the golden.
     public func delete(_ id: String, force: Bool = false) async throws {
         _ = try await client.run(ContainerCommandFactory.deleteContainer(id, force: force), timeout: .seconds(30))
+        await VolumeClone.removeClones(containerID: id)
     }
 
+    /// Clone dirs are removed for exactly the containers the CLI deleted —
+    /// the ids listed before that are gone after (without `force` the CLI
+    /// keeps running containers, and so must their clones).
     public func deleteAll(force: Bool = false) async throws {
+        let before = try await entries().map(\.id)
         _ = try await client.run(ContainerCommandFactory.deleteAllContainers(force: force), timeout: .seconds(120))
+        await removeClonesOfDeparted(from: before)
     }
 
+    /// Prunes stopped containers and their clone dirs, then sweeps dirs
+    /// orphaned by deletes that bypassed this service (see
+    /// `VolumeClone.sweepOrphanClones`).
     public func prune() async throws -> String {
+        let before = try await entries().map(\.id)
         let output = try await client.run(ContainerCommandFactory.pruneContainers(), timeout: .seconds(60))
+        if let live = await removeClonesOfDeparted(from: before) {
+            await VolumeClone.sweepOrphanClones(live: live)
+        }
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Removes the clone dirs of the ids in `before` that the runtime no
+    /// longer lists; returns the live ids. The deletion already happened, so
+    /// a list that fails now is not an error for the caller — and not an
+    /// empty list either: nothing is removed against it (nil).
+    @discardableResult
+    private func removeClonesOfDeparted(from before: [String]) async -> Set<String>? {
+        guard let live = try? await entries().map(\.id) else { return nil }
+        let liveIDs = Set(live)
+        for id in before where !liveIDs.contains(id) {
+            await VolumeClone.removeClones(containerID: id)
+        }
+        return liveIDs
     }
 
     public func export(_ id: String, to outputPath: String) async throws {

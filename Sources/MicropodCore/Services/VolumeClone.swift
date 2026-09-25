@@ -56,12 +56,28 @@ public enum VolumeClone {
         return UInt64(max(info.st_blocks, 0)) * 512
     }
 
+    /// How ``cloneImage(from:to:placement:)`` lands the clone at its
+    /// destination.
+    public enum Placement: Sendable {
+        /// Rename over whatever is there — `CloneVolume`, whose destination
+        /// is the empty backing image the runtime just made for the new volume.
+        case replace
+        /// `renamex_np(RENAME_EXCL)`: an existing destination is refused as
+        /// `already_exists` and left untouched — the create path, where a
+        /// clone already at `<root>/<id>/<volume>.img` belongs to the
+        /// container that won a replayed create and may be its live block
+        /// device.
+        case exclusive
+    }
+
     /// APFS copy-on-write clone of `source` at `destination` (parent
     /// directories are created). The clone lands in a temp file next to the
     /// destination and is renamed into place, so a concurrent reader never
     /// sees a partial image. `COPYFILE_CLONE` is O(1) on APFS and falls back
     /// to a regular copy on other filesystems.
-    public static func cloneImage(from source: String, to destination: String) throws {
+    public static func cloneImage(from source: String, to destination: String, placement: Placement = .replace)
+        throws
+    {
         let target = URL(fileURLWithPath: destination)
         try FileManager.default.createDirectory(
             at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -71,10 +87,64 @@ public enum VolumeClone {
             unlink(temp)
             throw MicropodError.message("failed to clone volume image \(source): \(Self.describe(code))")
         }
-        guard rename(temp, destination) == 0 else {
+        let placed: Int32
+        switch placement {
+        case .replace: placed = rename(temp, destination)
+        case .exclusive: placed = renamex_np(temp, destination, UInt32(RENAME_EXCL))
+        }
+        guard placed == 0 else {
             let code = errno
             unlink(temp)
+            if placement == .exclusive, code == EEXIST {
+                throw MicropodError.message("alreadyExists: clone image \(destination) already exists")
+            }
             throw MicropodError.message("failed to place clone at \(destination): \(Self.describe(code))")
+        }
+    }
+
+    // MARK: - Clone-dir lifecycle (shared by the CLI and native container services)
+
+    /// Removes a container's clone dir: each clone image under its volume's
+    /// lock — a `CommitVolumeClone` in flight for that volume either
+    /// completes first or finds the clone gone (`not_found`), never a rename
+    /// of a file being unlinked — then any staging file a crashed placement
+    /// left, then the dir itself. The dir is only removed while empty, so a
+    /// clone a concurrent create placed for a new container of the same id
+    /// after the listing keeps its dir. Never throws: a dir that is already
+    /// gone is the desired end state.
+    public static func removeClones(containerID: String) async {
+        let dir = cloneRoot.appendingPathComponent(containerID, isDirectory: true)
+        for volume in clonedVolumes(containerID: containerID) {
+            await VolumeLocks.shared.withLock(volume) {
+                unlink(clonePath(containerID: containerID, volume: volume).path)
+            }
+        }
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+        for name in names where name.hasPrefix(".") && name.contains(".img.tmp-") {
+            unlink(dir.appendingPathComponent(name).path)
+        }
+        rmdir(dir.path)
+    }
+
+    /// Clone dirs younger than this are never swept as orphans: they may
+    /// belong to a create that has not reached the runtime yet, so the
+    /// container is not in `live` although it is about to be.
+    public static let orphanGrace: TimeInterval = 60
+
+    /// Removes clone dirs whose container is not in `live` — dirs orphaned
+    /// by a raw `container delete` or a crashed runtime. Callers pass a list
+    /// the runtime answered, never an empty one standing in for a failed
+    /// list: sweeping against that would unlink live containers' clones.
+    public static func sweepOrphanClones(live: Set<String>) async {
+        let cutoff = Date().addingTimeInterval(-orphanGrace)
+        for dir
+            in (try? FileManager.default.contentsOfDirectory(
+                at: cloneRoot, includingPropertiesForKeys: [.isDirectoryKey, .creationDateKey])) ?? []
+        where !live.contains(dir.lastPathComponent)
+            && (try? dir.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+            && ((try? dir.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast) < cutoff
+        {
+            await removeClones(containerID: dir.lastPathComponent)
         }
     }
 
@@ -285,6 +355,25 @@ public actor VolumeLocks {
             return value
         } catch {
             await release(name)
+            throw error
+        }
+    }
+
+    /// Runs `body` while holding every lock in `names` (a volume prune
+    /// touches all volumes). Names are acquired in sorted order — two
+    /// callers holding overlapping sets always take their common names in
+    /// the same order, so they cannot deadlock against each other — and
+    /// released whether `body` returns or throws. The body must not take
+    /// one of these names again: the locks are not reentrant.
+    public nonisolated func withLocks<T>(_ names: [String], _ body: () async throws -> T) async rethrows -> T {
+        let ordered = Array(Set(names)).sorted()
+        for name in ordered { await acquire(name) }
+        do {
+            let value = try await body()
+            for name in ordered.reversed() { await release(name) }
+            return value
+        } catch {
+            for name in ordered.reversed() { await release(name) }
             throw error
         }
     }

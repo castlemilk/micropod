@@ -348,7 +348,7 @@ cmd_run() {
     local id
     if [ "${MICROPOD_MOCK_NAME_IS_ID:-0}" = "1" ] && [ -n "$name" ]; then
         if container_exists "$name"; then
-            echo "Error: alreadyExists: \"container with ID $name already exists\"" >&2
+            echo "Error: exists: \"container with id $name already exists\"" >&2
             exit 1
         fi
         id="$name"
@@ -548,7 +548,9 @@ cmd_create() {
     # docker create: prepare the container without starting it.
     local state_override="created"
     local output
-    output=$(cmd_run "$@")
+    # A failed run (duplicate name, bad flags) fails the create too: the
+    # subshell must not swallow cmd_run's exit status.
+    output=$(cmd_run "$@") || exit $?
     # cmd_run prints the id; flip its state to "created".
     local id
     id=$(printf '%s' "$output" | tail -1)

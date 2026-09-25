@@ -69,9 +69,16 @@ public struct VolumeService: VolumeServing {
         }
     }
 
+    /// Under every volume's lock (taken in sorted order), so the prune can
+    /// neither remove a golden's directory between a `CommitVolumeClone`'s
+    /// checks and its rename nor take away a golden it just promoted. The
+    /// native backend delegates here too — `volume prune` has no XPC route.
     public func prune() async throws -> String {
-        let output = try await client.run(ContainerCommandFactory.pruneVolumes(), timeout: .seconds(60))
-        return output.trimmingCharacters(in: .whitespacesAndNewlines)
+        let names = try await list().map(\.id)
+        return try await VolumeLocks.shared.withLocks(names) {
+            let output = try await client.run(ContainerCommandFactory.pruneVolumes(), timeout: .seconds(60))
+            return output.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
     }
 
     public func clone(source: String, name: String, size: String?, labels: [String]) async throws
