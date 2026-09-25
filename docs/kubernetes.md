@@ -92,7 +92,13 @@ on the host.
 
 Then reference the ref normally — `image: myapp:dev` with
 `imagePullPolicy: IfNotPresent` (or `Never`) and the pod starts in ~1s with
-no pull at all. The same ops exist on every surface:
+no pull at all.
+
+The pipeline streams: the archive is piped into the guest's containerd over
+exec stdin (`ctr images import -`) — no `container copy`, no guest-side
+tar. Measured on a 273MB image: save 0.6s + streamed import 1.6s ≈ **2.8s
+end-to-end** (was ~11.5s via copy+import-file). A 4MB dev-loop image loads
+in ~0.5s. Progress lines report per-stage timings. The same ops exist on every surface:
 `LoadK8sImage`/`ListK8sImages` on Connect (`archive` accepts tarball bytes —
 base64 in Connect JSON), `GET|POST /v1/k8s/images` on REST, and
 `k8s_load_image`/`k8s_images` MCP tools.

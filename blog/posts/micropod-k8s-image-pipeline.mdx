@@ -32,7 +32,8 @@ Four sources, one pipeline:
 
 ```bash
 $ micropod build -t myapp:dev .     # built on the host, APFS-native
-$ micropod k8s load myapp:dev       # save → copy → import — ~2s for 4MB
+$ micropod k8s load myapp:dev       # save → stream → import — ~0.5s for 4MB,
+                                    # ~2.8s for a 273MB image
   ▸ injecting into micropod-k3s containerd
 ✓ loaded myapp:dev — reference it from a pod/deployment image: field
 $ kubectl run app --image=myapp:dev --restart=Never
@@ -58,6 +59,10 @@ The pipeline isn't a CLI-only trick — it's `LoadK8sImage` on the Connect API, 
 The MCP tool means an agent's loop looks like: `k8s_load_image {ref: "redis:alpine"}` → `k8s_images` to confirm → workload manifest with `imagePullPolicy: IfNotPresent`. No pull-through proxy, no registry mirror, no `kind load` archaeology.
 
 And because the k8s engine shares Micropod's image store with the Docker Engine shim, stock `docker` clients compose too: `docker build -t app:dev .` on the shim socket produces an image `k8s load` picks up with zero network, `docker save`/`docker load` work as expected, and `docker top`/`docker push` round out the surface. For API callers, one extra flag collapses build→cluster into a single request — `POST /build?t=app:dev&k8s=1` builds and injects; `POST /images/load?k8s=1` does the same for a tarball.
+
+## Profiled, then made fast
+
+The first version of this pipeline was honest but slow: `image save` → `container copy` → `ctr import` of a guest-side file. Profiling a 273MB image showed copy at ~57MB/s over vsock plus a second full read of the staged tar inside the guest — 11.5s end to end. The fix was to delete a hop: `container exec -i` forwards pipe stdin into the VM at ~170MB/s, so the archive now streams straight into `ctr images import -` with no file on either side. Two traps found along the way: a *regular file* as exec stdin is 10x slower than a pipe (the forwarder poller is pipe-shaped), and a fifo deadlocks entirely — so `loadImage` pumps the staged tar through a real pipe on a detached thread. `ctr import` still unpacks into the snapshotter — that ~3.5s on big images is guest CPU pod-start would otherwise pay later; keeping it here keeps `kubectl run` at ~1s.
 
 ## Why this matters beyond speed
 

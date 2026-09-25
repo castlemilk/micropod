@@ -208,6 +208,8 @@ public struct K8sService: Sendable {
         var tmp: URL? = archivePath
         var ownedTmp: URL? = nil
         defer { if let ownedTmp { try? FileManager.default.removeItem(at: ownedTmp) } }
+        let t0 = Date()
+        func ms(_ d: TimeInterval) -> String { String(format: "%.1fs", d) }
 
         if let archiveData {
             let url = stageDir.appendingPathComponent("seed-\(UUID().uuidString).tar")
@@ -225,17 +227,17 @@ public struct K8sService: Sendable {
                 (try? await client.run(
                     ContainerCommand(arguments: ["image", "save", ref, "-o", url.path]),
                     timeout: .seconds(120))) != nil
-            if !saved {
-                if let sock = await daemonSave(ref: ref, to: url) {
-                    progress("loaded \(ref) from \(sock)")
-                } else {
-                    progress("pulling \(ref) (host puller)")
-                    _ = try await client.run(
-                        ContainerCommand(arguments: ["image", "pull", ref]), timeout: .seconds(600))
-                    _ = try await client.run(
-                        ContainerCommand(arguments: ["image", "save", ref, "-o", url.path]),
-                        timeout: .seconds(120))
-                }
+            if saved {
+                progress("exported \(ref) in \(ms(Date().timeIntervalSince(t0)))")
+            } else if let sock = await daemonSave(ref: ref, to: url) {
+                progress("fetched \(ref) from \(sock) in \(ms(Date().timeIntervalSince(t0)))")
+            } else {
+                progress("pulling \(ref) (host puller)")
+                _ = try await client.run(
+                    ContainerCommand(arguments: ["image", "pull", ref]), timeout: .seconds(600))
+                _ = try await client.run(
+                    ContainerCommand(arguments: ["image", "save", ref, "-o", url.path]),
+                    timeout: .seconds(120))
             }
             tmp = url
         }
@@ -245,16 +247,18 @@ public struct K8sService: Sendable {
 
         let bytes = (try? FileManager.default.attributesOfItem(atPath: tar.path)[.size] as? Int64) ?? nil
         progress("injecting into \(name) containerd")
-        let guestPath = "/tmp/\(tar.lastPathComponent)"
-        _ = try await client.run(
-            ContainerCommand(arguments: ["copy", tar.path, "\(name):\(guestPath)"]),
-            timeout: .seconds(300))
-        // `ctr images import` prints the refs it unpacked — those are the
-        // real names the archive carried (which may differ from `ref`).
+        // Stream the archive over exec stdin (`ctr images import -`) — no
+        // `container copy`, no guest-side file: ~7x faster end-to-end on a
+        // 273MB image (11.5s → 1.6s measured). A fifo as exec stdin deadlocks
+        // — `container exec -i` only forwards pipe stdin — so the tar must be
+        // a real file.
+        let tImport = Date()
         let importOut = try await client.run(
             ContainerCommand(
-                arguments: ["exec", name, "ctr", "-n", "k8s.io", "images", "import", guestPath]),
-            timeout: .seconds(120))
+                arguments: ["exec", "-i", name, "ctr", "-n", "k8s.io", "images", "import", "-"],
+                stdinFile: tar),
+            timeout: .seconds(300))
+        progress("imported in \(ms(Date().timeIntervalSince(tImport)))")
         // Output lines look like "name:tag <spaces> saved" — the ref is the
         // first whitespace-separated field.
         let imported = importOut.split(separator: "\n")
@@ -262,20 +266,24 @@ public struct K8sService: Sendable {
             .filter { !$0.isEmpty && !$0.hasPrefix("unpacking") && !$0.hasPrefix("done") }
         // kubelet resolves unqualified refs (`redis:alpine`) to
         // `docker.io/library/…`; tag that form for every imported name so
-        // `image:` in a manifest matches what was loaded.
-        for name in imported + [ref].compactMap({ $0 }) {
-            // Digest refs (`name@sha256:…`) aren't what manifests reference.
-            if name.contains("@") { continue }
-            guard let qualified = Self.qualifiedRef(name), qualified != name else { continue }
+        // `image:` in a manifest matches what was loaded. One exec — CLI
+        // spawn+XPC is ~300ms each, so batching N tags into a single
+        // `sh -c` chain keeps multi-tag archives fast.
+        let pairs = (imported + [ref].compactMap({ $0 }))
+            .filter { !$0.contains("@") }  // digest refs aren't what manifests use
+            .compactMap { name -> (String, String)? in
+                guard let q = Self.qualifiedRef(name), q != name else { return nil }
+                return (name, q)
+            }
+        if !pairs.isEmpty {
+            let cmds = pairs.map {
+                "ctr -n k8s.io images tag --force '\($0.0)' '\($0.1)'"
+            }.joined(separator: "; ")
             _ = try? await client.run(
                 ContainerCommand(
-                    arguments: [
-                        "exec", name, "ctr", "-n", "k8s.io", "images", "tag", "--force", name, qualified,
-                    ]),
+                    arguments: ["exec", name, "sh", "-c", cmds]),
                 timeout: .seconds(30))
         }
-        _ = try? await client.run(
-            ContainerCommand(arguments: ["exec", name, "rm", "-f", guestPath]), timeout: .seconds(15))
         let resolved = ref ?? imported.first ?? archivePath?.lastPathComponent ?? "archive"
         return LoadedImage(ref: resolved, bytes: bytes ?? 0)
     }

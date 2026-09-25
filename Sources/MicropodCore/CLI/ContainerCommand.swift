@@ -6,11 +6,19 @@ public struct ContainerCommand: Sendable, Equatable {
     public var environment: [String: String]
     /// Optional stdin payload (e.g. registry passwords via `--password-stdin`).
     public var stdinData: Data?
+    /// Optional stdin source file — preferred over `stdinData` for large
+    /// payloads: the kernel feeds the pipe from the file, so nothing buffers
+    /// in memory or deadlocks on the 64KB pipe window.
+    public var stdinFile: URL?
 
-    public init(arguments: [String], environment: [String: String] = [:], stdinData: Data? = nil) {
+    public init(
+        arguments: [String], environment: [String: String] = [:], stdinData: Data? = nil,
+        stdinFile: URL? = nil
+    ) {
         self.arguments = arguments
         self.environment = environment
         self.stdinData = stdinData
+        self.stdinFile = stdinFile
     }
 
     public var displayName: String {

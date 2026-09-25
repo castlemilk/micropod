@@ -64,6 +64,20 @@ for _ in $(seq 1 30); do
     python3 -c "import time; print((time.time_ns() - $t0) / 1e6)"
 done | p50 | xargs -I{} echo "  p50: {} ms"
 
+banner "image load (k8s load)"
+# Small image — the hot path a dev hits on every iteration.
+t0=$(python3 -c 'import time; print(time.time_ns())')
+"$MP" k8s load cachetest:4 >/dev/null 2>&1 || true
+python3 -c "import time; print(f'  cachetest:4 (4MB):  {(time.time_ns() - $t0)/1e9:.1f}s')"
+# Largest locally-stored image — measures the vsock stream + guest unpack rate.
+BIG=$(container image list 2>/dev/null | awk 'NR>1 {print $1":"$2}' | head -1)
+if [ -n "$BIG" ]; then
+    container exec micropod-k3s ctr -n k8s.io images rm "$BIG" >/dev/null 2>&1 || true
+    t0=$(python3 -c 'import time; print(time.time_ns())')
+    "$MP" k8s load "$BIG" >/dev/null 2>&1 || true
+    python3 -c "import time; print(f'  $BIG:  {(time.time_ns() - $t0)/1e9:.1f}s')"
+fi
+
 banner "ingress (traefik on $NODE_IP)"
 kubectl --kubeconfig "$KCFG" create deployment web --image=nginx:alpine >/dev/null 2>&1 || true
 kubectl --kubeconfig "$KCFG" expose deployment web --port=80 >/dev/null 2>&1 || true

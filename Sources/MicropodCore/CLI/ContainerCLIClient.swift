@@ -72,7 +72,23 @@ public struct ContainerCLIClient: Sendable {
         }
         process.standardOutput = stdoutHandle
         process.standardError = stderrHandle
-        if let stdinData = command.stdinData {
+        if let stdinFile = command.stdinFile {
+            // `container exec -i` forwards pipe stdin fast (~170MB/s measured)
+            // but a regular-file fd slow-paths (~10x worse) — so pump the file
+            // into a pipe on a detached thread instead.
+            let stdinPipe = Pipe()
+            process.standardInput = stdinPipe
+            let writer = stdinPipe.fileHandleForWriting
+            Thread.detachNewThread {
+                if let reader = try? FileHandle(forReadingFrom: stdinFile) {
+                    while let chunk = try? reader.read(upToCount: 1 << 20), !chunk.isEmpty {
+                        try? writer.write(contentsOf: chunk)
+                    }
+                    try? reader.close()
+                }
+                try? writer.close()
+            }
+        } else if let stdinData = command.stdinData {
             let stdinPipe = Pipe()
             process.standardInput = stdinPipe
             do {
