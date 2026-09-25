@@ -53,23 +53,38 @@ Example tools/call (JSON-RPC over stdin/stdout):
 
 ## Connect API — the typed contract
 
-The daemon's public API is `micropod.v1` over Connect (Connect/gRPC/gRPC-Web
-on the same port), grouped one service per domain:
+The daemon's public API is `micropod.v1` over Connect, grouped one service
+per domain. The app's server (`MicropodAPI`) mounts it under `/api` and
+speaks the Connect protocol with proto-JSON; the standalone Go apiserver
+serves the same services at the root with gRPC/gRPC-Web as well:
 
 ```
-/api/micropod.v1.ContainerService/{ListContainers,RunContainer,CreateContainer,
-  StartContainer,StopContainer,RestartContainer,KillContainer,DeleteContainer,
-  StreamContainerLogs,GetStats,Exec}
+/api/micropod.v1.ContainerService/{ListContainers,GetContainer,WaitContainer,
+  RunContainer,CreateContainer,StartContainer,StopContainer,RestartContainer,
+  KillContainer,DeleteContainer,StreamContainerLogs,GetStats,Exec}
 /api/micropod.v1.ImageService/{ListImages,PullImage,DeleteImage}
 /api/micropod.v1.VolumeService/{ListVolumes,CreateVolume,DeleteVolume,
-  GetVolumePolicy,SetVolumePolicy}
+  CloneVolume,CommitVolumeClone,GetVolumePolicy,SetVolumePolicy}
 /api/micropod.v1.NetworkService/{ListNetworks,CreateNetwork,DeleteNetwork}
 /api/micropod.v1.ComposeService/{ComposeUp,ComposeDown}
-/api/micropod.v1.SystemService/{GetSystem,GetUsage,CheckForUpdates,
+/api/micropod.v1.SystemService/{Ping,GetSystem,GetUsage,CheckForUpdates,
   GetUpdateStatus,ApplyUpdate}
 ```
 
-Unary calls are plain POST + JSON — no client library needed:
+Job-runner essentials: `Ping` (cheap liveness: `status` running|stopped,
+`runtime_backend` native|cli); `WaitContainer{id, timeout_seconds}` →
+`{exited, known, exit_code, state}` (`known: true` only on the native
+backend, which records exit codes); `RunContainerRequest.no_pull` (missing
+image → `not_found` instead of an unbounded pull); `StreamLogsRequest.skip_lines`
+(resume a stream); `CloneVolume`/`CommitVolumeClone` (O(1) APFS clone of a
+golden volume, and atomic promotion of a stopped container's clone). Codes:
+`unavailable` = runtime not answering (back off, `Ping`), `not_found`,
+`failed_precondition` = wrong state (e.g. a volume already attached
+read-write to a running container).
+
+Unary calls are plain POST + proto-JSON — no client library needed. The
+app's server speaks proto-JSON only (binary protobuf bodies fail
+`invalid_argument`), so SDK clients must select JSON:
 
 ```bash
 curl -s -X POST http://127.0.0.1:45454/api/micropod.v1.ContainerService/ListContainers \
@@ -102,13 +117,23 @@ const ref  = await client.runContainer({ image: "alpine:3.20", name: "demo" });
 ```
 
 Go: `github.com/castlemilk/micropod/sdk/go` — `micropod.NewClient` embeds all
-six generated connect-go clients (methods promote flat):
+six generated connect-go clients (methods promote flat). Against the app's
+server use the `/api` base and proto-JSON; put `WithTimeout` before
+`WithRetry` (one deadline across attempts):
 
 ```go
-client := micropod.NewClient("http://127.0.0.1:45454",
+client := micropod.NewClient("http://127.0.0.1:45454/api",
+    micropod.WithConnectOptions(connect.WithProtoJSON()),
+    micropod.WithTimeout(10*time.Second),
     micropod.WithRetry(micropod.DefaultRetryPolicy()), micropod.WithOTel())
 resp, err := client.ListContainers(ctx, connect.NewRequest(&micropodv1.Empty{}))
 ```
+
+`WithTimeout` never applies to streams (bound them with your context).
+`DefaultRetryPolicy` replays every unary call; set `RetryPolicy.Idempotent`
+to keep `CreateContainer`/`RunContainer`/`CloneVolume`/`CommitVolumeClone`
+out of it (a timed-out create still completes server-side). Recipe 4 below
+is the full job lifecycle.
 
 Swift: `MicropodSDK` SwiftPM package — `MicropodClient(baseURL:)` facade:
 
@@ -290,6 +315,135 @@ supervisor); runtime `stop` burns the full grace — the shim's fast stop
 avoids it for docker-API clients. Cached images make compose ready fast
 (postgres:16 stack ~3–5 s).
 
+### 4. Job runner in Go (Connect SDK, real exit codes, cloned caches)
+
+How cuttlefish runs attempts: create → start → (wait ∥ logs) → commit →
+delete, one RPC each, no `docker`. Requires `Ping` to report
+`runtime_backend: "native"` (the CLI backend records no exit codes and
+ignores the clone label, attaching the golden directly).
+
+```go
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"connectrpc.com/connect"
+	micropod "github.com/castlemilk/micropod/sdk/go"
+	micropodv1 "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1"
+)
+
+// Mutations and streams: no retry, no default deadline (bound them per call).
+var api = micropod.NewClient("http://127.0.0.1:45454/api",
+	micropod.WithConnectOptions(connect.WithProtoJSON()))
+
+func runJob(ctx context.Context, jobID, image, golden string) (int32, error) {
+	name, memory := "job-"+jobID, "4g" // always send memory (runtime default: 1 GiB)
+	create := &micropodv1.RunContainerRequest{
+		Image:     image,
+		Name:      &name,
+		NoPull:    true, // missing image → not_found, never an unbounded server-side pull
+		Memory:    &memory,
+		Arguments: []string{"sh", "-c", "make test"},
+		Volumes:   []string{golden + ":/cache"},
+		Labels: map[string]string{
+			"com.cuttlefish.job":       jobID,
+			"com.micropod.cache.clone": golden, // mount a private clone, never the golden
+		},
+	}
+	_, err := api.CreateContainer(ctx, connect.NewRequest(create))
+	if connect.CodeOf(err) == connect.CodeNotFound {
+		if err := pull(ctx, image); err != nil {
+			return 0, err
+		}
+		_, err = api.CreateContainer(ctx, connect.NewRequest(create))
+	}
+	if err != nil {
+		// deadline_exceeded/unavailable: never re-send; GetContainer(name), then adopt or delete.
+		return 0, err
+	}
+	defer func() { // also removes the container's clones and its exit-code entry
+		cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_, _ = api.DeleteContainer(cleanup, connect.NewRequest(
+			&micropodv1.DeleteContainerRequest{Id: name, Force: true}))
+	}()
+
+	if _, err := api.StartContainer(ctx, connect.NewRequest(&micropodv1.ContainerRef{Id: name})); err != nil {
+		return 0, err
+	}
+	logCtx, stopLogs := context.WithCancel(ctx)
+	defer stopLogs()
+	logsDone := make(chan struct{})
+	go func() { // follows until the container stops, then the server sends EndStream
+		defer close(logsDone)
+		logs, err := api.StreamContainerLogs(logCtx, connect.NewRequest(&micropodv1.StreamLogsRequest{Id: name}))
+		if err != nil {
+			return
+		}
+		for logs.Receive() {
+			fmt.Println(logs.Msg().Text) // stdout+stderr merged; empty lines dropped
+		}
+		// On unavailable: Ping until the API is back, re-open with SkipLines = lines seen.
+	}()
+
+	var wait *micropodv1.WaitContainerResponse
+	for wait == nil || !wait.Exited { // each call waits up to 300 s server-side
+		res, err := api.WaitContainer(ctx, connect.NewRequest(
+			&micropodv1.WaitContainerRequest{Id: name, TimeoutSeconds: 300}))
+		if err != nil {
+			return 0, err
+		}
+		wait = res.Msg
+	}
+	select { // let the log tail drain
+	case <-logsDone:
+	case <-time.After(3 * time.Second):
+	}
+	if !wait.Known {
+		return 0, errors.New("exit code unavailable") // never assume success
+	}
+	if wait.ExitCode == 0 {
+		commit(ctx, name, golden)
+	}
+	return wait.ExitCode, nil
+}
+
+// pull fetches the image under its own deadline, draining the progress stream.
+func pull(ctx context.Context, image string) error {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
+	progress, err := api.PullImage(ctx, connect.NewRequest(&micropodv1.PullImageRequest{Reference: image}))
+	if err != nil {
+		return err
+	}
+	for progress.Receive() {
+	}
+	return progress.Err()
+}
+
+// commit promotes the job's clone to be the new golden. The exit code can
+// arrive while the VM is still `stopping`, and commit needs `stopped`, so a
+// failed_precondition is retried briefly; not_found (or giving up) keeps the
+// previous golden.
+func commit(ctx context.Context, container, golden string) {
+	for range 10 {
+		_, err := api.CommitVolumeClone(ctx, connect.NewRequest(
+			&micropodv1.CommitVolumeCloneRequest{ContainerId: container, Volume: golden}))
+		if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+			return
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+```
+
+Seed a cache for a new key from an existing golden in O(1):
+`CloneVolume{source: "cache-main", name: "cache-feature"}`. Goldens are
+fixed-size ext4 images that only grow, so create them large
+(`CreateVolume{size: "32g"}`; sparse, so unused space is free).
+
 ## Notes / gotchas
 
 - `container copy` from tmpfs-mounted paths hangs on runtime 1.2.2 — use
@@ -300,7 +454,9 @@ avoids it for docker-API clients. Cached images make compose ready fast
   is its own micro-VM. Where the model wins instead: stop 183 ms vs 2345 ms,
   create 80 vs 354 ms, warm exec 77 vs 96 ms, whole lifecycle 1.4 s vs 3.4 s.
 - The runtime does NOT report exit codes for stopped containers — the shim
-  assumes 0 unless an event captured one.
+  assumes 0 unless an event captured one. The Connect API's
+  `WaitContainer`/`GetContainer` return real codes (`known: true`) for
+  containers the native-backed API started itself.
 - SIGTERM is UNDELIVERABLE on runtime 1.2.2 — `kill --signal TERM` is a
   silent no-op and PID 1's signals are shielded. Graceful stop is
   impossible; `stop` executes as instant-stop regardless of grace values.

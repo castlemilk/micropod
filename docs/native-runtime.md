@@ -31,7 +31,7 @@ It also unlocks things the CLI can't express:
 ```
 MicropodAPI / MicropodApp / DockerShim / CLI
         │
-        ▼  (RuntimeBackendResolver — once at startup)
+        ▼  (RuntimeBackendResolver at startup; MicropodAPI re-resolves lazily)
 ┌───────────────────┐     ┌────────────────────┐
 │  native (auto)    │     │  cli (fallback)    │
 │  MicropodRuntime  │     │  ContainerCLIClient│
@@ -46,11 +46,15 @@ MicropodAPI / MicropodApp / DockerShim / CLI
 └───────────────────┘     └────────────────────┘
 ```
 
-`RuntimeBackendResolver.resolve()` runs once at process start and returns a
-`RuntimeServices` bundle (`containers`/`logs`/`stats` protocols + the raw
-`APIServerClient` for the vsock bridge). Every consumer — `APIHandlers`, the
-Docker shim `Router`, `AppDependencies`, `MicropodCLI` — takes the bundle,
-so native and CLI are interchangeable at the protocol level.
+`RuntimeBackendResolver.resolve()` runs at process start and returns a
+`RuntimeServices` bundle (`containers`/`logs`/`stats`/`volumes` protocols,
+the raw `APIServerClient` for the vsock bridge, and the native backend's
+`ExitCodeRegistry`). Every consumer — `APIHandlers`, the Docker shim
+`Router`, `AppDependencies`, `MicropodCLI` — takes the bundle, so native
+and CLI are interchangeable at the protocol level. `MicropodAPI` keeps its
+bundle in a `RuntimeHolder` so it can move from CLI to native without a
+restart ([Backend hot-swap](#backend-hot-swap-micropodapi)); the other
+consumers resolve once.
 
 ### Backend selection
 
@@ -81,7 +85,62 @@ anyway with a stderr warning.
 `GET /v1/system` reports the resolved backend (`backend`: `native`|`cli`)
 plus `runtimeVersion`/`runtimeCommit` whenever the ping succeeded —
 including on the version-gated CLI fallback, so you can see *why* the CLI
-path was chosen.
+path was chosen. On the Connect API, `SystemService.Ping` and `GetSystem`
+carry the live backend as `runtime_backend`.
+
+### Backend hot-swap (MicropodAPI)
+
+A `MicropodAPI` started before `container system start` resolves to CLI
+under `auto` and would otherwise stay there, spawning a process per call
+and never recording exit codes. It holds its bundle in a `RuntimeHolder`
+and re-resolves lazily instead:
+
+- `Ping` and `GetSystem` re-resolve before answering, at most once per
+  10 s, with a 2 s ping ceiling so the caller is never held for long.
+- A request that fails with an XPC transport error answers `unavailable`
+  and then forces a re-resolve in the background, ignoring the interval.
+- A native result swaps `containers`/`logs`/`stats`/`api`/`volumes` in one
+  step and logs `micropod: runtime backend cli -> native (apiserver
+  reachable)` to stderr. Requests already in flight finish on the bundle
+  they started with; `runtime_backend` reports the new backend from the
+  next call.
+- Native is final while its XPC connection lives. When the connection is
+  invalidated (the apiserver was unregistered, e.g. `container system
+  stop`), the backend becomes replaceable again and the next re-resolve
+  picks a fresh native connection or falls back to CLI.
+- Concurrent callers share one in-flight resolution. A CLI result never
+  replaces a CLI bundle, so `MICROPOD_RUNTIME=cli` and an explicit
+  `MICROPOD_CONTAINER_CLI_PATH` under `auto` (the mock-CLI tests) still pin
+  CLI for good.
+
+Each native bundle owns its own `ExitCodeRegistry`. Containers started
+before a swap have no registry entry, so `WaitContainer` reports their exit
+with `known: false`.
+
+### Transport errors → `unavailable`
+
+`XPCConnection` reports every transport-level failure (a reply of error
+type: connection interrupted, connection invalid, no reply) as
+`MicropodError.transport`. An interrupted connection (apiserver restart)
+recovers on the next send, as XPC does for launchd services. An
+*invalidated* one never recovers, so the connection's event handler latches
+it and every later call fails fast with `connection invalidated` instead of
+waiting out the response timeout.
+
+`ConnectCodeMapping` (MicropodCore) is the single error → Connect code
+table used by the Connect mount:
+
+| Error | Code |
+|---|---|
+| XPC transport failure, runtime-down CLI text (`apiserver is not running`, `not registered with launchd`, …), missing CLI | `unavailable` |
+| CLI call over its ceiling | `deadline_exceeded` |
+| stalled image pull | `aborted` |
+| operation with no implementation on this backend | `unimplemented` |
+| upstream `notFound:` / `invalidArgument:` / `alreadyExists:` / `failedPrecondition:` … prefixes | the matching snake_case code |
+| anything else | `internal` |
+
+The REST facade answers `503` for transport errors. Clients should treat
+`unavailable` as "back off and `Ping`", never as a server bug.
 
 ## The XPC protocol
 
@@ -117,6 +176,7 @@ serialization matching Apple's `XPCMessage`/`XPCClient`, and fd passing.
 | `containerCreate` | create — `containerConfig` + `kernel` + `containerOptions` payloads |
 | `containerBootstrap` | boot the VM for a stopped container |
 | `containerStartProcess` | start the init process (`processId == containerId`) → flips state to `running` |
+| `containerWait` (`processId == containerId`) | init-process exit code for the [exit-code registry](#exit-codes-waitcontainer-and-getcontainer), registered before `containerStartProcess` |
 | `containerCreateProcess` + `containerStartProcess` + `containerWait` | exec — real exit codes, stdio via fd passing |
 | `containerLogs` | returns `[containerLog, bootlog]` file handles — no `logs -f` spawn |
 | `containerStop`, `containerKill`, `containerDelete` | lifecycle |
@@ -126,6 +186,7 @@ serialization matching Apple's `XPCMessage`/`XPCClient`, and fd passing.
 | `getDefaultKernel` | host kernel DTO for `containerCreate` |
 | `networkList` | `NetworkResource`s → builtin-network id for attachments |
 | `volumeCreate`, `volumeInspect` | named-volume resolution for `-v` mounts |
+| `volumeList`, `volumeDelete` | `NativeVolumeService` list/delete (the Connect `VolumeService` hot path — no `container volume` spawns) |
 
 A second XPC service, `com.apple.container.core.container-core-images`,
 carries the image routes (`ImagesServiceClient`):
@@ -144,6 +205,11 @@ carries the image routes (`ImagesServiceClient`):
 1. Load `~/.config/container/config.toml` defaults (cpus/memory/dns
    domain/registry domain).
 2. Resolve the image — `imageList` match or `imagePull` (platform-scoped).
+   With `no_pull` (`RunContainerRequest.no_pull`) a missing image, or a
+   local image without the requested platform's manifest, fails
+   `not_found` (`image X not present locally for linux/arm64`) instead of
+   pulling: `imagePull` has no timeout, so callers that need a bounded
+   create pull with `PullImage` under their own deadline and create again.
 3. Walk index → manifest → config blob via `contentGet` for the OCI image
    config (env/entrypoint/cmd/user/workdir/stopSignal).
 4. Build `initProcess` — Docker env merge semantics (image `K=V` entries,
@@ -159,9 +225,15 @@ carries the image routes (`ImagesServiceClient`):
    breaks the initfs lookup).
 8. `containerCreate` with `autoRemove: false`.
 
-`run` (detached only) = `create` + `containerBootstrap` +
-`containerStartProcess(id, id)`; a failed bootstrap/start force-deletes
-the container, matching the CLI.
+`run` (detached only) = `create` + `containerBootstrap` + register the
+exit-code waiter + `containerStartProcess(id, id)`; `start` does the same
+for a created container. A failed bootstrap/start force-deletes the
+container, matching the CLI.
+
+A create that fails `already_exists` never removes clone images: the
+clone directory is keyed by container id, so it belongs to the container
+that already won the name, and a replayed create must not destroy its
+clones.
 
 Verified flag-for-flag against `container inspect` on CLI-created
 containers (`NativeCreateIntegrationTests/testCLIvsNativeConfigParity`):
@@ -217,18 +289,87 @@ Clone lifecycle hardening:
   runtime). Dirs younger than 60s are skipped so an in-flight create's
   dir can't be swept by a concurrent create before `containerCreate`
   registers it. `MICROPOD_VOLUME_CLONE_ROOT` overrides the clone root.
-- **Golden in use** — if a running container still has a golden attached
-  read-write, cloning proceeds but logs a warning to stderr: the clone
-  is crash-consistent (journal replay on first mount), not a clean
-  snapshot. Quiesce or stop the golden's consumer first.
+- **Golden in use** — if a running (or still stopping) container has a
+  golden attached read-write, a clone *mount* at create proceeds but logs
+  a warning to stderr: the clone is crash-consistent (journal replay on
+  first mount), not a clean snapshot. Quiesce or stop the golden's
+  consumer first. The `CloneVolume` RPC is stricter and refuses (below).
+- **Commit locks** — every clone image is removed under its volume's
+  in-process lock (`VolumeLocks`), the same lock `CommitVolumeClone` and
+  `DeleteVolume` take, so a delete never unlinks a clone mid-commit.
 
 Labels flow through the docker shim's `Labels` → `ContainerRunRequest`
 unchanged, so `docker run --label com.micropod.cache.clone=ci-golden
 -v ci-golden:/go/pkg/mod …` works end-to-end with no shim changes. Under
-the CLI backend the label is ignored and the golden attaches directly —
-safe for a single job, unsafe for concurrent RW attaches (nothing
-guards multi-attach server-side), so treat clones as a native-only
-feature.
+the CLI backend the label is ignored and the golden attaches directly;
+the [multi-attach guard](#read-write-multi-attach-guard) then refuses a
+second concurrent job instead of letting two VMs share one ext4 image.
+Treat clones as a native-only feature.
+
+### `CloneVolume` and `CommitVolumeClone`
+
+Two Connect RPCs (`VolumeService`) turn the clone machinery into an
+explicit golden-volume workflow: goldens are never attached, every job
+mounts a clone, and a successful job's clone becomes the next golden.
+Both backends of `MicropodAPI` implement them (the file work is the same
+`VolumeClone` code; only list/create/delete differ). The Go apiserver
+implements `CloneVolume` and answers `unimplemented` for
+`CommitVolumeClone`, because it never creates per-container clones.
+
+- **`CloneVolume{source, name, size?, labels}`** creates `name` (size
+  defaults to the source's provisioned size, labels gain
+  `com.micropod.clone-of=<source>`), then APFS-clones the source's
+  `volume.img` over the new volume's image through a temp file + rename.
+  O(1) regardless of size; the two images share blocks until written.
+  `not_found` when the source does not exist; `failed_precondition` while
+  a running or stopping container has the source attached read-write (the
+  clone would be crash-consistent); `invalid_argument` for `source ==
+  name`. A failed copy deletes the half-made volume, so an empty image never
+  masquerades as a cache under the new name.
+- **`CommitVolumeClone{container_id, volume}`** promotes the container's
+  clone (`volume-clones/<container>/<volume>.img`) to be the volume's
+  backing image. Under the volume's lock it requires the container to be
+  `stopped` (`stopping` is not stopped: the VM may still be flushing)
+  and the volume not attached read-write to a running or stopping
+  container (`failed_precondition`); a missing container, clone or
+  volume is `not_found`. It then fsyncs the clone, makes a CoW twin next
+  to the golden, fsyncs it, `rename(2)`s it over `volume.img` and fsyncs
+  the directory. Readers see the old image or the new one, never a partial
+  one. The clone itself stays where the container's configuration points,
+  so the container is still startable and its clone goes with it on
+  delete. Staging files a crashed commit left behind are swept on the next
+  commit. Concurrent commits to one volume are serialised; the last one
+  wins. The response carries the promoted image's `allocated_bytes`.
+- **`Volume.allocated_bytes`** is `st_blocks × 512` of the backing image:
+  real usage, where `size_bytes` is the provisioned (sparse) size. A fresh
+  clone reports its source's full allocation (APFS counts shared extents),
+  so golden and clone figures overlap and must not be summed.
+
+Fixed-size ext4 images only grow; a golden that fills up shows as ENOSPC
+inside the cache path. Size goldens generously at creation (`size`), and
+evict or re-create them from the client side.
+
+### Read-write multi-attach guard
+
+An Apple named volume is an ext4 image attached to the VM as a block
+device, and the runtime does not stop two containers from attaching the
+same image read-write. That corrupts it. Both backends now refuse
+a direct (non-clone) attach of a named volume that a running or stopping
+container holds read-write, with `failed_precondition` and a message
+naming the volume and the holder:
+
+```
+failedPrecondition: volume 'ws' is attached read-write to running container 'job-41'
+```
+
+Clone mounts are exempt (they never touch the golden). The check reads
+the container list; if that call fails the create fails with its error
+(`unavailable` when the runtime is not answering) rather than reasoning
+from an empty list. A replayed create of an existing container gets the
+runtime's duplicate-id refusal (`already_exists`), never a guard error
+naming the caller as the holder of its own volumes.
+`MICROPOD_ALLOW_MULTI_ATTACH=1` restores the old behaviour: attach anyway
+and log a warning to stderr.
 
 ### Volume policy — managing this without labels
 
@@ -358,14 +499,80 @@ the full `ContainerExecResult` (output/error/exitCode) to callers that
 need the code — the MicropodAPI exec endpoint surfaces it as
 `exit_code` in `ExecResponse`.
 
+`ExecRequest.arguments` is the argv, passed through verbatim
+(`["sh", "-c", "echo a  b"]` keeps its quoting and double space). The older
+`command` string is split on whitespace and is used only when `arguments`
+is empty; a request with neither is `invalid_argument`.
+
+## Exit codes, `WaitContainer` and `GetContainer`
+
+Apple's `ContainerSnapshot` has no exit-code field: a stopped container is
+`{state: "stopped", startedDate, networks}`. The only source is the
+`containerWait` route, answered by the container's runtime helper, which
+exists only while the container does. So the native backend keeps an
+**exit-code registry** (`ExitCodeRegistry`, one per native bundle):
+
+1. `run`/`start` call `containerBootstrap`, then register a detached
+   waiter task (`containerWait(id, id)`), then `containerStartProcess`. The
+   helper's `ExitWaiter` accepts pre-registered waiters and replays a
+   cached status, so a container that exits within milliseconds of
+   starting still reports its code.
+2. The waiter records `{exit_code, exited_at}`. A waiter that fails
+   (transport error) or outlives the 2 h ceiling records an *unknown*
+   code.
+3. `DeleteContainer` (and prune) cancel the waiter and drop the entry. A
+   restart re-registers, so an old run's code is never reported for a new
+   one.
+
+Readers never block on XPC in the request path:
+
+- **`GetContainer`** returns one container (`not_found` when absent) with
+  `exit_code` filled from the registry; `ListContainers` does the same.
+- **`WaitContainer{id, timeout_seconds}`** polls the registry and the
+  runtime state every 150 ms for up to `timeout_seconds` (0 → 30, capped at
+  300). A registry code returns at once as `{exited: true, known: true,
+  exit_code}`, even if the snapshot has not flipped to `stopped` yet.
+  `running`, `stopping` and `created` are non-terminal. Any other state
+  (`stopped`, or `unknown` when the container vanished mid-wait) returns
+  `exited: true, known: false`. When the timeout elapses first it returns
+  `exited: false`, and the caller re-issues. An unknown id is `not_found`
+  up front.
+
+`known: false` is expected for containers this API process did not start
+(the shim, the app, the CLI, before a backend swap or an API restart), on
+the CLI backend, and after the 2 h ceiling. Callers must treat it as
+"exited, code unavailable", never as success. The Go apiserver has no
+registry: its `WaitContainer` polls `container inspect` and always
+reports `known: false`.
+
 ## Logging
 
 `containerLogs` returns two file handles: index 0 is the container's
 stdout/stderr log, index 1 is the boot/kernel log. `NativeLogStreamer`
-keeps the requested handle open, tracks its own offset, and polls for
-growth (~80 ms) — no `container logs -f` subprocess per stream.
+keeps the requested handle open, tracks its own offset, and drains new
+bytes every 80 ms — no `container logs -f` subprocess per stream.
 `tail` applies to the initial backlog only; `boot: true` selects index 1.
-Streaming stops when the container leaves `running` state.
+
+- **Stop signal.** A recorded exit code in the exit-code registry, or a
+  runtime state that is neither `running` nor `stopping` (a stopping
+  container is still writing its tail). The registry is consulted on
+  every quiet tick; the runtime state is checked after the backlog, then
+  250 ms after the latest bytes, backing off ×2 to 1 s while the stream
+  stays quiet.
+- **Final drain.** After the stop signal the file is drained once more
+  before the stream ends, so bytes written between the last tick and the
+  exit are delivered. A stream opened on an already-stopped container
+  returns the whole backlog and ends cleanly.
+- **Lines.** Output is split on `\n`; empty lines are dropped, and stdout
+  and stderr arrive merged (the log file does not separate them). A final
+  fragment without a newline is emitted when the stream ends.
+- **Resuming.** `StreamLogsRequest.skip_lines` drops that many lines from
+  the start of the stream (after `tail`), so a client re-opening after a
+  transport error gets only lines it has not seen.
+
+The Connect mount waits for the final frame to be written before closing
+the connection, so connect-go clients see the EndStream frame and a clean
+`stream.Err() == nil` rather than `unexpected EOF`.
 
 ## Stats
 
@@ -374,7 +581,9 @@ Streaming stops when the container leaves `running` state.
 existing `ContainerStatsEntry`. `NativeStatsSampler` conforms to the same
 `StatsSampling` protocol as the CLI sampler, so the UI/metrics path is
 unchanged — each sample is one XPC call instead of a ~2.4 s
-`container stats --no-stream` spawn.
+`container stats --no-stream` spawn. `GetStatsRequest.ids` restricts a
+snapshot to the named containers; the native sampler then skips the
+`containerList` call and asks `containerStats` for those ids only.
 
 ## Protobuf/codegen
 
@@ -382,6 +591,12 @@ unchanged — each sample is one XPC call instead of a ~2.4 s
   vendored from containerization 0.42.0 (self-contained, `go_package`
   added).
 - `proto/micropod/v1/api.proto` — `ExecResponse` gained `exit_code`.
+- `proto/micropod/v1/{container,volume,system}.proto` — the Go-client
+  additions: `GetContainer`, `WaitContainer`, `Ping`, `CloneVolume`,
+  `CommitVolumeClone`, `RunContainerRequest` entrypoint/platform/
+  workdir/user/`no_pull`, `ExecRequest.arguments`,
+  `StreamLogsRequest.skip_lines`, `GetStatsRequest.ids`,
+  `Volume.allocated_bytes`, `SystemStatus.runtime_backend`.
 - `buf generate` produces:
   - Go: `sdk/go/gen/com/…/sandboxv3` (+ connect stubs), `sdk/go/gen/micropod/v1`
     (+ grpc stubs).
@@ -398,6 +613,29 @@ Regenerate after proto edits; never hand-edit generated files.
   transform (incl. the date-encoding asymmetry — XPC payloads use numeric
   dates, `--format json` uses ISO8601 strings), process-config patching,
   exec env append semantics, backend resolution modes.
+- **Unit, Connect-client hardening**: in `MicropodRuntimeTests`,
+  `ExitCodeRegistryTests` (fast waiter, restart supersedes, delete
+  cancels, ceiling or a throwing waiter → unknown), `NativeLogStreamerTests`
+  (final drain, backlog of an already-stopped container, registry stop
+  signal, state-check backoff, `stopping` still followed),
+  `RuntimeHolderTests` (rate limit, CLI → native swap then no re-resolve,
+  `force`, shared in-flight resolution, invalidated native re-resolved),
+  `NativeCreateGuardsTests` (`no_pull` names image and platform,
+  `already_exists` keeps the winner's clones) and `StatsSamplingIDsTests`;
+  in `MicropodCoreTests`, `ConnectCodeMappingTests` (transport and
+  runtime-down → `unavailable`), `SystemStatusStoppedTests` and
+  `VolumeCloneTests` (clonefile, atomic commit, staging sweep, per-volume
+  locks).
+- **API, mock CLI** (`MicropodAPITests`, `VolumeDeleteLockTests`): the
+  Connect surface end-to-end against the spawned `MicropodAPI` binary:
+  `Ping` running and stopped (fast), `GetContainer`, `WaitContainer`
+  (stopped, running → timeout, unknown id), `RunContainer` argv for
+  entrypoint/platform/workdir/user, `no_pull` without an `image pull`,
+  `Exec` argv, `skip_lines`, `GetStats` ids, `CloneVolume` (clone,
+  source in use), `CommitVolumeClone` (no clone, running container,
+  promotion), the multi-attach guard and its replay exemption,
+  delete-vs-commit serialisation, Connect error reason phrases and the
+  EndStream frame (flag `0x02`) on server streams.
 - **Live** (`NativeRuntimeIntegrationTests.swift`, gated on
   `MICROPOD_REAL_E2E=1`): needs `container system start` + image pull.
   Covers ping/version, list parity with the CLI, exec output + real exit
@@ -476,16 +714,71 @@ benefit — no process-spawn contention on top of the VM-boot contention.
 ## Failure/fallback matrix
 
 - apiserver not running → `auto` resolves CLI; `native` warns + CLI.
+  `MicropodAPI` re-resolves on `Ping`/`GetSystem` (≤ once per 10 s) and
+  swaps to native once the apiserver answers.
+- apiserver stops or restarts under a native `MicropodAPI` → calls fail
+  `unavailable`; an invalidated connection fails fast and triggers a
+  re-resolve; `Ping` answers `status: "stopped"` meanwhile.
 - unknown apiserver version → CLI (`auto`); `native` proceeds anyway
   (explicit opt-in).
-- image not local → `imagePull` (no timeout, same as the CLI).
+- image not local → `imagePull` (no timeout, same as the CLI), or
+  `not_found` with `no_pull`.
 - `run` failure after create → force-delete (same cleanup as the CLI).
+- exit code not recorded (container not started by this API process,
+  CLI backend, 2 h ceiling) → `WaitContainer` `known: false`.
+- second read-write attach of a named volume → `failed_precondition`
+  (`MICROPOD_ALLOW_MULTI_ATTACH=1` warns instead).
+- `CommitVolumeClone` on a `running`/`stopping` container or an attached
+  golden → `failed_precondition`, golden untouched.
 - `containerDial` on a stopped container → runtime error (same as CLI
   `exec` on stopped).
 - vsock bridge endpoint under the CLI backend → `501` (it's the only
   endpoint with no CLI equivalent — there is no `container dial` verb).
 - TTY/interactive/non-detached flows → routed to the internal CLI
   service transparently.
+
+## Using it from Go (cuttlefish)
+
+cuttlefish's macOS agent runs job attempts through the Connect API with
+the Go SDK (`github.com/castlemilk/micropod/sdk/go`) instead of `docker`
+against the shim. The pattern, for any Go job runner:
+
+1. **Detect.** `Ping` at `http://127.0.0.1:45454/api` (the Swift server's
+   mount; the Go apiserver serves the same RPCs at the root). Use the
+   Connect path only when `status == "running"` and `runtime_backend ==
+   "native"`: on `cli` there are no exit codes and no clones.
+2. **Clients.** Build every client with
+   `WithConnectOptions(connect.WithProtoJSON())`. Unary reads get
+   `WithTimeout` then `WithRetry` with an `Idempotent` allow-list (`Ping`,
+   `GetSystem`, `ListContainers`, `GetContainer`, `WaitContainer`,
+   `GetStats`, `ListVolumes`, …). Mutations get a per-call deadline and no
+   retry. Streams get neither and run under the attempt's context.
+3. **Create.** `CreateContainer{no_pull: true, entrypoint, platform,
+   memory, volumes, labels}`. Always send `memory`: otherwise the
+   runtime's `config.toml` default applies (1 GiB out of the box). Cache
+   volumes are goldens mounted through `com.micropod.cache.clone=<golden,…>`,
+   so the job writes to a private clone. On `not_found`, `PullImage` under a bounded context, then create
+   once more. On `deadline_exceeded`/`unavailable`, do not re-send:
+   `GetContainer` the name, then adopt it or `DeleteContainer{force}`.
+4. **Run.** `StartContainer`, then concurrently `WaitContainer` (re-issued
+   while `exited: false`) and `StreamContainerLogs`. If the log stream
+   drops with `unavailable`, `Ping` until the API is back and re-open with
+   `skip_lines` = lines received so far. `GetStats{ids: [id]}` samples just
+   this container.
+5. **Exit code.** `known: true` → `exit_code`. `known: false` means the
+   code is unavailable: report a failure, never success.
+6. **Commit caches.** After a successful run, `CommitVolumeClone{
+   container_id, volume}` per cloned golden, off the critical path.
+   `failed_precondition`/`not_found` just mean "keep the previous golden".
+   Seed a new cache key from the nearest golden with `CloneVolume`. Size
+   goldens at creation (images only grow).
+7. **Clean up.** Wait for the commits, then `DeleteContainer{force}`,
+   which also removes the container's clones and its exit-code entry.
+
+Workspace-style volumes that jobs mount read-write directly are protected
+by the multi-attach guard across processes. Within one process, serialise
+writers yourself so the second job waits instead of failing
+`failed_precondition`.
 
 ## Known limitations / future work
 
