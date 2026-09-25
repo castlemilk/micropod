@@ -130,7 +130,9 @@ resp, err := client.ListContainers(ctx, connect.NewRequest(&micropodv1.Empty{}))
 ```
 
 `WithTimeout` never applies to streams (bound them with your context).
-`DefaultRetryPolicy` replays every unary call; set `RetryPolicy.Idempotent`
+`WaitContainer` is a long poll (the server waits up to `timeout_seconds`,
+default 30 s): call it from a client without `WithTimeout`, as recipe 4
+does. `DefaultRetryPolicy` replays every unary call; set `RetryPolicy.Idempotent`
 to keep `CreateContainer`/`RunContainer`/`CloneVolume`/`CommitVolumeClone`
 out of it (a timed-out create still completes server-side). Recipe 4 below
 is the full job lifecycle.

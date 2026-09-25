@@ -340,6 +340,10 @@ implements `CloneVolume` and answers `unimplemented` for
   delete. Staging files a crashed commit left behind are swept on the next
   commit. Concurrent commits to one volume are serialised; the last one
   wins. The response carries the promoted image's `allocated_bytes`.
+  `StartContainer` does not take the volume's lock, so the `stopped` check
+  cannot hold a restart off: do not restart the container while its commit
+  is in flight, or the promoted image may be a crash-consistent copy of a
+  clone that was being written.
 - **`Volume.allocated_bytes`** is `st_blocks × 512` of the backing image:
   real usage, where `size_bytes` is the provisioned (sparse) size. A fresh
   clone reports its source's full allocation (APFS counts shared extents),
@@ -750,9 +754,12 @@ against the shim. The pattern, for any Go job runner:
 2. **Clients.** Build every client with
    `WithConnectOptions(connect.WithProtoJSON())`. Unary reads get
    `WithTimeout` then `WithRetry` with an `Idempotent` allow-list (`Ping`,
-   `GetSystem`, `ListContainers`, `GetContainer`, `WaitContainer`,
-   `GetStats`, `ListVolumes`, …). Mutations get a per-call deadline and no
-   retry. Streams get neither and run under the attempt's context.
+   `GetSystem`, `ListContainers`, `GetContainer`, `GetStats`,
+   `ListVolumes`, …). `WaitContainer` is a long poll: the server keeps
+   polling for the full `timeout_seconds`, so call it from a client without
+   `WithTimeout` (or keep `timeout_seconds` below the client deadline).
+   Mutations get a per-call deadline and no retry. Streams get neither and
+   run under the attempt's context.
 3. **Create.** `CreateContainer{no_pull: true, entrypoint, platform,
    memory, volumes, labels}`. Always send `memory`: otherwise the
    runtime's `config.toml` default applies (1 GiB out of the box). Cache

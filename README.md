@@ -546,12 +546,13 @@ import (
 	"github.com/castlemilk/micropod/sdk/go/gen/micropod/v1/micropodv1connect"
 )
 
-// Replay only what is safe to repeat (see "Client rules" below).
+// Replay only what is safe to repeat (see "Client rules" below). WaitContainer
+// is a long poll that outlives this client's 10 s deadline: call it from a
+// client without WithTimeout.
 replayable := map[string]bool{
 	micropodv1connect.SystemServicePingProcedure:              true,
 	micropodv1connect.ContainerServiceListContainersProcedure: true,
 	micropodv1connect.ContainerServiceGetContainerProcedure:   true,
-	micropodv1connect.ContainerServiceWaitContainerProcedure:  true,
 	micropodv1connect.VolumeServiceListVolumesProcedure:       true,
 }
 policy := micropod.DefaultRetryPolicy()
@@ -572,14 +573,14 @@ What a job runner needs, beyond CRUD:
 |---|---|
 | `SystemService.Ping` | Cheap liveness (one XPC `ping` on native, one `container system status` on CLI, never `df`): `status` (`running`/`stopped`) and `runtime_backend` (`native`/`cli`). A stopped runtime is a status, never an error. `GetSystem` reports the same `status.runtime_backend` and answers `status: "stopped"` with empty disk usage instead of failing. |
 | `ContainerService.GetContainer` | One container, `not_found` when absent. `exit_code` is filled from the native exit-code registry. |
-| `ContainerService.WaitContainer{id, timeout_seconds}` | Server-side poll (default 30 s, cap 300 s) → `{exited, known, exit_code, state}`. `exited: false` means the timeout elapsed: call again. `known: true` only when the native backend recorded the exit; a container that is already stopped returns at once. The code can arrive while `state` is still `stopping`, and `CommitVolumeClone` needs `stopped`. |
+| `ContainerService.WaitContainer{id, timeout_seconds}` | Server-side poll (default 30 s, cap 300 s) → `{exited, known, exit_code, state}`. `exited: false` means the timeout elapsed: call again. `known: true` only when the native backend recorded the exit; a container that is already stopped returns at once. The code can arrive while `state` is still `stopping`, and `CommitVolumeClone` needs `stopped`. Call `WaitContainer` from a client without `WithTimeout` (as the skill's [recipe 4](plugins/micropod/skills/micropod/SKILL.md#4-job-runner-in-go-connect-sdk-real-exit-codes-cloned-caches) does), or keep `timeout_seconds` below the client deadline; the server keeps polling for the full `timeout_seconds`. |
 | `RunContainerRequest` `entrypoint`, `platform`, `workdir`, `user` | `docker run --entrypoint/--platform/--workdir/--user`. |
 | `RunContainerRequest.no_pull` | A missing image (or one without the requested platform) is `not_found` naming the platform, instead of an unbounded server-side pull. Pull with `PullImage` under your own deadline, then create again. |
 | `ExecRequest.arguments` | Verbatim argv; takes precedence over the whitespace-split `command`. |
 | `StreamLogsRequest.skip_lines` | Re-open a log stream after a transport error without replaying the lines already delivered. |
 | `GetStatsRequest.ids` | Sample only these containers (the native sampler skips the list call). |
 | `VolumeService.CloneVolume{source, name, size?, labels}` | New volume whose image is an APFS clone of the source's (O(1)). `failed_precondition` while the source is attached read-write to a running or stopping container. |
-| `VolumeService.CommitVolumeClone{container_id, volume}` | Promote a stopped container's per-container clone to be the volume's image (fsync + atomic rename, serialised per volume). Returns `allocated_bytes`. Swift server only; the Go server answers `unimplemented` because it never creates clones. |
+| `VolumeService.CommitVolumeClone{container_id, volume}` | Promote a stopped container's per-container clone to be the volume's image (fsync + atomic rename, serialised per volume). Returns `allocated_bytes`. Do not restart the container while its commit is in flight: `StartContainer` does not wait for the commit. Swift server only; the Go server answers `unimplemented` because it never creates clones. |
 | `Volume.allocated_bytes` | Bytes the backing image really occupies (`st_blocks × 512`); `size_bytes` stays the provisioned size. |
 
 Client rules:
