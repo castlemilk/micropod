@@ -48,6 +48,7 @@ public protocol ImageServing: Sendable {
     func prune(danglingOnly: Bool) async throws -> String
     func tag(source: String, target: String) async throws
     func save(_ reference: String, to outputPath: String) async throws
+    func saveAll(_ references: [String], to outputPath: String) async throws
     func load(from inputPath: String) async throws
     func inspect(_ reference: String) async throws -> Data
 }
@@ -279,6 +280,11 @@ public struct ImageService: ImageServing {
 
     public func save(_ reference: String, to outputPath: String) async throws {
         _ = try await client.run(ContainerCommandFactory.saveImage(reference, to: outputPath), timeout: .seconds(300))
+    }
+
+    public func saveAll(_ references: [String], to outputPath: String) async throws {
+        _ = try await client.run(
+            ContainerCommandFactory.saveImages(references, to: outputPath), timeout: .seconds(300))
     }
 
     public func load(from inputPath: String) async throws {

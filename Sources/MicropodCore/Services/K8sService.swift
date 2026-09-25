@@ -200,19 +200,22 @@ public struct K8sService: Sendable {
             throw K8sError.cliFailure("cluster \(name) is not running — `micropod k8s up` first")
         }
 
+        // Stage under $HOME — `container image save` and `container copy`
+        // can only read paths inside the home tree.
+        let stageDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".micropod/k8s")
+        try? FileManager.default.createDirectory(at: stageDir, withIntermediateDirectories: true)
         var tmp: URL? = archivePath
         var ownedTmp: URL? = nil
         defer { if let ownedTmp { try? FileManager.default.removeItem(at: ownedTmp) } }
 
         if let archiveData {
-            let url = FileManager.default.temporaryDirectory
-                .appendingPathComponent("micropod-seed-\(UUID().uuidString).tar")
+            let url = stageDir.appendingPathComponent("seed-\(UUID().uuidString).tar")
             try archiveData.write(to: url)
             tmp = url
             ownedTmp = url
         } else if let ref {
-            let url = FileManager.default.temporaryDirectory
-                .appendingPathComponent("micropod-seed-\(UUID().uuidString).tar")
+            let url = stageDir.appendingPathComponent("seed-\(UUID().uuidString).tar")
             ownedTmp = url
             // Local store first — `image save` on a present image never
             // touches the network; pull only when the ref is missing.
@@ -239,24 +242,35 @@ public struct K8sService: Sendable {
         _ = try await client.run(
             ContainerCommand(arguments: ["copy", tar.path, "\(name):\(guestPath)"]),
             timeout: .seconds(300))
-        _ = try await client.run(
+        // `ctr images import` prints the refs it unpacked — those are the
+        // real names the archive carried (which may differ from `ref`).
+        let importOut = try await client.run(
             ContainerCommand(
                 arguments: ["exec", name, "ctr", "-n", "k8s.io", "images", "import", guestPath]),
             timeout: .seconds(120))
+        // Output lines look like "name:tag <spaces> saved" — the ref is the
+        // first whitespace-separated field.
+        let imported = importOut.split(separator: "\n")
+            .compactMap { $0.split(whereSeparator: \.isWhitespace).first.map(String.init) }
+            .filter { !$0.isEmpty && !$0.hasPrefix("unpacking") && !$0.hasPrefix("done") }
         // kubelet resolves unqualified refs (`redis:alpine`) to
-        // `docker.io/library/…`; tag that form so `image:` matches what
-        // was loaded.
-        if let ref, let qualified = Self.qualifiedRef(ref), qualified != ref {
+        // `docker.io/library/…`; tag that form for every imported name so
+        // `image:` in a manifest matches what was loaded.
+        for name in imported + [ref].compactMap({ $0 }) {
+            // Digest refs (`name@sha256:…`) aren't what manifests reference.
+            if name.contains("@") { continue }
+            guard let qualified = Self.qualifiedRef(name), qualified != name else { continue }
             _ = try? await client.run(
                 ContainerCommand(
                     arguments: [
-                        "exec", name, "ctr", "-n", "k8s.io", "images", "tag", "--force", ref, qualified,
+                        "exec", name, "ctr", "-n", "k8s.io", "images", "tag", "--force", name, qualified,
                     ]),
                 timeout: .seconds(30))
         }
         _ = try? await client.run(
             ContainerCommand(arguments: ["exec", name, "rm", "-f", guestPath]), timeout: .seconds(15))
-        return LoadedImage(ref: ref ?? archivePath?.lastPathComponent ?? "archive", bytes: bytes ?? 0)
+        let resolved = ref ?? imported.first ?? archivePath?.lastPathComponent ?? "archive"
+        return LoadedImage(ref: resolved, bytes: bytes ?? 0)
     }
 
     /// Image refs present in the cluster's containerd (`k8s.io` namespace).

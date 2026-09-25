@@ -88,6 +88,22 @@ no pull at all. The same ops exist on every surface:
 base64 in Connect JSON), `GET|POST /v1/k8s/images` on REST, and
 `k8s_load_image`/`k8s_images` MCP tools.
 
+### Docker-API clients
+
+The image store is shared with the Docker Engine shim, so stock `docker`
+commands compose with the cluster: `docker build -t app:dev .` lands in the
+store `k8s load` reads (no network hop), `docker save`/`docker load` work on
+the shim socket (`GET /images/get`, `POST /images/load`), `docker push`
+forwards to `container image push`, and `docker top` lists in-container
+processes. For API callers, `?k8s=1` on `POST /images/load` or `POST /build`
+injects the result into the cluster's containerd in the same request —
+`build → cluster` is one call:
+
+```bash
+curl --unix-socket ~/.micropod/docker.sock -X POST \
+  "http://localhost/build?t=myapp:dev&k8s=1" -T context.tar
+```
+
 ## Configuration
 
 `k8s.json` (edit or pass flags to `enable`/`up`):

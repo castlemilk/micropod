@@ -86,6 +86,9 @@ final class Router: @unchecked Sendable {
     private let logs: any LogStreaming
     private let stats: any StatsSampling
     private let sharedFS: (any SharedFSClient)?
+    /// Opt-in k8s engine — `?k8s=1` on /images/load or /build injects the
+    /// image into the cluster's containerd after the host-side op.
+    private let k8s: K8sService
     /// Read-through cache for hot Docker-API reads (list/inspect). Mutations
     /// invalidate synchronously; the events loop invalidates on transitions.
     private let readCache: ReadThroughCache
@@ -123,6 +126,7 @@ final class Router: @unchecked Sendable {
         self.systemConcrete = SystemService(client: client)
         self.logs = runtime?.logs ?? LogStreamer(client: client)
         self.stats = runtime?.stats ?? StatsSampler(client: client)
+        self.k8s = K8sService(client: client)
         self.buildCache = buildCacheOverride ?? BuildContextCache.standard()
         self.readCache = readCacheOverride ?? ReadThroughCache()
         if let sharedFSOverride {
@@ -223,6 +227,19 @@ final class Router: @unchecked Sendable {
             return try await imageTag(segments[1..<segments.count - 1].joined(separator: "/"), request)
         case ("POST", "images") where segments.count == 2 && segments[1] == "prune":
             return try await imagePrune(request)
+        // `docker load` — tar body into the host store; ?k8s=1 also injects
+        // into the k8s cluster's containerd.
+        case ("POST", "images") where segments.last == "load" && segments.count >= 2:
+            return try await imageLoad(request)
+        // `docker save` — GET /images/{name}/get streams the tar back.
+        case ("GET", "images") where segments.last == "get" && segments.count >= 3:
+            return try await imageGet(segments[1..<segments.count - 1].joined(separator: "/"))
+        // `docker save` multi-name form — GET /images/get?names=a&names=b.
+        case ("GET", "images") where segments.count == 2 && segments[1] == "get":
+            return try await imageGetMulti(request)
+        // `docker push` — push a ref to its registry.
+        case ("POST", "images") where segments.last == "push" && segments.count >= 3:
+            return try await imagePush(segments[1..<segments.count - 1].joined(separator: "/"))
 
         // MARK: System
         case ("GET", "system") where segments.count == 2 && segments[1] == "df":
@@ -258,7 +275,7 @@ final class Router: @unchecked Sendable {
         case ("POST", "containers") where segments.count == 3 && segments[2] == "attach":
             return try await containerAttach(segments[1], request, connection)
         case ("GET", "containers") where segments.count == 3 && segments[2] == "top":
-            throw ShimError.notImplemented("container top is not supported by this runtime")
+            return try await containerTop(segments[1])
         case ("GET", "containers") where segments.count == 3 && segments[2] == "stats":
             return try await containerStats(segments[1])
         case ("PUT", "containers") where segments.count == 3 && segments[2] == "archive":
@@ -751,9 +768,16 @@ final class Router: @unchecked Sendable {
             pull: pullFlag,
             labels: labelSpecs)
         let progress = images.build(buildReq)
+        let intoK8s = ["1", "true"].contains(request.q("k8s").lowercased())
         let (stream, cont) = AsyncStream<Data>.makeStream()
         let buildCache = self.buildCache
+        let k8sService = self.k8s
         Task.detached(priority: .userInitiated) {
+            @Sendable func emit(_ text: String) {
+                if let data = try? JSONEncoder().encode(BuildStreamLine(stream: text + "\n")) {
+                    cont.yield(data + Data("\n".utf8))
+                }
+            }
             do {
                 for try await event in progress {
                     let line = BuildStreamLine(stream: event.line + "\n")
@@ -770,6 +794,18 @@ final class Router: @unchecked Sendable {
                     let tail = BuildAuxLine(aux: ["ID": aux])
                     if let data = try? JSONEncoder().encode(tail) {
                         cont.yield(data + Data("\n".utf8))
+                    }
+                }
+                // ?k8s=1 — docker build → cluster-ready in one request: each
+                // tag is injected into the cluster's containerd.
+                if intoK8s {
+                    for tag in tags {
+                        do {
+                            _ = try await k8sService.loadImage(ref: tag) { emit($0) }
+                            emit("loaded into k8s: \(tag)")
+                        } catch {
+                            emit("k8s inject failed for \(tag): \(error.localizedDescription)")
+                        }
                     }
                 }
             } catch {
@@ -884,6 +920,149 @@ final class Router: @unchecked Sendable {
         try await images.tag(source: source, target: target)
         await readCache.invalidateImages()
         return .status(201)
+    }
+
+    /// POST /images/load — `docker load` compat: tar body → `container image
+    /// load`. `?k8s=1` additionally injects the archive into the k8s cluster's
+    /// containerd — `docker load -i x.tar` becomes cluster-ready in one call.
+    /// Response is Docker's JSONL progress shape ({"stream": ...} lines).
+    private func imageLoad(_ request: ShimRequest) async throws -> ShimResponse {
+        guard !request.body.isEmpty else { throw ShimError.badRequest("missing image tar body") }
+        // Stage under $HOME — the image store can't read /var/folders.
+        let stageDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".micropod/loads")
+        try? FileManager.default.createDirectory(at: stageDir, withIntermediateDirectories: true)
+        let tmp =
+            stageDir
+            .appendingPathComponent("\(UUID().uuidString).tar")
+        do {
+            try request.body.write(to: tmp)
+        } catch {
+            throw ShimError.internalError("could not stage image tar: \(error)")
+        }
+        // Cleanup lives inside the task — the file must outlive the request.
+        let (stream, cont) = AsyncStream<Data>.makeStream()
+        let intoK8s = ["1", "true"].contains(request.q("k8s").lowercased())
+        Task.detached(priority: .userInitiated) {
+            defer { try? FileManager.default.removeItem(at: tmp) }
+            @Sendable func emit(_ line: String) {
+                if let data = try? JSONEncoder().encode(BuildStreamLine(stream: line + "\n")) {
+                    cont.yield(data + Data("\n".utf8))
+                }
+            }
+            do {
+                try await self.images.load(from: tmp.path)
+                emit("Loaded image archive")
+                await self.readCache.invalidateImages()
+                if intoK8s {
+                    guard self.k8s.isEnabled else {
+                        emit("k8s engine not enabled — `micropod k8s enable` first")
+                        cont.finish()
+                        return
+                    }
+                    emit("injecting into k8s cluster containerd…")
+                    do {
+                        let loaded = try await self.k8s.loadImage(archivePath: tmp) {
+                            emit($0)
+                        }
+                        emit("loaded into k8s: \(loaded.ref) (\(loaded.bytes) bytes)")
+                    } catch {
+                        emit("k8s inject failed: \(error.localizedDescription)")
+                    }
+                }
+                cont.finish()
+            } catch {
+                let line = BuildErrorLine(errorDetail: ["message": "\(error)"], error: "\(error)")
+                if let data = try? JSONEncoder().encode(line) {
+                    cont.yield(data + Data("\n".utf8))
+                }
+                cont.finish()
+            }
+        }
+        return .stream(200, [("Content-Type", "application/json")], stream)
+    }
+
+    /// GET /images/get?names=… — docker CLI's save form. `names` arrives as a
+    /// JSON array (docker) or a single name; `container image save` accepts
+    /// multiple refs into one archive.
+    private func imageGetMulti(_ request: ShimRequest) async throws -> ShimResponse {
+        let raw = request.q("names")
+        let names: [String] = {
+            if raw.hasPrefix("["), let data = raw.data(using: .utf8),
+                let arr = try? JSONDecoder().decode([String].self, from: data)
+            {
+                return arr
+            }
+            return raw.isEmpty ? [] : [raw]
+        }()
+        guard !names.isEmpty else { throw ShimError.badRequest("missing names parameter") }
+        let stageDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".micropod/loads")
+        try? FileManager.default.createDirectory(at: stageDir, withIntermediateDirectories: true)
+        let tmp = stageDir.appendingPathComponent("\(UUID().uuidString).tar")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        do {
+            try await images.saveAll(names, to: tmp.path)
+        } catch {
+            if Self.isNotFound(error) {
+                throw ShimError.notFound("No such image: \(names.first ?? "")")
+            }
+            throw error
+        }
+        guard let data = try? Data(contentsOf: tmp) else {
+            throw ShimError.internalError("image save produced no output")
+        }
+        return .raw(200, [("Content-Type", "application/x-tar")], data)
+    }
+
+    /// GET /images/{name}/get — `docker save` compat: stream the OCI tar.
+    private func imageGet(_ reference: String) async throws -> ShimResponse {
+        let stageDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".micropod/loads")
+        try? FileManager.default.createDirectory(at: stageDir, withIntermediateDirectories: true)
+        let tmp =
+            stageDir
+            .appendingPathComponent("\(UUID().uuidString).tar")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        do {
+            try await images.save(reference, to: tmp.path)
+        } catch {
+            if Self.isNotFound(error) {
+                throw ShimError.notFound("No such image: \(reference)")
+            }
+            throw error
+        }
+        guard let data = try? Data(contentsOf: tmp) else {
+            throw ShimError.internalError("image save produced no output")
+        }
+        return .raw(200, [("Content-Type", "application/x-tar")], data)
+    }
+
+    /// POST /images/{name}/push — `docker push` compat: forward to
+    /// `container image push`; emits Docker's JSONL status shape.
+    private func imagePush(_ reference: String) async throws -> ShimResponse {
+        let (stream, cont) = AsyncStream<Data>.makeStream()
+        Task.detached(priority: .userInitiated) {
+            @Sendable func emit(_ line: String) {
+                if let data = try? JSONEncoder().encode(BuildStreamLine(stream: line + "\n")) {
+                    cont.yield(data + Data("\n".utf8))
+                }
+            }
+            do {
+                for try await event in self.images.push(reference, platform: nil) {
+                    emit(event.line)
+                }
+                emit("pushed \(reference)")
+                cont.finish()
+            } catch {
+                let line = BuildErrorLine(errorDetail: ["message": "\(error)"], error: "\(error)")
+                if let data = try? JSONEncoder().encode(line) {
+                    cont.yield(data + Data("\n".utf8))
+                }
+                cont.finish()
+            }
+        }
+        return .stream(200, [("Content-Type", "application/json")], stream)
     }
 
     private func imagePrune(_ request: ShimRequest) async throws -> ShimResponse {
@@ -2030,6 +2209,27 @@ final class Router: @unchecked Sendable {
                 arguments: ["rm", "-f", remoteTar],
                 interactive: false, tty: false, detach: false, user: nil, workdir: nil, env: []))
         return .status(200)
+    }
+
+    /// GET /containers/{id}/top — `docker top` compat: `ps` inside the
+    /// container, shaped as Docker's {Titles, Processes} table.
+    private func containerTop(_ id: String) async throws -> ShimResponse {
+        let containerID = try await resolveID(id)
+        let out = try await containers.exec(
+            ContainerExecRequest(
+                containerID: containerID,
+                arguments: ["ps", "-eo", "pid,user,time,comm"],
+                interactive: false, tty: false, detach: false, user: nil, workdir: nil, env: []))
+        struct TopResponse: Encodable {
+            let Titles: [String]
+            let Processes: [[String]]
+        }
+        var rows: [[String]] = []
+        for line in out.split(separator: "\n").dropFirst() {
+            let cols = line.split(whereSeparator: \.isWhitespace).map(String.init)
+            if cols.count >= 4 { rows.append(cols) }
+        }
+        return Self.encode(TopResponse(Titles: ["PID", "USER", "TIME", "COMMAND"], Processes: rows))
     }
 
     private func archiveGet(_ id: String, _ request: ShimRequest) async throws -> ShimResponse {

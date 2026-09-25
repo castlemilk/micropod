@@ -55,6 +55,8 @@ The pipeline isn't a CLI-only trick — it's `LoadK8sImage` on the Connect API, 
 
 The MCP tool means an agent's loop looks like: `k8s_load_image {ref: "redis:alpine"}` → `k8s_images` to confirm → workload manifest with `imagePullPolicy: IfNotPresent`. No pull-through proxy, no registry mirror, no `kind load` archaeology.
 
+And because the k8s engine shares Micropod's image store with the Docker Engine shim, stock `docker` clients compose too: `docker build -t app:dev .` on the shim socket produces an image `k8s load` picks up with zero network, `docker save`/`docker load` work as expected, and `docker top`/`docker push` round out the surface. For API callers, one extra flag collapses build→cluster into a single request — `POST /build?t=app:dev&k8s=1` builds and injects; `POST /images/load?k8s=1` does the same for a tarball.
+
 ## Why this matters beyond speed
 
 **Iterating on a workload** is `build → k8s load → kubectl rollout` — the loop kind users know, minus the Docker Desktop dependency and with the host's content store doing dedupe. The image that a pod runs is byte-identical to the one the host built, because it's the same archive.

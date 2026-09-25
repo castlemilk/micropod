@@ -254,6 +254,10 @@ public enum ContainerCommandFactory {
         .init(arguments: ["image", "save", "-o", outputPath, reference])
     }
 
+    public static func saveImages(_ references: [String], to outputPath: String) -> ContainerCommand {
+        .init(arguments: ["image", "save", "-o", outputPath] + references)
+    }
+
     public static func loadImage(from inputPath: String) -> ContainerCommand {
         .init(arguments: ["image", "load", "--input", inputPath])
     }
