@@ -15,8 +15,10 @@ We benchmarked Micropod's Docker Engine shim against Docker Desktop on the same 
 
 ## API latency — where the shim wins outright
 
+<GraphTable title="API LATENCY — P50, MS" align="left right right left">
+
 | op | micropod | docker | verdict |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | ping | 0.3 ms | 1.9 ms | 6x faster |
 | version | 0.4 ms | 5.4 ms | 13x faster |
 | containers/json?all=1 | 0.3 ms | 35.2 ms | 117x faster |
@@ -24,6 +26,8 @@ We benchmarked Micropod's Docker Engine shim against Docker Desktop on the same 
 | inspect container | 0.5 ms | 1.8 ms | 3.6x faster |
 | system df | 3.0 ms | 9,003 ms | ~3000x faster |
 | info | 0.4 ms | 4.6 ms | 11x faster |
+
+</GraphTable>
 
 <GraphStat title="P50 API, MS — SPEEDUP VS DOCKER" items={[
   { value: "512x", label: "images/json" },
@@ -37,8 +41,10 @@ The big multipliers are honest but need the caveat attached: list and image read
 
 ## Lifecycle — split down the middle
 
+<GraphTable title="LIFECYCLE — P50, MS" align="left right right left">
+
 | phase | micropod | docker | note |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | create | 39 ms | 45 ms | parity |
 | start | 529 ms | 70 ms | **Docker wins** — see below |
 | exec create | 0.9 ms | 2.5 ms | faster |
@@ -46,7 +52,10 @@ The big multipliers are honest but need the caveat attached: list and image read
 | logs | 28 ms | 5 ms | gap: CLI spawn |
 | stop | 72 ms | 2,083 ms | faster — atomic vs grace |
 | rm | 70 ms | 27 ms | gap: CLI spawn |
-| **full roundtrip** | **838 ms** | **2,252 ms** | **2.7x faster** |
+
+<Foot>**full roundtrip** | **838 ms** | **2,252 ms** | **2.7x faster**</Foot>
+
+</GraphTable>
 
 The headline number holds up: a complete create→start→exec→logs→stop→rm roundtrip is 2.7x faster, and it's dominated by `stop`. Docker Desktop honors the full 2-second grace period waiting for a SIGTERM handshake that a naive `sleep`-PID-1 container will never answer. Micropod's shim executes stop as the runtime's atomic instant-stop — which is also the honest way to treat a runtime where SIGTERM delivery to PID 1 is unreliable anyway.
 
@@ -67,10 +76,14 @@ The headline number holds up: a complete create→start→exec→logs→stop→r
 
 ## Idle footprint
 
+<GraphTable title="IDLE FOOTPRINT" align="left right">
+
 | | RSS |
-|---|---|
+| --- | --- |
 | Micropod (shim + API + sharedfs + Apple daemons + 1 running container VM) | **169 MB** |
 | Docker Desktop (backend + VM + UI) | **1,244 MB** |
+
+</GraphTable>
 
 Docker Desktop idles at 7.4x the memory — and the Micropod number is deliberately conservative: it counts the shared Apple `containermanagerd` and apiserver processes plus a running alpine VM, not just Micropod's own ~30 MB of helpers. On a 16 GB laptop running an IDE, a browser, and a simulator, that's a gigabyte you get back.
 

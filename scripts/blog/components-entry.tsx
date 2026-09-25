@@ -7,6 +7,7 @@ export { GraphFlow, Path } from "./components/graph-flow";
 export { GraphRank, Rank } from "./components/graph-rank";
 export { GraphDiff, Line } from "./components/graph-diff";
 export { GraphSpec, Field } from "./components/graph-spec";
+export { GraphTable, Head, Row as TableRow, Foot } from "./components/graph-table";
 export { Callout } from "./components/callout";
 export { Terminal } from "./components/terminal";
 export { Steps, Step } from "./components/steps";
