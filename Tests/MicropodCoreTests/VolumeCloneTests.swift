@@ -238,6 +238,72 @@ final class VolumeCloneTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: path("job-3")))
     }
 
+    /// A failed create removes exactly the clones it placed — the others
+    /// under the same id were placed by a replay that won the name (and may
+    /// be running on them) — and the dir only once that leaves it empty.
+    func testRemoveClonesOfNamedVolumesLeavesTheOthersAndTheDir() async throws {
+        setenv("MICROPOD_VOLUME_CLONE_ROOT", dir.path, 1)
+        defer { unsetenv("MICROPOD_VOLUME_CLONE_ROOT") }
+        try FileManager.default.createDirectory(atPath: path("job-4"), withIntermediateDirectories: true)
+        for name in ["job-4/a.img", "job-4/b.img", "job-4/.b.img.tmp-cafe1111"] {
+            try Data("x".utf8).write(to: URL(fileURLWithPath: path(name)))
+        }
+
+        await VolumeClone.removeClones(containerID: "job-4", volumes: ["a"])
+        XCTAssertEqual(
+            try FileManager.default.contentsOfDirectory(atPath: path("job-4")).sorted(),
+            [".b.img.tmp-cafe1111", "b.img"],
+            "only the named clone goes; another create's staging file is not swept")
+
+        await VolumeClone.removeClones(containerID: "job-4", volumes: [])
+        XCTAssertEqual(
+            try FileManager.default.contentsOfDirectory(atPath: path("job-4")).sorted(),
+            [".b.img.tmp-cafe1111", "b.img"],
+            "nothing named, nothing removed; a non-empty dir stays")
+
+        unlink(path("job-4/.b.img.tmp-cafe1111"))
+        await VolumeClone.removeClones(containerID: "job-4", volumes: ["b", "never-placed"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: path("job-4")), "the dir goes once it is empty")
+
+        // A placement that failed before its copy leaves an empty dir; the
+        // failed create removes it with nothing named.
+        try FileManager.default.createDirectory(atPath: path("job-5"), withIntermediateDirectories: true)
+        await VolumeClone.removeClones(containerID: "job-5", volumes: [])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: path("job-5")))
+    }
+
+    /// A clone dir younger than the grace period is reclaimed when no
+    /// container has its id and the caller vouches that no create of that
+    /// id is in flight — it is the leftover of a create that died with its
+    /// process. A live id's dir is never touched; no dir is not an error.
+    func testReclaimStaleCloneDirIgnoresTheGraceButNotALiveID() async throws {
+        setenv("MICROPOD_VOLUME_CLONE_ROOT", dir.path, 1)
+        defer { unsetenv("MICROPOD_VOLUME_CLONE_ROOT") }
+        for name in ["dead", "live"] {
+            try FileManager.default.createDirectory(atPath: path(name), withIntermediateDirectories: true)
+            try Data("x".utf8).write(to: URL(fileURLWithPath: path("\(name)/npm.img")))
+        }
+
+        let reclaimedLive = await VolumeClone.reclaimStaleCloneDir(containerID: "live", live: ["live", "other"])
+        XCTAssertFalse(reclaimedLive)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: path("live/npm.img")))
+
+        let reclaimed = await VolumeClone.reclaimStaleCloneDir(containerID: "dead", live: ["live", "other"])
+        XCTAssertTrue(reclaimed, "a young dir with no container behind it is reclaimed")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: path("dead")))
+
+        let absent = await VolumeClone.reclaimStaleCloneDir(containerID: "absent", live: [])
+        XCTAssertFalse(absent)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path), ["live"])
+    }
+
+    func testRequireDistinctRefusesACloneOntoItself() {
+        XCTAssertThrowsError(try VolumeClone.requireDistinct(source: "g", name: "g")) { error in
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "invalid_argument", "\(error)")
+        }
+        XCTAssertNoThrow(try VolumeClone.requireDistinct(source: "g", name: "g-2"))
+    }
+
     /// The orphan sweep removes clone dirs of containers that no longer
     /// exist — except dirs younger than the grace period, which may belong
     /// to a create that has not reached the runtime yet.

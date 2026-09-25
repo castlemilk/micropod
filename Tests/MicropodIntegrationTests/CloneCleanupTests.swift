@@ -128,6 +128,54 @@ final class CloneCleanupTests: XCTestCase {
         XCTAssertEqual(listed4, [])
     }
 
+    /// `CloneVolume` holds the source's and the new name's locks (sorted,
+    /// as `volume prune` takes every volume's), so a concurrent prune or
+    /// delete can remove neither the golden nor the half-made clone volume
+    /// between the checks and the clonefile: nothing reaches the CLI while
+    /// either lock is held. A clone onto itself is refused before any lock.
+    func testCloneVolumeWaitsForTheSourceAndTargetLocks() async throws {
+        let (client, dir) = try MockContainerCLI.makeClient()
+        stateDir = dir
+        let volumes = VolumeService(client: client)
+        try await volumes.create(name: "g")
+
+        for locked in ["g", "c"] {
+            let held = Gate()
+            let release = Gate()
+            let holder = Task {
+                await VolumeLocks.shared.withLock(locked) {
+                    await held.open()
+                    await release.wait()
+                }
+            }
+            await held.wait()
+
+            let callsBefore = cliCalls().count
+            let cloning = Task { try await volumes.clone(source: "g", name: "c", size: nil, labels: []) }
+            try await Task.sleep(for: .milliseconds(300))
+            XCTAssertEqual(
+                cliCalls().count, callsBefore,
+                "clone reached the CLI while '\(locked)' was held: \(cliCalls().dropFirst(callsBefore))")
+
+            await release.open()
+            await holder.value
+            let cloned = try await cloning.value
+            XCTAssertEqual(cloned.id, "c")
+            XCTAssertTrue(cliCalls().dropFirst(callsBefore).contains { $0.hasPrefix("volume create") }, "\(cliCalls())")
+            try await volumes.delete("c")
+        }
+
+        do {
+            _ = try await volumes.clone(source: "g", name: "g", size: nil, labels: [])
+            XCTFail("a clone onto itself must be refused")
+        } catch {
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "invalid_argument", "\(error)")
+        }
+        // Every lock is free again.
+        let free = await VolumeLocks.shared.withLocks(["c", "g"]) { true }
+        XCTAssertTrue(free)
+    }
+
     /// `volume prune` runs under every volume's lock, so it can neither
     /// remove a golden's directory between a commit's checks and its rename
     /// nor take away a freshly promoted golden.

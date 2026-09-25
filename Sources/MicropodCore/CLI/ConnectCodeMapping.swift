@@ -23,8 +23,8 @@ public enum ConnectCodeMapping {
                 return "aborted"
             case .cliFailure(_, _, let stderr) where indicatesRuntimeDown(stderr):
                 return "unavailable"
-            case .cliFailure(_, _, let stderr):
-                return cliStderrCode(stderr)
+            case .cliFailure(let command, _, let stderr):
+                return cliStderrCode(command: command, stderr: stderr)
             case .decode, .message:
                 return prefixed(error.localizedDescription)
             }
@@ -32,23 +32,72 @@ public enum ConnectCodeMapping {
         return prefixed(error.localizedDescription)
     }
 
-    /// The `container` CLI renders a runtime error as `Error: <code>: "<detail>"`
-    /// — ArgumentParser's wrapper around `ContainerizationError`'s
-    /// description — so the code is read from the first such line of stderr
-    /// through the same prefix table the native backend's XPC errors use.
+    /// Classifies a `container` CLI failure from the first `Error:` line of
+    /// its stderr — the line ArgumentParser prints for the thrown error.
     /// `cliFailure`'s own message keeps its "`cmd` failed (exit N): …"
-    /// wrapper; only the classification looks inside. No `Error:` line
-    /// (a guest process's stderr, the mock's plain phrasing) is `internal`.
-    static func cliStderrCode(_ stderr: String) -> String {
+    /// wrapper; only the classification looks inside. Three shapes are
+    /// read, in this order (all verified against `container` 1.3.1):
+    ///
+    /// 1. `Error: <code>: "<detail>"` — a `ContainerizationError` rendered
+    ///    with its code — through the same prefix table as XPC errors.
+    /// 2. `Error: internalError: "…" (cause: "<code>: …")` — the CLI wraps
+    ///    the runtime's answer for some verbs; `container delete <missing>`
+    ///    prints `internalError: "failed to delete container" (cause:
+    ///    "notFound: "container with ID x not found"")`, so the code comes
+    ///    from the cause (nested causes are read through to the first
+    ///    classifiable one).
+    /// 3. A bare message — `ContainerizationError.errorDescription` is the
+    ///    message alone, without its code — for the CLI's own duplicate-id
+    ///    refusals: `container create` prints `container already exists:
+    ///    <id>` and `container run` prints `container with id <id> already
+    ///    exists`. An `already exists` phrase is `already_exists`.
+    ///
+    /// Everything else is `internal`, and so is every `container exec`
+    /// failure: its stderr is the guest process's, which may print an
+    /// `Error:` line of its own (`execDetailed` reports the exit code and
+    /// text instead of classifying).
+    static func cliStderrCode(command: String, stderr: String) -> String {
+        guard !isExecCommand(command) else { return "internal" }
         for line in stderr.split(whereSeparator: \.isNewline) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             guard trimmed.hasPrefix(cliErrorPrefix) else { continue }
-            return prefixed(String(trimmed.dropFirst(cliErrorPrefix.count)))
+            return classifyCLIErrorLine(String(trimmed.dropFirst(cliErrorPrefix.count)))
         }
         return "internal"
     }
 
     private static let cliErrorPrefix = "Error: "
+    private static let cliCausePrefix = "(cause: \""
+
+    /// `container exec …` (the CLI's verb is the first argument after the
+    /// binary name; a `cliFailure` names the command that way).
+    static func isExecCommand(_ command: String) -> Bool {
+        let words = command.split(separator: " ", omittingEmptySubsequences: true)
+        return words.count >= 2 && words[0] == "container" && words[1] == "exec"
+    }
+
+    /// The text after `Error: ` → wire code (see ``cliStderrCode``).
+    static func classifyCLIErrorLine(_ text: String) -> String {
+        let direct = prefixed(text)
+        if direct != "internal" { return direct }
+        if text.hasPrefix("internalError:"), let cause = causeCode(in: text) {
+            return cause
+        }
+        if text.lowercased().contains("already exists") { return "already_exists" }
+        return "internal"
+    }
+
+    /// The first classifiable code among the `(cause: "<code>: …")`
+    /// suffixes of a CLI error line, outermost first; nil when none.
+    private static func causeCode(in text: String) -> String? {
+        var rest = Substring(text)
+        while let range = rest.range(of: cliCausePrefix) {
+            rest = rest[range.upperBound...]
+            let code = prefixed(String(rest))
+            if code != "internal" { return code }
+        }
+        return nil
+    }
 
     /// True when CLI output carries one of the `container` CLI's own
     /// runtime-down signatures: the apiserver is unregistered with launchd,

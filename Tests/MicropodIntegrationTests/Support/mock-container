@@ -348,7 +348,13 @@ cmd_run() {
     local id
     if [ "${MICROPOD_MOCK_NAME_IS_ID:-0}" = "1" ] && [ -n "$name" ]; then
         if container_exists "$name"; then
-            echo "Error: exists: \"container with id $name already exists\"" >&2
+            # The real CLI's duplicate-id lines (container 1.3.1): a bare
+            # message, no code prefix — `create` and `run` word it differently.
+            if [ "${mock_create_verb:-0}" = "1" ]; then
+                echo "Error: container already exists: $name" >&2
+            else
+                echo "Error: container with id $name already exists" >&2
+            fi
             exit 1
         fi
         id="$name"
@@ -549,7 +555,9 @@ cmd_create() {
     local state_override="created"
     local output
     # A failed run (duplicate name, bad flags) fails the create too: the
-    # subshell must not swallow cmd_run's exit status.
+    # subshell must not swallow cmd_run's exit status. cmd_run inherits
+    # mock_create_verb so its duplicate-id line is `create`'s wording.
+    mock_create_verb=1
     output=$(cmd_run "$@") || exit $?
     # cmd_run prints the id; flip its state to "created".
     local id

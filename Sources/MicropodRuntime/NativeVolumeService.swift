@@ -42,32 +42,40 @@ public struct NativeVolumeService: VolumeServing {
         try await cli.prune()
     }
 
+    /// Under the source's and the new volume's locks (sorted acquisition,
+    /// as `prune` takes every volume's), so a concurrent `volume prune` or
+    /// `DeleteVolume` can remove neither the golden nor the half-made clone
+    /// volume between the checks and the clonefile.
     public func clone(source: String, name: String, size: String?, labels: [String]) async throws
         -> Micropod_V1_Volume
     {
-        let golden = try VolumeClone.requireVolume(try await volume(named: source), named: source)
-        try VolumeClone.requireBackingImage(golden)
-        try VolumeClone.requireQuiescent(golden, attachments: VolumeAttachments(entries: try await entries()))
-        var driverOpts: [String: String] = [:]
-        if let sizeSpec = VolumeClone.cloneSize(requested: size, source: golden) {
-            driverOpts["size"] = sizeSpec
-        }
-        let created = try await api.volumeCreate(
-            name: name,
-            driverOpts: driverOpts,
-            labels: Self.keyValues(VolumeClone.cloneLabels(labels, source: source)))
-        do {
-            guard let entry = try VolumeTransform.entry(created) else {
-                throw MicropodError.message("volumeCreate for '\(name)' returned an unexpected reply")
+        try VolumeClone.requireDistinct(source: source, name: name)
+        return try await VolumeLocks.shared.withLocks([source, name]) {
+            let golden = try VolumeClone.requireVolume(try await volume(named: source), named: source)
+            try VolumeClone.requireBackingImage(golden)
+            try VolumeClone.requireQuiescent(golden, attachments: VolumeAttachments(entries: try await entries()))
+            var driverOpts: [String: String] = [:]
+            if let sizeSpec = VolumeClone.cloneSize(requested: size, source: golden) {
+                driverOpts["size"] = sizeSpec
             }
-            let volume = try VolumeClone.requireVolume(ModelMapper.volume(from: entry), named: name)
-            try VolumeClone.cloneImage(from: golden.source, to: volume.source)
-            return VolumeClone.withAllocatedBytes(volume)
-        } catch {
-            // Never leave a half-made volume behind (an empty image under the
-            // clone's name would masquerade as a cache miss forever).
-            try? await api.volumeDelete(name: name)
-            throw error
+            let created = try await api.volumeCreate(
+                name: name,
+                driverOpts: driverOpts,
+                labels: Self.keyValues(VolumeClone.cloneLabels(labels, source: source)))
+            do {
+                guard let entry = try VolumeTransform.entry(created) else {
+                    throw MicropodError.message("volumeCreate for '\(name)' returned an unexpected reply")
+                }
+                let volume = try VolumeClone.requireVolume(ModelMapper.volume(from: entry), named: name)
+                try VolumeClone.cloneImage(from: golden.source, to: volume.source)
+                return VolumeClone.withAllocatedBytes(volume)
+            } catch {
+                // Never leave a half-made volume behind (an empty image under the
+                // clone's name would masquerade as a cache miss forever). The
+                // name's lock is held here, so this goes straight to the route.
+                try? await api.volumeDelete(name: name)
+                throw error
+            }
         }
     }
 

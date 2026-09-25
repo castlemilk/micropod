@@ -96,34 +96,35 @@ public struct NativeContainerService: ContainerServing {
     /// Native `container create`: resolve image → build
     /// `ContainerConfiguration` → `containerCreate` XPC.
     ///
-    /// A failed create removes the clone images it made — except when the
-    /// failure is `already_exists`: then the clone directory belongs to the
-    /// container that won the race (a retried create with the same name),
-    /// and deleting it would pull the block device out from under a running
-    /// container.
+    /// A failed create removes exactly the clone images it placed. With
+    /// exclusive placement any other clone under this id belongs to the
+    /// create that won the name — a replay of the same request, possibly
+    /// already running on that clone as its block device — so it stays,
+    /// whatever this create's failure was (`already_exists` from the list
+    /// check, from the placement or from the apiserver, or anything else).
     private func createNative(_ request: ContainerRunRequest) async throws -> String {
         let id = request.name ?? UUID().uuidString.lowercased()
+        // Only the sole create of this id in this process may reclaim a
+        // stale clone dir under it (see `createNativeInner`); a concurrent
+        // create of the same id is left to exclusive placement to arbitrate.
+        let solePlacer = await InFlightCreates.shared.begin(id)
+        var placed: [String] = []
         do {
-            return try await createNativeInner(request, id: id)
+            let created = try await createNativeInner(request, id: id, solePlacer: solePlacer, placed: &placed)
+            if solePlacer { await InFlightCreates.shared.end(id) }
+            return created
         } catch {
-            if !Self.isAlreadyExists(error) {
-                await VolumeClone.removeClones(containerID: id)
-            }
+            await VolumeClone.removeClones(containerID: id, volumes: placed)
+            if solePlacer { await InFlightCreates.shared.end(id) }
             throw error
         }
     }
 
-    /// Whether `error` is a duplicate-id refusal — the apiserver's own
-    /// (`ContainerizationError(.exists, …)`, which arrives as `exists: …`
-    /// over XPC), the pre-clone check below (`alreadyExists: …`), or an
-    /// exclusive clone placement that found the winner's clone in place.
-    /// One table decides (`ConnectCodeMapping`), so this and the wire code
-    /// cannot disagree.
-    static func isAlreadyExists(_ error: Error) -> Bool {
-        ConnectCodeMapping.code(for: error) == "already_exists"
-    }
-
-    private func createNativeInner(_ request: ContainerRunRequest, id: String) async throws -> String {
+    /// `placed` receives the name of every clone volume this create placed,
+    /// as it places it, so the caller can remove exactly those on failure.
+    private func createNativeInner(
+        _ request: ContainerRunRequest, id: String, solePlacer: Bool, placed: inout [String]
+    ) async throws -> String {
         let sysConfig = NativeConfigBuilder.loadSystemConfig()
         let platform = try NativeConfigBuilder.ociPlatform(request.platform)
 
@@ -176,7 +177,18 @@ public struct NativeContainerService: ContainerServing {
             if !cloneSet.isEmpty {
                 // Self-heal: a clone dir orphaned by a raw `container delete`
                 // (or a crashed runtime) is swept on the next cloning create.
-                await VolumeClone.sweepOrphanClones(live: Set(entries.map(\.id)))
+                let live = Set(entries.map(\.id))
+                await VolumeClone.sweepOrphanClones(live: live)
+                if solePlacer {
+                    // No container has this id (checked above) and no other
+                    // create in this process is placing under it, so a clone
+                    // dir here is the leftover of a create that died with its
+                    // process. Reclaimed whatever its age — the retry must not
+                    // be refused `already_exists` for a container that never
+                    // was. A concurrent create of the same id (not the sole
+                    // placer) leaves the dir to exclusive placement.
+                    await VolumeClone.reclaimStaleCloneDir(containerID: id, live: live)
+                }
                 warnIfGoldensInUse(cloneSet, entries: entries)
             }
         }
@@ -200,30 +212,22 @@ public struct NativeContainerService: ContainerServing {
                 // FSType encodes enums as nested case objects, so
                 // cache/sync are {"on":{}} / {"fsync":{}} not strings.
                 if isClone(name) {
-                    guard let volume = try await api.volumeInspect(name: name) else {
-                        throw MicropodError.message(
-                            "cache clone source volume '\(name)' not found")
+                    let golden = try await Self.placeClone(volume: name, containerID: id) {
+                        try await api.volumeInspect(name: name)
                     }
-                    let format = NativeConfigBuilder.string(volume["format"]) ?? "ext4"
-                    let source = NativeConfigBuilder.string(volume["source"]) ?? ""
-                    guard !source.isEmpty else {
-                        throw MicropodError.message(
-                            "cache clone source volume '\(name)' has no backing image")
-                    }
-                    let clone = try Self.cloneVolumeImage(
-                        source: source, containerID: id, volume: name)
+                    placed.append(name)
                     mounts.append(
                         NativeConfigBuilder.filesystemObject(
                             type: "block",
                             typeFields: [
-                                "format": .string(format),
+                                "format": .string(golden.format),
                                 "cache": .object([policy.cacheCase(labels: labelMap): .object([:])]),
                                 "sync": .object([
                                     policy.syncCase(labels: labelMap, fallback: "nosync"):
                                         .object([:])
                                 ]),
                             ],
-                            source: clone,
+                            source: golden.clone,
                             destination: destination, options: options))
                 } else {
                     // A direct attach shares the golden's block image with
@@ -607,12 +611,33 @@ public struct NativeContainerService: ContainerServing {
     /// exclusively: the duplicate-id list check above is a snapshot, so a
     /// replayed create that lost the race may get here after the winner
     /// placed — and started writing — its clone. That clone is never renamed
-    /// over; the loser fails `already_exists` (and, as for the apiserver's
-    /// own duplicate refusal, removes nothing).
+    /// over; the loser fails `already_exists` and removes only what it
+    /// placed itself.
     public static func cloneVolumeImage(source: String, containerID: String, volume: String) throws -> String {
         let destination = VolumeClone.clonePath(containerID: containerID, volume: volume)
         try VolumeClone.cloneImage(from: source, to: destination.path, placement: .exclusive)
         return destination.path
+    }
+
+    /// Under `volume`'s lock — the one `DeleteVolume` and `volume prune`
+    /// hold — reads the golden through `inspect` and places container
+    /// `containerID`'s clone of it (`cloneVolumeImage`), so the golden
+    /// cannot be removed between the inspect and the clonefile. Returns the
+    /// clone's path and the golden's filesystem format.
+    static func placeClone(
+        volume name: String, containerID: String, inspect: () async throws -> JSONValue?
+    ) async throws -> (clone: String, format: String) {
+        try await VolumeLocks.shared.withLock(name) {
+            guard let volume = try await inspect() else {
+                throw MicropodError.message("cache clone source volume '\(name)' not found")
+            }
+            let format = NativeConfigBuilder.string(volume["format"]) ?? "ext4"
+            let source = NativeConfigBuilder.string(volume["source"]) ?? ""
+            guard !source.isEmpty else {
+                throw MicropodError.message("cache clone source volume '\(name)' has no backing image")
+            }
+            return (try Self.cloneVolumeImage(source: source, containerID: containerID, volume: name), format)
+        }
     }
 
     /// RW multi-attach guard (see `VolumeAttachments`): a `failedPrecondition:`

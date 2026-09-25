@@ -114,16 +114,51 @@ public enum VolumeClone {
     /// gone is the desired end state.
     public static func removeClones(containerID: String) async {
         let dir = cloneRoot.appendingPathComponent(containerID, isDirectory: true)
-        for volume in clonedVolumes(containerID: containerID) {
-            await VolumeLocks.shared.withLock(volume) {
-                unlink(clonePath(containerID: containerID, volume: volume).path)
-            }
-        }
+        await unlinkClones(containerID: containerID, volumes: clonedVolumes(containerID: containerID))
         let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
         for name in names where name.hasPrefix(".") && name.contains(".img.tmp-") {
             unlink(dir.appendingPathComponent(name).path)
         }
         rmdir(dir.path)
+    }
+
+    /// Removes only the named clone images of a container's dir (each under
+    /// its volume's lock) and the dir if that leaves it empty. A create that
+    /// fails after placing some of its clones removes exactly those: with
+    /// exclusive placement, a clone it did not place belongs to the create
+    /// that did — a replay of the same id that won the name, possibly
+    /// running on it — and stays, as does any staging file (a placement of
+    /// that create may be in flight). Never throws.
+    public static func removeClones(containerID: String, volumes: [String]) async {
+        await unlinkClones(containerID: containerID, volumes: volumes)
+        rmdir(cloneRoot.appendingPathComponent(containerID, isDirectory: true).path)
+    }
+
+    private static func unlinkClones(containerID: String, volumes: [String]) async {
+        for volume in Array(Set(volumes)).sorted() {
+            await VolumeLocks.shared.withLock(volume) {
+                unlink(clonePath(containerID: containerID, volume: volume).path)
+            }
+        }
+    }
+
+    /// Removes container `containerID`'s clone dir whatever its age when no
+    /// container of that id exists (`live` is the runtime's answer, as for
+    /// ``sweepOrphanClones``). The orphan grace protects a create that has
+    /// placed its clones but not yet reached the runtime; the caller vouches
+    /// that no create of this id is in flight in this process, so the dir
+    /// can only be the leftover of a create that died with its process — and
+    /// a retried create of the same id must not be refused `already_exists`
+    /// for a container that never was. Returns whether a dir was removed.
+    @discardableResult
+    public static func reclaimStaleCloneDir(containerID: String, live: Set<String>) async -> Bool {
+        guard !live.contains(containerID) else { return false }
+        let dir = cloneRoot.appendingPathComponent(containerID, isDirectory: true)
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDirectory), isDirectory.boolValue
+        else { return false }
+        await removeClones(containerID: containerID)
+        return !FileManager.default.fileExists(atPath: dir.path)
     }
 
     /// Clone dirs younger than this are never swept as orphans: they may
@@ -230,6 +265,14 @@ public enum VolumeClone {
     }
 
     // MARK: - Shared CloneVolume / CommitVolumeClone preconditions
+
+    /// A volume cannot be cloned onto itself — `invalid_argument`, checked
+    /// before any lock is taken (the per-volume locks are not reentrant).
+    public static func requireDistinct(source: String, name: String) throws {
+        guard source != name else {
+            throw MicropodError.message("invalidArgument: name must differ from source '\(source)'")
+        }
+    }
 
     /// The volume must exist and have a backing image — `not_found` otherwise.
     public static func requireVolume(_ volume: Micropod_V1_Volume?, named name: String) throws -> Micropod_V1_Volume {

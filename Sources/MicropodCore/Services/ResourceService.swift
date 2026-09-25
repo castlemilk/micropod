@@ -81,29 +81,37 @@ public struct VolumeService: VolumeServing {
         }
     }
 
+    /// Under the source's and the new volume's locks (sorted acquisition,
+    /// as `prune` takes every volume's), so a concurrent `volume prune` or
+    /// `DeleteVolume` can remove neither the golden nor the half-made clone
+    /// volume between the checks and the clonefile.
     public func clone(source: String, name: String, size: String?, labels: [String]) async throws
         -> Micropod_V1_Volume
     {
-        // Absence is a plain "not in the list": the CLI's own inspect error
-        // text carries no code the Connect table could classify.
-        let golden = try VolumeClone.requireVolume(try await volume(named: source), named: source)
-        try VolumeClone.requireBackingImage(golden)
-        try VolumeClone.requireQuiescent(
-            golden, attachments: VolumeAttachments(entries: try await containers.entries()))
-        try await create(
-            name: name,
-            size: VolumeClone.cloneSize(requested: size, source: golden),
-            labels: VolumeClone.cloneLabels(labels, source: source),
-            options: [])
-        do {
-            let created = try VolumeClone.requireVolume(try await volume(named: name), named: name)
-            try VolumeClone.cloneImage(from: golden.source, to: created.source)
-            return VolumeClone.withAllocatedBytes(created)
-        } catch {
-            // Never leave a half-made volume behind (an empty image under the
-            // clone's name would masquerade as a cache miss forever).
-            try? await delete(name)
-            throw error
+        try VolumeClone.requireDistinct(source: source, name: name)
+        return try await VolumeLocks.shared.withLocks([source, name]) {
+            // Absence is a plain "not in the list": the CLI's own inspect error
+            // text carries no code the Connect table could classify.
+            let golden = try VolumeClone.requireVolume(try await volume(named: source), named: source)
+            try VolumeClone.requireBackingImage(golden)
+            try VolumeClone.requireQuiescent(
+                golden, attachments: VolumeAttachments(entries: try await containers.entries()))
+            try await create(
+                name: name,
+                size: VolumeClone.cloneSize(requested: size, source: golden),
+                labels: VolumeClone.cloneLabels(labels, source: source),
+                options: [])
+            do {
+                let created = try VolumeClone.requireVolume(try await volume(named: name), named: name)
+                try VolumeClone.cloneImage(from: golden.source, to: created.source)
+                return VolumeClone.withAllocatedBytes(created)
+            } catch {
+                // Never leave a half-made volume behind (an empty image under the
+                // clone's name would masquerade as a cache miss forever). The
+                // name's lock is held here, so this goes straight to the CLI.
+                _ = try? await client.run(ContainerCommandFactory.deleteVolume(name), timeout: .seconds(30))
+                throw error
+            }
         }
     }
 

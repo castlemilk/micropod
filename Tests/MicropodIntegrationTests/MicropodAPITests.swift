@@ -1027,12 +1027,19 @@ final class MicropodAPITests: XCTestCase {
                 body: ["image": "nginx:1.27", "name": "dup", "volumes": ["v:/y"]])
             XCTAssertNotEqual(status, 412, "\(method) replay refused as its own holder: \(body)")
             XCTAssertNotEqual(body["code"] as? String, "failed_precondition", "\(method): \(body)")
-            // The CLI's `Error: exists: "…"` line is the runtime's own
-            // duplicate-id refusal — `already_exists`, the answer a client
-            // adopting the container it already created relies on.
+            // The CLI's duplicate-id refusal is a bare `Error:` line (the
+            // mock prints the real texts: `container already exists: dup`
+            // for create, `container with id dup already exists` for run)
+            // — `already_exists`, the answer a client adopting the container
+            // it already created relies on.
             XCTAssertEqual(status, 409, "\(method) replay: \(body)")
             XCTAssertEqual(body["code"] as? String, "already_exists", "\(method): \(body)")
-            XCTAssertTrue((body["message"] as? String ?? "").contains("dup"), "\(method): \(body)")
+            let message = body["message"] as? String ?? ""
+            XCTAssertTrue(
+                message.contains(
+                    method == "CreateContainer"
+                        ? "Error: container already exists: dup" : "Error: container with id dup already exists"),
+                "\(method): \(body)")
             // The guard stood aside: the CLI was asked, and it is the CLI's
             // duplicate-name answer that comes back.
             XCTAssertTrue(

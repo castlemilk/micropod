@@ -49,15 +49,15 @@ final class ConnectCodeMappingTests: XCTestCase {
         XCTAssertEqual(code(ordinary), "not_found", "unrelated CLI failures are not transport errors")
     }
 
-    /// The `container` CLI renders a runtime error as `Error: <code>: "<detail>"`
-    /// (ArgumentParser's wrapper around `ContainerizationError`'s description),
-    /// so the code is read from that line through the same prefix table the
-    /// native backend uses — `exists` is the runtime's own duplicate-id code.
-    /// A failure with no such line, or an unknown code, stays `internal`.
+    /// A `container` CLI failure classifies from the first `Error:` line of
+    /// its stderr. `Error: <code>: "<detail>"` reads through the same prefix
+    /// table the native backend uses; a failure with no such line, or an
+    /// unknown code, stays `internal`.
     func testCLIFailureStderrClassifiesThroughThePrefixTable() {
         func cli(_ stderr: String, command: String = "container create") -> MicropodError {
             .cliFailure(command: command, exitCode: 1, stderr: stderr)
         }
+        // The XPC-style spelling of the runtime's duplicate-id code.
         XCTAssertEqual(code(cli("Error: exists: \"container with id dup already exists\"\n")), "already_exists")
         XCTAssertEqual(code(cli("Error: alreadyExists: \"container with ID dup already exists\"\n")), "already_exists")
         XCTAssertEqual(code(cli("Error: notFound: \"container with ID web not found\"\n")), "not_found")
@@ -77,8 +77,99 @@ final class ConnectCodeMappingTests: XCTestCase {
         XCTAssertEqual(code(cli("", command: "container exec")), "internal")
         // The message keeps its wrapper: only the code is read from stderr.
         XCTAssertEqual(
-            cli("Error: exists: \"container with id dup already exists\"\n").localizedDescription,
-            "`container create` failed (exit 1): Error: exists: \"container with id dup already exists\"")
+            cli("Error: container already exists: dup\n").localizedDescription,
+            "`container create` failed (exit 1): Error: container already exists: dup")
+    }
+
+    /// The real CLI (`container` 1.3.1) prints its duplicate-id refusals as
+    /// bare messages — `ContainerizationError.errorDescription` drops the
+    /// code — so those phrases classify as `already_exists` on their own:
+    /// `container create` says `container already exists: <id>`, `container
+    /// run` says `container with id <id> already exists`. This is the answer
+    /// a client adopting the container it already created relies on.
+    func testCLIDuplicateIDPhrasesAreAlreadyExists() {
+        XCTAssertEqual(
+            code(
+                .cliFailure(
+                    command: "container create --name dup nginx:1.27", exitCode: 1,
+                    stderr: "Error: container already exists: dup\n")),
+            "already_exists")
+        XCTAssertEqual(
+            code(
+                .cliFailure(
+                    command: "container run --detach --name dup nginx:1.27", exitCode: 1,
+                    stderr: "Error: container with id dup already exists\n")),
+            "already_exists")
+        // Any resource's "already exists" is the same refusal; the phrase
+        // elsewhere than the `Error:` line is not read.
+        XCTAssertEqual(
+            code(
+                .cliFailure(
+                    command: "container volume create v", exitCode: 1, stderr: "Error: volume v already exists\n")),
+            "already_exists")
+        XCTAssertEqual(
+            code(
+                .cliFailure(
+                    command: "container create --name dup nginx:1.27", exitCode: 1,
+                    stderr: "note: container already exists: dup\nError: something else\n")),
+            "internal")
+    }
+
+    /// Some verbs wrap the runtime's answer: `container delete <missing>`
+    /// prints `Error: internalError: "failed to delete container" (cause:
+    /// "notFound: "container with ID x not found"")`. The code is read from
+    /// the cause — and only for `internalError`, whose own code says
+    /// nothing; nested causes are read through to the first classifiable one.
+    func testCLIInternalErrorClassifiesFromItsCause() {
+        let deleteMissing = MicropodError.cliFailure(
+            command: "container delete mpc-1", exitCode: 1,
+            stderr:
+                "Error: internalError: \"failed to delete container\" "
+                + "(cause: \"notFound: \"container with ID mpc-1 not found\"\")\n")
+        XCTAssertEqual(code(deleteMissing), "not_found")
+        XCTAssertEqual(
+            code(
+                .cliFailure(
+                    command: "container start mpc-1", exitCode: 1,
+                    stderr:
+                        "Error: internalError: \"failed to start\" (cause: \"internalError: \"vm\" "
+                        + "(cause: \"failedPrecondition: \"volume held\"\")\")\n")),
+            "failed_precondition")
+        XCTAssertEqual(
+            code(
+                .cliFailure(
+                    command: "container delete mpc-1", exitCode: 1,
+                    stderr: "Error: internalError: \"failed to delete container\" (cause: \"boom\")\n")),
+            "internal")
+        XCTAssertEqual(
+            code(.cliFailure(command: "container delete mpc-1", exitCode: 1, stderr: "Error: internalError: \"x\"\n")),
+            "internal")
+        // A classifiable outer code is not overridden by its cause.
+        XCTAssertEqual(
+            code(
+                .cliFailure(
+                    command: "container stop mpc-1", exitCode: 1,
+                    stderr: "Error: invalidState: \"not running\" (cause: \"notFound: \"x\"\")\n")),
+            "internal")
+    }
+
+    /// `container exec` relays the guest process's stderr, which may carry
+    /// an `Error:` line of its own: an exec failure is never classified from
+    /// it. (`execDetailed` reports the exit code and text instead.)
+    func testExecFailuresAreNeverClassifiedFromStderr() {
+        XCTAssertEqual(
+            code(
+                .cliFailure(
+                    command: "container exec web sh -c 'exit 3'", exitCode: 3,
+                    stderr: "Error: notFound: \"config.yaml\"\n")),
+            "internal")
+        XCTAssertEqual(
+            code(.cliFailure(command: "container exec web true", exitCode: 1, stderr: "Error: web already exists\n")),
+            "internal")
+        XCTAssertTrue(ConnectCodeMapping.isExecCommand("container exec web true"))
+        XCTAssertTrue(ConnectCodeMapping.isExecCommand("container exec --detach web true"))
+        XCTAssertFalse(ConnectCodeMapping.isExecCommand("container create --name exec nginx:1.27"))
+        XCTAssertFalse(ConnectCodeMapping.isExecCommand("exec web"))
     }
 
     func testIndicatesRuntimeDownMatchesCLISignaturesOnly() {

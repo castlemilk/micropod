@@ -137,7 +137,7 @@ table used by the Connect mount:
 | stalled image pull | `aborted` |
 | operation with no implementation on this backend | `unimplemented` |
 | upstream `notFound:` / `invalidArgument:` / `exists:` (`alreadyExists:`) / `failedPrecondition:` … prefixes | the matching snake_case code |
-| a `container` CLI failure whose stderr has an `Error: <code>: "…"` line (ArgumentParser's wrapper around the runtime's `ContainerizationError`) | the same prefix table, read from that line — `Error: exists: "container with id x already exists"` is `already_exists`; the error message keeps its "`cmd` failed (exit N): …" wrapper |
+| a `container` CLI failure, from the first `Error:` line of its stderr (verified against `container` 1.3.1) | `Error: <code>: "…"` reads through the same prefix table; `Error: internalError: "…" (cause: "<code>: …")` reads the cause (`container delete <missing>` prints `internalError: "failed to delete container" (cause: "notFound: "container with ID x not found"")` → `not_found`); the CLI's bare duplicate-id lines — `container create`: `Error: container already exists: x`, `container run`: `Error: container with id x already exists` — are `already_exists`. The error message keeps its "`cmd` failed (exit N): …" wrapper. `container exec` failures are never classified from stderr (it is the guest's; `execDetailed` reports exit code and text instead) |
 | anything else | `internal` |
 
 The REST facade answers `503` for transport errors. Clients should treat
@@ -231,15 +231,32 @@ exit-code waiter + `containerStartProcess(id, id)`; `start` does the same
 for a created container. A failed bootstrap/start force-deletes the
 container, matching the CLI.
 
-A create that fails `already_exists` never removes clone images: the
-clone directory is keyed by container id, so it belongs to the container
-that already won the name, and a replayed create must not destroy its
-clones. The clone itself is placed with `renamex_np(RENAME_EXCL)`: the
-duplicate-id list check is a snapshot, so a replay that lost the race can
-reach the clone step after the winner placed — and started writing — its
-image; the placement then fails `already_exists` instead of renaming a
-pristine image over the winner's live block device (`CloneVolume`, whose
+A failed create removes exactly the clone images it placed, whatever the
+failure: the clone directory is keyed by container id, so any other image
+under it belongs to the create that won the name (a replay of the same
+request, possibly already running on that image), and a replayed create
+must not destroy the winner's clones. Each clone is placed with
+`renamex_np(RENAME_EXCL)` under its volume's lock: the duplicate-id list
+check is a snapshot, so a replay that lost the race can reach the clone
+step after the winner placed — and started writing — its image; the
+placement then fails `already_exists` instead of renaming a pristine
+image over the winner's live block device, and a create that fails on its
+second volume unlinks only the first one it placed (`CloneVolume`, whose
 destination is the empty image the runtime just made, still replaces).
+The lock is the one `DeleteVolume` and `volume prune` hold, so the golden
+cannot be removed between the inspect and the clonefile.
+
+A create that dies with its process (not one that fails — that cleans up)
+leaves a clone dir with no container behind it. One create per id per
+process is the *sole placer* (`InFlightCreates`); finding no container of
+its id in the list, it reclaims such a dir whatever its age, so the retry
+is not refused `already_exists` for a container that never was (the
+Cuttlefish adopt path would then hit `not_found`). A concurrent create of
+the same id in the process is not the sole placer and is left to
+exclusive placement. Residual: a create of the same id in flight in
+*another* process on the same clone root is indistinguishable from a dead
+one and its dir would be reclaimed — the orphan grace (below) no longer
+covers that case for the sole placer.
 
 Verified flag-for-flag against `container inspect` on CLI-created
 containers (`NativeCreateIntegrationTests/testCLIvsNativeConfigParity`):
@@ -301,10 +318,19 @@ Clone lifecycle hardening:
   whose container no longer exists (raw `container delete`, crashed
   runtime). Dirs younger than 60s are skipped so an in-flight create's
   dir can't be swept by a concurrent create before `containerCreate`
-  registers it. `MICROPOD_VOLUME_CLONE_ROOT` overrides the clone root.
+  registers it — except the dir of the sweeping create's own id when it
+  is that id's sole placer in the process (above).
+  `MICROPOD_VOLUME_CLONE_ROOT` overrides the clone root.
 - **Volume prune under the locks** — `volume prune` runs holding every
   volume's lock (sorted acquisition), so it never removes a golden's
-  directory between a commit's checks and its rename.
+  directory between a commit's checks and its rename. `CloneVolume`
+  holds the source's and the new name's locks (sorted) and a cloning
+  create holds each golden's lock across inspect + clonefile, so a prune
+  can take away neither a golden nor a half-made clone volume under
+  them. What no lock changes: goldens attached only through clone mounts
+  look *unattached* to `container volume prune`, so an operator prune
+  removes every cache golden — retire goldens with `DeleteVolume`, not
+  with prune.
 - **Golden in use** — if a running (or still stopping) container has a
   golden attached read-write, a clone *mount* at create proceeds but logs
   a warning to stderr: the clone is crash-consistent (journal replay on
@@ -642,8 +668,9 @@ Regenerate after proto edits; never hand-edit generated files.
   signal, state-check backoff, `stopping` still followed),
   `RuntimeHolderTests` (rate limit, CLI → native swap then no re-resolve,
   `force`, shared in-flight resolution, invalidated native re-resolved),
-  `NativeCreateGuardsTests` (`no_pull` names image and platform,
-  `already_exists` keeps the winner's clones) and `StatsSamplingIDsTests`;
+  `NativeCreateGuardsTests` (`no_pull` names image and platform, a failed
+  create removes only the clones it placed, placement waits for the
+  volume lock, one sole placer per id) and `StatsSamplingIDsTests`;
   in `MicropodCoreTests`, `ConnectCodeMappingTests` (transport and
   runtime-down → `unavailable`), `SystemStatusStoppedTests` and
   `VolumeCloneTests` (clonefile, atomic commit, staging sweep, per-volume
