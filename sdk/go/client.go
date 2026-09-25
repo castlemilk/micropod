@@ -15,6 +15,14 @@
 // promoted method — client.ListContainers, client.ComposeUp, etc. Use the
 // generated per-service clients directly (micropodv1connect.New*Client)
 // when you only need one domain.
+//
+// Order matters: pass WithTimeout before WithRetry so each retry shares one
+// deadline (connect-go applies the first interceptor outermost). Reversed,
+// every attempt gets a fresh deadline and a call can run MaxAttempts times
+// longer than the configured timeout.
+//
+// The Swift MicropodAPI server speaks proto-JSON only; pass
+// WithConnectOptions(connect.WithProtoJSON()) when talking to it.
 package micropod
 
 import (
@@ -40,6 +48,7 @@ type Client struct {
 type config struct {
 	httpClient   *http.Client
 	interceptors []connect.Interceptor
+	connectOpts  []connect.ClientOption
 }
 
 // Option customizes the SDK client.
@@ -56,17 +65,30 @@ func WithInterceptors(interceptors ...connect.Interceptor) Option {
 	return func(c *config) { c.interceptors = append(c.interceptors, interceptors...) }
 }
 
+// WithConnectOptions forwards connect.ClientOptions (e.g.
+// connect.WithProtoJSON(), connect.WithGRPC(), connect.WithSendGzip()) to
+// every generated per-service client. They are applied after the SDK's own
+// interceptor chain, so a connect.WithInterceptors passed here runs inside it.
+func WithConnectOptions(opts ...connect.ClientOption) Option {
+	return func(c *config) { c.connectOpts = append(c.connectOpts, opts...) }
+}
+
 // WithRetry enables unary retry with the given policy (see RetryPolicy).
 // Retries apply only to unary calls on transient codes — server streams
-// (StreamContainerLogs) are never retried mid-flight.
+// (StreamContainerLogs) are never retried mid-flight. Set
+// RetryPolicy.Idempotent to restrict replay to procedures that are safe to
+// repeat; the server cannot observe a client giving up, so a timed-out
+// CreateContainer still completes server-side and a replay collides with it.
 func WithRetry(policy RetryPolicy) Option {
 	return func(c *config) {
 		c.interceptors = append(c.interceptors, retryInterceptor{policy: policy})
 	}
 }
 
-// WithTimeout applies a default per-call deadline when the caller's
-// context carries none (or a later one).
+// WithTimeout applies a default per-call deadline to unary calls when the
+// caller's context carries none (or a later one). Server streams are not
+// bounded by it — a log follow has no sane default — so bound them with the
+// caller's own context.
 func WithTimeout(d time.Duration) Option {
 	return func(c *config) {
 		c.interceptors = append(c.interceptors, timeoutInterceptor{timeout: d})
@@ -83,19 +105,22 @@ func WithOTel(opts ...OTelOption) Option {
 }
 
 // NewClient builds a client for all micropod.v1 services against baseURL
-// (e.g. http://localhost:45454) speaking Connect JSON over HTTP.
+// (e.g. http://localhost:45454 for the Go apiserver, http://localhost:45454/api
+// for the Swift MicropodAPI) speaking the Connect protocol over HTTP. The
+// wire encoding is connect-go's default (binary proto) unless overridden via
+// WithConnectOptions(connect.WithProtoJSON()).
 func NewClient(baseURL string, opts ...Option) *Client {
 	cfg := &config{httpClient: http.DefaultClient}
 	for _, o := range opts {
 		o(cfg)
 	}
-	shared := connect.WithInterceptors(cfg.interceptors...)
+	clientOpts := append([]connect.ClientOption{connect.WithInterceptors(cfg.interceptors...)}, cfg.connectOpts...)
 	return &Client{
-		ContainerServiceClient: micropodv1connect.NewContainerServiceClient(cfg.httpClient, baseURL, shared),
-		ImageServiceClient:     micropodv1connect.NewImageServiceClient(cfg.httpClient, baseURL, shared),
-		VolumeServiceClient:    micropodv1connect.NewVolumeServiceClient(cfg.httpClient, baseURL, shared),
-		NetworkServiceClient:   micropodv1connect.NewNetworkServiceClient(cfg.httpClient, baseURL, shared),
-		ComposeServiceClient:   micropodv1connect.NewComposeServiceClient(cfg.httpClient, baseURL, shared),
-		SystemServiceClient:    micropodv1connect.NewSystemServiceClient(cfg.httpClient, baseURL, shared),
+		ContainerServiceClient: micropodv1connect.NewContainerServiceClient(cfg.httpClient, baseURL, clientOpts...),
+		ImageServiceClient:     micropodv1connect.NewImageServiceClient(cfg.httpClient, baseURL, clientOpts...),
+		VolumeServiceClient:    micropodv1connect.NewVolumeServiceClient(cfg.httpClient, baseURL, clientOpts...),
+		NetworkServiceClient:   micropodv1connect.NewNetworkServiceClient(cfg.httpClient, baseURL, clientOpts...),
+		ComposeServiceClient:   micropodv1connect.NewComposeServiceClient(cfg.httpClient, baseURL, clientOpts...),
+		SystemServiceClient:    micropodv1connect.NewSystemServiceClient(cfg.httpClient, baseURL, clientOpts...),
 	}
 }
