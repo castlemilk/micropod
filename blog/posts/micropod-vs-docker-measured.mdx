@@ -3,6 +3,7 @@ title: "Micropod vs Docker Desktop, measured on the same Mac"
 date: 2026-09-25
 reading: 7 min read
 tags: [benchmarks, docker, performance]
+image: assets/thumb-vs-docker.jpg
 description: "Both engines warm, same machine, p50 over 30 runs: the API is up to 512x faster and idle memory is 7.4x lower — and the honest losses are VM boot time and parallel starts."
 standfirst: "We benchmarked Micropod's Docker Engine shim against Docker Desktop on the same Apple-silicon Mac, both engines warm, alpine:3.20 pre-pulled on both sides. API numbers are p50 over n=30; lifecycle over n=10. The result is not a uniform win, and we'd rather show the losses than hide them: Micropod's API surface is dramatically faster and it idles at a seventh of the memory, but a per-container micro-VM means a real kernel boot on every start — and that's a gap Docker's shared-VM model doesn't have."
 ---

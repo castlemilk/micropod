@@ -60,6 +60,12 @@ const template = readFileSync(join(HERE, "template.html"), "utf8");
 
 function render(meta, bodyHtml, slug) {
   const tags = (meta.tags ?? []).map((t) => `<span class="tag">${esc(t)}</span>`).join("");
+  const imageMeta = meta.image
+    ? `\n  <meta property="og:image" content="https://castlemilk.github.io${BASE}/${esc(meta.image)}" />\n  <meta name="twitter:card" content="summary_large_image" />`
+    : "";
+  const hero = meta.image
+    ? `<div class="post-hero"><img src="${BASE}/${esc(meta.image)}" alt="${esc(meta.title)}" /></div>`
+    : "";
   return template
     .replaceAll("{{TITLE}}", esc(meta.title))
     .replaceAll("{{DESCRIPTION}}", esc(meta.description))
@@ -68,7 +74,8 @@ function render(meta, bodyHtml, slug) {
     .replaceAll("{{READING}}", esc(meta.reading ?? ""))
     .replaceAll("{{TAGS}}", tags)
     .replaceAll("{{STANDFIRST}}", esc(meta.standfirst))
-    .replaceAll("{{GRAPH_CSS}}", "")
+    .replaceAll("{{IMAGE_META}}", imageMeta)
+    .replaceAll("{{HERO}}", hero)
     .replaceAll("{{BODY}}", bodyHtml);
 }
 
@@ -96,6 +103,15 @@ async function buildPost(file) {
 
 rmSync(OUT_DIR, { recursive: true, force: true });
 mkdirSync(OUT_DIR, { recursive: true });
+// Static assets (generated thumbnails etc.) live in blog/assets — OUT_DIR is
+// wiped each build, so copy them through every time.
+const ASSETS_SRC = join(ROOT, "blog/assets");
+try {
+  mkdirSync(join(OUT_DIR, "assets"), { recursive: true });
+  for (const f of readdirSync(ASSETS_SRC)) {
+    writeFileSync(join(OUT_DIR, "assets", f), readFileSync(join(ASSETS_SRC, f)));
+  }
+} catch {}
 const files = readdirSync(POSTS_DIR).filter((f) => f.endsWith(".mdx"));
 const posts = [];
 for (const f of files) posts.push(await buildPost(f));
@@ -105,10 +121,13 @@ posts.sort((a, b) => (a.date < b.date ? 1 : -1));
 const cards = posts
   .map(
     (p) => `        <a class="post-card" href="${BASE}/${p.slug}/">
-          <p class="post-date">${esc(p.date)}</p>
-          <h2>${esc(p.title)}</h2>
-          <p>${esc(p.standfirst)}</p>
-          <div class="post-tags">${(p.tags ?? []).map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
+          ${p.image ? `<div class="post-card-thumb"><img src="${BASE}/${esc(p.image)}" alt="" /></div>` : ""}
+          <div>
+            <p class="post-date">${esc(p.date)}</p>
+            <h2>${esc(p.title)}</h2>
+            <p>${esc(p.standfirst)}</p>
+            <div class="post-tags">${(p.tags ?? []).map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
+          </div>
         </a>`,
   )
   .join("\n");
@@ -122,7 +141,8 @@ writeFileSync(
     .replaceAll("{{READING}}", "")
     .replaceAll("{{TAGS}}", "")
     .replaceAll("{{STANDFIRST}}", "")
-    .replaceAll("{{GRAPH_CSS}}", "")
+    .replaceAll("{{IMAGE_META}}", "")
+    .replaceAll("{{HERO}}", "")
     .replaceAll(
       "{{BODY}}",
       `<div class="post-list">\n${cards}\n      </div>`,
