@@ -127,6 +127,20 @@ final class NativeLogStreamerTests: XCTestCase {
         XCTAssertEqual(result.lines, ["b", "c"])
     }
 
+    /// Review focus: `stopping` is still live. The runtime enters it before
+    /// the graceful stop waits for the process, so ending the stream there
+    /// would drop the shutdown output of a cancelled container.
+    func testIsLiveTreatsRunningAndStoppingAsLive() {
+        XCTAssertTrue(NativeLogStreamer.isLive(state: "running"))
+        XCTAssertTrue(
+            NativeLogStreamer.isLive(state: "stopping"),
+            "the process may still be writing while the runtime stops it")
+        XCTAssertFalse(NativeLogStreamer.isLive(state: "stopped"))
+        XCTAssertFalse(NativeLogStreamer.isLive(state: "created"))
+        XCTAssertFalse(NativeLogStreamer.isLive(state: "unknown"))
+        XCTAssertFalse(NativeLogStreamer.isLive(state: ""))
+    }
+
     func testStateCheckScheduleBacksOffAndResetsOnBytes() {
         let start = ContinuousClock.now
         var schedule = NativeLogStreamer.StateCheckSchedule(now: start)
@@ -157,7 +171,7 @@ final class NativeLogStreamerTests: XCTestCase {
         let url = logURL!
         return NativeLogStreamer(
             sourceProvider: { _, _ in [try FileHandle(forReadingFrom: url)] },
-            isRunning: { _ in await probe.isRunning() },
+            isLive: { _ in await probe.isLive() },
             exitCodes: exitCodes)
     }
 
@@ -207,7 +221,7 @@ private actor StateProbe {
         self.beforeStop = beforeStop
     }
 
-    func isRunning() -> Bool {
+    func isLive() -> Bool {
         calls += 1
         if calls <= runningCalls { return true }
         beforeStop?()

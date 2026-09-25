@@ -10,10 +10,12 @@ import MicropodCore
 /// tracks file offsets and drains new bytes on 80 ms ticks, finishing once
 /// the container has stopped — matching `container logs -f` behavior:
 ///
-/// - **Stop signal.** A recorded exit code in the ``ExitCodeRegistry`` ends
-///   the stream without asking the runtime. Otherwise the runtime state is
-///   checked right after the backlog, then 250 ms after the latest bytes,
-///   backing off ×2 to 1 s while the stream stays quiet.
+/// - **Stop signal.** A recorded exit code in the ``ExitCodeRegistry``, or a
+///   runtime state that is no longer `running` or `stopping` (see
+///   ``isLive(state:)``). The registry is consulted on every quiet tick
+///   without asking the runtime; the state is checked right after the
+///   backlog, then 250 ms after the latest bytes, backing off ×2 to 1 s
+///   while the stream stays quiet.
 /// - **Final drain.** After the stop signal the sources are drained once
 ///   more before the final emit, so bytes written between the last tick and
 ///   the stop are delivered. Containerization reports an exit only after the
@@ -28,7 +30,7 @@ public struct NativeLogStreamer: LogStreaming {
     private static let drainTick: Duration = .milliseconds(80)
 
     private let sourceProvider: @Sendable (String, Bool) async throws -> [FileHandle]
-    private let isRunning: @Sendable (String) async -> Bool
+    private let isLive: @Sendable (String) async -> Bool
     private let exitCodes: ExitCodeRegistry?
 
     /// A log fd plus the read cursor, reopened once per stream.
@@ -66,27 +68,35 @@ public struct NativeLogStreamer: LogStreaming {
                 }
                 return [handles[index]]
             },
-            isRunning: { id in
+            isLive: { id in
                 guard let managed = try? await api.managed(id: id),
                     case .object(let obj) = managed,
                     case .object(let status) = obj["status"],
                     case .string(let state) = status["state"]
                 else { return false }
-                return state == "running"
+                return Self.isLive(state: state)
             },
             exitCodes: exitCodes)
     }
 
-    /// Test seam: sources + running-state provider instead of XPC.
-    /// `sourceProvider(id, boot)` returns the log files to follow.
+    /// Test seam: sources + liveness provider instead of XPC.
+    /// `sourceProvider(id, boot)` returns the log files to follow;
+    /// `isLive(id)` answers whether the container may still write to them.
     init(
         sourceProvider: @escaping @Sendable (String, Bool) async throws -> [FileHandle],
-        isRunning: @escaping @Sendable (String) async -> Bool,
+        isLive: @escaping @Sendable (String) async -> Bool,
         exitCodes: ExitCodeRegistry? = nil
     ) {
         self.sourceProvider = sourceProvider
-        self.isRunning = isRunning
+        self.isLive = isLive
         self.exitCodes = exitCodes
+    }
+
+    /// Whether a container in runtime `state` may still write output.
+    /// `stopping` counts: the runtime enters it before the graceful stop
+    /// waits for the process, which can keep writing until it exits.
+    static func isLive(state: String) -> Bool {
+        state == "running" || state == "stopping"
     }
 
     public func tail(id: String, lines: Int = 100, boot: Bool = false) async throws -> [LogLine] {
@@ -125,7 +135,7 @@ public struct NativeLogStreamer: LogStreaming {
                         }
                         if await self.exitRecorded(id: id) { break }
                         guard schedule.isDue(at: clock.now) else { continue }
-                        if await !self.isRunning(id) { break }
+                        if await !self.isLive(id) { break }
                         schedule.stillRunning(at: clock.now)
                     }
 
@@ -161,7 +171,7 @@ public struct NativeLogStreamer: LogStreaming {
     }
 
     /// When the follow loop next asks the runtime whether the container is
-    /// still running: at once after the backlog, then 250 ms after the
+    /// still live: at once after the backlog, then 250 ms after the
     /// latest bytes, doubling up to 1 s while the stream stays quiet.
     struct StateCheckSchedule {
         static let initialInterval: Duration = .milliseconds(250)
@@ -179,7 +189,7 @@ public struct NativeLogStreamer: LogStreaming {
             now >= due
         }
 
-        /// The runtime answered "running": wait longer before asking again.
+        /// The container is still live: wait longer before asking again.
         mutating func stillRunning(at now: ContinuousClock.Instant) {
             scheduleNext(after: now)
         }
