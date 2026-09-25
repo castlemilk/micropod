@@ -17,8 +17,11 @@ struct APIHandlers {
     /// Native apiserver client when the native backend is active —
     /// powers the vsock bridge endpoint.
     let api: APIServerClient?
-    /// Which runtime backend resolved at startup (native XPC vs CLI).
-    var backend: RuntimeBackendKind = .cli
+    /// Which runtime backend is driving the API (native XPC vs CLI).
+    /// Reported live as `runtime_backend` on `Ping`, `GetSystem` and
+    /// `GET /v1/system` so clients can tell "running through the CLI" from
+    /// "running natively" — and refuse to benchmark against the former.
+    var runtimeBackend: RuntimeBackendKind = .cli
     /// Apiserver identity from the resolve-time ping, when known.
     var runtimeHealth: APIServerHealth?
     let metrics = APIMetrics()
@@ -147,15 +150,21 @@ struct APIHandlers {
 
             case ("system", .get):
                 let status = try await system.status()
-                let usage = try await system.diskUsage()
                 var body: [String: Any] = [
                     "status": status.status,
                     "cliVersion": status.cliVersion,
                     "apiServerVersion": status.apiServerVersion,
                     "appRoot": status.appRoot,
-                    "backend": backend.rawValue,
-                    "diskUsage": projection(usage),
+                    // `backend` is the pre-Connect key; `runtimeBackend`
+                    // matches the proto field name.
+                    "backend": runtimeBackend.rawValue,
+                    "runtimeBackend": runtimeBackend.rawValue,
                 ]
+                // A stopped runtime has no `df` to report — and asking would
+                // turn a clean "stopped" into a CLI failure.
+                if status.status != "stopped" {
+                    body["diskUsage"] = projection(try await system.diskUsage())
+                }
                 if let runtimeHealth {
                     body["runtimeVersion"] = runtimeHealth.semver ?? runtimeHealth.apiServerVersion
                     body["runtimeCommit"] = runtimeHealth.apiServerCommit

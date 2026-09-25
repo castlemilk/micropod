@@ -53,17 +53,54 @@ public struct SystemService: SystemServing {
         self.client = client
     }
 
+    /// A stopped runtime is a *status* (`status == "stopped"`), never an
+    /// error: `container system status` exits 1 when the apiserver is down,
+    /// and callers (health ticks, `Ping`, `GetSystem`) must be able to tell
+    /// "runtime stopped" from "CLI broken" without parsing exceptions.
     public func status() async throws -> Micropod_V1_SystemStatus {
         // Independent CLIs — fetch concurrently (the version is cached after
         // the first call, so steady-state this is a single round-trip).
-        async let statusOutput = client.run(
-            ContainerCommandFactory.systemStatus(), timeout: .seconds(15))
         async let version = cliVersion()
-        let (output, cli) = try await (statusOutput, version)
+        let output: String
+        do {
+            output = try await client.run(
+                ContainerCommandFactory.systemStatus(), timeout: .seconds(15))
+        } catch let error as MicropodError where Self.isStoppedRuntime(error) {
+            // `system version` is a local call — it still answers while the
+            // daemon is down, so the CLI version stays known offline.
+            let cli = (try? await version) ?? ""
+            return Micropod_V1_SystemStatus.with {
+                $0.status = "stopped"
+                $0.cliVersion = cli
+            }
+        }
+        let cli = try await version
         let response = try MicropodJSON.decode(
             SystemStatusResponse.self, from: Data(output.utf8), context: "system status")
-        return ModelMapper.systemStatus(from: response, cliVersion: cli)
+        var status = ModelMapper.systemStatus(from: response, cliVersion: cli)
+        if Self.stoppedStatusValues.contains(status.status) {
+            status.status = "stopped"
+        }
+        return status
     }
+
+    /// `container system status --format json` renders
+    /// `{"status":"unregistered"}` / `{"status":"not running"}` on **stdout**
+    /// and exits 1 with an empty stderr when the apiserver is down (table mode
+    /// prints "apiserver is not running and not registered with launchd").
+    /// Either shape — a known runtime-down phrase, or exit 1 with nothing on
+    /// stderr — is a stopped runtime. Every other failure (usage errors exit
+    /// 64 and print to stderr, a missing binary is `cliUnavailable`) still
+    /// throws.
+    static func isStoppedRuntime(_ error: MicropodError) -> Bool {
+        guard case .cliFailure(_, let exitCode, let stderr) = error else { return false }
+        if ConnectCodeMapping.indicatesRuntimeDown(stderr) { return true }
+        return exitCode == 1 && stderr.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// The CLI's own words for a down apiserver, normalised to "stopped" so
+    /// consumers compare against one value.
+    static let stoppedStatusValues: Set<String> = ["unregistered", "not running"]
 
     public func cliVersion() async throws -> String {
         if let cached = versionCache.get() { return cached }

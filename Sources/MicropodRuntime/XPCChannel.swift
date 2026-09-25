@@ -1,5 +1,6 @@
 import Foundation
 import MicropodCore
+import os
 
 /// Minimal XPC client for `com.apple.container.apiserver`.
 ///
@@ -165,6 +166,14 @@ extension XPCMessage {
 
 /// A persistent XPC connection to a launchd-registered mach service.
 /// Requests are `send`-and-reply; each call is one XPC round trip.
+///
+/// Transport failures surface as `MicropodError.transport` (Connect
+/// `unavailable`): an interrupted connection (peer died mid-call) is
+/// reported per call and re-establishes on the next send, as XPC does for
+/// launchd services; an *invalidated* connection (service unregistered —
+/// `container system stop`) never recovers, so the event handler latches it
+/// and every later `send` fails fast instead of queueing behind a dead
+/// mach port until the response timeout.
 public final class XPCConnection: Sendable {
     /// Service-registration timeout. Once apiserver is running, replies are
     /// milliseconds; launchd activation of a cold service can take seconds.
@@ -172,12 +181,27 @@ public final class XPCConnection: Sendable {
 
     private nonisolated(unsafe) let connection: xpc_connection_t
     private let service: String
+    private let invalidated = OSAllocatedUnfairLock(initialState: false)
+
+    /// True once XPC reported `XPC_ERROR_CONNECTION_INVALID`; the owner
+    /// should drop this connection and resolve the backend again.
+    public var isInvalidated: Bool {
+        invalidated.withLock { $0 }
+    }
 
     public init(service: String, queue: DispatchQueue? = nil) {
         self.service = service
         let connection = xpc_connection_create_mach_service(service, queue, 0)
         self.connection = connection
-        xpc_connection_set_event_handler(connection) { _ in }
+        // Only error events arrive here (the apiserver never sends
+        // unsolicited messages). Interrupted is transient — XPC reconnects on
+        // the next send — so only a permanent invalidation is latched.
+        let invalidated = self.invalidated
+        xpc_connection_set_event_handler(connection) { event in
+            if event === XPC_ERROR_CONNECTION_INVALID {
+                invalidated.withLock { $0 = true }
+            }
+        }
         xpc_connection_set_target_queue(connection, queue)
         xpc_connection_activate(connection)
     }
@@ -191,7 +215,10 @@ public final class XPCConnection: Sendable {
     /// not cancellable, so a timed-out send may still complete server-side.
     @discardableResult
     public func send(_ message: XPCMessage, responseTimeout: Duration? = nil) async throws -> XPCMessage {
-        try await withThrowingTaskGroup(of: XPCMessage.self, returning: XPCMessage.self) { group in
+        if isInvalidated {
+            throw MicropodError.transport("\(service): connection invalidated")
+        }
+        return try await withThrowingTaskGroup(of: XPCMessage.self, returning: XPCMessage.self) { group in
             if let responseTimeout {
                 group.addTask {
                     try await Task.sleep(for: responseTimeout)
@@ -214,17 +241,24 @@ public final class XPCConnection: Sendable {
             group.cancelAll()
             try? await group.waitForAll()
             guard let response else {
-                throw MicropodError.message("no XPC response from \(self.service)")
+                throw MicropodError.transport("\(self.service): no XPC response")
             }
             return response
         }
     }
 
+    /// Error-type replies are the transport speaking (`Connection
+    /// interrupted`, `Connection invalid`), not the service — the request
+    /// never ran, so they are `.transport`. Service-level failures ride in the
+    /// error key of an ordinary reply and keep their "code: message" form.
     private func parseReply(_ reply: xpc_object_t) throws -> XPCMessage {
         let message = XPCMessage(object: reply)
         if message.isErrorType {
+            if reply === XPC_ERROR_CONNECTION_INVALID {
+                invalidated.withLock { $0 = true }
+            }
             let description = message.errorKeyDescription() ?? "unknown"
-            throw MicropodError.message("XPC transport error from \(service): \(description)")
+            throw MicropodError.transport("\(service): \(description)")
         }
         try message.error()
         return message

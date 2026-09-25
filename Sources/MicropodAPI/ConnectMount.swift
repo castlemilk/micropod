@@ -25,9 +25,18 @@ extension APIHandlers {
             switch method {
             case "GetSystem":
                 var snapshot = Micropod_V1_SystemSnapshot()
-                snapshot.status = try await system.status()
-                snapshot.diskUsage = try await system.diskUsage()
+                var status = try await system.status()
+                status.runtimeBackend = runtimeBackend.rawValue
+                snapshot.status = status
+                // A stopped runtime is a status, not an error — and it has no
+                // `df` to report (asking would fail the whole call).
+                if status.status != "stopped" {
+                    snapshot.diskUsage = try await system.diskUsage()
+                }
                 return unary(snapshot)
+
+            case "Ping":
+                return unary(await ping())
 
             case "ListContainers":
                 var resp = Micropod_V1_ListContainersResponse()
@@ -243,44 +252,51 @@ extension APIHandlers {
             default:
                 return connectError(.unavailable, error.localizedDescription)
             }
-        } catch let error as MicropodError {
-            return connectError(codeFor(error), error.localizedDescription)
         } catch {
-            // Upstream runtime errors arrive preformatted as "code: detail"
-            // (e.g. "notFound: container with ID … not found") — map the
-            // prefix to the matching Connect code instead of collapsing
-            // everything to internal.
-            let text = error.localizedDescription
-            return connectError(codeForPrefixed(text), text)
+            // Structured MicropodError cases, XPC transport failures and
+            // upstream "code: detail" strings all classify through the shared
+            // table (MicropodCore.ConnectCodeMapping) — tested in isolation.
+            return connectError(code(for: error), error.localizedDescription)
         }
     }
 
-    /// Maps structured `MicropodError` cases onto Connect codes.
-    private func codeFor(_ error: MicropodError) -> ConnectWireCode {
-        switch error {
-        case .runtimeNotRunning, .cliUnavailable: return .unavailable
-        case .cliTimeout: return .deadlineExceeded
-        case .unsupported: return .unimplemented
-        case .pullStalled: return .aborted
-        default: return codeForPrefixed(error.localizedDescription)
+    /// Millisecond liveness for detection and health ticks — never `df`, and
+    /// never an error: an unreachable runtime is `status: "stopped"`.
+    ///
+    /// Native backend: XPC `ping` with a 2 s ceiling (the apiserver answers in
+    /// milliseconds when up). CLI backend: `container system status`, which
+    /// `SystemService` already reports as a status when the daemon is down.
+    private func ping() async -> Micropod_V1_PingResponse {
+        var response = Micropod_V1_PingResponse()
+        response.runtimeBackend = runtimeBackend.rawValue
+        if let api {
+            if let health = try? await api.ping(timeout: .seconds(2)) {
+                response.status = "running"
+                response.apiServerVersion = health.apiServerVersion
+            } else {
+                response.status = "stopped"
+                response.apiServerVersion = runtimeHealth?.apiServerVersion ?? ""
+            }
+            // Cached after the first call — no CLI spawn on the hot path.
+            response.cliVersion = (try? await system.cliVersion()) ?? ""
+            return response
         }
+        do {
+            let status = try await system.status()
+            response.status = status.status
+            response.apiServerVersion = status.apiServerVersion
+            response.cliVersion = status.cliVersion
+        } catch {
+            // A stopped runtime never gets here (it is a status); whatever
+            // did — timeout, missing CLI — means the runtime is not answering.
+            response.status = "stopped"
+            response.cliVersion = (try? await system.cliVersion()) ?? ""
+        }
+        return response
     }
 
-    /// Reads an upstream "camelCaseCode: message" prefix into a wire code.
-    private func codeForPrefixed(_ text: String) -> ConnectWireCode {
-        guard let colon = text.firstIndex(of: ":") else { return .internal }
-        switch String(text[..<colon]) {
-        case "notFound": return .notFound
-        case "invalidArgument": return .invalidArgument
-        case "alreadyExists": return .alreadyExists
-        case "unavailable", "runtimeNotRunning": return .unavailable
-        case "unauthenticated": return .unauthenticated
-        case "permissionDenied": return .permissionDenied
-        case "failedPrecondition": return .failedPrecondition
-        case "resourceExhausted": return .resourceExhausted
-        case "deadlineExceeded", "timeout": return .deadlineExceeded
-        default: return .internal
-        }
+    private func code(for error: Error) -> ConnectWireCode {
+        ConnectWireCode(rawValue: ConnectCodeMapping.code(for: error)) ?? .internal
     }
 
     // MARK: - Wire helpers
@@ -415,8 +431,11 @@ extension APIHandlers {
                     }
                     continuation.yield(ConnectEnvelope.frame(Data("{}".utf8), flags: 0x02))
                 } catch {
+                    // Same table as unary errors: an unknown id is
+                    // `not_found`, a dropped XPC channel is `unavailable`.
+                    let code = ConnectCodeMapping.code(for: error)
                     let wire =
-                        #"{"error":{"code":"unavailable","message":"\#(Self.escapeJSON(error.localizedDescription))"}}"#
+                        #"{"error":{"code":"\#(code)","message":"\#(Self.escapeJSON(error.localizedDescription))"}}"#
                     continuation.yield(ConnectEnvelope.frame(Data(wire.utf8), flags: 0x02))
                 }
                 continuation.finish()

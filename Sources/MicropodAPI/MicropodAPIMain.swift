@@ -56,7 +56,7 @@ struct MicropodAPI {
             logs: runtime.logs,
             compose: ComposeService(client: client),
             api: runtime.api)
-        api.backend = runtime.kind
+        api.runtimeBackend = runtime.kind
         api.runtimeHealth = runtime.health
 
         let server = HTTPServer(port: port, handler: api.handle)

@@ -9,6 +9,21 @@ final class MicropodAPITests: XCTestCase {
     private var stateDir: URL!
 
     override func setUp() async throws {
+        stateDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("micropod-api-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: stateDir, withIntermediateDirectories: true)
+        try await launchServer()
+    }
+
+    override func tearDown() async throws {
+        server?.terminate()
+        try? FileManager.default.removeItem(at: stateDir)
+    }
+
+    /// Spawns the built binary against the mock CLI on a fresh port and waits
+    /// for `/health`. `extraEnvironment` reaches the mock too (the CLI client
+    /// forwards the server's environment), so tests can flip mock modes.
+    private func launchServer(extraEnvironment: [String: String] = [:]) async throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()  // Tests/MicropodIntegrationTests/
             .deletingLastPathComponent()  // Tests/
@@ -17,10 +32,6 @@ final class MicropodAPITests: XCTestCase {
         guard FileManager.default.isExecutableFile(atPath: binary.path) else {
             throw XCTSkip("MicropodAPI binary not built")
         }
-
-        stateDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("micropod-api-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: stateDir, withIntermediateDirectories: true)
 
         let port = UInt16.random(in: 45500...45999)
         baseURL = URL(string: "http://127.0.0.1:\(port)")!
@@ -33,7 +44,9 @@ final class MicropodAPITests: XCTestCase {
                 "MICROPOD_MOCK_STATE_DIR": stateDir.path,
                 "MICROPOD_API_PORT": String(port),
                 "MICROPOD_VOLUME_POLICY": stateDir.appendingPathComponent("policy.json").path,
-            ]) { _, new in new }
+            ]
+            .merging(extraEnvironment) { _, new in new }
+        ) { _, new in new }
         server.standardOutput = FileHandle.nullDevice
         server.standardError = FileHandle.nullDevice
         try server.run()
@@ -50,9 +63,12 @@ final class MicropodAPITests: XCTestCase {
         throw XCTSkip("API server did not come up")
     }
 
-    override func tearDown() async throws {
-        server?.terminate()
-        try? FileManager.default.removeItem(at: stateDir)
+    /// Replaces the running server with one whose mock CLI emulates a stopped
+    /// runtime (`MICROPOD_MOCK_RUNTIME_STOPPED=1`, see `Support/mock-container`).
+    private func relaunchServerWithStoppedRuntime() async throws {
+        server.terminate()
+        server.waitUntilExit()
+        try await launchServer(extraEnvironment: ["MICROPOD_MOCK_RUNTIME_STOPPED": "1"])
     }
 
     private func json(_ method: String, _ path: String, body: [String: Any]? = nil) async throws -> [String: Any] {
@@ -280,10 +296,81 @@ final class MicropodAPITests: XCTestCase {
         XCTAssertTrue(trailer == "{}" || trailer.contains("\"error\""), "EndStream body: \(trailer)")
     }
 
+    /// `Ping` is the millisecond liveness probe for detection and health
+    /// ticks: status, live backend, versions — no `df`. `GetSystem` carries
+    /// the same `runtimeBackend` alongside its disk usage.
+    func testPingRunning() async throws {
+        let (status, ping) = try await jsonStatus("POST", "api/micropod.v1.SystemService/Ping", body: [:])
+        XCTAssertEqual(status, 200)
+        XCTAssertEqual(ping["status"] as? String, "running")
+        XCTAssertEqual(ping["runtimeBackend"] as? String, "cli")
+        XCTAssertEqual(ping["cliVersion"] as? String, "1.2.3")
+        XCTAssertFalse((ping["apiServerVersion"] as? String ?? "").isEmpty, "Ping: \(ping)")
+
+        let (systemStatus, system) = try await jsonStatus(
+            "POST", "api/micropod.v1.SystemService/GetSystem", body: [:])
+        XCTAssertEqual(systemStatus, 200)
+        let snapshotStatus = system["status"] as? [String: Any]
+        XCTAssertEqual(snapshotStatus?["status"] as? String, "running")
+        XCTAssertEqual(snapshotStatus?["runtimeBackend"] as? String, "cli")
+        XCTAssertNotNil(system["diskUsage"], "GetSystem on a running runtime includes disk usage")
+
+        let rest = try await json("GET", "v1/system")
+        XCTAssertEqual(rest["runtimeBackend"] as? String, "cli")
+        XCTAssertNotNil(rest["diskUsage"])
+    }
+
+    /// A stopped runtime is a status, not an error — and it must be reported
+    /// fast: the CLI answers "unregistered" immediately, so neither `Ping`
+    /// nor `GetSystem` may sit out a 15 s CLI ceiling or fall over on `df`.
+    /// Runtime-backed RPCs, by contrast, are `unavailable` (503), so clients
+    /// know to back off rather than treat the outage as a server bug.
+    func testPingReportsStoppedRuntimeFast() async throws {
+        try await relaunchServerWithStoppedRuntime()
+
+        let clock = ContinuousClock()
+        let started = clock.now
+        let (status, ping) = try await jsonStatus("POST", "api/micropod.v1.SystemService/Ping", body: [:])
+        let elapsed = started.duration(to: clock.now)
+        XCTAssertEqual(status, 200, "Ping: \(ping)")
+        XCTAssertEqual(ping["status"] as? String, "stopped")
+        XCTAssertEqual(ping["runtimeBackend"] as? String, "cli")
+        XCTAssertEqual(ping["cliVersion"] as? String, "1.2.3", "the CLI version is still known offline")
+        XCTAssertLessThan(elapsed, .seconds(2), "Ping took \(elapsed) against a stopped runtime")
+
+        let (systemStatus, system) = try await jsonStatus(
+            "POST", "api/micropod.v1.SystemService/GetSystem", body: [:])
+        XCTAssertEqual(systemStatus, 200, "GetSystem: \(system)")
+        let snapshotStatus = system["status"] as? [String: Any]
+        XCTAssertEqual(snapshotStatus?["status"] as? String, "stopped")
+        XCTAssertEqual(snapshotStatus?["runtimeBackend"] as? String, "cli")
+        XCTAssertNil(system["diskUsage"], "no df totals for a stopped runtime: \(system)")
+
+        let (restStatus, rest) = try await jsonStatus("GET", "v1/system")
+        XCTAssertEqual(restStatus, 200, "GET /v1/system: \(rest)")
+        XCTAssertEqual(rest["status"] as? String, "stopped")
+        XCTAssertEqual(rest["runtimeBackend"] as? String, "cli")
+        XCTAssertNil(rest["diskUsage"])
+
+        // Runtime-backed RPC → unavailable, with the proper reason phrase.
+        let port = UInt16(baseURL.port ?? 0)
+        let body = "{}"
+        let request =
+            "POST /api/micropod.v1.ContainerService/ListContainers HTTP/1.1\r\n"
+            + "Host: 127.0.0.1:\(port)\r\n"
+            + "Content-Type: application/json\r\n"
+            + "Content-Length: \(body.utf8.count)\r\n"
+            + "Connection: close\r\n\r\n" + body
+        let response = try await Task.detached { try RawHTTP.exchange(port: port, request: request) }.value
+        let statusLine = response.components(separatedBy: "\r\n").first ?? ""
+        XCTAssertEqual(statusLine, "HTTP/1.1 503 Service Unavailable", "raw response:\n\(response)")
+        XCTAssertTrue(response.contains("\"code\":\"unavailable\""), "raw response:\n\(response)")
+    }
+
     /// URLSession hides the reason phrase, so read the status line off the
     /// socket: a Connect validation failure must be `400 Bad Request`, not
-    /// `400 Unknown`. (503/504/412 paths need a runtime that can fail — the
-    /// mock CLI cannot produce them until the stopped-runtime mode lands.)
+    /// `400 Unknown`. (The 503 path is covered by
+    /// `testPingReportsStoppedRuntimeFast` via the mock's stopped mode.)
     func testConnectErrorStatusLineCarriesReasonPhrase() async throws {
         let port = UInt16(baseURL.port ?? 0)
         let body = "{}"

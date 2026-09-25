@@ -7,6 +7,17 @@
 # set of JSON files, so cross-process flows (app / MCP / tests) all share it.
 #
 # Usage: MICROPOD_MOCK_STATE_DIR=<dir> mock-container <subcommand> [...]
+#
+# MICROPOD_MOCK_RUNTIME_STOPPED=1 emulates a stopped runtime (apiserver not
+# registered with launchd), byte-for-byte like `container` 1.3.1:
+#   - `system status --format json` prints {"status":"unregistered"} on
+#     stdout, nothing on stderr, and exits 1 (table mode prints
+#     "apiserver is not running and not registered with launchd").
+#   - every apiserver-backed command (list, inspect, run, stats, system df,
+#     image/volume/network list, ...) fails with the CLI's
+#     `Error: interrupted: "XPC connection error: ..."` text on stderr, exit 1.
+#   - `system version|start|stop|logs|property|kernel` keep working: they
+#     never talk to the apiserver.
 set -u
 
 STATE_DIR="${MICROPOD_MOCK_STATE_DIR:-${TMPDIR:-/tmp}/micropod-mock-state-$(id -u)}"
@@ -1005,6 +1016,29 @@ cmd_registry_logout() {
 
 cmd="${1:-}"
 shift || true
+
+# Stopped-runtime mode (see header). Commands that never reach the apiserver
+# fall through to the normal dispatch below.
+runtime_stopped_fail() {
+    printf 'Error: interrupted: "XPC connection error: Connection invalid\nEnsure container system service has been started with `container system start`."\n' >&2
+    exit 1
+}
+if [ -n "${MICROPOD_MOCK_RUNTIME_STOPPED:-}" ]; then
+    case "$cmd" in
+        system)
+            case "${1:-}" in
+                status)
+                    if [[ " $* " == *" --format json "* ]]; then
+                        printf '{"status":"unregistered"}\n'
+                    else
+                        printf 'apiserver is not running and not registered with launchd\n'
+                    fi
+                    exit 1 ;;
+                df) runtime_stopped_fail ;;
+            esac ;;
+        *) runtime_stopped_fail ;;
+    esac
+fi
 
 case "$cmd" in
     list)           cmd_list "$@" ;;
