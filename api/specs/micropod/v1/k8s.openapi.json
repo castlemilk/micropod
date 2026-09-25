@@ -414,6 +414,229 @@
         }
       }
     },
+    "/api/micropod.v1.K8sService/ListK8sImages": {
+      "post": {
+        "tags": [
+          "micropod.v1.K8sService"
+        ],
+        "summary": "ListK8sImages",
+        "description": "Image refs present in the cluster's containerd (k8s.io namespace).",
+        "operationId": "micropod.v1.K8sService.ListK8sImages",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ListK8sImagesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ListK8sImagesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.K8sService/LoadK8sImage": {
+      "post": {
+        "tags": [
+          "micropod.v1.K8sService"
+        ],
+        "summary": "LoadK8sImage",
+        "description": "Push an image into the cluster's containerd via the host puller \u2014\n bypasses the guest's slow NAT registry path. `ref` resolves from the\n host's local image store first and pulls only on a miss; `archive`\n pushes a `container image save`/`docker save` tarball with no registry\n round trip at all. Streams progress lines; the terminal event carries\n the loaded ref + byte count.",
+        "operationId": "micropod.v1.K8sService.LoadK8sImage",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/connect+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.LoadK8sImageRequest"
+              }
+            },
+            "application/connect+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.LoadK8sImageRequest"
+              }
+            },
+            "application/grpc": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.LoadK8sImageRequest"
+              }
+            },
+            "application/grpc+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.LoadK8sImageRequest"
+              }
+            },
+            "application/grpc+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.LoadK8sImageRequest"
+              }
+            },
+            "application/grpc-web": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.LoadK8sImageRequest"
+              }
+            },
+            "application/grpc-web+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.LoadK8sImageRequest"
+              }
+            },
+            "application/grpc-web+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.LoadK8sImageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sLoadEvent"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sLoadEvent"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sLoadEvent"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sLoadEvent"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sLoadEvent"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sLoadEvent"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sLoadEvent"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.K8sLoadEvent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/micropod.v1.K8sService/SetK8sConfig": {
       "post": {
         "tags": [
@@ -658,6 +881,44 @@
         "additionalProperties": false,
         "description": "Engine configuration, persisted at\n ~/Library/Application Support/micropod/k8s.json."
       },
+      "micropod.v1.K8sLoadEvent": {
+        "type": "object",
+        "properties": {
+          "line": {
+            "type": "string",
+            "examples": [
+              "injecting into micropod-k3s containerd"
+            ],
+            "title": "line",
+            "description": "Progress output line \u2014 empty on the terminal event."
+          },
+          "done": {
+            "type": "boolean",
+            "title": "done",
+            "description": "True on the terminal event once the image is imported."
+          },
+          "ref": {
+            "type": "string",
+            "examples": [
+              "docker.io/library/redis:alpine"
+            ],
+            "title": "ref",
+            "description": "The loaded ref (terminal event only)."
+          },
+          "bytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "bytes",
+            "format": "int64",
+            "description": "Archive bytes pushed into the guest (terminal event only)."
+          }
+        },
+        "title": "K8sLoadEvent",
+        "additionalProperties": false,
+        "description": "One LoadK8sImage stream event \u2014 progress lines, then the loaded ref."
+      },
       "micropod.v1.K8sStatus": {
         "type": "object",
         "properties": {
@@ -805,6 +1066,65 @@
         "title": "K8sUpRequest",
         "additionalProperties": false,
         "description": "Overrides for K8sUp \u2014 unset fields inherit the persisted config."
+      },
+      "micropod.v1.ListK8sImagesRequest": {
+        "type": "object",
+        "properties": {
+          "clusterName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "cluster_name",
+            "description": "Cluster VM override; empty = the configured cluster."
+          }
+        },
+        "title": "ListK8sImagesRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.ListK8sImagesResponse": {
+        "type": "object",
+        "properties": {
+          "refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "refs",
+            "description": "Image refs in the cluster's containerd (k8s.io namespace)."
+          }
+        },
+        "title": "ListK8sImagesResponse",
+        "additionalProperties": false
+      },
+      "micropod.v1.LoadK8sImageRequest": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "examples": [
+              "docker.io/library/redis:alpine"
+            ],
+            "title": "ref",
+            "description": "Registry ref, e.g. \"docker.io/library/redis:alpine\". Resolved from the\n host's local image store first; pulled by the host puller on a miss.\n Mutually exclusive with `archive`."
+          },
+          "archive": {
+            "type": "string",
+            "title": "archive",
+            "format": "byte",
+            "description": "OCI/docker save tarball bytes \u2014 injected into the guest's containerd\n with no registry round trip. Base64 in Connect JSON."
+          },
+          "clusterName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "cluster_name",
+            "description": "Cluster VM override; empty = the configured cluster."
+          }
+        },
+        "title": "LoadK8sImageRequest",
+        "additionalProperties": false
       }
     }
   },

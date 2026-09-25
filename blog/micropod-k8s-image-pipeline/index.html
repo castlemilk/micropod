@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shipping images to a micro-VM cluster without the slow path — Micropod</title>
+  <meta name="description" content="Guest-side registry pulls over vmnet NAT were the one bad number in the k8s engine — so Micropod pushes images into the cluster's containerd from the host instead: local store first, registry only on a miss, tarballs straight over the API." />
+  <link rel="canonical" href="https://castlemilk.github.io/micropod/blog/micropod-k8s-image-pipeline/" />
+  <link rel="icon" type="image/png" href="/micropod/icon.png" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Shipping images to a micro-VM cluster without the slow path — Micropod" />
+  <meta property="og:description" content="Guest-side registry pulls over vmnet NAT were the one bad number in the k8s engine — so Micropod pushes images into the cluster's containerd from the host instead: local store first, registry only on a miss, tarballs straight over the API." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --font-sans: 'Instrument Sans', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --bg: #070d16;
+      --bg-card: #0d1626;
+      --bg-secondary: #111c30;
+      --fg: #e8eefc;
+      --fg-muted: #8b9bb8;
+      --border: #1b2a45;
+      --primary: #0a84ff;
+      --primary-fg: #050b14;
+      --success: #32d74b;
+      --warn: #ffd60a;
+      --destructive: #ff453a;
+      --radius: 0.75rem;
+      --series-2: #4a5c80; /* secondary bar — visible against the card bg, clearly not the accent */
+    }
+    body {
+      font-family: var(--font-sans); background: var(--bg); color: var(--fg);
+      line-height: 1.5; -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .nav {
+      position: sticky; top: 0; z-index: 50;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--bg) 80%, transparent);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    }
+    .nav-inner { display: flex; align-items: center; justify-content: space-between; max-width: 80rem; margin: 0 auto; padding: 0.875rem 1.5rem; }
+    .nav-logo { display: flex; align-items: center; gap: 0.625rem; font-weight: 600; color: var(--fg); }
+    .nav-logo:hover { text-decoration: none; }
+    .nav-logo-mark {
+      display: flex; align-items: center; justify-content: center;
+      width: 1.75rem; height: 1.75rem; border-radius: 0.5rem;
+      background: var(--primary); color: var(--primary-fg);
+      font-weight: 700; font-size: 0.875rem;
+    }
+    .nav-links { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--fg-muted); }
+    .nav-links a { color: var(--fg-muted); }
+    .nav-links a:hover { color: var(--fg); text-decoration: none; }
+    /* below ~720px the links outgrow the bar — keep the wayfinding ones */
+    @media (max-width: 720px) {
+      .nav-links { gap: 1rem; }
+      .nav-links a.nav-sub { display: none; }
+    }
+
+    /* Article */
+    .article { max-width: 46rem; margin: 0 auto; padding: 4rem 1.5rem 6rem; }
+    .article-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; font-size: 0.75rem; color: var(--fg-muted); margin-bottom: 1.5rem; }
+    .article h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+    .standfirst { margin-top: 1rem; font-size: 1.0625rem; line-height: 1.6; color: var(--fg-muted); }
+    .tag {
+      font-family: var(--font-mono); font-size: 0.6875rem; color: var(--primary);
+      border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+      border-radius: 9999px; padding: 0.0625rem 0.5rem;
+    }
+    .article-body { margin-top: 3rem; }
+    .article-body h2 { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.02em; margin-top: 2.75rem; margin-bottom: 0.875rem; }
+    .article-body h3 { font-size: 1.0625rem; font-weight: 600; margin-top: 2rem; margin-bottom: 0.625rem; }
+    .article-body p { font-size: 0.9375rem; line-height: 1.75; color: var(--fg); margin-top: 1rem; }
+    .article-body p:first-child { margin-top: 0; }
+    .article-body strong { font-weight: 600; }
+    .article-body ul, .article-body ol { margin-top: 1rem; padding-left: 1.5rem; }
+    .article-body li { font-size: 0.9375rem; line-height: 1.75; margin-top: 0.375rem; }
+    .article-body code {
+      font-family: var(--font-mono); font-size: 0.8125rem; color: var(--primary);
+      background: color-mix(in srgb, var(--primary) 7%, transparent);
+      padding: 0.125rem 0.375rem; border-radius: 0.25rem;
+      overflow-wrap: anywhere;
+    }
+    .article-body pre {
+      margin-top: 1.25rem; border-radius: 0.5rem; border: 1px solid var(--border);
+      background: var(--bg-secondary); overflow-x: auto;
+    }
+    .article-body pre code {
+      display: block; padding: 0.875rem 1rem; font-size: 0.75rem; line-height: 1.65;
+      color: var(--fg); background: none; padding: 0.875rem 1rem;
+    }
+    .article-body blockquote {
+      margin-top: 1.25rem; padding-left: 1rem; border-left: 2px solid var(--primary);
+      color: var(--fg-muted);
+    }
+
+    /* Figures — hand-rolled components (blog-components.jsx) */
+
+    .fig {
+      margin: 1.5rem 0 0; border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--bg-secondary); overflow: hidden;
+      transition: border-color 0.15s ease;
+    }
+    .fig:hover { border-color: color-mix(in srgb, var(--primary) 35%, var(--border)); }
+    .fig-title {
+      padding: 0.625rem 1rem; font-family: var(--font-mono); font-size: 0.6875rem;
+      letter-spacing: 0.08em; text-transform: uppercase; color: var(--primary);
+      border-bottom: 1px solid var(--border); background: var(--bg-card);
+      display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    /* DataTable */
+    .dt-scroll { overflow-x: auto; }
+    .dt table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+    .dt th {
+      padding: 0.625rem 1rem; font-family: var(--font-mono); font-size: 0.6875rem;
+      letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-muted);
+      font-weight: 500; border-bottom: 1px solid var(--border);
+    }
+    .dt td {
+      padding: 0.5rem 1rem; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+      font-variant-numeric: tabular-nums; white-space: nowrap;
+    }
+    .dt td:first-child { white-space: normal; font-weight: 500; min-width: 8rem; }
+    .dt tbody tr { transition: background 0.1s ease; }
+    .dt tbody tr:hover td { background: color-mix(in srgb, var(--primary) 6%, transparent); color: var(--fg); }
+    .dt tbody tr:last-child td { border-bottom: none; }
+    .dt tfoot td {
+      border-top: 1px solid var(--border); border-bottom: none; font-weight: 600;
+      background: var(--bg-card); font-family: var(--font-mono); font-size: 0.75rem;
+    }
+
+    /* PerfChart */
+    .pc-legend { display: inline-flex; gap: 1rem; }
+    .pc-key { display: inline-flex; align-items: center; gap: 0.375rem; color: var(--fg-muted); letter-spacing: 0; text-transform: none; }
+    .pc-swatch { display: inline-block; width: 0.625rem; height: 0.625rem; border-radius: 0.125rem; }
+    .pc-swatch.pc-s0 { background: var(--primary); }
+    .pc-swatch.pc-s1 { background: var(--series-2); }
+    .pc-rows { padding: 0.875rem 1rem; display: flex; flex-direction: column; gap: 0.625rem; }
+    .pc-row { display: grid; grid-template-columns: 7.5rem minmax(0,1fr) 4.5rem 3rem; align-items: center; gap: 0.75rem; border-radius: 0.375rem; padding: 0.125rem 0.375rem; margin: 0 -0.375rem; transition: background 0.12s ease; }
+    .pc-row:hover { background: color-mix(in srgb, var(--primary) 6%, transparent); }
+    .pc-label { font-family: var(--font-mono); font-size: 0.75rem; color: var(--fg); overflow: hidden; text-overflow: ellipsis; transition: color 0.12s ease; }
+    .pc-bars { display: flex; flex-direction: column; gap: 0.1875rem; min-width: 0; }
+    .pc-track { height: 0.625rem; }
+    .pc-bar { height: 100%; border-radius: 0.125rem; min-width: 0.125rem; transition: filter 0.12s ease, opacity 0.12s ease; }
+    .pc-row:hover .pc-bar { filter: brightness(1.3); }
+    .pc-row:hover .pc-val { color: var(--fg); }
+    .pc-row:hover .pc-ratio { color: var(--primary); font-weight: 600; }
+    .pc-bar.pc-s0 { background: var(--primary); }
+    .pc-bar.pc-s1 { background: var(--series-2); }
+    .pc-vals { display: flex; flex-direction: column; gap: 0.1875rem; }
+    .pc-val {
+      display: block; height: 0.625rem; line-height: 0.625rem; text-align: right;
+      font-family: var(--font-mono); font-size: 0.6875rem; color: var(--fg-muted);
+      white-space: nowrap;
+    }
+    .pc-val.pc-win { color: var(--fg); font-weight: 600; }
+    .pc-ratio { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--fg-muted); text-align: right; }
+    @media (max-width: 560px) {
+      .pc-row { grid-template-columns: 4.5rem minmax(0,1fr) 4rem 2.5rem; gap: 0.5rem; }
+      .pc-label { font-size: 0.625rem; }
+      .pc-val { font-size: 0.625rem; }
+    }
+
+    /* StatGrid */
+    .sg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
+    .sg-item { padding: 1rem; display: flex; flex-direction: column; gap: 0.375rem; border-right: 1px solid var(--border); transition: background 0.12s ease; }
+    .sg-item:hover { background: color-mix(in srgb, var(--primary) 5%, transparent); }
+    .sg-item:hover .sg-value { color: var(--fg); }
+    .sg-item:last-child { border-right: none; }
+    .sg-value { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 700; color: var(--primary); line-height: 1.1; transition: color 0.12s ease; }
+    .sg-label { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--fg-muted); }
+
+    /* Flow */
+    .flow-lanes { padding: 1rem; display: flex; flex-direction: column; gap: 0.625rem; }
+    .flow-lane { display: flex; align-items: center; flex-wrap: wrap; gap: 0.375rem; }
+    .flow-seg { display: inline-flex; align-items: center; gap: 0.375rem; }
+    .flow-node {
+      font-family: var(--font-mono); font-size: 0.75rem; color: var(--fg-muted);
+      padding: 0.25rem 0.625rem; border: 1px solid var(--border); border-radius: 0.375rem;
+      background: var(--bg-card); white-space: nowrap;
+      transition: color 0.12s ease, border-color 0.12s ease;
+    }
+    .flow-node:hover { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 50%, transparent); }
+    .flow-node.accent { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 40%, transparent); }
+    .flow-arrow { color: var(--series-2); font-family: var(--font-mono); font-size: 0.75rem; }
+
+    /* Callout */
+    .callout {
+      margin: 1.5rem 0 0; padding: 0.875rem 1rem; border-radius: var(--radius);
+      border: 1px solid var(--border); border-left: 2px solid var(--primary);
+      background: var(--bg-secondary); font-size: 0.875rem; line-height: 1.65;
+      display: flex; flex-direction: column; gap: 0.375rem;
+      transition: border-color 0.15s ease;
+    }
+    .callout:hover { border-color: color-mix(in srgb, var(--primary) 35%, var(--border)); }
+    .callout-title { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--primary); }
+    .callout-body p { margin: 0; font-size: 0.875rem; color: var(--fg-muted); }
+    .callout-warn { border-left-color: var(--warn); }
+    .callout-warn .callout-title { color: var(--warn); }
+    .article-body hr { margin: 2.5rem 0; border: none; border-top: 1px solid var(--border); }
+
+    /* Post hero + blog index */
+    .post-hero {
+      margin-top: 1.75rem; border-radius: var(--radius); border: 1px solid var(--border);
+      overflow: hidden; line-height: 0;
+    }
+    .post-hero img { width: 100%; height: auto; display: block; }
+
+    .post-list { margin-top: 3rem; display: grid; gap: 1rem; }
+    .post-card {
+      display: grid; grid-template-columns: 11rem 1fr; gap: 1.25rem; align-items: start;
+      border-radius: var(--radius); border: 1px solid var(--border);
+      background: var(--bg-card); padding: 1.25rem; color: var(--fg);
+      transition: border-color 0.2s;
+    }
+    .post-card-thumb { border-radius: 0.5rem; overflow: hidden; border: 1px solid var(--border); line-height: 0; }
+    .post-card-thumb img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; transition: transform 0.2s ease; }
+    .post-card:hover .post-card-thumb img { transform: scale(1.03); }
+    @media (max-width: 560px) { .post-card { grid-template-columns: 1fr; } }
+    .post-card:hover { border-color: color-mix(in srgb, var(--primary) 25%, transparent); text-decoration: none; }
+    .post-card h2 { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.02em; }
+    .post-card > p { margin-top: 0.5rem; font-size: 0.8125rem; color: var(--fg-muted); line-height: 1.6; }
+    .post-date { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--fg-muted); margin-bottom: 0.5rem; }
+    .post-tags { margin-top: 0.875rem; display: flex; gap: 0.5rem; }
+
+    .footer { border-top: 1px solid var(--border); padding: 2rem 0; font-size: 0.75rem; color: var(--fg-muted); }
+    .footer-inner { max-width: 80rem; margin: 0 auto; padding: 0 1.5rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+
+  </style>
+
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <a href="/micropod/" class="nav-logo">
+        <span class="nav-logo-mark">M</span>
+        <span>Micropod</span>
+      </a>
+      <div class="nav-links">
+        <a class="nav-sub" href="/micropod/#features">Features</a>
+        <a class="nav-sub" href="/micropod/#agents">Agents</a>
+        <a href="/micropod/api/">API Docs</a>
+        <a href="/micropod/blog/">Blog</a>
+        <a href="https://github.com/castlemilk/micropod" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <article class="article">
+      <div class="article-meta">
+        <span>2026-09-25</span>
+        <span>4 min read</span>
+        <span class="tag">kubernetes</span><span class="tag">images</span><span class="tag">performance</span><span class="tag">dx</span>
+      </div>
+      <h1>Shipping images to a micro-VM cluster without the slow path</h1>
+      <p class="standfirst">The one genuinely bad number in the k8s engine wasn't Kubernetes at all — it was pulling images through the guest's vmnet NAT (13 minutes for MetalLB's 60MB). The fix is a small image pipeline: pull on the host, inject into the cluster's containerd, tag the qualified name. `micropod k8s load` — and the same op on Connect, REST, MCP, and the SDKs.</p>
+      
+      <div class="article-body">
+<p>A local Kubernetes cluster lives or dies on its image story. kind has <code>kind load docker-image</code> — it exists because the same problem exists there: a registry pull that crosses a VM boundary you don&#x27;t control is the slowest possible way to get bytes from your laptop into a node.</p>
+<p>Micropod&#x27;s version of the problem is sharper. Every container is a micro-VM on vmnet&#x27;s NAT — and guest-side pulls through that NAT are <em>pathologically</em> slow, not just slow: the ~60MB MetalLB install took ~13 minutes through quay.io, and a 20MB pod image minutes more. Meanwhile the host&#x27;s puller moves at wire speed.</p>
+<p>So the cluster doesn&#x27;t pull images. The host does — and pushes.</p>
+<figure class="fig flow"><figcaption class="fig-title">Image path — ref to Running pod</figcaption><div class="flow-lanes"><div class="flow-lane"><span class="flow-seg"><span class="flow-node accent">local store</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">image save</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">container copy</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">ctr import</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">pod</span></span></div><div class="flow-lane"><span class="flow-seg"><span class="flow-node">registry</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node accent">host puller</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">image save</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">container copy</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">ctr import</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">pod</span></span></div></div></figure>
+<p>Three sources, one pipeline:</p>
+<ul>
+<li><strong><code>k8s load myapp:dev</code></strong> — image already in Micropod&#x27;s store? <code>container image save</code> writes the OCI archive locally, <code>container copy</code> pushes it into the VM, <code>ctr -n k8s.io images import</code> lands it in the cluster&#x27;s containerd. No network at all.</li>
+<li><strong><code>k8s load redis:alpine</code></strong> — not in the local store → the <em>host</em> puller fetches it, then the same inject path.</li>
+<li><strong><code>k8s load ./bundle.tar</code></strong> — a <code>container image save</code> or <code>docker save</code> tarball injects directly. For remote callers, <code>LoadK8sImage</code> accepts the archive as bytes (<code>base64</code> in Connect JSON) — no local file needed.</li>
+<li><strong><code>k8s images</code></strong> lists what&#x27;s in the cluster&#x27;s containerd.</li>
+</ul>
+<pre><code class="language-bash">$ micropod build -t myapp:dev .     # built on the host, APFS-native
+$ micropod k8s load myapp:dev       # save → copy → import — ~2s for 4MB
+  ▸ injecting into micropod-k3s containerd
+✓ loaded myapp:dev — reference it from a pod/deployment image: field
+$ kubectl run app --image=myapp:dev --restart=Never
+pod/app created          # Running immediately — zero pull
+</code></pre>
+<p>One subtlety worth knowing: kubelet resolves <code>myapp:dev</code> to <code>docker.io/library/myapp:dev</code>, while a bare <code>image save</code> keeps the short name — so the import is tagged with the fully-qualified ref automatically. Load <code>cachetest:2</code>, deploy <code>cachetest:2</code>, done. (That bug was found by a pod sitting in <code>ErrImagePull</code> with the image provably loaded — the tag mismatch is invisible until you know it&#x27;s there.)</p>
+<h2>Every surface, same op</h2>
+<p>The pipeline isn&#x27;t a CLI-only trick — it&#x27;s <code>LoadK8sImage</code> on the Connect API, streaming progress like <code>K8sUp</code> does:</p>
+<figure class="fig flow"><figcaption class="fig-title">Same pipeline, four callers</figcaption><div class="flow-lanes"><div class="flow-lane"><span class="flow-seg"><span class="flow-node">micropod k8s load</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node accent">K8sService.loadImage</span></span></div><div class="flow-lane"><span class="flow-seg"><span class="flow-node">Connect LoadK8sImage</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">stream progress</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">ref + bytes</span></span></div><div class="flow-lane"><span class="flow-seg"><span class="flow-node">POST /v1/k8s/images</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">{ref} or {archive: base64}</span></span></div><div class="flow-lane"><span class="flow-seg"><span class="flow-node">mcp k8s_load_image</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">ref | path args</span></span></div></div></figure>
+<p>The MCP tool means an agent&#x27;s loop looks like: <code>k8s_load_image {ref: &quot;redis:alpine&quot;}</code> → <code>k8s_images</code> to confirm → workload manifest with <code>imagePullPolicy: IfNotPresent</code>. No pull-through proxy, no registry mirror, no <code>kind load</code> archaeology.</p>
+<h2>Why this matters beyond speed</h2>
+<p><strong>Iterating on a workload</strong> is <code>build → k8s load → kubectl rollout</code> — the loop kind users know, minus the Docker Desktop dependency and with the host&#x27;s content store doing dedupe. The image that a pod runs is byte-identical to the one the host built, because it&#x27;s the same archive.</p>
+<p><strong>Offline/airgap workflows</strong> — a tarball on disk is a complete input: <code>micropod k8s load ./images.tar</code> on a plane, or in a CI sandbox with no registry access.</p>
+<p><strong>MetalLB itself</strong> seeds through this path now: the two add-on images are pulled by the host puller and injected before the manifest applies — the install that took ~13 minutes of stalled guest pulls is a few seconds of local I/O.</p>
+<p><strong>Determinism</strong> — a cluster&#x27;s image state is enumerable (<code>k8s images</code>) and writable (<code>k8s load</code>) through one API, which is what made the <code>ErrImagePull</code>-by-name-mismatch bug findable and fixable in the first place.</p>
+<figure class="fig sg"><div class="sg-grid"><div class="sg-item"><span class="sg-value">~2 s</span><span class="sg-label">load a 4MB image into the cluster</span></div><div class="sg-item"><span class="sg-value">0</span><span class="sg-label">registry pulls for a locally-built image</span></div><div class="sg-item"><span class="sg-value">13 min → s</span><span class="sg-label">MetalLB install, before → after seeding</span></div></div></figure>
+<aside class="callout callout-note"><span class="callout-title">[ Honest edge ]</span><div class="callout-body">Guest-side pulls still work — <code>imagePullPolicy: Always</code> or an unseeded ref pulls through the NAT as before (slowly). <code>k8s load</code> is the fast path, not a gate: nothing breaks if you skip it, you&#x27;re just paying the registry tax. Seeding at <code>up</code> time covers Micropod&#x27;s own add-ons; workload images are on you to <code>load</code> — or pull and wait.</div></aside>
+<p>API: <code>LoadK8sImage</code> / <code>ListK8sImages</code> on <code>micropod.v1.K8sService</code> — typed in the Go, TypeScript, and Swift SDKs. Reference: <code>docs/kubernetes.md</code>.</p>
+      </div>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span>© 2026 Micropod — a skunkworq project</span>
+      <span>Built on <a href="https://github.com/apple/container" target="_blank" rel="noopener" style="color:var(--primary)">apple/container</a></span>
+    </div>
+  </footer>
+</body>
+</html>

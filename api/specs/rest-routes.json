@@ -185,6 +185,16 @@
     "description": "Host kubeconfig for the cluster (path + contents)."
   },
   {
+    "method": "GET",
+    "path": "/v1/k8s/images",
+    "description": "Image refs in the cluster's containerd (k8s.io namespace)."
+  },
+  {
+    "method": "POST",
+    "path": "/v1/k8s/images",
+    "description": "Push an image into the cluster via the host puller \u2014 {ref} (local store first, pulls on miss) or {archive: base64 tar}."
+  },
+  {
     "method": "POST",
     "path": "/v1/exec",
     "description": "Run a command in a container; returns exit code + output."

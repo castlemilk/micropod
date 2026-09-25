@@ -292,6 +292,15 @@
             <div class="post-tags"><span class="tag">kubernetes</span><span class="tag">k3s</span><span class="tag">metallb</span><span class="tag">benchmarks</span></div>
           </div>
         </a>
+        <a class="post-card" href="/micropod/blog/micropod-k8s-image-pipeline/">
+          
+          <div>
+            <p class="post-date">2026-09-25</p>
+            <h2>Shipping images to a micro-VM cluster without the slow path</h2>
+            <p>The one genuinely bad number in the k8s engine wasn't Kubernetes at all — it was pulling images through the guest's vmnet NAT (13 minutes for MetalLB's 60MB). The fix is a small image pipeline: pull on the host, inject into the cluster's containerd, tag the qualified name. `micropod k8s load` — and the same op on Connect, REST, MCP, and the SDKs.</p>
+            <div class="post-tags"><span class="tag">kubernetes</span><span class="tag">images</span><span class="tag">performance</span><span class="tag">dx</span></div>
+          </div>
+        </a>
       </div>
       </div>
     </article>
