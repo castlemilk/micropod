@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Micropod vs Docker Desktop, measured on the same Mac — Micropod</title>
+  <meta name="description" content="Head-to-head benchmarks: Micropod's API is up to 512x faster and idle memory is 7.4x lower than Docker Desktop — but per-container VM boots lose on start latency and concurrency." />
+  <link rel="canonical" href="https://castlemilk.github.io/micropod/blog/micropod-vs-docker-measured/" />
+  <link rel="icon" type="image/png" href="/micropod/icon.png" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Micropod vs Docker Desktop, measured on the same Mac — Micropod" />
+  <meta property="og:description" content="Head-to-head benchmarks: Micropod's API is up to 512x faster and idle memory is 7.4x lower than Docker Desktop — but per-container VM boots lose on start latency and concurrency." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --font-sans: 'Instrument Sans', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --bg: #070d16;
+      --bg-card: #0d1626;
+      --bg-secondary: #111c30;
+      --fg: #e8eefc;
+      --fg-muted: #8b9bb8;
+      --border: #1b2a45;
+      --primary: #0a84ff;
+      --primary-fg: #050b14;
+      --success: #32d74b;
+      --warn: #ffd60a;
+      --destructive: #ff453a;
+      --radius: 0.75rem;
+    }
+    body {
+      font-family: var(--font-sans); background: var(--bg); color: var(--fg);
+      line-height: 1.5; -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .nav {
+      position: sticky; top: 0; z-index: 50;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--bg) 80%, transparent);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    }
+    .nav-inner { display: flex; align-items: center; justify-content: space-between; max-width: 80rem; margin: 0 auto; padding: 0.875rem 1.5rem; }
+    .nav-logo { display: flex; align-items: center; gap: 0.625rem; font-weight: 600; color: var(--fg); }
+    .nav-logo:hover { text-decoration: none; }
+    .nav-logo-mark {
+      display: flex; align-items: center; justify-content: center;
+      width: 1.75rem; height: 1.75rem; border-radius: 0.5rem;
+      background: var(--primary); color: var(--primary-fg);
+      font-weight: 700; font-size: 0.875rem;
+    }
+    .nav-links { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--fg-muted); }
+    .nav-links a { color: var(--fg-muted); }
+    .nav-links a:hover { color: var(--fg); text-decoration: none; }
+
+    /* Article */
+    .article { max-width: 46rem; margin: 0 auto; padding: 4rem 1.5rem 6rem; }
+    .article-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; font-size: 0.75rem; color: var(--fg-muted); margin-bottom: 1.5rem; }
+    .article h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+    .standfirst { margin-top: 1rem; font-size: 1.0625rem; line-height: 1.6; color: var(--fg-muted); }
+    .tag {
+      font-family: var(--font-mono); font-size: 0.6875rem; color: var(--primary);
+      border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+      border-radius: 9999px; padding: 0.0625rem 0.5rem;
+    }
+    .article-body { margin-top: 3rem; }
+    .article-body h2 { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.02em; margin-top: 2.75rem; margin-bottom: 0.875rem; }
+    .article-body h3 { font-size: 1.0625rem; font-weight: 600; margin-top: 2rem; margin-bottom: 0.625rem; }
+    .article-body p { font-size: 0.9375rem; line-height: 1.75; color: var(--fg); margin-top: 1rem; }
+    .article-body p:first-child { margin-top: 0; }
+    .article-body strong { font-weight: 600; }
+    .article-body ul, .article-body ol { margin-top: 1rem; padding-left: 1.5rem; }
+    .article-body li { font-size: 0.9375rem; line-height: 1.75; margin-top: 0.375rem; }
+    .article-body code {
+      font-family: var(--font-mono); font-size: 0.8125rem; color: var(--primary);
+      background: color-mix(in srgb, var(--primary) 7%, transparent);
+      padding: 0.125rem 0.375rem; border-radius: 0.25rem;
+    }
+    .article-body pre {
+      margin-top: 1.25rem; border-radius: 0.5rem; border: 1px solid var(--border);
+      background: var(--bg-secondary); overflow-x: auto;
+    }
+    .article-body pre code {
+      display: block; padding: 0.875rem 1rem; font-size: 0.75rem; line-height: 1.65;
+      color: var(--fg); background: none; padding: 0.875rem 1rem;
+    }
+    .article-body table {
+      width: 100%; margin-top: 1.25rem; border-collapse: collapse;
+      font-size: 0.8125rem; border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; display: block; overflow-x: auto;
+    }
+    .article-body thead { background: var(--bg-card); }
+    .article-body th, .article-body td { padding: 0.625rem 0.875rem; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .article-body th { font-weight: 600; }
+    .article-body tbody tr:last-child td { border-bottom: none; }
+    .article-body blockquote {
+      margin-top: 1.25rem; padding-left: 1rem; border-left: 2px solid var(--primary);
+      color: var(--fg-muted);
+    }
+    .article-body hr { margin: 2.5rem 0; border: none; border-top: 1px solid var(--border); }
+    .callout {
+      margin-top: 1.25rem; padding: 1rem 1.25rem; border-radius: 0.5rem;
+      border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
+      background: color-mix(in srgb, var(--warn) 5%, transparent);
+      font-size: 0.875rem; line-height: 1.7;
+    }
+    .callout-title { font-weight: 600; margin-bottom: 0.25rem !important; }
+    .callout p { font-size: 0.875rem !important; }
+
+    /* Blog index */
+    .post-list { margin-top: 3rem; display: grid; gap: 1rem; }
+    .post-card {
+      display: block; border-radius: var(--radius); border: 1px solid var(--border);
+      background: var(--bg-card); padding: 1.5rem; color: var(--fg);
+      transition: border-color 0.2s;
+    }
+    .post-card:hover { border-color: color-mix(in srgb, var(--primary) 25%, transparent); text-decoration: none; }
+    .post-card h2 { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.02em; }
+    .post-card > p { margin-top: 0.5rem; font-size: 0.8125rem; color: var(--fg-muted); line-height: 1.6; }
+    .post-date { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--fg-muted); margin-bottom: 0.5rem; }
+    .post-tags { margin-top: 0.875rem; display: flex; gap: 0.5rem; }
+
+    .footer { border-top: 1px solid var(--border); padding: 2rem 0; font-size: 0.75rem; color: var(--fg-muted); }
+    .footer-inner { max-width: 80rem; margin: 0 auto; padding: 0 1.5rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <a href="/micropod/" class="nav-logo">
+        <span class="nav-logo-mark">M</span>
+        <span>Micropod</span>
+      </a>
+      <div class="nav-links">
+        <a href="/micropod/#features">Features</a>
+        <a href="/micropod/#agents">Agents</a>
+        <a href="/micropod/api/">API Docs</a>
+        <a href="/micropod/blog/">Blog</a>
+        <a href="https://github.com/castlemilk/micropod" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <article class="article">
+      <div class="article-meta">
+        <span>2026-09-25</span>
+        <span>7 min read</span>
+        <span class="tag">benchmarks</span><span class="tag">docker</span><span class="tag">performance</span>
+      </div>
+      <h1>Micropod vs Docker Desktop, measured on the same Mac</h1>
+      <p class="standfirst">Both engines warm, same machine, p50 over 30 runs: the API is up to 512x faster and idle memory is 7.4x lower — and the honest losses are VM boot time and parallel starts.</p>
+      <div class="article-body">
+<p>We benchmarked Micropod&#x27;s Docker Engine shim against Docker Desktop on the same Apple-silicon Mac, both engines warm, <code>alpine:3.20</code> pre-pulled on both sides. API numbers are p50 over n=30; lifecycle over n=10. The result is not a uniform win, and we&#x27;d rather show the losses than hide them: Micropod&#x27;s API surface is dramatically faster and it idles at a seventh of the memory, but a per-container micro-VM means a real kernel boot on every <code>start</code> — and that&#x27;s a gap Docker&#x27;s shared-VM model doesn&#x27;t have.</p>
+<h2>Methodology</h2>
+<p><code>scripts/bench_shim_vs_docker.py</code> drives both daemons through their Docker-compatible sockets — Micropod on <code>unix://~/.micropod/docker.sock</code>, Docker Desktop on <code>unix:///var/run/docker.sock</code>. Identical request sequences, warm caches, no cold-start pollution (the cold-start numbers are measured separately and are equally unflattering to a heavyweight VM — 169 MB versus 1.24 GB at idle includes everything).</p>
+<h2>API latency — where the shim wins outright</h2>
+<pre><code>+----------------- [ P50 API, MS ] ----------------+
+|                                                  |
+| 512x      3000x      117x                        |
+| images    df         containers                  |
+|                                                  |
++--------------------------------------------------+
+</code></pre>
+<p>| op | micropod | docker | verdict |
+|---|---|---|---|
+| ping | 0.3 ms | 1.9 ms | 6x faster |
+| version | 0.4 ms | 5.4 ms | 13x faster |
+| containers/json?all=1 | 0.3 ms | 35.2 ms | 117x faster |
+| images/json | 0.3 ms | 153.7 ms | 512x faster |
+| inspect container | 0.5 ms | 1.8 ms | 3.6x faster |
+| system df | 3.0 ms | 9,003 ms | ~3000x faster |
+| info | 0.4 ms | 4.6 ms | 11x faster |</p>
+<p>The big multipliers are honest but need the caveat attached: list and image reads are served from a read-through cache with a 1 s TTL bound, so they&#x27;re effectively <code>memcpy</code> of an encoded body. Docker Desktop&#x27;s <code>images/json</code> walks its storage layer every call. The cache is a real engineering choice with real guardrails (reads only; mutations always resolve fresh) — it&#x27;s covered in detail in <a href="/micropod/blog/micropod-optimizations/">the optimizations post</a>. The uncached paths matter too: <code>inspect</code> at 0.5 ms is a genuine in-process lookup, not a spawn.</p>
+<p><code>system df</code> is the outlier worth a sentence: Docker Desktop takes nine seconds because its <code>df</code> walks the overlay filesystem inside its VM; Micropod joins three cached lists in-process.</p>
+<h2>Lifecycle — split down the middle</h2>
+<p>| phase | micropod | docker | note |
+|---|---|---|---|
+| create | 39 ms | 45 ms | parity |
+| start | 529 ms | 70 ms | <strong>Docker wins</strong> — see below |
+| exec create | 0.9 ms | 2.5 ms | faster |
+| exec start | 73 ms | 20 ms | gap: CLI spawn |
+| logs | 28 ms | 5 ms | gap: CLI spawn |
+| stop | 72 ms | 2,083 ms | faster — atomic vs grace |
+| rm | 70 ms | 27 ms | gap: CLI spawn |
+| <strong>full roundtrip</strong> | <strong>838 ms</strong> | <strong>2,252 ms</strong> | <strong>2.7x faster</strong> |</p>
+<p>The headline number holds up: a complete create→start→exec→logs→stop→rm roundtrip is 2.7x faster, and it&#x27;s dominated by <code>stop</code>. Docker Desktop honors the full 2-second grace period waiting for a SIGTERM handshake that a naive <code>sleep</code>-PID-1 container will never answer. Micropod&#x27;s shim executes stop as the runtime&#x27;s atomic instant-stop — which is also the honest way to treat a runtime where SIGTERM delivery to PID 1 is unreliable anyway.</p>
+<h2>The honest losses</h2>
+<p><strong><code>start</code> at 529 ms vs 70 ms</strong> is the structural gap, and it isn&#x27;t shim overhead — it&#x27;s the price of the isolation model. Docker Desktop&#x27;s <code>start</code> is a process spawn inside one warm, shared Linux VM. Micropod&#x27;s <code>start</code> is a real micro-VM: VM create, kernel boot, DHCP lease, virtiofs rootfs attach, init. That ~0.5–1.0 s is the floor of actually giving every container its own kernel.</p>
+<pre><code>+------------------ [ MODEL ] --------------------+
+|                                                  |
+|                    | Docker | Micropod           |
+| -------------------+--------+---------           |
+| Shared kernel      |    ✓   |      –             |
+| Per-container VM   |    –   |      ✓             |
+| ~70 ms start       |    ✓   |      –             |
+| Guest escape risk  |  high  |    low             |
+| Idle RSS           | 1.2 GB |  169 MB            |
+|                                                  |
++--------------------------------------------------+
+</code></pre>
+<p><strong><code>exec</code>, <code>logs</code>, <code>rm</code> at ~30–75 ms</strong> each pay ~1 CLI spawn (~15–80 ms measured per <code>Process</code> invocation into <code>container-apiserver</code>). That&#x27;s a structural floor unless a persistent apiserver session replaces per-call spawns — it&#x27;s on the backlog.</p>
+<p><strong>10x concurrent lifecycles: 6.5–9 s vs 2.62 s</strong> is the loss that matters most for CI fleets. Ten parallel VM boots contend for CPU — boots are compute-bound and degrade under machine load. If you&#x27;re sizing a fleet, physical cores ÷ 2 is the sane concurrency default, and pre-pulling the image matrix removes the network from the equation entirely.</p>
+<h2>Idle footprint</h2>
+<p>| | RSS |
+|---|---|
+| Micropod (shim + API + sharedfs + Apple daemons + 1 running container VM) | <strong>169 MB</strong> |
+| Docker Desktop (backend + VM + UI) | <strong>1,244 MB</strong> |</p>
+<p>Docker Desktop idles at 7.4x the memory — and the Micropod number is deliberately conservative: it counts the shared Apple <code>containermanagerd</code> and apiserver processes plus a running alpine VM, not just Micropod&#x27;s own ~30 MB of helpers. On a 16 GB laptop running an IDE, a browser, and a simulator, that&#x27;s a gigabyte you get back.</p>
+<h2>Where that leaves you</h2>
+<p>If your workload is API-shaped — dashboards, agents polling state, testcontainers spinning databases per suite — Micropod is strictly faster and much lighter. If your workload is many parallel cold starts, Docker&#x27;s shared-VM model wins today, and closing that gap means warm-start work (keep-alive machines already exec at ~0.1 s) rather than pretending the boot doesn&#x27;t exist.</p>
+<p>Reproduce it yourself:</p>
+<pre><code class="language-bash">python3 scripts/bench_shim_vs_docker.py unix:///~/.micropod/docker.sock shim --json bench/shim.json
+python3 scripts/bench_shim_vs_docker.py unix:///var/run/docker.sock docker --json bench/docker.json
+bash scripts/bench_runtime.sh idle    # RSS sums — intrusive, stops both runtimes
+</code></pre>
+<aside class="callout"><p class="callout-title">Guardrail</p><code>--baseline bench/shim.json</code> fails the bench if any p50 regresses more than 20% against a saved run — the numbers above can&#x27;t quietly rot.</aside>
+      </div>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span>© 2026 Micropod — a skunkworq project</span>
+      <span>Built on <a href="https://github.com/apple/container" target="_blank" rel="noopener" style="color:var(--primary)">apple/container</a></span>
+    </div>
+  </footer>
+</body>
+</html>

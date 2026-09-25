@@ -6,6 +6,8 @@ on:
     paths:
       - "landing/**"
       - "web/**"
+      - "blog/**"
+      - "scripts/blog/**"
       - "proto/micropod/**"
       - "proto/com/**"
       - "buf.gen.docs.yaml"
@@ -50,6 +52,14 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           npm run build
+
+      # Blog posts (blog/posts/*.mdx) render to static HTML under
+      # landing/blog/ before the site copy picks them up.
+      - name: Build blog
+        working-directory: scripts/blog
+        run: |
+          npm ci --no-audit --no-fund
+          node build.mjs
 
       # Site = landing/ with the explorer overlaid at /api/ (replaces the
       # old static landing/api/index.html; generated JSON + proto-reference

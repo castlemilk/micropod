@@ -1,0 +1,68 @@
+---
+title: "The optimizations inside Micropod, and what they measured"
+description: "How Micropod gets a 2.7x lifecycle win over Docker Desktop despite spawning a CLI per operation: a read-through cache with real guardrails, APFS clonefile volumes, a content-addressed chunk store, keep-alive micro-VMs, and kill-first cleanup."
+date: "2026-09-25"
+reading: "8 min read"
+tags: [internals, performance, apfs]
+standfirst: "Every `container` CLI call costs 15–80 ms, so most of Micropod's speed comes from engineering the spawns away — cache, clonefile, chunk store, warm machines."
+---
+
+Micropod's daemon has an unusual cost structure: underneath every API surface — the app, the MCP server, the Connect API, the Docker shim — sits Apple's `container` CLI, and each invocation is a `Process` spawn plus a ~23 ms XPC call into `container-apiserver`. Measured, that's 15–80 ms of overhead per operation. You can't optimize the runtime from outside it, so the engineering went where the leverage is: stop spawning.
+
+## The read-through cache is the whole game
+
+The first `/metrics` dump after a bench run was unflattering: the cache was serving HTTP reads but internal service calls were bypassing it — `image list --verbose` spawned 111 times, `list --all` 118 times, one `container inspect` per inspect request. `info`, `system df`, and `resolveID` all spawned fresh CLIs to answer questions whose answers were already in memory.
+
+The fix is a two-tier read-through cache — a decoded model tier and an encoded-body tier — with synchronous invalidation on every mutation, an events-loop invalidation on state transitions, and a 1 s TTL bound for out-of-band changes.
+
+```
++----------------- [ BEFORE -> AFTER ] -------------+
+|                                                  |
+|              before    after                     |
+| list p50    39 ms   →   2.5 ms                   |
+| images p50  13 ms   →   1.9 ms                   |
+| info        280 ms  →   0.4 ms                   |
+| df          287 ms  →   3.0 ms                   |
+| inspect     16 ms   →   0.5 ms                   |
+|                                                  |
++--------------------------------------------------+
+```
+
+The guardrails are what make this honest rather than fast-looking: the cache only serves reads — every mutation resolves against a fresh list. `MICROPOD_SHIM_CACHE_DISABLE=1` measures the cacheless floor, and the bench's `--baseline` flag fails on >20% p50 regression so the wins can't silently rot. After the fix: 237 hits / 38 misses (86%), `image list` spawns 111→6, `list --all` 118→8.
+
+## APFS clonefile: zero-cost copies everywhere
+
+Apple's filesystem does copy-on-write at the directory level, and Micropod leans on it in three places:
+
+- **Per-container files.** Each container's initfs and kernel are APFS clones — the marginal disk cost of a new container is ~0 (verified by `df` deltas across creates). The 513 GB `rootfs.ext4` is sparse; extents materialize only on write.
+- **Named volumes.** `VolumePolicy` can clone volumes per container — `CLONE_MODE_GOLDENS` auto-clones named goldens, `CLONE_MODE_LABELS` clones on a per-container label. A 1,000-file mount dropped from 4,035 ms to 677 ms when it became one `clonefile` syscall instead of a thousand copies.
+- **Shared mounts.** A host directory becomes a content-addressed chunk store (SHA256, 256 KiB chunks) plus a clonefile view per container — isolated writes, shared blocks. FSEvents watchers (100 ms, per-file, hash-checked to kill loops) propagate host edits into live views and container writes back to the host and sibling views. `--shared` mounts collapse to one view when you want true shared writes.
+
+The chunk store also does LZ4 transcoding behind `MICROPOD_SHAREDFS_TRANSCODE=1`: 2.7–5.9x density on a Go build cache at full ingest speed, with legacy identity-hash files still readable. The same store backs the shared package-manager cache — `~/.npm`, `/go/pkg/mod`, `/root/.cache/go-build`, `~/.cache/pip` keyed by lockfile hash, so the same `package-lock.json` shares chunks across repos and a global 10 GB LRU cap keeps it bounded.
+
+## Keep-alive machines: trading a little isolation for warm starts
+
+A stopped container restarts in ~0.5 s with full entrypoint fidelity — but `micropod machines run <name> -- <exe>` goes further: a persistent named micro-VM you exec into repeatedly at ~0.1 s per exec versus ~1.5 s for an ephemeral boot. It's the same isolation shape (a real VM, not a container sharing your kernel) with the boot cost paid once. For CI, the sleeper-pool pattern — warm RUNNING containers per image you `exec` into — lands at 0.06 s native / 0.5 s through the shim, and it's the correct answer to the 10×-concurrent-boots gap rather than pretending VM boot is free.
+
+## Kill-first cleanup: the 5-second bug you can't see
+
+Runtime 1.3.1 delivers SIGTERM to guests, but a guest that ignores it — and `sleep` as PID 1 ignores it — always pays the ~5 s grace. Worse, `--init` doesn't forward TERM at all (verified: no GOTTERM, 5.25 s stop — reported upstream). The consequence: every cleanup path in Micropod uses kill semantics — `stop -t 0`, `kill`, `rm -f` — never bare `stop`. That single choice is most of why the shim's `stop` lands at 72 ms while Docker Desktop sits in its 2-second grace. Cuttlefish's executor switched the same way and saved up to 5 s per teardown.
+
+```
++----------------- [ NUMBERS ] --------------------+
+|                                                  |
+| 86%        0.1s        677ms                     |
+| cache hit  warm exec   1k-file mount             |
+|                                                  |
++--------------------------------------------------+
+```
+
+## Pulls and builds
+
+Two smaller levers, both one-line-shaped: image pulls fetch 8 layers in parallel (Apple's default is 3) — meaningful on fat CI images — and `RUN --mount=type=cache` works in `container build`, so Go mod/npm/apk caches persist across builds the way BuildKit users expect. The builder config (8 CPUs, rosetta off for native-only compiles) is staged at `~/.config/container/config.toml`.
+
+## What isn't optimized
+
+Honesty section, because the gaps are the point of the benchmark post: `start` is still ~0.5–1.0 s of real micro-VM boot — VM create, kernel boot, DHCP, virtiofs attach, init. `exec`, `logs`, and `rm` each still pay one CLI spawn. And 10 parallel boots still contend on CPU. The first is the isolation price — a real kernel per container instead of a process in a shared VM. The second and third are structural floors with known mitigations (persistent apiserver sessions, warm pools), and the benchmark suite's regression baseline keeps them visible.
+
+The full measurement methodology and the raw tables are in [the benchmarks post](/micropod/blog/micropod-vs-docker-measured/) and `docs/performance.md`.

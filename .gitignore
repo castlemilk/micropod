@@ -19,6 +19,9 @@ web/.next/
 web/out/
 web/public/specs/
 
+# Blog build toolchain
+scripts/blog/node_modules/
+
 # SDK build artifacts (generated sources ARE committed; .build/ and dist/
 # are already global patterns above)
 sdk/ts/node_modules/

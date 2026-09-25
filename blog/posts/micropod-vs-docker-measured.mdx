@@ -1,0 +1,99 @@
+---
+title: "Micropod vs Docker Desktop, measured on the same Mac"
+description: "Head-to-head benchmarks: Micropod's API is up to 512x faster and idle memory is 7.4x lower than Docker Desktop — but per-container VM boots lose on start latency and concurrency."
+date: "2026-09-25"
+reading: "7 min read"
+tags: [benchmarks, docker, performance]
+standfirst: "Both engines warm, same machine, p50 over 30 runs: the API is up to 512x faster and idle memory is 7.4x lower — and the honest losses are VM boot time and parallel starts."
+---
+
+We benchmarked Micropod's Docker Engine shim against Docker Desktop on the same Apple-silicon Mac, both engines warm, `alpine:3.20` pre-pulled on both sides. API numbers are p50 over n=30; lifecycle over n=10. The result is not a uniform win, and we'd rather show the losses than hide them: Micropod's API surface is dramatically faster and it idles at a seventh of the memory, but a per-container micro-VM means a real kernel boot on every `start` — and that's a gap Docker's shared-VM model doesn't have.
+
+## Methodology
+
+`scripts/bench_shim_vs_docker.py` drives both daemons through their Docker-compatible sockets — Micropod on `unix://~/.micropod/docker.sock`, Docker Desktop on `unix:///var/run/docker.sock`. Identical request sequences, warm caches, no cold-start pollution (the cold-start numbers are measured separately and are equally unflattering to a heavyweight VM — 169 MB versus 1.24 GB at idle includes everything).
+
+## API latency — where the shim wins outright
+
+```
++----------------- [ P50 API, MS ] ----------------+
+|                                                  |
+| 512x      3000x      117x                        |
+| images    df         containers                  |
+|                                                  |
++--------------------------------------------------+
+```
+
+| op | micropod | docker | verdict |
+|---|---|---|---|
+| ping | 0.3 ms | 1.9 ms | 6x faster |
+| version | 0.4 ms | 5.4 ms | 13x faster |
+| containers/json?all=1 | 0.3 ms | 35.2 ms | 117x faster |
+| images/json | 0.3 ms | 153.7 ms | 512x faster |
+| inspect container | 0.5 ms | 1.8 ms | 3.6x faster |
+| system df | 3.0 ms | 9,003 ms | ~3000x faster |
+| info | 0.4 ms | 4.6 ms | 11x faster |
+
+The big multipliers are honest but need the caveat attached: list and image reads are served from a read-through cache with a 1 s TTL bound, so they're effectively `memcpy` of an encoded body. Docker Desktop's `images/json` walks its storage layer every call. The cache is a real engineering choice with real guardrails (reads only; mutations always resolve fresh) — it's covered in detail in [the optimizations post](/micropod/blog/micropod-optimizations/). The uncached paths matter too: `inspect` at 0.5 ms is a genuine in-process lookup, not a spawn.
+
+`system df` is the outlier worth a sentence: Docker Desktop takes nine seconds because its `df` walks the overlay filesystem inside its VM; Micropod joins three cached lists in-process.
+
+## Lifecycle — split down the middle
+
+| phase | micropod | docker | note |
+|---|---|---|---|
+| create | 39 ms | 45 ms | parity |
+| start | 529 ms | 70 ms | **Docker wins** — see below |
+| exec create | 0.9 ms | 2.5 ms | faster |
+| exec start | 73 ms | 20 ms | gap: CLI spawn |
+| logs | 28 ms | 5 ms | gap: CLI spawn |
+| stop | 72 ms | 2,083 ms | faster — atomic vs grace |
+| rm | 70 ms | 27 ms | gap: CLI spawn |
+| **full roundtrip** | **838 ms** | **2,252 ms** | **2.7x faster** |
+
+The headline number holds up: a complete create→start→exec→logs→stop→rm roundtrip is 2.7x faster, and it's dominated by `stop`. Docker Desktop honors the full 2-second grace period waiting for a SIGTERM handshake that a naive `sleep`-PID-1 container will never answer. Micropod's shim executes stop as the runtime's atomic instant-stop — which is also the honest way to treat a runtime where SIGTERM delivery to PID 1 is unreliable anyway.
+
+## The honest losses
+
+**`start` at 529 ms vs 70 ms** is the structural gap, and it isn't shim overhead — it's the price of the isolation model. Docker Desktop's `start` is a process spawn inside one warm, shared Linux VM. Micropod's `start` is a real micro-VM: VM create, kernel boot, DHCP lease, virtiofs rootfs attach, init. That ~0.5–1.0 s is the floor of actually giving every container its own kernel.
+
+```
++------------------ [ MODEL ] --------------------+
+|                                                  |
+|                    | Docker | Micropod           |
+| -------------------+--------+---------           |
+| Shared kernel      |    ✓   |      –             |
+| Per-container VM   |    –   |      ✓             |
+| ~70 ms start       |    ✓   |      –             |
+| Guest escape risk  |  high  |    low             |
+| Idle RSS           | 1.2 GB |  169 MB            |
+|                                                  |
++--------------------------------------------------+
+```
+
+**`exec`, `logs`, `rm` at ~30–75 ms** each pay ~1 CLI spawn (~15–80 ms measured per `Process` invocation into `container-apiserver`). That's a structural floor unless a persistent apiserver session replaces per-call spawns — it's on the backlog.
+
+**10x concurrent lifecycles: 6.5–9 s vs 2.62 s** is the loss that matters most for CI fleets. Ten parallel VM boots contend for CPU — boots are compute-bound and degrade under machine load. If you're sizing a fleet, physical cores ÷ 2 is the sane concurrency default, and pre-pulling the image matrix removes the network from the equation entirely.
+
+## Idle footprint
+
+| | RSS |
+|---|---|
+| Micropod (shim + API + sharedfs + Apple daemons + 1 running container VM) | **169 MB** |
+| Docker Desktop (backend + VM + UI) | **1,244 MB** |
+
+Docker Desktop idles at 7.4x the memory — and the Micropod number is deliberately conservative: it counts the shared Apple `containermanagerd` and apiserver processes plus a running alpine VM, not just Micropod's own ~30 MB of helpers. On a 16 GB laptop running an IDE, a browser, and a simulator, that's a gigabyte you get back.
+
+## Where that leaves you
+
+If your workload is API-shaped — dashboards, agents polling state, testcontainers spinning databases per suite — Micropod is strictly faster and much lighter. If your workload is many parallel cold starts, Docker's shared-VM model wins today, and closing that gap means warm-start work (keep-alive machines already exec at ~0.1 s) rather than pretending the boot doesn't exist.
+
+Reproduce it yourself:
+
+```bash
+python3 scripts/bench_shim_vs_docker.py unix:///~/.micropod/docker.sock shim --json bench/shim.json
+python3 scripts/bench_shim_vs_docker.py unix:///var/run/docker.sock docker --json bench/docker.json
+bash scripts/bench_runtime.sh idle    # RSS sums — intrusive, stops both runtimes
+```
+
+<Callout title="Guardrail">`--baseline bench/shim.json` fails the bench if any p50 regresses more than 20% against a saved run — the numbers above can't quietly rot.</Callout>
