@@ -58,6 +58,7 @@ struct MicropodAPI {
             api: runtime.api)
         api.runtimeBackend = runtime.kind
         api.runtimeHealth = runtime.health
+        api.exitCodes = runtime.exitCodes
 
         let server = HTTPServer(port: port, handler: api.handle)
         do {

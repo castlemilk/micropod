@@ -18,16 +18,23 @@ public struct NativeContainerService: ContainerServing {
     /// Volume-mount policy — resolved per create so a policy change in
     /// the app/API applies without restarting this process.
     private let policy: @Sendable () -> VolumePolicy
+    /// Exit codes of containers this service started. `run`/`start`
+    /// register a `containerWait` waiter *before* `startProcess` (the
+    /// runtime helper replays a cached status to pre-registered waiters),
+    /// so even a container that exits within milliseconds gets a real code.
+    private let exitCodes: ExitCodeRegistry
 
     public init(
         api: APIServerClient, cli: ContainerService,
         images: ImagesServiceClient = ImagesServiceClient(),
-        policy: @escaping @Sendable () -> VolumePolicy = { VolumePolicyStore.load() }
+        policy: @escaping @Sendable () -> VolumePolicy = { VolumePolicyStore.load() },
+        exitCodes: ExitCodeRegistry = ExitCodeRegistry()
     ) {
         self.api = api
         self.cli = cli
         self.images = images
         self.policy = policy
+        self.exitCodes = exitCodes
     }
 
     public func list() async throws -> [Micropod_V1_Container] {
@@ -61,8 +68,7 @@ public struct NativeContainerService: ContainerServing {
         }
         let id = try await createNative(request)
         do {
-            try await api.bootstrap(id: id)
-            try await api.startProcess(containerId: id, processId: id)
+            try await startTracked(id)
         } catch {
             // Match the CLI: a failed start cleans up the created container.
             try? await api.delete(id: id, force: true)
@@ -70,6 +76,24 @@ public struct NativeContainerService: ContainerServing {
             throw error
         }
         return id
+    }
+
+    /// bootstrap boots the VM and waits for vminitd; the init process is
+    /// only started by containerStartProcess with processId == id — that's
+    /// also what flips the apiserver's status to `running`. The exit-code
+    /// waiter is registered in between so the helper already has it when
+    /// the process starts (and exits, however quickly).
+    private func startTracked(_ id: String) async throws {
+        try await api.bootstrap(id: id)
+        await exitCodes.track(id: id) { [api] in
+            try await api.waitProcess(containerId: id, processId: id)
+        }
+        do {
+            try await api.startProcess(containerId: id, processId: id)
+        } catch {
+            await exitCodes.forget(id: id)
+            throw error
+        }
     }
 
     /// Native `container create`: resolve image → build
@@ -388,11 +412,7 @@ public struct NativeContainerService: ContainerServing {
     }
 
     public func start(_ id: String) async throws {
-        // bootstrap boots the VM and waits for vminitd; the init process
-        // is only started by containerStartProcess with processId == id —
-        // that's also what flips the apiserver's status to `running`.
-        try await api.bootstrap(id: id)
-        try await api.startProcess(containerId: id, processId: id)
+        try await startTracked(id)
     }
 
     public func stop(_ id: String, timeout: Int = 10) async throws {
@@ -423,6 +443,7 @@ public struct NativeContainerService: ContainerServing {
 
     public func delete(_ id: String, force: Bool = false) async throws {
         try await api.delete(id: id, force: force)
+        await exitCodes.forget(id: id)
         Self.removeClones(containerID: id)
     }
 
@@ -433,6 +454,7 @@ public struct NativeContainerService: ContainerServing {
             for entry in entries {
                 group.addTask {
                     try await self.api.delete(id: entry.id, force: force)
+                    await self.exitCodes.forget(id: entry.id)
                     Self.removeClones(containerID: entry.id)
                 }
             }
@@ -452,6 +474,7 @@ public struct NativeContainerService: ContainerServing {
             do {
                 totalSize += (try? await api.diskUsage(id: entry.id)) ?? 0
                 try await api.delete(id: entry.id)
+                await exitCodes.forget(id: entry.id)
                 Self.removeClones(containerID: entry.id)
                 pruned.append(entry.id)
             } catch {

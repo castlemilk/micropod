@@ -40,8 +40,22 @@ extension APIHandlers {
 
             case "ListContainers":
                 var resp = Micropod_V1_ListContainersResponse()
-                resp.containers = try await containers.list()
+                resp.containers = await withExitCodes(try await containers.list())
                 return unary(resp)
+
+            case "GetContainer":
+                let req = try decode(Micropod_V1_ContainerRef.self, body)
+                try check(req)
+                return unary(try await lookupContainer(req.id))
+
+            case "WaitContainer":
+                let req = try decode(Micropod_V1_WaitContainerRequest.self, body)
+                try check(req)
+                // Unknown ids fail fast — never a silent `exited: true`, and
+                // never a wait against a container that does not exist.
+                _ = try await lookupContainer(req.id)
+                let seconds = req.timeoutSeconds == 0 ? 30 : min(req.timeoutSeconds, 300)
+                return unary(await waitContainer(id: req.id, timeout: .seconds(Int(seconds))))
 
             case "RunContainer":
                 let req = try decode(Micropod_V1_RunContainerRequest.self, body)
@@ -299,6 +313,78 @@ extension APIHandlers {
         ConnectWireCode(rawValue: ConnectCodeMapping.code(for: error)) ?? .internal
     }
 
+    // MARK: - Container lookup / exit codes
+
+    /// One container by id, or `not_found`. Goes through `list()` rather than
+    /// `inspect` so absence is a plain "not in the list" instead of a
+    /// backend-specific error text to classify; anything the list call
+    /// throws (runtime down → `unavailable`) propagates untouched.
+    private func lookupContainer(_ id: String) async throws -> Micropod_V1_Container {
+        guard let container = try await containers.list().first(where: { $0.id == id }) else {
+            throw ConnectDecodeError(code: .notFound, message: "container \(id) not found")
+        }
+        return await withExitCodes([container])[0]
+    }
+
+    /// Folds registry exit codes into `Container.exit_code`. Only the native
+    /// backend records them; on CLI (`exitCodes == nil`) the field stays
+    /// empty rather than fabricating a value.
+    func withExitCodes(_ list: [Micropod_V1_Container]) async -> [Micropod_V1_Container] {
+        guard let exitCodes else { return list }
+        var out = list
+        for index in out.indices {
+            if let entry = await exitCodes.entry(for: out[index].id), let code = entry.exitCode {
+                out[index].exitCode = String(code)
+            }
+        }
+        return out
+    }
+
+    /// Polls the exit-code registry and the runtime state every 150 ms until
+    /// the container is terminal or `timeout` elapses — no blocking runtime
+    /// wait in the request path. A registry code is authoritative
+    /// (`known: true`) even if the snapshot has not flipped to `stopped`
+    /// yet. `running`/`stopping` are non-terminal; so is `created` (never
+    /// started — it may still be). Anything else (`stopped`, or `unknown`
+    /// after the container vanished mid-wait) is `exited: true`, with
+    /// `known: false` when no registry code exists (CLI backend, or the
+    /// waiter aged out).
+    private func waitContainer(id: String, timeout: Duration) async -> Micropod_V1_WaitContainerResponse {
+        let clock = ContinuousClock()
+        let deadline = clock.now + timeout
+        while true {
+            let entry = await exitCodes?.entry(for: id)
+            let state = await containers.state(of: id)
+            if let code = entry?.exitCode {
+                return .with {
+                    $0.exited = true
+                    $0.known = true
+                    $0.exitCode = code
+                    $0.state = state
+                }
+            }
+            switch state {
+            case "running", "stopping", "created":
+                break
+            default:
+                return .with {
+                    $0.exited = true
+                    $0.known = false
+                    $0.state = state
+                }
+            }
+            let now = clock.now
+            if now >= deadline {
+                return .with {
+                    $0.exited = false
+                    $0.known = false
+                    $0.state = state
+                }
+            }
+            try? await Task.sleep(for: min(deadline - now, .milliseconds(150)))
+        }
+    }
+
     // MARK: - Wire helpers
 
     /// Mirrors the `buf.validate` constraints declared on the protos — the Go
@@ -338,6 +424,14 @@ extension APIHandlers {
 
     private func check(_ req: Micropod_V1_DeleteContainerRequest) throws {
         try required(req.id, "id")
+    }
+
+    private func check(_ req: Micropod_V1_WaitContainerRequest) throws {
+        try required(req.id, "id")
+        if req.timeoutSeconds < 0 {
+            throw ConnectDecodeError(
+                code: .invalidArgument, message: "timeoutSeconds: must be 0 or greater")
+        }
     }
 
     private func check(_ req: Micropod_V1_StreamLogsRequest) throws {

@@ -60,6 +60,20 @@ extension ContainerServing {
     public func delete(_ id: String) async throws {
         try await delete(id, force: false)
     }
+
+    /// Runtime state string for one container — `running`, `stopping`,
+    /// `stopped`, `created` — read from the `inspect` JSON. `unknown` when
+    /// the container is absent or the inspect fails; callers that need to
+    /// distinguish "gone" from "not answering" must look the container up
+    /// first. Never throws so poll loops can treat it as a plain observation.
+    public func state(of id: String) async -> String {
+        guard let data = try? await inspect(id),
+            let entries = try? MicropodJSON.decodeArray(
+                ContainerListEntry.self, from: data, context: "container inspect"),
+            let entry = entries.first(where: { $0.id == id }) ?? entries.first
+        else { return "unknown" }
+        return entry.status.state ?? "unknown"
+    }
 }
 
 public struct ContainerService: ContainerServing {

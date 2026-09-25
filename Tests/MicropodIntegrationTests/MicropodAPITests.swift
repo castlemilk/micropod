@@ -385,6 +385,94 @@ final class MicropodAPITests: XCTestCase {
         XCTAssertEqual(statusLine, "HTTP/1.1 400 Bad Request", "raw response:\n\(response)")
         XCTAssertTrue(response.contains("\"code\":\"invalid_argument\""), "raw response:\n\(response)")
     }
+
+    // MARK: GetContainer / WaitContainer
+
+    /// `GetContainer` is a one-container inspect; `WaitContainer` on a
+    /// container that has already stopped returns at once with
+    /// `exited: true`. The CLI backend has no exit-code registry, so
+    /// `known` stays false (proto-JSON omits the default) and no exit code
+    /// is fabricated.
+    func testGetContainerAndWaitStopped() async throws {
+        let run = try await json(
+            "POST", "v1/containers",
+            body: ["image": "nginx:1.27", "name": "api-wait-stopped", "arguments": ["true"]])
+        let id = run["id"] as? String ?? ""
+        XCTAssertFalse(id.isEmpty)
+        _ = try await json("POST", "v1/containers/\(id)/stop")
+
+        let (getStatus, container) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/GetContainer", body: ["id": id])
+        XCTAssertEqual(getStatus, 200, "GetContainer: \(container)")
+        XCTAssertEqual(container["id"] as? String, id)
+        XCTAssertEqual(container["state"] as? String, "stopped")
+        XCTAssertEqual(container["image"] as? String, "nginx:1.27")
+        XCTAssertNil(container["exitCode"], "no registry on the CLI backend → no exit code: \(container)")
+
+        let clock = ContinuousClock()
+        let started = clock.now
+        let (waitStatus, wait) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/WaitContainer",
+            body: ["id": id, "timeoutSeconds": 1])
+        let elapsed = started.duration(to: clock.now)
+        XCTAssertEqual(waitStatus, 200, "WaitContainer: \(wait)")
+        XCTAssertEqual(wait["exited"] as? Bool, true, "WaitContainer: \(wait)")
+        XCTAssertEqual(wait["known"] as? Bool ?? false, false, "WaitContainer: \(wait)")
+        XCTAssertEqual(wait["state"] as? String, "stopped")
+        XCTAssertNil(wait["exitCode"], "exit_code must stay at its default when unknown")
+        XCTAssertLessThan(elapsed, .seconds(2), "an already-stopped container must not wait out the timeout")
+    }
+
+    /// A running container is non-terminal: `WaitContainer` polls until
+    /// `timeout_seconds` and then reports `exited: false` with the live state.
+    func testWaitContainerRunningTimesOut() async throws {
+        let run = try await json(
+            "POST", "v1/containers",
+            body: ["image": "nginx:1.27", "name": "api-wait-running"])
+        let id = run["id"] as? String ?? ""
+        XCTAssertFalse(id.isEmpty)
+
+        let clock = ContinuousClock()
+        let started = clock.now
+        let (status, wait) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/WaitContainer",
+            body: ["id": id, "timeoutSeconds": 1])
+        let elapsed = started.duration(to: clock.now)
+        XCTAssertEqual(status, 200, "WaitContainer: \(wait)")
+        XCTAssertEqual(wait["exited"] as? Bool ?? false, false, "WaitContainer: \(wait)")
+        XCTAssertEqual(wait["known"] as? Bool ?? false, false)
+        XCTAssertEqual(wait["state"] as? String, "running")
+        XCTAssertGreaterThanOrEqual(elapsed, .milliseconds(900), "must honour timeout_seconds")
+        XCTAssertLessThan(elapsed, .seconds(4), "must return promptly after the deadline")
+
+        _ = try await json("POST", "v1/containers/\(id)/stop")
+        _ = try await json("DELETE", "v1/containers/\(id)")
+    }
+
+    /// Unknown ids are `not_found` for both RPCs — never a silent
+    /// `exited: true`, and never a 30 s wait.
+    func testWaitContainerUnknownId() async throws {
+        let clock = ContinuousClock()
+        let started = clock.now
+        let (waitStatus, wait) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/WaitContainer", body: ["id": "ghost-container"])
+        let elapsed = started.duration(to: clock.now)
+        XCTAssertEqual(waitStatus, 404, "WaitContainer: \(wait)")
+        XCTAssertEqual(wait["code"] as? String, "not_found", "WaitContainer: \(wait)")
+        XCTAssertLessThan(elapsed, .seconds(3), "an unknown id must fail fast, not wait out the default timeout")
+
+        let (getStatus, get) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/GetContainer", body: ["id": "ghost-container"])
+        XCTAssertEqual(getStatus, 404, "GetContainer: \(get)")
+        XCTAssertEqual(get["code"] as? String, "not_found", "GetContainer: \(get)")
+
+        // Validation still applies: a negative timeout is a caller error.
+        let (badStatus, bad) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/WaitContainer",
+            body: ["id": "ghost-container", "timeoutSeconds": -1])
+        XCTAssertEqual(badStatus, 400, "WaitContainer: \(bad)")
+        XCTAssertEqual(bad["code"] as? String, "invalid_argument")
+    }
 }
 
 /// Connect envelope framing for the tests — [flags:1][length:4 big-endian][payload].

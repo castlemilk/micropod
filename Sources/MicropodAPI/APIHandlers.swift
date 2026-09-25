@@ -24,6 +24,10 @@ struct APIHandlers {
     var runtimeBackend: RuntimeBackendKind = .cli
     /// Apiserver identity from the resolve-time ping, when known.
     var runtimeHealth: APIServerHealth?
+    /// Exit codes recorded by the native backend (nil on CLI). Read by
+    /// `GetContainer`/`WaitContainer` and folded into `Container.exit_code`
+    /// on list/get — never a blocking runtime wait in the request path.
+    var exitCodes: ExitCodeRegistry?
     let metrics = APIMetrics()
     let appControl = AppControlClient()
     var usage: UsageService {
@@ -173,7 +177,7 @@ struct APIHandlers {
 
             // MARK: Containers
             case ("containers", .get) where segments.count == 2:
-                let list = try await containers.list()
+                let list = await withExitCodes(try await containers.list())
                 return .json(200, ["containers": list.map(projection)])
 
             case ("containers", .post) where segments.count == 2:
@@ -435,6 +439,7 @@ struct APIHandlers {
         [
             "id": container.id,
             "state": container.state,
+            "exitCode": container.exitCode,
             "image": container.image,
             "createdAt": container.createdAt,
             "ipv4Address": container.ipv4Address,

@@ -21,6 +21,11 @@ public struct RuntimeServices: Sendable {
     public let api: APIServerClient?
     /// Apiserver identity from the `ping` handshake, when known.
     public let health: APIServerHealth?
+    /// Exit codes recorded by the native backend's `containerWait` waiters —
+    /// what `WaitContainer`/`GetContainer` read. Nil on the CLI backend,
+    /// which has no exit-code source (`Container.exit_code` stays empty and
+    /// `WaitContainer` answers `known: false`).
+    public let exitCodes: ExitCodeRegistry?
 
     /// True when the apiserver reported a version we've verified the
     /// protocol against. Unknown versions still work when the route set is
@@ -57,7 +62,8 @@ public enum RuntimeBackendResolver {
                 logs: cliLogs,
                 stats: cliStats,
                 api: nil,
-                health: health
+                health: health,
+                exitCodes: nil
             )
         }
 
@@ -74,13 +80,15 @@ public enum RuntimeBackendResolver {
         let api = APIServerClient()
         do {
             let health = try await api.ping(timeout: .seconds(10))
+            let exitCodes = ExitCodeRegistry()
             let services = RuntimeServices(
                 kind: .native,
-                containers: NativeContainerService(api: api, cli: cliContainers),
+                containers: NativeContainerService(api: api, cli: cliContainers, exitCodes: exitCodes),
                 logs: NativeLogStreamer(api: api),
                 stats: NativeStatsSampler(api: api),
                 api: api,
-                health: health
+                health: health,
+                exitCodes: exitCodes
             )
             guard services.versionSupported else {
                 // The wire DTOs are versioned by us, not on the wire — an
