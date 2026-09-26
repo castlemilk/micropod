@@ -11,7 +11,8 @@ import Foundation
 ///
 /// Each waiter is a detached task whose result is stored as an ``Entry``.
 /// `WaitContainer`/`GetContainer` read entries instead of blocking on XPC in
-/// the request path. Entries and their tasks are dropped on `forget` (delete)
+/// the request path; ``await(id:timeout:)`` parks callers on a per-id list
+/// that `record` resumes, so an exit reaches them without a poll interval. Entries and their tasks are dropped on `forget` (delete)
 /// and after `ceiling` (default 2 h), which records an *unknown* exit code —
 /// see ``Entry/exitCode``.
 public actor ExitCodeRegistry {
@@ -38,6 +39,15 @@ public actor ExitCodeRegistry {
     /// result over the current run's.
     private var generations: [String: UInt64] = [:]
     private var nextGeneration: UInt64 = 0
+    /// Callers parked in ``await(id:timeout:)``, per id and keyed by a token
+    /// so a timeout or cancellation resumes exactly its own continuation.
+    private var parked: [String: [UInt64: Parked]] = [:]
+    private var nextToken: UInt64 = 0
+
+    private struct Parked {
+        let continuation: CheckedContinuation<Entry?, Never>
+        let timer: Task<Void, Never>
+    }
 
     /// How long a waiter may run before it is dropped and the exit code is
     /// recorded as unknown.
@@ -68,18 +78,41 @@ public actor ExitCodeRegistry {
         entries[id]
     }
 
+    /// Whether a waiter runs or has recorded for `id` — i.e. whether
+    /// ``await(id:timeout:)`` will be woken by this container's exit. False
+    /// for containers this process never started (CLI-created, or started
+    /// before a restart) and after `forget`.
+    public func isTracked(id: String) -> Bool {
+        waiters[id] != nil || entries[id] != nil
+    }
+
     /// Suspends until an entry exists for `id` or `timeout` elapses; returns
-    /// the entry or nil. Polls at 50 ms — callers are request handlers that
-    /// already poll runtime state on a similar cadence.
+    /// the entry or nil. An existing entry returns at once; otherwise the
+    /// caller parks until `record` resumes it — there is no poll. A caller
+    /// may park before `track` (the request raced the start): the actor
+    /// orders it against `record`, so the exit still wakes it. `forget` and
+    /// task cancellation resume with nil.
     public func `await`(id: String, timeout: Duration) async -> Entry? {
-        let clock = ContinuousClock()
-        let deadline = clock.now + timeout
-        while true {
-            if let entry = entries[id] { return entry }
-            let now = clock.now
-            guard now < deadline, !Task.isCancelled else { return nil }
-            let remaining = deadline - now
-            try? await Task.sleep(for: min(remaining, .milliseconds(50)))
+        if let entry = entries[id] { return entry }
+        guard timeout > .zero, !Task.isCancelled else { return nil }
+        nextToken += 1
+        let token = nextToken
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation(isolation: self) { continuation in
+                // Runs on the actor before any other job: nothing can record
+                // or cancel between the entry check above and this park.
+                guard !Task.isCancelled else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                let timer = Task { [weak self] in
+                    try? await Task.sleep(for: timeout)
+                    await self?.resume(id: id, token: token, with: nil)
+                }
+                parked[id, default: [:]][token] = Parked(continuation: continuation, timer: timer)
+            }
+        } onCancel: {
+            Task { await self.resume(id: id, token: token, with: nil) }
         }
     }
 
@@ -88,14 +121,34 @@ public actor ExitCodeRegistry {
         waiters.removeValue(forKey: id)?.cancel()
         entries[id] = nil
         generations[id] = nil
+        resumeAll(id: id, with: nil)
     }
 
     // MARK: - Internals
 
     private func record(id: String, generation: UInt64, exitCode: Int32?) {
         guard generations[id] == generation else { return }
-        entries[id] = Entry(exitCode: exitCode, exitedAt: Date())
+        let entry = Entry(exitCode: exitCode, exitedAt: Date())
+        entries[id] = entry
         waiters[id] = nil
+        resumeAll(id: id, with: entry)
+    }
+
+    /// Resumes one parked caller; a no-op once it was resumed (the timeout,
+    /// a cancellation and `record` can all race for the same token).
+    private func resume(id: String, token: UInt64, with entry: Entry?) {
+        guard let waiter = parked[id]?.removeValue(forKey: token) else { return }
+        if parked[id]?.isEmpty == true { parked[id] = nil }
+        waiter.timer.cancel()
+        waiter.continuation.resume(returning: entry)
+    }
+
+    private func resumeAll(id: String, with entry: Entry?) {
+        guard let waiting = parked.removeValue(forKey: id) else { return }
+        for waiter in waiting.values {
+            waiter.timer.cancel()
+            waiter.continuation.resume(returning: entry)
+        }
     }
 
     /// The waiter against the ceiling: whichever finishes first wins and the

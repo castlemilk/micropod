@@ -79,6 +79,54 @@ final class NativeLogStreamerTests: XCTestCase {
         XCTAssertEqual(result.lines, ["backlog", "live"])
     }
 
+    /// The recorded exit wakes the follow loop at once rather than at its
+    /// next drain tick, and the lines written just before the exit are
+    /// still delivered by the final drain.
+    func testRecordedExitEndsStreamPromptlyWithLateLines() async throws {
+        try append("backlog\n")
+        let url = logURL!
+        let registry = ExitCodeRegistry()
+        let exitAt = ExitMark()
+        await registry.track(id: "job") {
+            try await Task.sleep(for: .milliseconds(300))
+            try Self.append("late-1\nlate-2\n", to: url)
+            await exitAt.mark()
+            return 0
+        }
+        let probe = StateProbe(runningCalls: .max)
+
+        let result = try await collect(
+            streamer(probe: probe, exitCodes: registry).stream(id: "job"), timeout: .seconds(3))
+        let ended = ContinuousClock.now
+
+        XCTAssertTrue(result.finished)
+        XCTAssertEqual(result.lines, ["backlog", "late-1", "late-2"])
+        let recorded = await exitAt.instant
+        let exited = try XCTUnwrap(recorded)
+        XCTAssertLessThan(
+            ended - exited, .milliseconds(40), "the exit signal, not the 80 ms tick, ends the stream")
+    }
+
+    /// An exit recorded before the stream opened ends it right after the
+    /// backlog, without waiting a tick.
+    func testExitRecordedBeforeStreamEndsWithoutATick() async throws {
+        try append("only\n")
+        let registry = ExitCodeRegistry()
+        await registry.track(id: "job") { 0 }
+        _ = await registry.await(id: "job", timeout: .seconds(2))
+        let probe = StateProbe(runningCalls: .max)
+
+        let started = ContinuousClock.now
+        let result = try await collect(
+            streamer(probe: probe, exitCodes: registry).stream(id: "job"), timeout: .seconds(3))
+
+        XCTAssertTrue(result.finished)
+        XCTAssertEqual(result.lines, ["only"])
+        XCTAssertLessThan(ContinuousClock.now - started, .milliseconds(60))
+        let calls = await probe.calls
+        XCTAssertEqual(calls, 0, "the registry answers; the runtime is not asked")
+    }
+
     /// An entry without an exit code (the waiter aged out or failed) says
     /// nothing about the container — the runtime state stays authoritative.
     func testUnknownExitCodeEntryDefersToRuntimeState() async throws {
@@ -233,4 +281,9 @@ private actor StateProbe {
 private actor LineSink {
     private(set) var lines: [String] = []
     func append(_ line: String) { lines.append(line) }
+}
+
+private actor ExitMark {
+    private(set) var instant: ContinuousClock.Instant?
+    func mark() { instant = .now }
 }

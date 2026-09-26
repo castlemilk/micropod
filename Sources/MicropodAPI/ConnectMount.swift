@@ -390,58 +390,31 @@ extension APIHandlers {
         return out
     }
 
-    /// Polls the exit-code registry and the runtime state every 150 ms until
-    /// the container is terminal or `timeout` elapses — no blocking runtime
-    /// wait in the request path. A registry code is authoritative
-    /// (`known: true`) even if the snapshot has not flipped to `stopped`
-    /// yet. `running`/`stopping` are non-terminal; so is `created` (never
-    /// started — it may still be). Anything else (`stopped`, or `unknown`
-    /// after the container vanished mid-wait) is `exited: true`, with
-    /// `known: false` when no registry code exists (CLI backend, or the
-    /// waiter aged out). A runtime that stops answering mid-wait throws
-    /// (`unavailable`) instead of reporting a false exit.
+    /// Waits for the container to be terminal or `timeout` to elapse — see
+    /// ``ContainerExitWait``: a container the registry tracks wakes the
+    /// request the moment its exit is recorded; any other is polled at 1 s.
+    /// A runtime that stops answering mid-wait throws (`unavailable`)
+    /// instead of reporting a false exit.
     private func waitContainer(
         id: String, timeout: Duration, in services: RuntimeServices
     ) async throws -> Micropod_V1_WaitContainerResponse {
-        let clock = ContinuousClock()
-        let deadline = clock.now + timeout
-        while true {
-            let entry = await services.exitCodes?.entry(for: id)
-            var state = await services.containers.state(of: id)
-            if state == "unknown", entry?.exitCode == nil {
-                // `state(of:)` answers `unknown` both for a container that is
-                // gone and for a runtime that is not answering. The list
-                // tells them apart: it throws when the runtime is down, and a
-                // container it no longer lists has really vanished.
-                state = try await listedContainer(id, in: services)?.state ?? "unknown"
-            }
-            if let code = entry?.exitCode {
-                return .with {
-                    $0.exited = true
-                    $0.known = true
-                    $0.exitCode = code
-                    $0.state = state
-                }
-            }
-            switch state {
-            case "running", "stopping", "created":
-                break
-            default:
-                return .with {
-                    $0.exited = true
-                    $0.known = false
-                    $0.state = state
-                }
-            }
-            let now = clock.now
-            if now >= deadline {
-                return .with {
-                    $0.exited = false
-                    $0.known = false
-                    $0.state = state
-                }
-            }
-            try? await Task.sleep(for: min(deadline - now, .milliseconds(150)))
+        let exitCodes = services.exitCodes
+        let outcome = try await ContainerExitWait.wait(
+            id: id, timeout: timeout, exitCodes: exitCodes
+        ) { id, exitKnown in
+            let state = await services.containers.state(of: id)
+            guard state == "unknown", !exitKnown else { return state }
+            // `state(of:)` answers `unknown` both for a container that is
+            // gone and for a runtime that is not answering. The list tells
+            // them apart: it throws when the runtime is down, and a
+            // container it no longer lists has really vanished.
+            return try await listedContainer(id, in: services)?.state ?? "unknown"
+        }
+        return .with {
+            $0.exited = outcome.exited
+            $0.known = outcome.known
+            if let code = outcome.exitCode { $0.exitCode = code }
+            $0.state = outcome.state
         }
     }
 
