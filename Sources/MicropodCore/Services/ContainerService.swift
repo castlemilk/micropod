@@ -207,6 +207,12 @@ public struct ContainerService: ContainerServing {
     /// Prunes stopped containers and their clone dirs, then sweeps dirs
     /// orphaned by deletes that bypassed this service (see
     /// `VolumeClone.sweepOrphanClones`).
+    ///
+    /// `container prune` deletes every container the runtime lists as
+    /// stopped, and that includes one created moments ago whose client has
+    /// not started it yet, so a prune here can fail that client's start
+    /// `not_found`. The native backend's prune keeps such a container for a
+    /// grace period (`NativeContainerService.isPrunable`); this one does not.
     public func prune() async throws -> String {
         let before = try await entries().map(\.id)
         let output = try await client.run(ContainerCommandFactory.pruneContainers(), timeout: .seconds(60))

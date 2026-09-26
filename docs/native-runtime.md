@@ -231,15 +231,29 @@ exit-code waiter + `containerStartProcess(id, id)`; `start` does the same
 for a created container. A failed bootstrap/start force-deletes the
 container, matching the CLI.
 
-A bootstrap that answers `notFound: container with ID <id> not found` is
-looked into before it is returned: the apiserver answers that only when the
-id is missing from its container table, which `containerCreate` fills under
-the same lock before replying, so right after a create it means another
-client deleted the container in between. If the container is gone the start
-fails `not_found` at once and says it was deleted before it could start (a
-real deletion is never retried or masked); if the runtime still lists it,
-bootstrap is retried after 50, 150 and 400 ms, each retry logged, before the
-`notFound` stands.
+A start whose `containerBootstrap` or `containerStartProcess` answers
+`notFound: container with ID <id> not found` is looked into before the error
+is returned. The apiserver answers bootstrap, startProcess and wait that way
+only when the id is missing from its container table, which
+`containerCreate` fills under the service lock before replying; a delete of
+the id empties it. A created container stays `stopped` until startProcess
+runs, so a plain `container delete` or a prune can take it between bootstrap
+and startProcess. That is where the live defect-4 start failed: bootstrap
+succeeded, then `containerStartProcess` and the exit-code waiter's
+`containerWait` answered `notFound`. The apiserver keeps no tombstones, so an
+id that never existed gets the same answer. After such an answer the
+container is looked up again:
+
+- **Not listed:** the start fails `not_found` at once and logs it; a real
+  deletion is never retried or masked. The error says the container was
+  deleted before it could start only when this process created it (`run`,
+  or a native `create` recorded in `UnstartedCreates`, held until a start of
+  the id has run or it is deleted or pruned, capped at 4096 ids). For any
+  other id it says only that the runtime does not list it.
+- **Still listed** (the id was deleted and created again in between): the
+  whole start is retried after 50, 150 and 400 ms, each retry logged; a
+  second bootstrap of a bootstrapped container is a no-op. After the last
+  step the `notFound` stands.
 
 A failed create removes exactly the clone images it placed, whatever the
 failure: the clone directory is keyed by container id, so any other image
@@ -349,7 +363,12 @@ created, never-started container as `stopped`, just like an exited one, so
 minutes: a prune landing between a client's create and its start (the
 Connect `CreateContainer` → `StartContainer` pair, `docker run`) would
 otherwise fail that start `not_found`. The next prune after the grace takes
-an abandoned create. `cp` parses
+an abandoned create. Docker's own `container prune` removes `created`
+containers at once; the grace is a deliberate, bounded departure from that.
+Only the native backend applies it: the CLI backend's `prune` (always used
+by the MCP server, and by the app, the shim and the API when the native
+backend is unavailable) runs `container prune`, which deletes never-started
+containers too. `cp` parses
 `id:/abs/path` refs exactly like `ContainerCopy` and drives
 `containerCopyIn`/`containerCopyOut` directly.
 

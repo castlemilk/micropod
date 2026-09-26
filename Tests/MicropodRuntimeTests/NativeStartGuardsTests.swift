@@ -5,17 +5,21 @@ import XCTest
 @testable import MicropodRuntime
 
 /// Live defect 4 without a live runtime: `CreateContainer` succeeded and
-/// `StartContainer` ~20 ms later answered `notFound: container with ID … not
-/// found`. container-apiserver answers bootstrap that way only when the id
-/// is missing from its container table, which `containerCreate` fills under
-/// the same lock before it replies — so another client deleted the
-/// container in between, typically an unfiltered prune: the runtime lists a
-/// created, never-started container as `stopped`.
+/// `StartContainer` answered `notFound: container with ID … not found`. The
+/// apiserver log shows the failing calls were `containerStartProcess` and the
+/// exit-code waiter's `containerWait` — bootstrap had succeeded — so the
+/// container was deleted between bootstrap and startProcess. The apiserver
+/// answers a start's calls that way only when the id is missing from its
+/// container table, and keeps no tombstones: a deleted id and one that never
+/// existed get the same answer.
 ///
-///  - `bootstrapForStart` retries a `notFound` only while the runtime still
-///    lists the container (bounded, logged), and never masks a real
-///    deletion: a container that is gone fails `not_found` at once, naming
-///    what happened;
+///  - `startLookingIntoNotFound` looks into a `notFound` from bootstrap *or*
+///    startProcess: a container the runtime still lists is retried (bounded,
+///    logged); one it does not list fails `not_found` at once, logged, and
+///    the error says it was deleted before it could start only when this
+///    process created it — otherwise only that the runtime does not list it;
+///  - `UnstartedCreates` is where a start learns that this process created
+///    its container;
 ///  - `isPrunable` keeps a prune off a container created moments ago that
 ///    has never started, whatever the prune's filters.
 final class NativeStartGuardsTests: XCTestCase {
@@ -26,131 +30,226 @@ final class NativeStartGuardsTests: XCTestCase {
         .message("notFound: container with ID \(id) not found")
     }
 
-    // MARK: bootstrapForStart
-
-    func testNotFoundWhileStillListedIsRetriedUntilBootstrapSucceeds() async throws {
-        let script = Script(bootstrapFailures: 2, listed: [true, true])
-        let log = Lines()
-
-        try await NativeContainerService.bootstrapForStart(
-            id: "cf-attempt-1", backoff: Self.noWait,
-            bootstrap: { try await script.bootstrap("cf-attempt-1") },
+    /// Runs the policy against `script`, as `startTracked` wires it.
+    private static func start(
+        _ id: String, createdHere: Bool, _ script: Script, log: @escaping (String) -> Void = { _ in }
+    ) async throws {
+        try await NativeContainerService.startLookingIntoNotFound(
+            id: id, createdHere: createdHere, backoff: noWait,
+            bootstrap: { try await script.bootstrap(id) },
+            startProcess: { try await script.startProcess(id) },
             exists: { await script.exists() },
-            log: log.append)
-
-        let calls = await script.bootstrapCalls
-        XCTAssertEqual(calls, 3, "two notFound answers, then the bootstrap that succeeds")
-        XCTAssertEqual(log.all.count, 2, "every retry is logged: \(log.all)")
-        XCTAssertTrue(log.all.allSatisfy { $0.contains("cf-attempt-1") && $0.contains("retrying") }, "\(log.all)")
+            log: log)
     }
 
-    /// A container someone else deleted is not retried and not masked: the
-    /// start fails `not_found` straight away and says why.
-    func testNotFoundForADeletedContainerFailsAtOnceNamingTheDeletion() async throws {
-        let script = Script(bootstrapFailures: .max, listed: [false])
+    // MARK: startLookingIntoNotFound — the container is gone
+
+    /// The live signature: bootstrap succeeded, startProcess answered
+    /// notFound, and the runtime no longer lists the container this process
+    /// created. The start fails at once, logged, saying what happened.
+    func testStartProcessNotFoundForAContainerCreatedHereFailsAtOnceNamingTheDeletion() async throws {
+        let script = Script(startProcessFailures: .max, listed: [false])
         let log = Lines()
 
         do {
-            try await NativeContainerService.bootstrapForStart(
-                id: "cf-attempt-2", backoff: Self.noWait,
-                bootstrap: { try await script.bootstrap("cf-attempt-2") },
-                exists: { await script.exists() },
-                log: log.append)
+            try await Self.start("cf-attempt-1", createdHere: true, script, log: log.append)
             XCTFail("a deleted container must not start")
         } catch {
             XCTAssertEqual(ConnectCodeMapping.code(for: error), "not_found")
             let message = error.localizedDescription
-            XCTAssertTrue(message.hasPrefix("notFound: container with ID cf-attempt-2 not found"), message)
-            XCTAssertTrue(message.contains("deleted"), message)
+            XCTAssertTrue(message.hasPrefix("notFound: container with ID cf-attempt-1 not found"), message)
+            XCTAssertTrue(message.contains("deleted before it could start"), message)
         }
-        let (calls, lookups) = (await script.bootstrapCalls, await script.lookups)
-        XCTAssertEqual(calls, 1, "no retry once the runtime no longer lists the container")
-        XCTAssertEqual(lookups, 1)
+        let calls = await script.calls
+        XCTAssertEqual(calls, Calls(bootstrap: 1, startProcess: 1, lookups: 1), "no retry once the container is gone")
         XCTAssertEqual(log.all.count, 1, "the deletion is logged: \(log.all)")
-        XCTAssertTrue(log.all.first?.contains("cf-attempt-2") == true, "\(log.all)")
+        XCTAssertTrue(log.all.first?.contains("cf-attempt-1") == true, "\(log.all)")
+        XCTAssertTrue(log.all.first?.contains("startProcess") == true, "the log names the call: \(log.all)")
+    }
+
+    func testBootstrapNotFoundForAContainerCreatedHereFailsAtOnceNamingTheDeletion() async throws {
+        let script = Script(bootstrapFailures: .max, listed: [false])
+        let log = Lines()
+
+        do {
+            try await Self.start("cf-attempt-2", createdHere: true, script, log: log.append)
+            XCTFail("a deleted container must not start")
+        } catch {
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "not_found")
+            XCTAssertTrue(error.localizedDescription.contains("deleted before it could start"), "\(error)")
+        }
+        let calls = await script.calls
+        XCTAssertEqual(calls, Calls(bootstrap: 1, startProcess: 0, lookups: 1))
+        XCTAssertTrue(log.all.first?.contains("bootstrap") == true, "the log names the call: \(log.all)")
+    }
+
+    /// `start(id)` of an id this process did not create — it may never have
+    /// existed: the error says only that the runtime does not list it.
+    func testNotFoundForAnIdNotCreatedHereClaimsNoDeletion() async throws {
+        for failing in ["bootstrap", "startProcess"] {
+            let script =
+                failing == "bootstrap"
+                ? Script(bootstrapFailures: .max, listed: [false])
+                : Script(startProcessFailures: .max, listed: [false])
+            let log = Lines()
+
+            do {
+                try await Self.start("ghost", createdHere: false, script, log: log.append)
+                XCTFail("\(failing): an unlisted container must not start")
+            } catch {
+                XCTAssertEqual(ConnectCodeMapping.code(for: error), "not_found", failing)
+                XCTAssertEqual(
+                    error.localizedDescription,
+                    "notFound: container with ID ghost not found: the runtime does not list it", failing)
+            }
+            XCTAssertEqual(log.all.count, 1, "\(failing): \(log.all)")
+            let line = log.all.first ?? ""
+            XCTAssertTrue(line.contains("ghost") && line.contains(failing), line)
+            for claim in ["deleted", "removed", "created", "another client"] {
+                XCTAssertFalse(line.contains(claim), "\(failing): the log claims '\(claim)': \(line)")
+            }
+        }
+    }
+
+    // MARK: startLookingIntoNotFound — the container is still listed
+
+    func testBootstrapNotFoundWhileStillListedIsRetriedUntilTheStartSucceeds() async throws {
+        let script = Script(bootstrapFailures: 2, listed: [true, true])
+        let log = Lines()
+
+        try await Self.start("cf-attempt-3", createdHere: true, script, log: log.append)
+
+        let calls = await script.calls
+        XCTAssertEqual(calls, Calls(bootstrap: 3, startProcess: 1, lookups: 2))
+        XCTAssertEqual(log.all.count, 2, "every retry is logged: \(log.all)")
+        XCTAssertTrue(log.all.allSatisfy { $0.contains("cf-attempt-3") && $0.contains("retrying") }, "\(log.all)")
+    }
+
+    /// A startProcess notFound retries the whole start: bootstrap again (a
+    /// no-op for a bootstrapped container), then startProcess.
+    func testStartProcessNotFoundWhileStillListedRetriesTheWholeStart() async throws {
+        let script = Script(startProcessFailures: 2, listed: [true, true])
+        let log = Lines()
+
+        try await Self.start("cf-attempt-4", createdHere: false, script, log: log.append)
+
+        let calls = await script.calls
+        XCTAssertEqual(calls, Calls(bootstrap: 3, startProcess: 3, lookups: 2))
+        XCTAssertEqual(log.all.count, 2, "every retry is logged: \(log.all)")
+        XCTAssertTrue(log.all.allSatisfy { $0.contains("startProcess") && $0.contains("retrying") }, "\(log.all)")
     }
 
     /// Deleted while the retries run: the next lookup ends them.
     func testDeletionBetweenRetriesEndsThem() async throws {
-        let script = Script(bootstrapFailures: .max, listed: [true, false])
+        let script = Script(startProcessFailures: .max, listed: [true, false])
 
         do {
-            try await NativeContainerService.bootstrapForStart(
-                id: "c", backoff: Self.noWait,
-                bootstrap: { try await script.bootstrap("c") },
-                exists: { await script.exists() },
-                log: { _ in })
+            try await Self.start("c", createdHere: true, script)
             XCTFail("a deleted container must not start")
         } catch {
             XCTAssertEqual(ConnectCodeMapping.code(for: error), "not_found")
             XCTAssertTrue(error.localizedDescription.contains("deleted"), error.localizedDescription)
         }
-        let calls = await script.bootstrapCalls
-        XCTAssertEqual(calls, 2)
+        let calls = await script.calls
+        XCTAssertEqual(calls, Calls(bootstrap: 2, startProcess: 2, lookups: 2))
     }
 
-    /// Still listed but never bootstrappable: one retry per backoff step,
-    /// then the runtime's own notFound stands.
+    /// Still listed but never startable: one retry per backoff step, then
+    /// the runtime's own notFound stands.
     func testRetriesAreBoundedByTheBackoffSteps() async throws {
-        let script = Script(bootstrapFailures: .max, listed: Array(repeating: true, count: 10))
+        let script = Script(startProcessFailures: .max, listed: Array(repeating: true, count: 10))
         let log = Lines()
 
         do {
-            try await NativeContainerService.bootstrapForStart(
-                id: "c", backoff: Self.noWait,
-                bootstrap: { try await script.bootstrap("c") },
-                exists: { await script.exists() },
-                log: log.append)
+            try await Self.start("c", createdHere: true, script, log: log.append)
             XCTFail("expected the last notFound")
         } catch {
             XCTAssertEqual(error.localizedDescription, Self.runtimeNotFound("c").localizedDescription)
         }
-        let calls = await script.bootstrapCalls
-        XCTAssertEqual(calls, 1 + Self.noWait.count)
+        let calls = await script.calls
+        XCTAssertEqual(calls.startProcess, 1 + Self.noWait.count)
         XCTAssertEqual(log.all.count, Self.noWait.count + 1, "each retry and the give-up are logged: \(log.all)")
     }
 
-    /// Only `notFound` is looked into; every other bootstrap failure is
-    /// thrown as it came, without a lookup.
-    func testOtherBootstrapErrorsAreNotRetried() async throws {
-        let script = Script(bootstrapFailures: 0, listed: [])
-        let invalidState = MicropodError.message("invalidState: container c is stopping")
+    // MARK: startLookingIntoNotFound — not looked into
 
-        do {
-            try await NativeContainerService.bootstrapForStart(
-                id: "c", backoff: Self.noWait,
-                bootstrap: {
-                    try await script.bootstrap("c")
-                    throw invalidState
-                },
-                exists: { await script.exists() },
-                log: { _ in })
-            XCTFail("expected the bootstrap error")
-        } catch {
-            XCTAssertEqual(error.localizedDescription, invalidState.localizedDescription)
+    /// Only `notFound` is looked into; every other failure of either call is
+    /// thrown as it came, without a lookup or a retry.
+    func testOtherErrorsAreNotLookedInto() async throws {
+        let invalidState = MicropodError.message("invalidState: container c is stopping")
+        for failing in ["bootstrap", "startProcess"] {
+            let script = Script()
+            do {
+                try await NativeContainerService.startLookingIntoNotFound(
+                    id: "c", createdHere: true, backoff: Self.noWait,
+                    bootstrap: {
+                        try await script.bootstrap("c")
+                        if failing == "bootstrap" { throw invalidState }
+                    },
+                    startProcess: {
+                        try await script.startProcess("c")
+                        throw invalidState
+                    },
+                    exists: { await script.exists() },
+                    log: { _ in })
+                XCTFail("\(failing): expected the error")
+            } catch {
+                XCTAssertEqual(error.localizedDescription, invalidState.localizedDescription, failing)
+            }
+            let calls = await script.calls
+            XCTAssertEqual(calls.bootstrap, 1, failing)
+            XCTAssertEqual(calls.startProcess, failing == "bootstrap" ? 0 : 1, failing)
+            XCTAssertEqual(calls.lookups, 0, failing)
         }
-        let (calls, lookups) = (await script.bootstrapCalls, await script.lookups)
-        XCTAssertEqual(calls, 1)
-        XCTAssertEqual(lookups, 0)
     }
 
     /// A lookup that fails cannot tell deleted from still there: the
     /// runtime's notFound stands, unretried and unrelabelled.
     func testFailedLookupKeepsTheRuntimeAnswer() async throws {
-        let script = Script(bootstrapFailures: .max, listed: [])
+        let script = Script(startProcessFailures: .max)
 
         do {
-            try await NativeContainerService.bootstrapForStart(
-                id: "c", backoff: Self.noWait,
+            try await NativeContainerService.startLookingIntoNotFound(
+                id: "c", createdHere: true, backoff: Self.noWait,
                 bootstrap: { try await script.bootstrap("c") },
+                startProcess: { try await script.startProcess("c") },
                 exists: { throw MicropodError.transport("com.apple.container.apiserver: Connection interrupted") },
                 log: { _ in })
-            XCTFail("expected the bootstrap error")
+            XCTFail("expected the startProcess error")
         } catch {
             XCTAssertEqual(error.localizedDescription, Self.runtimeNotFound("c").localizedDescription)
         }
-        let calls = await script.bootstrapCalls
-        XCTAssertEqual(calls, 1)
+        let calls = await script.calls
+        XCTAssertEqual(calls.startProcess, 1)
+    }
+
+    // MARK: UnstartedCreates
+
+    func testUnstartedCreatesRemembersACreateUntilRemoved() async {
+        let creates = UnstartedCreates(capacity: 8)
+        await creates.record("a")
+        let recorded = await creates.contains("a")
+        let other = await creates.contains("b")
+        XCTAssertTrue(recorded)
+        XCTAssertFalse(other, "an id this process never created is not claimed")
+        await creates.remove("a")
+        let removed = await creates.contains("a")
+        XCTAssertFalse(removed)
+    }
+
+    /// Creates that are never started nor deleted here cannot grow the
+    /// record without bound: the oldest record goes first, and recording an
+    /// id again makes it the newest.
+    func testUnstartedCreatesDropsTheOldestAtCapacity() async {
+        let creates = UnstartedCreates(capacity: 2)
+        await creates.record("a")
+        await creates.record("b")
+        await creates.record("a")
+        await creates.record("c")
+        let (a, b, c) = (await creates.contains("a"), await creates.contains("b"), await creates.contains("c"))
+        XCTAssertTrue(a, "re-recorded, so newer than b")
+        XCTAssertFalse(b, "the oldest record is dropped at capacity")
+        XCTAssertTrue(c)
     }
 
     // MARK: isPrunable
@@ -201,28 +300,44 @@ final class NativeStartGuardsTests: XCTestCase {
     }
 }
 
-/// Scripted runtime: `bootstrap` answers notFound `bootstrapFailures` times,
-/// `exists` answers from `listed` in order (false once it runs out).
+/// What the policy called.
+private struct Calls: Equatable {
+    var bootstrap = 0
+    var startProcess = 0
+    var lookups = 0
+}
+
+/// Scripted runtime: `bootstrap` and `startProcess` answer notFound their
+/// `…Failures` times, `exists` answers from `listed` in order (false once it
+/// runs out).
 private actor Script {
     private var bootstrapFailures: Int
+    private var startProcessFailures: Int
     private var listed: [Bool]
-    private(set) var bootstrapCalls = 0
-    private(set) var lookups = 0
+    private(set) var calls = Calls()
 
-    init(bootstrapFailures: Int, listed: [Bool]) {
+    init(bootstrapFailures: Int = 0, startProcessFailures: Int = 0, listed: [Bool] = []) {
         self.bootstrapFailures = bootstrapFailures
+        self.startProcessFailures = startProcessFailures
         self.listed = listed
     }
 
     func bootstrap(_ id: String) throws {
-        bootstrapCalls += 1
+        calls.bootstrap += 1
         guard bootstrapFailures > 0 else { return }
         bootstrapFailures -= 1
         throw MicropodError.message("notFound: container with ID \(id) not found")
     }
 
+    func startProcess(_ id: String) throws {
+        calls.startProcess += 1
+        guard startProcessFailures > 0 else { return }
+        startProcessFailures -= 1
+        throw MicropodError.message("notFound: container with ID \(id) not found")
+    }
+
     func exists() -> Bool {
-        lookups += 1
+        calls.lookups += 1
         return listed.isEmpty ? false : listed.removeFirst()
     }
 }

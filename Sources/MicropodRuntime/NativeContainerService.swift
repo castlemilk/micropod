@@ -62,7 +62,9 @@ public struct NativeContainerService: ContainerServing {
             // keep the CLI path for those.
             return try await cli.create(request)
         }
-        return try await createNative(request)
+        let id = try await createNative(request)
+        await UnstartedCreates.shared.record(id)
+        return id
     }
 
     public func run(_ request: ContainerRunRequest) async throws -> String {
@@ -73,7 +75,7 @@ public struct NativeContainerService: ContainerServing {
         }
         let id = try await createNative(request)
         do {
-            try await startTracked(id)
+            try await startTracked(id, createdHere: true)
         } catch {
             // Match the CLI: a failed start cleans up the created container.
             // Under the id's create mutex, so a replayed create of this id
@@ -92,55 +94,75 @@ public struct NativeContainerService: ContainerServing {
     /// only started by containerStartProcess with processId == id — that's
     /// also what flips the apiserver's status to `running`. The exit-code
     /// waiter is registered in between so the helper already has it when
-    /// the process starts (and exits, however quickly).
-    private func startTracked(_ id: String) async throws {
-        try await Self.bootstrapForStart(
+    /// the process starts (and exits, however quickly). A `notFound` from
+    /// either call is looked into (`startLookingIntoNotFound`); `createdHere`
+    /// says this process created the container, which is what lets the
+    /// error say it was deleted.
+    private func startTracked(_ id: String, createdHere: Bool) async throws {
+        try await Self.startLookingIntoNotFound(
             id: id,
+            createdHere: createdHere,
             bootstrap: { try await api.bootstrap(id: id) },
+            startProcess: {
+                await exitCodes.track(id: id) { [api] in
+                    try await api.waitProcess(containerId: id, processId: id)
+                }
+                do {
+                    try await api.startProcess(containerId: id, processId: id)
+                } catch {
+                    await exitCodes.forget(id: id)
+                    throw error
+                }
+            },
             exists: { try await api.get(id: id) != nil })
-        await exitCodes.track(id: id) { [api] in
-            try await api.waitProcess(containerId: id, processId: id)
-        }
-        do {
-            try await api.startProcess(containerId: id, processId: id)
-        } catch {
-            await exitCodes.forget(id: id)
-            throw error
-        }
     }
 
-    /// Waits between bootstraps that answered `notFound` while the runtime
-    /// still listed the container (see `bootstrapForStart`).
-    static let bootstrapNotFoundBackoff: [Duration] = [.milliseconds(50), .milliseconds(150), .milliseconds(400)]
+    /// Waits between start attempts that answered `notFound` while the
+    /// runtime still listed the container (see `startLookingIntoNotFound`).
+    static let startNotFoundBackoff: [Duration] = [.milliseconds(50), .milliseconds(150), .milliseconds(400)]
 
-    /// `containerBootstrap` for a start, looking into a `notFound` answer.
+    /// A start — `bootstrap`, then `startProcess` (which registers the
+    /// exit-code waiter and calls `containerStartProcess`) — looking into a
+    /// `notFound` from either call.
     ///
-    /// container-apiserver answers bootstrap `notFound: container with ID
-    /// <id> not found` only when the id is missing from its container table;
-    /// `containerCreate` fills that table under the same service lock before
-    /// it replies, and only a delete of that id (or an auto-remove exit)
-    /// empties it. A `notFound` right after a successful create therefore
-    /// means another client deleted the container in between — typically an
-    /// unfiltered prune, since the runtime lists a created, never-started
-    /// container as `stopped` (`isPrunable` now keeps our own prune off it).
-    /// So the container is looked up again:
-    ///  - gone: the start fails `not_found` at once, saying it was deleted —
-    ///    a real deletion is never retried or masked;
-    ///  - still listed: bootstrap is retried after each `backoff` step, each
-    ///    retry logged; when the steps run out the last `notFound` stands.
-    /// Any other bootstrap error, and a `notFound` whose lookup fails, is
-    /// thrown as it came.
-    static func bootstrapForStart(
+    /// container-apiserver answers `notFound: container with ID <id> not
+    /// found` to bootstrap, startProcess and wait only when the id is missing
+    /// from its container table; `containerCreate` fills that table under the
+    /// service lock before it replies, and a delete of that id empties it. A
+    /// created container stays `stopped` until startProcess runs, so a plain
+    /// delete (or a prune) can take it between bootstrap and startProcess —
+    /// the live defect-4 start failed there: its bootstrap succeeded and
+    /// `containerStartProcess` and the waiter's `containerWait` answered
+    /// `notFound`. The apiserver keeps no tombstones, so the answer is the
+    /// same for an id that never existed. So the container is looked up
+    /// again:
+    ///  - not listed: the start fails `not_found` at once, logged — a real
+    ///    deletion is never retried or masked. The error says the container
+    ///    was deleted before it could start only when `createdHere` (this
+    ///    process created it); otherwise it says only that the runtime does
+    ///    not list it;
+    ///  - still listed (the id was deleted and created again in between): the
+    ///    whole start is retried after each `backoff` step — bootstrap is a
+    ///    no-op for a bootstrapped container — each retry logged; when the
+    ///    steps run out the last `notFound` stands.
+    /// Any other error, and a `notFound` whose lookup fails, is thrown as it
+    /// came.
+    static func startLookingIntoNotFound(
         id: String,
-        backoff: [Duration] = bootstrapNotFoundBackoff,
+        createdHere: Bool,
+        backoff: [Duration] = startNotFoundBackoff,
         bootstrap: () async throws -> Void,
+        startProcess: () async throws -> Void,
         exists: () async throws -> Bool,
         log: (String) -> Void = { FileHandle.standardError.write(Data("micropod: \($0)\n".utf8)) }
     ) async throws {
         var retries = 0
         while true {
+            var call = "bootstrap"
             do {
                 try await bootstrap()
+                call = "startProcess"
+                try await startProcess()
                 return
             } catch {
                 guard ConnectCodeMapping.code(for: error) == "not_found" else { throw error }
@@ -149,25 +171,32 @@ public struct NativeContainerService: ContainerServing {
                     listed = try await exists()
                 } catch let lookup {
                     log(
-                        "start \(id): bootstrap answered not found and the lookup failed "
+                        "start \(id): \(call) answered not found and the lookup failed "
                             + "(\(lookup.localizedDescription))")
                     throw error
                 }
                 guard listed else {
-                    log("start \(id): the container was deleted by another client before it started")
+                    if createdHere {
+                        log(
+                            "start \(id): \(call) answered not found and the runtime no longer lists the container "
+                                + "this process created: it was deleted before it could start")
+                        throw MicropodError.message(
+                            "notFound: container with ID \(id) not found: "
+                                + "it was created, then deleted before it could start")
+                    }
+                    log("start \(id): \(call) answered not found and the runtime does not list the container")
                     throw MicropodError.message(
-                        "notFound: container with ID \(id) not found: it was deleted before it could start "
-                            + "(another client removed it between create and start, e.g. a prune)")
+                        "notFound: container with ID \(id) not found: the runtime does not list it")
                 }
                 guard retries < backoff.count else {
-                    log("start \(id): bootstrap still answers not found after \(retries) retries; giving up")
+                    log("start \(id): \(call) still answers not found after \(retries) retries; giving up")
                     throw error
                 }
                 let wait = backoff[retries]
                 retries += 1
                 log(
-                    "start \(id): bootstrap answered not found but the runtime still lists the container; "
-                        + "retrying in \(wait) (\(retries)/\(backoff.count))")
+                    "start \(id): \(call) answered not found but the runtime still lists the container; "
+                        + "retrying the start in \(wait) (\(retries)/\(backoff.count))")
                 try await Task.sleep(for: wait)
             }
         }
@@ -562,7 +591,14 @@ public struct NativeContainerService: ContainerServing {
     }
 
     public func start(_ id: String) async throws {
-        try await startTracked(id)
+        let createdHere = await UnstartedCreates.shared.contains(id)
+        do {
+            try await startTracked(id, createdHere: createdHere)
+        } catch {
+            await UnstartedCreates.shared.remove(id)
+            throw error
+        }
+        await UnstartedCreates.shared.remove(id)
     }
 
     public func stop(_ id: String, timeout: Int = 10) async throws {
@@ -592,6 +628,7 @@ public struct NativeContainerService: ContainerServing {
     public func delete(_ id: String, force: Bool = false) async throws {
         try await api.delete(id: id, force: force)
         await exitCodes.forget(id: id)
+        await UnstartedCreates.shared.remove(id)
         await VolumeClone.removeClones(containerID: id)
     }
 
@@ -602,6 +639,7 @@ public struct NativeContainerService: ContainerServing {
                 group.addTask {
                     try await self.api.delete(id: entry.id, force: force)
                     await self.exitCodes.forget(id: entry.id)
+                    await UnstartedCreates.shared.remove(entry.id)
                     await VolumeClone.removeClones(containerID: entry.id)
                 }
             }
@@ -621,6 +659,7 @@ public struct NativeContainerService: ContainerServing {
                 totalSize += (try? await api.diskUsage(id: entry.id)) ?? 0
                 try await api.delete(id: entry.id)
                 await exitCodes.forget(id: entry.id)
+                await UnstartedCreates.shared.remove(entry.id)
                 await VolumeClone.removeClones(containerID: entry.id)
                 pruned.append(entry.id)
             } catch {
@@ -647,13 +686,16 @@ public struct NativeContainerService: ContainerServing {
 
     /// Whether `prune` may delete this stopped container. The runtime lists
     /// a container that was created and never started as `stopped`, exactly
-    /// like one that ran and exited; deleting it between its client's create
-    /// and start fails that start `not_found` (live defect 4: an agent's
-    /// periodic `container prune` landed between an attempt's
-    /// `CreateContainer` and `StartContainer`). So a container without a
-    /// start date that was created within `unstartedPruneGrace` is kept. A
-    /// container without a readable creation date has nothing proving it
-    /// fresh and is prunable, as before.
+    /// like one that ran and exited, until its startProcess runs; deleting
+    /// it before then fails its client's start `not_found` — the live
+    /// defect-4 signature, whatever issued that delete. So a container
+    /// without a start date that was created within `unstartedPruneGrace` is
+    /// kept. A container without a readable creation date has nothing
+    /// proving it fresh and is prunable, as before.
+    ///
+    /// Only this native prune applies the grace: the CLI backend's `prune`
+    /// runs `container prune`, which deletes every stopped container,
+    /// never-started ones included.
     static func isPrunable(_ entry: ContainerListEntry, now: Date) -> Bool {
         if let started = entry.status.startedDate, !started.isEmpty { return true }
         guard let raw = entry.configuration.creationDate,
