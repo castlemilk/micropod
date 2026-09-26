@@ -271,13 +271,14 @@ public struct NativeContainerService: ContainerServing {
 
         // Image resolution (ClientImage.fetch): local match or pull —
         // or, under `no_pull`, `not_found` naming the missing platform.
-        let imageDescription = try await images.ensure(
+        let image = try await images.ensure(
             reference: request.image,
             platform: platform,
             registryDomain: sysConfig.registryDomain,
             noPull: request.noPull
         )
-        let imageConfig = try await images.imageConfig(description: imageDescription, platform: platform)
+        let imageDescription = image.description
+        let imageConfig = image.config
 
         // Mounts — named volumes resolve through the apiserver's volume
         // routes (getOrCreate, like the CLI). Volumes selected for cloning
