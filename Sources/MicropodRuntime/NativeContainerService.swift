@@ -43,9 +43,17 @@ public struct NativeContainerService: ContainerServing {
 
     public func inspect(_ id: String) async throws -> Data {
         guard let data = try await api.get(id: id) else {
-            throw MicropodError.message("container \(id) not found")
+            throw Self.containerNotFound(id)
         }
         return data
+    }
+
+    /// What `inspect` throws for an id the runtime does not list: coded
+    /// `notFound:` like the apiserver's own errors, so the one
+    /// classification table (`ConnectCodeMapping`) reads it as `not_found`
+    /// wherever it surfaces — the docker shim's `/wait` among them.
+    static func containerNotFound(_ id: String) -> MicropodError {
+        VolumeClone.notFound("container \(id) not found")
     }
 
     public func create(_ request: ContainerRunRequest) async throws -> String {

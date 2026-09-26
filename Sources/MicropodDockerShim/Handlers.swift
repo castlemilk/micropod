@@ -42,6 +42,16 @@ struct ShimConfig: Sendable {
     /// caches (Go module cache, npm, build caches) routinely exceed a few GB.
     /// Defaulted so callers that predate the field keep compiling.
     var defaultVolumeSize: String = "64g"
+    /// How often `/wait` re-inspects a container it is waiting on.
+    var waitPollInterval: Duration = .milliseconds(200)
+    /// `/wait` retries an inspect that fails for any reason but `not_found`
+    /// (which ends the wait at once), but only this many times in a row, or
+    /// for this long since the first failure of the run — whichever comes
+    /// first — before it fails the wait with Docker's `Error.Message` body.
+    /// A runtime that cannot answer for the container must not hold the
+    /// client forever.
+    var waitInspectFailureLimit: Int = 150
+    var waitInspectFailureWindow: Duration = .seconds(60)
 }
 
 struct DockerNetworkCreateBody: Codable {
@@ -1494,7 +1504,14 @@ final class Router: @unchecked Sendable {
         return try await resolveContainer(ref).id
     }
 
+    /// Whether the runtime answered "no such object". Coded answers — the
+    /// apiserver's `notFound: …` XPC errors and the native backend's own
+    /// misses (native backend), `Error: notFound: …` lines and their
+    /// `(cause: "notFound: …")` chains (CLI) — go through the classification
+    /// table the Connect API uses (`ConnectCodeMapping`), so the two surfaces
+    /// cannot disagree. The CLI's uncoded phrasings follow.
     static func isNotFound(_ error: Error) -> Bool {
+        if ConnectCodeMapping.code(for: error) == "not_found" { return true }
         if case MicropodError.cliFailure(_, _, let stderr) = error {
             let text = stderr.lowercased()
             // Covers the real CLI ("image not found: …", "container … not
@@ -1756,26 +1773,58 @@ final class Router: @unchecked Sendable {
     /// Returning early to dodge that is worse — the CLI reads "exited" for a
     /// container that has not run and skips `/start` entirely, silently
     /// leaving a created-but-dead container behind.
+    ///
+    /// Like dockerd, a container that is already gone (and left no exit code
+    /// behind) is a 404 before any headers; once the headers are out, a
+    /// failure can only travel in the body's `Error.Message`.
     private func containerWait(_ id: String, _ request: ShimRequest) async throws -> ShimResponse {
         let target = try await resolveID(id)
+        let first = await inspectOutcome(target)
+        if case .failure(let error) = first, Self.isNotFound(error),
+            await state.exitCode(for: target) == nil
+        {
+            throw ShimError.notFound("No such container: \(id)")
+        }
         let (stream, continuation) = AsyncStream<Data>.makeStream()
         Task.detached(priority: .userInitiated) { [self] in
             defer { continuation.finish() }
-            let result = await waitForExit(target: target, request: request)
+            let result = await waitForExit(target: target, request: request, first: first)
             continuation.yield(result)
         }
         return .stream(200, [("Content-Type", "application/json")], stream)
     }
 
+    /// One flat-cost single-container inspect (not a full-list scan).
+    private func inspectOutcome(_ target: String) async -> Result<Data, Error> {
+        do {
+            return .success(try await containers.inspect(target))
+        } catch {
+            return .failure(error)
+        }
+    }
+
     /// Blocks until the container has actually run and exited, then renders
-    /// the `WaitResult` JSON.
-    private func waitForExit(target: String, request: ShimRequest) async -> Data {
+    /// the `WaitResult` JSON. `first` is the inspect `containerWait` already
+    /// made; every later poll inspects afresh.
+    private func waitForExit(
+        target: String, request: ShimRequest, first: Result<Data, Error>
+    ) async -> Data {
         let condition = request.q("condition").isEmpty ? "not-running" : request.q("condition")
         _ = condition
+        let clock = ContinuousClock()
+        var outcome = first
+        // The current run of consecutive failed inspects (see ShimConfig).
+        var failures = 0
+        var failingSince: ContinuousClock.Instant?
         while true {
-            // Flat-cost single-container inspect instead of full-list scans.
-            do {
-                let raw = try await containers.inspect(target)
+            switch outcome {
+            case .success(let raw):
+                failures = 0
+                failingSince = nil
+                // Only a mapped container that ran and exited ends the wait
+                // here. Still running, or an unmappable (transitional) shape,
+                // polls again — never report an exit on a maybe-alive
+                // container.
                 if let container = DockerMapper.container(fromRawInspect: raw) {
                     let stateName = DockerMapper.stateName(container.state)
                     // "stopped" covers both never-run and ran-and-exited; only the
@@ -1795,9 +1844,7 @@ final class Router: @unchecked Sendable {
                             WaitResult(StatusCode: parsed ?? remembered ?? 0, Error: nil))
                     }
                 }
-                // Inspect succeeded but unmappable (transitional shape): retry
-                // below — never report an exit on a maybe-alive container.
-            } catch {
+            case .failure(let error):
                 if Self.isNotFound(error) {
                     // Gone from the runtime entirely. For `condition=removed`
                     // that IS the awaited outcome; otherwise report the last
@@ -1806,19 +1853,45 @@ final class Router: @unchecked Sendable {
                     let remembered = await state.exitCode(for: target)
                     return Self.encodeBody(WaitResult(StatusCode: remembered ?? 0, Error: nil))
                 }
-                // Transient CLI failure (timeout, wedged apiserver): keep
-                // polling. A single hiccup must never surface as StatusCode 0
-                // for a healthy running container — that phantom exit aborts
-                // wait-strategy clients (e.g. testcontainers readiness).
+                // Transient failure (timeout, wedged apiserver): keep polling,
+                // within bounds. A single hiccup must never surface as
+                // StatusCode 0 for a healthy running container — that phantom
+                // exit aborts wait-strategy clients (e.g. testcontainers
+                // readiness) — and an endless run of them must not hold the
+                // client forever either: past the bound the wait fails.
+                failures += 1
+                let since = failingSince ?? clock.now
+                failingSince = since
+                let failingFor = since.duration(to: clock.now)
+                if failures >= config.waitInspectFailureLimit || failingFor >= config.waitInspectFailureWindow {
+                    let message =
+                        "wait for \(target): the runtime failed to inspect the container "
+                        + "\(failures) consecutive times over \(failingFor): \(error)"
+                    fputs("[shim] \(message); failing the wait\n", stderr)
+                    return Self.encodeBody(
+                        WaitResult(StatusCode: WaitResult.noExitStatus, Error: WaitError(Message: message)))
+                }
                 fputs("[shim] wait \(target): transient inspect error, retrying: \(error)\n", stderr)
             }
-            try? await Task.sleep(for: .milliseconds(200))
+            try? await Task.sleep(for: config.waitPollInterval)
+            outcome = await inspectOutcome(target)
         }
     }
 
+    /// Docker's `ContainerWaitResponse`. `Error` is an object
+    /// (`{"Message": …}`), omitted when the wait succeeded; a client
+    /// receiving it treats the wait as failed (the docker CLI exits 125).
     struct WaitResult: Codable {
         var StatusCode: Int
-        var Error: String?
+        var Error: WaitError?
+
+        /// The code a failed wait carries: there is no exit status to
+        /// report, and it must never read as success.
+        static let noExitStatus = -1
+    }
+
+    struct WaitError: Codable {
+        var Message: String
     }
 
     private func containerLogs(_ id: String, _ request: ShimRequest) async throws -> ShimResponse {
