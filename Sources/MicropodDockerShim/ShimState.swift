@@ -140,6 +140,37 @@ actor ShimState {
 
     func markStarted(id: String) {
         startedIDs.insert(id)
+        if startRefusals.removeValue(forKey: id) != nil {
+            startRefusalOrder.removeAll { $0 == id }
+        }
+    }
+
+    /// Why the runtime refused the latest `/start` of a container, until a
+    /// later `/start` of it. A `/wait` already polling that container ends
+    /// with it (the container will not run, so no exit is coming). Like exit
+    /// codes it outlives the container — a refused `--rm` start removes the
+    /// container while the client's wait is still polling — so it is bounded
+    /// the same way.
+    private var startRefusals: [String: String] = [:]
+    private var startRefusalOrder: [String] = []
+
+    /// Records a refused start. `wasStarted` is whether the container had
+    /// been started before this attempt: one that never was goes back to
+    /// never-started, so the events loop does not read it as a run that
+    /// exited.
+    func noteStartRefused(id: String, message: String, wasStarted: Bool) {
+        if !wasStarted { startedIDs.remove(id) }
+        if startRefusals[id] == nil {
+            startRefusalOrder.append(id)
+            if startRefusalOrder.count > Self.exitCodeHistoryLimit {
+                startRefusals.removeValue(forKey: startRefusalOrder.removeFirst())
+            }
+        }
+        startRefusals[id] = message
+    }
+
+    func startRefusal(for id: String) -> String? {
+        startRefusals[id]
     }
 
     /// Containers whose `container start --attach` run has not finished.

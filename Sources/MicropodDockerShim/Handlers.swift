@@ -52,6 +52,12 @@ struct ShimConfig: Sendable {
     /// client forever.
     var waitInspectFailureLimit: Int = 150
     var waitInspectFailureWindow: Duration = .seconds(60)
+    /// An attached `/start` answers once the container is seen to have run
+    /// or the runtime refused it (see `settleAttachedStart`): how often it
+    /// looks, and how long it waits for either before it stops the attached
+    /// CLI and fails the start.
+    var startSettlePollInterval: Duration = .milliseconds(100)
+    var startSettleTimeout: Duration = .seconds(120)
 }
 
 struct DockerNetworkCreateBody: Codable {
@@ -1835,6 +1841,10 @@ final class Router: @unchecked Sendable {
                     // container reaches "stopped"; returning now would report 0
                     // for a failed container.
                     let awaitingExitCode = AttachRegistry.shared.isRunning(containerID: target)
+                    // Refused and never run: no exit is coming.
+                    if neverRan, let refusal = await state.startRefusal(for: target) {
+                        return Self.refusedWait(target, refusal)
+                    }
                     if stateName != "running" && !neverRan && !awaitingExitCode {
                         // The runtime omits exit codes for stopped containers;
                         // assume a clean exit unless an event captured one.
@@ -1851,6 +1861,9 @@ final class Router: @unchecked Sendable {
                     // exit code we captured rather than hanging on a container
                     // that no longer exists.
                     let remembered = await state.exitCode(for: target)
+                    if remembered == nil, let refusal = await state.startRefusal(for: target) {
+                        return Self.refusedWait(target, refusal)
+                    }
                     return Self.encodeBody(WaitResult(StatusCode: remembered ?? 0, Error: nil))
                 }
                 // Transient failure (timeout, wedged apiserver): keep polling,
@@ -1876,6 +1889,14 @@ final class Router: @unchecked Sendable {
             try? await Task.sleep(for: config.waitPollInterval)
             outcome = await inspectOutcome(target)
         }
+    }
+
+    /// The failed wait of a container whose start the runtime refused.
+    private static func refusedWait(_ target: String, _ refusal: String) -> Data {
+        encodeBody(
+            WaitResult(
+                StatusCode: WaitResult.noExitStatus,
+                Error: WaitError(Message: "container \(target) did not start: \(refusal)")))
     }
 
     /// Docker's `ContainerWaitResponse`. `Error` is an object
@@ -1987,40 +2008,170 @@ final class Router: @unchecked Sendable {
     /// Starts `id`, streaming into a hijacked connection if `/attach` parked
     /// one for it. The attached form is what surfaces the container's real
     /// exit code — a detached start leaves it unknowable (see AttachSession).
+    ///
+    /// Returns only once the runtime's start has settled, as dockerd's
+    /// `/start` does: a start the runtime refuses throws its refusal
+    /// (`startError`) instead of a 204 the client would take as a running
+    /// container — whose `/wait` would then never end.
     private func startPossiblyAttached(_ id: String) async throws {
+        let wasStarted = await state.hasStarted(id: id)
         await state.markStarted(id: id)
         // A (re)start resets health supervision immediately (the events loop
         // re-baselines on the observed transition as well).
         await state.resetHealth(id: id)
         guard let connection = AttachRegistry.shared.claim(containerID: id) else {
             fputs("[shim] start \(id): no parked attach, detached start\n", stderr)
-            try await containers.start(id)
+            do {
+                try await containers.start(id)
+            } catch {
+                throw await refuseStart(id, error, wasStarted: wasStarted)
+            }
             return
         }
         fputs("[shim] start \(id): claimed parked attach\n", stderr)
         let tty = await state.createRequest(for: id)?.Tty ?? false
+        // The start stamp before this start: a stamp other than this one
+        // afterwards means the container ran (see `hasRun`).
+        let baseline = try? DockerMapper.startedDate(rawInspect: await containers.inspect(id))
+        let containers = self.containers
+        let state = self.state
+        // Marked before launch so the events loop never sees the window
+        // between /start and the container actually running as an exit.
+        await state.markAttachRunning(id: id)
+        let session = AttachSession(
+            cliPath: cliPath, containerID: id, tty: tty, state: state,
+            onExit: { _ in
+                await state.clearAttachRunning(id: id)
+                guard let create = await state.createRequest(for: id),
+                    create.HostConfig?.AutoRemove == true
+                else { return }
+                try? await containers.delete(id, force: true)
+            })
         do {
-            let containers = self.containers
-            let state = self.state
-            // Marked before launch so the events loop never sees the window
-            // between /start and the container actually running as an exit.
-            await state.markAttachRunning(id: id)
-            let session = AttachSession(
-                cliPath: cliPath, containerID: id, tty: tty, state: state,
-                onExit: { _ in
-                    await state.clearAttachRunning(id: id)
-                    guard let create = await state.createRequest(for: id),
-                        create.HostConfig?.AutoRemove == true
-                    else { return }
-                    try? await containers.delete(id, force: true)
-                })
             try session.launchAndPump(connection: connection)
         } catch {
             // Never strand the client on a dead hijack.
             await state.clearAttachRunning(id: id)
             connection.close()
-            throw error
+            throw await refuseStart(id, error, wasStarted: wasStarted)
         }
+        // Unstructured: the settle must finish (and settle the session) even
+        // if this request's task is cancelled.
+        let settlement = await Task.detached { [self] in
+            await settleAttachedStart(id, session: session, baseline: baseline)
+        }.value
+        switch settlement {
+        case .started:
+            session.admit()
+        case .refused(let error):
+            session.refuse()
+            await state.clearAttachRunning(id: id)
+            throw await refuseStart(id, error, wasStarted: wasStarted)
+        }
+    }
+
+    private enum StartSettlement: Sendable {
+        case started
+        case refused(MicropodError)
+    }
+
+    /// Waits for an attached start to settle. `container start --attach` IS
+    /// the start: when the runtime refuses it, the CLI prints its `Error:`
+    /// line and exits without the container ever running. So the start went
+    /// through once the container is seen to have run since `baseline`, and
+    /// was refused once the CLI has exited and the container has not run (or
+    /// is gone). The exit is read before each inspect, so an exit racing the
+    /// inspect is judged by the next one. Bounded by `startSettleTimeout`:
+    /// past it the CLI is stopped and the start fails.
+    private func settleAttachedStart(
+        _ id: String, session: AttachSession, baseline: String?
+    ) async -> StartSettlement {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: config.startSettleTimeout)
+        while true {
+            let exit = session.exitCode
+            switch await inspectOutcome(id) {
+            case .success(let raw):
+                if Self.hasRun(raw, since: baseline) { return .started }
+                if let exit { return .refused(session.failure(exitCode: exit)) }
+            case .failure(let error):
+                if let exit, Self.isNotFound(error) { return .refused(session.failure(exitCode: exit)) }
+            }
+            if clock.now >= deadline {
+                session.terminate()
+                return .refused(
+                    .message("container \(id) did not start within \(config.startSettleTimeout)"))
+            }
+            try? await Task.sleep(for: config.startSettlePollInterval)
+        }
+    }
+
+    /// Whether `raw` (a runtime inspect) shows a start newer than `baseline`:
+    /// the container running now, or a start stamp other than the one it had
+    /// before this `/start` (the runtime restamps `startedDate` on every start
+    /// and keeps it after the container stops, so a run too short to be seen
+    /// running still shows).
+    static func hasRun(_ raw: Data, since baseline: String?) -> Bool {
+        if let container = DockerMapper.container(fromRawInspect: raw),
+            DockerMapper.stateName(container.state) == "running"
+        {
+            return true
+        }
+        guard let stamp = DockerMapper.startedDate(rawInspect: raw) else { return false }
+        return stamp != baseline
+    }
+
+    /// A start the runtime refused: logged with the runtime's words, recorded
+    /// so a pending `/wait` ends with it, and — as dockerd does — an
+    /// AutoRemove container is removed (the docker CLI's `run --rm` waits for
+    /// that removal after reporting the start error). Returns the Docker
+    /// error for the start response.
+    private func refuseStart(_ id: String, _ error: Error, wasStarted: Bool) async -> ShimError {
+        let refusal = Self.startError(error, id: id)
+        let message = Self.runtimeMessage(error)
+        fputs("[shim] start \(id): refused (\(refusal.status)): \(message)\n", stderr)
+        await state.noteStartRefused(id: id, message: message, wasStarted: wasStarted)
+        if let create = await state.createRequest(for: id), create.HostConfig?.AutoRemove == true,
+            (try? await containers.delete(id, force: true)) != nil
+        {
+            await state.forget(id: id)
+        }
+        await readCache.invalidateContainers()
+        return refusal
+    }
+
+    /// A refused start as Docker reports it, classified by the table the
+    /// Connect API uses (`ConnectCodeMapping`): `failed_precondition` (the
+    /// RW multi-attach guard) and `already_exists` are 409 Conflict,
+    /// `invalid_argument` 400, a missing container 404, anything else 500 —
+    /// each with the runtime's own message.
+    static func startError(_ error: Error, id: String) -> ShimError {
+        if let error = error as? ShimError { return error }
+        let message = runtimeMessage(error)
+        switch ConnectCodeMapping.code(for: error) {
+        case "failed_precondition", "already_exists":
+            return .conflict(message)
+        case "invalid_argument":
+            return .badRequest(message)
+        default:
+            if isNotFound(error) { return .notFound("No such container: \(id)") }
+            return .internalError(message)
+        }
+    }
+
+    /// The runtime's own words for a failure: a CLI's `Error:` line rather
+    /// than the "`cmd` failed (exit N)" wrapper, else the error's description.
+    static func runtimeMessage(_ error: Error) -> String {
+        if case MicropodError.cliFailure(_, _, let stderr) = error {
+            let prefix = "Error: "
+            for line in stderr.split(whereSeparator: \.isNewline) {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if trimmed.hasPrefix(prefix) { return String(trimmed.dropFirst(prefix.count)) }
+            }
+            let text = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !text.isEmpty { return text }
+        }
+        return (error as? LocalizedError)?.errorDescription ?? "\(error)"
     }
 
     /// Docker query flags arrive as "1"/"true"/"True" depending on the client.

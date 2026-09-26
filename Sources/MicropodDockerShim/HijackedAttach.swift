@@ -23,6 +23,16 @@ import MicropodCore
 /// connection here, and `/start` claims it and launches the attached run. A
 /// `/start` with no parked connection is an ordinary detached start.
 ///
+/// **The start must settle before `/start` answers.** `container start
+/// --attach` is the start: when the runtime refuses it (a volume image another
+/// VM holds, the RW multi-attach guard's `failedPrecondition`) the CLI prints
+/// its `Error:` line and exits without the container ever running. dockerd
+/// answers `/start` only once the container runs, so the router holds the
+/// response until the container is seen to have run, or the CLI has exited
+/// without it running — a refusal, which the start response reports and the
+/// attach stream ends on. Until then the session holds the run's output: it
+/// may be nothing but the CLI's refusal, which is not the container's output.
+///
 /// **stdin is drained, not forwarded.** `--interactive` exists but the shim has
 /// no duplex path to it here; we consume the hijacked inbound stream so the
 /// client never blocks on a full send buffer, and drop it.
@@ -106,7 +116,20 @@ final class AttachRegistry: @unchecked Sendable {
 
 /// Runs `container start --attach <id>` and pumps its output into a hijacked
 /// Docker connection, recording the real exit code when it finishes.
+///
+/// The router settles the start (`admit` once the container has run, `refuse`
+/// when the runtime would not start it); until then output is held, and the
+/// exit bookkeeping waits for the verdict.
 final class AttachSession: @unchecked Sendable {
+    /// How the start settled, as the router decided it.
+    enum Disposition: Sendable {
+        /// The container ran: stream its output, record its exit code.
+        case started
+        /// The runtime refused the start: drop the held output, record no
+        /// exit code, end the attach stream.
+        case refused
+    }
+
     private let process = Process()
     private let stdoutPipe = Pipe()
     private let stderrPipe = Pipe()
@@ -118,6 +141,27 @@ final class AttachSession: @unchecked Sendable {
     /// reaping on this run being finished, and by the time it is, the
     /// container is no longer a state *transition* the loop would notice.
     private let onExit: @Sendable (Int) async -> Void
+
+    /// Guards everything below.
+    private let lock = NSLock()
+    private var connection: ShimConnection?
+    private enum OutputGate {
+        /// Start not settled: framed output accumulates in `held`.
+        case holding
+        /// `held` has been handed to the connection; output goes straight out.
+        case open
+        /// The start was refused: output is discarded.
+        case dropped
+    }
+    private var gate = OutputGate.holding
+    private var held = Data()
+    /// The CLI's stderr, bounded: where its `Error:` line for a refused start
+    /// is (an attached run's stderr is otherwise the guest's).
+    private var capturedStderr = Data()
+    private static let stderrCaptureLimit = 64 * 1024
+    private var exitStatus: Int32?
+    private var disposition: Disposition?
+    private var dispositionWaiters: [CheckedContinuation<Disposition, Never>] = []
 
     init(
         cliPath: String, containerID: String, tty: Bool, state: ShimState,
@@ -134,10 +178,14 @@ final class AttachSession: @unchecked Sendable {
         process.standardInput = FileHandle.nullDevice
     }
 
-    /// Launches the attached run and streams it to `connection`. Returns once
-    /// the process is spawned — the pump and exit bookkeeping continue in the
-    /// background so `/start` can answer 204 immediately, as Docker does.
+    /// Launches the attached run, pumping it towards `connection`. Returns
+    /// once the process is spawned; the router then settles the start
+    /// (`admit` / `refuse`) and the pump and exit bookkeeping continue in the
+    /// background.
     func launchAndPump(connection: ShimConnection) throws {
+        lock.lock()
+        self.connection = connection
+        lock.unlock()
         AttachRegistry.shared.markRunning(containerID: containerID)
         do {
             try process.run()
@@ -146,14 +194,12 @@ final class AttachSession: @unchecked Sendable {
             throw error
         }
 
-        stdoutPipe.fileHandleForReading.readabilityHandler = makePump(
-            connection: connection, frameType: 1)
-        stderrPipe.fileHandleForReading.readabilityHandler = makePump(
-            connection: connection, frameType: 2)
+        stdoutPipe.fileHandleForReading.readabilityHandler = makePump(frameType: 1)
+        stderrPipe.fileHandleForReading.readabilityHandler = makePump(frameType: 2)
 
         let watcher = Thread { [self] in
             process.waitUntilExit()
-            let code = Int(process.terminationStatus)
+            let code = process.terminationStatus
             // Detach handlers first, then drain without blocking: the parent
             // still holds the pipes' write ends open, so a blocking read
             // on an empty pipe waits forever (EOF never arrives) and the
@@ -163,37 +209,155 @@ final class AttachSession: @unchecked Sendable {
             stderrPipe.fileHandleForReading.readabilityHandler = nil
             let restOut = Self.drainWithoutBlocking(stdoutPipe.fileHandleForReading)
             let restErr = Self.drainWithoutBlocking(stderrPipe.fileHandleForReading)
+            // Best-effort trailing output: `deliver` never waits on the
+            // connection, so it cannot gate the close. (Awaiting a write
+            // group here once wedged the close forever — `withTaskGroup`
+            // joins all children, so a stuck write outlives the timeout
+            // despite `cancelAll`.)
+            deliver(restOut, frameType: 1)
+            deliver(restErr, frameType: 2)
+            // Recorded only after all of stderr is captured: a refused start
+            // is classified from the CLI's complete `Error:` line.
+            lock.lock()
+            exitStatus = code
+            lock.unlock()
             Task.detached { [self] in
-                // Best-effort trailing flush in its own task: it must never
-                // gate the close. (Awaiting a write group here once wedged
-                // the close forever — `withTaskGroup` joins all children, so
-                // a stuck write outlives the timeout despite `cancelAll`.)
-                let tty = self.tty
-                Task.detached(priority: .utility) {
-                    if !restOut.isEmpty {
-                        _ = await connection.write(Self.encode(restOut, frameType: 1, tty: tty))
-                    }
-                    if !restErr.isEmpty {
-                        _ = await connection.write(Self.encode(restErr, frameType: 2, tty: tty))
-                    }
+                switch await settled() {
+                case .refused:
+                    // `refuse` already ended the stream; no exit code is
+                    // recorded for a container that never ran.
+                    AttachRegistry.shared.clearRunning(containerID: containerID)
+                    closeSessionPipes()
+                case .started:
+                    // Drain window for the trailing output, then close
+                    // unconditionally: the client is waiting on end-of-stream
+                    // to exit.
+                    try? await Task.sleep(for: .seconds(2))
+                    // Recorded before the socket closes: the client's `/wait`
+                    // is already blocked and will read this the moment it sees
+                    // the container stop.
+                    await state.noteExit(id: containerID, code: Int(code))
+                    AttachRegistry.shared.clearRunning(containerID: containerID)
+                    // Close first: the client is waiting on end-of-stream, and
+                    // AutoRemove deletion is a runtime round-trip.
+                    connection.close()
+                    closeSessionPipes()
+                    await onExit(Int(code))
                 }
-                // Drain window for the flush above, then close unconditionally:
-                // the client is waiting on end-of-stream to exit.
-                try? await Task.sleep(for: .seconds(2))
-                // Recorded before the socket closes: the client's `/wait` is
-                // already blocked and will read this the moment it sees the
-                // container stop.
-                await state.noteExit(id: containerID, code: code)
-                AttachRegistry.shared.clearRunning(containerID: containerID)
-                // Close first: the client is waiting on end-of-stream, and
-                // AutoRemove deletion is a runtime round-trip.
-                connection.close()
-                closeSessionPipes()
-                await onExit(code)
             }
         }
         watcher.name = "shim-attach-wait"
         watcher.start()
+    }
+
+    /// The CLI's exit status once it has exited (and all its output has been
+    /// pumped), nil while it runs.
+    var exitCode: Int32? {
+        lock.lock()
+        defer { lock.unlock() }
+        return exitStatus
+    }
+
+    /// The CLI's failure as the runtime worded it: its exit status and stderr.
+    func failure(exitCode: Int32) -> MicropodError {
+        lock.lock()
+        let stderr = String(decoding: capturedStderr, as: UTF8.self)
+        lock.unlock()
+        return .cliFailure(
+            command: "container start --attach \(containerID)", exitCode: exitCode, stderr: stderr)
+    }
+
+    /// The start went through: hand the held output to the client, in order,
+    /// then stream live. Never waits on the client — the handover runs in its
+    /// own task, and output arriving meanwhile queues behind it.
+    func admit() {
+        settle(.started)
+        lock.lock()
+        let connection = self.connection
+        lock.unlock()
+        Task.detached { [self] in
+            while let chunk = takeHeldOrOpen() {
+                _ = await connection?.write(chunk)
+            }
+        }
+    }
+
+    /// The output held so far (emptying the hold), or nil — with the gate
+    /// opened — once nothing is left to hand over.
+    private func takeHeldOrOpen() -> Data? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !held.isEmpty else {
+            gate = .open
+            return nil
+        }
+        let chunk = held
+        held = Data()
+        return chunk
+    }
+
+    /// The runtime refused the start: drop the held output (it is the CLI's
+    /// refusal, not the container's) and end the attach stream now.
+    func refuse() {
+        lock.lock()
+        gate = .dropped
+        held = Data()
+        let connection = self.connection
+        lock.unlock()
+        settle(.refused)
+        connection?.close()
+    }
+
+    /// Stops a CLI whose start never settled (see the router's settle bound).
+    func terminate() {
+        if process.isRunning { process.terminate() }
+    }
+
+    private func settle(_ outcome: Disposition) {
+        lock.lock()
+        guard disposition == nil else {
+            lock.unlock()
+            return
+        }
+        disposition = outcome
+        let waiters = dispositionWaiters
+        dispositionWaiters = []
+        lock.unlock()
+        for waiter in waiters { waiter.resume(returning: outcome) }
+    }
+
+    private func settled() async -> Disposition {
+        await withCheckedContinuation { continuation in
+            lock.lock()
+            if let disposition {
+                lock.unlock()
+                continuation.resume(returning: disposition)
+                return
+            }
+            dispositionWaiters.append(continuation)
+            lock.unlock()
+        }
+    }
+
+    /// Routes one chunk of the run's output by the gate, capturing stderr.
+    private func deliver(_ data: Data, frameType: UInt8) {
+        guard !data.isEmpty else { return }
+        let payload = Self.encode(data, frameType: frameType, tty: tty)
+        lock.lock()
+        if frameType == 2, capturedStderr.count < Self.stderrCaptureLimit {
+            capturedStderr.append(data.prefix(Self.stderrCaptureLimit - capturedStderr.count))
+        }
+        switch gate {
+        case .holding:
+            held.append(payload)
+            lock.unlock()
+        case .open:
+            let connection = self.connection
+            lock.unlock()
+            Task { _ = await connection?.write(payload) }
+        case .dropped:
+            lock.unlock()
+        }
     }
 
     private static func encode(_ data: Data, frameType: UInt8, tty: Bool) -> Data {
@@ -246,18 +410,14 @@ final class AttachSession: @unchecked Sendable {
         return out
     }
 
-    private func makePump(connection: ShimConnection, frameType: UInt8)
-        -> @Sendable (FileHandle) -> Void
-    {
-        let isTTY = tty
-        return { fileHandle in
+    private func makePump(frameType: UInt8) -> @Sendable (FileHandle) -> Void {
+        { [self] fileHandle in
             let data = fileHandle.availableData
             if data.isEmpty {
                 fileHandle.readabilityHandler = nil
                 return
             }
-            let payload = AttachSession.encode(data, frameType: frameType, tty: isTTY)
-            Task { _ = await connection.write(payload) }
+            deliver(data, frameType: frameType)
         }
     }
 }

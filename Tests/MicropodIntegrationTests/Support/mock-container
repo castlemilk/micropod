@@ -42,12 +42,15 @@ mkdir -p "$STATE_DIR"
 # poller lists at high frequency while tests mutate, and plain `>` redirects
 # truncate files mid-read without this.
 MOCK_LOCK="$STATE_DIR/.invocation-lock"
-mock_lock_attempt=0
-until mkdir "$MOCK_LOCK" 2>/dev/null; do
-    mock_lock_attempt=$((mock_lock_attempt + 1))
-    [ "$mock_lock_attempt" -gt 500 ] && { echo "Error: mock lock timeout" >&2; exit 1; }
-    sleep 0.02
-done
+acquire_mock_lock() {
+    local attempt=0
+    until mkdir "$MOCK_LOCK" 2>/dev/null; do
+        attempt=$((attempt + 1))
+        [ "$attempt" -gt 500 ] && { echo "Error: mock lock timeout" >&2; exit 1; }
+        sleep 0.02
+    done
+}
+acquire_mock_lock
 release_mock_lock() { rmdir "$MOCK_LOCK" 2>/dev/null || true; }
 trap release_mock_lock EXIT
 
@@ -196,7 +199,41 @@ cmd_inspect() {
     printf '[%s]\n' "$line"
 }
 
-cmd_start() { local id; id=$(resolve_id "$1") || { echo "Error: no such container: $1" >&2; exit 1; }; set_container_state "$id" running; }
+# `start [--attach] [--interactive] <id>`. A `$STATE_DIR/start-refusal` file
+# makes every start fail the way the runtime refuses one: its content is
+# printed as the CLI's `Error: <content>` line, exit 1, and the container
+# never starts (no state change, no startedDate) — like `container` 1.3.1
+# refusing a second read-write attach of a volume's block image.
+# `--attach` is an attached run, as the real CLI's: the container runs, its
+# output streams, and the CLI exits with the container's code — here one
+# stdout line, a short run, then `stopped` and exit
+# `$STATE_DIR/attach-exit-code` (default 0).
+cmd_start() {
+    local attach=0 ref=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -a|--attach) attach=1 ;;
+            -i|--interactive) ;;
+            *) ref="$1" ;;
+        esac
+        shift
+    done
+    local id
+    id=$(resolve_id "$ref") || { echo "Error: no such container: $ref" >&2; exit 1; }
+    if [ -f "$STATE_DIR/start-refusal" ]; then
+        printf 'Error: %s\n' "$(cat "$STATE_DIR/start-refusal")" >&2
+        exit 1
+    fi
+    set_container_state "$id" running
+    [ "$attach" = "1" ] || return 0
+    # The run holds no state: let concurrent CLI calls (inspect, list) in.
+    release_mock_lock
+    printf 'mock attached output from %s\n' "$id"
+    sleep 0.3
+    acquire_mock_lock
+    set_container_state "$id" stopped
+    exit "$(cat "$STATE_DIR/attach-exit-code" 2>/dev/null || echo 0)"
+}
 cmd_stop() {
     if [ "${1:-}" = "--all" ]; then
         while [ $# -gt 0 ]; do
@@ -1113,7 +1150,7 @@ fi
 case "$cmd" in
     list)           cmd_list "$@" ;;
     inspect)        cmd_inspect "${1:-}" ;;
-    start)          cmd_start "${1:-}" ;;
+    start)          cmd_start "$@" ;;
     stop)           cmd_stop "$@" ;;
     kill)           cmd_kill "$@" ;;
     delete)         cmd_delete "$@" ;;
