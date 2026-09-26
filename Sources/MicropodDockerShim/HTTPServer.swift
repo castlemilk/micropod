@@ -34,16 +34,36 @@ struct ShimRequest {
 
 /// Per-connection handle handed to handlers. Writes go straight to the
 /// client socket; after a hijack the same object yields inbound client bytes.
+///
+/// **Nothing is written after close.** A response can outlive its client — a
+/// `/wait` ends long after the docker CLI that sent it has exited — and a
+/// raw fd's number is reused by the next accept(2) once it is closed, so a
+/// late write would land in another client's HTTP stream (live: "Unsolicited
+/// response received on idle HTTP channel", `malformed HTTP version
+/// "{\"StatusCode\":0}HTTP/1.1"`). Every send runs on one serial queue and
+/// checks there that the connection is still open, and the fd is released
+/// only on that queue — after every send queued before the close, and only
+/// once the serve thread has stopped reading it — so no send and no recv
+/// can reach a number that has been handed to someone else.
 final class ShimConnection: @unchecked Sendable {
     private enum Transport {
         case network(NWConnection)
-        /// Raw BSD fd (unix sockets): blocking sends serialized on one queue.
-        case fileDescriptor(Int32, DispatchQueue)
+        /// Raw BSD fd (unix and TCP sockets): blocking sends, and the fd's
+        /// release, serialized on `io`.
+        case fileDescriptor(Int32)
     }
 
     private let transport: Transport
+    private let io: DispatchQueue
     private let lock = NSLock()
     private var mode: Mode = .http
+    /// Raw fd: whether the serve thread may still recv(2) on it. The fd is
+    /// not released while it may.
+    private var reading: Bool
+    private var released = false
+    /// Run once, when the connection closes: how a long poll learns that its
+    /// client has gone.
+    private var closeHandlers: [@Sendable () -> Void] = []
 
     private enum Mode {
         case http
@@ -108,19 +128,29 @@ final class ShimConnection: @unchecked Sendable {
 
     init(connection: NWConnection) {
         transport = .network(connection)
+        io = DispatchQueue(label: "shim-nw-write", qos: .userInitiated)
+        reading = false
     }
 
-    init(fileDescriptor fd: Int32) {
-        let queue = DispatchQueue(label: "shim-fd-write-\(fd)", qos: .userInitiated)
-        transport = .fileDescriptor(fd, queue)
+    /// `readerAttached`: a serve thread reads `fd` and calls `readerDetached`
+    /// when it stops; the fd is released only after that.
+    init(fileDescriptor fd: Int32, readerAttached: Bool = false) {
+        transport = .fileDescriptor(fd)
+        io = DispatchQueue(label: "shim-fd-write-\(fd)", qos: .userInitiated)
+        reading = readerAttached
     }
 
     enum WriteStatus: Sendable { case ok, failed }
 
+    /// Sends `data`, or refuses (`.failed`, nothing sent) once the connection
+    /// is closed. A failed send closes the connection: its stream can no
+    /// longer be framed, and its client is usually gone.
     func write(_ data: Data) async -> WriteStatus {
+        let status: WriteStatus
         switch transport {
         case .network(let connection):
-            return await withCheckedContinuation {
+            guard !isClosed else { return .failed }
+            status = await withCheckedContinuation {
                 (continuation: CheckedContinuation<WriteStatus, Never>) in
                 connection.send(
                     content: data,
@@ -128,10 +158,16 @@ final class ShimConnection: @unchecked Sendable {
                         continuation.resume(returning: error == nil ? .ok : .failed)
                     })
             }
-        case .fileDescriptor(let fd, let queue):
-            return await withCheckedContinuation {
+        case .fileDescriptor(let fd):
+            status = await withCheckedContinuation {
                 (continuation: CheckedContinuation<WriteStatus, Never>) in
-                queue.async {
+                io.async { [self] in
+                    // Checked on the queue the fd is released on, so the fd
+                    // is still this connection's for the whole send.
+                    guard !isClosed else {
+                        continuation.resume(returning: .failed)
+                        return
+                    }
                     var sent = 0
                     data.withUnsafeBytes { raw in
                         guard let base = raw.baseAddress else { return }
@@ -146,6 +182,49 @@ final class ShimConnection: @unchecked Sendable {
                 }
             }
         }
+        if status == .failed { close() }
+        return status
+    }
+
+    /// Whether the connection is closed: its client hung up, a send failed,
+    /// or the server ended the exchange.
+    var isClosed: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return mode == .closed
+    }
+
+    /// Runs `handler` once the connection closes — at once if it already has.
+    func onClose(_ handler: @escaping @Sendable () -> Void) {
+        lock.lock()
+        guard mode != .closed else {
+            lock.unlock()
+            handler()
+            return
+        }
+        closeHandlers.append(handler)
+        lock.unlock()
+    }
+
+    /// The serve thread has stopped reading the fd: it may now be released.
+    func readerDetached() {
+        lock.lock()
+        reading = false
+        lock.unlock()
+        releaseWhenDone()
+    }
+
+    /// Closes the fd, on `io` behind every send queued so far, once the
+    /// connection is closed and nothing reads it any more. Exactly once.
+    private func releaseWhenDone() {
+        guard case .fileDescriptor(let fd) = transport else { return }
+        io.async { [self] in
+            lock.lock()
+            let release = mode == .closed && !reading && !released
+            if release { released = true }
+            lock.unlock()
+            if release { _ = Darwin.close(fd) }
+        }
     }
 
     /// Switches the connection to raw byte forwarding: every subsequent
@@ -159,24 +238,36 @@ final class ShimConnection: @unchecked Sendable {
         return stream
     }
 
+    /// Ends the connection: later writes are refused, close handlers run,
+    /// and a raw fd is shut down now and released once it is safe to (see
+    /// `releaseWhenDone`).
     func close() {
         lock.lock()
-        let alreadyClosed = mode == .closed
+        guard mode != .closed else {
+            lock.unlock()
+            finishInbound()
+            return
+        }
         mode = .closed
+        let handlers = closeHandlers
+        closeHandlers = []
+        if case .fileDescriptor(let fd) = transport {
+            // Under the lock that orders it before any release, so the fd is
+            // still ours. It delivers our FIN and wakes a send blocked on a
+            // client that stopped reading and the serve thread's recv.
+            // ENOTCONN here (the docker CLI half-closes right after the 101)
+            // is harmless.
+            _ = Darwin.shutdown(fd, SHUT_RDWR)
+        }
         lock.unlock()
         switch transport {
         case .network(let connection):
-            if !alreadyClosed { connection.cancel() }
-        case .fileDescriptor(let fd, _):
-            if !alreadyClosed {
-                // shutdown() commonly reports ENOTCONN here (the docker CLI
-                // half-closes right after the 101) — harmless; close() below
-                // still delivers our FIN.
-                _ = Darwin.shutdown(fd, SHUT_RDWR)
-                _ = Darwin.close(fd)
-            }
+            connection.cancel()
+        case .fileDescriptor:
+            releaseWhenDone()
         }
         finishInbound()
+        for handler in handlers { handler() }
     }
 
     fileprivate func forwardInbound(_ data: Data) {
@@ -376,8 +467,10 @@ final class ShimHTTPServer: @unchecked Sendable {
     /// waiting on the chunked terminator or content-length — so recv-heavy
     /// uploads stay O(N) instead of re-decoding the whole buffer per recv.
     private func serve(fileDescriptor fd: Int32) {
-        let connection = ShimConnection(fileDescriptor: fd)
+        let connection = ShimConnection(fileDescriptor: fd, readerAttached: true)
         Thread.detachNewThread { [weak self] in
+            // The fd is released only once this thread no longer reads it.
+            defer { connection.readerDetached() }
             var buffer = Data()
             var headerDone = false
             var bodyIsChunked = false
@@ -392,7 +485,7 @@ final class ShimHTTPServer: @unchecked Sendable {
             // Set when the client half-closed a hijacked stream: we stop
             // reading but must leave the connection open to keep writing.
             var clientHalfClosedHijack = false
-            while !Task.isCancelled {
+            while !connection.isClosed {
                 let received = Darwin.recv(fd, chunk, chunkSize, 0)
                 if received == 0 && connection.isHijacking {
                     // FIN on a hijacked stream means the client is done
@@ -617,9 +710,16 @@ final class ShimHTTPServer: @unchecked Sendable {
             var allHeaders = headers
             allHeaders.append(("Cache-Control", "no-cache"))
             _ = await connection.write(Self.head(code: code, headers: allHeaders, body: nil))
-            for await chunk in chunks {
-                if await connection.write(chunk) == .failed { break }
+            // A long poll (a `/wait`, a log follow) stops when its client
+            // goes: cancelling the iteration terminates the stream, whose
+            // `onTermination` stops the producer.
+            let pump = Task {
+                for await chunk in chunks {
+                    if await connection.write(chunk) == .failed { break }
+                }
             }
+            connection.onClose { pump.cancel() }
+            await pump.value
             connection.close()
         case .hijacked(let contentType):
             _ = await connection.write(

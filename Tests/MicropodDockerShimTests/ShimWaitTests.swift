@@ -180,6 +180,50 @@ final class ShimWaitTests: XCTestCase {
         XCTAssertNotNil((body["Error"] as? [String: Any])?["Message"] as? String, "\(body)")
     }
 
+    /// The live corruption: the docker CLI exits (its start was refused)
+    /// while its `/wait` still polls. The wait used to go on polling, then
+    /// write its body to the departed client's fd — by then the next
+    /// client's, which read `{"StatusCode":0}` ahead of its own response
+    /// ("Unsolicited response", "malformed HTTP version"). A wait whose
+    /// client has gone stops polling and writes nothing.
+    func testAWaitWhoseClientDisconnectedStopsPollingAndWritesNothing() async throws {
+        let id = runtimeID()
+        // Running for 25 polls, then an exit to report.
+        let containers = ScriptedInspect(
+            id: id, Array(repeating: .state("running"), count: 25) + [.state("stopped")])
+        let shim = try shim(containers) { $0.waitPollInterval = .milliseconds(20) }
+
+        let leaving = shim.raw()
+        try leaving.connectForHijack()
+        try leaving.writeRaw(
+            Data(
+                ("POST /containers/\(id)/wait?condition=next-exit HTTP/1.1\r\nHost: d\r\n"
+                    + "Content-Length: 0\r\n\r\n").utf8))
+        let head = try leaving.readUntil(timeout: 5) { $0.range(of: Data("\r\n\r\n".utf8)) != nil }
+        XCTAssertTrue(String(decoding: head, as: UTF8.self).hasPrefix("HTTP/1.1 200"), "the wait's headers come first")
+        leaving.close()
+        try await Task.sleep(for: .milliseconds(150))
+
+        // The next client: the shim's accept(2) hands it the lowest free fd,
+        // the one the departed wait's connection had.
+        let next = shim.raw()
+        try next.connectForHijack()
+        let pollsAtDisconnect = await containers.inspectCalls
+        // Well past the poll at which the script reports the exit.
+        try await Task.sleep(for: .milliseconds(1_200))
+        let polls = await containers.inspectCalls
+        XCTAssertLessThanOrEqual(
+            polls - pollsAtDisconnect, 1, "the wait must stop polling once its client has gone")
+        XCTAssertLessThan(polls, 26, "the wait must never reach the scripted exit")
+
+        let unsolicited = String(decoding: try next.readUntil(timeout: 0.3) { !$0.isEmpty }, as: UTF8.self)
+        XCTAssertTrue(unsolicited.isEmpty, "the next client must not receive the departed wait's body: \(unsolicited)")
+        try next.writeRaw(Data("GET /_ping HTTP/1.1\r\nHost: d\r\nConnection: close\r\n\r\n".utf8))
+        let ping = try RawHTTPClient.parseResponse(try next.readUntilClose(timeout: 5))
+        XCTAssertEqual(ping.status, 200)
+        XCTAssertEqual(String(decoding: ping.body, as: UTF8.self), "OK\n")
+    }
+
     /// dockerd answers a wait on a container it does not have with 404,
     /// before any headers.
     func testWaitOnAContainerThatIsAlreadyGoneIs404() throws {

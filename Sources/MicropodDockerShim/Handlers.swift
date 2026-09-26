@@ -1831,11 +1831,14 @@ final class Router: @unchecked Sendable {
             throw ShimError.notFound("No such container: \(id)")
         }
         let (stream, continuation) = AsyncStream<Data>.makeStream()
-        Task.detached(priority: .userInitiated) { [self] in
+        let waiter = Task.detached(priority: .userInitiated) { [self] in
             defer { continuation.finish() }
-            let result = await waitForExit(target: target, request: request, first: first)
+            guard let result = await waitForExit(target: target, request: request, first: first) else { return }
             continuation.yield(result)
         }
+        // The stream terminates when the client goes (the server stops
+        // iterating it): the wait stops polling, and has nothing to write.
+        continuation.onTermination = { _ in waiter.cancel() }
         return .stream(200, [("Content-Type", "application/json")], stream)
     }
 
@@ -1850,10 +1853,11 @@ final class Router: @unchecked Sendable {
 
     /// Blocks until the container has actually run and exited, then renders
     /// the `WaitResult` JSON. `first` is the inspect `containerWait` already
-    /// made; every later poll inspects afresh.
+    /// made; every later poll inspects afresh. Nil once cancelled: the
+    /// client has gone.
     private func waitForExit(
         target: String, request: ShimRequest, first: Result<Data, Error>
-    ) async -> Data {
+    ) async -> Data? {
         let condition = request.q("condition").isEmpty ? "not-running" : request.q("condition")
         _ = condition
         let clock = ContinuousClock()
@@ -1926,7 +1930,9 @@ final class Router: @unchecked Sendable {
                 fputs("[shim] wait \(target): transient inspect error, retrying: \(error)\n", stderr)
             }
             try? await Task.sleep(for: config.waitPollInterval)
+            if Task.isCancelled { return nil }
             outcome = await inspectOutcome(target)
+            if Task.isCancelled { return nil }
         }
     }
 
@@ -1974,7 +1980,13 @@ final class Router: @unchecked Sendable {
             // this, every follow leaks a Task AND an Apple CLI process
             // forever (Apple `logs -f` never exits on its own).
             let pumpBox = PumpBox()
-            continuation.onTermination = { _ in pumpBox.task?.cancel() }
+            // The death watch polls the runtime: it stops too once the
+            // stream has ended (a follower that left ends it early).
+            let watchBox = PumpBox()
+            continuation.onTermination = { _ in
+                pumpBox.task?.cancel()
+                watchBox.task?.cancel()
+            }
             pumpBox.task = Task.detached(priority: .userInitiated) {
                 defer { gate.finish(continuation) }
                 do {
@@ -1985,10 +1997,11 @@ final class Router: @unchecked Sendable {
                     }
                 } catch {}
             }
-            Task.detached(priority: .utility) {
+            watchBox.task = Task.detached(priority: .utility) {
                 let containers = self.containers
                 while !Task.isCancelled {
                     try? await Task.sleep(for: .milliseconds(500))
+                    if Task.isCancelled { break }
                     guard
                         let raw = try? await containers.inspect(containerID),
                         let container = DockerMapper.container(fromRawInspect: raw),
