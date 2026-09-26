@@ -80,6 +80,12 @@ Same 181MB image, same machine, each engine fed from its own native path — `ki
 
 Honest read: kind is marginally quicker per-op — its node is a container on the same Docker daemon, so "loading" is a `docker exec ctr import` with no VM boundary to cross, and its pod sandbox path is ~0.6s warmer. Minikube loses ~4x on the load stage. Micropod is the only one that works at all without Docker Desktop underneath, and the only one whose `load` *finds* an image wherever it lives — kind and minikube fail hard (`image: "x" not present locally`) when the ref isn't in the daemon's store. On a 13.6MB image the same shape holds: kind 1.2s / micropod 1.7s / minikube 5.6s.
 
+## Iteration: a registry mirror on vmnet
+
+`k8s load` streams a whole archive per reload — fine for one-shot deploys, wasteful for the inner loop. A **registry mirror** is the docker-daemon-like answer: `micropod k8s registry` runs a `registry:2` container on the host published on `:15000`, and `--registry-mirror http://192.168.64.1:15000` mounts a `registries.yaml` into the guest so its containerd consults the mirror *first* for every registry (fall-through to upstream on a miss). `micropod k8s push app:dev` tags into the mirror's docker.io-shaped path — pods then pull at vmnet speed, and repeat pushes move only changed layers.
+
+Measured: a 4MB image pulled through the mirror in **316ms** vs ~16s upstream through the guest NAT (~50x), push → pull → pod Ready in ~1s warm. The honest trade vs `k8s load`: load guarantees the guest has the image with zero network; the mirror needs the registry running and a push per change — but it dedupes, which is what makes the docker-daemon model fast.
+
 ## Why this matters beyond speed
 
 **Iterating on a workload** is `build → k8s load → kubectl rollout` — the loop kind users know, minus the Docker Desktop dependency and with the host's content store doing dedupe. The image that a pod runs is byte-identical to the one the host built, because it's the same archive.

@@ -82,9 +82,26 @@ enum K8sCommands {
                 refs.forEach { print($0) }
             }
 
+        case "push":
+            try requireEnabled(service)
+            guard let ref = args.dropFirst().first(where: { !$0.hasPrefix("-") }) else {
+                throw UsageError(message: "k8s push needs an image ref — `micropod k8s push app:dev`")
+            }
+            let pushed = try await service.pushImage(ref: ref) { print("  ▸ \($0)") }
+            print("✓ pushed \(pushed) — pods pulling \(ref) now resolve through the mirror")
+
+        case "registry":
+            try requireEnabled(service)
+            let endpoint = try await service.ensureMirrorRegistry { print("  ▸ \($0)") }
+            print(
+                "✓ registry mirror at \(endpoint) — enable with `micropod k8s enable --registry-mirror \(endpoint)` then recreate the cluster"
+            )
+
         default:
             throw UsageError(
-                message: "unknown k8s command '\(sub)' — expected enable|disable|up|down|status|kubeconfig|load|images")
+                message:
+                    "unknown k8s command '\(sub)' — expected enable|disable|up|down|status|kubeconfig|load|push|registry|images"
+            )
         }
     }
 
@@ -113,6 +130,8 @@ enum K8sCommands {
                 config.cpus = n
             case "--metallb": config.metalLB = true
             case "--no-metallb": config.metalLB = false
+            case "--registry-mirror": config.registryMirror = try value()
+            case "--no-registry-mirror": config.registryMirror = nil
             case "--ingress": config.ingress = true
             case "--no-ingress": config.ingress = false
             case "--lb-pool": config.lbPool = try value()

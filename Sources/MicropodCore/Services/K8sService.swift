@@ -14,6 +14,11 @@ public struct K8sConfig: Codable, Sendable, Equatable {
     public var ingress: Bool
     public var lbPool: String?
     public var clusterName: String
+    /// Optional registry mirror the cluster's containerd consults first —
+    /// e.g. `http://192.168.64.1:15000` for a `registry:2` container on the
+    /// host (reachable from the guest via the vmnet gateway). Mirrors are
+    /// fall-through: misses pull the real upstream.
+    public var registryMirror: String?
 
     public static let defaults = K8sConfig(
         enabled: true,
@@ -23,11 +28,12 @@ public struct K8sConfig: Codable, Sendable, Equatable {
         metalLB: true,
         ingress: true,
         lbPool: nil,
-        clusterName: "micropod-k3s")
+        clusterName: "micropod-k3s",
+        registryMirror: nil)
 
     public init(
         enabled: Bool, image: String, memory: String, cpus: Double, metalLB: Bool, ingress: Bool, lbPool: String?,
-        clusterName: String
+        clusterName: String, registryMirror: String? = nil
     ) {
         self.enabled = enabled
         self.image = image
@@ -37,6 +43,7 @@ public struct K8sConfig: Codable, Sendable, Equatable {
         self.ingress = ingress
         self.lbPool = lbPool
         self.clusterName = clusterName
+        self.registryMirror = registryMirror
     }
 }
 
@@ -126,6 +133,17 @@ public struct K8sService: Sendable {
         let name = config.clusterName
         let exists = await containerExists(name)
         if !exists {
+            // registries.yaml must exist at first k3s boot — it's mounted in
+            // via a host dir; writing it post-boot needs a restart (and the
+            // vmnet IP churns on restart, which breaks the node identity).
+            if let mirror = config.registryMirror {
+                let etc = Self.etcDir
+                try FileManager.default.createDirectory(at: etc, withIntermediateDirectories: true)
+                try Self.registriesYAML(mirror: mirror).write(
+                    to: etc.appendingPathComponent("registries.yaml"), atomically: true,
+                    encoding: .utf8)
+                progress("registry mirror: \(mirror)")
+            }
             progress("creating \(name) from \(config.image)")
             _ = try await client.run(
                 ContainerCommand(arguments: Self.runArgs(config)), timeout: .seconds(600))
@@ -360,6 +378,70 @@ public struct K8sService: Sendable {
         }
     }
 
+    /// Push a local image into the configured registry mirror so pods pull it
+    /// at vmnet speed. Repeated pushes dedupe layers — a rebuild only moves
+    /// changed layers, which is cheaper than re-streaming the tar archive.
+    /// The push ref mirrors docker.io's path layout (`docker.io/foo:1` →
+    /// `<mirror>/library/foo:1`) so `image: foo:1` resolves through the mirror.
+    public func pushImage(ref: String, progress: @Sendable (String) -> Void = { _ in })
+        async throws -> String
+    {
+        guard isEnabled else { throw K8sError.disabled }
+        guard let mirror = (loadConfig() ?? .defaults).registryMirror,
+            let mirrorRef = Self.mirrorPushRef(ref: ref, mirror: mirror)
+        else {
+            throw K8sError.cliFailure(
+                "no registryMirror configured — set it in k8s.json or `micropod k8s enable --registry-mirror`")
+        }
+        _ = try await client.run(
+            ContainerCommand(arguments: ["image", "tag", ref, mirrorRef]), timeout: .seconds(30))
+        let scheme = mirror.hasPrefix("http://") ? "http" : "https"
+        progress("pushing \(mirrorRef)")
+        _ = try await client.run(
+            ContainerCommand(arguments: ["image", "push", "--scheme", scheme, mirrorRef]),
+            timeout: .seconds(600))
+        return mirrorRef
+    }
+
+    /// Idempotently start a `registry:2` container published on :15000 —
+    /// reachable from guests via the vmnet gateway (`192.168.64.1`).
+    @discardableResult
+    public func ensureMirrorRegistry(progress: @Sendable (String) -> Void = { _ in })
+        async throws -> String
+    {
+        guard isEnabled else { throw K8sError.disabled }
+        let exists = await containerExists("micropod-registry")
+        if exists {
+            _ = try? await client.run(
+                ContainerCommand(arguments: ["start", "micropod-registry"]), timeout: .seconds(60))
+            progress("micropod-registry already exists")
+        } else {
+            progress("starting registry:2 on :15000 (pulling on first run)")
+            _ = try await client.run(
+                ContainerCommand(arguments: [
+                    "run", "-d", "--name", "micropod-registry",
+                    "-p", "15000:5000", "docker.io/library/registry:2",
+                ]), timeout: .seconds(600))
+        }
+        return "http://192.168.64.1:15000"
+    }
+
+    /// `docker.io/library/foo:4` → `localhost:15000/library/foo:4` when the
+    /// mirror is `http://192.168.64.1:15000`: the guest's mirror request path
+    /// matches docker.io's layout, so a pod's `image:` resolves identically.
+    static func mirrorPushRef(ref: String, mirror: String) -> String? {
+        guard let qualified = qualifiedRef(ref) else { return nil }
+        var path = qualified
+        if path.hasPrefix("docker.io/") { path = String(path.dropFirst("docker.io/".count)) }
+        guard let url = URL(string: mirror), let host = url.host else { return nil }
+        var authority = host
+        if let port = url.port { authority += ":\(port)" }
+        // Host-side alias: the guest reaches the mirror via the vmnet gateway,
+        // the host via localhost (the published port binds all interfaces).
+        if host == "192.168.64.1" { authority = "localhost" + (url.port.map { ":\($0)" } ?? "") }
+        return "\(authority)/\(path)"
+    }
+
     /// Image refs present in the cluster's containerd (`k8s.io` namespace).
     public func listImages(name: String? = nil) async throws -> [String] {
         guard isEnabled else { throw K8sError.disabled }
@@ -416,9 +498,23 @@ public struct K8sService: Sendable {
 
     // MARK: - Internals (pure-ish, unit-tested)
 
-    /// argv for the cluster VM — the flags that make k3s viable as a
-    /// single-process VM workload. `servicelb` is disabled whenever MetalLB
-    /// owns LoadBalancer type.
+    /// Host dir mounted at /etc/rancher/k3s in the guest (registries.yaml,
+    /// and k3s.yaml lands here readable without exec).
+    static var etcDir: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".micropod/k8s/etc")
+    }
+
+    /// k3s registry config: every registry mirrors to `mirror` first.
+    static func registriesYAML(mirror: String) -> String {
+        """
+        mirrors:
+          "*":
+            endpoint:
+              - \(mirror)
+        """
+    }
+
     static func runArgs(_ config: K8sConfig) -> [String] {
         var args = [
             "run", "-d",
@@ -429,6 +525,13 @@ public struct K8sService: Sendable {
             "--read-only-path", "NONE",
             "--masked-path", "NONE",
             "--label", "com.micropod.k8s=node",
+        ]
+        if config.registryMirror != nil {
+            // /etc/rancher/k3s as a host mount — registries.yaml is present at
+            // first boot, and k3s.yaml lands on the host for direct reads.
+            args += ["-v", "\(Self.etcDir.path):/etc/rancher/k3s"]
+        }
+        args += [
             config.image,
             "server",
             "--disable=servicelb",

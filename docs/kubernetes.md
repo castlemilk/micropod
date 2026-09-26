@@ -79,6 +79,32 @@ Reproduce: `scripts/bench_k8s.sh` (lifecycle), `scripts/bench_k8s_perf.sh`
 (pod launch / apiserver / ingress / footprint / load),
 `scripts/bench_k8s_e2e.sh` (image → pod Ready, all engines).
 
+## Registry mirror (pod pulls without `k8s load`)
+
+`k8s load` injects images by streaming an archive into the guest's containerd —
+great for one-shot loads, but every reload resends the archive. For iteration,
+a **registry mirror** is better: a `registry:2` container runs on the host,
+published on `:15000`, and the cluster's containerd consults it *first* for
+every registry. Pushes dedupe layers, so a rebuild only moves changed layers.
+
+```bash
+micropod k8s registry                      # starts registry:2 on :15000
+micropod k8s enable --registry-mirror http://192.168.64.1:15000
+micropod k8s down && micropod k8s up       # recreate — mirrors apply at first boot
+micropod k8s push myapp:dev                # host → registry, layer-deduped
+kubectl run app --image=myapp:dev          # pulls via vmnet at ~300ms
+```
+
+- `k8s registry` is idempotent; guests reach the host publish through the
+  vmnet gateway (`192.168.64.1`).
+- `registries.yaml` is mounted into the guest at `/etc/rancher/k3s` from
+  `~/.micropod/k8s/etc` — it must exist at first k3s boot (writing it later
+  needs a VM restart, and the vmnet IP churns on restart).
+- Mirrors are **fall-through**: refs the mirror doesn't have pull from the
+  real upstream.
+- Measured: 4MB image pulled via mirror in **316ms** vs ~16s upstream;
+  push→pull→pod-Ready ~1s warm.
+
 ## Loading images
 
 Workload `image:` references pull through the guest's vmnet NAT, which is
