@@ -117,7 +117,10 @@ extension APIHandlers {
                     boot: req.boot)
                 // `skip_lines`: a client re-opening after a transport error
                 // already holds the first N lines — drop them server-side.
-                return streamEnvelope(dropping(req.skipLines, from: events)) { line in
+                // Each line stays its own LogChunk envelope (clients count
+                // envelopes as lines); a flood packs many envelopes into one
+                // awaited socket write instead of one write per line.
+                return streamEnvelope(dropping(req.skipLines, from: events), coalesce: true) { line in
                     Micropod_V1_LogChunk.with { $0.text = line.text }
                 }
 
@@ -630,9 +633,12 @@ extension APIHandlers {
 
     /// Wraps a throwing event stream into Connect envelopes: each message as
     /// a data frame, then an EndStream trailer. Errors surface in the
-    /// trailer's `error` object per the Connect spec.
+    /// trailer's `error` object per the Connect spec. With `coalesce`, whole
+    /// envelopes are batched into writes of up to 64 KiB or 10 ms
+    /// (`StreamFrameCoalescer`); the bytes on the wire are unchanged.
     private func streamEnvelope<E: Sendable, M: Message>(
         _ events: AsyncThrowingStream<E, Error>,
+        coalesce: Bool = false,
         map: @escaping @Sendable (E) -> M
     ) -> HTTPResponse {
         let stream = AsyncStream<Data> { continuation in
@@ -657,7 +663,8 @@ extension APIHandlers {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
-        return .stream(200, "application/connect+json", stream)
+        return .stream(
+            200, "application/connect+json", coalesce ? StreamFrameCoalescer.coalesce(stream) : stream)
     }
 
     private func connectError(_ code: ConnectWireCode, _ message: String) -> HTTPResponse {
