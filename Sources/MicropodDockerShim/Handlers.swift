@@ -58,6 +58,11 @@ struct ShimConfig: Sendable {
     /// CLI and fails the start.
     var startSettlePollInterval: Duration = .milliseconds(100)
     var startSettleTimeout: Duration = .seconds(120)
+    /// Container prunes keep a never-started container this young: it is a
+    /// create whose start is on its way (Connect `CreateContainer` →
+    /// `StartContainer`, `docker run`), and pruning it fails that start —
+    /// the grace the native runtime's own prune gives (live defect 4).
+    var pruneUnstartedGrace: TimeInterval = 300
 }
 
 struct DockerNetworkCreateBody: Codable {
@@ -252,7 +257,7 @@ final class Router: @unchecked Sendable {
         case ("POST", "containers") where segments.count == 2 && segments[1] == "create":
             return try await containerCreate(request)
         case ("POST", "containers") where segments.count >= 2 && segments.last == "prune":
-            return try await containersPrune()
+            return try await containersPrune(request)
         case ("GET", "containers") where segments.count == 3 && segments[2] == "json":
             return try await containerInspect(segments[1])
         case ("POST", "containers") where segments.count == 3 && segments[2] == "start":
@@ -327,7 +332,7 @@ final class Router: @unchecked Sendable {
         case ("DELETE", "volumes") where segments.count == 2:
             return try await volumeDelete(segments[1])
         case ("POST", "volumes") where segments.count == 2 && segments[1] == "prune":
-            return try await volumePrune()
+            return try await volumePrune(request)
 
         default:
             throw ShimError.notFound("\(request.method) \(request.path): page not found")
@@ -986,23 +991,20 @@ final class Router: @unchecked Sendable {
         var BuildCache: [String]
     }
 
-    /// POST /system/prune — stopped containers + dangling (or, with all=1 /
-    /// filters, all unused) images + unused volumes + unused networks,
-    /// with honest deletion reporting via before/after diffs.
+    /// POST /system/prune — stopped containers + dangling (or, with all=1,
+    /// all unused) images + unused volumes + unused networks, with honest
+    /// deletion reporting. `label`/`label!` filters apply to containers and
+    /// volumes and `until` to containers, exactly as their own prunes apply
+    /// them; volumes are never goldens (`pruneVolumes`).
     private func systemPrune(_ request: ShimRequest) async throws -> ShimResponse {
         let wantsAll =
             request.q("all").lowercased() == "1"
             || request.q("all").lowercased() == "true"
+        let filters = try PruneFilters(json: request.query["filters"], accepted: PruneFilters.containerKeys)
+        var volumeFilters = filters
+        volumeFilters.until = nil
 
-        // Containers: pruned = stopped ones (docker semantics).
-        let containersBefore = try await containers.list()
-        let stopped = containersBefore.filter { DockerMapper.stateName($0.state) != "running" }
-        var containersDeleted: [String] = []
-        for container in stopped {
-            if (try? await containers.delete(container.id, force: true)) != nil {
-                containersDeleted.append(container.id)
-            }
-        }
+        let containersDeleted = try await pruneContainers(filters)
 
         // Images: dangling, or everything unused with all=1.
         let imagesBefore = try await images.list()
@@ -1012,15 +1014,8 @@ final class Router: @unchecked Sendable {
         let imageIDsAfter = Set(imagesAfter.map { $0.id })
         let imagesDeleted = imagesBefore.filter { !imageIDsAfter.contains($0.id) }
 
-        // Volumes.
-        let volumesBefore = try await volumes.list()
-        _ = try? await volumes.prune()
-        let volumesAfter = try await volumes.list()
-        await readCache.invalidateContainers()
+        let volumesDeleted = try await pruneVolumes(volumeFilters)
         await readCache.invalidateImages()
-        await readCache.invalidateVolumes()
-        let volumeIDsAfter = Set(volumesAfter.map { $0.id })
-        let volumesDeleted = volumesBefore.filter { !volumeIDsAfter.contains($0.id) }
 
         return Self.encode(
             SystemPruneResponse(
@@ -1419,13 +1414,57 @@ final class Router: @unchecked Sendable {
             arguments: arguments)
     }
 
-    private func containersPrune() async throws -> ShimResponse {
-        let before = try await containers.list()
-        _ = try await containers.prune()
-        let after = try await containers.list()
-        let afterIDs = Set(after.map { $0.id })
-        let deleted = before.filter { !afterIDs.contains($0.id) }
-        return Self.encode(ContainersPruneResponse(deletedIDs: deleted.map { $0.id }))
+    /// POST /containers/prune — stopped containers the `filters` admit
+    /// (`label`, `label!`, `until`, Docker semantics; see `PruneFilters`).
+    private func containersPrune(_ request: ShimRequest) async throws -> ShimResponse {
+        let filters = try PruneFilters(json: request.query["filters"], accepted: PruneFilters.containerKeys)
+        return Self.encode(ContainersPruneResponse(deletedIDs: try await pruneContainers(filters)))
+    }
+
+    /// Deletes the stopped containers `filters` admits, one by one, and
+    /// returns the ids it deleted. Never one with an attached run in flight
+    /// (it reads "stopped" until the run starts), nor a never-started one
+    /// younger than `pruneUnstartedGrace`.
+    private func pruneContainers(_ filters: PruneFilters) async throws -> [String] {
+        let now = Date()
+        var deleted: [String] = []
+        for container in try await containers.list()
+        where Self.prunableStates.contains(container.state.lowercased())
+            && filters.admits(labels: container.labels) && filters.admits(created: parseDate(container.createdAt))
+        {
+            if await state.isAttachRunning(id: container.id) { continue }
+            if await isFreshUnstarted(container, now: now) { continue }
+            do {
+                try await containers.delete(container.id, force: false)
+                await state.forget(id: container.id)
+                deleted.append(container.id)
+            } catch {
+                fputs("[shim] prune: could not delete container \(container.id): \(error)\n", stderr)
+            }
+        }
+        // As the runtime's own prune does: clone dirs whose container is
+        // gone (a raw `container delete`, a crashed runtime) go too — only
+        // against a list the runtime answered, never a failed one.
+        if let live = try? await containers.list() {
+            await VolumeClone.sweepOrphanClones(live: Set(live.map(\.id)))
+        }
+        await readCache.invalidateContainers()
+        return deleted
+    }
+
+    /// Runtime states a prune takes: not running, not on the way there or
+    /// back (`stopping` still holds its volumes).
+    private static let prunableStates: Set<String> = ["stopped", "exited", "created", "dead"]
+
+    /// A container created less than `pruneUnstartedGrace` ago that has never
+    /// started. One whose creation date cannot be read is not shown fresh.
+    private func isFreshUnstarted(_ container: Micropod_V1_Container, now: Date) async -> Bool {
+        guard let created = parseDate(container.createdAt),
+            now.timeIntervalSince(created) < config.pruneUnstartedGrace
+        else { return false }
+        // Unknown (inspect failed) keeps it: a prune never deletes on a guess.
+        guard let raw = try? await containers.inspect(container.id) else { return true }
+        return !DockerMapper.hasEverStarted(rawInspect: raw)
     }
 
     struct ContainersPruneResponse: Encodable {
@@ -2639,17 +2678,85 @@ final class Router: @unchecked Sendable {
         return .status(204)
     }
 
-    private func volumePrune() async throws -> ShimResponse {
-        let before = try await volumes.list()
-        _ = try await volumes.prune()
-        let after = try await volumes.list()
-        await readCache.invalidateVolumes()
-        let afterIDs = Set(after.map { $0.id })
-        let deleted = before.filter { !afterIDs.contains($0.id) }
+    /// POST /volumes/prune — unused volumes the `filters` admit (`label`,
+    /// `label!`, `dangling`, Docker semantics; see `PruneFilters`), never a
+    /// golden.
+    private func volumePrune(_ request: ShimRequest) async throws -> ShimResponse {
+        let filters = try PruneFilters(json: request.query["filters"], accepted: PruneFilters.volumeKeys)
+        let deleted = try await pruneVolumes(filters)
         return Self.encode(
             VolumesPruneResponse(
                 volumesDeleted: deleted.map { $0.id },
                 spaceReclaimed: Int(deleted.reduce(0) { $0 + $1.sizeBytes })))
+    }
+
+    /// Deletes the volumes no container uses that `filters` admits, except
+    /// those a clone refers to (`cloneSources`), one by one; returns the
+    /// volumes it deleted. Fails closed: without the volume list, the
+    /// container list and the clone root, nothing is deleted.
+    private func pruneVolumes(_ filters: PruneFilters) async throws -> [Micropod_V1_Volume] {
+        async let listedVolumes = volumes.list()
+        async let listedContainers = containers.list()
+        let (all, containerList) = try await (listedVolumes, listedContainers)
+        let report = try await usage().report(
+            prefetchedContainers: containerList, prefetchedImages: [], prefetchedVolumes: all)
+        let goldens = try Self.cloneSources(
+            containers: containerList, volumes: all, policy: VolumePolicyStore.load())
+        var deleted: [Micropod_V1_Volume] = []
+        if filters.dangling != false {
+            for usage in report.volumes
+            where !usage.inUse && !goldens.contains(usage.volume.id) && filters.admits(labels: usage.volume.labels) {
+                // Looked at again right before the delete: a clone placed
+                // since the snapshot makes this a golden.
+                if try Self.hasCloneImage(of: usage.volume.id) { continue }
+                do {
+                    try await volumes.delete(usage.volume.id)
+                    deleted.append(usage.volume)
+                } catch {
+                    fputs("[shim] prune: could not delete volume \(usage.volume.id): \(error)\n", stderr)
+                }
+            }
+        }
+        await readCache.invalidateVolumes()
+        return deleted
+    }
+
+    /// Volumes a clone refers to — goldens, which a prune never takes, since
+    /// no container attaches them by name: every volume with a per-container
+    /// clone image under `VolumeClone.cloneRoot` (a live clone, one a create
+    /// is placing, one a commit may still promote), every volume a container
+    /// names in `com.micropod.cache.clone`, every source a `CloneVolume` copy
+    /// names in `com.micropod.clone-of`, and the volume policy's goldens.
+    static func cloneSources(
+        containers: [Micropod_V1_Container], volumes: [Micropod_V1_Volume], policy: VolumePolicy
+    ) throws -> Set<String> {
+        var sources = Set(policy.goldenVolumes)
+        for dir in try cloneDirs() { sources.formUnion(VolumeClone.clonedVolumes(containerID: dir)) }
+        for container in containers {
+            sources.formUnion(VolumePolicy.standard.cloneSet(labels: container.labels).subtracting(["*"]))
+        }
+        for volume in volumes {
+            if let source = volume.labels[VolumeClone.cloneOfLabel], !source.isEmpty { sources.insert(source) }
+        }
+        return sources
+    }
+
+    /// Whether any container's clone dir holds a clone image of `volume`.
+    static func hasCloneImage(of volume: String) throws -> Bool {
+        try cloneDirs().contains { VolumeClone.clonedVolumes(containerID: $0).contains(volume) }
+    }
+
+    /// The per-container dirs under `VolumeClone.cloneRoot` (none when it
+    /// does not exist). A root that exists but cannot be read fails the
+    /// prune: without it no golden can be told apart.
+    private static func cloneDirs() throws -> [String] {
+        let root = VolumeClone.cloneRoot.path
+        guard FileManager.default.fileExists(atPath: root) else { return [] }
+        do {
+            return try FileManager.default.contentsOfDirectory(atPath: root)
+        } catch {
+            throw ShimError.internalError("prune: cannot read the volume clone root \(root): \(error)")
+        }
     }
 
     struct VolumesPruneResponse: Encodable {

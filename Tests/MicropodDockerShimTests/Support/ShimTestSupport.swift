@@ -21,6 +21,10 @@ enum ShimTestSupport {
         let stateDir: URL
         let port: UInt16
         let buildCache: BuildContextCache
+        /// This shim's `VolumeClone.cloneRoot` (see `makeMockShim`).
+        var cloneRoot: URL { stateDir.appendingPathComponent("volume-clones", isDirectory: true) }
+        /// This shim's volume policy file (absent: the standard policy).
+        var volumePolicyFile: URL { stateDir.appendingPathComponent("volume-policy.json") }
 
         func raw() -> RawHTTPClient { RawHTTPClient(port: port) }
     }
@@ -47,6 +51,12 @@ enum ShimTestSupport {
             throw XCTSkip(
                 "mock container CLI missing or not executable at \(script.path)", file: file, line: line)
         }
+
+        // The shim runs in this process, and its prunes read — and sweep —
+        // the clone root and read the volume policy: point both into this
+        // shim's state dir, never at the real ones in Application Support.
+        setenv("MICROPOD_VOLUME_CLONE_ROOT", dir.appendingPathComponent("volume-clones").path, 1)
+        setenv("MICROPOD_VOLUME_POLICY", dir.appendingPathComponent("volume-policy.json").path, 1)
 
         let wrapper = dir.appendingPathComponent("mock-container")
         var wrapperScript =
