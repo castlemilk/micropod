@@ -354,6 +354,57 @@ platform all produce identical stored configs.
   `{id, configuration}` wrapper `container volume inspect` prints.
 - Anonymous volumes (`-v /path`) get a UUID-hex name like the CLI.
 
+### `PullImage` pulls the host platform
+
+`PullImage` still runs `container image pull`. With no `--platform` that
+command fetches and unpacks every platform in the image index. For
+`busybox:1.36.1` that was 52 blobs and 9 snapshots (about 10 GiB
+allocated), and a pull took 42 s p50 through Connect on a loaded rig.
+Only one of those snapshots is ever run, because create defaults to
+`linux/<host arch>`.
+
+A pull with no `platform` (unset or empty) now uses the same default:
+`--platform linux/arm64` on Apple silicon. This covers the Connect
+`PullImage`, `POST /v1/images/pull` (which now takes an optional
+`platform`), the Docker shim, the MCP tool, compose and the
+`micropod image pull` CLI, because all of them call `ImageService.pull`.
+The same busybox pull then fetched 4 blobs and wrote 1 snapshot
+(1.1 GiB), and took 10.6 s p50 in the same window. A platform the caller
+sends is passed through unchanged, so a job pinned to `linux/amd64`
+pulls `linux/amd64`. Containerization's `Platform` equality treats
+`arm64` and `arm64/v8` as the same platform, so `linux/arm64` matches
+index entries written either way.
+
+An image with no host variant still pulls as it did before. On an arm64
+host there are two cases, both in containerization 0.42.0, the version
+`container` 1.3.1 ships:
+
+- A single-manifest `amd64` image fails the pinned import with
+  `does not support required platforms`.
+- An index with no `arm64` entry imports, then fails the unpack with
+  `unsupported platform linux/arm64`.
+
+When a pull used the default and its output shows either message, it
+emits `<ref> has no linux/arm64 variant; pulling every platform it has`
+and retries once with no `--platform`. The CLI prints the error as it
+exits, so `ContainerCLIClient.stream` now waits (up to 500 ms) for both
+pipes to close before it finishes. Before, a fast exit could end the
+stream before its last lines were delivered.
+
+The retry leaves the store as the unpinned pull did, so creates behave
+as before: no platform still fails on such an image, and
+`platform: linux/amd64` finds its variant local, even under `no_pull`.
+A platform the caller sent is never widened, and no other failure
+triggers the retry. For a single-manifest image the pinned attempt
+downloads the layers before it is refused, so that pull fetches them
+twice.
+
+The one change callers can see is for a multi-arch image created with a
+non-host platform. A pull with no platform no longer stores that
+variant, so a `no_pull` create for it is `not_found`. Send `PullImage`
+the same `platform` as `CreateContainer` (step 3 of the Go pattern
+below).
+
 ### `prune` and `cp`
 
 `prune` is client-side composition — `containerList(status: stopped)` →
@@ -774,17 +825,22 @@ Regenerate after proto edits; never hand-edit generated files.
   volume lock, same-id creates are mutually exclusive and the id is
   released on a throw) and `StatsSamplingIDsTests`;
   in `MicropodCoreTests`, `ConnectCodeMappingTests` (transport and
-  runtime-down → `unavailable`), `SystemStatusStoppedTests` and
+  runtime-down → `unavailable`), `SystemStatusStoppedTests`,
   `VolumeCloneTests` (clonefile, atomic commit, staging sweep, per-volume
-  locks).
+  locks) and `ImagePullPlatformTests` (a scripted CLI: no or empty
+  platform pins `linux/<host arch>`, a given one passes through, both
+  missing-platform failures retry once unpinned, a given platform or any
+  other failure is not retried) and `ContainerCLIClientTests` (450 short
+  processes streamed at once all deliver the line they print at exit).
 - **API, mock CLI** (`MicropodAPITests`, `VolumeDeleteLockTests`): the
   Connect surface end-to-end against the spawned `MicropodAPI` binary:
   `Ping` running and stopped (fast), `GetContainer`, `WaitContainer`
   (stopped, running → timeout, unknown id, vanished mid-wait, runtime
   stopped mid-wait → `unavailable`), `RunContainer` argv for
   entrypoint/platform/workdir/user, `no_pull` without an `image pull`,
-  `Exec` argv, `skip_lines`, `GetStats` ids, `CloneVolume` (clone,
-  source in use), `CommitVolumeClone` (no clone, running container,
+  the `image pull` platform for `PullImage` and the REST pull (host when
+  unset, the given value when set), `Exec` argv, `skip_lines`, `GetStats`
+  ids, `CloneVolume` (clone, source in use), `CommitVolumeClone` (no clone, running container,
   promotion), the multi-attach guard and its replay exemption,
   delete-vs-commit serialisation, Connect error reason phrases and the
   EndStream frame (flag `0x02`) on server streams.
@@ -875,6 +931,9 @@ benefit — no process-spawn contention on top of the VM-boot contention.
   (explicit opt-in).
 - image not local → `imagePull` (no timeout, same as the CLI), or
   `not_found` with `no_pull`.
+- `PullImage` with no platform on an image without a `linux/<host arch>`
+  variant → one retry with no `--platform` (every platform, the old
+  behaviour); a given platform fails as the CLI does.
 - `run` failure after create → force-delete (same cleanup as the CLI).
 - exit code not recorded (container not started by this API process,
   CLI backend, 2 h ceiling) → `WaitContainer` `known: false`.
@@ -913,8 +972,10 @@ against the shim. The pattern, for any Go job runner:
    runtime's `config.toml` default applies (1 GiB out of the box). Cache
    volumes are goldens mounted through `com.micropod.cache.clone=<golden,…>`,
    so the job writes to a private clone. On `not_found`, `PullImage` under a bounded context, then create
-   once more. On `deadline_exceeded`/`unavailable`, do not re-send:
-   `GetContainer` the name, then adopt it or `DeleteContainer{force}`.
+   once more. Give `PullImage` the create's `platform`; with none it
+   pulls only `linux/<host arch>`. On `deadline_exceeded`/`unavailable`,
+   do not re-send: `GetContainer` the name, then adopt it or
+   `DeleteContainer{force}`.
 4. **Run.** `StartContainer`, then concurrently `WaitContainer` (re-issued
    while `exited: false`) and `StreamContainerLogs`. If the log stream
    drops with `unavailable`, `Ping` until the API is back and re-open with

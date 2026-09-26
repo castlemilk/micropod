@@ -272,7 +272,8 @@ final class APIHandlers: Sendable {
                 let reference = payload["reference"] as? String ?? ""
                 guard !reference.isEmpty else { return .json(400, ["error": "reference is required"]) }
                 var lastLine = ""
-                for try await event in images.pull(reference, platform: nil) {
+                // No platform pulls linux/<host arch> (see ImageService.pull).
+                for try await event in images.pull(reference, platform: payload["platform"] as? String) {
                     lastLine = event.line
                 }
                 return .json(200, ["pulled": reference, "lastLine": lastLine])

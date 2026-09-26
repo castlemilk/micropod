@@ -129,6 +129,8 @@ extension APIHandlers {
             case "PullImage":
                 let req = try decodeStreamRequest(Micropod_V1_PullImageRequest.self, body)
                 try check(req)
+                // No platform pulls linux/<host arch>, not every platform in
+                // the index (see ImageService.pull).
                 let events = images.pull(
                     req.reference,
                     platform: req.hasPlatform ? req.platform : nil)
