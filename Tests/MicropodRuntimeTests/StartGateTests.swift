@@ -19,12 +19,15 @@ final class StartGateTests: XCTestCase {
     private static let noWait: [Duration] = [.zero, .zero, .zero]
     private static let invalidState = MicropodError.message("invalidState: container is stopping")
 
-    /// One start of `id` through `gate`: records `b:<id>` / `s:<id>` and then
-    /// runs the given step.
+    /// One start of `id` through `gate`: records `b:<id>` / `s:<id>` as the
+    /// runtime calls begin and then runs the given step. With `probe`, also
+    /// records `e:<id>` once startProcess has returned, and counts the start
+    /// as in flight from bootstrap's entry to startProcess's return.
     private static func start(
         _ id: String,
         gate: StartGate,
         order: Order,
+        probe: InFlight? = nil,
         listed: @escaping @Sendable () -> Bool = { true },
         bootstrap: @escaping @Sendable () async throws -> Void = {},
         startProcess: @escaping @Sendable () async throws -> Void = {}
@@ -32,12 +35,17 @@ final class StartGateTests: XCTestCase {
         try await NativeContainerService.startLookingIntoNotFound(
             id: id, createdHere: true, backoff: noWait, gate: gate,
             bootstrap: {
+                probe?.enter()
                 await order.append("b:\(id)")
                 try await bootstrap()
             },
             startProcess: {
                 await order.append("s:\(id)")
                 try await startProcess()
+                if let probe {
+                    await order.append("e:\(id)")
+                    probe.leave()
+                }
             },
             exists: { listed() },
             log: { _ in })
@@ -61,33 +69,91 @@ final class StartGateTests: XCTestCase {
     // MARK: ordering
 
     /// Four concurrent starts against a runtime whose bootstrap is slow: every
-    /// bootstrap is followed by its own startProcess before the next start's
-    /// bootstrap — b s b s b s b s, never b b b b s s s s.
+    /// bootstrap is followed by its own startProcess, which returns before the
+    /// next start's bootstrap begins — b s e b s e …, never b b b b s s s s,
+    /// and never a bootstrap alongside another start's startProcess.
     func testConcurrentStartsAlternateBootstrapAndStartProcess() async throws {
         let gate = StartGate()
         let order = Order()
+        let probe = InFlight()
         let ids = ["c0", "c1", "c2", "c3"]
 
         try await withThrowingTaskGroup(of: Void.self) { group in
             for id in ids {
                 group.addTask {
                     try await StartGateTests.start(
-                        id, gate: gate, order: order,
+                        id, gate: gate, order: order, probe: probe,
                         bootstrap: { try await Task.sleep(for: .milliseconds(40)) },
-                        startProcess: { try await Task.sleep(for: .milliseconds(5)) })
+                        startProcess: { try await Task.sleep(for: .milliseconds(20)) })
                 }
             }
             try await group.waitForAll()
         }
 
         let events = await order.events
-        XCTAssertEqual(events.map { $0.prefix(1) }, ["b", "s", "b", "s", "b", "s", "b", "s"], "\(events)")
-        for pair in stride(from: 0, to: events.count - 1, by: 2) {
+        XCTAssertEqual(probe.maximum, 1, "one start at a time, bootstrap through startProcess: \(events)")
+        XCTAssertEqual(
+            events.map { $0.prefix(1) }, Array(repeating: ["b", "s", "e"], count: 4).flatMap { $0 }, "\(events)")
+        for triple in stride(from: 0, to: events.count - 2, by: 3) {
+            let id = events[triple].dropFirst(2)
             XCTAssertEqual(
-                events[pair].dropFirst(2), events[pair + 1].dropFirst(2),
-                "a bootstrap is followed by its own startProcess: \(events)")
+                events[triple + 1].dropFirst(2), id, "a bootstrap is followed by its own startProcess: \(events)")
+            XCTAssertEqual(events[triple + 2].dropFirst(2), id, "that startProcess returns next: \(events)")
         }
         XCTAssertEqual(Set(events.map { String($0.dropFirst(2)) }), Set(ids))
+        XCTAssertFalse(gate.isHeld)
+    }
+
+    /// Waiters run in the order they queued, and the gate handed to a waiter
+    /// stays held: a start arriving while the woken waiter runs queues behind
+    /// the others instead of running alongside it.
+    func testWaitersRunInArrivalOrderAndANewcomerQueuesBehindThem() async throws {
+        let gate = StartGate()
+        let order = Order()
+        let probe = InFlight()
+        let holderMayFinish = Latch()
+        let firstWaiterMayFinish = Latch()
+
+        let holder = Task {
+            try await StartGateTests.start(
+                "a", gate: gate, order: order, probe: probe, bootstrap: { await holderMayFinish.wait() })
+        }
+        try await waitUntil("a holds the gate") { await order.events == ["b:a"] }
+        var waiters: [Task<Void, any Error>] = []
+        for (index, id) in ["c1", "c2", "c3"].enumerated() {
+            waiters.append(
+                Task {
+                    try await StartGateTests.start(
+                        id, gate: gate, order: order, probe: probe,
+                        bootstrap: { if id == "c1" { await firstWaiterMayFinish.wait() } })
+                })
+            try await waitUntil("\(id) waits") { gate.queued == index + 1 }
+        }
+
+        await holderMayFinish.open()
+        try await holder.value
+        try await waitUntil("the gate passed to a waiter") { await order.events.count >= 4 }
+        let handedTo = await order.events[3]
+        XCTAssertEqual(handedTo, "b:c1", "the longest waiter is served first")
+        let queuedBefore = gate.queued
+        let newcomer = Task {
+            try await StartGateTests.start("n", gate: gate, order: order, probe: probe)
+        }
+        try await waitUntil("n arrived") {
+            let ranAlongside = await order.events.contains("b:n")
+            return gate.queued == queuedBefore + 1 || ranAlongside
+        }
+        XCTAssertEqual(gate.queued, 3, "n queues behind c2 and c3 while c1 holds the handed-over gate")
+        XCTAssertTrue(gate.isHeld)
+
+        await firstWaiterMayFinish.open()
+        for waiter in waiters { try await waiter.value }
+        try await newcomer.value
+        let events = await order.events
+        XCTAssertEqual(
+            events,
+            ["a", "c1", "c2", "c3", "n"].flatMap { ["b:\($0)", "s:\($0)", "e:\($0)"] })
+        XCTAssertEqual(probe.maximum, 1, "\(events)")
         XCTAssertFalse(gate.isHeld)
     }
 
@@ -243,6 +309,23 @@ private actor Latch {
         waiting = []
         for continuation in resumed { continuation.resume() }
     }
+}
+
+/// Counts the starts between bootstrap's entry and startProcess's return,
+/// and the most there ever were at once.
+private final class InFlight: Sendable {
+    private let counts = Mutex((current: 0, maximum: 0))
+
+    func enter() {
+        counts.withLock { counts in
+            counts.current += 1
+            counts.maximum = max(counts.maximum, counts.current)
+        }
+    }
+
+    func leave() { counts.withLock { $0.current -= 1 } }
+
+    var maximum: Int { counts.withLock { $0.maximum } }
 }
 
 /// True for the first `take` only.
