@@ -151,8 +151,15 @@ actor ShimState {
     /// codes it outlives the container — a refused `--rm` start removes the
     /// container while the client's wait is still polling — so it is bounded
     /// the same way.
-    private var startRefusals: [String: String] = [:]
+    private var startRefusals: [String: StartRefusal] = [:]
     private var startRefusalOrder: [String] = []
+    /// Stamps refusals in the order they were recorded (see `refusalMark`).
+    private var refusalSequence: UInt64 = 0
+
+    private struct StartRefusal {
+        var message: String
+        var sequence: UInt64
+    }
 
     /// Records a refused start. `wasStarted` is whether the container had
     /// been started before this attempt: one that never was goes back to
@@ -166,11 +173,25 @@ actor ShimState {
                 startRefusals.removeValue(forKey: startRefusalOrder.removeFirst())
             }
         }
-        startRefusals[id] = message
+        refusalSequence += 1
+        startRefusals[id] = StartRefusal(message: message, sequence: refusalSequence)
     }
 
-    func startRefusal(for id: String) -> String? {
-        startRefusals[id]
+    /// A point in the order of refusals: `startRefusal(for:after:)` with it
+    /// sees only the refusals recorded since. A `/wait` takes one when it
+    /// begins.
+    func refusalMark() -> UInt64 {
+        refusalSequence
+    }
+
+    /// The standing refusal of the container's latest start — only one
+    /// recorded after `mark`, when given. The docker CLI's `start -a` sends
+    /// `/wait` *before* the `/start` that clears an earlier refusal, so a
+    /// wait for the next exit must not end on a refusal older than itself.
+    func startRefusal(for id: String, after mark: UInt64?) -> String? {
+        guard let refusal = startRefusals[id] else { return nil }
+        if let mark, refusal.sequence <= mark { return nil }
+        return refusal.message
     }
 
     /// Containers whose `container start --attach` run has not finished.

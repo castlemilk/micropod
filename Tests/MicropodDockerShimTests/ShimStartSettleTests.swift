@@ -62,18 +62,33 @@ final class ShimStartSettleTests: XCTestCase {
         return client
     }
 
-    /// Issues `/wait` in the background, as the docker CLI does before
-    /// `/start`; `waited` resolves it to the wait's body once it ends.
-    private func pendingWait(_ id: String) -> Task<Data?, Never> {
+    /// Issues `/wait` as the docker CLI does before `/start`: returns once
+    /// the wait's headers are in (the CLI sends `/start` only then);
+    /// `waited` resolves it to the wait's body once it ends.
+    private func pendingWait(_ id: String, condition: String = "next-exit") async -> Task<Data?, Never> {
         let port = shim.port
-        return Task.detached {
-            guard
-                let response = try? RawHTTPClient(port: port).request(
-                    "POST", "/containers/\(id)/wait?condition=next-exit", timeout: 10),
+        let (headers, headersIn) = AsyncStream<Void>.makeStream()
+        let wait = Task.detached { () -> Data? in
+            defer { headersIn.finish() }
+            let client = RawHTTPClient(port: port)
+            let terminator = Data("\r\n\r\n".utf8)
+            guard (try? client.connectForHijack()) != nil,
+                (try? client.writeRaw(
+                    Data(
+                        ("POST /containers/\(id)/wait?condition=\(condition) HTTP/1.1\r\nHost: d\r\n"
+                            + "Connection: close\r\nContent-Length: 0\r\n\r\n").utf8))) != nil,
+                let head = try? client.readUntil(timeout: 10, { $0.range(of: terminator) != nil }),
+                head.range(of: terminator) != nil
+            else { return nil }
+            headersIn.yield()
+            guard let rest = try? client.readUntilClose(timeout: 10),
+                let response = try? RawHTTPClient.parseResponse(head + rest),
                 response.status == 200
             else { return nil }
             return response.body
         }
+        for await _ in headers { break }
+        return wait
     }
 
     private func waited(_ wait: Task<Data?, Never>) async -> [String: Any]? {
@@ -95,7 +110,7 @@ final class ShimStartSettleTests: XCTestCase {
     func testAttachedStartTheRuntimeRefusesIs409AndEndsTheStreamAndTheWait() async throws {
         let id = try createContainer("settle-guard")
         let stream = try attach(id)
-        let wait = pendingWait(id)
+        let wait = await pendingWait(id)
         try refuseStarts(with: guardRefusal)
 
         let start = try shim.raw().request("POST", "/containers/\(id)/start")
@@ -118,7 +133,7 @@ final class ShimStartSettleTests: XCTestCase {
     func testAttachedStartRefusedAtBootstrapIs500WithTheRuntimesMessage() async throws {
         let id = try createContainer("settle-bootstrap")
         let stream = try attach(id)
-        let wait = pendingWait(id)
+        let wait = await pendingWait(id)
         try refuseStarts(with: bootstrapRefusal)
 
         let start = try shim.raw().request("POST", "/containers/\(id)/start")
@@ -144,7 +159,7 @@ final class ShimStartSettleTests: XCTestCase {
     func testRefusedAutoRemoveStartRemovesTheContainerAndEndsTheWait() async throws {
         let id = try createContainer("settle-rm", autoRemove: true)
         let stream = try attach(id)
-        let wait = pendingWait(id)
+        let wait = await pendingWait(id)
         try refuseStarts(with: guardRefusal)
 
         let start = try shim.raw().request("POST", "/containers/\(id)/start")
@@ -155,6 +170,46 @@ final class ShimStartSettleTests: XCTestCase {
         XCTAssertEqual(try shim.raw().request("GET", "/containers/\(id)/json").status, 404)
     }
 
+    /// The retry after a refusal: `docker start -a` sends `/wait` before
+    /// `/start`, so the new wait begins while the earlier refusal still
+    /// stands. It must wait for the run the retried start makes, not end
+    /// at once on the refusal (live: the container ran, and the CLI still
+    /// printed "Error waiting for container: ... did not start").
+    func testAWaitBeforeARetriedStartIgnoresTheEarlierRefusal() async throws {
+        let id = try createContainer("settle-retry")
+        let refusedStream = try attach(id)
+        let refusedWait = await pendingWait(id)
+        try refuseStarts(with: guardRefusal)
+        let refused = try shim.raw().request("POST", "/containers/\(id)/start")
+        XCTAssertEqual(refused.status, 409, message(refused))
+        _ = try refusedStream.readUntilClose(timeout: 8)
+        let refusedBody = await waited(refusedWait)
+        XCTAssertTrue(
+            waitError(refusedBody)?.contains("attached read-write") == true, "\(String(describing: refusedBody))")
+
+        // Nothing has restarted it: a wait for it to be not running reports
+        // the refusal that still stands rather than hanging.
+        let standing = await waited(await pendingWait(id, condition: "not-running"))
+        XCTAssertTrue(
+            waitError(standing)?.contains("attached read-write") == true, "\(String(describing: standing))")
+
+        // The holder is gone; the retry runs.
+        try FileManager.default.removeItem(at: shim.stateDir.appendingPathComponent("start-refusal"))
+        try Data("3".utf8).write(to: shim.stateDir.appendingPathComponent("attach-exit-code"))
+        let stream = try attach(id)
+        let wait = await pendingWait(id)
+        let start = try shim.raw().request("POST", "/containers/\(id)/start")
+        XCTAssertEqual(start.status, 204, message(start))
+        let output = try stream.readUntilClose(timeout: 10)
+        XCTAssertTrue(
+            String(decoding: output, as: UTF8.self).contains("mock attached output from \(id)"),
+            String(decoding: output, as: UTF8.self))
+
+        let waitedBody = await waited(wait)
+        XCTAssertEqual(waitedBody?["StatusCode"] as? Int, 3, "\(String(describing: waitedBody))")
+        XCTAssertNil(waitedBody?["Error"], "\(String(describing: waitedBody))")
+    }
+
     // MARK: - Starts that run
 
     /// The happy path keeps its semantics: 204, the run's output on the
@@ -163,7 +218,7 @@ final class ShimStartSettleTests: XCTestCase {
         try Data("3".utf8).write(to: shim.stateDir.appendingPathComponent("attach-exit-code"))
         let id = try createContainer("settle-runs")
         let stream = try attach(id)
-        let wait = pendingWait(id)
+        let wait = await pendingWait(id)
 
         let start = try shim.raw().request("POST", "/containers/\(id)/start")
         XCTAssertEqual(start.status, 204, message(start))

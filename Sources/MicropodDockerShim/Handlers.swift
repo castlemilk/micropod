@@ -1824,6 +1824,9 @@ final class Router: @unchecked Sendable {
     /// failure can only travel in the body's `Error.Message`.
     private func containerWait(_ id: String, _ request: ShimRequest) async throws -> ShimResponse {
         let target = try await resolveID(id)
+        // Taken before anything else: a refusal recorded from here on is one
+        // this wait saw happen.
+        let mark = await state.refusalMark()
         let first = await inspectOutcome(target)
         if case .failure(let error) = first, Self.isNotFound(error),
             await state.exitCode(for: target) == nil
@@ -1833,7 +1836,10 @@ final class Router: @unchecked Sendable {
         let (stream, continuation) = AsyncStream<Data>.makeStream()
         let waiter = Task.detached(priority: .userInitiated) { [self] in
             defer { continuation.finish() }
-            guard let result = await waitForExit(target: target, request: request, first: first) else { return }
+            guard
+                let result = await waitForExit(
+                    target: target, request: request, first: first, refusalMark: mark)
+            else { return }
             continuation.yield(result)
         }
         // The stream terminates when the client goes (the server stops
@@ -1855,11 +1861,19 @@ final class Router: @unchecked Sendable {
     /// the `WaitResult` JSON. `first` is the inspect `containerWait` already
     /// made; every later poll inspects afresh. Nil once cancelled: the
     /// client has gone.
+    ///
+    /// A refused start ends the wait (no exit is coming). For `next-exit`
+    /// and `removed` — the conditions the docker CLI waits on before it
+    /// sends `/start` — only a refusal recorded after `refusalMark` (taken
+    /// when the wait began) counts: an older one belongs to an earlier
+    /// start, and the retry this wait precedes has not been sent yet. A
+    /// `not-running` wait also ends on a refusal still standing from before
+    /// it: nothing has started the container since.
     private func waitForExit(
-        target: String, request: ShimRequest, first: Result<Data, Error>
+        target: String, request: ShimRequest, first: Result<Data, Error>, refusalMark: UInt64
     ) async -> Data? {
         let condition = request.q("condition").isEmpty ? "not-running" : request.q("condition")
-        _ = condition
+        let refusalsAfter: UInt64? = condition == "not-running" ? nil : refusalMark
         let clock = ContinuousClock()
         var outcome = first
         // The current run of consecutive failed inspects (see ShimConfig).
@@ -1885,7 +1899,7 @@ final class Router: @unchecked Sendable {
                     // for a failed container.
                     let awaitingExitCode = AttachRegistry.shared.isRunning(containerID: target)
                     // Refused and never run: no exit is coming.
-                    if neverRan, let refusal = await state.startRefusal(for: target) {
+                    if neverRan, let refusal = await state.startRefusal(for: target, after: refusalsAfter) {
                         return Self.refusedWait(target, refusal)
                     }
                     if stateName != "running" && !neverRan && !awaitingExitCode {
@@ -1904,7 +1918,9 @@ final class Router: @unchecked Sendable {
                     // exit code we captured rather than hanging on a container
                     // that no longer exists.
                     let remembered = await state.exitCode(for: target)
-                    if remembered == nil, let refusal = await state.startRefusal(for: target) {
+                    if remembered == nil,
+                        let refusal = await state.startRefusal(for: target, after: refusalsAfter)
+                    {
                         return Self.refusedWait(target, refusal)
                     }
                     return Self.encodeBody(WaitResult(StatusCode: remembered ?? 0, Error: nil))
