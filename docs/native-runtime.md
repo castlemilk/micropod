@@ -206,13 +206,20 @@ carries the image routes (`ImagesServiceClient`):
 1. Load `~/.config/container/config.toml` defaults (cpus/memory/dns
    domain/registry domain).
 2. Resolve the image — `imageList` match or `imagePull` (platform-scoped).
-   With `no_pull` (`RunContainerRequest.no_pull`) a missing image, or a
-   local image without the requested platform's manifest, fails
-   `not_found` (`image X not present locally for linux/arm64`) instead of
-   pulling: `imagePull` has no timeout, so callers that need a bounded
-   create pull with `PullImage` under their own deadline and create again.
+   A local image counts only if it holds the requested platform: its
+   index lists the platform and `contentGet` finds that platform's
+   manifest and config blobs. A pull pinned to one platform stores the
+   whole index but only that platform's blobs, so a platform the index
+   lists can still be absent. As in `ClientImage.fetch`, a blob that is
+   `notFound` means "pull that platform"; any other `contentGet` failure
+   fails the create. With `no_pull` (`RunContainerRequest.no_pull`) an
+   absent image or platform fails `not_found` (`image X not present
+   locally for linux/arm64`) instead of pulling: `imagePull` has no
+   timeout, so callers that need a bounded create pull with `PullImage`
+   under their own deadline and create again.
 3. Walk index → manifest → config blob via `contentGet` for the OCI image
-   config (env/entrypoint/cmd/user/workdir/stopSignal).
+   config (env/entrypoint/cmd/user/workdir/stopSignal). Step 2 already
+   read it, so the create reads each blob once.
 4. Build `initProcess` — Docker env merge semantics (image `K=V` entries,
    env files, request env; bare names inherit the host env only when
    present), entrypoint+argv merge, user/workdir, rlimits.
@@ -399,11 +406,23 @@ triggers the retry. For a single-manifest image the pinned attempt
 downloads the layers before it is refused, so that pull fetches them
 twice.
 
-The one change callers can see is for a multi-arch image created with a
-non-host platform. A pull with no platform no longer stores that
-variant, so a `no_pull` create for it is `not_found`. Send `PullImage`
-the same `platform` as `CreateContainer` (step 3 of the Go pattern
-below).
+Callers see a change only when they create a multi-arch image for a
+non-host platform. A pull with no platform still stores the whole index,
+which lists every variant, but it stores only the host variant's
+manifest, config and layers. Create checks for those blobs (step 2 of
+native `create`), so the other variants count as not local:
+
+- Without `no_pull`, the create pulls the requested platform first, as
+  `container run --platform` does. `docker pull alpine` followed by
+  `docker run --platform linux/amd64 alpine` works as it did before, but
+  the run now pays for that pull.
+- With `no_pull`, the create is `not_found` with `image X not present
+  locally for linux/amd64`.
+
+To avoid both, send `PullImage` the same `platform` as `CreateContainer`
+(step 3 of the Go pattern below). The CLI backend already behaved this
+way: `container image list` reports only variants whose blobs are
+stored, and `container create` pulls a missing platform itself.
 
 ### `prune` and `cp`
 
@@ -827,7 +846,11 @@ Regenerate after proto edits; never hand-edit generated files.
   `NativeCreateGuardsTests` (`no_pull` names image and platform, a failed
   create removes only the clones it placed, placement waits for the
   volume lock, same-id creates are mutually exclusive and the id is
-  released on a throw) and `StatsSamplingIDsTests`;
+  released on a throw), `ImageEnsureTests` (a scripted images service
+  holding a host-only pull: a platform the index lists without its blobs
+  is pulled for that platform, or `not_found` naming it under `no_pull`;
+  the stored platform resolves with no pull; a non-`notFound` read
+  failure propagates) and `StatsSamplingIDsTests`;
   in `MicropodCoreTests`, `ConnectCodeMappingTests` (transport and
   runtime-down → `unavailable`), `SystemStatusStoppedTests`,
   `VolumeCloneTests` (clonefile, atomic commit, staging sweep, per-volume
@@ -939,8 +962,9 @@ benefit — no process-spawn contention on top of the VM-boot contention.
   re-resolve; `Ping` answers `status: "stopped"` meanwhile.
 - unknown apiserver version → CLI (`auto`); `native` proceeds anyway
   (explicit opt-in).
-- image not local → `imagePull` (no timeout, same as the CLI), or
-  `not_found` with `no_pull`.
+- image not local, or its index lists the platform but the platform's
+  blobs are not stored → `imagePull` of that platform (no timeout, same
+  as the CLI), or `not_found` with `no_pull`.
 - `PullImage` with no platform on an image without a `linux/<host arch>`
   variant → one retry with no `--platform` (every platform, the old
   behaviour); a given platform fails as the CLI does.
