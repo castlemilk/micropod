@@ -97,11 +97,13 @@ public struct NativeContainerService: ContainerServing {
     /// the process starts (and exits, however quickly). A `notFound` from
     /// either call is looked into (`startLookingIntoNotFound`); `createdHere`
     /// says this process created the container, which is what lets the
-    /// error say it was deleted.
+    /// error say it was deleted. The three steps run as one attempt under the
+    /// process-wide ``StartGate``, one start at a time.
     private func startTracked(_ id: String, createdHere: Bool) async throws {
         try await Self.startLookingIntoNotFound(
             id: id,
             createdHere: createdHere,
+            gate: .shared,
             bootstrap: { try await api.bootstrap(id: id) },
             startProcess: {
                 await exitCodes.track(id: id) { [api] in
@@ -147,10 +149,18 @@ public struct NativeContainerService: ContainerServing {
     ///    steps run out the last `notFound` stands.
     /// Any other error, and a `notFound` whose lookup fails, is thrown as it
     /// came.
+    ///
+    /// Each attempt — bootstrap and startProcess together — holds `gate`, so
+    /// concurrent starts reach the apiserver's FIFO lock as bootstrap,
+    /// startProcess, bootstrap, … instead of every bootstrap first
+    /// (``StartGate``). The lookup and the backoff run outside it. A start
+    /// cancelled while it waits for the gate throws `CancellationError`
+    /// without calling either.
     static func startLookingIntoNotFound(
         id: String,
         createdHere: Bool,
         backoff: [Duration] = startNotFoundBackoff,
+        gate: StartGate = .shared,
         bootstrap: () async throws -> Void,
         startProcess: () async throws -> Void,
         exists: () async throws -> Bool,
@@ -160,9 +170,11 @@ public struct NativeContainerService: ContainerServing {
         while true {
             var call = "bootstrap"
             do {
-                try await bootstrap()
-                call = "startProcess"
-                try await startProcess()
+                try await gate.withExclusive {
+                    try await bootstrap()
+                    call = "startProcess"
+                    try await startProcess()
+                }
                 return
             } catch {
                 guard ConnectCodeMapping.code(for: error) == "not_found" else { throw error }
