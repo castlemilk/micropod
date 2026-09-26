@@ -101,6 +101,109 @@ final class ExitCodeRegistryTests: XCTestCase {
         XCTAssertEqual(second?.exitCode, 2)
     }
 
+    // MARK: - Event-driven await (O4)
+
+    /// A parked `await` is resumed by `record` itself, not by a poll: across
+    /// several exits, none reaches the awaiter more than a few ms late (a
+    /// 50 ms poll lands anywhere in 0–50 ms).
+    func testParkedAwaitIsResumedByRecord() async throws {
+        for rep in 0..<7 {
+            let registry = ExitCodeRegistry()
+            let exitAt = InstantProbe()
+            await registry.track(id: "job") {
+                try await Task.sleep(for: .milliseconds(60))
+                await exitAt.mark()
+                return Int32(rep)
+            }
+            let entry = await registry.await(id: "job", timeout: .seconds(5))
+            let woke = ContinuousClock.now
+            XCTAssertEqual(entry?.exitCode, Int32(rep))
+            let recorded = await exitAt.instant
+            let exited = try XCTUnwrap(recorded)
+            XCTAssertLessThan(woke - exited, .milliseconds(20), "rep \(rep): the exit must wake the awaiter")
+        }
+    }
+
+    /// A caller that arrives after the exit was recorded returns at once.
+    func testAwaitAfterRecordReturnsAtOnce() async throws {
+        let registry = ExitCodeRegistry()
+        await registry.track(id: "done") { 9 }
+        _ = await registry.await(id: "done", timeout: .seconds(2))
+
+        let started = ContinuousClock.now
+        let entry = await registry.await(id: "done", timeout: .seconds(5))
+        XCTAssertEqual(entry?.exitCode, 9)
+        XCTAssertLessThan(ContinuousClock.now - started, .milliseconds(20))
+    }
+
+    /// A request can park before the start registers its waiter; the later
+    /// `track` + `record` still wakes it.
+    func testAwaitParkedBeforeTrackIsWokenByRecord() async throws {
+        let registry = ExitCodeRegistry()
+        let parked = Task { await registry.await(id: "late", timeout: .seconds(5)) }
+        try await Task.sleep(for: .milliseconds(50))
+        let tracked = await registry.isTracked(id: "late")
+        XCTAssertFalse(tracked)
+        await registry.track(id: "late") { 6 }
+
+        let started = ContinuousClock.now
+        let entry = await parked.value
+        XCTAssertEqual(entry?.exitCode, 6)
+        XCTAssertLessThan(ContinuousClock.now - started, .milliseconds(500))
+    }
+
+    func testAwaitHonoursTimeout() async throws {
+        let registry = ExitCodeRegistry()
+        await registry.track(id: "hang") {
+            try await Task.sleep(for: .seconds(60))
+            return 0
+        }
+        let started = ContinuousClock.now
+        let entry = await registry.await(id: "hang", timeout: .milliseconds(150))
+        let elapsed = ContinuousClock.now - started
+        XCTAssertNil(entry)
+        XCTAssertGreaterThanOrEqual(elapsed, .milliseconds(140))
+        XCTAssertLessThan(elapsed, .seconds(1))
+        await registry.forget(id: "hang")
+    }
+
+    /// `forget` (delete) and cancellation release parked callers with nil
+    /// instead of leaving them to their timeout.
+    func testForgetAndCancellationResumeParkedAwaiters() async throws {
+        let registry = ExitCodeRegistry()
+        await registry.track(id: "gone") {
+            try await Task.sleep(for: .seconds(60))
+            return 0
+        }
+        let forgotten = Task { await registry.await(id: "gone", timeout: .seconds(10)) }
+        let cancelled = Task { await registry.await(id: "gone", timeout: .seconds(10)) }
+        try await Task.sleep(for: .milliseconds(50))
+
+        let started = ContinuousClock.now
+        cancelled.cancel()
+        let afterCancel = await cancelled.value
+        XCTAssertNil(afterCancel)
+        await registry.forget(id: "gone")
+        let afterForget = await forgotten.value
+        XCTAssertNil(afterForget)
+        XCTAssertLessThan(ContinuousClock.now - started, .seconds(1))
+    }
+
+    func testIsTrackedFollowsTrackRecordAndForget() async throws {
+        let registry = ExitCodeRegistry()
+        var tracked = await registry.isTracked(id: "t")
+        XCTAssertFalse(tracked)
+        await registry.track(id: "t") { 0 }
+        tracked = await registry.isTracked(id: "t")
+        XCTAssertTrue(tracked, "a running waiter is tracked")
+        _ = await registry.await(id: "t", timeout: .seconds(2))
+        tracked = await registry.isTracked(id: "t")
+        XCTAssertTrue(tracked, "a recorded entry stays tracked")
+        await registry.forget(id: "t")
+        tracked = await registry.isTracked(id: "t")
+        XCTAssertFalse(tracked)
+    }
+
     func testForgetOfUnknownIdIsANoOp() async throws {
         let registry = ExitCodeRegistry()
         await registry.forget(id: "never-tracked")
@@ -112,4 +215,9 @@ final class ExitCodeRegistryTests: XCTestCase {
 private actor CancellationProbe {
     private(set) var wasCancelled = false
     func markCancelled() { wasCancelled = true }
+}
+
+private actor InstantProbe {
+    private(set) var instant: ContinuousClock.Instant?
+    func mark() { instant = .now }
 }

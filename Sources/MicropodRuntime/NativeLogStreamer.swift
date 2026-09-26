@@ -12,8 +12,9 @@ import MicropodCore
 ///
 /// - **Stop signal.** A recorded exit code in the ``ExitCodeRegistry``, or a
 ///   runtime state that is no longer `running` or `stopping` (see
-///   ``isLive(state:)``). The registry is consulted on every quiet tick
-///   without asking the runtime; the state is checked right after the
+///   ``isLive(state:)``). The registry is checked before every tick and each
+///   tick parks on it, so a recorded exit ends the wait at once instead of
+///   at the next tick; the state is checked right after the
 ///   backlog, then 250 ms after the latest bytes, backing off ×2 to 1 s
 ///   while the stream stays quiet.
 /// - **Final drain.** After the stop signal the sources are drained once
@@ -31,6 +32,8 @@ public struct NativeLogStreamer: LogStreaming {
 
     private let sourceProvider: @Sendable (String, Bool) async throws -> [FileHandle]
     private let isLive: @Sendable (String) async -> Bool
+    /// Called after every follow-loop pause, before its drain.
+    private let onTick: @Sendable () -> Void
     private let exitCodes: ExitCodeRegistry?
 
     /// A log fd plus the read cursor, reopened once per stream.
@@ -81,15 +84,18 @@ public struct NativeLogStreamer: LogStreaming {
 
     /// Test seam: sources + liveness provider instead of XPC.
     /// `sourceProvider(id, boot)` returns the log files to follow;
-    /// `isLive(id)` answers whether the container may still write to them.
+    /// `isLive(id)` answers whether the container may still write to them;
+    /// `onTick` observes the follow loop's cadence.
     init(
         sourceProvider: @escaping @Sendable (String, Bool) async throws -> [FileHandle],
         isLive: @escaping @Sendable (String) async -> Bool,
-        exitCodes: ExitCodeRegistry? = nil
+        exitCodes: ExitCodeRegistry? = nil,
+        onTick: @escaping @Sendable () -> Void = {}
     ) {
         self.sourceProvider = sourceProvider
         self.isLive = isLive
         self.exitCodes = exitCodes
+        self.onTick = onTick
     }
 
     /// Whether a container in runtime `state` may still write output.
@@ -126,14 +132,15 @@ public struct NativeLogStreamer: LogStreaming {
                     let clock = ContinuousClock()
                     var schedule = StateCheckSchedule(now: clock.now)
                     while true {
-                        try await Task.sleep(for: Self.drainTick)
+                        if await self.exitRecorded(id: id) { break }
+                        try await self.pause(id: id)
+                        self.onTick()
                         let fresh = Self.drain(&sources)
                         if !fresh.isEmpty {
                             emit(splitter.feed(fresh))
                             schedule.sawBytes(at: clock.now)
                             continue
                         }
-                        if await self.exitRecorded(id: id) { break }
                         guard schedule.isDue(at: clock.now) else { continue }
                         if await !self.isLive(id) { break }
                         schedule.stillRunning(at: clock.now)
@@ -152,6 +159,19 @@ public struct NativeLogStreamer: LogStreaming {
 
     private func sources(id: String, boot: Bool) async throws -> [Source] {
         try await sourceProvider(id, boot).map { Source(handle: $0) }
+    }
+
+    /// One drain tick, cut short when the registry records the exit — the
+    /// loop then stops following and drains the tail at once. A registry
+    /// entry without a code will never wake anyone, so it gets the plain
+    /// tick. Throws `CancellationError` when the stream is torn down.
+    private func pause(id: String) async throws {
+        if let exitCodes, await exitCodes.entry(for: id) == nil {
+            _ = await exitCodes.await(id: id, timeout: Self.drainTick)
+            try Task.checkCancellation()
+        } else {
+            try await Task.sleep(for: Self.drainTick)
+        }
     }
 
     /// True once the registry holds this container's exit code. An entry

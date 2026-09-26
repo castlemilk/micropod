@@ -97,11 +97,13 @@ public struct NativeContainerService: ContainerServing {
     /// the process starts (and exits, however quickly). A `notFound` from
     /// either call is looked into (`startLookingIntoNotFound`); `createdHere`
     /// says this process created the container, which is what lets the
-    /// error say it was deleted.
+    /// error say it was deleted. The three steps run as one attempt under the
+    /// process-wide ``StartGate``, one start at a time.
     private func startTracked(_ id: String, createdHere: Bool) async throws {
         try await Self.startLookingIntoNotFound(
             id: id,
             createdHere: createdHere,
+            gate: .shared,
             bootstrap: { try await api.bootstrap(id: id) },
             startProcess: {
                 await exitCodes.track(id: id) { [api] in
@@ -147,10 +149,18 @@ public struct NativeContainerService: ContainerServing {
     ///    steps run out the last `notFound` stands.
     /// Any other error, and a `notFound` whose lookup fails, is thrown as it
     /// came.
+    ///
+    /// Each attempt — bootstrap and startProcess together — holds `gate`, so
+    /// concurrent starts reach the apiserver's FIFO lock as bootstrap,
+    /// startProcess, bootstrap, … instead of every bootstrap first
+    /// (``StartGate``). The lookup and the backoff run outside it. A start
+    /// cancelled while it waits for the gate throws `CancellationError`
+    /// without calling either.
     static func startLookingIntoNotFound(
         id: String,
         createdHere: Bool,
         backoff: [Duration] = startNotFoundBackoff,
+        gate: StartGate = .shared,
         bootstrap: () async throws -> Void,
         startProcess: () async throws -> Void,
         exists: () async throws -> Bool,
@@ -160,9 +170,11 @@ public struct NativeContainerService: ContainerServing {
         while true {
             var call = "bootstrap"
             do {
-                try await bootstrap()
-                call = "startProcess"
-                try await startProcess()
+                try await gate.withExclusive {
+                    try await bootstrap()
+                    call = "startProcess"
+                    try await startProcess()
+                }
                 return
             } catch {
                 guard ConnectCodeMapping.code(for: error) == "not_found" else { throw error }
@@ -477,6 +489,11 @@ public struct NativeContainerService: ContainerServing {
         return result.output
     }
 
+    /// How long a non-TTY exec's output may stay silent after the process
+    /// exit before collection stops without EOF. Only a pipe some other
+    /// holder keeps open waits this long; EOF ends collection first.
+    static let execEOFQuiet: Duration = .milliseconds(25)
+
     public func execDetailed(_ request: ContainerExecRequest) async throws -> ContainerExecResult {
         // Interactive/TTY exec stays on the CLI path — it needs a real pty
         // wired to the caller's terminal, which ProcessIO handles there.
@@ -500,6 +517,14 @@ public struct NativeContainerService: ContainerServing {
 
         let stdout = Pipe()
         let stderr = Pipe()
+        // Close-on-exec, so a process this one spawns while the exec runs
+        // can't inherit a write end and hold the pipe open past the exit.
+        for handle in [
+            stdout.fileHandleForReading, stdout.fileHandleForWriting,
+            stderr.fileHandleForReading, stderr.fileHandleForWriting,
+        ] {
+            _ = fcntl(handle.fileDescriptor, F_SETFD, FD_CLOEXEC)
+        }
         let processId = UUID().uuidString.lowercased()
 
         try await api.createProcess(
@@ -519,73 +544,27 @@ public struct NativeContainerService: ContainerServing {
         }
 
         // Stdio arrives asynchronously: guest → vsock → runtime helper →
-        // our pipe, and the helper's fd close (EOF) can lag — or never
-        // arrive — past `containerWait`. The CLI's ProcessIO bounds the
-        // post-exit EOF wait at 3s; we do the same. Reads are nonblocking
-        // polls so a never-EOF can't deadlock us, and they run during the
-        // process so large outputs can't fill the pipe and stall the guest.
-        let outRead = stdout.fileHandleForReading
-        let errRead = stderr.fileHandleForReading
-        Self.setNonblocking(outRead)
-        Self.setNonblocking(errRead)
-
-        try await api.startProcess(containerId: request.containerID, processId: processId)
-
-        let drainer = Task {
-            var out = Data()
-            var err = Data()
-            while !Task.isCancelled {
-                out.append(Self.readSome(outRead) ?? Data())
-                err.append(Self.readSome(errRead) ?? Data())
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-            return (out, err)
+        // our pipe. The collector reads while the process runs (so large
+        // outputs can't fill the pipe and stall the guest) and, after
+        // `containerWait`, returns on EOF of both pipes — normally within
+        // milliseconds of the exit. EOF is not guaranteed (another holder of
+        // a write end keeps the pipe open), so a short quiet drain after the
+        // exit, capped at ProcessIO's 3s EOF wait, bounds that case.
+        let collector = ExecOutputCollector(
+            stdout: stdout.fileHandleForReading, stderr: stderr.fileHandleForReading)
+        let exitCode: Int32
+        do {
+            try await api.startProcess(containerId: request.containerID, processId: processId)
+            exitCode = try await api.waitProcess(containerId: request.containerID, processId: processId)
+        } catch {
+            _ = await collector.finish(quiet: .zero, cap: .zero)
+            throw error
         }
-
-        let exitCode = try await api.waitProcess(
-            containerId: request.containerID, processId: processId)
-        drainer.cancel()
-        var (out, err) = await drainer.value
-
-        // Post-exit: drain until both fds hit EOF or the 3s cap — whichever
-        // comes first (matching ProcessIO's EOF-wait timeout). EOF is not
-        // guaranteed: any process spawned while the apiserver holds the fd
-        // inherits a copy, so the pipe can stay open indefinitely. In-flight
-        // data arrives within milliseconds of exit, so a 100ms quiet window
-        // is the practical bound — don't burn the full cap on every exec.
-        let deadline = ContinuousClock.now + .seconds(3)
-        var lastData = ContinuousClock.now
-        var outEOF = false
-        var errEOF = false
-        while !outEOF || !errEOF, ContinuousClock.now < deadline {
-            var got = false
-            if !outEOF, let chunk = Self.readSome(outRead) {
-                if chunk.isEmpty {
-                    outEOF = true
-                } else {
-                    out.append(chunk)
-                    got = true
-                }
-            }
-            if !errEOF, let chunk = Self.readSome(errRead) {
-                if chunk.isEmpty {
-                    errEOF = true
-                } else {
-                    err.append(chunk)
-                    got = true
-                }
-            }
-            if got {
-                lastData = .now
-            } else if ContinuousClock.now - lastData > .milliseconds(100) {
-                break
-            }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
+        let collected = await collector.finish(quiet: Self.execEOFQuiet, cap: .seconds(3))
 
         return ContainerExecResult(
-            output: String(decoding: out, as: UTF8.self),
-            error: String(decoding: err, as: UTF8.self),
+            output: String(decoding: collected.stdout, as: UTF8.self),
+            error: String(decoding: collected.stderr, as: UTF8.self),
             exitCode: exitCode
         )
     }
@@ -845,22 +824,5 @@ public struct NativeContainerService: ContainerServing {
                 FileHandle.standardError.write(Data(notice.utf8))
             }
         }
-    }
-
-    private static func setNonblocking(_ handle: FileHandle) {
-        let fd = handle.fileDescriptor
-        let flags = fcntl(fd, F_GETFL)
-        _ = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
-    }
-
-    /// One read on a nonblocking fd: `Data` on success (empty = EOF),
-    /// nil when nothing is ready (EAGAIN) or the read fails.
-    /// Raw `read(2)` keeps EAGAIN and EOF unambiguous — Foundation's
-    /// `read(upToCount:)` can't be trusted to distinguish them.
-    private static func readSome(_ handle: FileHandle) -> Data? {
-        var buf = [UInt8](repeating: 0, count: 1 << 16)
-        let n = read(handle.fileDescriptor, &buf, buf.count)
-        guard n >= 0 else { return nil }
-        return Data(buf[0..<n])
     }
 }

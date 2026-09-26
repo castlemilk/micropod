@@ -117,7 +117,10 @@ extension APIHandlers {
                     boot: req.boot)
                 // `skip_lines`: a client re-opening after a transport error
                 // already holds the first N lines — drop them server-side.
-                return streamEnvelope(dropping(req.skipLines, from: events)) { line in
+                // Each line stays its own LogChunk envelope (clients count
+                // envelopes as lines); a flood packs many envelopes into one
+                // awaited socket write instead of one write per line.
+                return streamEnvelope(dropping(req.skipLines, from: events), coalesce: true) { line in
                     Micropod_V1_LogChunk.with { $0.text = line.text }
                 }
 
@@ -129,6 +132,8 @@ extension APIHandlers {
             case "PullImage":
                 let req = try decodeStreamRequest(Micropod_V1_PullImageRequest.self, body)
                 try check(req)
+                // No platform pulls linux/<host arch>, not every platform in
+                // the index (see ImageService.pull).
                 let events = images.pull(
                     req.reference,
                     platform: req.hasPlatform ? req.platform : nil)
@@ -388,58 +393,31 @@ extension APIHandlers {
         return out
     }
 
-    /// Polls the exit-code registry and the runtime state every 150 ms until
-    /// the container is terminal or `timeout` elapses — no blocking runtime
-    /// wait in the request path. A registry code is authoritative
-    /// (`known: true`) even if the snapshot has not flipped to `stopped`
-    /// yet. `running`/`stopping` are non-terminal; so is `created` (never
-    /// started — it may still be). Anything else (`stopped`, or `unknown`
-    /// after the container vanished mid-wait) is `exited: true`, with
-    /// `known: false` when no registry code exists (CLI backend, or the
-    /// waiter aged out). A runtime that stops answering mid-wait throws
-    /// (`unavailable`) instead of reporting a false exit.
+    /// Waits for the container to be terminal or `timeout` to elapse — see
+    /// ``ContainerExitWait``: a container the registry tracks wakes the
+    /// request the moment its exit is recorded; any other is polled at 150 ms.
+    /// A runtime that stops answering mid-wait throws (`unavailable`)
+    /// instead of reporting a false exit.
     private func waitContainer(
         id: String, timeout: Duration, in services: RuntimeServices
     ) async throws -> Micropod_V1_WaitContainerResponse {
-        let clock = ContinuousClock()
-        let deadline = clock.now + timeout
-        while true {
-            let entry = await services.exitCodes?.entry(for: id)
-            var state = await services.containers.state(of: id)
-            if state == "unknown", entry?.exitCode == nil {
-                // `state(of:)` answers `unknown` both for a container that is
-                // gone and for a runtime that is not answering. The list
-                // tells them apart: it throws when the runtime is down, and a
-                // container it no longer lists has really vanished.
-                state = try await listedContainer(id, in: services)?.state ?? "unknown"
-            }
-            if let code = entry?.exitCode {
-                return .with {
-                    $0.exited = true
-                    $0.known = true
-                    $0.exitCode = code
-                    $0.state = state
-                }
-            }
-            switch state {
-            case "running", "stopping", "created":
-                break
-            default:
-                return .with {
-                    $0.exited = true
-                    $0.known = false
-                    $0.state = state
-                }
-            }
-            let now = clock.now
-            if now >= deadline {
-                return .with {
-                    $0.exited = false
-                    $0.known = false
-                    $0.state = state
-                }
-            }
-            try? await Task.sleep(for: min(deadline - now, .milliseconds(150)))
+        let exitCodes = services.exitCodes
+        let outcome = try await ContainerExitWait.wait(
+            id: id, timeout: timeout, exitCodes: exitCodes
+        ) { id, exitKnown in
+            let state = await services.containers.state(of: id)
+            guard state == "unknown", !exitKnown else { return state }
+            // `state(of:)` answers `unknown` both for a container that is
+            // gone and for a runtime that is not answering. The list tells
+            // them apart: it throws when the runtime is down, and a
+            // container it no longer lists has really vanished.
+            return try await listedContainer(id, in: services)?.state ?? "unknown"
+        }
+        return .with {
+            $0.exited = outcome.exited
+            $0.known = outcome.known
+            if let code = outcome.exitCode { $0.exitCode = code }
+            $0.state = outcome.state
         }
     }
 
@@ -655,9 +633,12 @@ extension APIHandlers {
 
     /// Wraps a throwing event stream into Connect envelopes: each message as
     /// a data frame, then an EndStream trailer. Errors surface in the
-    /// trailer's `error` object per the Connect spec.
+    /// trailer's `error` object per the Connect spec. With `coalesce`, whole
+    /// envelopes are batched into writes of up to 64 KiB or 10 ms
+    /// (`StreamFrameCoalescer`); the bytes on the wire are unchanged.
     private func streamEnvelope<E: Sendable, M: Message>(
         _ events: AsyncThrowingStream<E, Error>,
+        coalesce: Bool = false,
         map: @escaping @Sendable (E) -> M
     ) -> HTTPResponse {
         let stream = AsyncStream<Data> { continuation in
@@ -682,7 +663,8 @@ extension APIHandlers {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
-        return .stream(200, "application/connect+json", stream)
+        return .stream(
+            200, "application/connect+json", coalesce ? StreamFrameCoalescer.coalesce(stream) : stream)
     }
 
     private func connectError(_ code: ConnectWireCode, _ message: String) -> HTTPResponse {

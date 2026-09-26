@@ -664,6 +664,53 @@ final class MicropodAPITests: XCTestCase {
             "only the explicit PullImage may pull: \(calls)")
     }
 
+    /// A pull with no platform fetches only the host's (`linux/<host arch>`,
+    /// the platform CreateContainer defaults to), not every platform in the
+    /// index. A given platform reaches the CLI verbatim. Both the Connect
+    /// `PullImage` stream and the REST pull go through the same default.
+    func testPullImageDefaultsPlatformToHost() async throws {
+        #if arch(arm64)
+            let host = "linux/arm64"
+        #else
+            let host = "linux/amd64"
+        #endif
+
+        func connectPull(_ payload: [String: Any]) async throws {
+            var request = URLRequest(
+                url: baseURL.appendingPathComponent("api/micropod.v1.ImageService/PullImage"))
+            request.httpMethod = "POST"
+            request.setValue("application/connect+json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = ConnectFrames.envelope(
+                try JSONSerialization.data(withJSONObject: payload), flags: 0)
+            request.timeoutInterval = 20
+            let (data, response) = try await URLSession.shared.data(for: request)
+            XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+            let last = ConnectFrames.parse(data).frames.last
+            XCTAssertEqual(last?.flags, 0x02, "PullImage must end with EndStream")
+            XCTAssertEqual(last.map { String(decoding: $0.payload, as: UTF8.self) }, "{}", "PullImage failed")
+        }
+        func pullLine(for reference: String) -> String {
+            mockCalls().last { $0.hasPrefix("image pull ") && $0.hasSuffix(" \(reference)") } ?? ""
+        }
+
+        try await connectPull(["reference": "pin/connect-unset:1"])
+        XCTAssertTrue(pullLine(for: "pin/connect-unset:1").contains(" --platform \(host) "), "\(mockCalls())")
+
+        try await connectPull(["reference": "pin/connect-set:1", "platform": "linux/amd64"])
+        let connectSet = pullLine(for: "pin/connect-set:1")
+        XCTAssertTrue(connectSet.contains(" --platform linux/amd64 "), connectSet)
+        XCTAssertEqual(connectSet.components(separatedBy: "--platform").count, 2, connectSet)
+
+        _ = try await json("POST", "v1/images/pull", body: ["reference": "pin/rest-unset:1"])
+        XCTAssertTrue(pullLine(for: "pin/rest-unset:1").contains(" --platform \(host) "), "\(mockCalls())")
+
+        _ = try await json(
+            "POST", "v1/images/pull", body: ["reference": "pin/rest-set:1", "platform": "linux/amd64"])
+        let restSet = pullLine(for: "pin/rest-set:1")
+        XCTAssertTrue(restSet.contains(" --platform linux/amd64 "), restSet)
+        XCTAssertEqual(restSet.components(separatedBy: "--platform").count, 2, restSet)
+    }
+
     /// `arguments` is a verbatim argv — an element with embedded spaces
     /// stays one element. `command` keeps its split-on-spaces behaviour for
     /// old clients, and a request with neither is a caller error.

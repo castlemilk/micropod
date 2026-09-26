@@ -80,15 +80,26 @@ public struct ImageService: ImageServing {
     ///   2. On stall, if the registry has a stored credential, log it out
     ///      and retry once anonymously — the known-good path for registries
     ///      with anonymous reads.
+    ///
+    /// A nil or empty `platform` pulls `defaultPullPlatform`, not every
+    /// platform in the index. If the image has no variant for it, the pull
+    /// is retried once with no platform, which is what it did before the
+    /// default existed. A given platform is passed through and never widened.
     public func pull(_ reference: String, platform: String? = nil) -> AsyncThrowingStream<
         ProgressEvent, Error
     > {
-        AsyncThrowingStream { continuation in
+        let requested = platform.flatMap { $0.isEmpty ? nil : $0 }
+        return AsyncThrowingStream { continuation in
             let task = Task {
                 var recovered = false
+                // nil only once a defaulted pull found no host variant.
+                var pinned: String? = requested ?? Self.defaultPullPlatform
                 while true {
+                    let widenable = requested == nil && pinned != nil
+                    var platformMissing = false
                     do {
-                        for try await event in pullOnce(reference, platform: platform) {
+                        for try await event in pullOnce(reference, platform: pinned) {
+                            if widenable, Self.reportsMissingPlatform(event.line) { platformMissing = true }
                             continuation.yield(event)
                         }
                         continuation.finish()
@@ -105,6 +116,13 @@ public struct ImageService: ImageServing {
                         continuation.finish(throwing: MicropodError.pullStalled(reference: reference))
                         return
                     } catch {
+                        if platformMissing, let missing = pinned, !Task.isCancelled {
+                            pinned = nil
+                            continuation.yield(
+                                ProgressEvent(
+                                    line: "\(reference) has no \(missing) variant; pulling every platform it has"))
+                            continue
+                        }
                         continuation.finish(throwing: error)
                         return
                     }
@@ -112,6 +130,23 @@ public struct ImageService: ImageServing {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    /// The platform a pull fetches when the caller names none: the one
+    /// CreateContainer defaults to. With no `--platform` the CLI fetches and
+    /// unpacks every platform in the index (9 snapshots, about 10 GiB, for
+    /// busybox), and only the host's is ever run.
+    static var defaultPullPlatform: String {
+        "linux/\(LocalImagePresence.hostArchitecture)"
+    }
+
+    /// Whether a pull output line is the runtime refusing the platform it
+    /// was asked for (containerization 0.42.0, as `container` prints it):
+    /// the import of a single-manifest image built for another platform
+    /// ("does not support required platforms"), or the unpack of an index
+    /// with no entry for that platform ("unsupported platform linux/arm64").
+    static func reportsMissingPlatform(_ line: String) -> Bool {
+        line.contains("does not support required platforms") || line.contains("unsupported platform")
     }
 
     /// Seconds with no forward progress before a pull is declared stalled.
