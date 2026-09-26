@@ -888,8 +888,8 @@ Measured on an 18-core arm64 host against apiserver 1.3.1
 | `container list` | ~16–30 ms | ~0.6–1 ms | ~25× |
 | `container inspect` | ~17–27 ms | ~0.5–1.5 ms | ~25× |
 | `stats` sample | ~2.1 s (fixed 2 s CLI window) | ~9–11 ms | ~200× |
-| `exec` (echo) | ~50 ms | ~135 ms | ~0.4× (slower — see below) |
-| `exec` ×8 concurrent | ~160–185 ms | ~355–470 ms | ~0.5× (same drain floor) |
+| `exec` (echo) | ~50 ms | ~10–45 ms² | ~1.1–5× (see below) |
+| `exec` ×8 concurrent | ~160–185 ms | ~355–470 ms² | ~0.5× (measured with the old drain floor) |
 | `run -d` + delete | ~850–890 ms | ~710–840 ms | ~1.1× (VM boot dominates) |
 | cache mount: meta+IO workload¹ | virtiofs shared dir ~517 ms | ext4 volume ~178 ms; ext4 clone+nosync ~168 ms | ~3× over virtiofs |
 | clonefile golden → clone | — | ~0.12 ms (256MB golden: ~0.13 ms) | O(1) CoW regardless of golden size |
@@ -905,19 +905,25 @@ inside the mount — the metadata-heavy shape package-manager caches
 produce. virtiofs pays a host round-trip per metadata op; ext4 virtio-blk
 is guest-page-cached, and `nosync` additionally skips fsync→host.
 
+² The single `exec` row is 15 live `execDetailed` calls against a shared
+apiserver after O15 (EOF-ended collection); the ×8 row predates it.
+
 Two notes on the numbers:
 
 - **Stats is the headline win.** The CLI's `--no-stream` still samples
   CPU over a fixed 2 s window, so every sample costs ~2 s; the native
   path asks vminitd directly and returns in ~10 ms. For the app's poll
   loop this turns a 2 s+ subprocess per tick into an XPC call.
-- **Exec is the one regression.** EOF on exec stdio pipes is unreliable
-  (any process spawned while the apiserver holds the fd inherits a copy,
-  so the pipe can stay open past process exit). The CLI bounds its EOF
-  wait at 3 s; the native path drains with a 100 ms quiet window inside
-  a 3 s cap, which puts a ~100 ms floor on every exec. Still correct —
-  all output is captured — just slower than a spawn for trivial
-  commands. Exec isn't on a hot polling path, so the trade is fine.
+- **Exec ends on EOF.** Native exec used to drain with a 100 ms quiet
+  window after the exit (~135 ms p50 for `echo`), because EOF on the
+  stdio pipes seldom arrived: `XPCMessage.set(key:value: FileHandle)`
+  handed `xpc_fd_create` an extra `dup` it never closed, but
+  `xpc_fd_create` dups the fd itself, so every exec leaked a write end
+  of each pipe in this process. Without that leak (and with the pipes
+  close-on-exec) EOF lands within ~0.2 ms of `containerWait`, and
+  `ExecOutputCollector` returns on it. A pipe some other holder keeps
+  open still ends after a 25 ms quiet drain following the exit, inside
+  ProcessIO's 3 s cap.
 
 The wins compound where Micropod polls: stats sampling and log streams go
 from subprocess-per-tick to fd/XPC-only. Concurrent lifecycle ops also

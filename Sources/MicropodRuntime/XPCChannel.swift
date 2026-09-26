@@ -150,12 +150,13 @@ extension XPCMessage {
         return FileHandle(fileDescriptor: dup, closeOnDealloc: true)
     }
 
-    /// Sends a file descriptor. `xpc_fd_create` takes ownership of the
-    /// descriptor, so we hand it a dup — the caller's FileHandle is untouched.
+    /// Sends a file descriptor. `xpc_fd_create` dups the descriptor itself
+    /// (the fd object owns only its own copy), so the caller's FileHandle is
+    /// untouched and nothing else stays open here. An extra dup handed to it
+    /// would leak — and a leaked pipe write end keeps the reader from ever
+    /// seeing EOF (an exec's stdout/stderr).
     public func set(key: String, value: FileHandle) throws {
-        let dupFd = dup(value.fileDescriptor)
-        guard dupFd >= 0, let xpcFd = xpc_fd_create(dupFd) else {
-            if dupFd >= 0 { close(dupFd) }
+        guard let xpcFd = xpc_fd_create(value.fileDescriptor) else {
             throw MicropodError.message("xpc_fd_create failed for fd \(value.fileDescriptor)")
         }
         lock.withLock {
