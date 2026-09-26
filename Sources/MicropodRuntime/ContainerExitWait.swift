@@ -5,11 +5,13 @@ import Foundation
 ///
 /// - **Tracked containers** (the native backend started them, so the
 ///   ``ExitCodeRegistry`` runs a waiter) park on the registry and wake the
-///   moment the exit is recorded. The runtime state is re-read at most every
-///   `statePoll` as a safety net.
-/// - **Untracked containers** (CLI backend, CLI-created, or started before
-///   this process) have no signal to wait on: the runtime state is polled
-///   every `statePoll`.
+///   moment the exit is recorded. The runtime state is re-read every
+///   `trackedPoll` (1 s) as a safety net.
+/// - **Untracked containers** (CLI backend, CLI-created, started before
+///   this process, a wait that arrived before `track`, or an entry whose
+///   waiter aged out) have no signal to wait on: the runtime state is polled
+///   every `untrackedPoll` (150 ms, the cadence before the registry could
+///   wake waits), so their exit latency is unchanged.
 ///
 /// A registry code is authoritative (`known: true`) even if the state has
 /// not flipped to `stopped` yet. `running`/`stopping` are non-terminal; so
@@ -37,14 +39,17 @@ public enum ContainerExitWait {
         }
     }
 
-    /// How often the runtime state is read while waiting.
-    public static let defaultStatePoll: Duration = .seconds(1)
+    /// How often the runtime state is re-read while parked on the registry.
+    public static let defaultTrackedPoll: Duration = .seconds(1)
+    /// How often the runtime state is read when no registry signal exists.
+    public static let defaultUntrackedPoll: Duration = .milliseconds(150)
 
     public static func wait(
         id: String,
         timeout: Duration,
         exitCodes: ExitCodeRegistry?,
-        statePoll: Duration = defaultStatePoll,
+        trackedPoll: Duration = defaultTrackedPoll,
+        untrackedPoll: Duration = defaultUntrackedPoll,
         state: @Sendable (_ id: String, _ exitKnown: Bool) async throws -> String
     ) async throws -> Outcome {
         let clock = ContinuousClock()
@@ -65,14 +70,14 @@ public enum ContainerExitWait {
             guard now < deadline, !Task.isCancelled else {
                 return Outcome(exited: false, known: false, exitCode: nil, state: current)
             }
-            let slice = min(deadline - now, statePoll)
+            let remaining = deadline - now
             // An entry without a code (the waiter aged out or failed) will
             // never be replaced by a real one: poll the state like an
             // untracked container instead of spinning on the entry.
             if entry == nil, let exitCodes, await exitCodes.isTracked(id: id) {
-                _ = await exitCodes.await(id: id, timeout: slice)
+                _ = await exitCodes.await(id: id, timeout: min(remaining, trackedPoll))
             } else {
-                try? await Task.sleep(for: slice)
+                try? await Task.sleep(for: min(remaining, untrackedPoll))
             }
         }
     }

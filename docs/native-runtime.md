@@ -726,10 +726,14 @@ Readers never block on XPC in the request path:
 
 - **`GetContainer`** returns one container (`not_found` when absent) with
   `exit_code` filled from the registry; `ListContainers` does the same.
-- **`WaitContainer{id, timeout_seconds}`** polls the registry and the
-  runtime state every 150 ms for up to `timeout_seconds` (0 → 30, capped at
-  300). A registry code returns at once as `{exited: true, known: true,
-  exit_code}`, even if the snapshot has not flipped to `stopped` yet.
+- **`WaitContainer{id, timeout_seconds}`** waits up to `timeout_seconds`
+  (0 → 30, capped at 300). A container the registry tracks parks on it and
+  wakes the moment its exit is recorded, re-reading the runtime state every
+  1 s as a safety net; any other (the CLI backend, CLI-created containers,
+  ones started before a restart, a wait that beat `track`, or an entry whose
+  waiter aged out) has its runtime state polled every 150 ms. A registry
+  code returns at once as `{exited: true, known: true, exit_code}`, even if
+  the snapshot has not flipped to `stopped` yet.
   `running`, `stopping` and `created` are non-terminal. Any other state
   (`stopped`, or `unknown` when the container vanished mid-wait) returns
   `exited: true, known: false`. A failed inspect alone never counts as

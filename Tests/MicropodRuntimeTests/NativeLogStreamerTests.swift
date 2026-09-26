@@ -82,29 +82,63 @@ final class NativeLogStreamerTests: XCTestCase {
     /// The recorded exit wakes the follow loop at once rather than at its
     /// next drain tick, and the lines written just before the exit are
     /// still delivered by the final drain.
+    ///
+    /// The exit lands at four phases 20 ms apart across one 80 ms tick, so
+    /// a plain-sleep tick ends at least one of these streams 60 ms or more
+    /// after its exit, whatever the tick alignment.
     func testRecordedExitEndsStreamPromptlyWithLateLines() async throws {
-        try append("backlog\n")
-        let url = logURL!
-        let registry = ExitCodeRegistry()
-        let exitAt = ExitMark()
+        for delay in [250, 270, 290, 310] {
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("native-log-\(UUID().uuidString).log")
+            XCTAssertTrue(FileManager.default.createFile(atPath: url.path, contents: nil))
+            defer { try? FileManager.default.removeItem(at: url) }
+            try Self.append("backlog\n", to: url)
+            let registry = ExitCodeRegistry()
+            let exitAt = ExitMark()
+            await registry.track(id: "job") {
+                try await Task.sleep(for: .milliseconds(delay))
+                try Self.append("late-1\nlate-2\n", to: url)
+                await exitAt.mark()
+                return 0
+            }
+            let probe = StateProbe(runningCalls: .max)
+
+            let result = try await collect(
+                streamer(probe: probe, exitCodes: registry, url: url).stream(id: "job"),
+                timeout: .seconds(3))
+            let ended = ContinuousClock.now
+
+            XCTAssertTrue(result.finished, "exit after \(delay) ms")
+            XCTAssertEqual(result.lines, ["backlog", "late-1", "late-2"], "exit after \(delay) ms")
+            let recorded = await exitAt.instant
+            let exited = try XCTUnwrap(recorded)
+            XCTAssertLessThan(
+                ended - exited, .milliseconds(40),
+                "exit after \(delay) ms: the exit signal, not the 80 ms tick, ends the stream")
+        }
+    }
+
+    /// A registry entry without a code never wakes a parked tick, so the
+    /// follow loop must fall back to the plain 80 ms tick for it rather than
+    /// return from the registry at once and spin until the next state check.
+    func testUnknownExitCodeEntryKeepsTheTickCadence() async throws {
+        let registry = ExitCodeRegistry(ceiling: .milliseconds(20))
         await registry.track(id: "job") {
-            try await Task.sleep(for: .milliseconds(300))
-            try Self.append("late-1\nlate-2\n", to: url)
-            await exitAt.mark()
+            try await Task.sleep(for: .seconds(60))
             return 0
         }
+        _ = await registry.await(id: "job", timeout: .seconds(2))
         let probe = StateProbe(runningCalls: .max)
+        let ticks = TickCounter()
 
         let result = try await collect(
-            streamer(probe: probe, exitCodes: registry).stream(id: "job"), timeout: .seconds(3))
-        let ended = ContinuousClock.now
+            streamer(probe: probe, exitCodes: registry, onTick: { ticks.increment() }).stream(id: "job"),
+            timeout: .milliseconds(480))
 
-        XCTAssertTrue(result.finished)
-        XCTAssertEqual(result.lines, ["backlog", "late-1", "late-2"])
-        let recorded = await exitAt.instant
-        let exited = try XCTUnwrap(recorded)
-        XCTAssertLessThan(
-            ended - exited, .milliseconds(40), "the exit signal, not the 80 ms tick, ends the stream")
+        XCTAssertFalse(result.finished, "the runtime still reports the container running")
+        let count = ticks.value
+        XCTAssertGreaterThanOrEqual(count, 3)
+        XCTAssertLessThanOrEqual(count, 8, "480 ms at 80 ms ticks, not a spin (\(count) ticks)")
     }
 
     /// An exit recorded before the stream opened ends it right after the
@@ -215,12 +249,16 @@ final class NativeLogStreamerTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func streamer(probe: StateProbe, exitCodes: ExitCodeRegistry? = nil) -> NativeLogStreamer {
-        let url = logURL!
+    private func streamer(
+        probe: StateProbe, exitCodes: ExitCodeRegistry? = nil, url: URL? = nil,
+        onTick: @escaping @Sendable () -> Void = {}
+    ) -> NativeLogStreamer {
+        let url = url ?? logURL!
         return NativeLogStreamer(
             sourceProvider: { _, _ in [try FileHandle(forReadingFrom: url)] },
             isLive: { _ in await probe.isLive() },
-            exitCodes: exitCodes)
+            exitCodes: exitCodes,
+            onTick: onTick)
     }
 
     private func append(_ text: String) throws {
@@ -286,4 +324,13 @@ private actor LineSink {
 private actor ExitMark {
     private(set) var instant: ContinuousClock.Instant?
     func mark() { instant = .now }
+}
+
+/// Counts follow-loop ticks from the streamer's synchronous tick hook.
+private final class TickCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    var value: Int { lock.withLock { count } }
+    func increment() { lock.withLock { count += 1 } }
 }

@@ -32,6 +32,8 @@ public struct NativeLogStreamer: LogStreaming {
 
     private let sourceProvider: @Sendable (String, Bool) async throws -> [FileHandle]
     private let isLive: @Sendable (String) async -> Bool
+    /// Called after every follow-loop pause, before its drain.
+    private let onTick: @Sendable () -> Void
     private let exitCodes: ExitCodeRegistry?
 
     /// A log fd plus the read cursor, reopened once per stream.
@@ -82,15 +84,18 @@ public struct NativeLogStreamer: LogStreaming {
 
     /// Test seam: sources + liveness provider instead of XPC.
     /// `sourceProvider(id, boot)` returns the log files to follow;
-    /// `isLive(id)` answers whether the container may still write to them.
+    /// `isLive(id)` answers whether the container may still write to them;
+    /// `onTick` observes the follow loop's cadence.
     init(
         sourceProvider: @escaping @Sendable (String, Bool) async throws -> [FileHandle],
         isLive: @escaping @Sendable (String) async -> Bool,
-        exitCodes: ExitCodeRegistry? = nil
+        exitCodes: ExitCodeRegistry? = nil,
+        onTick: @escaping @Sendable () -> Void = {}
     ) {
         self.sourceProvider = sourceProvider
         self.isLive = isLive
         self.exitCodes = exitCodes
+        self.onTick = onTick
     }
 
     /// Whether a container in runtime `state` may still write output.
@@ -129,6 +134,7 @@ public struct NativeLogStreamer: LogStreaming {
                     while true {
                         if await self.exitRecorded(id: id) { break }
                         try await self.pause(id: id)
+                        self.onTick()
                         let fresh = Self.drain(&sources)
                         if !fresh.isEmpty {
                             emit(splitter.feed(fresh))

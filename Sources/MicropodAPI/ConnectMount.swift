@@ -392,7 +392,7 @@ extension APIHandlers {
 
     /// Waits for the container to be terminal or `timeout` to elapse — see
     /// ``ContainerExitWait``: a container the registry tracks wakes the
-    /// request the moment its exit is recorded; any other is polled at 1 s.
+    /// request the moment its exit is recorded; any other is polled at 150 ms.
     /// A runtime that stops answering mid-wait throws (`unavailable`)
     /// instead of reporting a false exit.
     private func waitContainer(

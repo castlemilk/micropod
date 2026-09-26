@@ -4,7 +4,7 @@ import XCTest
 
 /// The `WaitContainer` loop against a scripted runtime state: tracked
 /// containers wake on the registry's exit signal, untracked ones fall back
-/// to a slow state poll. No live runtime needed.
+/// to a state poll. No live runtime needed.
 final class ContainerExitWaitTests: XCTestCase {
 
     /// A tracked container's exit returns the wait as soon as it is recorded,
@@ -71,35 +71,53 @@ final class ContainerExitWaitTests: XCTestCase {
     }
 
     /// A container the registry never tracked (CLI-created, or started
-    /// before this process) is polled at the slow cadence until it stops.
-    func testUntrackedContainerFallsBackToSlowStatePoll() async throws {
+    /// before this process) is polled at the untracked cadence until it stops.
+    func testUntrackedContainerFallsBackToStatePoll() async throws {
         let registry = ExitCodeRegistry()
         let states = ScriptedStates(["running", "running", "stopped"])
 
         let started = ContinuousClock.now
         let outcome = try await ContainerExitWait.wait(
-            id: "cli-made", timeout: .seconds(10), exitCodes: registry, statePoll: .milliseconds(200)
+            id: "cli-made", timeout: .seconds(10), exitCodes: registry, untrackedPoll: .milliseconds(200)
         ) { _, _ in await states.next() }
         let elapsed = ContinuousClock.now - started
 
         XCTAssertEqual(outcome, .init(exited: true, known: false, exitCode: nil, state: "stopped"))
         let calls = await states.calls
         XCTAssertEqual(calls, 3)
-        XCTAssertGreaterThanOrEqual(elapsed, .milliseconds(390), "two polls at the slow cadence")
+        XCTAssertGreaterThanOrEqual(elapsed, .milliseconds(390), "two polls at the untracked cadence")
         XCTAssertLessThan(elapsed, .seconds(2))
     }
 
-    /// The CLI backend has no registry at all: same slow poll.
+    /// Without a registry signal the default poll keeps the pre-registry
+    /// 150 ms cadence: the CLI backend, CLI-created containers and ones
+    /// started before a restart must not see their exit a second late.
+    func testUntrackedDefaultPollKeepsExitLatencyLow() async throws {
+        let registry = ExitCodeRegistry()
+        for exitCodes in [nil, registry] {
+            let states = ScriptedStates(["running", "stopped"])
+            let started = ContinuousClock.now
+            let outcome = try await ContainerExitWait.wait(
+                id: "cli-made", timeout: .seconds(10), exitCodes: exitCodes
+            ) { _, _ in await states.next() }
+            let elapsed = ContinuousClock.now - started
+
+            XCTAssertEqual(outcome, .init(exited: true, known: false, exitCode: nil, state: "stopped"))
+            XCTAssertLessThan(elapsed, .milliseconds(400), "one untracked poll, not a 1 s safety net")
+        }
+    }
+
+    /// The CLI backend has no registry at all: same untracked poll.
     func testNoRegistryPollsState() async throws {
         let states = ScriptedStates(["running", "stopped"])
         let outcome = try await ContainerExitWait.wait(
-            id: "cli", timeout: .seconds(10), exitCodes: nil, statePoll: .milliseconds(100)
+            id: "cli", timeout: .seconds(10), exitCodes: nil, untrackedPoll: .milliseconds(100)
         ) { _, _ in await states.next() }
         XCTAssertEqual(outcome, .init(exited: true, known: false, exitCode: nil, state: "stopped"))
     }
 
     /// An entry without a code (waiter aged out) never gets a real one, so
-    /// the wait polls state at the slow cadence instead of spinning on it.
+    /// the wait polls state at the untracked cadence instead of spinning on it.
     func testUnknownCodeEntryDoesNotSpin() async throws {
         let registry = ExitCodeRegistry(ceiling: .milliseconds(10))
         await registry.track(id: "aged") {
@@ -110,7 +128,7 @@ final class ContainerExitWaitTests: XCTestCase {
         let states = ScriptedStates(["running"])
 
         let outcome = try await ContainerExitWait.wait(
-            id: "aged", timeout: .milliseconds(350), exitCodes: registry, statePoll: .milliseconds(100)
+            id: "aged", timeout: .milliseconds(350), exitCodes: registry, untrackedPoll: .milliseconds(100)
         ) { _, _ in await states.next() }
 
         XCTAssertFalse(outcome.exited)
