@@ -150,6 +150,66 @@ final class ShimConnectionTests: XCTestCase {
         XCTAssertEqual(Darwin.send(inheritor.fd, "pong", 4, 0), 4)
         XCTAssertEqual(String(decoding: pending(inheritor.peer), as: UTF8.self), "pong")
     }
+
+    /// A client can leave while a handler is still on its way to the hijack
+    /// (an `/attach` awaiting its container lookup, an exec start launching
+    /// its process). The hijack must not reopen the closed connection: it
+    /// stays closed, refuses the 101, and hands back an inbound stream that
+    /// has already ended.
+    func testAHijackAfterCloseLeavesTheConnectionClosed() async throws {
+        let (server, client) = try socketPair(adopt: false)
+        let connection = ShimConnection(fileDescriptor: server)
+        connection.close()
+
+        let inbound = connection.beginHijack()
+        XCTAssertTrue(connection.isClosed, "the hijack reopened a closed connection")
+        XCTAssertFalse(connection.isHijacking)
+        let upgraded = await connection.write(Data("HTTP/1.1 101 UPGRADED\r\n\r\n".utf8))
+        XCTAssertEqual(upgraded, .failed, "a closed connection refuses the 101")
+        XCTAssertTrue(pending(client).isEmpty)
+        var yielded = 0
+        for await _ in inbound { yielded += 1 }
+        XCTAssertEqual(yielded, 0, "the inbound stream of a closed connection has ended")
+    }
+
+    /// The same race once the fd number has been handed to the next client:
+    /// neither the hijack's 101 and output nor its eventual close may reach
+    /// the socket that inherited the number.
+    func testAHijackAfterCloseNeverReachesTheSocketThatInheritedTheFdNumber() async throws {
+        let (server, _) = try socketPair(adopt: false)
+        let connection = ShimConnection(fileDescriptor: server)
+        connection.close()
+        // Queued behind the close: once it answers, the fd has been released.
+        _ = await connection.write(Data())
+
+        var inheritor: (fd: Int32, peer: Int32)?
+        for _ in 0..<64 where inheritor == nil {
+            let (a, b) = try socketPair()
+            if a == server { inheritor = (a, b) } else if b == server { inheritor = (b, a) }
+        }
+        guard let inheritor else {
+            throw XCTSkip("fd \(server) was taken by another thread; the reuse could not be arranged")
+        }
+
+        _ = connection.beginHijack()
+        let upgraded = await connection.write(Data("HTTP/1.1 101 UPGRADED\r\n\r\n".utf8))
+        XCTAssertEqual(upgraded, .failed)
+        let output = await connection.write(lateBody)
+        XCTAssertEqual(output, .failed)
+        // The attached process's writer closes the connection when it ends.
+        connection.close()
+        _ = await connection.write(Data())
+
+        let leaked = pending(inheritor.peer)
+        XCTAssertTrue(
+            leaked.isEmpty,
+            "the hijack wrote to the fd's new owner: \(String(decoding: leaked, as: UTF8.self))")
+        // The new owner's socket was neither shut down nor released.
+        XCTAssertEqual(Darwin.send(inheritor.peer, "ping", 4, 0), 4)
+        XCTAssertEqual(String(decoding: pending(inheritor.fd), as: UTF8.self), "ping")
+        XCTAssertEqual(Darwin.send(inheritor.fd, "pong", 4, 0), 4)
+        XCTAssertEqual(String(decoding: pending(inheritor.peer), as: UTF8.self), "pong")
+    }
 }
 
 /// A thread-safe tally for close-handler assertions.

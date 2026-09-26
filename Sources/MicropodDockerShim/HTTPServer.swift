@@ -229,10 +229,22 @@ final class ShimConnection: @unchecked Sendable {
 
     /// Switches the connection to raw byte forwarding: every subsequent
     /// client byte is yielded on a fresh inbound stream (exec stdin).
+    ///
+    /// A connection that has already closed stays closed and gets a stream
+    /// that has already ended. Its client can leave while a handler is still
+    /// on its way here (an `/attach` resolving its container, an exec start
+    /// launching its process), and by then its fd number may be the next
+    /// client's: reopening it would send the 101 and the output there, and
+    /// the hijack's eventual close would shut that client's socket down.
     func beginHijack() -> AsyncStream<Data> {
-        lock.lock()
-        mode = .hijacking
         let (stream, continuation) = AsyncStream<Data>.makeStream()
+        lock.lock()
+        guard mode != .closed else {
+            lock.unlock()
+            continuation.finish()
+            return stream
+        }
+        mode = .hijacking
         inboundContinuations.append(continuation)
         lock.unlock()
         return stream
