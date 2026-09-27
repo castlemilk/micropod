@@ -52,6 +52,7 @@ struct MicropodAPI {
             initial: runtime,
             resolve: { await RuntimeBackendResolver.resolve(client: client, pingTimeout: .seconds(2)) })
         let api = APIHandlers(
+            client: client,
             system: SystemService(client: client),
             images: ImageService(client: client),
             networks: NetworkService(client: client),

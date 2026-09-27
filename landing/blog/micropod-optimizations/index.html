@@ -10,6 +10,8 @@
   <meta property="og:type" content="article" />
   <meta property="og:title" content="The optimizations inside Micropod, and what they measured — Micropod" />
   <meta property="og:description" content="How Micropod gets a 2.7x lifecycle win over Docker Desktop despite spawning a CLI per operation: a read-through cache with real guardrails, APFS clonefile volumes, a content-addressed chunk store, keep-alive micro-VMs, and kill-first cleanup." />
+  <meta property="og:image" content="https://castlemilk.github.io/micropod/blog/assets/thumb-optimizations.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -30,6 +32,7 @@
       --warn: #ffd60a;
       --destructive: #ff453a;
       --radius: 0.75rem;
+      --series-2: #4a5c80; /* secondary bar — visible against the card bg, clearly not the accent */
     }
     body {
       font-family: var(--font-sans); background: var(--bg); color: var(--fg);
@@ -55,6 +58,11 @@
     .nav-links { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--fg-muted); }
     .nav-links a { color: var(--fg-muted); }
     .nav-links a:hover { color: var(--fg); text-decoration: none; }
+    /* below ~720px the links outgrow the bar — keep the wayfinding ones */
+    @media (max-width: 720px) {
+      .nav-links { gap: 1rem; }
+      .nav-links a.nav-sub { display: none; }
+    }
 
     /* Article */
     .article { max-width: 46rem; margin: 0 auto; padding: 4rem 1.5rem 6rem; }
@@ -78,6 +86,7 @@
       font-family: var(--font-mono); font-size: 0.8125rem; color: var(--primary);
       background: color-mix(in srgb, var(--primary) 7%, transparent);
       padding: 0.125rem 0.375rem; border-radius: 0.25rem;
+      overflow-wrap: anywhere;
     }
     .article-body pre {
       margin-top: 1.25rem; border-radius: 0.5rem; border: 1px solid var(--border);
@@ -87,36 +96,136 @@
       display: block; padding: 0.875rem 1rem; font-size: 0.75rem; line-height: 1.65;
       color: var(--fg); background: none; padding: 0.875rem 1rem;
     }
-    .article-body table {
-      width: 100%; margin-top: 1.25rem; border-collapse: collapse;
-      font-size: 0.8125rem; border: 1px solid var(--border); border-radius: var(--radius);
-      overflow: hidden; display: block; overflow-x: auto;
-    }
-    .article-body thead { background: var(--bg-card); }
-    .article-body th, .article-body td { padding: 0.625rem 0.875rem; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
-    .article-body th { font-weight: 600; }
-    .article-body tbody tr:last-child td { border-bottom: none; }
     .article-body blockquote {
       margin-top: 1.25rem; padding-left: 1rem; border-left: 2px solid var(--primary);
       color: var(--fg-muted);
     }
-    .article-body hr { margin: 2.5rem 0; border: none; border-top: 1px solid var(--border); }
-    .callout {
-      margin-top: 1.25rem; padding: 1rem 1.25rem; border-radius: 0.5rem;
-      border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
-      background: color-mix(in srgb, var(--warn) 5%, transparent);
-      font-size: 0.875rem; line-height: 1.7;
-    }
-    .callout-title { font-weight: 600; margin-bottom: 0.25rem !important; }
-    .callout p { font-size: 0.875rem !important; }
 
-    /* Blog index */
+    /* Figures — hand-rolled components (blog-components.jsx) */
+
+    .fig {
+      margin: 1.5rem 0 0; border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--bg-secondary); overflow: hidden;
+      transition: border-color 0.15s ease;
+    }
+    .fig:hover { border-color: color-mix(in srgb, var(--primary) 35%, var(--border)); }
+    .fig-title {
+      padding: 0.625rem 1rem; font-family: var(--font-mono); font-size: 0.6875rem;
+      letter-spacing: 0.08em; text-transform: uppercase; color: var(--primary);
+      border-bottom: 1px solid var(--border); background: var(--bg-card);
+      display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    /* DataTable */
+    .dt-scroll { overflow-x: auto; }
+    .dt table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+    .dt th {
+      padding: 0.625rem 1rem; font-family: var(--font-mono); font-size: 0.6875rem;
+      letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-muted);
+      font-weight: 500; border-bottom: 1px solid var(--border);
+    }
+    .dt td {
+      padding: 0.5rem 1rem; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+      font-variant-numeric: tabular-nums; white-space: nowrap;
+    }
+    .dt td:first-child { white-space: normal; font-weight: 500; min-width: 8rem; }
+    .dt tbody tr { transition: background 0.1s ease; }
+    .dt tbody tr:hover td { background: color-mix(in srgb, var(--primary) 6%, transparent); color: var(--fg); }
+    .dt tbody tr:last-child td { border-bottom: none; }
+    .dt tfoot td {
+      border-top: 1px solid var(--border); border-bottom: none; font-weight: 600;
+      background: var(--bg-card); font-family: var(--font-mono); font-size: 0.75rem;
+    }
+
+    /* PerfChart */
+    .pc-legend { display: inline-flex; gap: 1rem; }
+    .pc-key { display: inline-flex; align-items: center; gap: 0.375rem; color: var(--fg-muted); letter-spacing: 0; text-transform: none; }
+    .pc-swatch { display: inline-block; width: 0.625rem; height: 0.625rem; border-radius: 0.125rem; }
+    .pc-swatch.pc-s0 { background: var(--primary); }
+    .pc-swatch.pc-s1 { background: var(--series-2); }
+    .pc-rows { padding: 0.875rem 1rem; display: flex; flex-direction: column; gap: 0.625rem; }
+    .pc-row { display: grid; grid-template-columns: 7.5rem minmax(0,1fr) 4.5rem 3rem; align-items: center; gap: 0.75rem; border-radius: 0.375rem; padding: 0.125rem 0.375rem; margin: 0 -0.375rem; transition: background 0.12s ease; }
+    .pc-row:hover { background: color-mix(in srgb, var(--primary) 6%, transparent); }
+    .pc-label { font-family: var(--font-mono); font-size: 0.75rem; color: var(--fg); overflow: hidden; text-overflow: ellipsis; transition: color 0.12s ease; }
+    .pc-bars { display: flex; flex-direction: column; gap: 0.1875rem; min-width: 0; }
+    .pc-track { height: 0.625rem; }
+    .pc-bar { height: 100%; border-radius: 0.125rem; min-width: 0.125rem; transition: filter 0.12s ease, opacity 0.12s ease; }
+    .pc-row:hover .pc-bar { filter: brightness(1.3); }
+    .pc-row:hover .pc-val { color: var(--fg); }
+    .pc-row:hover .pc-ratio { color: var(--primary); font-weight: 600; }
+    .pc-bar.pc-s0 { background: var(--primary); }
+    .pc-bar.pc-s1 { background: var(--series-2); }
+    .pc-vals { display: flex; flex-direction: column; gap: 0.1875rem; }
+    .pc-val {
+      display: block; height: 0.625rem; line-height: 0.625rem; text-align: right;
+      font-family: var(--font-mono); font-size: 0.6875rem; color: var(--fg-muted);
+      white-space: nowrap;
+    }
+    .pc-val.pc-win { color: var(--fg); font-weight: 600; }
+    .pc-ratio { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--fg-muted); text-align: right; }
+    @media (max-width: 560px) {
+      .pc-row { grid-template-columns: 4.5rem minmax(0,1fr) 4rem 2.5rem; gap: 0.5rem; }
+      .pc-label { font-size: 0.625rem; }
+      .pc-val { font-size: 0.625rem; }
+    }
+
+    /* StatGrid */
+    .sg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
+    .sg-item { padding: 1rem; display: flex; flex-direction: column; gap: 0.375rem; border-right: 1px solid var(--border); transition: background 0.12s ease; }
+    .sg-item:hover { background: color-mix(in srgb, var(--primary) 5%, transparent); }
+    .sg-item:hover .sg-value { color: var(--fg); }
+    .sg-item:last-child { border-right: none; }
+    .sg-value { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 700; color: var(--primary); line-height: 1.1; transition: color 0.12s ease; }
+    .sg-label { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--fg-muted); }
+
+    /* Flow */
+    .flow-lanes { padding: 1rem; display: flex; flex-direction: column; gap: 0.625rem; }
+    .flow-lane { display: flex; align-items: center; flex-wrap: wrap; gap: 0.375rem; }
+    .flow-seg { display: inline-flex; align-items: center; gap: 0.375rem; }
+    .flow-node {
+      font-family: var(--font-mono); font-size: 0.75rem; color: var(--fg-muted);
+      padding: 0.25rem 0.625rem; border: 1px solid var(--border); border-radius: 0.375rem;
+      background: var(--bg-card); white-space: nowrap;
+      transition: color 0.12s ease, border-color 0.12s ease;
+    }
+    .flow-node:hover { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 50%, transparent); }
+    .flow-node.accent { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 40%, transparent); }
+    .flow-arrow { color: var(--series-2); font-family: var(--font-mono); font-size: 0.75rem; }
+
+    /* Callout */
+    .callout {
+      margin: 1.5rem 0 0; padding: 0.875rem 1rem; border-radius: var(--radius);
+      border: 1px solid var(--border); border-left: 2px solid var(--primary);
+      background: var(--bg-secondary); font-size: 0.875rem; line-height: 1.65;
+      display: flex; flex-direction: column; gap: 0.375rem;
+      transition: border-color 0.15s ease;
+    }
+    .callout:hover { border-color: color-mix(in srgb, var(--primary) 35%, var(--border)); }
+    .callout-title { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--primary); }
+    .callout-body p { margin: 0; font-size: 0.875rem; color: var(--fg-muted); }
+    .callout-warn { border-left-color: var(--warn); }
+    .callout-warn .callout-title { color: var(--warn); }
+    .article-body hr { margin: 2.5rem 0; border: none; border-top: 1px solid var(--border); }
+
+    /* Post hero + blog index */
+    .post-hero {
+      margin-top: 1.75rem; border-radius: var(--radius); border: 1px solid var(--border);
+      overflow: hidden; line-height: 0;
+    }
+    .post-hero img { width: 100%; height: auto; display: block; }
+
     .post-list { margin-top: 3rem; display: grid; gap: 1rem; }
     .post-card {
-      display: block; border-radius: var(--radius); border: 1px solid var(--border);
-      background: var(--bg-card); padding: 1.5rem; color: var(--fg);
+      display: grid; grid-template-columns: 11rem 1fr; gap: 1.25rem; align-items: start;
+      border-radius: var(--radius); border: 1px solid var(--border);
+      background: var(--bg-card); padding: 1.25rem; color: var(--fg);
       transition: border-color 0.2s;
     }
+    .post-card-thumb { border-radius: 0.5rem; overflow: hidden; border: 1px solid var(--border); line-height: 0; }
+    .post-card-thumb img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; transition: transform 0.2s ease; }
+    .post-card:hover .post-card-thumb img { transform: scale(1.03); }
+    @media (max-width: 560px) { .post-card { grid-template-columns: 1fr; } }
     .post-card:hover { border-color: color-mix(in srgb, var(--primary) 25%, transparent); text-decoration: none; }
     .post-card h2 { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.02em; }
     .post-card > p { margin-top: 0.5rem; font-size: 0.8125rem; color: var(--fg-muted); line-height: 1.6; }
@@ -125,7 +234,9 @@
 
     .footer { border-top: 1px solid var(--border); padding: 2rem 0; font-size: 0.75rem; color: var(--fg-muted); }
     .footer-inner { max-width: 80rem; margin: 0 auto; padding: 0 1.5rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+
   </style>
+
 </head>
 <body>
   <header class="nav">
@@ -135,8 +246,8 @@
         <span>Micropod</span>
       </a>
       <div class="nav-links">
-        <a href="/micropod/#features">Features</a>
-        <a href="/micropod/#agents">Agents</a>
+        <a class="nav-sub" href="/micropod/#features">Features</a>
+        <a class="nav-sub" href="/micropod/#agents">Agents</a>
         <a href="/micropod/api/">API Docs</a>
         <a href="/micropod/blog/">Blog</a>
         <a href="https://github.com/castlemilk/micropod" target="_blank" rel="noopener">GitHub</a>
@@ -153,22 +264,14 @@
       </div>
       <h1>The optimizations inside Micropod, and what they measured</h1>
       <p class="standfirst">Every `container` CLI call costs 15–80 ms, so most of Micropod's speed comes from engineering the spawns away — cache, clonefile, chunk store, warm machines.</p>
+      <div class="post-hero"><img src="/micropod/blog/assets/thumb-optimizations.jpg" alt="The optimizations inside Micropod, and what they measured" /></div>
       <div class="article-body">
 <p>Micropod&#x27;s daemon has an unusual cost structure: underneath every API surface — the app, the MCP server, the Connect API, the Docker shim — sits Apple&#x27;s <code>container</code> CLI, and each invocation is a <code>Process</code> spawn plus a ~23 ms XPC call into <code>container-apiserver</code>. Measured, that&#x27;s 15–80 ms of overhead per operation. You can&#x27;t optimize the runtime from outside it, so the engineering went where the leverage is: stop spawning.</p>
+<figure class="fig flow"><figcaption class="fig-title">a shim request</figcaption><div class="flow-lanes"><div class="flow-lane"><span class="flow-seg"><span class="flow-node">request</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node accent">cache</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">cli spawn</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">response</span></span></div><div class="flow-lane"><span class="flow-seg"><span class="flow-node">mutation</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node accent">invalidate</span><span class="flow-arrow">→</span></span><span class="flow-seg"><span class="flow-node">fresh list</span></span></div></div></figure>
 <h2>The read-through cache is the whole game</h2>
 <p>The first <code>/metrics</code> dump after a bench run was unflattering: the cache was serving HTTP reads but internal service calls were bypassing it — <code>image list --verbose</code> spawned 111 times, <code>list --all</code> 118 times, one <code>container inspect</code> per inspect request. <code>info</code>, <code>system df</code>, and <code>resolveID</code> all spawned fresh CLIs to answer questions whose answers were already in memory.</p>
 <p>The fix is a two-tier read-through cache — a decoded model tier and an encoded-body tier — with synchronous invalidation on every mutation, an events-loop invalidation on state transitions, and a 1 s TTL bound for out-of-band changes.</p>
-<pre><code>+----------------- [ BEFORE -&gt; AFTER ] -------------+
-|                                                  |
-|              before    after                     |
-| list p50    39 ms   →   2.5 ms                   |
-| images p50  13 ms   →   1.9 ms                   |
-| info        280 ms  →   0.4 ms                   |
-| df          287 ms  →   3.0 ms                   |
-| inspect     16 ms   →   0.5 ms                   |
-|                                                  |
-+--------------------------------------------------+
-</code></pre>
+<figure class="fig pc"><figcaption class="fig-title pc-head"><span>p50 (ms) — before / after the cache</span><span class="pc-legend"><span class="pc-key"><i class="pc-swatch pc-s0"></i>before</span><span class="pc-key"><i class="pc-swatch pc-s1"></i>after</span></span></figcaption><div class="pc-rows"><div class="pc-row"><span class="pc-label">list</span><div class="pc-bars"><div class="pc-track"><div class="pc-bar pc-s0" style="width:100%"></div></div><div class="pc-track"><div class="pc-bar pc-s1" style="width:6.41025641025641%"></div></div></div><div class="pc-vals"><span class="pc-val ">39 ms</span><span class="pc-val pc-win">2.5 ms</span></div><span class="pc-ratio">16x</span></div><div class="pc-row"><span class="pc-label">images</span><div class="pc-bars"><div class="pc-track"><div class="pc-bar pc-s0" style="width:100%"></div></div><div class="pc-track"><div class="pc-bar pc-s1" style="width:14.615384615384613%"></div></div></div><div class="pc-vals"><span class="pc-val ">13 ms</span><span class="pc-val pc-win">1.9 ms</span></div><span class="pc-ratio">6.8x</span></div><div class="pc-row"><span class="pc-label">info</span><div class="pc-bars"><div class="pc-track"><div class="pc-bar pc-s0" style="width:100%"></div></div><div class="pc-track"><div class="pc-bar pc-s1" style="width:2%"></div></div></div><div class="pc-vals"><span class="pc-val ">280 ms</span><span class="pc-val pc-win">0.4 ms</span></div><span class="pc-ratio">700x</span></div><div class="pc-row"><span class="pc-label">df</span><div class="pc-bars"><div class="pc-track"><div class="pc-bar pc-s0" style="width:100%"></div></div><div class="pc-track"><div class="pc-bar pc-s1" style="width:2%"></div></div></div><div class="pc-vals"><span class="pc-val ">287 ms</span><span class="pc-val pc-win">3 ms</span></div><span class="pc-ratio">96x</span></div><div class="pc-row"><span class="pc-label">inspect</span><div class="pc-bars"><div class="pc-track"><div class="pc-bar pc-s0" style="width:100%"></div></div><div class="pc-track"><div class="pc-bar pc-s1" style="width:3.125%"></div></div></div><div class="pc-vals"><span class="pc-val ">16 ms</span><span class="pc-val pc-win">0.5 ms</span></div><span class="pc-ratio">32x</span></div></div></figure>
 <p>The guardrails are what make this honest rather than fast-looking: the cache only serves reads — every mutation resolves against a fresh list. <code>MICROPOD_SHIM_CACHE_DISABLE=1</code> measures the cacheless floor, and the bench&#x27;s <code>--baseline</code> flag fails on &gt;20% p50 regression so the wins can&#x27;t silently rot. After the fix: 237 hits / 38 misses (86%), <code>image list</code> spawns 111→6, <code>list --all</code> 118→8.</p>
 <h2>APFS clonefile: zero-cost copies everywhere</h2>
 <p>Apple&#x27;s filesystem does copy-on-write at the directory level, and Micropod leans on it in three places:</p>
@@ -182,13 +285,7 @@
 <p>A stopped container restarts in ~0.5 s with full entrypoint fidelity — but <code>micropod machines run &lt;name&gt; -- &lt;exe&gt;</code> goes further: a persistent named micro-VM you exec into repeatedly at ~0.1 s per exec versus ~1.5 s for an ephemeral boot. It&#x27;s the same isolation shape (a real VM, not a container sharing your kernel) with the boot cost paid once. For CI, the sleeper-pool pattern — warm RUNNING containers per image you <code>exec</code> into — lands at 0.06 s native / 0.5 s through the shim, and it&#x27;s the correct answer to the 10×-concurrent-boots gap rather than pretending VM boot is free.</p>
 <h2>Kill-first cleanup: the 5-second bug you can&#x27;t see</h2>
 <p>Runtime 1.3.1 delivers SIGTERM to guests, but a guest that ignores it — and <code>sleep</code> as PID 1 ignores it — always pays the ~5 s grace. Worse, <code>--init</code> doesn&#x27;t forward TERM at all (verified: no GOTTERM, 5.25 s stop — reported upstream). The consequence: every cleanup path in Micropod uses kill semantics — <code>stop -t 0</code>, <code>kill</code>, <code>rm -f</code> — never bare <code>stop</code>. That single choice is most of why the shim&#x27;s <code>stop</code> lands at 72 ms while Docker Desktop sits in its 2-second grace. Cuttlefish&#x27;s executor switched the same way and saved up to 5 s per teardown.</p>
-<pre><code>+----------------- [ NUMBERS ] --------------------+
-|                                                  |
-| 86%        0.1s        677ms                     |
-| cache hit  warm exec   1k-file mount             |
-|                                                  |
-+--------------------------------------------------+
-</code></pre>
+<figure class="fig sg"><div class="sg-grid"><div class="sg-item"><span class="sg-value">86%</span><span class="sg-label">cache hit rate</span></div><div class="sg-item"><span class="sg-value">0.1 s</span><span class="sg-label">warm machine exec</span></div><div class="sg-item"><span class="sg-value">677 ms</span><span class="sg-label">1k-file mount, cloned</span></div></div></figure>
 <h2>Pulls and builds</h2>
 <p>Two smaller levers, both one-line-shaped: image pulls fetch 8 layers in parallel (Apple&#x27;s default is 3) — meaningful on fat CI images — and <code>RUN --mount=type=cache</code> works in <code>container build</code>, so Go mod/npm/apk caches persist across builds the way BuildKit users expect. The builder config (8 CPUs, rosetta off for native-only compiles) is staged at <code>~/.config/container/config.toml</code>.</p>
 <h2>What isn&#x27;t optimized</h2>

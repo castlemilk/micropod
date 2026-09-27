@@ -43,6 +43,7 @@ type Server struct {
 	micropodv1connect.UnimplementedNetworkServiceHandler
 	micropodv1connect.UnimplementedComposeServiceHandler
 	micropodv1connect.UnimplementedSystemServiceHandler
+	micropodv1connect.UnimplementedK8SServiceHandler
 	cli *clicli.CLI
 
 	versionMu  sync.Mutex

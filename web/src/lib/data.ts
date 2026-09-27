@@ -177,6 +177,13 @@ const CONNECT_SPECS = [
     blurb: "Runtime snapshot, cleanup usage report, and app updates.",
   },
   {
+    file: "micropod/v1/k8s.openapi.json",
+    service: "micropod.v1.K8sService",
+    title: "Kubernetes",
+    blurb:
+      "Opt-in lightweight engine — a k3s cluster in one micro-VM, MetalLB on the VM subnet, host kubeconfig. Enable, up, down, status, config.",
+  },
+  {
     file: "com/apple/containerization/sandbox/v3/sandbox_context.openapi.json",
     service: "com.apple.containerization.sandbox.v3.SandboxContext",
     title: "SandboxContext",

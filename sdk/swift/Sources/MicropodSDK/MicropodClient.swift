@@ -40,6 +40,14 @@ public struct MicropodClient: Sendable {
         "CheckForUpdates": "SystemService",
         "GetUpdateStatus": "SystemService",
         "ApplyUpdate": "SystemService",
+        "GetK8sStatus": "K8sService",
+        "GetK8sConfig": "K8sService",
+        "SetK8sConfig": "K8sService",
+        "K8sUp": "K8sService",
+        "K8sDown": "K8sService",
+        "GetKubeconfig": "K8sService",
+        "LoadK8sImage": "K8sService",
+        "ListK8sImages": "K8sService",
     ]
 
     public let connect: ConnectClient
@@ -216,5 +224,60 @@ public struct MicropodClient: Sendable {
 
     public func composeDown(_ request: Micropod_V1_ComposeDownRequest) async throws {
         _ = try await connect.unary(path: path("ComposeDown"), request: request, response: Micropod_V1_Empty.self)
+    }
+
+    // MARK: - Kubernetes (opt-in engine)
+
+    /// Engine enablement + live cluster state.
+    public func k8sStatus() async throws -> Micropod_V1_K8sStatus {
+        try await connect.unary(path: path("GetK8sStatus"), request: Micropod_V1_Empty())
+    }
+
+    /// Persisted engine config (defaults if never enabled).
+    public func k8sConfig() async throws -> Micropod_V1_K8sConfig {
+        try await connect.unary(path: path("GetK8sConfig"), request: Micropod_V1_Empty())
+    }
+
+    /// Persist engine config; `enabled=false` disables the feature.
+    public func setK8sConfig(_ config: Micropod_V1_K8sConfig) async throws -> Micropod_V1_K8sConfig {
+        try await connect.unary(path: path("SetK8sConfig"), request: config)
+    }
+
+    /// Create or resume the cluster VM — server-streaming progress; the
+    /// terminal event carries `done` and the cluster `status`.
+    public func k8sUp(
+        _ request: Micropod_V1_K8sUpRequest = .init()
+    ) -> AsyncThrowingStream<Micropod_V1_K8sUpEvent, Error> {
+        connect.serverStream(path: path("K8sUp"), request: request)
+    }
+
+    /// Remove the cluster VM and its state.
+    public func k8sDown() async throws {
+        _ = try await connect.unary(
+            path: path("K8sDown"), request: Micropod_V1_Empty(), response: Micropod_V1_Empty.self)
+    }
+
+    /// Host kubeconfig (path + contents, server already at the VM address).
+    public func kubeconfig() async throws -> Micropod_V1_GetKubeconfigResponse {
+        try await connect.unary(path: path("GetKubeconfig"), request: Micropod_V1_Empty())
+    }
+
+    /// Push an image into the cluster's containerd via the host puller —
+    /// server-streaming progress; the terminal event carries `ref`/`bytes`.
+    public func loadK8sImage(
+        _ request: Micropod_V1_LoadK8sImageRequest
+    ) -> AsyncThrowingStream<Micropod_V1_K8sLoadEvent, Error> {
+        connect.serverStream(path: path("LoadK8sImage"), request: request)
+    }
+
+    /// Image refs present in the cluster's containerd (k8s.io namespace).
+    public func listK8sImages(
+        clusterName: String? = nil
+    ) async throws -> [String] {
+        var req = Micropod_V1_ListK8sImagesRequest()
+        if let clusterName { req.clusterName = clusterName }
+        let res: Micropod_V1_ListK8sImagesResponse =
+            try await connect.unary(path: path("ListK8sImages"), request: req)
+        return res.refs
     }
 }

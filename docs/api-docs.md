@@ -10,7 +10,7 @@ and ⌘K search across every surface.
 
 **The daemon's public API is `micropod.v1` over Connect — six domain
 services (`ContainerService`, `ImageService`, `VolumeService`,
-`NetworkService`, `ComposeService`, `SystemService`).**
+`NetworkService`, `ComposeService`, `SystemService`, `K8sService`).**
 Unary calls are plain `POST` + proto-JSON, so curl and browsers hit the same
 endpoints the typed SDKs do; server-streaming RPCs use the Connect envelope
 protocol. The legacy `/v1/*` REST facade still answers for compatibility but
@@ -48,7 +48,7 @@ playground. Browser calls depend on the daemon's CORS policy in
 | `/sdk/` | method spellings from `sdk-samples.ts` | — |
 
 Nothing is hand-copied — every page renders from the generated artifacts. The
-API section covers the six `micropod.v1` domain services (daemon, host HTTP) and
+API section covers the seven `micropod.v1` domain services (daemon, host HTTP) and
 `com.apple.containerization.sandbox.v3.SandboxContext` (vminitd, vsock 1024)
 under a separate "Guest API" heading.
 

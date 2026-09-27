@@ -1,16 +1,21 @@
 // Build blog posts: blog/posts/*.mdx -> landing/blog/<slug>/index.html
 // MDX is the source of truth; output is static HTML in the landing chrome.
-// Diagrams use mdxcn's official fenced-ASCII blocks (https://mdxcn.dev) —
-// they render as <pre> in the site's JetBrains Mono style.
+// Figures are hand-rolled components in blog-components.jsx, bundled by
+// esbuild and server-rendered — no client JS.
+
 import { compile, run } from "@mdx-js/mdx";
+import remarkGfm from "remark-gfm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import * as runtime from "react/jsx-runtime";
+import * as esbuild from "esbuild";
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, rmSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { pathToFileURL } from "url";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
+const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(HERE, "../..");
 const POSTS_DIR = join(ROOT, "blog/posts");
 const OUT_DIR = join(ROOT, "landing/blog");
 const BASE = "/micropod/blog";
@@ -32,26 +37,35 @@ function frontmatter(src) {
   return { meta, body: src.slice(m[0].length) };
 }
 
-// Component palette available inside posts (kept deliberately small —
-// the site style does the work; these map to landing-flavoured HTML).
-const Callout = ({ children, title }) =>
-  createElement(
-    "aside",
-    { className: "callout" },
-    title ? createElement("p", { className: "callout-title" }, title) : null,
-    children,
-  );
+// Bundle the figure components for Node SSR.
+const bundleOut = join(HERE, "node_modules/.cache/blog-components.mjs");
+await esbuild.build({
+  entryPoints: [join(HERE, "blog-components.jsx")],
+  outfile: bundleOut,
+  bundle: true,
+  format: "esm",
+  platform: "node",
+  jsx: "automatic",
+  external: ["react", "react-dom"],
+  logLevel: "warning",
+});
 
-const components = { Callout };
+const components = await import(pathToFileURL(bundleOut).href);
 
 function esc(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-const template = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "template.html"), "utf8");
+const template = readFileSync(join(HERE, "template.html"), "utf8");
 
 function render(meta, bodyHtml, slug) {
   const tags = (meta.tags ?? []).map((t) => `<span class="tag">${esc(t)}</span>`).join("");
+  const imageMeta = meta.image
+    ? `\n  <meta property="og:image" content="https://castlemilk.github.io${BASE}/${esc(meta.image)}" />\n  <meta name="twitter:card" content="summary_large_image" />`
+    : "";
+  const hero = meta.image
+    ? `<div class="post-hero"><img src="${BASE}/${esc(meta.image)}" alt="${esc(meta.title)}" /></div>`
+    : "";
   return template
     .replaceAll("{{TITLE}}", esc(meta.title))
     .replaceAll("{{DESCRIPTION}}", esc(meta.description))
@@ -60,6 +74,8 @@ function render(meta, bodyHtml, slug) {
     .replaceAll("{{READING}}", esc(meta.reading ?? ""))
     .replaceAll("{{TAGS}}", tags)
     .replaceAll("{{STANDFIRST}}", esc(meta.standfirst))
+    .replaceAll("{{IMAGE_META}}", imageMeta)
+    .replaceAll("{{HERO}}", hero)
     .replaceAll("{{BODY}}", bodyHtml);
 }
 
@@ -67,12 +83,17 @@ async function buildPost(file) {
   const src = readFileSync(join(POSTS_DIR, file), "utf8");
   const { meta, body } = frontmatter(src);
   const slug = file.replace(/\.mdx$/, "");
-  const compiled = await compile(body, { outputFormat: "function-body" });
+  const compiled = await compile(body, {
+    outputFormat: "function-body",
+    remarkPlugins: [remarkGfm],
+  });
   const { default: Content } = await run(compiled, {
     ...runtime,
     useDynamicImport: false,
   });
-  const bodyHtml = renderToStaticMarkup(createElement(Content, { components }));
+  const bodyHtml = renderToStaticMarkup(
+    createElement(Content, { components }),
+  );
   const dir = join(OUT_DIR, slug);
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "index.html"), render(meta, bodyHtml, slug));
@@ -82,6 +103,15 @@ async function buildPost(file) {
 
 rmSync(OUT_DIR, { recursive: true, force: true });
 mkdirSync(OUT_DIR, { recursive: true });
+// Static assets (generated thumbnails etc.) live in blog/assets — OUT_DIR is
+// wiped each build, so copy them through every time.
+const ASSETS_SRC = join(ROOT, "blog/assets");
+try {
+  mkdirSync(join(OUT_DIR, "assets"), { recursive: true });
+  for (const f of readdirSync(ASSETS_SRC)) {
+    writeFileSync(join(OUT_DIR, "assets", f), readFileSync(join(ASSETS_SRC, f)));
+  }
+} catch {}
 const files = readdirSync(POSTS_DIR).filter((f) => f.endsWith(".mdx"));
 const posts = [];
 for (const f of files) posts.push(await buildPost(f));
@@ -91,10 +121,13 @@ posts.sort((a, b) => (a.date < b.date ? 1 : -1));
 const cards = posts
   .map(
     (p) => `        <a class="post-card" href="${BASE}/${p.slug}/">
-          <p class="post-date">${esc(p.date)}</p>
-          <h2>${esc(p.title)}</h2>
-          <p>${esc(p.standfirst)}</p>
-          <div class="post-tags">${(p.tags ?? []).map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
+          ${p.image ? `<div class="post-card-thumb"><img src="${BASE}/${esc(p.image)}" alt="" /></div>` : ""}
+          <div>
+            <p class="post-date">${esc(p.date)}</p>
+            <h2>${esc(p.title)}</h2>
+            <p>${esc(p.standfirst)}</p>
+            <div class="post-tags">${(p.tags ?? []).map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
+          </div>
         </a>`,
   )
   .join("\n");
@@ -108,6 +141,8 @@ writeFileSync(
     .replaceAll("{{READING}}", "")
     .replaceAll("{{TAGS}}", "")
     .replaceAll("{{STANDFIRST}}", "")
+    .replaceAll("{{IMAGE_META}}", "")
+    .replaceAll("{{HERO}}", "")
     .replaceAll(
       "{{BODY}}",
       `<div class="post-list">\n${cards}\n      </div>`,
