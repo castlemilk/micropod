@@ -116,13 +116,16 @@ final class ExecOutputCollectorTests: XCTestCase {
         }
         defer { chatter.cancel() }
 
+        // A quiet window longer than the cap, so only the cap can end the
+        // collection: a scheduler stall on a loaded CI host cannot fake a
+        // quiet pipe and end it early.
         let started = ContinuousClock.now
-        let output = await collector.finish(quiet: .milliseconds(50), cap: .milliseconds(200))
+        let output = await collector.finish(quiet: .seconds(5), cap: .milliseconds(200))
         let elapsed = ContinuousClock.now - started
 
         XCTAssertFalse(output.stdout.isEmpty)
-        XCTAssertLessThan(elapsed, .milliseconds(600))
         XCTAssertGreaterThanOrEqual(elapsed, .milliseconds(200))
+        XCTAssertLessThan(elapsed, .seconds(3), "the cap, not the 5 s quiet window, must end it")
         withExtendedLifetime(stderr) {}
     }
 }

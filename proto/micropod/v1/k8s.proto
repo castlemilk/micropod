@@ -4,7 +4,6 @@ package micropod.v1;
 
 option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
 
-import "buf/validate/validate.proto";
 import "gnostic/openapi/v3/annotations.proto";
 import "micropod/v1/api.proto";
 
