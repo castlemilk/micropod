@@ -7,7 +7,6 @@
 package micropodv1
 
 import (
-	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	_ "github.com/google/gnostic/openapiv3"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -668,7 +667,7 @@ var File_micropod_v1_k8s_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_k8s_proto_rawDesc = "" +
 	"\n" +
-	"\x15micropod/v1/k8s.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\"\xec\x02\n" +
+	"\x15micropod/v1/k8s.proto\x12\vmicropod.v1\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\"\xec\x02\n" +
 	"\tK8sConfig\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12A\n" +
 	"\x05image\x18\x02 \x01(\tB+\xbaG(:&\x12$'docker.io/rancher/k3s:v1.34.1-k3s1'R\x05image\x12#\n" +

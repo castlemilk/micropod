@@ -3,6 +3,7 @@ import XCTest
 
 @testable import MicropodCore
 @testable import MicropodDockerShim
+@testable import MicropodRuntime
 
 /// Boots the shim Router in-process against the shared mock CLI and exposes a
 /// random TCP port for RawHTTPClient-driven tests.
@@ -20,6 +21,10 @@ enum ShimTestSupport {
         let stateDir: URL
         let port: UInt16
         let buildCache: BuildContextCache
+        /// This shim's `VolumeClone.cloneRoot` (see `makeMockShim`).
+        var cloneRoot: URL { stateDir.appendingPathComponent("volume-clones", isDirectory: true) }
+        /// This shim's volume policy file (absent: the standard policy).
+        var volumePolicyFile: URL { stateDir.appendingPathComponent("volume-policy.json") }
 
         func raw() -> RawHTTPClient { RawHTTPClient(port: port) }
     }
@@ -28,8 +33,14 @@ enum ShimTestSupport {
         try makeMockShim(extraEnv: [:], file: file, line: line)
     }
 
+    /// `containers` replaces the mock-CLI container service (the runtime
+    /// backend's seat, as `ShimBootstrap` fills it) so a test can script
+    /// exactly what the runtime answers; `configure` adjusts the shim config.
     static func makeMockShim(
-        extraEnv: [String: String], file: StaticString = #filePath, line: UInt = #line
+        extraEnv: [String: String],
+        containers: (any ContainerServing)? = nil,
+        configure: (inout ShimConfig) -> Void = { _ in },
+        file: StaticString = #filePath, line: UInt = #line
     ) throws -> MockShim {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("micropod-shim-mock-\(UUID().uuidString)")
@@ -40,6 +51,12 @@ enum ShimTestSupport {
             throw XCTSkip(
                 "mock container CLI missing or not executable at \(script.path)", file: file, line: line)
         }
+
+        // The shim runs in this process, and its prunes read — and sweep —
+        // the clone root and read the volume policy: point both into this
+        // shim's state dir, never at the real ones in Application Support.
+        setenv("MICROPOD_VOLUME_CLONE_ROOT", dir.appendingPathComponent("volume-clones").path, 1)
+        setenv("MICROPOD_VOLUME_POLICY", dir.appendingPathComponent("volume-policy.json").path, 1)
 
         let wrapper = dir.appendingPathComponent("mock-container")
         var wrapperScript =
@@ -55,19 +72,26 @@ enum ShimTestSupport {
             [.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
 
         let client = ContainerCLIClient(executableURL: wrapper)
-        let containerService = ContainerService(client: client)
+        let containerService: any ContainerServing = containers ?? ContainerService(client: client)
+        let runtime = containers.map { scripted in
+            RuntimeServices(
+                kind: .native, containers: scripted, logs: LogStreamer(client: client),
+                stats: StatsSampler(client: client), volumes: VolumeService(client: client),
+                api: nil, health: nil, exitCodes: nil)
+        }
         let state = ShimState()
         let readCache = ReadThroughCache()
         let events = EventsHub(containers: containerService, interval: 0.1, readCache: readCache)
-        let config = ShimConfig(
+        var config = ShimConfig(
             bridgeHost: "192.168.64.1", tcpPort: 45455, defaultVolumeSize: "64g")
+        configure(&config)
         // Isolated on-disk build-context cache (never the real home dir).
         let buildCache = BuildContextCache(
             root: dir.appendingPathComponent("build-cache", isDirectory: true),
             maxBytes: 1 << 30)
         let router = Router(
             config: config, state: state, events: events, client: client,
-            sharedFS: nil, buildCache: buildCache, readCache: readCache)
+            sharedFS: nil, buildCache: buildCache, readCache: readCache, runtime: runtime)
         let server = ShimHTTPServer(handler: { request, connection in
             await router.route(request, connection)
         })

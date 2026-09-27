@@ -300,6 +300,51 @@ public nonisolated struct Micropod_V1_RunContainerRequest: Sendable {
   /// Command + args override (image entrypoint is used when empty).
   public var arguments: [String] = []
 
+  /// Entrypoint override (docker run --entrypoint); `arguments` become its args.
+  public var entrypoint: String {
+    get {_entrypoint ?? String()}
+    set {_entrypoint = newValue}
+  }
+  /// Returns true if `entrypoint` has been explicitly set.
+  public var hasEntrypoint: Bool {self._entrypoint != nil}
+  /// Clears the value of `entrypoint`. Subsequent reads from it will return its default value.
+  public mutating func clearEntrypoint() {self._entrypoint = nil}
+
+  /// Platform to select from a multi-arch image, e.g. "linux/arm64".
+  public var platform: String {
+    get {_platform ?? String()}
+    set {_platform = newValue}
+  }
+  /// Returns true if `platform` has been explicitly set.
+  public var hasPlatform: Bool {self._platform != nil}
+  /// Clears the value of `platform`. Subsequent reads from it will return its default value.
+  public mutating func clearPlatform() {self._platform = nil}
+
+  /// Working directory inside the container (docker run --workdir).
+  public var workdir: String {
+    get {_workdir ?? String()}
+    set {_workdir = newValue}
+  }
+  /// Returns true if `workdir` has been explicitly set.
+  public var hasWorkdir: Bool {self._workdir != nil}
+  /// Clears the value of `workdir`. Subsequent reads from it will return its default value.
+  public mutating func clearWorkdir() {self._workdir = nil}
+
+  /// User (and optional group) to run as, e.g. "1000:1000" (docker run --user).
+  public var user: String {
+    get {_user ?? String()}
+    set {_user = newValue}
+  }
+  /// Returns true if `user` has been explicitly set.
+  public var hasUser: Bool {self._user != nil}
+  /// Clears the value of `user`. Subsequent reads from it will return its default value.
+  public mutating func clearUser() {self._user = nil}
+
+  /// Fail with `not_found` instead of pulling when the image is absent
+  /// locally (for the requested `platform`, when set). Lets callers own the
+  /// pull and bound its duration.
+  public var noPull: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -307,6 +352,52 @@ public nonisolated struct Micropod_V1_RunContainerRequest: Sendable {
   fileprivate var _name: String? = nil
   fileprivate var _cpus: Double? = nil
   fileprivate var _memory: String? = nil
+  fileprivate var _entrypoint: String? = nil
+  fileprivate var _platform: String? = nil
+  fileprivate var _workdir: String? = nil
+  fileprivate var _user: String? = nil
+}
+
+public nonisolated struct Micropod_V1_WaitContainerRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Container ID (or name) to wait on.
+  public var id: String = String()
+
+  /// Seconds to wait for the container to exit. 0 selects the server default
+  /// (30); values above 300 are capped at 300.
+  public var timeoutSeconds: Int32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Micropod_V1_WaitContainerResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// True when the container is no longer running or stopping.
+  public var exited: Bool = false
+
+  /// True when `exit_code` is authoritative (recorded by the exit-code
+  /// registry). False for containers the server did not start itself or
+  /// whose entry aged out.
+  public var known: Bool = false
+
+  /// Process exit code; only meaningful when `known` is true.
+  public var exitCode: Int32 = 0
+
+  /// Runtime state observed at return: running, stopping, stopped, created
+  /// or unknown.
+  public var state: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
 }
 
 public nonisolated struct Micropod_V1_DeleteContainerRequest: Sendable {
@@ -339,6 +430,11 @@ public nonisolated struct Micropod_V1_StreamLogsRequest: Sendable {
   /// Include the vminitd guest boot log.
   public var boot: Bool = false
 
+  /// Number of lines to drop from the start of the stream (after `tail` is
+  /// applied). Lets a client re-open a stream after a transport error
+  /// without replaying lines it already delivered.
+  public var skipLines: Int64 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -362,6 +458,10 @@ public nonisolated struct Micropod_V1_GetStatsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
+
+  /// Restrict the snapshot to these container IDs. Empty means every running
+  /// container. The native backend samples only the requested IDs.
+  public var ids: [String] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -398,7 +498,9 @@ public nonisolated struct Micropod_V1_ExecRequest: Sendable {
   /// Container ID (or name) to exec into.
   public var id: String = String()
 
-  /// Command to run inside the container.
+  /// Command line to run inside the container, split on whitespace. Used only
+  /// when `arguments` is empty; one of the two must be set (handlers reject
+  /// an empty request with `invalid_argument`).
   public var command: String = String()
 
   /// Working directory for the command.
@@ -413,6 +515,10 @@ public nonisolated struct Micropod_V1_ExecRequest: Sendable {
 
   /// Extra environment variables as KEY=value pairs.
   public var env: [String] = []
+
+  /// Verbatim argv to run inside the container. Takes precedence over
+  /// `command` when non-empty; elements are passed through unsplit.
+  public var arguments: [String] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -828,7 +934,7 @@ nonisolated extension Micropod_V1_ListContainersResponse: SwiftProtobuf.Message,
 
 nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RunContainerRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}image\0\u{1}name\0\u{1}detach\0\u{1}cpus\0\u{1}memory\0\u{1}env\0\u{1}ports\0\u{1}volumes\0\u{1}labels\0\u{1}init\0\u{1}arguments\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}image\0\u{1}name\0\u{1}detach\0\u{1}cpus\0\u{1}memory\0\u{1}env\0\u{1}ports\0\u{1}volumes\0\u{1}labels\0\u{1}init\0\u{1}arguments\0\u{1}entrypoint\0\u{1}platform\0\u{1}workdir\0\u{1}user\0\u{3}no_pull\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -847,6 +953,11 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
       case 9: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: &self.labels) }()
       case 10: try { try decoder.decodeSingularBoolField(value: &self.init_p) }()
       case 11: try { try decoder.decodeRepeatedStringField(value: &self.arguments) }()
+      case 12: try { try decoder.decodeSingularStringField(value: &self._entrypoint) }()
+      case 13: try { try decoder.decodeSingularStringField(value: &self._platform) }()
+      case 14: try { try decoder.decodeSingularStringField(value: &self._workdir) }()
+      case 15: try { try decoder.decodeSingularStringField(value: &self._user) }()
+      case 16: try { try decoder.decodeSingularBoolField(value: &self.noPull) }()
       default: break
       }
     }
@@ -890,6 +1001,21 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
     if !self.arguments.isEmpty {
       try visitor.visitRepeatedStringField(value: self.arguments, fieldNumber: 11)
     }
+    try { if let v = self._entrypoint {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 12)
+    } }()
+    try { if let v = self._platform {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 13)
+    } }()
+    try { if let v = self._workdir {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 14)
+    } }()
+    try { if let v = self._user {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 15)
+    } }()
+    if self.noPull != false {
+      try visitor.visitSingularBoolField(value: self.noPull, fieldNumber: 16)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -905,6 +1031,91 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
     if lhs.labels != rhs.labels {return false}
     if lhs.init_p != rhs.init_p {return false}
     if lhs.arguments != rhs.arguments {return false}
+    if lhs._entrypoint != rhs._entrypoint {return false}
+    if lhs._platform != rhs._platform {return false}
+    if lhs._workdir != rhs._workdir {return false}
+    if lhs._user != rhs._user {return false}
+    if lhs.noPull != rhs.noPull {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_WaitContainerRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".WaitContainerRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}timeout_seconds\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularInt32Field(value: &self.timeoutSeconds) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    if self.timeoutSeconds != 0 {
+      try visitor.visitSingularInt32Field(value: self.timeoutSeconds, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_WaitContainerRequest, rhs: Micropod_V1_WaitContainerRequest) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.timeoutSeconds != rhs.timeoutSeconds {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_WaitContainerResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".WaitContainerResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}exited\0\u{1}known\0\u{3}exit_code\0\u{1}state\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.exited) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.known) }()
+      case 3: try { try decoder.decodeSingularInt32Field(value: &self.exitCode) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.state) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.exited != false {
+      try visitor.visitSingularBoolField(value: self.exited, fieldNumber: 1)
+    }
+    if self.known != false {
+      try visitor.visitSingularBoolField(value: self.known, fieldNumber: 2)
+    }
+    if self.exitCode != 0 {
+      try visitor.visitSingularInt32Field(value: self.exitCode, fieldNumber: 3)
+    }
+    if !self.state.isEmpty {
+      try visitor.visitSingularStringField(value: self.state, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_WaitContainerResponse, rhs: Micropod_V1_WaitContainerResponse) -> Bool {
+    if lhs.exited != rhs.exited {return false}
+    if lhs.known != rhs.known {return false}
+    if lhs.exitCode != rhs.exitCode {return false}
+    if lhs.state != rhs.state {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -947,7 +1158,7 @@ nonisolated extension Micropod_V1_DeleteContainerRequest: SwiftProtobuf.Message,
 
 nonisolated extension Micropod_V1_StreamLogsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StreamLogsRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}tail\0\u{1}boot\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}tail\0\u{1}boot\0\u{3}skip_lines\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -958,6 +1169,7 @@ nonisolated extension Micropod_V1_StreamLogsRequest: SwiftProtobuf.Message, Swif
       case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
       case 2: try { try decoder.decodeSingularInt32Field(value: &self.tail) }()
       case 3: try { try decoder.decodeSingularBoolField(value: &self.boot) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self.skipLines) }()
       default: break
       }
     }
@@ -973,6 +1185,9 @@ nonisolated extension Micropod_V1_StreamLogsRequest: SwiftProtobuf.Message, Swif
     if self.boot != false {
       try visitor.visitSingularBoolField(value: self.boot, fieldNumber: 3)
     }
+    if self.skipLines != 0 {
+      try visitor.visitSingularInt64Field(value: self.skipLines, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -980,6 +1195,7 @@ nonisolated extension Micropod_V1_StreamLogsRequest: SwiftProtobuf.Message, Swif
     if lhs.id != rhs.id {return false}
     if lhs.tail != rhs.tail {return false}
     if lhs.boot != rhs.boot {return false}
+    if lhs.skipLines != rhs.skipLines {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1017,18 +1233,29 @@ nonisolated extension Micropod_V1_LogChunk: SwiftProtobuf.Message, SwiftProtobuf
 
 nonisolated extension Micropod_V1_GetStatsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetStatsRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ids\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    // Load everything into unknown fields
-    while try decoder.nextFieldNumber() != nil {}
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedStringField(value: &self.ids) }()
+      default: break
+      }
+    }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.ids.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.ids, fieldNumber: 1)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Micropod_V1_GetStatsRequest, rhs: Micropod_V1_GetStatsRequest) -> Bool {
+    if lhs.ids != rhs.ids {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1070,7 +1297,7 @@ nonisolated extension Micropod_V1_GetStatsResponse: SwiftProtobuf.Message, Swift
 
 nonisolated extension Micropod_V1_ExecRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ExecRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}command\0\u{1}workdir\0\u{1}env\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}command\0\u{1}workdir\0\u{1}env\0\u{1}arguments\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1082,6 +1309,7 @@ nonisolated extension Micropod_V1_ExecRequest: SwiftProtobuf.Message, SwiftProto
       case 2: try { try decoder.decodeSingularStringField(value: &self.command) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self._workdir) }()
       case 4: try { try decoder.decodeRepeatedStringField(value: &self.env) }()
+      case 5: try { try decoder.decodeRepeatedStringField(value: &self.arguments) }()
       default: break
       }
     }
@@ -1104,6 +1332,9 @@ nonisolated extension Micropod_V1_ExecRequest: SwiftProtobuf.Message, SwiftProto
     if !self.env.isEmpty {
       try visitor.visitRepeatedStringField(value: self.env, fieldNumber: 4)
     }
+    if !self.arguments.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.arguments, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1112,6 +1343,7 @@ nonisolated extension Micropod_V1_ExecRequest: SwiftProtobuf.Message, SwiftProto
     if lhs.command != rhs.command {return false}
     if lhs._workdir != rhs._workdir {return false}
     if lhs.env != rhs.env {return false}
+    if lhs.arguments != rhs.arguments {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

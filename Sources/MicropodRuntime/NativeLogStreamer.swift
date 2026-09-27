@@ -7,10 +7,34 @@ import MicropodCore
 ///
 /// The fds point at regular files (the apiserver's per-container logs),
 /// not pipes: reads hit EOF rather than blocking. `stream` therefore
-/// tracks file offsets and polls for growth, finishing once the container
-/// leaves the running state — matching `container logs -f` behavior.
+/// tracks file offsets and drains new bytes on 80 ms ticks, finishing once
+/// the container has stopped — matching `container logs -f` behavior:
+///
+/// - **Stop signal.** A recorded exit code in the ``ExitCodeRegistry``, or a
+///   runtime state that is no longer `running` or `stopping` (see
+///   ``isLive(state:)``). The registry is checked before every tick and each
+///   tick parks on it, so a recorded exit ends the wait at once instead of
+///   at the next tick; the state is checked right after the
+///   backlog, then 250 ms after the latest bytes, backing off ×2 to 1 s
+///   while the stream stays quiet.
+/// - **Final drain.** After the stop signal the sources are drained once
+///   more before the final emit, so bytes written between the last tick and
+///   the stop are delivered. Containerization reports an exit only after the
+///   process's stdio has been relayed (it waits up to 3 s), so that drain
+///   sees the tail.
+/// - **Lines.** Output is split on `\n`; empty lines are dropped, and stdout
+///   and stderr arrive merged (the log file does not separate them). `tail`
+///   counts delivered lines; a final fragment without a newline is emitted
+///   when the stream ends.
 public struct NativeLogStreamer: LogStreaming {
-    private let api: APIServerClient
+    /// How often a following stream reads the log files for new bytes.
+    private static let drainTick: Duration = .milliseconds(80)
+
+    private let sourceProvider: @Sendable (String, Bool) async throws -> [FileHandle]
+    private let isLive: @Sendable (String) async -> Bool
+    /// Called after every follow-loop pause, before its drain.
+    private let onTick: @Sendable () -> Void
+    private let exitCodes: ExitCodeRegistry?
 
     /// A log fd plus the read cursor, reopened once per stream.
     private struct Source {
@@ -33,23 +57,59 @@ public struct NativeLogStreamer: LogStreaming {
         }
     }
 
-    public init(api: APIServerClient) {
-        self.api = api
+    public init(api: APIServerClient, exitCodes: ExitCodeRegistry? = nil) {
+        self.init(
+            sourceProvider: { id, boot in
+                // `containerLogs` returns [containerLog, bootlog] — index 0
+                // is the init process's combined stdio (what `container
+                // logs` shows), index 1 is the kernel/vminitd boot log
+                // (`container logs --boot`).
+                let handles = try await api.logs(id: id)
+                let index = boot ? 1 : 0
+                guard handles.indices.contains(index) else {
+                    throw MicropodError.message("container \(id): missing log fd")
+                }
+                return [handles[index]]
+            },
+            isLive: { id in
+                guard let managed = try? await api.managed(id: id),
+                    case .object(let obj) = managed,
+                    case .object(let status) = obj["status"],
+                    case .string(let state) = status["state"]
+                else { return false }
+                return Self.isLive(state: state)
+            },
+            exitCodes: exitCodes)
+    }
+
+    /// Test seam: sources + liveness provider instead of XPC.
+    /// `sourceProvider(id, boot)` returns the log files to follow;
+    /// `isLive(id)` answers whether the container may still write to them;
+    /// `onTick` observes the follow loop's cadence.
+    init(
+        sourceProvider: @escaping @Sendable (String, Bool) async throws -> [FileHandle],
+        isLive: @escaping @Sendable (String) async -> Bool,
+        exitCodes: ExitCodeRegistry? = nil,
+        onTick: @escaping @Sendable () -> Void = {}
+    ) {
+        self.sourceProvider = sourceProvider
+        self.isLive = isLive
+        self.exitCodes = exitCodes
+        self.onTick = onTick
+    }
+
+    /// Whether a container in runtime `state` may still write output.
+    /// `stopping` counts: the runtime enters it before the graceful stop
+    /// waits for the process, which can keep writing until it exits.
+    static func isLive(state: String) -> Bool {
+        state == "running" || state == "stopping"
     }
 
     public func tail(id: String, lines: Int = 100, boot: Bool = false) async throws -> [LogLine] {
         var sources = try await sources(id: id, boot: boot)
-        var data = Data()
-        for i in sources.indices {
-            data.append(sources[i].drain())
-        }
-        let text = String(decoding: data, as: UTF8.self)
-        return
-            text
-            .split(separator: "\n", omittingEmptySubsequences: false)
-            .filter { !$0.isEmpty }
-            .suffix(lines)
-            .map { LogLine(text: String($0)) }
+        var splitter = LineSplitter()
+        let all = splitter.feed(Self.drain(&sources)) + splitter.finish()
+        return all.suffix(lines).map { LogLine(text: $0) }
     }
 
     public func stream(id: String, tail: Int? = nil, boot: Bool = false) -> AsyncThrowingStream<
@@ -59,58 +119,35 @@ public struct NativeLogStreamer: LogStreaming {
             let task = Task {
                 do {
                     var sources = try await self.sources(id: id, boot: boot)
-                    var carry = Data()
-                    var backlogDone = false
-
-                    func emitLines(final: Bool = false) {
-                        // Split `carry` into complete lines, keep the tail
-                        // fragment for the next round.
-                        var lines: [Data] = []
-                        var start = carry.startIndex
-                        for i in carry.startIndex..<carry.endIndex where carry[i] == 0x0A {
-                            lines.append(carry[start..<i])
-                            start = carry.index(after: i)
-                        }
-                        let remainder = carry[start...]
-                        carry = final ? Data() : Data(remainder)
-                        if final, !remainder.isEmpty { lines.append(Data(remainder)) }
-
-                        if !backlogDone {
-                            backlogDone = true
-                            if let tail {
-                                lines = Array(lines.suffix(tail))
-                            }
-                        }
-                        for line in lines where !line.isEmpty {
-                            continuation.yield(
-                                LogLine(text: String(decoding: line, as: UTF8.self)))
-                        }
+                    var splitter = LineSplitter()
+                    func emit(_ lines: some Sequence<String>) {
+                        for line in lines { continuation.yield(LogLine(text: line)) }
                     }
 
-                    // First pass: backlog (honoring tail).
-                    for i in sources.indices {
-                        carry.append(sources[i].drain())
-                    }
-                    emitLines()
+                    // Backlog, honoring `tail`.
+                    let backlog = splitter.feed(Self.drain(&sources))
+                    emit(tail.map { backlog.suffix($0) } ?? backlog[...])
 
-                    // Follow: poll for file growth until the container is
-                    // no longer running.
-                    while !Task.isCancelled {
-                        try await Task.sleep(for: .milliseconds(80))
-                        var fresh = Data()
-                        for i in sources.indices {
-                            fresh.append(sources[i].drain())
-                        }
+                    // Follow until the stop signal.
+                    let clock = ContinuousClock()
+                    var schedule = StateCheckSchedule(now: clock.now)
+                    while true {
+                        if await self.exitRecorded(id: id) { break }
+                        try await self.pause(id: id)
+                        self.onTick()
+                        let fresh = Self.drain(&sources)
                         if !fresh.isEmpty {
-                            carry.append(fresh)
-                            emitLines()
+                            emit(splitter.feed(fresh))
+                            schedule.sawBytes(at: clock.now)
                             continue
                         }
-                        if try await !self.isRunning(id: id) {
-                            emitLines(final: true)
-                            break
-                        }
+                        guard schedule.isDue(at: clock.now) else { continue }
+                        if await !self.isLive(id) { break }
+                        schedule.stillRunning(at: clock.now)
                     }
+
+                    // Final drain: bytes that landed after the last tick.
+                    emit(splitter.feed(Self.drain(&sources)) + splitter.finish())
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -120,23 +157,99 @@ public struct NativeLogStreamer: LogStreaming {
         }
     }
 
-    /// `containerLogs` returns [containerLog, bootlog] — index 0 is the
-    /// init process's combined stdio (what `container logs` shows),
-    /// index 1 is the kernel/vminitd boot log (`container logs --boot`).
     private func sources(id: String, boot: Bool) async throws -> [Source] {
-        let handles = try await api.logs(id: id)
-        guard handles.indices.contains(boot ? 1 : 0) else {
-            throw MicropodError.message("container \(id): missing log fd")
-        }
-        return [Source(handle: handles[boot ? 1 : 0])]
+        try await sourceProvider(id, boot).map { Source(handle: $0) }
     }
 
-    private func isRunning(id: String) async throws -> Bool {
-        guard let managed = try? await api.managed(id: id),
-            case .object(let obj) = managed,
-            case .object(let status) = obj["status"],
-            case .string(let state) = status["state"]
-        else { return false }
-        return state == "running"
+    /// One drain tick, cut short when the registry records the exit — the
+    /// loop then stops following and drains the tail at once. A registry
+    /// entry without a code will never wake anyone, so it gets the plain
+    /// tick. Throws `CancellationError` when the stream is torn down.
+    private func pause(id: String) async throws {
+        if let exitCodes, await exitCodes.entry(for: id) == nil {
+            _ = await exitCodes.await(id: id, timeout: Self.drainTick)
+            try Task.checkCancellation()
+        } else {
+            try await Task.sleep(for: Self.drainTick)
+        }
+    }
+
+    /// True once the registry holds this container's exit code. An entry
+    /// without one (the waiter aged out or failed) proves nothing about the
+    /// container, so the runtime state stays authoritative.
+    private func exitRecorded(id: String) async -> Bool {
+        guard let exitCodes else { return false }
+        return await exitCodes.entry(for: id)?.exitCode != nil
+    }
+
+    private static func drain(_ sources: inout [Source]) -> Data {
+        var data = Data()
+        for i in sources.indices {
+            data.append(sources[i].drain())
+        }
+        return data
+    }
+
+    /// When the follow loop next asks the runtime whether the container is
+    /// still live: at once after the backlog, then 250 ms after the
+    /// latest bytes, doubling up to 1 s while the stream stays quiet.
+    struct StateCheckSchedule {
+        static let initialInterval: Duration = .milliseconds(250)
+        static let maxInterval: Duration = .seconds(1)
+
+        private var interval: Duration
+        private var due: ContinuousClock.Instant
+
+        init(now: ContinuousClock.Instant) {
+            interval = Self.initialInterval
+            due = now
+        }
+
+        func isDue(at now: ContinuousClock.Instant) -> Bool {
+            now >= due
+        }
+
+        /// The container is still live: wait longer before asking again.
+        mutating func stillRunning(at now: ContinuousClock.Instant) {
+            scheduleNext(after: now)
+        }
+
+        /// New bytes show the container is alive: restart the backoff.
+        mutating func sawBytes(at now: ContinuousClock.Instant) {
+            interval = Self.initialInterval
+            scheduleNext(after: now)
+        }
+
+        private mutating func scheduleNext(after now: ContinuousClock.Instant) {
+            due = now + interval
+            interval = min(interval * 2, Self.maxInterval)
+        }
+    }
+
+    /// Splits drained bytes into lines, carrying an unterminated fragment
+    /// into the next feed. Empty lines are dropped.
+    private struct LineSplitter {
+        private var carry = Data()
+
+        /// The complete, non-empty lines once `data` is appended.
+        mutating func feed(_ data: Data) -> [String] {
+            carry.append(data)
+            var lines: [String] = []
+            var start = carry.startIndex
+            while let newline = carry[start...].firstIndex(of: 0x0A) {
+                if newline > start {
+                    lines.append(String(decoding: carry[start..<newline], as: UTF8.self))
+                }
+                start = carry.index(after: newline)
+            }
+            carry.removeSubrange(carry.startIndex..<start)
+            return lines
+        }
+
+        /// The pending fragment as a last line (the stream is ending).
+        mutating func finish() -> [String] {
+            defer { carry.removeAll() }
+            return carry.isEmpty ? [] : [String(decoding: carry, as: UTF8.self)]
+        }
     }
 }

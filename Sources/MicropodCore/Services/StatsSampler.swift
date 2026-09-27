@@ -2,7 +2,26 @@ import Foundation
 
 /// Common interface for container stats samplers (CLI and native backends).
 public protocol StatsSampling: Sendable {
+    /// Every running container.
     func snapshot() async throws -> Micropod_V1_StatsSnapshot
+    /// Only the given containers (`GetStatsRequest.ids`); empty means every
+    /// running container. Ids that are unknown or not running contribute
+    /// nothing — the caller asked about them, so their absence is the answer.
+    func snapshot(ids: [String]) async throws -> Micropod_V1_StatsSnapshot
+}
+
+extension StatsSampling {
+    /// Default: sample everything, keep the requested ids in sampler order.
+    /// The CLI path has one `container stats` invocation for any subset, so
+    /// filtering after the fact costs nothing extra; the native sampler
+    /// overrides this to call `containerStats` per id only.
+    public func snapshot(ids: [String]) async throws -> Micropod_V1_StatsSnapshot {
+        var snapshot = try await snapshot()
+        guard !ids.isEmpty else { return snapshot }
+        let wanted = Set(ids)
+        snapshot.containers.removeAll { !wanted.contains($0.id) }
+        return snapshot
+    }
 }
 
 /// Samples resource usage for all running containers.

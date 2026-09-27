@@ -29,6 +29,10 @@ public struct ContainerListEntry: Codable, Sendable {
         public let state: String?
         public let networks: [StatusNetwork]?
         public let exitCode: Int?
+        /// ISO-8601 time the runtime last started the container; absent for
+        /// one created and never started (the runtime reports both that and
+        /// an exited container as `stopped`).
+        public let startedDate: String?
     }
 
     public struct ImageReference: Codable, Sendable {

@@ -19,11 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	VolumeService_ListVolumes_FullMethodName     = "/micropod.v1.VolumeService/ListVolumes"
-	VolumeService_CreateVolume_FullMethodName    = "/micropod.v1.VolumeService/CreateVolume"
-	VolumeService_DeleteVolume_FullMethodName    = "/micropod.v1.VolumeService/DeleteVolume"
-	VolumeService_GetVolumePolicy_FullMethodName = "/micropod.v1.VolumeService/GetVolumePolicy"
-	VolumeService_SetVolumePolicy_FullMethodName = "/micropod.v1.VolumeService/SetVolumePolicy"
+	VolumeService_ListVolumes_FullMethodName       = "/micropod.v1.VolumeService/ListVolumes"
+	VolumeService_CreateVolume_FullMethodName      = "/micropod.v1.VolumeService/CreateVolume"
+	VolumeService_DeleteVolume_FullMethodName      = "/micropod.v1.VolumeService/DeleteVolume"
+	VolumeService_GetVolumePolicy_FullMethodName   = "/micropod.v1.VolumeService/GetVolumePolicy"
+	VolumeService_SetVolumePolicy_FullMethodName   = "/micropod.v1.VolumeService/SetVolumePolicy"
+	VolumeService_CloneVolume_FullMethodName       = "/micropod.v1.VolumeService/CloneVolume"
+	VolumeService_CommitVolumeClone_FullMethodName = "/micropod.v1.VolumeService/CommitVolumeClone"
 )
 
 // VolumeServiceClient is the client API for VolumeService service.
@@ -43,6 +45,18 @@ type VolumeServiceClient interface {
 	GetVolumePolicy(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*VolumePolicy, error)
 	// Replace the volume mount policy; returns the stored policy.
 	SetVolumePolicy(ctx context.Context, in *VolumePolicy, opts ...grpc.CallOption) (*VolumePolicy, error)
+	// Create a new volume whose backing image is a clonefile copy of the
+	// source volume's image (O(1) on APFS). Fails with `not_found` when the
+	// source does not exist and `failed_precondition` when the source is
+	// attached read-write to a running container.
+	CloneVolume(ctx context.Context, in *CloneVolumeRequest, opts ...grpc.CallOption) (*Volume, error)
+	// Promote a container's per-container clone of `volume` to be the
+	// volume's backing image (fsync + atomic rename, serialised per volume).
+	// Fails with `not_found` when the clone or the volume's source is absent
+	// and `failed_precondition` unless the container is `stopped` and the
+	// volume is not attached to a running container. `unimplemented` on
+	// backends that never create clones.
+	CommitVolumeClone(ctx context.Context, in *CommitVolumeCloneRequest, opts ...grpc.CallOption) (*CommitVolumeCloneResponse, error)
 }
 
 type volumeServiceClient struct {
@@ -103,6 +117,26 @@ func (c *volumeServiceClient) SetVolumePolicy(ctx context.Context, in *VolumePol
 	return out, nil
 }
 
+func (c *volumeServiceClient) CloneVolume(ctx context.Context, in *CloneVolumeRequest, opts ...grpc.CallOption) (*Volume, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Volume)
+	err := c.cc.Invoke(ctx, VolumeService_CloneVolume_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *volumeServiceClient) CommitVolumeClone(ctx context.Context, in *CommitVolumeCloneRequest, opts ...grpc.CallOption) (*CommitVolumeCloneResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommitVolumeCloneResponse)
+	err := c.cc.Invoke(ctx, VolumeService_CommitVolumeClone_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // VolumeServiceServer is the server API for VolumeService service.
 // All implementations must embed UnimplementedVolumeServiceServer
 // for forward compatibility.
@@ -120,6 +154,18 @@ type VolumeServiceServer interface {
 	GetVolumePolicy(context.Context, *Empty) (*VolumePolicy, error)
 	// Replace the volume mount policy; returns the stored policy.
 	SetVolumePolicy(context.Context, *VolumePolicy) (*VolumePolicy, error)
+	// Create a new volume whose backing image is a clonefile copy of the
+	// source volume's image (O(1) on APFS). Fails with `not_found` when the
+	// source does not exist and `failed_precondition` when the source is
+	// attached read-write to a running container.
+	CloneVolume(context.Context, *CloneVolumeRequest) (*Volume, error)
+	// Promote a container's per-container clone of `volume` to be the
+	// volume's backing image (fsync + atomic rename, serialised per volume).
+	// Fails with `not_found` when the clone or the volume's source is absent
+	// and `failed_precondition` unless the container is `stopped` and the
+	// volume is not attached to a running container. `unimplemented` on
+	// backends that never create clones.
+	CommitVolumeClone(context.Context, *CommitVolumeCloneRequest) (*CommitVolumeCloneResponse, error)
 	mustEmbedUnimplementedVolumeServiceServer()
 }
 
@@ -144,6 +190,12 @@ func (UnimplementedVolumeServiceServer) GetVolumePolicy(context.Context, *Empty)
 }
 func (UnimplementedVolumeServiceServer) SetVolumePolicy(context.Context, *VolumePolicy) (*VolumePolicy, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetVolumePolicy not implemented")
+}
+func (UnimplementedVolumeServiceServer) CloneVolume(context.Context, *CloneVolumeRequest) (*Volume, error) {
+	return nil, status.Error(codes.Unimplemented, "method CloneVolume not implemented")
+}
+func (UnimplementedVolumeServiceServer) CommitVolumeClone(context.Context, *CommitVolumeCloneRequest) (*CommitVolumeCloneResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CommitVolumeClone not implemented")
 }
 func (UnimplementedVolumeServiceServer) mustEmbedUnimplementedVolumeServiceServer() {}
 func (UnimplementedVolumeServiceServer) testEmbeddedByValue()                       {}
@@ -256,6 +308,42 @@ func _VolumeService_SetVolumePolicy_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _VolumeService_CloneVolume_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CloneVolumeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServiceServer).CloneVolume(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: VolumeService_CloneVolume_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServiceServer).CloneVolume(ctx, req.(*CloneVolumeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _VolumeService_CommitVolumeClone_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommitVolumeCloneRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServiceServer).CommitVolumeClone(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: VolumeService_CommitVolumeClone_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServiceServer).CommitVolumeClone(ctx, req.(*CommitVolumeCloneRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // VolumeService_ServiceDesc is the grpc.ServiceDesc for VolumeService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -282,6 +370,14 @@ var VolumeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetVolumePolicy",
 			Handler:    _VolumeService_SetVolumePolicy_Handler,
+		},
+		{
+			MethodName: "CloneVolume",
+			Handler:    _VolumeService_CloneVolume_Handler,
+		},
+		{
+			MethodName: "CommitVolumeClone",
+			Handler:    _VolumeService_CommitVolumeClone_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

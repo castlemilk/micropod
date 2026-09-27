@@ -14,6 +14,124 @@
     }
   },
   "paths": {
+    "/api/micropod.v1.VolumeService/CloneVolume": {
+      "post": {
+        "tags": [
+          "micropod.v1.VolumeService"
+        ],
+        "summary": "CloneVolume",
+        "description": "Create a new volume whose backing image is a clonefile copy of the\n source volume's image (O(1) on APFS). Fails with `not_found` when the\n source does not exist and `failed_precondition` when the source is\n attached read-write to a running container.",
+        "operationId": "micropod.v1.VolumeService.CloneVolume",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.CloneVolumeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Volume"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.VolumeService/CommitVolumeClone": {
+      "post": {
+        "tags": [
+          "micropod.v1.VolumeService"
+        ],
+        "summary": "CommitVolumeClone",
+        "description": "Promote a container's per-container clone of `volume` to be the\n volume's backing image (fsync + atomic rename, serialised per volume).\n Fails with `not_found` when the clone or the volume's source is absent\n and `failed_precondition` unless the container is `stopped` and the\n volume is not attached to a running container. `unimplemented` on\n backends that never create clones.",
+        "operationId": "micropod.v1.VolumeService.CommitVolumeClone",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.CommitVolumeCloneRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.CommitVolumeCloneResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/micropod.v1.VolumeService/CreateVolume": {
       "post": {
         "tags": [
@@ -401,6 +519,112 @@
         "additionalProperties": true,
         "description": "Contains an arbitrary serialized message along with a @type that describes the type of the serialized message, with an additional debug field for ConnectRPC error details."
       },
+      "micropod.v1.CloneVolumeRequest": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "examples": [
+              "golden-cache"
+            ],
+            "title": "source",
+            "minLength": 1,
+            "description": "Existing volume to clone from."
+          },
+          "name": {
+            "type": "string",
+            "examples": [
+              "job-42-cache"
+            ],
+            "title": "name",
+            "minLength": 1,
+            "description": "Name of the new volume."
+          },
+          "size": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "examples": [
+              "10g"
+            ],
+            "title": "size",
+            "description": "Optional size for the new volume, e.g. \"10g\". Defaults to the source's\n provisioned size."
+          },
+          "labels": {
+            "type": "array",
+            "examples": [
+              [
+                "com.example.job=42"
+              ]
+            ],
+            "items": {
+              "type": "string",
+              "examples": [
+                [
+                  "com.example.job=42"
+                ]
+              ]
+            },
+            "title": "labels",
+            "description": "Labels applied to the new volume (\"key=value\")."
+          }
+        },
+        "title": "CloneVolumeRequest",
+        "required": [
+          "source",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "micropod.v1.CommitVolumeCloneRequest": {
+        "type": "object",
+        "properties": {
+          "containerId": {
+            "type": "string",
+            "examples": [
+              "job-42"
+            ],
+            "title": "container_id",
+            "minLength": 1,
+            "description": "Stopped container whose clone of `volume` is promoted."
+          },
+          "volume": {
+            "type": "string",
+            "examples": [
+              "golden-cache"
+            ],
+            "title": "volume",
+            "minLength": 1,
+            "description": "Volume whose backing image is replaced by the container's clone."
+          }
+        },
+        "title": "CommitVolumeCloneRequest",
+        "required": [
+          "containerId",
+          "volume"
+        ],
+        "additionalProperties": false
+      },
+      "micropod.v1.CommitVolumeCloneResponse": {
+        "type": "object",
+        "properties": {
+          "allocatedBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "examples": [
+              "268435456"
+            ],
+            "title": "allocated_bytes",
+            "format": "int64",
+            "description": "Bytes allocated on disk by the promoted image (st_blocks \u00d7 512)."
+          }
+        },
+        "title": "CommitVolumeCloneResponse",
+        "additionalProperties": false
+      },
       "micropod.v1.CreateVolumeRequest": {
         "type": "object",
         "properties": {
@@ -561,6 +785,18 @@
               "title": "value"
             },
             "description": "Metadata labels on the volume."
+          },
+          "allocatedBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "examples": [
+              "268435456"
+            ],
+            "title": "allocated_bytes",
+            "format": "int64",
+            "description": "Bytes actually allocated on disk by the backing image (st_blocks \u00d7 512).\n `size_bytes` is the provisioned size; sparse images allocate far less."
           }
         },
         "title": "Volume",

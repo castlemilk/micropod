@@ -42,6 +42,27 @@ struct ShimConfig: Sendable {
     /// caches (Go module cache, npm, build caches) routinely exceed a few GB.
     /// Defaulted so callers that predate the field keep compiling.
     var defaultVolumeSize: String = "64g"
+    /// How often `/wait` re-inspects a container it is waiting on.
+    var waitPollInterval: Duration = .milliseconds(200)
+    /// `/wait` retries an inspect that fails for any reason but `not_found`
+    /// (which ends the wait at once), but only this many times in a row, or
+    /// for this long since the first failure of the run — whichever comes
+    /// first — before it fails the wait with Docker's `Error.Message` body.
+    /// A runtime that cannot answer for the container must not hold the
+    /// client forever.
+    var waitInspectFailureLimit: Int = 150
+    var waitInspectFailureWindow: Duration = .seconds(60)
+    /// An attached `/start` answers once the container is seen to have run
+    /// or the runtime refused it (see `settleAttachedStart`): how often it
+    /// looks, and how long it waits for either before it stops the attached
+    /// CLI and fails the start.
+    var startSettlePollInterval: Duration = .milliseconds(100)
+    var startSettleTimeout: Duration = .seconds(120)
+    /// Container prunes keep a never-started container this young: it is a
+    /// create whose start is on its way (Connect `CreateContainer` →
+    /// `StartContainer`, `docker run`), and pruning it fails that start —
+    /// the grace the native runtime's own prune gives (live defect 4).
+    var pruneUnstartedGrace: TimeInterval = 300
 }
 
 struct DockerNetworkCreateBody: Codable {
@@ -253,7 +274,7 @@ final class Router: @unchecked Sendable {
         case ("POST", "containers") where segments.count == 2 && segments[1] == "create":
             return try await containerCreate(request)
         case ("POST", "containers") where segments.count >= 2 && segments.last == "prune":
-            return try await containersPrune()
+            return try await containersPrune(request)
         case ("GET", "containers") where segments.count == 3 && segments[2] == "json":
             return try await containerInspect(segments[1])
         case ("POST", "containers") where segments.count == 3 && segments[2] == "start":
@@ -328,7 +349,7 @@ final class Router: @unchecked Sendable {
         case ("DELETE", "volumes") where segments.count == 2:
             return try await volumeDelete(segments[1])
         case ("POST", "volumes") where segments.count == 2 && segments[1] == "prune":
-            return try await volumePrune()
+            return try await volumePrune(request)
 
         default:
             throw ShimError.notFound("\(request.method) \(request.path): page not found")
@@ -1149,23 +1170,20 @@ final class Router: @unchecked Sendable {
         var BuildCache: [String]
     }
 
-    /// POST /system/prune — stopped containers + dangling (or, with all=1 /
-    /// filters, all unused) images + unused volumes + unused networks,
-    /// with honest deletion reporting via before/after diffs.
+    /// POST /system/prune — stopped containers + dangling (or, with all=1,
+    /// all unused) images + unused volumes + unused networks, with honest
+    /// deletion reporting. `label`/`label!` filters apply to containers and
+    /// volumes and `until` to containers, exactly as their own prunes apply
+    /// them; volumes are never goldens (`pruneVolumes`).
     private func systemPrune(_ request: ShimRequest) async throws -> ShimResponse {
         let wantsAll =
             request.q("all").lowercased() == "1"
             || request.q("all").lowercased() == "true"
+        let filters = try PruneFilters(json: request.query["filters"], accepted: PruneFilters.containerKeys)
+        var volumeFilters = filters
+        volumeFilters.until = nil
 
-        // Containers: pruned = stopped ones (docker semantics).
-        let containersBefore = try await containers.list()
-        let stopped = containersBefore.filter { DockerMapper.stateName($0.state) != "running" }
-        var containersDeleted: [String] = []
-        for container in stopped {
-            if (try? await containers.delete(container.id, force: true)) != nil {
-                containersDeleted.append(container.id)
-            }
-        }
+        let containersDeleted = try await pruneContainers(filters)
 
         // Images: dangling, or everything unused with all=1.
         let imagesBefore = try await images.list()
@@ -1175,15 +1193,8 @@ final class Router: @unchecked Sendable {
         let imageIDsAfter = Set(imagesAfter.map { $0.id })
         let imagesDeleted = imagesBefore.filter { !imageIDsAfter.contains($0.id) }
 
-        // Volumes.
-        let volumesBefore = try await volumes.list()
-        _ = try? await volumes.prune()
-        let volumesAfter = try await volumes.list()
-        await readCache.invalidateContainers()
+        let volumesDeleted = try await pruneVolumes(volumeFilters)
         await readCache.invalidateImages()
-        await readCache.invalidateVolumes()
-        let volumeIDsAfter = Set(volumesAfter.map { $0.id })
-        let volumesDeleted = volumesBefore.filter { !volumeIDsAfter.contains($0.id) }
 
         return Self.encode(
             SystemPruneResponse(
@@ -1582,13 +1593,57 @@ final class Router: @unchecked Sendable {
             arguments: arguments)
     }
 
-    private func containersPrune() async throws -> ShimResponse {
-        let before = try await containers.list()
-        _ = try await containers.prune()
-        let after = try await containers.list()
-        let afterIDs = Set(after.map { $0.id })
-        let deleted = before.filter { !afterIDs.contains($0.id) }
-        return Self.encode(ContainersPruneResponse(deletedIDs: deleted.map { $0.id }))
+    /// POST /containers/prune — stopped containers the `filters` admit
+    /// (`label`, `label!`, `until`, Docker semantics; see `PruneFilters`).
+    private func containersPrune(_ request: ShimRequest) async throws -> ShimResponse {
+        let filters = try PruneFilters(json: request.query["filters"], accepted: PruneFilters.containerKeys)
+        return Self.encode(ContainersPruneResponse(deletedIDs: try await pruneContainers(filters)))
+    }
+
+    /// Deletes the stopped containers `filters` admits, one by one, and
+    /// returns the ids it deleted. Never one with an attached run in flight
+    /// (it reads "stopped" until the run starts), nor a never-started one
+    /// younger than `pruneUnstartedGrace`.
+    private func pruneContainers(_ filters: PruneFilters) async throws -> [String] {
+        let now = Date()
+        var deleted: [String] = []
+        for container in try await containers.list()
+        where Self.prunableStates.contains(container.state.lowercased())
+            && filters.admits(labels: container.labels) && filters.admits(created: parseDate(container.createdAt))
+        {
+            if await state.isAttachRunning(id: container.id) { continue }
+            if await isFreshUnstarted(container, now: now) { continue }
+            do {
+                try await containers.delete(container.id, force: false)
+                await state.forget(id: container.id)
+                deleted.append(container.id)
+            } catch {
+                fputs("[shim] prune: could not delete container \(container.id): \(error)\n", stderr)
+            }
+        }
+        // As the runtime's own prune does: clone dirs whose container is
+        // gone (a raw `container delete`, a crashed runtime) go too — only
+        // against a list the runtime answered, never a failed one.
+        if let live = try? await containers.list() {
+            await VolumeClone.sweepOrphanClones(live: Set(live.map(\.id)))
+        }
+        await readCache.invalidateContainers()
+        return deleted
+    }
+
+    /// Runtime states a prune takes: not running, not on the way there or
+    /// back (`stopping` still holds its volumes).
+    private static let prunableStates: Set<String> = ["stopped", "exited", "created", "dead"]
+
+    /// A container created less than `pruneUnstartedGrace` ago that has never
+    /// started. One whose creation date cannot be read is not shown fresh.
+    private func isFreshUnstarted(_ container: Micropod_V1_Container, now: Date) async -> Bool {
+        guard let created = parseDate(container.createdAt),
+            now.timeIntervalSince(created) < config.pruneUnstartedGrace
+        else { return false }
+        // Unknown (inspect failed) keeps it: a prune never deletes on a guess.
+        guard let raw = try? await containers.inspect(container.id) else { return true }
+        return !DockerMapper.hasEverStarted(rawInspect: raw)
     }
 
     struct ContainersPruneResponse: Encodable {
@@ -1673,7 +1728,14 @@ final class Router: @unchecked Sendable {
         return try await resolveContainer(ref).id
     }
 
+    /// Whether the runtime answered "no such object". Coded answers — the
+    /// apiserver's `notFound: …` XPC errors and the native backend's own
+    /// misses (native backend), `Error: notFound: …` lines and their
+    /// `(cause: "notFound: …")` chains (CLI) — go through the classification
+    /// table the Connect API uses (`ConnectCodeMapping`), so the two surfaces
+    /// cannot disagree. The CLI's uncoded phrasings follow.
     static func isNotFound(_ error: Error) -> Bool {
+        if ConnectCodeMapping.code(for: error) == "not_found" { return true }
         if case MicropodError.cliFailure(_, _, let stderr) = error {
             let text = stderr.lowercased()
             // Covers the real CLI ("image not found: …", "container … not
@@ -1935,26 +1997,76 @@ final class Router: @unchecked Sendable {
     /// Returning early to dodge that is worse — the CLI reads "exited" for a
     /// container that has not run and skips `/start` entirely, silently
     /// leaving a created-but-dead container behind.
+    ///
+    /// Like dockerd, a container that is already gone (and left no exit code
+    /// behind) is a 404 before any headers; once the headers are out, a
+    /// failure can only travel in the body's `Error.Message`.
     private func containerWait(_ id: String, _ request: ShimRequest) async throws -> ShimResponse {
         let target = try await resolveID(id)
+        // Taken before anything else: a refusal recorded from here on is one
+        // this wait saw happen.
+        let mark = await state.refusalMark()
+        let first = await inspectOutcome(target)
+        if case .failure(let error) = first, Self.isNotFound(error),
+            await state.exitCode(for: target) == nil
+        {
+            throw ShimError.notFound("No such container: \(id)")
+        }
         let (stream, continuation) = AsyncStream<Data>.makeStream()
-        Task.detached(priority: .userInitiated) { [self] in
+        let waiter = Task.detached(priority: .userInitiated) { [self] in
             defer { continuation.finish() }
-            let result = await waitForExit(target: target, request: request)
+            guard
+                let result = await waitForExit(
+                    target: target, request: request, first: first, refusalMark: mark)
+            else { return }
             continuation.yield(result)
         }
+        // The stream terminates when the client goes (the server stops
+        // iterating it): the wait stops polling, and has nothing to write.
+        continuation.onTermination = { _ in waiter.cancel() }
         return .stream(200, [("Content-Type", "application/json")], stream)
     }
 
+    /// One flat-cost single-container inspect (not a full-list scan).
+    private func inspectOutcome(_ target: String) async -> Result<Data, Error> {
+        do {
+            return .success(try await containers.inspect(target))
+        } catch {
+            return .failure(error)
+        }
+    }
+
     /// Blocks until the container has actually run and exited, then renders
-    /// the `WaitResult` JSON.
-    private func waitForExit(target: String, request: ShimRequest) async -> Data {
+    /// the `WaitResult` JSON. `first` is the inspect `containerWait` already
+    /// made; every later poll inspects afresh. Nil once cancelled: the
+    /// client has gone.
+    ///
+    /// A refused start ends the wait (no exit is coming). For `next-exit`
+    /// and `removed` — the conditions the docker CLI waits on before it
+    /// sends `/start` — only a refusal recorded after `refusalMark` (taken
+    /// when the wait began) counts: an older one belongs to an earlier
+    /// start, and the retry this wait precedes has not been sent yet. A
+    /// `not-running` wait also ends on a refusal still standing from before
+    /// it: nothing has started the container since.
+    private func waitForExit(
+        target: String, request: ShimRequest, first: Result<Data, Error>, refusalMark: UInt64
+    ) async -> Data? {
         let condition = request.q("condition").isEmpty ? "not-running" : request.q("condition")
-        _ = condition
+        let refusalsAfter: UInt64? = condition == "not-running" ? nil : refusalMark
+        let clock = ContinuousClock()
+        var outcome = first
+        // The current run of consecutive failed inspects (see ShimConfig).
+        var failures = 0
+        var failingSince: ContinuousClock.Instant?
         while true {
-            // Flat-cost single-container inspect instead of full-list scans.
-            do {
-                let raw = try await containers.inspect(target)
+            switch outcome {
+            case .success(let raw):
+                failures = 0
+                failingSince = nil
+                // Only a mapped container that ran and exited ends the wait
+                // here. Still running, or an unmappable (transitional) shape,
+                // polls again — never report an exit on a maybe-alive
+                // container.
                 if let container = DockerMapper.container(fromRawInspect: raw) {
                     let stateName = DockerMapper.stateName(container.state)
                     // "stopped" covers both never-run and ran-and-exited; only the
@@ -1965,6 +2077,10 @@ final class Router: @unchecked Sendable {
                     // container reaches "stopped"; returning now would report 0
                     // for a failed container.
                     let awaitingExitCode = AttachRegistry.shared.isRunning(containerID: target)
+                    // Refused and never run: no exit is coming.
+                    if neverRan, let refusal = await state.startRefusal(for: target, after: refusalsAfter) {
+                        return Self.refusedWait(target, refusal)
+                    }
                     if stateName != "running" && !neverRan && !awaitingExitCode {
                         // The runtime omits exit codes for stopped containers;
                         // assume a clean exit unless an event captured one.
@@ -1974,30 +2090,69 @@ final class Router: @unchecked Sendable {
                             WaitResult(StatusCode: parsed ?? remembered ?? 0, Error: nil))
                     }
                 }
-                // Inspect succeeded but unmappable (transitional shape): retry
-                // below — never report an exit on a maybe-alive container.
-            } catch {
+            case .failure(let error):
                 if Self.isNotFound(error) {
                     // Gone from the runtime entirely. For `condition=removed`
                     // that IS the awaited outcome; otherwise report the last
                     // exit code we captured rather than hanging on a container
                     // that no longer exists.
                     let remembered = await state.exitCode(for: target)
+                    if remembered == nil,
+                        let refusal = await state.startRefusal(for: target, after: refusalsAfter)
+                    {
+                        return Self.refusedWait(target, refusal)
+                    }
                     return Self.encodeBody(WaitResult(StatusCode: remembered ?? 0, Error: nil))
                 }
-                // Transient CLI failure (timeout, wedged apiserver): keep
-                // polling. A single hiccup must never surface as StatusCode 0
-                // for a healthy running container — that phantom exit aborts
-                // wait-strategy clients (e.g. testcontainers readiness).
+                // Transient failure (timeout, wedged apiserver): keep polling,
+                // within bounds. A single hiccup must never surface as
+                // StatusCode 0 for a healthy running container — that phantom
+                // exit aborts wait-strategy clients (e.g. testcontainers
+                // readiness) — and an endless run of them must not hold the
+                // client forever either: past the bound the wait fails.
+                failures += 1
+                let since = failingSince ?? clock.now
+                failingSince = since
+                let failingFor = since.duration(to: clock.now)
+                if failures >= config.waitInspectFailureLimit || failingFor >= config.waitInspectFailureWindow {
+                    let message =
+                        "wait for \(target): the runtime failed to inspect the container "
+                        + "\(failures) consecutive times over \(failingFor): \(error)"
+                    fputs("[shim] \(message); failing the wait\n", stderr)
+                    return Self.encodeBody(
+                        WaitResult(StatusCode: WaitResult.noExitStatus, Error: WaitError(Message: message)))
+                }
                 fputs("[shim] wait \(target): transient inspect error, retrying: \(error)\n", stderr)
             }
-            try? await Task.sleep(for: .milliseconds(200))
+            try? await Task.sleep(for: config.waitPollInterval)
+            if Task.isCancelled { return nil }
+            outcome = await inspectOutcome(target)
+            if Task.isCancelled { return nil }
         }
     }
 
+    /// The failed wait of a container whose start the runtime refused.
+    private static func refusedWait(_ target: String, _ refusal: String) -> Data {
+        encodeBody(
+            WaitResult(
+                StatusCode: WaitResult.noExitStatus,
+                Error: WaitError(Message: "container \(target) did not start: \(refusal)")))
+    }
+
+    /// Docker's `ContainerWaitResponse`. `Error` is an object
+    /// (`{"Message": …}`), omitted when the wait succeeded; a client
+    /// receiving it treats the wait as failed (the docker CLI exits 125).
     struct WaitResult: Codable {
         var StatusCode: Int
-        var Error: String?
+        var Error: WaitError?
+
+        /// The code a failed wait carries: there is no exit status to
+        /// report, and it must never read as success.
+        static let noExitStatus = -1
+    }
+
+    struct WaitError: Codable {
+        var Message: String
     }
 
     private func containerLogs(_ id: String, _ request: ShimRequest) async throws -> ShimResponse {
@@ -2020,7 +2175,13 @@ final class Router: @unchecked Sendable {
             // this, every follow leaks a Task AND an Apple CLI process
             // forever (Apple `logs -f` never exits on its own).
             let pumpBox = PumpBox()
-            continuation.onTermination = { _ in pumpBox.task?.cancel() }
+            // The death watch polls the runtime: it stops too once the
+            // stream has ended (a follower that left ends it early).
+            let watchBox = PumpBox()
+            continuation.onTermination = { _ in
+                pumpBox.task?.cancel()
+                watchBox.task?.cancel()
+            }
             pumpBox.task = Task.detached(priority: .userInitiated) {
                 defer { gate.finish(continuation) }
                 do {
@@ -2031,10 +2192,11 @@ final class Router: @unchecked Sendable {
                     }
                 } catch {}
             }
-            Task.detached(priority: .utility) {
+            watchBox.task = Task.detached(priority: .utility) {
                 let containers = self.containers
                 while !Task.isCancelled {
                     try? await Task.sleep(for: .milliseconds(500))
+                    if Task.isCancelled { break }
                     guard
                         let raw = try? await containers.inspect(containerID),
                         let container = DockerMapper.container(fromRawInspect: raw),
@@ -2093,40 +2255,170 @@ final class Router: @unchecked Sendable {
     /// Starts `id`, streaming into a hijacked connection if `/attach` parked
     /// one for it. The attached form is what surfaces the container's real
     /// exit code — a detached start leaves it unknowable (see AttachSession).
+    ///
+    /// Returns only once the runtime's start has settled, as dockerd's
+    /// `/start` does: a start the runtime refuses throws its refusal
+    /// (`startError`) instead of a 204 the client would take as a running
+    /// container — whose `/wait` would then never end.
     private func startPossiblyAttached(_ id: String) async throws {
+        let wasStarted = await state.hasStarted(id: id)
         await state.markStarted(id: id)
         // A (re)start resets health supervision immediately (the events loop
         // re-baselines on the observed transition as well).
         await state.resetHealth(id: id)
         guard let connection = AttachRegistry.shared.claim(containerID: id) else {
             fputs("[shim] start \(id): no parked attach, detached start\n", stderr)
-            try await containers.start(id)
+            do {
+                try await containers.start(id)
+            } catch {
+                throw await refuseStart(id, error, wasStarted: wasStarted)
+            }
             return
         }
         fputs("[shim] start \(id): claimed parked attach\n", stderr)
         let tty = await state.createRequest(for: id)?.Tty ?? false
+        // The start stamp before this start: a stamp other than this one
+        // afterwards means the container ran (see `hasRun`).
+        let baseline = try? DockerMapper.startedDate(rawInspect: await containers.inspect(id))
+        let containers = self.containers
+        let state = self.state
+        // Marked before launch so the events loop never sees the window
+        // between /start and the container actually running as an exit.
+        await state.markAttachRunning(id: id)
+        let session = AttachSession(
+            cliPath: cliPath, containerID: id, tty: tty, state: state,
+            onExit: { _ in
+                await state.clearAttachRunning(id: id)
+                guard let create = await state.createRequest(for: id),
+                    create.HostConfig?.AutoRemove == true
+                else { return }
+                try? await containers.delete(id, force: true)
+            })
         do {
-            let containers = self.containers
-            let state = self.state
-            // Marked before launch so the events loop never sees the window
-            // between /start and the container actually running as an exit.
-            await state.markAttachRunning(id: id)
-            let session = AttachSession(
-                cliPath: cliPath, containerID: id, tty: tty, state: state,
-                onExit: { _ in
-                    await state.clearAttachRunning(id: id)
-                    guard let create = await state.createRequest(for: id),
-                        create.HostConfig?.AutoRemove == true
-                    else { return }
-                    try? await containers.delete(id, force: true)
-                })
             try session.launchAndPump(connection: connection)
         } catch {
             // Never strand the client on a dead hijack.
             await state.clearAttachRunning(id: id)
             connection.close()
-            throw error
+            throw await refuseStart(id, error, wasStarted: wasStarted)
         }
+        // Unstructured: the settle must finish (and settle the session) even
+        // if this request's task is cancelled.
+        let settlement = await Task.detached { [self] in
+            await settleAttachedStart(id, session: session, baseline: baseline)
+        }.value
+        switch settlement {
+        case .started:
+            session.admit()
+        case .refused(let error):
+            session.refuse()
+            await state.clearAttachRunning(id: id)
+            throw await refuseStart(id, error, wasStarted: wasStarted)
+        }
+    }
+
+    private enum StartSettlement: Sendable {
+        case started
+        case refused(MicropodError)
+    }
+
+    /// Waits for an attached start to settle. `container start --attach` IS
+    /// the start: when the runtime refuses it, the CLI prints its `Error:`
+    /// line and exits without the container ever running. So the start went
+    /// through once the container is seen to have run since `baseline`, and
+    /// was refused once the CLI has exited and the container has not run (or
+    /// is gone). The exit is read before each inspect, so an exit racing the
+    /// inspect is judged by the next one. Bounded by `startSettleTimeout`:
+    /// past it the CLI is stopped and the start fails.
+    private func settleAttachedStart(
+        _ id: String, session: AttachSession, baseline: String?
+    ) async -> StartSettlement {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: config.startSettleTimeout)
+        while true {
+            let exit = session.exitCode
+            switch await inspectOutcome(id) {
+            case .success(let raw):
+                if Self.hasRun(raw, since: baseline) { return .started }
+                if let exit { return .refused(session.failure(exitCode: exit)) }
+            case .failure(let error):
+                if let exit, Self.isNotFound(error) { return .refused(session.failure(exitCode: exit)) }
+            }
+            if clock.now >= deadline {
+                session.terminate()
+                return .refused(
+                    .message("container \(id) did not start within \(config.startSettleTimeout)"))
+            }
+            try? await Task.sleep(for: config.startSettlePollInterval)
+        }
+    }
+
+    /// Whether `raw` (a runtime inspect) shows a start newer than `baseline`:
+    /// the container running now, or a start stamp other than the one it had
+    /// before this `/start` (the runtime restamps `startedDate` on every start
+    /// and keeps it after the container stops, so a run too short to be seen
+    /// running still shows).
+    static func hasRun(_ raw: Data, since baseline: String?) -> Bool {
+        if let container = DockerMapper.container(fromRawInspect: raw),
+            DockerMapper.stateName(container.state) == "running"
+        {
+            return true
+        }
+        guard let stamp = DockerMapper.startedDate(rawInspect: raw) else { return false }
+        return stamp != baseline
+    }
+
+    /// A start the runtime refused: logged with the runtime's words, recorded
+    /// so a pending `/wait` ends with it, and — as dockerd does — an
+    /// AutoRemove container is removed (the docker CLI's `run --rm` waits for
+    /// that removal after reporting the start error). Returns the Docker
+    /// error for the start response.
+    private func refuseStart(_ id: String, _ error: Error, wasStarted: Bool) async -> ShimError {
+        let refusal = Self.startError(error, id: id)
+        let message = Self.runtimeMessage(error)
+        fputs("[shim] start \(id): refused (\(refusal.status)): \(message)\n", stderr)
+        await state.noteStartRefused(id: id, message: message, wasStarted: wasStarted)
+        if let create = await state.createRequest(for: id), create.HostConfig?.AutoRemove == true,
+            (try? await containers.delete(id, force: true)) != nil
+        {
+            await state.forget(id: id)
+        }
+        await readCache.invalidateContainers()
+        return refusal
+    }
+
+    /// A refused start as Docker reports it, classified by the table the
+    /// Connect API uses (`ConnectCodeMapping`): `failed_precondition` (the
+    /// RW multi-attach guard) and `already_exists` are 409 Conflict,
+    /// `invalid_argument` 400, a missing container 404, anything else 500 —
+    /// each with the runtime's own message.
+    static func startError(_ error: Error, id: String) -> ShimError {
+        if let error = error as? ShimError { return error }
+        let message = runtimeMessage(error)
+        switch ConnectCodeMapping.code(for: error) {
+        case "failed_precondition", "already_exists":
+            return .conflict(message)
+        case "invalid_argument":
+            return .badRequest(message)
+        default:
+            if isNotFound(error) { return .notFound("No such container: \(id)") }
+            return .internalError(message)
+        }
+    }
+
+    /// The runtime's own words for a failure: a CLI's `Error:` line rather
+    /// than the "`cmd` failed (exit N)" wrapper, else the error's description.
+    static func runtimeMessage(_ error: Error) -> String {
+        if case MicropodError.cliFailure(_, _, let stderr) = error {
+            let prefix = "Error: "
+            for line in stderr.split(whereSeparator: \.isNewline) {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if trimmed.hasPrefix(prefix) { return String(trimmed.dropFirst(prefix.count)) }
+            }
+            let text = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !text.isEmpty { return text }
+        }
+        return (error as? LocalizedError)?.errorDescription ?? "\(error)"
     }
 
     /// Docker query flags arrive as "1"/"true"/"True" depending on the client.
@@ -2615,17 +2907,85 @@ final class Router: @unchecked Sendable {
         return .status(204)
     }
 
-    private func volumePrune() async throws -> ShimResponse {
-        let before = try await volumes.list()
-        _ = try await volumes.prune()
-        let after = try await volumes.list()
-        await readCache.invalidateVolumes()
-        let afterIDs = Set(after.map { $0.id })
-        let deleted = before.filter { !afterIDs.contains($0.id) }
+    /// POST /volumes/prune — unused volumes the `filters` admit (`label`,
+    /// `label!`, `dangling`, Docker semantics; see `PruneFilters`), never a
+    /// golden.
+    private func volumePrune(_ request: ShimRequest) async throws -> ShimResponse {
+        let filters = try PruneFilters(json: request.query["filters"], accepted: PruneFilters.volumeKeys)
+        let deleted = try await pruneVolumes(filters)
         return Self.encode(
             VolumesPruneResponse(
                 volumesDeleted: deleted.map { $0.id },
                 spaceReclaimed: Int(deleted.reduce(0) { $0 + $1.sizeBytes })))
+    }
+
+    /// Deletes the volumes no container uses that `filters` admits, except
+    /// those a clone refers to (`cloneSources`), one by one; returns the
+    /// volumes it deleted. Fails closed: without the volume list, the
+    /// container list and the clone root, nothing is deleted.
+    private func pruneVolumes(_ filters: PruneFilters) async throws -> [Micropod_V1_Volume] {
+        async let listedVolumes = volumes.list()
+        async let listedContainers = containers.list()
+        let (all, containerList) = try await (listedVolumes, listedContainers)
+        let report = try await usage().report(
+            prefetchedContainers: containerList, prefetchedImages: [], prefetchedVolumes: all)
+        let goldens = try Self.cloneSources(
+            containers: containerList, volumes: all, policy: VolumePolicyStore.load())
+        var deleted: [Micropod_V1_Volume] = []
+        if filters.dangling != false {
+            for usage in report.volumes
+            where !usage.inUse && !goldens.contains(usage.volume.id) && filters.admits(labels: usage.volume.labels) {
+                // Looked at again right before the delete: a clone placed
+                // since the snapshot makes this a golden.
+                if try Self.hasCloneImage(of: usage.volume.id) { continue }
+                do {
+                    try await volumes.delete(usage.volume.id)
+                    deleted.append(usage.volume)
+                } catch {
+                    fputs("[shim] prune: could not delete volume \(usage.volume.id): \(error)\n", stderr)
+                }
+            }
+        }
+        await readCache.invalidateVolumes()
+        return deleted
+    }
+
+    /// Volumes a clone refers to — goldens, which a prune never takes, since
+    /// no container attaches them by name: every volume with a per-container
+    /// clone image under `VolumeClone.cloneRoot` (a live clone, one a create
+    /// is placing, one a commit may still promote), every volume a container
+    /// names in `com.micropod.cache.clone`, every source a `CloneVolume` copy
+    /// names in `com.micropod.clone-of`, and the volume policy's goldens.
+    static func cloneSources(
+        containers: [Micropod_V1_Container], volumes: [Micropod_V1_Volume], policy: VolumePolicy
+    ) throws -> Set<String> {
+        var sources = Set(policy.goldenVolumes)
+        for dir in try cloneDirs() { sources.formUnion(VolumeClone.clonedVolumes(containerID: dir)) }
+        for container in containers {
+            sources.formUnion(VolumePolicy.standard.cloneSet(labels: container.labels).subtracting(["*"]))
+        }
+        for volume in volumes {
+            if let source = volume.labels[VolumeClone.cloneOfLabel], !source.isEmpty { sources.insert(source) }
+        }
+        return sources
+    }
+
+    /// Whether any container's clone dir holds a clone image of `volume`.
+    static func hasCloneImage(of volume: String) throws -> Bool {
+        try cloneDirs().contains { VolumeClone.clonedVolumes(containerID: $0).contains(volume) }
+    }
+
+    /// The per-container dirs under `VolumeClone.cloneRoot` (none when it
+    /// does not exist). A root that exists but cannot be read fails the
+    /// prune: without it no golden can be told apart.
+    private static func cloneDirs() throws -> [String] {
+        let root = VolumeClone.cloneRoot.path
+        guard FileManager.default.fileExists(atPath: root) else { return [] }
+        do {
+            return try FileManager.default.contentsOfDirectory(atPath: root)
+        } catch {
+            throw ShimError.internalError("prune: cannot read the volume clone root \(root): \(error)")
+        }
     }
 
     struct VolumesPruneResponse: Encodable {

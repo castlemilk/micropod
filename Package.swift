@@ -173,7 +173,7 @@ let package = Package(
         ),
         .testTarget(
             name: "MicropodDockerShimTests",
-            dependencies: ["MicropodCore", "MicropodDockerShim", "MicropodSharedFS"],
+            dependencies: ["MicropodCore", "MicropodDockerShim", "MicropodRuntime", "MicropodSharedFS"],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]

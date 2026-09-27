@@ -4,30 +4,59 @@ import MicropodRuntime
 
 /// Route + JSON-projection layer over the MicropodCore services.
 /// Responses use stable JSON keys that mirror the curated proto models.
-struct APIHandlers {
+final class APIHandlers: Sendable {
+    /// The container CLI client, for services that run the CLI directly.
     let client: ContainerCLIClient
     let system: SystemService
-    let containers: any ContainerServing
     let images: ImageService
-    let volumes: VolumeService
     let networks: NetworkService
-    let stats: any StatsSampling
-    let logs: any LogStreaming
     let compose: ComposeService
-    /// Native apiserver client when the native backend is active —
-    /// powers the vsock bridge endpoint.
-    let api: APIServerClient?
-    /// Which runtime backend resolved at startup (native XPC vs CLI).
-    var backend: RuntimeBackendKind = .cli
-    /// Apiserver identity from the resolve-time ping, when known.
-    var runtimeHealth: APIServerHealth?
+    /// The runtime-facing services: containers, logs, stats, volumes (native
+    /// XPC or CLI), the native apiserver client (vsock bridge) and its
+    /// exit-code registry. Resolved at start-up and swapped from CLI to
+    /// native when the runtime comes up later — `Ping`, `GetSystem` and
+    /// `GET /v1/system` re-resolve (rate-limited), a transport error forces
+    /// it. Every request reads one snapshot and uses it throughout, so a swap
+    /// never splits a request across backends; `runtime_backend` reports the
+    /// snapshot's kind, which lets clients tell "running through the CLI"
+    /// from "running natively" and refuse to benchmark against the former.
+    let runtime: RuntimeHolder
     let metrics = APIMetrics()
     let appControl = AppControlClient()
+
+    init(
+        client: ContainerCLIClient,
+        system: SystemService,
+        images: ImageService,
+        networks: NetworkService,
+        compose: ComposeService,
+        runtime: RuntimeHolder
+    ) {
+        self.client = client
+        self.system = system
+        self.images = images
+        self.networks = networks
+        self.compose = compose
+        self.runtime = runtime
+    }
+
+    /// The k8s engine drives the CLI directly (it manages its own micro-VM).
     var k8s: K8sService {
         K8sService(client: client)
     }
-    var usage: UsageService {
-        UsageService(containers: containers, images: images, volumes: volumes)
+
+    func usage(_ services: RuntimeServices) -> UsageService {
+        UsageService(containers: services.containers, images: images, volumes: services.volumes)
+    }
+
+    /// A transport error means the native backend's XPC connection may be
+    /// gone for good: re-resolve without delaying the `unavailable` answer
+    /// already on its way. The holder ignores it unless the backend can be
+    /// replaced (CLI, or an invalidated connection).
+    func scheduleRecovery(after error: Error) {
+        guard case MicropodError.transport = error else { return }
+        let runtime = self.runtime
+        Task { _ = await runtime.refreshIfNeeded(force: true) }
     }
 
     func handle(_ request: HTTPRequest) async -> HTTPResponse {
@@ -87,12 +116,17 @@ struct APIHandlers {
 
         guard segments.first == "v1" else { return .json(404, ["error": "not found"]) }
         let resource = segments.count > 1 ? segments[1] : ""
+        // `GET /v1/system` is the REST liveness read: like Ping/GetSystem it
+        // gives a CLI-started API the chance to swap to native first.
+        let services =
+            resource == "system" && method == .get && segments.count == 2
+            ? await runtime.refreshIfNeeded() : await runtime.current
 
         do {
             switch (resource, method) {
             // MARK: System
             case ("usage", .get):
-                let report = try await usage.report()
+                let report = try await usage(services).report()
                 return .json(
                     200,
                     [
@@ -150,48 +184,54 @@ struct APIHandlers {
 
             case ("system", .get):
                 let status = try await system.status()
-                let usage = try await system.diskUsage()
                 var body: [String: Any] = [
                     "status": status.status,
                     "cliVersion": status.cliVersion,
                     "apiServerVersion": status.apiServerVersion,
                     "appRoot": status.appRoot,
-                    "backend": backend.rawValue,
-                    "diskUsage": projection(usage),
+                    // `backend` is the pre-Connect key; `runtimeBackend`
+                    // matches the proto field name.
+                    "backend": services.kind.rawValue,
+                    "runtimeBackend": services.kind.rawValue,
                 ]
-                if let runtimeHealth {
-                    body["runtimeVersion"] = runtimeHealth.semver ?? runtimeHealth.apiServerVersion
-                    body["runtimeCommit"] = runtimeHealth.apiServerCommit
+                // A stopped runtime has no `df` to report — and asking would
+                // turn a clean "stopped" into a CLI failure.
+                if status.status != "stopped" {
+                    body["diskUsage"] = projection(try await system.diskUsage())
+                }
+                if let health = services.health {
+                    body["runtimeVersion"] = health.semver ?? health.apiServerVersion
+                    body["runtimeCommit"] = health.apiServerCommit
                 }
                 return .json(200, body)
 
             // MARK: Containers
             case ("containers", .get) where segments.count == 2:
-                let list = try await containers.list()
+                let list = await withExitCodes(try await services.containers.list(), from: services.exitCodes)
                 return .json(200, ["containers": list.map(projection)])
 
             case ("containers", .post) where segments.count == 2:
-                let id = try await containers.run(try runRequest(from: request.body))
+                let id = try await services.containers.run(try runRequest(from: request.body))
                 return .json(201, ["id": id])
 
             case ("containers", .post) where segments.count == 3 && segments[2] == "create":
-                let id = try await containers.create(try runRequest(from: request.body))
+                let id = try await services.containers.create(try runRequest(from: request.body))
                 return .json(201, ["id": id])
 
             case ("containers", .post)
             where segments.count == 4 && ["start", "stop", "restart", "kill"].contains(segments[3]):
                 let id = segments[2]
                 switch segments[3] {
-                case "start": try await containers.start(id)
-                case "stop": try await containers.stop(id)
-                case "restart": try await containers.restart(id)
-                default: try await containers.kill(id)
+                case "start": try await services.containers.start(id)
+                case "stop": try await services.containers.stop(id)
+                case "restart": try await services.containers.restart(id)
+                default: try await services.containers.kill(id)
                 }
                 return .json(200, ["id": id, "action": segments[3]])
 
             case ("containers", .delete) where segments.count == 3:
                 let id = segments[2]
-                try await containers.delete(id, force: request.query["force"] == "true")
+                try await services.containers.delete(id, force: request.query["force"] == "true")
                 return .json(200, ["deleted": id])
 
             // GET /v1/containers/:id/vsock/:port — raw duplex byte stream to
@@ -199,7 +239,7 @@ struct APIHandlers {
             // net.Conn-equivalent; run gRPC (vminitd on :1024) over it.
             case ("containers", .get)
             where segments.count == 5 && segments[3] == "vsock":
-                guard let api else {
+                guard let api = services.api else {
                     return .json(
                         501, ["error": "vsock bridge requires the native runtime backend"])
                 }
@@ -215,7 +255,7 @@ struct APIHandlers {
             case ("containers", .get) where segments.count == 4 && segments[3] == "logs":
                 let id = segments[2]
                 let tail = Int(request.string("tail")) ?? 100
-                let stream = logs.stream(id: id, tail: tail, boot: request.string("boot") == "true")
+                let stream = services.logs.stream(id: id, tail: tail, boot: request.string("boot") == "true")
                 return .stream(
                     200, "text/event-stream",
                     AsyncStream { continuation in
@@ -241,7 +281,8 @@ struct APIHandlers {
                 let reference = payload["reference"] as? String ?? ""
                 guard !reference.isEmpty else { return .json(400, ["error": "reference is required"]) }
                 var lastLine = ""
-                for try await event in images.pull(reference, platform: nil) {
+                // No platform pulls linux/<host arch> (see ImageService.pull).
+                for try await event in images.pull(reference, platform: payload["platform"] as? String) {
                     lastLine = event.line
                 }
                 return .json(200, ["pulled": reference, "lastLine": lastLine])
@@ -253,19 +294,19 @@ struct APIHandlers {
 
             // MARK: Volumes
             case ("volumes", .get) where segments.count == 2:
-                let list = try await volumes.list()
+                let list = try await services.volumes.list()
                 return .json(200, ["volumes": list.map(projection)])
 
             case ("volumes", .post) where segments.count == 2:
                 let payload = try decodeBody(request.body)
                 let name = payload["name"] as? String ?? ""
                 guard !name.isEmpty else { return .json(400, ["error": "name is required"]) }
-                try await volumes.create(name: name, size: payload["size"] as? String)
+                try await services.volumes.create(name: name, size: payload["size"] as? String, labels: [], options: [])
                 return .json(201, ["name": name])
 
             case ("volumes", .delete) where segments.count == 3:
                 let name = segments[2].removingPercentEncoding ?? segments[2]
-                try await volumes.delete(name)
+                try await services.volumes.delete(name)
                 return .json(200, ["deleted": name])
 
             // MARK: Volume policy (native backend mount handling)
@@ -308,7 +349,7 @@ struct APIHandlers {
 
             // MARK: Stats
             case ("stats", .get):
-                let snapshot = try await stats.snapshot()
+                let snapshot = try await services.stats.snapshot()
                 return .json(200, ["containers": snapshot.containers.map(projection), "sampledAt": snapshot.sampledAt])
 
             // MARK: Compose
@@ -449,7 +490,7 @@ struct APIHandlers {
                 guard !id.isEmpty, !command.isEmpty else {
                     return .json(400, ["error": "id and command are required"])
                 }
-                let result = try await containers.execDetailed(
+                let result = try await services.containers.execDetailed(
                     ContainerExecRequest(containerID: id, arguments: [command], workdir: payload["workdir"] as? String))
                 return .json(
                     200,
@@ -462,10 +503,16 @@ struct APIHandlers {
             default:
                 return .json(404, ["error": "not found: \(method.rawValue) \(path)"])
             }
+        } catch let error as BadRequest {
+            return .json(400, ["error": error.message])
         } catch let error as AppControlError {
             // App down / socket broken / updater refused → service unavailable.
             return .json(503, ["error": error.localizedDescription])
         } catch let error as MicropodError {
+            scheduleRecovery(after: error)
+            if case .transport = error {
+                return .json(503, ["error": error.localizedDescription])
+            }
             return .json(500, ["error": error.localizedDescription])
         } catch {
             return .json(500, ["error": error.localizedDescription])
@@ -496,6 +543,20 @@ struct APIHandlers {
         let labels: [LabelSpec] = ((payload["labels"] as? [String: String]) ?? [:]).map {
             LabelSpec(key: $0.key, value: $0.value)
         }
+        let volumes = (payload["volumes"] as? [String]) ?? []
+        // Container ids and volume names are clone-path components
+        // (`<cloneRoot>/<id>/<volume>.img`) that reach the clone-dir
+        // lifecycle before the runtime validates them: the runtime's id
+        // grammar (names) and volume grammar (named volumes; no 63-character
+        // cap) are enforced before dispatch (`VolumeClone.requireSafeComponent`
+        // and `requireSafeVolumeName` guard the paths themselves).
+        if let name = payload["name"] as? String, !VolumeClone.isSafeComponent(name) {
+            throw BadRequest(message: "name '\(name)' must match \(VolumeClone.componentGrammar)")
+        }
+        let named = VolumeAttachments.namedVolumes(in: volumes)
+        if let volume = named.first(where: { !VolumeClone.isSafeVolumeName($0) }) {
+            throw BadRequest(message: "volume name '\(volume)' must match \(VolumeClone.volumeNameGrammar)")
+        }
         return ContainerRunRequest(
             image: payload["image"] as? String ?? "",
             name: payload["name"] as? String,
@@ -504,7 +565,7 @@ struct APIHandlers {
             memory: payload["memory"] as? String,
             env: env,
             publishedPorts: ports,
-            volumes: (payload["volumes"] as? [String]) ?? [],
+            volumes: volumes,
             labels: labels,
             useInit: (payload["init"] as? Bool) ?? false,
             arguments: (payload["arguments"] as? [String]) ?? [])
@@ -542,6 +603,7 @@ struct APIHandlers {
         [
             "id": container.id,
             "state": container.state,
+            "exitCode": container.exitCode,
             "image": container.image,
             "createdAt": container.createdAt,
             "ipv4Address": container.ipv4Address,
@@ -584,7 +646,8 @@ struct APIHandlers {
     private func projection(_ volume: Micropod_V1_Volume) -> [String: Any] {
         [
             "id": volume.id, "driver": volume.driver, "format": volume.format,
-            "sizeBytes": volume.sizeBytes, "source": volume.source, "createdAt": volume.createdAt,
+            "sizeBytes": volume.sizeBytes, "allocatedBytes": volume.allocatedBytes,
+            "source": volume.source, "createdAt": volume.createdAt,
             "labels": volume.labels,
         ]
     }
@@ -626,4 +689,9 @@ struct APIHandlers {
             "totalReclaimableBytes": usage.totalReclaimableBytes,
         ]
     }
+}
+
+/// A request the REST handlers refuse before it reaches a service — `400`.
+private struct BadRequest: Error {
+    let message: String
 }

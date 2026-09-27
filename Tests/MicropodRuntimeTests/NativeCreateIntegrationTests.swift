@@ -410,13 +410,29 @@ final class NativeCreateIntegrationTests: XCTestCase {
         XCTAssertEqual(state, "stopped")
     }
 
-    /// Native prune = list(stopped) → diskUsage → delete.
-    func testPruneRemovesStoppedOnly() async throws {
-        let stopped = try await service.create(
+    /// Native prune = list(stopped) → diskUsage → delete. The runtime lists
+    /// a created, never-started container as `stopped` too; prune keeps one
+    /// created moments ago (its client's start may be on the way —
+    /// `isPrunable`) and takes one that ran and exited.
+    ///
+    /// Prunes every other stopped container on the machine as well.
+    func testPruneRemovesExitedKeepsRunningAndFreshlyCreated() async throws {
+        let exited = try await createStarted(
             ContainerRunRequest(
-                image: image, name: "ncprune-s-\(UUID().uuidString.prefix(8))",
+                image: image, name: "ncprune-x-\(UUID().uuidString.prefix(8))",
+                arguments: ["true"]))
+        let deadline = ContinuousClock.now + .seconds(30)
+        while try await stateOf(exited) != "stopped" {
+            guard ContinuousClock.now < deadline else {
+                return XCTFail("\(exited) did not exit within 30 s")
+            }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        let fresh = try await service.create(
+            ContainerRunRequest(
+                image: image, name: "ncprune-f-\(UUID().uuidString.prefix(8))",
                 arguments: ["sleep", "60"]))
-        createdIDs.append(stopped)
+        createdIDs.append(fresh)
         let running = try await createStarted(
             ContainerRunRequest(
                 image: image, name: "ncprune-r-\(UUID().uuidString.prefix(8))",
@@ -424,11 +440,13 @@ final class NativeCreateIntegrationTests: XCTestCase {
 
         _ = try await service.prune()
 
-        let stoppedState = try await stateOf(stopped)
+        let exitedState = try await stateOf(exited)
+        let freshState = try await stateOf(fresh)
         let runningState = try await stateOf(running)
-        XCTAssertEqual(stoppedState, "missing", "stopped container must be pruned")
+        XCTAssertEqual(exitedState, "missing", "a container that ran and exited must be pruned")
+        XCTAssertEqual(freshState, "stopped", "a container created moments ago and never started must survive prune")
         XCTAssertEqual(runningState, "running", "running container must survive prune")
-        createdIDs.removeAll { $0 == stopped }
+        createdIDs.removeAll { $0 == exited }
     }
 
     // MARK: CLI parity

@@ -25,6 +25,13 @@ type RetryPolicy struct {
 	// RetryableCodes — Connect codes worth retrying (default: unavailable,
 	// deadline_exceeded, resource_exhausted, aborted).
 	RetryableCodes []connect.Code
+	// Idempotent reports whether a procedure (e.g.
+	// "/micropod.v1.ContainerService/GetContainer") may be replayed. nil
+	// means every unary procedure is retried (previous behaviour). Return
+	// false for procedures whose replay is unsafe — CreateContainer,
+	// RunContainer, CommitVolumeClone — because the server cannot observe a
+	// client that gave up: a timed-out attempt still completes server-side.
+	Idempotent func(procedure string) bool
 }
 
 // DefaultRetryPolicy: 3 attempts, 100ms → ~2s backoff with ±25% jitter.
@@ -61,6 +68,9 @@ type retryInterceptor struct {
 
 func (r retryInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+		if r.policy.Idempotent != nil && !r.policy.Idempotent(req.Spec().Procedure) {
+			return next(ctx, req)
+		}
 		attempts := r.policy.MaxAttempts
 		if attempts < 1 {
 			attempts = 1
@@ -105,8 +115,9 @@ func (r retryInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc
 	return next
 }
 
-// timeoutInterceptor applies a default deadline when the incoming context
-// has none or a later one.
+// timeoutInterceptor applies a default deadline to unary calls when the
+// incoming context has none or a later one. Streams are passed through
+// untouched.
 type timeoutInterceptor struct {
 	timeout time.Duration
 }
@@ -124,32 +135,18 @@ func (t timeoutInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc 
 	}
 }
 
+// WrapStreamingClient is a pass-through. Streams never receive a default
+// deadline — a log follow has no sane default; callers bound streams with
+// their own context. (An earlier version wrapped the stream context in
+// WithTimeout and cancelled it from CloseRequest, which connect-go calls
+// before the first Receive on a server stream — every stream died with
+// "context canceled" before delivering a frame.)
 func (t timeoutInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
-	return func(ctx context.Context, spec connect.Spec) connect.StreamingClientConn {
-		if t.timeout > 0 {
-			if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) > t.timeout {
-				var cancel context.CancelFunc
-				ctx, cancel = context.WithTimeout(ctx, t.timeout)
-				return &cancelOnCloseConn{StreamingClientConn: next(ctx, spec), cancel: cancel}
-			}
-		}
-		return next(ctx, spec)
-	}
+	return next
 }
 
 func (t timeoutInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
 	return next
-}
-
-type cancelOnCloseConn struct {
-	connect.StreamingClientConn
-	cancel context.CancelFunc
-}
-
-func (c *cancelOnCloseConn) CloseRequest() error {
-	err := c.StreamingClientConn.CloseRequest()
-	c.cancel()
-	return err
 }
 
 // OTelOption customizes the OpenTelemetry interceptor.

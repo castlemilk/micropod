@@ -283,6 +283,52 @@ final class ContainerCLIClientTests: XCTestCase {
             "A pre-cancelled stream must not spawn the process")
     }
 
+    /// Output a process writes just before it exits reaches the consumer
+    /// before the stream finishes. The exit can be observed before the last
+    /// pipe reads are delivered; the CLI prints its error at exit, and
+    /// `ImageService.pull` reads that line to decide whether to retry.
+    /// Many short processes at once make the late delivery likely.
+    func testStreamYieldsOutputWrittenJustBeforeExit() async throws {
+        let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/bin/sh"))
+        let command = ContainerCommand(arguments: ["-c", "echo first; echo 'Error: last' >&2; exit 1"])
+        var incomplete: [String] = []
+        for _ in 0..<3 {
+            let outputs = await withTaskGroup(of: String.self) { group in
+                for _ in 0..<150 {
+                    group.addTask {
+                        var text = ""
+                        do {
+                            for try await chunk in client.stream(command, reportExitCode: true) {
+                                text += String(decoding: chunk, as: UTF8.self)
+                            }
+                        } catch MicropodError.cliFailure {
+                        } catch {
+                            return "unexpected error: \(error)"
+                        }
+                        return text
+                    }
+                }
+                var all: [String] = []
+                for await text in group { all.append(text) }
+                return all
+            }
+            incomplete += outputs.filter { !($0.contains("first") && $0.contains("Error: last")) }
+        }
+        XCTAssertEqual(incomplete.count, 0, "streams that lost output: \(incomplete.prefix(5))")
+    }
+
+    /// A stream finishes promptly once its process has exited and closed
+    /// its output — the drain adds no fixed delay.
+    func testStreamFinishesPromptlyAfterExit() async throws {
+        let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/bin/sh"))
+        let clock = ContinuousClock()
+        let started = clock.now
+        for _ in 0..<5 {
+            for try await _ in client.stream(ContainerCommand(arguments: ["-c", "echo done"])) {}
+        }
+        XCTAssertLessThan(started.duration(to: clock.now), .milliseconds(1_500))
+    }
+
     private func waitForFile(at url: URL, timeout: Duration) async throws -> Bool {
         let clock = ContinuousClock()
         let deadline = clock.now.advanced(by: timeout)

@@ -7,6 +7,32 @@
 # set of JSON files, so cross-process flows (app / MCP / tests) all share it.
 #
 # Usage: MICROPOD_MOCK_STATE_DIR=<dir> mock-container <subcommand> [...]
+#
+# MICROPOD_MOCK_RUNTIME_STOPPED=1 emulates a stopped runtime (apiserver not
+# registered with launchd), byte-for-byte like `container` 1.3.1:
+#   - `system status --format json` prints {"status":"unregistered"} on
+#     stdout, nothing on stderr, and exits 1 (table mode prints
+#     "apiserver is not running and not registered with launchd").
+#   - every apiserver-backed command (list, inspect, run, stats, system df,
+#     image/volume/network list, ...) fails with the CLI's
+#     `Error: interrupted: "XPC connection error: ..."` text on stderr, exit 1.
+#   - `system version|start|stop|logs|property|kernel` keep working: they
+#     never talk to the apiserver.
+# Creating $STATE_DIR/runtime-stopped does the same from the next
+# invocation on, so a test can stop the runtime under a running server.
+#
+# Every invocation's argv is appended to $STATE_DIR/calls.log, one line per
+# call, each element `printf %q`-quoted and space-joined (so an argument
+# that itself contains spaces stays distinguishable from two arguments).
+# Tests read it to assert exactly what the CLI was asked to do.
+#
+# MICROPOD_MOCK_FOLLOW_LINES (default 1) is how many `logs --follow` lines
+# are emitted after the backlog; 0 makes a follow return the backlog only.
+#
+# MICROPOD_MOCK_NAME_IS_ID=1 gives `run`/`create --name X` the id X, as the
+# real runtime does (its container ids *are* their names), and refuses a
+# second container with that name the way the apiserver does. Off by
+# default: the app and shim suites pin the sequential `mpc-NNNN` ids.
 set -u
 
 STATE_DIR="${MICROPOD_MOCK_STATE_DIR:-${TMPDIR:-/tmp}/micropod-mock-state-$(id -u)}"
@@ -16,14 +42,20 @@ mkdir -p "$STATE_DIR"
 # poller lists at high frequency while tests mutate, and plain `>` redirects
 # truncate files mid-read without this.
 MOCK_LOCK="$STATE_DIR/.invocation-lock"
-mock_lock_attempt=0
-until mkdir "$MOCK_LOCK" 2>/dev/null; do
-    mock_lock_attempt=$((mock_lock_attempt + 1))
-    [ "$mock_lock_attempt" -gt 500 ] && { echo "Error: mock lock timeout" >&2; exit 1; }
-    sleep 0.02
-done
+acquire_mock_lock() {
+    local attempt=0
+    until mkdir "$MOCK_LOCK" 2>/dev/null; do
+        attempt=$((attempt + 1))
+        [ "$attempt" -gt 500 ] && { echo "Error: mock lock timeout" >&2; exit 1; }
+        sleep 0.02
+    done
+}
+acquire_mock_lock
 release_mock_lock() { rmdir "$MOCK_LOCK" 2>/dev/null || true; }
 trap release_mock_lock EXIT
+
+# Argv record (see header). Written under the lock so lines never interleave.
+{ printf '%q ' "$@"; printf '\n'; } >>"$STATE_DIR/calls.log"
 
 CONTAINERS_FILE="$STATE_DIR/containers.json"
 IMAGES_FILE="$STATE_DIR/images.json"
@@ -167,7 +199,41 @@ cmd_inspect() {
     printf '[%s]\n' "$line"
 }
 
-cmd_start() { local id; id=$(resolve_id "$1") || { echo "Error: no such container: $1" >&2; exit 1; }; set_container_state "$id" running; }
+# `start [--attach] [--interactive] <id>`. A `$STATE_DIR/start-refusal` file
+# makes every start fail the way the runtime refuses one: its content is
+# printed as the CLI's `Error: <content>` line, exit 1, and the container
+# never starts (no state change, no startedDate) — like `container` 1.3.1
+# refusing a second read-write attach of a volume's block image.
+# `--attach` is an attached run, as the real CLI's: the container runs, its
+# output streams, and the CLI exits with the container's code — here one
+# stdout line, a short run, then `stopped` and exit
+# `$STATE_DIR/attach-exit-code` (default 0).
+cmd_start() {
+    local attach=0 ref=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -a|--attach) attach=1 ;;
+            -i|--interactive) ;;
+            *) ref="$1" ;;
+        esac
+        shift
+    done
+    local id
+    id=$(resolve_id "$ref") || { echo "Error: no such container: $ref" >&2; exit 1; }
+    if [ -f "$STATE_DIR/start-refusal" ]; then
+        printf 'Error: %s\n' "$(cat "$STATE_DIR/start-refusal")" >&2
+        exit 1
+    fi
+    set_container_state "$id" running
+    [ "$attach" = "1" ] || return 0
+    # The run holds no state: let concurrent CLI calls (inspect, list) in.
+    release_mock_lock
+    printf 'mock attached output from %s\n' "$id"
+    sleep 0.3
+    acquire_mock_lock
+    set_container_state "$id" stopped
+    exit "$(cat "$STATE_DIR/attach-exit-code" 2>/dev/null || echo 0)"
+}
 cmd_stop() {
     if [ "${1:-}" = "--all" ]; then
         while [ $# -gt 0 ]; do
@@ -207,6 +273,10 @@ cmd_kill() {
     set_container_state "$id" stopped
 }
 cmd_delete() {
+    # A missing id prints the real CLI's wrapped answer (`container` 1.3.1):
+    # `Error: internalError: "failed to delete container" (cause: "notFound:
+    # "container with ID x not found"")` — classified as `not_found` from
+    # the cause.
     local force="" all=""
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -231,7 +301,7 @@ cmd_delete() {
         return 0
     fi
     local id="$1" resolved out=() line found=""
-    resolved=$(resolve_id "$id") || { echo "Error: no such container: $id" >&2; exit 1; }
+    resolved=$(resolve_id "$id") || { echo "Error: internalError: \"failed to delete container\" (cause: \"notFound: \"container with ID $id not found\"\")" >&2; exit 1; }
     id="$resolved"
     while IFS= read -r line; do
         if [[ "$line" == *"\"id\":\"$id\""* ]]; then
@@ -245,7 +315,7 @@ cmd_delete() {
         out+=("$line")
     done <"$CONTAINERS_FILE"
     if [ -z "$found" ]; then
-        echo "Error: no such container: $id" >&2
+        echo "Error: internalError: \"failed to delete container\" (cause: \"notFound: \"container with ID $id not found\"\")" >&2
         exit 1
     fi
     printf '%s\n' "${out[@]-}" >"$CONTAINERS_FILE"
@@ -317,7 +387,21 @@ cmd_run() {
     done
 
     local id
-    id=$(next_id)
+    if [ "${MICROPOD_MOCK_NAME_IS_ID:-0}" = "1" ] && [ -n "$name" ]; then
+        if container_exists "$name"; then
+            # The real CLI's duplicate-id lines (container 1.3.1): a bare
+            # message, no code prefix — `create` and `run` word it differently.
+            if [ "${mock_create_verb:-0}" = "1" ]; then
+                echo "Error: container already exists: $name" >&2
+            else
+                echo "Error: container with id $name already exists" >&2
+            fi
+            exit 1
+        fi
+        id="$name"
+    else
+        id=$(next_id)
+    fi
 
     local label_json=""
     if [ ${#labels[@]} -gt 0 ]; then
@@ -376,6 +460,20 @@ cmd_run() {
         port_json="$(IFS=,; printf '%s' "${pparts[*]}")"
     fi
 
+    # `--label com.micropod.cache.clone=<names|*>`: the named volumes it
+    # selects are listed the way the native backend's create records them —
+    # a `block` mount whose source is the container's clone image under the
+    # clone root (`MICROPOD_VOLUME_CLONE_ROOT`, else micropod's Application
+    # Support dir) — so a `CommitVolumeClone` against this mock sees the
+    # mount that entitles the container to promote the clone. Every other
+    # volume keeps its name as the source.
+    local clone_set=""
+    for l in "${labels[@]-}"; do
+        case "$l" in
+            com.micropod.cache.clone=*) clone_set="${l#*=}" ;;
+        esac
+    done
+    local clone_root="${MICROPOD_VOLUME_CLONE_ROOT:-$HOME/Library/Application Support/micropod/volume-clones}"
     local mount_json=""
     if [ ${#volumes[@]} -gt 0 ]; then
         local mparts=()
@@ -383,7 +481,12 @@ cmd_run() {
             local src dst
             src="${v%%:*}"
             dst="${v#*:}"
-            mparts+=("{\"destination\":\"$(jesc "$dst")\",\"source\":\"$(jesc "$src")\",\"options\":[],\"type\":{\"virtiofs\":{}}}")
+            if [ -n "$clone_set" ] && [[ "$src" != */* ]] \
+                && { [ "$clone_set" = "*" ] || [[ ",$clone_set," == *",$src,"* ]]; }; then
+                mparts+=("{\"destination\":\"$(jesc "$dst")\",\"source\":\"$(jesc "$clone_root/$id/$src.img")\",\"options\":[],\"type\":{\"block\":{\"format\":\"ext4\",\"cache\":{\"on\":{}},\"sync\":{\"nosync\":{}}}}}")
+            else
+                mparts+=("{\"destination\":\"$(jesc "$dst")\",\"source\":\"$(jesc "$src")\",\"options\":[],\"type\":{\"virtiofs\":{}}}")
+            fi
         done
         mount_json="$(IFS=,; printf '%s' "${mparts[*]}")"
     fi
@@ -476,6 +579,9 @@ cmd_logs() {
             sleep 60
             return 0
         fi
+        # MICROPOD_MOCK_FOLLOW_LINES=0: the backlog is the whole stream (a
+        # container that exited before the follow began).
+        [ "${MICROPOD_MOCK_FOLLOW_LINES:-1}" = "0" ] && return 0
         sleep 0.2
         printf 'mock log line after-follow %d\n' "$n"
     fi
@@ -508,7 +614,11 @@ cmd_create() {
     # docker create: prepare the container without starting it.
     local state_override="created"
     local output
-    output=$(cmd_run "$@")
+    # A failed run (duplicate name, bad flags) fails the create too: the
+    # subshell must not swallow cmd_run's exit status. cmd_run inherits
+    # mock_create_verb so its duplicate-id line is `create`'s wording.
+    mock_create_verb=1
+    output=$(cmd_run "$@") || exit $?
     # cmd_run prints the id; flip its state to "created".
     local id
     id=$(printf '%s' "$output" | tail -1)
@@ -790,8 +900,14 @@ cmd_volume_create() {
         for o in "${opts[@]}"; do oparts+=("\"$(jesc "${o%%=*}")\":\"$(jesc "${o#*=}")\""); done
         opt_json="$(IFS=,; printf '{%s}' "${oparts[*]-}")"
     fi
-    printf '{"configuration":{"creationDate":"%s","driver":"local","format":"ext4","labels":%s,"name":"%s","options":%s,"sizeInBytes":%s,"source":"/mock/volumes/%s/volume.img"},"id":"%s"}\n' \
-        "$(iso_now)" "$label_json" "$(jesc "$name")" "$opt_json" "$bytes" "$(jesc "$name")" "$(jesc "$name")" >>"$VOLUMES_FILE"
+    # Like the real runtime, every volume has a backing image at `source`
+    # (a real, fully allocated 1 MiB file here so clonefile/commit flows
+    # have bytes to move) — the reported size stays the provisioned one.
+    local vol_dir="$STATE_DIR/volumes/$name"
+    mkdir -p "$vol_dir"
+    [ -f "$vol_dir/volume.img" ] || head -c 1048576 /dev/zero >"$vol_dir/volume.img"
+    printf '{"configuration":{"creationDate":"%s","driver":"local","format":"ext4","labels":%s,"name":"%s","options":%s,"sizeInBytes":%s,"source":"%s"},"id":"%s"}\n' \
+        "$(iso_now)" "$label_json" "$(jesc "$name")" "$opt_json" "$bytes" "$(jesc "$vol_dir/volume.img")" "$(jesc "$name")" >>"$VOLUMES_FILE"
     printf '%s\n' "$name"
 }
 
@@ -806,10 +922,12 @@ cmd_volume_delete() {
         exit 1
     fi
     printf '%s\n' "${out[@]-}" >"$VOLUMES_FILE"
+    rm -rf "$STATE_DIR/volumes/$name"
 }
 
 cmd_volume_prune() {
     : >"$VOLUMES_FILE"
+    rm -rf "$STATE_DIR/volumes"
     printf 'Total reclaimed space: 0B\n'
 }
 
@@ -1006,10 +1124,33 @@ cmd_registry_logout() {
 cmd="${1:-}"
 shift || true
 
+# Stopped-runtime mode (see header). Commands that never reach the apiserver
+# fall through to the normal dispatch below.
+runtime_stopped_fail() {
+    printf 'Error: interrupted: "XPC connection error: Connection invalid\nEnsure container system service has been started with `container system start`."\n' >&2
+    exit 1
+}
+if [ -n "${MICROPOD_MOCK_RUNTIME_STOPPED:-}" ] || [ -f "$STATE_DIR/runtime-stopped" ]; then
+    case "$cmd" in
+        system)
+            case "${1:-}" in
+                status)
+                    if [[ " $* " == *" --format json "* ]]; then
+                        printf '{"status":"unregistered"}\n'
+                    else
+                        printf 'apiserver is not running and not registered with launchd\n'
+                    fi
+                    exit 1 ;;
+                df) runtime_stopped_fail ;;
+            esac ;;
+        *) runtime_stopped_fail ;;
+    esac
+fi
+
 case "$cmd" in
     list)           cmd_list "$@" ;;
     inspect)        cmd_inspect "${1:-}" ;;
-    start)          cmd_start "${1:-}" ;;
+    start)          cmd_start "$@" ;;
     stop)           cmd_stop "$@" ;;
     kill)           cmd_kill "$@" ;;
     delete)         cmd_delete "$@" ;;

@@ -140,6 +140,58 @@ actor ShimState {
 
     func markStarted(id: String) {
         startedIDs.insert(id)
+        if startRefusals.removeValue(forKey: id) != nil {
+            startRefusalOrder.removeAll { $0 == id }
+        }
+    }
+
+    /// Why the runtime refused the latest `/start` of a container, until a
+    /// later `/start` of it. A `/wait` already polling that container ends
+    /// with it (the container will not run, so no exit is coming). Like exit
+    /// codes it outlives the container — a refused `--rm` start removes the
+    /// container while the client's wait is still polling — so it is bounded
+    /// the same way.
+    private var startRefusals: [String: StartRefusal] = [:]
+    private var startRefusalOrder: [String] = []
+    /// Stamps refusals in the order they were recorded (see `refusalMark`).
+    private var refusalSequence: UInt64 = 0
+
+    private struct StartRefusal {
+        var message: String
+        var sequence: UInt64
+    }
+
+    /// Records a refused start. `wasStarted` is whether the container had
+    /// been started before this attempt: one that never was goes back to
+    /// never-started, so the events loop does not read it as a run that
+    /// exited.
+    func noteStartRefused(id: String, message: String, wasStarted: Bool) {
+        if !wasStarted { startedIDs.remove(id) }
+        if startRefusals[id] == nil {
+            startRefusalOrder.append(id)
+            if startRefusalOrder.count > Self.exitCodeHistoryLimit {
+                startRefusals.removeValue(forKey: startRefusalOrder.removeFirst())
+            }
+        }
+        refusalSequence += 1
+        startRefusals[id] = StartRefusal(message: message, sequence: refusalSequence)
+    }
+
+    /// A point in the order of refusals: `startRefusal(for:after:)` with it
+    /// sees only the refusals recorded since. A `/wait` takes one when it
+    /// begins.
+    func refusalMark() -> UInt64 {
+        refusalSequence
+    }
+
+    /// The standing refusal of the container's latest start — only one
+    /// recorded after `mark`, when given. The docker CLI's `start -a` sends
+    /// `/wait` *before* the `/start` that clears an earlier refusal, so a
+    /// wait for the next exit must not end on a refusal older than itself.
+    func startRefusal(for id: String, after mark: UInt64?) -> String? {
+        guard let refusal = startRefusals[id] else { return nil }
+        if let mark, refusal.sequence <= mark { return nil }
+        return refusal.message
     }
 
     /// Containers whose `container start --attach` run has not finished.
@@ -606,9 +658,14 @@ enum IDGenerator {
 
 /// Docker↔Apple container-name translation.
 /// Docker accepts `/?[a-zA-Z0-9][a-zA-Z0-9_.-]+` with no practical length
-/// cap; the Apple runtime additionally requires ≤ 63 bytes and rejects
-/// leading `_` (probed: 63 ok, 64+ "not a valid container ID", `_foo`
-/// rejected, `UPPER`/`9foo`/`foo.bar` accepted). Stock clients hit this with
+/// cap and (in practice) non-ASCII letters; the Apple runtime additionally
+/// requires ≤ 63 bytes, ASCII only, and rejects leading `_` (probed on
+/// `container` 1.3.1: 63 ok, 64+ "not a valid container ID", `_foo` and
+/// `café` rejected, `UPPER`/`9foo`/`foo.bar` accepted) — the grammar
+/// `VolumeClone.isSafeComponent` encodes, shared here so the shim's idea of
+/// a valid runtime name cannot drift from the clone-path guard's (a name it
+/// passed through untouched would otherwise be refused `invalid_argument`
+/// by the native create). Stock clients hit this with
 /// long generated names — notably testcontainers' `reaper_<session>` (71
 /// chars). When the requested name is already valid it passes through
 /// untouched; otherwise a deterministic sanitized runtime name is derived
@@ -621,13 +678,11 @@ enum DockerNaming {
     static let maxLength = 63
 
     static func isRuntimeValid(_ name: String) -> Bool {
-        guard !name.isEmpty, name.count <= maxLength else { return false }
-        guard let first = name.first, first.isLetter || first.isNumber else { return false }
-        return name.allSatisfy(Self.isRuntimeChar)
+        VolumeClone.isSafeComponent(name)
     }
 
     private static func isRuntimeChar(_ ch: Character) -> Bool {
-        ch.isLetter || ch.isNumber || ch == "_" || ch == "." || ch == "-"
+        ch.isASCII && (ch.isLetter || ch.isNumber || ch == "_" || ch == "." || ch == "-")
     }
 
     private static func sanitizedChar(_ ch: Character) -> Character {

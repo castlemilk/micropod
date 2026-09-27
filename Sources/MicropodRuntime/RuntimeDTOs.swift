@@ -109,6 +109,34 @@ enum SnapshotTransform {
     }
 }
 
+/// apiserver `VolumeConfiguration` (flat, numeric `creationDate`) → the
+/// `{id, configuration}` shape `container volume list --format json`
+/// prints, so the native path decodes the same `VolumeListEntry` the CLI
+/// path does.
+enum VolumeTransform {
+    static func toEntry(_ volume: JSONValue) -> JSONValue? {
+        guard case .object(var configuration) = volume,
+            case .string(let name) = configuration["name"]
+        else { return nil }
+        if case .number(let creation) = configuration["creationDate"] {
+            configuration["creationDate"] = .string(SnapshotTransform.isoString(from: creation))
+        }
+        return .object(["id": .string(name), "configuration": .object(configuration)])
+    }
+
+    /// `[VolumeConfiguration]` → `[VolumeListEntry]`; objects that are not
+    /// volume-shaped are dropped rather than failing the whole list.
+    static func entries(_ volumes: [JSONValue]) throws -> [VolumeListEntry] {
+        let data = try JSONEncoder().encode(volumes.compactMap(toEntry))
+        return try MicropodJSON.decodeArray(VolumeListEntry.self, from: data, context: "volume list")
+    }
+
+    /// One `VolumeConfiguration` → `VolumeListEntry` (nil when not volume-shaped).
+    static func entry(_ volume: JSONValue) throws -> VolumeListEntry? {
+        try entries([volume]).first
+    }
+}
+
 /// Builds the `processConfig` payload for `containerCreateProcess` by
 /// patching the container's own `initProcess` object — the same trick the
 /// CLI uses, so every untouched field (rlimits, sysctls, supplemental

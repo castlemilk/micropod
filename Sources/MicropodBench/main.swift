@@ -432,8 +432,8 @@ struct MicropodBench {
                 case .string(let src)? = goldenObj["source"]
             {
                 var s = try await measure("clonefile golden → clone", warmup: true, iterations: 10) {
-                    _ = try NativeContainerService.cloneVolumeImage(
-                        source: src, containerID: "bench-clone-probe", volume: goldName)
+                    _ = try VolumeClone.cloneImage(
+                        from: src, to: VolumeClone.clonePath(containerID: "bench-clone-probe", volume: goldName).path)
                 }
                 emit(s)
 
@@ -457,8 +457,8 @@ struct MicropodBench {
                 }
                 try await native.delete(grower, force: true)
                 s = try await measure("clonefile 256MB golden → clone", warmup: false, iterations: 10) {
-                    _ = try NativeContainerService.cloneVolumeImage(
-                        source: src, containerID: "bench-clone-probe", volume: goldName)
+                    _ = try VolumeClone.cloneImage(
+                        from: src, to: VolumeClone.clonePath(containerID: "bench-clone-probe", volume: goldName).path)
                 }
                 emit(s)
                 try? FileManager.default.removeItem(

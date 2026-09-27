@@ -20,6 +20,29 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
   typealias Version = _2
 }
 
+/// Cheap liveness reply for detection and health ticks (see Ping).
+public nonisolated struct Micropod_V1_PingResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// "running" or "stopped".
+  public var status: String = String()
+
+  /// Backend the API server is currently driving: "native" (XPC) or "cli".
+  public var runtimeBackend: String = String()
+
+  /// Version of the embedded API server.
+  public var apiServerVersion: String = String()
+
+  /// Version of the bundled `container` CLI.
+  public var cliVersion: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 public nonisolated struct Micropod_V1_SystemSnapshot: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -72,6 +95,9 @@ public nonisolated struct Micropod_V1_SystemStatus: Sendable {
 
   /// Version of the bundled `container` CLI.
   public var cliVersion: String = String()
+
+  /// Backend the API server is currently driving: "native" (XPC) or "cli".
+  public var runtimeBackend: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -427,6 +453,51 @@ public nonisolated struct Micropod_V1_UpdateStatus: Sendable {
 
 fileprivate nonisolated let _protobuf_package = "micropod.v1"
 
+nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PingResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}runtime_backend\0\u{3}api_server_version\0\u{3}cli_version\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.status) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.runtimeBackend) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.apiServerVersion) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.cliVersion) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.status.isEmpty {
+      try visitor.visitSingularStringField(value: self.status, fieldNumber: 1)
+    }
+    if !self.runtimeBackend.isEmpty {
+      try visitor.visitSingularStringField(value: self.runtimeBackend, fieldNumber: 2)
+    }
+    if !self.apiServerVersion.isEmpty {
+      try visitor.visitSingularStringField(value: self.apiServerVersion, fieldNumber: 3)
+    }
+    if !self.cliVersion.isEmpty {
+      try visitor.visitSingularStringField(value: self.cliVersion, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_PingResponse, rhs: Micropod_V1_PingResponse) -> Bool {
+    if lhs.status != rhs.status {return false}
+    if lhs.runtimeBackend != rhs.runtimeBackend {return false}
+    if lhs.apiServerVersion != rhs.apiServerVersion {return false}
+    if lhs.cliVersion != rhs.cliVersion {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 nonisolated extension Micropod_V1_SystemSnapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SystemSnapshot"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}disk_usage\0")
@@ -506,7 +577,7 @@ nonisolated extension Micropod_V1_SystemSnapshot: SwiftProtobuf.Message, SwiftPr
 
 nonisolated extension Micropod_V1_SystemStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SystemStatus"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}app_root\0\u{3}install_root\0\u{3}api_server_version\0\u{3}cli_version\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}app_root\0\u{3}install_root\0\u{3}api_server_version\0\u{3}cli_version\0\u{3}runtime_backend\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -519,6 +590,7 @@ nonisolated extension Micropod_V1_SystemStatus: SwiftProtobuf.Message, SwiftProt
       case 3: try { try decoder.decodeSingularStringField(value: &self.installRoot) }()
       case 4: try { try decoder.decodeSingularStringField(value: &self.apiServerVersion) }()
       case 5: try { try decoder.decodeSingularStringField(value: &self.cliVersion) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.runtimeBackend) }()
       default: break
       }
     }
@@ -540,6 +612,9 @@ nonisolated extension Micropod_V1_SystemStatus: SwiftProtobuf.Message, SwiftProt
     if !self.cliVersion.isEmpty {
       try visitor.visitSingularStringField(value: self.cliVersion, fieldNumber: 5)
     }
+    if !self.runtimeBackend.isEmpty {
+      try visitor.visitSingularStringField(value: self.runtimeBackend, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -549,6 +624,7 @@ nonisolated extension Micropod_V1_SystemStatus: SwiftProtobuf.Message, SwiftProt
     if lhs.installRoot != rhs.installRoot {return false}
     if lhs.apiServerVersion != rhs.apiServerVersion {return false}
     if lhs.cliVersion != rhs.cliVersion {return false}
+    if lhs.runtimeBackend != rhs.runtimeBackend {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

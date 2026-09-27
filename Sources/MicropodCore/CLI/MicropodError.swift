@@ -16,6 +16,10 @@ public enum MicropodError: LocalizedError, Sendable, Equatable {
     /// A pull emitted no forward progress within the stall budget — the
     /// classic signature of the runtime's registry-auth deadlock.
     case pullStalled(reference: String)
+    /// The XPC channel to the apiserver failed (connection interrupted or
+    /// invalidated, no reply). The request never reached a handler, so it is
+    /// safe to retry once the runtime is back — Connect code `unavailable`.
+    case transport(String)
     case message(String)
 
     public var errorDescription: String? {
@@ -37,6 +41,8 @@ public enum MicropodError: LocalizedError, Sendable, Equatable {
         case .pullStalled(let reference):
             return
                 "Pull of \(reference) made no progress — the registry fetch appears wedged (known runtime auth deadlock). A stored credential was cleared and the pull retried anonymously where possible; if it persists, restart the runtime (`container system stop && container system start`)."
+        case .transport(let detail):
+            return "Runtime transport error: \(detail)"
         case .message(let detail):
             return detail
         }

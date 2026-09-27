@@ -47,6 +47,10 @@ public nonisolated struct Micropod_V1_Volume: Sendable {
   /// Metadata labels on the volume.
   public var labels: Dictionary<String,String> = [:]
 
+  /// Bytes actually allocated on disk by the backing image (st_blocks × 512).
+  /// `size_bytes` is the provisioned size; sparse images allocate far less.
+  public var allocatedBytes: UInt64 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -292,13 +296,74 @@ public nonisolated struct Micropod_V1_DeleteVolumeRequest: Sendable {
   public init() {}
 }
 
+public nonisolated struct Micropod_V1_CloneVolumeRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Existing volume to clone from.
+  public var source: String = String()
+
+  /// Name of the new volume.
+  public var name: String = String()
+
+  /// Optional size for the new volume, e.g. "10g". Defaults to the source's
+  /// provisioned size.
+  public var size: String {
+    get {_size ?? String()}
+    set {_size = newValue}
+  }
+  /// Returns true if `size` has been explicitly set.
+  public var hasSize: Bool {self._size != nil}
+  /// Clears the value of `size`. Subsequent reads from it will return its default value.
+  public mutating func clearSize() {self._size = nil}
+
+  /// Labels applied to the new volume ("key=value").
+  public var labels: [String] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _size: String? = nil
+}
+
+public nonisolated struct Micropod_V1_CommitVolumeCloneRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Stopped container whose clone of `volume` is promoted.
+  public var containerID: String = String()
+
+  /// Volume whose backing image is replaced by the container's clone.
+  public var volume: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Micropod_V1_CommitVolumeCloneResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Bytes allocated on disk by the promoted image (st_blocks × 512).
+  public var allocatedBytes: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "micropod.v1"
 
 nonisolated extension Micropod_V1_Volume: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Volume"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}driver\0\u{1}format\0\u{3}size_bytes\0\u{1}source\0\u{3}created_at\0\u{1}labels\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}driver\0\u{1}format\0\u{3}size_bytes\0\u{1}source\0\u{3}created_at\0\u{1}labels\0\u{3}allocated_bytes\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -313,6 +378,7 @@ nonisolated extension Micropod_V1_Volume: SwiftProtobuf.Message, SwiftProtobuf._
       case 5: try { try decoder.decodeSingularStringField(value: &self.source) }()
       case 6: try { try decoder.decodeSingularStringField(value: &self.createdAt) }()
       case 7: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: &self.labels) }()
+      case 8: try { try decoder.decodeSingularUInt64Field(value: &self.allocatedBytes) }()
       default: break
       }
     }
@@ -340,6 +406,9 @@ nonisolated extension Micropod_V1_Volume: SwiftProtobuf.Message, SwiftProtobuf._
     if !self.labels.isEmpty {
       try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: self.labels, fieldNumber: 7)
     }
+    if self.allocatedBytes != 0 {
+      try visitor.visitSingularUInt64Field(value: self.allocatedBytes, fieldNumber: 8)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -351,6 +420,7 @@ nonisolated extension Micropod_V1_Volume: SwiftProtobuf.Message, SwiftProtobuf._
     if lhs.source != rhs.source {return false}
     if lhs.createdAt != rhs.createdAt {return false}
     if lhs.labels != rhs.labels {return false}
+    if lhs.allocatedBytes != rhs.allocatedBytes {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -522,6 +592,120 @@ nonisolated extension Micropod_V1_DeleteVolumeRequest: SwiftProtobuf.Message, Sw
 
   public static func ==(lhs: Micropod_V1_DeleteVolumeRequest, rhs: Micropod_V1_DeleteVolumeRequest) -> Bool {
     if lhs.name != rhs.name {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_CloneVolumeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CloneVolumeRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}source\0\u{1}name\0\u{1}size\0\u{1}labels\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.source) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._size) }()
+      case 4: try { try decoder.decodeRepeatedStringField(value: &self.labels) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.source.isEmpty {
+      try visitor.visitSingularStringField(value: self.source, fieldNumber: 1)
+    }
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 2)
+    }
+    try { if let v = self._size {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
+    if !self.labels.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.labels, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_CloneVolumeRequest, rhs: Micropod_V1_CloneVolumeRequest) -> Bool {
+    if lhs.source != rhs.source {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs._size != rhs._size {return false}
+    if lhs.labels != rhs.labels {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_CommitVolumeCloneRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CommitVolumeCloneRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}container_id\0\u{1}volume\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.containerID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.volume) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.containerID.isEmpty {
+      try visitor.visitSingularStringField(value: self.containerID, fieldNumber: 1)
+    }
+    if !self.volume.isEmpty {
+      try visitor.visitSingularStringField(value: self.volume, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_CommitVolumeCloneRequest, rhs: Micropod_V1_CommitVolumeCloneRequest) -> Bool {
+    if lhs.containerID != rhs.containerID {return false}
+    if lhs.volume != rhs.volume {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_CommitVolumeCloneResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CommitVolumeCloneResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}allocated_bytes\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt64Field(value: &self.allocatedBytes) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.allocatedBytes != 0 {
+      try visitor.visitSingularUInt64Field(value: self.allocatedBytes, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_CommitVolumeCloneResponse, rhs: Micropod_V1_CommitVolumeCloneResponse) -> Bool {
+    if lhs.allocatedBytes != rhs.allocatedBytes {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

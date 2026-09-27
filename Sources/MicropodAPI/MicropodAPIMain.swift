@@ -45,19 +45,19 @@ struct MicropodAPI {
 
         let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: cliPath))
         let runtime = await RuntimeBackendResolver.resolve(client: client)
-        var api = APIHandlers(
+        // Started before the runtime (or against an unverified apiserver):
+        // re-resolve lazily and swap to native once it answers. The request
+        // path never waits on more than a short ping for that.
+        let holder = RuntimeHolder(
+            initial: runtime,
+            resolve: { await RuntimeBackendResolver.resolve(client: client, pingTimeout: .seconds(2)) })
+        let api = APIHandlers(
             client: client,
             system: SystemService(client: client),
-            containers: runtime.containers,
             images: ImageService(client: client),
-            volumes: VolumeService(client: client),
             networks: NetworkService(client: client),
-            stats: runtime.stats,
-            logs: runtime.logs,
             compose: ComposeService(client: client),
-            api: runtime.api)
-        api.backend = runtime.kind
-        api.runtimeHealth = runtime.health
+            runtime: holder)
 
         let server = HTTPServer(port: port, handler: api.handle)
         do {
@@ -167,7 +167,10 @@ final class HTTPServer: @unchecked Sendable {
                     })
             case .stream(let status, let contentType, let events):
                 // SSE/connect-stream: write the head without Content-Length,
-                // then stream each event on the live connection.
+                // then stream each event on the live connection. Every send
+                // is awaited: cancelling right after the last fire-and-forget
+                // send drops the final frame (the Connect EndStream trailer),
+                // which connect-go reports as "unexpected EOF".
                 let head = Self.streamHead(
                     status: status, contentType: contentType, extraHeaders: cors)
                 connection.send(
@@ -175,9 +178,27 @@ final class HTTPServer: @unchecked Sendable {
                     completion: .contentProcessed { _ in
                         Task {
                             for await chunk in events {
-                                connection.send(content: chunk, completion: .contentProcessed { _ in })
+                                let delivered = await withCheckedContinuation {
+                                    (c: CheckedContinuation<Bool, Never>) in
+                                    connection.send(
+                                        content: chunk,
+                                        completion: .contentProcessed { error in
+                                            c.resume(returning: error == nil)
+                                        })
+                                }
+                                // Peer went away: stop pulling from the source
+                                // (dropping the iterator cancels the producer)
+                                // instead of pumping frames into a dead socket.
+                                guard delivered else {
+                                    connection.cancel()
+                                    return
+                                }
                             }
-                            connection.cancel()
+                            // Half-close so the peer sees EOF only after every
+                            // frame was processed.
+                            connection.send(
+                                content: nil, contentContext: .finalMessage, isComplete: true,
+                                completion: .contentProcessed { _ in connection.cancel() })
                         }
                     })
             default:
@@ -245,9 +266,18 @@ final class HTTPServer: @unchecked Sendable {
         case 201: reason = "Created"
         case 202: reason = "Accepted"
         case 400: reason = "Bad Request"
+        case 401: reason = "Unauthorized"
+        case 403: reason = "Forbidden"
         case 404: reason = "Not Found"
         case 405: reason = "Method Not Allowed"
+        case 409: reason = "Conflict"
+        case 412: reason = "Precondition Failed"
+        case 429: reason = "Too Many Requests"
+        // Connect `canceled` (nginx convention; no IANA phrase).
+        case 499: reason = "Client Closed Request"
         case 500: reason = "Internal Server Error"
+        case 503: reason = "Service Unavailable"
+        case 504: reason = "Gateway Timeout"
         default: reason = "Unknown"
         }
         return "HTTP/1.1 \(status) \(reason)"

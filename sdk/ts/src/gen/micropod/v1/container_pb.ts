@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file micropod/v1/container.proto.
  */
 export const file_micropod_v1_container: GenFile = /*@__PURE__*/
-  fileDesc("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CUIWukcJOgcSBSd3ZWInukgHyAEBcgIQARIaCgVmb3JjZRgCIAEoCEILukcIOgYSBHRydWUiZgoRU3RyZWFtTG9nc1JlcXVlc3QSIgoCaWQYASABKAlCFrpHCToHEgUnd2ViJ7pIB8gBAXICEAESHwoEdGFpbBgCIAEoBUIRukcHOgUSAzIwMLpIBBoCKAASDAoEYm9vdBgDIAEoCCIzCghMb2dDaHVuaxInCgR0ZXh0GAEgASgJQhm6RxY6FBISJ0dFVCAvaGVhbHRoeiAyMDAnIhEKD0dldFN0YXRzUmVxdWVzdCJAChBHZXRTdGF0c1Jlc3BvbnNlEiwKCHNuYXBzaG90GAEgASgLMhoubWljcm9wb2QudjEuU3RhdHNTbmFwc2hvdCKzAQoLRXhlY1JlcXVlc3QSIgoCaWQYASABKAlCFrpHCToHEgUnd2ViJ7pIB8gBAXICEAESKwoHY29tbWFuZBgCIAEoCUIaukcNOgsSCScvYmluL3NoJ7pIB8gBAXICEAESIwoHd29ya2RpchgDIAEoCUINukcKOggSBicvYXBwJ0gAiAEBEiIKA2VudhgEIAMoCUIVukcSOhASDlsnVEVSTT14dGVybSddQgoKCF93b3JrZGlyIlsKDEV4ZWNSZXNwb25zZRIfCgZvdXRwdXQYASABKAlCD7pHDDoKEggnaGVsbG8KJxIbCglleGl0X2NvZGUYAiABKAVCCLpHBToDEgEwEg0KBWVycm9yGAMgASgJMv0GChBDb250YWluZXJTZXJ2aWNlEkkKDkxpc3RDb250YWluZXJzEhIubWljcm9wb2QudjEuRW1wdHkaIy5taWNyb3BvZC52MS5MaXN0Q29udGFpbmVyc1Jlc3BvbnNlEksKDFJ1bkNvbnRhaW5lchIgLm1pY3JvcG9kLnYxLlJ1bkNvbnRhaW5lclJlcXVlc3QaGS5taWNyb3BvZC52MS5Db250YWluZXJSZWYSTgoPQ3JlYXRlQ29udGFpbmVyEiAubWljcm9wb2QudjEuUnVuQ29udGFpbmVyUmVxdWVzdBoZLm1pY3JvcG9kLnYxLkNvbnRhaW5lclJlZhI/Cg5TdGFydENvbnRhaW5lchIZLm1pY3JvcG9kLnYxLkNvbnRhaW5lclJlZhoSLm1pY3JvcG9kLnYxLkVtcHR5Ej4KDVN0b3BDb250YWluZXISGS5taWNyb3BvZC52MS5Db250YWluZXJSZWYaEi5taWNyb3BvZC52MS5FbXB0eRJBChBSZXN0YXJ0Q29udGFpbmVyEhkubWljcm9wb2QudjEuQ29udGFpbmVyUmVmGhIubWljcm9wb2QudjEuRW1wdHkSPgoNS2lsbENvbnRhaW5lchIZLm1pY3JvcG9kLnYxLkNvbnRhaW5lclJlZhoSLm1pY3JvcG9kLnYxLkVtcHR5EkoKD0RlbGV0ZUNvbnRhaW5lchIjLm1pY3JvcG9kLnYxLkRlbGV0ZUNvbnRhaW5lclJlcXVlc3QaEi5taWNyb3BvZC52MS5FbXB0eRJOChNTdHJlYW1Db250YWluZXJMb2dzEh4ubWljcm9wb2QudjEuU3RyZWFtTG9nc1JlcXVlc3QaFS5taWNyb3BvZC52MS5Mb2dDaHVuazABEkcKCEdldFN0YXRzEhwubWljcm9wb2QudjEuR2V0U3RhdHNSZXF1ZXN0Gh0ubWljcm9wb2QudjEuR2V0U3RhdHNSZXNwb25zZRKXAQoERXhlYxIYLm1pY3JvcG9kLnYxLkV4ZWNSZXF1ZXN0GhkubWljcm9wb2QudjEuRXhlY1Jlc3BvbnNlIlq6R1ciVQoVZG9ja2VyIGV4ZWMgc2VtYW50aWNzEjxodHRwczovL2RvY3MuZG9ja2VyLmNvbS9yZWZlcmVuY2UvY2xpL2RvY2tlci9jb250YWluZXIvZXhlYy9CQlpAZ2l0aHViLmNvbS9jYXN0bGVtaWxrL21pY3JvcG9kL3Nkay9nby9nZW4vbWljcm9wb2QvdjE7bWljcm9wb2R2MWIGcHJvdG8z", [file_buf_validate_validate, file_gnostic_openapi_v3_annotations, file_micropod_v1_api, file_micropod_v1_system]);
+  fileDesc("ChttaWNyb3BvZC92MS9jb250YWluZXIucHJvdG8SC21pY3JvcG9kLnYxIq4FCglDb250YWluZXISGAoCaWQYASABKAlCDLpHCToHEgUnd2ViJxIjCgVpbWFnZRgCIAEoCUIUukcROg8SDSdhbHBpbmU6My4yMCcSHwoFc3RhdGUYAyABKAlCELpHDToLEgkncnVubmluZycSPQoKY3JlYXRlZF9hdBgEIAEoCUIpukcmOhgSFicyMDI2LTAxLTE1VDEwOjMwOjAwWieaAglkYXRlLXRpbWUSMgoJcmVzb3VyY2VzGAUgASgLMh8ubWljcm9wb2QudjEuQ29udGFpbmVyUmVzb3VyY2VzEiYKCHBsYXRmb3JtGAYgASgJQhS6RxE6DxINJ2xpbnV4L2FybTY0JxIxCg9wdWJsaXNoZWRfcG9ydHMYByADKAsyGC5taWNyb3BvZC52MS5Qb3J0TWFwcGluZxIiCgZtb3VudHMYCCADKAsyEi5taWNyb3BvZC52MS5Nb3VudBIkCghuZXR3b3JrcxgJIAMoCUISukcPOg0SC1snYmFja2VuZCddEjIKDGlwdjRfYWRkcmVzcxgKIAEoCUIcukcZOhASDicxOTIuMTY4LjY0LjMnmgIEaXB2NBILCgNlbnYYCyADKAkSMgoGbGFiZWxzGAwgAygLMiIubWljcm9wb2QudjEuQ29udGFpbmVyLkxhYmVsc0VudHJ5Eg8KB3Jvc2V0dGEYDSABKAgSEQoJcmVhZF9vbmx5GA4gASgIEhAKCHVzZV9pbml0GA8gASgIEgsKA3NzaBgQIAEoCBIWCg52aXJ0dWFsaXphdGlvbhgRIAEoCBIXCg9ydW50aW1lX2hhbmRsZXIYEiABKAkSEQoJZXhpdF9jb2RlGBMgASgJGi0KC0xhYmVsc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiVAoSQ29udGFpbmVyUmVzb3VyY2VzEhYKBGNwdXMYASABKAFCCLpHBToDEgEyEiYKDG1lbW9yeV9ieXRlcxgCIAEoBEIQukcNOgsSCTUzNjg3MDkxMiKoAQoLUG9ydE1hcHBpbmcSJwoJaG9zdF9wb3J0GAEgASgNQhS6Rwg6BhIEODA4MLpIBioEGP//AxIkCg5jb250YWluZXJfcG9ydBgCIAEoDUIMukgJyAEBKgQY//8DEh4KCHByb3RvY29sGAMgASgJQgy6Rwk6BxIFJ3RjcCcSKgoHaG9zdF9pcBgEIAEoCUIZukcWOg0SCycxMjcuMC4wLjEnmgIEaXB2NCJ9CgVNb3VudBIdCgR0eXBlGAEgASgJQg+6Rww6ChIIJ3ZvbHVtZScSHQoGc291cmNlGAIgASgJQg26Rwo6CBIGJ2RhdGEnEiMKC2Rlc3RpbmF0aW9uGAMgASgJQg66Rws6CRIHJy9kYXRhJxIRCglyZWFkX29ubHkYBCABKAgiMgoMQ29udGFpbmVyUmVmEiIKAmlkGAEgASgJQha6Rwk6BxIFJ3dlYie6SAfIAQFyAhABIkQKFkxpc3RDb250YWluZXJzUmVzcG9uc2USKgoKY29udGFpbmVycxgBIAMoCzIWLm1pY3JvcG9kLnYxLkNvbnRhaW5lciL/BQoTUnVuQ29udGFpbmVyUmVxdWVzdBItCgVpbWFnZRgBIAEoCUIeukcROg8SDSdhbHBpbmU6My4yMCe6SAfIAQFyAhABEh8KBG5hbWUYAiABKAlCDLpHCToHEgUnd2ViJ0gAiAEBEhsKBmRldGFjaBgDIAEoCEILukcIOgYSBHRydWUSKQoEY3B1cxgEIAEoAUIWukcFOgMSATK6SAsSCSEAAAAAAAAAAEgBiAEBEiIKBm1lbW9yeRgFIAEoCUINukcKOggSBic1MTJtJ0gCiAEBEiIKA2VudhgGIAMoCUIVukcSOhASDlsnREVCVUc9dHJ1ZSddEicKBXBvcnRzGAcgAygLMhgubWljcm9wb2QudjEuUG9ydE1hcHBpbmcSJgoHdm9sdW1lcxgIIAMoCUIVukcSOhASDlsnZGF0YTovZGF0YSddEjwKBmxhYmVscxgJIAMoCzIsLm1pY3JvcG9kLnYxLlJ1bkNvbnRhaW5lclJlcXVlc3QuTGFiZWxzRW50cnkSDAoEaW5pdBgKIAEoCBIrCglhcmd1bWVudHMYCyADKAlCGLpHFToTEhFbJ2VjaG8nLCAnaGVsbG8nXRIpCgplbnRyeXBvaW50GAwgASgJQhC6Rw06CxIJJy9iaW4vc2gnSAOIAQESKwoIcGxhdGZvcm0YDSABKAlCFLpHEToPEg0nbGludXgvYXJtNjQnSASIAQESJAoHd29ya2RpchgOIAEoCUIOukcLOgkSBycvd29yaydIBYgBARIlCgR1c2VyGA8gASgJQhK6Rw86DRILJzEwMDA6MTAwMCdIBogBARIcCgdub19wdWxsGBAgASgIQgu6Rwg6BhIEdHJ1ZRotCgtMYWJlbHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQgcKBV9uYW1lQgcKBV9jcHVzQgkKB19tZW1vcnlCDQoLX2VudHJ5cG9pbnRCCwoJX3BsYXRmb3JtQgoKCF93b3JrZGlyQgcKBV91c2VyImUKFFdhaXRDb250YWluZXJSZXF1ZXN0EiIKAmlkGAEgASgJQha6Rwk6BxIFJ3dlYie6SAfIAQFyAhABEikKD3RpbWVvdXRfc2Vjb25kcxgCIAEoBUIQukcGOgQSAjMwukgEGgIoACKOAQoVV2FpdENvbnRhaW5lclJlc3BvbnNlEhsKBmV4aXRlZBgBIAEoCEILukcIOgYSBHRydWUSGgoFa25vd24YAiABKAhCC7pHCDoGEgR0cnVlEhsKCWV4aXRfY29kZRgDIAEoBUIIukcFOgMSATASHwoFc3RhdGUYBCABKAlCELpHDToLEgknc3RvcHBlZCciWAoWRGVsZXRlQ29udGFpbmVyUmVxdWVzdBIiCgJpZBgBIAEoCUIWukcJOgcSBSd3ZWInukgHyAEBcgIQARIaCgVmb3JjZRgCIAEoCEILukcIOgYSBHRydWUijQEKEVN0cmVhbUxvZ3NSZXF1ZXN0EiIKAmlkGAEgASgJQha6Rwk6BxIFJ3dlYie6SAfIAQFyAhABEh8KBHRhaWwYAiABKAVCEbpHBzoFEgMyMDC6SAQaAigAEgwKBGJvb3QYAyABKAgSJQoKc2tpcF9saW5lcxgEIAEoA0IRukcHOgUSAzEyMLpIBCICKAAiMwoITG9nQ2h1bmsSJwoEdGV4dBgBIAEoCUIZukcWOhQSEidHRVQgL2hlYWx0aHogMjAwJyIuCg9HZXRTdGF0c1JlcXVlc3QSGwoDaWRzGAEgAygJQg66Rws6CRIHWyd3ZWInXSJAChBHZXRTdGF0c1Jlc3BvbnNlEiwKCHNuYXBzaG90GAEgASgLMhoubWljcm9wb2QudjEuU3RhdHNTbmFwc2hvdCLeAQoLRXhlY1JlcXVlc3QSIgoCaWQYASABKAlCFrpHCToHEgUnd2ViJ7pIB8gBAXICEAESIQoHY29tbWFuZBgCIAEoCUIQukcNOgsSCScvYmluL3NoJxIjCgd3b3JrZGlyGAMgASgJQg26Rwo6CBIGJy9hcHAnSACIAQESIgoDZW52GAQgAygJQhW6RxI6EBIOWydURVJNPXh0ZXJtJ10SMwoJYXJndW1lbnRzGAUgAygJQiC6Rx06GxIZWydzaCcsICctYycsICdlY2hvIGEgIGInXUIKCghfd29ya2RpciJbCgxFeGVjUmVzcG9uc2USHwoGb3V0cHV0GAEgASgJQg+6Rww6ChIIJ2hlbGxvCicSGwoJZXhpdF9jb2RlGAIgASgFQgi6RwU6AxIBMBINCgVlcnJvchgDIAEoCTKYCAoQQ29udGFpbmVyU2VydmljZRJJCg5MaXN0Q29udGFpbmVycxISLm1pY3JvcG9kLnYxLkVtcHR5GiMubWljcm9wb2QudjEuTGlzdENvbnRhaW5lcnNSZXNwb25zZRJLCgxSdW5Db250YWluZXISIC5taWNyb3BvZC52MS5SdW5Db250YWluZXJSZXF1ZXN0GhkubWljcm9wb2QudjEuQ29udGFpbmVyUmVmEk4KD0NyZWF0ZUNvbnRhaW5lchIgLm1pY3JvcG9kLnYxLlJ1bkNvbnRhaW5lclJlcXVlc3QaGS5taWNyb3BvZC52MS5Db250YWluZXJSZWYSPwoOU3RhcnRDb250YWluZXISGS5taWNyb3BvZC52MS5Db250YWluZXJSZWYaEi5taWNyb3BvZC52MS5FbXB0eRI+Cg1TdG9wQ29udGFpbmVyEhkubWljcm9wb2QudjEuQ29udGFpbmVyUmVmGhIubWljcm9wb2QudjEuRW1wdHkSQQoQUmVzdGFydENvbnRhaW5lchIZLm1pY3JvcG9kLnYxLkNvbnRhaW5lclJlZhoSLm1pY3JvcG9kLnYxLkVtcHR5Ej4KDUtpbGxDb250YWluZXISGS5taWNyb3BvZC52MS5Db250YWluZXJSZWYaEi5taWNyb3BvZC52MS5FbXB0eRJKCg9EZWxldGVDb250YWluZXISIy5taWNyb3BvZC52MS5EZWxldGVDb250YWluZXJSZXF1ZXN0GhIubWljcm9wb2QudjEuRW1wdHkSQQoMR2V0Q29udGFpbmVyEhkubWljcm9wb2QudjEuQ29udGFpbmVyUmVmGhYubWljcm9wb2QudjEuQ29udGFpbmVyElYKDVdhaXRDb250YWluZXISIS5taWNyb3BvZC52MS5XYWl0Q29udGFpbmVyUmVxdWVzdBoiLm1pY3JvcG9kLnYxLldhaXRDb250YWluZXJSZXNwb25zZRJOChNTdHJlYW1Db250YWluZXJMb2dzEh4ubWljcm9wb2QudjEuU3RyZWFtTG9nc1JlcXVlc3QaFS5taWNyb3BvZC52MS5Mb2dDaHVuazABEkcKCEdldFN0YXRzEhwubWljcm9wb2QudjEuR2V0U3RhdHNSZXF1ZXN0Gh0ubWljcm9wb2QudjEuR2V0U3RhdHNSZXNwb25zZRKXAQoERXhlYxIYLm1pY3JvcG9kLnYxLkV4ZWNSZXF1ZXN0GhkubWljcm9wb2QudjEuRXhlY1Jlc3BvbnNlIlq6R1ciVQoVZG9ja2VyIGV4ZWMgc2VtYW50aWNzEjxodHRwczovL2RvY3MuZG9ja2VyLmNvbS9yZWZlcmVuY2UvY2xpL2RvY2tlci9jb250YWluZXIvZXhlYy9CQlpAZ2l0aHViLmNvbS9jYXN0bGVtaWxrL21pY3JvcG9kL3Nkay9nby9nZW4vbWljcm9wb2QvdjE7bWljcm9wb2R2MWIGcHJvdG8z", [file_buf_validate_validate, file_gnostic_openapi_v3_annotations, file_micropod_v1_api, file_micropod_v1_system]);
 
 /**
  * Curated view of a container, mapped from `container list --format json`.
@@ -397,6 +397,43 @@ export type RunContainerRequest = Message<"micropod.v1.RunContainerRequest"> & {
    * @generated from field: repeated string arguments = 11;
    */
   arguments: string[];
+
+  /**
+   * Entrypoint override (docker run --entrypoint); `arguments` become its args.
+   *
+   * @generated from field: optional string entrypoint = 12;
+   */
+  entrypoint?: string;
+
+  /**
+   * Platform to select from a multi-arch image, e.g. "linux/arm64".
+   *
+   * @generated from field: optional string platform = 13;
+   */
+  platform?: string;
+
+  /**
+   * Working directory inside the container (docker run --workdir).
+   *
+   * @generated from field: optional string workdir = 14;
+   */
+  workdir?: string;
+
+  /**
+   * User (and optional group) to run as, e.g. "1000:1000" (docker run --user).
+   *
+   * @generated from field: optional string user = 15;
+   */
+  user?: string;
+
+  /**
+   * Fail with `not_found` instead of pulling when the image is absent
+   * locally (for the requested `platform`, when set). Lets callers own the
+   * pull and bound its duration.
+   *
+   * @generated from field: bool no_pull = 16;
+   */
+  noPull: boolean;
 };
 
 /**
@@ -405,6 +442,76 @@ export type RunContainerRequest = Message<"micropod.v1.RunContainerRequest"> & {
  */
 export const RunContainerRequestSchema: GenMessage<RunContainerRequest> = /*@__PURE__*/
   messageDesc(file_micropod_v1_container, 6);
+
+/**
+ * @generated from message micropod.v1.WaitContainerRequest
+ */
+export type WaitContainerRequest = Message<"micropod.v1.WaitContainerRequest"> & {
+  /**
+   * Container ID (or name) to wait on.
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * Seconds to wait for the container to exit. 0 selects the server default
+   * (30); values above 300 are capped at 300.
+   *
+   * @generated from field: int32 timeout_seconds = 2;
+   */
+  timeoutSeconds: number;
+};
+
+/**
+ * Describes the message micropod.v1.WaitContainerRequest.
+ * Use `create(WaitContainerRequestSchema)` to create a new message.
+ */
+export const WaitContainerRequestSchema: GenMessage<WaitContainerRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_container, 7);
+
+/**
+ * @generated from message micropod.v1.WaitContainerResponse
+ */
+export type WaitContainerResponse = Message<"micropod.v1.WaitContainerResponse"> & {
+  /**
+   * True when the container is no longer running or stopping.
+   *
+   * @generated from field: bool exited = 1;
+   */
+  exited: boolean;
+
+  /**
+   * True when `exit_code` is authoritative (recorded by the exit-code
+   * registry). False for containers the server did not start itself or
+   * whose entry aged out.
+   *
+   * @generated from field: bool known = 2;
+   */
+  known: boolean;
+
+  /**
+   * Process exit code; only meaningful when `known` is true.
+   *
+   * @generated from field: int32 exit_code = 3;
+   */
+  exitCode: number;
+
+  /**
+   * Runtime state observed at return: running, stopping, stopped, created
+   * or unknown.
+   *
+   * @generated from field: string state = 4;
+   */
+  state: string;
+};
+
+/**
+ * Describes the message micropod.v1.WaitContainerResponse.
+ * Use `create(WaitContainerResponseSchema)` to create a new message.
+ */
+export const WaitContainerResponseSchema: GenMessage<WaitContainerResponse> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_container, 8);
 
 /**
  * @generated from message micropod.v1.DeleteContainerRequest
@@ -430,7 +537,7 @@ export type DeleteContainerRequest = Message<"micropod.v1.DeleteContainerRequest
  * Use `create(DeleteContainerRequestSchema)` to create a new message.
  */
 export const DeleteContainerRequestSchema: GenMessage<DeleteContainerRequest> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_container, 7);
+  messageDesc(file_micropod_v1_container, 9);
 
 /**
  * @generated from message micropod.v1.StreamLogsRequest
@@ -456,6 +563,15 @@ export type StreamLogsRequest = Message<"micropod.v1.StreamLogsRequest"> & {
    * @generated from field: bool boot = 3;
    */
   boot: boolean;
+
+  /**
+   * Number of lines to drop from the start of the stream (after `tail` is
+   * applied). Lets a client re-open a stream after a transport error
+   * without replaying lines it already delivered.
+   *
+   * @generated from field: int64 skip_lines = 4;
+   */
+  skipLines: bigint;
 };
 
 /**
@@ -463,7 +579,7 @@ export type StreamLogsRequest = Message<"micropod.v1.StreamLogsRequest"> & {
  * Use `create(StreamLogsRequestSchema)` to create a new message.
  */
 export const StreamLogsRequestSchema: GenMessage<StreamLogsRequest> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_container, 8);
+  messageDesc(file_micropod_v1_container, 10);
 
 /**
  * One streamed log line (StreamContainerLogs event).
@@ -484,12 +600,19 @@ export type LogChunk = Message<"micropod.v1.LogChunk"> & {
  * Use `create(LogChunkSchema)` to create a new message.
  */
 export const LogChunkSchema: GenMessage<LogChunk> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_container, 9);
+  messageDesc(file_micropod_v1_container, 11);
 
 /**
  * @generated from message micropod.v1.GetStatsRequest
  */
 export type GetStatsRequest = Message<"micropod.v1.GetStatsRequest"> & {
+  /**
+   * Restrict the snapshot to these container IDs. Empty means every running
+   * container. The native backend samples only the requested IDs.
+   *
+   * @generated from field: repeated string ids = 1;
+   */
+  ids: string[];
 };
 
 /**
@@ -497,7 +620,7 @@ export type GetStatsRequest = Message<"micropod.v1.GetStatsRequest"> & {
  * Use `create(GetStatsRequestSchema)` to create a new message.
  */
 export const GetStatsRequestSchema: GenMessage<GetStatsRequest> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_container, 10);
+  messageDesc(file_micropod_v1_container, 12);
 
 /**
  * @generated from message micropod.v1.GetStatsResponse
@@ -516,7 +639,7 @@ export type GetStatsResponse = Message<"micropod.v1.GetStatsResponse"> & {
  * Use `create(GetStatsResponseSchema)` to create a new message.
  */
 export const GetStatsResponseSchema: GenMessage<GetStatsResponse> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_container, 11);
+  messageDesc(file_micropod_v1_container, 13);
 
 /**
  * @generated from message micropod.v1.ExecRequest
@@ -530,7 +653,9 @@ export type ExecRequest = Message<"micropod.v1.ExecRequest"> & {
   id: string;
 
   /**
-   * Command to run inside the container.
+   * Command line to run inside the container, split on whitespace. Used only
+   * when `arguments` is empty; one of the two must be set (handlers reject
+   * an empty request with `invalid_argument`).
    *
    * @generated from field: string command = 2;
    */
@@ -549,6 +674,14 @@ export type ExecRequest = Message<"micropod.v1.ExecRequest"> & {
    * @generated from field: repeated string env = 4;
    */
   env: string[];
+
+  /**
+   * Verbatim argv to run inside the container. Takes precedence over
+   * `command` when non-empty; elements are passed through unsplit.
+   *
+   * @generated from field: repeated string arguments = 5;
+   */
+  arguments: string[];
 };
 
 /**
@@ -556,7 +689,7 @@ export type ExecRequest = Message<"micropod.v1.ExecRequest"> & {
  * Use `create(ExecRequestSchema)` to create a new message.
  */
 export const ExecRequestSchema: GenMessage<ExecRequest> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_container, 12);
+  messageDesc(file_micropod_v1_container, 14);
 
 /**
  * @generated from message micropod.v1.ExecResponse
@@ -590,7 +723,7 @@ export type ExecResponse = Message<"micropod.v1.ExecResponse"> & {
  * Use `create(ExecResponseSchema)` to create a new message.
  */
 export const ExecResponseSchema: GenMessage<ExecResponse> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_container, 13);
+  messageDesc(file_micropod_v1_container, 15);
 
 /**
  * Container lifecycle, logs, stats, and exec against the Apple `container`
@@ -678,6 +811,31 @@ export const ContainerService: GenService<{
     methodKind: "unary";
     input: typeof DeleteContainerRequestSchema;
     output: typeof EmptySchema;
+  },
+  /**
+   * Inspect one container by ID. Fails with `not_found` when no container
+   * has that ID. `exit_code` is populated from the exit-code registry when
+   * the native backend recorded the container's exit.
+   *
+   * @generated from rpc micropod.v1.ContainerService.GetContainer
+   */
+  getContainer: {
+    methodKind: "unary";
+    input: typeof ContainerRefSchema;
+    output: typeof ContainerSchema;
+  },
+  /**
+   * Block until the container exits or `timeout_seconds` elapses. Polls the
+   * exit-code registry and runtime state server-side (no blocking runtime
+   * wait); returns immediately when the container is already stopped.
+   * Fails with `not_found` when no container has that ID.
+   *
+   * @generated from rpc micropod.v1.ContainerService.WaitContainer
+   */
+  waitContainer: {
+    methodKind: "unary";
+    input: typeof WaitContainerRequestSchema;
+    output: typeof WaitContainerResponseSchema;
   },
   /**
    * Live log stream (server streaming).

@@ -201,16 +201,24 @@ enum DockerMapper {
     /// container runs, and makes `--rm` delete it out from under its own
     /// `start` call.
     static func hasEverStarted(rawInspect data: Data) -> Bool {
-        guard let parsed = try? JSONSerialization.jsonObject(with: data) else { return false }
+        startedDate(rawInspect: data) != nil
+    }
+
+    /// The runtime's `status.startedDate`: the time of the container's latest
+    /// start (the runtime stamps it on every start and keeps it after the
+    /// container stops), nil when it has never started.
+    static func startedDate(rawInspect data: Data) -> String? {
+        guard let parsed = try? JSONSerialization.jsonObject(with: data) else { return nil }
         let entry: [String: Any]?
         if let entries = parsed as? [[String: Any]] {
             entry = entries.first
         } else {
             entry = parsed as? [String: Any]
         }
-        guard let status = entry?["status"] as? [String: Any] else { return false }
-        let started = status["startedDate"] as? String
-        return !(started ?? "").isEmpty
+        guard let status = entry?["status"] as? [String: Any],
+            let started = status["startedDate"] as? String, !started.isEmpty
+        else { return nil }
+        return started
     }
 
     /// Builds a Container proto from the runtime's raw `container inspect`

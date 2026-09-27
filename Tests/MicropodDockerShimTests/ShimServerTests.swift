@@ -740,8 +740,12 @@ final class ShimServerTests: XCTestCase {
     }
 
     func testContainersPruneReportsDeleted() throws {
-        _ = try createContainer("to-prune")
+        // One that ran and stopped: a never-started container this fresh is
+        // a create whose start is on its way, which prunes leave alone.
+        let id = try createContainer("to-prune")
         let client = shim.raw()
+        XCTAssertEqual(try client.request("POST", "/containers/\(id)/start").status, 204)
+        XCTAssertEqual(try client.request("POST", "/containers/\(id)/stop").status, 204)
         let response = try client.request("POST", "/containers/prune")
         XCTAssertEqual(response.status, 200)
         let object = try JSONSerialization.jsonObject(with: response.body) as! [String: Any]

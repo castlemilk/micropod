@@ -21,6 +21,18 @@ service VolumeService {
   rpc GetVolumePolicy(Empty) returns (VolumePolicy);
   // Replace the volume mount policy; returns the stored policy.
   rpc SetVolumePolicy(VolumePolicy) returns (VolumePolicy);
+  // Create a new volume whose backing image is a clonefile copy of the
+  // source volume's image (O(1) on APFS). Fails with `not_found` when the
+  // source does not exist and `failed_precondition` when the source is
+  // attached read-write to a running container.
+  rpc CloneVolume(CloneVolumeRequest) returns (Volume);
+  // Promote a container's per-container clone of `volume` to be the
+  // volume's backing image (fsync + atomic rename, serialised per volume).
+  // Fails with `not_found` when the clone or the volume's source is absent
+  // and `failed_precondition` unless the container is `stopped` and the
+  // volume is not attached to a running container. `unimplemented` on
+  // backends that never create clones.
+  rpc CommitVolumeClone(CommitVolumeCloneRequest) returns (CommitVolumeCloneResponse);
 }
 
 // Curated volume, mapped from `container volume list`.
@@ -39,6 +51,9 @@ message Volume {
   string created_at = 6 [(gnostic.openapi.v3.property).example = {yaml: "'2026-01-15T10:30:00Z'"}, (gnostic.openapi.v3.property).format = "date-time"];
   // Metadata labels on the volume.
   map<string, string> labels = 7;
+  // Bytes actually allocated on disk by the backing image (st_blocks × 512).
+  // `size_bytes` is the provisioned size; sparse images allocate far less.
+  uint64 allocated_bytes = 8 [(gnostic.openapi.v3.property).example = {yaml: "268435456"}];
 }
 
 // Named-volume mount policy — read on container create by every surface
@@ -111,4 +126,28 @@ message CreateVolumeRequest {
 message DeleteVolumeRequest {
   // Volume name to remove.
   string name = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'data'"}];
+}
+
+message CloneVolumeRequest {
+  // Existing volume to clone from.
+  string source = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'golden-cache'"}];
+  // Name of the new volume.
+  string name = 2 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'job-42-cache'"}];
+  // Optional size for the new volume, e.g. "10g". Defaults to the source's
+  // provisioned size.
+  optional string size = 3 [(gnostic.openapi.v3.property).example = {yaml: "'10g'"}];
+  // Labels applied to the new volume ("key=value").
+  repeated string labels = 4 [(gnostic.openapi.v3.property).example = {yaml: "['com.example.job=42']"}];
+}
+
+message CommitVolumeCloneRequest {
+  // Stopped container whose clone of `volume` is promoted.
+  string container_id = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'job-42'"}];
+  // Volume whose backing image is replaced by the container's clone.
+  string volume = 2 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'golden-cache'"}];
+}
+
+message CommitVolumeCloneResponse {
+  // Bytes allocated on disk by the promoted image (st_blocks × 512).
+  uint64 allocated_bytes = 1 [(gnostic.openapi.v3.property).example = {yaml: "268435456"}];
 }

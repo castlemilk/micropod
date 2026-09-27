@@ -217,7 +217,14 @@ public struct ContainerCLIClient: Sendable {
                 cancellation.cancel()
             }
 
+            // The exit can be observed before the pipes' last reads are
+            // delivered, so the watcher waits for both to reach EOF before
+            // finishing: otherwise the final lines (the CLI prints its error
+            // at exit) are dropped by the finished continuation.
+            let drained = DispatchGroup()
             func pump(_ handle: FileHandle) {
+                drained.enter()
+                let eof = FinishGate()
                 // Blocking reads on detached threads never observe data written
                 // to a long-lived pipe (verified against the real runtime);
                 // readabilityHandler is the reliable async callback.
@@ -226,6 +233,7 @@ public struct ContainerCLIClient: Sendable {
                     if data.isEmpty {
                         h.readabilityHandler = nil
                         try? h.close()
+                        eof.runOnce { drained.leave() }
                     } else {
                         continuation.yield(data)
                     }
@@ -257,7 +265,12 @@ public struct ContainerCLIClient: Sendable {
                     }
                     Thread.sleep(forTimeInterval: 0.02)
                 }
-                if !cancelledWhileRunning { process.waitUntilExit() }
+                if !cancelledWhileRunning {
+                    process.waitUntilExit()
+                    // Bounded: a descendant that inherited the pipes can hold
+                    // them open after the process itself has exited.
+                    _ = drained.wait(timeout: .now() + .milliseconds(500))
+                }
                 let wasCancelledWhileRunning = cancelledWhileRunning
                 let exitCode = process.terminationStatus
                 let displayName = command.displayName

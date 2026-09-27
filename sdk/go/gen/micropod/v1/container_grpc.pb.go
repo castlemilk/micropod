@@ -27,6 +27,8 @@ const (
 	ContainerService_RestartContainer_FullMethodName    = "/micropod.v1.ContainerService/RestartContainer"
 	ContainerService_KillContainer_FullMethodName       = "/micropod.v1.ContainerService/KillContainer"
 	ContainerService_DeleteContainer_FullMethodName     = "/micropod.v1.ContainerService/DeleteContainer"
+	ContainerService_GetContainer_FullMethodName        = "/micropod.v1.ContainerService/GetContainer"
+	ContainerService_WaitContainer_FullMethodName       = "/micropod.v1.ContainerService/WaitContainer"
 	ContainerService_StreamContainerLogs_FullMethodName = "/micropod.v1.ContainerService/StreamContainerLogs"
 	ContainerService_GetStats_FullMethodName            = "/micropod.v1.ContainerService/GetStats"
 	ContainerService_Exec_FullMethodName                = "/micropod.v1.ContainerService/Exec"
@@ -55,6 +57,15 @@ type ContainerServiceClient interface {
 	KillContainer(ctx context.Context, in *ContainerRef, opts ...grpc.CallOption) (*Empty, error)
 	// Remove a container. Running containers require force.
 	DeleteContainer(ctx context.Context, in *DeleteContainerRequest, opts ...grpc.CallOption) (*Empty, error)
+	// Inspect one container by ID. Fails with `not_found` when no container
+	// has that ID. `exit_code` is populated from the exit-code registry when
+	// the native backend recorded the container's exit.
+	GetContainer(ctx context.Context, in *ContainerRef, opts ...grpc.CallOption) (*Container, error)
+	// Block until the container exits or `timeout_seconds` elapses. Polls the
+	// exit-code registry and runtime state server-side (no blocking runtime
+	// wait); returns immediately when the container is already stopped.
+	// Fails with `not_found` when no container has that ID.
+	WaitContainer(ctx context.Context, in *WaitContainerRequest, opts ...grpc.CallOption) (*WaitContainerResponse, error)
 	// Live log stream (server streaming).
 	StreamContainerLogs(ctx context.Context, in *StreamLogsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LogChunk], error)
 	// Point-in-time resource usage for all running containers.
@@ -151,6 +162,26 @@ func (c *containerServiceClient) DeleteContainer(ctx context.Context, in *Delete
 	return out, nil
 }
 
+func (c *containerServiceClient) GetContainer(ctx context.Context, in *ContainerRef, opts ...grpc.CallOption) (*Container, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Container)
+	err := c.cc.Invoke(ctx, ContainerService_GetContainer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *containerServiceClient) WaitContainer(ctx context.Context, in *WaitContainerRequest, opts ...grpc.CallOption) (*WaitContainerResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WaitContainerResponse)
+	err := c.cc.Invoke(ctx, ContainerService_WaitContainer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *containerServiceClient) StreamContainerLogs(ctx context.Context, in *StreamLogsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LogChunk], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &ContainerService_ServiceDesc.Streams[0], ContainerService_StreamContainerLogs_FullMethodName, cOpts...)
@@ -213,6 +244,15 @@ type ContainerServiceServer interface {
 	KillContainer(context.Context, *ContainerRef) (*Empty, error)
 	// Remove a container. Running containers require force.
 	DeleteContainer(context.Context, *DeleteContainerRequest) (*Empty, error)
+	// Inspect one container by ID. Fails with `not_found` when no container
+	// has that ID. `exit_code` is populated from the exit-code registry when
+	// the native backend recorded the container's exit.
+	GetContainer(context.Context, *ContainerRef) (*Container, error)
+	// Block until the container exits or `timeout_seconds` elapses. Polls the
+	// exit-code registry and runtime state server-side (no blocking runtime
+	// wait); returns immediately when the container is already stopped.
+	// Fails with `not_found` when no container has that ID.
+	WaitContainer(context.Context, *WaitContainerRequest) (*WaitContainerResponse, error)
 	// Live log stream (server streaming).
 	StreamContainerLogs(*StreamLogsRequest, grpc.ServerStreamingServer[LogChunk]) error
 	// Point-in-time resource usage for all running containers.
@@ -252,6 +292,12 @@ func (UnimplementedContainerServiceServer) KillContainer(context.Context, *Conta
 }
 func (UnimplementedContainerServiceServer) DeleteContainer(context.Context, *DeleteContainerRequest) (*Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteContainer not implemented")
+}
+func (UnimplementedContainerServiceServer) GetContainer(context.Context, *ContainerRef) (*Container, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetContainer not implemented")
+}
+func (UnimplementedContainerServiceServer) WaitContainer(context.Context, *WaitContainerRequest) (*WaitContainerResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method WaitContainer not implemented")
 }
 func (UnimplementedContainerServiceServer) StreamContainerLogs(*StreamLogsRequest, grpc.ServerStreamingServer[LogChunk]) error {
 	return status.Error(codes.Unimplemented, "method StreamContainerLogs not implemented")
@@ -427,6 +473,42 @@ func _ContainerService_DeleteContainer_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ContainerService_GetContainer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ContainerRef)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContainerServiceServer).GetContainer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContainerService_GetContainer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContainerServiceServer).GetContainer(ctx, req.(*ContainerRef))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContainerService_WaitContainer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WaitContainerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContainerServiceServer).WaitContainer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContainerService_WaitContainer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContainerServiceServer).WaitContainer(ctx, req.(*WaitContainerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ContainerService_StreamContainerLogs_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(StreamLogsRequest)
 	if err := stream.RecvMsg(m); err != nil {
@@ -512,6 +594,14 @@ var ContainerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteContainer",
 			Handler:    _ContainerService_DeleteContainer_Handler,
+		},
+		{
+			MethodName: "GetContainer",
+			Handler:    _ContainerService_GetContainer_Handler,
+		},
+		{
+			MethodName: "WaitContainer",
+			Handler:    _ContainerService_WaitContainer_Handler,
 		},
 		{
 			MethodName: "GetStats",

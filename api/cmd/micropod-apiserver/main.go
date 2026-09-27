@@ -58,7 +58,7 @@ func main() {
 			return micropodv1connect.NewSystemServiceHandler(s, o...)
 		},
 		func(s *server.Server, o ...connect.HandlerOption) (string, http.Handler) {
-			return micropodv1connect.NewK8sServiceHandler(s, o...)
+			return micropodv1connect.NewK8SServiceHandler(s, o...)
 		},
 	}
 	for _, mount := range mounts {

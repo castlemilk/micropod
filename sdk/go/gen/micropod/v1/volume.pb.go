@@ -210,9 +210,12 @@ type Volume struct {
 	// ISO8601 creation timestamp.
 	CreatedAt string `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Metadata labels on the volume.
-	Labels        map[string]string `protobuf:"bytes,7,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Labels map[string]string `protobuf:"bytes,7,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Bytes actually allocated on disk by the backing image (st_blocks × 512).
+	// `size_bytes` is the provisioned size; sparse images allocate far less.
+	AllocatedBytes uint64 `protobuf:"varint,8,opt,name=allocated_bytes,json=allocatedBytes,proto3" json:"allocated_bytes,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Volume) Reset() {
@@ -292,6 +295,13 @@ func (x *Volume) GetLabels() map[string]string {
 		return x.Labels
 	}
 	return nil
+}
+
+func (x *Volume) GetAllocatedBytes() uint64 {
+	if x != nil {
+		return x.AllocatedBytes
+	}
+	return 0
 }
 
 // Named-volume mount policy — read on container create by every surface
@@ -542,11 +552,183 @@ func (x *DeleteVolumeRequest) GetName() string {
 	return ""
 }
 
+type CloneVolumeRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Existing volume to clone from.
+	Source string `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	// Name of the new volume.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Optional size for the new volume, e.g. "10g". Defaults to the source's
+	// provisioned size.
+	Size *string `protobuf:"bytes,3,opt,name=size,proto3,oneof" json:"size,omitempty"`
+	// Labels applied to the new volume ("key=value").
+	Labels        []string `protobuf:"bytes,4,rep,name=labels,proto3" json:"labels,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloneVolumeRequest) Reset() {
+	*x = CloneVolumeRequest{}
+	mi := &file_micropod_v1_volume_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloneVolumeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloneVolumeRequest) ProtoMessage() {}
+
+func (x *CloneVolumeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_volume_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloneVolumeRequest.ProtoReflect.Descriptor instead.
+func (*CloneVolumeRequest) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_volume_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *CloneVolumeRequest) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *CloneVolumeRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CloneVolumeRequest) GetSize() string {
+	if x != nil && x.Size != nil {
+		return *x.Size
+	}
+	return ""
+}
+
+func (x *CloneVolumeRequest) GetLabels() []string {
+	if x != nil {
+		return x.Labels
+	}
+	return nil
+}
+
+type CommitVolumeCloneRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stopped container whose clone of `volume` is promoted.
+	ContainerId string `protobuf:"bytes,1,opt,name=container_id,json=containerId,proto3" json:"container_id,omitempty"`
+	// Volume whose backing image is replaced by the container's clone.
+	Volume        string `protobuf:"bytes,2,opt,name=volume,proto3" json:"volume,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CommitVolumeCloneRequest) Reset() {
+	*x = CommitVolumeCloneRequest{}
+	mi := &file_micropod_v1_volume_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommitVolumeCloneRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommitVolumeCloneRequest) ProtoMessage() {}
+
+func (x *CommitVolumeCloneRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_volume_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommitVolumeCloneRequest.ProtoReflect.Descriptor instead.
+func (*CommitVolumeCloneRequest) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_volume_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *CommitVolumeCloneRequest) GetContainerId() string {
+	if x != nil {
+		return x.ContainerId
+	}
+	return ""
+}
+
+func (x *CommitVolumeCloneRequest) GetVolume() string {
+	if x != nil {
+		return x.Volume
+	}
+	return ""
+}
+
+type CommitVolumeCloneResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Bytes allocated on disk by the promoted image (st_blocks × 512).
+	AllocatedBytes uint64 `protobuf:"varint,1,opt,name=allocated_bytes,json=allocatedBytes,proto3" json:"allocated_bytes,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CommitVolumeCloneResponse) Reset() {
+	*x = CommitVolumeCloneResponse{}
+	mi := &file_micropod_v1_volume_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommitVolumeCloneResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommitVolumeCloneResponse) ProtoMessage() {}
+
+func (x *CommitVolumeCloneResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_volume_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommitVolumeCloneResponse.ProtoReflect.Descriptor instead.
+func (*CommitVolumeCloneResponse) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_volume_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *CommitVolumeCloneResponse) GetAllocatedBytes() uint64 {
+	if x != nil {
+		return x.AllocatedBytes
+	}
+	return 0
+}
+
 var File_micropod_v1_volume_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_volume_proto_rawDesc = "" +
 	"\n" +
-	"\x18micropod/v1/volume.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\"\x8e\x03\n" +
+	"\x18micropod/v1/volume.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\"\xc9\x03\n" +
 	"\x06Volume\x12\x1d\n" +
 	"\x02id\x18\x01 \x01(\tB\r\xbaG\n" +
 	":\b\x12\x06'data'R\x02id\x12&\n" +
@@ -559,7 +741,8 @@ const file_micropod_v1_volume_proto_rawDesc = "" +
 	":\b\x12\x06'data'R\x06source\x12H\n" +
 	"\n" +
 	"created_at\x18\x06 \x01(\tB)\xbaG&:\x18\x12\x16'2026-01-15T10:30:00Z'\x9a\x02\tdate-timeR\tcreatedAt\x127\n" +
-	"\x06labels\x18\a \x03(\v2\x1f.micropod.v1.Volume.LabelsEntryR\x06labels\x1a9\n" +
+	"\x06labels\x18\a \x03(\v2\x1f.micropod.v1.Volume.LabelsEntryR\x06labels\x129\n" +
+	"\x0fallocated_bytes\x18\b \x01(\x04B\x10\xbaG\r:\v\x12\t268435456R\x0eallocatedBytes\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa8\x05\n" +
@@ -596,13 +779,27 @@ const file_micropod_v1_volume_proto_rawDesc = "" +
 	"\x05_size\"B\n" +
 	"\x13DeleteVolumeRequest\x12+\n" +
 	"\x04name\x18\x01 \x01(\tB\x17\xbaG\n" +
-	":\b\x12\x06'data'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name2\xeb\x02\n" +
+	":\b\x12\x06'data'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name\"\xe9\x01\n" +
+	"\x12CloneVolumeRequest\x127\n" +
+	"\x06source\x18\x01 \x01(\tB\x1f\xbaG\x12:\x10\x12\x0e'golden-cache'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x06source\x123\n" +
+	"\x04name\x18\x02 \x01(\tB\x1f\xbaG\x12:\x10\x12\x0e'job-42-cache'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x04name\x12%\n" +
+	"\x04size\x18\x03 \x01(\tB\f\xbaG\t:\a\x12\x05'10g'H\x00R\x04size\x88\x01\x01\x125\n" +
+	"\x06labels\x18\x04 \x03(\tB\x1d\xbaG\x1a:\x18\x12\x16['com.example.job=42']R\x06labelsB\a\n" +
+	"\x05_size\"\x91\x01\n" +
+	"\x18CommitVolumeCloneRequest\x12<\n" +
+	"\fcontainer_id\x18\x01 \x01(\tB\x19\xbaG\f:\n" +
+	"\x12\b'job-42'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\vcontainerId\x127\n" +
+	"\x06volume\x18\x02 \x01(\tB\x1f\xbaG\x12:\x10\x12\x0e'golden-cache'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x06volume\"V\n" +
+	"\x19CommitVolumeCloneResponse\x129\n" +
+	"\x0fallocated_bytes\x18\x01 \x01(\x04B\x10\xbaG\r:\v\x12\t268435456R\x0eallocatedBytes2\x94\x04\n" +
 	"\rVolumeService\x12C\n" +
 	"\vListVolumes\x12\x12.micropod.v1.Empty\x1a .micropod.v1.ListVolumesResponse\x12D\n" +
 	"\fCreateVolume\x12 .micropod.v1.CreateVolumeRequest\x1a\x12.micropod.v1.Empty\x12D\n" +
 	"\fDeleteVolume\x12 .micropod.v1.DeleteVolumeRequest\x1a\x12.micropod.v1.Empty\x12@\n" +
 	"\x0fGetVolumePolicy\x12\x12.micropod.v1.Empty\x1a\x19.micropod.v1.VolumePolicy\x12G\n" +
-	"\x0fSetVolumePolicy\x12\x19.micropod.v1.VolumePolicy\x1a\x19.micropod.v1.VolumePolicyBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
+	"\x0fSetVolumePolicy\x12\x19.micropod.v1.VolumePolicy\x1a\x19.micropod.v1.VolumePolicy\x12C\n" +
+	"\vCloneVolume\x12\x1f.micropod.v1.CloneVolumeRequest\x1a\x13.micropod.v1.Volume\x12b\n" +
+	"\x11CommitVolumeClone\x12%.micropod.v1.CommitVolumeCloneRequest\x1a&.micropod.v1.CommitVolumeCloneResponseBBZ@github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1b\x06proto3"
 
 var (
 	file_micropod_v1_volume_proto_rawDescOnce sync.Once
@@ -617,37 +814,44 @@ func file_micropod_v1_volume_proto_rawDescGZIP() []byte {
 }
 
 var file_micropod_v1_volume_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_micropod_v1_volume_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_micropod_v1_volume_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_micropod_v1_volume_proto_goTypes = []any{
-	(VolumePolicy_CloneMode)(0), // 0: micropod.v1.VolumePolicy.CloneMode
-	(VolumePolicy_SyncMode)(0),  // 1: micropod.v1.VolumePolicy.SyncMode
-	(VolumePolicy_CacheMode)(0), // 2: micropod.v1.VolumePolicy.CacheMode
-	(*Volume)(nil),              // 3: micropod.v1.Volume
-	(*VolumePolicy)(nil),        // 4: micropod.v1.VolumePolicy
-	(*ListVolumesResponse)(nil), // 5: micropod.v1.ListVolumesResponse
-	(*CreateVolumeRequest)(nil), // 6: micropod.v1.CreateVolumeRequest
-	(*DeleteVolumeRequest)(nil), // 7: micropod.v1.DeleteVolumeRequest
-	nil,                         // 8: micropod.v1.Volume.LabelsEntry
-	(*Empty)(nil),               // 9: micropod.v1.Empty
+	(VolumePolicy_CloneMode)(0),       // 0: micropod.v1.VolumePolicy.CloneMode
+	(VolumePolicy_SyncMode)(0),        // 1: micropod.v1.VolumePolicy.SyncMode
+	(VolumePolicy_CacheMode)(0),       // 2: micropod.v1.VolumePolicy.CacheMode
+	(*Volume)(nil),                    // 3: micropod.v1.Volume
+	(*VolumePolicy)(nil),              // 4: micropod.v1.VolumePolicy
+	(*ListVolumesResponse)(nil),       // 5: micropod.v1.ListVolumesResponse
+	(*CreateVolumeRequest)(nil),       // 6: micropod.v1.CreateVolumeRequest
+	(*DeleteVolumeRequest)(nil),       // 7: micropod.v1.DeleteVolumeRequest
+	(*CloneVolumeRequest)(nil),        // 8: micropod.v1.CloneVolumeRequest
+	(*CommitVolumeCloneRequest)(nil),  // 9: micropod.v1.CommitVolumeCloneRequest
+	(*CommitVolumeCloneResponse)(nil), // 10: micropod.v1.CommitVolumeCloneResponse
+	nil,                               // 11: micropod.v1.Volume.LabelsEntry
+	(*Empty)(nil),                     // 12: micropod.v1.Empty
 }
 var file_micropod_v1_volume_proto_depIdxs = []int32{
-	8,  // 0: micropod.v1.Volume.labels:type_name -> micropod.v1.Volume.LabelsEntry
+	11, // 0: micropod.v1.Volume.labels:type_name -> micropod.v1.Volume.LabelsEntry
 	0,  // 1: micropod.v1.VolumePolicy.clone_mode:type_name -> micropod.v1.VolumePolicy.CloneMode
 	1,  // 2: micropod.v1.VolumePolicy.sync:type_name -> micropod.v1.VolumePolicy.SyncMode
 	2,  // 3: micropod.v1.VolumePolicy.cache:type_name -> micropod.v1.VolumePolicy.CacheMode
 	3,  // 4: micropod.v1.ListVolumesResponse.volumes:type_name -> micropod.v1.Volume
-	9,  // 5: micropod.v1.VolumeService.ListVolumes:input_type -> micropod.v1.Empty
+	12, // 5: micropod.v1.VolumeService.ListVolumes:input_type -> micropod.v1.Empty
 	6,  // 6: micropod.v1.VolumeService.CreateVolume:input_type -> micropod.v1.CreateVolumeRequest
 	7,  // 7: micropod.v1.VolumeService.DeleteVolume:input_type -> micropod.v1.DeleteVolumeRequest
-	9,  // 8: micropod.v1.VolumeService.GetVolumePolicy:input_type -> micropod.v1.Empty
+	12, // 8: micropod.v1.VolumeService.GetVolumePolicy:input_type -> micropod.v1.Empty
 	4,  // 9: micropod.v1.VolumeService.SetVolumePolicy:input_type -> micropod.v1.VolumePolicy
-	5,  // 10: micropod.v1.VolumeService.ListVolumes:output_type -> micropod.v1.ListVolumesResponse
-	9,  // 11: micropod.v1.VolumeService.CreateVolume:output_type -> micropod.v1.Empty
-	9,  // 12: micropod.v1.VolumeService.DeleteVolume:output_type -> micropod.v1.Empty
-	4,  // 13: micropod.v1.VolumeService.GetVolumePolicy:output_type -> micropod.v1.VolumePolicy
-	4,  // 14: micropod.v1.VolumeService.SetVolumePolicy:output_type -> micropod.v1.VolumePolicy
-	10, // [10:15] is the sub-list for method output_type
-	5,  // [5:10] is the sub-list for method input_type
+	8,  // 10: micropod.v1.VolumeService.CloneVolume:input_type -> micropod.v1.CloneVolumeRequest
+	9,  // 11: micropod.v1.VolumeService.CommitVolumeClone:input_type -> micropod.v1.CommitVolumeCloneRequest
+	5,  // 12: micropod.v1.VolumeService.ListVolumes:output_type -> micropod.v1.ListVolumesResponse
+	12, // 13: micropod.v1.VolumeService.CreateVolume:output_type -> micropod.v1.Empty
+	12, // 14: micropod.v1.VolumeService.DeleteVolume:output_type -> micropod.v1.Empty
+	4,  // 15: micropod.v1.VolumeService.GetVolumePolicy:output_type -> micropod.v1.VolumePolicy
+	4,  // 16: micropod.v1.VolumeService.SetVolumePolicy:output_type -> micropod.v1.VolumePolicy
+	3,  // 17: micropod.v1.VolumeService.CloneVolume:output_type -> micropod.v1.Volume
+	10, // 18: micropod.v1.VolumeService.CommitVolumeClone:output_type -> micropod.v1.CommitVolumeCloneResponse
+	12, // [12:19] is the sub-list for method output_type
+	5,  // [5:12] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name
 	5,  // [5:5] is the sub-list for extension extendee
 	0,  // [0:5] is the sub-list for field type_name
@@ -660,13 +864,14 @@ func file_micropod_v1_volume_proto_init() {
 	}
 	file_micropod_v1_api_proto_init()
 	file_micropod_v1_volume_proto_msgTypes[3].OneofWrappers = []any{}
+	file_micropod_v1_volume_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_micropod_v1_volume_proto_rawDesc), len(file_micropod_v1_volume_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   6,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
