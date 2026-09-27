@@ -576,6 +576,18 @@
             <ul>
               
                 <li>
+                  <a href="#micropod.v1.CloneVolumeRequest"><span class="badge">M</span>CloneVolumeRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.CommitVolumeCloneRequest"><span class="badge">M</span>CommitVolumeCloneRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.CommitVolumeCloneResponse"><span class="badge">M</span>CommitVolumeCloneResponse</a>
+                </li>
+              
+                <li>
                   <a href="#micropod.v1.CreateVolumeRequest"><span class="badge">M</span>CreateVolumeRequest</a>
                 </li>
               
@@ -636,6 +648,10 @@
               
                 <li>
                   <a href="#micropod.v1.DiskUsage"><span class="badge">M</span>DiskUsage</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.PingResponse"><span class="badge">M</span>PingResponse</a>
                 </li>
               
                 <li>
@@ -751,6 +767,14 @@
               
                 <li>
                   <a href="#micropod.v1.StreamLogsRequest"><span class="badge">M</span>StreamLogsRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.WaitContainerRequest"><span class="badge">M</span>WaitContainerRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.WaitContainerResponse"><span class="badge">M</span>WaitContainerResponse</a>
                 </li>
               
               
@@ -3923,6 +3947,107 @@ not have a pty allocated.</p></td>
       <p></p>
 
       
+        <h3 id="micropod.v1.CloneVolumeRequest">CloneVolumeRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>source</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Existing volume to clone from. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Name of the new volume. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>size</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>Optional size for the new volume, e.g. &#34;10g&#34;. Defaults to the source&#39;s
+provisioned size. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>labels</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Labels applied to the new volume (&#34;key=value&#34;). </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.CommitVolumeCloneRequest">CommitVolumeCloneRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>container_id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Stopped container whose clone of `volume` is promoted. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>volume</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Volume whose backing image is replaced by the container&#39;s clone. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.CommitVolumeCloneResponse">CommitVolumeCloneResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>allocated_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Bytes allocated on disk by the promoted image (st_blocks × 512). </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
         <h3 id="micropod.v1.CreateVolumeRequest">CreateVolumeRequest</h3>
         <p></p>
 
@@ -4073,6 +4198,14 @@ not have a pty allocated.</p></td>
                   <td><a href="#micropod.v1.Volume.LabelsEntry">Volume.LabelsEntry</a></td>
                   <td>repeated</td>
                   <td><p>Metadata labels on the volume. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>allocated_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Bytes actually allocated on disk by the backing image (st_blocks × 512).
+`size_bytes` is the provisioned size; sparse images allocate far less. </p></td>
                 </tr>
               
             </tbody>
@@ -4322,6 +4455,28 @@ surface (API, shim, app, CLI, MCP).</p></td>
                 <td><p>Replace the volume mount policy; returns the stored policy.</p></td>
               </tr>
             
+              <tr>
+                <td>CloneVolume</td>
+                <td><a href="#micropod.v1.CloneVolumeRequest">CloneVolumeRequest</a></td>
+                <td><a href="#micropod.v1.Volume">Volume</a></td>
+                <td><p>Create a new volume whose backing image is a clonefile copy of the
+source volume&#39;s image (O(1) on APFS). Fails with `not_found` when the
+source does not exist and `failed_precondition` when the source is
+attached read-write to a running container.</p></td>
+              </tr>
+            
+              <tr>
+                <td>CommitVolumeClone</td>
+                <td><a href="#micropod.v1.CommitVolumeCloneRequest">CommitVolumeCloneRequest</a></td>
+                <td><a href="#micropod.v1.CommitVolumeCloneResponse">CommitVolumeCloneResponse</a></td>
+                <td><p>Promote a container&#39;s per-container clone of `volume` to be the
+volume&#39;s backing image (fsync &#43; atomic rename, serialised per volume).
+Fails with `not_found` when the clone or the volume&#39;s source is absent
+and `failed_precondition` unless the container is `stopped` and the
+volume is not attached to a running container. `unimplemented` on
+backends that never create clones.</p></td>
+              </tr>
+            
           </tbody>
         </table>
 
@@ -4504,6 +4659,51 @@ surface (API, shim, app, CLI, MCP).</p></td>
 
         
       
+        <h3 id="micropod.v1.PingResponse">PingResponse</h3>
+        <p>Cheap liveness reply for detection and health ticks (see Ping).</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>status</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>&#34;running&#34; or &#34;stopped&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>runtime_backend</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Backend the API server is currently driving: &#34;native&#34; (XPC) or &#34;cli&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>api_server_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Version of the embedded API server. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cli_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Version of the bundled `container` CLI. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
         <h3 id="micropod.v1.RegistryLogin">RegistryLogin</h3>
         <p>A registry login, mapped from `container registry list`.</p>
 
@@ -4647,6 +4847,13 @@ surface (API, shim, app, CLI, MCP).</p></td>
                   <td><a href="#string">string</a></td>
                   <td></td>
                   <td><p>Version of the bundled `container` CLI. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>runtime_backend</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Backend the API server is currently driving: &#34;native&#34; (XPC) or &#34;cli&#34;. </p></td>
                 </tr>
               
             </tbody>
@@ -4975,6 +5182,15 @@ Fails with `unavailable` when the app isn&#39;t running.</p></td>
 with `failed_precondition` until `UpdateStatus.ready_to_install`.</p></td>
               </tr>
             
+              <tr>
+                <td>Ping</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.PingResponse">PingResponse</a></td>
+                <td><p>Millisecond liveness: runtime status and active backend without disk
+usage. Answers `status: stopped` (never an error) when the runtime is
+down but the API server is up.</p></td>
+              </tr>
+            
           </tbody>
         </table>
 
@@ -5275,7 +5491,9 @@ with `failed_precondition` until `UpdateStatus.ready_to_install`.</p></td>
                   <td>command</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p>Command to run inside the container. </p></td>
+                  <td><p>Command line to run inside the container, split on whitespace. Used only
+when `arguments` is empty; one of the two must be set (handlers reject
+an empty request with `invalid_argument`). </p></td>
                 </tr>
               
                 <tr>
@@ -5290,6 +5508,14 @@ with `failed_precondition` until `UpdateStatus.ready_to_install`.</p></td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
                   <td><p>Extra environment variables as KEY=value pairs. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>arguments</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Verbatim argv to run inside the container. Takes precedence over
+`command` when non-empty; elements are passed through unsplit. </p></td>
                 </tr>
               
             </tbody>
@@ -5342,6 +5568,24 @@ is active this is the real exit status rather than a CLI approximation. </p></td
         <p></p>
 
         
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>ids</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Restrict the snapshot to these container IDs. Empty means every running
+container. The native backend samples only the requested IDs. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
 
         
       
@@ -5594,6 +5838,43 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td><p>Command &#43; args override (image entrypoint is used when empty). </p></td>
                 </tr>
               
+                <tr>
+                  <td>entrypoint</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>Entrypoint override (docker run --entrypoint); `arguments` become its args. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>platform</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>Platform to select from a multi-arch image, e.g. &#34;linux/arm64&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>workdir</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>Working directory inside the container (docker run --workdir). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>user</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>User (and optional group) to run as, e.g. &#34;1000:1000&#34; (docker run --user). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>no_pull</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Fail with `not_found` instead of pulling when the image is absent
+locally (for the requested `platform`, when set). Lets callers own the
+pull and bound its duration. </p></td>
+                </tr>
+              
             </tbody>
           </table>
 
@@ -5661,6 +5942,95 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                   <td><a href="#bool">bool</a></td>
                   <td></td>
                   <td><p>Include the vminitd guest boot log. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>skip_lines</td>
+                  <td><a href="#int64">int64</a></td>
+                  <td></td>
+                  <td><p>Number of lines to drop from the start of the stream (after `tail` is
+applied). Lets a client re-open a stream after a transport error
+without replaying lines it already delivered. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.WaitContainerRequest">WaitContainerRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Container ID (or name) to wait on. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>timeout_seconds</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p>Seconds to wait for the container to exit. 0 selects the server default
+(30); values above 300 are capped at 300. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.WaitContainerResponse">WaitContainerResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>exited</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>True when the container is no longer running or stopping. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>known</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>True when `exit_code` is authoritative (recorded by the exit-code
+registry). False for containers the server did not start itself or
+whose entry aged out. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>exit_code</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p>Process exit code; only meaningful when `known` is true. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>state</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Runtime state observed at return: running, stopping, stopped, created
+or unknown. </p></td>
                 </tr>
               
             </tbody>
@@ -5738,6 +6108,25 @@ is active this is the real exit status rather than a CLI approximation. </p></td
                 <td><a href="#micropod.v1.DeleteContainerRequest">DeleteContainerRequest</a></td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
                 <td><p>Remove a container. Running containers require force.</p></td>
+              </tr>
+            
+              <tr>
+                <td>GetContainer</td>
+                <td><a href="#micropod.v1.ContainerRef">ContainerRef</a></td>
+                <td><a href="#micropod.v1.Container">Container</a></td>
+                <td><p>Inspect one container by ID. Fails with `not_found` when no container
+has that ID. `exit_code` is populated from the exit-code registry when
+the native backend recorded the container&#39;s exit.</p></td>
+              </tr>
+            
+              <tr>
+                <td>WaitContainer</td>
+                <td><a href="#micropod.v1.WaitContainerRequest">WaitContainerRequest</a></td>
+                <td><a href="#micropod.v1.WaitContainerResponse">WaitContainerResponse</a></td>
+                <td><p>Block until the container exits or `timeout_seconds` elapses. Polls the
+exit-code registry and runtime state server-side (no blocking runtime
+wait); returns immediately when the container is already stopped.
+Fails with `not_found` when no container has that ID.</p></td>
               </tr>
             
               <tr>

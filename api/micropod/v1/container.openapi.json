@@ -195,6 +195,65 @@
         }
       }
     },
+    "/api/micropod.v1.ContainerService/GetContainer": {
+      "post": {
+        "tags": [
+          "micropod.v1.ContainerService"
+        ],
+        "summary": "GetContainer",
+        "description": "Inspect one container by ID. Fails with `not_found` when no container\n has that ID. `exit_code` is populated from the exit-code registry when\n the native backend recorded the container's exit.",
+        "operationId": "micropod.v1.ContainerService.GetContainer",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ContainerRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Container"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/micropod.v1.ContainerService/GetStats": {
       "post": {
         "tags": [
@@ -771,6 +830,65 @@
           }
         }
       }
+    },
+    "/api/micropod.v1.ContainerService/WaitContainer": {
+      "post": {
+        "tags": [
+          "micropod.v1.ContainerService"
+        ],
+        "summary": "WaitContainer",
+        "description": "Block until the container exits or `timeout_seconds` elapses. Polls the\n exit-code registry and runtime state server-side (no blocking runtime\n wait); returns immediately when the container is already stopped.\n Fails with `not_found` when no container has that ID.",
+        "operationId": "micropod.v1.ContainerService.WaitContainer",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.WaitContainerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.WaitContainerResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1236,8 +1354,7 @@
               "/bin/sh"
             ],
             "title": "command",
-            "minLength": 1,
-            "description": "Command to run inside the container."
+            "description": "Command line to run inside the container, split on whitespace. Used only\n when `arguments` is empty; one of the two must be set (handlers reject\n an empty request with `invalid_argument`)."
           },
           "workdir": {
             "type": [
@@ -1267,12 +1384,33 @@
             },
             "title": "env",
             "description": "Extra environment variables as KEY=value pairs."
+          },
+          "arguments": {
+            "type": "array",
+            "examples": [
+              [
+                "sh",
+                "-c",
+                "echo a  b"
+              ]
+            ],
+            "items": {
+              "type": "string",
+              "examples": [
+                [
+                  "sh",
+                  "-c",
+                  "echo a  b"
+                ]
+              ]
+            },
+            "title": "arguments",
+            "description": "Verbatim argv to run inside the container. Takes precedence over\n `command` when non-empty; elements are passed through unsplit."
           }
         },
         "title": "ExecRequest",
         "required": [
-          "id",
-          "command"
+          "id"
         ],
         "additionalProperties": false
       },
@@ -1307,6 +1445,26 @@
       },
       "micropod.v1.GetStatsRequest": {
         "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "examples": [
+              [
+                "web"
+              ]
+            ],
+            "items": {
+              "type": "string",
+              "examples": [
+                [
+                  "web"
+                ]
+              ]
+            },
+            "title": "ids",
+            "description": "Restrict the snapshot to these container IDs. Empty means every running\n container. The native backend samples only the requested IDs."
+          }
+        },
         "title": "GetStatsRequest",
         "additionalProperties": false
       },
@@ -1565,6 +1723,58 @@
             },
             "title": "arguments",
             "description": "Command + args override (image entrypoint is used when empty)."
+          },
+          "entrypoint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "examples": [
+              "/bin/sh"
+            ],
+            "title": "entrypoint",
+            "description": "Entrypoint override (docker run --entrypoint); `arguments` become its args."
+          },
+          "platform": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "examples": [
+              "linux/arm64"
+            ],
+            "title": "platform",
+            "description": "Platform to select from a multi-arch image, e.g. \"linux/arm64\"."
+          },
+          "workdir": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "examples": [
+              "/work"
+            ],
+            "title": "workdir",
+            "description": "Working directory inside the container (docker run --workdir)."
+          },
+          "user": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "examples": [
+              "1000:1000"
+            ],
+            "title": "user",
+            "description": "User (and optional group) to run as, e.g. \"1000:1000\" (docker run --user)."
+          },
+          "noPull": {
+            "type": "boolean",
+            "examples": [
+              "true"
+            ],
+            "title": "no_pull",
+            "description": "Fail with `not_found` instead of pulling when the image is absent\n locally (for the requested `platform`, when set). Lets callers own the\n pull and bound its duration."
           }
         },
         "title": "RunContainerRequest",
@@ -1640,12 +1850,94 @@
             "type": "boolean",
             "title": "boot",
             "description": "Include the vminitd guest boot log."
+          },
+          "skipLines": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "examples": [
+              "120"
+            ],
+            "title": "skip_lines",
+            "minimum": 0,
+            "format": "int64",
+            "description": "Number of lines to drop from the start of the stream (after `tail` is\n applied). Lets a client re-open a stream after a transport error\n without replaying lines it already delivered."
           }
         },
         "title": "StreamLogsRequest",
         "required": [
           "id"
         ],
+        "additionalProperties": false
+      },
+      "micropod.v1.WaitContainerRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": [
+              "web"
+            ],
+            "title": "id",
+            "minLength": 1,
+            "description": "Container ID (or name) to wait on."
+          },
+          "timeoutSeconds": {
+            "type": "integer",
+            "examples": [
+              "30"
+            ],
+            "title": "timeout_seconds",
+            "minimum": 0,
+            "format": "int32",
+            "description": "Seconds to wait for the container to exit. 0 selects the server default\n (30); values above 300 are capped at 300."
+          }
+        },
+        "title": "WaitContainerRequest",
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "micropod.v1.WaitContainerResponse": {
+        "type": "object",
+        "properties": {
+          "exited": {
+            "type": "boolean",
+            "examples": [
+              "true"
+            ],
+            "title": "exited",
+            "description": "True when the container is no longer running or stopping."
+          },
+          "known": {
+            "type": "boolean",
+            "examples": [
+              "true"
+            ],
+            "title": "known",
+            "description": "True when `exit_code` is authoritative (recorded by the exit-code\n registry). False for containers the server did not start itself or\n whose entry aged out."
+          },
+          "exitCode": {
+            "type": "integer",
+            "examples": [
+              "0"
+            ],
+            "title": "exit_code",
+            "format": "int32",
+            "description": "Process exit code; only meaningful when `known` is true."
+          },
+          "state": {
+            "type": "string",
+            "examples": [
+              "stopped"
+            ],
+            "title": "state",
+            "description": "Runtime state observed at return: running, stopping, stopped, created\n or unknown."
+          }
+        },
+        "title": "WaitContainerResponse",
         "additionalProperties": false
       }
     }
