@@ -41,8 +41,7 @@ final class RealConnectCapsTests: XCTestCase {
             cli.waitUntilExit()
         }
         created = []
-        server?.terminate()
-        server?.waitUntilExit()
+        await server?.stopBounded()
         server = nil
         if let stateDir { try? FileManager.default.removeItem(at: stateDir) }
     }

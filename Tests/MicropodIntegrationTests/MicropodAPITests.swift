@@ -75,8 +75,7 @@ final class MicropodAPITests: XCTestCase {
     /// Replaces the running server with one started under extra environment
     /// (mock modes are env-driven; the state directory is kept).
     private func relaunchServer(extraEnvironment: [String: String]) async throws {
-        server.terminate()
-        server.waitUntilExit()
+        await server.stopBounded()
         try await launchServer(extraEnvironment: extraEnvironment)
     }
 
@@ -1779,6 +1778,22 @@ enum ConnectFrames {
             offset = start + length
         }
         return (frames, data.endIndex - offset)
+    }
+}
+
+extension Process {
+    /// SIGTERM, then SIGKILL after `grace`, and return once the child is
+    /// gone. Never `waitUntilExit()`: it has been seen to miss the exit of an
+    /// already-reaped server and hang the whole suite (no child left, the
+    /// test parked in -[NSConcreteTask waitUntilExit]).
+    func stopBounded(grace: Duration = .seconds(5)) async {
+        guard isRunning else { return }
+        terminate()
+        let deadline = ContinuousClock.now + grace
+        while isRunning, kill(processIdentifier, 0) == 0, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        if isRunning, kill(processIdentifier, 0) == 0 { kill(processIdentifier, SIGKILL) }
     }
 }
 
