@@ -127,6 +127,9 @@ final class ShimTCPAdmissionTests: XCTestCase {
         XCTAssertTrue(filter("192.168.65.7"))
         XCTAssertFalse(filter("192.168.1.50"), "a LAN peer never reaches a gateway listener")
         XCTAssertFalse(filter("10.208.87.2"), "another network's guest uses its own gateway")
+        XCTAssertFalse(
+            filter("192.168.65.1"),
+            "a host process (e.g. a browser) connecting to the gateway arrives from the gateway itself")
     }
 
     func testSubnetArithmetic() {
@@ -202,10 +205,15 @@ final class ShimTCPAdmissionTests: XCTestCase {
         let outsider = RawHTTPClient(port: port)
         XCTAssertThrowsError(try outsider.request("GET", "/_ping", timeout: 2), "loopback is not in 10.9.9.0/24")
 
-        // The network's subnet now covers the peer: admitted.
+        // The network's subnet now covers the peer: a guest address is
+        // admitted. The test can only connect from 127.0.0.1, which here is
+        // the gateway itself — a host process, refused even inside the subnet.
         state.networks = [Self.network("default", gateway: "127.0.0.1", subnet: "127.0.0.0/8", builtin: true)]
         await gateways.refresh()
-        XCTAssertEqual(try RawHTTPClient(port: port).request("GET", "/_ping").status, 200)
+        XCTAssertTrue(gateways.peerFilter(forGateway: "127.0.0.1")("127.0.0.5"), "a guest in the subnet is admitted")
+        XCTAssertThrowsError(
+            try RawHTTPClient(port: port).request("GET", "/_ping", timeout: 2),
+            "a peer with the gateway's own address is a host process")
 
         // The runtime deletes the network: the listener closes.
         state.networks = []

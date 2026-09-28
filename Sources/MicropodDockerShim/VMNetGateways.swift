@@ -76,6 +76,11 @@ actor VMNetGateways {
         }
 
         func allows(peer: String, gateway: String) -> Bool {
+            // A host process connecting to the gateway address arrives with
+            // the gateway itself as its source; guests never have it. Refuse
+            // it: a host browser sends no Origin or Sec-Fetch-* to a plain
+            // http:// IP, so the browser checks would not stop it here.
+            if peer == gateway { return false }
             lock.lock()
             let subnets = subnetsByGateway[gateway] ?? []
             lock.unlock()
@@ -202,7 +207,13 @@ final class GatewayListeners: @unchecked Sendable {
             // the operator's call.
             let isNetworkGateway = networks.contains { $0.gateway == address }
             var filter: @Sendable (String) -> Bool = { _ in true }
-            if isNetworkGateway { filter = gateways.peerFilter(forGateway: address) }
+            if isNetworkGateway {
+                filter = gateways.peerFilter(forGateway: address)
+            } else {
+                fputs(
+                    "[shim] WARNING: MICROPOD_SHIM_BRIDGE \(address) is not a runtime network gateway; its listener admits every peer that can reach it, so the unauthenticated Docker API is exposed to anything routed to \(address)\n",
+                    stderr)
+            }
             do {
                 let listener = try server.listenTCP(host: address, port: port, peerAllowed: filter)
                 lock.withLock { listeners[address] = listener }
