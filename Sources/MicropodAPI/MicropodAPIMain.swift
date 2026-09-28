@@ -138,7 +138,7 @@ final class HTTPServer: @unchecked Sendable {
             listener.newConnectionHandler = { [weak self] connection in
                 guard let self else { return }
                 connection.start(queue: .global(qos: .userInitiated))
-                self.readRequest(connection, buffer: Data())
+                self.startReading(connection)
             }
             listener.stateUpdateHandler = { [port] state in
                 if case .failed(let error) = state {
@@ -156,26 +156,112 @@ final class HTTPServer: @unchecked Sendable {
 
     private var listeners: [NWListener] = []
 
-    private func readRequest(_ connection: NWConnection, buffer: Data) {
+    /// A request must make progress: the head and body have to finish
+    /// arriving within `requestDeadline`, with no silence longer than
+    /// `idleTimeout` in between. A stuck or malicious client gets 408
+    /// instead of holding the connection forever. Overridable (milliseconds)
+    /// via `MICROPOD_API_READ_IDLE_TIMEOUT_MS` / `MICROPOD_API_READ_DEADLINE_MS`
+    /// so tests need not wait 30 s.
+    static let idleTimeout = timeout(env: "MICROPOD_API_READ_IDLE_TIMEOUT_MS", defaultMilliseconds: 30_000)
+    static let requestDeadline = timeout(env: "MICROPOD_API_READ_DEADLINE_MS", defaultMilliseconds: 120_000)
+
+    private static func timeout(env: String, defaultMilliseconds: Int) -> DispatchTimeInterval {
+        let raw = ProcessInfo.processInfo.environment[env].flatMap { Int($0) }
+        return .milliseconds(max(1, raw ?? defaultMilliseconds))
+    }
+
+    /// Per-connection read state: the watchdog and the receive loop race to
+    /// finish the connection; whichever wins first decides.
+    private final class PendingRead: @unchecked Sendable {
+        private let lock = NSLock()
+        private var finished = false
+        private var generation = 0
+
+        /// Marks the read finished; false if it already was.
+        func finish() -> Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            if finished { return false }
+            finished = true
+            return true
+        }
+
+        /// Starts a new idle window; returns its token.
+        func touch() -> Int {
+            lock.lock()
+            defer { lock.unlock() }
+            generation += 1
+            return generation
+        }
+
+        func isCurrent(_ token: Int) -> Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            return !finished && generation == token
+        }
+    }
+
+    private func startReading(_ connection: NWConnection) {
+        let pending = PendingRead()
+        let queue = DispatchQueue.global(qos: .userInitiated)
+        queue.asyncAfter(deadline: .now() + Self.requestDeadline) { [weak self] in
+            guard pending.finish() else { return }
+            self?.reject(connection, status: 408, reason: "request not received in time")
+        }
+        armIdleTimer(connection, pending: pending)
+        readRequest(connection, buffer: Data(), pending: pending)
+    }
+
+    private func armIdleTimer(_ connection: NWConnection, pending: PendingRead) {
+        let token = pending.touch()
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + Self.idleTimeout) {
+            [weak self] in
+            guard pending.isCurrent(token), pending.finish() else { return }
+            self?.reject(connection, status: 408, reason: "request incomplete: client went idle")
+        }
+    }
+
+    private func readRequest(_ connection: NWConnection, buffer: Data, pending: PendingRead) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) {
             [weak self] data, _, isComplete, error in
             guard let self else { return }
+            var newBuffer = buffer
             if let data, !data.isEmpty {
-                var newBuffer = buffer
                 newBuffer.append(data)
-                if let request = HTTPParser.parse(newBuffer) {
+                self.armIdleTimer(connection, pending: pending)
+                switch HTTPParser.parse(newBuffer) {
+                case .request(let request):
+                    guard pending.finish() else { return }
                     self.dispatch(request, connection: connection)
                     return
-                }
-                if isComplete || error != nil {
-                    connection.cancel()
+                case .reject(let status, let reason):
+                    guard pending.finish() else { return }
+                    self.reject(connection, status: status, reason: reason)
                     return
+                case .incomplete:
+                    break
                 }
-                self.readRequest(connection, buffer: newBuffer)
-            } else {
-                connection.cancel()
             }
+            if isComplete || error != nil || data == nil || data?.isEmpty == true {
+                // Peer closed (or the read failed) before a full request
+                // arrived: say so if we can, then close.
+                guard pending.finish() else { return }
+                if !newBuffer.isEmpty && error == nil {
+                    self.reject(connection, status: 400, reason: "request truncated")
+                } else {
+                    connection.cancel()
+                }
+                return
+            }
+            self.readRequest(connection, buffer: newBuffer, pending: pending)
         }
+    }
+
+    /// Answers a request that never reached a handler and closes.
+    private func reject(_ connection: NWConnection, status: Int, reason: String) {
+        connection.send(
+            content: HTTPRequestFraming.errorResponse(status: status, reason: reason),
+            completion: .contentProcessed { _ in connection.cancel() })
     }
 
     private func dispatch(_ request: HTTPRequest, connection: NWConnection) {
@@ -330,48 +416,40 @@ final class HTTPServer: @unchecked Sendable {
     }
 }
 
+/// Request parsing for MicropodAPI: framing (binary-safe head/body split,
+/// Content-Length and chunked bodies, limits) is ``HTTPRequestFraming``;
+/// this maps the head onto ``HTTPRequest``.
 enum HTTPParser {
-    static func parse(_ data: Data) -> HTTPRequest? {
-        guard let text = String(data: data, encoding: .utf8) else { return nil }
-        let lines = text.components(separatedBy: "\r\n")
-        guard let requestLine = lines.first else { return nil }
-        let parts = requestLine.split(separator: " ")
-        guard parts.count >= 3, let method = HTTPMethod(rawValue: String(parts[0])) else { return nil }
-        let target = String(parts[1])
-        let targetParts = target.split(separator: "?", maxSplits: 1)
-        let path = String(targetParts[0])
-        var query: [String: String] = [:]
-        if targetParts.count > 1 {
-            for pair in targetParts[1].split(separator: "&") {
-                let kv = pair.split(separator: "=", maxSplits: 1)
-                query[String(kv[0])] = kv.count > 1 ? String(kv[1]).removingPercentEncoding ?? String(kv[1]) : ""
-            }
-        }
+    enum Outcome {
+        case incomplete
+        case request(HTTPRequest)
+        /// Answer with `status` and close.
+        case reject(status: Int, reason: String)
+    }
 
-        var contentLength = 0
-        var headers: [String: String] = [:]
-        var headerDone = false
-        var bodyStart = 0
-        for (index, line) in lines.enumerated() {
-            if line.isEmpty {
-                headerDone = true
-                bodyStart = index + 1
-                break
+    static func parse(_ data: Data, limits: HTTPRequestFraming.Limits = .api) -> Outcome {
+        switch HTTPRequestFraming.parse(data, limits: limits) {
+        case .incomplete:
+            return .incomplete
+        case .invalid(let status, let reason):
+            return .reject(status: status, reason: reason)
+        case .complete(let head, let body, _):
+            guard let method = HTTPMethod(rawValue: head.method) else {
+                return .reject(status: 405, reason: "method \(head.method) not allowed")
             }
-            let lower = line.lowercased()
-            if lower.hasPrefix("content-length:") {
-                contentLength = Int(line.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) ?? 0
+            let targetParts = head.target.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
+            let path = String(targetParts[0])
+            var query: [String: String] = [:]
+            if targetParts.count > 1 {
+                for pair in targetParts[1].split(separator: "&") {
+                    let kv = pair.split(separator: "=", maxSplits: 1)
+                    guard let key = kv.first else { continue }
+                    query[String(key)] =
+                        kv.count > 1 ? String(kv[1]).removingPercentEncoding ?? String(kv[1]) : ""
+                }
             }
-            if let colon = line.firstIndex(of: ":") {
-                let key = String(line[..<colon]).lowercased()
-                let value = String(line[line.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
-                headers[key] = value
-            }
+            return .request(
+                HTTPRequest(method: method, path: path, query: query, body: body, headers: head.headers))
         }
-        guard headerDone else { return nil }
-        let bodyText = lines.dropFirst(bodyStart).joined(separator: "\r\n")
-        let body = Data(bodyText.utf8)
-        guard body.count >= contentLength else { return nil }
-        return HTTPRequest(method: method, path: path, query: query, body: body, headers: headers)
     }
 }

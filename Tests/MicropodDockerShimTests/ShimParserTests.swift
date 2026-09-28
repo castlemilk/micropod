@@ -104,3 +104,23 @@ final class ShimParserTests: XCTestCase {
         XCTAssertEqual(String(decoding: parsed.request.body, as: UTF8.self), "abcd")
     }
 }
+
+extension ShimParserTests {
+    /// The head decodes even with a non-UTF-8 byte in it (Latin-1
+    /// fallback), so the parser never waits forever on it.
+    func testNonUTF8HeadByteStillParses() throws {
+        var raw = Data("GET /_ping HTTP/1.1\r\nHost: docker\r\nX-Odd: ".utf8)
+        raw.append(0xB8)
+        raw.append(Data("\r\n\r\n".utf8))
+        let parsed = try XCTUnwrap(ShimRequestParser.parse(raw))
+        XCTAssertEqual(parsed.request.path, "/_ping")
+    }
+
+    func testMalformedFramingIsInvalidNotIncomplete() {
+        let raw = Data("POST /p HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\nzz\r\n".utf8)
+        guard case .invalid(let status, _) = ShimRequestParser.parseOutcome(raw) else {
+            return XCTFail("expected invalid")
+        }
+        XCTAssertEqual(status, 400)
+    }
+}

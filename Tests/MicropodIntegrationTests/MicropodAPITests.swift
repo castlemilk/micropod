@@ -327,6 +327,100 @@ final class MicropodAPITests: XCTestCase {
         XCTAssertTrue(trailer == "{}" || trailer.contains("\"error\""), "EndStream body: \(trailer)")
     }
 
+    /// A server-streaming request whose envelope length byte is >= 0x80
+    /// (here 0xB8: a 184-byte PullImage message) is not valid UTF-8. The
+    /// parser used to decode the whole request as UTF-8 and, on failure,
+    /// wait for more bytes forever — the client hung to its deadline with no
+    /// pull, no progress and no error. Both body framings must dispatch.
+    func testServerStreamWith184ByteRequestBodyGetsResponse() async throws {
+        let port = UInt16(baseURL.port ?? 0)
+        func payload(_ reference: String) throws -> Data {
+            var json = Data("{\"reference\":\"\(reference)\"}".utf8)
+            json.append(Data(repeating: UInt8(ascii: " "), count: 184 - json.count))
+            XCTAssertEqual(json.count, 184)
+            XCTAssertNotNil(try JSONSerialization.jsonObject(with: json))
+            return json
+        }
+        func assertPullCompleted(_ body: Data, _ reference: String) {
+            let frames = ConnectFrames.parse(body).frames
+            XCTAssertEqual(frames.last?.flags, 0x02, "PullImage must end with EndStream: \(frames.count) frames")
+            XCTAssertEqual(frames.last.map { String(decoding: $0.payload, as: UTF8.self) }, "{}")
+            XCTAssertTrue(
+                mockCalls().contains { $0.hasPrefix("image pull ") && $0.hasSuffix(" \(reference)") },
+                "\(mockCalls())")
+        }
+
+        // Content-Length framing (URLSession).
+        let lengthRef = "pin/regress-length:1"
+        let envelope = ConnectFrames.envelope(try payload(lengthRef), flags: 0)
+        XCTAssertEqual(envelope[4], 0xB8)
+        var request = URLRequest(url: baseURL.appendingPathComponent("api/micropod.v1.ImageService/PullImage"))
+        request.httpMethod = "POST"
+        request.setValue("application/connect+json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = envelope
+        request.timeoutInterval = 20
+        let (data, response) = try await URLSession.shared.data(for: request)
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+        assertPullCompleted(data, lengthRef)
+
+        // Chunked framing (what Go's http client sends for a streaming
+        // body), split across writes so the head and body arrive in pieces.
+        let chunkedRef = "pin/regress-chunked:1"
+        let chunkedEnvelope = ConnectFrames.envelope(try payload(chunkedRef), flags: 0)
+        var wire = Data(
+            ("POST /api/micropod.v1.ImageService/PullImage HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\n"
+                + "Content-Type: application/connect+json\r\nTransfer-Encoding: chunked\r\n\r\n").utf8)
+        wire.append(Data("5\r\n".utf8))
+        wire.append(chunkedEnvelope.prefix(5))
+        wire.append(Data("\r\n\(String(184, radix: 16))\r\n".utf8))
+        wire.append(chunkedEnvelope.dropFirst(5))
+        wire.append(Data("\r\n0\r\n\r\n".utf8))
+        let raw = try await Task.detached { [wire] in
+            try RawHTTP.exchange(port: port, bytes: wire, pieces: 7)
+        }.value
+        let headEnd = try XCTUnwrap(raw.range(of: Data("\r\n\r\n".utf8)))
+        XCTAssertTrue(
+            String(decoding: raw[..<headEnd.lowerBound], as: UTF8.self).hasPrefix("HTTP/1.1 200"),
+            String(decoding: raw, as: UTF8.self))
+        assertPullCompleted(Data(raw[headEnd.upperBound...]), chunkedRef)
+    }
+
+    /// Malformed framing is answered (400/413), not waited on.
+    func testMalformedRequestsAreAnsweredNotAwaited() async throws {
+        let port = UInt16(baseURL.port ?? 0)
+        let cases: [(String, String)] = [
+            ("POST /v1/containers HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\nContent-Length: nope\r\n\r\n", "400"),
+            (
+                "POST /v1/containers HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\nContent-Length: 999999999999\r\n\r\n",
+                "413"
+            ),
+            (
+                "POST /v1/containers HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\nTransfer-Encoding: chunked\r\n\r\nzz\r\n",
+                "400"
+            ),
+            ("PATCH /v1/containers HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\n\r\n", "405"),
+        ]
+        for (request, status) in cases {
+            let raw = try await Task.detached { try RawHTTP.exchange(port: port, request: request) }.value
+            XCTAssertTrue(raw.hasPrefix("HTTP/1.1 \(status) "), "\(request.debugDescription) -> \(raw)")
+        }
+    }
+
+    /// A client that sends half a request and goes quiet gets 408 instead of
+    /// holding the connection.
+    func testStalledRequestTimesOut() async throws {
+        try await relaunchServer(extraEnvironment: ["MICROPOD_API_READ_IDLE_TIMEOUT_MS": "300"])
+        let port = UInt16(baseURL.port ?? 0)
+        let request =
+            "POST /v1/containers HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\nContent-Type: application/json\r\n"
+            + "Content-Length: 100\r\n\r\n{\"image\""
+        let started = Date()
+        let raw = try await Task.detached { try RawHTTP.exchange(port: port, request: request) }.value
+        XCTAssertTrue(raw.hasPrefix("HTTP/1.1 408 Request Timeout"), raw)
+        XCTAssertLessThan(Date().timeIntervalSince(started), 5)
+        XCTAssertFalse(mockCalls().contains { $0.hasPrefix("run ") || $0.hasPrefix("create ") }, "\(mockCalls())")
+    }
+
     /// `Ping` is the millisecond liveness probe for detection and health
     /// ticks: status, live backend, versions — no `df`. `GetSystem` carries
     /// the same `runtimeBackend` alongside its disk usage.
@@ -1801,6 +1895,13 @@ extension Process {
 /// need the raw status line (reason phrase) URLSession does not expose.
 enum RawHTTP {
     static func exchange(port: UInt16, request: String) throws -> String {
+        String(decoding: try exchange(port: port, bytes: Data(request.utf8)), as: UTF8.self)
+    }
+
+    /// Sends `bytes` (split into `pieces` separate writes, a few ms apart,
+    /// so the server sees partial reads) and returns everything received
+    /// until the server closes.
+    static func exchange(port: UInt16, bytes: Data, pieces: Int = 1) throws -> Data {
         let fd = socket(AF_INET, SOCK_STREAM, 0)
         guard fd >= 0 else { throw POSIXError(.EIO) }
         defer { close(fd) }
@@ -1819,12 +1920,17 @@ enum RawHTTP {
         }
         guard connected == 0 else { throw POSIXError(.ECONNREFUSED) }
 
-        let bytes = Array(request.utf8)
+        let bytes = Array(bytes)
+        let pieceSize = max(1, (bytes.count + max(1, pieces) - 1) / max(1, pieces))
         var sent = 0
         while sent < bytes.count {
-            let n = bytes.withUnsafeBufferPointer { send(fd, $0.baseAddress! + sent, bytes.count - sent, 0) }
-            guard n > 0 else { throw POSIXError(.EPIPE) }
-            sent += n
+            let end = min(bytes.count, sent + pieceSize)
+            while sent < end {
+                let n = bytes.withUnsafeBufferPointer { send(fd, $0.baseAddress! + sent, end - sent, 0) }
+                guard n > 0 else { throw POSIXError(.EPIPE) }
+                sent += n
+            }
+            if pieces > 1 { usleep(5000) }
         }
 
         var out = Data()
@@ -1834,6 +1940,6 @@ enum RawHTTP {
             if n <= 0 { break }
             out.append(buffer, count: n)
         }
-        return String(decoding: out, as: UTF8.self)
+        return out
     }
 }

@@ -565,15 +565,47 @@ final class ShimHTTPServer: @unchecked Sendable {
             var bodyStart = 0
             var contentLength = 0
             var terminatorScan = 0
+            var lastChunkHit = 0
+            let limits = HTTPRequestFraming.Limits.dockerShim
             let chunkSize = 256 * 1024
             let chunk = UnsafeMutablePointer<UInt8>.allocate(capacity: chunkSize)
             defer { chunk.deallocate() }
-            let headerTerminator = Data("\r\n\r\n".utf8)
-            let chunkTerminator = Data("\r\n0\r\n\r\n".utf8)
+            // The last-chunk line; trailers (if any) follow it. The full
+            // decode below confirms, so a false hit inside chunk data only
+            // costs one parse.
+            let lastChunk = Data("\r\n0\r\n".utf8)
             // Set when the client half-closed a hijacked stream: we stop
             // reading but must leave the connection open to keep writing.
             var clientHalfClosedHijack = false
-            while !connection.isClosed {
+            // Set when a malformed / stalled request was refused: the
+            // scheduled refusal owns the close (after in-flight responses).
+            var refused = false
+            func refuse(_ status: Int, _ reason: String) {
+                fputs("[shim] refusing request: \(status) \(reason)\n", stderr)
+                let response = HTTPRequestFraming.errorResponse(status: status, reason: reason)
+                connection.schedule {
+                    _ = await connection.write(response)
+                    connection.close()
+                }
+                refused = true
+            }
+            readLoop: while !connection.isClosed {
+                // A partially received request must keep making progress:
+                // idle keep-alive connections (empty buffer) may wait
+                // forever, but a stalled half-sent request gets a 408.
+                if !buffer.isEmpty && !connection.isHijacking {
+                    var pollFD = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+                    let ready = Darwin.poll(&pollFD, 1, Self.partialRequestIdleTimeoutMs)
+                    if ready < 0 {
+                        if errno == EINTR { continue }
+                        break
+                    }
+                    if ready == 0 {
+                        if connection.isHijacking || connection.isClosed { continue }
+                        refuse(408, "request incomplete: client went idle")
+                        break
+                    }
+                }
                 let received = Darwin.recv(fd, chunk, chunkSize, 0)
                 if received == 0 && connection.isHijacking {
                     // FIN on a hijacked stream means the client is done
@@ -599,57 +631,111 @@ final class ShimHTTPServer: @unchecked Sendable {
                 // one connection) must all be scheduled, not just the first.
                 // Blocking first would deadlock a client that pipelines then
                 // waits (it sends nothing more until it gets responses).
-                parseLoop: while !connection.isHijacking {
+                parseLoop: while !connection.isHijacking, !buffer.isEmpty {
                     if !headerDone {
-                        guard let headRange = buffer.range(of: headerTerminator) else { break parseLoop }
-                        let head = String(
-                            decoding: buffer[buffer.startIndex..<headRange.lowerBound], as: UTF8.self)
-                        let lower = head.lowercased()
-                        bodyIsChunked = lower.contains("transfer-encoding") && lower.contains("chunked")
-                        bodyStart = buffer.distance(from: buffer.startIndex, to: headRange.upperBound)
-                        contentLength = 0
-                        if let match = lower.range(
-                            of: #"content-length:[ ]*([0-9]+)"#, options: .regularExpression)
-                        {
-                            contentLength = Int(lower[match].filter(\.isNumber)) ?? 0
+                        switch HTTPRequestFraming.parseHead(buffer, limits: limits) {
+                        case .incomplete:
+                            break parseLoop
+                        case .invalid(let status, let reason):
+                            refuse(status, reason)
+                            break readLoop
+                        case .head(let head):
+                            bodyStart = head.bodyOffset
+                            switch head.bodyFraming {
+                            case .chunked:
+                                bodyIsChunked = true
+                                contentLength = 0
+                            case .length(let length):
+                                bodyIsChunked = false
+                                contentLength = length
+                            }
                         }
                         headerDone = true
+                        terminatorScan = 0
                         if !connection.hasSentContinue {
                             let pending = buffer
                             Task { await connection.sendContinueIfNeeded(pending) }
                         }
                     }
                     if bodyIsChunked {
+                        if buffer.count - bodyStart > limits.maxBodyBytes + limits.maxBodyBytes / 8 {
+                            refuse(413, "request body exceeds \(limits.maxBodyBytes) bytes")
+                            break readLoop
+                        }
                         let scanFrom = buffer.index(
                             buffer.startIndex,
-                            offsetBy: min(max(0, terminatorScan - 8), buffer.count))
-                        if buffer.range(of: chunkTerminator, in: scanFrom..<buffer.endIndex) == nil {
+                            offsetBy: min(max(bodyStart - 2, terminatorScan - lastChunk.count), buffer.count))
+                        guard let hit = buffer.range(of: lastChunk, in: scanFrom..<buffer.endIndex) else {
                             terminatorScan = buffer.count
                             break parseLoop
                         }
+                        lastChunkHit = buffer.distance(from: buffer.startIndex, to: hit.lowerBound)
                     } else if contentLength > 0, buffer.count < bodyStart + contentLength {
                         break parseLoop
                     }
-                    guard let parsed = ShimRequestParser.parse(buffer) else { break parseLoop }
-                    buffer = parsed.remainder
+                    let request: ShimRequest
+                    switch ShimRequestParser.parseOutcome(buffer, limits: limits) {
+                    case .incomplete:
+                        // Chunked: the last-chunk hit was inside data, or
+                        // its trailers are still arriving. A hit near the
+                        // end may be the real one: rescan it next time.
+                        // One further back cannot be (trailers are bounded),
+                        // so skip past it — no re-parse per recv.
+                        if buffer.count - lastChunkHit <= Self.maxTrailerWindow {
+                            terminatorScan = lastChunkHit + lastChunk.count
+                        } else {
+                            terminatorScan = buffer.count
+                        }
+                        break parseLoop
+                    case .invalid(let status, let reason):
+                        refuse(status, reason)
+                        break readLoop
+                    case .request(let parsed, let remainder):
+                        request = parsed
+                        buffer = remainder
+                    }
                     headerDone = false
                     terminatorScan = 0
                     connection.resetContinueFlag()
                     guard let self else { return }
-                    let request = parsed.request
                     connection.schedule {
                         await self.handle(request, connection: connection, remainder: Data())
                     }
                 }
-                if bodyIsChunked { terminatorScan = buffer.count }
-                if buffer.count > 512 * 1024 * 1024 { break }
             }
             connection.finishInbound()
-            if !clientHalfClosedHijack {
+            if !clientHalfClosedHijack && !refused {
                 connection.close()
             }
         }
     }
+
+    /// Bytes after a last-chunk line within which its trailers must end.
+    static let maxTrailerWindow = 64 * 1024 + 16
+
+    /// How long a partially received request may sit without new bytes
+    /// before the shim answers 408 and closes. Default 60 s; overridable
+    /// (milliseconds) via `MICROPOD_SHIM_READ_IDLE_TIMEOUT_MS`, and settable
+    /// by tests.
+    static var partialRequestIdleTimeoutMs: Int32 {
+        get {
+            timeoutLock.lock()
+            defer { timeoutLock.unlock() }
+            return partialRequestIdleTimeoutStorage
+        }
+        set {
+            timeoutLock.lock()
+            partialRequestIdleTimeoutStorage = max(1, newValue)
+            timeoutLock.unlock()
+        }
+    }
+    private static let timeoutLock = NSLock()
+    nonisolated(unsafe) private static var partialRequestIdleTimeoutStorage: Int32 = {
+        let raw = ProcessInfo.processInfo.environment["MICROPOD_SHIM_READ_IDLE_TIMEOUT_MS"].flatMap {
+            Int32($0)
+        }
+        return max(1, raw ?? 60_000)
+    }()
 
     private func register(_ listener: NWListener, label: String) {
         listener.newConnectionHandler = { [weak self] connection in
@@ -686,13 +772,24 @@ final class ShimHTTPServer: @unchecked Sendable {
         // Drain any pipelined requests buffered from earlier receives before
         // waiting for more bytes.
         var pending = buffer
-        while let parsed = ShimRequestParser.parse(pending) {
-            pending = parsed.remainder
-            connection.resetContinueFlag()
-            let request = parsed.request
-            connection.schedule { [weak self] in
-                guard let self else { return }
-                await self.handle(request, connection: connection, remainder: Data())
+        parse: while true {
+            switch ShimRequestParser.parseOutcome(pending) {
+            case .incomplete:
+                break parse
+            case .invalid(let status, let reason):
+                let response = HTTPRequestFraming.errorResponse(status: status, reason: reason)
+                connection.schedule {
+                    _ = await connection.write(response)
+                    connection.close()
+                }
+                return
+            case .request(let request, let remainder):
+                pending = remainder
+                connection.resetContinueFlag()
+                connection.schedule { [weak self] in
+                    guard let self else { return }
+                    await self.handle(request, connection: connection, remainder: Data())
+                }
             }
         }
         if !connection.hasSentContinue, !pending.isEmpty {
@@ -879,55 +976,52 @@ final class ShimHTTPServer: @unchecked Sendable {
     }
 }
 
-/// Binary-safe incremental HTTP request parser.
+/// Binary-safe incremental HTTP request parser: framing (head decoded as
+/// text, body kept as raw bytes, Content-Length / chunked, limits) is
+/// ``HTTPRequestFraming``; this maps the head onto Docker's routing shape.
 enum ShimRequestParser {
+    enum Outcome {
+        case incomplete
+        case request(ShimRequest, remainder: Data)
+        /// Malformed or oversized: answer `status` and close.
+        case invalid(status: Int, reason: String)
+    }
+
+    /// The request at the front of `buffer`, or nil while it is incomplete
+    /// (or invalid — callers that must answer malformed input use
+    /// ``parseOutcome(_:limits:)``).
     static func parse(_ buffer: Data) -> (request: ShimRequest, remainder: Data)? {
-        guard let headerEnd = buffer.range(of: Data("\r\n\r\n".utf8)) else { return nil }
-        let headData = buffer[buffer.startIndex..<headerEnd.lowerBound]
-        guard let head = String(data: headData, encoding: .utf8) else { return nil }
-        let lines = head.components(separatedBy: "\r\n")
-        guard let requestLine = lines.first else { return nil }
-        let parts = requestLine.split(separator: " ")
-        guard parts.count >= 2 else { return nil }
-        let method = String(parts[0])
-        let target = String(parts[1])
-
-        var headers = [String: String]()
-        for line in lines.dropFirst() {
-            guard let colon = line.firstIndex(of: ":") else { continue }
-            let key = String(line[line.startIndex..<colon]).lowercased().trimmingCharacters(
-                in: .whitespaces)
-            let value = String(line[line.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
-            headers[key] = value
+        if case .request(let request, let remainder) = parseOutcome(buffer) {
+            return (request, remainder)
         }
+        return nil
+    }
 
-        let isChunked = (headers["transfer-encoding"] ?? "").lowercased().contains("chunked")
-        let contentLength = headers["content-length"].flatMap { Int($0) } ?? 0
-        let bodyStart = headerEnd.upperBound
-
-        let body: Data
-        let bodyEnd: Data.Index
-        if isChunked {
-            guard let decoded = Self.decodeChunkedBody(buffer, from: bodyStart) else {
-                return nil
-            }
-            body = decoded.body
-            bodyEnd = decoded.end
-        } else {
-            let available = buffer.distance(from: bodyStart, to: buffer.endIndex)
-            guard available >= contentLength else { return nil }
-            let end = buffer.index(bodyStart, offsetBy: contentLength)
-            body = Data(buffer[bodyStart..<end])
-            bodyEnd = end
+    static func parseOutcome(
+        _ buffer: Data, limits: HTTPRequestFraming.Limits = .dockerShim
+    ) -> Outcome {
+        switch HTTPRequestFraming.parse(buffer, limits: limits) {
+        case .incomplete:
+            return .incomplete
+        case .invalid(let status, let reason):
+            return .invalid(status: status, reason: reason)
+        case .complete(let head, let body, let consumed):
+            let remainder =
+                consumed < buffer.count
+                ? Data(buffer[buffer.index(buffer.startIndex, offsetBy: consumed)...]) : Data()
+            return .request(request(from: head, body: body), remainder: remainder)
         }
+    }
 
+    static func request(from head: HTTPRequestFraming.Head, body: Data) -> ShimRequest {
+        let target = head.target
         var path = target
         var query = [String: String]()
         if let qIndex = target.firstIndex(of: "?") {
             path = String(target[target.startIndex..<qIndex])
             for pair in target[target.index(after: qIndex)...].split(separator: "&") {
                 let kv = pair.split(separator: "=", maxSplits: 1)
-                guard let key = String(kv[0]).removingPercentEncoding else { continue }
+                guard let first = kv.first, let key = String(first).removingPercentEncoding else { continue }
                 let rawValue = kv.count > 1 ? String(kv[1]) : ""
                 query[key] =
                     rawValue.replacingOccurrences(of: "+", with: " ")
@@ -943,48 +1037,7 @@ enum ShimRequestParser {
         {
             path = String(path.dropFirst(v.count + 1))
         }
-
-        let remainder = bodyEnd < buffer.endIndex ? Data(buffer[bodyEnd...]) : Data()
-        let request = ShimRequest(
-            method: method, path: path, query: query, headers: headers, body: body)
-        return (request, remainder)
-    }
-
-    /// Decodes transfer-encoding: chunked framing starting at `start`.
-    /// Returns nil while the final chunk (or its trailer) is still missing.
-    static func decodeChunkedBody(_ buffer: Data, from start: Data.Index) -> (body: Data, end: Data.Index)? {
-        var body = Data()
-        var cursor = start
-        let crlf = Data("\r\n".utf8)
-        while true {
-            guard let lineEnd = buffer.range(of: crlf, in: cursor..<buffer.endIndex) else {
-                return nil
-            }
-            let sizeToken = String(
-                decoding: buffer[cursor..<lineEnd.lowerBound], as: UTF8.self)
-            let sizePart = sizeToken.split(separator: ";").first ?? Substring(sizeToken)
-            guard let size = Int(sizePart.trimmingCharacters(in: .whitespaces), radix: 16) else {
-                return nil
-            }
-            var dataEnd = lineEnd.upperBound
-            if size == 0 {
-                // Consume optional trailers up to the terminating blank line.
-                while true {
-                    guard let trailerEnd = buffer.range(of: crlf, in: dataEnd..<buffer.endIndex)
-                    else { return nil }
-                    let trailer = buffer[dataEnd..<trailerEnd.lowerBound]
-                    dataEnd = trailerEnd.upperBound
-                    if trailer.isEmpty { return (body, dataEnd) }
-                }
-            }
-            let remaining = buffer.distance(from: lineEnd.upperBound, to: buffer.endIndex)
-            guard size <= remaining else { return nil }
-            dataEnd = buffer.index(lineEnd.upperBound, offsetBy: size)
-            body.append(buffer[lineEnd.upperBound..<dataEnd])
-            guard let sep = buffer.range(of: crlf, in: dataEnd..<buffer.endIndex) else {
-                return nil
-            }
-            cursor = sep.upperBound
-        }
+        return ShimRequest(
+            method: head.method, path: path, query: query, headers: head.headers, body: body)
     }
 }
