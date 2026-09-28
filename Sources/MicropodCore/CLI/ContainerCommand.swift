@@ -203,8 +203,13 @@ public enum ContainerCommandFactory {
         if let shmSize = request.shmSize { args += ["--shm-size", shmSize] }
         for dns in request.dns { args += ["--dns", dns] }
         for domain in request.dnsSearch { args += ["--dns-search", domain] }
-        for cap in request.capAdd { args += ["--cap-add", cap] }
+        for cap in request.effectiveCapAdd { args += ["--cap-add", cap] }
         for cap in request.capDrop { args += ["--cap-drop", cap] }
+        if request.privileged {
+            // NONE clears the runtime's default read-only (/proc/sys, ...)
+            // and masked paths — the same profile the k3s node VM uses.
+            args += ["--read-only-path", "NONE", "--masked-path", "NONE"]
+        }
         for limit in request.ulimits { args += ["--ulimit", limit] }
         for network in request.networks { args += ["--network", network] }
         if let platform = request.platform { args += ["--platform", platform] }
@@ -468,6 +473,12 @@ public struct ContainerRunRequest: Sendable, Equatable {
     /// spawns `create`/`run`; the native backend skips `imagePull`. Not a
     /// CLI flag — it never appears in the argv.
     public var noPull: Bool
+    /// Privileged launch profile (`RunContainerRequest.privileged`): every
+    /// capability plus none of the runtime's default read-only/masked paths,
+    /// so a nested container engine can write /proc/sys and cgroups. CLI:
+    /// `--cap-add ALL --read-only-path NONE --masked-path NONE`; native:
+    /// `capAdd: [ALL]`, `readonlyPaths: []`, `maskedPaths: []`.
+    public var privileged: Bool
 
     public init(
         image: String,
@@ -498,7 +509,8 @@ public struct ContainerRunRequest: Sendable, Equatable {
         workdir: String? = nil,
         entrypoint: String? = nil,
         arguments: [String] = [],
-        noPull: Bool = false
+        noPull: Bool = false,
+        privileged: Bool = false
     ) {
         self.image = image
         self.name = name
@@ -529,6 +541,7 @@ public struct ContainerRunRequest: Sendable, Equatable {
         self.entrypoint = entrypoint
         self.arguments = arguments
         self.noPull = noPull
+        self.privileged = privileged
     }
 }
 

@@ -109,4 +109,18 @@ final class CreateKnobsTests: XCTestCase {
             "args were \(runArgs)")
         XCTAssertEqual(runArgs[runArgs.firstIndex(of: "--cpus")! + 1], "2")
     }
+
+    func testHostConfigPrivilegedMapsToPrivilegedProfile() throws {
+        var body = DockerCreateRequest(Image: "docker:dind")
+        var hostConfig = DockerHostConfig()
+        hostConfig.Privileged = true
+        body.HostConfig = hostConfig
+        let request = try Router.buildRunRequest(from: body, name: nil)
+        XCTAssertTrue(request.privileged)
+        let runArgs = ContainerCommandFactory.run(request).arguments
+        XCTAssertEqual(runArgs[runArgs.firstIndex(of: "--cap-add")! + 1], "ALL")
+        XCTAssertEqual(runArgs[runArgs.firstIndex(of: "--read-only-path")! + 1], "NONE")
+        XCTAssertEqual(runArgs[runArgs.firstIndex(of: "--masked-path")! + 1], "NONE")
+        XCTAssertFalse(try Self.request().privileged, "absent Privileged stays unprivileged")
+    }
 }

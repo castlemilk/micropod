@@ -616,6 +616,59 @@ final class MicropodAPITests: XCTestCase {
     /// message names the platform so the caller knows which variant to
     /// fetch, and an image present only for another platform is equally
     /// `not_found` (never a silent pull for the missing variant).
+    /// `cap_add` / `cap_drop` / `rosetta` / `privileged` reach the CLI argv on
+    /// both RunContainer and CreateContainer (+ StartContainer), normalised
+    /// to `CAP_*`; unknown capability names fail `invalid_argument` before the
+    /// CLI is ever asked.
+    func testRunAndCreateCarryCapabilitiesRosettaAndPrivileged() async throws {
+        let (runStatus, run) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/RunContainer",
+            body: [
+                "image": "alpine:3.20", "name": "api-caps-run", "capAdd": ["net_admin"],
+                "capDrop": ["CAP_NET_RAW"], "rosetta": true, "platform": "linux/amd64",
+            ])
+        XCTAssertEqual(runStatus, 200, "RunContainer: \(run)")
+        let (createStatus, created) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/CreateContainer",
+            body: ["image": "docker:dind", "name": "api-caps-create", "privileged": true, "capAdd": ["SYS_ADMIN"]])
+        XCTAssertEqual(createStatus, 200, "CreateContainer: \(created)")
+        let id = created["id"] as? String ?? ""
+        let (startStatus, started) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/StartContainer", body: ["id": id])
+        XCTAssertEqual(startStatus, 200, "StartContainer: \(started)")
+
+        let calls = mockCalls()
+        let runCall = " " + (calls.first { $0.hasPrefix("run ") && $0.contains("api-caps-run") } ?? "") + " "
+        for want in [
+            " --cap-add CAP_NET_ADMIN ", " --cap-drop CAP_NET_RAW ", " --rosetta ", " --platform linux/amd64 ",
+        ] {
+            XCTAssertTrue(runCall.contains(want), "run argv missing \(want): \(runCall)")
+        }
+        let createCall = " " + (calls.first { $0.hasPrefix("create ") && $0.contains("api-caps-create") } ?? "") + " "
+        for want in [" --cap-add ALL ", " --read-only-path NONE ", " --masked-path NONE "] {
+            XCTAssertTrue(createCall.contains(want), "create argv missing \(want): \(createCall)")
+        }
+        XCTAssertFalse(createCall.contains("CAP_SYS_ADMIN"), "privileged subsumes cap_add: \(createCall)")
+
+        // GetContainer reflects the Rosetta flag the runtime recorded.
+        let inspected = try await json(
+            "POST", "api/micropod.v1.ContainerService/GetContainer", body: ["id": run["id"] as? String ?? ""])
+        XCTAssertEqual(inspected["rosetta"] as? Bool, true, "\(inspected)")
+
+        for body: [String: Any] in [
+            ["image": "alpine:3.20", "name": "api-caps-bad", "capAdd": ["NET_ADMINN"]],
+            ["image": "alpine:3.20", "name": "api-caps-bad", "capDrop": ["SYS-ADMIN"]],
+        ] {
+            for rpc in ["RunContainer", "CreateContainer"] {
+                let (status, error) = try await jsonStatus(
+                    "POST", "api/micropod.v1.ContainerService/\(rpc)", body: body)
+                XCTAssertEqual(status, 400, "\(rpc) \(body): \(error)")
+                XCTAssertEqual(error["code"] as? String, "invalid_argument")
+            }
+        }
+        XCTAssertFalse(mockCalls().contains { $0.contains("api-caps-bad") }, "invalid caps never reach the CLI")
+    }
+
     func testCreateNoPullMissingImageIsNotFound() async throws {
         let (status, body) = try await jsonStatus(
             "POST", "api/micropod.v1.ContainerService/CreateContainer",

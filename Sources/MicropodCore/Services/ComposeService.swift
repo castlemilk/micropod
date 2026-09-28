@@ -760,7 +760,8 @@ public struct ComposeService: @preconcurrency ComposeServing {
             capDrop: service.capDrop,
             ulimits: service.ulimits,
             networks: service.networks.map { resolveNetworkName($0, spec: spec) },
-            arguments: service.commands
+            arguments: service.commands,
+            privileged: service.privileged
         )
         if !service.workingDir.isEmpty { request.workdir = service.workingDir }
         if !service.entrypoint.isEmpty { request.entrypoint = service.entrypoint }

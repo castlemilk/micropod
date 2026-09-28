@@ -443,10 +443,11 @@ public struct NativeContainerService: ContainerServing {
             "ssh": .bool(false),
             "readOnly": .bool(request.readOnly),
             "useInit": .bool(request.useInit),
-            "capAdd": .array(NativeConfigBuilder.normalizeCapabilities(request.capAdd)),
+            "capAdd": .array(NativeConfigBuilder.normalizeCapabilities(request.effectiveCapAdd)),
             "capDrop": .array(NativeConfigBuilder.normalizeCapabilities(request.capDrop)),
             "creationDate": .number(Date().timeIntervalSinceReferenceDate),
         ]
+        config.merge(NativeConfigBuilder.privilegedPaths(request)) { _, new in new }
 
         // DNS: omitted only when the request disables it — Micropod has
         // no --no-dns flag, so always emit (possibly empty) DNS config.

@@ -573,6 +573,80 @@ func TestRunArgsIncludesEntrypointPlatformWorkdirUser(t *testing.T) {
 	}
 }
 
+func TestRunArgsCapabilitiesRosettaPrivileged(t *testing.T) {
+	yes := true
+	joined := " " + strings.Join(runArgs(&micropodv1.RunContainerRequest{
+		Image: "alpine:3.20", CapAdd: []string{"CAP_NET_ADMIN"}, CapDrop: []string{"CAP_NET_RAW"}, Rosetta: &yes,
+	}), " ") + " "
+	for _, want := range []string{" --cap-add CAP_NET_ADMIN ", " --cap-drop CAP_NET_RAW ", " --rosetta "} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("runArgs missing %q in %q", strings.TrimSpace(want), joined)
+		}
+	}
+	if strings.Contains(joined, "--masked-path") || strings.Contains(joined, "--read-only-path") {
+		t.Fatalf("unprivileged run must keep the runtime's default paths: %q", joined)
+	}
+
+	priv := " " + strings.Join(runArgs(&micropodv1.RunContainerRequest{
+		Image: "docker:dind", CapAdd: []string{"CAP_SYS_ADMIN"}, CapDrop: []string{"CAP_SYS_MODULE"}, Privileged: &yes,
+	}), " ") + " "
+	for _, want := range []string{" --cap-add ALL ", " --cap-drop CAP_SYS_MODULE ", " --read-only-path NONE --masked-path NONE "} {
+		if !strings.Contains(priv, want) {
+			t.Fatalf("privileged runArgs missing %q in %q", strings.TrimSpace(want), priv)
+		}
+	}
+	if strings.Contains(priv, "CAP_SYS_ADMIN") {
+		t.Fatalf("privileged subsumes cap_add: %q", priv)
+	}
+	if strings.Index(priv, " --masked-path ") > strings.Index(priv, " docker:dind ") {
+		t.Fatalf("flags must precede the image: %q", priv)
+	}
+	no := false
+	off := strings.Join(runArgs(&micropodv1.RunContainerRequest{Image: "alpine:3.20", Rosetta: &no, Privileged: &no}), " ")
+	for _, flag := range []string{"--rosetta", "--cap-add", "--masked-path"} {
+		if strings.Contains(off, flag) {
+			t.Fatalf("false optionals must emit nothing (%s): %q", flag, off)
+		}
+	}
+}
+
+func TestNormalizeCapabilities(t *testing.T) {
+	got, err := normalizeCapabilities("cap_add", []string{"net_admin", "CAP_SYS_PTRACE", "all", "NET_ADMIN"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(got, ",") != "CAP_NET_ADMIN,CAP_SYS_PTRACE,ALL" {
+		t.Fatalf("normalized = %v", got)
+	}
+	if len(linuxCapabilities) != 41 {
+		t.Fatalf("expected the 41 kernel capabilities, have %d", len(linuxCapabilities))
+	}
+	for _, bad := range []string{"NET_ADMINN", "CAP_ALL", "CAP_"} {
+		if _, err := normalizeCapabilities("cap_add", []string{bad}); connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("%q: want invalid_argument, got %v", bad, err)
+		}
+	}
+}
+
+func TestCreateContainerRejectsUnknownCapability(t *testing.T) {
+	c := newTestServer(t)
+	ctx := context.Background()
+	_, err := c.containers.CreateContainer(ctx, connect.NewRequest(&micropodv1.RunContainerRequest{Image: "alpine:3.20", CapAdd: []string{"NOT_A_CAP"}}))
+	requireCode(t, err, connect.CodeInvalidArgument)
+	_, err = c.containers.RunContainer(ctx, connect.NewRequest(&micropodv1.RunContainerRequest{Image: "alpine:3.20", CapDrop: []string{"bad-name"}}))
+	requireCode(t, err, connect.CodeInvalidArgument)
+
+	yes := true
+	id := c.run(t, ctx, &micropodv1.RunContainerRequest{Image: "alpine:3.20", CapAdd: []string{"net_raw"}, Rosetta: &yes})
+	res, err := c.containers.GetContainer(ctx, connect.NewRequest(&micropodv1.ContainerRef{Id: id}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.Msg.GetRosetta() {
+		t.Fatalf("rosetta not recorded: %+v", res.Msg)
+	}
+}
+
 func TestRunContainerAcceptsEntrypointPlatformWorkdirUser(t *testing.T) {
 	c := newTestServer(t)
 	ctx := context.Background()

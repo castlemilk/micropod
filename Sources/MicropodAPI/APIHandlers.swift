@@ -557,6 +557,14 @@ final class APIHandlers: Sendable {
         if let volume = named.first(where: { !VolumeClone.isSafeVolumeName($0) }) {
             throw BadRequest(message: "volume name '\(volume)' must match \(VolumeClone.volumeNameGrammar)")
         }
+        let capAdd: [String]
+        let capDrop: [String]
+        do {
+            capAdd = try LinuxCapabilities.normalize((payload["capAdd"] as? [String]) ?? [])
+            capDrop = try LinuxCapabilities.normalize((payload["capDrop"] as? [String]) ?? [])
+        } catch let error as LinuxCapabilities.InvalidName {
+            throw BadRequest(message: error.description)
+        }
         return ContainerRunRequest(
             image: payload["image"] as? String ?? "",
             name: payload["name"] as? String,
@@ -568,7 +576,11 @@ final class APIHandlers: Sendable {
             volumes: volumes,
             labels: labels,
             useInit: (payload["init"] as? Bool) ?? false,
-            arguments: (payload["arguments"] as? [String]) ?? [])
+            rosetta: (payload["rosetta"] as? Bool) ?? false,
+            capAdd: capAdd,
+            capDrop: capDrop,
+            arguments: (payload["arguments"] as? [String]) ?? [],
+            privileged: (payload["privileged"] as? Bool) ?? false)
     }
 
     // MARK: - JSON projections (proto → API JSON)

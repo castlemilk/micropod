@@ -449,6 +449,16 @@ enum NativeConfigBuilder {
         }
     }
 
+    /// `privileged` → empty `readonlyPaths` / `maskedPaths`: explicit empty
+    /// lists replace the runtime's defaults (read-only /proc/sys,
+    /// /proc/sysrq-trigger, ...; masked /proc/kcore, ...), exactly what
+    /// `container run --read-only-path NONE --masked-path NONE` records.
+    /// Absent keys keep the defaults, so unprivileged requests emit nothing.
+    static func privilegedPaths(_ request: ContainerRunRequest) -> [String: JSONValue] {
+        guard request.privileged else { return [:] }
+        return ["readonlyPaths": .array([]), "maskedPaths": .array([])]
+    }
+
     // MARK: - Platform
 
     /// Host CPU architecture in OCI spelling.

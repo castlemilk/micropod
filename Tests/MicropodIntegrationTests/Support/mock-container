@@ -338,7 +338,7 @@ cmd_prune() {
 cmd_run() {
     local name="" cpus="" memory="" platform="" workdir="" entrypoint="" user="" shm_size=""
     local envs=() ports=() volumes=() labels=() cmd_args=() dns=() dns_search=() cap_add=() cap_drop=() ulimits=() tmpfs=() env_files=() net_attach=()
-    local detach=0 interactive=0 tty=0 use_init=0 read_only=0 rosetta=0
+    local detach=0 interactive=0 tty=0 use_init=0 read_only=0 rosetta=0 readonly_none=0 masked_none=0
     while [ $# -gt 0 ]; do
         case "$1" in
             --detach) detach=1 ;;
@@ -367,6 +367,10 @@ cmd_run() {
             --ulimit) shift; ulimits+=("$1") ;;
             --tmpfs) shift; tmpfs+=("$1") ;;
             --network) shift; net_attach+=("$1") ;;
+            # NONE clears the defaults; the real CLI then records an empty
+            # list (container 1.3.1). Other paths are accepted and ignored.
+            --read-only-path) shift; [ "$1" = "NONE" ] && readonly_none=1 ;;
+            --masked-path) shift; [ "$1" = "NONE" ] && masked_none=1 ;;
             *) break ;;
         esac
         shift
@@ -438,6 +442,8 @@ cmd_run() {
         fi
     done
     local extra_config=""
+    [ "$readonly_none" = "1" ] && extra_config="$extra_config,\"readonlyPaths\":[]"
+    [ "$masked_none" = "1" ] && extra_config="$extra_config,\"maskedPaths\":[]"
     [ -n "$user" ] && extra_config="$extra_config,\"user\":\"$(jesc "$user")\""
     [ -n "$shm_size" ] && extra_config="$extra_config,\"shmSize\":\"$(jesc "$shm_size")\""
     if [ ${#env_files[@]} -gt 0 ]; then

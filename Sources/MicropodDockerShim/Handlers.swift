@@ -1590,7 +1590,11 @@ final class Router: @unchecked Sendable {
             platform: (platform?.isEmpty == false) ? platform : nil,
             workdir: (body.WorkingDir?.isEmpty == false) ? body.WorkingDir : nil,
             entrypoint: entrypoint,
-            arguments: arguments)
+            arguments: arguments,
+            // HostConfig.Privileged (dind, testcontainers' DockerComposeContainer
+            // and friends): all capabilities + writable /proc/sys and cgroups
+            // inside the micro-VM — no host devices.
+            privileged: body.HostConfig?.Privileged == true)
     }
 
     /// POST /containers/prune — stopped containers the `filters` admit

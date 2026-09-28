@@ -69,11 +69,12 @@ tasks:
       - ./scripts/app_smoke.sh
 
   e2e-real:
-    desc: Real-runtime e2e tests (pulls + runs REAL containers on the Apple runtime, incl. docker-shim + ryuk reap)
+    desc: Real-runtime e2e tests (pulls + runs REAL containers on the Apple runtime, incl. docker-shim + ryuk reap, Connect caps/rosetta/privileged)
     cmds:
       - task: proto
       - swift build --product micropod-docker-shim
-      - MICROPOD_REAL_E2E=1 swift test --filter "RealRuntimeTests|RealShimTests"
+      - swift build --product MicropodAPI
+      - MICROPOD_REAL_E2E=1 swift test --filter "RealRuntimeTests|RealShimTests|RealConnectCapsTests"
 
   bench:
     desc: Performance benchmark against the real runtime (CLI, decode, streaming, MCP, scale)

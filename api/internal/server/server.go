@@ -349,9 +349,76 @@ func runArgs(req *micropodv1.RunContainerRequest) []string {
 	if req.Init {
 		args = append(args, "--init")
 	}
+	if req.GetRosetta() {
+		args = append(args, "--rosetta")
+	}
+	capAdd := req.CapAdd
+	if req.GetPrivileged() {
+		// privileged subsumes any explicit list; NONE clears the runtime's
+		// default read-only (/proc/sys, ...) and masked paths.
+		capAdd = []string{"ALL"}
+	}
+	for _, c := range capAdd {
+		args = append(args, "--cap-add", c)
+	}
+	for _, c := range req.CapDrop {
+		args = append(args, "--cap-drop", c)
+	}
+	if req.GetPrivileged() {
+		args = append(args, "--read-only-path", "NONE", "--masked-path", "NONE")
+	}
 	args = append(args, req.Image)
 	args = append(args, req.Arguments...)
 	return args
+}
+
+// linuxCapabilities is every capability Linux defines (CAP_CHOWN = 0 …
+// CAP_CHECKPOINT_RESTORE = 40), without the CAP_ prefix. Mirrors
+// MicropodCore's LinuxCapabilities.known.
+var linuxCapabilities = map[string]bool{
+	"CHOWN": true, "DAC_OVERRIDE": true, "DAC_READ_SEARCH": true, "FOWNER": true, "FSETID": true, "KILL": true,
+	"SETGID": true, "SETUID": true, "SETPCAP": true, "LINUX_IMMUTABLE": true, "NET_BIND_SERVICE": true,
+	"NET_BROADCAST": true, "NET_ADMIN": true, "NET_RAW": true, "IPC_LOCK": true, "IPC_OWNER": true,
+	"SYS_MODULE": true, "SYS_RAWIO": true, "SYS_CHROOT": true, "SYS_PTRACE": true, "SYS_PACCT": true,
+	"SYS_ADMIN": true, "SYS_BOOT": true, "SYS_NICE": true, "SYS_RESOURCE": true, "SYS_TIME": true,
+	"SYS_TTY_CONFIG": true, "MKNOD": true, "LEASE": true, "AUDIT_WRITE": true, "AUDIT_CONTROL": true,
+	"SETFCAP": true, "MAC_OVERRIDE": true, "MAC_ADMIN": true, "SYSLOG": true, "WAKE_ALARM": true,
+	"BLOCK_SUSPEND": true, "AUDIT_READ": true, "PERFMON": true, "BPF": true, "CHECKPOINT_RESTORE": true,
+}
+
+// normalizeCapabilities maps docker-style names (case-insensitive, CAP_
+// prefix optional, "ALL" wildcard) to the CAP_* spelling, de-duplicated.
+// Unknown names fail invalid_argument.
+func normalizeCapabilities(field string, names []string) ([]string, error) {
+	var out []string
+	seen := map[string]bool{}
+	for _, raw := range names {
+		upper := strings.ToUpper(strings.TrimSpace(raw))
+		norm := "ALL"
+		if upper != "ALL" {
+			bare := strings.TrimPrefix(upper, "CAP_")
+			if !linuxCapabilities[bare] {
+				return nil, connect.NewError(connect.CodeInvalidArgument,
+					fmt.Errorf("%s: unknown Linux capability %q (use a name like NET_ADMIN or CAP_NET_ADMIN, or ALL)", field, raw))
+			}
+			norm = "CAP_" + bare
+		}
+		if !seen[norm] {
+			seen[norm] = true
+			out = append(out, norm)
+		}
+	}
+	return out, nil
+}
+
+// normalizeRunRequest validates and normalises the capability lists in place.
+func normalizeRunRequest(req *micropodv1.RunContainerRequest) error {
+	var err error
+	if req.CapAdd, err = normalizeCapabilities("cap_add", req.CapAdd); err != nil {
+		return err
+	}
+	req.CapDrop, err = normalizeCapabilities("cap_drop", req.CapDrop)
+	return err
 }
 
 func fmtFloat(f float64) string {
@@ -399,6 +466,9 @@ func (s *Server) checkNoPull(ctx context.Context, req *micropodv1.RunContainerRe
 }
 
 func (s *Server) RunContainer(ctx context.Context, req *connect.Request[micropodv1.RunContainerRequest]) (*connect.Response[micropodv1.ContainerRef], error) {
+	if err := normalizeRunRequest(req.Msg); err != nil {
+		return nil, err
+	}
 	if err := s.checkNoPull(ctx, req.Msg); err != nil {
 		return nil, err
 	}
@@ -410,6 +480,9 @@ func (s *Server) RunContainer(ctx context.Context, req *connect.Request[micropod
 }
 
 func (s *Server) CreateContainer(ctx context.Context, req *connect.Request[micropodv1.RunContainerRequest]) (*connect.Response[micropodv1.ContainerRef], error) {
+	if err := normalizeRunRequest(req.Msg); err != nil {
+		return nil, err
+	}
 	if err := s.checkNoPull(ctx, req.Msg); err != nil {
 		return nil, err
 	}
