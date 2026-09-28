@@ -1,5 +1,5 @@
 // Command micropod-apiserver serves the Micropod management API on
-// 127.0.0.1:45454. connect-go handlers speak the Connect protocol, gRPC and
+// 127.0.0.1:45454 and [::1]:45454. connect-go handlers speak the Connect protocol, gRPC and
 // gRPC-Web on the same port.
 //
 // Environment: MICROPOD_API_PORT (default 45454), MICROPOD_CONTAINER_CLI_PATH.
@@ -8,14 +8,17 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"connectrpc.com/connect"
 	"connectrpc.com/validate"
 	"github.com/castlemilk/micropod/sdk/go/gen/micropod/v1/micropodv1connect"
 	"micropod/api/internal/clicli"
+	"micropod/api/internal/localguard"
 	"micropod/api/internal/metrics"
 	"micropod/api/internal/server"
 )
@@ -71,14 +74,31 @@ func main() {
 	})
 	mux.Handle("/metrics", metricsReg)
 
-	addr := "127.0.0.1:" + port
-	log.Printf("Micropod API listening on http://%s (cli: %s)", addr, cli.Bin)
+	portNum, err := strconv.Atoi(port)
+	if err != nil {
+		log.Fatalf("bad MICROPOD_API_PORT %q: %v", port, err)
+	}
+	// Host / Content-Type / Origin admission before any handler: the API is
+	// unauthenticated, so a web page must not be able to drive it with a
+	// no-preflight cross-site request or through DNS rebinding.
+	handler := localguard.Wrap(metricsReg.Wrap(mux), portNum)
 	server := &http.Server{
-		Addr:            addr,
-		Handler:         metricsReg.Wrap(mux),
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-	if err := server.ListenAndServe(); err != nil {
+	// Loopback only, both families: http://localhost:45454 (docs, SDKs)
+	// works whichever address the client's resolver tries first. IPv6 may be
+	// disabled on the host; IPv4 is required.
+	v4, err := net.Listen("tcp", "127.0.0.1:"+port)
+	if err != nil {
 		log.Fatal(err)
 	}
+	log.Printf("Micropod API listening on http://127.0.0.1:%s (cli: %s)", port, cli.Bin)
+	if v6, err := net.Listen("tcp", "[::1]:"+port); err != nil {
+		log.Printf("IPv6 loopback listener unavailable: %v", err)
+	} else {
+		log.Printf("Micropod API listening on http://[::1]:%s", port)
+		go func() { log.Fatal(server.Serve(v6)) }()
+	}
+	log.Fatal(server.Serve(v4))
 }
