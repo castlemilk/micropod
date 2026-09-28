@@ -107,7 +107,7 @@ final class ShimHijackAfterCloseTests: XCTestCase {
 
     /// A `/_ping` answer, read until its body (`OK`) is in.
     private func ping(_ fd: Int32) -> String {
-        send(fd, "GET /_ping HTTP/1.1\r\nHost: d\r\n\r\n")
+        send(fd, "GET /_ping HTTP/1.1\r\nHost: docker\r\n\r\n")
         var out = Data()
         let deadline = Date().addingTimeInterval(5)
         var buffer = [UInt8](repeating: 0, count: 4096)
@@ -181,7 +181,7 @@ final class ShimHijackAfterCloseTests: XCTestCase {
         send(
             leaver,
             "POST /containers/\(containerID)/attach?stream=1&stdout=1&stderr=1 HTTP/1.1\r\n"
-                + "Host: d\r\nContent-Length: 0\r\n\r\n")
+                + "Host: docker\r\nContent-Length: 0\r\n\r\n")
         // The client leaves (its fd stays ours, so its number is not free).
         _ = Darwin.shutdown(leaver, SHUT_RDWR)
         for _ in 0..<250 where identity(of: leaverShimSide) == leaverSocket {

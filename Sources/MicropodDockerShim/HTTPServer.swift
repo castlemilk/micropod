@@ -1,4 +1,5 @@
 import Foundation
+import MicropodCore
 import Network
 
 struct ShimRequest {
@@ -130,15 +131,22 @@ final class ShimConnection: @unchecked Sendable {
         transport = .network(connection)
         io = DispatchQueue(label: "shim-nw-write", qos: .userInitiated)
         reading = false
+        admissionPort = nil
     }
 
     /// `readerAttached`: a serve thread reads `fd` and calls `readerDetached`
     /// when it stops; the fd is released only after that.
-    init(fileDescriptor fd: Int32, readerAttached: Bool = false) {
+    init(fileDescriptor fd: Int32, readerAttached: Bool = false, admissionPort: UInt16? = nil) {
         transport = .fileDescriptor(fd)
         io = DispatchQueue(label: "shim-fd-write-\(fd)", qos: .userInitiated)
         reading = readerAttached
+        self.admissionPort = admissionPort
     }
+
+    /// Set for TCP connections: the listener port every request's Host is
+    /// checked against (``LocalRequestGuard/evaluateShim(headers:port:)``).
+    /// Unix-socket connections (nil) are not reachable from a browser.
+    let admissionPort: UInt16?
 
     enum WriteStatus: Sendable { case ok, failed }
 
@@ -365,7 +373,43 @@ final class ShimHTTPServer: @unchecked Sendable {
         self.handler = handler
     }
 
-    func listenTCP(host: String?, port: UInt16) throws {
+    /// A bound TCP listener. `close()` stops accepting (the accept loop polls
+    /// so it notices within ~250 ms); established connections are untouched.
+    final class TCPListener: @unchecked Sendable {
+        let host: String
+        let port: UInt16
+        private let lock = NSLock()
+        private var closed = false
+
+        fileprivate init(host: String, port: UInt16) {
+            self.host = host
+            self.port = port
+        }
+
+        var isClosed: Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            return closed
+        }
+
+        /// The accept loop owns the fd and closes it when it sees the flag.
+        func close() {
+            lock.lock()
+            closed = true
+            lock.unlock()
+        }
+    }
+
+    /// Binds `host:port` (IPv4 literal; `nil` = every interface) and serves
+    /// accepted connections. TCP is reachable from browsers, so every request
+    /// on it passes ``LocalRequestGuard/evaluateShim(headers:port:)`` (Host
+    /// allowlist, no Origin / Sec-Fetch-*) before reaching the handler.
+    /// `peerAllowed` filters by the client's IPv4 address (a vmnet gateway
+    /// listener only admits guests on that network).
+    @discardableResult
+    func listenTCP(
+        host: String?, port: UInt16, peerAllowed: (@Sendable (String) -> Bool)? = nil
+    ) throws -> TCPListener {
         // BSD sockets, not Network.framework: NWConnection.cancel() is a
         // no-op on established connections (probed: state stays `ready`,
         // TCP stays ESTABLISHED), so hijacked-stream EOF never reaches the
@@ -402,8 +446,9 @@ final class ShimHTTPServer: @unchecked Sendable {
             }
         }
         guard bound == 0 else {
+            let code = errno
             Darwin.close(fd)
-            throw POSIXError(POSIXError.Code(rawValue: errno) ?? .ENODEV)
+            throw POSIXError(POSIXError.Code(rawValue: code) ?? .ENODEV)
         }
         // Report the ephemeral port when port == 0 (tests).
         var resolved = sockaddr_in()
@@ -413,24 +458,54 @@ final class ShimHTTPServer: @unchecked Sendable {
                 _ = Darwin.getsockname(fd, $0, &resolvedLength)
             }
         }
-        portLock.lock()
-        boundPortStorage = CFSwapInt16BigToHost(resolved.sin_port)
-        portLock.unlock()
+        let boundPort = CFSwapInt16BigToHost(resolved.sin_port)
         guard Darwin.listen(fd, 32) == 0 else {
             Darwin.close(fd)
             throw POSIXError(POSIXError.Code(rawValue: errno) ?? .ENODEV)
         }
-        fputs("[shim] tcp listening on \(host ?? "*"):\(CFSwapInt16BigToHost(resolved.sin_port))\n", stderr)
+        portLock.lock()
+        boundPortStorage = boundPort
+        portLock.unlock()
+        let listener = TCPListener(host: host ?? "*", port: boundPort)
+        fputs("[shim] tcp listening on \(host ?? "*"):\(boundPort)\n", stderr)
         let acceptThread = Thread { [weak self] in
-            while true {
-                let clientFD = Darwin.accept(fd, nil, nil)
-                if clientFD < 0 { break }
-                self?.serve(fileDescriptor: clientFD)
+            var pollFD = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+            while !listener.isClosed {
+                pollFD.revents = 0
+                let ready = Darwin.poll(&pollFD, 1, 250)
+                if ready < 0 && errno != EINTR { break }
+                guard ready > 0 else { continue }
+                var peer = sockaddr_in()
+                var peerLength = socklen_t(MemoryLayout<sockaddr_in>.size)
+                let clientFD = withUnsafeMutablePointer(to: &peer) {
+                    $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                        Darwin.accept(fd, $0, &peerLength)
+                    }
+                }
+                if clientFD < 0 {
+                    if errno == EINTR || errno == ECONNABORTED || errno == EAGAIN { continue }
+                    break
+                }
+                if let peerAllowed {
+                    var text = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
+                    var peerAddr = peer.sin_addr
+                    _ = Darwin.inet_ntop(AF_INET, &peerAddr, &text, socklen_t(INET_ADDRSTRLEN))
+                    let peerIP = String(cString: text)
+                    guard peerAllowed(peerIP) else {
+                        fputs("[shim] refused tcp peer \(peerIP) on \(host ?? "*"):\(boundPort)\n", stderr)
+                        Darwin.close(clientFD)
+                        continue
+                    }
+                }
+                self?.serve(fileDescriptor: clientFD, admissionPort: boundPort)
             }
+            Darwin.close(fd)
+            fputs("[shim] tcp listener \(host ?? "*"):\(boundPort) closed\n", stderr)
         }
         acceptThread.name = "shim-tcp-accept"
         acceptThread.stackSize = 256 * 1024
         acceptThread.start()
+        return listener
     }
 
     func listenUnix(path: String) throws {
@@ -478,8 +553,9 @@ final class ShimHTTPServer: @unchecked Sendable {
     /// Large bodies (build contexts) are only parsed once fully received —
     /// waiting on the chunked terminator or content-length — so recv-heavy
     /// uploads stay O(N) instead of re-decoding the whole buffer per recv.
-    private func serve(fileDescriptor fd: Int32) {
-        let connection = ShimConnection(fileDescriptor: fd, readerAttached: true)
+    private func serve(fileDescriptor fd: Int32, admissionPort: UInt16? = nil) {
+        let connection = ShimConnection(
+            fileDescriptor: fd, readerAttached: true, admissionPort: admissionPort)
         Thread.detachNewThread { [weak self] in
             // The fd is released only once this thread no longer reads it.
             defer { connection.readerDetached() }
@@ -692,6 +768,19 @@ final class ShimHTTPServer: @unchecked Sendable {
     }
 
     private func handle(_ request: ShimRequest, connection: ShimConnection, remainder: Data) async {
+        if let port = connection.admissionPort,
+            case .reject(let code, let reason) = LocalRequestGuard.evaluateShim(
+                headers: request.headers, port: port)
+        {
+            fputs("[shim] \(request.method) /\(request.path) -> \(code) (\(reason))\n", stderr)
+            let body = (try? JSONEncoder().encode(["message": reason])) ?? Data()
+            _ = await connection.write(
+                Self.head(
+                    code: code, headers: [("Content-Type", "application/json"), ("Connection", "close")],
+                    body: body) + body)
+            connection.close()
+            return
+        }
         let response = await handler(request, connection)
         let status: Int
         switch response {
@@ -766,6 +855,7 @@ final class ShimHTTPServer: @unchecked Sendable {
         case 201: reason = "Created"
         case 204: reason = "No Content"
         case 400: reason = "Bad Request"
+        case 403: reason = "Forbidden"
         case 404: reason = "Not Found"
         case 409: reason = "Conflict"
         case 500: reason = "Internal Server Error"
