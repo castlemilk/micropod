@@ -38,6 +38,13 @@ public nonisolated struct Micropod_V1_PingResponse: Sendable {
   /// Version of the bundled `container` CLI.
   public var cliVersion: String = String()
 
+  /// Optional request capabilities this server honours, so clients can
+  /// detect them instead of sending fields an older server would silently
+  /// ignore (proto3 drops unknown fields). Names are the
+  /// `RunContainerRequest` field names: "cap_add", "cap_drop", "rosetta",
+  /// "privileged". Empty on servers that predate the list.
+  public var features: [String] = []
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -455,7 +462,7 @@ fileprivate nonisolated let _protobuf_package = "micropod.v1"
 
 nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PingResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}runtime_backend\0\u{3}api_server_version\0\u{3}cli_version\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}runtime_backend\0\u{3}api_server_version\0\u{3}cli_version\0\u{1}features\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -467,6 +474,7 @@ nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProt
       case 2: try { try decoder.decodeSingularStringField(value: &self.runtimeBackend) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.apiServerVersion) }()
       case 4: try { try decoder.decodeSingularStringField(value: &self.cliVersion) }()
+      case 5: try { try decoder.decodeRepeatedStringField(value: &self.features) }()
       default: break
       }
     }
@@ -485,6 +493,9 @@ nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProt
     if !self.cliVersion.isEmpty {
       try visitor.visitSingularStringField(value: self.cliVersion, fieldNumber: 4)
     }
+    if !self.features.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.features, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -493,6 +504,7 @@ nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProt
     if lhs.runtimeBackend != rhs.runtimeBackend {return false}
     if lhs.apiServerVersion != rhs.apiServerVersion {return false}
     if lhs.cliVersion != rhs.cliVersion {return false}
+    if lhs.features != rhs.features {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

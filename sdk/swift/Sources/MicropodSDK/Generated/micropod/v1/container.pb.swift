@@ -384,7 +384,11 @@ public nonisolated struct Micropod_V1_RunContainerRequest: @unchecked Sendable {
 
   /// Linux capabilities to remove from the container's set (docker run
   /// --cap-drop). Same spelling rules as `cap_add`; "ALL" drops every
-  /// capability, so `cap_add` can then grant back a minimal set.
+  /// capability, so `cap_add` can then grant back a minimal set. Drops always
+  /// win over an "ALL" grant — `cap_add: ["ALL"]` or `privileged` — so
+  /// `privileged` + `cap_drop: ["SYS_MODULE"]` runs with every capability but
+  /// SYS_MODULE. "ALL" here together with `privileged` or `cap_add: ["ALL"]`
+  /// is contradictory and fails with `invalid_argument`.
   public var capDrop: [String] {
     get {_storage._capDrop}
     set {_uniqueStorage()._capDrop = newValue}
@@ -411,7 +415,9 @@ public nonisolated struct Micropod_V1_RunContainerRequest: @unchecked Sendable {
   /// and none of the runtime's default read-only or masked paths, so
   /// /proc/sys (IP forwarding, sysctls) and /sys/fs/cgroup are writable and
   /// /proc is not masked. The isolation boundary stays the micro-VM: host
-  /// devices are not passed through. `cap_drop` still applies on top.
+  /// devices are not passed through. Named `cap_drop` entries still remove
+  /// their capabilities; `cap_drop: ["ALL"]` with `privileged` fails with
+  /// `invalid_argument`.
   public var privileged: Bool {
     get {_storage._privileged ?? false}
     set {_uniqueStorage()._privileged = newValue}

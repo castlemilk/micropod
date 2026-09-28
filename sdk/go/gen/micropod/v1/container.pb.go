@@ -567,7 +567,11 @@ type RunContainerRequest struct {
 	CapAdd []string `protobuf:"bytes,17,rep,name=cap_add,json=capAdd,proto3" json:"cap_add,omitempty"`
 	// Linux capabilities to remove from the container's set (docker run
 	// --cap-drop). Same spelling rules as `cap_add`; "ALL" drops every
-	// capability, so `cap_add` can then grant back a minimal set.
+	// capability, so `cap_add` can then grant back a minimal set. Drops always
+	// win over an "ALL" grant — `cap_add: ["ALL"]` or `privileged` — so
+	// `privileged` + `cap_drop: ["SYS_MODULE"]` runs with every capability but
+	// SYS_MODULE. "ALL" here together with `privileged` or `cap_add: ["ALL"]`
+	// is contradictory and fails with `invalid_argument`.
 	CapDrop []string `protobuf:"bytes,18,rep,name=cap_drop,json=capDrop,proto3" json:"cap_drop,omitempty"`
 	// Run x86_64 (linux/amd64) binaries through Rosetta translation (container
 	// run --rosetta). `true` forces Rosetta on. Unset or `false` keeps the
@@ -582,7 +586,9 @@ type RunContainerRequest struct {
 	// and none of the runtime's default read-only or masked paths, so
 	// /proc/sys (IP forwarding, sysctls) and /sys/fs/cgroup are writable and
 	// /proc is not masked. The isolation boundary stays the micro-VM: host
-	// devices are not passed through. `cap_drop` still applies on top.
+	// devices are not passed through. Named `cap_drop` entries still remove
+	// their capabilities; `cap_drop: ["ALL"]` with `privileged` fails with
+	// `invalid_argument`.
 	Privileged    *bool `protobuf:"varint,20,opt,name=privileged,proto3,oneof" json:"privileged,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

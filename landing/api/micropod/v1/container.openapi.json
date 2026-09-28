@@ -1818,7 +1818,7 @@
             },
             "title": "cap_drop",
             "maxItems": 64,
-            "description": "Linux capabilities to remove from the container's set (docker run\n --cap-drop). Same spelling rules as `cap_add`; \"ALL\" drops every\n capability, so `cap_add` can then grant back a minimal set."
+            "description": "Linux capabilities to remove from the container's set (docker run\n --cap-drop). Same spelling rules as `cap_add`; \"ALL\" drops every\n capability, so `cap_add` can then grant back a minimal set. Drops always\n win over an \"ALL\" grant \u2014 `cap_add: [\"ALL\"]` or `privileged` \u2014 so\n `privileged` + `cap_drop: [\"SYS_MODULE\"]` runs with every capability but\n SYS_MODULE. \"ALL\" here together with `privileged` or `cap_add: [\"ALL\"]`\n is contradictory and fails with `invalid_argument`."
           },
           "rosetta": {
             "type": [
@@ -1840,7 +1840,7 @@
               "true"
             ],
             "title": "privileged",
-            "description": "Run the workload with the privileges a nested container engine\n (dockerd, containerd, buildkitd) needs \u2014 the micro-VM analogue of\n docker run --privileged: every Linux capability (as `cap_add: [\"ALL\"]`)\n and none of the runtime's default read-only or masked paths, so\n /proc/sys (IP forwarding, sysctls) and /sys/fs/cgroup are writable and\n /proc is not masked. The isolation boundary stays the micro-VM: host\n devices are not passed through. `cap_drop` still applies on top."
+            "description": "Run the workload with the privileges a nested container engine\n (dockerd, containerd, buildkitd) needs \u2014 the micro-VM analogue of\n docker run --privileged: every Linux capability (as `cap_add: [\"ALL\"]`)\n and none of the runtime's default read-only or masked paths, so\n /proc/sys (IP forwarding, sysctls) and /sys/fs/cgroup are writable and\n /proc is not masked. The isolation boundary stays the micro-VM: host\n devices are not passed through. Named `cap_drop` entries still remove\n their capabilities; `cap_drop: [\"ALL\"]` with `privileged` fails with\n `invalid_argument`."
           }
         },
         "title": "RunContainerRequest",

@@ -193,6 +193,7 @@ final class APIHandlers: Sendable {
                     // matches the proto field name.
                     "backend": services.kind.rawValue,
                     "runtimeBackend": services.kind.rawValue,
+                    "features": APIFeatures.supported,
                 ]
                 // A stopped runtime has no `df` to report — and asking would
                 // turn a clean "stopped" into a CLI failure.
@@ -557,12 +558,38 @@ final class APIHandlers: Sendable {
         if let volume = named.first(where: { !VolumeClone.isSafeVolumeName($0) }) {
             throw BadRequest(message: "volume name '\(volume)' must match \(VolumeClone.volumeNameGrammar)")
         }
+        // A present-but-mistyped security field is an error, never a silent
+        // default: `["NET_ADMIN", 5]` must not quietly become "no cap_add".
+        func stringList(_ key: String) throws -> [String] {
+            guard let raw = payload[key], !(raw is NSNull) else { return [] }
+            guard let list = raw as? [Any] else {
+                throw BadRequest(message: "\(key) must be an array of strings")
+            }
+            return try list.enumerated().map { index, entry in
+                guard let name = entry as? String else {
+                    throw BadRequest(message: "\(key)[\(index)] must be a string")
+                }
+                return name
+            }
+        }
+        func flag(_ key: String) throws -> Bool {
+            guard let raw = payload[key], !(raw is NSNull) else { return false }
+            guard let number = raw as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() else {
+                throw BadRequest(message: "\(key) must be a boolean")
+            }
+            return number.boolValue
+        }
         let capAdd: [String]
         let capDrop: [String]
+        let privileged = try flag("privileged")
+        let rosetta = try flag("rosetta")
         do {
-            capAdd = try LinuxCapabilities.normalize((payload["capAdd"] as? [String]) ?? [])
-            capDrop = try LinuxCapabilities.normalize((payload["capDrop"] as? [String]) ?? [])
+            capAdd = try LinuxCapabilities.normalize(try stringList("capAdd"))
+            capDrop = try LinuxCapabilities.normalize(try stringList("capDrop"))
+            try LinuxCapabilities.validateCombination(capAdd: capAdd, capDrop: capDrop, privileged: privileged)
         } catch let error as LinuxCapabilities.InvalidName {
+            throw BadRequest(message: error.description)
+        } catch let error as LinuxCapabilities.Conflict {
             throw BadRequest(message: error.description)
         }
         return ContainerRunRequest(
@@ -576,11 +603,11 @@ final class APIHandlers: Sendable {
             volumes: volumes,
             labels: labels,
             useInit: (payload["init"] as? Bool) ?? false,
-            rosetta: (payload["rosetta"] as? Bool) ?? false,
+            rosetta: rosetta,
             capAdd: capAdd,
             capDrop: capDrop,
             arguments: (payload["arguments"] as? [String]) ?? [],
-            privileged: (payload["privileged"] as? Bool) ?? false)
+            privileged: privileged)
     }
 
     // MARK: - JSON projections (proto → API JSON)

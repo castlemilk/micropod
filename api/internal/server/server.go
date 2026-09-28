@@ -149,9 +149,13 @@ func (s *Server) GetSystem(ctx context.Context, req *connect.Request[micropodv1.
 
 // Ping is the cheap liveness probe: one `system status` spawn, no df. The
 // CLI version is memoised so repeated pings cost a single process.
+// Features are the optional RunContainerRequest capabilities this server
+// honours (PingResponse.features). Mirrors MicropodCore's APIFeatures.
+var Features = []string{"cap_add", "cap_drop", "rosetta", "privileged"}
+
 func (s *Server) Ping(ctx context.Context, req *connect.Request[micropodv1.Empty]) (*connect.Response[micropodv1.PingResponse], error) {
 	version, _ := s.cachedCLIVersion(ctx)
-	res := &micropodv1.PingResponse{RuntimeBackend: runtimeBackend, CliVersion: version}
+	res := &micropodv1.PingResponse{RuntimeBackend: runtimeBackend, CliVersion: version, Features: Features}
 	status, stopped, err := s.systemStatus(ctx)
 	switch {
 	case err != nil:
@@ -352,19 +356,15 @@ func runArgs(req *micropodv1.RunContainerRequest) []string {
 	if req.GetRosetta() {
 		args = append(args, "--rosetta")
 	}
-	capAdd := req.CapAdd
-	if req.GetPrivileged() {
-		// privileged subsumes any explicit list; NONE clears the runtime's
-		// default read-only (/proc/sys, ...) and masked paths.
-		capAdd = []string{"ALL"}
-	}
-	for _, c := range capAdd {
+	for _, c := range effectiveCapAdd(req) {
 		args = append(args, "--cap-add", c)
 	}
 	for _, c := range req.CapDrop {
 		args = append(args, "--cap-drop", c)
 	}
 	if req.GetPrivileged() {
+		// NONE clears the runtime's default read-only (/proc/sys, ...) and
+		// masked paths.
 		args = append(args, "--read-only-path", "NONE", "--masked-path", "NONE")
 	}
 	args = append(args, req.Image)
@@ -372,28 +372,43 @@ func runArgs(req *micropodv1.RunContainerRequest) []string {
 	return args
 }
 
-// linuxCapabilities is every capability Linux defines (CAP_CHOWN = 0 …
-// CAP_CHECKPOINT_RESTORE = 40), without the CAP_ prefix. Mirrors
-// MicropodCore's LinuxCapabilities.known.
-var linuxCapabilities = map[string]bool{
-	"CHOWN": true, "DAC_OVERRIDE": true, "DAC_READ_SEARCH": true, "FOWNER": true, "FSETID": true, "KILL": true,
-	"SETGID": true, "SETUID": true, "SETPCAP": true, "LINUX_IMMUTABLE": true, "NET_BIND_SERVICE": true,
-	"NET_BROADCAST": true, "NET_ADMIN": true, "NET_RAW": true, "IPC_LOCK": true, "IPC_OWNER": true,
-	"SYS_MODULE": true, "SYS_RAWIO": true, "SYS_CHROOT": true, "SYS_PTRACE": true, "SYS_PACCT": true,
-	"SYS_ADMIN": true, "SYS_BOOT": true, "SYS_NICE": true, "SYS_RESOURCE": true, "SYS_TIME": true,
-	"SYS_TTY_CONFIG": true, "MKNOD": true, "LEASE": true, "AUDIT_WRITE": true, "AUDIT_CONTROL": true,
-	"SETFCAP": true, "MAC_OVERRIDE": true, "MAC_ADMIN": true, "SYSLOG": true, "WAKE_ALARM": true,
-	"BLOCK_SUSPEND": true, "AUDIT_READ": true, "PERFMON": true, "BPF": true, "CHECKPOINT_RESTORE": true,
+// orderedCapabilities is every capability Linux defines, in kernel order
+// (CAP_CHOWN = 0 … CAP_CHECKPOINT_RESTORE = 40), without the CAP_ prefix.
+// Mirrors MicropodCore's LinuxCapabilities.ordered.
+var orderedCapabilities = []string{
+	"CHOWN", "DAC_OVERRIDE", "DAC_READ_SEARCH", "FOWNER", "FSETID", "KILL",
+	"SETGID", "SETUID", "SETPCAP", "LINUX_IMMUTABLE", "NET_BIND_SERVICE",
+	"NET_BROADCAST", "NET_ADMIN", "NET_RAW", "IPC_LOCK", "IPC_OWNER",
+	"SYS_MODULE", "SYS_RAWIO", "SYS_CHROOT", "SYS_PTRACE", "SYS_PACCT",
+	"SYS_ADMIN", "SYS_BOOT", "SYS_NICE", "SYS_RESOURCE", "SYS_TIME",
+	"SYS_TTY_CONFIG", "MKNOD", "LEASE", "AUDIT_WRITE", "AUDIT_CONTROL",
+	"SETFCAP", "MAC_OVERRIDE", "MAC_ADMIN", "SYSLOG", "WAKE_ALARM",
+	"BLOCK_SUSPEND", "AUDIT_READ", "PERFMON", "BPF", "CHECKPOINT_RESTORE",
+}
+
+// linuxCapabilities is orderedCapabilities as a set.
+var linuxCapabilities = func() map[string]bool {
+	m := make(map[string]bool, len(orderedCapabilities))
+	for _, c := range orderedCapabilities {
+		m[c] = true
+	}
+	return m
+}()
+
+func bareCapability(name string) string {
+	return strings.TrimPrefix(strings.ToUpper(name), "CAP_")
 }
 
 // normalizeCapabilities maps docker-style names (case-insensitive, CAP_
 // prefix optional, "ALL" wildcard) to the CAP_* spelling, de-duplicated.
+// Names match exactly — surrounding whitespace is invalid, as in the
+// proto's buf.validate pattern (and MicropodCore's LinuxCapabilities).
 // Unknown names fail invalid_argument.
 func normalizeCapabilities(field string, names []string) ([]string, error) {
 	var out []string
 	seen := map[string]bool{}
 	for _, raw := range names {
-		upper := strings.ToUpper(strings.TrimSpace(raw))
+		upper := strings.ToUpper(raw)
 		norm := "ALL"
 		if upper != "ALL" {
 			bare := strings.TrimPrefix(upper, "CAP_")
@@ -411,14 +426,63 @@ func normalizeCapabilities(field string, names []string) ([]string, error) {
 	return out, nil
 }
 
-// normalizeRunRequest validates and normalises the capability lists in place.
+// effectiveCapAdd is what the runtime is asked to add. The runtime applies
+// --cap-drop before --cap-add, so an ALL add (explicit, or implied by
+// privileged) would silently re-grant every dropped capability: with drops
+// present ALL expands to every capability except the dropped ones, so
+// cap_drop really applies on top. Mirrors ContainerRunRequest.effectiveCapAdd.
+func effectiveCapAdd(req *micropodv1.RunContainerRequest) []string {
+	wantsAll := req.GetPrivileged()
+	for _, c := range req.CapAdd {
+		if bareCapability(c) == "ALL" {
+			wantsAll = true
+		}
+	}
+	if !wantsAll {
+		return req.CapAdd
+	}
+	dropped := map[string]bool{}
+	for _, c := range req.CapDrop {
+		dropped[bareCapability(c)] = true
+	}
+	if len(dropped) == 0 || dropped["ALL"] {
+		return []string{"ALL"}
+	}
+	var out []string
+	for _, c := range orderedCapabilities {
+		if !dropped[c] {
+			out = append(out, "CAP_"+c)
+		}
+	}
+	return out
+}
+
+// normalizeRunRequest validates and normalises the capability lists in
+// place, and refuses cap_drop ALL together with privileged or cap_add ALL
+// (the runtime would silently grant every capability).
 func normalizeRunRequest(req *micropodv1.RunContainerRequest) error {
 	var err error
 	if req.CapAdd, err = normalizeCapabilities("cap_add", req.CapAdd); err != nil {
 		return err
 	}
-	req.CapDrop, err = normalizeCapabilities("cap_drop", req.CapDrop)
-	return err
+	if req.CapDrop, err = normalizeCapabilities("cap_drop", req.CapDrop); err != nil {
+		return err
+	}
+	dropAll, addAll := false, false
+	for _, c := range req.CapDrop {
+		dropAll = dropAll || c == "ALL"
+	}
+	for _, c := range req.CapAdd {
+		addAll = addAll || c == "ALL"
+	}
+	switch {
+	case dropAll && req.GetPrivileged():
+		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf(
+			"cap_drop ALL cannot be combined with privileged (privileged grants every capability); drop specific capabilities instead"))
+	case dropAll && addAll:
+		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("cap_drop ALL cannot be combined with cap_add ALL"))
+	}
+	return nil
 }
 
 func fmtFloat(f float64) string {

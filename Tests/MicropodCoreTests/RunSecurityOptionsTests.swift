@@ -9,8 +9,23 @@ final class RunSecurityOptionsTests: XCTestCase {
 
     func testNormalizeAcceptsDockerSpellings() throws {
         XCTAssertEqual(
-            try LinuxCapabilities.normalize(["net_admin", "CAP_SYS_PTRACE", "Cap_Net_Raw", " mknod "]),
+            try LinuxCapabilities.normalize(["net_admin", "CAP_SYS_PTRACE", "Cap_Net_Raw", "mknod"]),
             ["CAP_NET_ADMIN", "CAP_SYS_PTRACE", "CAP_NET_RAW", "CAP_MKNOD"])
+    }
+
+    /// Same rule as the Go server (whose buf.validate pattern forbids any
+    /// whitespace): a padded name is invalid, never silently trimmed.
+    func testNormalizeRejectsSurroundingWhitespace() {
+        for bad in [" mknod ", "NET_ADMIN\n", "\tNET_RAW", "ALL ", "\r\nSYS_ADMIN"] {
+            XCTAssertThrowsError(try LinuxCapabilities.normalize([bad]), bad.debugDescription)
+        }
+    }
+
+    func testOrderedMatchesKnownInKernelOrder() {
+        XCTAssertEqual(LinuxCapabilities.ordered.count, 41)
+        XCTAssertEqual(Set(LinuxCapabilities.ordered), LinuxCapabilities.known)
+        XCTAssertEqual(LinuxCapabilities.ordered.first, "CHOWN")
+        XCTAssertEqual(LinuxCapabilities.ordered.last, "CHECKPOINT_RESTORE")
     }
 
     func testNormalizeKeepsAllWildcardAndDeduplicates() throws {
@@ -79,12 +94,69 @@ final class RunSecurityOptionsTests: XCTestCase {
         let request = try mapped {
             $0.privileged = true
             $0.capAdd = ["NET_ADMIN"]
-            $0.capDrop = ["SYS_MODULE"]
         }
         XCTAssertTrue(request.privileged)
         XCTAssertEqual(request.effectiveCapAdd, ["ALL"])
-        XCTAssertEqual(request.capDrop, ["CAP_SYS_MODULE"], "cap_drop still applies on top")
         XCTAssertFalse(try mapped { $0.privileged = false }.privileged)
+    }
+
+    /// The runtime drops before it adds, so an ALL grant would re-add every
+    /// dropped capability: with drops, ALL expands to everything else.
+    func testCapDropReallyAppliesOnTopOfPrivileged() throws {
+        let request = try mapped {
+            $0.privileged = true
+            $0.capAdd = ["NET_ADMIN"]
+            $0.capDrop = ["SYS_MODULE", "net_raw"]
+        }
+        XCTAssertEqual(request.capDrop, ["CAP_SYS_MODULE", "CAP_NET_RAW"])
+        XCTAssertEqual(request.effectiveCapAdd.count, 39)
+        XCTAssertFalse(request.effectiveCapAdd.contains("ALL"))
+        XCTAssertFalse(request.effectiveCapAdd.contains("CAP_SYS_MODULE"))
+        XCTAssertFalse(request.effectiveCapAdd.contains("CAP_NET_RAW"))
+        XCTAssertTrue(request.effectiveCapAdd.contains("CAP_SYS_ADMIN"))
+        XCTAssertEqual(request.effectiveCapAdd.first, "CAP_CHOWN", "kernel order")
+    }
+
+    func testCapDropAppliesOnTopOfCapAddAll() {
+        let request = ContainerRunRequest(image: "alpine:3.20", capAdd: ["ALL"], capDrop: ["CAP_NET_RAW"])
+        XCTAssertEqual(
+            request.effectiveCapAdd, LinuxCapabilities.ordered.filter { $0 != "NET_RAW" }.map { "CAP_\($0)" })
+        // No ALL grant: explicit lists pass through (drop ALL + add minimal).
+        let minimal = ContainerRunRequest(image: "alpine:3.20", capAdd: ["CAP_NET_ADMIN"], capDrop: ["ALL"])
+        XCTAssertEqual(minimal.effectiveCapAdd, ["CAP_NET_ADMIN"])
+    }
+
+    func testDropAllWithAnAllGrantIsAConflict() {
+        XCTAssertThrowsError(
+            try mapped {
+                $0.privileged = true
+                $0.capDrop = ["all"]
+            }
+        ) { error in
+            XCTAssertTrue(error is LinuxCapabilities.Conflict, "\(error)")
+        }
+        XCTAssertThrowsError(
+            try mapped {
+                $0.capAdd = ["ALL"]
+                $0.capDrop = ["ALL"]
+            }
+        ) { error in
+            XCTAssertTrue(error is LinuxCapabilities.Conflict, "\(error)")
+        }
+        XCTAssertNoThrow(
+            try mapped {
+                $0.capAdd = ["NET_ADMIN"]
+                $0.capDrop = ["ALL"]
+            })
+        XCTAssertNoThrow(
+            try mapped {
+                $0.privileged = true
+                $0.capDrop = ["NET_RAW"]
+            })
+    }
+
+    func testFeaturesListTheOptionalRunFields() {
+        XCTAssertEqual(APIFeatures.supported, ["cap_add", "cap_drop", "rosetta", "privileged"])
     }
 
     // MARK: - CLI backend argv
@@ -108,18 +180,25 @@ final class RunSecurityOptionsTests: XCTestCase {
     }
 
     func testPrivilegedArgvClearsDefaultPathsOnRunAndCreate() {
-        let request = ContainerRunRequest(
-            image: "docker:dind", capAdd: ["CAP_NET_ADMIN"], capDrop: ["CAP_SYS_MODULE"], privileged: true)
+        let request = ContainerRunRequest(image: "docker:dind", capAdd: ["CAP_NET_ADMIN"], privileged: true)
         for command in [ContainerCommandFactory.run(request), ContainerCommandFactory.create(request)] {
             let argv = joined(command)
             XCTAssertTrue(argv.contains(" --cap-add ALL "), argv)
             XCTAssertFalse(argv.contains("CAP_NET_ADMIN"), "privileged subsumes explicit cap_add: \(argv)")
-            XCTAssertTrue(argv.contains(" --cap-drop CAP_SYS_MODULE "), argv)
             XCTAssertTrue(argv.contains(" --read-only-path NONE --masked-path NONE "), argv)
             // Flags precede the image.
             let image = argv.range(of: " docker:dind ")!.lowerBound
             XCTAssertLessThan(argv.range(of: " --masked-path ")!.lowerBound, image)
         }
         XCTAssertEqual(ContainerCommandFactory.create(request).arguments.first, "create")
+    }
+
+    func testPrivilegedArgvWithDropsNeverAddsAll() {
+        let request = ContainerRunRequest(image: "docker:dind", capDrop: ["CAP_SYS_MODULE"], privileged: true)
+        let argv = joined(ContainerCommandFactory.create(request))
+        XCTAssertFalse(argv.contains(" --cap-add ALL "), argv)
+        XCTAssertFalse(argv.contains(" --cap-add CAP_SYS_MODULE "), argv)
+        XCTAssertTrue(argv.contains(" --cap-add CAP_SYS_ADMIN "), argv)
+        XCTAssertTrue(argv.contains(" --cap-drop CAP_SYS_MODULE "), argv)
     }
 }

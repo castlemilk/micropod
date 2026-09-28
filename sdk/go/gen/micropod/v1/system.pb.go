@@ -105,7 +105,13 @@ type PingResponse struct {
 	// Version of the embedded API server.
 	ApiServerVersion string `protobuf:"bytes,3,opt,name=api_server_version,json=apiServerVersion,proto3" json:"api_server_version,omitempty"`
 	// Version of the bundled `container` CLI.
-	CliVersion    string `protobuf:"bytes,4,opt,name=cli_version,json=cliVersion,proto3" json:"cli_version,omitempty"`
+	CliVersion string `protobuf:"bytes,4,opt,name=cli_version,json=cliVersion,proto3" json:"cli_version,omitempty"`
+	// Optional request capabilities this server honours, so clients can
+	// detect them instead of sending fields an older server would silently
+	// ignore (proto3 drops unknown fields). Names are the
+	// `RunContainerRequest` field names: "cap_add", "cap_drop", "rosetta",
+	// "privileged". Empty on servers that predate the list.
+	Features      []string `protobuf:"bytes,5,rep,name=features,proto3" json:"features,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -166,6 +172,13 @@ func (x *PingResponse) GetCliVersion() string {
 		return x.CliVersion
 	}
 	return ""
+}
+
+func (x *PingResponse) GetFeatures() []string {
+	if x != nil {
+		return x.Features
+	}
+	return nil
 }
 
 type SystemSnapshot struct {
@@ -1030,14 +1043,15 @@ var File_micropod_v1_system_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_system_proto_rawDesc = "" +
 	"\n" +
-	"\x18micropod/v1/system.proto\x12\vmicropod.v1\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\x1a\x17micropod/v1/image.proto\x1a\x18micropod/v1/volume.proto\"\xe1\x01\n" +
+	"\x18micropod/v1/system.proto\x12\vmicropod.v1\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\x1a\x17micropod/v1/image.proto\x1a\x18micropod/v1/volume.proto\"\xb6\x02\n" +
 	"\fPingResponse\x12(\n" +
 	"\x06status\x18\x01 \x01(\tB\x10\xbaG\r:\v\x12\t'running'R\x06status\x128\n" +
 	"\x0fruntime_backend\x18\x02 \x01(\tB\x0f\xbaG\f:\n" +
 	"\x12\b'native'R\x0eruntimeBackend\x12<\n" +
 	"\x12api_server_version\x18\x03 \x01(\tB\x0e\xbaG\v:\t\x12\a'0.8.0'R\x10apiServerVersion\x12/\n" +
 	"\vcli_version\x18\x04 \x01(\tB\x0e\xbaG\v:\t\x12\a'0.7.0'R\n" +
-	"cliVersion\"z\n" +
+	"cliVersion\x12S\n" +
+	"\bfeatures\x18\x05 \x03(\tB7\xbaG4:2\x120['cap_add', 'cap_drop', 'rosetta', 'privileged']R\bfeatures\"z\n" +
 	"\x0eSystemSnapshot\x121\n" +
 	"\x06status\x18\x01 \x01(\v2\x19.micropod.v1.SystemStatusR\x06status\x125\n" +
 	"\n" +

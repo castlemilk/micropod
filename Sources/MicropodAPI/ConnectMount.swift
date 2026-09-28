@@ -412,6 +412,7 @@ extension APIHandlers {
     private func ping(_ services: RuntimeServices) async -> Micropod_V1_PingResponse {
         var response = Micropod_V1_PingResponse()
         response.runtimeBackend = services.kind.rawValue
+        response.features = APIFeatures.supported
         if let api = services.api {
             if let health = try? await api.ping(timeout: .seconds(2)) {
                 response.status = "running"
@@ -823,6 +824,8 @@ extension APIHandlers {
             try request.applySecurityOptions(from: proto)
         } catch let error as LinuxCapabilities.InvalidName {
             throw ConnectDecodeError(code: .invalidArgument, message: "cap_add/cap_drop: \(error.description)")
+        } catch let error as LinuxCapabilities.Conflict {
+            throw ConnectDecodeError(code: .invalidArgument, message: error.description)
         }
         return request
     }

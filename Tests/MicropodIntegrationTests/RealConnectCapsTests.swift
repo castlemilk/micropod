@@ -93,7 +93,66 @@ final class RealConnectCapsTests: XCTestCase {
         XCTAssertTrue(output.contains("0000000000001000"), output)
     }
 
+    /// privileged + cap_drop: the drop really applies (the runtime adds
+    /// after it drops, so the server expands ALL instead of sending it).
+    func testPrivilegedCapDropReallyDropsNative() async throws {
+        try await privilegedDrop(backend: "native")
+    }
+
+    func testPrivilegedCapDropReallyDropsCLI() async throws {
+        try await privilegedDrop(backend: "cli")
+    }
+
+    /// The security review's live repro against a real server: a
+    /// no-preflight `text/plain` cross-site Ping and a DNS-rebinding Host are
+    /// refused before any handler; a real client still gets 200 and the
+    /// feature list.
+    func testCrossSiteRequestsRefusedLegitimateClientPasses() async throws {
+        try await launch(backend: "native")
+        let port = UInt16(baseURL.port ?? 0)
+        func exchange(host: String, contentType: String?, origin: String?) async throws -> String {
+            var request = "POST /api/micropod.v1.SystemService/Ping HTTP/1.1\r\nHost: \(host)\r\n"
+            if let contentType { request += "Content-Type: \(contentType)\r\n" }
+            if let origin { request += "Origin: \(origin)\r\n" }
+            request += "Content-Length: 2\r\nConnection: close\r\n\r\n{}"
+            let raw = try await Task.detached { [request] in try RawHTTP.exchange(port: port, request: request) }.value
+            return raw.components(separatedBy: "\r\n").first ?? ""
+        }
+        let crossSite = try await exchange(
+            host: "evil.example", contentType: "text/plain", origin: "http://evil.example")
+        XCTAssertEqual(crossSite, "HTTP/1.1 403 Forbidden")
+        let foreignOrigin = try await exchange(
+            host: "127.0.0.1:\(port)", contentType: "text/plain", origin: "http://evil.example")
+        XCTAssertEqual(foreignOrigin, "HTTP/1.1 403 Forbidden")
+        let simpleType = try await exchange(host: "127.0.0.1:\(port)", contentType: "text/plain", origin: nil)
+        XCTAssertEqual(simpleType, "HTTP/1.1 415 Unsupported Media Type")
+        let rebinding = try await exchange(host: "evil.example:\(port)", contentType: "application/json", origin: nil)
+        XCTAssertEqual(rebinding, "HTTP/1.1 403 Forbidden")
+        let good = try await exchange(host: "127.0.0.1:\(port)", contentType: "application/json", origin: nil)
+        XCTAssertEqual(good, "HTTP/1.1 200 OK")
+        let ping = try await call("Ping", [:], service: "SystemService")
+        XCTAssertEqual(ping["features"] as? [String], ["cap_add", "cap_drop", "rosetta", "privileged"], "\(ping)")
+    }
+
     // MARK: - Scenarios
+
+    private func privilegedDrop(backend: String) async throws {
+        try await launch(backend: backend)
+        let name = containerName(backend, "privdrop")
+        _ = try await call(
+            "RunContainer",
+            [
+                "image": "alpine:3.20", "name": name, "privileged": true, "capDrop": ["NET_RAW"],
+                "arguments": ["sleep", "300"],
+            ])
+        let (output, code) = try await exec(name, ["sh", "-c", "grep CapEff /proc/self/status"])
+        XCTAssertEqual(code, 0, output)
+        let hex = output.split(separator: ":").last.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) } ?? ""
+        let mask = UInt64(hex, radix: 16) ?? 0
+        XCTAssertEqual(mask & (1 << 13), 0, "CAP_NET_RAW (13) must be dropped: \(output)")
+        XCTAssertNotEqual(mask & (1 << 21), 0, "CAP_SYS_ADMIN (21) stays granted: \(output)")
+        XCTAssertNotEqual(mask & (1 << 12), 0, "CAP_NET_ADMIN (12) stays granted: \(output)")
+    }
 
     private func privilegedDind(backend: String, viaCreate: Bool) async throws {
         try await launch(backend: backend)

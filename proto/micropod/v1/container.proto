@@ -189,7 +189,11 @@ message RunContainerRequest {
   ];
   // Linux capabilities to remove from the container's set (docker run
   // --cap-drop). Same spelling rules as `cap_add`; "ALL" drops every
-  // capability, so `cap_add` can then grant back a minimal set.
+  // capability, so `cap_add` can then grant back a minimal set. Drops always
+  // win over an "ALL" grant — `cap_add: ["ALL"]` or `privileged` — so
+  // `privileged` + `cap_drop: ["SYS_MODULE"]` runs with every capability but
+  // SYS_MODULE. "ALL" here together with `privileged` or `cap_add: ["ALL"]`
+  // is contradictory and fails with `invalid_argument`.
   repeated string cap_drop = 18 [
     (buf.validate.field).repeated.max_items = 64,
     (buf.validate.field).repeated.items.string.pattern = "^([Cc][Aa][Pp]_)?[A-Za-z][A-Za-z_]*$",
@@ -209,7 +213,9 @@ message RunContainerRequest {
   // and none of the runtime's default read-only or masked paths, so
   // /proc/sys (IP forwarding, sysctls) and /sys/fs/cgroup are writable and
   // /proc is not masked. The isolation boundary stays the micro-VM: host
-  // devices are not passed through. `cap_drop` still applies on top.
+  // devices are not passed through. Named `cap_drop` entries still remove
+  // their capabilities; `cap_drop: ["ALL"]` with `privileged` fails with
+  // `invalid_argument`.
   optional bool privileged = 20 [(gnostic.openapi.v3.property).example = {yaml: "true"}];
 }
 
