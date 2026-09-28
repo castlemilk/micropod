@@ -55,7 +55,7 @@ final class ShimStartSettleTests: XCTestCase {
         try client.connectForHijack()
         try client.writeRaw(
             Data(
-                ("POST /containers/\(id)/attach?stream=1&stdout=1&stderr=1 HTTP/1.1\r\nHost: d\r\n"
+                ("POST /containers/\(id)/attach?stream=1&stdout=1&stderr=1 HTTP/1.1\r\nHost: docker\r\n"
                     + "Upgrade: tcp\r\nConnection: Upgrade\r\nContent-Length: 0\r\n\r\n").utf8))
         let head = try client.readUntil(timeout: 10) { $0.range(of: Data("\r\n\r\n".utf8)) != nil }
         XCTAssertTrue(String(decoding: head, as: UTF8.self).contains("101"), "attach must upgrade")
@@ -75,7 +75,7 @@ final class ShimStartSettleTests: XCTestCase {
             guard (try? client.connectForHijack()) != nil,
                 (try? client.writeRaw(
                     Data(
-                        ("POST /containers/\(id)/wait?condition=\(condition) HTTP/1.1\r\nHost: d\r\n"
+                        ("POST /containers/\(id)/wait?condition=\(condition) HTTP/1.1\r\nHost: docker\r\n"
                             + "Connection: close\r\nContent-Length: 0\r\n\r\n").utf8))) != nil,
                 let head = try? client.readUntil(timeout: 10, { $0.range(of: terminator) != nil }),
                 head.range(of: terminator) != nil

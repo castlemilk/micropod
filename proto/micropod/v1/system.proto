@@ -41,6 +41,12 @@ message PingResponse {
   string api_server_version = 3 [(gnostic.openapi.v3.property).example = {yaml: "'0.8.0'"}];
   // Version of the bundled `container` CLI.
   string cli_version = 4 [(gnostic.openapi.v3.property).example = {yaml: "'0.7.0'"}];
+  // Optional request capabilities this server honours, so clients can
+  // detect them instead of sending fields an older server would silently
+  // ignore (proto3 drops unknown fields). Names are the
+  // `RunContainerRequest` field names: "cap_add", "cap_drop", "rosetta",
+  // "privileged". Empty on servers that predate the list.
+  repeated string features = 5 [(gnostic.openapi.v3.property).example = {yaml: "['cap_add', 'cap_drop', 'rosetta', 'privileged']"}];
 }
 
 message SystemSnapshot {

@@ -310,7 +310,7 @@ struct HTTPOverUnix {
     ) throws -> Response {
         let fd = try connectFD()
         defer { Darwin.close(fd) }
-        var request = "\(method) \(path) HTTP/1.1\r\nHost: d\r\nConnection: close\r\n"
+        var request = "\(method) \(path) HTTP/1.1\r\nHost: docker\r\nConnection: close\r\n"
         if let body { request += "Content-Length: \(body.count)\r\n" }
         request += "\r\n"
         try writeAll(fd, Data(request.utf8))
@@ -345,7 +345,7 @@ struct HTTPOverUnix {
     {
         let fd = try connectFD()
         defer { Darwin.close(fd) }
-        var request = "\(method) \(path) HTTP/1.1\r\nHost: d\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n"
+        var request = "\(method) \(path) HTTP/1.1\r\nHost: docker\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n"
         request += "Content-Length: \(body.count)\r\n\r\n"
         try writeAll(fd, Data(request.utf8))
         try writeAll(fd, body)

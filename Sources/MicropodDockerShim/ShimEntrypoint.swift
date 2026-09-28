@@ -25,7 +25,11 @@ struct ShimBootstrap {
             environment["MICROPOD_SHIM_SOCKET"]
             ?? NSString("~/.micropod/docker.sock").expandingTildeInPath
         let tcpPort = UInt16(environment["MICROPOD_SHIM_TCP_PORT"] ?? "") ?? 45455
-        let bridgeHost = environment["MICROPOD_SHIM_BRIDGE"] ?? "192.168.64.1"
+        // The address guests reach the shim at. Default: resolved per
+        // container from the runtime's networks (the network's vmnet
+        // gateway — 192.168.65.1 for today's default network). An explicit
+        // MICROPOD_SHIM_BRIDGE pins it.
+        let pinnedBridge = environment["MICROPOD_SHIM_BRIDGE"].flatMap { $0.isEmpty ? nil : $0 }
         let statePath =
             environment["MICROPOD_SHIM_STATE"]
             ?? NSString("~/.micropod/shim-state.json").expandingTildeInPath
@@ -35,8 +39,11 @@ struct ShimBootstrap {
             atPath: (socketPath as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
 
         let config = ShimConfig(
-            bridgeHost: bridgeHost, tcpPort: tcpPort, defaultVolumeSize: defaultVolumeSize)
+            bridgeHost: pinnedBridge ?? "127.0.0.1", tcpPort: tcpPort, defaultVolumeSize: defaultVolumeSize)
         let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: cliPath))
+        let networkService = NetworkService(client: client)
+        let gateways = VMNetGateways(list: { try await networkService.list() })
+        await gateways.refresh()
         let runtime = await RuntimeBackendResolver.resolve(client: client)
         let containerService = runtime.containers
         let state = ShimState.loadPersisted(from: URL(fileURLWithPath: statePath))
@@ -44,7 +51,7 @@ struct ShimBootstrap {
         let events = EventsHub(containers: containerService, readCache: readCache)
         let router = Router(
             config: config, state: state, events: events, client: client, sharedFS: nil, buildCache: nil,
-            readCache: readCache, runtime: runtime)
+            readCache: readCache, runtime: runtime, gateways: pinnedBridge == nil ? gateways : nil)
 
         // Prune state for containers that vanished while the shim was down,
         // and reap AutoRemove containers whose die event we missed.
@@ -65,14 +72,20 @@ struct ShimBootstrap {
             await router.route(request, connection)
         })
         try server.listenUnix(path: socketPath)
-        try server.listenTCP(host: nil, port: tcpPort)
+        // TCP: loopback plus each vmnet gateway present on the host — never
+        // every interface (the shim is an unauthenticated Docker API).
+        try server.listenTCP(host: "127.0.0.1", port: tcpPort)
+        let bridges = GatewayListeners(
+            server: server, port: tcpPort, gateways: gateways, pinned: pinnedBridge)
+        let bound = await bridges.reconcile(refreshNetworks: false)
 
         print("[shim] micropod docker shim listening")
         print("[shim]   unix socket : \(socketPath)")
         print("[shim]   tcp         : 127.0.0.1:\(tcpPort)")
-        if bridgeHost != "127.0.0.1" {
-            print("[shim]   bridge      : \(bridgeHost):\(tcpPort) (in-VM ryuk reachability)")
-        }
+        let known = await gateways.networks.map(\.gateway)
+        print(
+            "[shim]   bridges     : \(bound.isEmpty ? "none up yet" : bound.sorted().joined(separator: ", "))"
+                + " (following vmnet gateways \(known.isEmpty ? "-" : known.joined(separator: ", ")))")
         print("[shim] docker-sock intercept active (any DinD bind -> tcp bridge)")
         print("[shim] ryuk 8080 publish for images containing \(RyukSupport.ryukImageMarker)")
         print("[shim] state       : \(statePath)")
@@ -94,8 +107,10 @@ struct ShimBootstrap {
         intSource.resume()
 
         async let eventLoop: () = events.start(state: state)
+        async let bridgeLoop: () = bridges.run()
         await server.awaitForever()
         _ = await eventLoop
+        _ = await bridgeLoop
     }
 }
 

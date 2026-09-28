@@ -194,7 +194,7 @@ final class ShimServerTests: XCTestCase {
         client.close()
         try client.connectForHijack()
         try client.writeRaw(
-            Data("POST /exec/\(execID)/start HTTP/1.1\r\nHost: d\r\nContent-Length: 2\r\n\r\n{}".utf8))
+            Data("POST /exec/\(execID)/start HTTP/1.1\r\nHost: docker\r\nContent-Length: 2\r\n\r\n{}".utf8))
         let terminator = Data("\r\n\r\n".utf8)
         let data = try client.readUntil(timeout: 15) { raw in
             guard let headEnd = raw.range(of: terminator) else { return false }
@@ -239,7 +239,7 @@ final class ShimServerTests: XCTestCase {
         let filters = "{\"labels\":[\"events-test=1\"]}"
             .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)!
         let raw =
-            "GET /events?filters=\(filters) HTTP/1.1\r\nHost: d\r\nConnection: close\r\n\r\n"
+            "GET /events?filters=\(filters) HTTP/1.1\r\nHost: docker\r\nConnection: close\r\n\r\n"
         try eventsClient.writeRaw(Data(raw.utf8))
 
         // Wait for the 200 head — the subscription baseline is settled then
@@ -536,14 +536,14 @@ final class ShimServerTests: XCTestCase {
         client.close()
         try client.connectForHijack()
         // No Connection header: server defaults to keep-alive.
-        try client.writeRaw(Data("GET /_ping HTTP/1.1\r\nHost: d\r\n\r\n".utf8))
+        try client.writeRaw(Data("GET /_ping HTTP/1.1\r\nHost: docker\r\n\r\n".utf8))
         let first = try client.readUntil(timeout: 10) {
             String(decoding: $0, as: UTF8.self).contains("OK")
         }
         XCTAssertTrue(String(decoding: first, as: UTF8.self).contains("200"))
 
         // Second request on the same connection must still work.
-        try client.writeRaw(Data("GET /version HTTP/1.1\r\nHost: d\r\n\r\n".utf8))
+        try client.writeRaw(Data("GET /version HTTP/1.1\r\nHost: docker\r\n\r\n".utf8))
         let second = try client.readUntil(timeout: 10) {
             String(decoding: $0, as: UTF8.self).contains("27.3.1")
         }
@@ -553,7 +553,7 @@ final class ShimServerTests: XCTestCase {
 
         // Explicit close is honored.
         try client.writeRaw(
-            Data("GET /_ping HTTP/1.1\r\nHost: d\r\nConnection: close\r\n\r\n".utf8))
+            Data("GET /_ping HTTP/1.1\r\nHost: docker\r\nConnection: close\r\n\r\n".utf8))
         let final = try client.readUntilClose(timeout: 10)
         XCTAssertTrue(String(decoding: final, as: UTF8.self).contains("200"))
         client.close()
@@ -563,8 +563,8 @@ final class ShimServerTests: XCTestCase {
         let client = shim.raw()
         client.close()
         try client.connectForHijack()
-        let ping = "GET /_ping HTTP/1.1\r\nHost: d\r\n\r\n"
-        let version = "GET /version HTTP/1.1\r\nHost: d\r\nConnection: close\r\n\r\n"
+        let ping = "GET /_ping HTTP/1.1\r\nHost: docker\r\n\r\n"
+        let version = "GET /version HTTP/1.1\r\nHost: docker\r\nConnection: close\r\n\r\n"
         try client.writeRaw(Data((ping + ping + version).utf8))
 
         let all = try client.readUntilClose(timeout: 15)
@@ -592,7 +592,7 @@ final class ShimServerTests: XCTestCase {
         let body = ShimTestSupport.jsonBody(["Image": "alpine:3.20", "Cmd": ["sleep", "5"]])
         try client.writeRaw(
             Data(
-                "POST /containers/create?name=slow-body HTTP/1.1\r\nHost: d\r\nContent-Length: \(body.count)\r\nExpect: 100-continue\r\n\r\n"
+                "POST /containers/create?name=slow-body HTTP/1.1\r\nHost: docker\r\nContent-Length: \(body.count)\r\nExpect: 100-continue\r\n\r\n"
                     .utf8))
         let interim = try client.readUntil(timeout: 5) {
             String(decoding: $0, as: UTF8.self).contains("100 Continue")
@@ -623,7 +623,7 @@ final class ShimServerTests: XCTestCase {
             as: UTF8.self)
         let chunk = { (text: String) in String(format: "%x\r\n%@\r\n", text.utf8.count, text) }
         let request =
-            "POST /containers/create?name=chunky HTTP/1.1\r\nHost: d\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n"
+            "POST /containers/create?name=chunky HTTP/1.1\r\nHost: docker\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n"
             + chunk(bodyJSON) + "0\r\n\r\n"
         try client.writeRaw(Data(request.utf8))
         let all = try client.readUntil(timeout: 15) { data in

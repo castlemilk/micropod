@@ -638,7 +638,7 @@ container volume create ci-golden
 docker run --rm -v ci-golden:/cache my-image sh -c 'go mod download …'
 
 # 2. Policy: clone the golden for job containers only
-curl -X PUT localhost:8080/v1/config/volumes -d '{
+curl -X PUT http://127.0.0.1:45454/v1/config/volumes -H 'Content-Type: application/json' -d '{
   "cloneMode": "goldens", "goldenVolumes": ["ci-golden"], "jobsOnly": true
 }'
 #    (or MCP: volume_policy_set mode=goldens goldens=ci-golden jobsOnly=true)

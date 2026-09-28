@@ -69,13 +69,13 @@ extension APIHandlers {
             case "RunContainer":
                 let req = try decode(Micropod_V1_RunContainerRequest.self, body)
                 try check(req)
-                let id = try await services.containers.run(runRequest(from: req))
+                let id = try await services.containers.run(try runRequest(from: req))
                 return unary(Micropod_V1_ContainerRef.with { $0.id = id })
 
             case "CreateContainer":
                 let req = try decode(Micropod_V1_RunContainerRequest.self, body)
                 try check(req)
-                let id = try await services.containers.create(runRequest(from: req))
+                let id = try await services.containers.create(try runRequest(from: req))
                 return unary(Micropod_V1_ContainerRef.with { $0.id = id })
 
             case "StartContainer":
@@ -412,6 +412,7 @@ extension APIHandlers {
     private func ping(_ services: RuntimeServices) async -> Micropod_V1_PingResponse {
         var response = Micropod_V1_PingResponse()
         response.runtimeBackend = services.kind.rawValue
+        response.features = APIFeatures.supported
         if let api = services.api {
             if let health = try? await api.ping(timeout: .seconds(2)) {
                 response.status = "running"
@@ -530,6 +531,10 @@ extension APIHandlers {
         try required(req.image, "image")
         if req.hasName { try safeComponent(req.name, "name") }
         for volume in VolumeAttachments.namedVolumes(in: req.volumes) { try safeVolumeName(volume, "volumes") }
+        if req.capAdd.count > 64 || req.capDrop.count > 64 {
+            throw ConnectDecodeError(
+                code: .invalidArgument, message: "cap_add/cap_drop: at most 64 entries each")
+        }
         if req.hasCpus && req.cpus <= 0 {
             throw ConnectDecodeError(
                 code: .invalidArgument, message: "cpus: must be greater than 0")
@@ -789,8 +794,8 @@ extension APIHandlers {
 
     // MARK: - Proto → service conversion
 
-    private func runRequest(from proto: Micropod_V1_RunContainerRequest) -> ContainerRunRequest {
-        ContainerRunRequest(
+    private func runRequest(from proto: Micropod_V1_RunContainerRequest) throws -> ContainerRunRequest {
+        var request = ContainerRunRequest(
             image: proto.image,
             name: proto.hasName ? proto.name : nil,
             // Connect unary calls can't carry an attached stdio session —
@@ -815,6 +820,14 @@ extension APIHandlers {
             entrypoint: proto.hasEntrypoint ? proto.entrypoint : nil,
             arguments: proto.arguments,
             noPull: proto.noPull)
+        do {
+            try request.applySecurityOptions(from: proto)
+        } catch let error as LinuxCapabilities.InvalidName {
+            throw ConnectDecodeError(code: .invalidArgument, message: "cap_add/cap_drop: \(error.description)")
+        } catch let error as LinuxCapabilities.Conflict {
+            throw ConnectDecodeError(code: .invalidArgument, message: error.description)
+        }
+        return request
     }
 
     private func k8sStatus(from s: K8sStatus) -> Micropod_V1_K8sStatus {

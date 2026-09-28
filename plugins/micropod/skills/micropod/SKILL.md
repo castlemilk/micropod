@@ -154,6 +154,10 @@ let ref = try await client.run(.with { $0.image = "alpine:3.20" })
 
 ## REST facade (`/v1/*` — curl-friendly compat)
 
+Every `POST` needs `-H 'Content-Type: application/json'`, body or not (415
+otherwise — a CORS-safelisted type would let any web page drive the API):
+`curl -X POST -H 'Content-Type: application/json' http://127.0.0.1:45454/v1/containers/<id>/stop`.
+
 ```
 GET  /health
 GET  /v1/system                          runtime status + disk usage
@@ -176,9 +180,11 @@ GET  /v1/system/update | POST /v1/system/update | POST /v1/system/update/apply
 ## Docker Engine shim (Testcontainers drop-in)
 
 The app supervises `micropod-docker-shim` (`Sources/MicropodDockerShim`): a
-Docker Engine HTTP API on unix `~/.micropod/docker.sock` AND tcp `:45455`
-(all interfaces, so in-VM containers reach it at the bridge
-`192.168.64.1:45455`).
+Docker Engine HTTP API on unix `~/.micropod/docker.sock` AND tcp
+`127.0.0.1:45455` plus each vmnet gateway (resolved from the runtime's
+networks — `192.168.65.1:45455` on today's default network), so in-VM
+containers reach it without exposing it to the LAN. TCP refuses browser
+requests (`Origin`/`Sec-Fetch-*`) and non-local `Host` headers with 403.
 
 Point any Docker client at it:
 
@@ -208,7 +214,8 @@ State: created-container memory (names/labels/env/ports/AutoRemove) persists
 to `~/.micropod/shim-state.json`, reloaded + pruned on restart; stopped
 AutoRemove containers left while down are reaped at boot. Env overrides:
 `MICROPOD_SHIM_SOCKET`, `MICROPOD_SHIM_TCP_PORT` (45455),
-`MICROPOD_SHIM_BRIDGE` (192.168.64.1), `MICROPOD_SHIM_STATE`,
+`MICROPOD_SHIM_BRIDGE` (pin the in-VM address; default: the container
+network's vmnet gateway), `MICROPOD_SHIM_STATE`,
 `MICROPOD_CLI_PATH`. Full env (incl. `HTTP_PROXY`/`HTTPS_PROXY`/`NO_PROXY`)
 passes through to pulls.
 
@@ -474,6 +481,10 @@ fixed-size ext4 images that only grow, so create them large
   events — the shim synthesizes create/start/die/destroy by 500 ms
   list-polling.
 - The runtime's `kill` accepts `--signal`; only KILL has any effect.
-- The shim is unauthenticated (dev tool): tcp :45455 binds all interfaces.
+- The shim is unauthenticated (dev tool): tcp :45455 binds loopback and the
+  vmnet gateways only, and refuses browser / DNS-rebinding requests.
+- The API (:45454, loopback v4+v6) refuses a non-loopback `Host`, a foreign
+  `Origin`, and any `POST` without a JSON/Connect/gRPC `Content-Type` (415) —
+  send `-H 'Content-Type: application/json'` even on body-less REST POSTs.
 - Images are content-addressed per-variant; the shim derives Docker-style
   `sha256:` IDs deterministically.

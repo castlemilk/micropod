@@ -92,6 +92,36 @@ final class ComposeSurfaceTests: XCTestCase {
         }
     }
 
+    func testPrivilegedServiceRunsWithPrivilegedProfile() async throws {
+        try await withMockServices { mock in
+            let file = composeFixture(
+                """
+                services:
+                  dind:
+                    image: docker:dind
+                    privileged: true
+                """)
+            let spec = try await mock.compose.parse(url: file)
+            let plan = try mock.compose.plan(spec: spec)
+            let runStep = plan.steps.first {
+                if case .run = $0 { return true }
+                return false
+            }
+            guard case .run(let request)? = runStep else {
+                return XCTFail("expected a run step")
+            }
+            XCTAssertTrue(request.privileged)
+
+            for try await _ in await mock.compose.up(plan: plan) {}
+            let containers = try await mock.containers.list()
+            let raw = try await mock.containers.inspect(containers[0].id)
+            let json = String(data: raw, encoding: .utf8) ?? ""
+            XCTAssertTrue(json.contains("\"capAdd\":[\"ALL\"]"), json)
+            XCTAssertTrue(json.contains("\"readonlyPaths\":[]"), json)
+            XCTAssertTrue(json.contains("\"maskedPaths\":[]"), json)
+        }
+    }
+
     func testEnvironmentInterpolationAndEnvFile() async throws {
         try await withMockServices { mock in
             let dir = FileManager.default.temporaryDirectory

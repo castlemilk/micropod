@@ -241,121 +241,197 @@ public nonisolated struct Micropod_V1_ListContainersResponse: Sendable {
 }
 
 /// Shared request shape for run + create (docker run / docker create).
-public nonisolated struct Micropod_V1_RunContainerRequest: Sendable {
+public nonisolated struct Micropod_V1_RunContainerRequest: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Image reference to run, e.g. "alpine:3.20". Pulled if not present locally.
-  public var image: String = String()
+  public var image: String {
+    get {_storage._image}
+    set {_uniqueStorage()._image = newValue}
+  }
 
   /// Optional container name; becomes the container ID.
   public var name: String {
-    get {_name ?? String()}
-    set {_name = newValue}
+    get {_storage._name ?? String()}
+    set {_uniqueStorage()._name = newValue}
   }
   /// Returns true if `name` has been explicitly set.
-  public var hasName: Bool {self._name != nil}
+  public var hasName: Bool {_storage._name != nil}
   /// Clears the value of `name`. Subsequent reads from it will return its default value.
-  public mutating func clearName() {self._name = nil}
+  public mutating func clearName() {_uniqueStorage()._name = nil}
 
   /// Return immediately instead of streaming/attaching.
-  public var detach: Bool = false
+  public var detach: Bool {
+    get {_storage._detach}
+    set {_uniqueStorage()._detach = newValue}
+  }
 
   /// CPU limit in cores, e.g. 0.5 for half a core.
   public var cpus: Double {
-    get {_cpus ?? 0}
-    set {_cpus = newValue}
+    get {_storage._cpus ?? 0}
+    set {_uniqueStorage()._cpus = newValue}
   }
   /// Returns true if `cpus` has been explicitly set.
-  public var hasCpus: Bool {self._cpus != nil}
+  public var hasCpus: Bool {_storage._cpus != nil}
   /// Clears the value of `cpus`. Subsequent reads from it will return its default value.
-  public mutating func clearCpus() {self._cpus = nil}
+  public mutating func clearCpus() {_uniqueStorage()._cpus = nil}
 
   /// Memory limit, e.g. "512m" or "4g".
   public var memory: String {
-    get {_memory ?? String()}
-    set {_memory = newValue}
+    get {_storage._memory ?? String()}
+    set {_uniqueStorage()._memory = newValue}
   }
   /// Returns true if `memory` has been explicitly set.
-  public var hasMemory: Bool {self._memory != nil}
+  public var hasMemory: Bool {_storage._memory != nil}
   /// Clears the value of `memory`. Subsequent reads from it will return its default value.
-  public mutating func clearMemory() {self._memory = nil}
+  public mutating func clearMemory() {_uniqueStorage()._memory = nil}
 
   /// Environment variables as KEY=value pairs.
-  public var env: [String] = []
+  public var env: [String] {
+    get {_storage._env}
+    set {_uniqueStorage()._env = newValue}
+  }
 
   /// Published port mappings (host → container).
-  public var ports: [Micropod_V1_PortMapping] = []
+  public var ports: [Micropod_V1_PortMapping] {
+    get {_storage._ports}
+    set {_uniqueStorage()._ports = newValue}
+  }
 
   /// Bind/volume mounts as "name-or-path:/mount" specs.
-  public var volumes: [String] = []
+  public var volumes: [String] {
+    get {_storage._volumes}
+    set {_uniqueStorage()._volumes = newValue}
+  }
 
   /// Arbitrary metadata labels on the container.
-  public var labels: Dictionary<String,String> = [:]
+  public var labels: Dictionary<String,String> {
+    get {_storage._labels}
+    set {_uniqueStorage()._labels = newValue}
+  }
 
   /// Run an init process as PID 1 to reap zombies.
-  public var init_p: Bool = false
+  public var init_p: Bool {
+    get {_storage._init_p}
+    set {_uniqueStorage()._init_p = newValue}
+  }
 
   /// Command + args override (image entrypoint is used when empty).
-  public var arguments: [String] = []
+  public var arguments: [String] {
+    get {_storage._arguments}
+    set {_uniqueStorage()._arguments = newValue}
+  }
 
   /// Entrypoint override (docker run --entrypoint); `arguments` become its args.
   public var entrypoint: String {
-    get {_entrypoint ?? String()}
-    set {_entrypoint = newValue}
+    get {_storage._entrypoint ?? String()}
+    set {_uniqueStorage()._entrypoint = newValue}
   }
   /// Returns true if `entrypoint` has been explicitly set.
-  public var hasEntrypoint: Bool {self._entrypoint != nil}
+  public var hasEntrypoint: Bool {_storage._entrypoint != nil}
   /// Clears the value of `entrypoint`. Subsequent reads from it will return its default value.
-  public mutating func clearEntrypoint() {self._entrypoint = nil}
+  public mutating func clearEntrypoint() {_uniqueStorage()._entrypoint = nil}
 
   /// Platform to select from a multi-arch image, e.g. "linux/arm64".
   public var platform: String {
-    get {_platform ?? String()}
-    set {_platform = newValue}
+    get {_storage._platform ?? String()}
+    set {_uniqueStorage()._platform = newValue}
   }
   /// Returns true if `platform` has been explicitly set.
-  public var hasPlatform: Bool {self._platform != nil}
+  public var hasPlatform: Bool {_storage._platform != nil}
   /// Clears the value of `platform`. Subsequent reads from it will return its default value.
-  public mutating func clearPlatform() {self._platform = nil}
+  public mutating func clearPlatform() {_uniqueStorage()._platform = nil}
 
   /// Working directory inside the container (docker run --workdir).
   public var workdir: String {
-    get {_workdir ?? String()}
-    set {_workdir = newValue}
+    get {_storage._workdir ?? String()}
+    set {_uniqueStorage()._workdir = newValue}
   }
   /// Returns true if `workdir` has been explicitly set.
-  public var hasWorkdir: Bool {self._workdir != nil}
+  public var hasWorkdir: Bool {_storage._workdir != nil}
   /// Clears the value of `workdir`. Subsequent reads from it will return its default value.
-  public mutating func clearWorkdir() {self._workdir = nil}
+  public mutating func clearWorkdir() {_uniqueStorage()._workdir = nil}
 
   /// User (and optional group) to run as, e.g. "1000:1000" (docker run --user).
   public var user: String {
-    get {_user ?? String()}
-    set {_user = newValue}
+    get {_storage._user ?? String()}
+    set {_uniqueStorage()._user = newValue}
   }
   /// Returns true if `user` has been explicitly set.
-  public var hasUser: Bool {self._user != nil}
+  public var hasUser: Bool {_storage._user != nil}
   /// Clears the value of `user`. Subsequent reads from it will return its default value.
-  public mutating func clearUser() {self._user = nil}
+  public mutating func clearUser() {_uniqueStorage()._user = nil}
 
   /// Fail with `not_found` instead of pulling when the image is absent
   /// locally (for the requested `platform`, when set). Lets callers own the
   /// pull and bound its duration.
-  public var noPull: Bool = false
+  public var noPull: Bool {
+    get {_storage._noPull}
+    set {_uniqueStorage()._noPull = newValue}
+  }
+
+  /// Linux capabilities to add to the container's default set (docker run
+  /// --cap-add). Names are case-insensitive, with or without the `CAP_`
+  /// prefix ("NET_ADMIN" == "cap_net_admin"); "ALL" grants every capability.
+  /// Unknown names fail with `invalid_argument`. The server normalises names
+  /// to the `CAP_*` spelling before handing them to the runtime.
+  public var capAdd: [String] {
+    get {_storage._capAdd}
+    set {_uniqueStorage()._capAdd = newValue}
+  }
+
+  /// Linux capabilities to remove from the container's set (docker run
+  /// --cap-drop). Same spelling rules as `cap_add`; "ALL" drops every
+  /// capability, so `cap_add` can then grant back a minimal set. Drops always
+  /// win over an "ALL" grant — `cap_add: ["ALL"]` or `privileged` — so
+  /// `privileged` + `cap_drop: ["SYS_MODULE"]` runs with every capability but
+  /// SYS_MODULE. "ALL" here together with `privileged` or `cap_add: ["ALL"]`
+  /// is contradictory and fails with `invalid_argument`.
+  public var capDrop: [String] {
+    get {_storage._capDrop}
+    set {_uniqueStorage()._capDrop = newValue}
+  }
+
+  /// Run x86_64 (linux/amd64) binaries through Rosetta translation (container
+  /// run --rosetta). `true` forces Rosetta on. Unset or `false` keeps the
+  /// server default: the native backend turns Rosetta on by itself when the
+  /// selected image variant is amd64 on an Apple silicon host. Rosetta does
+  /// not select an image variant — pair it with `platform: "linux/amd64"` to
+  /// run the amd64 variant of a multi-arch image.
+  public var rosetta: Bool {
+    get {_storage._rosetta ?? false}
+    set {_uniqueStorage()._rosetta = newValue}
+  }
+  /// Returns true if `rosetta` has been explicitly set.
+  public var hasRosetta: Bool {_storage._rosetta != nil}
+  /// Clears the value of `rosetta`. Subsequent reads from it will return its default value.
+  public mutating func clearRosetta() {_uniqueStorage()._rosetta = nil}
+
+  /// Run the workload with the privileges a nested container engine
+  /// (dockerd, containerd, buildkitd) needs — the micro-VM analogue of
+  /// docker run --privileged: every Linux capability (as `cap_add: ["ALL"]`)
+  /// and none of the runtime's default read-only or masked paths, so
+  /// /proc/sys (IP forwarding, sysctls) and /sys/fs/cgroup are writable and
+  /// /proc is not masked. The isolation boundary stays the micro-VM: host
+  /// devices are not passed through. Named `cap_drop` entries still remove
+  /// their capabilities; `cap_drop: ["ALL"]` with `privileged` fails with
+  /// `invalid_argument`.
+  public var privileged: Bool {
+    get {_storage._privileged ?? false}
+    set {_uniqueStorage()._privileged = newValue}
+  }
+  /// Returns true if `privileged` has been explicitly set.
+  public var hasPrivileged: Bool {_storage._privileged != nil}
+  /// Clears the value of `privileged`. Subsequent reads from it will return its default value.
+  public mutating func clearPrivileged() {_uniqueStorage()._privileged = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _name: String? = nil
-  fileprivate var _cpus: Double? = nil
-  fileprivate var _memory: String? = nil
-  fileprivate var _entrypoint: String? = nil
-  fileprivate var _platform: String? = nil
-  fileprivate var _workdir: String? = nil
-  fileprivate var _user: String? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 public nonisolated struct Micropod_V1_WaitContainerRequest: Sendable {
@@ -934,108 +1010,202 @@ nonisolated extension Micropod_V1_ListContainersResponse: SwiftProtobuf.Message,
 
 nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RunContainerRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}image\0\u{1}name\0\u{1}detach\0\u{1}cpus\0\u{1}memory\0\u{1}env\0\u{1}ports\0\u{1}volumes\0\u{1}labels\0\u{1}init\0\u{1}arguments\0\u{1}entrypoint\0\u{1}platform\0\u{1}workdir\0\u{1}user\0\u{3}no_pull\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}image\0\u{1}name\0\u{1}detach\0\u{1}cpus\0\u{1}memory\0\u{1}env\0\u{1}ports\0\u{1}volumes\0\u{1}labels\0\u{1}init\0\u{1}arguments\0\u{1}entrypoint\0\u{1}platform\0\u{1}workdir\0\u{1}user\0\u{3}no_pull\0\u{3}cap_add\0\u{3}cap_drop\0\u{1}rosetta\0\u{1}privileged\0")
+
+  fileprivate class _StorageClass {
+    var _image: String = String()
+    var _name: String? = nil
+    var _detach: Bool = false
+    var _cpus: Double? = nil
+    var _memory: String? = nil
+    var _env: [String] = []
+    var _ports: [Micropod_V1_PortMapping] = []
+    var _volumes: [String] = []
+    var _labels: Dictionary<String,String> = [:]
+    var _init_p: Bool = false
+    var _arguments: [String] = []
+    var _entrypoint: String? = nil
+    var _platform: String? = nil
+    var _workdir: String? = nil
+    var _user: String? = nil
+    var _noPull: Bool = false
+    var _capAdd: [String] = []
+    var _capDrop: [String] = []
+    var _rosetta: Bool? = nil
+    var _privileged: Bool? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _image = source._image
+      _name = source._name
+      _detach = source._detach
+      _cpus = source._cpus
+      _memory = source._memory
+      _env = source._env
+      _ports = source._ports
+      _volumes = source._volumes
+      _labels = source._labels
+      _init_p = source._init_p
+      _arguments = source._arguments
+      _entrypoint = source._entrypoint
+      _platform = source._platform
+      _workdir = source._workdir
+      _user = source._user
+      _noPull = source._noPull
+      _capAdd = source._capAdd
+      _capDrop = source._capDrop
+      _rosetta = source._rosetta
+      _privileged = source._privileged
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.image) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self._name) }()
-      case 3: try { try decoder.decodeSingularBoolField(value: &self.detach) }()
-      case 4: try { try decoder.decodeSingularDoubleField(value: &self._cpus) }()
-      case 5: try { try decoder.decodeSingularStringField(value: &self._memory) }()
-      case 6: try { try decoder.decodeRepeatedStringField(value: &self.env) }()
-      case 7: try { try decoder.decodeRepeatedMessageField(value: &self.ports) }()
-      case 8: try { try decoder.decodeRepeatedStringField(value: &self.volumes) }()
-      case 9: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: &self.labels) }()
-      case 10: try { try decoder.decodeSingularBoolField(value: &self.init_p) }()
-      case 11: try { try decoder.decodeRepeatedStringField(value: &self.arguments) }()
-      case 12: try { try decoder.decodeSingularStringField(value: &self._entrypoint) }()
-      case 13: try { try decoder.decodeSingularStringField(value: &self._platform) }()
-      case 14: try { try decoder.decodeSingularStringField(value: &self._workdir) }()
-      case 15: try { try decoder.decodeSingularStringField(value: &self._user) }()
-      case 16: try { try decoder.decodeSingularBoolField(value: &self.noPull) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularStringField(value: &_storage._image) }()
+        case 2: try { try decoder.decodeSingularStringField(value: &_storage._name) }()
+        case 3: try { try decoder.decodeSingularBoolField(value: &_storage._detach) }()
+        case 4: try { try decoder.decodeSingularDoubleField(value: &_storage._cpus) }()
+        case 5: try { try decoder.decodeSingularStringField(value: &_storage._memory) }()
+        case 6: try { try decoder.decodeRepeatedStringField(value: &_storage._env) }()
+        case 7: try { try decoder.decodeRepeatedMessageField(value: &_storage._ports) }()
+        case 8: try { try decoder.decodeRepeatedStringField(value: &_storage._volumes) }()
+        case 9: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: &_storage._labels) }()
+        case 10: try { try decoder.decodeSingularBoolField(value: &_storage._init_p) }()
+        case 11: try { try decoder.decodeRepeatedStringField(value: &_storage._arguments) }()
+        case 12: try { try decoder.decodeSingularStringField(value: &_storage._entrypoint) }()
+        case 13: try { try decoder.decodeSingularStringField(value: &_storage._platform) }()
+        case 14: try { try decoder.decodeSingularStringField(value: &_storage._workdir) }()
+        case 15: try { try decoder.decodeSingularStringField(value: &_storage._user) }()
+        case 16: try { try decoder.decodeSingularBoolField(value: &_storage._noPull) }()
+        case 17: try { try decoder.decodeRepeatedStringField(value: &_storage._capAdd) }()
+        case 18: try { try decoder.decodeRepeatedStringField(value: &_storage._capDrop) }()
+        case 19: try { try decoder.decodeSingularBoolField(value: &_storage._rosetta) }()
+        case 20: try { try decoder.decodeSingularBoolField(value: &_storage._privileged) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if !self.image.isEmpty {
-      try visitor.visitSingularStringField(value: self.image, fieldNumber: 1)
-    }
-    try { if let v = self._name {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 2)
-    } }()
-    if self.detach != false {
-      try visitor.visitSingularBoolField(value: self.detach, fieldNumber: 3)
-    }
-    try { if let v = self._cpus {
-      try visitor.visitSingularDoubleField(value: v, fieldNumber: 4)
-    } }()
-    try { if let v = self._memory {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 5)
-    } }()
-    if !self.env.isEmpty {
-      try visitor.visitRepeatedStringField(value: self.env, fieldNumber: 6)
-    }
-    if !self.ports.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.ports, fieldNumber: 7)
-    }
-    if !self.volumes.isEmpty {
-      try visitor.visitRepeatedStringField(value: self.volumes, fieldNumber: 8)
-    }
-    if !self.labels.isEmpty {
-      try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: self.labels, fieldNumber: 9)
-    }
-    if self.init_p != false {
-      try visitor.visitSingularBoolField(value: self.init_p, fieldNumber: 10)
-    }
-    if !self.arguments.isEmpty {
-      try visitor.visitRepeatedStringField(value: self.arguments, fieldNumber: 11)
-    }
-    try { if let v = self._entrypoint {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 12)
-    } }()
-    try { if let v = self._platform {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 13)
-    } }()
-    try { if let v = self._workdir {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 14)
-    } }()
-    try { if let v = self._user {
-      try visitor.visitSingularStringField(value: v, fieldNumber: 15)
-    } }()
-    if self.noPull != false {
-      try visitor.visitSingularBoolField(value: self.noPull, fieldNumber: 16)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if !_storage._image.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._image, fieldNumber: 1)
+      }
+      try { if let v = _storage._name {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 2)
+      } }()
+      if _storage._detach != false {
+        try visitor.visitSingularBoolField(value: _storage._detach, fieldNumber: 3)
+      }
+      try { if let v = _storage._cpus {
+        try visitor.visitSingularDoubleField(value: v, fieldNumber: 4)
+      } }()
+      try { if let v = _storage._memory {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 5)
+      } }()
+      if !_storage._env.isEmpty {
+        try visitor.visitRepeatedStringField(value: _storage._env, fieldNumber: 6)
+      }
+      if !_storage._ports.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._ports, fieldNumber: 7)
+      }
+      if !_storage._volumes.isEmpty {
+        try visitor.visitRepeatedStringField(value: _storage._volumes, fieldNumber: 8)
+      }
+      if !_storage._labels.isEmpty {
+        try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: _storage._labels, fieldNumber: 9)
+      }
+      if _storage._init_p != false {
+        try visitor.visitSingularBoolField(value: _storage._init_p, fieldNumber: 10)
+      }
+      if !_storage._arguments.isEmpty {
+        try visitor.visitRepeatedStringField(value: _storage._arguments, fieldNumber: 11)
+      }
+      try { if let v = _storage._entrypoint {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 12)
+      } }()
+      try { if let v = _storage._platform {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 13)
+      } }()
+      try { if let v = _storage._workdir {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 14)
+      } }()
+      try { if let v = _storage._user {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 15)
+      } }()
+      if _storage._noPull != false {
+        try visitor.visitSingularBoolField(value: _storage._noPull, fieldNumber: 16)
+      }
+      if !_storage._capAdd.isEmpty {
+        try visitor.visitRepeatedStringField(value: _storage._capAdd, fieldNumber: 17)
+      }
+      if !_storage._capDrop.isEmpty {
+        try visitor.visitRepeatedStringField(value: _storage._capDrop, fieldNumber: 18)
+      }
+      try { if let v = _storage._rosetta {
+        try visitor.visitSingularBoolField(value: v, fieldNumber: 19)
+      } }()
+      try { if let v = _storage._privileged {
+        try visitor.visitSingularBoolField(value: v, fieldNumber: 20)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Micropod_V1_RunContainerRequest, rhs: Micropod_V1_RunContainerRequest) -> Bool {
-    if lhs.image != rhs.image {return false}
-    if lhs._name != rhs._name {return false}
-    if lhs.detach != rhs.detach {return false}
-    if lhs._cpus != rhs._cpus {return false}
-    if lhs._memory != rhs._memory {return false}
-    if lhs.env != rhs.env {return false}
-    if lhs.ports != rhs.ports {return false}
-    if lhs.volumes != rhs.volumes {return false}
-    if lhs.labels != rhs.labels {return false}
-    if lhs.init_p != rhs.init_p {return false}
-    if lhs.arguments != rhs.arguments {return false}
-    if lhs._entrypoint != rhs._entrypoint {return false}
-    if lhs._platform != rhs._platform {return false}
-    if lhs._workdir != rhs._workdir {return false}
-    if lhs._user != rhs._user {return false}
-    if lhs.noPull != rhs.noPull {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._image != rhs_storage._image {return false}
+        if _storage._name != rhs_storage._name {return false}
+        if _storage._detach != rhs_storage._detach {return false}
+        if _storage._cpus != rhs_storage._cpus {return false}
+        if _storage._memory != rhs_storage._memory {return false}
+        if _storage._env != rhs_storage._env {return false}
+        if _storage._ports != rhs_storage._ports {return false}
+        if _storage._volumes != rhs_storage._volumes {return false}
+        if _storage._labels != rhs_storage._labels {return false}
+        if _storage._init_p != rhs_storage._init_p {return false}
+        if _storage._arguments != rhs_storage._arguments {return false}
+        if _storage._entrypoint != rhs_storage._entrypoint {return false}
+        if _storage._platform != rhs_storage._platform {return false}
+        if _storage._workdir != rhs_storage._workdir {return false}
+        if _storage._user != rhs_storage._user {return false}
+        if _storage._noPull != rhs_storage._noPull {return false}
+        if _storage._capAdd != rhs_storage._capAdd {return false}
+        if _storage._capDrop != rhs_storage._capDrop {return false}
+        if _storage._rosetta != rhs_storage._rosetta {return false}
+        if _storage._privileged != rhs_storage._privileged {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

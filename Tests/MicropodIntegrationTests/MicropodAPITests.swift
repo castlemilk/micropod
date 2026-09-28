@@ -75,8 +75,7 @@ final class MicropodAPITests: XCTestCase {
     /// Replaces the running server with one started under extra environment
     /// (mock modes are env-driven; the state directory is kept).
     private func relaunchServer(extraEnvironment: [String: String]) async throws {
-        server.terminate()
-        server.waitUntilExit()
+        await server.stopBounded()
         try await launchServer(extraEnvironment: extraEnvironment)
     }
 
@@ -94,6 +93,9 @@ final class MicropodAPITests: XCTestCase {
         request.httpMethod = method
         if let body {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        }
+        // Every POST names a non-simple type, body or not (LocalRequestGuard).
+        if body != nil || method == "POST" {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -118,6 +120,9 @@ final class MicropodAPITests: XCTestCase {
         request.httpMethod = method
         if let body {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        }
+        // Every POST names a non-simple type, body or not (LocalRequestGuard).
+        if body != nil || method == "POST" {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -161,6 +166,7 @@ final class MicropodAPITests: XCTestCase {
         var raw = URLRequest(url: baseURL.appendingPathComponent("v1/config/volumes"))
         raw.httpMethod = "PUT"
         raw.httpBody = Data("hello".utf8)
+        raw.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let (_, rawResponse) = try await URLSession.shared.data(for: raw)
         XCTAssertEqual((rawResponse as? HTTPURLResponse)?.statusCode, 400)
     }
@@ -411,6 +417,103 @@ final class MicropodAPITests: XCTestCase {
         XCTAssertTrue(response.contains("\"code\":\"invalid_argument\""), "raw response:\n\(response)")
     }
 
+    // MARK: Cross-site / DNS-rebinding admission (LocalRequestGuard)
+
+    /// One raw exchange with full control over Host / Origin / Content-Type;
+    /// returns the status code and the raw response.
+    private func rawExchange(
+        _ method: String = "POST", path: String = "/api/micropod.v1.SystemService/Ping",
+        host: String? = nil, contentType: String? = "application/json", origin: String? = nil,
+        body: String = "{}"
+    ) async throws -> (Int, String) {
+        let port = UInt16(baseURL.port ?? 0)
+        var request = "\(method) \(path) HTTP/1.1\r\n"
+        request += "Host: \(host ?? "127.0.0.1:\(port)")\r\n"
+        if let contentType { request += "Content-Type: \(contentType)\r\n" }
+        if let origin { request += "Origin: \(origin)\r\n" }
+        request += "Content-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)"
+        let raw = try await Task.detached { [request] in try RawHTTP.exchange(port: port, request: request) }.value
+        let statusLine = raw.components(separatedBy: "\r\n").first ?? ""
+        let code = Int(statusLine.split(separator: " ").dropFirst().first ?? "") ?? 0
+        return (code, raw)
+    }
+
+    /// The review's live repro: a no-preflight `text/plain` cross-site Ping
+    /// (with a rebinding Host) returned 200. Now: 403 for a foreign Host or
+    /// Origin, 415 for a CORS-simple Content-Type, 200 for real clients.
+    func testCrossSiteSimpleRequestsAreRefused() async throws {
+        let port = UInt16(baseURL.port ?? 0)
+        var (code, raw) = try await rawExchange(
+            host: "evil.example", contentType: "text/plain", origin: "http://evil.example")
+        XCTAssertEqual(code, 403, raw)
+        XCTAssertTrue(raw.contains("HTTP/1.1 403 Forbidden"), raw)
+        XCTAssertTrue(raw.contains("permission_denied"), raw)
+
+        (code, raw) = try await rawExchange(contentType: "text/plain", origin: "http://evil.example")
+        XCTAssertEqual(code, 403, raw)
+        XCTAssertFalse(raw.lowercased().contains("access-control-allow-origin"), raw)
+
+        (code, raw) = try await rawExchange(contentType: "text/plain")
+        XCTAssertEqual(code, 415, raw)
+        XCTAssertTrue(raw.contains("HTTP/1.1 415 Unsupported Media Type"), raw)
+
+        (code, raw) = try await rawExchange(contentType: "application/x-www-form-urlencoded", body: "a=b")
+        XCTAssertEqual(code, 415, raw)
+
+        // Rebinding: same-origin to the attacker's name, so no Origin at all.
+        (code, raw) = try await rawExchange(host: "evil.example:\(port)")
+        XCTAssertEqual(code, 403, raw)
+        (code, raw) = try await rawExchange(
+            "GET", path: "/v1/containers", host: "evil.example:\(port)", contentType: nil, body: "")
+        XCTAssertEqual(code, 403, "reads are rebinding targets too: \(raw)")
+
+        // A body-less POST is still a CORS-simple request.
+        (code, raw) = try await rawExchange(path: "/v1/containers/x/kill", contentType: nil, body: "")
+        XCTAssertEqual(code, 415, raw)
+
+        // Nothing reached a handler: the mock CLI was never asked to act.
+        XCTAssertFalse(mockCalls().contains { $0.contains("kill") }, "\(mockCalls())")
+    }
+
+    func testLegitimateClientsStillPass() async throws {
+        let port = UInt16(baseURL.port ?? 0)
+        for host in ["127.0.0.1:\(port)", "localhost:\(port)", "[::1]:\(port)"] {
+            let (code, raw) = try await rawExchange(host: host)
+            XCTAssertEqual(code, 200, "\(host): \(raw)")
+        }
+        var (code, raw) = try await rawExchange(contentType: "application/json; charset=utf-8")
+        XCTAssertEqual(code, 200, raw)
+        (code, raw) = try await rawExchange("GET", path: "/health", contentType: nil, body: "")
+        XCTAssertEqual(code, 200, raw)
+        // `curl -X DELETE` sends no Content-Type; browsers always preflight DELETE.
+        (code, raw) = try await rawExchange("DELETE", path: "/v1/containers/nope", contentType: nil, body: "")
+        XCTAssertNotEqual(code, 415, raw)
+        XCTAssertNotEqual(code, 403, raw)
+
+        // The docs explorer (allowlisted origin) and local dev servers.
+        (code, raw) = try await rawExchange(origin: "https://castlemilk.github.io")
+        XCTAssertEqual(code, 200, raw)
+        XCTAssertTrue(raw.contains("Access-Control-Allow-Origin: https://castlemilk.github.io"), raw)
+        (code, raw) = try await rawExchange(origin: "http://localhost:3000")
+        XCTAssertEqual(code, 200, raw)
+        (code, raw) = try await rawExchange(
+            "OPTIONS", contentType: nil, origin: "https://castlemilk.github.io", body: "")
+        XCTAssertEqual(code, 204, raw)
+        XCTAssertTrue(raw.contains("Access-Control-Allow-Private-Network: true"), raw)
+        (code, raw) = try await rawExchange("OPTIONS", contentType: nil, origin: "http://evil.example", body: "")
+        XCTAssertEqual(code, 403, raw)
+    }
+
+    /// Dual-stack loopback: `http://localhost:45454` (docs, SDK examples)
+    /// may resolve to ::1 first.
+    func testIPv6LoopbackListener() async throws {
+        let port = baseURL.port ?? 0
+        let url = URL(string: "http://[::1]:\(port)/health")!
+        let (data, response) = try await URLSession.shared.data(from: url)
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+        XCTAssertTrue(String(decoding: data, as: UTF8.self).contains("ok"))
+    }
+
     // MARK: GetContainer / WaitContainer
 
     /// `GetContainer` is a one-container inspect; `WaitContainer` on a
@@ -616,6 +719,115 @@ final class MicropodAPITests: XCTestCase {
     /// message names the platform so the caller knows which variant to
     /// fetch, and an image present only for another platform is equally
     /// `not_found` (never a silent pull for the missing variant).
+    /// `cap_add` / `cap_drop` / `rosetta` / `privileged` reach the CLI argv on
+    /// both RunContainer and CreateContainer (+ StartContainer), normalised
+    /// to `CAP_*`; unknown capability names fail `invalid_argument` before the
+    /// CLI is ever asked.
+    func testRunAndCreateCarryCapabilitiesRosettaAndPrivileged() async throws {
+        let (runStatus, run) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/RunContainer",
+            body: [
+                "image": "alpine:3.20", "name": "api-caps-run", "capAdd": ["net_admin"],
+                "capDrop": ["CAP_NET_RAW"], "rosetta": true, "platform": "linux/amd64",
+            ])
+        XCTAssertEqual(runStatus, 200, "RunContainer: \(run)")
+        let (createStatus, created) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/CreateContainer",
+            body: ["image": "docker:dind", "name": "api-caps-create", "privileged": true, "capAdd": ["SYS_ADMIN"]])
+        XCTAssertEqual(createStatus, 200, "CreateContainer: \(created)")
+        let id = created["id"] as? String ?? ""
+        let (startStatus, started) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/StartContainer", body: ["id": id])
+        XCTAssertEqual(startStatus, 200, "StartContainer: \(started)")
+
+        let calls = mockCalls()
+        let runCall = " " + (calls.first { $0.hasPrefix("run ") && $0.contains("api-caps-run") } ?? "") + " "
+        for want in [
+            " --cap-add CAP_NET_ADMIN ", " --cap-drop CAP_NET_RAW ", " --rosetta ", " --platform linux/amd64 ",
+        ] {
+            XCTAssertTrue(runCall.contains(want), "run argv missing \(want): \(runCall)")
+        }
+        let createCall = " " + (calls.first { $0.hasPrefix("create ") && $0.contains("api-caps-create") } ?? "") + " "
+        for want in [" --cap-add ALL ", " --read-only-path NONE ", " --masked-path NONE "] {
+            XCTAssertTrue(createCall.contains(want), "create argv missing \(want): \(createCall)")
+        }
+        XCTAssertFalse(createCall.contains("CAP_SYS_ADMIN"), "privileged subsumes cap_add: \(createCall)")
+
+        // GetContainer reflects the Rosetta flag the runtime recorded.
+        let inspected = try await json(
+            "POST", "api/micropod.v1.ContainerService/GetContainer", body: ["id": run["id"] as? String ?? ""])
+        XCTAssertEqual(inspected["rosetta"] as? Bool, true, "\(inspected)")
+
+        for body: [String: Any] in [
+            ["image": "alpine:3.20", "name": "api-caps-bad", "capAdd": ["NET_ADMINN"]],
+            ["image": "alpine:3.20", "name": "api-caps-bad", "capDrop": ["SYS-ADMIN"]],
+            // Whitespace is an invalid name on both servers (the proto pattern).
+            ["image": "alpine:3.20", "name": "api-caps-bad", "capAdd": [" NET_ADMIN"]],
+            ["image": "alpine:3.20", "name": "api-caps-bad", "capAdd": ["NET_ADMIN\n"]],
+            // Contradictions the runtime would resolve to "every capability".
+            ["image": "alpine:3.20", "name": "api-caps-bad", "privileged": true, "capDrop": ["ALL"]],
+            ["image": "alpine:3.20", "name": "api-caps-bad", "capAdd": ["ALL"], "capDrop": ["all"]],
+        ] {
+            for rpc in ["RunContainer", "CreateContainer"] {
+                let (status, error) = try await jsonStatus(
+                    "POST", "api/micropod.v1.ContainerService/\(rpc)", body: body)
+                XCTAssertEqual(status, 400, "\(rpc) \(body): \(error)")
+                XCTAssertEqual(error["code"] as? String, "invalid_argument")
+            }
+        }
+        XCTAssertFalse(mockCalls().contains { $0.contains("api-caps-bad") }, "invalid caps never reach the CLI")
+    }
+
+    /// The runtime applies --cap-drop before --cap-add, so `privileged` (an
+    /// ALL grant) must not swallow named drops: ALL expands to every
+    /// capability except the dropped ones.
+    func testPrivilegedCapDropReallyDrops() async throws {
+        let (status, body) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/CreateContainer",
+            body: ["image": "docker:dind", "name": "api-caps-privdrop", "privileged": true, "capDrop": ["net_raw"]])
+        XCTAssertEqual(status, 200, "CreateContainer: \(body)")
+        let call = " " + (mockCalls().first { $0.hasPrefix("create ") && $0.contains("api-caps-privdrop") } ?? "") + " "
+        XCTAssertFalse(call.contains(" --cap-add ALL "), call)
+        XCTAssertFalse(call.contains(" --cap-add CAP_NET_RAW "), call)
+        XCTAssertTrue(call.contains(" --cap-add CAP_SYS_ADMIN "), call)
+        XCTAssertTrue(call.contains(" --cap-add CAP_CHECKPOINT_RESTORE "), call)
+        XCTAssertTrue(call.contains(" --cap-drop CAP_NET_RAW "), call)
+        XCTAssertTrue(call.contains(" --read-only-path NONE --masked-path NONE "), call)
+    }
+
+    /// Clients detect the optional RunContainer fields from Ping (and the
+    /// REST system read) instead of sending them to a server that would
+    /// silently drop them.
+    func testPingAdvertisesFeatures() async throws {
+        let ping = try await json("POST", "api/micropod.v1.SystemService/Ping", body: [:])
+        XCTAssertEqual(ping["features"] as? [String], ["cap_add", "cap_drop", "rosetta", "privileged"], "\(ping)")
+        let system = try await json("GET", "v1/system")
+        XCTAssertEqual(system["features"] as? [String], ["cap_add", "cap_drop", "rosetta", "privileged"])
+    }
+
+    /// Legacy REST: a mistyped capability list or flag is a 400, never a
+    /// silently empty list / false.
+    func testRESTRejectsMistypedSecurityFields() async throws {
+        for body: [String: Any] in [
+            ["image": "alpine:3.20", "name": "api-rest-bad", "capAdd": ["NET_ADMIN", 5]],
+            ["image": "alpine:3.20", "name": "api-rest-bad", "capDrop": "NET_RAW"],
+            ["image": "alpine:3.20", "name": "api-rest-bad", "privileged": "yes"],
+            ["image": "alpine:3.20", "name": "api-rest-bad", "rosetta": 1],
+            ["image": "alpine:3.20", "name": "api-rest-bad", "privileged": true, "capDrop": ["ALL"]],
+            ["image": "alpine:3.20", "name": "api-rest-bad", "capAdd": ["\tNET_ADMIN"]],
+        ] {
+            let (status, error) = try await jsonStatus("POST", "v1/containers", body: body)
+            XCTAssertEqual(status, 400, "\(body): \(error)")
+        }
+        XCTAssertFalse(mockCalls().contains { $0.contains("api-rest-bad") }, "mistyped fields never reach the CLI")
+
+        let (status, run) = try await jsonStatus(
+            "POST", "v1/containers",
+            body: ["image": "alpine:3.20", "name": "api-rest-good", "capAdd": ["NET_ADMIN"], "privileged": false])
+        XCTAssertEqual(status, 201, "\(run)")
+        XCTAssertTrue(mockCalls().contains { $0.contains("api-rest-good") && $0.contains("--cap-add CAP_NET_ADMIN") })
+    }
+
     func testCreateNoPullMissingImageIsNotFound() async throws {
         let (status, body) = try await jsonStatus(
             "POST", "api/micropod.v1.ContainerService/CreateContainer",
@@ -1566,6 +1778,22 @@ enum ConnectFrames {
             offset = start + length
         }
         return (frames, data.endIndex - offset)
+    }
+}
+
+extension Process {
+    /// SIGTERM, then SIGKILL after `grace`, and return once the child is
+    /// gone. Never `waitUntilExit()`: it has been seen to miss the exit of an
+    /// already-reaped server and hang the whole suite (no child left, the
+    /// test parked in -[NSConcreteTask waitUntilExit]).
+    func stopBounded(grace: Duration = .seconds(5)) async {
+        guard isRunning else { return }
+        terminate()
+        let deadline = ContinuousClock.now + grace
+        while isRunning, kill(processIdentifier, 0) == 0, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        if isRunning, kill(processIdentifier, 0) == 0 { kill(processIdentifier, SIGKILL) }
     }
 }
 

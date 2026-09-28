@@ -558,7 +558,38 @@ type RunContainerRequest struct {
 	// Fail with `not_found` instead of pulling when the image is absent
 	// locally (for the requested `platform`, when set). Lets callers own the
 	// pull and bound its duration.
-	NoPull        bool `protobuf:"varint,16,opt,name=no_pull,json=noPull,proto3" json:"no_pull,omitempty"`
+	NoPull bool `protobuf:"varint,16,opt,name=no_pull,json=noPull,proto3" json:"no_pull,omitempty"`
+	// Linux capabilities to add to the container's default set (docker run
+	// --cap-add). Names are case-insensitive, with or without the `CAP_`
+	// prefix ("NET_ADMIN" == "cap_net_admin"); "ALL" grants every capability.
+	// Unknown names fail with `invalid_argument`. The server normalises names
+	// to the `CAP_*` spelling before handing them to the runtime.
+	CapAdd []string `protobuf:"bytes,17,rep,name=cap_add,json=capAdd,proto3" json:"cap_add,omitempty"`
+	// Linux capabilities to remove from the container's set (docker run
+	// --cap-drop). Same spelling rules as `cap_add`; "ALL" drops every
+	// capability, so `cap_add` can then grant back a minimal set. Drops always
+	// win over an "ALL" grant — `cap_add: ["ALL"]` or `privileged` — so
+	// `privileged` + `cap_drop: ["SYS_MODULE"]` runs with every capability but
+	// SYS_MODULE. "ALL" here together with `privileged` or `cap_add: ["ALL"]`
+	// is contradictory and fails with `invalid_argument`.
+	CapDrop []string `protobuf:"bytes,18,rep,name=cap_drop,json=capDrop,proto3" json:"cap_drop,omitempty"`
+	// Run x86_64 (linux/amd64) binaries through Rosetta translation (container
+	// run --rosetta). `true` forces Rosetta on. Unset or `false` keeps the
+	// server default: the native backend turns Rosetta on by itself when the
+	// selected image variant is amd64 on an Apple silicon host. Rosetta does
+	// not select an image variant — pair it with `platform: "linux/amd64"` to
+	// run the amd64 variant of a multi-arch image.
+	Rosetta *bool `protobuf:"varint,19,opt,name=rosetta,proto3,oneof" json:"rosetta,omitempty"`
+	// Run the workload with the privileges a nested container engine
+	// (dockerd, containerd, buildkitd) needs — the micro-VM analogue of
+	// docker run --privileged: every Linux capability (as `cap_add: ["ALL"]`)
+	// and none of the runtime's default read-only or masked paths, so
+	// /proc/sys (IP forwarding, sysctls) and /sys/fs/cgroup are writable and
+	// /proc is not masked. The isolation boundary stays the micro-VM: host
+	// devices are not passed through. Named `cap_drop` entries still remove
+	// their capabilities; `cap_drop: ["ALL"]` with `privileged` fails with
+	// `invalid_argument`.
+	Privileged    *bool `protobuf:"varint,20,opt,name=privileged,proto3,oneof" json:"privileged,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -701,6 +732,34 @@ func (x *RunContainerRequest) GetUser() string {
 func (x *RunContainerRequest) GetNoPull() bool {
 	if x != nil {
 		return x.NoPull
+	}
+	return false
+}
+
+func (x *RunContainerRequest) GetCapAdd() []string {
+	if x != nil {
+		return x.CapAdd
+	}
+	return nil
+}
+
+func (x *RunContainerRequest) GetCapDrop() []string {
+	if x != nil {
+		return x.CapDrop
+	}
+	return nil
+}
+
+func (x *RunContainerRequest) GetRosetta() bool {
+	if x != nil && x.Rosetta != nil {
+		return *x.Rosetta
+	}
+	return false
+}
+
+func (x *RunContainerRequest) GetPrivileged() bool {
+	if x != nil && x.Privileged != nil {
+		return *x.Privileged
 	}
 	return false
 }
@@ -1298,7 +1357,7 @@ const file_micropod_v1_container_proto_rawDesc = "" +
 	"\x16ListContainersResponse\x126\n" +
 	"\n" +
 	"containers\x18\x01 \x03(\v2\x16.micropod.v1.ContainerR\n" +
-	"containers\"\x89\a\n" +
+	"containers\"\xd6\t\n" +
 	"\x13RunContainerRequest\x124\n" +
 	"\x05image\x18\x01 \x01(\tB\x1e\xbaG\x11:\x0f\x12\r'alpine:3.20'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x05image\x12%\n" +
 	"\x04name\x18\x02 \x01(\tB\f\xbaG\t:\a\x12\x05'web'H\x00R\x04name\x88\x01\x01\x12#\n" +
@@ -1319,7 +1378,13 @@ const file_micropod_v1_container_proto_rawDesc = "" +
 	"\bplatform\x18\r \x01(\tB\x14\xbaG\x11:\x0f\x12\r'linux/arm64'H\x04R\bplatform\x88\x01\x01\x12-\n" +
 	"\aworkdir\x18\x0e \x01(\tB\x0e\xbaG\v:\t\x12\a'/work'H\x05R\aworkdir\x88\x01\x01\x12+\n" +
 	"\x04user\x18\x0f \x01(\tB\x12\xbaG\x0f:\r\x12\v'1000:1000'H\x06R\x04user\x88\x01\x01\x12$\n" +
-	"\ano_pull\x18\x10 \x01(\bB\v\xbaG\b:\x06\x12\x04trueR\x06noPull\x1a9\n" +
+	"\ano_pull\x18\x10 \x01(\bB\v\xbaG\b:\x06\x12\x04trueR\x06noPull\x12o\n" +
+	"\acap_add\x18\x11 \x03(\tBV\xbaG\x1f:\x1d\x12\x1b['NET_ADMIN', 'SYS_PTRACE']\xbaH1\x92\x01.\x10@\"*r(\x18 2$^([Cc][Aa][Pp]_)?[A-Za-z][A-Za-z_]*$R\x06capAdd\x12a\n" +
+	"\bcap_drop\x18\x12 \x03(\tBF\xbaG\x0f:\r\x12\v['NET_RAW']\xbaH1\x92\x01.\x10@\"*r(\x18 2$^([Cc][Aa][Pp]_)?[A-Za-z][A-Za-z_]*$R\acapDrop\x12*\n" +
+	"\arosetta\x18\x13 \x01(\bB\v\xbaG\b:\x06\x12\x04trueH\aR\arosetta\x88\x01\x01\x120\n" +
+	"\n" +
+	"privileged\x18\x14 \x01(\bB\v\xbaG\b:\x06\x12\x04trueH\bR\n" +
+	"privileged\x88\x01\x01\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\a\n" +
@@ -1330,7 +1395,10 @@ const file_micropod_v1_container_proto_rawDesc = "" +
 	"\t_platformB\n" +
 	"\n" +
 	"\b_workdirB\a\n" +
-	"\x05_user\"y\n" +
+	"\x05_userB\n" +
+	"\n" +
+	"\b_rosettaB\r\n" +
+	"\v_privileged\"y\n" +
 	"\x14WaitContainerRequest\x12&\n" +
 	"\x02id\x18\x01 \x01(\tB\x16\xbaG\t:\a\x12\x05'web'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x129\n" +
 	"\x0ftimeout_seconds\x18\x02 \x01(\x05B\x10\xbaG\x06:\x04\x12\x0230\xbaH\x04\x1a\x02(\x00R\x0etimeoutSeconds\"\xae\x01\n" +

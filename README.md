@@ -243,6 +243,29 @@ POST /v1/exec {id,command,workdir}
 The same process serves the typed Connect API under `/api` (see
 [connect-go API](#connect-go-api-go)).
 
+**Listeners and request admission.** The API is unauthenticated and can launch
+privileged containers with host bind mounts, so it listens on loopback only
+(`127.0.0.1:45454` and `[::1]:45454`) and refuses, before any handler runs:
+
+- a `Host` other than `127.0.0.1:<port>`, `localhost:<port>` or `[::1]:<port>`
+  → `403` (DNS rebinding);
+- an `Origin` outside the CORS allowlist (`MICROPOD_API_CORS_ORIGINS`, default
+  the hosted docs plus any localhost origin) → `403`;
+- a `POST` (and a `PUT`/`PATCH`/`DELETE` with a body) whose `Content-Type` is
+  not `application/json`, `application/connect+json`, `application/proto` or
+  `application/grpc[+proto]` → `415`. None of these is CORS-safelisted, so a
+  web page cannot send one without a preflight.
+
+REST calls therefore name the type even without a body:
+
+```bash
+curl -X POST -H 'Content-Type: application/json' http://127.0.0.1:45454/v1/containers/web/stop
+curl -X DELETE 'http://127.0.0.1:45454/v1/containers/web?force=true'   # no body: no type needed
+```
+
+`Ping` (and `GET /v1/system`) list the optional `RunContainer` fields the
+server honours in `features` (`cap_add`, `cap_drop`, `rosetta`, `privileged`).
+
 Configuration: `MICROPOD_API_PORT` (default 45454), `MICROPOD_CONTAINER_CLI_PATH`,
 `MICROPOD_RUNTIME` (`auto`/`native`/`cli`), `MICROPOD_ALLOW_MULTI_ATTACH=1`
 (warn instead of refusing a second read-write attach of a named volume).
@@ -260,9 +283,17 @@ curl --unix-socket ~/.micropod/docker.sock http://localhost/_ping
 DOCKER_HOST=unix://$HOME/.micropod/docker.sock <docker-api-client> ...
 ```
 
-- **Listeners**: unix socket at `~/.micropod/docker.sock` and TCP on
-  `127.0.0.1:45455` (all interfaces), so containers inside the runtime VM can
-  reach it via the host bridge.
+- **Listeners**: unix socket at `~/.micropod/docker.sock`, TCP on
+  `127.0.0.1:45455`, and TCP on each vmnet gateway present on the host (the
+  address guests reach the host at: `192.168.65.1` for the current default
+  network, plus one per custom network) — never every interface. Gateways
+  come from the runtime's network list and are followed as bridges come up
+  (a gateway exists only while a guest is attached) and networks are
+  deleted; a gateway listener only admits peers inside its network. The TCP
+  listeners refuse browser requests (any `Origin` or `Sec-Fetch-*` header)
+  and hosts other than IP literals, `localhost`/`*.localhost` and `docker`
+  (DNS rebinding) with `403`. The unix socket is not reachable from a
+  browser and has no such check.
 - **Surface**: `_ping`, `/version`, `/info`, `/auth`, `/events`, images
   (pull/list/inspect/tag/delete/prune), `POST /build` (legacy builder),
   containers (list/create/inspect/
@@ -273,7 +304,8 @@ DOCKER_HOST=unix://$HOME/.micropod/docker.sock <docker-api-client> ...
   can't accidentally match everything.
 - **Ryuk interception** (generalised to any DinD client): any container
   bind-mounting `docker.sock` gets the bind stripped and
-  `DOCKER_HOST=tcp://<bridge>:45455` injected into its env, since the Apple
+  `DOCKER_HOST=tcp://<gateway>:45455` (the container's network gateway)
+  injected into its env, since the Apple
   runtime cannot pass a unix socket through virtiofs as a working socket.
   Ryuk additionally gets `8080/tcp` published. This is what lets the
   cuttlefish runner (which mounts `/var/run/docker.sock` for DinD task
@@ -408,8 +440,9 @@ DOCKER_HOST=unix://$HOME/.micropod/docker.sock <docker-api-client> ...
   ryuk reaper session (victim reaped, bystander untouched).
 
 Configuration: `MICROPOD_SHIM_SOCKET` (default `~/.micropod/docker.sock`),
-`MICROPOD_SHIM_TCP_PORT` (default 45455), `MICROPOD_SHIM_BRIDGE`
-(default `192.168.64.1`), `MICROPOD_CLI_PATH`.
+`MICROPOD_SHIM_TCP_PORT` (default 45455), `MICROPOD_SHIM_BRIDGE` (pins the
+in-VM address instead of resolving each network's vmnet gateway),
+`MICROPOD_CLI_PATH`.
 
 ## VirtualFS core (shares + build cache)
 
@@ -527,7 +560,8 @@ ComposeService, SystemService. Bindings live in `sdk/go/gen`
 (`micropodv1connect`); the Go SDK (`sdk/go`, `micropod.NewClient`) wraps
 all six with retry, timeout and OpenTelemetry interceptors.
 
-Two servers implement the contract. Both listen on 127.0.0.1:45454, so run
+Two servers implement the contract. Both listen on 127.0.0.1:45454 and
+[::1]:45454 (with the same Host / Content-Type / Origin admission), so run
 one at a time:
 
 | Server | Base URL | Wire | Backend |

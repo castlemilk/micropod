@@ -4,7 +4,7 @@ import XCTest
 
 final class ShimParserTests: XCTestCase {
     func testParsesSimpleGet() throws {
-        let raw = Data("GET /_ping HTTP/1.1\r\nHost: d\r\n\r\n".utf8)
+        let raw = Data("GET /_ping HTTP/1.1\r\nHost: docker\r\n\r\n".utf8)
         let parsed = try XCTUnwrap(ShimRequestParser.parse(raw))
         XCTAssertEqual(parsed.request.method, "GET")
         XCTAssertEqual(parsed.request.path, "/_ping")
@@ -21,8 +21,8 @@ final class ShimParserTests: XCTestCase {
     }
 
     func testRemainderCarriesPipelinedRequest() throws {
-        let first = "GET /_ping HTTP/1.1\r\nHost: d\r\n\r\n"
-        let second = "GET /version HTTP/1.1\r\nHost: d\r\n\r\n"
+        let first = "GET /_ping HTTP/1.1\r\nHost: docker\r\n\r\n"
+        let second = "GET /version HTTP/1.1\r\nHost: docker\r\n\r\n"
         let parsed = try XCTUnwrap(ShimRequestParser.parse(Data((first + second).utf8)))
         XCTAssertEqual(parsed.request.path, "/_ping")
         XCTAssertEqual(String(decoding: parsed.remainder, as: UTF8.self), second)
@@ -30,7 +30,7 @@ final class ShimParserTests: XCTestCase {
 
     func testStripsAPIVersionPrefix() throws {
         for path in ["/v1.24/containers/json", "/v1.44/networks", "/v1.51/volumes"] {
-            let raw = Data("GET \(path) HTTP/1.1\r\nHost: d\r\n\r\n".utf8)
+            let raw = Data("GET \(path) HTTP/1.1\r\nHost: docker\r\n\r\n".utf8)
             let parsed = try XCTUnwrap(ShimRequestParser.parse(raw))
             let expected = String(path.dropFirst("/vX.XX".count))
             XCTAssertEqual(
@@ -40,7 +40,7 @@ final class ShimParserTests: XCTestCase {
     }
 
     func testDoesNotStripNonVersionFirstSegment() throws {
-        let raw = Data("GET /volumes HTTP/1.1\r\nHost: d\r\n\r\n".utf8)
+        let raw = Data("GET /volumes HTTP/1.1\r\nHost: docker\r\n\r\n".utf8)
         let parsed = try XCTUnwrap(ShimRequestParser.parse(raw))
         XCTAssertEqual(parsed.request.path, "/volumes")
     }
@@ -90,7 +90,7 @@ final class ShimParserTests: XCTestCase {
     func testChunkedBodyWithTrailersAndRemainder() throws {
         let head = "POST /p HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n"
         let framed = "3\r\nabc\r\n0\r\nX-Trailer: v\r\n\r\n"
-        let pipelined = "GET /next HTTP/1.1\r\nHost: d\r\n\r\n"
+        let pipelined = "GET /next HTTP/1.1\r\nHost: docker\r\n\r\n"
         let parsed = try XCTUnwrap(
             ShimRequestParser.parse(Data((head + framed).utf8) + Data(pipelined.utf8)))
         XCTAssertEqual(String(decoding: parsed.request.body, as: UTF8.self), "abc")

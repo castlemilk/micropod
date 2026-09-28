@@ -63,7 +63,7 @@ struct MicropodAPI {
         do {
             try await server.run()
             print(
-                "Micropod API listening on http://127.0.0.1:\(port) (cli: \(cliPath), backend: \(runtime.kind.rawValue))"
+                "Micropod API listening on http://127.0.0.1:\(port) and http://[::1]:\(port) (cli: \(cliPath), backend: \(runtime.kind.rawValue))"
             )
             await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
         } catch {
@@ -115,17 +115,46 @@ final class HTTPServer: @unchecked Sendable {
         self.handler = handler
     }
 
+    /// Loopback addresses the API listens on: IPv4 and IPv6, so
+    /// `http://localhost:45454` works whichever family the client's resolver
+    /// tries first (docs, SDK examples and the explorer use `localhost`).
+    static let loopbackAddresses = ["127.0.0.1", "::1"]
+
     func run() async throws {
-        let listener = try NWListener(using: .tcp, on: NWEndpoint.Port(rawValue: port)!)
-        listener.newConnectionHandler = { [weak self] connection in
-            guard let self else { return }
-            connection.start(queue: .global(qos: .userInitiated))
-            self.readRequest(connection, buffer: Data())
+        // Loopback only: the API is unauthenticated and can launch privileged
+        // workloads, so it must never be reachable from the network.
+        // (`NWListener(using:on:)` alone binds every interface.)
+        for address in Self.loopbackAddresses {
+            let parameters = NWParameters.tcp
+            // Network.framework reserves a port per process across
+            // addresses: without this the second (::1) listener fails
+            // EADDRINUSE. Probed: another process still cannot bind either
+            // address (with or without SO_REUSEADDR/SO_REUSEPORT), so this
+            // opens no port-sharing hole.
+            parameters.allowLocalEndpointReuse = true
+            parameters.requiredLocalEndpoint = .hostPort(
+                host: NWEndpoint.Host(address), port: NWEndpoint.Port(rawValue: port)!)
+            let listener = try NWListener(using: parameters)
+            listener.newConnectionHandler = { [weak self] connection in
+                guard let self else { return }
+                connection.start(queue: .global(qos: .userInitiated))
+                self.readRequest(connection, buffer: Data())
+            }
+            listener.stateUpdateHandler = { [port] state in
+                if case .failed(let error) = state {
+                    // IPv6 may be disabled on the host: the IPv4 listener
+                    // still serves; say so instead of failing silently.
+                    fputs("API listener \(address):\(port) failed: \(error)\n", stderr)
+                }
+            }
+            listener.start(queue: .global(qos: .userInitiated))
+            listeners.append(listener)
         }
-        listener.start(queue: .global(qos: .userInitiated))
         // Serve until killed.
         try await Task.sleep(for: .seconds(3600 * 24 * 365))
     }
+
+    private var listeners: [NWListener] = []
 
     private func readRequest(_ connection: NWConnection, buffer: Data) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) {
@@ -153,6 +182,22 @@ final class HTTPServer: @unchecked Sendable {
         // Browser-facing CORS/PNA headers — computed once per request so
         // normal, streaming, and preflight responses are all covered.
         let cors = CORSPolicy.responseHeaders(for: request)
+        // Cross-site / DNS-rebinding defence, before any handler runs (see
+        // LocalRequestGuard): loopback Host, a non-simple Content-Type on
+        // mutations, and an allowlisted Origin when one is sent.
+        let verdict = LocalRequestGuard.evaluateAPI(
+            method: request.method.rawValue, headers: request.headers, bodyLength: request.body.count,
+            port: port, originAllowed: { _ in CORSPolicy.allowedOrigin(for: request) != nil })
+        if case .reject(let status, let reason) = verdict {
+            let code = status == 415 ? "invalid_argument" : "permission_denied"
+            let body =
+                (try? JSONSerialization.data(
+                    withJSONObject: ["code": code, "message": reason, "error": reason])) ?? Data()
+            connection.send(
+                content: Self.serialize(.data(status, "application/json", body), extraHeaders: cors),
+                completion: .contentProcessed { _ in connection.cancel() })
+            return
+        }
         Task {
             let response = await handler(request)
             switch response {
@@ -272,6 +317,7 @@ final class HTTPServer: @unchecked Sendable {
         case 405: reason = "Method Not Allowed"
         case 409: reason = "Conflict"
         case 412: reason = "Precondition Failed"
+        case 415: reason = "Unsupported Media Type"
         case 429: reason = "Too Many Requests"
         // Connect `canceled` (nginx convention; no IANA phrase).
         case 499: reason = "Client Closed Request"

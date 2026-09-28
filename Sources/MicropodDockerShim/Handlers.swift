@@ -120,6 +120,9 @@ final class Router: @unchecked Sendable {
     /// staging). Injected for tests; production uses the standard on-disk
     /// location honoring MICROPOD_BUILD_CACHE_*.
     private let buildCache: BuildContextCache
+    /// Resolves the vmnet gateway a container's guest reaches the shim at
+    /// (DOCKER_HOST for docker.sock binds). nil: `config.bridgeHost` as is.
+    private let gateways: VMNetGateways?
 
     convenience init(
         config: ShimConfig, state: ShimState, events: EventsHub,
@@ -133,8 +136,10 @@ final class Router: @unchecked Sendable {
         client: ContainerCLIClient, sharedFS sharedFSOverride: (any SharedFSClient)?,
         buildCache buildCacheOverride: BuildContextCache? = nil,
         readCache readCacheOverride: ReadThroughCache? = nil,
-        runtime: RuntimeServices? = nil
+        runtime: RuntimeServices? = nil,
+        gateways: VMNetGateways? = nil
     ) {
+        self.gateways = gateways
         self.config = config
         self.state = state
         self.events = events
@@ -1298,6 +1303,23 @@ final class Router: @unchecked Sendable {
         return true
     }
 
+    /// The host address the container's guest reaches the shim at: its
+    /// network's vmnet gateway (the default network's when it joins none),
+    /// re-read from the runtime when unknown; `config.bridgeHost` without a
+    /// resolver or when the runtime reports no gateway.
+    func bridgeHost(for body: DockerCreateRequest) async -> String {
+        guard let gateways else { return config.bridgeHost }
+        let network = body.attachedNetworks.first
+        let listed = await gateways.networks
+        if network == nil || listed.contains(where: { $0.id == network }),
+            let known = await gateways.gateway(forNetwork: network)
+        {
+            return known
+        }
+        await gateways.refresh()
+        return await gateways.gateway(forNetwork: network) ?? config.bridgeHost
+    }
+
     private func containerCreate(_ request: ShimRequest) async throws -> ShimResponse {
         var body = try decodeBody(DockerCreateRequest.self, request)
         // Docker-socket redirect (Ryuk reaper + any DinD client such as the
@@ -1305,7 +1327,7 @@ final class Router: @unchecked Sendable {
         // point the container at the shim's TCP listener over the VM bridge.
         // No-op when there is no socket bind and the image is not Ryuk.
         let intercepted = RyukSupport.intercept(
-            body, bridgeHost: config.bridgeHost, tcpPort: config.tcpPort)
+            body, bridgeHost: await bridgeHost(for: body), tcpPort: config.tcpPort)
         body = intercepted.request
         var notes = intercepted.notes
 
@@ -1590,7 +1612,11 @@ final class Router: @unchecked Sendable {
             platform: (platform?.isEmpty == false) ? platform : nil,
             workdir: (body.WorkingDir?.isEmpty == false) ? body.WorkingDir : nil,
             entrypoint: entrypoint,
-            arguments: arguments)
+            arguments: arguments,
+            // HostConfig.Privileged (dind, testcontainers' DockerComposeContainer
+            // and friends): all capabilities + writable /proc/sys and cgroups
+            // inside the micro-VM — no host devices.
+            privileged: body.HostConfig?.Privileged == true)
     }
 
     /// POST /containers/prune — stopped containers the `filters` admit
