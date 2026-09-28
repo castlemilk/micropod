@@ -176,6 +176,41 @@ message RunContainerRequest {
   // locally (for the requested `platform`, when set). Lets callers own the
   // pull and bound its duration.
   bool no_pull = 16 [(gnostic.openapi.v3.property).example = {yaml: "true"}];
+  // Linux capabilities to add to the container's default set (docker run
+  // --cap-add). Names are case-insensitive, with or without the `CAP_`
+  // prefix ("NET_ADMIN" == "cap_net_admin"); "ALL" grants every capability.
+  // Unknown names fail with `invalid_argument`. The server normalises names
+  // to the `CAP_*` spelling before handing them to the runtime.
+  repeated string cap_add = 17 [
+    (buf.validate.field).repeated.max_items = 64,
+    (buf.validate.field).repeated.items.string.pattern = "^([Cc][Aa][Pp]_)?[A-Za-z][A-Za-z_]*$",
+    (buf.validate.field).repeated.items.string.max_len = 32,
+    (gnostic.openapi.v3.property).example = {yaml: "['NET_ADMIN', 'SYS_PTRACE']"}
+  ];
+  // Linux capabilities to remove from the container's set (docker run
+  // --cap-drop). Same spelling rules as `cap_add`; "ALL" drops every
+  // capability, so `cap_add` can then grant back a minimal set.
+  repeated string cap_drop = 18 [
+    (buf.validate.field).repeated.max_items = 64,
+    (buf.validate.field).repeated.items.string.pattern = "^([Cc][Aa][Pp]_)?[A-Za-z][A-Za-z_]*$",
+    (buf.validate.field).repeated.items.string.max_len = 32,
+    (gnostic.openapi.v3.property).example = {yaml: "['NET_RAW']"}
+  ];
+  // Run x86_64 (linux/amd64) binaries through Rosetta translation (container
+  // run --rosetta). `true` forces Rosetta on. Unset or `false` keeps the
+  // server default: the native backend turns Rosetta on by itself when the
+  // selected image variant is amd64 on an Apple silicon host. Rosetta does
+  // not select an image variant — pair it with `platform: "linux/amd64"` to
+  // run the amd64 variant of a multi-arch image.
+  optional bool rosetta = 19 [(gnostic.openapi.v3.property).example = {yaml: "true"}];
+  // Run the workload with the privileges a nested container engine
+  // (dockerd, containerd, buildkitd) needs — the micro-VM analogue of
+  // docker run --privileged: every Linux capability (as `cap_add: ["ALL"]`)
+  // and none of the runtime's default read-only or masked paths, so
+  // /proc/sys (IP forwarding, sysctls) and /sys/fs/cgroup are writable and
+  // /proc is not masked. The isolation boundary stays the micro-VM: host
+  // devices are not passed through. `cap_drop` still applies on top.
+  optional bool privileged = 20 [(gnostic.openapi.v3.property).example = {yaml: "true"}];
 }
 
 message WaitContainerRequest {

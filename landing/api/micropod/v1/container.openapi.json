@@ -1775,6 +1775,72 @@
             ],
             "title": "no_pull",
             "description": "Fail with `not_found` instead of pulling when the image is absent\n locally (for the requested `platform`, when set). Lets callers own the\n pull and bound its duration."
+          },
+          "capAdd": {
+            "type": "array",
+            "examples": [
+              [
+                "NET_ADMIN",
+                "SYS_PTRACE"
+              ]
+            ],
+            "items": {
+              "type": "string",
+              "examples": [
+                [
+                  "NET_ADMIN",
+                  "SYS_PTRACE"
+                ]
+              ],
+              "maxLength": 32,
+              "pattern": "^([Cc][Aa][Pp]_)?[A-Za-z][A-Za-z_]*$"
+            },
+            "title": "cap_add",
+            "maxItems": 64,
+            "description": "Linux capabilities to add to the container's default set (docker run\n --cap-add). Names are case-insensitive, with or without the `CAP_`\n prefix (\"NET_ADMIN\" == \"cap_net_admin\"); \"ALL\" grants every capability.\n Unknown names fail with `invalid_argument`. The server normalises names\n to the `CAP_*` spelling before handing them to the runtime."
+          },
+          "capDrop": {
+            "type": "array",
+            "examples": [
+              [
+                "NET_RAW"
+              ]
+            ],
+            "items": {
+              "type": "string",
+              "examples": [
+                [
+                  "NET_RAW"
+                ]
+              ],
+              "maxLength": 32,
+              "pattern": "^([Cc][Aa][Pp]_)?[A-Za-z][A-Za-z_]*$"
+            },
+            "title": "cap_drop",
+            "maxItems": 64,
+            "description": "Linux capabilities to remove from the container's set (docker run\n --cap-drop). Same spelling rules as `cap_add`; \"ALL\" drops every\n capability, so `cap_add` can then grant back a minimal set."
+          },
+          "rosetta": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "examples": [
+              "true"
+            ],
+            "title": "rosetta",
+            "description": "Run x86_64 (linux/amd64) binaries through Rosetta translation (container\n run --rosetta). `true` forces Rosetta on. Unset or `false` keeps the\n server default: the native backend turns Rosetta on by itself when the\n selected image variant is amd64 on an Apple silicon host. Rosetta does\n not select an image variant \u2014 pair it with `platform: \"linux/amd64\"` to\n run the amd64 variant of a multi-arch image."
+          },
+          "privileged": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "examples": [
+              "true"
+            ],
+            "title": "privileged",
+            "description": "Run the workload with the privileges a nested container engine\n (dockerd, containerd, buildkitd) needs \u2014 the micro-VM analogue of\n docker run --privileged: every Linux capability (as `cap_add: [\"ALL\"]`)\n and none of the runtime's default read-only or masked paths, so\n /proc/sys (IP forwarding, sysctls) and /sys/fs/cgroup are writable and\n /proc is not masked. The isolation boundary stays the micro-VM: host\n devices are not passed through. `cap_drop` still applies on top."
           }
         },
         "title": "RunContainerRequest",
