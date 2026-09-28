@@ -4697,6 +4697,17 @@ backends that never create clones.</p></td>
                   <td><p>Version of the bundled `container` CLI. </p></td>
                 </tr>
               
+                <tr>
+                  <td>features</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Optional request capabilities this server honours, so clients can
+detect them instead of sending fields an older server would silently
+ignore (proto3 drops unknown fields). Names are the
+`RunContainerRequest` field names: &#34;cap_add&#34;, &#34;cap_drop&#34;, &#34;rosetta&#34;,
+&#34;privileged&#34;. Empty on servers that predate the list. </p></td>
+                </tr>
+              
             </tbody>
           </table>
 
@@ -5873,6 +5884,57 @@ container. The native backend samples only the requested IDs. </p></td>
                   <td><p>Fail with `not_found` instead of pulling when the image is absent
 locally (for the requested `platform`, when set). Lets callers own the
 pull and bound its duration. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cap_add</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Linux capabilities to add to the container&#39;s default set (docker run
+--cap-add). Names are case-insensitive, with or without the `CAP_`
+prefix (&#34;NET_ADMIN&#34; == &#34;cap_net_admin&#34;); &#34;ALL&#34; grants every capability.
+Unknown names fail with `invalid_argument`. The server normalises names
+to the `CAP_*` spelling before handing them to the runtime. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cap_drop</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Linux capabilities to remove from the container&#39;s set (docker run
+--cap-drop). Same spelling rules as `cap_add`; &#34;ALL&#34; drops every
+capability, so `cap_add` can then grant back a minimal set. Drops always
+win over an &#34;ALL&#34; grant — `cap_add: [&#34;ALL&#34;]` or `privileged` — so
+`privileged` &#43; `cap_drop: [&#34;SYS_MODULE&#34;]` runs with every capability but
+SYS_MODULE. &#34;ALL&#34; here together with `privileged` or `cap_add: [&#34;ALL&#34;]`
+is contradictory and fails with `invalid_argument`. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>rosetta</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td>optional</td>
+                  <td><p>Run x86_64 (linux/amd64) binaries through Rosetta translation (container
+run --rosetta). `true` forces Rosetta on. Unset or `false` keeps the
+server default: the native backend turns Rosetta on by itself when the
+selected image variant is amd64 on an Apple silicon host. Rosetta does
+not select an image variant — pair it with `platform: &#34;linux/amd64&#34;` to
+run the amd64 variant of a multi-arch image. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>privileged</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td>optional</td>
+                  <td><p>Run the workload with the privileges a nested container engine
+(dockerd, containerd, buildkitd) needs — the micro-VM analogue of
+docker run --privileged: every Linux capability (as `cap_add: [&#34;ALL&#34;]`)
+and none of the runtime&#39;s default read-only or masked paths, so
+/proc/sys (IP forwarding, sysctls) and /sys/fs/cgroup are writable and
+/proc is not masked. The isolation boundary stays the micro-VM: host
+devices are not passed through. Named `cap_drop` entries still remove
+their capabilities; `cap_drop: [&#34;ALL&#34;]` with `privileged` fails with
+`invalid_argument`. </p></td>
                 </tr>
               
             </tbody>

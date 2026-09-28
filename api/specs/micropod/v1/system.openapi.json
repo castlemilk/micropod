@@ -801,6 +801,30 @@
             ],
             "title": "cli_version",
             "description": "Version of the bundled `container` CLI."
+          },
+          "features": {
+            "type": "array",
+            "examples": [
+              [
+                "cap_add",
+                "cap_drop",
+                "rosetta",
+                "privileged"
+              ]
+            ],
+            "items": {
+              "type": "string",
+              "examples": [
+                [
+                  "cap_add",
+                  "cap_drop",
+                  "rosetta",
+                  "privileged"
+                ]
+              ]
+            },
+            "title": "features",
+            "description": "Optional request capabilities this server honours, so clients can\n detect them instead of sending fields an older server would silently\n ignore (proto3 drops unknown fields). Names are the\n `RunContainerRequest` field names: \"cap_add\", \"cap_drop\", \"rosetta\",\n \"privileged\". Empty on servers that predate the list."
           }
         },
         "title": "PingResponse",
