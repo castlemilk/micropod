@@ -116,7 +116,12 @@ final class HTTPServer: @unchecked Sendable {
     }
 
     func run() async throws {
-        let listener = try NWListener(using: .tcp, on: NWEndpoint.Port(rawValue: port)!)
+        // Loopback only: the API is unauthenticated and can launch privileged
+        // workloads, so it must never be reachable from the network.
+        // (`NWListener(using:on:)` alone binds every interface.)
+        let parameters = NWParameters.tcp
+        parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: port)!)
+        let listener = try NWListener(using: parameters)
         listener.newConnectionHandler = { [weak self] connection in
             guard let self else { return }
             connection.start(queue: .global(qos: .userInitiated))
