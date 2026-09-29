@@ -9,6 +9,18 @@ import MicropodCore
 /// Per-id XPC calls run concurrently against independent runtime helpers,
 /// so the sample costs ~one helper round-trip plus JSON decode.
 public actor NativeStatsSampler: StatsSampling {
+    /// One `containerStats` call's outcome. The fan-out's children return
+    /// this rather than `(String, Result<ContainerStatsEntry, any Error>)`:
+    /// release builds offering that tuple back to the task group aborted
+    /// with a pure virtual call in the Swift runtime's
+    /// `AccumulatingTaskGroup::offer` within a second of app launch.
+    private enum StatsOutcome: Sendable {
+        case stats(id: String, ContainerStatsEntry)
+        /// The container exited between list and stats, or never ran.
+        case skipped
+        case transport(String)
+    }
+
     private let api: APIServerClient
     private var previous: [String: (usec: Int64, at: ContinuousClock.Instant)] = [:]
 
@@ -39,35 +51,27 @@ public actor NativeStatsSampler: StatsSampling {
     /// transport failure is not "no stats" — it is rethrown so the caller
     /// sees `unavailable` instead of an empty, plausible-looking snapshot.
     private func sample(ids: [String], forgetOthers: Bool) async throws -> Micropod_V1_StatsSnapshot {
-        let results = await withTaskGroup(
-            of: (String, Result<ContainerStatsEntry, Error>).self,
-            returning: [(String, Result<ContainerStatsEntry, Error>)].self
-        ) { group in
+        let results = await withTaskGroup(of: StatsOutcome.self, returning: [StatsOutcome].self) { group in
             for id in ids {
                 group.addTask {
                     do {
-                        return (id, .success(try await self.api.stats(id: id)))
+                        return .stats(id: id, try await self.api.stats(id: id))
+                    } catch MicropodError.transport(let detail) {
+                        return .transport(detail)
                     } catch {
-                        return (id, .failure(error))
+                        return .skipped
                     }
                 }
             }
-            var out: [(String, Result<ContainerStatsEntry, Error>)] = []
+            var out: [StatsOutcome] = []
             for await item in group { out.append(item) }
             return out
         }
         // Keep the request order for a stable wire shape.
-        var byID: [String: Result<ContainerStatsEntry, Error>] = [:]
-        for (id, result) in results { byID[id] = result }
-        var statsEntries: [ContainerStatsEntry] = []
-        for id in ids {
-            switch byID[id] {
-            case .success(let entry)?: statsEntries.append(entry)
-            case .failure(let error)?:
-                if case MicropodError.transport = error { throw error }
-            case nil: break
-            }
-        }
+        var byID: [String: ContainerStatsEntry] = [:]
+        for case .stats(let id, let entry) in results { byID[id] = entry }
+        for case .transport(let detail) in results { throw MicropodError.transport(detail) }
+        let statsEntries = ids.compactMap { byID[$0] }
 
         let now = ContinuousClock.now
         var snapshot = Micropod_V1_StatsSnapshot()
