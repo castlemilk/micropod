@@ -83,6 +83,24 @@ tasks:
       - swift build
       - swift run MicropodBench
 
+  cli:
+    desc: Build the micropod CLI (debug) + sign it with the virtualization entitlement `sandbox` needs
+    cmds:
+      - swift build --product micropod
+      - codesign --force --sign - --entitlements signing/micropod-cli.entitlements .build/debug/micropod
+
+  bench-sandbox:
+    desc: CI-shaped boot/job/fan-out — micropod sandbox vs container run vs shuru (if installed)
+    cmds:
+      - task: cli
+      - python3 scripts/bench_sandbox.py
+
+  e2e-runtimes:
+    desc: Live engine matrix (apple, sandbox, docker) through a signed MicropodAPI on a scratch port
+    cmds:
+      - swift build --product MicropodAPI
+      - ./scripts/e2e_runtimes.sh
+
   bench-compose:
     desc: postgres compose startup — Micropod (Apple runtime) vs Docker Desktop
     cmds:

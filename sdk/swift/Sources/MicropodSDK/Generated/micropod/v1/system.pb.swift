@@ -20,6 +20,120 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
   typealias Version = _2
 }
 
+/// One execution engine (see ListRuntimes).
+public nonisolated struct Micropod_V1_RuntimeInfo: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Engine name used in RunContainerRequest.runtime: "apple", "docker",
+  /// "sandbox".
+  public var name: String = String()
+
+  /// What kind of isolation it provides: "vm" (micro-VM per container via
+  /// a runtime daemon), "microvm" (in-process ephemeral micro-VM) or
+  /// "container" (shared-kernel containers inside one VM).
+  public var kind: String = String()
+
+  /// Human-readable one-liner.
+  public var description_p: String = String()
+
+  /// True when the engine can take work right now.
+  public var available: Bool = false
+
+  /// Why it is unavailable (empty when available).
+  public var reason: String = String()
+
+  /// Engine version when known.
+  public var version: String = String()
+
+  /// Where the engine lives: a socket path, install root or state dir.
+  public var endpoint: String = String()
+
+  /// Default engine for RunContainer when `runtime` is unset.
+  public var `default`: Bool = false
+
+  /// Container operations the engine supports: "run", "create", "start",
+  /// "stop", "kill", "delete", "exec", "logs", "stats", "ports", "volumes".
+  /// Calls outside this set fail with `unimplemented`.
+  public var capabilities: [String] = []
+
+  /// Enabled engines contribute to ListContainers and accept RunContainer.
+  /// "docker" starts disabled so an existing Docker Desktop's containers
+  /// don't appear until asked for.
+  public var enabled: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Micropod_V1_ListRuntimesResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var runtimes: [Micropod_V1_RuntimeInfo] = []
+
+  /// Name of the default engine.
+  public var `default`: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public nonisolated struct Micropod_V1_UpdateRuntimeRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Engine name from ListRuntimes.
+  public var name: String = String()
+
+  /// Enable or disable the engine; unset leaves it unchanged.
+  public var enabled: Bool {
+    get {_enabled ?? false}
+    set {_enabled = newValue}
+  }
+  /// Returns true if `enabled` has been explicitly set.
+  public var hasEnabled: Bool {self._enabled != nil}
+  /// Clears the value of `enabled`. Subsequent reads from it will return its default value.
+  public mutating func clearEnabled() {self._enabled = nil}
+
+  /// Engine endpoint override; empty string restores the default. Docker:
+  /// "unix:///path/docker.sock" or "tcp://host:port" (plain HTTP). Other
+  /// engines reject an endpoint with `invalid_argument`.
+  public var endpoint: String {
+    get {_endpoint ?? String()}
+    set {_endpoint = newValue}
+  }
+  /// Returns true if `endpoint` has been explicitly set.
+  public var hasEndpoint: Bool {self._endpoint != nil}
+  /// Clears the value of `endpoint`. Subsequent reads from it will return its default value.
+  public mutating func clearEndpoint() {self._endpoint = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _enabled: Bool? = nil
+  fileprivate var _endpoint: String? = nil
+}
+
+public nonisolated struct Micropod_V1_SetDefaultRuntimeRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Engine name from ListRuntimes.
+  public var name: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 /// Cheap liveness reply for detection and health ticks (see Ping).
 public nonisolated struct Micropod_V1_PingResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -44,6 +158,10 @@ public nonisolated struct Micropod_V1_PingResponse: Sendable {
   /// `RunContainerRequest` field names: "cap_add", "cap_drop", "rosetta",
   /// "privileged". Empty on servers that predate the list.
   public var features: [String] = []
+
+  /// Engine RunContainer uses when `runtime` is unset (see ListRuntimes).
+  /// Empty on servers that predate engine selection.
+  public var defaultRuntime: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -460,9 +578,193 @@ public nonisolated struct Micropod_V1_UpdateStatus: Sendable {
 
 fileprivate nonisolated let _protobuf_package = "micropod.v1"
 
+nonisolated extension Micropod_V1_RuntimeInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RuntimeInfo"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}kind\0\u{1}description\0\u{1}available\0\u{1}reason\0\u{1}version\0\u{1}endpoint\0\u{1}default\0\u{1}capabilities\0\u{1}enabled\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.kind) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.description_p) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.available) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.reason) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.version) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.endpoint) }()
+      case 8: try { try decoder.decodeSingularBoolField(value: &self.`default`) }()
+      case 9: try { try decoder.decodeRepeatedStringField(value: &self.capabilities) }()
+      case 10: try { try decoder.decodeSingularBoolField(value: &self.enabled) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
+    }
+    if !self.kind.isEmpty {
+      try visitor.visitSingularStringField(value: self.kind, fieldNumber: 2)
+    }
+    if !self.description_p.isEmpty {
+      try visitor.visitSingularStringField(value: self.description_p, fieldNumber: 3)
+    }
+    if self.available != false {
+      try visitor.visitSingularBoolField(value: self.available, fieldNumber: 4)
+    }
+    if !self.reason.isEmpty {
+      try visitor.visitSingularStringField(value: self.reason, fieldNumber: 5)
+    }
+    if !self.version.isEmpty {
+      try visitor.visitSingularStringField(value: self.version, fieldNumber: 6)
+    }
+    if !self.endpoint.isEmpty {
+      try visitor.visitSingularStringField(value: self.endpoint, fieldNumber: 7)
+    }
+    if self.`default` != false {
+      try visitor.visitSingularBoolField(value: self.`default`, fieldNumber: 8)
+    }
+    if !self.capabilities.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.capabilities, fieldNumber: 9)
+    }
+    if self.enabled != false {
+      try visitor.visitSingularBoolField(value: self.enabled, fieldNumber: 10)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_RuntimeInfo, rhs: Micropod_V1_RuntimeInfo) -> Bool {
+    if lhs.name != rhs.name {return false}
+    if lhs.kind != rhs.kind {return false}
+    if lhs.description_p != rhs.description_p {return false}
+    if lhs.available != rhs.available {return false}
+    if lhs.reason != rhs.reason {return false}
+    if lhs.version != rhs.version {return false}
+    if lhs.endpoint != rhs.endpoint {return false}
+    if lhs.`default` != rhs.`default` {return false}
+    if lhs.capabilities != rhs.capabilities {return false}
+    if lhs.enabled != rhs.enabled {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_ListRuntimesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListRuntimesResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}runtimes\0\u{1}default\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.runtimes) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.`default`) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.runtimes.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.runtimes, fieldNumber: 1)
+    }
+    if !self.`default`.isEmpty {
+      try visitor.visitSingularStringField(value: self.`default`, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_ListRuntimesResponse, rhs: Micropod_V1_ListRuntimesResponse) -> Bool {
+    if lhs.runtimes != rhs.runtimes {return false}
+    if lhs.`default` != rhs.`default` {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_UpdateRuntimeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpdateRuntimeRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}enabled\0\u{1}endpoint\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self._enabled) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self._endpoint) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
+    }
+    try { if let v = self._enabled {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._endpoint {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_UpdateRuntimeRequest, rhs: Micropod_V1_UpdateRuntimeRequest) -> Bool {
+    if lhs.name != rhs.name {return false}
+    if lhs._enabled != rhs._enabled {return false}
+    if lhs._endpoint != rhs._endpoint {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_SetDefaultRuntimeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SetDefaultRuntimeRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_SetDefaultRuntimeRequest, rhs: Micropod_V1_SetDefaultRuntimeRequest) -> Bool {
+    if lhs.name != rhs.name {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PingResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}runtime_backend\0\u{3}api_server_version\0\u{3}cli_version\0\u{1}features\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}runtime_backend\0\u{3}api_server_version\0\u{3}cli_version\0\u{1}features\0\u{3}default_runtime\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -475,6 +777,7 @@ nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProt
       case 3: try { try decoder.decodeSingularStringField(value: &self.apiServerVersion) }()
       case 4: try { try decoder.decodeSingularStringField(value: &self.cliVersion) }()
       case 5: try { try decoder.decodeRepeatedStringField(value: &self.features) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.defaultRuntime) }()
       default: break
       }
     }
@@ -496,6 +799,9 @@ nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProt
     if !self.features.isEmpty {
       try visitor.visitRepeatedStringField(value: self.features, fieldNumber: 5)
     }
+    if !self.defaultRuntime.isEmpty {
+      try visitor.visitSingularStringField(value: self.defaultRuntime, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -505,6 +811,7 @@ nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProt
     if lhs.apiServerVersion != rhs.apiServerVersion {return false}
     if lhs.cliVersion != rhs.cliVersion {return false}
     if lhs.features != rhs.features {return false}
+    if lhs.defaultRuntime != rhs.defaultRuntime {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

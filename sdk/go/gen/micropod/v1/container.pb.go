@@ -63,7 +63,11 @@ type Container struct {
 	// OCI runtime handler in use, if any.
 	RuntimeHandler string `protobuf:"bytes,18,opt,name=runtime_handler,json=runtimeHandler,proto3" json:"runtime_handler,omitempty"`
 	// Exit code once the container has stopped.
-	ExitCode      string `protobuf:"bytes,19,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
+	ExitCode string `protobuf:"bytes,19,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
+	// Execution engine that owns this container: "apple", "docker" or
+	// "sandbox" (see SystemService.ListRuntimes). Id-based calls are routed
+	// to this engine.
+	Runtime       string `protobuf:"bytes,20,opt,name=runtime,proto3" json:"runtime,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -227,6 +231,13 @@ func (x *Container) GetRuntimeHandler() string {
 func (x *Container) GetExitCode() string {
 	if x != nil {
 		return x.ExitCode
+	}
+	return ""
+}
+
+func (x *Container) GetRuntime() string {
+	if x != nil {
+		return x.Runtime
 	}
 	return ""
 }
@@ -589,7 +600,13 @@ type RunContainerRequest struct {
 	// devices are not passed through. Named `cap_drop` entries still remove
 	// their capabilities; `cap_drop: ["ALL"]` with `privileged` fails with
 	// `invalid_argument`.
-	Privileged    *bool `protobuf:"varint,20,opt,name=privileged,proto3,oneof" json:"privileged,omitempty"`
+	Privileged *bool `protobuf:"varint,20,opt,name=privileged,proto3,oneof" json:"privileged,omitempty"`
+	// Execution engine to run on: "apple" (a micro-VM per container via the
+	// Apple container runtime), "docker" (a Docker Engine socket) or
+	// "sandbox" (an ephemeral in-process micro-VM booted from a cached
+	// rootfs clone). Unset uses the server default (SetDefaultRuntime). An
+	// unknown or unavailable engine fails with `failed_precondition`.
+	Runtime       *string `protobuf:"bytes,21,opt,name=runtime,proto3,oneof" json:"runtime,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -762,6 +779,13 @@ func (x *RunContainerRequest) GetPrivileged() bool {
 		return *x.Privileged
 	}
 	return false
+}
+
+func (x *RunContainerRequest) GetRuntime() string {
+	if x != nil && x.Runtime != nil {
+		return *x.Runtime
+	}
+	return ""
 }
 
 type WaitContainerRequest struct {
@@ -1311,7 +1335,7 @@ var File_micropod_v1_container_proto protoreflect.FileDescriptor
 
 const file_micropod_v1_container_proto_rawDesc = "" +
 	"\n" +
-	"\x1bmicropod/v1/container.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\x1a\x18micropod/v1/system.proto\"\xf3\x06\n" +
+	"\x1bmicropod/v1/container.proto\x12\vmicropod.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x15micropod/v1/api.proto\x1a\x18micropod/v1/system.proto\"\x9d\a\n" +
 	"\tContainer\x12\x1c\n" +
 	"\x02id\x18\x01 \x01(\tB\f\xbaG\t:\a\x12\x05'web'R\x02id\x12*\n" +
 	"\x05image\x18\x02 \x01(\tB\x14\xbaG\x11:\x0f\x12\r'alpine:3.20'R\x05image\x12&\n" +
@@ -1333,7 +1357,8 @@ const file_micropod_v1_container_proto_rawDesc = "" +
 	"\x03ssh\x18\x10 \x01(\bR\x03ssh\x12&\n" +
 	"\x0evirtualization\x18\x11 \x01(\bR\x0evirtualization\x12'\n" +
 	"\x0fruntime_handler\x18\x12 \x01(\tR\x0eruntimeHandler\x12\x1b\n" +
-	"\texit_code\x18\x13 \x01(\tR\bexitCode\x1a9\n" +
+	"\texit_code\x18\x13 \x01(\tR\bexitCode\x12(\n" +
+	"\aruntime\x18\x14 \x01(\tB\x0e\xbaG\v:\t\x12\a'apple'R\aruntime\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"g\n" +
@@ -1357,7 +1382,8 @@ const file_micropod_v1_container_proto_rawDesc = "" +
 	"\x16ListContainersResponse\x126\n" +
 	"\n" +
 	"containers\x18\x01 \x03(\v2\x16.micropod.v1.ContainerR\n" +
-	"containers\"\xd6\t\n" +
+	"containers\"\xab\n" +
+	"\n" +
 	"\x13RunContainerRequest\x124\n" +
 	"\x05image\x18\x01 \x01(\tB\x1e\xbaG\x11:\x0f\x12\r'alpine:3.20'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x05image\x12%\n" +
 	"\x04name\x18\x02 \x01(\tB\f\xbaG\t:\a\x12\x05'web'H\x00R\x04name\x88\x01\x01\x12#\n" +
@@ -1384,7 +1410,8 @@ const file_micropod_v1_container_proto_rawDesc = "" +
 	"\arosetta\x18\x13 \x01(\bB\v\xbaG\b:\x06\x12\x04trueH\aR\arosetta\x88\x01\x01\x120\n" +
 	"\n" +
 	"privileged\x18\x14 \x01(\bB\v\xbaG\b:\x06\x12\x04trueH\bR\n" +
-	"privileged\x88\x01\x01\x1a9\n" +
+	"privileged\x88\x01\x01\x12G\n" +
+	"\aruntime\x18\x15 \x01(\tB(\xbaG\r:\v\x12\t'sandbox'\xbaH\x15r\x132\x11^[a-z][a-z0-9-]*$H\tR\aruntime\x88\x01\x01\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\a\n" +
@@ -1398,7 +1425,9 @@ const file_micropod_v1_container_proto_rawDesc = "" +
 	"\x05_userB\n" +
 	"\n" +
 	"\b_rosettaB\r\n" +
-	"\v_privileged\"y\n" +
+	"\v_privilegedB\n" +
+	"\n" +
+	"\b_runtime\"y\n" +
 	"\x14WaitContainerRequest\x12&\n" +
 	"\x02id\x18\x01 \x01(\tB\x16\xbaG\t:\a\x12\x05'web'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x129\n" +
 	"\x0ftimeout_seconds\x18\x02 \x01(\x05B\x10\xbaG\x06:\x04\x12\x0230\xbaH\x04\x1a\x02(\x00R\x0etimeoutSeconds\"\xae\x01\n" +

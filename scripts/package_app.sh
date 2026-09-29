@@ -122,6 +122,10 @@ if [ -f ".build/release/MicropodAPI" ]; then
     chmod +x "$APP_BUNDLE/Contents/MacOS/MicropodAPI"
     cp .build/release/MicropodAPI "$DIST/micropod-api-bin"
     chmod +x "$DIST/micropod-api-bin"
+    # The sandbox runtime boots micro-VMs inside the API process.
+    for api in "$APP_BUNDLE/Contents/MacOS/MicropodAPI" "$DIST/micropod-api-bin"; do
+        codesign --force --sign - --entitlements signing/micropod-cli.entitlements "$api"
+    done
     echo "==> HTTP API server bundled (MicropodAPI)"
 else
     echo "!! MicropodAPI not found in .build/release — API agent disabled"
@@ -142,6 +146,8 @@ fi
 echo "==> Staging micropod CLI"
 cp .build/release/micropod "$DIST/micropod"
 chmod +x "$DIST/micropod"
+# `micropod sandbox` drives Virtualization.framework in-process.
+codesign --force --sign - --entitlements signing/micropod-cli.entitlements "$DIST/micropod"
 
 echo "==> Staging tarball"
 tar -czf "$DIST/Micropod.$VERSION.tgz" -C "$DIST" "$APP_NAME.app" micropod-mcp micropod-mcp-bin micropod

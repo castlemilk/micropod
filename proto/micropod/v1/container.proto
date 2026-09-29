@@ -92,6 +92,10 @@ message Container {
   string runtime_handler = 18;
   // Exit code once the container has stopped.
   string exit_code = 19;
+  // Execution engine that owns this container: "apple", "docker" or
+  // "sandbox" (see SystemService.ListRuntimes). Id-based calls are routed
+  // to this engine.
+  string runtime = 20 [(gnostic.openapi.v3.property).example = {yaml: "'apple'"}];
 }
 
 message ContainerResources {
@@ -217,6 +221,15 @@ message RunContainerRequest {
   // their capabilities; `cap_drop: ["ALL"]` with `privileged` fails with
   // `invalid_argument`.
   optional bool privileged = 20 [(gnostic.openapi.v3.property).example = {yaml: "true"}];
+  // Execution engine to run on: "apple" (a micro-VM per container via the
+  // Apple container runtime), "docker" (a Docker Engine socket) or
+  // "sandbox" (an ephemeral in-process micro-VM booted from a cached
+  // rootfs clone). Unset uses the server default (SetDefaultRuntime). An
+  // unknown or unavailable engine fails with `failed_precondition`.
+  optional string runtime = 21 [
+    (buf.validate.field).string.pattern = "^[a-z][a-z0-9-]*$",
+    (gnostic.openapi.v3.property).example = {yaml: "'sandbox'"}
+  ];
 }
 
 message WaitContainerRequest {

@@ -678,9 +678,37 @@ func TestPingAdvertisesFeatures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.Join(res.Msg.GetFeatures(), ","); got != "cap_add,cap_drop,rosetta,privileged" {
+	if got := strings.Join(res.Msg.GetFeatures(), ","); got != "cap_add,cap_drop,rosetta,privileged,runtime" {
 		t.Fatalf("features = %q", got)
 	}
+	if got := res.Msg.GetDefaultRuntime(); got != "apple" {
+		t.Fatalf("default runtime = %q", got)
+	}
+}
+
+// The Go server drives only the apple engine: it lists it, accepts it as the
+// default, and refuses every other engine instead of silently running on apple.
+func TestRuntimesAreAppleOnly(t *testing.T) {
+	c := newTestServer(t)
+	ctx := context.Background()
+	res, err := c.system.ListRuntimes(ctx, connect.NewRequest(&micropodv1.Empty{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Msg.Runtimes) != 1 || res.Msg.Runtimes[0].Name != "apple" || !res.Msg.Runtimes[0].Default {
+		t.Fatalf("runtimes = %v", res.Msg.Runtimes)
+	}
+	if _, err := c.system.SetDefaultRuntime(ctx, connect.NewRequest(&micropodv1.SetDefaultRuntimeRequest{Name: "apple"})); err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.system.SetDefaultRuntime(ctx, connect.NewRequest(&micropodv1.SetDefaultRuntimeRequest{Name: "sandbox"}))
+	requireCode(t, err, connect.CodeFailedPrecondition)
+	no := false
+	_, err = c.system.UpdateRuntime(ctx, connect.NewRequest(&micropodv1.UpdateRuntimeRequest{Name: "apple", Enabled: &no}))
+	requireCode(t, err, connect.CodeFailedPrecondition)
+	docker := "docker"
+	_, err = c.containers.RunContainer(ctx, connect.NewRequest(&micropodv1.RunContainerRequest{Image: "alpine:3.20", Runtime: &docker}))
+	requireCode(t, err, connect.CodeFailedPrecondition)
 }
 
 func TestCreateContainerRejectsUnknownCapability(t *testing.T) {

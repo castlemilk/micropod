@@ -4,6 +4,7 @@ package micropod.v1;
 
 option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
 
+import "buf/validate/validate.proto";
 import "gnostic/openapi/v3/annotations.proto";
 import "micropod/v1/api.proto";
 import "micropod/v1/image.proto";
@@ -29,6 +30,79 @@ service SystemService {
   // usage. Answers `status: stopped` (never an error) when the runtime is
   // down but the API server is up.
   rpc Ping(Empty) returns (PingResponse);
+  // Execution engines this server can drive, with availability,
+  // capabilities and which one is the default for new containers.
+  rpc ListRuntimes(Empty) returns (ListRuntimesResponse);
+  // Persist the engine new containers run on when RunContainerRequest
+  // leaves `runtime` unset. Fails with `failed_precondition` for an
+  // unknown or unavailable engine.
+  rpc SetDefaultRuntime(SetDefaultRuntimeRequest) returns (ListRuntimesResponse);
+  // Enable/disable an engine or point it at a different endpoint (e.g. the
+  // Docker engine at an OrbStack or colima socket). Disabled engines are
+  // left out of ListContainers and refuse RunContainer. The default engine
+  // cannot be disabled (`failed_precondition`). Persisted server-side.
+  rpc UpdateRuntime(UpdateRuntimeRequest) returns (ListRuntimesResponse);
+}
+
+// One execution engine (see ListRuntimes).
+message RuntimeInfo {
+  // Engine name used in RunContainerRequest.runtime: "apple", "docker",
+  // "sandbox".
+  string name = 1 [(gnostic.openapi.v3.property).example = {yaml: "'apple'"}];
+  // What kind of isolation it provides: "vm" (micro-VM per container via
+  // a runtime daemon), "microvm" (in-process ephemeral micro-VM) or
+  // "container" (shared-kernel containers inside one VM).
+  string kind = 2 [(gnostic.openapi.v3.property).example = {yaml: "'vm'"}];
+  // Human-readable one-liner.
+  string description = 3;
+  // True when the engine can take work right now.
+  bool available = 4 [(gnostic.openapi.v3.property).example = {yaml: "true"}];
+  // Why it is unavailable (empty when available).
+  string reason = 5 [(gnostic.openapi.v3.property).example = {yaml: "'Docker socket not found'"}];
+  // Engine version when known.
+  string version = 6 [(gnostic.openapi.v3.property).example = {yaml: "'1.3.1'"}];
+  // Where the engine lives: a socket path, install root or state dir.
+  string endpoint = 7 [(gnostic.openapi.v3.property).example = {yaml: "'unix:///var/run/docker.sock'"}];
+  // Default engine for RunContainer when `runtime` is unset.
+  bool default = 8;
+  // Container operations the engine supports: "run", "create", "start",
+  // "stop", "kill", "delete", "exec", "logs", "stats", "ports", "volumes".
+  // Calls outside this set fail with `unimplemented`.
+  repeated string capabilities = 9 [(gnostic.openapi.v3.property).example = {yaml: "['run', 'exec', 'logs']"}];
+  // Enabled engines contribute to ListContainers and accept RunContainer.
+  // "docker" starts disabled so an existing Docker Desktop's containers
+  // don't appear until asked for.
+  bool enabled = 10 [(gnostic.openapi.v3.property).example = {yaml: "true"}];
+}
+
+message ListRuntimesResponse {
+  repeated RuntimeInfo runtimes = 1;
+  // Name of the default engine.
+  string default = 2 [(gnostic.openapi.v3.property).example = {yaml: "'apple'"}];
+}
+
+message UpdateRuntimeRequest {
+  // Engine name from ListRuntimes.
+  string name = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.pattern = "^[a-z][a-z0-9-]*$",
+    (gnostic.openapi.v3.property).example = {yaml: "'docker'"}
+  ];
+  // Enable or disable the engine; unset leaves it unchanged.
+  optional bool enabled = 2 [(gnostic.openapi.v3.property).example = {yaml: "true"}];
+  // Engine endpoint override; empty string restores the default. Docker:
+  // "unix:///path/docker.sock" or "tcp://host:port" (plain HTTP). Other
+  // engines reject an endpoint with `invalid_argument`.
+  optional string endpoint = 3 [(gnostic.openapi.v3.property).example = {yaml: "'unix:///Users/me/.orbstack/run/docker.sock'"}];
+}
+
+message SetDefaultRuntimeRequest {
+  // Engine name from ListRuntimes.
+  string name = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.pattern = "^[a-z][a-z0-9-]*$",
+    (gnostic.openapi.v3.property).example = {yaml: "'sandbox'"}
+  ];
 }
 
 // Cheap liveness reply for detection and health ticks (see Ping).
@@ -47,6 +121,9 @@ message PingResponse {
   // `RunContainerRequest` field names: "cap_add", "cap_drop", "rosetta",
   // "privileged". Empty on servers that predate the list.
   repeated string features = 5 [(gnostic.openapi.v3.property).example = {yaml: "['cap_add', 'cap_drop', 'rosetta', 'privileged']"}];
+  // Engine RunContainer uses when `runtime` is unset (see ListRuntimes).
+  // Empty on servers that predate engine selection.
+  string default_runtime = 6 [(gnostic.openapi.v3.property).example = {yaml: "'apple'"}];
 }
 
 message SystemSnapshot {

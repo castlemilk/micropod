@@ -44,6 +44,10 @@ final class MicropodAPITests: XCTestCase {
                 "MICROPOD_MOCK_STATE_DIR": stateDir.path,
                 "MICROPOD_API_PORT": String(port),
                 "MICROPOD_VOLUME_POLICY": stateDir.appendingPathComponent("policy.json").path,
+                // Never read or write the developer's real engine config.
+                "MICROPOD_RUNTIMES_CONFIG": stateDir.appendingPathComponent("runtimes.json").path,
+                // Deterministic engine availability: no real Docker daemon.
+                "DOCKER_HOST": "unix:///nonexistent/docker.sock",
                 // Clone images never leave the test's state dir — commit
                 // tests pre-create `<root>/<container>/<volume>.img` here.
                 "MICROPOD_VOLUME_CLONE_ROOT": stateDir.appendingPathComponent("clones").path,
@@ -398,7 +402,7 @@ final class MicropodAPITests: XCTestCase {
                 "POST /v1/containers HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\nTransfer-Encoding: chunked\r\n\r\nzz\r\n",
                 "400"
             ),
-            ("PATCH /v1/containers HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\n\r\n", "405"),
+            ("TRACE /v1/containers HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\n\r\n", "405"),
         ]
         for (request, status) in cases {
             let raw = try await Task.detached { try RawHTTP.exchange(port: port, request: request) }.value
@@ -892,11 +896,67 @@ final class MicropodAPITests: XCTestCase {
     /// Clients detect the optional RunContainer fields from Ping (and the
     /// REST system read) instead of sending them to a server that would
     /// silently drop them.
+    /// Engine management over Connect + REST: listing, validation, and
+    /// routing refusals for unknown/disabled/unavailable engines.
+    func testRuntimeEngineManagement() async throws {
+        let list = try await json("POST", "api/micropod.v1.SystemService/ListRuntimes", body: [:])
+        let runtimes = try XCTUnwrap(list["runtimes"] as? [[String: Any]])
+        XCTAssertEqual(runtimes.map { $0["name"] as? String }, ["apple", "docker", "sandbox"])
+        XCTAssertEqual(list["default"] as? String, "apple")
+        XCTAssertEqual(runtimes[1]["available"] as? Bool ?? false, false)
+        XCTAssertEqual(runtimes[1]["reason"] as? String, "Docker socket not found")
+
+        let ping = try await json("POST", "api/micropod.v1.SystemService/Ping", body: [:])
+        XCTAssertEqual(ping["defaultRuntime"] as? String, "apple")
+
+        // Unavailable engines can't become the default; the default can't be disabled.
+        let (setStatus, setBody) = try await jsonStatus(
+            "POST", "api/micropod.v1.SystemService/SetDefaultRuntime", body: ["name": "docker"])
+        XCTAssertEqual(setStatus, 412)
+        XCTAssertEqual(setBody["code"] as? String, "failed_precondition", "\(setBody)")
+        let (_, disable) = try await jsonStatus(
+            "POST", "api/micropod.v1.SystemService/UpdateRuntime", body: ["name": "apple", "enabled": false])
+        XCTAssertEqual(disable["code"] as? String, "failed_precondition")
+        let (_, badEndpoint) = try await jsonStatus(
+            "POST", "api/micropod.v1.SystemService/UpdateRuntime", body: ["name": "docker", "endpoint": "ftp://x"])
+        XCTAssertEqual(badEndpoint["code"] as? String, "invalid_argument")
+
+        // Enabling persists and shows up in both surfaces.
+        let enabled = try await json(
+            "POST", "api/micropod.v1.SystemService/UpdateRuntime", body: ["name": "docker", "enabled": true])
+        let docker = (enabled["runtimes"] as? [[String: Any]])?.first { $0["name"] as? String == "docker" }
+        XCTAssertEqual(docker?["enabled"] as? Bool, true)
+        let rest = try await json("GET", "v1/runtimes")
+        XCTAssertEqual(
+            ((rest["runtimes"] as? [[String: Any]])?.first { $0["name"] as? String == "docker" })?["enabled"] as? Bool,
+            true)
+
+        // Routing refusals.
+        let (_, unknown) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/RunContainer", body: ["image": "alpine", "runtime": "nope"])
+        XCTAssertEqual(unknown["code"] as? String, "failed_precondition", "\(unknown)")
+        let (_, unavailable) = try await jsonStatus(
+            "POST", "api/micropod.v1.ContainerService/RunContainer", body: ["image": "alpine", "runtime": "docker"])
+        XCTAssertEqual(unavailable["code"] as? String, "failed_precondition", "\(unavailable)")
+        let (restStatus, _) = try await jsonStatus("POST", "v1/containers", body: ["image": "alpine", "runtime": 5])
+        XCTAssertEqual(restStatus, 400, "a non-string runtime is a bad request")
+    }
+
+    /// Containers carry the engine that owns them.
+    func testContainersReportRuntime() async throws {
+        let created = try await json("POST", "v1/containers", body: ["image": "alpine"])
+        let id = try XCTUnwrap(created["id"] as? String)
+        let list = try await json("POST", "api/micropod.v1.ContainerService/ListContainers", body: [:])
+        let owned = (list["containers"] as? [[String: Any]])?.first { $0["id"] as? String == id }
+        XCTAssertEqual(owned?["runtime"] as? String, "apple", "\(list)")
+    }
+
     func testPingAdvertisesFeatures() async throws {
         let ping = try await json("POST", "api/micropod.v1.SystemService/Ping", body: [:])
-        XCTAssertEqual(ping["features"] as? [String], ["cap_add", "cap_drop", "rosetta", "privileged"], "\(ping)")
+        XCTAssertEqual(
+            ping["features"] as? [String], ["cap_add", "cap_drop", "rosetta", "privileged", "runtime"], "\(ping)")
         let system = try await json("GET", "v1/system")
-        XCTAssertEqual(system["features"] as? [String], ["cap_add", "cap_drop", "rosetta", "privileged"])
+        XCTAssertEqual(system["features"] as? [String], ["cap_add", "cap_drop", "rosetta", "privileged", "runtime"])
     }
 
     /// Legacy REST: a mistyped capability list or flag is a 400, never a

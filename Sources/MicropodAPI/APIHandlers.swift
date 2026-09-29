@@ -206,6 +206,24 @@ final class APIHandlers: Sendable {
                 }
                 return .json(200, body)
 
+            // MARK: Runtimes (execution engines)
+            case ("runtimes", .get) where segments.count == 2:
+                return .json(200, try runtimesBody(try await runtimes(services)))
+
+            case ("runtimes", .put) where segments.count == 3 && segments[2] == "default":
+                let payload = try decodeBody(request.body)
+                guard let name = payload["name"] as? String else {
+                    throw BadRequest(message: "expected {\"name\": \"apple|docker|sandbox\"}")
+                }
+                return .json(200, try runtimesBody(try await setDefaultRuntime(name, services)))
+
+            case ("runtimes", .patch) where segments.count == 3:
+                let payload = try decodeBody(request.body)
+                let enabled = payload["enabled"] as? Bool
+                let endpoint = payload["endpoint"] as? String
+                return .json(
+                    200, try runtimesBody(try await updateRuntime(segments[2], enabled, endpoint, services)))
+
             // MARK: Containers
             case ("containers", .get) where segments.count == 2:
                 let list = await withExitCodes(try await services.containers.list(), from: services.exitCodes)
@@ -530,6 +548,14 @@ final class APIHandlers: Sendable {
         return object
     }
 
+    /// `runtime` must be an engine-name string when present.
+    private func runtimeName(_ raw: Any?) throws -> String? {
+        guard let raw, !(raw is NSNull) else { return nil }
+        guard let name = raw as? String, name.range(of: "^[a-z][a-z0-9-]*$", options: .regularExpression) != nil
+        else { throw BadRequest(message: "runtime must be an engine name, e.g. \"sandbox\"") }
+        return name
+    }
+
     private func runRequest(from data: Data) throws -> ContainerRunRequest {
         let payload = try decodeBody(data)
         let env = (payload["env"] as? [String]) ?? []
@@ -607,7 +633,8 @@ final class APIHandlers: Sendable {
             capAdd: capAdd,
             capDrop: capDrop,
             arguments: (payload["arguments"] as? [String]) ?? [],
-            privileged: privileged)
+            privileged: privileged,
+            runtime: try runtimeName(payload["runtime"]))
     }
 
     // MARK: - JSON projections (proto → API JSON)
@@ -641,6 +668,7 @@ final class APIHandlers: Sendable {
     private func projection(_ container: Micropod_V1_Container) -> [String: Any] {
         [
             "id": container.id,
+            "runtime": container.runtime,
             "state": container.state,
             "exitCode": container.exitCode,
             "image": container.image,
@@ -733,4 +761,44 @@ final class APIHandlers: Sendable {
 /// A request the REST handlers refuse before it reaches a service — `400`.
 private struct BadRequest: Error {
     let message: String
+}
+
+// MARK: - Runtime engine management (shared by Connect + REST)
+
+extension APIHandlers {
+    /// The apple engine behind these services, whether routed or not.
+    private func appleEngine(_ services: RuntimeServices) -> AppleEngine {
+        services.router?.apple ?? AppleEngine(services: services)
+    }
+
+    func runtimes(_ services: RuntimeServices) async throws -> Micropod_V1_ListRuntimesResponse {
+        await EngineRegistry.shared.describe(apple: appleEngine(services))
+    }
+
+    func setDefaultRuntime(_ name: String, _ services: RuntimeServices) async throws
+        -> Micropod_V1_ListRuntimesResponse
+    {
+        try await EngineRegistry.shared.setDefault(name, apple: appleEngine(services))
+        return try await runtimes(services)
+    }
+
+    func updateRuntime(_ name: String, _ enabled: Bool?, _ endpoint: String?, _ services: RuntimeServices)
+        async throws -> Micropod_V1_ListRuntimesResponse
+    {
+        try EngineRegistry.shared.update(name, enabled: enabled, endpoint: endpoint)
+        return try await runtimes(services)
+    }
+
+    func runtimesBody(_ response: Micropod_V1_ListRuntimesResponse) throws -> [String: Any] {
+        [
+            "default": response.default,
+            "runtimes": response.runtimes.map { r in
+                [
+                    "name": r.name, "kind": r.kind, "description": r.description_p, "available": r.available,
+                    "reason": r.reason, "version": r.version, "endpoint": r.endpoint, "default": r.default,
+                    "enabled": r.enabled, "capabilities": r.capabilities,
+                ] as [String: Any]
+            },
+        ]
+    }
 }

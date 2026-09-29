@@ -249,7 +249,22 @@ private actor MCPServer {
         ("restart", "Restart a container (stop then start). Arguments: id."),
         ("kill", "Kill a container. Arguments: id."),
         ("delete", "Force-delete a container. Arguments: id."),
-        ("run", "Run a container. Arguments: image (required), name (optional), memory (optional)."),
+        (
+            "run",
+            "Run a container. Arguments: image (required), name (optional), memory (optional), "
+                + "runtime (optional: apple | docker | sandbox; default is the configured engine)."
+        ),
+        (
+            "runtimes",
+            "Execution engines micropod can drive (apple VMs, docker, sandbox micro-VMs): availability, "
+                + "enabled, default, capabilities. Needs the Micropod API daemon."
+        ),
+        ("runtime_set_default", "Set the default engine for new containers. Arguments: name (apple|docker|sandbox)."),
+        (
+            "runtime_update",
+            "Enable/disable an engine or change its endpoint. Arguments: name (required), "
+                + "enabled (optional bool), endpoint (optional, docker only: unix:///path or tcp://host:port)."
+        ),
         ("exec", "Run a command in a running container. Arguments: id (required), command (required)."),
         ("logs", "Last 100 log lines of a container. Arguments: id."),
         ("stats", "Resource usage for all running containers (memory/CPU/net)."),
@@ -377,6 +392,33 @@ private actor MCPServer {
             case "delete":
                 try await containers.delete(string("id"), force: true)
                 return toolResult(id, "Deleted \(string("id"))")
+
+            case "run" where !string("runtime").isEmpty && string("runtime") != "apple":
+                // Non-apple engines are owned by the API daemon (sandbox VMs
+                // live in its process), so route the run through it.
+                var body: [String: Any] = ["image": string("image"), "runtime": string("runtime")]
+                if !string("name").isEmpty { body["name"] = string("name") }
+                if !string("memory").isEmpty { body["memory"] = string("memory") }
+                let reply = try await LocalAPI.call("POST", "/v1/containers", body)
+                return toolResult(id, "Started \(reply["id"] as? String ?? "?") on \(string("runtime"))")
+
+            case "runtimes":
+                return toolResult(id, LocalAPI.describe(try await LocalAPI.call("GET", "/v1/runtimes")))
+
+            case "runtime_set_default":
+                let reply = try await LocalAPI.call("PUT", "/v1/runtimes/default", ["name": string("name")])
+                return toolResult(id, "Default runtime → \(reply["default"] as? String ?? "?")")
+
+            case "runtime_update":
+                var body: [String: Any] = [:]
+                switch args["enabled"] {
+                case .bool(let enabled)?: body["enabled"] = enabled
+                case .string?: body["enabled"] = flag("enabled")
+                default: break
+                }
+                if case .string(let endpoint)? = args["endpoint"] { body["endpoint"] = endpoint }
+                let reply = try await LocalAPI.call("PATCH", "/v1/runtimes/\(string("name"))", body)
+                return toolResult(id, LocalAPI.describe(reply))
 
             case "run":
                 var request = ContainerRunRequest(
@@ -726,5 +768,47 @@ private actor MCPServer {
         } catch {
             return toolResult(id, error.localizedDescription, isError: true)
         }
+    }
+}
+
+/// The local Micropod API daemon — owner of engine config and sandbox VMs.
+enum LocalAPI {
+    static var baseURL: URL {
+        let port = ProcessInfo.processInfo.environment["MICROPOD_API_PORT"] ?? "45454"
+        return URL(string: "http://127.0.0.1:\(port)")!
+    }
+
+    static func call(_ method: String, _ path: String, _ body: [String: Any]? = nil) async throws -> [String: Any] {
+        var request = URLRequest(url: baseURL.appendingPathComponent(path))
+        request.httpMethod = method
+        request.timeoutInterval = 120
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let body { request.httpBody = try JSONSerialization.data(withJSONObject: body) }
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw MicropodError.message("Micropod API daemon not reachable at \(baseURL) — start the Micropod app")
+        }
+        let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw MicropodError.message(json["error"] as? String ?? json["message"] as? String ?? "API error")
+        }
+        return json
+    }
+
+    /// `/v1/runtimes` → one line per engine.
+    static func describe(_ json: [String: Any]) -> String {
+        let runtimes = json["runtimes"] as? [[String: Any]] ?? []
+        return runtimes.map { r in
+            let name = r["name"] as? String ?? "?"
+            let marker = (r["default"] as? Bool ?? false) ? "*" : " "
+            let available =
+                (r["available"] as? Bool ?? false) ? "available" : "unavailable: \(r["reason"] as? String ?? "")"
+            let enabled = (r["enabled"] as? Bool ?? false) ? "enabled" : "disabled"
+            return
+                "\(marker) \(name)\t\(r["kind"] as? String ?? "")\t\(available)\t\(enabled)\t\(r["endpoint"] as? String ?? "")"
+        }.joined(separator: "\n")
     }
 }

@@ -151,11 +151,13 @@ func (s *Server) GetSystem(ctx context.Context, req *connect.Request[micropodv1.
 // CLI version is memoised so repeated pings cost a single process.
 // Features are the optional RunContainerRequest capabilities this server
 // honours (PingResponse.features). Mirrors MicropodCore's APIFeatures.
-var Features = []string{"cap_add", "cap_drop", "rosetta", "privileged"}
+var Features = []string{"cap_add", "cap_drop", "rosetta", "privileged", "runtime"}
 
 func (s *Server) Ping(ctx context.Context, req *connect.Request[micropodv1.Empty]) (*connect.Response[micropodv1.PingResponse], error) {
 	version, _ := s.cachedCLIVersion(ctx)
-	res := &micropodv1.PingResponse{RuntimeBackend: runtimeBackend, CliVersion: version, Features: Features}
+	res := &micropodv1.PingResponse{
+		RuntimeBackend: runtimeBackend, CliVersion: version, Features: Features, DefaultRuntime: appleRuntime,
+	}
 	status, stopped, err := s.systemStatus(ctx)
 	switch {
 	case err != nil:
@@ -167,6 +169,60 @@ func (s *Server) Ping(ctx context.Context, req *connect.Request[micropodv1.Empty
 		res.ApiServerVersion = status.APIServerVersion
 	}
 	return connect.NewResponse(res), nil
+}
+
+// appleRuntime is the only engine this server drives.
+const appleRuntime = "apple"
+
+// ListRuntimes reports the single apple engine this server drives.
+func (s *Server) ListRuntimes(ctx context.Context, req *connect.Request[micropodv1.Empty]) (*connect.Response[micropodv1.ListRuntimesResponse], error) {
+	return connect.NewResponse(s.runtimes(ctx)), nil
+}
+
+func (s *Server) runtimes(ctx context.Context) *micropodv1.ListRuntimesResponse {
+	info := &micropodv1.RuntimeInfo{
+		Name:        appleRuntime,
+		Kind:        "vm",
+		Description: "Apple container runtime — one micro-VM per container",
+		Endpoint:    s.cli.Bin,
+		Default:     true,
+		Enabled:     true,
+		Capabilities: []string{
+			"run", "create", "start", "stop", "restart", "kill", "delete", "exec", "logs", "stats", "ports", "volumes",
+		},
+	}
+	if s.cli.Available() {
+		info.Available = true
+		info.Version, _ = s.cachedCLIVersion(ctx)
+	} else {
+		info.Reason = "container CLI not found at " + s.cli.Bin
+	}
+	return &micropodv1.ListRuntimesResponse{Runtimes: []*micropodv1.RuntimeInfo{info}, Default: appleRuntime}
+}
+
+// SetDefaultRuntime accepts only "apple" — the one engine this server has.
+func (s *Server) SetDefaultRuntime(ctx context.Context, req *connect.Request[micropodv1.SetDefaultRuntimeRequest]) (*connect.Response[micropodv1.ListRuntimesResponse], error) {
+	if req.Msg.Name != appleRuntime {
+		return nil, connect.NewError(connect.CodeFailedPrecondition,
+			fmt.Errorf("runtime %q is not available on this server (only %q)", req.Msg.Name, appleRuntime))
+	}
+	return connect.NewResponse(s.runtimes(ctx)), nil
+}
+
+// UpdateRuntime can't disable or re-point the apple engine.
+func (s *Server) UpdateRuntime(ctx context.Context, req *connect.Request[micropodv1.UpdateRuntimeRequest]) (*connect.Response[micropodv1.ListRuntimesResponse], error) {
+	switch {
+	case req.Msg.Name != appleRuntime:
+		return nil, connect.NewError(connect.CodeFailedPrecondition,
+			fmt.Errorf("runtime %q is not available on this server (only %q)", req.Msg.Name, appleRuntime))
+	case req.Msg.Enabled != nil && !*req.Msg.Enabled:
+		return nil, connect.NewError(connect.CodeFailedPrecondition,
+			errors.New("apple is the default runtime and cannot be disabled"))
+	case req.Msg.Endpoint != nil && *req.Msg.Endpoint != "":
+		return nil, connect.NewError(connect.CodeInvalidArgument,
+			errors.New("runtime \"apple\" has no configurable endpoint"))
+	}
+	return connect.NewResponse(s.runtimes(ctx)), nil
 }
 
 func category(c clicli.DiskCategory) *micropodv1.DiskCategory {
@@ -461,6 +517,12 @@ func effectiveCapAdd(req *micropodv1.RunContainerRequest) []string {
 // place, and refuses cap_drop ALL together with privileged or cap_add ALL
 // (the runtime would silently grant every capability).
 func normalizeRunRequest(req *micropodv1.RunContainerRequest) error {
+	// This server only drives the apple engine (the `container` CLI); the
+	// docker and sandbox engines live in the Swift MicropodAPI.
+	if req.Runtime != nil && *req.Runtime != appleRuntime {
+		return connect.NewError(connect.CodeFailedPrecondition,
+			fmt.Errorf("runtime %q is not available on this server (only %q)", *req.Runtime, appleRuntime))
+	}
 	var err error
 	if req.CapAdd, err = normalizeCapabilities("cap_add", req.CapAdd); err != nil {
 		return err

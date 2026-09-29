@@ -46,6 +46,22 @@ extension APIHandlers {
             case "Ping":
                 return unary(await ping(services))
 
+            case "ListRuntimes":
+                return unary(try await runtimes(services))
+
+            case "SetDefaultRuntime":
+                let req = try decode(Micropod_V1_SetDefaultRuntimeRequest.self, body)
+                try required(req.name, "name")
+                return unary(try await setDefaultRuntime(req.name, services))
+
+            case "UpdateRuntime":
+                let req = try decode(Micropod_V1_UpdateRuntimeRequest.self, body)
+                try required(req.name, "name")
+                return unary(
+                    try await updateRuntime(
+                        req.name, req.hasEnabled ? req.enabled : nil, req.hasEndpoint ? req.endpoint : nil,
+                        services))
+
             case "ListContainers":
                 var resp = Micropod_V1_ListContainersResponse()
                 resp.containers = await withExitCodes(
@@ -413,6 +429,7 @@ extension APIHandlers {
         var response = Micropod_V1_PingResponse()
         response.runtimeBackend = services.kind.rawValue
         response.features = APIFeatures.supported
+        response.defaultRuntime = EngineRegistry.shared.defaultName
         if let api = services.api {
             if let health = try? await api.ping(timeout: .seconds(2)) {
                 response.status = "running"
@@ -819,7 +836,8 @@ extension APIHandlers {
             workdir: proto.hasWorkdir ? proto.workdir : nil,
             entrypoint: proto.hasEntrypoint ? proto.entrypoint : nil,
             arguments: proto.arguments,
-            noPull: proto.noPull)
+            noPull: proto.noPull,
+            runtime: proto.hasRuntime ? proto.runtime : nil)
         do {
             try request.applySecurityOptions(from: proto)
         } catch let error as LinuxCapabilities.InvalidName {

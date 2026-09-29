@@ -230,6 +230,7 @@ final class RealConnectCapsTests: XCTestCase {
         environment["MICROPOD_RUNTIME"] = backend
         environment["MICROPOD_API_PORT"] = String(port)
         environment["MICROPOD_VOLUME_POLICY"] = stateDir.appendingPathComponent("policy.json").path
+        environment["MICROPOD_RUNTIMES_CONFIG"] = stateDir.appendingPathComponent("runtimes.json").path
         environment["MICROPOD_VOLUME_CLONE_ROOT"] = stateDir.appendingPathComponent("clones").path
 
         let process = Process()

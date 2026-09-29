@@ -82,8 +82,9 @@ def main():
                 "pull", "push", "df", "compose_up", "compose_down", "compose_ps",
                 "share_mount", "share_unmount", "share_list", "share_sync", "share_gc",
                 "build_cache_stats", "volume_policy", "volume_policy_set",
-                "update_check", "update_status", "update_apply"}
-    check("all 32 tools advertised", set(names) == expected, f"got {sorted(names)}")
+                "update_check", "update_status", "update_apply",
+                "runtimes", "runtime_set_default", "runtime_update"}
+    check("all 35 tools advertised", set(names) == expected, f"got {sorted(names)}")
 
     def call(tool_id, tool, **arguments):
         (responses, _) = rpc(binary, state_dir, args.cli, [

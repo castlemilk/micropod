@@ -479,6 +479,10 @@ public struct ContainerRunRequest: Sendable, Equatable {
     /// `--cap-add ALL --read-only-path NONE --masked-path NONE`; native:
     /// `capAdd: [ALL]`, `readonlyPaths: []`, `maskedPaths: []`.
     public var privileged: Bool
+    /// Execution engine (`RunContainerRequest.runtime`): "apple", "docker",
+    /// "sandbox"; nil means the configured default. Routing only — never
+    /// part of the `container` argv.
+    public var runtime: String?
 
     public init(
         image: String,
@@ -510,7 +514,8 @@ public struct ContainerRunRequest: Sendable, Equatable {
         entrypoint: String? = nil,
         arguments: [String] = [],
         noPull: Bool = false,
-        privileged: Bool = false
+        privileged: Bool = false,
+        runtime: String? = nil
     ) {
         self.image = image
         self.name = name
@@ -541,6 +546,7 @@ public struct ContainerRunRequest: Sendable, Equatable {
         self.entrypoint = entrypoint
         self.arguments = arguments
         self.noPull = noPull
+        self.runtime = runtime
         self.privileged = privileged
     }
 }

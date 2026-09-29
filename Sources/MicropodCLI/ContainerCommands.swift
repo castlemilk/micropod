@@ -1,5 +1,6 @@
 import Foundation
 import MicropodCore
+import MicropodRuntime
 
 enum ContainerCommands {
     static let lifecycleFlags: Set<String> = [
@@ -63,6 +64,12 @@ enum ContainerCommands {
             headers += ["CPU", "MEMORY"]
         }
         headers += ["IP", "PORTS", "CREATED"]
+        // A RUNTIME column only once more than one engine is in play.
+        if Set(containers.map(\.runtime)).count > 1 {
+            headers.append("RUNTIME")
+            print(renderTable(headers: headers, rows: zip(rows, containers).map { $0 + [$1.runtime] }))
+            return
+        }
         print(renderTable(headers: headers, rows: rows))
     }
 
@@ -143,6 +150,7 @@ enum ContainerCommands {
             "--tmpfs", "--label", "-l", "--network", "--memory", "-m", "--cpus",
             "--entrypoint", "--workdir", "-w", "--user", "-u", "--platform",
             "--shm-size", "--dns", "--dns-search", "--cap-add", "--cap-drop", "--ulimit",
+            "--runtime",
         ]
         let aliases = [
             "-e": "--env", "-p": "--publish", "-v": "--volume", "-l": "--label",
@@ -154,12 +162,30 @@ enum ContainerCommands {
             throw UsageError(message: "run [flags] <image> [args…]")
         }
         let request = buildRunRequest(parsed, image: image)
+        // Sandbox sessions are owned by the process that boots them, so a
+        // detached CLI run would die with this process: run it to
+        // completion in the foreground instead. Long-lived sandbox
+        // containers go through the API daemon.
+        if (request.runtime ?? EngineRegistry.shared.defaultName) == "sandbox" {
+            guard !create else {
+                throw UsageError(message: "create on the sandbox runtime needs the API daemon (micropod-api)")
+            }
+            var options = try SandboxEngine.options(from: request)
+            options.network = !request.networks.isEmpty && request.networks != ["none"]
+            MicropodCLI.exitOverride = try await SandboxVM.run(options) { msg in
+                FileHandle.standardError.write(Data("sandbox: \(msg)\n".utf8))
+            }
+            return
+        }
         if create {
             let id = try await services.containers.create(request)
             print("Created \(id)")
             return
         }
         if parsed.has("--attach") {
+            guard (request.runtime ?? EngineRegistry.shared.defaultName) == "apple" else {
+                throw UsageError(message: "--attach is only supported on the apple runtime")
+            }
             var attached = request
             attached.detach = false
             for try await chunk in services.client.stream(ContainerCommandFactory.run(attached)) {
@@ -202,7 +228,8 @@ enum ContainerCommands {
             platform: parsed.value("--platform"),
             workdir: parsed.value("--workdir"),
             entrypoint: parsed.value("--entrypoint"),
-            arguments: Array(parsed.positionals.dropFirst()))
+            arguments: Array(parsed.positionals.dropFirst()),
+            runtime: parsed.value("--runtime"))
     }
 
     static func parsePorts(_ spec: String) -> [PortSpec] {

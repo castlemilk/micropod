@@ -48,6 +48,15 @@ const (
 	SystemServiceApplyUpdateProcedure = "/micropod.v1.SystemService/ApplyUpdate"
 	// SystemServicePingProcedure is the fully-qualified name of the SystemService's Ping RPC.
 	SystemServicePingProcedure = "/micropod.v1.SystemService/Ping"
+	// SystemServiceListRuntimesProcedure is the fully-qualified name of the SystemService's
+	// ListRuntimes RPC.
+	SystemServiceListRuntimesProcedure = "/micropod.v1.SystemService/ListRuntimes"
+	// SystemServiceSetDefaultRuntimeProcedure is the fully-qualified name of the SystemService's
+	// SetDefaultRuntime RPC.
+	SystemServiceSetDefaultRuntimeProcedure = "/micropod.v1.SystemService/SetDefaultRuntime"
+	// SystemServiceUpdateRuntimeProcedure is the fully-qualified name of the SystemService's
+	// UpdateRuntime RPC.
+	SystemServiceUpdateRuntimeProcedure = "/micropod.v1.SystemService/UpdateRuntime"
 )
 
 // SystemServiceClient is a client for the micropod.v1.SystemService service.
@@ -69,6 +78,18 @@ type SystemServiceClient interface {
 	// usage. Answers `status: stopped` (never an error) when the runtime is
 	// down but the API server is up.
 	Ping(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.PingResponse], error)
+	// Execution engines this server can drive, with availability,
+	// capabilities and which one is the default for new containers.
+	ListRuntimes(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.ListRuntimesResponse], error)
+	// Persist the engine new containers run on when RunContainerRequest
+	// leaves `runtime` unset. Fails with `failed_precondition` for an
+	// unknown or unavailable engine.
+	SetDefaultRuntime(context.Context, *connect.Request[v1.SetDefaultRuntimeRequest]) (*connect.Response[v1.ListRuntimesResponse], error)
+	// Enable/disable an engine or point it at a different endpoint (e.g. the
+	// Docker engine at an OrbStack or colima socket). Disabled engines are
+	// left out of ListContainers and refuse RunContainer. The default engine
+	// cannot be disabled (`failed_precondition`). Persisted server-side.
+	UpdateRuntime(context.Context, *connect.Request[v1.UpdateRuntimeRequest]) (*connect.Response[v1.ListRuntimesResponse], error)
 }
 
 // NewSystemServiceClient constructs a client for the micropod.v1.SystemService service. By default,
@@ -118,17 +139,38 @@ func NewSystemServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(systemServiceMethods.ByName("Ping")),
 			connect.WithClientOptions(opts...),
 		),
+		listRuntimes: connect.NewClient[v1.Empty, v1.ListRuntimesResponse](
+			httpClient,
+			baseURL+SystemServiceListRuntimesProcedure,
+			connect.WithSchema(systemServiceMethods.ByName("ListRuntimes")),
+			connect.WithClientOptions(opts...),
+		),
+		setDefaultRuntime: connect.NewClient[v1.SetDefaultRuntimeRequest, v1.ListRuntimesResponse](
+			httpClient,
+			baseURL+SystemServiceSetDefaultRuntimeProcedure,
+			connect.WithSchema(systemServiceMethods.ByName("SetDefaultRuntime")),
+			connect.WithClientOptions(opts...),
+		),
+		updateRuntime: connect.NewClient[v1.UpdateRuntimeRequest, v1.ListRuntimesResponse](
+			httpClient,
+			baseURL+SystemServiceUpdateRuntimeProcedure,
+			connect.WithSchema(systemServiceMethods.ByName("UpdateRuntime")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // systemServiceClient implements SystemServiceClient.
 type systemServiceClient struct {
-	getSystem       *connect.Client[v1.Empty, v1.SystemSnapshot]
-	getUsage        *connect.Client[v1.Empty, v1.UsageReport]
-	checkForUpdates *connect.Client[v1.Empty, v1.UpdateStatus]
-	getUpdateStatus *connect.Client[v1.Empty, v1.UpdateStatus]
-	applyUpdate     *connect.Client[v1.Empty, v1.UpdateStatus]
-	ping            *connect.Client[v1.Empty, v1.PingResponse]
+	getSystem         *connect.Client[v1.Empty, v1.SystemSnapshot]
+	getUsage          *connect.Client[v1.Empty, v1.UsageReport]
+	checkForUpdates   *connect.Client[v1.Empty, v1.UpdateStatus]
+	getUpdateStatus   *connect.Client[v1.Empty, v1.UpdateStatus]
+	applyUpdate       *connect.Client[v1.Empty, v1.UpdateStatus]
+	ping              *connect.Client[v1.Empty, v1.PingResponse]
+	listRuntimes      *connect.Client[v1.Empty, v1.ListRuntimesResponse]
+	setDefaultRuntime *connect.Client[v1.SetDefaultRuntimeRequest, v1.ListRuntimesResponse]
+	updateRuntime     *connect.Client[v1.UpdateRuntimeRequest, v1.ListRuntimesResponse]
 }
 
 // GetSystem calls micropod.v1.SystemService.GetSystem.
@@ -161,6 +203,21 @@ func (c *systemServiceClient) Ping(ctx context.Context, req *connect.Request[v1.
 	return c.ping.CallUnary(ctx, req)
 }
 
+// ListRuntimes calls micropod.v1.SystemService.ListRuntimes.
+func (c *systemServiceClient) ListRuntimes(ctx context.Context, req *connect.Request[v1.Empty]) (*connect.Response[v1.ListRuntimesResponse], error) {
+	return c.listRuntimes.CallUnary(ctx, req)
+}
+
+// SetDefaultRuntime calls micropod.v1.SystemService.SetDefaultRuntime.
+func (c *systemServiceClient) SetDefaultRuntime(ctx context.Context, req *connect.Request[v1.SetDefaultRuntimeRequest]) (*connect.Response[v1.ListRuntimesResponse], error) {
+	return c.setDefaultRuntime.CallUnary(ctx, req)
+}
+
+// UpdateRuntime calls micropod.v1.SystemService.UpdateRuntime.
+func (c *systemServiceClient) UpdateRuntime(ctx context.Context, req *connect.Request[v1.UpdateRuntimeRequest]) (*connect.Response[v1.ListRuntimesResponse], error) {
+	return c.updateRuntime.CallUnary(ctx, req)
+}
+
 // SystemServiceHandler is an implementation of the micropod.v1.SystemService service.
 type SystemServiceHandler interface {
 	// Runtime status + disk usage.
@@ -180,6 +237,18 @@ type SystemServiceHandler interface {
 	// usage. Answers `status: stopped` (never an error) when the runtime is
 	// down but the API server is up.
 	Ping(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.PingResponse], error)
+	// Execution engines this server can drive, with availability,
+	// capabilities and which one is the default for new containers.
+	ListRuntimes(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.ListRuntimesResponse], error)
+	// Persist the engine new containers run on when RunContainerRequest
+	// leaves `runtime` unset. Fails with `failed_precondition` for an
+	// unknown or unavailable engine.
+	SetDefaultRuntime(context.Context, *connect.Request[v1.SetDefaultRuntimeRequest]) (*connect.Response[v1.ListRuntimesResponse], error)
+	// Enable/disable an engine or point it at a different endpoint (e.g. the
+	// Docker engine at an OrbStack or colima socket). Disabled engines are
+	// left out of ListContainers and refuse RunContainer. The default engine
+	// cannot be disabled (`failed_precondition`). Persisted server-side.
+	UpdateRuntime(context.Context, *connect.Request[v1.UpdateRuntimeRequest]) (*connect.Response[v1.ListRuntimesResponse], error)
 }
 
 // NewSystemServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -225,6 +294,24 @@ func NewSystemServiceHandler(svc SystemServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(systemServiceMethods.ByName("Ping")),
 		connect.WithHandlerOptions(opts...),
 	)
+	systemServiceListRuntimesHandler := connect.NewUnaryHandler(
+		SystemServiceListRuntimesProcedure,
+		svc.ListRuntimes,
+		connect.WithSchema(systemServiceMethods.ByName("ListRuntimes")),
+		connect.WithHandlerOptions(opts...),
+	)
+	systemServiceSetDefaultRuntimeHandler := connect.NewUnaryHandler(
+		SystemServiceSetDefaultRuntimeProcedure,
+		svc.SetDefaultRuntime,
+		connect.WithSchema(systemServiceMethods.ByName("SetDefaultRuntime")),
+		connect.WithHandlerOptions(opts...),
+	)
+	systemServiceUpdateRuntimeHandler := connect.NewUnaryHandler(
+		SystemServiceUpdateRuntimeProcedure,
+		svc.UpdateRuntime,
+		connect.WithSchema(systemServiceMethods.ByName("UpdateRuntime")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/micropod.v1.SystemService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SystemServiceGetSystemProcedure:
@@ -239,6 +326,12 @@ func NewSystemServiceHandler(svc SystemServiceHandler, opts ...connect.HandlerOp
 			systemServiceApplyUpdateHandler.ServeHTTP(w, r)
 		case SystemServicePingProcedure:
 			systemServicePingHandler.ServeHTTP(w, r)
+		case SystemServiceListRuntimesProcedure:
+			systemServiceListRuntimesHandler.ServeHTTP(w, r)
+		case SystemServiceSetDefaultRuntimeProcedure:
+			systemServiceSetDefaultRuntimeHandler.ServeHTTP(w, r)
+		case SystemServiceUpdateRuntimeProcedure:
+			systemServiceUpdateRuntimeHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -270,4 +363,16 @@ func (UnimplementedSystemServiceHandler) ApplyUpdate(context.Context, *connect.R
 
 func (UnimplementedSystemServiceHandler) Ping(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.PingResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.SystemService.Ping is not implemented"))
+}
+
+func (UnimplementedSystemServiceHandler) ListRuntimes(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.ListRuntimesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.SystemService.ListRuntimes is not implemented"))
+}
+
+func (UnimplementedSystemServiceHandler) SetDefaultRuntime(context.Context, *connect.Request[v1.SetDefaultRuntimeRequest]) (*connect.Response[v1.ListRuntimesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.SystemService.SetDefaultRuntime is not implemented"))
+}
+
+func (UnimplementedSystemServiceHandler) UpdateRuntime(context.Context, *connect.Request[v1.UpdateRuntimeRequest]) (*connect.Response[v1.ListRuntimesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.SystemService.UpdateRuntime is not implemented"))
 }
