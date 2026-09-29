@@ -54,6 +54,9 @@ struct MicropodCLI {
             setvbuf(stdout, nil, _IOLBF, 8192)
         #endif
         var args = Array(CommandLine.arguments.dropFirst())
+        if args.first == "sandbox" {
+            exit(await SandboxCommands.main(Array(args.dropFirst())))
+        }
         if ProcessInfo.processInfo.environment["NO_COLOR"] != nil { Ansi.enabled = false }
         args.removeAll(where: { $0 == "--no-color" })
         jsonOutput = args.contains("--json")
@@ -198,6 +201,7 @@ struct MicropodCLI {
           share mount|list|inspect|sync|gc   synchronized file shares
           build-cache stats|inspect        content-addressed build contexts
           machines [--json]                  runtime VMs (create/run/stop/rm for keep-alive CI)
+          sandbox run|checkpoint             ephemeral micro-VM per command (CI fast path)
           k8s enable|up|down|status          lightweight Kubernetes (opt-in; k3s micro-VM + MetalLB)
           k8s load <ref|file.tar>|images     push images into the cluster via the host puller
           system start|stop|logs             daemon control + log access

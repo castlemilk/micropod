@@ -142,6 +142,8 @@ fi
 echo "==> Staging micropod CLI"
 cp .build/release/micropod "$DIST/micropod"
 chmod +x "$DIST/micropod"
+# `micropod sandbox` drives Virtualization.framework in-process.
+codesign --force --sign - --entitlements signing/micropod-cli.entitlements "$DIST/micropod"
 
 echo "==> Staging tarball"
 tar -czf "$DIST/Micropod.$VERSION.tgz" -C "$DIST" "$APP_NAME.app" micropod-mcp micropod-mcp-bin micropod
