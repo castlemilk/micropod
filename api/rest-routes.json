@@ -36,6 +36,21 @@
   },
   {
     "method": "GET",
+    "path": "/v1/runtimes",
+    "description": "Execution engines (apple, docker, sandbox): availability, enabled, default, capabilities."
+  },
+  {
+    "method": "PUT",
+    "path": "/v1/runtimes/default",
+    "description": "Set the default engine for new containers ({name})."
+  },
+  {
+    "method": "PATCH",
+    "path": "/v1/runtimes/{name}",
+    "description": "Enable/disable an engine or change its endpoint ({enabled, endpoint})."
+  },
+  {
+    "method": "GET",
     "path": "/v1/containers",
     "description": "List all containers."
   },

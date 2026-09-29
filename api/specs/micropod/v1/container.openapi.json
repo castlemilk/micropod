@@ -1125,6 +1125,14 @@
             "type": "string",
             "title": "exit_code",
             "description": "Exit code once the container has stopped."
+          },
+          "runtime": {
+            "type": "string",
+            "examples": [
+              "apple"
+            ],
+            "title": "runtime",
+            "description": "Execution engine that owns this container: \"apple\", \"docker\" or\n \"sandbox\" (see SystemService.ListRuntimes). Id-based calls are routed\n to this engine."
           }
         },
         "title": "Container",
@@ -1841,6 +1849,18 @@
             ],
             "title": "privileged",
             "description": "Run the workload with the privileges a nested container engine\n (dockerd, containerd, buildkitd) needs \u2014 the micro-VM analogue of\n docker run --privileged: every Linux capability (as `cap_add: [\"ALL\"]`)\n and none of the runtime's default read-only or masked paths, so\n /proc/sys (IP forwarding, sysctls) and /sys/fs/cgroup are writable and\n /proc is not masked. The isolation boundary stays the micro-VM: host\n devices are not passed through. Named `cap_drop` entries still remove\n their capabilities; `cap_drop: [\"ALL\"]` with `privileged` fails with\n `invalid_argument`."
+          },
+          "runtime": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "examples": [
+              "sandbox"
+            ],
+            "title": "runtime",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "Execution engine to run on: \"apple\" (a micro-VM per container via the\n Apple container runtime), \"docker\" (a Docker Engine socket) or\n \"sandbox\" (an ephemeral in-process micro-VM booted from a cached\n rootfs clone). Unset uses the server default (SetDefaultRuntime). An\n unknown or unavailable engine fails with `failed_precondition`."
           }
         },
         "title": "RunContainerRequest",
