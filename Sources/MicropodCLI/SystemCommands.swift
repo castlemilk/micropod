@@ -256,6 +256,52 @@ enum SystemCommands {
             {
                 FileHandle.standardOutput.write(chunk)
             }
+        case "logs":
+            let expanded = expandAliases(Array(args.dropFirst()), aliases: ["-n": "--tail"])
+            let parsed = try parseArgs(
+                expanded,
+                boolFlags: ["--follow", "-f", "--boot"],
+                valueFlags: ["--tail"],
+                commandName: "machine logs")
+            guard let name = parsed.positionals.first else {
+                throw UsageError(message: "machine logs <name> [-f] [-n N] [--boot]")
+            }
+            let tail = parsed.intValue("--tail", default: 100)
+            let boot = parsed.has("--boot")
+            if parsed.has("--follow") || parsed.has("-f") {
+                for try await line in services.machines.streamLogs(name, tail: tail, boot: boot) {
+                    print(line.text)
+                }
+            } else {
+                for line in try await services.machines.logs(name, tail: tail, boot: boot) { print(line.text) }
+            }
+        case "stats":
+            let parsed = try parseArgs(
+                Array(args.dropFirst()), boolFlags: [], valueFlags: [], commandName: "machine stats")
+            let snapshot = try await MachineStatsSampler(client: services.client)
+                .snapshot(id: parsed.positionals.first)
+            if MicropodCLI.jsonOutput {
+                print(try snapshot.jsonString())
+                return
+            }
+            if snapshot.machines.isEmpty {
+                print("No running machines")
+                return
+            }
+            let rows = snapshot.machines.map { m in
+                [
+                    m.id,
+                    String(format: "%.1f%%", m.cpuPercent),
+                    "\(ByteFormat.string(m.memoryUsedBytes)) / \(ByteFormat.string(m.memoryLimitBytes))",
+                    "↓\(ByteFormat.string(m.networkRxBytes)) ↑\(ByteFormat.string(m.networkTxBytes))",
+                    "r \(ByteFormat.string(m.blockReadBytes)) w \(ByteFormat.string(m.blockWriteBytes))",
+                    "\(m.pids)",
+                    m.containerID,
+                ]
+            }
+            print(
+                renderTable(
+                    headers: ["MACHINE", "CPU", "MEMORY", "NET", "BLOCK", "PIDS", "CONTAINER"], rows: rows))
         case "properties":
             let properties = try await services.machines.properties()
             if MicropodCLI.jsonOutput {

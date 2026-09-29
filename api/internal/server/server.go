@@ -44,6 +44,7 @@ type Server struct {
 	micropodv1connect.UnimplementedComposeServiceHandler
 	micropodv1connect.UnimplementedSystemServiceHandler
 	micropodv1connect.UnimplementedK8SServiceHandler
+	micropodv1connect.UnimplementedMachineServiceHandler
 	cli *clicli.CLI
 
 	versionMu  sync.Mutex

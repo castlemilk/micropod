@@ -21,6 +21,8 @@ final class APIHandlers: Sendable {
     /// snapshot's kind, which lets clients tell "running through the CLI"
     /// from "running natively" and refuse to benchmark against the former.
     let runtime: RuntimeHolder
+    /// Long-lived so machine CPU % is a delta across consecutive requests.
+    let machineStats: MachineStatsSampler
     let metrics = APIMetrics()
     let appControl = AppControlClient()
 
@@ -38,11 +40,18 @@ final class APIHandlers: Sendable {
         self.networks = networks
         self.compose = compose
         self.runtime = runtime
+        self.machineStats = MachineStatsSampler(client: client)
     }
 
     /// The k8s engine drives the CLI directly (it manages its own micro-VM).
     var k8s: K8sService {
         K8sService(client: client)
+    }
+
+    /// Container machines (persistent VMs) — driven through the CLI on every
+    /// backend; the native apiserver client doesn't cover them.
+    var machines: MachineService {
+        MachineService(client: client)
     }
 
     func usage(_ services: RuntimeServices) -> UsageService {
@@ -370,6 +379,45 @@ final class APIHandlers: Sendable {
             case ("stats", .get):
                 let snapshot = try await services.stats.snapshot()
                 return .json(200, ["containers": snapshot.containers.map(projection), "sampledAt": snapshot.sampledAt])
+
+            // MARK: Machines (persistent VMs)
+            case ("machines", .get) where segments.count == 2:
+                let list = try await machines.list()
+                return .json(200, ["machines": list.map(projection)])
+
+            case ("machines", .get) where segments.count == 3 && segments[2] == "stats":
+                let snapshot = try await machineStats.snapshot()
+                return .json(
+                    200, ["machines": snapshot.machines.map(projection), "sampledAt": snapshot.sampledAt])
+
+            case ("machines", .get) where segments.count == 4 && segments[3] == "stats":
+                let snapshot = try await machineStats.snapshot(id: segments[2])
+                return .json(
+                    200, ["machines": snapshot.machines.map(projection), "sampledAt": snapshot.sampledAt])
+
+            case ("machines", .get) where segments.count == 4 && segments[3] == "logs":
+                let id = segments[2]
+                let tail = Int(request.string("tail")) ?? 100
+                let boot = request.string("boot") == "true"
+                guard request.string("follow") == "true" else {
+                    let lines = try await machines.logs(id, tail: tail, boot: boot)
+                    return .json(200, ["id": id, "lines": lines.map(\.text)])
+                }
+                let stream = machines.streamLogs(id, tail: tail, boot: boot)
+                return .stream(
+                    200, "text/event-stream",
+                    AsyncStream { continuation in
+                        Task {
+                            do {
+                                for try await line in stream {
+                                    let payload =
+                                        "data: " + (line.text.replacingOccurrences(of: "\n", with: "\\n")) + "\n\n"
+                                    continuation.yield(Data(payload.utf8))
+                                }
+                            } catch {}
+                            continuation.finish()
+                        }
+                    })
 
             // MARK: Compose
             case ("compose", .post) where segments.count == 3 && segments[2] == "up":
@@ -732,6 +780,31 @@ final class APIHandlers: Sendable {
         [
             "id": stats.id,
             "cpuPercent": stats.cpuPercent,
+            "memoryUsedBytes": stats.memoryUsedBytes,
+            "memoryLimitBytes": stats.memoryLimitBytes,
+            "networkRxBytes": stats.networkRxBytes,
+            "networkTxBytes": stats.networkTxBytes,
+            "blockReadBytes": stats.blockReadBytes,
+            "blockWriteBytes": stats.blockWriteBytes,
+            "pids": stats.pids,
+        ]
+    }
+
+    private func projection(_ machine: MachineEntry) -> [String: Any] {
+        [
+            "id": machine.name, "state": machine.state ?? "", "ipAddress": machine.ip ?? "",
+            "cpus": machine.cpus ?? 0, "memoryBytes": machine.memoryBytes ?? 0,
+            "diskBytes": machine.diskBytes ?? 0, "createdAt": machine.created ?? "",
+            "default": machine.defaultMachine ?? false,
+        ]
+    }
+
+    private func projection(_ stats: Micropod_V1_MachineStats) -> [String: Any] {
+        [
+            "id": stats.id,
+            "containerId": stats.containerID,
+            "cpuPercent": stats.cpuPercent,
+            "cpus": stats.cpus,
             "memoryUsedBytes": stats.memoryUsedBytes,
             "memoryLimitBytes": stats.memoryLimitBytes,
             "networkRxBytes": stats.networkRxBytes,

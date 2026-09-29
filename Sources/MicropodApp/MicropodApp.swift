@@ -102,7 +102,7 @@ struct MicropodApp: App {
         case .build: "7"
         case .compose: "8"
         case .environments: "9"
-        case .storage: nil
+        case .machines, .storage: nil
         case .settings: "0"
         }
     }

@@ -184,6 +184,13 @@ const CONNECT_SPECS = [
       "Opt-in lightweight engine — a k3s cluster in one micro-VM, MetalLB on the VM subnet, host kubeconfig. Enable, up, down, status, config.",
   },
   {
+    file: "micropod/v1/machine.openapi.json",
+    service: "micropod.v1.MachineService",
+    title: "Machines",
+    blurb:
+      "Persistent container-machine VMs (keep-alive CI) — list, guest metrics sampled from /proc, stdio and boot logs.",
+  },
+  {
     file: "com/apple/containerization/sandbox/v3/sandbox_context.openapi.json",
     service: "com.apple.containerization.sandbox.v3.SandboxContext",
     title: "SandboxContext",

@@ -397,6 +397,36 @@ extension APIHandlers {
                     name: req.hasClusterName ? req.clusterName : nil)
                 return unary(Micropod_V1_ListK8sImagesResponse.with { $0.refs = refs })
 
+            case "ListMachines":
+                var resp = Micropod_V1_ListMachinesResponse()
+                resp.machines = try await machines.list().map(machineProto)
+                return unary(resp)
+
+            case "GetMachineStats":
+                let req =
+                    body.isEmpty
+                    ? Micropod_V1_GetMachineStatsRequest()
+                    : try decode(Micropod_V1_GetMachineStatsRequest.self, body)
+                return unary(try await machineStats.snapshot(id: req.id))
+
+            case "StreamMachineLogs":
+                let req = try decodeStreamRequest(Micropod_V1_StreamMachineLogsRequest.self, body)
+                try check(req)
+                let tail = req.tail > 0 ? Int(req.tail) : nil
+                if req.follow {
+                    return streamEnvelope(machines.streamLogs(req.id, tail: tail, boot: req.boot)) { line in
+                        Micropod_V1_LogChunk.with { $0.text = line.text }
+                    }
+                }
+                let lines = try await machines.logs(req.id, tail: tail, boot: req.boot)
+                let events = AsyncThrowingStream<LogLine, Error> { continuation in
+                    for line in lines { continuation.yield(line) }
+                    continuation.finish()
+                }
+                return streamEnvelope(events) { line in
+                    Micropod_V1_LogChunk.with { $0.text = line.text }
+                }
+
             default:
                 return nil
             }
@@ -598,6 +628,27 @@ extension APIHandlers {
         if req.skipLines < 0 {
             throw ConnectDecodeError(
                 code: .invalidArgument, message: "skipLines: must be 0 or greater")
+        }
+    }
+
+    private func check(_ req: Micropod_V1_StreamMachineLogsRequest) throws {
+        try required(req.id, "id")
+        if req.tail < 0 {
+            throw ConnectDecodeError(
+                code: .invalidArgument, message: "tail: must be 0 or greater")
+        }
+    }
+
+    private func machineProto(_ machine: MachineEntry) -> Micropod_V1_Machine {
+        Micropod_V1_Machine.with {
+            $0.id = machine.name
+            $0.state = machine.state ?? ""
+            $0.ipAddress = machine.ip ?? ""
+            $0.cpus = Int32(machine.cpus ?? 0)
+            $0.memoryBytes = machine.memoryBytes ?? 0
+            $0.diskBytes = machine.diskBytes ?? 0
+            $0.createdAt = machine.created ?? ""
+            $0.default = machine.defaultMachine ?? false
         }
     }
 

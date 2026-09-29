@@ -5,6 +5,14 @@ import SwiftUI
 struct ContainerInspectView: View {
     @Bindable var store: AppStore
     let containerID: String
+    /// Inspect JSON source — container inspect by default; machines pass their own.
+    private let loadData: (@MainActor () async throws -> Data)?
+
+    init(store: AppStore, containerID: String, loadData: (@MainActor () async throws -> Data)? = nil) {
+        self._store = Bindable(store)
+        self.containerID = containerID
+        self.loadData = loadData
+    }
 
     @State private var json: String?
     @State private var errorMessage: String?
@@ -28,7 +36,12 @@ struct ContainerInspectView: View {
         }
         .task {
             do {
-                let data = try await store.dependencies.containers.inspect(containerID)
+                let data: Data
+                if let loadData {
+                    data = try await loadData()
+                } else {
+                    data = try await store.dependencies.containers.inspect(containerID)
+                }
                 let object = try JSONSerialization.jsonObject(with: data)
                 let pretty = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
                 json = String(data: pretty, encoding: .utf8)

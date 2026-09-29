@@ -160,6 +160,26 @@
     "description": "Resource usage snapshot for running containers."
   },
   {
+    "method": "GET",
+    "path": "/v1/machines",
+    "description": "List container machines (persistent VMs)."
+  },
+  {
+    "method": "GET",
+    "path": "/v1/machines/stats",
+    "description": "Guest resource usage for every running machine."
+  },
+  {
+    "method": "GET",
+    "path": "/v1/machines/{id}/stats",
+    "description": "Guest resource usage for one running machine."
+  },
+  {
+    "method": "GET",
+    "path": "/v1/machines/{id}/logs",
+    "description": "Machine stdio/boot log (?tail=N&boot=true; &follow=true streams SSE)."
+  },
+  {
     "method": "POST",
     "path": "/v1/compose/up",
     "description": "docker-compose up from a compose file."

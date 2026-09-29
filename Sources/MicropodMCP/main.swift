@@ -81,6 +81,10 @@ private actor MCPServer {
     private let sharedFS: (any SharedFSClient)?
     /// App control socket — reaches Sparkle in the app process.
     private let appControl = AppControlClient()
+    private var machines: MachineService { MachineService(client: client) }
+    /// Held for the session so repeat machine_stats calls report CPU deltas
+    /// without re-priming.
+    private lazy var machineStats = MachineStatsSampler(client: client)
 
     init(
         client: ContainerCLIClient,
@@ -269,6 +273,21 @@ private actor MCPServer {
         ("logs", "Last 100 log lines of a container. Arguments: id."),
         ("stats", "Resource usage for all running containers (memory/CPU/net)."),
         ("inspect", "Pretty-printed container inspect JSON. Arguments: id."),
+        (
+            "list_machines",
+            "List container machines — persistent VMs (e.g. keep-alive CI): id, state, IP, CPUs, memory."
+        ),
+        (
+            "machine_stats",
+            """
+            Resource usage for running machines (CPU % of one core, memory, net, block I/O, pids) from \
+            each machine's backing container — never execs in the guest. Arguments: id (optional; default all running).
+            """
+        ),
+        (
+            "machine_logs",
+            "Tail a machine's stdio log. Arguments: id (required), lines (optional, default 100), boot (true for the vminitd/kernel boot log)."
+        ),
         ("list_images", "List local images (name, id, size, variants)."),
         ("list_volumes", "List volumes (name, size, driver)."),
         (
@@ -442,6 +461,42 @@ private actor MCPServer {
                     "\(stats.id)\tmem \(ByteFormat.string(stats.memoryUsedBytes))/\(ByteFormat.string(stats.memoryLimitBytes))\tnet ↓\(ByteFormat.string(stats.networkRxBytes)) ↑\(ByteFormat.string(stats.networkTxBytes))\t\(stats.pids) pids"
                 }
                 return toolResult(id, lines.joined(separator: "\n"))
+
+            case "list_machines":
+                let list = try await machines.list()
+                let lines = list.map { m -> String in
+                    [
+                        m.name + (m.defaultMachine == true ? " (default)" : ""),
+                        m.state ?? "unknown",
+                        m.ip ?? "",
+                        m.cpus.map { "\($0) cpu" } ?? "",
+                        m.memory ?? "",
+                    ].filter { !$0.isEmpty }.joined(separator: "\t")
+                }
+                return toolResult(id, lines.isEmpty ? "No machines" : lines.joined(separator: "\n"))
+
+            case "machine_stats":
+                let snapshot = try await machineStats.snapshot(id: string("id").isEmpty ? nil : string("id"))
+                guard !snapshot.machines.isEmpty else { return toolResult(id, "No running machines") }
+                let lines = snapshot.machines.map { m -> String in
+                    [
+                        "\(m.id) (\(m.containerID))",
+                        String(format: "cpu %.1f%% of %d vCPU", m.cpuPercent, m.cpus),
+                        "mem \(ByteFormat.string(m.memoryUsedBytes))/\(ByteFormat.string(m.memoryLimitBytes))",
+                        "net ↓\(ByteFormat.string(m.networkRxBytes)) ↑\(ByteFormat.string(m.networkTxBytes))",
+                        "block r \(ByteFormat.string(m.blockReadBytes)) w \(ByteFormat.string(m.blockWriteBytes))",
+                        "\(m.pids) pids",
+                    ].joined(separator: "\t")
+                }
+                return toolResult(id, lines.joined(separator: "\n"))
+
+            case "machine_logs":
+                guard !string("id").isEmpty else {
+                    return toolResult(id, "machine_logs requires id", isError: true)
+                }
+                let count = Int(string("lines")).flatMap { $0 > 0 ? $0 : nil } ?? 100
+                let lines = try await machines.logs(string("id"), tail: count, boot: flag("boot"))
+                return toolResult(id, lines.isEmpty ? "No logs" : lines.map(\.text).joined(separator: "\n"))
 
             case "list_images":
                 let images = try await images.list()

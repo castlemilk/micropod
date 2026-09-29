@@ -204,6 +204,7 @@ struct MicropodCLI {
           machines [--json]                  runtime VMs (create/run/stop/rm for keep-alive CI)
           sandbox run|checkpoint             ephemeral micro-VM per command (CI fast path)
           runtime ls|use|enable|disable      execution engines: apple VMs, docker, sandbox micro-VMs
+          machines stats [name]|logs <name>  VM metrics / stdio+boot logs (-f, -n N, --boot)
           k8s enable|up|down|status          lightweight Kubernetes (opt-in; k3s micro-VM + MetalLB)
           k8s load <ref|file.tar>|images     push images into the cluster via the host puller
           system start|stop|logs             daemon control + log access
