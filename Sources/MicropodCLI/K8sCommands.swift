@@ -1,5 +1,6 @@
 import Foundation
 import MicropodCore
+import MicropodRuntime
 
 /// `micropod k8s` — the opt-in lightweight Kubernetes engine: one micro-VM
 /// running k3s, MetalLB on the vmnet subnet for real LoadBalancer IPs, and a
@@ -89,6 +90,23 @@ enum K8sCommands {
             }
             let pushed = try await service.pushImage(ref: ref) { print("  ▸ \($0)") }
             print("✓ pushed \(pushed) — pods pulling \(ref) now resolve through the mirror")
+
+        case "native":
+            try requireEnabled(service)
+            var config = service.loadConfig() ?? .defaults
+            config.clusterName =
+                args.dropFirst().first(where: { !$0.hasPrefix("-") })
+                .flatMap { _ in nil } ?? config.clusterName
+            config.clusterName = "native-k3s"
+            let vm = try await NativeK8sVM.create(config: config) { print("  ▸ \($0)") }
+            print("  ▸ booting")
+            try await vm.boot()
+            print("  ▸ VM up — direct exec bench (10x)")
+            let (times, sample) = try await vm.benchExec(["sh", "-c", "true"], iterations: 10)
+            print("  ▸ exec ms: \(times.map { String(format: "%.1f", $0) }.joined(separator: " "))")
+            print("  ▸ persistent-agent exec bench (10x, no stdio)")
+            let atimes = try await vm.benchAgentExec(iterations: 10)
+            print("  ▸ agent exec ms: \(atimes.map { String(format: "%.1f", $0) }.joined(separator: " "))")
 
         case "registry":
             try requireEnabled(service)
