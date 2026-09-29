@@ -126,5 +126,5 @@ extension ContainerRunRequest {
 /// in `PingResponse.features` so clients can detect them (an older server
 /// silently drops unknown proto3 fields). Mirrored by the Go apiserver.
 public enum APIFeatures {
-    public static let supported = ["cap_add", "cap_drop", "rosetta", "privileged"]
+    public static let supported = ["cap_add", "cap_drop", "rosetta", "privileged", "runtime"]
 }

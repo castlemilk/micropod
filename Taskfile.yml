@@ -95,6 +95,12 @@ tasks:
       - task: cli
       - python3 scripts/bench_sandbox.py
 
+  e2e-runtimes:
+    desc: Live engine matrix (apple, sandbox, docker) through a signed MicropodAPI on a scratch port
+    cmds:
+      - swift build --product MicropodAPI
+      - ./scripts/e2e_runtimes.sh
+
   bench-compose:
     desc: postgres compose startup — Micropod (Apple runtime) vs Docker Desktop
     cmds:

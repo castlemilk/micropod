@@ -21,7 +21,7 @@ Prerequisite: Micropod.app installed and running (it owns the daemon, the
 :45454 API, and the shim). `curl -s http://127.0.0.1:45454/health` →
 `{"status":"ok"}` is the readiness probe.
 
-## MCP server (40 tools)
+## MCP server (43 tools)
 
 Config for any MCP client:
 
@@ -58,6 +58,19 @@ Example tools/call (JSON-RPC over stdin/stdout):
 ```json
 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"compose_up","arguments":{"path":"/abs/path/docker-compose.yml"}}}
 ```
+
+## Runtimes (execution engines)
+
+Three engines behind the same API: `apple` (micro-VM per container, the
+default), `docker` (a Docker Engine socket — opt-in), `sandbox` (ephemeral
+in-process micro-VM; fastest boot, no ports/named volumes, not restartable).
+Choose per container with `runtime` on RunContainer (`micropod run --runtime`,
+MCP `run` arg), or change the default with `SetDefaultRuntime` / MCP
+`runtime_set_default`. Discover what's available first: `ListRuntimes` / MCP
+`runtimes` (check `available`, `enabled`, `capabilities`). Calls outside an
+engine's capabilities fail with `unimplemented`; unknown/disabled/unavailable
+engines fail with `failed_precondition`. Every listed container carries
+`runtime`. Offline sandbox: label `micropod.network=none`.
 
 ## Connect API — the typed contract
 

@@ -56,6 +56,9 @@ REST_DESCRIPTIONS = {
     ("POST", "/v1/networks"): "Create a network.",
     ("DELETE", "/v1/networks/{name}"): "Delete a network.",
     ("GET", "/v1/stats"): "Resource usage snapshot for running containers.",
+    ("GET", "/v1/runtimes"): "Execution engines (apple, docker, sandbox): availability, enabled, default, capabilities.",
+    ("PUT", "/v1/runtimes/default"): "Set the default engine for new containers ({name}).",
+    ("PATCH", "/v1/runtimes/{name}"): "Enable/disable an engine or change its endpoint ({enabled, endpoint}).",
     ("POST", "/v1/compose/up"): "docker-compose up from a compose file.",
     ("POST", "/v1/compose/down"): "docker-compose down.",
     ("GET", "/v1/k8s"): "Kubernetes engine + cluster status (opt-in feature).",
@@ -72,7 +75,7 @@ REST_DESCRIPTIONS = {
 # First path parameter per resource (segments[2] in the handler).
 PARAM_NAMES = {
     "containers": "id", "images": "ref", "volumes": "name",
-    "networks": "name", "config": "section",
+    "networks": "name", "config": "section", "runtimes": "name",
 }
 # Deeper params, keyed by (resource, segment index).
 PARAM_OVERRIDES = {("containers", 4): "port"}

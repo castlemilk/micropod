@@ -4,6 +4,7 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_buf_validate_validate } from "@bufbuild/protovalidate/gen/buf/validate/validate_pb.js";
 import { file_gnostic_openapi_v3_annotations } from "../../../vendor/gnostic/openapi/v3/annotations_pb.js";
 import type { EmptySchema } from "./api_pb.js";
 import { file_micropod_v1_api } from "./api_pb.js";
@@ -17,7 +18,176 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file micropod/v1/system.proto.
  */
 export const file_micropod_v1_system: GenFile = /*@__PURE__*/
-  fileDesc("ChhtaWNyb3BvZC92MS9zeXN0ZW0ucHJvdG8SC21pY3JvcG9kLnYxIvYBCgxQaW5nUmVzcG9uc2USIAoGc3RhdHVzGAEgASgJQhC6Rw06CxIJJ3J1bm5pbmcnEigKD3J1bnRpbWVfYmFja2VuZBgCIAEoCUIPukcMOgoSCCduYXRpdmUnEioKEmFwaV9zZXJ2ZXJfdmVyc2lvbhgDIAEoCUIOukcLOgkSBycwLjguMCcSIwoLY2xpX3ZlcnNpb24YBCABKAlCDrpHCzoJEgcnMC43LjAnEkkKCGZlYXR1cmVzGAUgAygJQje6RzQ6MhIwWydjYXBfYWRkJywgJ2NhcF9kcm9wJywgJ3Jvc2V0dGEnLCAncHJpdmlsZWdlZCddImcKDlN5c3RlbVNuYXBzaG90EikKBnN0YXR1cxgBIAEoCzIZLm1pY3JvcG9kLnYxLlN5c3RlbVN0YXR1cxIqCgpkaXNrX3VzYWdlGAIgASgLMhYubWljcm9wb2QudjEuRGlza1VzYWdlIo4CCgxTeXN0ZW1TdGF0dXMSIAoGc3RhdHVzGAEgASgJQhC6Rw06CxIJJ3J1bm5pbmcnEjUKCGFwcF9yb290GAIgASgJQiO6RyA6HhIcJy9BcHBsaWNhdGlvbnMvTWljcm9wb2QuYXBwJxIqCgxpbnN0YWxsX3Jvb3QYAyABKAlCFLpHEToPEg0nfi8ubWljcm9wb2QnEioKEmFwaV9zZXJ2ZXJfdmVyc2lvbhgEIAEoCUIOukcLOgkSBycwLjguMCcSIwoLY2xpX3ZlcnNpb24YBSABKAlCDrpHCzoJEgcnMC43LjAnEigKD3J1bnRpbWVfYmFja2VuZBgGIAEoCUIPukcMOgoSCCduYXRpdmUnIrIBCglEaXNrVXNhZ2USLQoKY29udGFpbmVycxgBIAEoCzIZLm1pY3JvcG9kLnYxLkRpc2tDYXRlZ29yeRIpCgZpbWFnZXMYAiABKAsyGS5taWNyb3BvZC52MS5EaXNrQ2F0ZWdvcnkSKgoHdm9sdW1lcxgDIAEoCzIZLm1pY3JvcG9kLnYxLkRpc2tDYXRlZ29yeRIfChd0b3RhbF9yZWNsYWltYWJsZV9ieXRlcxgEIAEoBCKXAQoMRGlza0NhdGVnb3J5EhgKBXRvdGFsGAEgASgEQgm6RwY6BBICMTISGAoGYWN0aXZlGAIgASgEQgi6RwU6AxIBNRIlCgpzaXplX2J5dGVzGAMgASgEQhG6Rw46DBIKNDI5NDk2NzI5NhIsChFyZWNsYWltYWJsZV9ieXRlcxgEIAEoBEIRukcOOgwSCjEwNzM3NDE4MjQifwoNU3RhdHNTbmFwc2hvdBIvCgpjb250YWluZXJzGAEgAygLMhsubWljcm9wb2QudjEuQ29udGFpbmVyU3RhdHMSPQoKc2FtcGxlZF9hdBgCIAEoCUIpukcmOhgSFicyMDI2LTAxLTE1VDEwOjMwOjAwWieaAglkYXRlLXRpbWUi5wIKDkNvbnRhaW5lclN0YXRzEhgKAmlkGAEgASgJQgy6Rwk6BxIFJ3dlYicSIAoLY3B1X3BlcmNlbnQYAiABKAFCC7pHCDoGEgQxMi41EisKEW1lbW9yeV91c2VkX2J5dGVzGAMgASgEQhC6Rw06CxIJMTM0MjE3NzI4EiwKEm1lbW9yeV9saW1pdF9ieXRlcxgEIAEoBEIQukcNOgsSCTUzNjg3MDkxMhIoChBuZXR3b3JrX3J4X2J5dGVzGAUgASgEQg66Rws6CRIHMTA0ODU3NhInChBuZXR3b3JrX3R4X2J5dGVzGAYgASgEQg26Rwo6CBIGNTI0Mjg4EigKEGJsb2NrX3JlYWRfYnl0ZXMYByABKARCDrpHCzoJEgcyMDk3MTUyEikKEWJsb2NrX3dyaXRlX2J5dGVzGAggASgEQg66Rws6CRIHMTA0ODU3NhIWCgRwaWRzGAkgASgEQgi6RwU6AxIBNyJ3Cg1SZWdpc3RyeUxvZ2luEiIKBnNlcnZlchgBIAEoCUISukcPOg0SCydkb2NrZXIuaW8nEiIKCHVzZXJuYW1lGAIgASgJQhC6Rw06CxIJJ29jdG9jYXQnEh4KBnNjaGVtZRgDIAEoCUIOukcLOgkSBydiYXNpYyci0AMKC1VzYWdlUmVwb3J0EjMKBmltYWdlcxgBIAMoCzIjLm1pY3JvcG9kLnYxLlVzYWdlUmVwb3J0LkltYWdlVXNhZ2USNQoHdm9sdW1lcxgCIAMoCzIkLm1pY3JvcG9kLnYxLlVzYWdlUmVwb3J0LlZvbHVtZVVzYWdlEjIKF3JlY2xhaW1hYmxlX2ltYWdlX2J5dGVzGAMgASgEQhG6Rw46DBIKMjE0NzQ4MzY0OBIzChhyZWNsYWltYWJsZV92b2x1bWVfYnl0ZXMYBCABKARCEbpHDjoMEgoxMDczNzQxODI0EikKF3N0b3BwZWRfY29udGFpbmVyX2NvdW50GAUgASgFQgi6RwU6AxIBMhpeCgpJbWFnZVVzYWdlEiEKBWltYWdlGAEgASgLMhIubWljcm9wb2QudjEuSW1hZ2USHQoVdXNlZF9ieV9jb250YWluZXJfaWRzGAIgAygJEg4KBmluX3VzZRgDIAEoCBphCgtWb2x1bWVVc2FnZRIjCgZ2b2x1bWUYASABKAsyEy5taWNyb3BvZC52MS5Wb2x1bWUSHQoVdXNlZF9ieV9jb250YWluZXJfaWRzGAIgAygJEg4KBmluX3VzZRgDIAEoCCKpBAoMVXBkYXRlU3RhdHVzEk8KBXN0YXRlGAEgASgOMh8ubWljcm9wb2QudjEuVXBkYXRlU3RhdHVzLlN0YXRlQh+6Rxw6GhIYJ1NUQVRFX1VQREFURV9BVkFJTEFCTEUnEhcKD2ZlZWRfY29uZmlndXJlZBgCIAEoCBInCg9jdXJyZW50X3ZlcnNpb24YAyABKAlCDrpHCzoJEgcnMC44LjAnEikKEWF2YWlsYWJsZV92ZXJzaW9uGAQgASgJQg66Rws6CRIHJzAuOS4wJxISCgpkb3dubG9hZGVkGAUgASgIEioKEmRvd25sb2FkZWRfdmVyc2lvbhgGIAEoCUIOukcLOgkSBycwLjkuMCcSGAoQcmVhZHlfdG9faW5zdGFsbBgHIAEoCBINCgVlcnJvchgIIAEoCRI9CgpjaGVja2VkX2F0GAkgASgJQim6RyY6GBIWJzIwMjYtMDEtMTVUMTA6MzA6MDBaJ5oCCWRhdGUtdGltZSKyAQoFU3RhdGUSFQoRU1RBVEVfVU5TUEVDSUZJRUQQABIVChFTVEFURV9VTkFWQUlMQUJMRRABEg4KClNUQVRFX0lETEUQAhISCg5TVEFURV9DSEVDS0lORxADEhQKEFNUQVRFX1VQX1RPX0RBVEUQBBIaChZTVEFURV9VUERBVEVfQVZBSUxBQkxFEAUSFAoQU1RBVEVfSU5TVEFMTElORxAGEg8KC1NUQVRFX0VSUk9SEAcygAMKDVN5c3RlbVNlcnZpY2USPAoJR2V0U3lzdGVtEhIubWljcm9wb2QudjEuRW1wdHkaGy5taWNyb3BvZC52MS5TeXN0ZW1TbmFwc2hvdBI4CghHZXRVc2FnZRISLm1pY3JvcG9kLnYxLkVtcHR5GhgubWljcm9wb2QudjEuVXNhZ2VSZXBvcnQSQAoPQ2hlY2tGb3JVcGRhdGVzEhIubWljcm9wb2QudjEuRW1wdHkaGS5taWNyb3BvZC52MS5VcGRhdGVTdGF0dXMSQAoPR2V0VXBkYXRlU3RhdHVzEhIubWljcm9wb2QudjEuRW1wdHkaGS5taWNyb3BvZC52MS5VcGRhdGVTdGF0dXMSPAoLQXBwbHlVcGRhdGUSEi5taWNyb3BvZC52MS5FbXB0eRoZLm1pY3JvcG9kLnYxLlVwZGF0ZVN0YXR1cxI1CgRQaW5nEhIubWljcm9wb2QudjEuRW1wdHkaGS5taWNyb3BvZC52MS5QaW5nUmVzcG9uc2VCQlpAZ2l0aHViLmNvbS9jYXN0bGVtaWxrL21pY3JvcG9kL3Nkay9nby9nZW4vbWljcm9wb2QvdjE7bWljcm9wb2R2MWIGcHJvdG8z", [file_gnostic_openapi_v3_annotations, file_micropod_v1_api, file_micropod_v1_image, file_micropod_v1_volume]);
+  fileDesc("ChhtaWNyb3BvZC92MS9zeXN0ZW0ucHJvdG8SC21pY3JvcG9kLnYxIusCCgtSdW50aW1lSW5mbxIcCgRuYW1lGAEgASgJQg66Rws6CRIHJ2FwcGxlJxIZCgRraW5kGAIgASgJQgu6Rwg6BhIEJ3ZtJxITCgtkZXNjcmlwdGlvbhgDIAEoCRIeCglhdmFpbGFibGUYBCABKAhCC7pHCDoGEgR0cnVlEjAKBnJlYXNvbhgFIAEoCUIgukcdOhsSGSdEb2NrZXIgc29ja2V0IG5vdCBmb3VuZCcSHwoHdmVyc2lvbhgGIAEoCUIOukcLOgkSBycxLjMuMScSNgoIZW5kcG9pbnQYByABKAlCJLpHITofEh0ndW5peDovLy92YXIvcnVuL2RvY2tlci5zb2NrJxIPCgdkZWZhdWx0GAggASgIEjQKDGNhcGFiaWxpdGllcxgJIAMoCUIeukcbOhkSF1sncnVuJywgJ2V4ZWMnLCAnbG9ncyddEhwKB2VuYWJsZWQYCiABKAhCC7pHCDoGEgR0cnVlImMKFExpc3RSdW50aW1lc1Jlc3BvbnNlEioKCHJ1bnRpbWVzGAEgAygLMhgubWljcm9wb2QudjEuUnVudGltZUluZm8SHwoHZGVmYXVsdBgCIAEoCUIOukcLOgkSBydhcHBsZSci2AEKFFVwZGF0ZVJ1bnRpbWVSZXF1ZXN0EjgKBG5hbWUYASABKAlCKrpHDDoKEggnZG9ja2VyJ7pIGMgBAXITMhFeW2Etel1bYS16MC05LV0qJBIhCgdlbmFibGVkGAIgASgIQgu6Rwg6BhIEdHJ1ZUgAiAEBEkoKCGVuZHBvaW50GAMgASgJQjO6RzA6LhIsJ3VuaXg6Ly8vVXNlcnMvbWUvLm9yYnN0YWNrL3J1bi9kb2NrZXIuc29jaydIAYgBAUIKCghfZW5hYmxlZEILCglfZW5kcG9pbnQiVQoYU2V0RGVmYXVsdFJ1bnRpbWVSZXF1ZXN0EjkKBG5hbWUYASABKAlCK7pHDToLEgknc2FuZGJveCe6SBjIAQFyEzIRXlthLXpdW2EtejAtOS1dKiQinwIKDFBpbmdSZXNwb25zZRIgCgZzdGF0dXMYASABKAlCELpHDToLEgkncnVubmluZycSKAoPcnVudGltZV9iYWNrZW5kGAIgASgJQg+6Rww6ChIIJ25hdGl2ZScSKgoSYXBpX3NlcnZlcl92ZXJzaW9uGAMgASgJQg66Rws6CRIHJzAuOC4wJxIjCgtjbGlfdmVyc2lvbhgEIAEoCUIOukcLOgkSBycwLjcuMCcSSQoIZmVhdHVyZXMYBSADKAlCN7pHNDoyEjBbJ2NhcF9hZGQnLCAnY2FwX2Ryb3AnLCAncm9zZXR0YScsICdwcml2aWxlZ2VkJ10SJwoPZGVmYXVsdF9ydW50aW1lGAYgASgJQg66Rws6CRIHJ2FwcGxlJyJnCg5TeXN0ZW1TbmFwc2hvdBIpCgZzdGF0dXMYASABKAsyGS5taWNyb3BvZC52MS5TeXN0ZW1TdGF0dXMSKgoKZGlza191c2FnZRgCIAEoCzIWLm1pY3JvcG9kLnYxLkRpc2tVc2FnZSKOAgoMU3lzdGVtU3RhdHVzEiAKBnN0YXR1cxgBIAEoCUIQukcNOgsSCSdydW5uaW5nJxI1CghhcHBfcm9vdBgCIAEoCUIjukcgOh4SHCcvQXBwbGljYXRpb25zL01pY3JvcG9kLmFwcCcSKgoMaW5zdGFsbF9yb290GAMgASgJQhS6RxE6DxINJ34vLm1pY3JvcG9kJxIqChJhcGlfc2VydmVyX3ZlcnNpb24YBCABKAlCDrpHCzoJEgcnMC44LjAnEiMKC2NsaV92ZXJzaW9uGAUgASgJQg66Rws6CRIHJzAuNy4wJxIoCg9ydW50aW1lX2JhY2tlbmQYBiABKAlCD7pHDDoKEggnbmF0aXZlJyKyAQoJRGlza1VzYWdlEi0KCmNvbnRhaW5lcnMYASABKAsyGS5taWNyb3BvZC52MS5EaXNrQ2F0ZWdvcnkSKQoGaW1hZ2VzGAIgASgLMhkubWljcm9wb2QudjEuRGlza0NhdGVnb3J5EioKB3ZvbHVtZXMYAyABKAsyGS5taWNyb3BvZC52MS5EaXNrQ2F0ZWdvcnkSHwoXdG90YWxfcmVjbGFpbWFibGVfYnl0ZXMYBCABKAQilwEKDERpc2tDYXRlZ29yeRIYCgV0b3RhbBgBIAEoBEIJukcGOgQSAjEyEhgKBmFjdGl2ZRgCIAEoBEIIukcFOgMSATUSJQoKc2l6ZV9ieXRlcxgDIAEoBEIRukcOOgwSCjQyOTQ5NjcyOTYSLAoRcmVjbGFpbWFibGVfYnl0ZXMYBCABKARCEbpHDjoMEgoxMDczNzQxODI0In8KDVN0YXRzU25hcHNob3QSLwoKY29udGFpbmVycxgBIAMoCzIbLm1pY3JvcG9kLnYxLkNvbnRhaW5lclN0YXRzEj0KCnNhbXBsZWRfYXQYAiABKAlCKbpHJjoYEhYnMjAyNi0wMS0xNVQxMDozMDowMFonmgIJZGF0ZS10aW1lIucCCg5Db250YWluZXJTdGF0cxIYCgJpZBgBIAEoCUIMukcJOgcSBSd3ZWInEiAKC2NwdV9wZXJjZW50GAIgASgBQgu6Rwg6BhIEMTIuNRIrChFtZW1vcnlfdXNlZF9ieXRlcxgDIAEoBEIQukcNOgsSCTEzNDIxNzcyOBIsChJtZW1vcnlfbGltaXRfYnl0ZXMYBCABKARCELpHDToLEgk1MzY4NzA5MTISKAoQbmV0d29ya19yeF9ieXRlcxgFIAEoBEIOukcLOgkSBzEwNDg1NzYSJwoQbmV0d29ya190eF9ieXRlcxgGIAEoBEINukcKOggSBjUyNDI4OBIoChBibG9ja19yZWFkX2J5dGVzGAcgASgEQg66Rws6CRIHMjA5NzE1MhIpChFibG9ja193cml0ZV9ieXRlcxgIIAEoBEIOukcLOgkSBzEwNDg1NzYSFgoEcGlkcxgJIAEoBEIIukcFOgMSATcidwoNUmVnaXN0cnlMb2dpbhIiCgZzZXJ2ZXIYASABKAlCErpHDzoNEgsnZG9ja2VyLmlvJxIiCgh1c2VybmFtZRgCIAEoCUIQukcNOgsSCSdvY3RvY2F0JxIeCgZzY2hlbWUYAyABKAlCDrpHCzoJEgcnYmFzaWMnItADCgtVc2FnZVJlcG9ydBIzCgZpbWFnZXMYASADKAsyIy5taWNyb3BvZC52MS5Vc2FnZVJlcG9ydC5JbWFnZVVzYWdlEjUKB3ZvbHVtZXMYAiADKAsyJC5taWNyb3BvZC52MS5Vc2FnZVJlcG9ydC5Wb2x1bWVVc2FnZRIyChdyZWNsYWltYWJsZV9pbWFnZV9ieXRlcxgDIAEoBEIRukcOOgwSCjIxNDc0ODM2NDgSMwoYcmVjbGFpbWFibGVfdm9sdW1lX2J5dGVzGAQgASgEQhG6Rw46DBIKMTA3Mzc0MTgyNBIpChdzdG9wcGVkX2NvbnRhaW5lcl9jb3VudBgFIAEoBUIIukcFOgMSATIaXgoKSW1hZ2VVc2FnZRIhCgVpbWFnZRgBIAEoCzISLm1pY3JvcG9kLnYxLkltYWdlEh0KFXVzZWRfYnlfY29udGFpbmVyX2lkcxgCIAMoCRIOCgZpbl91c2UYAyABKAgaYQoLVm9sdW1lVXNhZ2USIwoGdm9sdW1lGAEgASgLMhMubWljcm9wb2QudjEuVm9sdW1lEh0KFXVzZWRfYnlfY29udGFpbmVyX2lkcxgCIAMoCRIOCgZpbl91c2UYAyABKAgiqQQKDFVwZGF0ZVN0YXR1cxJPCgVzdGF0ZRgBIAEoDjIfLm1pY3JvcG9kLnYxLlVwZGF0ZVN0YXR1cy5TdGF0ZUIfukccOhoSGCdTVEFURV9VUERBVEVfQVZBSUxBQkxFJxIXCg9mZWVkX2NvbmZpZ3VyZWQYAiABKAgSJwoPY3VycmVudF92ZXJzaW9uGAMgASgJQg66Rws6CRIHJzAuOC4wJxIpChFhdmFpbGFibGVfdmVyc2lvbhgEIAEoCUIOukcLOgkSBycwLjkuMCcSEgoKZG93bmxvYWRlZBgFIAEoCBIqChJkb3dubG9hZGVkX3ZlcnNpb24YBiABKAlCDrpHCzoJEgcnMC45LjAnEhgKEHJlYWR5X3RvX2luc3RhbGwYByABKAgSDQoFZXJyb3IYCCABKAkSPQoKY2hlY2tlZF9hdBgJIAEoCUIpukcmOhgSFicyMDI2LTAxLTE1VDEwOjMwOjAwWieaAglkYXRlLXRpbWUisgEKBVN0YXRlEhUKEVNUQVRFX1VOU1BFQ0lGSUVEEAASFQoRU1RBVEVfVU5BVkFJTEFCTEUQARIOCgpTVEFURV9JRExFEAISEgoOU1RBVEVfQ0hFQ0tJTkcQAxIUChBTVEFURV9VUF9UT19EQVRFEAQSGgoWU1RBVEVfVVBEQVRFX0FWQUlMQUJMRRAFEhQKEFNUQVRFX0lOU1RBTExJTkcQBhIPCgtTVEFURV9FUlJPUhAHMv0ECg1TeXN0ZW1TZXJ2aWNlEjwKCUdldFN5c3RlbRISLm1pY3JvcG9kLnYxLkVtcHR5GhsubWljcm9wb2QudjEuU3lzdGVtU25hcHNob3QSOAoIR2V0VXNhZ2USEi5taWNyb3BvZC52MS5FbXB0eRoYLm1pY3JvcG9kLnYxLlVzYWdlUmVwb3J0EkAKD0NoZWNrRm9yVXBkYXRlcxISLm1pY3JvcG9kLnYxLkVtcHR5GhkubWljcm9wb2QudjEuVXBkYXRlU3RhdHVzEkAKD0dldFVwZGF0ZVN0YXR1cxISLm1pY3JvcG9kLnYxLkVtcHR5GhkubWljcm9wb2QudjEuVXBkYXRlU3RhdHVzEjwKC0FwcGx5VXBkYXRlEhIubWljcm9wb2QudjEuRW1wdHkaGS5taWNyb3BvZC52MS5VcGRhdGVTdGF0dXMSNQoEUGluZxISLm1pY3JvcG9kLnYxLkVtcHR5GhkubWljcm9wb2QudjEuUGluZ1Jlc3BvbnNlEkUKDExpc3RSdW50aW1lcxISLm1pY3JvcG9kLnYxLkVtcHR5GiEubWljcm9wb2QudjEuTGlzdFJ1bnRpbWVzUmVzcG9uc2USXQoRU2V0RGVmYXVsdFJ1bnRpbWUSJS5taWNyb3BvZC52MS5TZXREZWZhdWx0UnVudGltZVJlcXVlc3QaIS5taWNyb3BvZC52MS5MaXN0UnVudGltZXNSZXNwb25zZRJVCg1VcGRhdGVSdW50aW1lEiEubWljcm9wb2QudjEuVXBkYXRlUnVudGltZVJlcXVlc3QaIS5taWNyb3BvZC52MS5MaXN0UnVudGltZXNSZXNwb25zZUJCWkBnaXRodWIuY29tL2Nhc3RsZW1pbGsvbWljcm9wb2Qvc2RrL2dvL2dlbi9taWNyb3BvZC92MTttaWNyb3BvZHYxYgZwcm90bzM", [file_buf_validate_validate, file_gnostic_openapi_v3_annotations, file_micropod_v1_api, file_micropod_v1_image, file_micropod_v1_volume]);
+
+/**
+ * One execution engine (see ListRuntimes).
+ *
+ * @generated from message micropod.v1.RuntimeInfo
+ */
+export type RuntimeInfo = Message<"micropod.v1.RuntimeInfo"> & {
+  /**
+   * Engine name used in RunContainerRequest.runtime: "apple", "docker",
+   * "sandbox".
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * What kind of isolation it provides: "vm" (micro-VM per container via
+   * a runtime daemon), "microvm" (in-process ephemeral micro-VM) or
+   * "container" (shared-kernel containers inside one VM).
+   *
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * Human-readable one-liner.
+   *
+   * @generated from field: string description = 3;
+   */
+  description: string;
+
+  /**
+   * True when the engine can take work right now.
+   *
+   * @generated from field: bool available = 4;
+   */
+  available: boolean;
+
+  /**
+   * Why it is unavailable (empty when available).
+   *
+   * @generated from field: string reason = 5;
+   */
+  reason: string;
+
+  /**
+   * Engine version when known.
+   *
+   * @generated from field: string version = 6;
+   */
+  version: string;
+
+  /**
+   * Where the engine lives: a socket path, install root or state dir.
+   *
+   * @generated from field: string endpoint = 7;
+   */
+  endpoint: string;
+
+  /**
+   * Default engine for RunContainer when `runtime` is unset.
+   *
+   * @generated from field: bool default = 8;
+   */
+  default: boolean;
+
+  /**
+   * Container operations the engine supports: "run", "create", "start",
+   * "stop", "kill", "delete", "exec", "logs", "stats", "ports", "volumes".
+   * Calls outside this set fail with `unimplemented`.
+   *
+   * @generated from field: repeated string capabilities = 9;
+   */
+  capabilities: string[];
+
+  /**
+   * Enabled engines contribute to ListContainers and accept RunContainer.
+   * "docker" starts disabled so an existing Docker Desktop's containers
+   * don't appear until asked for.
+   *
+   * @generated from field: bool enabled = 10;
+   */
+  enabled: boolean;
+};
+
+/**
+ * Describes the message micropod.v1.RuntimeInfo.
+ * Use `create(RuntimeInfoSchema)` to create a new message.
+ */
+export const RuntimeInfoSchema: GenMessage<RuntimeInfo> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_system, 0);
+
+/**
+ * @generated from message micropod.v1.ListRuntimesResponse
+ */
+export type ListRuntimesResponse = Message<"micropod.v1.ListRuntimesResponse"> & {
+  /**
+   * @generated from field: repeated micropod.v1.RuntimeInfo runtimes = 1;
+   */
+  runtimes: RuntimeInfo[];
+
+  /**
+   * Name of the default engine.
+   *
+   * @generated from field: string default = 2;
+   */
+  default: string;
+};
+
+/**
+ * Describes the message micropod.v1.ListRuntimesResponse.
+ * Use `create(ListRuntimesResponseSchema)` to create a new message.
+ */
+export const ListRuntimesResponseSchema: GenMessage<ListRuntimesResponse> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_system, 1);
+
+/**
+ * @generated from message micropod.v1.UpdateRuntimeRequest
+ */
+export type UpdateRuntimeRequest = Message<"micropod.v1.UpdateRuntimeRequest"> & {
+  /**
+   * Engine name from ListRuntimes.
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * Enable or disable the engine; unset leaves it unchanged.
+   *
+   * @generated from field: optional bool enabled = 2;
+   */
+  enabled?: boolean;
+
+  /**
+   * Engine endpoint override; empty string restores the default. Docker:
+   * "unix:///path/docker.sock" or "tcp://host:port" (plain HTTP). Other
+   * engines reject an endpoint with `invalid_argument`.
+   *
+   * @generated from field: optional string endpoint = 3;
+   */
+  endpoint?: string;
+};
+
+/**
+ * Describes the message micropod.v1.UpdateRuntimeRequest.
+ * Use `create(UpdateRuntimeRequestSchema)` to create a new message.
+ */
+export const UpdateRuntimeRequestSchema: GenMessage<UpdateRuntimeRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_system, 2);
+
+/**
+ * @generated from message micropod.v1.SetDefaultRuntimeRequest
+ */
+export type SetDefaultRuntimeRequest = Message<"micropod.v1.SetDefaultRuntimeRequest"> & {
+  /**
+   * Engine name from ListRuntimes.
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message micropod.v1.SetDefaultRuntimeRequest.
+ * Use `create(SetDefaultRuntimeRequestSchema)` to create a new message.
+ */
+export const SetDefaultRuntimeRequestSchema: GenMessage<SetDefaultRuntimeRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_system, 3);
 
 /**
  * Cheap liveness reply for detection and health ticks (see Ping).
@@ -63,6 +233,14 @@ export type PingResponse = Message<"micropod.v1.PingResponse"> & {
    * @generated from field: repeated string features = 5;
    */
   features: string[];
+
+  /**
+   * Engine RunContainer uses when `runtime` is unset (see ListRuntimes).
+   * Empty on servers that predate engine selection.
+   *
+   * @generated from field: string default_runtime = 6;
+   */
+  defaultRuntime: string;
 };
 
 /**
@@ -70,7 +248,7 @@ export type PingResponse = Message<"micropod.v1.PingResponse"> & {
  * Use `create(PingResponseSchema)` to create a new message.
  */
 export const PingResponseSchema: GenMessage<PingResponse> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 0);
+  messageDesc(file_micropod_v1_system, 4);
 
 /**
  * @generated from message micropod.v1.SystemSnapshot
@@ -96,7 +274,7 @@ export type SystemSnapshot = Message<"micropod.v1.SystemSnapshot"> & {
  * Use `create(SystemSnapshotSchema)` to create a new message.
  */
 export const SystemSnapshotSchema: GenMessage<SystemSnapshot> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 1);
+  messageDesc(file_micropod_v1_system, 5);
 
 /**
  * Runtime health, mapped from `container system status`.
@@ -152,7 +330,7 @@ export type SystemStatus = Message<"micropod.v1.SystemStatus"> & {
  * Use `create(SystemStatusSchema)` to create a new message.
  */
 export const SystemStatusSchema: GenMessage<SystemStatus> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 2);
+  messageDesc(file_micropod_v1_system, 6);
 
 /**
  * Disk usage, mapped from `container system df`.
@@ -194,7 +372,7 @@ export type DiskUsage = Message<"micropod.v1.DiskUsage"> & {
  * Use `create(DiskUsageSchema)` to create a new message.
  */
 export const DiskUsageSchema: GenMessage<DiskUsage> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 3);
+  messageDesc(file_micropod_v1_system, 7);
 
 /**
  * @generated from message micropod.v1.DiskCategory
@@ -234,7 +412,7 @@ export type DiskCategory = Message<"micropod.v1.DiskCategory"> & {
  * Use `create(DiskCategorySchema)` to create a new message.
  */
 export const DiskCategorySchema: GenMessage<DiskCategory> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 4);
+  messageDesc(file_micropod_v1_system, 8);
 
 /**
  * Single snapshot of runtime resource usage for all running containers,
@@ -263,7 +441,7 @@ export type StatsSnapshot = Message<"micropod.v1.StatsSnapshot"> & {
  * Use `create(StatsSnapshotSchema)` to create a new message.
  */
 export const StatsSnapshotSchema: GenMessage<StatsSnapshot> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 5);
+  messageDesc(file_micropod_v1_system, 9);
 
 /**
  * Per-container resource counters within a StatsSnapshot.
@@ -340,7 +518,7 @@ export type ContainerStats = Message<"micropod.v1.ContainerStats"> & {
  * Use `create(ContainerStatsSchema)` to create a new message.
  */
 export const ContainerStatsSchema: GenMessage<ContainerStats> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 6);
+  messageDesc(file_micropod_v1_system, 10);
 
 /**
  * A registry login, mapped from `container registry list`.
@@ -375,7 +553,7 @@ export type RegistryLogin = Message<"micropod.v1.RegistryLogin"> & {
  * Use `create(RegistryLoginSchema)` to create a new message.
  */
 export const RegistryLoginSchema: GenMessage<RegistryLogin> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 7);
+  messageDesc(file_micropod_v1_system, 11);
 
 /**
  * What a cleanup would reclaim: every image and volume annotated with the
@@ -425,7 +603,7 @@ export type UsageReport = Message<"micropod.v1.UsageReport"> & {
  * Use `create(UsageReportSchema)` to create a new message.
  */
 export const UsageReportSchema: GenMessage<UsageReport> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 8);
+  messageDesc(file_micropod_v1_system, 12);
 
 /**
  * An image plus the containers that reference it.
@@ -460,7 +638,7 @@ export type UsageReport_ImageUsage = Message<"micropod.v1.UsageReport.ImageUsage
  * Use `create(UsageReport_ImageUsageSchema)` to create a new message.
  */
 export const UsageReport_ImageUsageSchema: GenMessage<UsageReport_ImageUsage> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 8, 0);
+  messageDesc(file_micropod_v1_system, 12, 0);
 
 /**
  * A volume plus the containers mounting it.
@@ -495,7 +673,7 @@ export type UsageReport_VolumeUsage = Message<"micropod.v1.UsageReport.VolumeUsa
  * Use `create(UsageReport_VolumeUsageSchema)` to create a new message.
  */
 export const UsageReport_VolumeUsageSchema: GenMessage<UsageReport_VolumeUsage> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 8, 1);
+  messageDesc(file_micropod_v1_system, 12, 1);
 
 /**
  * Desktop-app updater status (Sparkle), proxied over the app control
@@ -573,7 +751,7 @@ export type UpdateStatus = Message<"micropod.v1.UpdateStatus"> & {
  * Use `create(UpdateStatusSchema)` to create a new message.
  */
 export const UpdateStatusSchema: GenMessage<UpdateStatus> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 9);
+  messageDesc(file_micropod_v1_system, 13);
 
 /**
  * Updater lifecycle state.
@@ -642,7 +820,7 @@ export enum UpdateStatus_State {
  * Describes the enum micropod.v1.UpdateStatus.State.
  */
 export const UpdateStatus_StateSchema: GenEnum<UpdateStatus_State> = /*@__PURE__*/
-  enumDesc(file_micropod_v1_system, 9, 0);
+  enumDesc(file_micropod_v1_system, 13, 0);
 
 /**
  * Daemon-level operations: runtime snapshot, cleanup usage report, and the
@@ -715,6 +893,42 @@ export const SystemService: GenService<{
     methodKind: "unary";
     input: typeof EmptySchema;
     output: typeof PingResponseSchema;
+  },
+  /**
+   * Execution engines this server can drive, with availability,
+   * capabilities and which one is the default for new containers.
+   *
+   * @generated from rpc micropod.v1.SystemService.ListRuntimes
+   */
+  listRuntimes: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof ListRuntimesResponseSchema;
+  },
+  /**
+   * Persist the engine new containers run on when RunContainerRequest
+   * leaves `runtime` unset. Fails with `failed_precondition` for an
+   * unknown or unavailable engine.
+   *
+   * @generated from rpc micropod.v1.SystemService.SetDefaultRuntime
+   */
+  setDefaultRuntime: {
+    methodKind: "unary";
+    input: typeof SetDefaultRuntimeRequestSchema;
+    output: typeof ListRuntimesResponseSchema;
+  },
+  /**
+   * Enable/disable an engine or point it at a different endpoint (e.g. the
+   * Docker engine at an OrbStack or colima socket). Disabled engines are
+   * left out of ListContainers and refuse RunContainer. The default engine
+   * cannot be disabled (`failed_precondition`). Persisted server-side.
+   *
+   * @generated from rpc micropod.v1.SystemService.UpdateRuntime
+   */
+  updateRuntime: {
+    methodKind: "unary";
+    input: typeof UpdateRuntimeRequestSchema;
+    output: typeof ListRuntimesResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_micropod_v1_system, 0);

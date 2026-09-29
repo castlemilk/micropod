@@ -156,7 +156,7 @@ final class RunSecurityOptionsTests: XCTestCase {
     }
 
     func testFeaturesListTheOptionalRunFields() {
-        XCTAssertEqual(APIFeatures.supported, ["cap_add", "cap_drop", "rosetta", "privileged"])
+        XCTAssertEqual(APIFeatures.supported, ["cap_add", "cap_drop", "rosetta", "privileged", "runtime"])
     }
 
     // MARK: - CLI backend argv

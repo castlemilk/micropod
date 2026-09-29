@@ -37,6 +37,9 @@ public enum SandboxVM {
         public var mounts: [String] = []
         public var env: [String] = []
         public var workdir: String?
+        /// Replaces the image entrypoint (`arguments` become its args).
+        public var entrypoint: [String]?
+        public var hostname = "sandbox"
         public var network = false
         public var tmpfsTmp = true
         public var tmpSizeMiB: UInt64?
@@ -70,17 +73,28 @@ public enum SandboxVM {
 
     // MARK: - Run
 
-    /// Boot, run `options.arguments`, tear down. Returns the guest exit code.
-    public static func run(
-        _ options: Options,
-        progress: @Sendable (String) -> Void = { _ in }
-    ) async throws -> Int32 {
-        let trace = Trace()
-        let id = "sbx-" + UUID().uuidString.lowercased().prefix(12)
-        let runDir = runsDir.appendingPathComponent(id)
-        try FileManager.default.createDirectory(at: runDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: runDir) }
+    /// A configured-but-not-booted sandbox VM. `network` keeps the vmnet
+    /// network alive for the VM's lifetime: releasing it early kills the
+    /// guest mid-teardown ("virtual machine stopped unexpectedly").
+    struct Prepared: @unchecked Sendable {
+        let id: String
+        let container: LinuxContainer
+        let rootfsPath: URL
+        let imageRef: String
+        let diskBytes: UInt64
+        let network: VmnetNetwork?
+    }
 
+    /// Resolve the base disk, clone it into `runDir` and configure the VM.
+    static func prepare(
+        _ options: Options,
+        id: String,
+        runDir: URL,
+        stdout: any Writer,
+        stderr: any Writer,
+        trace: Trace = Trace(),
+        progress: @Sendable (String) -> Void
+    ) async throws -> Prepared {
         let store = try imageStore()
         let (baseDisk, imageRef, diskBytes) = try await resolveBase(
             options, store: store, progress: progress)
@@ -101,8 +115,6 @@ public enum SandboxVM {
         // One vmnet network per sandbox (macOS 26 vmnet_network_create —
         // no vm.networking entitlement): vmnet picks a free subnet, so
         // parallel runs never contend for addresses.
-        // The network must outlive the VM: releasing it early kills the
-        // guest mid-teardown ("virtual machine stopped unexpectedly").
         var vmnet = options.network ? try VmnetNetwork() : nil
         let network: (interface: any Interface, gateway: String)?
         if let net = vmnet, let iface = try vmnet?.createInterface(id) {
@@ -111,30 +123,31 @@ public enum SandboxVM {
         } else {
             network = nil
         }
-        defer { withExtendedLifetime(vmnet) {} }
 
         let container = try LinuxContainer(id, rootfs: rootfs, vmm: manager) { cfg in
             if let imageConfig { cfg.process = .init(from: imageConfig) }
             cfg.cpus = options.cpus
             cfg.memoryInBytes = options.memoryMiB * 1024 * 1024
-            cfg.hostname = "sandbox"
+            cfg.hostname = options.hostname
             if let path = ProcessInfo.processInfo.environment["MICROPOD_SANDBOX_BOOTLOG"] {
                 cfg.bootLog = .file(path: URL(fileURLWithPath: path), append: false)
             }
-            if !options.arguments.isEmpty {
+            if let entrypoint = options.entrypoint {
+                cfg.process.arguments = entrypoint + options.arguments
+            } else if !options.arguments.isEmpty {
                 // Explicit command replaces CMD but keeps the entrypoint,
                 // matching `docker run image cmd…`.
                 cfg.process.arguments =
                     (imageConfig?.entrypoint ?? []) + options.arguments
             }
             guard !cfg.process.arguments.isEmpty else {
-                throw MicropodError.message("image \(imageRef) has no default command")
+                throw MicropodError.message("invalidArgument: image \(imageRef) has no default command")
             }
             cfg.process.environmentVariables = mergeEnv(
                 cfg.process.environmentVariables, options.env)
             if let workdir = options.workdir { cfg.process.workingDirectory = workdir }
-            cfg.process.stdout = FileHandleWriter(.standardOutput)
-            cfg.process.stderr = FileHandleWriter(.standardError)
+            cfg.process.stdout = stdout
+            cfg.process.stderr = stderr
             if options.tmpfsTmp {
                 var opts = ["nosuid", "nodev", "mode=1777"]
                 if let size = options.tmpSizeMiB { opts.append("size=\(size)m") }
@@ -149,9 +162,39 @@ public enum SandboxVM {
                 cfg.dns = DNS(nameservers: [network.gateway])
             }
         }
+        return Prepared(
+            id: id, container: container, rootfsPath: rootfsPath, imageRef: imageRef,
+            diskBytes: diskBytes, network: vmnet)
+    }
 
-        // No stop() on boot timeout: create() still holds the container's
-        // state lock. The VM dies with this process.
+    /// `create()` bounded by `bootTimeout`. No stop() on timeout: create()
+    /// still holds the container's state lock; the VM dies with the process.
+    static func boot(_ prepared: Prepared, timeout: Duration) async throws {
+        let container = prepared.container
+        try await withTimeout(timeout, "guest did not boot") {
+            try await container.create()
+        }
+        try await container.start()
+    }
+
+    /// Boot, run `options.arguments`, tear down. Returns the guest exit code.
+    public static func run(
+        _ options: Options,
+        progress: @Sendable (String) -> Void = { _ in }
+    ) async throws -> Int32 {
+        let trace = Trace()
+        let id = "sbx-" + UUID().uuidString.lowercased().prefix(12)
+        let runDir = runsDir.appendingPathComponent(id)
+        try FileManager.default.createDirectory(at: runDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: runDir) }
+
+        let prepared = try await prepare(
+            options, id: id, runDir: runDir,
+            stdout: FileHandleWriter(.standardOutput), stderr: FileHandleWriter(.standardError),
+            trace: trace, progress: progress)
+        defer { withExtendedLifetime(prepared.network) {} }
+        let container = prepared.container
+
         try await withTimeout(options.bootTimeout, "guest did not boot") {
             try await container.create()
         }
@@ -176,7 +219,8 @@ public enum SandboxVM {
 
         if let name = options.saveAs, status.exitCode == 0 {
             try saveCheckpoint(
-                name: name, disk: rootfsPath, image: imageRef, diskBytes: diskBytes)
+                name: name, disk: prepared.rootfsPath, image: prepared.imageRef,
+                diskBytes: prepared.diskBytes)
             progress("checkpoint '\(name)' saved")
         }
         trace.report()

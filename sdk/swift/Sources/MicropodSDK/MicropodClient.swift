@@ -40,6 +40,10 @@ public struct MicropodClient: Sendable {
         "CheckForUpdates": "SystemService",
         "GetUpdateStatus": "SystemService",
         "ApplyUpdate": "SystemService",
+        "Ping": "SystemService",
+        "ListRuntimes": "SystemService",
+        "SetDefaultRuntime": "SystemService",
+        "UpdateRuntime": "SystemService",
         "GetK8sStatus": "K8sService",
         "GetK8sConfig": "K8sService",
         "SetK8sConfig": "K8sService",
@@ -81,6 +85,24 @@ public struct MicropodClient: Sendable {
 
     public func system() async throws -> Micropod_V1_SystemSnapshot {
         try await connect.unary(path: path("GetSystem"), request: Micropod_V1_Empty())
+    }
+
+    /// Execution engines (apple, docker, sandbox) with availability and the default.
+    public func listRuntimes() async throws -> Micropod_V1_ListRuntimesResponse {
+        try await connect.unary(path: path("ListRuntimes"), request: Micropod_V1_Empty())
+    }
+
+    /// Engine RunContainer uses when `runtime` is unset.
+    public func setDefaultRuntime(_ name: String) async throws -> Micropod_V1_ListRuntimesResponse {
+        try await connect.unary(
+            path: path("SetDefaultRuntime"), request: Micropod_V1_SetDefaultRuntimeRequest.with { $0.name = name })
+    }
+
+    /// Enable/disable an engine or re-point its endpoint.
+    public func updateRuntime(_ request: Micropod_V1_UpdateRuntimeRequest) async throws
+        -> Micropod_V1_ListRuntimesResponse
+    {
+        try await connect.unary(path: path("UpdateRuntime"), request: request)
     }
 
     public func stats(_ request: Micropod_V1_GetStatsRequest = .init()) async throws -> Micropod_V1_GetStatsResponse {

@@ -144,6 +144,14 @@ public nonisolated struct Micropod_V1_Container: @unchecked Sendable {
     set {_uniqueStorage()._exitCode = newValue}
   }
 
+  /// Execution engine that owns this container: "apple", "docker" or
+  /// "sandbox" (see SystemService.ListRuntimes). Id-based calls are routed
+  /// to this engine.
+  public var runtime: String {
+    get {_storage._runtime}
+    set {_uniqueStorage()._runtime = newValue}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -427,6 +435,20 @@ public nonisolated struct Micropod_V1_RunContainerRequest: @unchecked Sendable {
   /// Clears the value of `privileged`. Subsequent reads from it will return its default value.
   public mutating func clearPrivileged() {_uniqueStorage()._privileged = nil}
 
+  /// Execution engine to run on: "apple" (a micro-VM per container via the
+  /// Apple container runtime), "docker" (a Docker Engine socket) or
+  /// "sandbox" (an ephemeral in-process micro-VM booted from a cached
+  /// rootfs clone). Unset uses the server default (SetDefaultRuntime). An
+  /// unknown or unavailable engine fails with `failed_precondition`.
+  public var runtime: String {
+    get {_storage._runtime ?? String()}
+    set {_uniqueStorage()._runtime = newValue}
+  }
+  /// Returns true if `runtime` has been explicitly set.
+  public var hasRuntime: Bool {_storage._runtime != nil}
+  /// Clears the value of `runtime`. Subsequent reads from it will return its default value.
+  public mutating func clearRuntime() {_uniqueStorage()._runtime = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -629,7 +651,7 @@ fileprivate nonisolated let _protobuf_package = "micropod.v1"
 
 nonisolated extension Micropod_V1_Container: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Container"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}image\0\u{1}state\0\u{3}created_at\0\u{1}resources\0\u{1}platform\0\u{3}published_ports\0\u{1}mounts\0\u{1}networks\0\u{3}ipv4_address\0\u{1}env\0\u{1}labels\0\u{1}rosetta\0\u{3}read_only\0\u{3}use_init\0\u{1}ssh\0\u{1}virtualization\0\u{3}runtime_handler\0\u{3}exit_code\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}image\0\u{1}state\0\u{3}created_at\0\u{1}resources\0\u{1}platform\0\u{3}published_ports\0\u{1}mounts\0\u{1}networks\0\u{3}ipv4_address\0\u{1}env\0\u{1}labels\0\u{1}rosetta\0\u{3}read_only\0\u{3}use_init\0\u{1}ssh\0\u{1}virtualization\0\u{3}runtime_handler\0\u{3}exit_code\0\u{1}runtime\0")
 
   fileprivate class _StorageClass {
     var _id: String = String()
@@ -651,6 +673,7 @@ nonisolated extension Micropod_V1_Container: SwiftProtobuf.Message, SwiftProtobu
     var _virtualization: Bool = false
     var _runtimeHandler: String = String()
     var _exitCode: String = String()
+    var _runtime: String = String()
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -680,6 +703,7 @@ nonisolated extension Micropod_V1_Container: SwiftProtobuf.Message, SwiftProtobu
       _virtualization = source._virtualization
       _runtimeHandler = source._runtimeHandler
       _exitCode = source._exitCode
+      _runtime = source._runtime
     }
   }
 
@@ -717,6 +741,7 @@ nonisolated extension Micropod_V1_Container: SwiftProtobuf.Message, SwiftProtobu
         case 17: try { try decoder.decodeSingularBoolField(value: &_storage._virtualization) }()
         case 18: try { try decoder.decodeSingularStringField(value: &_storage._runtimeHandler) }()
         case 19: try { try decoder.decodeSingularStringField(value: &_storage._exitCode) }()
+        case 20: try { try decoder.decodeSingularStringField(value: &_storage._runtime) }()
         default: break
         }
       }
@@ -786,6 +811,9 @@ nonisolated extension Micropod_V1_Container: SwiftProtobuf.Message, SwiftProtobu
       if !_storage._exitCode.isEmpty {
         try visitor.visitSingularStringField(value: _storage._exitCode, fieldNumber: 19)
       }
+      if !_storage._runtime.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._runtime, fieldNumber: 20)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -814,6 +842,7 @@ nonisolated extension Micropod_V1_Container: SwiftProtobuf.Message, SwiftProtobu
         if _storage._virtualization != rhs_storage._virtualization {return false}
         if _storage._runtimeHandler != rhs_storage._runtimeHandler {return false}
         if _storage._exitCode != rhs_storage._exitCode {return false}
+        if _storage._runtime != rhs_storage._runtime {return false}
         return true
       }
       if !storagesAreEqual {return false}
@@ -1010,7 +1039,7 @@ nonisolated extension Micropod_V1_ListContainersResponse: SwiftProtobuf.Message,
 
 nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RunContainerRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}image\0\u{1}name\0\u{1}detach\0\u{1}cpus\0\u{1}memory\0\u{1}env\0\u{1}ports\0\u{1}volumes\0\u{1}labels\0\u{1}init\0\u{1}arguments\0\u{1}entrypoint\0\u{1}platform\0\u{1}workdir\0\u{1}user\0\u{3}no_pull\0\u{3}cap_add\0\u{3}cap_drop\0\u{1}rosetta\0\u{1}privileged\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}image\0\u{1}name\0\u{1}detach\0\u{1}cpus\0\u{1}memory\0\u{1}env\0\u{1}ports\0\u{1}volumes\0\u{1}labels\0\u{1}init\0\u{1}arguments\0\u{1}entrypoint\0\u{1}platform\0\u{1}workdir\0\u{1}user\0\u{3}no_pull\0\u{3}cap_add\0\u{3}cap_drop\0\u{1}rosetta\0\u{1}privileged\0\u{1}runtime\0")
 
   fileprivate class _StorageClass {
     var _image: String = String()
@@ -1033,6 +1062,7 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
     var _capDrop: [String] = []
     var _rosetta: Bool? = nil
     var _privileged: Bool? = nil
+    var _runtime: String? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1063,6 +1093,7 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
       _capDrop = source._capDrop
       _rosetta = source._rosetta
       _privileged = source._privileged
+      _runtime = source._runtime
     }
   }
 
@@ -1101,6 +1132,7 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
         case 18: try { try decoder.decodeRepeatedStringField(value: &_storage._capDrop) }()
         case 19: try { try decoder.decodeSingularBoolField(value: &_storage._rosetta) }()
         case 20: try { try decoder.decodeSingularBoolField(value: &_storage._privileged) }()
+        case 21: try { try decoder.decodeSingularStringField(value: &_storage._runtime) }()
         default: break
         }
       }
@@ -1173,6 +1205,9 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
       try { if let v = _storage._privileged {
         try visitor.visitSingularBoolField(value: v, fieldNumber: 20)
       } }()
+      try { if let v = _storage._runtime {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 21)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1202,6 +1237,7 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
         if _storage._capDrop != rhs_storage._capDrop {return false}
         if _storage._rosetta != rhs_storage._rosetta {return false}
         if _storage._privileged != rhs_storage._privileged {return false}
+        if _storage._runtime != rhs_storage._runtime {return false}
         return true
       }
       if !storagesAreEqual {return false}

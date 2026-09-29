@@ -141,6 +141,7 @@ struct MicropodCLI {
 
         case "compose": try await ComposeCommands.dispatch(args, services)
         case "k8s", "kubernetes": try await K8sCommands.run(args, services)
+        case "runtime", "runtimes": try await RuntimeCommands.run(args, services)
 
         case "df": try await SystemCommands.df(args, services)
         case "machines", "machine":
@@ -202,6 +203,7 @@ struct MicropodCLI {
           build-cache stats|inspect        content-addressed build contexts
           machines [--json]                  runtime VMs (create/run/stop/rm for keep-alive CI)
           sandbox run|checkpoint             ephemeral micro-VM per command (CI fast path)
+          runtime ls|use|enable|disable      execution engines: apple VMs, docker, sandbox micro-VMs
           k8s enable|up|down|status          lightweight Kubernetes (opt-in; k3s micro-VM + MetalLB)
           k8s load <ref|file.tar>|images     push images into the cluster via the host puller
           system start|stop|logs             daemon control + log access

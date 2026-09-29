@@ -217,6 +217,46 @@ sections are load-aware — the runtime degrades under heavy VM churn, so
 benchmarks run against a quiet runtime and self-clean every container they
 create.
 
+## Runtimes: apple VMs, Docker, sandbox micro-VMs
+
+micropod drives three execution engines behind one API. Pick one per
+container (`RunContainerRequest.runtime`, `micropod run --runtime`) or set a
+default; `ListContainers` merges every enabled engine and stamps each
+container's `runtime`, and id-based calls route to the engine that owns it.
+
+| engine | kind | what it is | notes |
+|---|---|---|---|
+| `apple` | vm | Apple container runtime — one micro-VM per container | default; volumes, networks, ports |
+| `docker` | container | any Docker Engine socket (Docker Desktop, OrbStack, colima, `tcp://`) | **opt-in** so an existing Docker Desktop's containers don't appear until asked |
+| `sandbox` | microvm | ephemeral in-process micro-VM booted from a clonefile of a cached rootfs | fastest boot; no ports/named volumes; can't restart — run a new one |
+
+```bash
+micropod runtime ls                        # availability, enabled, default
+micropod runtime use sandbox               # default for new containers
+micropod runtime enable docker
+micropod runtime endpoint docker unix://$HOME/.orbstack/run/docker.sock
+micropod run --runtime docker nginx
+```
+
+Same over the API (Connect `SystemService.ListRuntimes / SetDefaultRuntime /
+UpdateRuntime`, REST `GET /v1/runtimes`, `PUT /v1/runtimes/default`,
+`PATCH /v1/runtimes/{name}`), the SDKs, and the MCP tools `runtimes`,
+`runtime_set_default`, `runtime_update` (+ `run`'s `runtime` argument).
+Settings persist in `~/.micropod/runtimes.json`; `MICROPOD_DEFAULT_RUNTIME`
+overrides the default per process. `Ping.features` includes `runtime` on
+servers that honour the field.
+
+Sandbox VMs are owned by the process that boots them: long-lived sandbox
+containers live in the API daemon; the CLI's `run --runtime sandbox` runs in
+the foreground to completion. API sandboxes get a network unless labelled
+`micropod.network=none`. The binary hosting them needs
+`com.apple.security.virtualization` (`signing/micropod-cli.entitlements`).
+
+`micropod sandbox run|checkpoint` is the CLI fast path for CI jobs
+(offline by default, `--net` to attach, checkpoints to reuse a prepared
+disk). Benchmarks: `task bench-sandbox`; live engine matrix through a real
+API daemon: `task e2e-runtimes`.
+
 ## Local HTTP API
 
 `task api` (`Sources/MicropodAPI`) runs a dependency-free HTTP/1.1 JSON API

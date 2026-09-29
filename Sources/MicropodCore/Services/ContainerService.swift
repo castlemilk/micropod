@@ -7,6 +7,10 @@ public protocol ContainerServing: Sendable {
     func create(_ request: ContainerRunRequest) async throws -> String
     func run(_ request: ContainerRunRequest) async throws -> String
     func exec(_ request: ContainerExecRequest) async throws -> String
+    /// `exec` reporting the exit code + stderr instead of throwing on a
+    /// non-zero exit. A requirement (with a default below) so backends that
+    /// know the exit code keep stdout too, even through an existential.
+    func execDetailed(_ request: ContainerExecRequest) async throws -> ContainerExecResult
     func start(_ id: String) async throws
     func stop(_ id: String, timeout: Int) async throws
     /// Docker-style restart: stop (with grace) then start.

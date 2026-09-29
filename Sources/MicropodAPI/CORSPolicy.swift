@@ -65,7 +65,7 @@ enum CORSPolicy {
         ]
         if request.method == .options {
             headers += [
-                ("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"),
+                ("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS"),
                 (
                     "Access-Control-Allow-Headers",
                     "Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, Authorization"

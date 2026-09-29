@@ -44,7 +44,9 @@ struct ShimBootstrap {
         let networkService = NetworkService(client: client)
         let gateways = VMNetGateways(list: { try await networkService.list() })
         await gateways.refresh()
-        let runtime = await RuntimeBackendResolver.resolve(client: client)
+        // The shim is the Docker API facade over the apple engine; routing it
+        // across engines could loop back through itself via the docker engine.
+        let runtime = await RuntimeBackendResolver.resolveApple(client: client)
         let containerService = runtime.containers
         let state = ShimState.loadPersisted(from: URL(fileURLWithPath: statePath))
         let readCache = ReadThroughCache()

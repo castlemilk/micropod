@@ -19,12 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SystemService_GetSystem_FullMethodName       = "/micropod.v1.SystemService/GetSystem"
-	SystemService_GetUsage_FullMethodName        = "/micropod.v1.SystemService/GetUsage"
-	SystemService_CheckForUpdates_FullMethodName = "/micropod.v1.SystemService/CheckForUpdates"
-	SystemService_GetUpdateStatus_FullMethodName = "/micropod.v1.SystemService/GetUpdateStatus"
-	SystemService_ApplyUpdate_FullMethodName     = "/micropod.v1.SystemService/ApplyUpdate"
-	SystemService_Ping_FullMethodName            = "/micropod.v1.SystemService/Ping"
+	SystemService_GetSystem_FullMethodName         = "/micropod.v1.SystemService/GetSystem"
+	SystemService_GetUsage_FullMethodName          = "/micropod.v1.SystemService/GetUsage"
+	SystemService_CheckForUpdates_FullMethodName   = "/micropod.v1.SystemService/CheckForUpdates"
+	SystemService_GetUpdateStatus_FullMethodName   = "/micropod.v1.SystemService/GetUpdateStatus"
+	SystemService_ApplyUpdate_FullMethodName       = "/micropod.v1.SystemService/ApplyUpdate"
+	SystemService_Ping_FullMethodName              = "/micropod.v1.SystemService/Ping"
+	SystemService_ListRuntimes_FullMethodName      = "/micropod.v1.SystemService/ListRuntimes"
+	SystemService_SetDefaultRuntime_FullMethodName = "/micropod.v1.SystemService/SetDefaultRuntime"
+	SystemService_UpdateRuntime_FullMethodName     = "/micropod.v1.SystemService/UpdateRuntime"
 )
 
 // SystemServiceClient is the client API for SystemService service.
@@ -51,6 +54,18 @@ type SystemServiceClient interface {
 	// usage. Answers `status: stopped` (never an error) when the runtime is
 	// down but the API server is up.
 	Ping(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*PingResponse, error)
+	// Execution engines this server can drive, with availability,
+	// capabilities and which one is the default for new containers.
+	ListRuntimes(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ListRuntimesResponse, error)
+	// Persist the engine new containers run on when RunContainerRequest
+	// leaves `runtime` unset. Fails with `failed_precondition` for an
+	// unknown or unavailable engine.
+	SetDefaultRuntime(ctx context.Context, in *SetDefaultRuntimeRequest, opts ...grpc.CallOption) (*ListRuntimesResponse, error)
+	// Enable/disable an engine or point it at a different endpoint (e.g. the
+	// Docker engine at an OrbStack or colima socket). Disabled engines are
+	// left out of ListContainers and refuse RunContainer. The default engine
+	// cannot be disabled (`failed_precondition`). Persisted server-side.
+	UpdateRuntime(ctx context.Context, in *UpdateRuntimeRequest, opts ...grpc.CallOption) (*ListRuntimesResponse, error)
 }
 
 type systemServiceClient struct {
@@ -121,6 +136,36 @@ func (c *systemServiceClient) Ping(ctx context.Context, in *Empty, opts ...grpc.
 	return out, nil
 }
 
+func (c *systemServiceClient) ListRuntimes(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ListRuntimesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListRuntimesResponse)
+	err := c.cc.Invoke(ctx, SystemService_ListRuntimes_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *systemServiceClient) SetDefaultRuntime(ctx context.Context, in *SetDefaultRuntimeRequest, opts ...grpc.CallOption) (*ListRuntimesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListRuntimesResponse)
+	err := c.cc.Invoke(ctx, SystemService_SetDefaultRuntime_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *systemServiceClient) UpdateRuntime(ctx context.Context, in *UpdateRuntimeRequest, opts ...grpc.CallOption) (*ListRuntimesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListRuntimesResponse)
+	err := c.cc.Invoke(ctx, SystemService_UpdateRuntime_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SystemServiceServer is the server API for SystemService service.
 // All implementations must embed UnimplementedSystemServiceServer
 // for forward compatibility.
@@ -145,6 +190,18 @@ type SystemServiceServer interface {
 	// usage. Answers `status: stopped` (never an error) when the runtime is
 	// down but the API server is up.
 	Ping(context.Context, *Empty) (*PingResponse, error)
+	// Execution engines this server can drive, with availability,
+	// capabilities and which one is the default for new containers.
+	ListRuntimes(context.Context, *Empty) (*ListRuntimesResponse, error)
+	// Persist the engine new containers run on when RunContainerRequest
+	// leaves `runtime` unset. Fails with `failed_precondition` for an
+	// unknown or unavailable engine.
+	SetDefaultRuntime(context.Context, *SetDefaultRuntimeRequest) (*ListRuntimesResponse, error)
+	// Enable/disable an engine or point it at a different endpoint (e.g. the
+	// Docker engine at an OrbStack or colima socket). Disabled engines are
+	// left out of ListContainers and refuse RunContainer. The default engine
+	// cannot be disabled (`failed_precondition`). Persisted server-side.
+	UpdateRuntime(context.Context, *UpdateRuntimeRequest) (*ListRuntimesResponse, error)
 	mustEmbedUnimplementedSystemServiceServer()
 }
 
@@ -172,6 +229,15 @@ func (UnimplementedSystemServiceServer) ApplyUpdate(context.Context, *Empty) (*U
 }
 func (UnimplementedSystemServiceServer) Ping(context.Context, *Empty) (*PingResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Ping not implemented")
+}
+func (UnimplementedSystemServiceServer) ListRuntimes(context.Context, *Empty) (*ListRuntimesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListRuntimes not implemented")
+}
+func (UnimplementedSystemServiceServer) SetDefaultRuntime(context.Context, *SetDefaultRuntimeRequest) (*ListRuntimesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetDefaultRuntime not implemented")
+}
+func (UnimplementedSystemServiceServer) UpdateRuntime(context.Context, *UpdateRuntimeRequest) (*ListRuntimesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateRuntime not implemented")
 }
 func (UnimplementedSystemServiceServer) mustEmbedUnimplementedSystemServiceServer() {}
 func (UnimplementedSystemServiceServer) testEmbeddedByValue()                       {}
@@ -302,6 +368,60 @@ func _SystemService_Ping_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SystemService_ListRuntimes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SystemServiceServer).ListRuntimes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SystemService_ListRuntimes_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SystemServiceServer).ListRuntimes(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SystemService_SetDefaultRuntime_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetDefaultRuntimeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SystemServiceServer).SetDefaultRuntime(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SystemService_SetDefaultRuntime_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SystemServiceServer).SetDefaultRuntime(ctx, req.(*SetDefaultRuntimeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SystemService_UpdateRuntime_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateRuntimeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SystemServiceServer).UpdateRuntime(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SystemService_UpdateRuntime_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SystemServiceServer).UpdateRuntime(ctx, req.(*UpdateRuntimeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SystemService_ServiceDesc is the grpc.ServiceDesc for SystemService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -332,6 +452,18 @@ var SystemService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Ping",
 			Handler:    _SystemService_Ping_Handler,
+		},
+		{
+			MethodName: "ListRuntimes",
+			Handler:    _SystemService_ListRuntimes_Handler,
+		},
+		{
+			MethodName: "SetDefaultRuntime",
+			Handler:    _SystemService_SetDefaultRuntime_Handler,
+		},
+		{
+			MethodName: "UpdateRuntime",
+			Handler:    _SystemService_UpdateRuntime_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
