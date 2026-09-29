@@ -1058,10 +1058,22 @@ final class AppStore {
         // Don't waste a CLI invocation when the daemon is down; the
         // supervisor will bring it back and the next poll will catch up.
         guard isRuntimeRunning, clientAvailable else { return }
+        await dependencies.refreshBackendIfNeeded()
         do {
             containers = try await dependencies.containers.list()
             lastRefreshError = nil
         } catch {
+            // A transport error can mean the apiserver was re-registered under
+            // us: re-resolve now and retry once on the fresh connection before
+            // surfacing anything.
+            if case MicropodError.transport = error,
+                await dependencies.refreshBackendIfNeeded(force: true),
+                let recovered = try? await dependencies.containers.list()
+            {
+                containers = recovered
+                lastRefreshError = nil
+                return
+            }
             // A stopped runtime fails every poll — that's expected state the
             // status card already shows; don't storm the modal alert.
             if isRuntimeRunning {

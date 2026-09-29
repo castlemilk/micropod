@@ -21,6 +21,8 @@ public final class AppDependencies {
     public let machine: MachineService
     /// The resolved runtime backend (cli until `useNativeBackend` resolves).
     public private(set) var runtime: RuntimeServices?
+    /// Keeps `runtime` current after start-up (see `refreshBackendIfNeeded`).
+    private var holder: RuntimeHolder?
 
     private convenience init() {
         // Env override so the app can be validated against a mock CLI.
@@ -47,15 +49,49 @@ public final class AppDependencies {
     }
 
     /// Swaps container/log/stats services to the native apiserver backend
-    /// when the `ping` handshake succeeds. Safe to call once at app start;
+    /// when the `ping` handshake succeeds, and keeps the choice current from
+    /// then on (`refreshBackendIfNeeded`). Safe to call once at app start;
     /// views built afterwards get the fast path.
     public func useNativeBackend() async {
-        let resolved = await RuntimeBackendResolver.resolve(client: client)
-        guard resolved.kind == .native else { return }
-        self.runtime = resolved
-        self.containers = resolved.containers
-        self.statsSampler = resolved.stats
-        self.logStreamer = resolved.logs
+        let client = self.client
+        await useBackend { pingTimeout in
+            await RuntimeBackendResolver.resolve(client: client, pingTimeout: pingTimeout)
+        }
+    }
+
+    /// `useNativeBackend` with the resolver injected (tests script it).
+    func useBackend(resolve: @escaping @Sendable (_ pingTimeout: Duration) async -> RuntimeServices) async {
+        // Launch allows launchd time to activate a cold apiserver; later
+        // re-resolutions sit on the poll path, so their ping stays short.
+        let initial = await resolve(.seconds(10))
+        holder = RuntimeHolder(initial: initial, resolve: { await resolve(.seconds(2)) })
+        adopt(initial)
+    }
+
+    /// Replaces the backend when the current one can improve: the CLI once
+    /// the apiserver answers, or a native backend whose XPC connection was
+    /// invalidated — the apiserver was unregistered and re-registered by
+    /// `container system stop/start`, a watchdog restart or a runtime update.
+    /// Without this the app held the dead connection, every list, stats and
+    /// logs call failing, until it was relaunched. A no-op while the backend
+    /// is healthy; the holder re-resolves at most every 10 s unless `force`d.
+    /// Returns true when the services were swapped.
+    @discardableResult
+    public func refreshBackendIfNeeded(force: Bool = false) async -> Bool {
+        guard let holder else { return false }
+        return adopt(await holder.refreshIfNeeded(force: force))
+    }
+
+    @discardableResult
+    private func adopt(_ services: RuntimeServices) -> Bool {
+        if let current = runtime, current.kind == services.kind, current.api === services.api {
+            return false
+        }
+        runtime = services
+        containers = services.containers
+        statsSampler = services.stats
+        logStreamer = services.logs
+        return true
     }
 }
 
