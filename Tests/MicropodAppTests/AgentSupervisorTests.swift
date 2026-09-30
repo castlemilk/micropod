@@ -302,6 +302,75 @@ final class AgentSupervisorTests: XCTestCase {
             "a stale same-name copy must be reaped so a fresh binary can bind")
     }
 
+    /// A same-name process serving a *different* endpoint — the installed
+    /// app's agent while a dev build or smoke test runs — must never be
+    /// killed, even when our own endpoint is down and we're about to respawn.
+    func testSameNameProcessOnAnotherEndpointIsNeverReaped() async throws {
+        let bins = try sameNameListeners()
+        defer { bins.cleanup() }
+        let otherSocket = "/tmp/mpsup-\(UUID().uuidString.prefix(8)).sock"
+        let other = Process()
+        other.executableURL = URL(fileURLWithPath: bins.theirs)
+        other.arguments = ["-lU", "-k", otherSocket]
+        try other.run()
+        defer {
+            if other.isRunning { other.terminate() }
+            try? FileManager.default.removeItem(atPath: otherSocket)
+        }
+        try await waitForSocket(otherSocket)
+
+        // Our endpoint has nothing on it: two failed probes → respawn path,
+        // which used to SIGTERM every process with the binary's name.
+        let ourSocket = "/tmp/mpsup-\(UUID().uuidString.prefix(8)).sock"
+        let spec = AgentSpec(
+            id: "fake", displayName: "Fake", binaryName: bins.name,
+            probe: .unixSocket(path: ourSocket),
+            enabledDefaultsKey: "test.fake-isolated.enabled", endpoint: ourSocket,
+            binaryPathOverride: bins.ours)
+        let supervisor = AgentSupervisor(
+            specs: [spec], runDirectory: runDirectory, isEnabled: { _ in true }, onStatus: { _ in })
+        await supervisor.tick()
+        await supervisor.tick()
+        await supervisor.stop()
+        try? FileManager.default.removeItem(atPath: ourSocket)
+
+        XCTAssertTrue(
+            processAlive(other.processIdentifier),
+            "a same-name process on another endpoint belongs to someone else")
+    }
+
+    /// A healthy endpoint served by a same-name binary at a different path
+    /// (the launchd-managed MicropodAPI on 45454) is a conflict to surface,
+    /// not a process to kill.
+    func testHealthySameNameBinaryAtAnotherPathIsNotReaped() async throws {
+        let bins = try sameNameListeners()
+        defer { bins.cleanup() }
+        let socketPath = "/tmp/mpsup-\(UUID().uuidString.prefix(8)).sock"
+        let theirs = Process()
+        theirs.executableURL = URL(fileURLWithPath: bins.theirs)
+        theirs.arguments = ["-lU", "-k", socketPath]
+        try theirs.run()
+        defer {
+            if theirs.isRunning { theirs.terminate() }
+            try? FileManager.default.removeItem(atPath: socketPath)
+        }
+        try await waitForSocket(socketPath)
+
+        let spec = AgentSpec(
+            id: "fake", displayName: "Fake", binaryName: bins.name,
+            probe: .unixSocket(path: socketPath),
+            enabledDefaultsKey: "test.fake-otherpath.enabled", endpoint: socketPath,
+            binaryPathOverride: bins.ours)
+        let supervisor = AgentSupervisor(
+            specs: [spec], runDirectory: runDirectory, isEnabled: { _ in true }, onStatus: { _ in })
+        await supervisor.tick()
+
+        let status = await supervisor.statuses().first
+        XCTAssertEqual(status?.state, .retryPending)
+        XCTAssertTrue(status?.lastError?.contains("foreign") ?? false)
+        XCTAssertTrue(processAlive(theirs.processIdentifier), "another build's healthy agent must be left alone")
+    }
+
     /// A wedged-but-listening API port owned by a different binary gets
     /// the same treatment — this is the stale-MicropodAPI-on-45454 case.
     func testForeignHTTPListenerIsNotAdopted() async throws {
@@ -342,6 +411,27 @@ final class AgentSupervisorTests: XCTestCase {
 
     /// A uniquely named copy of /bin/sleep, so a spec that reaps foreign
     /// copies of its binary can only ever match processes of this test.
+    /// Two copies of nc with the same basename in different directories —
+    /// "same binary name, different build" (installed app vs dev build, or
+    /// the launchd MicropodAPI vs the app's own).
+    private func sameNameListeners() throws -> (name: String, ours: String, theirs: String, cleanup: () -> Void) {
+        let name = "nc-agent-\(UUID().uuidString.prefix(8))"
+        let base = URL(fileURLWithPath: NSTemporaryDirectory()).resolvingSymlinksInPath()
+        let oursDir = base.appendingPathComponent("ours-\(UUID().uuidString.prefix(6))")
+        let theirsDir = base.appendingPathComponent("theirs-\(UUID().uuidString.prefix(6))")
+        for dir in [oursDir, theirsDir] {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try FileManager.default.copyItem(atPath: "/usr/bin/nc", toPath: dir.appendingPathComponent(name).path)
+        }
+        return (
+            name, oursDir.appendingPathComponent(name).path, theirsDir.appendingPathComponent(name).path,
+            {
+                try? FileManager.default.removeItem(at: oursDir)
+                try? FileManager.default.removeItem(at: theirsDir)
+            }
+        )
+    }
+
     private func privateSleepBinary() throws -> (name: String, path: String) {
         let name = "sleep-test-\(UUID().uuidString.prefix(8))"
         let path = URL(fileURLWithPath: NSTemporaryDirectory() + name)

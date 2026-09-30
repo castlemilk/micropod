@@ -211,40 +211,40 @@ public final class XPCConnection: Sendable {
         xpc_connection_cancel(connection)
     }
 
-    /// Sends a message and awaits the service's reply. Applies
-    /// `responseTimeout` via a racing sleep task — the XPC reply itself is
-    /// not cancellable, so a timed-out send may still complete server-side.
+    /// Sends a message and awaits the service's reply, the timeout, or the
+    /// caller's cancellation — whichever comes first. The XPC reply itself
+    /// can't be cancelled, so a timed-out send may still complete
+    /// server-side; its late reply is dropped.
+    ///
+    /// Not a task group: a group waits for every child before returning, and
+    /// the reply child can't be cancelled, so a service that never answered
+    /// (a wedged container's `containerStats`) held the "timed out" call
+    /// forever. One continuation resumed exactly once by the first of reply,
+    /// timer and cancellation returns on time.
     @discardableResult
     public func send(_ message: XPCMessage, responseTimeout: Duration? = nil) async throws -> XPCMessage {
         if isInvalidated {
             throw MicropodError.transport("\(service): connection invalidated")
         }
-        return try await withThrowingTaskGroup(of: XPCMessage.self, returning: XPCMessage.self) { group in
-            if let responseTimeout {
-                group.addTask {
-                    try await Task.sleep(for: responseTimeout)
-                    let route = message.string(key: XPCMessage.routeKey) ?? "?"
-                    throw MicropodError.message("XPC timeout for \(self.service)/\(route)")
+        let gate = ReplyGate()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<XPCMessage, any Error>) in
+                gate.arm(cont)
+                xpc_connection_send_message_with_reply(connection, message.underlying, nil) { reply in
+                    gate.finish { try self.parseReply(reply) }
                 }
-            }
-            group.addTask {
-                try await withCheckedThrowingContinuation { cont in
-                    xpc_connection_send_message_with_reply(self.connection, message.underlying, nil) { reply in
-                        do {
-                            cont.resume(returning: try self.parseReply(reply))
-                        } catch {
-                            cont.resume(throwing: error)
-                        }
+                if let responseTimeout {
+                    let route = message.string(key: XPCMessage.routeKey) ?? "?"
+                    let service = self.service
+                    let c = responseTimeout.components
+                    let delay = Double(c.seconds) + Double(c.attoseconds) / 1e18
+                    DispatchQueue.global().asyncAfter(deadline: .now() + delay) {
+                        gate.finish { throw MicropodError.message("XPC timeout for \(service)/\(route)") }
                     }
                 }
             }
-            let response = try await group.next()
-            group.cancelAll()
-            try? await group.waitForAll()
-            guard let response else {
-                throw MicropodError.transport("\(self.service): no XPC response")
-            }
-            return response
+        } onCancel: {
+            gate.finish { throw CancellationError() }
         }
     }
 
@@ -263,5 +263,53 @@ public final class XPCConnection: Sendable {
         }
         try message.error()
         return message
+    }
+}
+
+/// Resumes one continuation exactly once — first of reply, timeout and
+/// cancellation wins; later outcomes are dropped. Cancellation can land
+/// before the continuation is armed (onCancel runs immediately for an
+/// already-cancelled task), so an early outcome is parked until `arm`.
+final class ReplyGate: Sendable {
+    private enum State {
+        case idle
+        case armed(CheckedContinuation<XPCMessage, any Error>)
+        case early(Result<XPCMessage, any Error>)
+        case done
+    }
+
+    private let state = OSAllocatedUnfairLock<State>(initialState: .idle)
+
+    func arm(_ cont: CheckedContinuation<XPCMessage, any Error>) {
+        let parked: Result<XPCMessage, any Error>? = state.withLockUnchecked { state in
+            switch state {
+            case .idle:
+                state = .armed(cont)
+                return nil
+            case .early(let result):
+                state = .done
+                return result
+            case .armed, .done:
+                return nil
+            }
+        }
+        if let parked { cont.resume(with: parked) }
+    }
+
+    func finish(_ outcome: () throws -> XPCMessage) {
+        let result = Result { try outcome() }
+        let cont: CheckedContinuation<XPCMessage, any Error>? = state.withLockUnchecked { state in
+            switch state {
+            case .idle:
+                state = .early(result)
+                return nil
+            case .armed(let cont):
+                state = .done
+                return cont
+            case .early, .done:
+                return nil
+            }
+        }
+        cont?.resume(with: result)
     }
 }
