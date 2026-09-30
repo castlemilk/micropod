@@ -203,7 +203,7 @@
     "name": "restart"
   },
   {
-    "description": "Run a container. Arguments: image (required), name (optional), memory (optional), runtime (optional: apple | docker | sandbox; default is the configured engine).",
+    "description": "Run a container. Arguments: image (required), name (optional), memory (optional), command (optional, run by /bin/sh -c instead of the image's default command \u2014 e.g. `sleep infinity` keeps a sandbox up for exec), runtime (optional: apple | docker | sandbox; default is the configured engine).",
     "inputSchema": {
       "type": "object"
     },

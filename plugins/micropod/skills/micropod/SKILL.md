@@ -36,7 +36,10 @@ Config for any MCP client:
 (If `micropod-mcp` isn't on the client's PATH, use the absolute path
 `$HOME/.local/bin/micropod-mcp`.)
 
-Tools — **containers**: `list_containers`, `run`, `start`, `stop`,
+Tools — **containers** (all engines: sandbox and docker containers are
+reached through the API daemon; `run` takes `runtime` and a `command`, e.g.
+`sleep infinity` to keep a sandbox up for `exec`): `list_containers`, `run`,
+`start`, `stop`,
 `restart`, `kill`, `delete`, `inspect`, `exec`, `logs`, `stats`.
 **machines** (persistent `container machine` VMs, e.g. keep-alive CI):
 `list_machines`, `machine_stats` (CPU/mem/net/block/pids from each running
