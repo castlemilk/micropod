@@ -110,4 +110,9 @@ public enum UserDefaultsKeys {
     public static let agentDockerShim = "agentDockerShim"
     public static let agentAPIServer = "agentAPIServer"
     public static let agentSharedFS = "agentSharedFS"
+    /// Bool; missing means enabled. False stops the app from bouncing a
+    /// runtime whose liveness probe keeps failing (it still reports it
+    /// wedged): set it on a machine where the runtime runs other
+    /// software's work, such as a CI rig.
+    public static let runtimeAutoHeal = "runtimeAutoHeal"
 }

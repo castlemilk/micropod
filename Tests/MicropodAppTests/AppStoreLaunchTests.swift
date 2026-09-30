@@ -236,6 +236,21 @@ final class AppStoreLaunchTests: XCTestCase {
         try await store.dependencies.system.livenessProbe()
     }
 
+    /// A restart kills every running container: an idle runtime is bounced
+    /// after two misses, a busy one only once the misses persist, and never
+    /// when automatic restarts are off.
+    func testRuntimeHealSparesBusyRuntimeAndHonoursTheSwitch() {
+        let decide = AppStore.runtimeHealDecision
+        XCTAssertEqual(decide(1, 0, true), .confirm)
+        XCTAssertEqual(decide(AppStore.idleHealMisses, 0, true), .heal)
+        XCTAssertEqual(decide(AppStore.idleHealMisses, 3, true), .confirm)
+        XCTAssertEqual(decide(AppStore.busyHealMisses - 1, 3, true), .confirm)
+        XCTAssertEqual(decide(AppStore.busyHealMisses, 3, true), .heal)
+        XCTAssertEqual(decide(AppStore.idleHealMisses, 0, false), .reportWedged)
+        XCTAssertEqual(decide(AppStore.busyHealMisses, 3, false), .reportWedged)
+        XCTAssertGreaterThan(AppStore.busyHealMisses, AppStore.idleHealMisses)
+    }
+
     func testLivenessProbeFailsAgainstDeadRuntime() async {
         let store = makeRunningStore(client: AppTestCLI.makeFailing())
         do {

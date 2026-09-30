@@ -522,10 +522,11 @@ final class AppStore {
         await attemptRuntimeStart(reason: "auto-start: runtime not running")
     }
 
-    /// Self-healing for the Apple container runtime: two consecutive liveness
+    /// Self-healing for the Apple container runtime: consecutive liveness
     /// misses (the probe times out inside 8s or exits non-zero while status
     /// claims "running") mean the apiserver is wedged — bounce it via
-    /// `container system stop` + `start`. Heals are capped at 3 per 15-minute
+    /// `container system stop` + `start` (how many misses: see
+    /// `runtimeHealDecision`). Heals are capped at 3 per 15-minute
     /// window; beyond that we surface `.wedged` and let the user escalate
     /// (the runbook's deeper steps need admin rights or a logout).
     private func probeRuntimeLiveness() async {
@@ -536,16 +537,55 @@ final class AppStore {
             if runtimeHealth != .healthy { runtimeHealth = .healthy }
         } catch {
             consecutiveProbeMisses += 1
-            if consecutiveProbeMisses >= 2 {
+            let autoHeal = UserDefaults.standard.object(forKey: UserDefaultsKeys.runtimeAutoHeal) as? Bool ?? true
+            switch Self.runtimeHealDecision(
+                consecutiveMisses: consecutiveProbeMisses, runningContainers: runningCount,
+                autoHealEnabled: autoHeal)
+            {
+            case .heal:
                 runtimeHealth = .wedged
                 await healRuntime(reason: error.localizedDescription, manual: false)
-            } else {
+            case .reportWedged:
+                if runtimeHealth != .wedged {
+                    recordActivity(
+                        "system",
+                        "Runtime liveness probe keeps failing (\(error.localizedDescription)); automatic restart is off",
+                        level: .error)
+                }
+                runtimeHealth = .wedged
+            case .confirm:
                 recordActivity(
                     "system",
                     "Runtime liveness probe failed (\(error.localizedDescription)) — confirming",
                     level: .info)
             }
         }
+    }
+
+    enum RuntimeHealDecision: Equatable {
+        /// Not yet: keep probing.
+        case confirm
+        /// Bounce the runtime.
+        case heal
+        /// Wedged, but automatic restarts are off.
+        case reportWedged
+    }
+
+    /// Misses before an idle runtime is bounced (~40 s at the 20 s tick).
+    static let idleHealMisses = 2
+    /// Misses before a runtime with running containers is bounced (~5 min).
+    /// A restart kills every one of them, and a busy apiserver answers
+    /// `list` slowly (it serialises requests behind container starts), so a
+    /// slow probe under load is not taken for a wedge until it persists.
+    static let busyHealMisses = 15
+
+    /// Whether consecutive liveness misses warrant a restart.
+    static func runtimeHealDecision(
+        consecutiveMisses: Int, runningContainers: Int, autoHealEnabled: Bool
+    ) -> RuntimeHealDecision {
+        let needed = runningContainers > 0 ? busyHealMisses : idleHealMisses
+        guard consecutiveMisses >= needed else { return .confirm }
+        return autoHealEnabled ? .heal : .reportWedged
     }
 
     /// Bounce the runtime: `system stop` (best-effort — it may itself be
