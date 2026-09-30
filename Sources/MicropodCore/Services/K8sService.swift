@@ -500,7 +500,7 @@ public struct K8sService: Sendable {
 
     /// Host dir mounted at /etc/rancher/k3s in the guest (registries.yaml,
     /// and k3s.yaml lands here readable without exec).
-    static var etcDir: URL {
+    public static var etcDir: URL {
         FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".micropod/k8s/etc")
     }

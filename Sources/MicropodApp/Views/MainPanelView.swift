@@ -93,6 +93,7 @@ struct MainPanelView: View {
             }
             Section("Resources") {
                 tabRow(.containers)
+                tabRow(.machines)
                 tabRow(.images)
                 tabRow(.volumes)
                 tabRow(.networks)
@@ -113,6 +114,9 @@ struct MainPanelView: View {
         .safeAreaInset(edge: .bottom) {
             runtimeStatusCard
         }
+        // Cap the whole column (inset included): otherwise the HStack hands
+        // the sidebar half the window whenever a tab's content is narrow.
+        .frame(maxWidth: 240)
     }
 
     private func tabRow(_ tab: AppStore.ActiveTab) -> some View {
@@ -185,6 +189,7 @@ struct MainPanelView: View {
         switch store.activeTab {
         case .dashboard: DashboardView(store: store)
         case .containers: ContainersView(store: store)
+        case .machines: MachinesView(store: store)
         case .images: ImagesView(store: store)
         case .volumes: VolumesView(store: store)
         case .networks: NetworksView(store: store)
@@ -246,6 +251,7 @@ struct MainPanelView: View {
     private func count(for tab: AppStore.ActiveTab) -> Int? {
         switch tab {
         case .containers: store.containers.count
+        case .machines: store.machines.filter(\.isRunning).count
         case .images: store.images.count
         case .volumes: store.volumes.count
         case .networks: store.networks.count
@@ -261,6 +267,11 @@ struct MainPanelView: View {
             store.activeTab = .containers
             if url.pathComponents.count > 1 {
                 store.selectedContainerID = url.pathComponents[1]
+            }
+        case "machines":
+            store.activeTab = .machines
+            if url.pathComponents.count > 1 {
+                store.selectedMachineID = url.pathComponents[1]
             }
         case "images": store.activeTab = .images
         case "volumes": store.activeTab = .volumes

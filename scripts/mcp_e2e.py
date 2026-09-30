@@ -83,8 +83,11 @@ def main():
                 "share_mount", "share_unmount", "share_list", "share_sync", "share_gc",
                 "build_cache_stats", "volume_policy", "volume_policy_set",
                 "update_check", "update_status", "update_apply",
-                "runtimes", "runtime_set_default", "runtime_update"}
-    check("all 35 tools advertised", set(names) == expected, f"got {sorted(names)}")
+                "runtimes", "runtime_set_default", "runtime_update",
+                "k8s_status", "k8s_enable", "k8s_disable", "k8s_up", "k8s_down",
+                "k8s_kubeconfig", "k8s_load_image", "k8s_images",
+                "list_machines", "machine_stats", "machine_logs"}
+    check(f"all {len(expected)} tools advertised", set(names) == expected, f"got {sorted(names)}")
 
     def call(tool_id, tool, **arguments):
         (responses, _) = rpc(binary, state_dir, args.cli, [

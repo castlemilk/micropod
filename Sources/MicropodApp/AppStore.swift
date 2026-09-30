@@ -29,6 +29,17 @@ struct ResourceSample: Equatable {
     let networkTxBytes: UInt64
 }
 
+/// One machine metrics point; rates are per second between polls.
+struct MachineSample: Equatable {
+    let timestamp: Date
+    let cpuPercent: Double
+    let memoryUsedBytes: UInt64
+    let netRxRate: Double
+    let netTxRate: Double
+    let blockReadRate: Double
+    let blockWriteRate: Double
+}
+
 struct ActivityEntry: Identifiable, Equatable {
     let id: UUID
     let timestamp: Date
@@ -96,13 +107,14 @@ final class AppStore {
     // MARK: - Navigation
 
     enum ActiveTab: String, CaseIterable, Identifiable {
-        case dashboard, containers, images, volumes, networks, registries, build, compose, environments, storage,
-            settings
+        case dashboard, containers, machines, images, volumes, networks, registries, build, compose, environments,
+            storage, settings
         var id: String { rawValue }
         var title: String {
             switch self {
             case .dashboard: "Dashboard"
             case .containers: "Containers"
+            case .machines: "Machines"
             case .images: "Images"
             case .volumes: "Volumes"
             case .networks: "Networks"
@@ -118,6 +130,7 @@ final class AppStore {
             switch self {
             case .dashboard: "gauge.with.dots.needle.50percent"
             case .containers: "shippingbox"
+            case .machines: "server.rack"
             case .images: "photo.stack"
             case .volumes: "externaldrive"
             case .networks: "network"
@@ -133,6 +146,7 @@ final class AppStore {
 
     var activeTab: ActiveTab = .dashboard
     var selectedContainerID: String?
+    var selectedMachineID: String?
     var selectedImageID: String?
     var selectedVolumeID: String?
     var selectedNetworkID: String?
@@ -222,6 +236,10 @@ final class AppStore {
     var machines: [MachineEntry] = []
     var systemProperties: SystemPropertyListResponse?
     var machineError: String?
+    /// Latest guest /proc sample per running machine.
+    private(set) var machineStatsByID: [String: Micropod_V1_MachineStats] = [:]
+    /// Rolling per-machine history for the Machines metrics charts.
+    private(set) var machineHistory: [String: [MachineSample]] = [:]
     /// Rolling system-wide resource samples for the dashboard charts.
     private(set) var statsHistory: [ResourceSample] = []
     /// Measured runtime storage buckets (app support dir), refreshed on demand.
@@ -1040,10 +1058,22 @@ final class AppStore {
         // Don't waste a CLI invocation when the daemon is down; the
         // supervisor will bring it back and the next poll will catch up.
         guard isRuntimeRunning, clientAvailable else { return }
+        await dependencies.refreshBackendIfNeeded()
         do {
             containers = try await dependencies.containers.list()
             lastRefreshError = nil
         } catch {
+            // A transport error can mean the apiserver was re-registered under
+            // us: re-resolve now and retry once on the fresh connection before
+            // surfacing anything.
+            if case MicropodError.transport = error,
+                await dependencies.refreshBackendIfNeeded(force: true),
+                let recovered = try? await dependencies.containers.list()
+            {
+                containers = recovered
+                lastRefreshError = nil
+                return
+            }
             // A stopped runtime fails every poll — that's expected state the
             // status card already shows; don't storm the modal alert.
             if isRuntimeRunning {
@@ -1092,6 +1122,55 @@ final class AppStore {
             machineError = nil
         } catch {
             machineError = error.localizedDescription
+        }
+    }
+
+    /// Folds the backing containers' stats (already sampled by the stats
+    /// poller — running machines appear there as `<machine>-<6 hex>`) into
+    /// per-machine stats and history — no extra runtime calls, nothing run
+    /// in the guest.
+    private func updateMachineStats() {
+        let running = machines.filter(\.isRunning)
+        let backing = MachineStatsSampler.backingEntries(
+            statsByID.map { (id: $0.key, value: $0.value) }, machines: running.map(\.name))
+        let now = Date()
+        var next: [String: Micropod_V1_MachineStats] = [:]
+        for machine in running {
+            guard let container = backing[machine.name] else { continue }
+            let stats = MachineStatsSampler.stats(machine: machine, container: container)
+            var history = machineHistory[machine.name] ?? []
+            var rates = (rx: 0.0, tx: 0.0, read: 0.0, write: 0.0)
+            if let prev = machineStatsByID[machine.name], prev.containerID == stats.containerID,
+                let last = history.last
+            {
+                let dt = max(now.timeIntervalSince(last.timestamp), 0.001)
+                func rate(_ a: UInt64, _ b: UInt64) -> Double { a >= b ? Double(a - b) / dt : 0 }
+                rates = (
+                    rate(stats.networkRxBytes, prev.networkRxBytes), rate(stats.networkTxBytes, prev.networkTxBytes),
+                    rate(stats.blockReadBytes, prev.blockReadBytes), rate(stats.blockWriteBytes, prev.blockWriteBytes)
+                )
+            }
+            history.append(
+                MachineSample(
+                    timestamp: now, cpuPercent: stats.cpuPercent, memoryUsedBytes: stats.memoryUsedBytes,
+                    netRxRate: rates.rx, netTxRate: rates.tx, blockReadRate: rates.read, blockWriteRate: rates.write))
+            if history.count > 2500 { history.removeFirst(history.count - 2500) }
+            machineHistory[machine.name] = history
+            next[machine.name] = stats
+        }
+        machineStatsByID = next
+        let live = Set(machines.map(\.name))
+        machineHistory = machineHistory.filter { live.contains($0.key) }
+    }
+
+    func stopMachine(_ name: String) async {
+        do {
+            try await dependencies.machine.stop(name)
+            recordActivity("system", "Stopped machine \(name)")
+            await refreshMachines()
+        } catch {
+            machineError = error.localizedDescription
+            recordActivity("system", "Failed to stop machine \(name): \(error.localizedDescription)", level: .error)
         }
     }
 
@@ -1155,6 +1234,7 @@ final class AppStore {
             statsSnapshot = snapshot
             statsByID = Dictionary(snapshot.containers.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             appendStatsSample(snapshot)
+            updateMachineStats()
         } catch {
             // Stats are best-effort; silence transient failures.
         }

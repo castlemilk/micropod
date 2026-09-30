@@ -52,6 +52,9 @@ public struct MicropodClient: Sendable {
         "GetKubeconfig": "K8sService",
         "LoadK8sImage": "K8sService",
         "ListK8sImages": "K8sService",
+        "ListMachines": "MachineService",
+        "GetMachineStats": "MachineService",
+        "StreamMachineLogs": "MachineService",
     ]
 
     public let connect: ConnectClient
@@ -301,5 +304,29 @@ public struct MicropodClient: Sendable {
         let res: Micropod_V1_ListK8sImagesResponse =
             try await connect.unary(path: path("ListK8sImages"), request: req)
         return res.refs
+    }
+
+    // MARK: - Machines (persistent VMs)
+
+    /// All container machines with state, sizing and vmnet address.
+    public func listMachines() async throws -> [Micropod_V1_Machine] {
+        let res: Micropod_V1_ListMachinesResponse =
+            try await connect.unary(path: path("ListMachines"), request: Micropod_V1_Empty())
+        return res.machines
+    }
+
+    /// Guest-wide usage for running machines (all, or one by `id`).
+    public func machineStats(id: String? = nil) async throws -> Micropod_V1_MachineStatsSnapshot {
+        var req = Micropod_V1_GetMachineStatsRequest()
+        if let id { req.id = id }
+        return try await connect.unary(path: path("GetMachineStats"), request: req)
+    }
+
+    /// A machine's stdio (or boot) log — server-streaming; completes after
+    /// the tail unless `follow` is set.
+    public func machineLogs(
+        _ request: Micropod_V1_StreamMachineLogsRequest
+    ) -> AsyncThrowingStream<Micropod_V1_LogChunk, Error> {
+        connect.serverStream(path: path("StreamMachineLogs"), request: request)
     }
 }

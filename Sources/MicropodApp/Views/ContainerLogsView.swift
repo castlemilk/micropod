@@ -2,11 +2,23 @@ import MicropodCore
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Streaming log viewer for one container (`container logs -f`).
+/// Streaming log viewer for one container (`container logs -f`) or, via
+/// `makeStream`, any other line source (machine logs).
 /// HIG: search with match highlight, follow pause, wrap, copy/save.
 struct ContainerLogsView: View {
     @Bindable var store: AppStore
     let containerID: String
+    /// Line source — container stdio by default; machines pass their own.
+    private let makeStream: (@MainActor (_ boot: Bool) -> AsyncThrowingStream<LogLine, Error>)?
+
+    init(
+        store: AppStore, containerID: String,
+        makeStream: (@MainActor (_ boot: Bool) -> AsyncThrowingStream<LogLine, Error>)? = nil
+    ) {
+        self._store = Bindable(store)
+        self.containerID = containerID
+        self.makeStream = makeStream
+    }
 
     @State private var lines: [LogLine] = []
     @State private var showBoot = false
@@ -253,9 +265,10 @@ struct ContainerLogsView: View {
         streamError = nil
         streamTask = Task {
             do {
-                for try await line in store.dependencies.logStreamer.stream(
-                    id: containerID, tail: 200, boot: showBoot)
-                {
+                let stream =
+                    makeStream?(showBoot)
+                    ?? store.dependencies.logStreamer.stream(id: containerID, tail: 200, boot: showBoot)
+                for try await line in stream {
                     if Task.isCancelled { break }
                     guard follow else { continue }
                     lines.append(line)

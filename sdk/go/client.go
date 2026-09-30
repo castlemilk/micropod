@@ -11,7 +11,7 @@
 //	resp, err := client.ListContainers(ctx, connect.NewRequest(&micropodv1.Empty{}))
 //
 // The API is grouped into per-domain services (ContainerService,
-// ImageService, …); Client embeds all seven so every RPC is reachable as a
+// ImageService, …); Client embeds all eight so every RPC is reachable as a
 // promoted method — client.ListContainers, client.ComposeUp, etc. Use the
 // generated per-service clients directly (micropodv1connect.New*Client)
 // when you only need one domain.
@@ -44,6 +44,7 @@ type Client struct {
 	micropodv1connect.ComposeServiceClient
 	micropodv1connect.SystemServiceClient
 	micropodv1connect.K8SServiceClient
+	micropodv1connect.MachineServiceClient
 }
 
 type config struct {
@@ -124,5 +125,6 @@ func NewClient(baseURL string, opts ...Option) *Client {
 		ComposeServiceClient:   micropodv1connect.NewComposeServiceClient(cfg.httpClient, baseURL, clientOpts...),
 		SystemServiceClient:    micropodv1connect.NewSystemServiceClient(cfg.httpClient, baseURL, clientOpts...),
 		K8SServiceClient:       micropodv1connect.NewK8SServiceClient(cfg.httpClient, baseURL, clientOpts...),
+		MachineServiceClient:   micropodv1connect.NewMachineServiceClient(cfg.httpClient, baseURL, clientOpts...),
 	}
 }

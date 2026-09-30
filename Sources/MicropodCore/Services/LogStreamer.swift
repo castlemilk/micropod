@@ -41,11 +41,17 @@ public struct LogStreamer: LogStreaming {
         LogLine, Error
     > {
         let command = ContainerCommandFactory.logs(id, tail: tail, follow: true, boot: boot)
-        return AsyncThrowingStream { continuation in
+        return Self.lines(client.stream(command))
+    }
+
+    /// Re-chunks raw CLI output into complete lines (partial trailing lines
+    /// are held until their newline arrives, flushed at EOF).
+    public static func lines(_ chunks: AsyncThrowingStream<Data, Error>) -> AsyncThrowingStream<LogLine, Error> {
+        AsyncThrowingStream { continuation in
             let task = Task {
                 var buffer = ""
                 do {
-                    for try await chunk in client.stream(command) {
+                    for try await chunk in chunks {
                         guard let text = String(data: chunk, encoding: .utf8) else { continue }
                         buffer += text
                         var lines = buffer.split(separator: "\n", omittingEmptySubsequences: false)

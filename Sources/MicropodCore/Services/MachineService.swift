@@ -7,6 +7,12 @@ public protocol MachineServing: Sendable {
     func stop(_ name: String) async throws
     func runStreaming(name: String, extraArgs: [String], command: [String]) -> AsyncThrowingStream<Data, Error>
     func properties() async throws -> SystemPropertyListResponse
+    /// Bounded fetch of a machine's stdio (or boot) log.
+    func logs(_ name: String, tail: Int?, boot: Bool) async throws -> [LogLine]
+    /// Live-follow stream of a machine's stdio (or boot) log.
+    func streamLogs(_ name: String, tail: Int?, boot: Bool) -> AsyncThrowingStream<LogLine, Error>
+    /// Raw `container machine inspect` JSON.
+    func inspect(_ name: String) async throws -> Data
 }
 
 /// `container machine` + `container system property` surface.
@@ -56,5 +62,27 @@ public struct MachineService: MachineServing {
         let output = try await client.run(ContainerCommandFactory.listProperties(), timeout: .seconds(15))
         return try MicropodJSON.decode(
             SystemPropertyListResponse.self, from: Data(output.utf8), context: "system property list")
+    }
+
+    public func logs(_ name: String, tail: Int? = 200, boot: Bool = false) async throws -> [LogLine] {
+        let output = try await client.run(
+            ContainerCommandFactory.machineLogs(name, tail: tail, boot: boot), timeout: .seconds(30))
+        return
+            output
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { !$0.isEmpty }
+            .suffix(tail ?? Int.max)
+            .map { LogLine(text: String($0)) }
+    }
+
+    public func streamLogs(_ name: String, tail: Int? = nil, boot: Bool = false)
+        -> AsyncThrowingStream<LogLine, Error>
+    {
+        LogStreamer.lines(
+            client.stream(ContainerCommandFactory.machineLogs(name, tail: tail, follow: true, boot: boot)))
+    }
+
+    public func inspect(_ name: String) async throws -> Data {
+        Data(try await client.run(ContainerCommandFactory.inspectMachine(name), timeout: .seconds(15)).utf8)
     }
 }

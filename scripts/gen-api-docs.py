@@ -61,6 +61,10 @@ REST_DESCRIPTIONS = {
     ("PATCH", "/v1/runtimes/{name}"): "Enable/disable an engine or change its endpoint ({enabled, endpoint}).",
     ("POST", "/v1/compose/up"): "docker-compose up from a compose file.",
     ("POST", "/v1/compose/down"): "docker-compose down.",
+    ("GET", "/v1/machines"): "List container machines (persistent VMs).",
+    ("GET", "/v1/machines/stats"): "Guest resource usage for every running machine.",
+    ("GET", "/v1/machines/{id}/stats"): "Guest resource usage for one running machine.",
+    ("GET", "/v1/machines/{id}/logs"): "Machine stdio/boot log (?tail=N&boot=true; &follow=true streams SSE).",
     ("GET", "/v1/k8s"): "Kubernetes engine + cluster status (opt-in feature).",
     ("GET", "/v1/k8s/config"): "Read the persisted k8s engine config.",
     ("POST", "/v1/k8s/config"): "Persist k8s engine config; {enabled:true} turns the feature on.",
@@ -174,7 +178,8 @@ def dump_mcp_tools():
         print("error: tools/list returned no result", file=sys.stderr)
         return False
     tools.sort(key=lambda t: t["name"])
-    (OUT / "mcp-tools.json").write_text(json.dumps(tools, indent=2) + "\n")
+    # sort_keys: the server's JSON object key order varies run to run.
+    (OUT / "mcp-tools.json").write_text(json.dumps(tools, indent=2, sort_keys=True) + "\n")
     print(f"mcp-tools.json: {len(tools)} tools")
     return True
 

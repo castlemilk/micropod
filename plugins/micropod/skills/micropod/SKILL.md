@@ -1,6 +1,6 @@
 ---
 name: micropod
-description: Use the Micropod container manager — the Apple `container` runtime via its MCP server (40 tools), Connect/REST API on :45454, or Docker Engine API shim. Use for running/managing containers and docker-compose stacks, worker orchestration (e.g. cuttlefish), and disposable test containers (real Testcontainers/Ryuk via the shim).
+description: Use the Micropod container manager — the Apple `container` runtime via its MCP server (46 tools), Connect/REST API on :45454, or Docker Engine API shim. Use for running/managing containers and docker-compose stacks, worker orchestration (e.g. cuttlefish), and disposable test containers (real Testcontainers/Ryuk via the shim).
 ---
 
 # Micropod
@@ -11,7 +11,7 @@ Programmatic surfaces, best first:
 
 | Surface | How to reach it | When to use |
 |---|---|---|
-| **MCP server** (STDIO JSON-RPC 2.0, 38 tools) | `micropod-mcp` (installed to `~/.local/bin/`) | Claude/agent-driven work; the richest surface |
+| **MCP server** (STDIO JSON-RPC 2.0, 46 tools) | `micropod-mcp` (installed to `~/.local/bin/`) | Claude/agent-driven work; the richest surface |
 | **Connect API** (proto-JSON over POST) | `http://127.0.0.1:45454/api/micropod.v1.<Service>/<Method>` | Typed clients — TS/Go/Swift SDKs, or curl |
 | **REST facade** (JSON) | `http://127.0.0.1:45454/v1/*` | Quick curl/scripts; SSE logs |
 | **Docker Engine shim** | unix `~/.micropod/docker.sock` + tcp `:45455` | Unmodified Docker clients: docker-py, Testcontainers, Ryuk |
@@ -21,7 +21,7 @@ Prerequisite: Micropod.app installed and running (it owns the daemon, the
 :45454 API, and the shim). `curl -s http://127.0.0.1:45454/health` →
 `{"status":"ok"}` is the readiness probe.
 
-## MCP server (43 tools)
+## MCP server (46 tools)
 
 Config for any MCP client:
 
@@ -38,6 +38,10 @@ Config for any MCP client:
 
 Tools — **containers**: `list_containers`, `run`, `start`, `stop`,
 `restart`, `kill`, `delete`, `inspect`, `exec`, `logs`, `stats`.
+**machines** (persistent `container machine` VMs, e.g. keep-alive CI):
+`list_machines`, `machine_stats` (CPU/mem/net/block/pids from each running
+machine's per-boot backing container — nothing runs in the guest),
+`machine_logs` (stdio, or `boot: true` for the vminitd/kernel log).
 **images**: `list_images`, `pull`, `push`. **volumes**: `list_volumes`,
 `volume_policy`, `volume_policy_set`. **networks**: `list_networks`.
 **compose**: `compose_up` (path + optional profiles), `compose_down`,
@@ -90,6 +94,7 @@ serves the same services at the root with gRPC/gRPC-Web as well:
 /api/micropod.v1.ComposeService/{ComposeUp,ComposeDown}
 /api/micropod.v1.SystemService/{Ping,GetSystem,GetUsage,CheckForUpdates,
   GetUpdateStatus,ApplyUpdate}
+/api/micropod.v1.MachineService/{ListMachines,GetMachineStats,StreamMachineLogs}
 ```
 
 Job-runner essentials: `Ping` (cheap liveness: `status` running|stopped,
@@ -103,6 +108,10 @@ golden volume, and atomic promotion of a stopped container's clone). Codes:
 `failed_precondition` = wrong state (e.g. a volume already attached
 read-write to a running container).
 
+REST aliases for machines: `GET /v1/machines`, `GET /v1/machines/stats`,
+`GET /v1/machines/{id}/stats`, `GET /v1/machines/{id}/logs?tail=N&boot=true`
+(`&follow=true` streams SSE).
+
 Unary calls are plain POST + proto-JSON — no client library needed. The
 app's server speaks proto-JSON only (binary protobuf bodies fail
 `invalid_argument`), so SDK clients must select JSON:
@@ -112,7 +121,7 @@ curl -s -X POST http://127.0.0.1:45454/api/micropod.v1.ContainerService/ListCont
   -H 'Content-Type: application/json' -d '{}'
 ```
 
-Streaming RPCs (`PullImage`, `StreamContainerLogs`, `ComposeUp`) use Connect
+Streaming RPCs (`PullImage`, `StreamContainerLogs`, `StreamMachineLogs`, `ComposeUp`) use Connect
 envelope framing — use `Content-Type: application/connect+json` or an SDK.
 `buf.validate` constraints are enforced server-side (`invalid_argument` on
 bad input, e.g. empty required strings). Errors are Connect envelopes:

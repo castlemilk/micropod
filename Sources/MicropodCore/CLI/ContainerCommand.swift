@@ -370,6 +370,21 @@ public enum ContainerCommandFactory {
         .init(arguments: ["machine", "stop", name])
     }
 
+    public static func machineLogs(_ name: String, tail: Int? = nil, follow: Bool = false, boot: Bool = false)
+        -> ContainerCommand
+    {
+        var args = ["machine", "logs"]
+        if boot { args.append("--boot") }
+        if follow { args.append("--follow") }
+        if let tail { args += ["-n", String(tail)] }
+        args.append(name)
+        return .init(arguments: args)
+    }
+
+    public static func inspectMachine(_ name: String) -> ContainerCommand {
+        .init(arguments: ["machine", "inspect", name])
+    }
+
     public static func listProperties() -> ContainerCommand {
         .init(arguments: ["system", "property", "list", "--format", "json"])
     }

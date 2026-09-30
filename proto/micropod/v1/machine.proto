@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package micropod.v1;
+
+option go_package = "github.com/castlemilk/micropod/sdk/go/gen/micropod/v1;micropodv1";
+
+import "buf/validate/validate.proto";
+import "gnostic/openapi/v3/annotations.proto";
+import "micropod/v1/api.proto";
+import "micropod/v1/container.proto";
+
+// Container machines: persistent Linux VMs (`container machine`) that
+// keep a warm guest between runs — the keep-alive CI path. `container list`
+// omits them and `container logs` doesn't know machine names, so they were
+// invisible to container tooling. A running machine is backed by a per-boot
+// container named `<machine>-<6 hex>` that `container stats` does report;
+// metrics come from there, logs from the machine's own stdio/boot log.
+service MachineService {
+  // All machines with state, sizing and vmnet address.
+  rpc ListMachines(Empty) returns (ListMachinesResponse);
+  // Resource usage for running machines (all, or one by id), read from the
+  // backing container's cgroup — nothing runs inside the guest, and a
+  // stopped machine is never booted to be sampled. CPU % is a delta between
+  // samples; a machine with no recent baseline is sampled twice ~0.5 s
+  // apart so a one-shot call still reports a real figure.
+  rpc GetMachineStats(GetMachineStatsRequest) returns (MachineStatsSnapshot);
+  // A machine's stdio log (or the vminitd/kernel boot log); follows when
+  // `follow` is set, otherwise returns the tail and completes.
+  rpc StreamMachineLogs(StreamMachineLogsRequest) returns (stream LogChunk);
+}
+
+// One machine, mapped from `container machine list`.
+message Machine {
+  // Machine ID (the name given at create time).
+  string id = 1 [(gnostic.openapi.v3.property).example = {yaml: "'ci-alpine'"}];
+  // "running" or "stopped".
+  string state = 2 [(gnostic.openapi.v3.property).example = {yaml: "'running'"}];
+  // vmnet IPv4 while running.
+  string ip_address = 3 [(gnostic.openapi.v3.property).example = {yaml: "'192.168.64.12'"}, (gnostic.openapi.v3.property).format = "ipv4"];
+  // Configured vCPUs.
+  int32 cpus = 4 [(gnostic.openapi.v3.property).example = {yaml: "4"}];
+  // Configured memory in bytes.
+  uint64 memory_bytes = 5 [(gnostic.openapi.v3.property).example = {yaml: "8589934592"}];
+  // Root disk size in bytes.
+  uint64 disk_bytes = 6 [(gnostic.openapi.v3.property).example = {yaml: "1169293312"}];
+  // ISO8601 creation timestamp.
+  string created_at = 7 [(gnostic.openapi.v3.property).example = {yaml: "'2026-09-20T11:34:09Z'"}, (gnostic.openapi.v3.property).format = "date-time"];
+  // The runtime's default machine.
+  bool default = 8;
+}
+
+message ListMachinesResponse {
+  repeated Machine machines = 1;
+}
+
+message GetMachineStatsRequest {
+  // Restrict to one machine; empty = every running machine.
+  string id = 1 [(gnostic.openapi.v3.property).example = {yaml: "'ci-alpine'"}];
+}
+
+message MachineStatsSnapshot {
+  // One entry per running machine sampled.
+  repeated MachineStats machines = 1;
+  // ISO8601 timestamp the snapshot was taken.
+  string sampled_at = 2 [(gnostic.openapi.v3.property).example = {yaml: "'2026-01-15T10:30:00Z'"}, (gnostic.openapi.v3.property).format = "date-time"];
+}
+
+// Counters for one running machine, from its backing container's cgroup
+// (the same source as ContainerStats).
+message MachineStats {
+  // Machine ID.
+  string id = 1 [(gnostic.openapi.v3.property).example = {yaml: "'ci-alpine'"}];
+  // The per-boot backing container, e.g. "ci-alpine-2553d3" — the ID
+  // container stats/logs tooling shows for this machine while it runs.
+  string container_id = 2 [(gnostic.openapi.v3.property).example = {yaml: "'ci-alpine-2553d3'"}];
+  // CPU usage as a percentage of one core (400 = four busy cores), like
+  // ContainerStats.cpu_percent.
+  double cpu_percent = 3 [(gnostic.openapi.v3.property).example = {yaml: "37.5"}];
+  // Configured vCPUs.
+  int32 cpus = 4 [(gnostic.openapi.v3.property).example = {yaml: "4"}];
+  // Resident memory in bytes.
+  uint64 memory_used_bytes = 5 [(gnostic.openapi.v3.property).example = {yaml: "440205312"}];
+  // Memory limit in bytes (the machine's configured memory).
+  uint64 memory_limit_bytes = 6 [(gnostic.openapi.v3.property).example = {yaml: "8589934592"}];
+  // Bytes received over the machine's network.
+  uint64 network_rx_bytes = 7 [(gnostic.openapi.v3.property).example = {yaml: "1048576"}];
+  // Bytes transmitted over the machine's network.
+  uint64 network_tx_bytes = 8 [(gnostic.openapi.v3.property).example = {yaml: "524288"}];
+  // Bytes read from block devices.
+  uint64 block_read_bytes = 9 [(gnostic.openapi.v3.property).example = {yaml: "2097152"}];
+  // Bytes written to block devices.
+  uint64 block_write_bytes = 10 [(gnostic.openapi.v3.property).example = {yaml: "1048576"}];
+  // Processes in the machine.
+  uint64 pids = 11 [(gnostic.openapi.v3.property).example = {yaml: "13"}];
+}
+
+message StreamMachineLogsRequest {
+  // Machine ID to read logs from.
+  string id = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1, (gnostic.openapi.v3.property).example = {yaml: "'ci-alpine'"}];
+  // Number of lines to replay from the end of the log (0 = all).
+  int32 tail = 2 [(buf.validate.field).int32.gte = 0, (gnostic.openapi.v3.property).example = {yaml: "200"}];
+  // Read the vminitd/kernel boot log instead of stdio.
+  bool boot = 3;
+  // Keep the stream open and follow new output.
+  bool follow = 4;
+}
