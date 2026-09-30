@@ -22,6 +22,12 @@ permissions:
   contents: write
   actions: write # dispatch gh-pages deploy after the appcast push
 
+# One release at a time: two tags pushed together raced on the appcast push
+# to master (v0.10.2 lost to v0.11.1) and on GitHub's "Latest" flag.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: macos-26
@@ -124,9 +130,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # "Latest" (what the landing page downloads) only if no higher
+          # version is already released.
+          highest=$( (gh release list --limit 100 --json tagName --jq '.[].tagName'; echo "$VERSION") | sort -V | tail -1)
+          latest=$([ "$highest" = "$VERSION" ] && echo true || echo false)
           gh release create "$VERSION" \
             "dist/$DMG_ASSET" "dist/$DMG_ASSET.sha256" "dist/Micropod.${VERSION#v}.tgz" \
-            --title "$VERSION" --generate-notes || \
+            --title "$VERSION" --generate-notes --latest="$latest" || \
           gh release upload "$VERSION" \
             "dist/$DMG_ASSET" "dist/$DMG_ASSET.sha256" "dist/Micropod.${VERSION#v}.tgz" \
             --clobber
@@ -154,6 +164,8 @@ jobs:
           SIG=$(sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p' "$RUNNER_TEMP/sig.txt")
           LEN=$(sed -n 's/.*length="\([^"]*\)".*/\1/p' "$RUNNER_TEMP/sig.txt")
           [ -n "$SIG" ] && [ -n "$LEN" ] || { echo "::error::failed to parse signature"; exit 1; }
+          # Publish appcast re-applies the entry if master moved (public values).
+          { echo "SPARKLE_SIG=$SIG"; echo "SPARKLE_LEN=$LEN"; } >> "$GITHUB_ENV"
           node scripts/update_appcast.mjs \
             --version "${VERSION#v}" \
             --url "https://github.com/castlemilk/micropod/releases/download/$VERSION/Micropod.dmg" \
@@ -168,11 +180,22 @@ jobs:
           [ -n "$SPARKLE_ED25519_KEY" ] || exit 0
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add landing/appcast.xml
-          git diff --cached --quiet && { echo "no change"; exit 0; }
-          git commit -m "appcast: $VERSION"
-          # Tag checkouts are detached; the tag sits on master's tip.
-          git push origin HEAD:master
+          # Master can move while the release builds: re-apply this version's
+          # entry on its tip and retry, instead of failing the release.
+          for attempt in 1 2 3 4 5; do
+            git fetch -q origin master
+            git checkout -q --detach origin/master
+            node scripts/update_appcast.mjs \
+              --version "${VERSION#v}" \
+              --url "https://github.com/castlemilk/micropod/releases/download/$VERSION/Micropod.dmg" \
+              --signature "$SPARKLE_SIG" --length "$SPARKLE_LEN"
+            git add landing/appcast.xml
+            git diff --cached --quiet && { echo "no change"; exit 0; }
+            git commit -q -m "appcast: $VERSION"
+            git push origin HEAD:master && break
+            [ "$attempt" = 5 ] && { echo "::error::appcast push kept losing races"; exit 1; }
+            sleep $((attempt * 5))
+          done
           # GITHUB_TOKEN pushes don't trigger workflows — dispatch the Pages
           # deploy explicitly so the appcast actually reaches the live feed.
           gh workflow run gh-pages.yml --ref master
