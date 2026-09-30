@@ -286,18 +286,7 @@ final class APIHandlers: Sendable {
                 let stream = services.logs.stream(id: id, tail: tail, boot: request.string("boot") == "true")
                 return .stream(
                     200, "text/event-stream",
-                    AsyncStream { continuation in
-                        Task {
-                            do {
-                                for try await line in stream {
-                                    let payload =
-                                        "data: " + (line.text.replacingOccurrences(of: "\n", with: "\\n")) + "\n\n"
-                                    continuation.yield(Data(payload.utf8))
-                                }
-                            } catch {}
-                            continuation.finish()
-                        }
-                    })
+                    Self.serverSentEvents(stream))
 
             // MARK: Images
             case ("images", .get) where segments.count == 2:
@@ -406,18 +395,7 @@ final class APIHandlers: Sendable {
                 let stream = machines.streamLogs(id, tail: tail, boot: boot)
                 return .stream(
                     200, "text/event-stream",
-                    AsyncStream { continuation in
-                        Task {
-                            do {
-                                for try await line in stream {
-                                    let payload =
-                                        "data: " + (line.text.replacingOccurrences(of: "\n", with: "\\n")) + "\n\n"
-                                    continuation.yield(Data(payload.utf8))
-                                }
-                            } catch {}
-                            continuation.finish()
-                        }
-                    })
+                    Self.serverSentEvents(stream))
 
             // MARK: Compose
             case ("compose", .post) where segments.count == 3 && segments[2] == "up":
@@ -873,5 +851,27 @@ extension APIHandlers {
                 ] as [String: Any]
             },
         ]
+    }
+}
+
+extension APIHandlers {
+    /// Log lines as SSE frames. Ending the returned stream — the HTTP
+    /// server drops it when the client disconnects — cancels the pump and
+    /// with it the source follow loop. Without that link every abandoned
+    /// `logs?follow` request kept a follow loop (an open log fd plus a
+    /// liveness XPC poll a second) running until the container stopped.
+    static func serverSentEvents(_ lines: AsyncThrowingStream<LogLine, Error>) -> AsyncStream<Data> {
+        AsyncStream { continuation in
+            let pump = Task {
+                do {
+                    for try await line in lines {
+                        let payload = "data: " + line.text.replacingOccurrences(of: "\n", with: "\\n") + "\n\n"
+                        continuation.yield(Data(payload.utf8))
+                    }
+                } catch {}
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in pump.cancel() }
+        }
     }
 }

@@ -896,6 +896,61 @@ final class MicropodAPITests: XCTestCase {
     /// Clients detect the optional RunContainer fields from Ping (and the
     /// REST system read) instead of sending them to a server that would
     /// silently drop them.
+    /// A client that drops a follow-log stream must end the follower. The
+    /// mock's `logs --follow` hangs (as Apple's does) and emits nothing
+    /// after the backlog, so no write can fail — only hang-up detection
+    /// ends it. Before the fix the follower (and, on the native backend,
+    /// an open log fd plus a liveness poll a second) lived until the
+    /// container stopped.
+    func testDroppedLogStreamEndsTheFollower() async throws {
+        try await relaunchServer(extraEnvironment: ["MICROPOD_MOCK_FOLLOW_HANG": "1"])
+        let created = try await json("POST", "v1/containers", body: ["image": "alpine"])
+        let id = try XCTUnwrap(created["id"] as? String)
+        func followers() -> Int {
+            let ps = Process()
+            ps.executableURL = URL(fileURLWithPath: "/bin/ps")
+            ps.arguments = ["-axo", "args="]
+            let pipe = Pipe()
+            ps.standardOutput = pipe
+            try? ps.run()
+            let out = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            ps.waitUntilExit()
+            return out.split(separator: "\n").filter {
+                $0.contains(MockContainerCLI.scriptURL.path) && $0.contains("logs") && $0.contains(id)
+            }.count
+        }
+
+        let port = UInt16(baseURL.port ?? 0)
+        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        var addr = sockaddr_in()
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = port.bigEndian
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+        let connected = withUnsafePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                connect(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        XCTAssertEqual(connected, 0)
+        let request = "GET /v1/containers/\(id)/logs?tail=2 HTTP/1.1\r\nHost: 127.0.0.1:\(port)\r\n\r\n"
+        _ = request.withCString { write(fd, $0, strlen($0)) }
+
+        var sawFollower = false
+        for _ in 0..<50 where !sawFollower {
+            sawFollower = followers() > 0
+            if !sawFollower { try await Task.sleep(for: .milliseconds(100)) }
+        }
+        XCTAssertTrue(sawFollower, "the stream should have started a follower")
+        close(fd)
+
+        var remaining = followers()
+        for _ in 0..<50 where remaining > 0 {
+            try await Task.sleep(for: .milliseconds(100))
+            remaining = followers()
+        }
+        XCTAssertEqual(remaining, 0, "dropping the stream must end the follower")
+    }
+
     /// Engine management over Connect + REST: listing, validation, and
     /// routing refusals for unknown/disabled/unavailable engines.
     func testRuntimeEngineManagement() async throws {
