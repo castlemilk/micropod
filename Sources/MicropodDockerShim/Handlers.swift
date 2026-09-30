@@ -2291,6 +2291,150 @@ final class Router: @unchecked Sendable {
     /// (`startError`) instead of a 204 the client would take as a running
     /// container — whose `/wait` would then never end.
     private func startPossiblyAttached(_ id: String) async throws {
+        let pending = await state.hasStarted(id: id) ? [] : await state.takePreStartArchives(for: id)
+        guard !pending.isEmpty else { return try await startSettled(id) }
+        defer {
+            for archive in pending { try? FileManager.default.removeItem(at: archive.file) }
+            try? FileManager.default.removeItem(
+                at: PreStartArchives.stagingDirectory().appendingPathComponent(id, isDirectory: true))
+        }
+        let marker = try await recreateForPreStartArchives(id)
+        try await startSettled(id)
+        do {
+            try await deliverPreStartArchives(pending, to: id, marker: marker)
+        } catch {
+            // The wrapper would wait out its timeout; end it now instead.
+            try? await containers.kill(id, signal: "KILL")
+            throw error
+        }
+        fputs("[shim] start \(id): delivered \(pending.count) archive(s) copied before start\n", stderr)
+    }
+
+    /// Recreates a never-started container under the same id, its command
+    /// behind the PreStartArchives wrapper. Returns the marker to write.
+    private func recreateForPreStartArchives(_ id: String) async throws -> String {
+        guard let body = await state.createRequest(for: id) else {
+            throw ShimError.internalError("no create request recorded for \(id)")
+        }
+        var imageEntrypoint: [String]?
+        var imageCmd: [String]?
+        if body.Entrypoint == nil || body.Cmd == nil,
+            let mapped = DockerMapper.dockerImageInspect(
+                fromRaw: try await images.inspect(body.Image), reference: body.Image)
+        {
+            (imageEntrypoint, imageCmd) = PreStartArchives.imageArgv(fromDockerInspect: mapped)
+        }
+        let argv = PreStartArchives.effectiveArgv(
+            entrypoint: body.Entrypoint, cmd: body.Cmd,
+            imageEntrypoint: imageEntrypoint, imageCmd: imageCmd)
+        let marker = PreStartArchives.markerPath(token: IDGenerator.randomSuffix())
+        let runRequest = try Self.buildRunRequest(
+            from: PreStartArchives.wrapped(body, argv: argv, marker: marker), name: id)
+
+        await state.beginReplacing(id: id)
+        do {
+            try await containers.delete(id, force: true)
+            let recreated = try await containers.create(runRequest)
+            guard recreated == id else {
+                try? await containers.delete(recreated, force: true)
+                throw ShimError.internalError("recreated \(id) came back as \(recreated)")
+            }
+        } catch {
+            await state.endReplacing(id: id)
+            throw error
+        }
+        await state.endReplacing(id: id)
+        await readCache.invalidateContainers()
+        return marker
+    }
+
+    /// Extracts each stashed archive as root, in upload order, then writes
+    /// the marker that releases the wrapper.
+    private func deliverPreStartArchives(
+        _ archives: [PreStartArchive], to id: String, marker: String
+    ) async throws {
+        for archive in archives {
+            try await deliverArchive(archive.file, into: archive.destination, of: id)
+        }
+        // The runtime's own copy writes the marker: no guest binary needed.
+        let empty = FileManager.default.temporaryDirectory
+            .appendingPathComponent("micropod-marker-\(IDGenerator.randomSuffix())")
+        FileManager.default.createFile(atPath: empty.path, contents: Data())
+        defer { try? FileManager.default.removeItem(at: empty) }
+        try await containers.copy(from: empty.path, to: "\(id):\(marker)")
+    }
+
+    private func execAsRoot(_ id: String, _ arguments: [String]) async throws -> ContainerExecResult {
+        try await containers.execDetailed(
+            ContainerExecRequest(
+                containerID: id, arguments: arguments, interactive: false, tty: false,
+                detach: false, user: "0", workdir: nil, env: []))
+    }
+
+    /// Extracts a Docker archive upload into a running container. The
+    /// guest's `tar` (as root) is exact, so it is preferred. Images without
+    /// one (Keycloak's ubi-micro base, distroless) are served by
+    /// `deliverArchiveFromHost`.
+    private func deliverArchive(_ tar: URL, into destination: String, of id: String) async throws {
+        let remote = "/tmp/micropod-shim-\(IDGenerator.randomSuffix()).tar"
+        try await containers.copy(from: tar.path, to: "\(id):\(remote)")
+        let extracted: ContainerExecResult
+        do {
+            extracted = try await execAsRoot(id, ["tar", "-xf", remote, "-C", destination])
+        } catch  where Self.isMissingExecutable(error, "tar") {
+            _ = try? await execAsRoot(id, ["rm", "-f", remote])
+            return try await deliverArchiveFromHost(tar, into: destination, of: id)
+        }
+        _ = try? await execAsRoot(id, ["rm", "-f", remote])
+        guard extracted.exitCode == 0 else {
+            throw ShimError.internalError(
+                "extract archive into \(destination): exit \(extracted.exitCode): \(extracted.error)")
+        }
+    }
+
+    /// Tar-free delivery: extract on the host, then copy each regular file to
+    /// its path. The runtime's copy creates missing parents (root, 0755) and
+    /// writes the file as root, which is what Docker does for these uploads.
+    /// A mode other than 0644 is applied with the guest's `chmod` when it has
+    /// one. Symlinks and empty directories need guest tools and are skipped
+    /// with a log line.
+    private func deliverArchiveFromHost(_ tar: URL, into destination: String, of id: String) async throws {
+        let staging = FileManager.default.temporaryDirectory
+            .appendingPathComponent("micropod-archive-\(IDGenerator.randomSuffix())", isDirectory: true)
+        try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: staging) }
+        let untar = Process()
+        untar.executableURL = URL(fileURLWithPath: "/usr/bin/tar")
+        untar.arguments = ["-xf", tar.path, "-C", staging.path]
+        let errors = Pipe()
+        untar.standardError = errors
+        try untar.run()
+        untar.waitUntilExit()
+        guard untar.terminationStatus == 0 else {
+            let text = String(decoding: errors.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            throw ShimError.badRequest("unreadable archive: \(text)")
+        }
+        let base = destination.hasSuffix("/") ? String(destination.dropLast()) : destination
+        var copied = 0
+        for entry in PreStartArchives.regularFiles(under: staging) {
+            let guestPath = base + "/" + entry.relativePath
+            try await containers.copy(from: entry.url.path, to: "\(id):\(guestPath)")
+            if entry.mode != 0o644 {
+                _ = try? await execAsRoot(id, ["chmod", String(entry.mode, radix: 8), guestPath])
+            }
+            copied += 1
+        }
+        fputs("[shim] \(id) has no tar: copied \(copied) file(s) into \(destination) from the host\n", stderr)
+    }
+
+    /// The runtime's answer when an exec names a binary the image lacks.
+    static func isMissingExecutable(_ error: Error, _ name: String) -> Bool {
+        let text = String(describing: error)
+        return text.contains("failed to find target executable \(name)")
+            || text.contains("executable file not found") && text.contains(name)
+    }
+
+    private func startSettled(_ id: String) async throws {
         let wasStarted = await state.hasStarted(id: id)
         await state.markStarted(id: id)
         // A (re)start resets health supervision immediately (the events loop
@@ -2512,25 +2656,29 @@ final class Router: @unchecked Sendable {
         let containerID = try await resolveID(id)
         let destination = request.q("path")
         guard !destination.isEmpty else { throw ShimError.badRequest("missing path parameter") }
-        let remoteTar = "/tmp/micropod-shim-\(IDGenerator.randomSuffix()).tar"
+
+        // Created but never started: the runtime cannot copy into it yet.
+        // Stash the archive; the first start delivers it (PreStartArchives).
+        if await !state.hasStarted(id: containerID), await state.createRequest(for: containerID) != nil {
+            let directory = PreStartArchives.stagingDirectory()
+                .appendingPathComponent(containerID, isDirectory: true)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let file = directory.appendingPathComponent("\(IDGenerator.randomSuffix()).tar")
+            try request.body.write(to: file)
+            await state.stashPreStartArchive(
+                PreStartArchive(destination: destination, file: file), for: containerID)
+            fputs("[shim] archive for \(containerID) -> \(destination): stashed until first start\n", stderr)
+            return .status(200)
+        }
 
         let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("shim-upload-\(IDGenerator.randomSuffix()).tar")
         try request.body.write(to: tempURL)
-
         defer { try? FileManager.default.removeItem(at: tempURL) }
 
-        try await containers.copy(from: tempURL.path, to: "\(containerID):\(remoteTar)")
-        _ = try await containers.exec(
-            ContainerExecRequest(
-                containerID: containerID,
-                arguments: ["tar", "-xf", remoteTar, "-C", destination],
-                interactive: false, tty: false, detach: false, user: nil, workdir: nil, env: []))
-        _ = try? await containers.exec(
-            ContainerExecRequest(
-                containerID: containerID,
-                arguments: ["rm", "-f", remoteTar],
-                interactive: false, tty: false, detach: false, user: nil, workdir: nil, env: []))
+        // As root, like dockerd: the image's USER must not decide whether a
+        // client's upload lands.
+        try await deliverArchive(tempURL, into: destination, of: containerID)
         return .status(200)
     }
 

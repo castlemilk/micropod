@@ -312,7 +312,7 @@ actor EventsHub {
     private func reconcile(
         _ current: [Micropod_V1_Container], observedAt: Date, state: ShimState
     ) async {
-        let observed = observe(current)
+        var observed = observe(current)
         let previousKnown = known
 
         for entry in current {
@@ -387,6 +387,12 @@ actor EventsHub {
             }
         }
         for (id, before) in known where observed[id] == nil {
+            // Deleted and being recreated under the same id (pre-start
+            // archives): not a removal. Keep the last observation.
+            if await state.isReplacing(id: id) {
+                observed[id] = before
+                continue
+            }
             await emit("container", "destroy", before, id: id)
             await state.forget(id: id)
             syntheticCreated.remove(id)
