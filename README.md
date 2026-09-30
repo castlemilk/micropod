@@ -267,7 +267,11 @@ micropod sandbox run --allow-net --secret API_KEY=OPENAI_API_KEY@api.openai.com 
 
 Offline by default (`--net`/`--allow-net` to attach, `--dns-resolver` to
 pick DNS). `--allow-host` sends all egress through a host-side proxy that
-refuses every other host — the VM has no route out of its own.
+refuses every other host — the VM has no route to the internet of its own.
+Any networked sandbox (and a shuru VM likewise) can still reach services on
+this Mac that listen on all interfaces (`*:port`), as a Docker container
+can. micropod's own API and shim are not reachable. For untrusted code,
+bind host services to 127.0.0.1 or stay offline.
 `--secret` gives the guest a random placeholder; the proxy swaps in the
 real value only in request heads bound for the listed hosts, so the
 credential never enters the VM. A `micropod.json` (shuru.json's shape:
@@ -319,20 +323,61 @@ generated clients.
 - **Processes** start from the sandbox's own env, user and working
   directory. Output streams live, and anything emitted before a stream
   opens is replayed.
-- **File operations and watches** run inside the container, so they see
-  its mounts and tmpfs.
-- **Watching** uses inotify when the image has `inotifywait`, and polls
-  otherwise.
+- **File operations, watches and idling** run on `micropod-guest`, a static
+  helper (`guest/`, Go) shared read-only into each sandbox. They need
+  nothing from the image, so distroless images work. They run inside the
+  container, so they see its mounts and tmpfs, as the image's user.
+  Watches use inotify, so they're immediate and see every write.
 
 `RunContainerRequest.sandbox` brings the same controls to the generic
-container API: `expose_host`, `allow_hosts`, `secrets` (a literal value or a
-host command) and `dns_resolvers`.
+container API: `expose_host`, `allow_hosts`, `secrets` and `dns_resolvers`.
 
-A command secret runs on the host, never in the guest. It prints the value
-or `{"version":1,"value":…,"expires_at":…}` and is re-run a minute before
-expiry. A failed refresh keeps a still-valid value; with none, the request
-fails closed instead of sending the placeholder upstream. `task e2e-sdk`
-runs the SDK against a scratch daemon.
+**The API never runs host commands.** A command secret runs in the caller's
+process: the SDK runs it before start and again a minute before expiry,
+then pushes the value with `UpdateSandboxSecret`. The command prints the
+value or `{"version":1,"value":…,"expires_at":…}`. Past its `expires_at`,
+requests fail closed instead of sending the placeholder upstream.
+`task e2e-sdk` runs the SDK against a scratch daemon.
+
+A `micropod.json` is untrusted until you say otherwise. Keys that grant host
+access are refused until you review the file and run
+`micropod sandbox trust`: mounts, ports, `expose_host`, networking, and
+secrets (which can run host commands). Editing the file revokes the trust.
+A cloned repository can't open the sandbox up on its own.
+
+## Metrics history
+
+The app records resource usage for every container, machine and the
+system as a whole into `~/.micropod/metrics.sqlite`: every 5 s while its
+window is open, every 30 s otherwise. It's rolled up as it's written:
+
+| resolution | kept for |
+|---|---|
+| 10 s | 3 h |
+| 1 min | 48 h |
+| 15 min | 30 days |
+
+Old points are pruned by age. A container's or machine's history is
+deleted with it, including deletions made outside Micropod.
+
+- **In the app:** the dashboard, container and machine graphs open with
+  that history, and add 6 h, 24 h and 7 d windows.
+- **API:** `SystemService.GetMetricsHistory` (kind + id + range) returns
+  averages and peaks at the finest resolution that covers the range.
+- **MCP:** the `metrics_history` tool.
+- **CLI:** `micropod metrics [id] [--range 24h] [--machine]` prints per
+  metric the peak, average and latest value, plus a sparkline.
+
+## Updates
+
+The app checks for updates at launch and hourly (Sparkle, EdDSA-signed
+appcast) and downloads them in the background. A downloaded update shows
+as a banner ("Restart to Update"), in the menu bar, in Settings, and as a
+notification. It installs on quit, or by itself once you've been away for
+10 minutes, the app isn't frontmost, and nothing is running. A restart
+briefly stops the app's agents (Docker shim, API), and in-flight jobs
+would notice. `micropod update [status|check|apply]` and the MCP
+`update_*` tools drive the same updater.
 
 ## Local HTTP API
 

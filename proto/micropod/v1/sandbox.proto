@@ -15,10 +15,10 @@ import "micropod/v1/container.proto";
 //
 // A sandbox is a `runtime: sandbox` container owned by the API process; every
 // call names it by container id. Processes and file operations run inside
-// the container, seeing its mounts, /tmp and working directory. File
-// operations and the idle main process use /bin/sh and the usual tools
-// (busybox or coreutils), so distroless images can run processes but not
-// file operations.
+// the container, seeing its mounts, /tmp and working directory, as the
+// image's user. File operations, watches and the idle main process run on
+// micropod's own static guest helper (shared into the sandbox read-only at
+// /.micropod), so they need nothing from the image: distroless works.
 service SandboxService {
   // Boot a sandbox and return once it can take processes. With no `command`
   // it idles until stopped (DeleteContainer) — the long-lived shape the SDKs
@@ -57,11 +57,11 @@ service SandboxService {
   rpc CopyPath(CopyPathRequest) returns (Empty);
   // Set a path's permission bits.
   rpc ChmodPath(ChmodPathRequest) returns (Empty);
-  // Changes under a path, observed inside the guest — including writes a
-  // host-side watcher never sees (the root disk, tmpfs, overlay mounts).
-  // Uses inotify when the image has inotifywait (inotify-tools), otherwise
-  // polls every 500 ms at one-second mtime resolution. The first event is
-  // "ready": changes after it are reported.
+  // Changes under a path, observed inside the guest with inotify —
+  // including writes a host-side watcher never sees (the root disk, tmpfs,
+  // overlay mounts). The first event is "ready": changes after it are
+  // reported. (A daemon built without the guest helper falls back to the
+  // image's inotifywait, else a 500 ms poll.)
   rpc WatchPath(WatchPathRequest) returns (stream WatchEvent);
   // Save the sandbox's disk as a checkpoint, then stop the sandbox. Boot a
   // new one from it with StartSandboxRequest.from_checkpoint.
@@ -70,6 +70,24 @@ service SandboxService {
   rpc ListCheckpoints(Empty) returns (ListCheckpointsResponse);
   // Delete a checkpoint.
   rpc DeleteCheckpoint(CheckpointRef) returns (Empty);
+  // Replace a running sandbox's secret value — a refreshed token — without
+  // the guest noticing (its placeholder never changes). `not_found` when the
+  // sandbox has no such secret.
+  rpc UpdateSandboxSecret(UpdateSandboxSecretRequest) returns (Empty);
+}
+
+message UpdateSandboxSecretRequest {
+  // Sandbox (container) id.
+  string id = 1 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  // The secret's name (the guest environment variable).
+  string name = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.pattern = "^[A-Za-z_][A-Za-z0-9_]*$"
+  ];
+  // The new value; CR, LF and NUL are refused.
+  string value = 3 [(buf.validate.field).required = true, (buf.validate.field).string.min_len = 1];
+  // When it stops working (RFC 3339); empty for never.
+  string expires_at = 4;
 }
 
 message StartSandboxRequest {
@@ -287,7 +305,8 @@ message WatchPathRequest {
 
 message WatchEvent {
   // "ready" (first, once the watch is live), then "create", "modify",
-  // "delete" or "rename" (both ends of a move, with inotify).
+  // "delete" or "rename" (both ends of a move); "overflow" when the kernel
+  // dropped events (re-scan to catch up).
   string event = 1;
   // Absolute guest path of what changed.
   string path = 2;

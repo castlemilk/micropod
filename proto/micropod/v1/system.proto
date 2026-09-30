@@ -42,6 +42,54 @@ service SystemService {
   // left out of ListContainers and refuse RunContainer. The default engine
   // cannot be disabled (`failed_precondition`). Persisted server-side.
   rpc UpdateRuntime(UpdateRuntimeRequest) returns (ListRuntimesResponse);
+  // Resource usage over time for all containers ("system"), one container,
+  // or one machine, as recorded by the Micropod app (every 5 s while its
+  // window is open, 30 s otherwise). Rolled up and pruned by age: 10 s
+  // points for 3 h, 1 min for 48 h, 15 min for 30 days — the finest that
+  // covers the range is returned. A container's or machine's history is
+  // deleted with it.
+  rpc GetMetricsHistory(GetMetricsHistoryRequest) returns (MetricsHistory);
+}
+
+message GetMetricsHistoryRequest {
+  // "system" (all containers), "container" or "machine".
+  string kind = 1 [
+    (buf.validate.field).string = {in: ["system", "container", "machine"]},
+    (gnostic.openapi.v3.property).example = {yaml: "'container'"}
+  ];
+  // Container id or machine name; ignored for "system".
+  string id = 2 [(gnostic.openapi.v3.property).example = {yaml: "'web'"}];
+  // How far back, in seconds (0 = one hour; at most 30 days).
+  uint32 range_seconds = 3 [
+    (buf.validate.field).uint32.lte = 2592000,
+    (gnostic.openapi.v3.property).example = {yaml: "3600"}
+  ];
+}
+
+message MetricsHistory {
+  // Seconds each point covers (10, 60 or 900).
+  uint32 resolution_seconds = 1 [(gnostic.openapi.v3.property).example = {yaml: "10"}];
+  // Oldest first; empty when nothing was recorded in the range.
+  repeated MetricsPoint points = 2;
+}
+
+// One bucket: averages, plus the peak of the metrics that spike.
+message MetricsPoint {
+  // Start of the bucket (RFC 3339).
+  string timestamp = 1 [(gnostic.openapi.v3.property).example = {yaml: "'2026-09-30T10:00:00Z'"}];
+  // CPU % (100 = one core): average and peak.
+  double cpu_percent = 2;
+  double cpu_percent_max = 3;
+  // Memory in use (bytes): average and peak.
+  double memory_used_bytes = 4;
+  double memory_used_bytes_max = 5;
+  // Memory limit (bytes).
+  double memory_limit_bytes = 6;
+  // Network and disk rates (bytes per second), averages.
+  double network_rx_bytes_per_second = 7;
+  double network_tx_bytes_per_second = 8;
+  double block_read_bytes_per_second = 9;
+  double block_write_bytes_per_second = 10;
 }
 
 // One execution engine (see ListRuntimes).
@@ -267,6 +315,8 @@ message UpdateStatus {
     STATE_INSTALLING = 6;
     // Last check/apply failed — see `error`.
     STATE_ERROR = 7;
+    // Downloaded and staged: ApplyUpdate (or quitting) installs it.
+    STATE_READY_TO_INSTALL = 8;
   }
   // Updater lifecycle state.
   State state = 1 [(gnostic.openapi.v3.property).example = {yaml: "'STATE_UPDATE_AVAILABLE'"}];

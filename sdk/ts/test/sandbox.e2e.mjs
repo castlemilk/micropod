@@ -104,6 +104,17 @@ try {
     assert.ok(events.includes("delete /workspace/in.txt"), events.join(", "));
   });
 
+  await step("watch: two writes within a second are both seen (inotify on alpine, no inotifywait)", async () => {
+    const events = [];
+    const watcher = await sb.watch("/data", (e) => events.push(`${e.event} ${e.path}`));
+    await sb.writeFile("/data/tick", "1");
+    await sb.writeFile("/data/tick", "22");
+    await new Promise((r) => setTimeout(r, 600));
+    watcher.close();
+    assert.ok(events.includes("create /data/tick"), events.join(", "));
+    assert.ok(events.includes("modify /data/tick"), events.join(", "));
+  });
+
   await step("checkpoint, then start from it", async () => {
     await sb.writeFile("/data/kept.txt", "kept");
     await sb.checkpoint(checkpoint);
@@ -119,4 +130,51 @@ try {
   await sb.stop().catch(() => {});
   await Sandbox.deleteCheckpoint(checkpoint, { baseUrl }).catch(() => {});
 }
+
+// Distroless: no shell, no coreutils — idling, files and watches still work
+// (the guest helper), as the image's non-root user.
+const distroless = await Sandbox.start({ baseUrl, image: "gcr.io/distroless/static-debian12:nonroot" });
+try {
+  await step("distroless: idle, write/read/stat/list, watch, errors", async () => {
+    await distroless.writeFile("/tmp/x/y.txt", "no shell here", { createParents: true });
+    assert.equal(new TextDecoder().decode(await distroless.readFile("/tmp/x/y.txt")), "no shell here");
+    assert.ok((await distroless.stat("/tmp/x/y.txt")).isFile);
+    assert.deepEqual((await distroless.readDir("/tmp/x")).map((e) => e.name), ["y.txt"]);
+    const events = [];
+    const watcher = await distroless.watch("/tmp/x", (e) => events.push(`${e.event} ${e.path}`));
+    await distroless.remove("/tmp/x/y.txt");
+    await new Promise((r) => setTimeout(r, 500));
+    watcher.close();
+    assert.ok(events.includes("delete /tmp/x/y.txt"), events.join(", "));
+    await assert.rejects(distroless.writeFile("/etc/owned", "x"), /permission/i, "nonroot can't write /etc");
+    await assert.rejects(distroless.exec("echo hi"), /cannot start \/bin\/sh/, "no /bin/sh");
+  });
+} finally {
+  await distroless.stop().catch(() => {});
+}
+
+// A command secret is minted here, by the SDK, and pushed: the daemon runs
+// nothing on the host.
+{
+  const mint = join(host, "mint.sh");
+  writeFileSync(mint, `#!/bin/sh\nn=$(cat ${host}/n 2>/dev/null || echo 0); n=$((n+1)); echo $n > ${host}/n\n` +
+    `printf '{"version":1,"value":"tok-%s","expires_at":"%s"}' "$n" "$(date -u -v+62S +%Y-%m-%dT%H:%M:%SZ)"\n`, { mode: 0o755 });
+  const sec = await Sandbox.start({
+    baseUrl, allowNet: true,
+    secrets: { TOKEN: { command: [mint], hosts: ["example.invalid"] } },
+  });
+  try {
+    await step("command secret minted by the SDK, refreshed by push", async () => {
+      const r = await sec.exec("echo $TOKEN");
+      assert.match(r.stdout, /^micropod_secret_[0-9a-f]{24}\n$/, "the guest only sees a placeholder");
+      assert.equal(readFileSync(join(host, "n"), "utf8").trim(), "1", "minted once at start");
+      // expires in ~62 s: the SDK refreshes a minute early, i.e. within ~2 s.
+      await new Promise((r) => setTimeout(r, 3500));
+      assert.ok(Number(readFileSync(join(host, "n"), "utf8").trim()) >= 2, "re-minted and pushed before expiry");
+    });
+  } finally {
+    await sec.stop().catch(() => {});
+  }
+}
+console.log("  (the API refuses command secrets itself — see the unit tests)");
 console.log(`\n${passed} passed`);

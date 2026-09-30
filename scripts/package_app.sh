@@ -131,6 +131,16 @@ else
     echo "!! MicropodAPI not found in .build/release — API agent disabled"
 fi
 
+# The in-VM helper for sandbox file operations, watches and idle sandboxes
+# (a static linux/arm64 ELF — sealed as a resource, not signed as code).
+# The API finds it at ../Resources relative to its executable.
+if command -v go >/dev/null 2>&1; then
+    bash scripts/build_guest.sh "$APP_BUNDLE/Contents/Resources/micropod-guest" >/dev/null
+    echo "==> Sandbox guest helper bundled (micropod-guest)"
+else
+    echo "!! go not found — micropod-guest not bundled; sandbox file operations fall back to the image's shell"
+fi
+
 # Bundle the synchronized file-shares daemon — the shim auto-discovers it
 # at ~/micropod/share-cache/socket and rewrites directory binds through it.
 if [ -f ".build/release/micropod-sharedfs" ]; then

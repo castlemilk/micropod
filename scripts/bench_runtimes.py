@@ -142,7 +142,9 @@ def options(work, only, skip):
         opts.append(Option(
             "shuru",
             lambda: run([SHURU, "run", "--cpus", "2", "--memory", "2048", "--", "true"]),
-            lambda: run([SHURU, "run", "--cpus", "2", "--memory", "2048", "--from", "go127", *sm, "--", *job])))
+            # A checkpoint boots at the disk size it was saved with.
+            lambda: run([SHURU, "run", "--cpus", "2", "--memory", "2048", "--disk-size", "8192", "--from", "go127",
+                         *sm, "--", *job])))
     names = [o.name for o in opts]
     for n in (only or []) + (skip or []):
         if n not in names:

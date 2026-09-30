@@ -25,8 +25,30 @@ struct ResourceSample: Equatable {
     let cpuPercent: Double
     let memoryUsedBytes: UInt64
     let memoryLimitBytes: UInt64
-    let networkRxBytes: UInt64
-    let networkTxBytes: UInt64
+    /// Bytes per second across running containers.
+    let networkRxRate: Double
+    let networkTxRate: Double
+}
+
+extension ResourceSample {
+    /// A persisted history point (its bucket average).
+    init(_ point: MetricsStore.Point) {
+        self.init(
+            timestamp: point.timestamp, cpuPercent: point.average.cpuPercent,
+            memoryUsedBytes: UInt64(max(0, point.average.memoryUsedBytes)),
+            memoryLimitBytes: UInt64(max(0, point.average.memoryLimitBytes)),
+            networkRxRate: point.average.networkRxRate, networkTxRate: point.average.networkTxRate)
+    }
+}
+
+extension MachineSample {
+    init(_ point: MetricsStore.Point) {
+        self.init(
+            timestamp: point.timestamp, cpuPercent: point.average.cpuPercent,
+            memoryUsedBytes: UInt64(max(0, point.average.memoryUsedBytes)),
+            netRxRate: point.average.networkRxRate, netTxRate: point.average.networkTxRate,
+            blockReadRate: point.average.blockReadRate, blockWriteRate: point.average.blockWriteRate)
+    }
 }
 
 /// One machine metrics point; rates are per second between polls.
@@ -240,8 +262,15 @@ final class AppStore {
     private(set) var machineStatsByID: [String: Micropod_V1_MachineStats] = [:]
     /// Rolling per-machine history for the Machines metrics charts.
     private(set) var machineHistory: [String: [MachineSample]] = [:]
-    /// Rolling system-wide resource samples for the dashboard charts.
+    /// Rolling system-wide resource samples for the dashboard charts —
+    /// prefilled from the metrics store at launch, so graphs open with
+    /// history rather than empty.
     private(set) var statsHistory: [ResourceSample] = []
+    /// Persists every stats sample (rolled up, pruned by age); nil in tests,
+    /// which must never write the user's history.
+    @ObservationIgnored let metrics: MetricsRecorder? =
+        NSClassFromString("XCTestCase") == nil ? MetricsStore.shared.map(MetricsRecorder.init) : nil
+    @ObservationIgnored private var machinesLoaded = false
     /// Measured runtime storage buckets (app support dir), refreshed on demand.
     private(set) var storageBuckets: [StorageBucket] = []
     private(set) var storageTotalBytes: Int64 = 0
@@ -421,6 +450,7 @@ final class AppStore {
             }
             await refreshImages()
         }
+        loadMetricsHistory()
         startPollers()
         startRuntimeSupervisor()
         installTerminationHookIfNeeded()
@@ -431,6 +461,28 @@ final class AppStore {
         {
             Task { await agentSupervisor.start() }
         }
+        if NSClassFromString("XCTestCase") == nil {
+            UpdateController.shared.restartIsSafe = { [weak self] in await self?.nothingRunning() ?? false }
+        }
+    }
+
+    /// Whether a restart (which stops the app's agents) would disrupt
+    /// anything: running containers here, or sandboxes the local API hosts.
+    func nothingRunning() async -> Bool {
+        guard runningCount == 0 else { return false }
+        var request = URLRequest(
+            url: URL(string: "http://127.0.0.1:45454/api/micropod.v1.ContainerService/ListContainers")!)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Data("{}".utf8)
+        request.timeoutInterval = 5
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+            (response as? HTTPURLResponse)?.statusCode == 200
+        else {
+            return true  // no local API: nothing hosted there
+        }
+        let list = try? Micropod_V1_ListContainersResponse(jsonUTF8Data: data)
+        return !(list?.containers.contains { $0.state == "running" } ?? false)
     }
 
     func stopPollers() {
@@ -740,6 +792,9 @@ final class AppStore {
                     await self.refreshStats()
                     try? await Task.sleep(for: .seconds(visibleInterval))
                 } else {
+                    // Keep recording history (at the slower cadence) so the
+                    // graphs have it when the window opens.
+                    if self.metrics != nil { await self.refreshStats() }
                     try? await Task.sleep(for: .seconds(hiddenInterval))
                 }
             }
@@ -1160,6 +1215,7 @@ final class AppStore {
         do {
             machines = try await dependencies.machine.list()
             machineError = nil
+            machinesLoaded = true
         } catch {
             machineError = error.localizedDescription
         }
@@ -1194,6 +1250,14 @@ final class AppStore {
                 MachineSample(
                     timestamp: now, cpuPercent: stats.cpuPercent, memoryUsedBytes: stats.memoryUsedBytes,
                     netRxRate: rates.rx, netTxRate: rates.tx, blockReadRate: rates.read, blockWriteRate: rates.write))
+            if let metrics {
+                let name = machine.name
+                let sample = MetricsStore.Sample(
+                    cpuPercent: stats.cpuPercent, memoryUsedBytes: Double(stats.memoryUsedBytes),
+                    networkRxRate: rates.rx, networkTxRate: rates.tx, blockReadRate: rates.read,
+                    blockWriteRate: rates.write)
+                Task.detached(priority: .utility) { metrics.recordMachine(name, sample, at: now) }
+            }
             if history.count > 2500 { history.removeFirst(history.count - 2500) }
             machineHistory[machine.name] = history
             next[machine.name] = stats
@@ -1239,6 +1303,7 @@ final class AppStore {
     func deleteMachine(_ name: String) async {
         do {
             try await dependencies.machine.delete(name)
+            if metrics != nil { MetricsStore.shared?.remove(.machine, name) }
             recordActivity("system", "Deleted machine \(name)")
             await refreshMachines()
         } catch {
@@ -1275,8 +1340,42 @@ final class AppStore {
             statsByID = Dictionary(snapshot.containers.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             appendStatsSample(snapshot)
             updateMachineStats()
+            if let metrics {
+                // Deleted behind our back (another CLI, a CI job): drop the
+                // history. Machines' backing containers aren't listed, so the
+                // snapshot's ids count as present too.
+                let live: (containers: Set<String>, machines: Set<String>?)? =
+                    lastRefreshError == nil && (!containers.isEmpty || snapshot.containers.isEmpty)
+                    ? (
+                        Set(containers.map(\.id)).union(snapshot.containers.map(\.id)),
+                        machinesLoaded ? Set(machines.map(\.name)) : nil
+                    ) : nil
+                // SQLite writes stay off the main actor.
+                Task.detached(priority: .utility) {
+                    metrics.record(snapshot)
+                    if let live { metrics.reconcile(containers: live.containers, machines: live.machines) }
+                }
+            }
         } catch {
             // Stats are best-effort; silence transient failures.
+        }
+    }
+
+    @ObservationIgnored private var lastNetworkTotals: (at: Date, rx: UInt64, tx: UInt64)?
+
+    /// Loads persisted history into the in-memory rings, so the charts open
+    /// with the last 3 h instead of starting empty.
+    func loadMetricsHistory() {
+        guard metrics != nil, let store = MetricsStore.shared else { return }
+        let range: TimeInterval = 3 * 3600
+        let persisted = store.history(.system, "all", range: range).points.map(ResourceSample.init)
+        statsHistory = (persisted + statsHistory.filter { $0.timestamp > persisted.last?.timestamp ?? .distantPast })
+            .suffix(2500)
+            .map { $0 }
+        for name in store.targets(.machine) {
+            let points = store.history(.machine, name, range: range).points.map(MachineSample.init)
+            let live = (machineHistory[name] ?? []).filter { $0.timestamp > points.last?.timestamp ?? .distantPast }
+            machineHistory[name] = Array((points + live).suffix(2500))
         }
     }
 
@@ -1289,10 +1388,21 @@ final class AppStore {
         let limit = containers.reduce(UInt64(0)) { $0 + $1.memoryLimitBytes }
         let rx = containers.reduce(UInt64(0)) { $0 + $1.networkRxBytes }
         let tx = containers.reduce(UInt64(0)) { $0 + $1.networkTxBytes }
+        let now = Date()
+        var rates = (rx: 0.0, tx: 0.0)
+        if let previous = lastNetworkTotals, now > previous.at {
+            let seconds = now.timeIntervalSince(previous.at)
+            // Totals drop when a container goes away: no rate for that interval.
+            rates = (
+                rx >= previous.rx ? Double(rx - previous.rx) / seconds : 0,
+                tx >= previous.tx ? Double(tx - previous.tx) / seconds : 0
+            )
+        }
+        lastNetworkTotals = (now, rx, tx)
         statsHistory.append(
             ResourceSample(
-                timestamp: Date(), cpuPercent: cpu, memoryUsedBytes: used, memoryLimitBytes: limit,
-                networkRxBytes: rx, networkTxBytes: tx))
+                timestamp: now, cpuPercent: cpu, memoryUsedBytes: used, memoryLimitBytes: limit,
+                networkRxRate: rates.rx, networkTxRate: rates.tx))
         if statsHistory.count > 2500 {
             statsHistory.removeFirst(statsHistory.count - 2500)
         }
@@ -1347,6 +1457,7 @@ final class AppStore {
     func deleteContainer(_ id: String, force: Bool = false) async {
         do {
             try await dependencies.containers.delete(id, force: force)
+            if metrics != nil { MetricsStore.shared?.remove(.container, id) }
             recordActivity("containers", "Deleted \(id)")
         } catch {
             recordActivity("containers", "Failed to delete \(id): \(error.localizedDescription)", level: .error)

@@ -275,35 +275,25 @@ message SandboxOptions {
   ];
 }
 
-// One secret: a value the caller already has, or a host command that mints
-// it (and mints it again before it expires).
+// One secret: its current value and the hosts that may receive it. The API
+// never runs programs on the host: to use a minted, expiring credential
+// (`gcloud auth print-access-token`, a GitHub App token), mint it on the
+// caller's side — the SDKs do this for `command` secrets — and push each
+// new value with SandboxService.UpdateSandboxSecret.
 message SandboxSecret {
-  option (buf.validate.message).cel = {
-    id: "sandbox_secret.source"
-    message: "set exactly one of value or command"
-    expression: "(this.value != '') != (size(this.command) > 0)"
-  };
   // The real value. SDKs read `from` environment variables on the caller's
-  // side and send the value here.
-  string value = 1;
-  // Or an argv run on the host (no shell) whose stdout is the value — raw,
-  // or {"version":1,"value":"…","expires_at":"<RFC 3339>"} like AWS
-  // `credential_process`. Minted on first use, again a minute before
-  // `expires_at` (else every `ttl`), one run at a time, kept in memory only.
-  // A failed refresh keeps a still-valid value; with none, requests to
-  // `hosts` fail closed (502) instead of carrying the placeholder upstream.
-  repeated string command = 2 [
-    (buf.validate.field).repeated.max_items = 64,
-    (gnostic.openapi.v3.property).example = {yaml: "['gcloud', 'auth', 'print-access-token']"}
+  // side and send the value here. CR, LF and NUL are refused.
+  string value = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.min_len = 1
   ];
-  // Working directory for `command` (default: the API process's home).
-  string command_dir = 3;
-  // Refresh interval when `command` reports no expiry, e.g. "15m", "1h",
-  // "90s" (default 5m).
-  string ttl = 4 [
-    (buf.validate.field).string.pattern = "^$|^[0-9]+(s|m|h)?$",
-    (gnostic.openapi.v3.property).example = {yaml: "'15m'"}
-  ];
+  // Not accepted: the API doesn't run host commands (removed in v0.11 for
+  // that reason; requests that set it fail with `invalid_argument`).
+  repeated string command = 2 [deprecated = true];
+  // Not accepted (see `command`).
+  string command_dir = 3 [deprecated = true];
+  // Not accepted (see `command`).
+  string ttl = 4 [deprecated = true];
   // HTTPS hosts whose requests get the real value ("*.example.com" matches
   // subdomains).
   repeated string hosts = 5 [
@@ -312,6 +302,10 @@ message SandboxSecret {
     (buf.validate.field).repeated.items.string = {min_len: 1, max_len: 253},
     (gnostic.openapi.v3.property).example = {yaml: "['api.openai.com']"}
   ];
+  // When `value` stops working (RFC 3339). After it, requests to `hosts` fail
+  // closed (502) until UpdateSandboxSecret supplies a new value. Empty: the
+  // value doesn't expire.
+  string expires_at = 6 [(gnostic.openapi.v3.property).example = {yaml: "'2026-10-01T12:00:00Z'"}];
 }
 
 message WaitContainerRequest {

@@ -19,24 +19,25 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SandboxService_StartSandbox_FullMethodName      = "/micropod.v1.SandboxService/StartSandbox"
-	SandboxService_StartProcess_FullMethodName      = "/micropod.v1.SandboxService/StartProcess"
-	SandboxService_StreamProcess_FullMethodName     = "/micropod.v1.SandboxService/StreamProcess"
-	SandboxService_WriteProcessStdin_FullMethodName = "/micropod.v1.SandboxService/WriteProcessStdin"
-	SandboxService_SignalProcess_FullMethodName     = "/micropod.v1.SandboxService/SignalProcess"
-	SandboxService_ReadFile_FullMethodName          = "/micropod.v1.SandboxService/ReadFile"
-	SandboxService_WriteFile_FullMethodName         = "/micropod.v1.SandboxService/WriteFile"
-	SandboxService_ListDir_FullMethodName           = "/micropod.v1.SandboxService/ListDir"
-	SandboxService_StatPath_FullMethodName          = "/micropod.v1.SandboxService/StatPath"
-	SandboxService_MakeDir_FullMethodName           = "/micropod.v1.SandboxService/MakeDir"
-	SandboxService_RemovePath_FullMethodName        = "/micropod.v1.SandboxService/RemovePath"
-	SandboxService_RenamePath_FullMethodName        = "/micropod.v1.SandboxService/RenamePath"
-	SandboxService_CopyPath_FullMethodName          = "/micropod.v1.SandboxService/CopyPath"
-	SandboxService_ChmodPath_FullMethodName         = "/micropod.v1.SandboxService/ChmodPath"
-	SandboxService_WatchPath_FullMethodName         = "/micropod.v1.SandboxService/WatchPath"
-	SandboxService_CheckpointSandbox_FullMethodName = "/micropod.v1.SandboxService/CheckpointSandbox"
-	SandboxService_ListCheckpoints_FullMethodName   = "/micropod.v1.SandboxService/ListCheckpoints"
-	SandboxService_DeleteCheckpoint_FullMethodName  = "/micropod.v1.SandboxService/DeleteCheckpoint"
+	SandboxService_StartSandbox_FullMethodName        = "/micropod.v1.SandboxService/StartSandbox"
+	SandboxService_StartProcess_FullMethodName        = "/micropod.v1.SandboxService/StartProcess"
+	SandboxService_StreamProcess_FullMethodName       = "/micropod.v1.SandboxService/StreamProcess"
+	SandboxService_WriteProcessStdin_FullMethodName   = "/micropod.v1.SandboxService/WriteProcessStdin"
+	SandboxService_SignalProcess_FullMethodName       = "/micropod.v1.SandboxService/SignalProcess"
+	SandboxService_ReadFile_FullMethodName            = "/micropod.v1.SandboxService/ReadFile"
+	SandboxService_WriteFile_FullMethodName           = "/micropod.v1.SandboxService/WriteFile"
+	SandboxService_ListDir_FullMethodName             = "/micropod.v1.SandboxService/ListDir"
+	SandboxService_StatPath_FullMethodName            = "/micropod.v1.SandboxService/StatPath"
+	SandboxService_MakeDir_FullMethodName             = "/micropod.v1.SandboxService/MakeDir"
+	SandboxService_RemovePath_FullMethodName          = "/micropod.v1.SandboxService/RemovePath"
+	SandboxService_RenamePath_FullMethodName          = "/micropod.v1.SandboxService/RenamePath"
+	SandboxService_CopyPath_FullMethodName            = "/micropod.v1.SandboxService/CopyPath"
+	SandboxService_ChmodPath_FullMethodName           = "/micropod.v1.SandboxService/ChmodPath"
+	SandboxService_WatchPath_FullMethodName           = "/micropod.v1.SandboxService/WatchPath"
+	SandboxService_CheckpointSandbox_FullMethodName   = "/micropod.v1.SandboxService/CheckpointSandbox"
+	SandboxService_ListCheckpoints_FullMethodName     = "/micropod.v1.SandboxService/ListCheckpoints"
+	SandboxService_DeleteCheckpoint_FullMethodName    = "/micropod.v1.SandboxService/DeleteCheckpoint"
+	SandboxService_UpdateSandboxSecret_FullMethodName = "/micropod.v1.SandboxService/UpdateSandboxSecret"
 )
 
 // SandboxServiceClient is the client API for SandboxService service.
@@ -49,10 +50,10 @@ const (
 //
 // A sandbox is a `runtime: sandbox` container owned by the API process; every
 // call names it by container id. Processes and file operations run inside
-// the container, seeing its mounts, /tmp and working directory. File
-// operations and the idle main process use /bin/sh and the usual tools
-// (busybox or coreutils), so distroless images can run processes but not
-// file operations.
+// the container, seeing its mounts, /tmp and working directory, as the
+// image's user. File operations, watches and the idle main process run on
+// micropod's own static guest helper (shared into the sandbox read-only at
+// /.micropod), so they need nothing from the image: distroless works.
 type SandboxServiceClient interface {
 	// Boot a sandbox and return once it can take processes. With no `command`
 	// it idles until stopped (DeleteContainer) — the long-lived shape the SDKs
@@ -91,11 +92,11 @@ type SandboxServiceClient interface {
 	CopyPath(ctx context.Context, in *CopyPathRequest, opts ...grpc.CallOption) (*Empty, error)
 	// Set a path's permission bits.
 	ChmodPath(ctx context.Context, in *ChmodPathRequest, opts ...grpc.CallOption) (*Empty, error)
-	// Changes under a path, observed inside the guest — including writes a
-	// host-side watcher never sees (the root disk, tmpfs, overlay mounts).
-	// Uses inotify when the image has inotifywait (inotify-tools), otherwise
-	// polls every 500 ms at one-second mtime resolution. The first event is
-	// "ready": changes after it are reported.
+	// Changes under a path, observed inside the guest with inotify —
+	// including writes a host-side watcher never sees (the root disk, tmpfs,
+	// overlay mounts). The first event is "ready": changes after it are
+	// reported. (A daemon built without the guest helper falls back to the
+	// image's inotifywait, else a 500 ms poll.)
 	WatchPath(ctx context.Context, in *WatchPathRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[WatchEvent], error)
 	// Save the sandbox's disk as a checkpoint, then stop the sandbox. Boot a
 	// new one from it with StartSandboxRequest.from_checkpoint.
@@ -104,6 +105,10 @@ type SandboxServiceClient interface {
 	ListCheckpoints(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ListCheckpointsResponse, error)
 	// Delete a checkpoint.
 	DeleteCheckpoint(ctx context.Context, in *CheckpointRef, opts ...grpc.CallOption) (*Empty, error)
+	// Replace a running sandbox's secret value — a refreshed token — without
+	// the guest noticing (its placeholder never changes). `not_found` when the
+	// sandbox has no such secret.
+	UpdateSandboxSecret(ctx context.Context, in *UpdateSandboxSecretRequest, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type sandboxServiceClient struct {
@@ -312,6 +317,16 @@ func (c *sandboxServiceClient) DeleteCheckpoint(ctx context.Context, in *Checkpo
 	return out, nil
 }
 
+func (c *sandboxServiceClient) UpdateSandboxSecret(ctx context.Context, in *UpdateSandboxSecretRequest, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, SandboxService_UpdateSandboxSecret_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SandboxServiceServer is the server API for SandboxService service.
 // All implementations must embed UnimplementedSandboxServiceServer
 // for forward compatibility.
@@ -322,10 +337,10 @@ func (c *sandboxServiceClient) DeleteCheckpoint(ctx context.Context, in *Checkpo
 //
 // A sandbox is a `runtime: sandbox` container owned by the API process; every
 // call names it by container id. Processes and file operations run inside
-// the container, seeing its mounts, /tmp and working directory. File
-// operations and the idle main process use /bin/sh and the usual tools
-// (busybox or coreutils), so distroless images can run processes but not
-// file operations.
+// the container, seeing its mounts, /tmp and working directory, as the
+// image's user. File operations, watches and the idle main process run on
+// micropod's own static guest helper (shared into the sandbox read-only at
+// /.micropod), so they need nothing from the image: distroless works.
 type SandboxServiceServer interface {
 	// Boot a sandbox and return once it can take processes. With no `command`
 	// it idles until stopped (DeleteContainer) — the long-lived shape the SDKs
@@ -364,11 +379,11 @@ type SandboxServiceServer interface {
 	CopyPath(context.Context, *CopyPathRequest) (*Empty, error)
 	// Set a path's permission bits.
 	ChmodPath(context.Context, *ChmodPathRequest) (*Empty, error)
-	// Changes under a path, observed inside the guest — including writes a
-	// host-side watcher never sees (the root disk, tmpfs, overlay mounts).
-	// Uses inotify when the image has inotifywait (inotify-tools), otherwise
-	// polls every 500 ms at one-second mtime resolution. The first event is
-	// "ready": changes after it are reported.
+	// Changes under a path, observed inside the guest with inotify —
+	// including writes a host-side watcher never sees (the root disk, tmpfs,
+	// overlay mounts). The first event is "ready": changes after it are
+	// reported. (A daemon built without the guest helper falls back to the
+	// image's inotifywait, else a 500 ms poll.)
 	WatchPath(*WatchPathRequest, grpc.ServerStreamingServer[WatchEvent]) error
 	// Save the sandbox's disk as a checkpoint, then stop the sandbox. Boot a
 	// new one from it with StartSandboxRequest.from_checkpoint.
@@ -377,6 +392,10 @@ type SandboxServiceServer interface {
 	ListCheckpoints(context.Context, *Empty) (*ListCheckpointsResponse, error)
 	// Delete a checkpoint.
 	DeleteCheckpoint(context.Context, *CheckpointRef) (*Empty, error)
+	// Replace a running sandbox's secret value — a refreshed token — without
+	// the guest noticing (its placeholder never changes). `not_found` when the
+	// sandbox has no such secret.
+	UpdateSandboxSecret(context.Context, *UpdateSandboxSecretRequest) (*Empty, error)
 	mustEmbedUnimplementedSandboxServiceServer()
 }
 
@@ -440,6 +459,9 @@ func (UnimplementedSandboxServiceServer) ListCheckpoints(context.Context, *Empty
 }
 func (UnimplementedSandboxServiceServer) DeleteCheckpoint(context.Context, *CheckpointRef) (*Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteCheckpoint not implemented")
+}
+func (UnimplementedSandboxServiceServer) UpdateSandboxSecret(context.Context, *UpdateSandboxSecretRequest) (*Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateSandboxSecret not implemented")
 }
 func (UnimplementedSandboxServiceServer) mustEmbedUnimplementedSandboxServiceServer() {}
 func (UnimplementedSandboxServiceServer) testEmbeddedByValue()                        {}
@@ -772,6 +794,24 @@ func _SandboxService_DeleteCheckpoint_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SandboxService_UpdateSandboxSecret_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateSandboxSecretRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SandboxServiceServer).UpdateSandboxSecret(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SandboxService_UpdateSandboxSecret_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SandboxServiceServer).UpdateSandboxSecret(ctx, req.(*UpdateSandboxSecretRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SandboxService_ServiceDesc is the grpc.ServiceDesc for SandboxService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -842,6 +882,10 @@ var SandboxService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteCheckpoint",
 			Handler:    _SandboxService_DeleteCheckpoint_Handler,
+		},
+		{
+			MethodName: "UpdateSandboxSecret",
+			Handler:    _SandboxService_UpdateSandboxSecret_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

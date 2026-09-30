@@ -587,11 +587,13 @@ public struct SandboxRunOptions: Sendable, Equatable {
     /// Network override: nil keeps the engine default (online over the
     /// API), false boots offline.
     public var network: Bool?
+    /// No command: the main process idles until the sandbox is stopped.
+    public var idle: Bool
 
     public init(
         exposeHost: [UInt16] = [], allowHosts: [String] = [], secrets: [SandboxSecretSpec] = [],
         dnsResolvers: [String] = [], diskSizeMiB: UInt64? = nil, fromCheckpoint: String? = nil,
-        network: Bool? = nil
+        network: Bool? = nil, idle: Bool = false
     ) {
         self.exposeHost = exposeHost
         self.allowHosts = allowHosts
@@ -600,6 +602,7 @@ public struct SandboxRunOptions: Sendable, Equatable {
         self.diskSizeMiB = diskSizeMiB
         self.fromCheckpoint = fromCheckpoint
         self.network = network
+        self.idle = idle
     }
 }
 
@@ -613,10 +616,12 @@ public struct SandboxSecretSpec: Sendable, Equatable {
     /// Refresh interval for a command that reports no expiry.
     public var ttl: Duration?
     public var hosts: [String]
+    /// When a supplied `value` stops working.
+    public var expiresAt: Date?
 
     public init(
         name: String, value: String? = nil, command: [String] = [], commandDirectory: String? = nil,
-        ttl: Duration? = nil, hosts: [String]
+        ttl: Duration? = nil, hosts: [String], expiresAt: Date? = nil
     ) {
         self.name = name
         self.value = value
@@ -624,6 +629,7 @@ public struct SandboxSecretSpec: Sendable, Equatable {
         self.commandDirectory = commandDirectory
         self.ttl = ttl
         self.hosts = hosts
+        self.expiresAt = expiresAt
     }
 
     /// "90", "90s", "15m", "1h" → a duration; nil for anything else.

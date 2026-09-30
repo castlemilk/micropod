@@ -151,9 +151,31 @@ Containerization, and the guest's own logs (`MICROPOD_SANDBOX_BOOTLOG=path`,
   2026-09-30, to networked VMs only, and before this round's changes too.
   It needs an Apple Feedback report; until it's fixed, the affected run
   fails with "virtual machine stopped unexpectedly".
-- **shuru isn't in the table.** Its Homebrew tap needs `brew trust
-  superhq-ai/tap`; once `shuru` is on `PATH`, `task bench-runtimes`
-  includes it.
+- **Networked sandboxes reach host services on all interfaces.** Any
+  networked mode — NAT, host-only for ports or `--expose-host`, the
+  `--allow-host` proxy mode — reaches services on this Mac that listen on
+  `*:port`, and NAT also reaches the Mac's LAN address. That's the same as
+  Docker and shuru (shuru also reached micropod's Docker shim, which ours
+  blocks). vmnet has no switch for it and a host firewall needs root.
+
+### Against shuru (2026-09-30)
+
+shuru 0.7.0 (Homebrew), same interleaved harness, and the same Go
+toolchain (1.27.1) from a `go127` checkpoint. shuru gives `--cpus 2` two
+vCPUs; `sandbox -c 2` gets three with the workload held to two. The CI rig
+kept the load average at 44–74 on 18 cores, so the job and fan-out rows
+are dominated by contention. The earlier run at ~20 had the sandbox
+fastest in fan-out.
+
+| p50 | boot | go job | 4 jobs at once |
+|---|---|---|---|
+| `shuru` | 0.34 s | 14.20 s | 30.84 s |
+| `sandbox` | 0.35 s | 13.57 s | 30.89 s |
+| `apple` | 0.76 s | 13.69 s | 22.06 s |
+| `docker` | 0.23 s | 15.49 s | 31.18 s |
+| `machine` | 0.17 s | 12.42 s | — |
+
+Boot is a tie, and the Go job is within noise.
 
 ## Results (2026-09-22, M-series, both engines warm)
 

@@ -22,6 +22,16 @@ final class MicropodNotifier {
         post(title: title(for: kind, message: message), message: message, isError: level == .error)
     }
 
+    /// Always posted (once per version): an update that is ready but
+    /// unseen is how installs stall.
+    func postUpdateReady(version: String) {
+        post(
+            title: "Micropod \(version) is ready",
+            message:
+                "Restart Micropod to update — or it installs itself the next time you're away and nothing is running.",
+            isError: false)
+    }
+
     func postKernel(result: String, isError: Bool) {
         guard isEnabled(.kernel) else { return }
         post(title: isError ? "Kernel install failed" : "Kernel installed", message: result, isError: isError)

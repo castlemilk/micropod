@@ -48,7 +48,7 @@ final class SandboxParityTests: XCTestCase {
         let secret = try SandboxSecret.parse(
             "API_KEY=REAL@api.example.com,Uploads.Example.com", environment: ["REAL": "s3cr3t"])
         XCTAssertEqual(secret.name, "API_KEY")
-        XCTAssertEqual(secret.source.kind, .fixed("s3cr3t"))
+        XCTAssertEqual(secret.source.kind, .value)
         XCTAssertEqual(secret.hosts, ["api.example.com", "uploads.example.com"])
         XCTAssertTrue(secret.placeholder.hasPrefix("micropod_secret_"))
         XCTAssertFalse(secret.placeholder.contains("s3cr3t"))

@@ -3,7 +3,7 @@
   "info": {
     "title": "Micropod API \u00b7 SystemService",
     "description": "## micropod.v1.SystemService\n\nDaemon-level operations: runtime snapshot, cleanup usage report, and the\n desktop app's update lifecycle (proxied over the app control socket).",
-    "version": "0.9.1",
+    "version": "0.10.0",
     "contact": {
       "name": "Micropod",
       "url": "https://github.com/castlemilk/micropod"
@@ -125,6 +125,65 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/micropod.v1.UpdateStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SystemService/GetMetricsHistory": {
+      "post": {
+        "tags": [
+          "micropod.v1.SystemService"
+        ],
+        "summary": "GetMetricsHistory",
+        "description": "Resource usage over time for all containers (\"system\"), one container,\n or one machine, as recorded by the Micropod app (every 5 s while its\n window is open, 30 s otherwise). Rolled up and pruned by age: 10 s\n points for 3 h, 1 min for 48 h, 15 min for 30 days \u2014 the finest that\n covers the range is returned. A container's or machine's history is\n deleted with it.",
+        "operationId": "micropod.v1.SystemService.GetMetricsHistory",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.GetMetricsHistoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.MetricsHistory"
                 }
               }
             }
@@ -839,6 +898,43 @@
         "additionalProperties": false,
         "description": "The Micropod daemon API is grouped into per-domain services, one per file:\n\n   container.proto \u2014 ContainerService (lifecycle, logs, stats, exec)\n   image.proto     \u2014 ImageService (list, pull, delete)\n   volume.proto    \u2014 VolumeService (volumes + mount policy)\n   network.proto   \u2014 NetworkService\n   compose.proto   \u2014 Compose (up/down over a compose spec)\n   system.proto    \u2014 SystemService (snapshot, usage, app updates)\n\n Empty is shared by every service, so it lives here."
       },
+      "micropod.v1.GetMetricsHistoryRequest": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "examples": [
+              "container"
+            ],
+            "title": "kind",
+            "enum": [
+              "system",
+              "container",
+              "machine"
+            ],
+            "description": "\"system\" (all containers), \"container\" or \"machine\"."
+          },
+          "id": {
+            "type": "string",
+            "examples": [
+              "web"
+            ],
+            "title": "id",
+            "description": "Container id or machine name; ignored for \"system\"."
+          },
+          "rangeSeconds": {
+            "type": "integer",
+            "examples": [
+              "3600"
+            ],
+            "title": "range_seconds",
+            "maximum": 2592000,
+            "description": "How far back, in seconds (0 = one hour; at most 30 days)."
+          }
+        },
+        "title": "GetMetricsHistoryRequest",
+        "additionalProperties": false
+      },
       "micropod.v1.Image": {
         "type": "object",
         "properties": {
@@ -965,6 +1061,94 @@
         },
         "title": "ListRuntimesResponse",
         "additionalProperties": false
+      },
+      "micropod.v1.MetricsHistory": {
+        "type": "object",
+        "properties": {
+          "resolutionSeconds": {
+            "type": "integer",
+            "examples": [
+              "10"
+            ],
+            "title": "resolution_seconds",
+            "description": "Seconds each point covers (10, 60 or 900)."
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.MetricsPoint"
+            },
+            "title": "points",
+            "description": "Oldest first; empty when nothing was recorded in the range."
+          }
+        },
+        "title": "MetricsHistory",
+        "additionalProperties": false
+      },
+      "micropod.v1.MetricsPoint": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "examples": [
+              "2026-09-30T10:00:00Z"
+            ],
+            "title": "timestamp",
+            "description": "Start of the bucket (RFC 3339)."
+          },
+          "cpuPercent": {
+            "type": "number",
+            "title": "cpu_percent",
+            "format": "double",
+            "description": "CPU % (100 = one core): average and peak."
+          },
+          "cpuPercentMax": {
+            "type": "number",
+            "title": "cpu_percent_max",
+            "format": "double"
+          },
+          "memoryUsedBytes": {
+            "type": "number",
+            "title": "memory_used_bytes",
+            "format": "double",
+            "description": "Memory in use (bytes): average and peak."
+          },
+          "memoryUsedBytesMax": {
+            "type": "number",
+            "title": "memory_used_bytes_max",
+            "format": "double"
+          },
+          "memoryLimitBytes": {
+            "type": "number",
+            "title": "memory_limit_bytes",
+            "format": "double",
+            "description": "Memory limit (bytes)."
+          },
+          "networkRxBytesPerSecond": {
+            "type": "number",
+            "title": "network_rx_bytes_per_second",
+            "format": "double",
+            "description": "Network and disk rates (bytes per second), averages."
+          },
+          "networkTxBytesPerSecond": {
+            "type": "number",
+            "title": "network_tx_bytes_per_second",
+            "format": "double"
+          },
+          "blockReadBytesPerSecond": {
+            "type": "number",
+            "title": "block_read_bytes_per_second",
+            "format": "double"
+          },
+          "blockWriteBytesPerSecond": {
+            "type": "number",
+            "title": "block_write_bytes_per_second",
+            "format": "double"
+          }
+        },
+        "title": "MetricsPoint",
+        "additionalProperties": false,
+        "description": "One bucket: averages, plus the peak of the metrics that spike."
       },
       "micropod.v1.PingResponse": {
         "type": "object",
@@ -1404,7 +1588,8 @@
           "STATE_UP_TO_DATE",
           "STATE_UPDATE_AVAILABLE",
           "STATE_INSTALLING",
-          "STATE_ERROR"
+          "STATE_ERROR",
+          "STATE_READY_TO_INSTALL"
         ],
         "description": "Updater lifecycle state."
       },

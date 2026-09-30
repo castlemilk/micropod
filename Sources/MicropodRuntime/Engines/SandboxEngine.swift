@@ -149,6 +149,9 @@ public struct SandboxEngine: RuntimeEngine, ContainerServing, LogStreaming {
         }
         if let name = request.name { options.hostname = name }
         options.dnsResolvers = request.dns
+        // API sandboxes carry the guest helper: SandboxService file
+        // operations, watches and idling need nothing from the image.
+        options.guestTool = SandboxGuestTool.hostDirectory
         if let sandbox = request.sandbox {
             try apply(sandbox, to: &options)
         }
@@ -157,6 +160,11 @@ public struct SandboxEngine: RuntimeEngine, ContainerServing, LogStreaming {
 
     /// `SandboxOptions` (and StartSandbox's extras) onto the VM options.
     static func apply(_ sandbox: SandboxRunOptions, to options: inout SandboxVM.Options) throws {
+        if sandbox.idle {
+            let idle = options.guestTool != nil ? [SandboxGuestTool.guestPath, "idle"] : SandboxEngine.idleCommand
+            options.entrypoint = [idle[0]]
+            options.arguments = Array(idle.dropFirst())
+        }
         if let checkpoint = sandbox.fromCheckpoint { options.base = .checkpoint(checkpoint) }
         if let network = sandbox.network { options.network = network }
         if let mib = sandbox.diskSizeMiB { options.diskBytes = mib << 20 }
@@ -164,10 +172,16 @@ public struct SandboxEngine: RuntimeEngine, ContainerServing, LogStreaming {
         options.dnsResolvers += sandbox.dnsResolvers
         options.egress = EgressPolicy(
             allowHosts: sandbox.allowHosts,
-            secrets: try sandbox.secrets.map {
-                // API secret commands run from the API process's home unless
-                // the request names a directory.
-                try SandboxSecret.from($0, directory: FileManager.default.homeDirectoryForCurrentUser)
+            secrets: try sandbox.secrets.map { spec in
+                // The API never runs host commands (a request must not start
+                // programs on this Mac): callers mint and push values.
+                guard spec.command.isEmpty else {
+                    throw MicropodError.message(
+                        "invalidArgument: secret \(spec.name): the API doesn't run host commands — mint the value "
+                            + "on the caller's side (the SDKs do this for command secrets) and refresh it with "
+                            + "UpdateSandboxSecret")
+                }
+                return try SandboxSecret.from(spec)
             })
         if !options.egress.isEmpty && !options.network {
             throw MicropodError.message("invalidArgument: allow_hosts and secrets need a network")

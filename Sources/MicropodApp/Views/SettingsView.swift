@@ -14,10 +14,29 @@ struct SettingsView: View {
     @AppStorage(UserDefaultsKeys.notifyCompose) private var notifyCompose = false
     @AppStorage(UserDefaultsKeys.notifyPrune) private var notifyPrune = false
     @AppStorage(UserDefaultsKeys.notifyKernel) private var notifyKernel = false
+    @AppStorage(UpdateController.autoInstallKey) private var installsUpdatesAutomatically = true
     @State private var showCreateMachine = false
     @State private var volumePolicy = VolumePolicy.standard
     @State private var volumePolicyLoaded = false
     @State private var newGolden = ""
+
+    /// "Up to date — checked 5 min ago", "0.10.0 ready to install", …
+    private var updateStatusText: String {
+        let updates = UpdateController.shared
+        let checked =
+            updates.lastCheckedAt.map {
+                " — checked " + RelativeDateTimeFormatter().localizedString(for: $0, relativeTo: Date())
+            } ?? ""
+        switch updates.status {
+        case .unavailable: return "Not available in development builds"
+        case .checking: return "Checking…"
+        case .upToDate, .idle: return "Up to date (\(updates.currentVersion))" + checked
+        case .updateAvailable: return "Downloading \(updates.availableVersion ?? "update")…"
+        case .readyToInstall: return "\(updates.stagedVersion ?? "Update") ready to install"
+        case .installing: return "Installing…"
+        case .error: return "Last check failed: \(updates.lastError ?? "unknown error")"
+        }
+    }
 
     var body: some View {
         Form {
@@ -56,15 +75,24 @@ struct SettingsView: View {
                     .toggleStyle(.checkbox)
             }
             Section("Updates") {
+                LabeledContent("Status", value: updateStatusText)
                 Toggle("Automatically check for updates", isOn: UpdateController.shared.automaticallyChecksForUpdates)
                     .toggleStyle(.checkbox)
-                Button {
-                    UpdateController.shared.checkForUpdates()
-                } label: {
-                    IconLabel(title: "Check Now", icon: "check", fallback: "arrow.triangle.2.circlepath")
+                Toggle("Install updates when I'm away and nothing is running", isOn: $installsUpdatesAutomatically)
+                    .toggleStyle(.checkbox)
+                HStack {
+                    Button {
+                        UpdateController.shared.checkForUpdates()
+                    } label: {
+                        IconLabel(title: "Check Now", icon: "check", fallback: "arrow.triangle.2.circlepath")
+                    }
+                    .controlSize(.small)
+                    .disabled(!UpdateController.shared.canCheckForUpdates)
+                    if let version = UpdateController.shared.stagedVersion {
+                        Button("Restart to Update to \(version)") { UpdateController.shared.applyStagedUpdate() }
+                            .controlSize(.small)
+                    }
                 }
-                .controlSize(.small)
-                .disabled(!UpdateController.shared.canCheckForUpdates)
             }
             Section("Agents") {
                 ForEach(store.agentSpecs, id: \.id) { spec in

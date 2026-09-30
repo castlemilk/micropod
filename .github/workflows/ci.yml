@@ -28,6 +28,15 @@ jobs:
           buf lint
       - name: Swift format check
         run: swift format lint --strict --recursive Sources Tests Package.swift
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: guest/go.mod
+      # The sandbox guest helper is linux-only: vet and cross-build it here
+      # (its tests need a Linux kernel — they run in a sandbox locally).
+      - name: Guest helper (linux/arm64)
+        run: |
+          test -z "$(gofmt -l guest)" || { gofmt -l guest; exit 1; }
+          cd guest && GOOS=linux GOARCH=arm64 go vet ./... && GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /dev/null .
 
   build-test:
     runs-on: macos-26

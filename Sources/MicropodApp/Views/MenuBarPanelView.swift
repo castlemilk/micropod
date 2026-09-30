@@ -300,15 +300,28 @@ struct MenuBarPanelView: View {
                     .truncationMode(.tail)
             }
             Spacer(minLength: 4)
-            Button {
-                UpdateController.shared.checkForUpdates()
-            } label: {
-                IconLabel(title: "Updates", icon: "check", fallback: "arrow.triangle.2.circlepath")
+            if let version = UpdateController.shared.stagedVersion {
+                Button {
+                    UpdateController.shared.applyStagedUpdate()
+                } label: {
+                    Label("Update to \(version)", systemImage: "arrow.down.circle.fill")
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+                .foregroundStyle(Color.accentColor)
+                .fixedSize()
+                .help("Restart Micropod to install \(version)")
+            } else {
+                Button {
+                    UpdateController.shared.checkForUpdates()
+                } label: {
+                    IconLabel(title: "Updates", icon: "check", fallback: "arrow.triangle.2.circlepath")
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+                .fixedSize()
+                .disabled(!UpdateController.shared.canCheckForUpdates)
             }
-            .buttonStyle(.borderless)
-            .controlSize(.small)
-            .fixedSize()
-            .disabled(!UpdateController.shared.canCheckForUpdates)
             Button {
                 openAndSet { store.activeTab = .settings }
             } label: {

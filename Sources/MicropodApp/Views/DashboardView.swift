@@ -344,13 +344,29 @@ struct DashboardView: View {
                     ChartTimeWindowPicker(window: $resourceWindow)
                 }
                 chartBody
+                    .task(id: resourceWindow) {
+                        while !Task.isCancelled && resourceWindow.needsStore {
+                            await loadStoredSamples()
+                            try? await Task.sleep(for: .seconds(60))
+                        }
+                    }
             }
         }
     }
 
+    /// Windows past 3 h: the rolled-up history, reloaded each minute.
+    @State private var storedSamples: [ResourceSample] = []
+
+    private func loadStoredSamples() async {
+        guard resourceWindow.needsStore, let metricsStore = MetricsStore.shared else { return }
+        let window = resourceWindow.duration
+        let points = await Task.detached { metricsStore.history(.system, "all", range: window).points }.value
+        storedSamples = points.map(ResourceSample.init)
+    }
+
     @ViewBuilder
     private var chartBody: some View {
-        let samples = store.statsHistory.within(resourceWindow)
+        let samples = resourceWindow.needsStore ? storedSamples : store.statsHistory.within(resourceWindow)
         let chartSamples = downsample(samples, maxPoints: 360)
         if samples.count < 2 {
             HStack(spacing: 8) {
@@ -488,19 +504,12 @@ struct DashboardView: View {
         return String(format: "%.1f%%", cpu) + (cpu < 0.05 ? " · idle" : "")
     }
 
-    /// Live network rates (B/s) derived from counter deltas over the window;
-    /// "idle" when traffic is effectively zero so a quiet box reads healthy.
+    /// Average network rates (B/s) over the window; "idle" when traffic is
+    /// effectively zero so a quiet box reads healthy.
     private func netSummary(_ samples: [ResourceSample]) -> String {
-        guard let first = samples.first, let last = samples.last,
-            last.timestamp > first.timestamp
-        else { return "—" }
-        let seconds = last.timestamp.timeIntervalSince(first.timestamp)
-        let rx =
-            Double(last.networkRxBytes > first.networkRxBytes ? last.networkRxBytes - first.networkRxBytes : 0)
-            / seconds
-        let tx =
-            Double(last.networkTxBytes > first.networkTxBytes ? last.networkTxBytes - first.networkTxBytes : 0)
-            / seconds
+        guard !samples.isEmpty else { return "—" }
+        let rx = samples.reduce(0) { $0 + $1.networkRxRate } / Double(samples.count)
+        let tx = samples.reduce(0) { $0 + $1.networkTxRate } / Double(samples.count)
         if rx < 0.05 && tx < 0.05 { return "idle" }
         return "↓\(rate(rx)) ↑\(rate(tx))"
     }

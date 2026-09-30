@@ -64,7 +64,14 @@ await next.stop();                                          // discards it
 
 - **Secrets:** the guest only sees a placeholder. The daemon's proxy
   substitutes the real value on HTTPS requests to the listed `hosts`. A
-  `command` secret runs on the host and is re-run before it expires.
+  `command` secret runs here, in your Node process, never in the daemon.
+  It runs before start and again a minute before the value expires (or
+  every `ttl`), and each new value is pushed to the sandbox. `stop()` and
+  `checkpoint()` end the refreshing. `onSecretError` reports a failed
+  refresh, which is retried every 10 s.
+- **Images:** file operations, `watch` and idling run on micropod's
+  own guest helper, so they work in any image, distroless included. Watches
+  use inotify.
 - **Connecting:** by default the SDK talks to the daemon at
   `http://localhost:45454` (its `/api` mount), or `$MICROPOD_API` if set.
   Use `Sandbox.attach(id)` to reconnect to a running sandbox.

@@ -82,6 +82,9 @@ const (
 	// SandboxServiceDeleteCheckpointProcedure is the fully-qualified name of the SandboxService's
 	// DeleteCheckpoint RPC.
 	SandboxServiceDeleteCheckpointProcedure = "/micropod.v1.SandboxService/DeleteCheckpoint"
+	// SandboxServiceUpdateSandboxSecretProcedure is the fully-qualified name of the SandboxService's
+	// UpdateSandboxSecret RPC.
+	SandboxServiceUpdateSandboxSecretProcedure = "/micropod.v1.SandboxService/UpdateSandboxSecret"
 )
 
 // SandboxServiceClient is a client for the micropod.v1.SandboxService service.
@@ -123,11 +126,11 @@ type SandboxServiceClient interface {
 	CopyPath(context.Context, *connect.Request[v1.CopyPathRequest]) (*connect.Response[v1.Empty], error)
 	// Set a path's permission bits.
 	ChmodPath(context.Context, *connect.Request[v1.ChmodPathRequest]) (*connect.Response[v1.Empty], error)
-	// Changes under a path, observed inside the guest — including writes a
-	// host-side watcher never sees (the root disk, tmpfs, overlay mounts).
-	// Uses inotify when the image has inotifywait (inotify-tools), otherwise
-	// polls every 500 ms at one-second mtime resolution. The first event is
-	// "ready": changes after it are reported.
+	// Changes under a path, observed inside the guest with inotify —
+	// including writes a host-side watcher never sees (the root disk, tmpfs,
+	// overlay mounts). The first event is "ready": changes after it are
+	// reported. (A daemon built without the guest helper falls back to the
+	// image's inotifywait, else a 500 ms poll.)
 	WatchPath(context.Context, *connect.Request[v1.WatchPathRequest]) (*connect.ServerStreamForClient[v1.WatchEvent], error)
 	// Save the sandbox's disk as a checkpoint, then stop the sandbox. Boot a
 	// new one from it with StartSandboxRequest.from_checkpoint.
@@ -136,6 +139,10 @@ type SandboxServiceClient interface {
 	ListCheckpoints(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.ListCheckpointsResponse], error)
 	// Delete a checkpoint.
 	DeleteCheckpoint(context.Context, *connect.Request[v1.CheckpointRef]) (*connect.Response[v1.Empty], error)
+	// Replace a running sandbox's secret value — a refreshed token — without
+	// the guest noticing (its placeholder never changes). `not_found` when the
+	// sandbox has no such secret.
+	UpdateSandboxSecret(context.Context, *connect.Request[v1.UpdateSandboxSecretRequest]) (*connect.Response[v1.Empty], error)
 }
 
 // NewSandboxServiceClient constructs a client for the micropod.v1.SandboxService service. By
@@ -257,29 +264,36 @@ func NewSandboxServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(sandboxServiceMethods.ByName("DeleteCheckpoint")),
 			connect.WithClientOptions(opts...),
 		),
+		updateSandboxSecret: connect.NewClient[v1.UpdateSandboxSecretRequest, v1.Empty](
+			httpClient,
+			baseURL+SandboxServiceUpdateSandboxSecretProcedure,
+			connect.WithSchema(sandboxServiceMethods.ByName("UpdateSandboxSecret")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // sandboxServiceClient implements SandboxServiceClient.
 type sandboxServiceClient struct {
-	startSandbox      *connect.Client[v1.StartSandboxRequest, v1.ContainerRef]
-	startProcess      *connect.Client[v1.StartProcessRequest, v1.ProcessRef]
-	streamProcess     *connect.Client[v1.ProcessRef, v1.ProcessEvent]
-	writeProcessStdin *connect.Client[v1.WriteProcessStdinRequest, v1.Empty]
-	signalProcess     *connect.Client[v1.SignalProcessRequest, v1.Empty]
-	readFile          *connect.Client[v1.PathRequest, v1.FileContent]
-	writeFile         *connect.Client[v1.WriteFileRequest, v1.Empty]
-	listDir           *connect.Client[v1.PathRequest, v1.ListDirResponse]
-	statPath          *connect.Client[v1.PathRequest, v1.FileStat]
-	makeDir           *connect.Client[v1.MakeDirRequest, v1.Empty]
-	removePath        *connect.Client[v1.RemovePathRequest, v1.Empty]
-	renamePath        *connect.Client[v1.RenamePathRequest, v1.Empty]
-	copyPath          *connect.Client[v1.CopyPathRequest, v1.Empty]
-	chmodPath         *connect.Client[v1.ChmodPathRequest, v1.Empty]
-	watchPath         *connect.Client[v1.WatchPathRequest, v1.WatchEvent]
-	checkpointSandbox *connect.Client[v1.CheckpointSandboxRequest, v1.Empty]
-	listCheckpoints   *connect.Client[v1.Empty, v1.ListCheckpointsResponse]
-	deleteCheckpoint  *connect.Client[v1.CheckpointRef, v1.Empty]
+	startSandbox        *connect.Client[v1.StartSandboxRequest, v1.ContainerRef]
+	startProcess        *connect.Client[v1.StartProcessRequest, v1.ProcessRef]
+	streamProcess       *connect.Client[v1.ProcessRef, v1.ProcessEvent]
+	writeProcessStdin   *connect.Client[v1.WriteProcessStdinRequest, v1.Empty]
+	signalProcess       *connect.Client[v1.SignalProcessRequest, v1.Empty]
+	readFile            *connect.Client[v1.PathRequest, v1.FileContent]
+	writeFile           *connect.Client[v1.WriteFileRequest, v1.Empty]
+	listDir             *connect.Client[v1.PathRequest, v1.ListDirResponse]
+	statPath            *connect.Client[v1.PathRequest, v1.FileStat]
+	makeDir             *connect.Client[v1.MakeDirRequest, v1.Empty]
+	removePath          *connect.Client[v1.RemovePathRequest, v1.Empty]
+	renamePath          *connect.Client[v1.RenamePathRequest, v1.Empty]
+	copyPath            *connect.Client[v1.CopyPathRequest, v1.Empty]
+	chmodPath           *connect.Client[v1.ChmodPathRequest, v1.Empty]
+	watchPath           *connect.Client[v1.WatchPathRequest, v1.WatchEvent]
+	checkpointSandbox   *connect.Client[v1.CheckpointSandboxRequest, v1.Empty]
+	listCheckpoints     *connect.Client[v1.Empty, v1.ListCheckpointsResponse]
+	deleteCheckpoint    *connect.Client[v1.CheckpointRef, v1.Empty]
+	updateSandboxSecret *connect.Client[v1.UpdateSandboxSecretRequest, v1.Empty]
 }
 
 // StartSandbox calls micropod.v1.SandboxService.StartSandbox.
@@ -372,6 +386,11 @@ func (c *sandboxServiceClient) DeleteCheckpoint(ctx context.Context, req *connec
 	return c.deleteCheckpoint.CallUnary(ctx, req)
 }
 
+// UpdateSandboxSecret calls micropod.v1.SandboxService.UpdateSandboxSecret.
+func (c *sandboxServiceClient) UpdateSandboxSecret(ctx context.Context, req *connect.Request[v1.UpdateSandboxSecretRequest]) (*connect.Response[v1.Empty], error) {
+	return c.updateSandboxSecret.CallUnary(ctx, req)
+}
+
 // SandboxServiceHandler is an implementation of the micropod.v1.SandboxService service.
 type SandboxServiceHandler interface {
 	// Boot a sandbox and return once it can take processes. With no `command`
@@ -411,11 +430,11 @@ type SandboxServiceHandler interface {
 	CopyPath(context.Context, *connect.Request[v1.CopyPathRequest]) (*connect.Response[v1.Empty], error)
 	// Set a path's permission bits.
 	ChmodPath(context.Context, *connect.Request[v1.ChmodPathRequest]) (*connect.Response[v1.Empty], error)
-	// Changes under a path, observed inside the guest — including writes a
-	// host-side watcher never sees (the root disk, tmpfs, overlay mounts).
-	// Uses inotify when the image has inotifywait (inotify-tools), otherwise
-	// polls every 500 ms at one-second mtime resolution. The first event is
-	// "ready": changes after it are reported.
+	// Changes under a path, observed inside the guest with inotify —
+	// including writes a host-side watcher never sees (the root disk, tmpfs,
+	// overlay mounts). The first event is "ready": changes after it are
+	// reported. (A daemon built without the guest helper falls back to the
+	// image's inotifywait, else a 500 ms poll.)
 	WatchPath(context.Context, *connect.Request[v1.WatchPathRequest], *connect.ServerStream[v1.WatchEvent]) error
 	// Save the sandbox's disk as a checkpoint, then stop the sandbox. Boot a
 	// new one from it with StartSandboxRequest.from_checkpoint.
@@ -424,6 +443,10 @@ type SandboxServiceHandler interface {
 	ListCheckpoints(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.ListCheckpointsResponse], error)
 	// Delete a checkpoint.
 	DeleteCheckpoint(context.Context, *connect.Request[v1.CheckpointRef]) (*connect.Response[v1.Empty], error)
+	// Replace a running sandbox's secret value — a refreshed token — without
+	// the guest noticing (its placeholder never changes). `not_found` when the
+	// sandbox has no such secret.
+	UpdateSandboxSecret(context.Context, *connect.Request[v1.UpdateSandboxSecretRequest]) (*connect.Response[v1.Empty], error)
 }
 
 // NewSandboxServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -541,6 +564,12 @@ func NewSandboxServiceHandler(svc SandboxServiceHandler, opts ...connect.Handler
 		connect.WithSchema(sandboxServiceMethods.ByName("DeleteCheckpoint")),
 		connect.WithHandlerOptions(opts...),
 	)
+	sandboxServiceUpdateSandboxSecretHandler := connect.NewUnaryHandler(
+		SandboxServiceUpdateSandboxSecretProcedure,
+		svc.UpdateSandboxSecret,
+		connect.WithSchema(sandboxServiceMethods.ByName("UpdateSandboxSecret")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/micropod.v1.SandboxService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SandboxServiceStartSandboxProcedure:
@@ -579,6 +608,8 @@ func NewSandboxServiceHandler(svc SandboxServiceHandler, opts ...connect.Handler
 			sandboxServiceListCheckpointsHandler.ServeHTTP(w, r)
 		case SandboxServiceDeleteCheckpointProcedure:
 			sandboxServiceDeleteCheckpointHandler.ServeHTTP(w, r)
+		case SandboxServiceUpdateSandboxSecretProcedure:
+			sandboxServiceUpdateSandboxSecretHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -658,4 +689,8 @@ func (UnimplementedSandboxServiceHandler) ListCheckpoints(context.Context, *conn
 
 func (UnimplementedSandboxServiceHandler) DeleteCheckpoint(context.Context, *connect.Request[v1.CheckpointRef]) (*connect.Response[v1.Empty], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.SandboxService.DeleteCheckpoint is not implemented"))
+}
+
+func (UnimplementedSandboxServiceHandler) UpdateSandboxSecret(context.Context, *connect.Request[v1.UpdateSandboxSecretRequest]) (*connect.Response[v1.Empty], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.SandboxService.UpdateSandboxSecret is not implemented"))
 }

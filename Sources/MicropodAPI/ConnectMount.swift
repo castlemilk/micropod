@@ -122,6 +122,7 @@ extension APIHandlers {
                 let req = try decode(Micropod_V1_DeleteContainerRequest.self, body)
                 try check(req)
                 try await services.containers.delete(req.id, force: req.force)
+                MetricsStore.shared?.remove(.container, req.id)
                 return unary(Micropod_V1_Empty())
 
             case "StreamContainerLogs":
@@ -554,6 +555,48 @@ extension APIHandlers {
 
             case "ListCheckpoints":
                 return unary(Self.checkpoints())
+
+            case "GetMetricsHistory":
+                let req = try decode(Micropod_V1_GetMetricsHistoryRequest.self, body)
+                guard let kind = MetricsStore.Kind(rawValue: req.kind.isEmpty ? "system" : req.kind) else {
+                    throw ConnectDecodeError(
+                        code: .invalidArgument, message: "kind must be system, container or machine")
+                }
+                if kind != .system { try required(req.id, "id") }
+                guard let metricsStore = MetricsStore.shared else {
+                    throw ConnectDecodeError(code: .unavailable, message: "the metrics store can't be opened")
+                }
+                let range = TimeInterval(req.rangeSeconds == 0 ? 3600 : min(req.rangeSeconds, 30 * 86400))
+                let history = metricsStore.history(kind, kind == .system ? "all" : req.id, range: range)
+                let formatter = ISO8601DateFormatter()
+                return unary(
+                    Micropod_V1_MetricsHistory.with { out in
+                        out.resolutionSeconds = UInt32(history.resolution)
+                        out.points = history.points.map { point in
+                            .with {
+                                $0.timestamp = formatter.string(from: point.timestamp)
+                                $0.cpuPercent = point.average.cpuPercent
+                                $0.cpuPercentMax = point.peak.cpuPercent
+                                $0.memoryUsedBytes = point.average.memoryUsedBytes
+                                $0.memoryUsedBytesMax = point.peak.memoryUsedBytes
+                                $0.memoryLimitBytes = point.average.memoryLimitBytes
+                                $0.networkRxBytesPerSecond = point.average.networkRxRate
+                                $0.networkTxBytesPerSecond = point.average.networkTxRate
+                                $0.blockReadBytesPerSecond = point.average.blockReadRate
+                                $0.blockWriteBytesPerSecond = point.average.blockWriteRate
+                            }
+                        }
+                    })
+
+            case "UpdateSandboxSecret":
+                let req = try decode(Micropod_V1_UpdateSandboxSecretRequest.self, body)
+                try required(req.id, "id")
+                try required(req.name, "name")
+                try required(req.value, "value")
+                try await sandboxEngine.updateSecret(
+                    req.id, name: req.name, value: req.value,
+                    expiresAt: try expiry(req.expiresAt, field: "expires_at"))
+                return unary(Micropod_V1_Empty())
 
             case "DeleteCheckpoint":
                 let req = try decode(Micropod_V1_CheckpointRef.self, body)
@@ -1184,6 +1227,7 @@ extension APIHandlers {
             case "checking": proto.state = .checking
             case "upToDate": proto.state = .upToDate
             case "updateAvailable": proto.state = .updateAvailable
+            case "readyToInstall": proto.state = .readyToInstall
             case "installing": proto.state = .installing
             case "error": proto.state = .error
             default: proto.state = .unspecified

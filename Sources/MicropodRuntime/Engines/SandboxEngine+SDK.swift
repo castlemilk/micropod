@@ -7,7 +7,8 @@ import MicropodCore
 /// checkpoints of running sandboxes. Everything runs inside the sandbox's
 /// container, so it sees the container's mounts, /tmp and working directory.
 extension SandboxEngine {
-    /// The main process of a sandbox started without a command: idles until
+    /// The main process of a sandbox started without a command when the
+    /// guest helper is missing (`micropod-guest idle` otherwise): idles until
     /// the sandbox is stopped, exiting 0 on SIGTERM.
     public static let idleCommand = [
         "/bin/sh", "-c", "trap 'exit 0' TERM INT; while :; do sleep 86400 & wait $!; done",
@@ -85,10 +86,13 @@ extension SandboxEngine {
     /// Largest file ReadFile returns / WriteFile accepts.
     public static let maxFileBytes = 32 << 20
 
+    // Each operation runs `micropod-guest` when the sandbox has it (always,
+    // for a release daemon) and the image's shell tools otherwise.
+
     public func readFile(_ id: String, path: String) async throws -> Data {
-        let (out, err, code) = try await capture(
-            id,
-            [
+        try await fileOperation(
+            id, path, guest: ["read", path, "--max", String(Self.maxFileBytes)],
+            shell: [
                 "/bin/sh", "-c",
                 """
                 [ -d "$1" ] && { echo "$1: Is a directory" >&2; exit 21; }
@@ -98,8 +102,6 @@ extension SandboxEngine {
                 """,
                 "sh", path,
             ])
-        guard code == 0 else { throw Self.fileError(path, err) }
-        return out
     }
 
     public func writeFile(
@@ -108,31 +110,44 @@ extension SandboxEngine {
         guard data.count <= Self.maxFileBytes else {
             throw MicropodError.message("resourceExhausted: \(data.count) bytes is over the 32 MiB limit")
         }
+        var guest = ["write", path]
+        if append { guest.append("--append") }
+        if let mode { guest += ["--mode", String(mode, radix: 8)] }
+        if createParents { guest.append("--parents") }
         var script = createParents ? #"mkdir -p -- "$(dirname -- "$1")" && "# : ""
         script += append ? #"cat >> "$1""# : #"cat > "$1""#
         if let mode { script += " && chmod \(String(mode, radix: 8)) -- \"$1\"" }
-        let (_, err, code) = try await capture(id, ["/bin/sh", "-c", script, "sh", path], stdin: data)
-        guard code == 0 else { throw Self.fileError(path, err) }
+        _ = try await fileOperation(id, path, guest: guest, shell: ["/bin/sh", "-c", script, "sh", path], stdin: data)
     }
 
     public func stat(_ id: String, path: String) async throws -> SandboxFileStat {
-        let (out, err, code) = try await capture(id, ["stat", "-c", SandboxFileStat.format, "--", path])
-        guard code == 0, let stat = SandboxFileStat.parse(String(decoding: out, as: UTF8.self)).first else {
-            throw Self.fileError(path, err)
+        if try await usesGuestTool(id) {
+            let out = try await fileOperation(id, path, guest: ["stat", path], shell: [])
+            guard let stat = SandboxFileStat.parseJSONLines(out).first else {
+                throw MicropodError.message("internalError: unreadable stat output for \(path)")
+            }
+            return stat
+        }
+        let out = try await fileOperation(
+            id, path, guest: [], shell: ["stat", "-c", SandboxFileStat.format, "--", path])
+        guard let stat = SandboxFileStat.parse(String(decoding: out, as: UTF8.self)).first else {
+            throw MicropodError.message("internalError: unreadable stat output for \(path)")
         }
         return stat
     }
 
     public func listDir(_ id: String, path: String) async throws -> [SandboxFileStat] {
-        let (out, err, code) = try await capture(
-            id,
-            [
+        if try await usesGuestTool(id) {
+            return SandboxFileStat.parseJSONLines(try await fileOperation(id, path, guest: ["list", path], shell: []))
+        }
+        let out = try await fileOperation(
+            id, path, guest: [],
+            shell: [
                 "/bin/sh", "-c",
                 #"[ -d "$1" ] || { echo "$1: Not a directory" >&2; exit 20; }; "#
                     + #"cd -- "$1" && find . -mindepth 1 -maxdepth 1 -exec stat -c "$2" {} +"#,
                 "sh", path, SandboxFileStat.format,
             ])
-        guard code == 0 else { throw Self.fileError(path, err) }
         return SandboxFileStat.parse(String(decoding: out, as: UTF8.self)).map {
             var entry = $0
             entry.path = String(entry.path.dropFirst(entry.path.hasPrefix("./") ? 2 : 0))
@@ -141,13 +156,15 @@ extension SandboxEngine {
     }
 
     public func makeDir(_ id: String, path: String, recursive: Bool) async throws {
-        try await run(id, path, recursive ? ["mkdir", "-p", "--", path] : ["mkdir", "--", path])
+        _ = try await fileOperation(
+            id, path, guest: ["mkdir", path] + (recursive ? ["--parents"] : []),
+            shell: recursive ? ["mkdir", "-p", "--", path] : ["mkdir", "--", path])
     }
 
     public func remove(_ id: String, path: String, recursive: Bool) async throws {
-        try await run(
-            id, path,
-            recursive
+        _ = try await fileOperation(
+            id, path, guest: ["rm", path] + (recursive ? ["--recursive"] : []),
+            shell: recursive
                 ? [
                     "/bin/sh", "-c",
                     #"[ -e "$1" ] || [ -L "$1" ] || { echo "$1: No such file or directory" >&2; exit 2; }; rm -rf -- "$1""#,
@@ -161,27 +178,40 @@ extension SandboxEngine {
     }
 
     public func rename(_ id: String, from: String, to: String) async throws {
-        try await run(id, from, ["mv", "--", from, to])
+        _ = try await fileOperation(id, from, guest: ["mv", from, to], shell: ["mv", "--", from, to])
     }
 
     public func copy(_ id: String, from: String, to: String, recursive: Bool) async throws {
-        try await run(id, from, recursive ? ["cp", "-R", "--", from, to] : ["cp", "--", from, to])
+        _ = try await fileOperation(
+            id, from, guest: ["cp", from, to] + (recursive ? ["--recursive"] : []),
+            shell: recursive ? ["cp", "-R", "--", from, to] : ["cp", "--", from, to])
     }
 
     public func chmod(_ id: String, path: String, mode: UInt32) async throws {
-        try await run(id, path, ["chmod", String(mode, radix: 8), "--", path])
+        let octal = String(mode, radix: 8)
+        _ = try await fileOperation(id, path, guest: ["chmod", octal, path], shell: ["chmod", octal, "--", path])
     }
 
-    /// A file operation: exit 0 or a mapped error.
-    private func run(_ id: String, _ path: String, _ argv: [String]) async throws {
-        let (_, err, code) = try await capture(id, argv)
-        guard code == 0 else { throw Self.fileError(path, err) }
+    func usesGuestTool(_ id: String) async throws -> Bool {
+        try await store.running(id).hasGuestTool
+    }
+
+    /// Runs the guest helper with `guest` (or `shell` without it); stdout on
+    /// success, a mapped error otherwise.
+    private func fileOperation(
+        _ id: String, _ path: String, guest: [String], shell: [String], stdin: Data? = nil
+    ) async throws -> Data {
+        let helper = try await usesGuestTool(id)
+        let (out, err, code) = try await capture(
+            id, helper ? [SandboxGuestTool.guestPath] + guest : shell, stdin: stdin)
+        guard code == 0 else { throw helper ? Self.guestError(path, err) : Self.fileError(path, err) }
+        return out
     }
 
     /// Run `argv` in the sandbox to completion, collecting its output.
     func capture(_ id: String, _ argv: [String], stdin: Data? = nil) async throws -> (Data, String, Int32) {
         let prepared = try await store.running(id)
-        let out = ByteCollector(limit: Self.maxFileBytes)
+        let out = ByteCollector(limit: Self.maxFileBytes + 1)
         let err = ByteCollector(limit: 64 << 10)
         let input = stdin.map { data in
             let pushed = PushedInput()
@@ -205,6 +235,28 @@ extension SandboxEngine {
         let status = try await process.wait()
         try? await process.delete()
         return (out.data, String(decoding: err.data, as: UTF8.self), status.exitCode)
+    }
+
+    /// The guest helper's "micropod-guest: <ERRNO>: <message>" → an API error.
+    static func guestError(_ path: String, _ stderr: String) -> MicropodError {
+        let line = stderr.split(separator: "\n").last(where: { $0.hasPrefix("micropod-guest: ") }).map(String.init)
+        guard let line else {
+            return .message("internalError: \(path): \(stderr.trimmingCharacters(in: .whitespacesAndNewlines))")
+        }
+        let rest = line.dropFirst("micropod-guest: ".count)
+        let errno = rest.prefix { $0 != ":" }
+        let message = rest.drop { $0 != ":" }.dropFirst().trimmingCharacters(in: .whitespaces)
+        let code: String
+        switch errno {
+        case "ENOENT": code = "notFound"
+        case "EACCES", "EPERM", "EROFS": code = "permissionDenied"
+        case "EEXIST": code = "alreadyExists"
+        case "EFBIG", "ENOSPC", "EDQUOT", "EMFILE": code = "resourceExhausted"
+        case "ENOTEMPTY", "EISDIR", "ENOTDIR", "EBUSY", "ETXTBSY", "EXDEV", "ELOOP": code = "failedPrecondition"
+        case "EINVAL", "ENAMETOOLONG": code = "invalidArgument"
+        default: code = "internalError"
+        }
+        return .message("\(code): \(message.isEmpty ? path : message)")
     }
 
     /// A tool's stderr → the error code a caller can act on.
@@ -237,18 +289,23 @@ extension SandboxEngine {
 
     // MARK: Watch
 
-    /// Changes under `path`, observed in the guest: inotifywait when the image
-    /// has it, else a 500 ms stat poll. The first change is `ready`.
+    /// Changes under `path`, observed in the guest: the guest helper's
+    /// inotify watch, or — without it — the image's inotifywait, else a
+    /// 500 ms stat poll. The first change is `ready`.
     public func watch(_ id: String, path: String, recursive: Bool) async throws
         -> AsyncThrowingStream<WatchChange, any Error>
     {
-        let (processID, _) = try await startProcess(
-            id, command: ["/bin/sh", "-c", WatchParser.script, "sh", path, recursive ? "1" : "0"])
+        let helper = try await usesGuestTool(id)
+        let command =
+            helper
+            ? [SandboxGuestTool.guestPath, "watch", path] + (recursive ? ["--recursive"] : [])
+            : ["/bin/sh", "-c", WatchParser.script, "sh", path, recursive ? "1" : "0"]
+        let (processID, _) = try await startProcess(id, command: command)
         let entry = try processes.process(id, processID)
         let events = entry.output.subscribe()
         return AsyncThrowingStream { continuation in
             let task = Task {
-                var parser = WatchParser()
+                var parser = WatchParser(jsonLines: helper)
                 do {
                     for try await event in events {
                         switch event {
@@ -257,7 +314,7 @@ extension SandboxEngine {
                         case .stderr(let data):
                             for change in parser.feed(stderr: data) { continuation.yield(change) }
                         case .exit:
-                            throw Self.fileError(path, parser.errors)
+                            throw helper ? Self.guestError(path, parser.errors) : Self.fileError(path, parser.errors)
                         }
                     }
                     continuation.finish()
@@ -269,6 +326,23 @@ extension SandboxEngine {
                 task.cancel()
                 Task { try? await entry.process.kill(.kill) }
             }
+        }
+    }
+
+    // MARK: Secrets
+
+    /// Replace a running sandbox's secret value (a pushed refresh).
+    public func updateSecret(_ id: String, name: String, value: String, expiresAt: Date?) async throws {
+        let prepared = try await store.running(id)
+        guard let secret = prepared.egress?.policy.secrets.first(where: { $0.name == name }) else {
+            throw MicropodError.message("notFound: sandbox \(id) has no secret \(name)")
+        }
+        do {
+            try secret.source.update(value, expiresAt: expiresAt)
+        } catch let error as MicropodError {
+            throw error
+        } catch {
+            throw MicropodError.message("invalidArgument: secret \(name): \(error)")
         }
     }
 
@@ -299,6 +373,18 @@ public struct SandboxFileStat: Sendable, Equatable {
 
     /// size, raw mode (hex), mtime, name — the same in coreutils and busybox.
     static let format = "%s %f %Y %n"
+
+    /// The guest helper's `{"name","type","size","mode","mtime"}` lines.
+    static func parseJSONLines(_ data: Data) -> [SandboxFileStat] {
+        String(decoding: data, as: UTF8.self).split(separator: "\n").compactMap { line in
+            guard let object = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+                let size = (object["size"] as? NSNumber)?.uint64Value,
+                let mode = (object["mode"] as? NSNumber)?.uint32Value,
+                let mtime = (object["mtime"] as? NSNumber)?.int64Value
+            else { return nil }
+            return SandboxFileStat(path: object["name"] as? String ?? "", size: size, mode: mode, mtime: mtime)
+        }
+    }
 
     static func parse(_ text: String) -> [SandboxFileStat] {
         text.split(separator: "\n").compactMap { line in
@@ -339,6 +425,8 @@ struct WatchParser {
         done
         """
 
+    /// The guest helper's JSON-lines events, not the script's text.
+    var jsonLines = false
     private var stdoutTail = ""
     private var stderrTail = ""
     private var polling = false
@@ -348,10 +436,18 @@ struct WatchParser {
     /// stderr other than inotifywait's chatter — the reason if it exits.
     private(set) var errors = ""
 
+    init(jsonLines: Bool = false) { self.jsonLines = jsonLines }
+
     mutating func feed(stdout data: Data) -> [WatchChange] {
         var changes: [WatchChange] = []
         for line in Self.lines(&stdoutTail, data) {
-            if line == "@poll" {
+            if jsonLines {
+                if let object = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+                    let event = object["event"] as? String
+                {
+                    changes.append(WatchChange(event: event, path: object["path"] as? String ?? ""))
+                }
+            } else if line == "@poll" {
                 polling = true
             } else if polling {
                 if line == "@snap" {
@@ -370,7 +466,9 @@ struct WatchParser {
     mutating func feed(stderr data: Data) -> [WatchChange] {
         var changes: [WatchChange] = []
         for line in Self.lines(&stderrTail, data) {
-            if line.hasPrefix("Watches established") {
+            if jsonLines {
+                errors += line + "\n"
+            } else if line.hasPrefix("Watches established") {
                 if !ready {
                     ready = true
                     changes.append(WatchChange(event: "ready", path: ""))

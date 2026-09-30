@@ -501,35 +501,44 @@ public nonisolated struct Micropod_V1_SandboxOptions: Sendable {
   public init() {}
 }
 
-/// One secret: a value the caller already has, or a host command that mints
-/// it (and mints it again before it expires).
+/// One secret: its current value and the hosts that may receive it. The API
+/// never runs programs on the host: to use a minted, expiring credential
+/// (`gcloud auth print-access-token`, a GitHub App token), mint it on the
+/// caller's side — the SDKs do this for `command` secrets — and push each
+/// new value with SandboxService.UpdateSandboxSecret.
 public nonisolated struct Micropod_V1_SandboxSecret: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// The real value. SDKs read `from` environment variables on the caller's
-  /// side and send the value here.
+  /// side and send the value here. CR, LF and NUL are refused.
   public var value: String = String()
 
-  /// Or an argv run on the host (no shell) whose stdout is the value — raw,
-  /// or {"version":1,"value":"…","expires_at":"<RFC 3339>"} like AWS
-  /// `credential_process`. Minted on first use, again a minute before
-  /// `expires_at` (else every `ttl`), one run at a time, kept in memory only.
-  /// A failed refresh keeps a still-valid value; with none, requests to
-  /// `hosts` fail closed (502) instead of carrying the placeholder upstream.
+  /// Not accepted: the API doesn't run host commands (removed in v0.11 for
+  /// that reason; requests that set it fail with `invalid_argument`).
+  ///
+  /// NOTE: This field was marked as deprecated in the .proto file.
   public var command: [String] = []
 
-  /// Working directory for `command` (default: the API process's home).
+  /// Not accepted (see `command`).
+  ///
+  /// NOTE: This field was marked as deprecated in the .proto file.
   public var commandDir: String = String()
 
-  /// Refresh interval when `command` reports no expiry, e.g. "15m", "1h",
-  /// "90s" (default 5m).
+  /// Not accepted (see `command`).
+  ///
+  /// NOTE: This field was marked as deprecated in the .proto file.
   public var ttl: String = String()
 
   /// HTTPS hosts whose requests get the real value ("*.example.com" matches
   /// subdomains).
   public var hosts: [String] = []
+
+  /// When `value` stops working (RFC 3339). After it, requests to `hosts` fail
+  /// closed (502) until UpdateSandboxSecret supplies a new value. Empty: the
+  /// value doesn't expire.
+  public var expiresAt: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1386,7 +1395,7 @@ nonisolated extension Micropod_V1_SandboxOptions: SwiftProtobuf.Message, SwiftPr
 
 nonisolated extension Micropod_V1_SandboxSecret: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SandboxSecret"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0\u{1}command\0\u{3}command_dir\0\u{1}ttl\0\u{1}hosts\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0\u{1}command\0\u{3}command_dir\0\u{1}ttl\0\u{1}hosts\0\u{3}expires_at\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1399,6 +1408,7 @@ nonisolated extension Micropod_V1_SandboxSecret: SwiftProtobuf.Message, SwiftPro
       case 3: try { try decoder.decodeSingularStringField(value: &self.commandDir) }()
       case 4: try { try decoder.decodeSingularStringField(value: &self.ttl) }()
       case 5: try { try decoder.decodeRepeatedStringField(value: &self.hosts) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.expiresAt) }()
       default: break
       }
     }
@@ -1420,6 +1430,9 @@ nonisolated extension Micropod_V1_SandboxSecret: SwiftProtobuf.Message, SwiftPro
     if !self.hosts.isEmpty {
       try visitor.visitRepeatedStringField(value: self.hosts, fieldNumber: 5)
     }
+    if !self.expiresAt.isEmpty {
+      try visitor.visitSingularStringField(value: self.expiresAt, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1429,6 +1442,7 @@ nonisolated extension Micropod_V1_SandboxSecret: SwiftProtobuf.Message, SwiftPro
     if lhs.commandDir != rhs.commandDir {return false}
     if lhs.ttl != rhs.ttl {return false}
     if lhs.hosts != rhs.hosts {return false}
+    if lhs.expiresAt != rhs.expiresAt {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
