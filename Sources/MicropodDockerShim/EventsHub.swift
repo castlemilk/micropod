@@ -305,6 +305,10 @@ actor EventsHub {
     /// a deferred fast exit. Only synthetic entries consult hasEverStarted.
     private var syntheticCreated: Set<String> = []
 
+    /// Per container, the settled-start count its last handled exit covered
+    /// (see `reapMissedExits`).
+    private var handledStarts: [String: Int] = [:]
+
     private func reconcile(
         _ current: [Micropod_V1_Container], observedAt: Date, state: ShimState
     ) async {
@@ -386,7 +390,9 @@ actor EventsHub {
             await emit("container", "destroy", before, id: id)
             await state.forget(id: id)
             syntheticCreated.remove(id)
+            handledStarts.removeValue(forKey: id)
         }
+        await reapMissedExits(current, observed: observed, state: state)
         known = observed
         // Re-apply synthetic-`created` AFTER the bulk assignment, or it
         // silently absorbs the deferred exits (see above).
@@ -427,13 +433,36 @@ actor EventsHub {
         return DockerMapper.hasEverStarted(rawInspect: raw)
     }
 
+    /// Level-triggered backstop for the edge-triggered transitions above: a
+    /// container that started and stopped between two polls (or while a slow
+    /// poll was in flight) can look the same on both sides, so no transition
+    /// fires and its die event, restart policy and AutoRemove reap are lost
+    /// for good — seen on loaded CI runners as `--rm` containers that never
+    /// went away and `always` containers that never came back. Any terminal
+    /// container with a settled start not yet covered by a handled exit gets
+    /// exactly one.
+    private func reapMissedExits(
+        _ current: [Micropod_V1_Container], observed: [String: Observation], state: ShimState
+    ) async {
+        let terminal: Set<String> = ["stopped", "exited", "dead"]
+        for entry in current {
+            guard let observation = observed[entry.id], terminal.contains(observation.state) else { continue }
+            let settled = await state.settledStartCount(id: entry.id)
+            guard settled > (handledStarts[entry.id] ?? 0), await !state.isAttachRunning(id: entry.id)
+            else { continue }
+            await handleExit(entry: entry, observation: observation, state: state)
+        }
+    }
+
     /// Die event + exit bookkeeping + restart-policy supervision + the
-    /// AutoRemove reap — shared by the observed-transition path and the
-    /// "already exited when first seen" path.
+    /// AutoRemove reap — shared by the observed-transition path, the
+    /// "already exited when first seen" path and `reapMissedExits`.
     private func handleExit(
         entry: Micropod_V1_Container, observation: Observation, state: ShimState
     ) async {
         let id = entry.id
+        // Every settled start so far is accounted for by this exit.
+        handledStarts[id] = await state.settledStartCount(id: id)
         // The runtime rarely reports exit codes; treat missing as 0.
         let code = Int(entry.exitCode) ?? 0
         await state.noteExit(id: id, code: code)
