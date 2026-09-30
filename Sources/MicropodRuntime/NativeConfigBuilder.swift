@@ -414,7 +414,10 @@ enum NativeConfigBuilder {
                 .object([
                     "containerPort": .number(Double(spec.containerPort)),
                     "count": .number(1),
-                    "hostAddress": .string(spec.hostIP ?? "0.0.0.0"),
+                    // An empty address is unset, not an address: the
+                    // apiserver cannot parse "" and fails the create.
+                    "hostAddress": .string(
+                        spec.hostIP.flatMap { $0.isEmpty ? nil : $0 } ?? "0.0.0.0"),
                     "hostPort": .number(Double(spec.hostPort)),
                     "proto": .string(spec.transportProtocol),
                 ]))
