@@ -88,7 +88,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "MicropodMCP",
-            dependencies: ["MicropodCore", "MicropodSharedFS"],
+            dependencies: ["MicropodCore", "MicropodSharedFS", "MicropodBuildInfo"],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]
@@ -100,10 +100,13 @@ let package = Package(
                 .enableUpcomingFeature("StrictConcurrency")
             ]
         ),
+        // Nothing depends on it but the binaries that print a version, so
+        // stamping it at release time recompiles one file.
+        .target(name: "MicropodBuildInfo"),
         .executableTarget(
             name: "MicropodCLI",
             dependencies: [
-                "MicropodCore", "MicropodSharedFS", "MicropodRuntime",
+                "MicropodCore", "MicropodSharedFS", "MicropodRuntime", "MicropodBuildInfo",
                 .product(name: "Crypto", package: "swift-crypto"),
             ],
             swiftSettings: [
