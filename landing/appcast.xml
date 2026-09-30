@@ -18,18 +18,6 @@
     </item>
 
     <item>
-      <title>Version 0.9.0</title>
-      <pubDate>Wed, 30 Sep 2026 00:44:42 GMT</pubDate>
-      <sparkle:version>0.9.0</sparkle:version>
-      <sparkle:shortVersionString>0.9.0</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.9.0/Micropod.dmg"
-        sparkle:edSignature="DOg1aBEGmMqbMjlPYeFqPpCioewZH4oD2M1phXNYhB/jMSxVPWSqqeiEJyBGDFamchq+dt7Q8wu1CXzMb0gyCw=="
-        length="61599978"
-        type="application/octet-stream"/>
-    </item>
-
-    <item>
       <title>Version 0.8.0</title>
       <pubDate>Thu, 24 Sep 2026 07:25:19 GMT</pubDate>
       <sparkle:version>0.8.0</sparkle:version>
