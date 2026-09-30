@@ -101,7 +101,7 @@ final class AgentSupervisorTests: XCTestCase {
             arguments: ["300"],
             probe: .custom { false },
             enabledDefaultsKey: "test.off.enabled", endpoint: "n/a",
-            binaryPathOverride: "/bin/sleep")
+            binaryPathOverride: "/bin/sleep", reapsForeignCopies: false)
         let supervisor = AgentSupervisor(
             specs: [spec], runDirectory: runDirectory,
             isEnabled: { _ in false },
@@ -203,11 +203,16 @@ final class AgentSupervisorTests: XCTestCase {
         }
         try await waitForSocket(socketPath)
 
+        // The spec reaps foreign copies of its binary: name it after a
+        // private copy, never a system binary, or the tick SIGTERMs every
+        // `sleep` on the host (CI steps' `sleep 5` included).
+        let sleeper = try privateSleepBinary()
+        defer { try? FileManager.default.removeItem(atPath: sleeper.path) }
         let spec = AgentSpec(
-            id: "fake", displayName: "Fake", binaryName: "sleep",
+            id: "fake", displayName: "Fake", binaryName: sleeper.name,
             probe: .unixSocket(path: socketPath),
             enabledDefaultsKey: "test.fake-foreign.enabled", endpoint: socketPath,
-            binaryPathOverride: "/bin/sleep")
+            binaryPathOverride: sleeper.path)
         let supervisor = AgentSupervisor(
             specs: [spec], runDirectory: runDirectory,
             isEnabled: { _ in true },
@@ -309,11 +314,16 @@ final class AgentSupervisorTests: XCTestCase {
         defer { if http.isRunning { http.terminate() } }
         try await waitForHTTP(port: port)
 
+        // The spec reaps foreign copies of its binary: name it after a
+        // private copy, never a system binary, or the tick SIGTERMs every
+        // `sleep` on the host (CI steps' `sleep 5` included).
+        let sleeper = try privateSleepBinary()
+        defer { try? FileManager.default.removeItem(atPath: sleeper.path) }
         let spec = AgentSpec(
-            id: "fake", displayName: "Fake", binaryName: "sleep",
+            id: "fake", displayName: "Fake", binaryName: sleeper.name,
             probe: .http(port: port, path: "/"),
             enabledDefaultsKey: "test.fake-http.enabled", endpoint: "127.0.0.1:\(port)",
-            binaryPathOverride: "/bin/sleep")
+            binaryPathOverride: sleeper.path)
         let supervisor = AgentSupervisor(
             specs: [spec], runDirectory: runDirectory,
             isEnabled: { _ in true },
@@ -329,6 +339,16 @@ final class AgentSupervisorTests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// A uniquely named copy of /bin/sleep, so a spec that reaps foreign
+    /// copies of its binary can only ever match processes of this test.
+    private func privateSleepBinary() throws -> (name: String, path: String) {
+        let name = "sleep-test-\(UUID().uuidString.prefix(8))"
+        let path = URL(fileURLWithPath: NSTemporaryDirectory() + name)
+            .resolvingSymlinksInPath().path
+        try FileManager.default.copyItem(atPath: "/bin/sleep", toPath: path)
+        return (name, path)
+    }
 
     private func processAlive(_ pid: Int32) -> Bool {
         kill(pid, 0) == 0 || errno == EPERM
