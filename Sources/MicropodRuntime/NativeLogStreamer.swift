@@ -12,7 +12,10 @@ import MicropodCore
 ///
 /// - **Stop signal.** A recorded exit code in the ``ExitCodeRegistry``, or a
 ///   runtime state that is no longer `running` or `stopping` (see
-///   ``isLive(state:)``). The registry is checked before every tick and each
+///   ``isLive(state:)``), or the container no longer listed. A lookup that
+///   fails is not a stop signal: the stream keeps following, and fails
+///   (rather than ending cleanly) if the runtime stays silent for
+///   ``defaultUnknownLivenessLimit``. The registry is checked before every tick and each
 ///   tick parks on it, so a recorded exit ends the wait at once instead of
 ///   at the next tick; the state is checked right after the
 ///   backlog, then 250 ms after the latest bytes, backing off ×2 to 1 s
@@ -31,7 +34,10 @@ public struct NativeLogStreamer: LogStreaming {
     private static let drainTick: Duration = .milliseconds(80)
 
     private let sourceProvider: @Sendable (String, Bool) async throws -> [FileHandle]
-    private let isLive: @Sendable (String) async -> Bool
+    private let liveness: @Sendable (String) async -> Liveness
+    /// How long the runtime may fail to answer whether the container is
+    /// live before a following stream gives up with an error.
+    private let unknownLivenessLimit: Duration
     /// Called after every follow-loop pause, before its drain.
     private let onTick: @Sendable () -> Void
     private let exitCodes: ExitCodeRegistry?
@@ -71,15 +77,52 @@ public struct NativeLogStreamer: LogStreaming {
                 }
                 return [handles[index]]
             },
-            isLive: { id in
-                guard let managed = try? await api.managed(id: id),
-                    case .object(let obj) = managed,
+            liveness: { id in
+                // A lookup that fails says nothing about the container: an
+                // apiserver busy behind its request lock answers late. Only
+                // a container the runtime no longer lists, or one in a
+                // finished state, has stopped writing.
+                let data: Data?
+                do {
+                    data = try await api.get(id: id)
+                } catch {
+                    return .unknown
+                }
+                guard let data else { return .stopped }
+                guard
+                    let entries = try? MicropodJSON.decodeArray(JSONValue.self, from: data, context: "container get"),
+                    case .object(let obj)? = entries.first,
                     case .object(let status) = obj["status"],
                     case .string(let state) = status["state"]
-                else { return false }
-                return Self.isLive(state: state)
+                else { return .unknown }
+                return Self.isLive(state: state) ? .live : .stopped
             },
             exitCodes: exitCodes)
+    }
+
+    /// What the runtime says about whether a container may still write.
+    enum Liveness: Equatable, Sendable {
+        case live
+        case stopped
+        /// The runtime did not answer: keep following.
+        case unknown
+    }
+
+    /// Default for ``unknownLivenessLimit``.
+    static let defaultUnknownLivenessLimit: Duration = .seconds(30)
+
+    /// Test seam with a yes/no liveness provider (never unknown).
+    init(
+        sourceProvider: @escaping @Sendable (String, Bool) async throws -> [FileHandle],
+        isLive: @escaping @Sendable (String) async -> Bool,
+        exitCodes: ExitCodeRegistry? = nil,
+        onTick: @escaping @Sendable () -> Void = {}
+    ) {
+        self.init(
+            sourceProvider: sourceProvider,
+            liveness: { await isLive($0) ? .live : .stopped },
+            exitCodes: exitCodes,
+            onTick: onTick)
     }
 
     /// Test seam: sources + liveness provider instead of XPC.
@@ -88,13 +131,15 @@ public struct NativeLogStreamer: LogStreaming {
     /// `onTick` observes the follow loop's cadence.
     init(
         sourceProvider: @escaping @Sendable (String, Bool) async throws -> [FileHandle],
-        isLive: @escaping @Sendable (String) async -> Bool,
+        liveness: @escaping @Sendable (String) async -> Liveness,
         exitCodes: ExitCodeRegistry? = nil,
+        unknownLivenessLimit: Duration = NativeLogStreamer.defaultUnknownLivenessLimit,
         onTick: @escaping @Sendable () -> Void = {}
     ) {
         self.sourceProvider = sourceProvider
-        self.isLive = isLive
+        self.liveness = liveness
         self.exitCodes = exitCodes
+        self.unknownLivenessLimit = unknownLivenessLimit
         self.onTick = onTick
     }
 
@@ -131,7 +176,8 @@ public struct NativeLogStreamer: LogStreaming {
                     // Follow until the stop signal.
                     let clock = ContinuousClock()
                     var schedule = StateCheckSchedule(now: clock.now)
-                    while true {
+                    var unknownSince: ContinuousClock.Instant?
+                    follow: while true {
                         if await self.exitRecorded(id: id) { break }
                         try await self.pause(id: id)
                         self.onTick()
@@ -142,7 +188,26 @@ public struct NativeLogStreamer: LogStreaming {
                             continue
                         }
                         guard schedule.isDue(at: clock.now) else { continue }
-                        if await !self.isLive(id) { break }
+                        switch await self.liveness(id) {
+                        case .stopped:
+                            break follow
+                        case .live:
+                            unknownSince = nil
+                        case .unknown:
+                            // Ending here would read as "the container
+                            // stopped and every line was sent" while it may
+                            // still be writing. Keep following; if the
+                            // runtime stays silent, fail the stream so the
+                            // client re-opens it rather than trusting a
+                            // clean end.
+                            let since = unknownSince ?? clock.now
+                            unknownSince = since
+                            if clock.now - since >= self.unknownLivenessLimit {
+                                throw MicropodError.message(
+                                    "container \(id): runtime has not answered whether it is running for "
+                                        + "\(self.unknownLivenessLimit); log follow stopped")
+                            }
+                        }
                         schedule.stillRunning(at: clock.now)
                     }
 
