@@ -3,7 +3,7 @@
   "info": {
     "title": "Micropod API \u00b7 ContainerService",
     "description": "## micropod.v1.ContainerService\n\nContainer lifecycle, logs, stats, and exec against the Apple `container`\n runtime.",
-    "version": "0.9.1",
+    "version": "0.10.0",
     "contact": {
       "name": "Micropod",
       "url": "https://github.com/castlemilk/micropod"
@@ -2004,44 +2004,30 @@
           "value": {
             "type": "string",
             "title": "value",
-            "description": "The real value. SDKs read `from` environment variables on the caller's\n side and send the value here."
+            "minLength": 1,
+            "description": "The real value. SDKs read `from` environment variables on the caller's\n side and send the value here. CR, LF and NUL are refused."
           },
           "command": {
             "type": "array",
-            "examples": [
-              [
-                "gcloud",
-                "auth",
-                "print-access-token"
-              ]
-            ],
             "items": {
               "type": "string",
-              "examples": [
-                [
-                  "gcloud",
-                  "auth",
-                  "print-access-token"
-                ]
-              ]
+              "deprecated": true
             },
             "title": "command",
-            "maxItems": 64,
-            "description": "Or an argv run on the host (no shell) whose stdout is the value \u2014 raw,\n or {\"version\":1,\"value\":\"\u2026\",\"expires_at\":\"<RFC 3339>\"} like AWS\n `credential_process`. Minted on first use, again a minute before\n `expires_at` (else every `ttl`), one run at a time, kept in memory only.\n A failed refresh keeps a still-valid value; with none, requests to\n `hosts` fail closed (502) instead of carrying the placeholder upstream."
+            "description": "Not accepted: the API doesn't run host commands (removed in v0.11 for\n that reason; requests that set it fail with `invalid_argument`).",
+            "deprecated": true
           },
           "commandDir": {
             "type": "string",
             "title": "command_dir",
-            "description": "Working directory for `command` (default: the API process's home)."
+            "description": "Not accepted (see `command`).",
+            "deprecated": true
           },
           "ttl": {
             "type": "string",
-            "examples": [
-              "15m"
-            ],
             "title": "ttl",
-            "pattern": "^$|^[0-9]+(s|m|h)?$",
-            "description": "Refresh interval when `command` reports no expiry, e.g. \"15m\", \"1h\",\n \"90s\" (default 5m)."
+            "description": "Not accepted (see `command`).",
+            "deprecated": true
           },
           "hosts": {
             "type": "array",
@@ -2064,11 +2050,22 @@
             "maxItems": 64,
             "minItems": 1,
             "description": "HTTPS hosts whose requests get the real value (\"*.example.com\" matches\n subdomains)."
+          },
+          "expiresAt": {
+            "type": "string",
+            "examples": [
+              "2026-10-01T12:00:00Z"
+            ],
+            "title": "expires_at",
+            "description": "When `value` stops working (RFC 3339). After it, requests to `hosts` fail\n closed (502) until UpdateSandboxSecret supplies a new value. Empty: the\n value doesn't expire."
           }
         },
         "title": "SandboxSecret",
+        "required": [
+          "value"
+        ],
         "additionalProperties": false,
-        "description": "One secret: a value the caller already has, or a host command that mints\n it (and mints it again before it expires).\nsandbox_secret.source // set exactly one of value or command\n"
+        "description": "One secret: its current value and the hosts that may receive it. The API\n never runs programs on the host: to use a minted, expiring credential\n (`gcloud auth print-access-token`, a GitHub App token), mint it on the\n caller's side \u2014 the SDKs do this for `command` secrets \u2014 and push each\n new value with SandboxService.UpdateSandboxSecret."
       },
       "micropod.v1.StatsSnapshot": {
         "type": "object",

@@ -278,6 +278,15 @@ private actor MCPServer {
             "List container machines — persistent VMs (e.g. keep-alive CI): id, state, IP, CPUs, memory."
         ),
         (
+            "metrics_history",
+            """
+            Resource usage over time, as recorded by the Micropod app (10 s points for 3 h, 1 min for 48 h, \
+            15 min for 30 days): per metric the peak, average and latest value plus a sparkline. \
+            Arguments: id (container id or machine name; empty for all containers), kind (system|container|machine; \
+            default container when id is set), range (e.g. 15m, 1h, 24h, 7d; default 1h).
+            """
+        ),
+        (
             "machine_stats",
             """
             Resource usage for running machines (CPU % of one core, memory, net, block I/O, pids) from \
@@ -584,6 +593,27 @@ private actor MCPServer {
                     ].filter { !$0.isEmpty }.joined(separator: "\t")
                 }
                 return toolResult(id, lines.isEmpty ? "No machines" : lines.joined(separator: "\n"))
+
+            case "metrics_history":
+                let target = string("id")
+                guard
+                    let kind = MetricsStore.Kind(
+                        rawValue: string("kind").isEmpty ? (target.isEmpty ? "system" : "container") : string("kind"))
+                else {
+                    return toolResult(id, "kind must be system, container or machine", isError: true)
+                }
+                guard let range = MetricsStore.parseRange(string("range").isEmpty ? "1h" : string("range")) else {
+                    return toolResult(id, "range: want e.g. 15m, 1h, 24h, 7d", isError: true)
+                }
+                guard let store = MetricsStore.shared else {
+                    return toolResult(id, "the metrics store can't be opened", isError: true)
+                }
+                let key = kind == .system ? "all" : target
+                let title = kind == .system ? "all containers" : "\(kind.rawValue) \(target)"
+                return toolResult(
+                    id,
+                    MetricsStore.summary(
+                        store.history(kind, key, range: min(range, 30 * 86400)), title: title, range: range))
 
             case "machine_stats":
                 let snapshot = try await machineStats.snapshot(id: string("id").isEmpty ? nil : string("id"))

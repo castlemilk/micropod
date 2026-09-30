@@ -888,28 +888,36 @@ func (x *SandboxOptions) GetDiskSizeMib() uint64 {
 	return 0
 }
 
-// One secret: a value the caller already has, or a host command that mints
-// it (and mints it again before it expires).
+// One secret: its current value and the hosts that may receive it. The API
+// never runs programs on the host: to use a minted, expiring credential
+// (`gcloud auth print-access-token`, a GitHub App token), mint it on the
+// caller's side — the SDKs do this for `command` secrets — and push each
+// new value with SandboxService.UpdateSandboxSecret.
 type SandboxSecret struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The real value. SDKs read `from` environment variables on the caller's
-	// side and send the value here.
+	// side and send the value here. CR, LF and NUL are refused.
 	Value string `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
-	// Or an argv run on the host (no shell) whose stdout is the value — raw,
-	// or {"version":1,"value":"…","expires_at":"<RFC 3339>"} like AWS
-	// `credential_process`. Minted on first use, again a minute before
-	// `expires_at` (else every `ttl`), one run at a time, kept in memory only.
-	// A failed refresh keeps a still-valid value; with none, requests to
-	// `hosts` fail closed (502) instead of carrying the placeholder upstream.
+	// Not accepted: the API doesn't run host commands (removed in v0.11 for
+	// that reason; requests that set it fail with `invalid_argument`).
+	//
+	// Deprecated: Marked as deprecated in micropod/v1/container.proto.
 	Command []string `protobuf:"bytes,2,rep,name=command,proto3" json:"command,omitempty"`
-	// Working directory for `command` (default: the API process's home).
+	// Not accepted (see `command`).
+	//
+	// Deprecated: Marked as deprecated in micropod/v1/container.proto.
 	CommandDir string `protobuf:"bytes,3,opt,name=command_dir,json=commandDir,proto3" json:"command_dir,omitempty"`
-	// Refresh interval when `command` reports no expiry, e.g. "15m", "1h",
-	// "90s" (default 5m).
+	// Not accepted (see `command`).
+	//
+	// Deprecated: Marked as deprecated in micropod/v1/container.proto.
 	Ttl string `protobuf:"bytes,4,opt,name=ttl,proto3" json:"ttl,omitempty"`
 	// HTTPS hosts whose requests get the real value ("*.example.com" matches
 	// subdomains).
-	Hosts         []string `protobuf:"bytes,5,rep,name=hosts,proto3" json:"hosts,omitempty"`
+	Hosts []string `protobuf:"bytes,5,rep,name=hosts,proto3" json:"hosts,omitempty"`
+	// When `value` stops working (RFC 3339). After it, requests to `hosts` fail
+	// closed (502) until UpdateSandboxSecret supplies a new value. Empty: the
+	// value doesn't expire.
+	ExpiresAt     string `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -951,6 +959,7 @@ func (x *SandboxSecret) GetValue() string {
 	return ""
 }
 
+// Deprecated: Marked as deprecated in micropod/v1/container.proto.
 func (x *SandboxSecret) GetCommand() []string {
 	if x != nil {
 		return x.Command
@@ -958,6 +967,7 @@ func (x *SandboxSecret) GetCommand() []string {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in micropod/v1/container.proto.
 func (x *SandboxSecret) GetCommandDir() string {
 	if x != nil {
 		return x.CommandDir
@@ -965,6 +975,7 @@ func (x *SandboxSecret) GetCommandDir() string {
 	return ""
 }
 
+// Deprecated: Marked as deprecated in micropod/v1/container.proto.
 func (x *SandboxSecret) GetTtl() string {
 	if x != nil {
 		return x.Ttl
@@ -977,6 +988,13 @@ func (x *SandboxSecret) GetHosts() []string {
 		return x.Hosts
 	}
 	return nil
+}
+
+func (x *SandboxSecret) GetExpiresAt() string {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return ""
 }
 
 type WaitContainerRequest struct {
@@ -1631,15 +1649,17 @@ const file_micropod_v1_container_proto_rawDesc = "" +
 	"\rdisk_size_mib\x18\x05 \x01(\x04B\x0f\xbaH\f\xd8\x01\x012\a\x18\x80\x80@(\x80\x04R\vdiskSizeMib\x1aV\n" +
 	"\fSecretsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
-	"\x05value\x18\x02 \x01(\v2\x1a.micropod.v1.SandboxSecretR\x05value:\x028\x01\"\x8a\x03\n" +
-	"\rSandboxSecret\x12\x14\n" +
-	"\x05value\x18\x01 \x01(\tR\x05value\x12Q\n" +
-	"\acommand\x18\x02 \x03(\tB7\xbaG,:*\x12(['gcloud', 'auth', 'print-access-token']\xbaH\x05\x92\x01\x02\x10@R\acommand\x12\x1f\n" +
-	"\vcommand_dir\x18\x03 \x01(\tR\n" +
-	"commandDir\x128\n" +
-	"\x03ttl\x18\x04 \x01(\tB&\xbaG\t:\a\x12\x05'15m'\xbaH\x17r\x152\x13^$|^[0-9]+(s|m|h)?$R\x03ttl\x12B\n" +
-	"\x05hosts\x18\x05 \x03(\tB,\xbaG\x16:\x14\x12\x12['api.openai.com']\xbaH\x10\x92\x01\r\b\x01\x10@\"\ar\x05\x10\x01\x18\xfd\x01R\x05hosts:q\xbaHn\x1al\n" +
-	"\x15sandbox_secret.source\x12#set exactly one of value or command\x1a.(this.value != '') != (size(this.command) > 0)\"y\n" +
+	"\x05value\x18\x02 \x01(\v2\x1a.micropod.v1.SandboxSecretR\x05value:\x028\x01\"\x8c\x02\n" +
+	"\rSandboxSecret\x12 \n" +
+	"\x05value\x18\x01 \x01(\tB\n" +
+	"\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x05value\x12\x1c\n" +
+	"\acommand\x18\x02 \x03(\tB\x02\x18\x01R\acommand\x12#\n" +
+	"\vcommand_dir\x18\x03 \x01(\tB\x02\x18\x01R\n" +
+	"commandDir\x12\x14\n" +
+	"\x03ttl\x18\x04 \x01(\tB\x02\x18\x01R\x03ttl\x12B\n" +
+	"\x05hosts\x18\x05 \x03(\tB,\xbaG\x16:\x14\x12\x12['api.openai.com']\xbaH\x10\x92\x01\r\b\x01\x10@\"\ar\x05\x10\x01\x18\xfd\x01R\x05hosts\x12<\n" +
+	"\n" +
+	"expires_at\x18\x06 \x01(\tB\x1d\xbaG\x1a:\x18\x12\x16'2026-10-01T12:00:00Z'R\texpiresAt\"y\n" +
 	"\x14WaitContainerRequest\x12&\n" +
 	"\x02id\x18\x01 \x01(\tB\x16\xbaG\t:\a\x12\x05'web'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x02id\x129\n" +
 	"\x0ftimeout_seconds\x18\x02 \x01(\x05B\x10\xbaG\x06:\x04\x12\x0230\xbaH\x04\x1a\x02(\x00R\x0etimeoutSeconds\"\xae\x01\n" +

@@ -95,16 +95,29 @@ tasks:
       - task: cli
       - python3 scripts/bench_runtimes.py {{.CLI_ARGS}}
 
+  guest:
+    desc: Build micropod-guest (the sandbox VMs' static linux/arm64 helper) next to the dev binaries
+    cmds:
+      - ./scripts/build_guest.sh
+
+  guest-test:
+    desc: Run micropod-guest's Go tests on a Linux kernel — inside a micropod sandbox
+    cmds:
+      - task: cli
+      - .build/debug/micropod sandbox run -v "$PWD/guest:/src" -w /src -e GOFLAGS=-buildvcs=false -e GOTOOLCHAIN=local golang:1 -- sh -c 'go vet ./... && go test -count=1 ./...'
+
   e2e-sdk:
     desc: TypeScript SDK Sandbox class (exec/spawn/files/watch/checkpoint) against a signed MicropodAPI on a scratch port
     cmds:
       - swift build --product MicropodAPI
+      - ./scripts/build_guest.sh
       - ./scripts/e2e_sandbox_sdk.sh
 
   e2e-runtimes:
     desc: Live engine matrix (apple, sandbox, docker) through a signed MicropodAPI on a scratch port
     cmds:
       - swift build --product MicropodAPI
+      - ./scripts/build_guest.sh
       - ./scripts/e2e_runtimes.sh
 
   bench-compose:

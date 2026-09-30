@@ -24,9 +24,10 @@ extension APIHandlers {
                     message: "mount \(mount.hostPath):\(mount.guestPath) — want absolute paths, mode overlay|ro|rw")
             }
         }
-        let command = req.command.isEmpty ? SandboxEngine.idleCommand : req.command
         var options = try sandboxOptions(from: req.options, network: req.allowNet)
         if !req.fromCheckpoint.isEmpty { options.fromCheckpoint = req.fromCheckpoint }
+        // No command: the engine idles the sandbox on its guest helper.
+        options.idle = req.command.isEmpty
         return ContainerRunRequest(
             image: req.fromCheckpoint.isEmpty
                 ? (req.image.isEmpty ? "alpine:latest" : req.image)
@@ -45,8 +46,8 @@ extension APIHandlers {
             volumes: req.mounts.map { "\($0.hostPath):\($0.guestPath):\($0.mode.isEmpty ? "overlay" : $0.mode)" },
             labels: req.labels.sorted { $0.key < $1.key }.map { LabelSpec(key: $0.key, value: $0.value) },
             workdir: req.workdir.isEmpty ? nil : req.workdir,
-            entrypoint: command[0],
-            arguments: Array(command.dropFirst()),
+            entrypoint: req.command.first,
+            arguments: Array(req.command.dropFirst()),
             runtime: "sandbox",
             sandbox: options)
     }
@@ -55,25 +56,23 @@ extension APIHandlers {
     /// engine default (StartSandbox is offline unless `allow_net`).
     func sandboxOptions(from proto: Micropod_V1_SandboxOptions, network: Bool?) throws -> SandboxRunOptions {
         let secrets = try proto.secrets.sorted { $0.key < $1.key }.map { name, secret in
-            var ttl: Duration?
-            if !secret.ttl.isEmpty {
-                guard let parsed = SandboxSecretSpec.parseTTL(secret.ttl) else {
-                    throw ConnectDecodeError(
-                        code: .invalidArgument, message: "secret \(name): ttl '\(secret.ttl)' — want e.g. 90s, 15m, 1h")
-                }
-                ttl = parsed
-            }
-            guard secret.value.isEmpty != secret.command.isEmpty else {
+            // The API never runs host commands: a request must not be able to
+            // start programs on this Mac. Callers mint and push values.
+            guard secret.command.isEmpty, secret.commandDir.isEmpty, secret.ttl.isEmpty else {
                 throw ConnectDecodeError(
-                    code: .invalidArgument, message: "secret \(name): set exactly one of value or command")
+                    code: .invalidArgument,
+                    message: "secret \(name): the API doesn't run host commands — mint the value on the caller's "
+                        + "side (the SDKs do this for command secrets) and refresh it with UpdateSandboxSecret")
+            }
+            guard !secret.value.isEmpty else {
+                throw ConnectDecodeError(code: .invalidArgument, message: "secret \(name): value is required")
             }
             guard !secret.hosts.isEmpty else {
                 throw ConnectDecodeError(code: .invalidArgument, message: "secret \(name): hosts is required")
             }
             return SandboxSecretSpec(
-                name: name, value: secret.value.isEmpty ? nil : secret.value, command: secret.command,
-                commandDirectory: secret.commandDir.isEmpty ? nil : secret.commandDir, ttl: ttl,
-                hosts: secret.hosts)
+                name: name, value: secret.value, hosts: secret.hosts,
+                expiresAt: try expiry(secret.expiresAt, field: "secret \(name): expires_at"))
         }
         let ports = try proto.exposeHost.map { port -> UInt16 in
             guard let port = UInt16(exactly: port), port > 0 else {
@@ -84,6 +83,19 @@ extension APIHandlers {
         return SandboxRunOptions(
             exposeHost: ports, allowHosts: proto.allowHosts, secrets: secrets, dnsResolvers: proto.dnsResolvers,
             diskSizeMiB: proto.diskSizeMib > 0 ? proto.diskSizeMib : nil, network: network)
+    }
+
+    /// RFC 3339 (fractional seconds optional); empty is no expiry.
+    func expiry(_ text: String, field: String) throws -> Date? {
+        guard !text.isEmpty else { return nil }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: text) { return date }
+        formatter.formatOptions = [.withInternetDateTime]
+        guard let date = formatter.date(from: text) else {
+            throw ConnectDecodeError(code: .invalidArgument, message: "\(field): want RFC 3339, got '\(text)'")
+        }
+        return date
     }
 
     static func processEvent(_ event: ProcessOutput.Event) -> Micropod_V1_ProcessEvent {

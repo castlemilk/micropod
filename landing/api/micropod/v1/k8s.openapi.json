@@ -3,7 +3,7 @@
   "info": {
     "title": "Micropod API \u00b7 K8sService",
     "description": "## micropod.v1.K8sService\n\nThe opt-in lightweight Kubernetes engine: a single micro-VM running\n `k3s server` (etcd + apiserver + kubelet + containerd), MetalLB on the\n vmnet subnet for real LoadBalancer IPs, and a host kubeconfig.",
-    "version": "0.9.1",
+    "version": "0.10.0",
     "contact": {
       "name": "Micropod",
       "url": "https://github.com/castlemilk/micropod"

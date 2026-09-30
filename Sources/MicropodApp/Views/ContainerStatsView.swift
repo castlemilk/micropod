@@ -2,7 +2,8 @@ import Charts
 import MicropodCore
 import SwiftUI
 
-/// Live resource usage for one container (sampled via `container stats`).
+/// Resource usage for one container: persisted history (MetricsStore)
+/// plus live samples (via `container stats`).
 struct ContainerStatsView: View {
     @Bindable var store: AppStore
     let containerID: String
@@ -132,7 +133,26 @@ struct ContainerStatsView: View {
         .onChange(of: store.statsSnapshot?.sampledAt) { _, _ in
             appendHistory()
         }
-        .onAppear { appendHistory() }
+        // Open with the persisted history (recorded while this view was
+        // closed, even with the window hidden), then keep appending live.
+        .task(id: window) { await loadHistory() }
+    }
+
+    private func loadHistory() async {
+        guard let metricsStore = MetricsStore.shared else { return appendHistory() }
+        let id = containerID
+        let range = window.duration
+        let points = await Task.detached { metricsStore.history(.container, id, range: range).points }.value
+        let stored = points.map {
+            HistoryPoint(
+                timestamp: $0.timestamp, cpu: $0.average.cpuPercent,
+                memoryBytes: UInt64(max(0, $0.average.memoryUsedBytes)),
+                netRxRate: $0.average.networkRxRate, netTxRate: $0.average.networkTxRate,
+                blockReadRate: $0.average.blockReadRate, blockWriteRate: $0.average.blockWriteRate)
+        }
+        let newest = stored.last?.timestamp ?? .distantPast
+        history = stored + history.filter { $0.timestamp > newest }
+        appendHistory()
     }
 
     private func appendHistory() {
@@ -150,9 +170,10 @@ struct ContainerStatsView: View {
                 timestamp: now, cpu: stats.cpuPercent, memoryBytes: stats.memoryUsedBytes,
                 netRxRate: deltas.netRxRate, netTxRate: deltas.netTxRate,
                 blockReadRate: deltas.blockReadRate, blockWriteRate: deltas.blockWriteRate))
-        // Cap covers a 3 h window at the ~5 s visible sampling cadence.
-        if history.count > 2500 {
-            history.removeFirst(history.count - 2500)
+        // Cap covers a 3 h window at the ~5 s visible sampling cadence (and
+        // the stored tiers' ~2900 points for longer windows).
+        if history.count > 3000 {
+            history.removeFirst(history.count - 3000)
         }
         previousStats = stats
         previousSampleTime = now

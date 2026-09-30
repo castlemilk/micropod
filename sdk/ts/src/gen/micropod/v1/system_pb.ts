@@ -18,7 +18,140 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file micropod/v1/system.proto.
  */
 export const file_micropod_v1_system: GenFile = /*@__PURE__*/
-  fileDesc("ChhtaWNyb3BvZC92MS9zeXN0ZW0ucHJvdG8SC21pY3JvcG9kLnYxIusCCgtSdW50aW1lSW5mbxIcCgRuYW1lGAEgASgJQg66Rws6CRIHJ2FwcGxlJxIZCgRraW5kGAIgASgJQgu6Rwg6BhIEJ3ZtJxITCgtkZXNjcmlwdGlvbhgDIAEoCRIeCglhdmFpbGFibGUYBCABKAhCC7pHCDoGEgR0cnVlEjAKBnJlYXNvbhgFIAEoCUIgukcdOhsSGSdEb2NrZXIgc29ja2V0IG5vdCBmb3VuZCcSHwoHdmVyc2lvbhgGIAEoCUIOukcLOgkSBycxLjMuMScSNgoIZW5kcG9pbnQYByABKAlCJLpHITofEh0ndW5peDovLy92YXIvcnVuL2RvY2tlci5zb2NrJxIPCgdkZWZhdWx0GAggASgIEjQKDGNhcGFiaWxpdGllcxgJIAMoCUIeukcbOhkSF1sncnVuJywgJ2V4ZWMnLCAnbG9ncyddEhwKB2VuYWJsZWQYCiABKAhCC7pHCDoGEgR0cnVlImMKFExpc3RSdW50aW1lc1Jlc3BvbnNlEioKCHJ1bnRpbWVzGAEgAygLMhgubWljcm9wb2QudjEuUnVudGltZUluZm8SHwoHZGVmYXVsdBgCIAEoCUIOukcLOgkSBydhcHBsZSci2AEKFFVwZGF0ZVJ1bnRpbWVSZXF1ZXN0EjgKBG5hbWUYASABKAlCKrpHDDoKEggnZG9ja2VyJ7pIGMgBAXITMhFeW2Etel1bYS16MC05LV0qJBIhCgdlbmFibGVkGAIgASgIQgu6Rwg6BhIEdHJ1ZUgAiAEBEkoKCGVuZHBvaW50GAMgASgJQjO6RzA6LhIsJ3VuaXg6Ly8vVXNlcnMvbWUvLm9yYnN0YWNrL3J1bi9kb2NrZXIuc29jaydIAYgBAUIKCghfZW5hYmxlZEILCglfZW5kcG9pbnQiVQoYU2V0RGVmYXVsdFJ1bnRpbWVSZXF1ZXN0EjkKBG5hbWUYASABKAlCK7pHDToLEgknc2FuZGJveCe6SBjIAQFyEzIRXlthLXpdW2EtejAtOS1dKiQinwIKDFBpbmdSZXNwb25zZRIgCgZzdGF0dXMYASABKAlCELpHDToLEgkncnVubmluZycSKAoPcnVudGltZV9iYWNrZW5kGAIgASgJQg+6Rww6ChIIJ25hdGl2ZScSKgoSYXBpX3NlcnZlcl92ZXJzaW9uGAMgASgJQg66Rws6CRIHJzAuOC4wJxIjCgtjbGlfdmVyc2lvbhgEIAEoCUIOukcLOgkSBycwLjcuMCcSSQoIZmVhdHVyZXMYBSADKAlCN7pHNDoyEjBbJ2NhcF9hZGQnLCAnY2FwX2Ryb3AnLCAncm9zZXR0YScsICdwcml2aWxlZ2VkJ10SJwoPZGVmYXVsdF9ydW50aW1lGAYgASgJQg66Rws6CRIHJ2FwcGxlJyJnCg5TeXN0ZW1TbmFwc2hvdBIpCgZzdGF0dXMYASABKAsyGS5taWNyb3BvZC52MS5TeXN0ZW1TdGF0dXMSKgoKZGlza191c2FnZRgCIAEoCzIWLm1pY3JvcG9kLnYxLkRpc2tVc2FnZSKOAgoMU3lzdGVtU3RhdHVzEiAKBnN0YXR1cxgBIAEoCUIQukcNOgsSCSdydW5uaW5nJxI1CghhcHBfcm9vdBgCIAEoCUIjukcgOh4SHCcvQXBwbGljYXRpb25zL01pY3JvcG9kLmFwcCcSKgoMaW5zdGFsbF9yb290GAMgASgJQhS6RxE6DxINJ34vLm1pY3JvcG9kJxIqChJhcGlfc2VydmVyX3ZlcnNpb24YBCABKAlCDrpHCzoJEgcnMC44LjAnEiMKC2NsaV92ZXJzaW9uGAUgASgJQg66Rws6CRIHJzAuNy4wJxIoCg9ydW50aW1lX2JhY2tlbmQYBiABKAlCD7pHDDoKEggnbmF0aXZlJyKyAQoJRGlza1VzYWdlEi0KCmNvbnRhaW5lcnMYASABKAsyGS5taWNyb3BvZC52MS5EaXNrQ2F0ZWdvcnkSKQoGaW1hZ2VzGAIgASgLMhkubWljcm9wb2QudjEuRGlza0NhdGVnb3J5EioKB3ZvbHVtZXMYAyABKAsyGS5taWNyb3BvZC52MS5EaXNrQ2F0ZWdvcnkSHwoXdG90YWxfcmVjbGFpbWFibGVfYnl0ZXMYBCABKAQilwEKDERpc2tDYXRlZ29yeRIYCgV0b3RhbBgBIAEoBEIJukcGOgQSAjEyEhgKBmFjdGl2ZRgCIAEoBEIIukcFOgMSATUSJQoKc2l6ZV9ieXRlcxgDIAEoBEIRukcOOgwSCjQyOTQ5NjcyOTYSLAoRcmVjbGFpbWFibGVfYnl0ZXMYBCABKARCEbpHDjoMEgoxMDczNzQxODI0In8KDVN0YXRzU25hcHNob3QSLwoKY29udGFpbmVycxgBIAMoCzIbLm1pY3JvcG9kLnYxLkNvbnRhaW5lclN0YXRzEj0KCnNhbXBsZWRfYXQYAiABKAlCKbpHJjoYEhYnMjAyNi0wMS0xNVQxMDozMDowMFonmgIJZGF0ZS10aW1lIucCCg5Db250YWluZXJTdGF0cxIYCgJpZBgBIAEoCUIMukcJOgcSBSd3ZWInEiAKC2NwdV9wZXJjZW50GAIgASgBQgu6Rwg6BhIEMTIuNRIrChFtZW1vcnlfdXNlZF9ieXRlcxgDIAEoBEIQukcNOgsSCTEzNDIxNzcyOBIsChJtZW1vcnlfbGltaXRfYnl0ZXMYBCABKARCELpHDToLEgk1MzY4NzA5MTISKAoQbmV0d29ya19yeF9ieXRlcxgFIAEoBEIOukcLOgkSBzEwNDg1NzYSJwoQbmV0d29ya190eF9ieXRlcxgGIAEoBEINukcKOggSBjUyNDI4OBIoChBibG9ja19yZWFkX2J5dGVzGAcgASgEQg66Rws6CRIHMjA5NzE1MhIpChFibG9ja193cml0ZV9ieXRlcxgIIAEoBEIOukcLOgkSBzEwNDg1NzYSFgoEcGlkcxgJIAEoBEIIukcFOgMSATcidwoNUmVnaXN0cnlMb2dpbhIiCgZzZXJ2ZXIYASABKAlCErpHDzoNEgsnZG9ja2VyLmlvJxIiCgh1c2VybmFtZRgCIAEoCUIQukcNOgsSCSdvY3RvY2F0JxIeCgZzY2hlbWUYAyABKAlCDrpHCzoJEgcnYmFzaWMnItADCgtVc2FnZVJlcG9ydBIzCgZpbWFnZXMYASADKAsyIy5taWNyb3BvZC52MS5Vc2FnZVJlcG9ydC5JbWFnZVVzYWdlEjUKB3ZvbHVtZXMYAiADKAsyJC5taWNyb3BvZC52MS5Vc2FnZVJlcG9ydC5Wb2x1bWVVc2FnZRIyChdyZWNsYWltYWJsZV9pbWFnZV9ieXRlcxgDIAEoBEIRukcOOgwSCjIxNDc0ODM2NDgSMwoYcmVjbGFpbWFibGVfdm9sdW1lX2J5dGVzGAQgASgEQhG6Rw46DBIKMTA3Mzc0MTgyNBIpChdzdG9wcGVkX2NvbnRhaW5lcl9jb3VudBgFIAEoBUIIukcFOgMSATIaXgoKSW1hZ2VVc2FnZRIhCgVpbWFnZRgBIAEoCzISLm1pY3JvcG9kLnYxLkltYWdlEh0KFXVzZWRfYnlfY29udGFpbmVyX2lkcxgCIAMoCRIOCgZpbl91c2UYAyABKAgaYQoLVm9sdW1lVXNhZ2USIwoGdm9sdW1lGAEgASgLMhMubWljcm9wb2QudjEuVm9sdW1lEh0KFXVzZWRfYnlfY29udGFpbmVyX2lkcxgCIAMoCRIOCgZpbl91c2UYAyABKAgiqQQKDFVwZGF0ZVN0YXR1cxJPCgVzdGF0ZRgBIAEoDjIfLm1pY3JvcG9kLnYxLlVwZGF0ZVN0YXR1cy5TdGF0ZUIfukccOhoSGCdTVEFURV9VUERBVEVfQVZBSUxBQkxFJxIXCg9mZWVkX2NvbmZpZ3VyZWQYAiABKAgSJwoPY3VycmVudF92ZXJzaW9uGAMgASgJQg66Rws6CRIHJzAuOC4wJxIpChFhdmFpbGFibGVfdmVyc2lvbhgEIAEoCUIOukcLOgkSBycwLjkuMCcSEgoKZG93bmxvYWRlZBgFIAEoCBIqChJkb3dubG9hZGVkX3ZlcnNpb24YBiABKAlCDrpHCzoJEgcnMC45LjAnEhgKEHJlYWR5X3RvX2luc3RhbGwYByABKAgSDQoFZXJyb3IYCCABKAkSPQoKY2hlY2tlZF9hdBgJIAEoCUIpukcmOhgSFicyMDI2LTAxLTE1VDEwOjMwOjAwWieaAglkYXRlLXRpbWUisgEKBVN0YXRlEhUKEVNUQVRFX1VOU1BFQ0lGSUVEEAASFQoRU1RBVEVfVU5BVkFJTEFCTEUQARIOCgpTVEFURV9JRExFEAISEgoOU1RBVEVfQ0hFQ0tJTkcQAxIUChBTVEFURV9VUF9UT19EQVRFEAQSGgoWU1RBVEVfVVBEQVRFX0FWQUlMQUJMRRAFEhQKEFNUQVRFX0lOU1RBTExJTkcQBhIPCgtTVEFURV9FUlJPUhAHMv0ECg1TeXN0ZW1TZXJ2aWNlEjwKCUdldFN5c3RlbRISLm1pY3JvcG9kLnYxLkVtcHR5GhsubWljcm9wb2QudjEuU3lzdGVtU25hcHNob3QSOAoIR2V0VXNhZ2USEi5taWNyb3BvZC52MS5FbXB0eRoYLm1pY3JvcG9kLnYxLlVzYWdlUmVwb3J0EkAKD0NoZWNrRm9yVXBkYXRlcxISLm1pY3JvcG9kLnYxLkVtcHR5GhkubWljcm9wb2QudjEuVXBkYXRlU3RhdHVzEkAKD0dldFVwZGF0ZVN0YXR1cxISLm1pY3JvcG9kLnYxLkVtcHR5GhkubWljcm9wb2QudjEuVXBkYXRlU3RhdHVzEjwKC0FwcGx5VXBkYXRlEhIubWljcm9wb2QudjEuRW1wdHkaGS5taWNyb3BvZC52MS5VcGRhdGVTdGF0dXMSNQoEUGluZxISLm1pY3JvcG9kLnYxLkVtcHR5GhkubWljcm9wb2QudjEuUGluZ1Jlc3BvbnNlEkUKDExpc3RSdW50aW1lcxISLm1pY3JvcG9kLnYxLkVtcHR5GiEubWljcm9wb2QudjEuTGlzdFJ1bnRpbWVzUmVzcG9uc2USXQoRU2V0RGVmYXVsdFJ1bnRpbWUSJS5taWNyb3BvZC52MS5TZXREZWZhdWx0UnVudGltZVJlcXVlc3QaIS5taWNyb3BvZC52MS5MaXN0UnVudGltZXNSZXNwb25zZRJVCg1VcGRhdGVSdW50aW1lEiEubWljcm9wb2QudjEuVXBkYXRlUnVudGltZVJlcXVlc3QaIS5taWNyb3BvZC52MS5MaXN0UnVudGltZXNSZXNwb25zZUJCWkBnaXRodWIuY29tL2Nhc3RsZW1pbGsvbWljcm9wb2Qvc2RrL2dvL2dlbi9taWNyb3BvZC92MTttaWNyb3BvZHYxYgZwcm90bzM", [file_buf_validate_validate, file_gnostic_openapi_v3_annotations, file_micropod_v1_api, file_micropod_v1_image, file_micropod_v1_volume]);
+  fileDesc("ChhtaWNyb3BvZC92MS9zeXN0ZW0ucHJvdG8SC21pY3JvcG9kLnYxIqUBChhHZXRNZXRyaWNzSGlzdG9yeVJlcXVlc3QSQQoEa2luZBgBIAEoCUIzukcPOg0SCydjb250YWluZXInukgechxSBnN5c3RlbVIJY29udGFpbmVyUgdtYWNoaW5lEhgKAmlkGAIgASgJQgy6Rwk6BxIFJ3dlYicSLAoNcmFuZ2Vfc2Vjb25kcxgDIAEoDUIVukcIOgYSBDM2MDC6SAcqBRiAmp4BImIKDk1ldHJpY3NIaXN0b3J5EiUKEnJlc29sdXRpb25fc2Vjb25kcxgBIAEoDUIJukcGOgQSAjEwEikKBnBvaW50cxgCIAMoCzIZLm1pY3JvcG9kLnYxLk1ldHJpY3NQb2ludCLZAgoMTWV0cmljc1BvaW50EjAKCXRpbWVzdGFtcBgBIAEoCUIdukcaOhgSFicyMDI2LTA5LTMwVDEwOjAwOjAwWicSEwoLY3B1X3BlcmNlbnQYAiABKAESFwoPY3B1X3BlcmNlbnRfbWF4GAMgASgBEhkKEW1lbW9yeV91c2VkX2J5dGVzGAQgASgBEh0KFW1lbW9yeV91c2VkX2J5dGVzX21heBgFIAEoARIaChJtZW1vcnlfbGltaXRfYnl0ZXMYBiABKAESIwobbmV0d29ya19yeF9ieXRlc19wZXJfc2Vjb25kGAcgASgBEiMKG25ldHdvcmtfdHhfYnl0ZXNfcGVyX3NlY29uZBgIIAEoARIjChtibG9ja19yZWFkX2J5dGVzX3Blcl9zZWNvbmQYCSABKAESJAocYmxvY2tfd3JpdGVfYnl0ZXNfcGVyX3NlY29uZBgKIAEoASLrAgoLUnVudGltZUluZm8SHAoEbmFtZRgBIAEoCUIOukcLOgkSBydhcHBsZScSGQoEa2luZBgCIAEoCUILukcIOgYSBCd2bScSEwoLZGVzY3JpcHRpb24YAyABKAkSHgoJYXZhaWxhYmxlGAQgASgIQgu6Rwg6BhIEdHJ1ZRIwCgZyZWFzb24YBSABKAlCILpHHTobEhknRG9ja2VyIHNvY2tldCBub3QgZm91bmQnEh8KB3ZlcnNpb24YBiABKAlCDrpHCzoJEgcnMS4zLjEnEjYKCGVuZHBvaW50GAcgASgJQiS6RyE6HxIdJ3VuaXg6Ly8vdmFyL3J1bi9kb2NrZXIuc29jaycSDwoHZGVmYXVsdBgIIAEoCBI0CgxjYXBhYmlsaXRpZXMYCSADKAlCHrpHGzoZEhdbJ3J1bicsICdleGVjJywgJ2xvZ3MnXRIcCgdlbmFibGVkGAogASgIQgu6Rwg6BhIEdHJ1ZSJjChRMaXN0UnVudGltZXNSZXNwb25zZRIqCghydW50aW1lcxgBIAMoCzIYLm1pY3JvcG9kLnYxLlJ1bnRpbWVJbmZvEh8KB2RlZmF1bHQYAiABKAlCDrpHCzoJEgcnYXBwbGUnItgBChRVcGRhdGVSdW50aW1lUmVxdWVzdBI4CgRuYW1lGAEgASgJQiq6Rww6ChIIJ2RvY2tlcie6SBjIAQFyEzIRXlthLXpdW2EtejAtOS1dKiQSIQoHZW5hYmxlZBgCIAEoCEILukcIOgYSBHRydWVIAIgBARJKCghlbmRwb2ludBgDIAEoCUIzukcwOi4SLCd1bml4Oi8vL1VzZXJzL21lLy5vcmJzdGFjay9ydW4vZG9ja2VyLnNvY2snSAGIAQFCCgoIX2VuYWJsZWRCCwoJX2VuZHBvaW50IlUKGFNldERlZmF1bHRSdW50aW1lUmVxdWVzdBI5CgRuYW1lGAEgASgJQiu6Rw06CxIJJ3NhbmRib3gnukgYyAEBchMyEV5bYS16XVthLXowLTktXSokIp8CCgxQaW5nUmVzcG9uc2USIAoGc3RhdHVzGAEgASgJQhC6Rw06CxIJJ3J1bm5pbmcnEigKD3J1bnRpbWVfYmFja2VuZBgCIAEoCUIPukcMOgoSCCduYXRpdmUnEioKEmFwaV9zZXJ2ZXJfdmVyc2lvbhgDIAEoCUIOukcLOgkSBycwLjguMCcSIwoLY2xpX3ZlcnNpb24YBCABKAlCDrpHCzoJEgcnMC43LjAnEkkKCGZlYXR1cmVzGAUgAygJQje6RzQ6MhIwWydjYXBfYWRkJywgJ2NhcF9kcm9wJywgJ3Jvc2V0dGEnLCAncHJpdmlsZWdlZCddEicKD2RlZmF1bHRfcnVudGltZRgGIAEoCUIOukcLOgkSBydhcHBsZSciZwoOU3lzdGVtU25hcHNob3QSKQoGc3RhdHVzGAEgASgLMhkubWljcm9wb2QudjEuU3lzdGVtU3RhdHVzEioKCmRpc2tfdXNhZ2UYAiABKAsyFi5taWNyb3BvZC52MS5EaXNrVXNhZ2UijgIKDFN5c3RlbVN0YXR1cxIgCgZzdGF0dXMYASABKAlCELpHDToLEgkncnVubmluZycSNQoIYXBwX3Jvb3QYAiABKAlCI7pHIDoeEhwnL0FwcGxpY2F0aW9ucy9NaWNyb3BvZC5hcHAnEioKDGluc3RhbGxfcm9vdBgDIAEoCUIUukcROg8SDSd+Ly5taWNyb3BvZCcSKgoSYXBpX3NlcnZlcl92ZXJzaW9uGAQgASgJQg66Rws6CRIHJzAuOC4wJxIjCgtjbGlfdmVyc2lvbhgFIAEoCUIOukcLOgkSBycwLjcuMCcSKAoPcnVudGltZV9iYWNrZW5kGAYgASgJQg+6Rww6ChIIJ25hdGl2ZScisgEKCURpc2tVc2FnZRItCgpjb250YWluZXJzGAEgASgLMhkubWljcm9wb2QudjEuRGlza0NhdGVnb3J5EikKBmltYWdlcxgCIAEoCzIZLm1pY3JvcG9kLnYxLkRpc2tDYXRlZ29yeRIqCgd2b2x1bWVzGAMgASgLMhkubWljcm9wb2QudjEuRGlza0NhdGVnb3J5Eh8KF3RvdGFsX3JlY2xhaW1hYmxlX2J5dGVzGAQgASgEIpcBCgxEaXNrQ2F0ZWdvcnkSGAoFdG90YWwYASABKARCCbpHBjoEEgIxMhIYCgZhY3RpdmUYAiABKARCCLpHBToDEgE1EiUKCnNpemVfYnl0ZXMYAyABKARCEbpHDjoMEgo0Mjk0OTY3Mjk2EiwKEXJlY2xhaW1hYmxlX2J5dGVzGAQgASgEQhG6Rw46DBIKMTA3Mzc0MTgyNCJ/Cg1TdGF0c1NuYXBzaG90Ei8KCmNvbnRhaW5lcnMYASADKAsyGy5taWNyb3BvZC52MS5Db250YWluZXJTdGF0cxI9CgpzYW1wbGVkX2F0GAIgASgJQim6RyY6GBIWJzIwMjYtMDEtMTVUMTA6MzA6MDBaJ5oCCWRhdGUtdGltZSLnAgoOQ29udGFpbmVyU3RhdHMSGAoCaWQYASABKAlCDLpHCToHEgUnd2ViJxIgCgtjcHVfcGVyY2VudBgCIAEoAUILukcIOgYSBDEyLjUSKwoRbWVtb3J5X3VzZWRfYnl0ZXMYAyABKARCELpHDToLEgkxMzQyMTc3MjgSLAoSbWVtb3J5X2xpbWl0X2J5dGVzGAQgASgEQhC6Rw06CxIJNTM2ODcwOTEyEigKEG5ldHdvcmtfcnhfYnl0ZXMYBSABKARCDrpHCzoJEgcxMDQ4NTc2EicKEG5ldHdvcmtfdHhfYnl0ZXMYBiABKARCDbpHCjoIEgY1MjQyODgSKAoQYmxvY2tfcmVhZF9ieXRlcxgHIAEoBEIOukcLOgkSBzIwOTcxNTISKQoRYmxvY2tfd3JpdGVfYnl0ZXMYCCABKARCDrpHCzoJEgcxMDQ4NTc2EhYKBHBpZHMYCSABKARCCLpHBToDEgE3IncKDVJlZ2lzdHJ5TG9naW4SIgoGc2VydmVyGAEgASgJQhK6Rw86DRILJ2RvY2tlci5pbycSIgoIdXNlcm5hbWUYAiABKAlCELpHDToLEgknb2N0b2NhdCcSHgoGc2NoZW1lGAMgASgJQg66Rws6CRIHJ2Jhc2ljJyLQAwoLVXNhZ2VSZXBvcnQSMwoGaW1hZ2VzGAEgAygLMiMubWljcm9wb2QudjEuVXNhZ2VSZXBvcnQuSW1hZ2VVc2FnZRI1Cgd2b2x1bWVzGAIgAygLMiQubWljcm9wb2QudjEuVXNhZ2VSZXBvcnQuVm9sdW1lVXNhZ2USMgoXcmVjbGFpbWFibGVfaW1hZ2VfYnl0ZXMYAyABKARCEbpHDjoMEgoyMTQ3NDgzNjQ4EjMKGHJlY2xhaW1hYmxlX3ZvbHVtZV9ieXRlcxgEIAEoBEIRukcOOgwSCjEwNzM3NDE4MjQSKQoXc3RvcHBlZF9jb250YWluZXJfY291bnQYBSABKAVCCLpHBToDEgEyGl4KCkltYWdlVXNhZ2USIQoFaW1hZ2UYASABKAsyEi5taWNyb3BvZC52MS5JbWFnZRIdChV1c2VkX2J5X2NvbnRhaW5lcl9pZHMYAiADKAkSDgoGaW5fdXNlGAMgASgIGmEKC1ZvbHVtZVVzYWdlEiMKBnZvbHVtZRgBIAEoCzITLm1pY3JvcG9kLnYxLlZvbHVtZRIdChV1c2VkX2J5X2NvbnRhaW5lcl9pZHMYAiADKAkSDgoGaW5fdXNlGAMgASgIIsUECgxVcGRhdGVTdGF0dXMSTwoFc3RhdGUYASABKA4yHy5taWNyb3BvZC52MS5VcGRhdGVTdGF0dXMuU3RhdGVCH7pHHDoaEhgnU1RBVEVfVVBEQVRFX0FWQUlMQUJMRScSFwoPZmVlZF9jb25maWd1cmVkGAIgASgIEicKD2N1cnJlbnRfdmVyc2lvbhgDIAEoCUIOukcLOgkSBycwLjguMCcSKQoRYXZhaWxhYmxlX3ZlcnNpb24YBCABKAlCDrpHCzoJEgcnMC45LjAnEhIKCmRvd25sb2FkZWQYBSABKAgSKgoSZG93bmxvYWRlZF92ZXJzaW9uGAYgASgJQg66Rws6CRIHJzAuOS4wJxIYChByZWFkeV90b19pbnN0YWxsGAcgASgIEg0KBWVycm9yGAggASgJEj0KCmNoZWNrZWRfYXQYCSABKAlCKbpHJjoYEhYnMjAyNi0wMS0xNVQxMDozMDowMFonmgIJZGF0ZS10aW1lIs4BCgVTdGF0ZRIVChFTVEFURV9VTlNQRUNJRklFRBAAEhUKEVNUQVRFX1VOQVZBSUxBQkxFEAESDgoKU1RBVEVfSURMRRACEhIKDlNUQVRFX0NIRUNLSU5HEAMSFAoQU1RBVEVfVVBfVE9fREFURRAEEhoKFlNUQVRFX1VQREFURV9BVkFJTEFCTEUQBRIUChBTVEFURV9JTlNUQUxMSU5HEAYSDwoLU1RBVEVfRVJST1IQBxIaChZTVEFURV9SRUFEWV9UT19JTlNUQUxMEAgy1gUKDVN5c3RlbVNlcnZpY2USPAoJR2V0U3lzdGVtEhIubWljcm9wb2QudjEuRW1wdHkaGy5taWNyb3BvZC52MS5TeXN0ZW1TbmFwc2hvdBI4CghHZXRVc2FnZRISLm1pY3JvcG9kLnYxLkVtcHR5GhgubWljcm9wb2QudjEuVXNhZ2VSZXBvcnQSQAoPQ2hlY2tGb3JVcGRhdGVzEhIubWljcm9wb2QudjEuRW1wdHkaGS5taWNyb3BvZC52MS5VcGRhdGVTdGF0dXMSQAoPR2V0VXBkYXRlU3RhdHVzEhIubWljcm9wb2QudjEuRW1wdHkaGS5taWNyb3BvZC52MS5VcGRhdGVTdGF0dXMSPAoLQXBwbHlVcGRhdGUSEi5taWNyb3BvZC52MS5FbXB0eRoZLm1pY3JvcG9kLnYxLlVwZGF0ZVN0YXR1cxI1CgRQaW5nEhIubWljcm9wb2QudjEuRW1wdHkaGS5taWNyb3BvZC52MS5QaW5nUmVzcG9uc2USRQoMTGlzdFJ1bnRpbWVzEhIubWljcm9wb2QudjEuRW1wdHkaIS5taWNyb3BvZC52MS5MaXN0UnVudGltZXNSZXNwb25zZRJdChFTZXREZWZhdWx0UnVudGltZRIlLm1pY3JvcG9kLnYxLlNldERlZmF1bHRSdW50aW1lUmVxdWVzdBohLm1pY3JvcG9kLnYxLkxpc3RSdW50aW1lc1Jlc3BvbnNlElUKDVVwZGF0ZVJ1bnRpbWUSIS5taWNyb3BvZC52MS5VcGRhdGVSdW50aW1lUmVxdWVzdBohLm1pY3JvcG9kLnYxLkxpc3RSdW50aW1lc1Jlc3BvbnNlElcKEUdldE1ldHJpY3NIaXN0b3J5EiUubWljcm9wb2QudjEuR2V0TWV0cmljc0hpc3RvcnlSZXF1ZXN0GhsubWljcm9wb2QudjEuTWV0cmljc0hpc3RvcnlCQlpAZ2l0aHViLmNvbS9jYXN0bGVtaWxrL21pY3JvcG9kL3Nkay9nby9nZW4vbWljcm9wb2QvdjE7bWljcm9wb2R2MWIGcHJvdG8z", [file_buf_validate_validate, file_gnostic_openapi_v3_annotations, file_micropod_v1_api, file_micropod_v1_image, file_micropod_v1_volume]);
+
+/**
+ * @generated from message micropod.v1.GetMetricsHistoryRequest
+ */
+export type GetMetricsHistoryRequest = Message<"micropod.v1.GetMetricsHistoryRequest"> & {
+  /**
+   * "system" (all containers), "container" or "machine".
+   *
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * Container id or machine name; ignored for "system".
+   *
+   * @generated from field: string id = 2;
+   */
+  id: string;
+
+  /**
+   * How far back, in seconds (0 = one hour; at most 30 days).
+   *
+   * @generated from field: uint32 range_seconds = 3;
+   */
+  rangeSeconds: number;
+};
+
+/**
+ * Describes the message micropod.v1.GetMetricsHistoryRequest.
+ * Use `create(GetMetricsHistoryRequestSchema)` to create a new message.
+ */
+export const GetMetricsHistoryRequestSchema: GenMessage<GetMetricsHistoryRequest> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_system, 0);
+
+/**
+ * @generated from message micropod.v1.MetricsHistory
+ */
+export type MetricsHistory = Message<"micropod.v1.MetricsHistory"> & {
+  /**
+   * Seconds each point covers (10, 60 or 900).
+   *
+   * @generated from field: uint32 resolution_seconds = 1;
+   */
+  resolutionSeconds: number;
+
+  /**
+   * Oldest first; empty when nothing was recorded in the range.
+   *
+   * @generated from field: repeated micropod.v1.MetricsPoint points = 2;
+   */
+  points: MetricsPoint[];
+};
+
+/**
+ * Describes the message micropod.v1.MetricsHistory.
+ * Use `create(MetricsHistorySchema)` to create a new message.
+ */
+export const MetricsHistorySchema: GenMessage<MetricsHistory> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_system, 1);
+
+/**
+ * One bucket: averages, plus the peak of the metrics that spike.
+ *
+ * @generated from message micropod.v1.MetricsPoint
+ */
+export type MetricsPoint = Message<"micropod.v1.MetricsPoint"> & {
+  /**
+   * Start of the bucket (RFC 3339).
+   *
+   * @generated from field: string timestamp = 1;
+   */
+  timestamp: string;
+
+  /**
+   * CPU % (100 = one core): average and peak.
+   *
+   * @generated from field: double cpu_percent = 2;
+   */
+  cpuPercent: number;
+
+  /**
+   * @generated from field: double cpu_percent_max = 3;
+   */
+  cpuPercentMax: number;
+
+  /**
+   * Memory in use (bytes): average and peak.
+   *
+   * @generated from field: double memory_used_bytes = 4;
+   */
+  memoryUsedBytes: number;
+
+  /**
+   * @generated from field: double memory_used_bytes_max = 5;
+   */
+  memoryUsedBytesMax: number;
+
+  /**
+   * Memory limit (bytes).
+   *
+   * @generated from field: double memory_limit_bytes = 6;
+   */
+  memoryLimitBytes: number;
+
+  /**
+   * Network and disk rates (bytes per second), averages.
+   *
+   * @generated from field: double network_rx_bytes_per_second = 7;
+   */
+  networkRxBytesPerSecond: number;
+
+  /**
+   * @generated from field: double network_tx_bytes_per_second = 8;
+   */
+  networkTxBytesPerSecond: number;
+
+  /**
+   * @generated from field: double block_read_bytes_per_second = 9;
+   */
+  blockReadBytesPerSecond: number;
+
+  /**
+   * @generated from field: double block_write_bytes_per_second = 10;
+   */
+  blockWriteBytesPerSecond: number;
+};
+
+/**
+ * Describes the message micropod.v1.MetricsPoint.
+ * Use `create(MetricsPointSchema)` to create a new message.
+ */
+export const MetricsPointSchema: GenMessage<MetricsPoint> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_system, 2);
 
 /**
  * One execution engine (see ListRuntimes).
@@ -109,7 +242,7 @@ export type RuntimeInfo = Message<"micropod.v1.RuntimeInfo"> & {
  * Use `create(RuntimeInfoSchema)` to create a new message.
  */
 export const RuntimeInfoSchema: GenMessage<RuntimeInfo> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 0);
+  messageDesc(file_micropod_v1_system, 3);
 
 /**
  * @generated from message micropod.v1.ListRuntimesResponse
@@ -133,7 +266,7 @@ export type ListRuntimesResponse = Message<"micropod.v1.ListRuntimesResponse"> &
  * Use `create(ListRuntimesResponseSchema)` to create a new message.
  */
 export const ListRuntimesResponseSchema: GenMessage<ListRuntimesResponse> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 1);
+  messageDesc(file_micropod_v1_system, 4);
 
 /**
  * @generated from message micropod.v1.UpdateRuntimeRequest
@@ -168,7 +301,7 @@ export type UpdateRuntimeRequest = Message<"micropod.v1.UpdateRuntimeRequest"> &
  * Use `create(UpdateRuntimeRequestSchema)` to create a new message.
  */
 export const UpdateRuntimeRequestSchema: GenMessage<UpdateRuntimeRequest> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 2);
+  messageDesc(file_micropod_v1_system, 5);
 
 /**
  * @generated from message micropod.v1.SetDefaultRuntimeRequest
@@ -187,7 +320,7 @@ export type SetDefaultRuntimeRequest = Message<"micropod.v1.SetDefaultRuntimeReq
  * Use `create(SetDefaultRuntimeRequestSchema)` to create a new message.
  */
 export const SetDefaultRuntimeRequestSchema: GenMessage<SetDefaultRuntimeRequest> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 3);
+  messageDesc(file_micropod_v1_system, 6);
 
 /**
  * Cheap liveness reply for detection and health ticks (see Ping).
@@ -248,7 +381,7 @@ export type PingResponse = Message<"micropod.v1.PingResponse"> & {
  * Use `create(PingResponseSchema)` to create a new message.
  */
 export const PingResponseSchema: GenMessage<PingResponse> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 4);
+  messageDesc(file_micropod_v1_system, 7);
 
 /**
  * @generated from message micropod.v1.SystemSnapshot
@@ -274,7 +407,7 @@ export type SystemSnapshot = Message<"micropod.v1.SystemSnapshot"> & {
  * Use `create(SystemSnapshotSchema)` to create a new message.
  */
 export const SystemSnapshotSchema: GenMessage<SystemSnapshot> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 5);
+  messageDesc(file_micropod_v1_system, 8);
 
 /**
  * Runtime health, mapped from `container system status`.
@@ -330,7 +463,7 @@ export type SystemStatus = Message<"micropod.v1.SystemStatus"> & {
  * Use `create(SystemStatusSchema)` to create a new message.
  */
 export const SystemStatusSchema: GenMessage<SystemStatus> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 6);
+  messageDesc(file_micropod_v1_system, 9);
 
 /**
  * Disk usage, mapped from `container system df`.
@@ -372,7 +505,7 @@ export type DiskUsage = Message<"micropod.v1.DiskUsage"> & {
  * Use `create(DiskUsageSchema)` to create a new message.
  */
 export const DiskUsageSchema: GenMessage<DiskUsage> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 7);
+  messageDesc(file_micropod_v1_system, 10);
 
 /**
  * @generated from message micropod.v1.DiskCategory
@@ -412,7 +545,7 @@ export type DiskCategory = Message<"micropod.v1.DiskCategory"> & {
  * Use `create(DiskCategorySchema)` to create a new message.
  */
 export const DiskCategorySchema: GenMessage<DiskCategory> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 8);
+  messageDesc(file_micropod_v1_system, 11);
 
 /**
  * Single snapshot of runtime resource usage for all running containers,
@@ -441,7 +574,7 @@ export type StatsSnapshot = Message<"micropod.v1.StatsSnapshot"> & {
  * Use `create(StatsSnapshotSchema)` to create a new message.
  */
 export const StatsSnapshotSchema: GenMessage<StatsSnapshot> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 9);
+  messageDesc(file_micropod_v1_system, 12);
 
 /**
  * Per-container resource counters within a StatsSnapshot.
@@ -518,7 +651,7 @@ export type ContainerStats = Message<"micropod.v1.ContainerStats"> & {
  * Use `create(ContainerStatsSchema)` to create a new message.
  */
 export const ContainerStatsSchema: GenMessage<ContainerStats> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 10);
+  messageDesc(file_micropod_v1_system, 13);
 
 /**
  * A registry login, mapped from `container registry list`.
@@ -553,7 +686,7 @@ export type RegistryLogin = Message<"micropod.v1.RegistryLogin"> & {
  * Use `create(RegistryLoginSchema)` to create a new message.
  */
 export const RegistryLoginSchema: GenMessage<RegistryLogin> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 11);
+  messageDesc(file_micropod_v1_system, 14);
 
 /**
  * What a cleanup would reclaim: every image and volume annotated with the
@@ -603,7 +736,7 @@ export type UsageReport = Message<"micropod.v1.UsageReport"> & {
  * Use `create(UsageReportSchema)` to create a new message.
  */
 export const UsageReportSchema: GenMessage<UsageReport> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 12);
+  messageDesc(file_micropod_v1_system, 15);
 
 /**
  * An image plus the containers that reference it.
@@ -638,7 +771,7 @@ export type UsageReport_ImageUsage = Message<"micropod.v1.UsageReport.ImageUsage
  * Use `create(UsageReport_ImageUsageSchema)` to create a new message.
  */
 export const UsageReport_ImageUsageSchema: GenMessage<UsageReport_ImageUsage> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 12, 0);
+  messageDesc(file_micropod_v1_system, 15, 0);
 
 /**
  * A volume plus the containers mounting it.
@@ -673,7 +806,7 @@ export type UsageReport_VolumeUsage = Message<"micropod.v1.UsageReport.VolumeUsa
  * Use `create(UsageReport_VolumeUsageSchema)` to create a new message.
  */
 export const UsageReport_VolumeUsageSchema: GenMessage<UsageReport_VolumeUsage> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 12, 1);
+  messageDesc(file_micropod_v1_system, 15, 1);
 
 /**
  * Desktop-app updater status (Sparkle), proxied over the app control
@@ -751,7 +884,7 @@ export type UpdateStatus = Message<"micropod.v1.UpdateStatus"> & {
  * Use `create(UpdateStatusSchema)` to create a new message.
  */
 export const UpdateStatusSchema: GenMessage<UpdateStatus> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 13);
+  messageDesc(file_micropod_v1_system, 16);
 
 /**
  * Updater lifecycle state.
@@ -814,13 +947,20 @@ export enum UpdateStatus_State {
    * @generated from enum value: STATE_ERROR = 7;
    */
   ERROR = 7,
+
+  /**
+   * Downloaded and staged: ApplyUpdate (or quitting) installs it.
+   *
+   * @generated from enum value: STATE_READY_TO_INSTALL = 8;
+   */
+  READY_TO_INSTALL = 8,
 }
 
 /**
  * Describes the enum micropod.v1.UpdateStatus.State.
  */
 export const UpdateStatus_StateSchema: GenEnum<UpdateStatus_State> = /*@__PURE__*/
-  enumDesc(file_micropod_v1_system, 13, 0);
+  enumDesc(file_micropod_v1_system, 16, 0);
 
 /**
  * Daemon-level operations: runtime snapshot, cleanup usage report, and the
@@ -929,6 +1069,21 @@ export const SystemService: GenService<{
     methodKind: "unary";
     input: typeof UpdateRuntimeRequestSchema;
     output: typeof ListRuntimesResponseSchema;
+  },
+  /**
+   * Resource usage over time for all containers ("system"), one container,
+   * or one machine, as recorded by the Micropod app (every 5 s while its
+   * window is open, 30 s otherwise). Rolled up and pruned by age: 10 s
+   * points for 3 h, 1 min for 48 h, 15 min for 30 days — the finest that
+   * covers the range is returned. A container's or machine's history is
+   * deleted with it.
+   *
+   * @generated from rpc micropod.v1.SystemService.GetMetricsHistory
+   */
+  getMetricsHistory: {
+    methodKind: "unary";
+    input: typeof GetMetricsHistoryRequestSchema;
+    output: typeof MetricsHistorySchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_micropod_v1_system, 0);

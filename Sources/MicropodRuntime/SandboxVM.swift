@@ -63,6 +63,9 @@ public enum SandboxVM {
         /// VM gets a host-only network and reaches the internet solely
         /// through the host's egress proxy.
         public var egress = EgressPolicy()
+        /// Host directory holding `micropod-guest`, shared read-only at
+        /// ``SandboxGuestTool/guestDirectory`` (SandboxService sandboxes).
+        public var guestTool: URL?
         public var tmpfsTmp = true
         public var tmpSizeMiB: UInt64?
         /// Keep the run's disk as checkpoint `saveAs` when it exits 0.
@@ -119,6 +122,8 @@ public enum SandboxVM {
         /// The main process's env, user and working directory, no argv —
         /// the base for processes exec'd into the sandbox.
         let processTemplate: LinuxProcessConfiguration
+        /// `micropod-guest` is mounted at ``SandboxGuestTool/guestPath``.
+        let hasGuestTool: Bool
         let forwarding = SandboxForwarding()
     }
 
@@ -165,6 +170,9 @@ public enum SandboxVM {
         var shares: [Containerization.Mount] = []
         for (index, spec) in options.mounts.enumerated() {
             shares.append(try shareMount(spec, runDir: runDir, index: index))
+        }
+        if let tool = options.guestTool {
+            shares.append(.share(source: tool.path, destination: SandboxGuestTool.guestDirectory, options: ["ro"]))
         }
         // Proxied egress: the guest's only way out is the host proxy on the
         // gateway; secrets reach it as placeholders, plus a CA to trust.
@@ -257,7 +265,7 @@ public enum SandboxVM {
             diskBytes: diskBytes, network: vmnet,
             guestIP: network.map { $0.interface.ipv4Address.address.description },
             gateway: network?.gateway, ports: options.ports, exposeHost: options.exposeHost, egress: egress,
-            processTemplate: template)
+            processTemplate: template, hasGuestTool: options.guestTool != nil)
     }
 
     /// Open the sandbox's relays: needs the VM's network up (after

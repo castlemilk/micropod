@@ -1,6 +1,6 @@
 ---
 name: micropod
-description: Use the Micropod container manager — the Apple `container` runtime via its MCP server (50 tools), Connect/REST API on :45454, or Docker Engine API shim. Use for running/managing containers and docker-compose stacks, worker orchestration (e.g. cuttlefish), and disposable test containers (real Testcontainers/Ryuk via the shim).
+description: Use the Micropod container manager — the Apple `container` runtime via its MCP server (51 tools), Connect/REST API on :45454, or Docker Engine API shim. Use for running/managing containers and docker-compose stacks, worker orchestration (e.g. cuttlefish), and disposable test containers (real Testcontainers/Ryuk via the shim).
 ---
 
 # Micropod
@@ -11,7 +11,7 @@ Programmatic surfaces, best first:
 
 | Surface | How to reach it | When to use |
 |---|---|---|
-| **MCP server** (STDIO JSON-RPC 2.0, 50 tools) | `micropod-mcp` (installed to `~/.local/bin/`) | Claude/agent-driven work; the richest surface |
+| **MCP server** (STDIO JSON-RPC 2.0, 51 tools) | `micropod-mcp` (installed to `~/.local/bin/`) | Claude/agent-driven work; the richest surface |
 | **Connect API** (proto-JSON over POST) | `http://127.0.0.1:45454/api/micropod.v1.<Service>/<Method>` | Typed clients — TS/Go/Swift SDKs, or curl |
 | **REST facade** (JSON) | `http://127.0.0.1:45454/v1/*` | Quick curl/scripts; SSE logs |
 | **Docker Engine shim** | unix `~/.micropod/docker.sock` + tcp `:45455` | Unmodified Docker clients: docker-py, Testcontainers, Ryuk |
@@ -21,7 +21,7 @@ Prerequisite: Micropod.app installed and running (it owns the daemon, the
 :45454 API, and the shim). `curl -s http://127.0.0.1:45454/health` →
 `{"status":"ok"}` is the readiness probe.
 
-## MCP server (50 tools)
+## MCP server (51 tools)
 
 Config for any MCP client:
 
@@ -52,7 +52,12 @@ guest never sees; `mounts` discard guest writes), `sandbox_checkpoints`,
 **compose**: `compose_up` (path + optional profiles), `compose_down`,
 `compose_ps`. **shared mounts**: `share_mount`, `share_unmount`,
 `share_list`, `share_sync`, `share_gc`. **system**: `status`, `df`,
-`build_cache_stats`, `update_check`, `update_status`, `update_apply`.
+`build_cache_stats`, `update_check`, `update_status`, `update_apply`
+(`update_status` reports `readyToInstall` once an update is staged;
+`update_apply` restarts into it). **metrics**: `metrics_history` (id +
+range, e.g. `1h`/`24h`/`7d`: peak/avg/now per metric plus a sparkline,
+from the history the Micropod app records — 10 s points for 3 h, 1 min
+for 48 h, 15 min for 30 days; deleted with the container).
 **kubernetes** (opt-in engine — `k8s_enable` persists config, or `MICROPOD_K8S=1`):
 `k8s_enable`, `k8s_disable`, `k8s_up`, `k8s_down`, `k8s_status`,
 `k8s_kubeconfig`, `k8s_load_image`, `k8s_images`. One call to `k8s_up`
@@ -112,7 +117,11 @@ network) and binds 127.0.0.1 unless given an address; over the API a port
 with no `hostIp` binds every interface, as with `apple`. A secret can also
 come from a host command, `{"command": [...], "hosts": [...], "ttl": "15m"}`.
 It prints the value or `{"version":1,"value":…,"expires_at":…}`, is re-run
-before it expires, and fails closed when no valid value exists.
+before it expires, and fails closed when no valid value exists. A
+`micropod.json` that grants host access (mounts, ports, expose_host,
+networking, secrets) is refused until `micropod sandbox trust`, and editing
+the file revokes that trust. The API never runs host commands: SDKs mint
+command secrets themselves and push them with `UpdateSandboxSecret`.
 
 For a sandbox that outlives one command, use `SandboxService`, or the
 TypeScript SDK's `Sandbox` class, which has shuru's method names:
@@ -123,6 +132,9 @@ TypeScript SDK's `Sandbox` class, which has shuru's method names:
 - **Files:** `readFile`, `writeFile`, `readDir`, `stat`, `mkdir`,
   `remove`, `rename`, `copy`, `chmod`, `exists`.
 - **Watching:** `watch(path, handler)` uses inotify inside the guest.
+- **Distroless images:** file operations, watches and idling run on
+  micropod's own guest helper, so distroless images get all of the above
+  except processes the image can't run.
 
 Over the raw API, `RunContainerRequest.sandbox` carries `expose_host`,
 `allow_hosts`, `secrets` and `dns_resolvers` for `runtime: "sandbox"`. Defaults can live in `./micropod.json` (shuru.json-shaped: cpus,

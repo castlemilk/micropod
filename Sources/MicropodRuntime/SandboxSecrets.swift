@@ -1,11 +1,15 @@
 import Foundation
 import MicropodCore
 
-/// Where a sandbox secret's real value comes from: a fixed value, or a host
-/// command (argv, never a shell) that mints it — `gcloud auth
-/// print-access-token`, a GitHub App installation-token script.
+/// Where a sandbox secret's real value comes from: a value the caller
+/// supplies (and may replace — `UpdateSandboxSecret`), or, for the CLI's
+/// `micropod.json`, a host command (argv, never a shell) that mints it —
+/// `gcloud auth print-access-token`, a GitHub App installation-token
+/// script. The API never takes commands: a request must not be able to run
+/// programs on the host, so SDKs mint on the caller's side and push values.
 ///
-/// A command's stdout is the value, raw or as
+/// A supplied value may carry an expiry; past it, requests fail closed
+/// until a new value arrives. A command's stdout is the value, raw or as
 /// `{"version":1,"value":"…","expires_at":"<RFC 3339>"}` (AWS
 /// `credential_process`'s shape). It is minted on first use and again a
 /// minute before `expires_at` — or every `ttl` when there is none — while
@@ -16,7 +20,8 @@ import MicropodCore
 /// upstream.
 public final class SecretSource: @unchecked Sendable {
     public enum Kind: Sendable, Equatable {
-        case fixed(String)
+        /// Supplied by the caller; replaceable with ``update(_:expiresAt:)``.
+        case value
         case command(argv: [String], directory: URL?, ttl: Duration)
     }
 
@@ -39,9 +44,31 @@ public final class SecretSource: @unchecked Sendable {
     static let defaultTTL: Duration = .seconds(300)
     static let commandTimeout: Duration = .seconds(30)
 
-    public init(_ kind: Kind, log: @escaping @Sendable (String) -> Void = SecretSource.stderrLog) {
-        self.kind = kind
+    public init(
+        command argv: [String], directory: URL?, ttl: Duration,
+        log: @escaping @Sendable (String) -> Void = SecretSource.stderrLog
+    ) {
+        self.kind = .command(argv: argv, directory: directory, ttl: ttl)
         self.log = log
+    }
+
+    /// A supplied value, valid until `expiresAt` (never, when nil).
+    public init(value: String, expiresAt: Date? = nil) throws {
+        try Self.validate(value)
+        self.kind = .value
+        self.log = { _ in }
+        self.supplied = (value, expiresAt)
+    }
+
+    private var supplied: (value: String, expiresAt: Date?)?
+
+    /// Replace a supplied value (a pushed refresh).
+    public func update(_ value: String, expiresAt: Date?) throws {
+        guard case .value = kind else {
+            throw MicropodError.message("failedPrecondition: this secret is minted by a command, not supplied")
+        }
+        try Self.validate(value)
+        lock.withLock { supplied = (value, expiresAt) }
     }
 
     public static let stderrLog: @Sendable (String) -> Void = { message in
@@ -51,8 +78,12 @@ public final class SecretSource: @unchecked Sendable {
     /// The current value, minting or refreshing it as needed.
     public func value(clock: ContinuousClock = ContinuousClock()) async throws -> String {
         guard case .command(let argv, let directory, let ttl) = kind else {
-            if case .fixed(let value) = kind { return value }
-            return ""
+            let current = lock.withLock { supplied }
+            guard let current else { throw MicropodError.message("secret has no value") }
+            if let expiry = current.expiresAt, expiry <= Date() {
+                throw MicropodError.message("secret expired at \(expiry) and was not refreshed")
+            }
+            return current.value
         }
         let now = clock.now
         let plan: Plan = lock.withLock {

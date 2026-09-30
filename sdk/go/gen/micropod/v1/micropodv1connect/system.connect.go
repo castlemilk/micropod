@@ -57,6 +57,9 @@ const (
 	// SystemServiceUpdateRuntimeProcedure is the fully-qualified name of the SystemService's
 	// UpdateRuntime RPC.
 	SystemServiceUpdateRuntimeProcedure = "/micropod.v1.SystemService/UpdateRuntime"
+	// SystemServiceGetMetricsHistoryProcedure is the fully-qualified name of the SystemService's
+	// GetMetricsHistory RPC.
+	SystemServiceGetMetricsHistoryProcedure = "/micropod.v1.SystemService/GetMetricsHistory"
 )
 
 // SystemServiceClient is a client for the micropod.v1.SystemService service.
@@ -90,6 +93,13 @@ type SystemServiceClient interface {
 	// left out of ListContainers and refuse RunContainer. The default engine
 	// cannot be disabled (`failed_precondition`). Persisted server-side.
 	UpdateRuntime(context.Context, *connect.Request[v1.UpdateRuntimeRequest]) (*connect.Response[v1.ListRuntimesResponse], error)
+	// Resource usage over time for all containers ("system"), one container,
+	// or one machine, as recorded by the Micropod app (every 5 s while its
+	// window is open, 30 s otherwise). Rolled up and pruned by age: 10 s
+	// points for 3 h, 1 min for 48 h, 15 min for 30 days — the finest that
+	// covers the range is returned. A container's or machine's history is
+	// deleted with it.
+	GetMetricsHistory(context.Context, *connect.Request[v1.GetMetricsHistoryRequest]) (*connect.Response[v1.MetricsHistory], error)
 }
 
 // NewSystemServiceClient constructs a client for the micropod.v1.SystemService service. By default,
@@ -157,6 +167,12 @@ func NewSystemServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(systemServiceMethods.ByName("UpdateRuntime")),
 			connect.WithClientOptions(opts...),
 		),
+		getMetricsHistory: connect.NewClient[v1.GetMetricsHistoryRequest, v1.MetricsHistory](
+			httpClient,
+			baseURL+SystemServiceGetMetricsHistoryProcedure,
+			connect.WithSchema(systemServiceMethods.ByName("GetMetricsHistory")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -171,6 +187,7 @@ type systemServiceClient struct {
 	listRuntimes      *connect.Client[v1.Empty, v1.ListRuntimesResponse]
 	setDefaultRuntime *connect.Client[v1.SetDefaultRuntimeRequest, v1.ListRuntimesResponse]
 	updateRuntime     *connect.Client[v1.UpdateRuntimeRequest, v1.ListRuntimesResponse]
+	getMetricsHistory *connect.Client[v1.GetMetricsHistoryRequest, v1.MetricsHistory]
 }
 
 // GetSystem calls micropod.v1.SystemService.GetSystem.
@@ -218,6 +235,11 @@ func (c *systemServiceClient) UpdateRuntime(ctx context.Context, req *connect.Re
 	return c.updateRuntime.CallUnary(ctx, req)
 }
 
+// GetMetricsHistory calls micropod.v1.SystemService.GetMetricsHistory.
+func (c *systemServiceClient) GetMetricsHistory(ctx context.Context, req *connect.Request[v1.GetMetricsHistoryRequest]) (*connect.Response[v1.MetricsHistory], error) {
+	return c.getMetricsHistory.CallUnary(ctx, req)
+}
+
 // SystemServiceHandler is an implementation of the micropod.v1.SystemService service.
 type SystemServiceHandler interface {
 	// Runtime status + disk usage.
@@ -249,6 +271,13 @@ type SystemServiceHandler interface {
 	// left out of ListContainers and refuse RunContainer. The default engine
 	// cannot be disabled (`failed_precondition`). Persisted server-side.
 	UpdateRuntime(context.Context, *connect.Request[v1.UpdateRuntimeRequest]) (*connect.Response[v1.ListRuntimesResponse], error)
+	// Resource usage over time for all containers ("system"), one container,
+	// or one machine, as recorded by the Micropod app (every 5 s while its
+	// window is open, 30 s otherwise). Rolled up and pruned by age: 10 s
+	// points for 3 h, 1 min for 48 h, 15 min for 30 days — the finest that
+	// covers the range is returned. A container's or machine's history is
+	// deleted with it.
+	GetMetricsHistory(context.Context, *connect.Request[v1.GetMetricsHistoryRequest]) (*connect.Response[v1.MetricsHistory], error)
 }
 
 // NewSystemServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -312,6 +341,12 @@ func NewSystemServiceHandler(svc SystemServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(systemServiceMethods.ByName("UpdateRuntime")),
 		connect.WithHandlerOptions(opts...),
 	)
+	systemServiceGetMetricsHistoryHandler := connect.NewUnaryHandler(
+		SystemServiceGetMetricsHistoryProcedure,
+		svc.GetMetricsHistory,
+		connect.WithSchema(systemServiceMethods.ByName("GetMetricsHistory")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/micropod.v1.SystemService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SystemServiceGetSystemProcedure:
@@ -332,6 +367,8 @@ func NewSystemServiceHandler(svc SystemServiceHandler, opts ...connect.HandlerOp
 			systemServiceSetDefaultRuntimeHandler.ServeHTTP(w, r)
 		case SystemServiceUpdateRuntimeProcedure:
 			systemServiceUpdateRuntimeHandler.ServeHTTP(w, r)
+		case SystemServiceGetMetricsHistoryProcedure:
+			systemServiceGetMetricsHistoryHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -375,4 +412,8 @@ func (UnimplementedSystemServiceHandler) SetDefaultRuntime(context.Context, *con
 
 func (UnimplementedSystemServiceHandler) UpdateRuntime(context.Context, *connect.Request[v1.UpdateRuntimeRequest]) (*connect.Response[v1.ListRuntimesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.SystemService.UpdateRuntime is not implemented"))
+}
+
+func (UnimplementedSystemServiceHandler) GetMetricsHistory(context.Context, *connect.Request[v1.GetMetricsHistoryRequest]) (*connect.Response[v1.MetricsHistory], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.SystemService.GetMetricsHistory is not implemented"))
 }

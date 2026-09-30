@@ -1,4 +1,6 @@
+import AppKit
 import Foundation
+import Observation
 import Sparkle
 import SwiftUI
 
@@ -11,20 +13,30 @@ import SwiftUI
 /// release channel.
 ///
 /// Delegate callbacks record the last check's outcome so the app-control
-/// socket (`update.status`) can report it to the API server and MCP.
+/// socket (`update.status`) can report it to the API server and MCP, and
+/// the UI (banner, menu bar, Settings) observes it.
+///
+/// Updates download in the background and install on quit. Because
+/// Micropod rarely quits, a staged update also installs itself when it is
+/// safe: the app isn't frontmost, the user has been idle for
+/// ``idleBeforeInstall``, and no containers are running — a restart
+/// briefly stops the app's agents (Docker shim, API), which in-flight jobs
+/// would notice. Otherwise the banner's "Restart to Update" does it.
 @MainActor
+@Observable
 final class UpdateController: NSObject, SPUUpdaterDelegate {
     static let shared = UpdateController()
 
     /// Lazy so `self` is fully initialized before being passed as the
     /// (weakly-held) updater delegate.
+    @ObservationIgnored
     lazy var controller: SPUStandardUpdaterController = SPUStandardUpdaterController(
         startingUpdater: feedConfigured,
         updaterDelegate: self,
         userDriverDelegate: nil)
 
     /// Whether an appcast feed is configured — false in dev/test bundles.
-    private let feedConfigured: Bool
+    @ObservationIgnored private let feedConfigured: Bool
 
     /// Lifecycle states surfaced to API/MCP callers.
     enum Status: String {
@@ -32,7 +44,8 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
         case idle
         case checking
         case upToDate
-        case updateAvailable
+        case updateAvailable  // found; downloading
+        case readyToInstall  // downloaded and staged: restart installs it
         case installing
         case error
     }
@@ -48,7 +61,29 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
 
     /// Sparkle's silent install+relaunch block, captured when the
     /// update is fully staged. nil until then.
-    private var immediateInstallHandler: (() -> Void)?
+    @ObservationIgnored private var immediateInstallHandler: (() -> Void)?
+    /// Whether nothing would be disrupted by a restart right now (no running
+    /// containers) — set by the app once its store is up.
+    @ObservationIgnored var restartIsSafe: @MainActor () async -> Bool = { false }
+    @ObservationIgnored private var autoInstallTimer: Timer?
+    @ObservationIgnored private var notifiedVersion: String?
+
+    /// How long the user must have been away before an automatic install.
+    static let idleBeforeInstall: TimeInterval = 10 * 60
+    static let autoInstallKey = "updates.installAutomatically"
+
+    /// Install staged updates on their own when it is safe (default on).
+    var installsAutomatically: Bool {
+        get {
+            access(keyPath: \.installsAutomatically)
+            return UserDefaults.standard.object(forKey: Self.autoInstallKey) as? Bool ?? true
+        }
+        set {
+            withMutation(keyPath: \.installsAutomatically) {
+                UserDefaults.standard.set(newValue, forKey: Self.autoInstallKey)
+            }
+        }
+    }
 
     private override init() {
         feedConfigured = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil
@@ -59,6 +94,38 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
         // download silently and install automatically on quit — the
         // app-control socket can drive the whole loop headless.
         controller.updater.automaticallyDownloadsUpdates = true
+        guard feedConfigured else { return }
+        // Look now rather than up to an hour after launch.
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(20))
+            if self?.status != .readyToInstall { self?.checkForUpdatesInBackground() }
+        }
+        let timer = Timer(timeInterval: 300, repeats: true) { _ in
+            Task { @MainActor in await UpdateController.shared.installIfSafe() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        autoInstallTimer = timer
+    }
+
+    /// Installs a staged update when nobody would notice: automatic
+    /// installs on, the app in the background, the user idle, and nothing
+    /// running.
+    func installIfSafe() async {
+        guard status == .readyToInstall, installsAutomatically, !NSApp.isActive else { return }
+        // kCGAnyInputEventType (~0): the last keyboard/mouse input of any kind.
+        guard let anyInput = CGEventType(rawValue: ~0) else { return }
+        let away = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: anyInput)
+        guard away >= Self.idleBeforeInstall, await restartIsSafe(), status == .readyToInstall else { return }
+        applyStagedUpdate()
+    }
+
+    var currentVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+    }
+
+    /// The version a restart would install, when one is staged.
+    var stagedVersion: String? {
+        status == .readyToInstall ? (downloadedVersion ?? availableVersion) : nil
     }
 
     var canCheckForUpdates: Bool {
@@ -67,14 +134,15 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
 
     /// UI check — shows Sparkle's dialog (menu button).
     func checkForUpdates() {
-        status = .checking
+        if status != .readyToInstall { status = .checking }
         controller.checkForUpdates(nil)
     }
 
     /// Silent check for API/MCP triggers — Sparkle's gentle UI still
     /// appears only when an update is actually found.
     func checkForUpdatesInBackground() {
-        status = .checking
+        // A staged update stays staged: a newer check can't un-stage it.
+        if status != .readyToInstall { status = .checking }
         lastError = nil
         controller.updater.checkForUpdatesInBackground()
     }
@@ -164,7 +232,7 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
 
     nonisolated func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
         Task { @MainActor in
-            status = .updateAvailable
+            if status != .readyToInstall { status = .updateAvailable }
             availableVersion = item.displayVersionString
             lastError = nil
             lastCheckedAt = Date()
@@ -192,18 +260,28 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
         immediateInstallationBlock immediateInstallHandler: @escaping () -> Void
     ) -> Bool {
         let box = InstallHandlerBox(run: immediateInstallHandler)
+        let version = item.displayVersionString
         Task { @MainActor in
             self.immediateInstallHandler = box.run
             readyToInstall = true
+            status = .readyToInstall
+            downloadedVersion = version
+            lastError = nil
+            if notifiedVersion != version {
+                notifiedVersion = version
+                MicropodNotifier.shared.postUpdateReady(version: version)
+            }
         }
         return true
     }
 
     nonisolated func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: Error) {
         Task { @MainActor in
+            lastCheckedAt = Date()
+            // Nothing newer than what is already staged: keep it staged.
+            guard status != .readyToInstall else { return }
             status = .upToDate
             availableVersion = nil
-            lastCheckedAt = Date()
         }
     }
 
@@ -223,13 +301,13 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
             let benign = (error as? NSError)?.code == Int(SUError.noUpdateError.rawValue)
             if let error, !benign {
                 lastError = error.localizedDescription
-                if status != .updateAvailable && status != .installing {
+                if ![.updateAvailable, .readyToInstall, .installing].contains(status) {
                     status = .error
                 }
             } else {
                 lastError = nil
                 if status == .checking {
-                    status = .idle
+                    status = readyToInstall ? .readyToInstall : .idle
                 }
             }
         }

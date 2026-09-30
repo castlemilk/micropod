@@ -29,7 +29,7 @@ final class SandboxSDKTests: XCTestCase {
 
     func testCommandSecretMintsOnceRefreshesAndServesWhileRefreshing() async throws {
         let mint = try MintScript()
-        let source = SecretSource(.command(argv: [mint.path], directory: nil, ttl: .seconds(1)), log: { _ in })
+        let source = SecretSource(command: [mint.path], directory: nil, ttl: .seconds(1), log: { _ in })
 
         // A cold burst mints once.
         let values = try await withThrowingTaskGroup(of: String.self) { group in
@@ -60,7 +60,7 @@ final class SandboxSDKTests: XCTestCase {
 
     func testFailedRefreshKeepsAValidValueThenFailsClosed() async throws {
         let mint = try MintScript()
-        let source = SecretSource(.command(argv: [mint.path], directory: nil, ttl: .seconds(1)), log: { _ in })
+        let source = SecretSource(command: [mint.path], directory: nil, ttl: .seconds(1), log: { _ in })
         _ = try await source.value()
         mint.fail = true
         try await Task.sleep(for: .milliseconds(1200))
@@ -71,11 +71,10 @@ final class SandboxSDKTests: XCTestCase {
         XCTAssertEqual(mint.runs, 2, "a failed mint backs off instead of re-running per request")
 
         let expired = SecretSource(
-            .command(
-                argv: ["/bin/sh", "-c", #"printf '{"value":"old","expires_at":"2000-01-01T00:00:00Z"}'"#],
-                directory: nil, ttl: .seconds(60)), log: { _ in })
+            command: ["/bin/sh", "-c", #"printf '{"value":"old","expires_at":"2000-01-01T00:00:00Z"}'"#],
+            directory: nil, ttl: .seconds(60), log: { _ in })
         _ = try? await expired.value()
-        let broken = SecretSource(.command(argv: ["/usr/bin/false"], directory: nil, ttl: .seconds(60)), log: { _ in })
+        let broken = SecretSource(command: ["/usr/bin/false"], directory: nil, ttl: .seconds(60), log: { _ in })
         do {
             _ = try await broken.value()
             XCTFail("no value to fall back on: the request must fail closed")
@@ -86,7 +85,7 @@ final class SandboxSDKTests: XCTestCase {
 
     func testSecretSpecsFromTheAPIShape() throws {
         let fixed = try SandboxSecret.from(SandboxSecretSpec(name: "KEY", value: "v", hosts: ["API.example.com"]))
-        XCTAssertEqual(fixed.source.kind, .fixed("v"))
+        XCTAssertEqual(fixed.source.kind, .value)
         XCTAssertEqual(fixed.hosts, ["api.example.com"])
         let dir = URL(fileURLWithPath: "/tmp/project")
         let command = try SandboxSecret.from(
@@ -105,6 +104,106 @@ final class SandboxSDKTests: XCTestCase {
         XCTAssertEqual(SandboxSecretSpec.parseTTL("90"), .seconds(90))
         XCTAssertNil(SandboxSecretSpec.parseTTL("0s"))
         XCTAssertNil(SandboxSecretSpec.parseTTL("5d"))
+    }
+
+    /// API secrets are supplied values: replaceable, and failing closed
+    /// once past their expiry.
+    func testSuppliedSecretsUpdateAndExpire() async throws {
+        let source = try SecretSource(value: "v1", expiresAt: Date().addingTimeInterval(60))
+        let first = try await source.value()
+        XCTAssertEqual(first, "v1")
+        try source.update("v2", expiresAt: Date().addingTimeInterval(-1))
+        do {
+            _ = try await source.value()
+            XCTFail("an expired value must fail closed")
+        } catch {
+            XCTAssertTrue("\(error)".contains("expired"), "\(error)")
+        }
+        try source.update("v3", expiresAt: nil)
+        let refreshed = try await source.value()
+        XCTAssertEqual(refreshed, "v3")
+        XCTAssertThrowsError(try source.update("a\r\nX-Evil: 1", expiresAt: nil), "no header splitting")
+        let minted = SecretSource(command: ["/usr/bin/true"], directory: nil, ttl: .seconds(60), log: { _ in })
+        XCTAssertThrowsError(try minted.update("x", expiresAt: nil), "a command secret isn't pushed")
+    }
+
+    /// The API refuses command secrets: a request must not run programs on
+    /// the host.
+    func testAPISecretCommandsAreRefused() {
+        let request = ContainerRunRequest(
+            image: "alpine", runtime: "sandbox",
+            sandbox: SandboxRunOptions(
+                secrets: [SandboxSecretSpec(name: "T", command: ["/bin/echo", "x"], hosts: ["h"])], network: true))
+        XCTAssertThrowsError(try SandboxEngine.options(from: request)) {
+            XCTAssertEqual(ConnectCodeMapping.code(for: $0), "invalid_argument")
+            XCTAssertTrue("\($0)".contains("run host commands"), "\($0)")
+        }
+    }
+
+    // MARK: - Guest helper
+
+    func testGuestToolInstallsContentAddressedAndFallsBackToTheCache() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("guest-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cache = root.appendingPathComponent("cache")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let notELF = root.appendingPathComponent("script")
+        try "#!/bin/sh".write(to: notELF, atomically: true, encoding: .utf8)
+        let elf = root.appendingPathComponent("micropod-guest")
+        try Data([0x7F, 0x45, 0x4C, 0x46, 1, 2, 3]).write(to: elf)
+
+        let dir = try XCTUnwrap(
+            try SandboxGuestTool.install(from: [root.appendingPathComponent("missing"), notELF, elf], cache: cache))
+        let installed = dir.appendingPathComponent("micropod-guest")
+        XCTAssertTrue(FileManager.default.isExecutableFile(atPath: installed.path))
+        XCTAssertEqual(try Data(contentsOf: installed), try Data(contentsOf: elf))
+        func path(_ url: URL?) -> String? { url?.resolvingSymlinksInPath().path }
+        XCTAssertEqual(
+            path(try SandboxGuestTool.install(from: [elf], cache: cache)), path(dir),
+            "the same bytes land in the same directory")
+        XCTAssertEqual(
+            path(try SandboxGuestTool.install(from: [], cache: cache)), path(dir),
+            "no source found: an earlier install serves")
+        XCTAssertNil(try SandboxGuestTool.install(from: [notELF], cache: root.appendingPathComponent("empty")))
+    }
+
+    func testGuestErrorsMapByErrno() {
+        func code(_ stderr: String) -> String {
+            ConnectCodeMapping.code(for: SandboxEngine.guestError("/p", stderr))
+        }
+        XCTAssertEqual(code("micropod-guest: ENOENT: open /p: no such file or directory\n"), "not_found")
+        XCTAssertEqual(code("micropod-guest: EACCES: open /p: permission denied"), "permission_denied")
+        XCTAssertEqual(code("micropod-guest: EROFS: open /p: read-only file system"), "permission_denied")
+        XCTAssertEqual(code("micropod-guest: EEXIST: mkdir /p: file exists"), "already_exists")
+        XCTAssertEqual(code("micropod-guest: ENOTEMPTY: remove /p: directory not empty"), "failed_precondition")
+        XCTAssertEqual(code("micropod-guest: EISDIR: read /p: is a directory"), "failed_precondition")
+        XCTAssertEqual(code("micropod-guest: EFBIG: read /p: file too large"), "resource_exhausted")
+        XCTAssertEqual(code("micropod-guest: EINVAL: mode wants octal permission bits"), "invalid_argument")
+        XCTAssertEqual(code("exec failed"), "internal")
+    }
+
+    func testGuestJSONLines() {
+        let stats = SandboxFileStat.parseJSONLines(
+            Data(
+                #"""
+                {"name":"a b","type":"file","size":12,"mode":33188,"mtime":1700000000}
+                {"name":"d","type":"dir","size":4096,"mode":16877,"mtime":1}
+                not json
+                """#.utf8))
+        XCTAssertEqual(stats.map(\.path), ["a b", "d"])
+        XCTAssertEqual(stats.map(\.type), ["file", "dir"])
+        XCTAssertEqual(stats[0].mode & 0o777, 0o644)
+
+        var parser = WatchParser(jsonLines: true)
+        XCTAssertEqual(
+            parser.feed(
+                stdout: Data(#"{"event":"ready"}"#.utf8) + Data("\n".utf8) + Data(#"{"event":"create","pa"#.utf8)),
+            [WatchChange(event: "ready", path: "")])
+        XCTAssertEqual(
+            parser.feed(stdout: Data(#"th":"/w/x"}"#.utf8) + Data("\n".utf8)),
+            [WatchChange(event: "create", path: "/w/x")], "a line split across chunks is joined")
+        _ = parser.feed(stderr: Data("micropod-guest: ENOENT: stat /w: no such file or directory\n".utf8))
+        XCTAssertEqual(ConnectCodeMapping.code(for: SandboxEngine.guestError("/w", parser.errors)), "not_found")
     }
 
     // MARK: - Process output

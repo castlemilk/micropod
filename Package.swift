@@ -102,7 +102,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "MicropodCLI",
-            dependencies: ["MicropodCore", "MicropodSharedFS", "MicropodRuntime"],
+            dependencies: [
+                "MicropodCore", "MicropodSharedFS", "MicropodRuntime",
+                .product(name: "Crypto", package: "swift-crypto"),
+            ],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]

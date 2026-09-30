@@ -28,6 +28,7 @@ const (
 	SystemService_ListRuntimes_FullMethodName      = "/micropod.v1.SystemService/ListRuntimes"
 	SystemService_SetDefaultRuntime_FullMethodName = "/micropod.v1.SystemService/SetDefaultRuntime"
 	SystemService_UpdateRuntime_FullMethodName     = "/micropod.v1.SystemService/UpdateRuntime"
+	SystemService_GetMetricsHistory_FullMethodName = "/micropod.v1.SystemService/GetMetricsHistory"
 )
 
 // SystemServiceClient is the client API for SystemService service.
@@ -66,6 +67,13 @@ type SystemServiceClient interface {
 	// left out of ListContainers and refuse RunContainer. The default engine
 	// cannot be disabled (`failed_precondition`). Persisted server-side.
 	UpdateRuntime(ctx context.Context, in *UpdateRuntimeRequest, opts ...grpc.CallOption) (*ListRuntimesResponse, error)
+	// Resource usage over time for all containers ("system"), one container,
+	// or one machine, as recorded by the Micropod app (every 5 s while its
+	// window is open, 30 s otherwise). Rolled up and pruned by age: 10 s
+	// points for 3 h, 1 min for 48 h, 15 min for 30 days — the finest that
+	// covers the range is returned. A container's or machine's history is
+	// deleted with it.
+	GetMetricsHistory(ctx context.Context, in *GetMetricsHistoryRequest, opts ...grpc.CallOption) (*MetricsHistory, error)
 }
 
 type systemServiceClient struct {
@@ -166,6 +174,16 @@ func (c *systemServiceClient) UpdateRuntime(ctx context.Context, in *UpdateRunti
 	return out, nil
 }
 
+func (c *systemServiceClient) GetMetricsHistory(ctx context.Context, in *GetMetricsHistoryRequest, opts ...grpc.CallOption) (*MetricsHistory, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MetricsHistory)
+	err := c.cc.Invoke(ctx, SystemService_GetMetricsHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SystemServiceServer is the server API for SystemService service.
 // All implementations must embed UnimplementedSystemServiceServer
 // for forward compatibility.
@@ -202,6 +220,13 @@ type SystemServiceServer interface {
 	// left out of ListContainers and refuse RunContainer. The default engine
 	// cannot be disabled (`failed_precondition`). Persisted server-side.
 	UpdateRuntime(context.Context, *UpdateRuntimeRequest) (*ListRuntimesResponse, error)
+	// Resource usage over time for all containers ("system"), one container,
+	// or one machine, as recorded by the Micropod app (every 5 s while its
+	// window is open, 30 s otherwise). Rolled up and pruned by age: 10 s
+	// points for 3 h, 1 min for 48 h, 15 min for 30 days — the finest that
+	// covers the range is returned. A container's or machine's history is
+	// deleted with it.
+	GetMetricsHistory(context.Context, *GetMetricsHistoryRequest) (*MetricsHistory, error)
 	mustEmbedUnimplementedSystemServiceServer()
 }
 
@@ -238,6 +263,9 @@ func (UnimplementedSystemServiceServer) SetDefaultRuntime(context.Context, *SetD
 }
 func (UnimplementedSystemServiceServer) UpdateRuntime(context.Context, *UpdateRuntimeRequest) (*ListRuntimesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateRuntime not implemented")
+}
+func (UnimplementedSystemServiceServer) GetMetricsHistory(context.Context, *GetMetricsHistoryRequest) (*MetricsHistory, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetMetricsHistory not implemented")
 }
 func (UnimplementedSystemServiceServer) mustEmbedUnimplementedSystemServiceServer() {}
 func (UnimplementedSystemServiceServer) testEmbeddedByValue()                       {}
@@ -422,6 +450,24 @@ func _SystemService_UpdateRuntime_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SystemService_GetMetricsHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMetricsHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SystemServiceServer).GetMetricsHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SystemService_GetMetricsHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SystemServiceServer).GetMetricsHistory(ctx, req.(*GetMetricsHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SystemService_ServiceDesc is the grpc.ServiceDesc for SystemService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -464,6 +510,10 @@ var SystemService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateRuntime",
 			Handler:    _SystemService_UpdateRuntime_Handler,
+		},
+		{
+			MethodName: "GetMetricsHistory",
+			Handler:    _SystemService_GetMetricsHistory_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

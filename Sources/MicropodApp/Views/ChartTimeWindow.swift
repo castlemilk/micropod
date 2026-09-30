@@ -6,6 +6,9 @@ enum ChartTimeWindow: String, CaseIterable, Identifiable {
     case fifteenMinutes = "15m"
     case oneHour = "60m"
     case threeHours = "3h"
+    case sixHours = "6h"
+    case oneDay = "24h"
+    case sevenDays = "7d"
 
     var id: String { rawValue }
 
@@ -15,11 +18,15 @@ enum ChartTimeWindow: String, CaseIterable, Identifiable {
         case .fifteenMinutes: 15 * 60
         case .oneHour: 60 * 60
         case .threeHours: 3 * 60 * 60
+        case .sixHours: 6 * 60 * 60
+        case .oneDay: 24 * 60 * 60
+        case .sevenDays: 7 * 24 * 60 * 60
         }
     }
 }
 
-/// Segmented 5m | 15m | 60m | 3h picker (HIG segmented control).
+/// Segmented 5m … 7d picker (HIG segmented control). Windows past 3 h read
+/// the persisted, rolled-up history (MetricsStore) instead of the live ring.
 struct ChartTimeWindowPicker: View {
     @Binding var window: ChartTimeWindow
 
@@ -31,7 +38,7 @@ struct ChartTimeWindowPicker: View {
         }
         .pickerStyle(.segmented)
         .labelsHidden()
-        .frame(maxWidth: 220)
+        .frame(maxWidth: 360)
         .help("Chart time window")
         .accessibilityLabel("Chart time window")
     }
@@ -61,4 +68,9 @@ func downsample<T>(_ items: [T], maxPoints: Int) -> [T] {
         result.append(items[items.count - 1])
     }
     return result
+}
+
+extension ChartTimeWindow {
+    /// Past the live rings' reach: read the metrics store.
+    var needsStore: Bool { duration > 3 * 3600 }
 }

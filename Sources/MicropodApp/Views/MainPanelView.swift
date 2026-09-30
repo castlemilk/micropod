@@ -67,12 +67,17 @@ struct MainPanelView: View {
             UserDefaults.standard.set(tab.rawValue, forKey: UserDefaultsKeys.lastTab)
         }
         .safeAreaInset(edge: .top, spacing: 0) {
-            if let error = store.lastRefreshError {
-                ErrorBanner(message: error) { store.lastRefreshError = nil }
+            VStack(spacing: 0) {
+                UpdateBanner(updates: UpdateController.shared)
                     .padding(.horizontal, 12)
                     .padding(.top, 6)
-                    .transition(
-                        reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
+                if let error = store.lastRefreshError {
+                    ErrorBanner(message: error) { store.lastRefreshError = nil }
+                        .padding(.horizontal, 12)
+                        .padding(.top, 6)
+                        .transition(
+                            reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
+                }
             }
         }
         .overlay {

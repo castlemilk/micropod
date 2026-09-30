@@ -25,6 +25,28 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
   typealias Version = _2
 }
 
+public nonisolated struct Micropod_V1_UpdateSandboxSecretRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Sandbox (container) id.
+  public var id: String = String()
+
+  /// The secret's name (the guest environment variable).
+  public var name: String = String()
+
+  /// The new value; CR, LF and NUL are refused.
+  public var value: String = String()
+
+  /// When it stops working (RFC 3339); empty for never.
+  public var expiresAt: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 public nonisolated struct Micropod_V1_StartSandboxRequest: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -521,7 +543,8 @@ public nonisolated struct Micropod_V1_WatchEvent: Sendable {
   // methods supported on all messages.
 
   /// "ready" (first, once the watch is live), then "create", "modify",
-  /// "delete" or "rename" (both ends of a move, with inotify).
+  /// "delete" or "rename" (both ends of a move); "overflow" when the kernel
+  /// dropped events (re-scan to catch up).
   public var event: String = String()
 
   /// Absolute guest path of what changed.
@@ -595,6 +618,51 @@ public nonisolated struct Micropod_V1_ListCheckpointsResponse: Sendable {
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate nonisolated let _protobuf_package = "micropod.v1"
+
+nonisolated extension Micropod_V1_UpdateSandboxSecretRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpdateSandboxSecretRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}value\0\u{3}expires_at\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.value) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.expiresAt) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 2)
+    }
+    if !self.value.isEmpty {
+      try visitor.visitSingularStringField(value: self.value, fieldNumber: 3)
+    }
+    if !self.expiresAt.isEmpty {
+      try visitor.visitSingularStringField(value: self.expiresAt, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_UpdateSandboxSecretRequest, rhs: Micropod_V1_UpdateSandboxSecretRequest) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs.value != rhs.value {return false}
+    if lhs.expiresAt != rhs.expiresAt {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
 
 nonisolated extension Micropod_V1_StartSandboxRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StartSandboxRequest"

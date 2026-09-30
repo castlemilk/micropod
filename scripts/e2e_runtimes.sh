@@ -60,6 +60,8 @@ check "runtime feature advertised" "$(rpc SystemService/Ping | field "'runtime' 
 check "default can't be disabled" "$(rpc SystemService/UpdateRuntime '{"name":"apple","enabled":false}' | field "d['code']")" "failed_precondition"
 check "unknown engine refused" "$(rpc ContainerService/RunContainer '{"image":"alpine:3.20","runtime":"nope"}' | field "d['code']")" "failed_precondition"
 check "REST list" "$(rest GET /v1/runtimes | field "d['default']")" "apple"
+check "metrics history answers" "$(rpc SystemService/GetMetricsHistory '{"kind":"container","id":"never-existed","rangeSeconds":900}' | field "d.get('resolutionSeconds')")" "10"
+check "metrics history needs an id" "$(rpc SystemService/GetMetricsHistory '{"kind":"machine"}' | field "d['code']")" "invalid_argument"
 
 lifecycle() { # lifecycle <engine> <name>
     local engine="$1" name="$2" extra="${3:-}"
@@ -113,6 +115,7 @@ if [ "$(available sandbox)" == "True" ]; then
     check "expose_host reached the host" "$(curl -s -m 5 "$BASE/v1/containers/$xid/logs?tail=5" | grep -m1 -o host-says-hi || true)" "host-says-hi"
     kill "$WWW_PID" 2>/dev/null || true
     rpc ContainerService/DeleteContainer "{\"id\":\"$xid\",\"force\":true}" >/dev/null
+    check "API refuses host-command secrets" "$(rpc ContainerService/RunContainer '{"image":"alpine:3.20","runtime":"sandbox","sandbox":{"secrets":{"T":{"value":"v","command":["/usr/bin/id"],"hosts":["h"]}}}}' | field "d['code']")" "invalid_argument"
     check "sandbox options on apple refused" "$(rpc ContainerService/RunContainer '{"image":"alpine:3.20","runtime":"apple","sandbox":{"exposeHost":[1]}}' | field "d['code']")" "unimplemented"
     rpc ContainerService/DeleteContainer "{\"id\":\"e2e-sbx-off-$suffix\",\"force\":true}" >/dev/null
     check "set sandbox default" "$(rest PUT /v1/runtimes/default '{"name":"sandbox"}' | field "d['default']")" "sandbox"

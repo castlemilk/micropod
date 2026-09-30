@@ -1,3 +1,4 @@
+import Crypto
 import Foundation
 import MicropodCore
 import MicropodRuntime
@@ -15,6 +16,7 @@ enum SandboxCommands {
           micropod sandbox checkpoint create <name> [flags] [image|--from ckpt] -- cmd…
           micropod sandbox checkpoint ls | rm <name…>
           micropod sandbox prune                     drop cached base disks + stale runs
+          micropod sandbox trust [path] | untrust [path]   allow a micropod.json's host access
 
         The image defaults to \(defaultImage). With no command on a terminal
         the image's default command gets the terminal — a shell for most bases.
@@ -47,6 +49,12 @@ enum SandboxCommands {
           --timeout <sec>            kill the guest after <sec>; exits 124
           --config <path>            read defaults from a JSON file (default:
                                      ./micropod.json when present)
+          --trust-config             honour the config's host access this once
+
+        A micropod.json that grants host access — mounts, ports, expose_host,
+        networking, secrets (which can run host commands) — is refused until
+        you review it and run `micropod sandbox trust`; editing it revokes
+        that. A cloned repo's config can't open the sandbox up on its own.
         """
 
     /// What `run` boots with no image, as `shuru run` boots its Alpine base.
@@ -58,7 +66,7 @@ enum SandboxCommands {
         "--allow-host", "--secret",
     ]
     static let boolFlags: Set<String> = [
-        "--net", "--no-tmpfs", "--allow-host-writes", "--interactive", "--tty",
+        "--net", "--no-tmpfs", "--allow-host-writes", "--interactive", "--tty", "--trust-config",
     ]
     static let aliases = [
         "-c": "--cpus", "-m": "--memory", "-v": "--volume", "-e": "--env", "-w": "--workdir",
@@ -77,6 +85,9 @@ enum SandboxCommands {
                 return try await checkpoint(Array(args.dropFirst()))
             case "prune":
                 try prune()
+                return ExitCode.ok
+            case "trust", "untrust":
+                try trust(Array(args.dropFirst()), revoke: args[0] == "untrust")
                 return ExitCode.ok
             case nil, "help", "--help", "-h":
                 print(helpText)
@@ -102,6 +113,7 @@ enum SandboxCommands {
             head.flatMap { ["-it", "-ti"].contains($0) ? ["-i", "-t"] : [$0] },
             boolFlags: boolFlags, valueFlags: valueFlags, aliases: aliases, commandName: "sandbox run")
         let config = try SandboxConfig.load(explicit: parsed.value("--config"))
+        if let config, !parsed.has("--trust-config") { try config.requireTrust() }
 
         let base: SandboxVM.Base
         var trailing = parsed.positionals
@@ -196,6 +208,23 @@ enum SandboxCommands {
         }
     }
 
+    /// `trust [path]` records the config's content hash as reviewed;
+    /// `untrust [path]` forgets it.
+    static func trust(_ args: [String], revoke: Bool) throws {
+        guard args.count <= 1 else { throw UsageError(message: "want at most one config path") }
+        guard let config = try SandboxConfig.load(explicit: args.first ?? "micropod.json"), let file = config.file
+        else { throw UsageError(message: "no micropod.json here") }
+        if revoke {
+            try SandboxConfigTrust.revoke(file)
+            print("untrusted \(file.path)")
+            return
+        }
+        let grants = config.grants
+        try SandboxConfigTrust.trust(file, digest: config.digest)
+        print("trusted \(file.path)" + (grants.isEmpty ? "" : " — it grants:\n  " + grants.joined(separator: "\n  ")))
+        print("editing the file revokes this; re-run `micropod sandbox trust` after reviewing changes")
+    }
+
     static func checkpoint(_ args: [String]) async throws -> Int32 {
         switch args.first {
         case "create":
@@ -262,6 +291,9 @@ struct SandboxConfig: Decodable {
     var secrets: [String: Secret]?
     /// The directory holding the file: secret commands run there.
     var directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    /// The file and its content hash, for the trust check.
+    var file: URL?
+    var digest = ""
 
     struct Network: Decodable {
         var allow: [String]?
@@ -275,6 +307,44 @@ struct SandboxConfig: Decodable {
         var command: [String]?
         var hosts: [String]
         var ttl: String?
+    }
+
+    /// What the file grants beyond the sandbox — each needs `trust`. A
+    /// cloned repo's config could otherwise mount the host, reach its
+    /// services, or run host commands for secrets.
+    var grants: [String] {
+        var grants: [String] = []
+        for mount in mounts ?? [] { grants.append("mount \(mount)") }
+        if allowHostWrites == true { grants.append("allow_host_writes (mounts write to the host)") }
+        for port in ports ?? [] { grants.append("port \(port)") }
+        for port in exposeHost ?? [] { grants.append("expose_host \(port) (the guest reaches this host port)") }
+        if allowNet == true { grants.append("allow_net (network access)") }
+        if let allow = network?.allow, !allow.isEmpty {
+            grants.append("network.allow \(allow.joined(separator: ", "))")
+        }
+        if let dns = dnsResolver { grants.append("dns_resolver \(dns)") }
+        for (name, secret) in (secrets ?? [:]).sorted(by: { $0.key < $1.key }) {
+            let hosts = secret.hosts.joined(separator: ",")
+            if let argv = secret.command {
+                grants.append("secret \(name): runs `\(argv.joined(separator: " "))` on this Mac, sent to \(hosts)")
+            } else {
+                grants.append("secret \(name): host env \(secret.from ?? "?"), sent to \(hosts)")
+            }
+        }
+        return grants
+    }
+
+    /// Refuses a config that grants host access until it is trusted as-is.
+    func requireTrust(store: URL = SandboxConfigTrust.store) throws {
+        let grants = self.grants
+        guard !grants.isEmpty, let file else { return }
+        guard !SandboxConfigTrust.isTrusted(file, digest: digest, store: store) else { return }
+        throw UsageError(
+            message: """
+                \(file.path) grants host access:
+                  \(grants.joined(separator: "\n  "))
+                Review it, then run `micropod sandbox trust` (or pass --trust-config for this run).
+                """)
     }
 
     /// The `secrets` map as sandbox secrets, sorted by name.
@@ -343,11 +413,59 @@ struct SandboxConfig: Decodable {
         let url = URL(fileURLWithPath: path ?? "micropod.json")
         guard path != nil || FileManager.default.fileExists(atPath: url.path) else { return nil }
         do {
-            var config = try JSONDecoder().decode(SandboxConfig.self, from: Data(contentsOf: url))
+            let data = try Data(contentsOf: url)
+            var config = try JSONDecoder().decode(SandboxConfig.self, from: data)
             config.directory = url.deletingLastPathComponent().standardizedFileURL
+            config.file = url.standardizedFileURL.resolvingSymlinksInPath()
+            config.digest = SandboxConfigTrust.digest(data)
             return config
         } catch {
             throw UsageError(message: "\(url.path): \(error.localizedDescription)")
+        }
+    }
+}
+
+/// Reviewed `micropod.json` files: path → SHA-256 of the content that was
+/// reviewed, in `~/.micropod/sandbox/trusted-configs.json` (owner-only).
+enum SandboxConfigTrust {
+    static var store: URL { SandboxVM.root.appendingPathComponent("trusted-configs.json") }
+
+    static func digest(_ data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    static func isTrusted(_ file: URL, digest: String, store: URL = store) -> Bool {
+        load(store)[file.path] == digest
+    }
+
+    static func trust(_ file: URL, digest: String, store: URL = store) throws {
+        var entries = load(store)
+        entries[file.path] = digest
+        try save(entries, store)
+    }
+
+    static func revoke(_ file: URL, store: URL = store) throws {
+        var entries = load(store)
+        entries[file.path] = nil
+        try save(entries, store)
+    }
+
+    private static func load(_ store: URL) -> [String: String] {
+        (try? JSONDecoder().decode([String: String].self, from: Data(contentsOf: store))) ?? [:]
+    }
+
+    private static func save(_ entries: [String: String], _ store: URL) throws {
+        let fm = FileManager.default
+        try fm.createDirectory(at: store.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let tmp = store.deletingLastPathComponent().appendingPathComponent(".\(store.lastPathComponent).\(getpid())")
+        guard
+            fm.createFile(
+                atPath: tmp.path, contents: try encoder.encode(entries), attributes: [.posixPermissions: 0o600])
+        else { throw MicropodError.message("writing \(tmp.path) failed") }
+        guard rename(tmp.path, store.path) == 0 else {
+            throw MicropodError.message("saving \(store.path): \(String(cString: strerror(errno)))")
         }
     }
 }

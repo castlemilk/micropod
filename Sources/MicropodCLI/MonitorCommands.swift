@@ -3,6 +3,37 @@ import MicropodCore
 import SwiftProtobuf
 
 enum MonitorCommands {
+    /// `metrics [id] [--range 1h] [--machine]` — the recorded history.
+    static func metrics(_ args: [String]) throws {
+        let parsed = try parseArgs(args, boolFlags: ["--machine"], valueFlags: ["--range"], commandName: "metrics")
+        let target = parsed.positionals.first ?? ""
+        let kind: MetricsStore.Kind = target.isEmpty ? .system : parsed.has("--machine") ? .machine : .container
+        guard let range = MetricsStore.parseRange(parsed.value("--range") ?? "1h") else {
+            throw UsageError(message: "--range wants e.g. 15m, 1h, 24h, 7d")
+        }
+        guard let store = MetricsStore.shared else { throw MicropodError.message("the metrics store can't be opened") }
+        let history = store.history(kind, kind == .system ? "all" : target, range: min(range, 30 * 86400))
+        if MicropodCLI.jsonOutput {
+            let formatter = ISO8601DateFormatter()
+            let points: [[String: Any]] = history.points.map {
+                [
+                    "timestamp": formatter.string(from: $0.timestamp), "cpuPercent": $0.average.cpuPercent,
+                    "cpuPercentMax": $0.peak.cpuPercent, "memoryUsedBytes": $0.average.memoryUsedBytes,
+                    "memoryUsedBytesMax": $0.peak.memoryUsedBytes, "networkRxBytesPerSecond": $0.average.networkRxRate,
+                    "networkTxBytesPerSecond": $0.average.networkTxRate,
+                    "blockReadBytesPerSecond": $0.average.blockReadRate,
+                    "blockWriteBytesPerSecond": $0.average.blockWriteRate,
+                ]
+            }
+            let data = try JSONSerialization.data(
+                withJSONObject: ["resolutionSeconds": history.resolution, "points": points], options: [.prettyPrinted])
+            print(String(decoding: data, as: UTF8.self))
+            return
+        }
+        let title = kind == .system ? "all containers" : "\(kind.rawValue) \(target)"
+        print(MetricsStore.summary(history, title: title, range: range))
+    }
+
     static func statsOnce(_ args: [String], _ services: Services) async throws {
         _ = try parseArgs(args, boolFlags: [], valueFlags: [], commandName: "stats")
         _ = try await services.stats.snapshot()

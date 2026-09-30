@@ -69,9 +69,19 @@ jobs:
             --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER" \
             --keychain "$RUNNER_TEMP/ci.keychain-db"
 
+      # micropod-guest (the sandbox VMs' helper) is Go, cross-built for
+      # linux/arm64 into the app's Resources by package_app.sh.
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: guest/go.mod
+
       - name: Build + package app
         timeout-minutes: 25
-        run: bash scripts/package_app.sh "${VERSION#v}"
+        run: |
+          bash scripts/package_app.sh "${VERSION#v}"
+          # A release without the helper would silently fall back to the
+          # images' shells: fail instead.
+          test -s dist/Micropod.app/Contents/Resources/micropod-guest
 
       # codesign --timestamp and notarytool submit --wait have no built-in
       # timeout — a stalled timestamp/notary connection would otherwise hang

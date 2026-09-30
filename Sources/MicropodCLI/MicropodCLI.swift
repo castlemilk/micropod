@@ -54,6 +54,10 @@ struct MicropodCLI {
             setvbuf(stdout, nil, _IOLBF, 8192)
         #endif
         var args = Array(CommandLine.arguments.dropFirst())
+        if args.first == "update" {
+            let json = args.contains("--json")
+            exit(await UpdateCommands.main(Array(args.dropFirst()).filter { $0 != "--json" }, json: json))
+        }
         if args.first == "sandbox" {
             exit(await SandboxCommands.main(Array(args.dropFirst())))
         }
@@ -118,6 +122,7 @@ struct MicropodCLI {
         case "cp", "copy": try await ContainerCommands.copy(args, services)
         case "prune": try await SystemCommands.systemPrune(args, services)
         case "stats": try await MonitorCommands.statsOnce(args, services)
+        case "metrics": try MonitorCommands.metrics(args)
         case "top": try await MonitorCommands.top(args, services)
         case "watch", "events": try await MonitorCommands.watch(args, services)
         case "doctor", "debug": try await DebugCommands.doctor(args, services)
@@ -208,6 +213,8 @@ struct MicropodCLI {
           k8s enable|up|down|status          lightweight Kubernetes (opt-in; k3s micro-VM + MetalLB)
           k8s load <ref|file.tar>|images     push images into the cluster via the host puller
           system start|stop|logs             daemon control + log access
+          update [status|check|apply]        the Micropod app's updates
+          metrics [id] [--range 1h] [--machine]  recorded resource history (peak/avg/now + sparkline)
           status / version                   runtime + version info
 
         Global flags:

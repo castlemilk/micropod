@@ -12,12 +12,16 @@ export interface SecretConfig {
   /** The value itself. */
   value?: string;
   /**
-   * A host command (argv, no shell) that prints the value — raw, or
-   * `{"version":1,"value":"…","expires_at":"<RFC 3339>"}`. The daemon runs
-   * it on first use and again before the value expires (or every `ttl`).
+   * A command (argv, no shell) that prints the value — raw, or
+   * `{"version":1,"value":"…","expires_at":"<RFC 3339>"}`. This SDK runs it
+   * here, in the calling process (Node), before the sandbox starts and
+   * again a minute before the value expires (or every `ttl`), pushing each
+   * new value to the sandbox; the daemon never runs commands. Refreshing
+   * stops with `stop()`/`checkpoint()`, or when this process exits — the
+   * last value then serves until its expiry.
    */
   command?: string[];
-  /** Working directory for `command` (default: the daemon's home). */
+  /** Working directory for `command` (default: this process's). */
   cwd?: string;
   /** Refresh interval when `command` reports no expiry, e.g. "15m". */
   ttl?: string;
@@ -71,6 +75,8 @@ export interface SandboxStartOptions {
   baseUrl?: string;
   /** Use this client instead of creating one. */
   client?: MicropodClient;
+  /** Called when refreshing a `command` secret fails (default: console.warn). It is retried in 10 s. */
+  onSecretError?: (name: string, error: unknown) => void;
 }
 
 export interface ExecResult {
@@ -125,6 +131,9 @@ export interface StatResult {
  * ```
  */
 export class Sandbox {
+  private readonly refreshers = new Map<string, ReturnType<typeof setTimeout>>();
+  private stopped = false;
+
   private constructor(
     readonly id: string,
     private readonly client: MicropodClient,
@@ -133,6 +142,13 @@ export class Sandbox {
   /** Boot a sandbox; resolves once it can run commands. */
   static async start(opts: SandboxStartOptions = {}): Promise<Sandbox> {
     const client = opts.client ?? Sandbox.client(opts.baseUrl);
+    const secrets: Record<string, { value: string; expiresAt: string; hosts: string[] }> = {};
+    const minted: Record<string, Date | undefined> = {};
+    for (const [name, config] of Object.entries(opts.secrets ?? {})) {
+      const { value, expiresAt } = await resolveSecret(name, config);
+      secrets[name] = { value, expiresAt: expiresAt?.toISOString() ?? "", hosts: config.hosts };
+      minted[name] = expiresAt;
+    }
     const ref = await client.startSandbox({
       image: opts.from ? "" : (opts.image ?? ""),
       fromCheckpoint: opts.from ?? "",
@@ -153,12 +169,52 @@ export class Sandbox {
         allowHosts: opts.network?.allow ?? [],
         dnsResolvers: opts.dnsResolvers ?? [],
         diskSizeMib: BigInt(opts.diskSize ?? 0),
-        secrets: Object.fromEntries(
-          Object.entries(opts.secrets ?? {}).map(([name, s]) => [name, secret(name, s)]),
-        ),
+        secrets,
       },
     });
-    return new Sandbox(ref.id, client);
+    const sandbox = new Sandbox(ref.id, client);
+    for (const [name, config] of Object.entries(opts.secrets ?? {})) {
+      if (config.command) sandbox.scheduleRefresh(name, config, minted[name], opts.onSecretError);
+    }
+    return sandbox;
+  }
+
+  /** Mint `name` again shortly before it expires and push it to the sandbox. */
+  private scheduleRefresh(
+    name: string,
+    config: SecretConfig,
+    expiresAt: Date | undefined,
+    onError: SandboxStartOptions["onSecretError"],
+    delay?: number,
+  ): void {
+    if (this.stopped) return;
+    const due = delay ?? refreshDelay(expiresAt, config.ttl);
+    const timer = setTimeout(async () => {
+      try {
+        const next = await resolveSecret(name, config);
+        await this.client.updateSandboxSecret({
+          id: this.id,
+          name,
+          value: next.value,
+          expiresAt: next.expiresAt?.toISOString() ?? "",
+        });
+        this.scheduleRefresh(name, config, next.expiresAt, onError);
+      } catch (err) {
+        // The sandbox is gone: nothing left to refresh.
+        if (err instanceof ConnectError && (err.code === Code.NotFound || err.code === Code.FailedPrecondition)) return;
+        (onError ?? ((n, e) => console.warn(`micropod: refreshing secret ${n} failed:`, e)))(name, err);
+        this.scheduleRefresh(name, config, expiresAt, onError, 10_000);
+      }
+    }, due);
+    // Refreshes never keep the host process alive on their own.
+    (timer as { unref?: () => void }).unref?.();
+    this.refreshers.set(name, timer);
+  }
+
+  private stopRefreshing(): void {
+    this.stopped = true;
+    for (const timer of this.refreshers.values()) clearTimeout(timer);
+    this.refreshers.clear();
   }
 
   /** A handle on a sandbox that is already running (e.g. from another process). */
@@ -326,11 +382,13 @@ export class Sandbox {
 
   /** Save the sandbox's disk as checkpoint `name` and stop the VM. */
   async checkpoint(name: string): Promise<void> {
+    this.stopRefreshing();
     await this.client.checkpointSandbox({ id: this.id, name });
   }
 
   /** Stop the VM and discard its disk. */
   async stop(): Promise<void> {
+    this.stopRefreshing();
     await this.client.deleteContainer({ id: this.id, force: true });
   }
 
@@ -446,16 +504,87 @@ export class Watcher {
   }
 }
 
-function secret(name: string, s: SecretConfig) {
+type Env = { process?: { env?: Record<string, string | undefined> } };
+
+/** A secret's current value: from the environment, as given, or minted by its command. */
+async function resolveSecret(name: string, s: SecretConfig): Promise<{ value: string; expiresAt?: Date }> {
   const sources = [s.from, s.value, s.command].filter((x) => x !== undefined).length;
   if (sources !== 1) throw new Error(`secret ${name}: set exactly one of from, value or command`);
-  let value = s.value ?? "";
-  if (s.from !== undefined) {
-    const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-    value = env?.[s.from] ?? "";
-    if (!value) throw new Error(`secret ${name}: environment variable ${s.from} is unset`);
+  if (s.command) {
+    if (s.command.length === 0) throw new Error(`secret ${name}: command is empty`);
+    return parseSecretOutput(name, await runCommand(name, s.command, s.cwd));
   }
-  return { value, command: s.command ?? [], commandDir: s.cwd ?? "", ttl: s.ttl ?? "", hosts: s.hosts };
+  if (s.from !== undefined) {
+    const value = (globalThis as Env).process?.env?.[s.from] ?? "";
+    if (!value) throw new Error(`secret ${name}: environment variable ${s.from} is unset`);
+    return { value };
+  }
+  return { value: s.value ?? "" };
+}
+
+type ExecFile = (
+  file: string,
+  args: string[],
+  options: { cwd?: string; timeout: number; maxBuffer: number },
+  callback: (error: Error | null, stdout: string | Uint8Array, stderr: string | Uint8Array) => void,
+) => unknown;
+
+async function runCommand(name: string, argv: string[], cwd?: string): Promise<string> {
+  let execFile: ExecFile;
+  try {
+    // A computed specifier: bundlers and browser builds leave it alone.
+    const specifier = "node:child_process";
+    ({ execFile } = (await import(specifier)) as { execFile: ExecFile });
+  } catch {
+    throw new Error(`secret ${name}: command secrets need Node (child_process)`);
+  }
+  return new Promise((resolve, reject) =>
+    execFile(argv[0], argv.slice(1), { cwd, timeout: 30_000, maxBuffer: 1 << 20 }, (err, stdout, stderr) => {
+      if (err) {
+        const detail = String(stderr || err.message).trim().slice(-500);
+        reject(new Error(`secret ${name}: ${argv[0]} failed: ${detail}`));
+      } else {
+        resolve(String(stdout));
+      }
+    }),
+  );
+}
+
+/** Raw stdout, or `{"version":1,"value":"…","expires_at":"…"}` (AWS credential_process shape). */
+export function parseSecretOutput(name: string, output: string): { value: string; expiresAt?: Date } {
+  const text = output.trim();
+  let value = text;
+  let expiresAt: Date | undefined;
+  if (text.startsWith("{")) {
+    let parsed: { version?: unknown; value?: unknown; expires_at?: unknown };
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      throw new Error(`secret ${name}: the command printed malformed JSON`);
+    }
+    if (parsed.version !== undefined && parsed.version !== 1) {
+      throw new Error(`secret ${name}: unsupported version ${String(parsed.version)}`);
+    }
+    if (typeof parsed.value !== "string") throw new Error(`secret ${name}: the command's JSON has no string "value"`);
+    value = parsed.value;
+    if (parsed.expires_at !== undefined) {
+      expiresAt = new Date(String(parsed.expires_at));
+      if (Number.isNaN(expiresAt.getTime())) throw new Error(`secret ${name}: unreadable expires_at`);
+    }
+  }
+  if (!value) throw new Error(`secret ${name}: the command printed an empty value`);
+  if (/[\r\n\0]/.test(value)) throw new Error(`secret ${name}: the value contains a line break or NUL`);
+  return { value, expiresAt };
+}
+
+/** When to mint again: a minute before expiry, else every `ttl` (default 5m). */
+export function refreshDelay(expiresAt: Date | undefined, ttl: string | undefined, now = Date.now()): number {
+  if (expiresAt) return Math.max(1000, expiresAt.getTime() - now - 60_000);
+  const match = /^(\d+)(s|m|h)?$/.exec(ttl ?? "");
+  if (ttl && !match) throw new Error(`ttl ${ttl}: want e.g. 90s, 15m, 1h`);
+  const n = match ? Number(match[1]) : 300;
+  const unit = match?.[2] === "h" ? 3_600_000 : match?.[2] === "m" ? 60_000 : 1000;
+  return Math.max(1000, n * unit);
 }
 
 function parsePort(spec: string) {

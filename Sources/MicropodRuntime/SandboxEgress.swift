@@ -17,8 +17,7 @@ public struct SandboxSecret: Sendable, Equatable {
     public let source: SecretSource
 
     public init(name: String, value: String, hosts: [String]) throws {
-        try SecretSource.validate(value)
-        self.init(name: name, source: SecretSource(.fixed(value)), hosts: hosts)
+        self.init(name: name, source: try SecretSource(value: value), hosts: hosts)
     }
 
     public init(name: String, source: SecretSource, hosts: [String]) {
@@ -58,8 +57,9 @@ public struct SandboxSecret: Sendable, Equatable {
         }
     }
 
-    /// From the API / `micropod.json` shape: a literal value or a command.
-    /// A relative command or directory resolves against `directory`.
+    /// From the API / `micropod.json` shape: a supplied value (with an
+    /// optional expiry) or — `micropod.json` only — a command. A relative
+    /// command or directory resolves against `directory`.
     public static func from(
         _ spec: SandboxSecretSpec, directory: URL? = nil,
         log: @escaping @Sendable (String) -> Void = SecretSource.stderrLog
@@ -73,15 +73,16 @@ public struct SandboxSecret: Sendable, Equatable {
         switch (spec.value, spec.command.isEmpty) {
         case (let value?, true):
             do {
-                return try SandboxSecret(name: spec.name, value: value, hosts: spec.hosts)
+                return SandboxSecret(
+                    name: spec.name, source: try SecretSource(value: value, expiresAt: spec.expiresAt),
+                    hosts: spec.hosts)
             } catch {
                 throw MicropodError.message("invalidArgument: secret \(spec.name): \(error)")
             }
         case (nil, false):
             let dir = spec.commandDirectory.map { SecretSource.resolve($0, in: directory) } ?? directory
             let source = SecretSource(
-                .command(
-                    argv: spec.command, directory: dir?.standardizedFileURL, ttl: spec.ttl ?? SecretSource.defaultTTL),
+                command: spec.command, directory: dir?.standardizedFileURL, ttl: spec.ttl ?? SecretSource.defaultTTL,
                 log: log)
             return SandboxSecret(name: spec.name, source: source, hosts: spec.hosts)
         default:

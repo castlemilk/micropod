@@ -276,6 +276,8 @@ struct MachineMetricsView: View {
     let machine: MachineEntry
 
     @State private var window: ChartTimeWindow = .fifteenMinutes
+    /// Windows past 3 h: the rolled-up history, reloaded each minute.
+    @State private var stored: [MachineSample] = []
 
     private var stats: Micropod_V1_MachineStats? { store.machineStatsByID[machine.name] }
 
@@ -285,6 +287,18 @@ struct MachineMetricsView: View {
                 HStack {
                     Spacer()
                     ChartTimeWindowPicker(window: $window)
+                        .task(id: window) {
+                            while !Task.isCancelled && window.needsStore {
+                                if let metricsStore = MetricsStore.shared {
+                                    let name = machine.name
+                                    let range = window.duration
+                                    stored = await Task.detached {
+                                        metricsStore.history(.machine, name, range: range).points
+                                    }.value.map(MachineSample.init)
+                                }
+                                try? await Task.sleep(for: .seconds(60))
+                            }
+                        }
                 }
                 if let stats {
                     LazyVGrid(
@@ -317,8 +331,11 @@ struct MachineMetricsView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                let samples = (store.machineHistory[machine.name] ?? [])
-                    .filter { $0.timestamp >= Date().addingTimeInterval(-window.duration) }
+                let samples =
+                    window.needsStore
+                    ? stored
+                    : (store.machineHistory[machine.name] ?? [])
+                        .filter { $0.timestamp >= Date().addingTimeInterval(-window.duration) }
                 let points = downsample(samples, maxPoints: 360)
 
                 GroupBox("CPU % (of one core)") {
