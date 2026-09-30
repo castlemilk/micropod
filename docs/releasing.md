@@ -84,9 +84,20 @@ What's changed:
   starts cold.
 - **The SDK job is off the critical path.**
 
-Expected: ~16–18 min of Actions time becomes roughly 5–7 min, plus 5 min
-less locally. The first release after a toolchain or dependency bump
-builds cold.
+Measured on v0.11.1, the first warm run:
+- 5.0 min of Actions time, down from 16–18
+- the release build took 131 s instead of 658 s
+- the cache restored in 18 s
+- the tag push took 3 s instead of ~5 min
+
+The first release after a toolchain or dependency bump builds cold.
+
+Releases are serialized (`concurrency: release`). Two tags pushed
+together once raced: v0.10.2 and v0.11.1 named the same commit, and one
+lost the appcast push to master while the other lost GitHub's "Latest"
+flag. The appcast step now re-applies its entry on master's tip and
+retries. `gh release create` marks a release "Latest" only when no higher
+version is already released, so the landing page never downgrades.
 
 ## Secrets (configured in repo → Settings → Secrets → Actions)
 
