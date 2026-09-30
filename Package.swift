@@ -158,6 +158,13 @@ let package = Package(
             ]
         ),
         .testTarget(
+            name: "MicropodCLITests",
+            dependencies: ["MicropodCLI"],
+            swiftSettings: [
+                .enableUpcomingFeature("StrictConcurrency")
+            ]
+        ),
+        .testTarget(
             name: "MicropodAppTests",
             dependencies: ["MicropodApp", "MicropodCore", "MicropodRuntime"],
             swiftSettings: [

@@ -195,6 +195,9 @@ jobs:
           cd sdk/ts
           npm ci
           npm run build
+          # The tarball carries package.json's version: stamp the tag's so it
+          # can never lag the release (v0.9.1 shipped a 0.9.0 package).
+          npm version "${VERSION#v}" --no-git-tag-version --allow-same-version
           npm pack --pack-destination ../../dist
           mv "../../dist/micropod-sdk-"*.tgz "../../dist/micropod-sdk-${VERSION#v}.tgz"
 

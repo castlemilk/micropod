@@ -29,11 +29,11 @@ enum MonitorCommands {
     }
 
     static func top(_ args: [String], _ services: Services) async throws {
-        let expanded = expandAliases(args, aliases: ["-n": "--interval"])
         let parsed = try parseArgs(
-            expanded,
+            args,
             boolFlags: [],
             valueFlags: ["--interval", "--sort", "--count"],
+            aliases: ["-n": "--interval"],
             commandName: "top")
         let interval = Double(parsed.value("--interval") ?? "") ?? 2.0
         guard interval > 0 else { throw UsageError(message: "top: --interval must be > 0") }
@@ -143,11 +143,11 @@ enum MonitorCommands {
     }
 
     static func watch(_ args: [String], _ services: Services) async throws {
-        let expanded = expandAliases(args, aliases: ["-n": "--interval"])
         let parsed = try parseArgs(
-            expanded,
+            args,
             boolFlags: ["--all"],
             valueFlags: ["--interval"],
+            aliases: ["-n": "--interval"],
             commandName: "watch")
         let interval = Double(parsed.value("--interval") ?? "") ?? 2.0
         guard interval > 0 else { throw UsageError(message: "watch: --interval must be > 0") }

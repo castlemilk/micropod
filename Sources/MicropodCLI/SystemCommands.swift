@@ -257,18 +257,18 @@ enum SystemCommands {
                 FileHandle.standardOutput.write(chunk)
             }
         case "logs":
-            let expanded = expandAliases(Array(args.dropFirst()), aliases: ["-n": "--tail"])
             let parsed = try parseArgs(
-                expanded,
-                boolFlags: ["--follow", "-f", "--boot"],
+                Array(args.dropFirst()),
+                boolFlags: ["--follow", "--boot"],
                 valueFlags: ["--tail"],
+                aliases: ["-f": "--follow", "-n": "--tail"],
                 commandName: "machine logs")
             guard let name = parsed.positionals.first else {
                 throw UsageError(message: "machine logs <name> [-f] [-n N] [--boot]")
             }
             let tail = parsed.intValue("--tail", default: 100)
             let boot = parsed.has("--boot")
-            if parsed.has("--follow") || parsed.has("-f") {
+            if parsed.has("--follow") {
                 for try await line in services.machines.streamLogs(name, tail: tail, boot: boot) {
                     print(line.text)
                 }
@@ -368,11 +368,11 @@ enum SystemCommands {
     }
 
     static func systemLogs(_ args: [String], _ services: Services) async throws {
-        let expanded = expandAliases(args, aliases: ["-n": "--last"])
         let parsed = try parseArgs(
-            expanded,
-            boolFlags: ["--follow", "-f"],
+            args,
+            boolFlags: ["--follow"],
             valueFlags: ["--last", "--level"],
+            aliases: ["-f": "--follow", "-n": "--last"],
             commandName: "system logs")
         let last = parsed.value("--last") ?? "5m"
         let output = try await services.system.systemLogs(last: last)

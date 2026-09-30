@@ -23,11 +23,12 @@ enum ImageCommands {
     static func list(_ args: [String], _ services: Services) async throws {
         let parsed = try parseArgs(
             args,
-            boolFlags: ["--quiet", "-q"],
+            boolFlags: ["--quiet"],
             valueFlags: [],
+            aliases: ["-q": "--quiet"],
             commandName: "images")
         let images = try await services.images.list()
-        if parsed.has("-q") {
+        if parsed.has("--quiet") {
             for image in images { print(image.names.first ?? image.id) }
             return
         }
@@ -69,8 +70,9 @@ enum ImageCommands {
     static func prune(_ args: [String], _ services: Services) async throws {
         let parsed = try parseArgs(
             args,
-            boolFlags: ["--all", "-a"],
+            boolFlags: ["--all"],
             valueFlags: [],
+            aliases: ["-a": "--all"],
             commandName: "image prune")
         let report = try await services.images.prune(danglingOnly: !parsed.has("--all"))
         print(report.isEmpty ? "Pruned" : report)
@@ -105,11 +107,11 @@ enum ImageCommands {
     }
 
     static func build(_ args: [String], _ services: Services) async throws {
-        let expanded = expandAliases(args, aliases: ["-t": "--tag"])
         let parsed = try parseArgs(
-            expanded,
+            args,
             boolFlags: ["--no-cache"],
             valueFlags: ["--tag", "--file", "--target", "--platform", "--build-arg", "--cpus", "--memory"],
+            aliases: ["-t": "--tag"],
             commandName: "build")
         guard let context = parsed.positionals.first else {
             throw UsageError(message: "build <context-dir> [--tag ref]… [--file Dockerfile]")
@@ -141,8 +143,9 @@ enum ImageCommands {
     static func rmi(_ args: [String], _ services: Services) async throws {
         let parsed = try parseArgs(
             args,
-            boolFlags: ["--force", "-f"],
+            boolFlags: ["--force"],
             valueFlags: [],
+            aliases: ["-f": "--force"],
             commandName: "rmi")
         guard !parsed.positionals.isEmpty else {
             throw UsageError(message: "rmi <reference…> [--force]")
@@ -157,12 +160,13 @@ enum ImageCommands {
         let parsed = try parseArgs(
             args,
             boolFlags: [],
-            valueFlags: ["--output", "-o"],
+            valueFlags: ["--output"],
+            aliases: ["-o": "--output"],
             commandName: "save")
         guard let reference = parsed.positionals.first else {
             throw UsageError(message: "save <reference> -o <path>")
         }
-        guard let path = parsed.value("-o") else {
+        guard let path = parsed.value("--output") else {
             throw UsageError(message: "save requires -o <path>")
         }
         try await services.images.save(reference, to: path)
@@ -173,9 +177,10 @@ enum ImageCommands {
         let parsed = try parseArgs(
             args,
             boolFlags: [],
-            valueFlags: ["--input", "-i"],
+            valueFlags: ["--input"],
+            aliases: ["-i": "--input"],
             commandName: "load")
-        guard let path = parsed.value("-i") ?? parsed.positionals.first else {
+        guard let path = parsed.value("--input") ?? parsed.positionals.first else {
             throw UsageError(message: "load -i <path>")
         }
         try await services.images.load(from: path)

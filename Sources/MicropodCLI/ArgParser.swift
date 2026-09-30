@@ -37,8 +37,13 @@ struct ParsedArgs {
     }
 }
 
+/// `aliases` maps alternate spellings (usually short flags) onto a declared
+/// name, so `-a` and `--all` both read back as `has("--all")`. Only flag
+/// positions are rewritten — never positionals or anything after `--`, so a
+/// container command's own `-e` or `-u` passes through untouched.
 func parseArgs(
-    _ args: [String], boolFlags: Set<String>, valueFlags: Set<String>, commandName: String
+    _ args: [String], boolFlags: Set<String>, valueFlags: Set<String>,
+    aliases: [String: String] = [:], commandName: String
 ) throws -> ParsedArgs {
     var positionals: [String] = []
     var flags = Set<String>()
@@ -64,8 +69,10 @@ func parseArgs(
             name = String(arg[arg.startIndex..<eq])
             inlineValue = String(arg[arg.index(after: eq)...])
         }
+        let spelled = name
+        name = aliases[name] ?? name
         guard boolFlags.contains(name) || valueFlags.contains(name) else {
-            throw UsageError(message: "\(commandName): unknown flag \(name)")
+            throw UsageError(message: "\(commandName): unknown flag \(spelled)")
         }
         if valueFlags.contains(name) {
             if let inlineValue {
@@ -73,7 +80,7 @@ func parseArgs(
             } else {
                 index += 1
                 guard index < args.count else {
-                    throw UsageError(message: "\(commandName): flag \(name) requires a value")
+                    throw UsageError(message: "\(commandName): flag \(spelled) requires a value")
                 }
                 options[name, default: []].append(args[index])
             }
@@ -83,8 +90,4 @@ func parseArgs(
         index += 1
     }
     return ParsedArgs(positionals: positionals, flags: flags, options: options)
-}
-
-func expandAliases(_ args: [String], aliases: [String: String]) -> [String] {
-    args.map { aliases[$0] ?? $0 }
 }

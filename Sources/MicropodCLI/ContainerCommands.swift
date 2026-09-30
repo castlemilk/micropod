@@ -10,8 +10,9 @@ enum ContainerCommands {
     static func ps(_ args: [String], _ services: Services) async throws {
         let parsed = try parseArgs(
             args,
-            boolFlags: ["--all", "-a", "--quiet", "-q", "--stats", "-s"],
+            boolFlags: ["--all", "--quiet", "--stats"],
             valueFlags: ["--state"],
+            aliases: ["-a": "--all", "-q": "--quiet", "-s": "--stats"],
             commandName: "ps")
         var containers = try await services.containers.list()
         if !parsed.has("--all"), let stateFilter = parsed.value("--state") {
@@ -19,7 +20,7 @@ enum ContainerCommands {
         } else if !parsed.has("--all") {
             containers = containers.filter { $0.state.lowercased() == "running" }
         }
-        if parsed.has("-q") {
+        if parsed.has("--quiet") {
             for container in containers { print(container.id) }
             return
         }
@@ -29,7 +30,7 @@ enum ContainerCommands {
         }
 
         var statsByID = [String: Micropod_V1_ContainerStats]()
-        if parsed.has("--stats") || parsed.has("-s") {
+        if parsed.has("--stats") {
             let snapshot = try await services.stats.snapshot()
             statsByID = Dictionary(snapshot.containers.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         }
@@ -43,7 +44,7 @@ enum ContainerCommands {
             if let stats = statsByID[container.id] {
                 row.append(String(format: "%.1f%%", stats.cpuPercent))
                 row.append("\(ByteFormat.string(stats.memoryUsedBytes))/\(ByteFormat.string(stats.memoryLimitBytes))")
-            } else if parsed.has("--stats") || parsed.has("-s") {
+            } else if parsed.has("--stats") {
                 row.append("—")
                 row.append("—")
             }
@@ -60,7 +61,7 @@ enum ContainerCommands {
             return row
         }
         var headers = ["ID", "IMAGE", "STATE"]
-        if parsed.has("--stats") || parsed.has("-s") {
+        if parsed.has("--stats") {
             headers += ["CPU", "MEMORY"]
         }
         headers += ["IP", "PORTS", "CREATED"]
@@ -142,22 +143,22 @@ enum ContainerCommands {
 
     static func run(_ args: [String], _ services: Services, create: Bool) async throws {
         let boolFlags: Set<String> = [
-            "--attach", "-a", "--tty", "-t", "--interactive", "-i", "--init",
-            "--read-only", "--rosetta",
+            "--attach", "--tty", "--interactive", "--init", "--read-only", "--rosetta",
         ]
         let valueFlags: Set<String> = [
-            "--name", "--env", "-e", "--env-file", "--publish", "-p", "--volume", "-v",
-            "--tmpfs", "--label", "-l", "--network", "--memory", "-m", "--cpus",
-            "--entrypoint", "--workdir", "-w", "--user", "-u", "--platform",
+            "--name", "--env", "--env-file", "--publish", "--volume",
+            "--tmpfs", "--label", "--network", "--memory", "--cpus",
+            "--entrypoint", "--workdir", "--user", "--platform",
             "--shm-size", "--dns", "--dns-search", "--cap-add", "--cap-drop", "--ulimit",
             "--runtime",
         ]
         let aliases = [
+            "-a": "--attach", "-t": "--tty", "-i": "--interactive",
             "-e": "--env", "-p": "--publish", "-v": "--volume", "-l": "--label",
             "-m": "--memory", "-w": "--workdir", "-u": "--user",
         ]
-        let expanded = expandAliases(args, aliases: aliases)
-        let parsed = try parseArgs(expanded, boolFlags: boolFlags, valueFlags: valueFlags, commandName: "run")
+        let parsed = try parseArgs(
+            args, boolFlags: boolFlags, valueFlags: valueFlags, aliases: aliases, commandName: "run")
         guard let image = parsed.positionals.first else {
             throw UsageError(message: "run [flags] <image> [args…]")
         }
@@ -251,8 +252,12 @@ enum ContainerCommands {
     static func exec(_ args: [String], _ services: Services) async throws {
         let parsed = try parseArgs(
             args,
-            boolFlags: ["--tty", "-t", "--interactive", "-i", "--detach", "-d"],
-            valueFlags: ["--user", "-u", "--workdir", "-w", "--env", "-e"],
+            boolFlags: ["--tty", "--interactive", "--detach"],
+            valueFlags: ["--user", "--workdir", "--env"],
+            aliases: [
+                "-t": "--tty", "-i": "--interactive", "-d": "--detach",
+                "-u": "--user", "-w": "--workdir", "-e": "--env",
+            ],
             commandName: "exec")
         guard parsed.positionals.count >= 2 else {
             throw UsageError(message: "exec <id> <command> [args…]")
@@ -271,11 +276,11 @@ enum ContainerCommands {
     }
 
     static func logs(_ args: [String], _ services: Services) async throws {
-        let expanded = expandAliases(args, aliases: ["-n": "--tail"])
         let parsed = try parseArgs(
-            expanded,
-            boolFlags: ["--follow", "-f", "--boot"],
+            args,
+            boolFlags: ["--follow", "--boot"],
             valueFlags: ["--tail"],
+            aliases: ["-f": "--follow", "-n": "--tail"],
             commandName: "logs")
         guard let id = parsed.positionals.first else {
             throw UsageError(message: "logs <id> [-f] [-n N]")
