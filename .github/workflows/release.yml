@@ -209,6 +209,14 @@ jobs:
       # Go modules resolve by path-versioned tag: sdk/go/v0.7.0 makes
       # `go get github.com/castlemilk/micropod/sdk/go@sdk/go/v0.7.0` work.
       - name: Tag Go module version
+        # Idempotent: a re-run, or a tag pushed by hand alongside vX.Y.Z, is
+        # fine as long as it names this commit; one elsewhere fails loudly.
         run: |
-          git tag "sdk/go/$VERSION" 2>/dev/null || true
+          remote=$(git ls-remote origin "refs/tags/sdk/go/$VERSION^{}" | cut -f1)
+          [ -n "$remote" ] || remote=$(git ls-remote origin "refs/tags/sdk/go/$VERSION" | cut -f1)
+          if [ -n "$remote" ]; then
+            [ "$remote" = "$(git rev-parse HEAD)" ] && { echo "sdk/go/$VERSION already at HEAD"; exit 0; }
+            echo "::error::sdk/go/$VERSION exists at $remote, not $(git rev-parse HEAD)"; exit 1
+          fi
+          git tag "sdk/go/$VERSION"
           git push origin "refs/tags/sdk/go/$VERSION"
