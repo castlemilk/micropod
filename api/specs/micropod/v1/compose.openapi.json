@@ -3,7 +3,7 @@
   "info": {
     "title": "Micropod API \u00b7 ComposeService",
     "description": "## micropod.v1.ComposeService\n\nCompose project lifecycle \u2014 run a spec file and tear the project down.",
-    "version": "0.11.2",
+    "version": "0.11.3",
     "contact": {
       "name": "Micropod",
       "url": "https://github.com/castlemilk/micropod"

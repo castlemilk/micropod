@@ -3,7 +3,7 @@
   "info": {
     "title": "Micropod API \u00b7 ImageService",
     "description": "## micropod.v1.ImageService\n\nLocal image inventory and pulls.",
-    "version": "0.11.2",
+    "version": "0.11.3",
     "contact": {
       "name": "Micropod",
       "url": "https://github.com/castlemilk/micropod"
