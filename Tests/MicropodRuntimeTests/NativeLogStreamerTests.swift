@@ -247,6 +247,42 @@ final class NativeLogStreamerTests: XCTestCase {
         XCTAssertTrue(schedule.isDue(at: now + .milliseconds(750)))
     }
 
+    /// A runtime that fails to answer (a busy apiserver) is not a stop
+    /// signal: the stream keeps following through unknown answers and
+    /// still delivers what the container writes after them.
+    func testUnknownLivenessKeepsFollowing() async throws {
+        let url = logURL!
+        try append("before\n")
+        let answers = LivenessScript([.unknown, .unknown, .unknown, .live], then: .stopped) {
+            try? Self.append("after\n", to: url)
+        }
+        let streamer = NativeLogStreamer(
+            sourceProvider: { _, _ in [try FileHandle(forReadingFrom: url)] },
+            liveness: { _ in await answers.next() })
+        let result = try await collect(streamer.stream(id: "job"), timeout: .seconds(10))
+        XCTAssertTrue(result.finished, "the stream must end once the runtime says stopped")
+        XCTAssertEqual(result.lines, ["before", "after"])
+    }
+
+    /// A runtime that stays silent fails the stream: a clean end would
+    /// claim every line was sent while the container may still be writing.
+    func testPersistentUnknownLivenessFailsTheStream() async throws {
+        try append("only\n")
+        let url = logURL!
+        let streamer = NativeLogStreamer(
+            sourceProvider: { _, _ in [try FileHandle(forReadingFrom: url)] },
+            liveness: { _ in .unknown },
+            unknownLivenessLimit: .milliseconds(300))
+        var lines: [String] = []
+        do {
+            for try await line in streamer.stream(id: "job") { lines.append(line.text) }
+            XCTFail("a stream whose liveness is never known must not end cleanly")
+        } catch {
+            XCTAssertTrue("\(error)".contains("has not answered"), "error = \(error)")
+        }
+        XCTAssertEqual(lines, ["only"])
+    }
+
     // MARK: - Helpers
 
     private func streamer(
@@ -313,6 +349,30 @@ private actor StateProbe {
         beforeStop?()
         beforeStop = nil
         return false
+    }
+}
+
+/// Scripted liveness answers; `beforeStop` runs once before the first
+/// `then` answer, so bytes it writes land before the final drain.
+private actor LivenessScript {
+    private var answers: [NativeLogStreamer.Liveness]
+    private let then: NativeLogStreamer.Liveness
+    private var beforeStop: (@Sendable () -> Void)?
+
+    init(
+        _ answers: [NativeLogStreamer.Liveness], then: NativeLogStreamer.Liveness,
+        beforeStop: (@Sendable () -> Void)? = nil
+    ) {
+        self.answers = answers
+        self.then = then
+        self.beforeStop = beforeStop
+    }
+
+    func next() -> NativeLogStreamer.Liveness {
+        if !answers.isEmpty { return answers.removeFirst() }
+        beforeStop?()
+        beforeStop = nil
+        return then
     }
 }
 
