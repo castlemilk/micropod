@@ -3,7 +3,7 @@
   "info": {
     "title": "Micropod API \u00b7 SandboxService",
     "description": "## micropod.v1.SandboxService\n\nSandboxes as a programmable environment: boot a micro-VM once, then run\n processes in it, stream their output, move files in and out, and watch\n paths \u2014 the surface the SDKs' `Sandbox` class is built on.\n\n A sandbox is a `runtime: sandbox` container owned by the API process; every\n call names it by container id. Processes and file operations run inside\n the container, seeing its mounts, /tmp and working directory. File\n operations and the idle main process use /bin/sh and the usual tools\n (busybox or coreutils), so distroless images can run processes but not\n file operations.",
-    "version": "0.9.1",
+    "version": "0.10.0",
     "contact": {
       "name": "Micropod",
       "url": "https://github.com/castlemilk/micropod"
