@@ -406,7 +406,12 @@ private actor MCPServer {
     /// stdout+stderr, capped at the last 64 KiB.
     private static func runMicropod(_ arguments: [String]) async throws -> (Int32, String) {
         let env = ProcessInfo.processInfo.environment
-        let candidates = [env["MICROPOD_CLI"], "\(NSHomeDirectory())/.local/bin/micropod", "/usr/local/bin/micropod"]
+        // From the app bundle, the CLI beside this binary is the same release.
+        let sibling = CLIInstall.currentExecutable().deletingLastPathComponent().appendingPathComponent("micropod-cli")
+            .path
+        let candidates = [
+            env["MICROPOD_CLI"], sibling, "\(NSHomeDirectory())/.local/bin/micropod", "/usr/local/bin/micropod",
+        ]
         guard let cli = candidates.compactMap({ $0 }).first(where: { FileManager.default.isExecutableFile(atPath: $0) })
         else {
             throw MicropodError.message("micropod CLI not found (set MICROPOD_CLI)")

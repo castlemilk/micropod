@@ -81,6 +81,7 @@ struct MicropodCLI {
         let services = await Services(cliPath: cliPath)
         do {
             try await dispatch(command, rest, services)
+            UpdateNotice.run(json: jsonOutput)
             exit(exitOverride ?? ExitCode.ok)
         } catch let error as UsageError {
             FileHandle.standardError.write(Data("usage: \(error.message)\n".utf8))
@@ -213,7 +214,7 @@ struct MicropodCLI {
           k8s enable|up|down|status          lightweight Kubernetes (opt-in; k3s micro-VM + MetalLB)
           k8s load <ref|file.tar>|images     push images into the cluster via the host puller
           system start|stop|logs             daemon control + log access
-          update [status|check|apply]        the Micropod app's updates
+          update [status|check|apply|cli]    keep the app and this CLI current
           metrics [id] [--range 1h] [--machine]  recorded resource history (peak/avg/now + sparkline)
           status / version                   runtime + version info
 

@@ -140,6 +140,18 @@ else
     echo "!! MicropodAPI not found in .build/release — API agent disabled"
 fi
 
+# The CLI and MCP server ride in the bundle so Sparkle updates them with the
+# app, which links ~/.local/bin/micropod and micropod-mcp to these at launch.
+# `micropod-cli`, not `micropod`: a case-insensitive volume would make that the
+# app's own `Micropod` executable.
+cp .build/release/micropod "$APP_BUNDLE/Contents/MacOS/micropod-cli"
+cp .build/release/MicropodMCP "$APP_BUNDLE/Contents/MacOS/MicropodMCP"
+chmod +x "$APP_BUNDLE/Contents/MacOS/micropod-cli" "$APP_BUNDLE/Contents/MacOS/MicropodMCP"
+# `micropod sandbox` drives Virtualization.framework in-process.
+codesign --force --sign - --entitlements signing/micropod-cli.entitlements "$APP_BUNDLE/Contents/MacOS/micropod-cli"
+codesign --force --sign - "$APP_BUNDLE/Contents/MacOS/MicropodMCP"
+echo "==> CLI + MCP server bundled (micropod-cli, MicropodMCP)"
+
 # The in-VM helper for sandbox file operations, watches and idle sandboxes
 # (a static linux/arm64 ELF — sealed as a resource, not signed as code).
 # The API finds it at ../Resources relative to its executable.

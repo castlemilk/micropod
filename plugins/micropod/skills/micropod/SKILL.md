@@ -57,7 +57,9 @@ guest never sees; `mounts` discard guest writes), `sandbox_checkpoints`,
 `share_list`, `share_sync`, `share_gc`. **system**: `status`, `df`,
 `build_cache_stats`, `update_check`, `update_status`, `update_apply`
 (`update_status` reports `readyToInstall` once an update is staged;
-`update_apply` restarts into it). **metrics**: `metrics_history` (id +
+`update_apply` restarts into it; the CLI and this MCP server live in the
+app bundle, linked from ~/.local/bin, and update with it — a standalone CLI
+uses `micropod update cli`). **metrics**: `metrics_history` (id +
 range, e.g. `1h`/`24h`/`7d`: peak/avg/now per metric plus a sparkline,
 from the history the Micropod app records — 10 s points for 3 h, 1 min
 for 48 h, 15 min for 30 days; deleted with the container).

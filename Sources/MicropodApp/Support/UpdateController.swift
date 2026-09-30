@@ -159,6 +159,8 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
             report["downloadedVersion"] = downloadedVersion
         }
         if readyToInstall { report["readyToInstall"] = true }
+        // The CLI and MCP server update with the app when linked into it.
+        report["cliLinked"] = CLIToolLinks.linked
         if let lastError { report["error"] = lastError }
         if let lastCheckedAt { report["checkedAt"] = ISO8601DateFormatter().string(from: lastCheckedAt) }
         return report

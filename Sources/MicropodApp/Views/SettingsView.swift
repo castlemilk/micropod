@@ -15,10 +15,20 @@ struct SettingsView: View {
     @AppStorage(UserDefaultsKeys.notifyPrune) private var notifyPrune = false
     @AppStorage(UserDefaultsKeys.notifyKernel) private var notifyKernel = false
     @AppStorage(UpdateController.autoInstallKey) private var installsUpdatesAutomatically = true
+    @AppStorage(CLIToolLinks.enabledKey) private var managesCLILinks = true
     @State private var showCreateMachine = false
     @State private var volumePolicy = VolumePolicy.standard
     @State private var volumePolicyLoaded = false
     @State private var newGolden = ""
+
+    private var cliLinkStatus: String {
+        if let error = CLIToolLinks.lastError { return "Linking failed: \(error)" }
+        let linked = CLIToolLinks.linked
+        guard CLIToolLinks.bundle != nil else { return "Available once Micropod runs from /Applications" }
+        return linked.isEmpty
+            ? "Not linked yet"
+            : "~/.local/bin: " + linked.joined(separator: ", ") + " → this app (add ~/.local/bin to PATH to use them)"
+    }
 
     /// "Up to date — checked 5 min ago", "0.10.0 ready to install", …
     private var updateStatusText: String {
@@ -80,6 +90,16 @@ struct SettingsView: View {
                     .toggleStyle(.checkbox)
                 Toggle("Install updates when I'm away and nothing is running", isOn: $installsUpdatesAutomatically)
                     .toggleStyle(.checkbox)
+                Toggle(
+                    "Keep the micropod CLI and MCP server (~/.local/bin) on this app's version", isOn: $managesCLILinks
+                )
+                .toggleStyle(.checkbox)
+                .onChange(of: managesCLILinks) { _, on in if on { CLIToolLinks.refresh() } }
+                if managesCLILinks {
+                    Text(cliLinkStatus)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 HStack {
                     Button {
                         UpdateController.shared.checkForUpdates()
