@@ -110,8 +110,9 @@ check("runtimes: sandbox engine available", not err and "sandbox" in text, text)
 
 section("updates (the app's Sparkle updater over app-control)")
 text, err = s.call("update_status")
-check("update_status reports 0.11.1, not stuck 'checking'",
-      not err and "0.11.1" in text and "checking" not in text.lower(), text)
+running_version = text.split("running ", 1)[1].split(" ")[0] if "running " in text else ""
+check(f"update_status reports the running version ({running_version or '?'})",
+      not err and running_version.count(".") >= 2 and "checking" not in text.lower(), text)
 text, err = s.call("update_check")
 check("update_check accepted", not err, text)
 for _ in range(20):
@@ -119,8 +120,11 @@ for _ in range(20):
     text, err = s.call("update_status")
     if "checking" not in text.lower():
         break
-check("check settles to up to date", not err and ("uptodate" in text.lower().replace(" ", "").replace("_", "")
-                                                   or "up to date" in text.lower() or "idle" in text.lower()), text)
+# Up to date, or it found (and may be staging) a newer release — both mean
+# detection works; a stuck "checking" or an error doesn't.
+newer = "available" in text and "running " + running_version in text
+check("check settles: up to date, or a newer version found", not err and (
+    "uptodate" in text.lower() or "idle" in text.lower() or newer), text)
 
 section("metrics history (recorded by the app)")
 text, err = s.call("metrics_history", range="15m")
