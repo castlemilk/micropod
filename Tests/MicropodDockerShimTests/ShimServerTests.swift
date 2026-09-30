@@ -111,8 +111,9 @@ final class ShimServerTests: XCTestCase {
         XCTAssertEqual(try client.request("POST", "/containers/\(id)/start").status, 204)
         XCTAssertEqual(try client.request("POST", "/containers/\(id)/stop").status, 204)
         // Poll until EventsHub observes the die and issues the delete — the
-        // full suite's mock-CLI lock contention stretches poll intervals.
-        let deadline = Date().addingTimeInterval(15)
+        // full suite's mock-CLI lock contention stretches poll intervals
+        // (a loaded CI runner took >15s). The loop exits as soon as it's gone.
+        let deadline = Date().addingTimeInterval(45)
         var gone = false
         while Date() < deadline {
             let list =

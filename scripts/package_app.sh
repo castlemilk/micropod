@@ -143,6 +143,14 @@ else
     echo "!! micropod-sharedfs not found in .build/release — shared mounts will fall back to plain virtiofs"
 fi
 
+# Re-seal: the helpers above were copied into Contents/MacOS after the
+# first bundle signature, which left it invalid ("a sealed resource is
+# missing or invalid") for unsigned/local installs. No --deep, so the
+# helpers keep their own signatures (MicropodAPI's virtualization
+# entitlement). make_dmg.sh re-signs everything for Developer ID builds.
+codesign --force --sign - "$APP_BUNDLE"
+codesign --verify --deep --strict "$APP_BUNDLE"
+
 echo "==> Staging micropod CLI"
 cp .build/release/micropod "$DIST/micropod"
 chmod +x "$DIST/micropod"
