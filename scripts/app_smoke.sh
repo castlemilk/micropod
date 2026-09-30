@@ -18,6 +18,17 @@ if [ ! -x "$CLI_HINT" ]; then
     exit 1
 fi
 
+# Isolated from any installed Micropod: no agents, private control socket,
+# and throwaway agent endpoints in case agents are re-enabled. Without this
+# the smoke app's supervisor reaped the installed app's shim/API/sharedfs.
+SMOKE_DIR="$(mktemp -d)"
+trap 'rm -rf "$SMOKE_DIR"' EXIT
+export MICROPOD_AGENTS_DISABLED=1
+export MICROPOD_APP_CONTROL_SOCKET="$SMOKE_DIR/app-control.sock"
+export MICROPOD_AGENT_RUN_DIR="$SMOKE_DIR/run"
+export MICROPOD_SHIM_SOCKET="$SMOKE_DIR/docker.sock"
+export MICROPOD_SHAREDFS_SOCKET="$SMOKE_DIR/sharedfs.sock"
+
 echo "launching $BIN (cli: $CLI_HINT)"
 "$BIN" &
 APP_PID=$!

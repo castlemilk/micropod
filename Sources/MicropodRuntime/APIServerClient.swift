@@ -347,10 +347,13 @@ public final class APIServerClient: Sendable {
     // MARK: - Stats / disk
 
     /// `containerStats` → `ContainerStats` (same shape as CLI stats output).
-    public func stats(id: String) async throws -> ContainerStatsEntry {
+    /// Bounded: a wedged container's helper never answers `containerStats`
+    /// (seen live with `container stats` hanging on one of three running
+    /// containers), and one such call must not hold the whole snapshot.
+    public func stats(id: String, timeout: Duration = .seconds(5)) async throws -> ContainerStatsEntry {
         let request = XPCMessage(route: XPCRoute.containerStats.rawValue)
         request.set(key: .id, value: id)
-        let reply = try await send(request)
+        let reply = try await send(request, timeout: timeout)
         guard let data = reply.data(key: .statistics) else {
             throw MicropodError.message("container \(id): no statistics returned")
         }

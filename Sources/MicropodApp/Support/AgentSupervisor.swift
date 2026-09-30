@@ -156,17 +156,24 @@ actor AgentSupervisor {
         enabled: @escaping @Sendable (AgentSpec) -> Bool,
         onStatus: @escaping @Sendable ([AgentStatus]) -> Void
     ) -> AgentSupervisor {
-        let apiPort =
-            UInt16(ProcessInfo.processInfo.environment["MICROPOD_API_PORT"] ?? "45454") ?? 45454
+        // Every endpoint honours the same env override its agent binary
+        // reads, and children inherit our environment — so a second app
+        // instance (smoke tests, soak runs, a dev build beside the installed
+        // app) can run a fully isolated agent set.
+        let env = ProcessInfo.processInfo.environment
+        let apiPort = UInt16(env["MICROPOD_API_PORT"] ?? "45454") ?? 45454
+        let shimSocket = env["MICROPOD_SHIM_SOCKET"] ?? NSString("~/.micropod/docker.sock").expandingTildeInPath
+        let sharedFSSocket =
+            env["MICROPOD_SHAREDFS_SOCKET"] ?? NSString("~/micropod/share-cache/socket").expandingTildeInPath
+        let runDirectory = env["MICROPOD_AGENT_RUN_DIR"] ?? NSString("~/.micropod/run").expandingTildeInPath
         let specs = [
             AgentSpec(
                 id: "docker-shim",
                 displayName: "Docker API shim",
                 binaryName: "micropod-docker-shim",
-                probe: .unixSocket(
-                    path: NSString("~/.micropod/docker.sock").expandingTildeInPath),
+                probe: .unixSocket(path: shimSocket),
                 enabledDefaultsKey: UserDefaultsKeys.agentDockerShim,
-                endpoint: "~/.micropod/docker.sock"),
+                endpoint: shimSocket),
             AgentSpec(
                 id: "api-server",
                 displayName: "HTTP API server",
@@ -178,14 +185,13 @@ actor AgentSupervisor {
                 id: "shared-fs",
                 displayName: "Shared filesystem",
                 binaryName: "micropod-sharedfs",
-                probe: .unixSocket(
-                    path: NSString("~/micropod/share-cache/socket").expandingTildeInPath),
+                probe: .unixSocket(path: sharedFSSocket),
                 enabledDefaultsKey: UserDefaultsKeys.agentSharedFS,
-                endpoint: "~/micropod/share-cache/socket"),
+                endpoint: sharedFSSocket),
         ]
         return AgentSupervisor(
             specs: specs,
-            runDirectory: URL(fileURLWithPath: NSString("~/.micropod/run").expandingTildeInPath),
+            runDirectory: URL(fileURLWithPath: runDirectory),
             isEnabled: enabled,
             onStatus: onStatus)
     }
@@ -331,11 +337,12 @@ actor AgentSupervisor {
                             states[spec.id]?.state = .retryPending
                             states[spec.id]?.lastError =
                                 "endpoint served by a stale or foreign \(spec.binaryName)"
-                            // Reap same-name squatters so the next tick's
-                            // respawn can bind. A genuinely different binary
-                            // is left alone — we surface the conflict rather
-                            // than killing a process we don't own.
-                            reapForeignCopies(of: spec)
+                            // Only a stale copy of *our* binary (an orphan
+                            // that outlived an update) is reaped. A healthy
+                            // endpoint served by any other build — a launchd
+                            // MicropodAPI, a dev `task api` — is left alone:
+                            // surface the conflict, never kill what we don't own.
+                            reapForeignCopies(of: spec, onlyPath: resolveBinary(spec)?.path)
                             return
                         }
                     }
@@ -563,32 +570,24 @@ actor AgentSupervisor {
         try? FileManager.default.removeItem(at: url)
     }
 
-    /// Kill every running copy of the agent's binary that isn't our live
-    /// child. Only called after the endpoint has failed two consecutive
-    /// probes — a healthy, adopted endpoint never reaches this, so a user's
-    /// intentionally-running `task shim`/`task api` is left alone while it
-    /// actually serves. A copy that can't serve is a zombie squatting on the
-    /// port/socket and must go so the respawn can bind.
-    private func reapForeignCopies(of spec: AgentSpec) {
-        var pids = [pid_t](repeating: 0, count: 4096)
-        let bytes = proc_listpids(
-            UInt32(PROC_ALL_PIDS), 0, &pids,
-            Int32(pids.count * MemoryLayout<pid_t>.size))
-        guard bytes > 0 else { return }
+    /// Kill copies of the agent's binary that hold *this* spec's endpoint
+    /// and aren't our live child. Same-name processes elsewhere — another
+    /// app instance on its own socket/port, a launchd-managed MicropodAPI,
+    /// a `task api` on a different port — are never touched: name alone
+    /// doesn't make a process ours. `onlyPath` narrows further to copies of
+    /// exactly that binary (a stale orphan of our own build); nil reaps any
+    /// same-name holder (a wedged squatter blocking the respawn).
+    private func reapForeignCopies(of spec: AgentSpec, onlyPath: String? = nil) {
         let selfPID = ProcessInfo.processInfo.processIdentifier
-        var squatters: [Int32] = []
-        for raw in pids.prefix(Int(bytes) / MemoryLayout<pid_t>.size) {
-            let pid = Int32(raw)
-            guard pid > 1, pid != selfPID else { continue }
-            guard Self.processPath(pid)?.hasSuffix("/\(spec.binaryName)") == true else {
-                continue
+        let squatters = endpointOwnerPIDs(spec).filter { pid in
+            guard pid > 1, pid != selfPID,
+                let path = Self.processPath(pid), path.hasSuffix("/\(spec.binaryName)")
+            else { return false }
+            if let onlyPath, Self.canonicalPath(path) != Self.canonicalPath(onlyPath) { return false }
+            if let child = children.get(spec.id), child.isRunning, child.processIdentifier == pid {
+                return false
             }
-            if let child = children.get(spec.id), child.isRunning,
-                child.processIdentifier == pid
-            {
-                continue
-            }
-            squatters.append(pid)
+            return true
         }
         guard !squatters.isEmpty else { return }
         for pid in squatters { kill(pid, SIGTERM) }
@@ -599,6 +598,15 @@ actor AgentSupervisor {
             }
             if Self.processAlive(pid) { kill(pid, SIGKILL) }
         }
+    }
+
+    /// realpath(3): the kernel reports `/private/var/...` while
+    /// `URL.resolvingSymlinksInPath` strips `/private`, so compare both
+    /// sides through the same canonicalisation.
+    private static func canonicalPath(_ path: String) -> String {
+        guard let resolved = realpath(path, nil) else { return path }
+        defer { free(resolved) }
+        return String(cString: resolved)
     }
 
     private static func processAlive(_ pid: Int32) -> Bool {
@@ -656,7 +664,9 @@ actor AgentSupervisor {
     /// install that replaced the bundle underneath it).
     private func endpointOwnedByExpectedBinary(_ spec: AgentSpec, owner: Int32) -> Bool {
         guard let binary = resolveBinary(spec) else { return true }
-        guard Self.processPath(owner) == binary.path else { return false }
+        guard let ownerPath = Self.processPath(owner),
+            Self.canonicalPath(ownerPath) == Self.canonicalPath(binary.path)
+        else { return false }
         guard
             let start = Self.processStartTime(owner),
             let mtime =

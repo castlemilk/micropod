@@ -47,9 +47,10 @@ public actor NativeStatsSampler: StatsSampling {
     }
 
     /// Fan out stats calls in parallel; a container whose stats fail (it
-    /// exited between list and stats, or was never running) is skipped. A
-    /// transport failure is not "no stats" — it is rethrown so the caller
-    /// sees `unavailable` instead of an empty, plausible-looking snapshot.
+    /// exited between list and stats, was never running, or its helper is
+    /// wedged and the call timed out) is skipped. A transport failure is not
+    /// "no stats" — it is rethrown so the caller sees `unavailable` instead
+    /// of an empty, plausible-looking snapshot.
     private func sample(ids: [String], forgetOthers: Bool) async throws -> Micropod_V1_StatsSnapshot {
         let results = await withTaskGroup(of: StatsOutcome.self, returning: [StatsOutcome].self) { group in
             for id in ids {
