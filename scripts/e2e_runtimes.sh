@@ -88,7 +88,32 @@ if [ "$(available sandbox)" == "True" ]; then
     echo "== sandbox extras"
     rpc ContainerService/RunContainer "{\"image\":\"alpine:3.20\",\"name\":\"e2e-sbx-off-$suffix\",\"runtime\":\"sandbox\",\"labels\":{\"micropod.network\":\"none\"},\"arguments\":[\"sleep\",\"60\"]}" >/dev/null
     check "network=none label → no eth0" "$(rpc ContainerService/Exec "{\"id\":\"e2e-sbx-off-$suffix\",\"arguments\":[\"ls\",\"/sys/class/net\"]}" | field "d.get('output','').split()")" "['lo']"
-    check "sandbox rejects ports" "$(rpc ContainerService/RunContainer '{"image":"alpine:3.20","runtime":"sandbox","ports":[{"hostPort":8080,"containerPort":80}]}' | field "d['code']")" "unimplemented"
+    check "sandbox rejects udp ports" "$(rpc ContainerService/RunContainer '{"image":"alpine:3.20","runtime":"sandbox","ports":[{"hostPort":45989,"containerPort":53,"protocol":"udp"}]}' | field "d['code']")" "unimplemented"
+    rpc ContainerService/RunContainer "{\"image\":\"alpine:3.20\",\"name\":\"e2e-sbx-port-$suffix\",\"runtime\":\"sandbox\",\"ports\":[{\"hostPort\":45989,\"containerPort\":8080,\"hostIp\":\"127.0.0.1\"}],\"arguments\":[\"sh\",\"-c\",\"while true; do printf 'HTTP/1.0 200 OK\\\\r\\\\n\\\\r\\\\nport-ok' | nc -l -p 8080; done\"]}" >/dev/null
+    served=""
+    for _ in $(seq 1 25); do served="$(curl -s -m 2 http://127.0.0.1:45989/ || true)"; [ -n "$served" ] && break; sleep 0.2; done
+    check "sandbox publishes a tcp port" "$served" "port-ok"
+    rpc ContainerService/DeleteContainer "{\"id\":\"e2e-sbx-port-$suffix\",\"force\":true}" >/dev/null
+    # Each networked sandbox must give its vmnet subnet back; a leak ran the
+    # daemon out after ~20.
+    ok=0
+    for i in $(seq 1 25); do
+        nid="$(rpc ContainerService/RunContainer "{\"image\":\"alpine:3.20\",\"runtime\":\"sandbox\",\"detach\":true,\"arguments\":[\"true\"]}" | field "d.get('id','')")"
+        [ -n "$nid" ] && ok=$((ok + 1)) && rpc ContainerService/DeleteContainer "{\"id\":\"$nid\",\"force\":true}" >/dev/null
+    done
+    check "25 networked sandboxes in one daemon" "$ok" "25"
+    # sandbox.exposeHost: the guest reaches a host loopback port as
+    # host.micropod.internal, and WaitContainer reports its exit code.
+    mkdir -p "$TMP/www" && echo host-says-hi >"$TMP/www/index.html"
+    python3 -m http.server 45991 --bind 127.0.0.1 --directory "$TMP/www" >/dev/null 2>&1 &
+    WWW_PID=$!
+    sleep 0.5
+    xid="$(rpc ContainerService/RunContainer "{\"image\":\"alpine:3.20\",\"runtime\":\"sandbox\",\"labels\":{\"micropod.network\":\"none\"},\"sandbox\":{\"exposeHost\":[45991]},\"arguments\":[\"sh\",\"-c\",\"wget -q -T 5 -O - http://host.micropod.internal:45991/ && exit 7\"]}" | field "d.get('id','')")"
+    check "expose_host exit code known" "$(rpc ContainerService/WaitContainer "{\"id\":\"$xid\",\"timeoutSeconds\":60}" | field "(d.get('known'), d.get('exitCode'))")" "(True, 7)"
+    check "expose_host reached the host" "$(curl -s -m 5 "$BASE/v1/containers/$xid/logs?tail=5" | grep -m1 -o host-says-hi || true)" "host-says-hi"
+    kill "$WWW_PID" 2>/dev/null || true
+    rpc ContainerService/DeleteContainer "{\"id\":\"$xid\",\"force\":true}" >/dev/null
+    check "sandbox options on apple refused" "$(rpc ContainerService/RunContainer '{"image":"alpine:3.20","runtime":"apple","sandbox":{"exposeHost":[1]}}' | field "d['code']")" "unimplemented"
     rpc ContainerService/DeleteContainer "{\"id\":\"e2e-sbx-off-$suffix\",\"force\":true}" >/dev/null
     check "set sandbox default" "$(rest PUT /v1/runtimes/default '{"name":"sandbox"}' | field "d['default']")" "sandbox"
     id="$(rpc ContainerService/RunContainer '{"image":"alpine:3.20","arguments":["sleep","30"]}' | field "d['id']")"

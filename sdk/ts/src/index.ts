@@ -1,4 +1,16 @@
 export { createMicropodClient } from "./client.js";
+export { Sandbox, SandboxProcess, Watcher } from "./sandbox.js";
+export type {
+  SandboxStartOptions,
+  SecretConfig,
+  NetworkConfig,
+  ExecResult,
+  SpawnOptions,
+  WatchEvent,
+  WatchOptions,
+  DirEntry,
+  StatResult,
+} from "./sandbox.js";
 export type { MicropodClient, MicropodClientOptions } from "./client.js";
 export {
   retryInterceptor,
@@ -14,6 +26,7 @@ export * as micropodv1Container from "./gen/micropod/v1/container_pb.js";
 export * as micropodv1Image from "./gen/micropod/v1/image_pb.js";
 export * as micropodv1System from "./gen/micropod/v1/system_pb.js";
 export * as micropodv1Compose from "./gen/micropod/v1/compose_pb.js";
+export * as micropodv1Sandbox from "./gen/micropod/v1/sandbox_pb.js";
 export * as sandboxv3 from "./gen/com/apple/containerization/sandbox/v3/sandbox_context_pb.js";
 
 // Re-export the connect bits consumers always need.

@@ -498,6 +498,9 @@ public struct ContainerRunRequest: Sendable, Equatable {
     /// "sandbox"; nil means the configured default. Routing only — never
     /// part of the `container` argv.
     public var runtime: String?
+    /// `RunContainerRequest.sandbox` — only the sandbox engine honours it;
+    /// the others refuse a request that sets it.
+    public var sandbox: SandboxRunOptions?
 
     public init(
         image: String,
@@ -530,7 +533,8 @@ public struct ContainerRunRequest: Sendable, Equatable {
         arguments: [String] = [],
         noPull: Bool = false,
         privileged: Bool = false,
-        runtime: String? = nil
+        runtime: String? = nil,
+        sandbox: SandboxRunOptions? = nil
     ) {
         self.image = image
         self.name = name
@@ -563,6 +567,74 @@ public struct ContainerRunRequest: Sendable, Equatable {
         self.noPull = noPull
         self.runtime = runtime
         self.privileged = privileged
+        self.sandbox = sandbox
+    }
+}
+
+/// Sandbox-engine run options (`SandboxOptions` on the wire, plus what
+/// `StartSandbox` adds): what the VM may reach and which secrets it may use
+/// without seeing them.
+public struct SandboxRunOptions: Sendable, Equatable {
+    /// Host loopback ports the guest reaches as `host.micropod.internal`.
+    public var exposeHost: [UInt16]
+    /// Egress allowlist; non-empty forces all egress through the host proxy.
+    public var allowHosts: [String]
+    public var secrets: [SandboxSecretSpec]
+    public var dnsResolvers: [String]
+    public var diskSizeMiB: UInt64?
+    /// Boot from this checkpoint instead of `ContainerRunRequest.image`.
+    public var fromCheckpoint: String?
+    /// Network override: nil keeps the engine default (online over the
+    /// API), false boots offline.
+    public var network: Bool?
+
+    public init(
+        exposeHost: [UInt16] = [], allowHosts: [String] = [], secrets: [SandboxSecretSpec] = [],
+        dnsResolvers: [String] = [], diskSizeMiB: UInt64? = nil, fromCheckpoint: String? = nil,
+        network: Bool? = nil
+    ) {
+        self.exposeHost = exposeHost
+        self.allowHosts = allowHosts
+        self.secrets = secrets
+        self.dnsResolvers = dnsResolvers
+        self.diskSizeMiB = diskSizeMiB
+        self.fromCheckpoint = fromCheckpoint
+        self.network = network
+    }
+}
+
+/// One proxy-injected secret: a literal value, or a host command that mints
+/// (and re-mints) it.
+public struct SandboxSecretSpec: Sendable, Equatable {
+    public var name: String
+    public var value: String?
+    public var command: [String]
+    public var commandDirectory: String?
+    /// Refresh interval for a command that reports no expiry.
+    public var ttl: Duration?
+    public var hosts: [String]
+
+    public init(
+        name: String, value: String? = nil, command: [String] = [], commandDirectory: String? = nil,
+        ttl: Duration? = nil, hosts: [String]
+    ) {
+        self.name = name
+        self.value = value
+        self.command = command
+        self.commandDirectory = commandDirectory
+        self.ttl = ttl
+        self.hosts = hosts
+    }
+
+    /// "90", "90s", "15m", "1h" → a duration; nil for anything else.
+    public static func parseTTL(_ text: String) -> Duration? {
+        let unit = text.last.flatMap { "smh".contains($0) ? $0 : nil }
+        guard let number = Int64(unit == nil ? text : String(text.dropLast())), number > 0 else { return nil }
+        switch unit {
+        case "m": return .seconds(number * 60)
+        case "h": return .seconds(number * 3600)
+        default: return .seconds(number)
+        }
     }
 }
 

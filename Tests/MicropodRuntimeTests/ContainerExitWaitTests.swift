@@ -136,6 +136,32 @@ final class ContainerExitWaitTests: XCTestCase {
         XCTAssertLessThanOrEqual(calls, 6, "state read at the poll cadence, not in a loop (\(calls))")
     }
 
+    /// A sandbox-engine container parks on the engine's exit signal: the
+    /// wait returns when the engine sees the exit, not on the next poll.
+    func testEngineSignalWakesTheWait() async throws {
+        let states = ScriptedStates(["running", "stopped"])
+        let started = ContinuousClock.now
+        let outcome = try await ContainerExitWait.wait(
+            id: "sbx", timeout: .seconds(10), exitCodes: ExitCodeRegistry(), untrackedPoll: .seconds(5),
+            park: { _, _ in
+                try? await Task.sleep(for: .milliseconds(50))
+                return true
+            },
+            state: { _, _ in await states.next() })
+        XCTAssertEqual(outcome, .init(exited: true, known: false, exitCode: nil, state: "stopped"))
+        XCTAssertLessThan(ContinuousClock.now - started, .seconds(1), "woken by the engine, not a 5 s poll")
+    }
+
+    /// An engine that does not own the container declines to park: the wait
+    /// falls back to the untracked poll.
+    func testDeclinedParkFallsBackToPoll() async throws {
+        let states = ScriptedStates(["running", "stopped"])
+        let outcome = try await ContainerExitWait.wait(
+            id: "apple", timeout: .seconds(10), exitCodes: nil, untrackedPoll: .milliseconds(50),
+            park: { _, _ in false }, state: { _, _ in await states.next() })
+        XCTAssertEqual(outcome, .init(exited: true, known: false, exitCode: nil, state: "stopped"))
+    }
+
     /// A runtime that stops answering mid-wait fails the wait.
     func testStateErrorPropagates() async throws {
         struct Down: Error {}

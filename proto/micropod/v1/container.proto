@@ -230,6 +230,88 @@ message RunContainerRequest {
     (buf.validate.field).string.pattern = "^[a-z][a-z0-9-]*$",
     (gnostic.openapi.v3.property).example = {yaml: "'sandbox'"}
   ];
+  // Sandbox-only behaviour — host ports the guest may reach, an egress
+  // allowlist, proxy-injected secrets. Honoured by `runtime: "sandbox"`;
+  // other engines fail the request with `unimplemented` rather than drop it.
+  SandboxOptions sandbox = 22;
+}
+
+// What a sandbox may reach beyond its own VM, and the credentials it may use
+// without seeing them.
+message SandboxOptions {
+  // Host loopback ports the guest reaches as host.micropod.internal:<port>
+  // (e.g. a database on the host). Nothing else on the host is reachable.
+  repeated uint32 expose_host = 1 [
+    (buf.validate.field).repeated.max_items = 64,
+    (buf.validate.field).repeated.items.uint32 = {gt: 0, lte: 65535},
+    (gnostic.openapi.v3.property).example = {yaml: "[5432]"}
+  ];
+  // Egress allowlist. When set, the VM has no route out of its own: all
+  // traffic leaves through a host proxy that refuses every other host.
+  // "*.example.com" matches subdomains only. Needs a network.
+  repeated string allow_hosts = 2 [
+    (buf.validate.field).repeated.max_items = 256,
+    (buf.validate.field).repeated.items.string = {min_len: 1, max_len: 253},
+    (gnostic.openapi.v3.property).example = {yaml: "['api.openai.com', '*.npmjs.org']"}
+  ];
+  // Secrets by the environment variable name the guest sees. The guest gets
+  // a random placeholder; the host proxy swaps in the real value only in the
+  // request line and headers of HTTPS requests to the secret's `hosts`, so
+  // the credential never enters the VM. Needs a network.
+  map<string, SandboxSecret> secrets = 3 [
+    (buf.validate.field).map.max_pairs = 64,
+    (buf.validate.field).map.keys.string.pattern = "^[A-Za-z_][A-Za-z0-9_]*$"
+  ];
+  // Guest nameservers (default: the network gateway). Needs a network.
+  repeated string dns_resolvers = 4 [
+    (buf.validate.field).repeated.max_items = 8,
+    (buf.validate.field).repeated.items.string.ip = true,
+    (gnostic.openapi.v3.property).example = {yaml: "['1.1.1.1']"}
+  ];
+  // Root disk size in MiB for image bases (0 = the default, 8192).
+  uint64 disk_size_mib = 5 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).uint64 = {gte: 512, lte: 1048576}
+  ];
+}
+
+// One secret: a value the caller already has, or a host command that mints
+// it (and mints it again before it expires).
+message SandboxSecret {
+  option (buf.validate.message).cel = {
+    id: "sandbox_secret.source"
+    message: "set exactly one of value or command"
+    expression: "(this.value != '') != (size(this.command) > 0)"
+  };
+  // The real value. SDKs read `from` environment variables on the caller's
+  // side and send the value here.
+  string value = 1;
+  // Or an argv run on the host (no shell) whose stdout is the value — raw,
+  // or {"version":1,"value":"…","expires_at":"<RFC 3339>"} like AWS
+  // `credential_process`. Minted on first use, again a minute before
+  // `expires_at` (else every `ttl`), one run at a time, kept in memory only.
+  // A failed refresh keeps a still-valid value; with none, requests to
+  // `hosts` fail closed (502) instead of carrying the placeholder upstream.
+  repeated string command = 2 [
+    (buf.validate.field).repeated.max_items = 64,
+    (gnostic.openapi.v3.property).example = {yaml: "['gcloud', 'auth', 'print-access-token']"}
+  ];
+  // Working directory for `command` (default: the API process's home).
+  string command_dir = 3;
+  // Refresh interval when `command` reports no expiry, e.g. "15m", "1h",
+  // "90s" (default 5m).
+  string ttl = 4 [
+    (buf.validate.field).string.pattern = "^$|^[0-9]+(s|m|h)?$",
+    (gnostic.openapi.v3.property).example = {yaml: "'15m'"}
+  ];
+  // HTTPS hosts whose requests get the real value ("*.example.com" matches
+  // subdomains).
+  repeated string hosts = 5 [
+    (buf.validate.field).repeated.min_items = 1,
+    (buf.validate.field).repeated.max_items = 64,
+    (buf.validate.field).repeated.items.string = {min_len: 1, max_len: 253},
+    (gnostic.openapi.v3.property).example = {yaml: "['api.openai.com']"}
+  ];
 }
 
 message WaitContainerRequest {

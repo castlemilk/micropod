@@ -30,6 +30,10 @@ let package = Package(
         // stubs match the guest agent on the wire.
         .package(url: "https://github.com/apple/containerization.git", exact: "0.42.0"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.80.0"),
+        // Sandbox egress proxy: TLS interception for injected secrets.
+        .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.37.0"),
+        .package(url: "https://github.com/apple/swift-certificates.git", from: "1.21.0"),
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "3.15.0"),
     ],
     targets: [
         .target(
@@ -72,7 +76,11 @@ let package = Package(
                 .product(name: "ContainerizationOS", package: "containerization"),
                 .product(name: "ContainerizationOCI", package: "containerization"),
                 .product(name: "ContainerizationExtras", package: "containerization"),
+                .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "NIOSSL", package: "swift-nio-ssl"),
+                .product(name: "X509", package: "swift-certificates"),
+                .product(name: "Crypto", package: "swift-crypto"),
             ],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")

@@ -3,7 +3,7 @@ import XCTest
 @testable import MicropodRuntime
 
 /// Pure-logic coverage for `SandboxVM` — no VM boots here. The live boot
-/// path is exercised by `scripts/bench_sandbox.py`.
+/// path is exercised by `scripts/bench_runtimes.py`.
 final class SandboxVMTests: XCTestCase {
     func testMergeEnvOverridesByKey() {
         let merged = SandboxVM.mergeEnv(["PATH=/bin", "A=1"], ["A=2", "B=3"])
@@ -15,22 +15,25 @@ final class SandboxVMTests: XCTestCase {
         XCTAssertEqual(merged, ["HOME=\(NSHomeDirectory())"])
     }
 
+    /// ro/rw shares never touch the run directory; only overlays clone into it.
+    private let runDir = FileManager.default.temporaryDirectory.appendingPathComponent("sbx-unused")
+
     func testShareMountParsesReadOnly() throws {
         let tmp = FileManager.default.temporaryDirectory.path
-        let ro = try SandboxVM.shareMount("\(tmp):/data:ro")
+        let ro = try SandboxVM.shareMount("\(tmp):/data:ro", runDir: runDir, index: 0)
         XCTAssertEqual(ro.destination, "/data")
         XCTAssertEqual(ro.options, ["ro"])
         XCTAssertEqual(ro.type, "virtiofs")
-        XCTAssertEqual(try SandboxVM.shareMount("\(tmp):/data").options, [])
-        XCTAssertEqual(try SandboxVM.shareMount("\(tmp):/data:rw").options, [])
+        XCTAssertEqual(try SandboxVM.shareMount("\(tmp):/data", runDir: runDir, index: 0).options, [])
+        XCTAssertEqual(try SandboxVM.shareMount("\(tmp):/data:rw", runDir: runDir, index: 0).options, [])
     }
 
     func testShareMountRejectsBadSpecs() {
         let tmp = FileManager.default.temporaryDirectory.path
-        XCTAssertThrowsError(try SandboxVM.shareMount("\(tmp)"))
-        XCTAssertThrowsError(try SandboxVM.shareMount("\(tmp):relative"))
-        XCTAssertThrowsError(try SandboxVM.shareMount("\(tmp):/data:bogus"))
-        XCTAssertThrowsError(try SandboxVM.shareMount("/no/such/dir/for/sandbox:/data"))
+        XCTAssertThrowsError(try SandboxVM.shareMount("\(tmp)", runDir: runDir, index: 0))
+        XCTAssertThrowsError(try SandboxVM.shareMount("\(tmp):relative", runDir: runDir, index: 0))
+        XCTAssertThrowsError(try SandboxVM.shareMount("\(tmp):/data:bogus", runDir: runDir, index: 0))
+        XCTAssertThrowsError(try SandboxVM.shareMount("/no/such/dir/for/sandbox:/data", runDir: runDir, index: 0))
     }
 
     func testNormalizeDefaultsRegistryAndTag() throws {

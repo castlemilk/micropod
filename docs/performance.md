@@ -48,6 +48,113 @@ Three families:
 `xctrace record --template "os_signpost"` splits CLI spawn+XPC+run time from
 caller overhead. The MicropodAPI serves its own `/metrics` on :45454.
 
+## Execution options (2026-09-30)
+
+`task bench-runtimes` (`scripts/bench_runtimes.py`) runs the same CI-shaped
+work through each way micropod can execute it:
+
+| option | what runs |
+|---|---|
+| `sandbox` | `micropod sandbox run` — in-process VZ micro-VM booted from a clonefile of a cached rootfs |
+| `api:sandbox` | Connect `RunContainer(runtime: sandbox)` → `WaitContainer` → `DeleteContainer` |
+| `apple` | `container run --rm` — Apple's runtime, one VM per container |
+| `api:apple` | the API path with `runtime: apple` |
+| `machine` | `container machine run` — a command in a warm, persistent VM |
+| `docker` | `docker run --rm` on Docker Desktop (8-vCPU VM) |
+
+Rows: boot → `true` → teardown (n=10); `go vet && go test` on
+`ci/samples/go-app` with a cold `GOCACHE` and a warm module cache (n=3);
+four such jobs at once (3 rounds). Every option gets a 2-CPU / 2 GiB quota
+(`-c 2` gives the sandbox VM a third vCPU for the guest agent, as `container
+run` does; the workload's cgroup is held to 2 CPUs, and Go sizes
+`GOMAXPROCS` from it). Rounds are interleaved, so load drift lands on every
+option alike. Host: Mac17,6 (18 cores, 128 GiB), macOS 26.5.1, container
+1.3.1, Docker Desktop 29.8, with a CI rig holding the load average near 20.
+Differences under ~3% are noise at that load.
+
+| p50 | boot | go job | 4 jobs at once |
+|---|---|---|---|
+| `machine` | **0.14 s** | **9.40 s** | — (one shared VM) |
+| `docker` | 0.23 s | 12.18 s | 19.07 s |
+| `sandbox` | 0.36 s | 10.29 s | 15.12 s |
+| `sandbox` v0.9.1 | 0.39 s | 10.02 s | **14.76 s** |
+| `api:sandbox` | 0.48 s | 10.12 s | 15.64 s |
+| `apple` | 0.77 s | 10.62 s | 19.18 s |
+| `api:apple` | 0.80 s | 10.66 s | 19.33 s |
+
+- `machine` never boots — the VM is already up — so it wins both
+  single-run rows. Every run shares that VM's state, though: it is the
+  keep-alive CI-runner pattern, not a sandbox.
+- Of the options that start clean, `sandbox` boots in about half the time
+  of `apple` and holds up best under concurrency: four jobs finish ~25%
+  sooner than on `apple` or `docker`.
+- `docker` boots fast (its VM is always on) but is the slowest on the Go
+  job.
+- The API adds ~0.1 s per run over the CLI: the request round trips, plus
+  NAT — API containers get a network unless labelled
+  `micropod.network=none`. In a controlled A/B (n=3, one 10 s job) the
+  CLI took 10.24 s offline and 10.34 s with NAT; the API took 10.65 s and
+  10.88 s. An earlier run against the previous API build measured 0.57 s
+  for the `api:sandbox` boot.
+
+### Sandbox boot, phase by phase
+
+Measured with `MICROPOD_SANDBOX_TRACE=1`, temporary probes in
+Containerization, and the guest's own logs (`MICROPOD_SANDBOX_BOOTLOG=path`,
+`MICROPOD_SANDBOX_KERNEL_ARGS="initcall_debug ignore_loglevel"`):
+
+| phase | ms | notes |
+|---|---|---|
+| resolve + clone | ~5 | image config; APFS clonefile of the base disk |
+| VM object | ~10 | VZ configuration + `VZVirtualMachine` |
+| VZ start | ~70 | Virtualization.framework brings the VM up |
+| wait for the guest agent | ~200 | kernel ~90 ms from its first timestamp; vminitd 4 ms; Containerization's vsock poll |
+| agent setup + rootfs mount | ~15 | |
+| container start | ~40 | spawn → pid is 13 ms inside the guest |
+| stop | ~15 | |
+
+### Changes this round
+
+- **Expedited RCU in the guest** (`rcupdate.rcu_expedited=1`). vminitd's
+  cgroup setup and each container spawn used to wait out jiffy-scale RCU
+  grace periods. Guest medians (n=6): cgroup manager 16 → 0 ms,
+  init → agent serving 20 → 4 ms, spawn → pid 27.5 → 13 ms. That is ~30 ms
+  off every boot, CLI and API. The Go job's IPI counts are unchanged (about
+  14k function-call IPIs either way), so the workload pays nothing for it.
+- **`WaitContainer` on a sandbox wakes on the engine's exit signal** instead
+  of a 150 ms state poll.
+- **vmnet networks are released.** Containerization's `VmnetNetwork` never
+  frees its `vmnet_network_ref` (it imports as an opaque pointer, so ARC
+  can't), and each networked sandbox kept its /24 reservation until the
+  process exited. A long-lived API daemon then failed every networked
+  sandbox after about 20 (`VMNET_FAILURE`). `SandboxNetwork` owns and
+  releases them; `task e2e-runtimes` now runs 25 in one daemon.
+
+### Where the remaining time goes
+
+- **virtio-pci probes: 55 of the kernel's ~90 ms.** Six devices are probed
+  one after another, and each waits out a `msleep(1)` for its reset (two
+  jiffies at HZ=250, ~8 ms). `driver_async_probe=virtio-pci` brings root
+  mount from 89 ms to 37 ms, but it reorders `vda`/`vdb`, and
+  Containerization boots `root=/dev/vda`. Taking this win needs a HZ=1000
+  kernel or stable root naming.
+- **Agent polling.** Containerization sleeps 20 ms between vsock connect
+  attempts, and during early boot a refused attempt itself takes ~20 ms.
+  Worth an upstream change.
+- **An unused virtio-fs device.** VZ always attaches one, even with no
+  shares, which costs another ~8 ms probe. The jitterentropy self-test
+  takes 7.8 ms.
+- **A vmnet crash in Virtualization's VM process** (not micropod code). The
+  process sometimes dies within ~0.5 s of launch with an MTE tag-check
+  failure in `__vmnet_interface_start_with_network_block_invoke_3`, a
+  use-after-free inside vmnet. It happened 7 times on the benchmark host on
+  2026-09-30, to networked VMs only, and before this round's changes too.
+  It needs an Apple Feedback report; until it's fixed, the affected run
+  fails with "virtual machine stopped unexpectedly".
+- **shuru isn't in the table.** Its Homebrew tap needs `brew trust
+  superhq-ai/tap`; once `shuru` is on `PATH`, `task bench-runtimes`
+  includes it.
+
 ## Results (2026-09-22, M-series, both engines warm)
 
 ### API latency p50, ms — lower is better

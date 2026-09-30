@@ -7,6 +7,8 @@ import Foundation
 ///   ``ExitCodeRegistry`` runs a waiter) park on the registry and wake the
 ///   moment the exit is recorded. The runtime state is re-read every
 ///   `trackedPoll` (1 s) as a safety net.
+/// - **Engine-signalled containers** (the sandbox engine owns them) park on
+///   `park`, which returns as soon as the engine sees the exit.
 /// - **Untracked containers** (CLI backend, CLI-created, started before
 ///   this process, a wait that arrived before `track`, or an entry whose
 ///   waiter aged out) have no signal to wait on: the runtime state is polled
@@ -50,6 +52,7 @@ public enum ContainerExitWait {
         exitCodes: ExitCodeRegistry?,
         trackedPoll: Duration = defaultTrackedPoll,
         untrackedPoll: Duration = defaultUntrackedPoll,
+        park: (@Sendable (_ id: String, _ timeout: Duration) async -> Bool)? = nil,
         state: @Sendable (_ id: String, _ exitKnown: Bool) async throws -> String
     ) async throws -> Outcome {
         let clock = ContinuousClock()
@@ -76,6 +79,8 @@ public enum ContainerExitWait {
             // untracked container instead of spinning on the entry.
             if entry == nil, let exitCodes, await exitCodes.isTracked(id: id) {
                 _ = await exitCodes.await(id: id, timeout: min(remaining, trackedPoll))
+            } else if let park, await park(id, min(remaining, trackedPoll)) {
+                continue
             } else {
                 try? await Task.sleep(for: min(remaining, untrackedPoll))
             }
