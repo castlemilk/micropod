@@ -99,8 +99,10 @@ jobs:
         run: |
           bash scripts/package_app.sh "${VERSION#v}"
           # A release without the helper would silently fall back to the
-          # images' shells: fail instead.
+          # images' shells, and one without the CLI couldn't update it: fail.
           test -s dist/Micropod.app/Contents/Resources/micropod-guest
+          test -x dist/Micropod.app/Contents/MacOS/micropod-cli
+          test -x dist/Micropod.app/Contents/MacOS/MicropodMCP
 
       # codesign --timestamp and notarytool submit --wait have no built-in
       # timeout — a stalled timestamp/notary connection would otherwise hang
@@ -125,6 +127,17 @@ jobs:
             sed -i '' 's/Micropod\.dmg/Micropod-unsigned.dmg/' dist/Micropod-unsigned.dmg.sha256
             echo "DMG_ASSET=Micropod-unsigned.dmg" >> "$GITHUB_ENV"
           fi
+
+      # The tarball was packed before signing: repack it from the signed,
+      # notarized bundle, so its standalone CLI and MCP server are the same
+      # Developer ID binaries `micropod update cli` installs.
+      - name: Repack tarball with signed binaries
+        if: env.DMG_ASSET == 'Micropod.dmg'
+        run: |
+          cp dist/Micropod.app/Contents/MacOS/micropod-cli dist/micropod
+          cp dist/Micropod.app/Contents/MacOS/MicropodMCP dist/micropod-mcp-bin
+          codesign --verify --strict dist/micropod dist/micropod-mcp-bin
+          tar -czf "dist/Micropod.${VERSION#v}.tgz" -C dist Micropod.app micropod-mcp micropod-mcp-bin micropod
 
       - name: Upload release assets
         env:

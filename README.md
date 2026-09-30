@@ -379,6 +379,28 @@ briefly stops the app's agents (Docker shim, API), and in-flight jobs
 would notice. `micropod update [status|check|apply]` and the MCP
 `update_*` tools drive the same updater.
 
+**The CLI and MCP server update with the app.** The app bundle carries
+them (`Contents/MacOS/micropod-cli`, `Contents/MacOS/MicropodMCP`), signed
+and notarized along with the app. At every launch the app links
+`~/.local/bin/micropod` and `~/.local/bin/micropod-mcp` to them, keeping a
+copy that was there before as `<name>.pre-app.bak`. So Sparkle updating the
+app updates both, and a DMG install gets the CLI and MCP server with no
+extra step (add `~/.local/bin` to `PATH`). Settings → Updates turns the
+linking off.
+
+A **standalone** install (a copy from the release tarball, a headless
+machine) updates itself with `micropod update cli`:
+- It reads the same appcast and downloads the release DMG.
+- It checks the DMG against Sparkle's EdDSA key, the one the app trusts.
+- It takes `micropod-cli` and `MicropodMCP` from the signed app inside and
+  requires micropod's Developer ID signature on both.
+- It swaps them in atomically and keeps `.bak` copies.
+
+After interactive commands, a standalone CLI mentions a newer release once
+a day (checked in the background, never blocking a command). Scripts, CI,
+`--json` and `MICROPOD_NO_UPDATE_NOTIFIER=1` suppress it.
+`micropod update` shows both versions and where the CLI comes from.
+
 ## Local HTTP API
 
 `task api` (`Sources/MicropodAPI`) runs a dependency-free HTTP/1.1 JSON API

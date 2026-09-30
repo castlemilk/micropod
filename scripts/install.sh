@@ -50,14 +50,13 @@ rm -rf "$INSTALL_APP"
 /usr/bin/ditto "$APP_BUNDLE" "$INSTALL_APP"
 touch "$INSTALL_APP"
 
-echo "==> Installing MCP server to $MCP_BIN"
+# The CLI and MCP server are linked into the installed app (the app does this
+# itself at every launch too), so they update whenever the app does.
+echo "==> Linking the CLI + MCP server into $INSTALL_APP"
 mkdir -p "$MCP_DIR"
-cp "$ROOT/dist/micropod-mcp-bin" "${MCP_BIN}-bin"
-cat > "$MCP_BIN" <<WRAP
-#!/bin/bash
-exec "$MCP_DIR/micropod-mcp-bin" "\$@"
-WRAP
-chmod +x "$MCP_BIN" "${MCP_BIN}-bin"
+ln -sfn "$INSTALL_APP/Contents/MacOS/MicropodMCP" "$MCP_BIN"
+ln -sfn "$INSTALL_APP/Contents/MacOS/micropod-cli" "$CLI_BIN"
+rm -f "${MCP_BIN}-bin"
 
 # Docker Engine API shim: the app owns it as a supervised agent (spawned
 # from the bundle, health-probed, restarted on death, killed on quit). A
@@ -81,12 +80,6 @@ if [ -f "$HOME/Library/LaunchAgents/com.skunkworq.micropod-sharedfs.plist" ]; th
     launchctl bootout "gui/$(id -u)/com.skunkworq.micropod-sharedfs" 2>/dev/null || true
     rm -f "$HOME/Library/LaunchAgents/com.skunkworq.micropod-sharedfs.plist"
     echo "==> Retired legacy shared-fs LaunchAgent (app now supervises it)"
-fi
-
-if [ -f "$ROOT/dist/micropod" ]; then
-    echo "==> Installing CLI to $CLI_BIN"
-    cp "$ROOT/dist/micropod" "$CLI_BIN"
-    chmod +x "$CLI_BIN"
 fi
 
 # Agent skill: canonical copy lives at plugins/micropod/skills/micropod/

@@ -48,7 +48,12 @@ https://github.com/castlemilk/micropod/releases/latest/download/Micropod.dmg
    - `codesign --verify --deep --strict` gate
    - UDZO DMG with `/Applications` symlink
    - DMG signing, `notarytool submit --wait`, `stapler staple`
-5. `gh release create` with the DMG + sha256 + tgz (or `--clobber` upload if
+5. The tarball is repacked from the signed bundle, so its standalone
+   `micropod` and `micropod-mcp-bin` are the same Developer ID binaries the
+   app carries (`Contents/MacOS/micropod-cli`, `MicropodMCP`). The job fails
+   if the bundle lacks them, because the CLI's self-update and the app's
+   `~/.local/bin` links depend on them.
+6. `gh release create` with the DMG + sha256 + tgz (or `--clobber` upload if
    the release already exists).
 
 If the signing secrets are absent, the workflow publishes

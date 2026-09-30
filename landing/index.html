@@ -628,7 +628,7 @@
               MCP server
               <span class="tag">32 tools</span>
             </h3>
-            <p>Containers, images, volumes, networks, compose, shared mounts, build cache, app updates. Installed to <code style="font-family:var(--font-mono);font-size:0.75rem;color:var(--primary)">~/.local/bin/micropod-mcp</code> — point any MCP client at it.</p>
+            <p>Containers, images, volumes, networks, compose, shared mounts, build cache, app updates. Installed to <code style="font-family:var(--font-mono);font-size:0.75rem;color:var(--primary)">~/.local/bin/micropod-mcp</code> — the app links it (and the <code style="font-family:var(--font-mono);font-size:0.75rem;color:var(--primary)">micropod</code> CLI) from its bundle, so both update with the app. Point any MCP client at it.</p>
             <div class="codeblock"><pre><span class="c">// any client's MCP config</span>
 {"mcpServers":{"micropod":{"command":"micropod-mcp"}}}</pre></div>
             <p class="links"><a href="api/" target="_blank" rel="noopener">MCP tool reference ↗</a></p>

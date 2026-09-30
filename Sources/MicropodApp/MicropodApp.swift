@@ -11,6 +11,9 @@ struct MicropodApp: App {
         // Control socket for the API server / MCP to reach app-process
         // features (Sparkle update checks today).
         AppControlServer.shared.start()
+        // ~/.local/bin/micropod + micropod-mcp → this bundle, so the CLI and
+        // MCP server update with the app.
+        CLIToolLinks.refresh()
         // Hot service paths (exec, stats, logs, lifecycle) swap to direct
         // apiserver XPC when the handshake succeeds — CLI fallback otherwise.
         Task { await AppDependencies.shared.useNativeBackend() }

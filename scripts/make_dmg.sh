@@ -36,10 +36,11 @@ if [ -n "$IDENTITY" ]; then
     # Hardened runtime is required for notarization. Sign inside-out:
     # helper binaries first, then the bundle itself.
     for bin in "$APP"/Contents/MacOS/*; do
-        # MicropodAPI hosts the sandbox runtime's micro-VMs in-process.
+        # MicropodAPI and the CLI (`micropod sandbox`) boot micro-VMs in-process.
         entitlements=()
-        [ "$(basename "$bin")" = "MicropodAPI" ] \
-            && entitlements=(--entitlements "$ROOT/signing/micropod-cli.entitlements")
+        case "$(basename "$bin")" in
+            MicropodAPI | micropod-cli) entitlements=(--entitlements "$ROOT/signing/micropod-cli.entitlements") ;;
+        esac
         codesign --force --options runtime --timestamp ${entitlements[@]+"${entitlements[@]}"} \
             --sign "$IDENTITY" "$bin"
     done
