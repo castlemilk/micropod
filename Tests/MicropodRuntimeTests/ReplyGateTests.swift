@@ -66,4 +66,12 @@ final class ReplyGateTests: XCTestCase {
             XCTAssertLessThan(started.duration(to: .now), .seconds(2))
         }
     }
+
+    /// A timed-out runtime call is a deadline, not an internal error —
+    /// clients retry `deadline_exceeded`, they don't for `internal`.
+    func testTimeoutMapsToDeadlineExceeded() {
+        let error = MicropodError.message(
+            "deadlineExceeded: XPC timeout for com.apple.container.apiserver/containerStats")
+        XCTAssertEqual(ConnectCodeMapping.code(for: error), "deadline_exceeded")
+    }
 }

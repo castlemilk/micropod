@@ -308,7 +308,7 @@ final class HTTPServer: @unchecked Sendable {
                 connection.send(
                     content: head,
                     completion: .contentProcessed { _ in
-                        Task {
+                        let pump = Task {
                             for await chunk in events {
                                 let delivered = await withCheckedContinuation {
                                     (c: CheckedContinuation<Bool, Never>) in
@@ -332,6 +332,13 @@ final class HTTPServer: @unchecked Sendable {
                                 content: nil, contentContext: .finalMessage, isComplete: true,
                                 completion: .contentProcessed { _ in connection.cancel() })
                         }
+                        // A failed send only reveals a vanished peer when
+                        // there is something to send; a quiet stream (an idle
+                        // container's logs) would never notice. The request
+                        // body is already consumed, so any read completing —
+                        // EOF or error — means the client hung up: cancel the
+                        // pump, which drops the iterator and ends the source.
+                        Self.watchForHangup(connection) { pump.cancel() }
                     })
             default:
                 let data = Self.serialize(response, extraHeaders: cors)
@@ -340,6 +347,19 @@ final class HTTPServer: @unchecked Sendable {
                     completion: .contentProcessed { _ in
                         connection.cancel()
                     })
+            }
+        }
+    }
+
+    /// Calls `onHangup` once the peer closes its side or the connection
+    /// fails. Stray bytes after the request (none are expected) are read
+    /// and ignored.
+    static func watchForHangup(_ connection: NWConnection, onHangup: @escaping @Sendable () -> Void) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 4096) { _, _, isComplete, error in
+            if isComplete || error != nil {
+                onHangup()
+            } else {
+                watchForHangup(connection, onHangup: onHangup)
             }
         }
     }

@@ -239,7 +239,9 @@ public final class XPCConnection: Sendable {
                     let c = responseTimeout.components
                     let delay = Double(c.seconds) + Double(c.attoseconds) / 1e18
                     DispatchQueue.global().asyncAfter(deadline: .now() + delay) {
-                        gate.finish { throw MicropodError.message("XPC timeout for \(service)/\(route)") }
+                        gate.finish {
+                            throw MicropodError.message("deadlineExceeded: XPC timeout for \(service)/\(route)")
+                        }
                     }
                 }
             }

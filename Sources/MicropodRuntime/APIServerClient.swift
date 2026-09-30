@@ -97,7 +97,7 @@ public final class APIServerClient: Sendable {
                 }
             try request.set(key: key, value: handle)
         }
-        try await send(request)
+        try await send(request, timeout: .seconds(300))
     }
 
     /// `containerStop`.
@@ -106,7 +106,7 @@ public final class APIServerClient: Sendable {
         request.set(key: .id, value: id)
         let options = APIStopOptions(timeoutInSeconds: timeoutSeconds, signal: signal)
         request.set(key: .stopOptions, value: try JSONEncoder().encode(options))
-        try await send(request)
+        try await send(request, timeout: .seconds(Int64(timeoutSeconds) + 60))
     }
 
     /// `containerKill` (container scope — signals the init process).
@@ -115,7 +115,7 @@ public final class APIServerClient: Sendable {
         request.set(key: .id, value: id)
         request.set(key: .processIdentifier, value: id)
         request.set(key: .signal, value: signal)
-        try await send(request)
+        try await send(request, timeout: .seconds(30))
     }
 
     /// `containerKill` (process scope — numeric signal).
@@ -124,7 +124,7 @@ public final class APIServerClient: Sendable {
         request.set(key: .id, value: containerId)
         request.set(key: .processIdentifier, value: processId)
         request.set(key: .signal, value: Int64(signal))
-        try await send(request)
+        try await send(request, timeout: .seconds(30))
     }
 
     /// `containerDelete`.
@@ -132,7 +132,7 @@ public final class APIServerClient: Sendable {
         let request = XPCMessage(route: XPCRoute.containerDelete.rawValue)
         request.set(key: .id, value: id)
         request.set(key: .forceDelete, value: force)
-        try await send(request)
+        try await send(request, timeout: .seconds(300))
     }
 
     /// `containerCreate` — registers a stopped container. `configJSON` is
@@ -149,7 +149,7 @@ public final class APIServerClient: Sendable {
         if let initImage {
             request.set(key: .initImage, value: initImage)
         }
-        try await send(request)
+        try await send(request, timeout: .seconds(600))
     }
 
     /// `getDefaultKernel` → raw `Kernel` DTO data (returned verbatim into
@@ -218,7 +218,7 @@ public final class APIServerClient: Sendable {
         request.set(key: .volumeDriver, value: driver)
         request.set(key: .volumeDriverOpts, value: try JSONEncoder().encode(driverOpts))
         request.set(key: .volumeLabels, value: try JSONEncoder().encode(labels))
-        let reply = try await send(request)
+        let reply = try await send(request, timeout: .seconds(600))
         guard let data = reply.data(key: .volume) else {
             throw MicropodError.message("volumeCreate returned no volume")
         }
@@ -246,7 +246,7 @@ public final class APIServerClient: Sendable {
         let request = XPCMessage(route: XPCRoute.volumeInspect.rawValue)
         request.set(key: .volumeName, value: name)
         do {
-            let reply = try await send(request)
+            let reply = try await send(request, timeout: .seconds(10))
             guard let data = reply.data(key: .volume) else { return nil }
             return try MicropodJSON.decoder.decode(JSONValue.self, from: data)
         } catch {
@@ -299,7 +299,7 @@ public final class APIServerClient: Sendable {
                 }
             try request.set(key: key, value: handle)
         }
-        try await send(request)
+        try await send(request, timeout: .seconds(60))
     }
 
     /// `containerStartProcess`.
@@ -307,7 +307,7 @@ public final class APIServerClient: Sendable {
         let request = XPCMessage(route: XPCRoute.containerStartProcess.rawValue)
         request.set(key: .id, value: containerId)
         request.set(key: .processIdentifier, value: processId)
-        try await send(request)
+        try await send(request, timeout: .seconds(60))
     }
 
     /// `containerWait` — blocks until the process exits; returns exit code.
@@ -315,7 +315,7 @@ public final class APIServerClient: Sendable {
         let request = XPCMessage(route: XPCRoute.containerWait.rawValue)
         request.set(key: .id, value: containerId)
         request.set(key: .processIdentifier, value: processId)
-        let reply = try await send(request)
+        let reply = try await send(request, timeout: nil)
         return Int32(reply.int64(key: .exitCode))
     }
 
@@ -328,7 +328,7 @@ public final class APIServerClient: Sendable {
         request.set(key: .processIdentifier, value: processId)
         request.set(key: .width, value: UInt64(width))
         request.set(key: .height, value: UInt64(height))
-        try await send(request)
+        try await send(request, timeout: .seconds(10))
     }
 
     // MARK: - Logs
@@ -337,7 +337,7 @@ public final class APIServerClient: Sendable {
     public func logs(id: String) async throws -> [FileHandle] {
         let request = XPCMessage(route: XPCRoute.containerLogs.rawValue)
         request.set(key: .id, value: id)
-        let reply = try await send(request)
+        let reply = try await send(request, timeout: .seconds(10))
         guard let handles = reply.fileHandles(key: .logs) else {
             throw MicropodError.message("container \(id): no log fds returned")
         }
@@ -364,7 +364,7 @@ public final class APIServerClient: Sendable {
     public func diskUsage(id: String) async throws -> UInt64 {
         let request = XPCMessage(route: XPCRoute.containerDiskUsage.rawValue)
         request.set(key: .id, value: id)
-        let reply = try await send(request)
+        let reply = try await send(request, timeout: .seconds(30))
         return reply.uint64(key: .containerSize)
     }
 
@@ -376,7 +376,7 @@ public final class APIServerClient: Sendable {
         let request = XPCMessage(route: XPCRoute.containerDial.rawValue)
         request.set(key: .id, value: id)
         request.set(key: .port, value: UInt64(port))
-        let reply = try await send(request)
+        let reply = try await send(request, timeout: .seconds(30))
         guard let handle = reply.fileHandle(key: .fd) else {
             throw MicropodError.message("container \(id): no fd for vsock port \(port)")
         }
@@ -413,13 +413,23 @@ public final class APIServerClient: Sendable {
         let request = XPCMessage(route: XPCRoute.containerExport.rawValue)
         request.set(key: .id, value: id)
         request.set(key: .archive, value: archivePath)
-        try await send(request)
+        try await send(request, timeout: .seconds(600))
     }
 
     // MARK: - Internals
 
     @discardableResult
-    private func send(_ request: XPCMessage, timeout: Duration? = nil) async throws -> XPCMessage {
+    /// Every call names its bound: a runtime that never answers (a wedged
+    /// container helper) must not hold a caller forever. `nil` is an
+    /// explicit, reviewed choice — only for waits whose length is the
+    /// workload's own (waitProcess).
+    ///
+    /// Bounds are deliberately generous — they exist to end a call the
+    /// runtime will never answer, not to police slow-but-healthy work: a
+    /// timed-out create/bootstrap keeps running server-side, so a bound that
+    /// fires on a busy host would strand a half-made container. Creates from
+    /// large images under load have been seen to take minutes.
+    private func send(_ request: XPCMessage, timeout: Duration?) async throws -> XPCMessage {
         try await xpc.send(request, responseTimeout: timeout)
     }
 }

@@ -48,7 +48,7 @@ public struct ImagesServiceClient: Sendable {
         self.transport = transport
     }
 
-    private func send(_ request: XPCMessage, timeout: Duration? = nil) async throws -> XPCMessage {
+    private func send(_ request: XPCMessage, timeout: Duration?) async throws -> XPCMessage {
         try await transport(request, timeout)
     }
 
@@ -72,7 +72,8 @@ public struct ImagesServiceClient: Sendable {
         {
             request.set(key: .ociPlatform, value: data)
         }
-        let reply = try await send(request)
+        // One XPC round trip with no progress; a stuck registry must still end.
+        let reply = try await send(request, timeout: .seconds(1800))
         guard let data = reply.data(key: .imageDescription) else {
             throw MicropodError.message("imagePull returned no imageDescription")
         }
