@@ -427,6 +427,143 @@ extension APIHandlers {
                     Micropod_V1_LogChunk.with { $0.text = line.text }
                 }
 
+            // MARK: SandboxService
+
+            case "StartSandbox":
+                let req = try decode(Micropod_V1_StartSandboxRequest.self, body)
+                let id = try await services.containers.run(try sandboxRunRequest(from: req))
+                return unary(Micropod_V1_ContainerRef.with { $0.id = id })
+
+            case "StartProcess":
+                let req = try decode(Micropod_V1_StartProcessRequest.self, body)
+                try required(req.id, "id")
+                guard !req.command.isEmpty else {
+                    throw ConnectDecodeError(code: .invalidArgument, message: "command is required")
+                }
+                let (processID, pid) = try await sandboxEngine.startProcess(
+                    req.id, command: req.command, cwd: req.cwd, env: req.env, stdin: req.stdin)
+                return unary(
+                    Micropod_V1_ProcessRef.with {
+                        $0.id = req.id
+                        $0.processID = processID
+                        $0.pid = pid
+                    })
+
+            case "StreamProcess":
+                let req = try decodeStreamRequest(Micropod_V1_ProcessRef.self, body)
+                try required(req.id, "id")
+                try required(req.processID, "process_id")
+                let events = try sandboxEngine.streamProcess(req.id, processID: req.processID)
+                return streamEnvelope(events, coalesce: true, map: Self.processEvent)
+
+            case "WriteProcessStdin":
+                let req = try decode(Micropod_V1_WriteProcessStdinRequest.self, body)
+                try required(req.id, "id")
+                try required(req.processID, "process_id")
+                try sandboxEngine.writeStdin(req.id, processID: req.processID, data: req.data, close: req.close)
+                return unary(Micropod_V1_Empty())
+
+            case "SignalProcess":
+                let req = try decode(Micropod_V1_SignalProcessRequest.self, body)
+                try required(req.id, "id")
+                try required(req.processID, "process_id")
+                try await sandboxEngine.signalProcess(req.id, processID: req.processID, signal: req.signal)
+                return unary(Micropod_V1_Empty())
+
+            case "ReadFile":
+                let req = try decode(Micropod_V1_PathRequest.self, body)
+                try requiredPath(req.id, req.path)
+                let data = try await sandboxEngine.readFile(req.id, path: req.path)
+                return unary(Micropod_V1_FileContent.with { $0.data = data })
+
+            case "WriteFile":
+                let req = try decode(Micropod_V1_WriteFileRequest.self, body)
+                try requiredPath(req.id, req.path)
+                try await sandboxEngine.writeFile(
+                    req.id, path: req.path, data: req.data, append: req.append,
+                    mode: req.hasMode ? req.mode : nil, createParents: req.createParents)
+                return unary(Micropod_V1_Empty())
+
+            case "ListDir":
+                let req = try decode(Micropod_V1_PathRequest.self, body)
+                try requiredPath(req.id, req.path)
+                let entries = try await sandboxEngine.listDir(req.id, path: req.path)
+                return unary(Micropod_V1_ListDirResponse.with { $0.entries = entries.map(Self.dirEntry) })
+
+            case "StatPath":
+                let req = try decode(Micropod_V1_PathRequest.self, body)
+                try requiredPath(req.id, req.path)
+                var stat = Self.fileStat(try await sandboxEngine.stat(req.id, path: req.path))
+                stat.path = req.path
+                return unary(stat)
+
+            case "MakeDir":
+                let req = try decode(Micropod_V1_MakeDirRequest.self, body)
+                try requiredPath(req.id, req.path)
+                try await sandboxEngine.makeDir(
+                    req.id, path: req.path, recursive: req.hasRecursive ? req.recursive : true)
+                return unary(Micropod_V1_Empty())
+
+            case "RemovePath":
+                let req = try decode(Micropod_V1_RemovePathRequest.self, body)
+                try requiredPath(req.id, req.path)
+                try await sandboxEngine.remove(req.id, path: req.path, recursive: req.recursive)
+                return unary(Micropod_V1_Empty())
+
+            case "RenamePath":
+                let req = try decode(Micropod_V1_RenamePathRequest.self, body)
+                try requiredPath(req.id, req.from)
+                try required(req.to, "to")
+                try await sandboxEngine.rename(req.id, from: req.from, to: req.to)
+                return unary(Micropod_V1_Empty())
+
+            case "CopyPath":
+                let req = try decode(Micropod_V1_CopyPathRequest.self, body)
+                try requiredPath(req.id, req.from)
+                try required(req.to, "to")
+                try await sandboxEngine.copy(req.id, from: req.from, to: req.to, recursive: req.recursive)
+                return unary(Micropod_V1_Empty())
+
+            case "ChmodPath":
+                let req = try decode(Micropod_V1_ChmodPathRequest.self, body)
+                try requiredPath(req.id, req.path)
+                guard req.mode <= 0o7777 else {
+                    throw ConnectDecodeError(code: .invalidArgument, message: "mode must be at most 0o7777")
+                }
+                try await sandboxEngine.chmod(req.id, path: req.path, mode: req.mode)
+                return unary(Micropod_V1_Empty())
+
+            case "WatchPath":
+                let req = try decodeStreamRequest(Micropod_V1_WatchPathRequest.self, body)
+                try requiredPath(req.id, req.path)
+                let changes = try await sandboxEngine.watch(
+                    req.id, path: req.path, recursive: req.hasRecursive ? req.recursive : true)
+                return streamEnvelope(changes) { change in
+                    Micropod_V1_WatchEvent.with {
+                        $0.event = change.event
+                        $0.path = change.path
+                    }
+                }
+
+            case "CheckpointSandbox":
+                let req = try decode(Micropod_V1_CheckpointSandboxRequest.self, body)
+                try required(req.id, "id")
+                try checkpointName(req.name)
+                try await sandboxEngine.checkpoint(req.id, name: req.name)
+                return unary(Micropod_V1_Empty())
+
+            case "ListCheckpoints":
+                return unary(Self.checkpoints())
+
+            case "DeleteCheckpoint":
+                let req = try decode(Micropod_V1_CheckpointRef.self, body)
+                try checkpointName(req.name)
+                guard SandboxVM.listCheckpoints().contains(where: { $0.name == req.name }) else {
+                    throw ConnectDecodeError(code: .notFound, message: "no checkpoint '\(req.name)'")
+                }
+                try SandboxVM.deleteCheckpoint(req.name)
+                return unary(Micropod_V1_Empty())
+
             default:
                 return nil
             }
@@ -538,8 +675,12 @@ extension APIHandlers {
         id: String, timeout: Duration, in services: RuntimeServices
     ) async throws -> Micropod_V1_WaitContainerResponse {
         let exitCodes = services.exitCodes
+        var park: (@Sendable (String, Duration) async -> Bool)?
+        if let router = services.containers as? RuntimeRouter {
+            park = { id, timeout in await router.awaitStateChange(id, timeout: timeout) }
+        }
         let outcome = try await ContainerExitWait.wait(
-            id: id, timeout: timeout, exitCodes: exitCodes
+            id: id, timeout: timeout, exitCodes: exitCodes, park: park
         ) { id, exitKnown in
             let state = await services.containers.state(of: id)
             guard state == "unknown", !exitKnown else { return state }
@@ -549,10 +690,17 @@ extension APIHandlers {
             // container it no longer lists has really vanished.
             return try await listedContainer(id, in: services)?.state ?? "unknown"
         }
+        var known = outcome.known
+        var exitCode = outcome.exitCode
+        // The sandbox engine records its sessions' exit codes itself.
+        if outcome.exited, !known, let code = await sandboxEngine.exitCode(id) {
+            known = true
+            exitCode = code
+        }
         return .with {
             $0.exited = outcome.exited
-            $0.known = outcome.known
-            if let code = outcome.exitCode { $0.exitCode = code }
+            $0.known = known
+            if let exitCode { $0.exitCode = exitCode }
             $0.state = outcome.state
         }
     }
@@ -563,6 +711,17 @@ extension APIHandlers {
     /// apiserver enforces them via its protovalidate interceptor, but this
     /// in-process mount bypasses that chain, so required/non-empty fields are
     /// checked here before dispatch.
+    private func requiredPath(_ id: String, _ path: String) throws {
+        try required(id, "id")
+        try required(path, "path")
+    }
+
+    private func checkpointName(_ name: String) throws {
+        guard name.range(of: #"^[A-Za-z0-9][A-Za-z0-9._-]*$"#, options: .regularExpression) != nil else {
+            throw ConnectDecodeError(code: .invalidArgument, message: "invalid checkpoint name '\(name)'")
+        }
+    }
+
     private func required(_ value: String, _ field: String) throws {
         if value.isEmpty {
             throw ConnectDecodeError(
@@ -888,7 +1047,8 @@ extension APIHandlers {
             entrypoint: proto.hasEntrypoint ? proto.entrypoint : nil,
             arguments: proto.arguments,
             noPull: proto.noPull,
-            runtime: proto.hasRuntime ? proto.runtime : nil)
+            runtime: proto.hasRuntime ? proto.runtime : nil,
+            sandbox: proto.hasSandbox ? try sandboxOptions(from: proto.sandbox, network: nil) : nil)
         do {
             try request.applySecurityOptions(from: proto)
         } catch let error as LinuxCapabilities.InvalidName {

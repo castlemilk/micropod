@@ -13,6 +13,8 @@ import Security
 /// stopped sandbox cannot be restarted (run a new one).
 public struct SandboxEngine: RuntimeEngine, ContainerServing, LogStreaming {
     let store: SessionStore
+    /// Processes started through `SandboxService` (the SDK surface).
+    let processes = SandboxProcessTable()
 
     public var name: String { "sandbox" }
     public var kind: String { "microvm" }
@@ -55,6 +57,16 @@ public struct SandboxEngine: RuntimeEngine, ContainerServing, LogStreaming {
 
     public func owns(_ id: String) async -> Bool { await store.session(id) != nil }
 
+    public func awaitStateChange(_ id: String, timeout: Duration) async -> Bool {
+        await store.awaitFinish(id, timeout: timeout)
+    }
+
+    /// The main process's exit code once the sandbox has exited.
+    public func exitCode(_ id: String) async -> Int32? {
+        guard let session = await store.session(id), session.state == .exited else { return nil }
+        return session.exitCode
+    }
+
     // MARK: ContainerServing
 
     public func list() async throws -> [Micropod_V1_Container] {
@@ -95,10 +107,22 @@ public struct SandboxEngine: RuntimeEngine, ContainerServing, LogStreaming {
     /// ContainerRunRequest → SandboxVM.Options. Anything the sandbox can't
     /// honour fails loudly rather than being dropped.
     public static func options(from request: ContainerRunRequest) throws -> SandboxVM.Options {
-        guard request.publishedPorts.isEmpty else {
-            throw MicropodError.unsupported("runtime 'sandbox' does not publish ports — use apple or docker")
-        }
         var options = SandboxVM.Options(base: .image(request.image))
+        // No host address means every interface, as the API documents and
+        // the apple and docker engines do (`sandbox run -p` is loopback).
+        options.ports = try request.publishedPorts.map { spec in
+            guard spec.transportProtocol.lowercased() == "tcp" else {
+                throw MicropodError.unsupported(
+                    "runtime 'sandbox' forwards tcp ports only, not \(spec.transportProtocol)")
+            }
+            guard let host = UInt16(exactly: spec.hostPort), let guest = UInt16(exactly: spec.containerPort),
+                host > 0, guest > 0
+            else {
+                throw MicropodError.message("invalidArgument: port \(spec.hostPort):\(spec.containerPort)")
+            }
+            let address = spec.hostIP.flatMap { $0.isEmpty ? nil : $0 } ?? "0.0.0.0"
+            return PortForward(hostIP: address, hostPort: host, guestPort: guest)
+        }
         options.arguments = request.arguments
         options.entrypoint = request.entrypoint.map { [$0] }
         if let cpus = request.cpus { options.cpus = max(1, Int(cpus.rounded(.up))) }
@@ -124,7 +148,33 @@ public struct SandboxEngine: RuntimeEngine, ContainerServing, LogStreaming {
             throw MicropodError.unsupported("runtime 'sandbox' does not support user '\(user)' yet")
         }
         if let name = request.name { options.hostname = name }
+        options.dnsResolvers = request.dns
+        if let sandbox = request.sandbox {
+            try apply(sandbox, to: &options)
+        }
         return options
+    }
+
+    /// `SandboxOptions` (and StartSandbox's extras) onto the VM options.
+    static func apply(_ sandbox: SandboxRunOptions, to options: inout SandboxVM.Options) throws {
+        if let checkpoint = sandbox.fromCheckpoint { options.base = .checkpoint(checkpoint) }
+        if let network = sandbox.network { options.network = network }
+        if let mib = sandbox.diskSizeMiB { options.diskBytes = mib << 20 }
+        options.exposeHost = sandbox.exposeHost
+        options.dnsResolvers += sandbox.dnsResolvers
+        options.egress = EgressPolicy(
+            allowHosts: sandbox.allowHosts,
+            secrets: try sandbox.secrets.map {
+                // API secret commands run from the API process's home unless
+                // the request names a directory.
+                try SandboxSecret.from($0, directory: FileManager.default.homeDirectoryForCurrentUser)
+            })
+        if !options.egress.isEmpty && !options.network {
+            throw MicropodError.message("invalidArgument: allow_hosts and secrets need a network")
+        }
+        if !options.dnsResolvers.isEmpty && options.networkMode == nil {
+            throw MicropodError.message("invalidArgument: dns_resolvers need a network")
+        }
     }
 
     public func exec(_ request: ContainerExecRequest) async throws -> String {
@@ -137,10 +187,11 @@ public struct SandboxEngine: RuntimeEngine, ContainerServing, LogStreaming {
     }
 
     public func execDetailed(_ request: ContainerExecRequest) async throws -> ContainerExecResult {
-        let container = try await store.running(request.containerID)
+        let prepared = try await store.running(request.containerID)
         let stdout = CollectingWriter()
         let stderr = CollectingWriter()
-        let process = try await container.exec(UUID().uuidString.lowercased()) { cfg in
+        let process = try await prepared.container.exec(UUID().uuidString.lowercased()) { cfg in
+            cfg = prepared.processTemplate
             cfg.arguments = request.arguments
             cfg.environmentVariables = SandboxVM.mergeEnv(cfg.environmentVariables, request.env)
             if let workdir = request.workdir { cfg.workingDirectory = workdir }
@@ -166,7 +217,10 @@ public struct SandboxEngine: RuntimeEngine, ContainerServing, LogStreaming {
         try await store.stop(id, signal: sig)
     }
 
-    public func delete(_ id: String, force: Bool) async throws { try await store.remove(id, force: force) }
+    public func delete(_ id: String, force: Bool) async throws {
+        try await store.remove(id, force: force)
+        processes.forget(session: id)
+    }
 
     public func stopAll() async throws {
         for session in await store.all() where session.state == .running {
@@ -263,6 +317,8 @@ struct Session: Sendable {
     var state = State.created
     var exitCode: Int32?
     var prepared: SandboxVM.Prepared?
+    /// Set while a checkpoint takes the root disk: finish() must not delete it.
+    var keepDisk = false
 
     var logURL: URL { runDir.appendingPathComponent("output.log") }
 
@@ -310,6 +366,8 @@ struct Session: Sendable {
 actor SessionStore {
     let root: URL
     private var sessions: [String: Session] = [:]
+    /// Waiters parked in `awaitFinish`, resumed when their session exits.
+    private var finishWaiters: [String: [UUID: CheckedContinuation<Void, Never>]] = [:]
 
     init(root: URL) {
         let base = root
@@ -345,12 +403,12 @@ actor SessionStore {
         sessions[session.id] = session
     }
 
-    func running(_ id: String) throws -> LinuxContainer {
+    func running(_ id: String) throws -> SandboxVM.Prepared {
         let session = try require(id)
         guard session.state == .running, let prepared = session.prepared else {
             throw MicropodError.message("failedPrecondition: sandbox \(id) is not running")
         }
-        return prepared.container
+        return prepared
     }
 
     func boot(_ id: String) async throws {
@@ -363,9 +421,16 @@ actor SessionStore {
         sessions[id] = session
         do {
             let log = try LockedFileWriter(url: session.logURL)
-            let prepared = try await SandboxVM.prepare(
-                session.options, id: id, runDir: session.runDir, stdout: log, stderr: log, progress: { _ in })
-            try await SandboxVM.boot(prepared, timeout: session.options.bootTimeout)
+            let prepared = try await SandboxVM.prepareAndCreate(
+                session.options, id: id, runDir: session.runDir, stdout: log, stderr: log,
+                progress: { SecretSource.stderrLog("sandbox \(id): \($0)") })
+            do {
+                try await SandboxVM.launch(prepared)
+            } catch {
+                prepared.forwarding.stop()
+                try? await prepared.container.stop()
+                throw error
+            }
             sessions[id]?.prepared = prepared
             Task { await self.reap(id, prepared) }
         } catch {
@@ -379,17 +444,64 @@ actor SessionStore {
     private func reap(_ id: String, _ prepared: SandboxVM.Prepared) async {
         let code = (try? await prepared.container.wait().exitCode) ?? -1
         try? await prepared.container.stop()
+        prepared.forwarding.stop()
         finish(id, code: code)
     }
 
+    /// Parks until session `id` exits (or is gone) or `timeout` passes, so a
+    /// `WaitContainer` hears of the exit at once instead of on its next
+    /// poll. Always true: this engine has the signal.
+    func awaitFinish(_ id: String, timeout: Duration) async -> Bool {
+        guard let session = sessions[id], session.state != .exited else { return true }
+        let token = UUID()
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            finishWaiters[id, default: [:]][token] = continuation
+            Task { [weak self] in
+                try? await Task.sleep(for: timeout)
+                await self?.resumeWaiter(id, token)
+            }
+        }
+        return true
+    }
+
+    private func resumeWaiter(_ id: String, _ token: UUID) {
+        finishWaiters[id]?.removeValue(forKey: token)?.resume()
+        if finishWaiters[id]?.isEmpty == true { finishWaiters[id] = nil }
+    }
+
+    private func resumeAll(_ id: String) {
+        for waiter in finishWaiters.removeValue(forKey: id)?.values.map({ $0 }) ?? [] { waiter.resume() }
+    }
+
     private func finish(_ id: String, code: Int32) {
+        defer { resumeAll(id) }
         guard var session = sessions[id], session.state == .running else { return }
         session.state = .exited
         if session.exitCode == nil { session.exitCode = code }
         session.prepared = nil
-        // The rootfs clone is dead weight once the VM is gone; keep logs.
-        try? FileManager.default.removeItem(at: session.runDir.appendingPathComponent("rootfs.ext4"))
+        // The rootfs clone is dead weight once the VM is gone (unless it is
+        // becoming a checkpoint); keep logs.
+        if !session.keepDisk {
+            try? FileManager.default.removeItem(at: session.runDir.appendingPathComponent("rootfs.ext4"))
+        }
         sessions[id] = session
+    }
+
+    /// Stop a running sandbox cleanly (its root disk unmounted in-guest) and
+    /// keep that disk as checkpoint `name`.
+    func checkpoint(_ id: String, name: String) async throws {
+        let session = try require(id)
+        guard session.state == .running, let prepared = session.prepared else {
+            throw MicropodError.message("failedPrecondition: sandbox \(id) is not running")
+        }
+        sessions[id]?.keepDisk = true
+        sessions[id]?.exitCode = 0
+        defer { sessions[id]?.keepDisk = false }
+        try await prepared.container.stop()
+        prepared.forwarding.stop()
+        finish(id, code: 0)
+        try SandboxVM.saveCheckpoint(
+            name: name, disk: prepared.rootfsPath, image: prepared.imageRef, diskBytes: prepared.diskBytes)
     }
 
     func stop(_ id: String, signal: Signal?) async throws {
@@ -401,6 +513,7 @@ actor SessionStore {
         }
         sessions[id]?.exitCode = 137
         try await prepared.container.stop()
+        prepared.forwarding.stop()
         finish(id, code: 137)
     }
 
@@ -413,6 +526,7 @@ actor SessionStore {
             try? await stop(id, signal: nil)
         }
         sessions[id] = nil
+        resumeAll(id)
         try? FileManager.default.removeItem(at: session.runDir)
     }
 }

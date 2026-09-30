@@ -89,11 +89,17 @@ tasks:
       - swift build --product micropod
       - codesign --force --sign - --entitlements signing/micropod-cli.entitlements .build/debug/micropod
 
-  bench-sandbox:
-    desc: CI-shaped boot/job/fan-out — micropod sandbox vs container run vs shuru (if installed)
+  bench-runtimes:
+    desc: CI-shaped boot/job/fan-out across execution options — sandbox, apple, machine, API, docker, shuru (if installed)
     cmds:
       - task: cli
-      - python3 scripts/bench_sandbox.py
+      - python3 scripts/bench_runtimes.py {{.CLI_ARGS}}
+
+  e2e-sdk:
+    desc: TypeScript SDK Sandbox class (exec/spawn/files/watch/checkpoint) against a signed MicropodAPI on a scratch port
+    cmds:
+      - swift build --product MicropodAPI
+      - ./scripts/e2e_sandbox_sdk.sh
 
   e2e-runtimes:
     desc: Live engine matrix (apple, sandbox, docker) through a signed MicropodAPI on a scratch port

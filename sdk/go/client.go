@@ -45,6 +45,7 @@ type Client struct {
 	micropodv1connect.SystemServiceClient
 	micropodv1connect.K8SServiceClient
 	micropodv1connect.MachineServiceClient
+	micropodv1connect.SandboxServiceClient
 }
 
 type config struct {
@@ -126,5 +127,6 @@ func NewClient(baseURL string, opts ...Option) *Client {
 		SystemServiceClient:    micropodv1connect.NewSystemServiceClient(cfg.httpClient, baseURL, clientOpts...),
 		K8SServiceClient:       micropodv1connect.NewK8SServiceClient(cfg.httpClient, baseURL, clientOpts...),
 		MachineServiceClient:   micropodv1connect.NewMachineServiceClient(cfg.httpClient, baseURL, clientOpts...),
+		SandboxServiceClient:   micropodv1connect.NewSandboxServiceClient(cfg.httpClient, baseURL, clientOpts...),
 	}
 }

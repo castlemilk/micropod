@@ -86,7 +86,8 @@ def main():
                 "runtimes", "runtime_set_default", "runtime_update",
                 "k8s_status", "k8s_enable", "k8s_disable", "k8s_up", "k8s_down",
                 "k8s_kubeconfig", "k8s_load_image", "k8s_images",
-                "list_machines", "machine_stats", "machine_logs"}
+                "list_machines", "machine_stats", "machine_logs",
+                "sandbox_run", "sandbox_checkpoints", "sandbox_checkpoint_create", "sandbox_checkpoint_delete"}
     check(f"all {len(expected)} tools advertised", set(names) == expected, f"got {sorted(names)}")
 
     def call(tool_id, tool, **arguments):

@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file micropod/v1/container.proto.
  */
 export const file_micropod_v1_container: GenFile = /*@__PURE__*/
-  fileDesc("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dWVzdBoZLm1pY3JvcG9kLnYxLkNvbnRhaW5lclJlZhI/Cg5TdGFydENvbnRhaW5lchIZLm1pY3JvcG9kLnYxLkNvbnRhaW5lclJlZhoSLm1pY3JvcG9kLnYxLkVtcHR5Ej4KDVN0b3BDb250YWluZXISGS5taWNyb3BvZC52MS5Db250YWluZXJSZWYaEi5taWNyb3BvZC52MS5FbXB0eRJBChBSZXN0YXJ0Q29udGFpbmVyEhkubWljcm9wb2QudjEuQ29udGFpbmVyUmVmGhIubWljcm9wb2QudjEuRW1wdHkSPgoNS2lsbENvbnRhaW5lchIZLm1pY3JvcG9kLnYxLkNvbnRhaW5lclJlZhoSLm1pY3JvcG9kLnYxLkVtcHR5EkoKD0RlbGV0ZUNvbnRhaW5lchIjLm1pY3JvcG9kLnYxLkRlbGV0ZUNvbnRhaW5lclJlcXVlc3QaEi5taWNyb3BvZC52MS5FbXB0eRJBCgxHZXRDb250YWluZXISGS5taWNyb3BvZC52MS5Db250YWluZXJSZWYaFi5taWNyb3BvZC52MS5Db250YWluZXISVgoNV2FpdENvbnRhaW5lchIhLm1pY3JvcG9kLnYxLldhaXRDb250YWluZXJSZXF1ZXN0GiIubWljcm9wb2QudjEuV2FpdENvbnRhaW5lclJlc3BvbnNlEk4KE1N0cmVhbUNvbnRhaW5lckxvZ3MSHi5taWNyb3BvZC52MS5TdHJlYW1Mb2dzUmVxdWVzdBoVLm1pY3JvcG9kLnYxLkxvZ0NodW5rMAESRwoIR2V0U3RhdHMSHC5taWNyb3BvZC52MS5HZXRTdGF0c1JlcXVlc3QaHS5taWNyb3BvZC52MS5HZXRTdGF0c1Jlc3BvbnNlEpcBCgRFeGVjEhgubWljcm9wb2QudjEuRXhlY1JlcXVlc3QaGS5taWNyb3BvZC52MS5FeGVjUmVzcG9uc2UiWrpHVyJVChVkb2NrZXIgZXhlYyBzZW1hbnRpY3MSPGh0dHBzOi8vZG9jcy5kb2NrZXIuY29tL3JlZmVyZW5jZS9jbGkvZG9ja2VyL2NvbnRhaW5lci9leGVjL0JCWkBnaXRodWIuY29tL2Nhc3RsZW1pbGsvbWljcm9wb2Qvc2RrL2dvL2dlbi9taWNyb3BvZC92MTttaWNyb3BvZHYxYgZwcm90bzM", [file_buf_validate_validate, file_gnostic_openapi_v3_annotations, file_micropod_v1_api, file_micropod_v1_system]);
+  fileDesc("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ZXJSZWYaEi5taWNyb3BvZC52MS5FbXB0eRI+Cg1TdG9wQ29udGFpbmVyEhkubWljcm9wb2QudjEuQ29udGFpbmVyUmVmGhIubWljcm9wb2QudjEuRW1wdHkSQQoQUmVzdGFydENvbnRhaW5lchIZLm1pY3JvcG9kLnYxLkNvbnRhaW5lclJlZhoSLm1pY3JvcG9kLnYxLkVtcHR5Ej4KDUtpbGxDb250YWluZXISGS5taWNyb3BvZC52MS5Db250YWluZXJSZWYaEi5taWNyb3BvZC52MS5FbXB0eRJKCg9EZWxldGVDb250YWluZXISIy5taWNyb3BvZC52MS5EZWxldGVDb250YWluZXJSZXF1ZXN0GhIubWljcm9wb2QudjEuRW1wdHkSQQoMR2V0Q29udGFpbmVyEhkubWljcm9wb2QudjEuQ29udGFpbmVyUmVmGhYubWljcm9wb2QudjEuQ29udGFpbmVyElYKDVdhaXRDb250YWluZXISIS5taWNyb3BvZC52MS5XYWl0Q29udGFpbmVyUmVxdWVzdBoiLm1pY3JvcG9kLnYxLldhaXRDb250YWluZXJSZXNwb25zZRJOChNTdHJlYW1Db250YWluZXJMb2dzEh4ubWljcm9wb2QudjEuU3RyZWFtTG9nc1JlcXVlc3QaFS5taWNyb3BvZC52MS5Mb2dDaHVuazABEkcKCEdldFN0YXRzEhwubWljcm9wb2QudjEuR2V0U3RhdHNSZXF1ZXN0Gh0ubWljcm9wb2QudjEuR2V0U3RhdHNSZXNwb25zZRKXAQoERXhlYxIYLm1pY3JvcG9kLnYxLkV4ZWNSZXF1ZXN0GhkubWljcm9wb2QudjEuRXhlY1Jlc3BvbnNlIlq6R1ciVQoVZG9ja2VyIGV4ZWMgc2VtYW50aWNzEjxodHRwczovL2RvY3MuZG9ja2VyLmNvbS9yZWZlcmVuY2UvY2xpL2RvY2tlci9jb250YWluZXIvZXhlYy9CQlpAZ2l0aHViLmNvbS9jYXN0bGVtaWxrL21pY3JvcG9kL3Nkay9nby9nZW4vbWljcm9wb2QvdjE7bWljcm9wb2R2MWIGcHJvdG8z", [file_buf_validate_validate, file_gnostic_openapi_v3_annotations, file_micropod_v1_api, file_micropod_v1_system]);
 
 /**
  * Curated view of a container, mapped from `container list --format json`.
@@ -505,6 +505,15 @@ export type RunContainerRequest = Message<"micropod.v1.RunContainerRequest"> & {
    * @generated from field: optional string runtime = 21;
    */
   runtime?: string;
+
+  /**
+   * Sandbox-only behaviour — host ports the guest may reach, an egress
+   * allowlist, proxy-injected secrets. Honoured by `runtime: "sandbox"`;
+   * other engines fail the request with `unimplemented` rather than drop it.
+   *
+   * @generated from field: micropod.v1.SandboxOptions sandbox = 22;
+   */
+  sandbox?: SandboxOptions;
 };
 
 /**
@@ -513,6 +522,120 @@ export type RunContainerRequest = Message<"micropod.v1.RunContainerRequest"> & {
  */
 export const RunContainerRequestSchema: GenMessage<RunContainerRequest> = /*@__PURE__*/
   messageDesc(file_micropod_v1_container, 6);
+
+/**
+ * What a sandbox may reach beyond its own VM, and the credentials it may use
+ * without seeing them.
+ *
+ * @generated from message micropod.v1.SandboxOptions
+ */
+export type SandboxOptions = Message<"micropod.v1.SandboxOptions"> & {
+  /**
+   * Host loopback ports the guest reaches as host.micropod.internal:<port>
+   * (e.g. a database on the host). Nothing else on the host is reachable.
+   *
+   * @generated from field: repeated uint32 expose_host = 1;
+   */
+  exposeHost: number[];
+
+  /**
+   * Egress allowlist. When set, the VM has no route out of its own: all
+   * traffic leaves through a host proxy that refuses every other host.
+   * "*.example.com" matches subdomains only. Needs a network.
+   *
+   * @generated from field: repeated string allow_hosts = 2;
+   */
+  allowHosts: string[];
+
+  /**
+   * Secrets by the environment variable name the guest sees. The guest gets
+   * a random placeholder; the host proxy swaps in the real value only in the
+   * request line and headers of HTTPS requests to the secret's `hosts`, so
+   * the credential never enters the VM. Needs a network.
+   *
+   * @generated from field: map<string, micropod.v1.SandboxSecret> secrets = 3;
+   */
+  secrets: { [key: string]: SandboxSecret };
+
+  /**
+   * Guest nameservers (default: the network gateway). Needs a network.
+   *
+   * @generated from field: repeated string dns_resolvers = 4;
+   */
+  dnsResolvers: string[];
+
+  /**
+   * Root disk size in MiB for image bases (0 = the default, 8192).
+   *
+   * @generated from field: uint64 disk_size_mib = 5;
+   */
+  diskSizeMib: bigint;
+};
+
+/**
+ * Describes the message micropod.v1.SandboxOptions.
+ * Use `create(SandboxOptionsSchema)` to create a new message.
+ */
+export const SandboxOptionsSchema: GenMessage<SandboxOptions> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_container, 7);
+
+/**
+ * One secret: a value the caller already has, or a host command that mints
+ * it (and mints it again before it expires).
+ *
+ * @generated from message micropod.v1.SandboxSecret
+ */
+export type SandboxSecret = Message<"micropod.v1.SandboxSecret"> & {
+  /**
+   * The real value. SDKs read `from` environment variables on the caller's
+   * side and send the value here.
+   *
+   * @generated from field: string value = 1;
+   */
+  value: string;
+
+  /**
+   * Or an argv run on the host (no shell) whose stdout is the value — raw,
+   * or {"version":1,"value":"…","expires_at":"<RFC 3339>"} like AWS
+   * `credential_process`. Minted on first use, again a minute before
+   * `expires_at` (else every `ttl`), one run at a time, kept in memory only.
+   * A failed refresh keeps a still-valid value; with none, requests to
+   * `hosts` fail closed (502) instead of carrying the placeholder upstream.
+   *
+   * @generated from field: repeated string command = 2;
+   */
+  command: string[];
+
+  /**
+   * Working directory for `command` (default: the API process's home).
+   *
+   * @generated from field: string command_dir = 3;
+   */
+  commandDir: string;
+
+  /**
+   * Refresh interval when `command` reports no expiry, e.g. "15m", "1h",
+   * "90s" (default 5m).
+   *
+   * @generated from field: string ttl = 4;
+   */
+  ttl: string;
+
+  /**
+   * HTTPS hosts whose requests get the real value ("*.example.com" matches
+   * subdomains).
+   *
+   * @generated from field: repeated string hosts = 5;
+   */
+  hosts: string[];
+};
+
+/**
+ * Describes the message micropod.v1.SandboxSecret.
+ * Use `create(SandboxSecretSchema)` to create a new message.
+ */
+export const SandboxSecretSchema: GenMessage<SandboxSecret> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_container, 8);
 
 /**
  * @generated from message micropod.v1.WaitContainerRequest
@@ -539,7 +662,7 @@ export type WaitContainerRequest = Message<"micropod.v1.WaitContainerRequest"> &
  * Use `create(WaitContainerRequestSchema)` to create a new message.
  */
 export const WaitContainerRequestSchema: GenMessage<WaitContainerRequest> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_container, 7);
+  messageDesc(file_micropod_v1_container, 9);
 
 /**
  * @generated from message micropod.v1.WaitContainerResponse
@@ -582,7 +705,7 @@ export type WaitContainerResponse = Message<"micropod.v1.WaitContainerResponse">
  * Use `create(WaitContainerResponseSchema)` to create a new message.
  */
 export const WaitContainerResponseSchema: GenMessage<WaitContainerResponse> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_container, 8);
+  messageDesc(file_micropod_v1_container, 10);
 
 /**
  * @generated from message micropod.v1.DeleteContainerRequest
@@ -608,7 +731,7 @@ export type DeleteContainerRequest = Message<"micropod.v1.DeleteContainerRequest
  * Use `create(DeleteContainerRequestSchema)` to create a new message.
  */
 export const DeleteContainerRequestSchema: GenMessage<DeleteContainerRequest> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_container, 9);
+  messageDesc(file_micropod_v1_container, 11);
 
 /**
  * @generated from message micropod.v1.StreamLogsRequest
@@ -650,7 +773,7 @@ export type StreamLogsRequest = Message<"micropod.v1.StreamLogsRequest"> & {
  * Use `create(StreamLogsRequestSchema)` to create a new message.
  */
 export const StreamLogsRequestSchema: GenMessage<StreamLogsRequest> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_container, 10);
+  messageDesc(file_micropod_v1_container, 12);
 
 /**
  * One streamed log line (StreamContainerLogs event).
@@ -671,7 +794,7 @@ export type LogChunk = Message<"micropod.v1.LogChunk"> & {
  * Use `create(LogChunkSchema)` to create a new message.
  */
 export const LogChunkSchema: GenMessage<LogChunk> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_container, 11);
+  messageDesc(file_micropod_v1_container, 13);
 
 /**
  * @generated from message micropod.v1.GetStatsRequest
@@ -691,7 +814,7 @@ export type GetStatsRequest = Message<"micropod.v1.GetStatsRequest"> & {
  * Use `create(GetStatsRequestSchema)` to create a new message.
  */
 export const GetStatsRequestSchema: GenMessage<GetStatsRequest> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_container, 12);
+  messageDesc(file_micropod_v1_container, 14);
 
 /**
  * @generated from message micropod.v1.GetStatsResponse
@@ -710,7 +833,7 @@ export type GetStatsResponse = Message<"micropod.v1.GetStatsResponse"> & {
  * Use `create(GetStatsResponseSchema)` to create a new message.
  */
 export const GetStatsResponseSchema: GenMessage<GetStatsResponse> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_container, 13);
+  messageDesc(file_micropod_v1_container, 15);
 
 /**
  * @generated from message micropod.v1.ExecRequest
@@ -760,7 +883,7 @@ export type ExecRequest = Message<"micropod.v1.ExecRequest"> & {
  * Use `create(ExecRequestSchema)` to create a new message.
  */
 export const ExecRequestSchema: GenMessage<ExecRequest> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_container, 14);
+  messageDesc(file_micropod_v1_container, 16);
 
 /**
  * @generated from message micropod.v1.ExecResponse
@@ -794,7 +917,7 @@ export type ExecResponse = Message<"micropod.v1.ExecResponse"> & {
  * Use `create(ExecResponseSchema)` to create a new message.
  */
 export const ExecResponseSchema: GenMessage<ExecResponse> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_container, 15);
+  messageDesc(file_micropod_v1_container, 17);
 
 /**
  * Container lifecycle, logs, stats, and exec against the Apple `container`

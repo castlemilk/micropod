@@ -288,6 +288,28 @@ private actor MCPServer {
             "machine_logs",
             "Tail a machine's stdio log. Arguments: id (required), lines (optional, default 100), boot (true for the vminitd/kernel boot log)."
         ),
+        (
+            "sandbox_run",
+            """
+            Run a command in a fresh, disposable micro-VM (rootfs discarded on exit) and return its output \
+            and exit code. Offline unless allow_net. Arguments: command (required, run by /bin/sh -c), \
+            image (default alpine) or from (a checkpoint), cpus, memory (MiB), timeout (seconds), \
+            mounts (comma list host:/guest — guest writes are discarded; host:/guest:rw needs \
+            allow_host_writes), allow_net, allow_hosts (comma list; restricts egress), secrets (comma list \
+            NAME=HOST_ENV@host — the guest sees a placeholder, the host proxy injects the real value on \
+            HTTPS to host), env (comma list KEY=VAL), workdir, expose_host (comma list of host loopback ports the \
+            guest reaches as host.micropod.internal:PORT), ports (comma list host:guest to publish).
+            """
+        ),
+        ("sandbox_checkpoints", "List sandbox checkpoints (saved disks to boot from)."),
+        (
+            "sandbox_checkpoint_create",
+            """
+            Run a setup command in a sandbox and keep its disk as a named checkpoint (only if it exits 0). \
+            Arguments: name (required), command (required), image or from, allow_net, timeout.
+            """
+        ),
+        ("sandbox_checkpoint_delete", "Delete a sandbox checkpoint. Arguments: name."),
         ("list_images", "List local images (name, id, size, variants)."),
         ("list_volumes", "List volumes (name, size, driver)."),
         (
@@ -358,6 +380,43 @@ private actor MCPServer {
         ),
         ("k8s_images", "List image refs present in the cluster's containerd (k8s.io namespace)."),
     ]
+
+    /// Sandboxes boot in-process in whoever launches them, which needs the
+    /// virtualization entitlement the `micropod` CLI carries and this
+    /// server doesn't — so sandbox tools run the CLI. Output is combined
+    /// stdout+stderr, capped at the last 64 KiB.
+    private static func runMicropod(_ arguments: [String]) async throws -> (Int32, String) {
+        let env = ProcessInfo.processInfo.environment
+        let candidates = [env["MICROPOD_CLI"], "\(NSHomeDirectory())/.local/bin/micropod", "/usr/local/bin/micropod"]
+        guard let cli = candidates.compactMap({ $0 }).first(where: { FileManager.default.isExecutableFile(atPath: $0) })
+        else {
+            throw MicropodError.message("micropod CLI not found (set MICROPOD_CLI)")
+        }
+        return try await withCheckedThrowingContinuation { continuation in
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: cli)
+            process.arguments = arguments
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = pipe
+            process.standardInput = FileHandle.nullDevice
+            let collected = OutputBuffer()
+            pipe.fileHandleForReading.readabilityHandler = { handle in
+                let data = handle.availableData
+                if data.isEmpty { handle.readabilityHandler = nil } else { collected.append(data) }
+            }
+            process.terminationHandler = { process in
+                pipe.fileHandleForReading.readabilityHandler = nil
+                collected.append(pipe.fileHandleForReading.readDataToEndOfFile())
+                continuation.resume(returning: (process.terminationStatus, collected.text))
+            }
+            do {
+                try process.run()
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+    }
 
     private func callTool(id: Int?, _ call: MCPToolCall) async -> Data? {
         let args = call.arguments ?? [:]
@@ -461,6 +520,57 @@ private actor MCPServer {
                     "\(stats.id)\tmem \(ByteFormat.string(stats.memoryUsedBytes))/\(ByteFormat.string(stats.memoryLimitBytes))\tnet ↓\(ByteFormat.string(stats.networkRxBytes)) ↑\(ByteFormat.string(stats.networkTxBytes))\t\(stats.pids) pids"
                 }
                 return toolResult(id, lines.joined(separator: "\n"))
+
+            case "sandbox_run", "sandbox_checkpoint_create":
+                guard !string("command").isEmpty else {
+                    return toolResult(id, "\(call.name) requires command", isError: true)
+                }
+                var argv = ["sandbox"]
+                if call.name == "sandbox_checkpoint_create" {
+                    guard !string("name").isEmpty else {
+                        return toolResult(id, "sandbox_checkpoint_create requires name", isError: true)
+                    }
+                    argv += ["checkpoint", "create", string("name")]
+                } else {
+                    argv.append("run")
+                }
+                if !string("cpus").isEmpty { argv += ["--cpus", string("cpus")] }
+                if !string("memory").isEmpty { argv += ["--memory", string("memory")] }
+                if !string("timeout").isEmpty { argv += ["--timeout", string("timeout")] }
+                if !string("workdir").isEmpty { argv += ["--workdir", string("workdir")] }
+                if flag("allow_net") { argv.append("--allow-net") }
+                if flag("allow_host_writes") { argv.append("--allow-host-writes") }
+                func list(_ key: String) -> [String] {
+                    string(key).split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+                        .filter { !$0.isEmpty }
+                }
+                for mount in list("mounts") { argv += ["--mount", mount] }
+                for host in list("allow_hosts") { argv += ["--allow-host", host] }
+                for port in list("expose_host") { argv += ["--expose-host", port] }
+                for port in list("ports") { argv += ["--publish", port] }
+                for secret in list("secrets") { argv += ["--secret", secret] }
+                for env in list("env") { argv += ["--env", env] }
+                if !string("from").isEmpty {
+                    argv += ["--from", string("from")]
+                } else if !string("image").isEmpty {
+                    argv.append(string("image"))
+                }
+                argv += ["--", "/bin/sh", "-c", string("command")]
+                let (code, output) = try await Self.runMicropod(argv)
+                return toolResult(id, "exit \(code)\n\(output)", isError: code != 0)
+
+            case "sandbox_checkpoints", "sandbox_checkpoint_delete":
+                var argv = ["sandbox", "checkpoint"]
+                if call.name == "sandbox_checkpoint_delete" {
+                    guard !string("name").isEmpty else {
+                        return toolResult(id, "sandbox_checkpoint_delete requires name", isError: true)
+                    }
+                    argv += ["rm", string("name")]
+                } else {
+                    argv.append("ls")
+                }
+                let (code, output) = try await Self.runMicropod(argv)
+                return toolResult(id, output, isError: code != 0)
 
             case "list_machines":
                 let list = try await machines.list()
@@ -866,4 +976,20 @@ enum LocalAPI {
                 "\(marker) \(name)\t\(r["kind"] as? String ?? "")\t\(available)\t\(enabled)\t\(r["endpoint"] as? String ?? "")"
         }.joined(separator: "\n")
     }
+}
+
+/// Thread-safe tail buffer for a child process's output.
+private final class OutputBuffer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var data = Data()
+    private let cap = 64 * 1024
+
+    func append(_ chunk: Data) {
+        lock.withLock {
+            data.append(chunk)
+            if data.count > cap { data.removeFirst(data.count - cap) }
+        }
+    }
+
+    var text: String { lock.withLock { String(decoding: data, as: UTF8.self) } }
 }

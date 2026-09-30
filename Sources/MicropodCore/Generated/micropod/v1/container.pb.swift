@@ -449,11 +449,91 @@ public nonisolated struct Micropod_V1_RunContainerRequest: @unchecked Sendable {
   /// Clears the value of `runtime`. Subsequent reads from it will return its default value.
   public mutating func clearRuntime() {_uniqueStorage()._runtime = nil}
 
+  /// Sandbox-only behaviour — host ports the guest may reach, an egress
+  /// allowlist, proxy-injected secrets. Honoured by `runtime: "sandbox"`;
+  /// other engines fail the request with `unimplemented` rather than drop it.
+  public var sandbox: Micropod_V1_SandboxOptions {
+    get {_storage._sandbox ?? Micropod_V1_SandboxOptions()}
+    set {_uniqueStorage()._sandbox = newValue}
+  }
+  /// Returns true if `sandbox` has been explicitly set.
+  public var hasSandbox: Bool {_storage._sandbox != nil}
+  /// Clears the value of `sandbox`. Subsequent reads from it will return its default value.
+  public mutating func clearSandbox() {_uniqueStorage()._sandbox = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+/// What a sandbox may reach beyond its own VM, and the credentials it may use
+/// without seeing them.
+public nonisolated struct Micropod_V1_SandboxOptions: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Host loopback ports the guest reaches as host.micropod.internal:<port>
+  /// (e.g. a database on the host). Nothing else on the host is reachable.
+  public var exposeHost: [UInt32] = []
+
+  /// Egress allowlist. When set, the VM has no route out of its own: all
+  /// traffic leaves through a host proxy that refuses every other host.
+  /// "*.example.com" matches subdomains only. Needs a network.
+  public var allowHosts: [String] = []
+
+  /// Secrets by the environment variable name the guest sees. The guest gets
+  /// a random placeholder; the host proxy swaps in the real value only in the
+  /// request line and headers of HTTPS requests to the secret's `hosts`, so
+  /// the credential never enters the VM. Needs a network.
+  public var secrets: Dictionary<String,Micropod_V1_SandboxSecret> = [:]
+
+  /// Guest nameservers (default: the network gateway). Needs a network.
+  public var dnsResolvers: [String] = []
+
+  /// Root disk size in MiB for image bases (0 = the default, 8192).
+  public var diskSizeMib: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// One secret: a value the caller already has, or a host command that mints
+/// it (and mints it again before it expires).
+public nonisolated struct Micropod_V1_SandboxSecret: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The real value. SDKs read `from` environment variables on the caller's
+  /// side and send the value here.
+  public var value: String = String()
+
+  /// Or an argv run on the host (no shell) whose stdout is the value — raw,
+  /// or {"version":1,"value":"…","expires_at":"<RFC 3339>"} like AWS
+  /// `credential_process`. Minted on first use, again a minute before
+  /// `expires_at` (else every `ttl`), one run at a time, kept in memory only.
+  /// A failed refresh keeps a still-valid value; with none, requests to
+  /// `hosts` fail closed (502) instead of carrying the placeholder upstream.
+  public var command: [String] = []
+
+  /// Working directory for `command` (default: the API process's home).
+  public var commandDir: String = String()
+
+  /// Refresh interval when `command` reports no expiry, e.g. "15m", "1h",
+  /// "90s" (default 5m).
+  public var ttl: String = String()
+
+  /// HTTPS hosts whose requests get the real value ("*.example.com" matches
+  /// subdomains).
+  public var hosts: [String] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
 }
 
 public nonisolated struct Micropod_V1_WaitContainerRequest: Sendable {
@@ -1039,7 +1119,7 @@ nonisolated extension Micropod_V1_ListContainersResponse: SwiftProtobuf.Message,
 
 nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RunContainerRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}image\0\u{1}name\0\u{1}detach\0\u{1}cpus\0\u{1}memory\0\u{1}env\0\u{1}ports\0\u{1}volumes\0\u{1}labels\0\u{1}init\0\u{1}arguments\0\u{1}entrypoint\0\u{1}platform\0\u{1}workdir\0\u{1}user\0\u{3}no_pull\0\u{3}cap_add\0\u{3}cap_drop\0\u{1}rosetta\0\u{1}privileged\0\u{1}runtime\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}image\0\u{1}name\0\u{1}detach\0\u{1}cpus\0\u{1}memory\0\u{1}env\0\u{1}ports\0\u{1}volumes\0\u{1}labels\0\u{1}init\0\u{1}arguments\0\u{1}entrypoint\0\u{1}platform\0\u{1}workdir\0\u{1}user\0\u{3}no_pull\0\u{3}cap_add\0\u{3}cap_drop\0\u{1}rosetta\0\u{1}privileged\0\u{1}runtime\0\u{1}sandbox\0")
 
   fileprivate class _StorageClass {
     var _image: String = String()
@@ -1063,6 +1143,7 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
     var _rosetta: Bool? = nil
     var _privileged: Bool? = nil
     var _runtime: String? = nil
+    var _sandbox: Micropod_V1_SandboxOptions? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1094,6 +1175,7 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
       _rosetta = source._rosetta
       _privileged = source._privileged
       _runtime = source._runtime
+      _sandbox = source._sandbox
     }
   }
 
@@ -1133,6 +1215,7 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
         case 19: try { try decoder.decodeSingularBoolField(value: &_storage._rosetta) }()
         case 20: try { try decoder.decodeSingularBoolField(value: &_storage._privileged) }()
         case 21: try { try decoder.decodeSingularStringField(value: &_storage._runtime) }()
+        case 22: try { try decoder.decodeSingularMessageField(value: &_storage._sandbox) }()
         default: break
         }
       }
@@ -1208,6 +1291,9 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
       try { if let v = _storage._runtime {
         try visitor.visitSingularStringField(value: v, fieldNumber: 21)
       } }()
+      try { if let v = _storage._sandbox {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 22)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1238,10 +1324,111 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
         if _storage._rosetta != rhs_storage._rosetta {return false}
         if _storage._privileged != rhs_storage._privileged {return false}
         if _storage._runtime != rhs_storage._runtime {return false}
+        if _storage._sandbox != rhs_storage._sandbox {return false}
         return true
       }
       if !storagesAreEqual {return false}
     }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_SandboxOptions: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SandboxOptions"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}expose_host\0\u{3}allow_hosts\0\u{1}secrets\0\u{3}dns_resolvers\0\u{3}disk_size_mib\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedUInt32Field(value: &self.exposeHost) }()
+      case 2: try { try decoder.decodeRepeatedStringField(value: &self.allowHosts) }()
+      case 3: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMessageMap<SwiftProtobuf.ProtobufString,Micropod_V1_SandboxSecret>.self, value: &self.secrets) }()
+      case 4: try { try decoder.decodeRepeatedStringField(value: &self.dnsResolvers) }()
+      case 5: try { try decoder.decodeSingularUInt64Field(value: &self.diskSizeMib) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.exposeHost.isEmpty {
+      try visitor.visitPackedUInt32Field(value: self.exposeHost, fieldNumber: 1)
+    }
+    if !self.allowHosts.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.allowHosts, fieldNumber: 2)
+    }
+    if !self.secrets.isEmpty {
+      try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMessageMap<SwiftProtobuf.ProtobufString,Micropod_V1_SandboxSecret>.self, value: self.secrets, fieldNumber: 3)
+    }
+    if !self.dnsResolvers.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.dnsResolvers, fieldNumber: 4)
+    }
+    if self.diskSizeMib != 0 {
+      try visitor.visitSingularUInt64Field(value: self.diskSizeMib, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_SandboxOptions, rhs: Micropod_V1_SandboxOptions) -> Bool {
+    if lhs.exposeHost != rhs.exposeHost {return false}
+    if lhs.allowHosts != rhs.allowHosts {return false}
+    if lhs.secrets != rhs.secrets {return false}
+    if lhs.dnsResolvers != rhs.dnsResolvers {return false}
+    if lhs.diskSizeMib != rhs.diskSizeMib {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_SandboxSecret: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SandboxSecret"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0\u{1}command\0\u{3}command_dir\0\u{1}ttl\0\u{1}hosts\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.value) }()
+      case 2: try { try decoder.decodeRepeatedStringField(value: &self.command) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.commandDir) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.ttl) }()
+      case 5: try { try decoder.decodeRepeatedStringField(value: &self.hosts) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.value.isEmpty {
+      try visitor.visitSingularStringField(value: self.value, fieldNumber: 1)
+    }
+    if !self.command.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.command, fieldNumber: 2)
+    }
+    if !self.commandDir.isEmpty {
+      try visitor.visitSingularStringField(value: self.commandDir, fieldNumber: 3)
+    }
+    if !self.ttl.isEmpty {
+      try visitor.visitSingularStringField(value: self.ttl, fieldNumber: 4)
+    }
+    if !self.hosts.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.hosts, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_SandboxSecret, rhs: Micropod_V1_SandboxSecret) -> Bool {
+    if lhs.value != rhs.value {return false}
+    if lhs.command != rhs.command {return false}
+    if lhs.commandDir != rhs.commandDir {return false}
+    if lhs.ttl != rhs.ttl {return false}
+    if lhs.hosts != rhs.hosts {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

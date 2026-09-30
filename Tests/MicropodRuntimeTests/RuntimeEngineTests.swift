@@ -163,7 +163,18 @@ final class RuntimeEngineTests: XCTestCase {
         request.labels = []
         XCTAssertTrue(try SandboxEngine.options(from: request).network, "API containers are online by default")
 
-        request.publishedPorts = [PortSpec(hostPort: 80, containerPort: 80)]
+        request.publishedPorts = [
+            PortSpec(hostPort: 8080, containerPort: 80),
+            PortSpec(hostPort: 8443, containerPort: 443, hostIP: "127.0.0.1"),
+        ]
+        XCTAssertEqual(
+            try SandboxEngine.options(from: request).ports,
+            [
+                PortForward(hostIP: "0.0.0.0", hostPort: 8080, guestPort: 80),
+                PortForward(hostPort: 8443, guestPort: 443),
+            ],
+            "no address is every interface, as with apple and docker")
+        request.publishedPorts = [PortSpec(hostPort: 53, containerPort: 53, transportProtocol: "udp")]
         XCTAssertThrowsError(try SandboxEngine.options(from: request)) {
             XCTAssertEqual(ConnectCodeMapping.code(for: $0), "unimplemented")
         }

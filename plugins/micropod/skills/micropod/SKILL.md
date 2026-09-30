@@ -1,6 +1,6 @@
 ---
 name: micropod
-description: Use the Micropod container manager — the Apple `container` runtime via its MCP server (46 tools), Connect/REST API on :45454, or Docker Engine API shim. Use for running/managing containers and docker-compose stacks, worker orchestration (e.g. cuttlefish), and disposable test containers (real Testcontainers/Ryuk via the shim).
+description: Use the Micropod container manager — the Apple `container` runtime via its MCP server (50 tools), Connect/REST API on :45454, or Docker Engine API shim. Use for running/managing containers and docker-compose stacks, worker orchestration (e.g. cuttlefish), and disposable test containers (real Testcontainers/Ryuk via the shim).
 ---
 
 # Micropod
@@ -11,7 +11,7 @@ Programmatic surfaces, best first:
 
 | Surface | How to reach it | When to use |
 |---|---|---|
-| **MCP server** (STDIO JSON-RPC 2.0, 46 tools) | `micropod-mcp` (installed to `~/.local/bin/`) | Claude/agent-driven work; the richest surface |
+| **MCP server** (STDIO JSON-RPC 2.0, 50 tools) | `micropod-mcp` (installed to `~/.local/bin/`) | Claude/agent-driven work; the richest surface |
 | **Connect API** (proto-JSON over POST) | `http://127.0.0.1:45454/api/micropod.v1.<Service>/<Method>` | Typed clients — TS/Go/Swift SDKs, or curl |
 | **REST facade** (JSON) | `http://127.0.0.1:45454/v1/*` | Quick curl/scripts; SSE logs |
 | **Docker Engine shim** | unix `~/.micropod/docker.sock` + tcp `:45455` | Unmodified Docker clients: docker-py, Testcontainers, Ryuk |
@@ -21,7 +21,7 @@ Prerequisite: Micropod.app installed and running (it owns the daemon, the
 :45454 API, and the shim). `curl -s http://127.0.0.1:45454/health` →
 `{"status":"ok"}` is the readiness probe.
 
-## MCP server (46 tools)
+## MCP server (50 tools)
 
 Config for any MCP client:
 
@@ -42,6 +42,11 @@ Tools — **containers**: `list_containers`, `run`, `start`, `stop`,
 `list_machines`, `machine_stats` (CPU/mem/net/block/pids from each running
 machine's per-boot backing container — nothing runs in the guest),
 `machine_logs` (stdio, or `boot: true` for the vminitd/kernel log).
+**sandboxes** (disposable micro-VM per command — agent/untrusted code; see
+below): `sandbox_run` (command + image or checkpoint; offline unless
+`allow_net`; `allow_hosts` restricts egress; `secrets` injects API keys the
+guest never sees; `mounts` discard guest writes), `sandbox_checkpoints`,
+`sandbox_checkpoint_create`, `sandbox_checkpoint_delete`.
 **images**: `list_images`, `pull`, `push`. **volumes**: `list_volumes`,
 `volume_policy`, `volume_policy_set`. **networks**: `list_networks`.
 **compose**: `compose_up` (path + optional profiles), `compose_down`,
@@ -67,7 +72,8 @@ Example tools/call (JSON-RPC over stdin/stdout):
 
 Three engines behind the same API: `apple` (micro-VM per container, the
 default), `docker` (a Docker Engine socket — opt-in), `sandbox` (ephemeral
-in-process micro-VM; fastest boot, no ports/named volumes, not restartable).
+in-process micro-VM; fastest boot; tcp ports and bind mounts, no named
+volumes, not restartable).
 Choose per container with `runtime` on RunContainer (`micropod run --runtime`,
 MCP `run` arg), or change the default with `SetDefaultRuntime` / MCP
 `runtime_set_default`. Discover what's available first: `ListRuntimes` / MCP
@@ -75,6 +81,53 @@ MCP `run` arg), or change the default with `SetDefaultRuntime` / MCP
 engine's capabilities fail with `unimplemented`; unknown/disabled/unavailable
 engines fail with `failed_precondition`. Every listed container carries
 `runtime`. Offline sandbox: label `micropod.network=none`.
+
+## Sandboxes — run untrusted code
+
+`micropod sandbox run` boots a fresh micro-VM per command from any OCI image
+(or a checkpoint) in ~0.4s; the rootfs is discarded on exit. Same model as
+shuru, same flags where they overlap:
+
+```bash
+micropod sandbox run                                  # interactive shell (alpine)
+micropod sandbox run node:22 -- node -e 'console.log(1)'
+micropod sandbox run --mount ./src:/workspace python:3.12 -- python /workspace/t.py
+#   --mount: guest writes land in a per-run copy (host untouched);
+#   :rw writes to the host and needs --allow-host-writes
+micropod sandbox run --allow-net --allow-host registry.npmjs.org node:22 -- npm i left-pad
+micropod sandbox run --allow-net --secret KEY=OPENAI_API_KEY@api.openai.com curlimages/curl \
+  -- sh -c 'curl -H "Authorization: Bearer $KEY" https://api.openai.com/v1/models'
+micropod sandbox run -p 8080:8000 python:3.12 -- python -m http.server 8000
+micropod sandbox run --expose-host 5432 postgres:17 -- psql -h host.micropod.internal
+micropod sandbox checkpoint create pyenv --allow-net python:3.12 -- pip install numpy
+micropod sandbox run --from pyenv -- python -c 'import numpy'
+```
+
+Offline by default. `--allow-net` gives NAT; adding `--allow-host`/`--secret`
+switches to a host-only network whose only way out is a host proxy that
+enforces the allowlist and swaps secret placeholders for real values on
+HTTPS (TLS intercepted only for secret hosts; CA in
+`~/.micropod/sandbox/ca`). `-p` works without `--allow-net` (host-only
+network) and binds 127.0.0.1 unless given an address; over the API a port
+with no `hostIp` binds every interface, as with `apple`. A secret can also
+come from a host command, `{"command": [...], "hosts": [...], "ttl": "15m"}`.
+It prints the value or `{"version":1,"value":…,"expires_at":…}`, is re-run
+before it expires, and fails closed when no valid value exists.
+
+For a sandbox that outlives one command, use `SandboxService`, or the
+TypeScript SDK's `Sandbox` class, which has shuru's method names:
+
+- **Lifecycle:** `Sandbox.start({...})`, `checkpoint(name)`, `stop()`.
+- **Processes:** `exec` returns stdout, stderr and exitCode. `spawn` streams
+  output and supports stdin and `kill`.
+- **Files:** `readFile`, `writeFile`, `readDir`, `stat`, `mkdir`,
+  `remove`, `rename`, `copy`, `chmod`, `exists`.
+- **Watching:** `watch(path, handler)` uses inotify inside the guest.
+
+Over the raw API, `RunContainerRequest.sandbox` carries `expose_host`,
+`allow_hosts`, `secrets` and `dns_resolvers` for `runtime: "sandbox"`. Defaults can live in `./micropod.json` (shuru.json-shaped: cpus,
+memory, disk_size, allow_net, ports, mounts, command, env, expose_host,
+network.allow, secrets).
 
 ## Connect API — the typed contract
 

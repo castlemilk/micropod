@@ -21,6 +21,14 @@ public protocol RuntimeEngine: Sendable {
     func probe() async -> EngineProbe
     /// Cheap ownership test used to route id-based calls.
     func owns(_ id: String) async -> Bool
+    /// Park until container `id` may have changed state (it exited) or
+    /// `timeout` passes; false when the engine has no such signal and the
+    /// caller should poll instead.
+    func awaitStateChange(_ id: String, timeout: Duration) async -> Bool
+}
+
+extension RuntimeEngine {
+    public func awaitStateChange(_ id: String, timeout: Duration) async -> Bool { false }
 }
 
 public struct EngineProbe: Sendable, Equatable {
@@ -288,6 +296,9 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
     /// Engine for a new container.
     func target(_ request: ContainerRunRequest) async throws -> any RuntimeEngine {
         let name = request.runtime ?? registry.defaultName
+        if request.sandbox != nil && name != "sandbox" {
+            throw MicropodError.unsupported("sandbox options need runtime 'sandbox', not '\(name)'")
+        }
         if name == "apple" { return apple }
         guard let engine = registry.engine(name) else {
             throw MicropodError.message(
@@ -303,6 +314,11 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
             throw MicropodError.message("failedPrecondition: runtime '\(name)' unavailable: \(probe.reason)")
         }
         return engine
+    }
+
+    /// `RuntimeEngine.awaitStateChange` on the engine that owns `id`.
+    public func awaitStateChange(_ id: String, timeout: Duration) async -> Bool {
+        await owner(id).awaitStateChange(id, timeout: timeout)
     }
 
     /// Engine that owns an existing container id.

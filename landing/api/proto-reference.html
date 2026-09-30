@@ -782,6 +782,18 @@
                 </li>
               
                 <li>
+                  <a href="#micropod.v1.SandboxOptions"><span class="badge">M</span>SandboxOptions</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.SandboxOptions.SecretsEntry"><span class="badge">M</span>SandboxOptions.SecretsEntry</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.SandboxSecret"><span class="badge">M</span>SandboxSecret</a>
+                </li>
+              
+                <li>
                   <a href="#micropod.v1.StreamLogsRequest"><span class="badge">M</span>StreamLogsRequest</a>
                 </li>
               
@@ -978,6 +990,121 @@
               
                 <li>
                   <a href="#micropod.v1.NetworkService"><span class="badge">S</span>NetworkService</a>
+                </li>
+              
+            </ul>
+          </li>
+        
+          
+          <li>
+            <a href="#micropod%2fv1%2fsandbox.proto">micropod/v1/sandbox.proto</a>
+            <ul>
+              
+                <li>
+                  <a href="#micropod.v1.CheckpointRef"><span class="badge">M</span>CheckpointRef</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.CheckpointSandboxRequest"><span class="badge">M</span>CheckpointSandboxRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ChmodPathRequest"><span class="badge">M</span>ChmodPathRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.CopyPathRequest"><span class="badge">M</span>CopyPathRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.DirEntry"><span class="badge">M</span>DirEntry</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.FileContent"><span class="badge">M</span>FileContent</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.FileStat"><span class="badge">M</span>FileStat</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ListCheckpointsResponse"><span class="badge">M</span>ListCheckpointsResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ListDirResponse"><span class="badge">M</span>ListDirResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.MakeDirRequest"><span class="badge">M</span>MakeDirRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.PathRequest"><span class="badge">M</span>PathRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ProcessEvent"><span class="badge">M</span>ProcessEvent</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ProcessRef"><span class="badge">M</span>ProcessRef</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.RemovePathRequest"><span class="badge">M</span>RemovePathRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.RenamePathRequest"><span class="badge">M</span>RenamePathRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.SandboxCheckpoint"><span class="badge">M</span>SandboxCheckpoint</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.SandboxMount"><span class="badge">M</span>SandboxMount</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.SignalProcessRequest"><span class="badge">M</span>SignalProcessRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.StartProcessRequest"><span class="badge">M</span>StartProcessRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.StartSandboxRequest"><span class="badge">M</span>StartSandboxRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.StartSandboxRequest.LabelsEntry"><span class="badge">M</span>StartSandboxRequest.LabelsEntry</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.WatchEvent"><span class="badge">M</span>WatchEvent</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.WatchPathRequest"><span class="badge">M</span>WatchPathRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.WriteFileRequest"><span class="badge">M</span>WriteFileRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.WriteProcessStdinRequest"><span class="badge">M</span>WriteProcessStdinRequest</a>
+                </li>
+              
+              
+              
+              
+                <li>
+                  <a href="#micropod.v1.SandboxService"><span class="badge">S</span>SandboxService</a>
                 </li>
               
             </ul>
@@ -6236,6 +6363,15 @@ rootfs clone). Unset uses the server default (SetDefaultRuntime). An
 unknown or unavailable engine fails with `failed_precondition`. </p></td>
                 </tr>
               
+                <tr>
+                  <td>sandbox</td>
+                  <td><a href="#micropod.v1.SandboxOptions">SandboxOptions</a></td>
+                  <td></td>
+                  <td><p>Sandbox-only behaviour — host ports the guest may reach, an egress
+allowlist, proxy-injected secrets. Honoured by `runtime: &#34;sandbox&#34;`;
+other engines fail the request with `unimplemented` rather than drop it. </p></td>
+                </tr>
+              
             </tbody>
           </table>
 
@@ -6265,6 +6401,155 @@ unknown or unavailable engine fails with `failed_precondition`. </p></td>
                   <td><a href="#string">string</a></td>
                   <td></td>
                   <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.SandboxOptions">SandboxOptions</h3>
+        <p>What a sandbox may reach beyond its own VM, and the credentials it may use</p><p>without seeing them.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>expose_host</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td>repeated</td>
+                  <td><p>Host loopback ports the guest reaches as host.micropod.internal:&lt;port&gt;
+(e.g. a database on the host). Nothing else on the host is reachable. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>allow_hosts</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Egress allowlist. When set, the VM has no route out of its own: all
+traffic leaves through a host proxy that refuses every other host.
+&#34;*.example.com&#34; matches subdomains only. Needs a network. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>secrets</td>
+                  <td><a href="#micropod.v1.SandboxOptions.SecretsEntry">SandboxOptions.SecretsEntry</a></td>
+                  <td>repeated</td>
+                  <td><p>Secrets by the environment variable name the guest sees. The guest gets
+a random placeholder; the host proxy swaps in the real value only in the
+request line and headers of HTTPS requests to the secret&#39;s `hosts`, so
+the credential never enters the VM. Needs a network. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>dns_resolvers</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Guest nameservers (default: the network gateway). Needs a network. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>disk_size_mib</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Root disk size in MiB for image bases (0 = the default, 8192). </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.SandboxOptions.SecretsEntry">SandboxOptions.SecretsEntry</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>key</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>value</td>
+                  <td><a href="#micropod.v1.SandboxSecret">SandboxSecret</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.SandboxSecret">SandboxSecret</h3>
+        <p>One secret: a value the caller already has, or a host command that mints</p><p>it (and mints it again before it expires).</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>value</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The real value. SDKs read `from` environment variables on the caller&#39;s
+side and send the value here. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>command</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Or an argv run on the host (no shell) whose stdout is the value — raw,
+or {&#34;version&#34;:1,&#34;value&#34;:&#34;…&#34;,&#34;expires_at&#34;:&#34;&lt;RFC 3339&gt;&#34;} like AWS
+`credential_process`. Minted on first use, again a minute before
+`expires_at` (else every `ttl`), one run at a time, kept in memory only.
+A failed refresh keeps a still-valid value; with none, requests to
+`hosts` fail closed (502) instead of carrying the placeholder upstream. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>command_dir</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Working directory for `command` (default: the API process&#39;s home). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ttl</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Refresh interval when `command` reports no expiry, e.g. &#34;15m&#34;, &#34;1h&#34;,
+&#34;90s&#34; (default 5m). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>hosts</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>HTTPS hosts whose requests get the real value (&#34;*.example.com&#34; matches
+subdomains). </p></td>
                 </tr>
               
             </tbody>
@@ -8377,6 +8662,1197 @@ apart so a one-shot call still reports a real figure.</p></td>
                 <td><a href="#micropod.v1.DeleteNetworkRequest">DeleteNetworkRequest</a></td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
                 <td><p>Remove a container network.</p></td>
+              </tr>
+            
+          </tbody>
+        </table>
+
+        
+    
+      
+      <div class="file-heading">
+        <h2 id="micropod/v1/sandbox.proto">micropod/v1/sandbox.proto</h2><a href="#title">Top</a>
+      </div>
+      <p></p>
+
+      
+        <h3 id="micropod.v1.CheckpointRef">CheckpointRef</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.CheckpointSandboxRequest">CheckpointSandboxRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Checkpoint name; an existing one is replaced. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ChmodPathRequest">ChmodPathRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>mode</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>Permission bits, e.g. 493 (0755). </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.CopyPathRequest">CopyPathRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>from</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>to</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>recursive</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Required to copy a directory. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.DirEntry">DirEntry</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>type</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>&#34;file&#34;, &#34;dir&#34;, &#34;symlink&#34; or &#34;other&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>size</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>mode</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>mtime</td>
+                  <td><a href="#int64">int64</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.FileContent">FileContent</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>data</td>
+                  <td><a href="#bytes">bytes</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.FileStat">FileStat</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The path as asked for. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>type</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>&#34;file&#34;, &#34;dir&#34;, &#34;symlink&#34; or &#34;other&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>size</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Size in bytes. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>mode</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>st_mode, file-type bits included. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>mtime</td>
+                  <td><a href="#int64">int64</a></td>
+                  <td></td>
+                  <td><p>Last modification, seconds since the epoch. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ListCheckpointsResponse">ListCheckpointsResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>checkpoints</td>
+                  <td><a href="#micropod.v1.SandboxCheckpoint">SandboxCheckpoint</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ListDirResponse">ListDirResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>entries</td>
+                  <td><a href="#micropod.v1.DirEntry">DirEntry</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.MakeDirRequest">MakeDirRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>recursive</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td>optional</td>
+                  <td><p>Create missing parents too (default true). </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.PathRequest">PathRequest</h3>
+        <p>A path inside a sandbox; relative paths resolve against its workdir.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ProcessEvent">ProcessEvent</h3>
+        <p>One piece of a process's life, in order: output chunks, then its exit.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>stdout</td>
+                  <td><a href="#bytes">bytes</a></td>
+                  <td></td>
+                  <td><p>Bytes the process wrote to stdout. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>stderr</td>
+                  <td><a href="#bytes">bytes</a></td>
+                  <td></td>
+                  <td><p>Bytes the process wrote to stderr. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>exit_code</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p>The last event: the exit code (128 &#43; n when killed by signal n). </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ProcessRef">ProcessRef</h3>
+        <p>A process in a sandbox. `pid` is set in StartProcess's response.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Sandbox (container) id. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>process_id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The id StartProcess returned. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>pid</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p>Guest pid of the process. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.RemovePathRequest">RemovePathRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>recursive</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Required to delete a non-empty directory. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.RenamePathRequest">RenamePathRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>from</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>to</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.SandboxCheckpoint">SandboxCheckpoint</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>image</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The image the checkpoint&#39;s disk was first built from. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>size_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Bytes allocated on the host (clones share blocks, so often less). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>created</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>RFC 3339. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.SandboxMount">SandboxMount</h3>
+        <p>A host directory shared into the sandbox.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>host_path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Absolute host path. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>guest_path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Absolute guest path. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>mode</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>&#34;overlay&#34; (default): guest writes go to a per-sandbox copy and the host
+directory is untouched. &#34;ro&#34;: read-only. &#34;rw&#34;: guest writes reach the
+host directory. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.SignalProcessRequest">SignalProcessRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>process_id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>signal</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>&#34;SIGTERM&#34; (default), &#34;KILL&#34;, &#34;9&#34;, … </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.StartProcessRequest">StartProcessRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Sandbox (container) id. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>command</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>argv; use [&#34;sh&#34;, &#34;-c&#34;, &#34;…&#34;] for a shell line. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cwd</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Working directory (default: the sandbox&#39;s). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>env</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Extra KEY=VALUE environment. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>stdin</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Keep stdin open for WriteProcessStdin; otherwise the process reads EOF. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.StartSandboxRequest">StartSandboxRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>image</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>OCI image to boot (default &#34;alpine:latest&#34;). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>from_checkpoint</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Or a checkpoint saved by CheckpointSandbox or `micropod sandbox
+checkpoint create`. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Optional name; becomes the sandbox (container) id. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cpus</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>vCPUs (default 2). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory_mib</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Memory in MiB (default 2048). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>env</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>KEY=VALUE environment for the sandbox and every process started in it. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>workdir</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Default working directory. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>mounts</td>
+                  <td><a href="#micropod.v1.SandboxMount">SandboxMount</a></td>
+                  <td>repeated</td>
+                  <td><p>Host directories to share. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ports</td>
+                  <td><a href="#micropod.v1.PortMapping">PortMapping</a></td>
+                  <td>repeated</td>
+                  <td><p>TCP ports to publish; an empty host_ip binds 127.0.0.1. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>allow_net</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>A NAT network with internet access (default off: no network device
+unless ports or expose_host need a host-only one). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>options</td>
+                  <td><a href="#micropod.v1.SandboxOptions">SandboxOptions</a></td>
+                  <td></td>
+                  <td><p>Host ports, egress allowlist, secrets, DNS, disk size. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>command</td>
+                  <td><a href="#string">string</a></td>
+                  <td>repeated</td>
+                  <td><p>Main process; empty idles until the sandbox is stopped. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>labels</td>
+                  <td><a href="#micropod.v1.StartSandboxRequest.LabelsEntry">StartSandboxRequest.LabelsEntry</a></td>
+                  <td>repeated</td>
+                  <td><p>Arbitrary metadata labels. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.StartSandboxRequest.LabelsEntry">StartSandboxRequest.LabelsEntry</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>key</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>value</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.WatchEvent">WatchEvent</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>event</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>&#34;ready&#34; (first, once the watch is live), then &#34;create&#34;, &#34;modify&#34;,
+&#34;delete&#34; or &#34;rename&#34; (both ends of a move, with inotify). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Absolute guest path of what changed. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.WatchPathRequest">WatchPathRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>recursive</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td>optional</td>
+                  <td><p>Watch the whole tree (default true). </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.WriteFileRequest">WriteFileRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>path</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>data</td>
+                  <td><a href="#bytes">bytes</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>append</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Append instead of replacing. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>mode</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td>optional</td>
+                  <td><p>Permission bits to set, e.g. 493 (0755). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>create_parents</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Create missing parent directories. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.WriteProcessStdinRequest">WriteProcessStdinRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>process_id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>data</td>
+                  <td><a href="#bytes">bytes</a></td>
+                  <td></td>
+                  <td><p>Bytes to write (up to 32 MiB). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>close</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Close stdin after writing `data`. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+
+      
+
+      
+
+      
+        <h3 id="micropod.v1.SandboxService">SandboxService</h3>
+        <p>Sandboxes as a programmable environment: boot a micro-VM once, then run</p><p>processes in it, stream their output, move files in and out, and watch</p><p>paths — the surface the SDKs' `Sandbox` class is built on.</p><p>A sandbox is a `runtime: sandbox` container owned by the API process; every</p><p>call names it by container id. Processes and file operations run inside</p><p>the container, seeing its mounts, /tmp and working directory. File</p><p>operations and the idle main process use /bin/sh and the usual tools</p><p>(busybox or coreutils), so distroless images can run processes but not</p><p>file operations.</p>
+        <table class="enum-table">
+          <thead>
+            <tr><td>Method Name</td><td>Request Type</td><td>Response Type</td><td>Description</td></tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>StartSandbox</td>
+                <td><a href="#micropod.v1.StartSandboxRequest">StartSandboxRequest</a></td>
+                <td><a href="#micropod.v1.ContainerRef">ContainerRef</a></td>
+                <td><p>Boot a sandbox and return once it can take processes. With no `command`
+it idles until stopped (DeleteContainer) — the long-lived shape the SDKs
+use.</p></td>
+              </tr>
+            
+              <tr>
+                <td>StartProcess</td>
+                <td><a href="#micropod.v1.StartProcessRequest">StartProcessRequest</a></td>
+                <td><a href="#micropod.v1.ProcessRef">ProcessRef</a></td>
+                <td><p>Start a process in a running sandbox; returns at once with its id.
+Follow it with StreamProcess.</p></td>
+              </tr>
+            
+              <tr>
+                <td>StreamProcess</td>
+                <td><a href="#micropod.v1.ProcessRef">ProcessRef</a></td>
+                <td><a href="#micropod.v1.ProcessEvent">ProcessEvent</a> stream</td>
+                <td><p>The process&#39;s stdout and stderr as they arrive, then its exit. Output
+from before the stream opened is replayed first (up to 8 MiB), so
+start-then-stream never loses a byte; several streams may follow one
+process. A stream that falls too far behind fails with
+`resource_exhausted` instead of silently dropping output.</p></td>
+              </tr>
+            
+              <tr>
+                <td>WriteProcessStdin</td>
+                <td><a href="#micropod.v1.WriteProcessStdinRequest">WriteProcessStdinRequest</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p>Write to the process&#39;s stdin (StartProcessRequest.stdin); `close` sends
+EOF after the data.</p></td>
+              </tr>
+            
+              <tr>
+                <td>SignalProcess</td>
+                <td><a href="#micropod.v1.SignalProcessRequest">SignalProcessRequest</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p>Signal the process (default SIGTERM).</p></td>
+              </tr>
+            
+              <tr>
+                <td>ReadFile</td>
+                <td><a href="#micropod.v1.PathRequest">PathRequest</a></td>
+                <td><a href="#micropod.v1.FileContent">FileContent</a></td>
+                <td><p>A file&#39;s bytes, up to 32 MiB.</p></td>
+              </tr>
+            
+              <tr>
+                <td>WriteFile</td>
+                <td><a href="#micropod.v1.WriteFileRequest">WriteFileRequest</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p>Create or replace a file (or append to it), up to 32 MiB per call.</p></td>
+              </tr>
+            
+              <tr>
+                <td>ListDir</td>
+                <td><a href="#micropod.v1.PathRequest">PathRequest</a></td>
+                <td><a href="#micropod.v1.ListDirResponse">ListDirResponse</a></td>
+                <td><p>A directory&#39;s entries, not recursive.</p></td>
+              </tr>
+            
+              <tr>
+                <td>StatPath</td>
+                <td><a href="#micropod.v1.PathRequest">PathRequest</a></td>
+                <td><a href="#micropod.v1.FileStat">FileStat</a></td>
+                <td><p>Metadata for a path, not following a final symlink; `not_found` when the
+path does not exist.</p></td>
+              </tr>
+            
+              <tr>
+                <td>MakeDir</td>
+                <td><a href="#micropod.v1.MakeDirRequest">MakeDirRequest</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p>Create a directory (with parents unless `recursive` is false).</p></td>
+              </tr>
+            
+              <tr>
+                <td>RemovePath</td>
+                <td><a href="#micropod.v1.RemovePathRequest">RemovePathRequest</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p>Delete a file, or a directory — non-empty ones only with `recursive`.</p></td>
+              </tr>
+            
+              <tr>
+                <td>RenamePath</td>
+                <td><a href="#micropod.v1.RenamePathRequest">RenamePathRequest</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p>Move a path; atomic within one filesystem.</p></td>
+              </tr>
+            
+              <tr>
+                <td>CopyPath</td>
+                <td><a href="#micropod.v1.CopyPathRequest">CopyPathRequest</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p>Copy a file, or a directory tree with `recursive`.</p></td>
+              </tr>
+            
+              <tr>
+                <td>ChmodPath</td>
+                <td><a href="#micropod.v1.ChmodPathRequest">ChmodPathRequest</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p>Set a path&#39;s permission bits.</p></td>
+              </tr>
+            
+              <tr>
+                <td>WatchPath</td>
+                <td><a href="#micropod.v1.WatchPathRequest">WatchPathRequest</a></td>
+                <td><a href="#micropod.v1.WatchEvent">WatchEvent</a> stream</td>
+                <td><p>Changes under a path, observed inside the guest — including writes a
+host-side watcher never sees (the root disk, tmpfs, overlay mounts).
+Uses inotify when the image has inotifywait (inotify-tools), otherwise
+polls every 500 ms at one-second mtime resolution. The first event is
+&#34;ready&#34;: changes after it are reported.</p></td>
+              </tr>
+            
+              <tr>
+                <td>CheckpointSandbox</td>
+                <td><a href="#micropod.v1.CheckpointSandboxRequest">CheckpointSandboxRequest</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p>Save the sandbox&#39;s disk as a checkpoint, then stop the sandbox. Boot a
+new one from it with StartSandboxRequest.from_checkpoint.</p></td>
+              </tr>
+            
+              <tr>
+                <td>ListCheckpoints</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.ListCheckpointsResponse">ListCheckpointsResponse</a></td>
+                <td><p>Checkpoints saved on this host (shared with `micropod sandbox checkpoint`).</p></td>
+              </tr>
+            
+              <tr>
+                <td>DeleteCheckpoint</td>
+                <td><a href="#micropod.v1.CheckpointRef">CheckpointRef</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p>Delete a checkpoint.</p></td>
               </tr>
             
           </tbody>

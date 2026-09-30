@@ -228,7 +228,7 @@ container's `runtime`, and id-based calls route to the engine that owns it.
 |---|---|---|---|
 | `apple` | vm | Apple container runtime — one micro-VM per container | default; volumes, networks, ports |
 | `docker` | container | any Docker Engine socket (Docker Desktop, OrbStack, colima, `tcp://`) | **opt-in** so an existing Docker Desktop's containers don't appear until asked |
-| `sandbox` | microvm | ephemeral in-process micro-VM booted from a clonefile of a cached rootfs | fastest boot; no ports/named volumes; can't restart — run a new one |
+| `sandbox` | microvm | ephemeral in-process micro-VM booted from a clonefile of a cached rootfs | fastest boot; tcp ports, bind mounts; no named volumes; can't restart — run a new one |
 
 ```bash
 micropod runtime ls                        # availability, enabled, default
@@ -252,10 +252,87 @@ the foreground to completion. API sandboxes get a network unless labelled
 `micropod.network=none`. The binary hosting them needs
 `com.apple.security.virtualization` (`signing/micropod-cli.entitlements`).
 
-`micropod sandbox run|checkpoint` is the CLI fast path for CI jobs
-(offline by default, `--net` to attach, checkpoints to reuse a prepared
-disk). Benchmarks: `task bench-sandbox`; live engine matrix through a real
-API daemon: `task e2e-runtimes`.
+`micropod sandbox run|checkpoint` is the CLI fast path for CI jobs and
+untrusted code, with [shuru](https://github.com/superhq-ai/shuru)'s flags:
+
+```bash
+micropod sandbox run                                    # interactive shell (-it)
+micropod sandbox run --mount .:/w -w /w node:22 -- npm test   # guest writes never reach the host
+micropod sandbox run --mount .:/w:rw --allow-host-writes ...  # …unless asked twice
+micropod sandbox run -p 8080:80 nginx                   # forward host 127.0.0.1:8080 → guest :80
+micropod sandbox run --expose-host 5432 ...             # guest reaches host.micropod.internal:5432
+micropod sandbox run --allow-net --allow-host registry.npmjs.org --allow-host '*.github.com' ...
+micropod sandbox run --allow-net --secret API_KEY=OPENAI_API_KEY@api.openai.com ...
+```
+
+Offline by default (`--net`/`--allow-net` to attach, `--dns-resolver` to
+pick DNS). `--allow-host` sends all egress through a host-side proxy that
+refuses every other host — the VM has no route out of its own.
+`--secret` gives the guest a random placeholder; the proxy swaps in the
+real value only in request heads bound for the listed hosts, so the
+credential never enters the VM. A `micropod.json` (shuru.json's shape:
+`cpus`, `memory`, `disk_size`, `allow_net`, `ports`, `mounts`, `command`,
+`env`, `secrets`, `network.allow`) supplies defaults; checkpoints reuse a
+prepared disk. The MCP server exposes `sandbox_run` and the checkpoint
+tools. Benchmarks: `task bench-runtimes` (sandbox vs apple vs machine vs
+docker, CLI and API — see [docs/performance.md](docs/performance.md));
+live engine matrix through a real API daemon: `task e2e-runtimes`.
+
+### Programmable sandboxes (SDK)
+
+`SandboxService` turns a sandbox into a long-lived environment you drive
+from code. You boot it once, then run and stream processes in it, move files
+in and out, watch paths inside the guest, and checkpoint it. The TypeScript
+SDK wraps it in a `Sandbox` class with shuru's method names:
+
+```ts
+import { Sandbox } from "@micropod/sdk";
+
+const sb = await Sandbox.start({
+  image: "node:22",
+  mounts: { "./app": "/workspace" },           // guest writes stay in the sandbox
+  allowNet: true,
+  network: { allow: ["registry.npmjs.org"] },
+  secrets: {
+    NPM_TOKEN: { from: "NPM_TOKEN", hosts: ["registry.npmjs.org"] },
+    GH_TOKEN: { command: ["./mint-token.sh"], hosts: ["api.github.com"] },  // re-minted before expiry
+  },
+  exposeHost: [5432],                          // host.micropod.internal:5432
+});
+const { stdout, exitCode } = await sb.exec("npm ci && npm test", { cwd: "/workspace" });
+
+const dev = await sb.spawn("npm run dev", { cwd: "/workspace" });
+dev.on("stdout", (chunk) => process.stdout.write(chunk));
+await sb.watch("/workspace/dist", (e) => console.log(e.event, e.path));
+await sb.writeFile("/workspace/.env", "DEBUG=1\n");
+await sb.checkpoint("deps-installed");         // saves the disk, stops the VM
+const again = await Sandbox.start({ from: "deps-installed" });
+```
+
+The RPCs are `StartSandbox`, `StartProcess`/`StreamProcess`/
+`WriteProcessStdin`/`SignalProcess`, file operations (`ReadFile`,
+`WriteFile`, `ListDir`, `StatPath`, `MakeDir`, `RemovePath`, `RenamePath`,
+`CopyPath`, `ChmodPath`), `WatchPath`, and `CheckpointSandbox`/
+`ListCheckpoints`/`DeleteCheckpoint`. The Go and Swift SDKs get them as
+generated clients.
+
+- **Processes** start from the sandbox's own env, user and working
+  directory. Output streams live, and anything emitted before a stream
+  opens is replayed.
+- **File operations and watches** run inside the container, so they see
+  its mounts and tmpfs.
+- **Watching** uses inotify when the image has `inotifywait`, and polls
+  otherwise.
+
+`RunContainerRequest.sandbox` brings the same controls to the generic
+container API: `expose_host`, `allow_hosts`, `secrets` (a literal value or a
+host command) and `dns_resolvers`.
+
+A command secret runs on the host, never in the guest. It prints the value
+or `{"version":1,"value":…,"expires_at":…}` and is re-run a minute before
+expiry. A failed refresh keeps a still-valid value; with none, the request
+fails closed instead of sending the placeholder upstream. `task e2e-sdk`
+runs the SDK against a scratch daemon.
 
 ## Local HTTP API
 
