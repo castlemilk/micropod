@@ -31,9 +31,13 @@ jobs:
           TAG: ${{ github.event.release.tag_name }}
         run: |
           gh release download "$TAG" --pattern "Micropod.dmg" --dir dist --clobber
-          gh release download "$TAG" --pattern "Micropod.dmg.sha256" --dir dist --clobber || true
-          cd dist && shasum -a 256 -c Micropod.dmg.sha256 2>/dev/null || \
+          cd dist
+          if gh release download "$TAG" --pattern "Micropod.dmg.sha256" --clobber; then
+            # Only the hash: sidecars from before v0.9.1 name dist/Micropod.dmg.
+            echo "$(cut -d' ' -f1 Micropod.dmg.sha256)  Micropod.dmg" | shasum -a 256 -c -
+          else
             echo "::warning::no sha256 sidecar; skipping checksum verify"
+          fi
 
       - name: Sign update with Sparkle EdDSA key
         env:

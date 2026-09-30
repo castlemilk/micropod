@@ -80,6 +80,7 @@ if [ "$NOTARIZE" = "1" ]; then
     xcrun stapler staple "$DMG"
 fi
 
-shasum -a 256 "$DMG" | tee "$DMG.sha256"
+# Bare filename in the sidecar so `shasum -c` works next to the downloaded DMG.
+(cd "$(dirname "$DMG")" && shasum -a 256 "$(basename "$DMG")") | tee "$DMG.sha256"
 ls -lh "$DMG"
 echo "Done."
