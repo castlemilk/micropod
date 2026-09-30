@@ -1,73 +1,73 @@
 [
   {
-    "name": "build_cache_stats",
+    "description": "Content-addressed build contexts: entries, bytes, shared bytes, cap. Arguments: path (optional cache root).",
     "inputSchema": {
       "type": "object"
     },
-    "description": "Content-addressed build contexts: entries, bytes, shared bytes, cap. Arguments: path (optional cache root)."
+    "name": "build_cache_stats"
   },
   {
-    "name": "compose_down",
+    "description": "Tear down a compose stack by its compose name. Arguments: name.",
     "inputSchema": {
       "type": "object"
     },
-    "description": "Tear down a compose stack by its compose name. Arguments: name."
+    "name": "compose_down"
   },
   {
-    "name": "compose_ps",
+    "description": "List containers belonging to a compose stack. Arguments: name.",
     "inputSchema": {
       "type": "object"
     },
-    "description": "List containers belonging to a compose stack. Arguments: name."
+    "name": "compose_ps"
   },
   {
-    "name": "compose_up",
+    "description": "Parse + run a docker-compose.yml. Arguments: path, profiles (optional comma list).",
     "inputSchema": {
       "type": "object"
     },
-    "description": "Parse + run a docker-compose.yml. Arguments: path, profiles (optional comma list)."
+    "name": "compose_up"
   },
   {
     "description": "Force-delete a container. Arguments: id.",
-    "name": "delete",
-    "inputSchema": {
-      "type": "object"
-    }
-  },
-  {
-    "name": "df",
     "inputSchema": {
       "type": "object"
     },
-    "description": "Disk usage: containers/images/volumes sizes + reclaimable bytes."
+    "name": "delete"
+  },
+  {
+    "description": "Disk usage: containers/images/volumes sizes + reclaimable bytes.",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "df"
   },
   {
     "description": "Run a command in a running container. Arguments: id (required), command (required).",
-    "name": "exec",
-    "inputSchema": {
-      "type": "object"
-    }
-  },
-  {
-    "description": "Pretty-printed container inspect JSON. Arguments: id.",
-    "name": "inspect",
-    "inputSchema": {
-      "type": "object"
-    }
-  },
-  {
-    "description": "Disable the Kubernetes engine (a running cluster is left up).",
-    "name": "k8s_disable",
-    "inputSchema": {
-      "type": "object"
-    }
-  },
-  {
     "inputSchema": {
       "type": "object"
     },
-    "name": "k8s_down",
-    "description": "Remove the cluster VM and its state."
+    "name": "exec"
+  },
+  {
+    "description": "Pretty-printed container inspect JSON. Arguments: id.",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "inspect"
+  },
+  {
+    "description": "Disable the Kubernetes engine (a running cluster is left up).",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "k8s_disable"
+  },
+  {
+    "description": "Remove the cluster VM and its state.",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "k8s_down"
   },
   {
     "description": "Enable the lightweight Kubernetes engine (opt-in). Optional args: image, memory, cpus, metallb (true|false), ingress (true|false), lb_pool (a.b.c.d-e.f.g.h), name.",
@@ -77,17 +77,17 @@
     "name": "k8s_enable"
   },
   {
+    "description": "List image refs present in the cluster's containerd (k8s.io namespace).",
     "inputSchema": {
       "type": "object"
     },
-    "description": "List image refs present in the cluster's containerd (k8s.io namespace).",
     "name": "k8s_images"
   },
   {
+    "description": "Return the host kubeconfig contents for the cluster.",
     "inputSchema": {
       "type": "object"
     },
-    "description": "Return the host kubeconfig contents for the cluster.",
     "name": "k8s_kubeconfig"
   },
   {
@@ -98,206 +98,227 @@
     "name": "k8s_load_image"
   },
   {
+    "description": "Kubernetes engine state: enabled, cluster VM state, node Ready, kubeconfig path.",
     "inputSchema": {
       "type": "object"
     },
-    "name": "k8s_status",
-    "description": "Kubernetes engine state: enabled, cluster VM state, node Ready, kubeconfig path."
+    "name": "k8s_status"
   },
   {
+    "description": "Create or resume the k3s cluster VM and wait for Ready. Streams progress; writes ~/.micropod/k8s/kubeconfig. Accepts the same optional args as k8s_enable.",
     "inputSchema": {
       "type": "object"
     },
-    "name": "k8s_up",
-    "description": "Create or resume the k3s cluster VM and wait for Ready. Streams progress; writes ~/.micropod/k8s/kubeconfig. Accepts the same optional args as k8s_enable."
+    "name": "k8s_up"
   },
   {
     "description": "Kill a container. Arguments: id.",
-    "name": "kill",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "kill"
   },
   {
     "description": "List all containers (id, state, image, IP) as tab-separated lines.",
-    "name": "list_containers",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "list_containers"
   },
   {
     "description": "List local images (name, id, size, variants).",
-    "name": "list_images",
-    "inputSchema": {
-      "type": "object"
-    }
-  },
-  {
-    "name": "list_networks",
     "inputSchema": {
       "type": "object"
     },
-    "description": "List networks (name, mode, subnet)."
+    "name": "list_images"
+  },
+  {
+    "description": "List container machines \u2014 persistent VMs (e.g. keep-alive CI): id, state, IP, CPUs, memory.",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "list_machines"
+  },
+  {
+    "description": "List networks (name, mode, subnet).",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "list_networks"
   },
   {
     "description": "List volumes (name, size, driver).",
-    "name": "list_volumes",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "list_volumes"
   },
   {
     "description": "Last 100 log lines of a container. Arguments: id.",
-    "name": "logs",
-    "inputSchema": {
-      "type": "object"
-    }
-  },
-  {
-    "name": "pull",
     "inputSchema": {
       "type": "object"
     },
-    "description": "Pull an image. Arguments: reference."
+    "name": "logs"
   },
   {
-    "name": "push",
+    "description": "Tail a machine's stdio log. Arguments: id (required), lines (optional, default 100), boot (true for the vminitd/kernel boot log).",
     "inputSchema": {
       "type": "object"
     },
-    "description": "Push an image. Arguments: reference."
+    "name": "machine_logs"
+  },
+  {
+    "description": "Resource usage for running machines (CPU % of one core, memory, net, block I/O, pids) from each machine's backing container \u2014 never execs in the guest. Arguments: id (optional; default all running).",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "machine_stats"
+  },
+  {
+    "description": "Pull an image. Arguments: reference.",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "pull"
+  },
+  {
+    "description": "Push an image. Arguments: reference.",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "push"
   },
   {
     "description": "Restart a container (stop then start). Arguments: id.",
-    "name": "restart",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "restart"
   },
   {
     "description": "Run a container. Arguments: image (required), name (optional), memory (optional), runtime (optional: apple | docker | sandbox; default is the configured engine).",
-    "name": "run",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "run"
   },
   {
     "description": "Set the default engine for new containers. Arguments: name (apple|docker|sandbox).",
-    "name": "runtime_set_default",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "runtime_set_default"
   },
   {
     "description": "Enable/disable an engine or change its endpoint. Arguments: name (required), enabled (optional bool), endpoint (optional, docker only: unix:///path or tcp://host:port).",
-    "name": "runtime_update",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "runtime_update"
   },
   {
     "description": "Execution engines micropod can drive (apple VMs, docker, sandbox micro-VMs): availability, enabled, default, capabilities. Needs the Micropod API daemon.",
-    "name": "runtimes",
-    "inputSchema": {
-      "type": "object"
-    }
-  },
-  {
-    "name": "share_gc",
     "inputSchema": {
       "type": "object"
     },
-    "description": "Remove unreferenced chunks from the shared cache."
+    "name": "runtimes"
   },
   {
-    "name": "share_list",
+    "description": "Remove unreferenced chunks from the shared cache.",
     "inputSchema": {
       "type": "object"
     },
-    "description": "List active synchronized file shares."
+    "name": "share_gc"
   },
   {
-    "name": "share_mount",
+    "description": "List active synchronized file shares.",
     "inputSchema": {
       "type": "object"
     },
-    "description": "Expose a host directory as a synchronized file share. Arguments: src (required), readonly (optional), shared (optional live view)."
+    "name": "share_list"
   },
   {
-    "name": "share_sync",
+    "description": "Expose a host directory as a synchronized file share. Arguments: src (required), readonly (optional), shared (optional live view).",
     "inputSchema": {
       "type": "object"
     },
-    "description": "Flush a shared view's writes back to its source. Arguments: id."
+    "name": "share_mount"
   },
   {
-    "name": "share_unmount",
+    "description": "Flush a shared view's writes back to its source. Arguments: id.",
     "inputSchema": {
       "type": "object"
     },
-    "description": "Remove a shared view. Arguments: id."
+    "name": "share_sync"
+  },
+  {
+    "description": "Remove a shared view. Arguments: id.",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "share_unmount"
   },
   {
     "description": "Start a container. Arguments: id.",
-    "name": "start",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "start"
   },
   {
     "description": "Resource usage for all running containers (memory/CPU/net).",
-    "name": "stats",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "stats"
   },
   {
     "description": "Runtime status: running/stopped + CLI + apiserver versions.",
-    "name": "status",
     "inputSchema": {
       "type": "object"
-    }
+    },
+    "name": "status"
   },
   {
     "description": "Stop a container. Arguments: id.",
-    "name": "stop",
-    "inputSchema": {
-      "type": "object"
-    }
-  },
-  {
-    "name": "update_apply",
     "inputSchema": {
       "type": "object"
     },
-    "description": "Install a downloaded app update: quits Micropod, Sparkle applies it, app relaunches."
+    "name": "stop"
   },
   {
-    "name": "update_check",
+    "description": "Install a downloaded app update: quits Micropod, Sparkle applies it, app relaunches.",
     "inputSchema": {
       "type": "object"
     },
-    "description": "Trigger a background app update check (Sparkle) via the Micropod app."
+    "name": "update_apply"
   },
   {
-    "name": "update_status",
+    "description": "Trigger a background app update check (Sparkle) via the Micropod app.",
     "inputSchema": {
       "type": "object"
     },
-    "description": "Last-known app update state (checking/upToDate/updateAvailable/installing)."
+    "name": "update_check"
   },
   {
-    "name": "volume_policy",
+    "description": "Last-known app update state (checking/upToDate/updateAvailable/installing).",
     "inputSchema": {
       "type": "object"
     },
-    "description": "Show the shared volume-mount policy (clone mode, golden volumes, sync/cache modes)."
+    "name": "update_status"
   },
   {
-    "name": "volume_policy_set",
+    "description": "Show the shared volume-mount policy (clone mode, golden volumes, sync/cache modes).",
     "inputSchema": {
       "type": "object"
     },
-    "description": "Update the volume-mount policy. Arguments: mode (labels|goldens|all), goldens (comma list), jobsOnly (true|false), sync (full|fsync|nosync|default), cache (on|off|auto). Only provided fields change."
+    "name": "volume_policy"
+  },
+  {
+    "description": "Update the volume-mount policy. Arguments: mode (labels|goldens|all), goldens (comma list), jobsOnly (true|false), sync (full|fsync|nosync|default), cache (on|off|auto). Only provided fields change.",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "volume_policy_set"
   }
 ]

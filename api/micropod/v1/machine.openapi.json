@@ -1,0 +1,730 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Micropod API \u00b7 MachineService",
+    "description": "## micropod.v1.MachineService\n\nContainer machines: persistent Linux VMs (`container machine`) that\n keep a warm guest between runs \u2014 the keep-alive CI path. `container list`\n omits them and `container logs` doesn't know machine names, so they were\n invisible to container tooling. A running machine is backed by a per-boot\n container named `<machine>-<6 hex>` that `container stats` does report;\n metrics come from there, logs from the machine's own stdio/boot log.",
+    "version": "0.9.0",
+    "contact": {
+      "name": "Micropod",
+      "url": "https://github.com/castlemilk/micropod"
+    },
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/castlemilk/micropod/blob/master/LICENSE"
+    }
+  },
+  "paths": {
+    "/api/micropod.v1.MachineService/GetMachineStats": {
+      "post": {
+        "tags": [
+          "micropod.v1.MachineService"
+        ],
+        "summary": "GetMachineStats",
+        "description": "Resource usage for running machines (all, or one by id), read from the\n backing container's cgroup \u2014 nothing runs inside the guest, and a\n stopped machine is never booted to be sampled. CPU % is a delta between\n samples; a machine with no recent baseline is sampled twice ~0.5 s\n apart so a one-shot call still reports a real figure.",
+        "operationId": "micropod.v1.MachineService.GetMachineStats",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.GetMachineStatsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.MachineStatsSnapshot"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MachineService/ListMachines": {
+      "post": {
+        "tags": [
+          "micropod.v1.MachineService"
+        ],
+        "summary": "ListMachines",
+        "description": "All machines with state, sizing and vmnet address.",
+        "operationId": "micropod.v1.MachineService.ListMachines",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ListMachinesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.MachineService/StreamMachineLogs": {
+      "post": {
+        "tags": [
+          "micropod.v1.MachineService"
+        ],
+        "summary": "StreamMachineLogs",
+        "description": "A machine's stdio log (or the vminitd/kernel boot log); follows when\n `follow` is set, otherwise returns the tail and completes.",
+        "operationId": "micropod.v1.MachineService.StreamMachineLogs",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/connect+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StreamMachineLogsRequest"
+              }
+            },
+            "application/connect+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StreamMachineLogsRequest"
+              }
+            },
+            "application/grpc": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StreamMachineLogsRequest"
+              }
+            },
+            "application/grpc+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StreamMachineLogsRequest"
+              }
+            },
+            "application/grpc+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StreamMachineLogsRequest"
+              }
+            },
+            "application/grpc-web": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StreamMachineLogsRequest"
+              }
+            },
+            "application/grpc-web+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StreamMachineLogsRequest"
+              }
+            },
+            "application/grpc-web+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StreamMachineLogsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.LogChunk"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.LogChunk"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.LogChunk"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.LogChunk"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.LogChunk"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.LogChunk"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.LogChunk"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.LogChunk"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "connect-protocol-version": {
+        "type": "number",
+        "title": "Connect-Protocol-Version",
+        "enum": [
+          1
+        ],
+        "description": "Define the version of the Connect protocol",
+        "const": 1
+      },
+      "connect-timeout-header": {
+        "type": "number",
+        "title": "Connect-Timeout-Ms",
+        "description": "Define the timeout, in ms"
+      },
+      "connect.error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "examples": [
+              "not_found"
+            ],
+            "enum": [
+              "canceled",
+              "unknown",
+              "invalid_argument",
+              "deadline_exceeded",
+              "not_found",
+              "already_exists",
+              "permission_denied",
+              "resource_exhausted",
+              "failed_precondition",
+              "aborted",
+              "out_of_range",
+              "unimplemented",
+              "internal",
+              "unavailable",
+              "data_loss",
+              "unauthenticated"
+            ],
+            "description": "The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code]."
+          },
+          "message": {
+            "type": "string",
+            "description": "A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the [google.rpc.Status.details][google.rpc.Status.details] field, or localized by the client."
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/connect.error_details.Any"
+            },
+            "description": "A list of messages that carry the error details. There is no limit on the number of messages."
+          }
+        },
+        "title": "Connect Error",
+        "additionalProperties": true,
+        "description": "Error type returned by Connect: https://connectrpc.com/docs/go/errors/#http-representation"
+      },
+      "connect.error_details.Any": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "A URL that acts as a globally unique identifier for the type of the serialized message. For example: `type.googleapis.com/google.rpc.ErrorInfo`. This is used to determine the schema of the data in the `value` field and is the discriminator for the `debug` field."
+          },
+          "value": {
+            "type": "string",
+            "format": "binary",
+            "description": "The Protobuf message, serialized as bytes and base64-encoded. The specific message type is identified by the `type` field."
+          },
+          "debug": {
+            "oneOf": [
+              {
+                "type": "object",
+                "title": "Any",
+                "additionalProperties": true,
+                "description": "Detailed error information."
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type"
+            },
+            "title": "Debug",
+            "description": "Deserialized error detail payload. The 'type' field indicates the schema. This field is for easier debugging and should not be relied upon for application logic."
+          }
+        },
+        "additionalProperties": true,
+        "description": "Contains an arbitrary serialized message along with a @type that describes the type of the serialized message, with an additional debug field for ConnectRPC error details."
+      },
+      "micropod.v1.Empty": {
+        "type": "object",
+        "title": "Empty",
+        "additionalProperties": false,
+        "description": "The Micropod daemon API is grouped into per-domain services, one per file:\n\n   container.proto \u2014 ContainerService (lifecycle, logs, stats, exec)\n   image.proto     \u2014 ImageService (list, pull, delete)\n   volume.proto    \u2014 VolumeService (volumes + mount policy)\n   network.proto   \u2014 NetworkService\n   compose.proto   \u2014 Compose (up/down over a compose spec)\n   system.proto    \u2014 SystemService (snapshot, usage, app updates)\n\n Empty is shared by every service, so it lives here."
+      },
+      "micropod.v1.GetMachineStatsRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": [
+              "ci-alpine"
+            ],
+            "title": "id",
+            "description": "Restrict to one machine; empty = every running machine."
+          }
+        },
+        "title": "GetMachineStatsRequest",
+        "additionalProperties": false
+      },
+      "micropod.v1.ListMachinesResponse": {
+        "type": "object",
+        "properties": {
+          "machines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.Machine"
+            },
+            "title": "machines"
+          }
+        },
+        "title": "ListMachinesResponse",
+        "additionalProperties": false
+      },
+      "micropod.v1.LogChunk": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "examples": [
+              "GET /healthz 200"
+            ],
+            "title": "text",
+            "description": "A single line of container output."
+          }
+        },
+        "title": "LogChunk",
+        "additionalProperties": false,
+        "description": "One streamed log line (StreamContainerLogs event)."
+      },
+      "micropod.v1.Machine": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": [
+              "ci-alpine"
+            ],
+            "title": "id",
+            "description": "Machine ID (the name given at create time)."
+          },
+          "state": {
+            "type": "string",
+            "examples": [
+              "running"
+            ],
+            "title": "state",
+            "description": "\"running\" or \"stopped\"."
+          },
+          "ipAddress": {
+            "type": "string",
+            "examples": [
+              "192.168.64.12"
+            ],
+            "title": "ip_address",
+            "format": "ipv4",
+            "description": "vmnet IPv4 while running."
+          },
+          "cpus": {
+            "type": "integer",
+            "examples": [
+              "4"
+            ],
+            "title": "cpus",
+            "format": "int32",
+            "description": "Configured vCPUs."
+          },
+          "memoryBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "examples": [
+              "8589934592"
+            ],
+            "title": "memory_bytes",
+            "format": "int64",
+            "description": "Configured memory in bytes."
+          },
+          "diskBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "examples": [
+              "1169293312"
+            ],
+            "title": "disk_bytes",
+            "format": "int64",
+            "description": "Root disk size in bytes."
+          },
+          "createdAt": {
+            "type": "string",
+            "examples": [
+              "2026-09-20T11:34:09Z"
+            ],
+            "title": "created_at",
+            "format": "date-time",
+            "description": "ISO8601 creation timestamp."
+          },
+          "default": {
+            "type": "boolean",
+            "title": "default",
+            "description": "The runtime's default machine."
+          }
+        },
+        "title": "Machine",
+        "additionalProperties": false,
+        "description": "One machine, mapped from `container machine list`."
+      },
+      "micropod.v1.MachineStats": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": [
+              "ci-alpine"
+            ],
+            "title": "id",
+            "description": "Machine ID."
+          },
+          "containerId": {
+            "type": "string",
+            "examples": [
+              "ci-alpine-2553d3"
+            ],
+            "title": "container_id",
+            "description": "The per-boot backing container, e.g. \"ci-alpine-2553d3\" \u2014 the ID\n container stats/logs tooling shows for this machine while it runs."
+          },
+          "cpuPercent": {
+            "type": "number",
+            "examples": [
+              "37.5"
+            ],
+            "title": "cpu_percent",
+            "format": "double",
+            "description": "CPU usage as a percentage of one core (400 = four busy cores), like\n ContainerStats.cpu_percent."
+          },
+          "cpus": {
+            "type": "integer",
+            "examples": [
+              "4"
+            ],
+            "title": "cpus",
+            "format": "int32",
+            "description": "Configured vCPUs."
+          },
+          "memoryUsedBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "examples": [
+              "440205312"
+            ],
+            "title": "memory_used_bytes",
+            "format": "int64",
+            "description": "Resident memory in bytes."
+          },
+          "memoryLimitBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "examples": [
+              "8589934592"
+            ],
+            "title": "memory_limit_bytes",
+            "format": "int64",
+            "description": "Memory limit in bytes (the machine's configured memory)."
+          },
+          "networkRxBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "examples": [
+              "1048576"
+            ],
+            "title": "network_rx_bytes",
+            "format": "int64",
+            "description": "Bytes received over the machine's network."
+          },
+          "networkTxBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "examples": [
+              "524288"
+            ],
+            "title": "network_tx_bytes",
+            "format": "int64",
+            "description": "Bytes transmitted over the machine's network."
+          },
+          "blockReadBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "examples": [
+              "2097152"
+            ],
+            "title": "block_read_bytes",
+            "format": "int64",
+            "description": "Bytes read from block devices."
+          },
+          "blockWriteBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "examples": [
+              "1048576"
+            ],
+            "title": "block_write_bytes",
+            "format": "int64",
+            "description": "Bytes written to block devices."
+          },
+          "pids": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "examples": [
+              "13"
+            ],
+            "title": "pids",
+            "format": "int64",
+            "description": "Processes in the machine."
+          }
+        },
+        "title": "MachineStats",
+        "additionalProperties": false,
+        "description": "Counters for one running machine, from its backing container's cgroup\n (the same source as ContainerStats)."
+      },
+      "micropod.v1.MachineStatsSnapshot": {
+        "type": "object",
+        "properties": {
+          "machines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.MachineStats"
+            },
+            "title": "machines",
+            "description": "One entry per running machine sampled."
+          },
+          "sampledAt": {
+            "type": "string",
+            "examples": [
+              "2026-01-15T10:30:00Z"
+            ],
+            "title": "sampled_at",
+            "format": "date-time",
+            "description": "ISO8601 timestamp the snapshot was taken."
+          }
+        },
+        "title": "MachineStatsSnapshot",
+        "additionalProperties": false
+      },
+      "micropod.v1.StreamMachineLogsRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": [
+              "ci-alpine"
+            ],
+            "title": "id",
+            "minLength": 1,
+            "description": "Machine ID to read logs from."
+          },
+          "tail": {
+            "type": "integer",
+            "examples": [
+              "200"
+            ],
+            "title": "tail",
+            "minimum": 0,
+            "format": "int32",
+            "description": "Number of lines to replay from the end of the log (0 = all)."
+          },
+          "boot": {
+            "type": "boolean",
+            "title": "boot",
+            "description": "Read the vminitd/kernel boot log instead of stdio."
+          },
+          "follow": {
+            "type": "boolean",
+            "title": "follow",
+            "description": "Keep the stream open and follow new output."
+          }
+        },
+        "title": "StreamMachineLogsRequest",
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "security": [],
+  "tags": [
+    {
+      "name": "micropod.v1.MachineService",
+      "description": "Container machines: persistent Linux VMs (`container machine`) that\n keep a warm guest between runs \u2014 the keep-alive CI path. `container list`\n omits them and `container logs` doesn't know machine names, so they were\n invisible to container tooling. A running machine is backed by a per-boot\n container named `<machine>-<6 hex>` that `container stats` does report;\n metrics come from there, logs from the machine's own stdio/boot log."
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://localhost:45454",
+      "description": "Local Micropod daemon"
+    }
+  ],
+  "externalDocs": {
+    "description": "API explorer",
+    "url": "https://castlemilk.github.io/micropod/api/"
+  }
+}

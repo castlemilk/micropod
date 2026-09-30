@@ -911,6 +911,45 @@
         
           
           <li>
+            <a href="#micropod%2fv1%2fmachine.proto">micropod/v1/machine.proto</a>
+            <ul>
+              
+                <li>
+                  <a href="#micropod.v1.GetMachineStatsRequest"><span class="badge">M</span>GetMachineStatsRequest</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.ListMachinesResponse"><span class="badge">M</span>ListMachinesResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.Machine"><span class="badge">M</span>Machine</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.MachineStats"><span class="badge">M</span>MachineStats</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.MachineStatsSnapshot"><span class="badge">M</span>MachineStatsSnapshot</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.StreamMachineLogsRequest"><span class="badge">M</span>StreamMachineLogsRequest</a>
+                </li>
+              
+              
+              
+              
+                <li>
+                  <a href="#micropod.v1.MachineService"><span class="badge">S</span>MachineService</a>
+                </li>
+              
+            </ul>
+          </li>
+        
+          
+          <li>
             <a href="#micropod%2fv1%2fnetwork.proto">micropod/v1/network.proto</a>
             <ul>
               
@@ -7721,6 +7760,351 @@ the loaded ref &#43; byte count.</p></td>
                 <td><a href="#micropod.v1.ListK8sImagesRequest">ListK8sImagesRequest</a></td>
                 <td><a href="#micropod.v1.ListK8sImagesResponse">ListK8sImagesResponse</a></td>
                 <td><p>Image refs present in the cluster&#39;s containerd (k8s.io namespace).</p></td>
+              </tr>
+            
+          </tbody>
+        </table>
+
+        
+    
+      
+      <div class="file-heading">
+        <h2 id="micropod/v1/machine.proto">micropod/v1/machine.proto</h2><a href="#title">Top</a>
+      </div>
+      <p></p>
+
+      
+        <h3 id="micropod.v1.GetMachineStatsRequest">GetMachineStatsRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Restrict to one machine; empty = every running machine. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ListMachinesResponse">ListMachinesResponse</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>machines</td>
+                  <td><a href="#micropod.v1.Machine">Machine</a></td>
+                  <td>repeated</td>
+                  <td><p> </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.Machine">Machine</h3>
+        <p>One machine, mapped from `container machine list`.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Machine ID (the name given at create time). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>state</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>&#34;running&#34; or &#34;stopped&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>ip_address</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>vmnet IPv4 while running. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cpus</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p>Configured vCPUs. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Configured memory in bytes. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>disk_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Root disk size in bytes. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>created_at</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>ISO8601 creation timestamp. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>default</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>The runtime&#39;s default machine. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.MachineStats">MachineStats</h3>
+        <p>Counters for one running machine, from its backing container's cgroup</p><p>(the same source as ContainerStats).</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Machine ID. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>container_id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The per-boot backing container, e.g. &#34;ci-alpine-2553d3&#34; — the ID
+container stats/logs tooling shows for this machine while it runs. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cpu_percent</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p>CPU usage as a percentage of one core (400 = four busy cores), like
+ContainerStats.cpu_percent. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cpus</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p>Configured vCPUs. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory_used_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Resident memory in bytes. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory_limit_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Memory limit in bytes (the machine&#39;s configured memory). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>network_rx_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Bytes received over the machine&#39;s network. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>network_tx_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Bytes transmitted over the machine&#39;s network. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>block_read_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Bytes read from block devices. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>block_write_bytes</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Bytes written to block devices. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>pids</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Processes in the machine. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.MachineStatsSnapshot">MachineStatsSnapshot</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>machines</td>
+                  <td><a href="#micropod.v1.MachineStats">MachineStats</a></td>
+                  <td>repeated</td>
+                  <td><p>One entry per running machine sampled. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>sampled_at</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>ISO8601 timestamp the snapshot was taken. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.StreamMachineLogsRequest">StreamMachineLogsRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Machine ID to read logs from. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>tail</td>
+                  <td><a href="#int32">int32</a></td>
+                  <td></td>
+                  <td><p>Number of lines to replay from the end of the log (0 = all). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>boot</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Read the vminitd/kernel boot log instead of stdio. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>follow</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Keep the stream open and follow new output. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+
+      
+
+      
+
+      
+        <h3 id="micropod.v1.MachineService">MachineService</h3>
+        <p>Container machines: persistent Linux VMs (`container machine`) that</p><p>keep a warm guest between runs — the keep-alive CI path. `container list`</p><p>omits them and `container logs` doesn't know machine names, so they were</p><p>invisible to container tooling. A running machine is backed by a per-boot</p><p>container named `<machine>-<6 hex>` that `container stats` does report;</p><p>metrics come from there, logs from the machine's own stdio/boot log.</p>
+        <table class="enum-table">
+          <thead>
+            <tr><td>Method Name</td><td>Request Type</td><td>Response Type</td><td>Description</td></tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>ListMachines</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.ListMachinesResponse">ListMachinesResponse</a></td>
+                <td><p>All machines with state, sizing and vmnet address.</p></td>
+              </tr>
+            
+              <tr>
+                <td>GetMachineStats</td>
+                <td><a href="#micropod.v1.GetMachineStatsRequest">GetMachineStatsRequest</a></td>
+                <td><a href="#micropod.v1.MachineStatsSnapshot">MachineStatsSnapshot</a></td>
+                <td><p>Resource usage for running machines (all, or one by id), read from the
+backing container&#39;s cgroup — nothing runs inside the guest, and a
+stopped machine is never booted to be sampled. CPU % is a delta between
+samples; a machine with no recent baseline is sampled twice ~0.5 s
+apart so a one-shot call still reports a real figure.</p></td>
+              </tr>
+            
+              <tr>
+                <td>StreamMachineLogs</td>
+                <td><a href="#micropod.v1.StreamMachineLogsRequest">StreamMachineLogsRequest</a></td>
+                <td><a href="#micropod.v1.LogChunk">LogChunk</a> stream</td>
+                <td><p>A machine&#39;s stdio log (or the vminitd/kernel boot log); follows when
+`follow` is set, otherwise returns the tail and completes.</p></td>
               </tr>
             
           </tbody>
