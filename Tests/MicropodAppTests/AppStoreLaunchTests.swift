@@ -156,6 +156,53 @@ final class AppStoreLaunchTests: XCTestCase {
         XCTAssertFalse(store.hasLoadedImages)
     }
 
+    /// The menu-bar panel was empty on open: a hidden containers poller
+    /// sleeps 30s without fetching, and becoming visible only restarted the
+    /// stats poller. Becoming visible must load containers promptly.
+    func testPanelBecomingVisibleLoadsContainersPromptly() async throws {
+        let fixture = try AppTestCLI.makeMock()
+        defer { AppTestCLI.cleanUp(fixture) }
+        _ = try await fixture.client.run(ContainerCommandFactory.run(ContainerRunRequest(image: "alpine")))
+        let store = AppStore(dependencies: AppDependencies(client: fixture.client))
+        defer { store.stopPollers() }
+        store.bootstrap()
+        // Let bootstrap's first pass finish, then empty the list so only a
+        // visibility-triggered poll can refill it.
+        try await waitUntil(timeout: .seconds(5)) { store.isRuntimeRunning }
+        try await Task.sleep(for: .milliseconds(300))
+        store.containers = []
+
+        store.setPanelVisible(true)
+        try await waitUntil(timeout: .seconds(5)) { !store.containers.isEmpty }
+        XCTAssertEqual(store.containers.first?.image, "alpine")
+    }
+
+    func testObservedTransitionsFeedRecentActivity() {
+        let store = makeRunningStore(client: AppTestCLI.makeFailing())
+        func container(_ id: String, _ state: String, exit: String = "") -> Micropod_V1_Container {
+            .with {
+                $0.id = id
+                $0.state = state
+                $0.exitCode = exit
+            }
+        }
+        // First load is the starting inventory, not activity.
+        store.recordObservedTransitions(from: [], to: [container("web", "running"), container("old", "stopped")])
+        XCTAssertTrue(store.activity.isEmpty)
+
+        store.recordObservedTransitions(
+            from: [container("web", "running"), container("old", "stopped")],
+            to: [container("web", "stopped", exit: "137"), container("job", "running")])
+        XCTAssertEqual(
+            store.recentActivity(limit: 10).map(\.message).sorted(),
+            ["Removed old", "Started job", "web exited (137)"])
+        XCTAssertEqual(store.activity.first { $0.message == "web exited (137)" }?.level, .error)
+
+        store.recordObservedTransitions(
+            from: [container("job", "running")], to: [container("job", "stopped", exit: "0")])
+        XCTAssertEqual(store.recentActivity(limit: 1).first?.message, "Stopped job")
+    }
+
     func testRecentActivityIsNewestFirstAndBounded() {
         let store = makeRunningStore(client: AppTestCLI.makeFailing())
         store.recordActivity("test", "first")

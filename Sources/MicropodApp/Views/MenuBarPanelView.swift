@@ -204,42 +204,57 @@ struct MenuBarPanelView: View {
                         .padding(.vertical, 4)
                 }
             } else {
+                // No inner ScrollView: the list is capped at 6 rows (+ "show
+                // all"), and a ScrollView gets an arbitrary height in the
+                // popover's sizing pass — it clipped the third row.
                 card {
-                    ScrollView {
-                        VStack(spacing: 0) {
-                            ForEach(Array(store.containers.prefix(6).enumerated()), id: \.element.id) {
-                                index, container in
-                                if index > 0 {
-                                    Divider().padding(.leading, 18)
-                                }
-                                MenuBarContainerRow(
-                                    container: container,
-                                    stats: store.statsByID[container.id]
-                                ) {
-                                    openContainer(container.id)
-                                } onStop: {
-                                    Task { await store.stopContainer(container.id) }
-                                }
-                            }
-                            if store.containers.count > 6 {
+                    VStack(spacing: 0) {
+                        ForEach(Array(panelContainers.prefix(6).enumerated()), id: \.element.id) {
+                            index, container in
+                            if index > 0 {
                                 Divider().padding(.leading, 18)
-                                Button {
-                                    openAndSet { store.activeTab = .containers }
-                                } label: {
-                                    Label(
-                                        "Show all \(store.containers.count) containers…",
-                                        systemImage: "square.grid.2x2")
-                                }
-                                .buttonStyle(.plain)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .padding(.vertical, 4)
+                            }
+                            MenuBarContainerRow(
+                                container: container,
+                                stats: store.statsByID[container.id],
+                                diskBytes: store.diskBytesByID[container.id]
+                            ) {
+                                openContainer(container.id)
+                            } onStop: {
+                                Task { await store.stopContainer(container.id) }
                             }
                         }
+                        if store.containers.count > 6 {
+                            Divider().padding(.leading, 18)
+                            Button {
+                                openAndSet { store.activeTab = .containers }
+                            } label: {
+                                Label(
+                                    "Show all \(store.containers.count) containers…",
+                                    systemImage: "square.grid.2x2")
+                            }
+                            .buttonStyle(.plain)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .padding(.vertical, 4)
+                        }
                     }
-                    .frame(maxHeight: 220)
                 }
             }
+        }
+    }
+
+    /// Running containers first (busiest CPU first), then the rest by name —
+    /// the panel is a glance at what is using the machine right now.
+    private var panelContainers: [Micropod_V1_Container] {
+        store.containers.sorted { a, b in
+            let aRunning = a.state == "running"
+            let bRunning = b.state == "running"
+            if aRunning != bRunning { return aRunning }
+            let aCPU = store.statsByID[a.id]?.cpuPercent ?? 0
+            let bCPU = store.statsByID[b.id]?.cpuPercent ?? 0
+            if aCPU != bCPU { return aCPU > bCPU }
+            return a.id < b.id
         }
     }
 
@@ -257,32 +272,29 @@ struct MenuBarPanelView: View {
             sectionHeader("Recent Activity")
                 .padding(.horizontal, 2)
             card {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        ForEach(Array(store.recentActivity(limit: 4).enumerated()), id: \.element.id) { index, entry in
-                            if index > 0 {
-                                Divider().padding(.leading, 18)
-                            }
-                            HStack(spacing: 7) {
-                                Image(systemName: activityIcon(entry))
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(activityColor(entry))
-                                    .frame(width: 12)
-                                Text(entry.message)
-                                    .font(.caption)
-                                    .lineLimit(1)
-                                    .truncationMode(.tail)
-                                Spacer(minLength: 4)
-                                Text(entry.timestamp.formatted(.relative(presentation: .named)))
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                                    .fixedSize()
-                            }
-                            .padding(.vertical, 4)
+                VStack(spacing: 0) {
+                    ForEach(Array(store.recentActivity(limit: 4).enumerated()), id: \.element.id) { index, entry in
+                        if index > 0 {
+                            Divider().padding(.leading, 18)
                         }
+                        HStack(spacing: 7) {
+                            Image(systemName: activityIcon(entry))
+                                .font(.system(size: 10))
+                                .foregroundStyle(activityColor(entry))
+                                .frame(width: 12)
+                            Text(entry.message)
+                                .font(.caption)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                            Spacer(minLength: 4)
+                            Text(entry.timestamp.formatted(.relative(presentation: .named)))
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                                .fixedSize()
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
-                .frame(maxHeight: 120)
             }
         }
     }
@@ -398,12 +410,13 @@ struct MenuBarPanelView: View {
 
 }
 
-/// One compact row in the menu bar panel: name + live CPU/mem, image below;
-/// click opens the container, the trailing button stops it. Rows sit inside
-/// a section card separated by inset dividers, so the row itself stays flat.
+/// One compact row in the menu bar panel: name + live CPU/mem, image + disk
+/// below; click opens the container, the trailing button stops it. Rows sit
+/// inside a section card separated by inset dividers, so the row stays flat.
 struct MenuBarContainerRow: View {
     let container: Micropod_V1_Container
     let stats: Micropod_V1_ContainerStats?
+    var diskBytes: UInt64? = nil
     var onOpen: () -> Void
     var onStop: () -> Void
 
@@ -436,11 +449,22 @@ struct MenuBarContainerRow: View {
                                     .fixedSize()
                             }
                         }
-                        Text(container.image)
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
+                        HStack(spacing: 6) {
+                            Text(container.image)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            if container.state == "running" {
+                                Spacer(minLength: 4)
+                                Label(diskText, systemImage: "internaldrive")
+                                    .labelStyle(.titleAndIcon)
+                                    .font(.caption2.monospacedDigit())
+                                    .foregroundStyle(.tertiary)
+                                    .fixedSize()
+                                    .help("Container disk usage")
+                            }
+                        }
                     }
                 }
                 .contentShape(Rectangle())
@@ -474,5 +498,10 @@ struct MenuBarContainerRow: View {
     private var memText: String {
         guard let stats else { return "—" }
         return ByteFormat.string(stats.memoryUsedBytes)
+    }
+
+    private var diskText: String {
+        guard let diskBytes else { return "—" }
+        return ByteFormat.string(diskBytes)
     }
 }

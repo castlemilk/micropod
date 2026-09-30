@@ -255,6 +255,24 @@ final class AppStore {
     /// id → stats for the current snapshot; O(1) lookups for rows/sorts
     /// (the linear `containers.first {}` scan was per-row and per-comparison).
     private(set) var statsByID: [String: Micropod_V1_ContainerStats] = [:]
+
+    /// Test/preview seam: install a stats snapshot + disk sizes the way the
+    /// pollers would, without a runtime.
+    func applyForPreview(stats snapshot: Micropod_V1_StatsSnapshot, diskBytes: [String: UInt64] = [:]) {
+        statsSnapshot = snapshot
+        statsByID = Dictionary(snapshot.containers.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        diskBytesByID = diskBytes
+    }
+    /// id → allocated rootfs bytes for running containers (native backend
+    /// only; absent under the CLI backend). Refreshed at most every
+    /// `diskUsageInterval` while a surface is visible — each id is a runtime
+    /// round trip, so it rides the stats cadence rather than its own poller.
+    private(set) var diskBytesByID: [String: UInt64] = [:]
+    @ObservationIgnored private var diskUsageRefreshedAt = Date.distantPast
+    /// False until the first successful container list (see
+    /// `recordObservedTransitions`).
+    @ObservationIgnored private var hasLoadedContainers = false
+    private static let diskUsageInterval: TimeInterval = 15
     var machines: [MachineEntry] = []
     var systemProperties: SystemPropertyListResponse?
     var machineError: String?
@@ -753,11 +771,23 @@ final class AppStore {
         let anyVisible = mainWindowVisible || panelVisible
         if anyVisible != wasVisible {
             wasVisible = anyVisible
+            // Both pollers restart: a hidden containers loop sits in a 30s
+            // sleep without fetching, so opening the menu-bar panel showed an
+            // empty list until that sleep ended — usually after the panel
+            // had been closed again.
+            if anyVisible { diskUsageRefreshedAt = .distantPast }
+            restartContainersPolling()
             restartStatsPolling()
         }
     }
 
     private func startPollers() {
+        restartContainersPolling()
+        restartStatsPolling()
+    }
+
+    private func restartContainersPolling() {
+        containersTask?.cancel()
         let containerInterval = UserDefaults.standard.double(forKey: UserDefaultsKeys.pollIntervalContainers)
             .nonzeroOr(3.0)
         let hiddenInterval = max(containerInterval, 30.0)
@@ -776,7 +806,6 @@ final class AppStore {
                 }
             }
         }
-        restartStatsPolling()
     }
 
     private func restartStatsPolling() {
@@ -790,6 +819,7 @@ final class AppStore {
                 if self.wasVisible {
                     await self.refreshSystemStatus()
                     await self.refreshStats()
+                    await self.refreshContainerDiskUsage()
                     try? await Task.sleep(for: .seconds(visibleInterval))
                 } else {
                     // Keep recording history (at the slower cadence) so the
@@ -1155,7 +1185,9 @@ final class AppStore {
         guard isRuntimeRunning, clientAvailable else { return }
         await dependencies.refreshBackendIfNeeded()
         do {
-            containers = try await dependencies.containers.list()
+            let listed = try await dependencies.containers.list()
+            recordObservedTransitions(from: containers, to: listed)
+            containers = listed
             lastRefreshError = nil
         } catch {
             // A transport error can mean the apiserver was re-registered under
@@ -1174,6 +1206,39 @@ final class AppStore {
             if isRuntimeRunning {
                 lastRefreshError = error.localizedDescription
             }
+        }
+    }
+
+    /// Feeds Recent Activity from what the poller sees, not only from actions
+    /// taken in the app: containers started, stopped or removed by anything
+    /// (a CI runner, the CLI, the Docker shim) show up too. Silent on the
+    /// first load — that is the starting inventory, not activity.
+    func recordObservedTransitions(from old: [Micropod_V1_Container], to new: [Micropod_V1_Container]) {
+        guard hasLoadedContainers else {
+            hasLoadedContainers = true
+            return
+        }
+        let before = Dictionary(old.map { ($0.id, $0.state) }, uniquingKeysWith: { first, _ in first })
+        let after = Dictionary(new.map { ($0.id, $0.state) }, uniquingKeysWith: { first, _ in first })
+        for container in new {
+            let now = container.state
+            switch before[container.id] {
+            case nil:
+                recordActivity("container", now == "running" ? "Started \(container.id)" : "Created \(container.id)")
+            case let was? where was != now && now == "running":
+                recordActivity("container", "Started \(container.id)")
+            case let was? where was == "running" && now != "running":
+                let code = container.exitCode
+                let failed = !code.isEmpty && code != "0"
+                recordActivity(
+                    "container", failed ? "\(container.id) exited (\(code))" : "Stopped \(container.id)",
+                    level: failed ? .error : .info)
+            default:
+                break
+            }
+        }
+        for id in before.keys where after[id] == nil {
+            recordActivity("container", "Removed \(id)")
         }
     }
 
@@ -1327,6 +1392,28 @@ final class AppStore {
         } catch {
             // Dashboard shows "Disk usage unavailable" for this; not banner-worthy.
         }
+    }
+
+    /// Per-container rootfs usage via the native backend's
+    /// `containerDiskUsage`, concurrently, for running containers only.
+    /// A container whose call fails keeps no entry (the row shows "—").
+    func refreshContainerDiskUsage() async {
+        guard isRuntimeRunning, let api = dependencies.runtime?.api,
+            Date().timeIntervalSince(diskUsageRefreshedAt) >= Self.diskUsageInterval
+        else { return }
+        diskUsageRefreshedAt = Date()
+        let ids = containers.filter { $0.state == "running" }.map(\.id)
+        let sizes = await withTaskGroup(of: (String, UInt64?).self) { group in
+            for id in ids {
+                group.addTask { (id, try? await api.diskUsage(id: id)) }
+            }
+            var out: [String: UInt64] = [:]
+            for await (id, bytes) in group {
+                if let bytes { out[id] = bytes }
+            }
+            return out
+        }
+        diskBytesByID = sizes
     }
 
     func refreshStats() async {
