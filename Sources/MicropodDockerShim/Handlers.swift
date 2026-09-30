@@ -1508,7 +1508,11 @@ final class Router: @unchecked Sendable {
                     PortSpec(
                         hostPort: hostPort, containerPort: containerPort,
                         transportProtocol: proto,
-                        hostIP: binding.HostIp))
+                        // Docker sends HostIp "" for "all interfaces" (`-p 5432`,
+                        // and every testcontainers port). Passed through, the
+                        // runtime got hostAddress "" and failed the create with
+                        // "unableToParse"; unset means 0.0.0.0 downstream.
+                        hostIP: binding.HostIp.flatMap { $0.isEmpty ? nil : $0 }))
             }
         }
 
