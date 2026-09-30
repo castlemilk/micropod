@@ -142,3 +142,56 @@ final class PreStartArchivesHostFilesTests: XCTestCase {
         XCTAssertFalse(Router.isMissingExecutable(Fake(description: "tar: short read"), "tar"))
     }
 }
+
+final class DefaultNetworkNameTests: XCTestCase {
+    func testDefaultNetworkIsReportedAsBridge() {
+        XCTAssertEqual(DockerMapper.dockerNetworkName("default"), "bridge")
+        XCTAssertEqual(DockerMapper.dockerNetworkName("reaper_default"), "reaper_default")
+    }
+}
+
+final class DockerLogTailTests: XCTestCase {
+    func testAbsentOrAllMeansEveryLine() {
+        XCTAssertNil(Router.dockerLogTail(""))
+        XCTAssertNil(Router.dockerLogTail("all"))
+        XCTAssertNil(Router.dockerLogTail("ALL"))
+        XCTAssertNil(Router.dockerLogTail("-1"))
+    }
+
+    func testNumbersAreKept() {
+        XCTAssertEqual(Router.dockerLogTail("0"), 0)
+        XCTAssertEqual(Router.dockerLogTail("250"), 250)
+    }
+}
+
+final class EndpointNetworkAttachTests: XCTestCase {
+    /// testcontainers-go names `ContainerRequest.Networks[0]` only in
+    /// NetworkingConfig and leaves NetworkMode empty; Docker attaches it.
+    func testEndpointsConfigAttachesCustomNetwork() throws {
+        var body = DockerCreateRequest(Image: "supabase/gotrue:v2.169.0")
+        body.HostConfig = DockerHostConfig()
+        body.NetworkingConfig = DockerNetworkingConfig(
+            EndpointsConfig: ["tc-net-1": DockerEndpointSettings(Aliases: ["db"], IPAddress: nil)])
+        XCTAssertEqual(body.attachedNetworks, ["tc-net-1"])
+        XCTAssertEqual(body.aliases(for: "tc-net-1"), ["db"])
+        let request = try Router.buildRunRequest(from: body, name: nil)
+        XCTAssertTrue(request.volumes.contains { $0.hasSuffix(":/etc/hosts:ro") })
+    }
+
+    func testDefaultEndpointsStayOnDefaultNetwork() {
+        var body = DockerCreateRequest(Image: "alpine:3.22")
+        body.NetworkingConfig = DockerNetworkingConfig(
+            EndpointsConfig: ["bridge": DockerEndpointSettings(Aliases: nil, IPAddress: nil)])
+        XCTAssertEqual(body.attachedNetworks, [])
+    }
+
+    func testNetworkModeWinsOverEndpoints() {
+        var body = DockerCreateRequest(Image: "alpine:3.22")
+        var host = DockerHostConfig()
+        host.NetworkMode = "mynet"
+        body.HostConfig = host
+        body.NetworkingConfig = DockerNetworkingConfig(
+            EndpointsConfig: ["other": DockerEndpointSettings(Aliases: nil, IPAddress: nil)])
+        XCTAssertEqual(body.attachedNetworks, ["mynet"])
+    }
+}

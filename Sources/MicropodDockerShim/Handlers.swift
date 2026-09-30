@@ -2185,12 +2185,24 @@ final class Router: @unchecked Sendable {
         var Message: String
     }
 
+    /// Docker's `tail` query: absent or `all` is every line (nil), a number
+    /// is the last N. The shim used to default to 100 and cap follows at 500,
+    /// so a client reading a log from the start never saw early lines:
+    /// testcontainers' `wait.ForLog(...).WithOccurrence(2)` waited out its
+    /// timeout on a Postgres image that logs its first "ready" line more than
+    /// 100 lines before the second.
+    static func dockerLogTail(_ raw: String) -> Int? {
+        let value = raw.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !value.isEmpty, value != "all", let count = Int(value), count >= 0 else { return nil }
+        return count
+    }
+
     private func containerLogs(_ id: String, _ request: ShimRequest) async throws -> ShimResponse {
         let containerID = try await resolveID(id)
         let follow = request.q("follow").lowercased() == "1" || request.q("follow").lowercased() == "true"
-        let tailParam = Int(request.q("tail")) ?? 100
+        let tailLimit = Self.dockerLogTail(request.q("tail"))
         if follow {
-            let stream = logs.stream(id: containerID, tail: min(tailParam, 500), boot: false)
+            let stream = logs.stream(id: containerID, tail: tailLimit, boot: false)
             let (framedStream, continuation) = AsyncStream<Data>.makeStream()
             // Apple's `logs -f` never terminates on its own — not even when
             // the container dies — while Docker ends follow at container
@@ -2244,7 +2256,10 @@ final class Router: @unchecked Sendable {
             return .stream(
                 200, [("Content-Type", "application/vnd.docker.multiplexed-stream")], framedStream)
         }
-        let lines = try await logs.tail(id: containerID, lines: max(1, tailParam), boot: false)
+        if tailLimit == 0 {
+            return .raw(200, [("Content-Type", "application/vnd.docker.multiplexed-stream")], Data())
+        }
+        let lines = try await logs.tail(id: containerID, lines: tailLimit ?? Int.max, boot: false)
         var payload = Data()
         for line in lines {
             payload.append(ExecSession.frame(type: 1, payload: Data((line.text + "\n").utf8)))
@@ -2898,7 +2913,7 @@ final class Router: @unchecked Sendable {
                 .init(Subnet: network.ipv4Subnet, Gateway: network.ipv4Gateway.isEmpty ? nil : network.ipv4Gateway))
         }
         return DockerNetworkResource(
-            Name: network.id,
+            Name: DockerMapper.dockerNetworkName(network.id),
             Id: network.id.lowercased().replacingOccurrences(of: " ", with: "-"),
             Created: DockerMapper.rfc3339(network.createdAt),
             Scope: "local",

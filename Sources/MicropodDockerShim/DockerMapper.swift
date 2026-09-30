@@ -145,7 +145,7 @@ enum DockerMapper {
         }
 
         let mounts = self.mounts(container)
-        let networkName = container.networks.first ?? "default"
+        let networkName = dockerNetworkName(container.networks.first ?? "default")
 
         return DockerContainerSummary(
             Id: container.id,
@@ -309,7 +309,7 @@ enum DockerMapper {
             ]
         }
 
-        let networkName = container.networks.first ?? "default"
+        let networkName = dockerNetworkName(container.networks.first ?? "default")
         let address = plainIP(container.ipv4Address)
         let prefixLen = addressPrefixLength(container.ipv4Address)
         // Guarded rather than inline: a container that has not started yet has
@@ -402,6 +402,15 @@ enum DockerMapper {
     /// Re-shapes the runtime's raw `container image inspect` JSON (an array
     /// with per-platform variants) into the Docker Engine inspect object
     /// docker-py and friends expect.
+    /// Docker's default network is always named "bridge"; the Apple runtime
+    /// calls its equivalent "default". Clients look for "bridge" by name:
+    /// testcontainers-go, finding none, creates `reaper_default` and attaches
+    /// every container to it with a post-create network connect, which the
+    /// runtime cannot do. Create requests already treat both names alike.
+    static func dockerNetworkName(_ runtimeName: String) -> String {
+        runtimeName == "default" ? "bridge" : runtimeName
+    }
+
     static func dockerImageInspect(fromRaw data: Data, reference: String) -> Data? {
         guard let parsed = try? JSONSerialization.jsonObject(with: data) else { return nil }
         let entries = parsed as? [[String: Any]] ?? []
