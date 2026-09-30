@@ -115,6 +115,38 @@ final class EventsHubReconcileTests: XCTestCase {
         }
     }
 
+    /// The CI flake behind testAutoRemoveDeletesOnStop /
+    /// testRestartPolicyAlwaysRestartsAfterExplicitStop: the runtime reports
+    /// a created-never-started container as "stopped", and a detached start
+    /// that runs and exits between two polls leaves it "stopped" — identical
+    /// sightings, no transition, so the die (and with it the AutoRemove reap
+    /// and restart policy) was lost forever. A settled start with no handled
+    /// exit must produce exactly one die, however many polls follow.
+    func testRunAndExitBetweenPollsStillEmitsOneDie() async throws {
+        let id = "between-polls-1"
+        let stopped = container(id, state: "stopped")
+        let serving = ScriptedContainers([[], [], [stopped]])
+        let hub = EventsHub(containers: serving, interval: 0.05)
+        let state = ShimState()
+        await state.remember(id: id, name: id, request: body())
+
+        let (_, stream) = await hub.subscribe(filters: [:], state: state)
+        let loop = Task { await hub.start(state: state) }
+        defer { loop.cancel() }
+
+        // Polls absorb the never-started "stopped" container: no die yet.
+        try? await Task.sleep(for: .seconds(0.3))
+        // A detached /start the runtime accepted; the container ran and
+        // exited before any poll caught it running.
+        await state.markStarted(id: id)
+        await state.noteStartSettled(id: id)
+        try? await Task.sleep(for: .seconds(0.5))
+        loop.cancel()
+
+        let actions = await collect(stream, seconds: 0.1).map(\.Action)
+        XCTAssertEqual(actions.filter { $0 == "die" }.count, 1, "exactly one die, got \(actions)")
+    }
+
     /// Never-started container: absorbed silently, no die, no reap pressure.
     /// (hasEverStarted false, no attach veto → settle, no handleExit.)
     func testNeverStartedContainerEmitsNoDie() async throws {

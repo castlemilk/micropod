@@ -2299,6 +2299,7 @@ final class Router: @unchecked Sendable {
             } catch {
                 throw await refuseStart(id, error, wasStarted: wasStarted)
             }
+            await state.noteStartSettled(id: id)
             return
         }
         fputs("[shim] start \(id): claimed parked attach\n", stderr)

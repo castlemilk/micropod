@@ -101,6 +101,7 @@ actor ShimState {
 
     func forget(id: String) {
         startedIDs.remove(id)
+        settledStarts.removeValue(forKey: id)
         attachInFlightIDs.remove(id)
         creates.removeValue(forKey: id)
         // lastExitCodes deliberately survives — see noteExit.
@@ -216,6 +217,21 @@ actor ShimState {
 
     func hasStarted(id: String) -> Bool {
         startedIDs.contains(id)
+    }
+
+    /// Detached `/start`s the runtime accepted, per container. Unlike
+    /// `startedIDs` (marked *before* the runtime call, so a poll in between
+    /// still sees "stopped"), a settled start proves the container ran: a
+    /// later terminal sighting with an unhandled settled start is an exit,
+    /// even if no poll ever caught it running.
+    private var settledStarts: [String: Int] = [:]
+
+    func noteStartSettled(id: String) {
+        settledStarts[id, default: 0] += 1
+    }
+
+    func settledStartCount(id: String) -> Int {
+        settledStarts[id] ?? 0
     }
 
     /// Exit codes must outlive the container they describe: with `--rm` the

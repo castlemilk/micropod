@@ -45,8 +45,17 @@ final class SandboxSDKTests: XCTestCase {
         let stale = try await source.value()
         XCTAssertEqual(stale, "token-1", "a due value still serves while the refresh runs")
         try await waitUntil { mint.runs == 2 }
-        let fresh = try await source.value()
+        // The script exiting (runs == 2) precedes the source storing its
+        // output — under a loaded CI run a read can land in between. Wait
+        // for the refreshed value itself, not the process.
+        var fresh = try await source.value()
+        let deadline = ContinuousClock.now + .seconds(5)
+        while fresh != "token-2", ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+            fresh = try await source.value()
+        }
         XCTAssertEqual(fresh, "token-2")
+        XCTAssertEqual(mint.runs, 2, "waiting for the value must not trigger another mint")
     }
 
     func testFailedRefreshKeepsAValidValueThenFailsClosed() async throws {
