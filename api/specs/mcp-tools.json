@@ -224,6 +224,34 @@
     "name": "runtimes"
   },
   {
+    "description": "Run a setup command in a sandbox and keep its disk as a named checkpoint (only if it exits 0). Arguments: name (required), command (required), image or from, allow_net, timeout.",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "sandbox_checkpoint_create"
+  },
+  {
+    "description": "Delete a sandbox checkpoint. Arguments: name.",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "sandbox_checkpoint_delete"
+  },
+  {
+    "description": "List sandbox checkpoints (saved disks to boot from).",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "sandbox_checkpoints"
+  },
+  {
+    "description": "Run a command in a fresh, disposable micro-VM (rootfs discarded on exit) and return its output and exit code. Offline unless allow_net. Arguments: command (required, run by /bin/sh -c), image (default alpine) or from (a checkpoint), cpus, memory (MiB), timeout (seconds), mounts (comma list host:/guest \u2014 guest writes are discarded; host:/guest:rw needs allow_host_writes), allow_net, allow_hosts (comma list; restricts egress), secrets (comma list NAME=HOST_ENV@host \u2014 the guest sees a placeholder, the host proxy injects the real value on HTTPS to host), env (comma list KEY=VAL), workdir, expose_host (comma list of host loopback ports the guest reaches as host.micropod.internal:PORT), ports (comma list host:guest to publish).",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "sandbox_run"
+  },
+  {
     "description": "Remove unreferenced chunks from the shared cache.",
     "inputSchema": {
       "type": "object"

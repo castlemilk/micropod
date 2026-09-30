@@ -1,0 +1,2488 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Micropod API \u00b7 SandboxService",
+    "description": "## micropod.v1.SandboxService\n\nSandboxes as a programmable environment: boot a micro-VM once, then run\n processes in it, stream their output, move files in and out, and watch\n paths \u2014 the surface the SDKs' `Sandbox` class is built on.\n\n A sandbox is a `runtime: sandbox` container owned by the API process; every\n call names it by container id. Processes and file operations run inside\n the container, seeing its mounts, /tmp and working directory. File\n operations and the idle main process use /bin/sh and the usual tools\n (busybox or coreutils), so distroless images can run processes but not\n file operations.",
+    "version": "0.9.1",
+    "contact": {
+      "name": "Micropod",
+      "url": "https://github.com/castlemilk/micropod"
+    },
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://github.com/castlemilk/micropod/blob/master/LICENSE"
+    }
+  },
+  "paths": {
+    "/api/micropod.v1.SandboxService/CheckpointSandbox": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "CheckpointSandbox",
+        "description": "Save the sandbox's disk as a checkpoint, then stop the sandbox. Boot a\n new one from it with StartSandboxRequest.from_checkpoint.",
+        "operationId": "micropod.v1.SandboxService.CheckpointSandbox",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.CheckpointSandboxRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SandboxService/ChmodPath": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "ChmodPath",
+        "description": "Set a path's permission bits.",
+        "operationId": "micropod.v1.SandboxService.ChmodPath",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ChmodPathRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SandboxService/CopyPath": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "CopyPath",
+        "description": "Copy a file, or a directory tree with `recursive`.",
+        "operationId": "micropod.v1.SandboxService.CopyPath",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.CopyPathRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SandboxService/DeleteCheckpoint": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "DeleteCheckpoint",
+        "description": "Delete a checkpoint.",
+        "operationId": "micropod.v1.SandboxService.DeleteCheckpoint",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.CheckpointRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SandboxService/ListCheckpoints": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "ListCheckpoints",
+        "description": "Checkpoints saved on this host (shared with `micropod sandbox checkpoint`).",
+        "operationId": "micropod.v1.SandboxService.ListCheckpoints",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.Empty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ListCheckpointsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SandboxService/ListDir": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "ListDir",
+        "description": "A directory's entries, not recursive.",
+        "operationId": "micropod.v1.SandboxService.ListDir",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.PathRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ListDirResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SandboxService/MakeDir": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "MakeDir",
+        "description": "Create a directory (with parents unless `recursive` is false).",
+        "operationId": "micropod.v1.SandboxService.MakeDir",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.MakeDirRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SandboxService/ReadFile": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "ReadFile",
+        "description": "A file's bytes, up to 32 MiB.",
+        "operationId": "micropod.v1.SandboxService.ReadFile",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.PathRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.FileContent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SandboxService/RemovePath": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "RemovePath",
+        "description": "Delete a file, or a directory \u2014 non-empty ones only with `recursive`.",
+        "operationId": "micropod.v1.SandboxService.RemovePath",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.RemovePathRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SandboxService/RenamePath": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "RenamePath",
+        "description": "Move a path; atomic within one filesystem.",
+        "operationId": "micropod.v1.SandboxService.RenamePath",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.RenamePathRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SandboxService/SignalProcess": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "SignalProcess",
+        "description": "Signal the process (default SIGTERM).",
+        "operationId": "micropod.v1.SandboxService.SignalProcess",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.SignalProcessRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SandboxService/StartProcess": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "StartProcess",
+        "description": "Start a process in a running sandbox; returns at once with its id.\n Follow it with StreamProcess.",
+        "operationId": "micropod.v1.SandboxService.StartProcess",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StartProcessRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ProcessRef"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SandboxService/StartSandbox": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "StartSandbox",
+        "description": "Boot a sandbox and return once it can take processes. With no `command`\n it idles until stopped (DeleteContainer) \u2014 the long-lived shape the SDKs\n use.",
+        "operationId": "micropod.v1.SandboxService.StartSandbox",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.StartSandboxRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ContainerRef"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SandboxService/StatPath": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "StatPath",
+        "description": "Metadata for a path, not following a final symlink; `not_found` when the\n path does not exist.",
+        "operationId": "micropod.v1.SandboxService.StatPath",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.PathRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.FileStat"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SandboxService/StreamProcess": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "StreamProcess",
+        "description": "The process's stdout and stderr as they arrive, then its exit. Output\n from before the stream opened is replayed first (up to 8 MiB), so\n start-then-stream never loses a byte; several streams may follow one\n process. A stream that falls too far behind fails with\n `resource_exhausted` instead of silently dropping output.",
+        "operationId": "micropod.v1.SandboxService.StreamProcess",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/connect+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ProcessRef"
+              }
+            },
+            "application/connect+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ProcessRef"
+              }
+            },
+            "application/grpc": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ProcessRef"
+              }
+            },
+            "application/grpc+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ProcessRef"
+              }
+            },
+            "application/grpc+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ProcessRef"
+              }
+            },
+            "application/grpc-web": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ProcessRef"
+              }
+            },
+            "application/grpc-web+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ProcessRef"
+              }
+            },
+            "application/grpc-web+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.ProcessRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ProcessEvent"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ProcessEvent"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ProcessEvent"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ProcessEvent"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ProcessEvent"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ProcessEvent"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ProcessEvent"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.ProcessEvent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SandboxService/WatchPath": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "WatchPath",
+        "description": "Changes under a path, observed inside the guest \u2014 including writes a\n host-side watcher never sees (the root disk, tmpfs, overlay mounts).\n Uses inotify when the image has inotifywait (inotify-tools), otherwise\n polls every 500 ms at one-second mtime resolution. The first event is\n \"ready\": changes after it are reported.",
+        "operationId": "micropod.v1.SandboxService.WatchPath",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/connect+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.WatchPathRequest"
+              }
+            },
+            "application/connect+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.WatchPathRequest"
+              }
+            },
+            "application/grpc": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.WatchPathRequest"
+              }
+            },
+            "application/grpc+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.WatchPathRequest"
+              }
+            },
+            "application/grpc+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.WatchPathRequest"
+              }
+            },
+            "application/grpc-web": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.WatchPathRequest"
+              }
+            },
+            "application/grpc-web+proto": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.WatchPathRequest"
+              }
+            },
+            "application/grpc-web+json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.WatchPathRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/connect+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.WatchEvent"
+                }
+              },
+              "application/connect+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.WatchEvent"
+                }
+              },
+              "application/grpc": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.WatchEvent"
+                }
+              },
+              "application/grpc+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.WatchEvent"
+                }
+              },
+              "application/grpc+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.WatchEvent"
+                }
+              },
+              "application/grpc-web": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.WatchEvent"
+                }
+              },
+              "application/grpc-web+proto": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.WatchEvent"
+                }
+              },
+              "application/grpc-web+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.WatchEvent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SandboxService/WriteFile": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "WriteFile",
+        "description": "Create or replace a file (or append to it), up to 32 MiB per call.",
+        "operationId": "micropod.v1.SandboxService.WriteFile",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.WriteFileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/micropod.v1.SandboxService/WriteProcessStdin": {
+      "post": {
+        "tags": [
+          "micropod.v1.SandboxService"
+        ],
+        "summary": "WriteProcessStdin",
+        "description": "Write to the process's stdin (StartProcessRequest.stdin); `close` sends\n EOF after the data.",
+        "operationId": "micropod.v1.SandboxService.WriteProcessStdin",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            }
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/micropod.v1.WriteProcessStdinRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/micropod.v1.Empty"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "connect-protocol-version": {
+        "type": "number",
+        "title": "Connect-Protocol-Version",
+        "enum": [
+          1
+        ],
+        "description": "Define the version of the Connect protocol",
+        "const": 1
+      },
+      "connect-timeout-header": {
+        "type": "number",
+        "title": "Connect-Timeout-Ms",
+        "description": "Define the timeout, in ms"
+      },
+      "connect.error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "examples": [
+              "not_found"
+            ],
+            "enum": [
+              "canceled",
+              "unknown",
+              "invalid_argument",
+              "deadline_exceeded",
+              "not_found",
+              "already_exists",
+              "permission_denied",
+              "resource_exhausted",
+              "failed_precondition",
+              "aborted",
+              "out_of_range",
+              "unimplemented",
+              "internal",
+              "unavailable",
+              "data_loss",
+              "unauthenticated"
+            ],
+            "description": "The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code]."
+          },
+          "message": {
+            "type": "string",
+            "description": "A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the [google.rpc.Status.details][google.rpc.Status.details] field, or localized by the client."
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/connect.error_details.Any"
+            },
+            "description": "A list of messages that carry the error details. There is no limit on the number of messages."
+          }
+        },
+        "title": "Connect Error",
+        "additionalProperties": true,
+        "description": "Error type returned by Connect: https://connectrpc.com/docs/go/errors/#http-representation"
+      },
+      "connect.error_details.Any": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "A URL that acts as a globally unique identifier for the type of the serialized message. For example: `type.googleapis.com/google.rpc.ErrorInfo`. This is used to determine the schema of the data in the `value` field and is the discriminator for the `debug` field."
+          },
+          "value": {
+            "type": "string",
+            "format": "binary",
+            "description": "The Protobuf message, serialized as bytes and base64-encoded. The specific message type is identified by the `type` field."
+          },
+          "debug": {
+            "oneOf": [
+              {
+                "type": "object",
+                "title": "Any",
+                "additionalProperties": true,
+                "description": "Detailed error information."
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type"
+            },
+            "title": "Debug",
+            "description": "Deserialized error detail payload. The 'type' field indicates the schema. This field is for easier debugging and should not be relied upon for application logic."
+          }
+        },
+        "additionalProperties": true,
+        "description": "Contains an arbitrary serialized message along with a @type that describes the type of the serialized message, with an additional debug field for ConnectRPC error details."
+      },
+      "micropod.v1.CheckpointRef": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          }
+        },
+        "title": "CheckpointRef",
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "micropod.v1.CheckpointSandboxRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "examples": [
+              "after-setup"
+            ],
+            "title": "name",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+            "description": "Checkpoint name; an existing one is replaced."
+          }
+        },
+        "title": "CheckpointSandboxRequest",
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "micropod.v1.ChmodPathRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "title": "path",
+            "minLength": 1
+          },
+          "mode": {
+            "type": "integer",
+            "title": "mode",
+            "maximum": 4095,
+            "description": "Permission bits, e.g. 493 (0755)."
+          }
+        },
+        "title": "ChmodPathRequest",
+        "required": [
+          "id",
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "micropod.v1.ContainerRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": [
+              "web"
+            ],
+            "title": "id",
+            "minLength": 1,
+            "description": "Container ID \u2014 `container` uses the user-assigned name as the ID."
+          }
+        },
+        "title": "ContainerRef",
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false,
+        "description": "Reference to an existing container (or the ID returned by run/create)."
+      },
+      "micropod.v1.CopyPathRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "minLength": 1
+          },
+          "from": {
+            "type": "string",
+            "title": "from",
+            "minLength": 1
+          },
+          "to": {
+            "type": "string",
+            "title": "to",
+            "minLength": 1
+          },
+          "recursive": {
+            "type": "boolean",
+            "title": "recursive",
+            "description": "Required to copy a directory."
+          }
+        },
+        "title": "CopyPathRequest",
+        "required": [
+          "id",
+          "from",
+          "to"
+        ],
+        "additionalProperties": false
+      },
+      "micropod.v1.DirEntry": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "type": {
+            "type": "string",
+            "title": "type",
+            "description": "\"file\", \"dir\", \"symlink\" or \"other\"."
+          },
+          "size": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "size",
+            "format": "int64"
+          },
+          "mode": {
+            "type": "integer",
+            "title": "mode"
+          },
+          "mtime": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "mtime",
+            "format": "int64"
+          }
+        },
+        "title": "DirEntry",
+        "additionalProperties": false
+      },
+      "micropod.v1.Empty": {
+        "type": "object",
+        "title": "Empty",
+        "additionalProperties": false,
+        "description": "The Micropod daemon API is grouped into per-domain services, one per file:\n\n   container.proto \u2014 ContainerService (lifecycle, logs, stats, exec)\n   image.proto     \u2014 ImageService (list, pull, delete)\n   volume.proto    \u2014 VolumeService (volumes + mount policy)\n   network.proto   \u2014 NetworkService\n   compose.proto   \u2014 Compose (up/down over a compose spec)\n   system.proto    \u2014 SystemService (snapshot, usage, app updates)\n\n Empty is shared by every service, so it lives here."
+      },
+      "micropod.v1.FileContent": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "string",
+            "title": "data",
+            "format": "byte"
+          }
+        },
+        "title": "FileContent",
+        "additionalProperties": false
+      },
+      "micropod.v1.FileStat": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "path",
+            "description": "The path as asked for."
+          },
+          "type": {
+            "type": "string",
+            "title": "type",
+            "description": "\"file\", \"dir\", \"symlink\" or \"other\"."
+          },
+          "size": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "size",
+            "format": "int64",
+            "description": "Size in bytes."
+          },
+          "mode": {
+            "type": "integer",
+            "title": "mode",
+            "description": "st_mode, file-type bits included."
+          },
+          "mtime": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "mtime",
+            "format": "int64",
+            "description": "Last modification, seconds since the epoch."
+          }
+        },
+        "title": "FileStat",
+        "additionalProperties": false
+      },
+      "micropod.v1.ListCheckpointsResponse": {
+        "type": "object",
+        "properties": {
+          "checkpoints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.SandboxCheckpoint"
+            },
+            "title": "checkpoints"
+          }
+        },
+        "title": "ListCheckpointsResponse",
+        "additionalProperties": false
+      },
+      "micropod.v1.ListDirResponse": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.DirEntry"
+            },
+            "title": "entries"
+          }
+        },
+        "title": "ListDirResponse",
+        "additionalProperties": false
+      },
+      "micropod.v1.MakeDirRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "title": "path",
+            "minLength": 1
+          },
+          "recursive": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "recursive",
+            "description": "Create missing parents too (default true)."
+          }
+        },
+        "title": "MakeDirRequest",
+        "required": [
+          "id",
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "micropod.v1.PathRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "examples": [
+              "/workspace/out.json"
+            ],
+            "title": "path",
+            "minLength": 1
+          }
+        },
+        "title": "PathRequest",
+        "required": [
+          "id",
+          "path"
+        ],
+        "additionalProperties": false,
+        "description": "A path inside a sandbox; relative paths resolve against its workdir."
+      },
+      "micropod.v1.PortMapping": {
+        "type": "object",
+        "properties": {
+          "hostPort": {
+            "type": "integer",
+            "examples": [
+              "8080"
+            ],
+            "title": "host_port",
+            "maximum": 65535,
+            "description": "Port on the host."
+          },
+          "containerPort": {
+            "type": "integer",
+            "title": "container_port",
+            "maximum": 65535,
+            "description": "Port inside the container."
+          },
+          "protocol": {
+            "type": "string",
+            "examples": [
+              "tcp"
+            ],
+            "title": "protocol",
+            "description": "\"tcp\" or \"udp\"."
+          },
+          "hostIp": {
+            "type": "string",
+            "examples": [
+              "127.0.0.1"
+            ],
+            "title": "host_ip",
+            "format": "ipv4",
+            "description": "Host interface IP to bind (empty = all interfaces)."
+          }
+        },
+        "title": "PortMapping",
+        "required": [
+          "containerPort"
+        ],
+        "additionalProperties": false,
+        "description": "A published port mapping between host and container."
+      },
+      "micropod.v1.ProcessEvent": {
+        "type": "object",
+        "oneOf": [
+          {
+            "properties": {
+              "exitCode": {
+                "type": "integer",
+                "title": "exit_code",
+                "format": "int32",
+                "description": "The last event: the exit code (128 + n when killed by signal n)."
+              }
+            },
+            "title": "exit_code",
+            "required": [
+              "exitCode"
+            ]
+          },
+          {
+            "properties": {
+              "stderr": {
+                "type": "string",
+                "title": "stderr",
+                "format": "byte",
+                "description": "Bytes the process wrote to stderr."
+              }
+            },
+            "title": "stderr",
+            "required": [
+              "stderr"
+            ]
+          },
+          {
+            "properties": {
+              "stdout": {
+                "type": "string",
+                "title": "stdout",
+                "format": "byte",
+                "description": "Bytes the process wrote to stdout."
+              }
+            },
+            "title": "stdout",
+            "required": [
+              "stdout"
+            ]
+          }
+        ],
+        "title": "ProcessEvent",
+        "additionalProperties": false,
+        "description": "One piece of a process's life, in order: output chunks, then its exit."
+      },
+      "micropod.v1.ProcessRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "minLength": 1,
+            "description": "Sandbox (container) id."
+          },
+          "processId": {
+            "type": "string",
+            "title": "process_id",
+            "minLength": 1,
+            "description": "The id StartProcess returned."
+          },
+          "pid": {
+            "type": "integer",
+            "title": "pid",
+            "format": "int32",
+            "description": "Guest pid of the process."
+          }
+        },
+        "title": "ProcessRef",
+        "required": [
+          "id",
+          "processId"
+        ],
+        "additionalProperties": false,
+        "description": "A process in a sandbox. `pid` is set in StartProcess's response."
+      },
+      "micropod.v1.RemovePathRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "title": "path",
+            "minLength": 1
+          },
+          "recursive": {
+            "type": "boolean",
+            "title": "recursive",
+            "description": "Required to delete a non-empty directory."
+          }
+        },
+        "title": "RemovePathRequest",
+        "required": [
+          "id",
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "micropod.v1.RenamePathRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "minLength": 1
+          },
+          "from": {
+            "type": "string",
+            "title": "from",
+            "minLength": 1
+          },
+          "to": {
+            "type": "string",
+            "title": "to",
+            "minLength": 1
+          }
+        },
+        "title": "RenamePathRequest",
+        "required": [
+          "id",
+          "from",
+          "to"
+        ],
+        "additionalProperties": false
+      },
+      "micropod.v1.SandboxCheckpoint": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "image": {
+            "type": "string",
+            "title": "image",
+            "description": "The image the checkpoint's disk was first built from."
+          },
+          "sizeBytes": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "size_bytes",
+            "format": "int64",
+            "description": "Bytes allocated on the host (clones share blocks, so often less)."
+          },
+          "created": {
+            "type": "string",
+            "title": "created",
+            "description": "RFC 3339."
+          }
+        },
+        "title": "SandboxCheckpoint",
+        "additionalProperties": false
+      },
+      "micropod.v1.SandboxMount": {
+        "type": "object",
+        "properties": {
+          "hostPath": {
+            "type": "string",
+            "examples": [
+              "/Users/me/src"
+            ],
+            "title": "host_path",
+            "description": "Absolute host path.\nstring.prefix = \"/\"\n"
+          },
+          "guestPath": {
+            "type": "string",
+            "examples": [
+              "/workspace"
+            ],
+            "title": "guest_path",
+            "description": "Absolute guest path.\nstring.prefix = \"/\"\n"
+          },
+          "mode": {
+            "type": "string",
+            "examples": [
+              "overlay"
+            ],
+            "title": "mode",
+            "enum": [
+              "",
+              "overlay",
+              "ro",
+              "rw"
+            ],
+            "description": "\"overlay\" (default): guest writes go to a per-sandbox copy and the host\n directory is untouched. \"ro\": read-only. \"rw\": guest writes reach the\n host directory."
+          }
+        },
+        "title": "SandboxMount",
+        "required": [
+          "hostPath",
+          "guestPath"
+        ],
+        "additionalProperties": false,
+        "description": "A host directory shared into the sandbox."
+      },
+      "micropod.v1.SandboxOptions": {
+        "type": "object",
+        "properties": {
+          "exposeHost": {
+            "type": "array",
+            "examples": [
+              [
+                5432
+              ]
+            ],
+            "items": {
+              "exclusiveMinimum": 0,
+              "type": "integer",
+              "examples": [
+                [
+                  5432
+                ]
+              ],
+              "maximum": 65535
+            },
+            "title": "expose_host",
+            "maxItems": 64,
+            "description": "Host loopback ports the guest reaches as host.micropod.internal:<port>\n (e.g. a database on the host). Nothing else on the host is reachable."
+          },
+          "allowHosts": {
+            "type": "array",
+            "examples": [
+              [
+                "api.openai.com",
+                "*.npmjs.org"
+              ]
+            ],
+            "items": {
+              "type": "string",
+              "examples": [
+                [
+                  "api.openai.com",
+                  "*.npmjs.org"
+                ]
+              ],
+              "maxLength": 253,
+              "minLength": 1
+            },
+            "title": "allow_hosts",
+            "maxItems": 256,
+            "description": "Egress allowlist. When set, the VM has no route out of its own: all\n traffic leaves through a host proxy that refuses every other host.\n \"*.example.com\" matches subdomains only. Needs a network."
+          },
+          "secrets": {
+            "type": "object",
+            "title": "secrets",
+            "maxProperties": 64,
+            "additionalProperties": {
+              "title": "value",
+              "$ref": "#/components/schemas/micropod.v1.SandboxSecret"
+            },
+            "description": "Secrets by the environment variable name the guest sees. The guest gets\n a random placeholder; the host proxy swaps in the real value only in the\n request line and headers of HTTPS requests to the secret's `hosts`, so\n the credential never enters the VM. Needs a network."
+          },
+          "dnsResolvers": {
+            "type": "array",
+            "examples": [
+              [
+                "1.1.1.1"
+              ]
+            ],
+            "items": {
+              "type": "string",
+              "examples": [
+                [
+                  "1.1.1.1"
+                ]
+              ],
+              "format": "ip"
+            },
+            "title": "dns_resolvers",
+            "maxItems": 8,
+            "description": "Guest nameservers (default: the network gateway). Needs a network."
+          },
+          "diskSizeMib": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "title": "disk_size_mib",
+            "maximum": 1048576,
+            "minimum": 512,
+            "format": "int64",
+            "description": "Root disk size in MiB for image bases (0 = the default, 8192)."
+          }
+        },
+        "title": "SandboxOptions",
+        "additionalProperties": false,
+        "description": "What a sandbox may reach beyond its own VM, and the credentials it may use\n without seeing them."
+      },
+      "micropod.v1.SandboxOptions.SecretsEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "title": "value",
+            "$ref": "#/components/schemas/micropod.v1.SandboxSecret"
+          }
+        },
+        "title": "SecretsEntry",
+        "additionalProperties": false
+      },
+      "micropod.v1.SandboxSecret": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "value",
+            "description": "The real value. SDKs read `from` environment variables on the caller's\n side and send the value here."
+          },
+          "command": {
+            "type": "array",
+            "examples": [
+              [
+                "gcloud",
+                "auth",
+                "print-access-token"
+              ]
+            ],
+            "items": {
+              "type": "string",
+              "examples": [
+                [
+                  "gcloud",
+                  "auth",
+                  "print-access-token"
+                ]
+              ]
+            },
+            "title": "command",
+            "maxItems": 64,
+            "description": "Or an argv run on the host (no shell) whose stdout is the value \u2014 raw,\n or {\"version\":1,\"value\":\"\u2026\",\"expires_at\":\"<RFC 3339>\"} like AWS\n `credential_process`. Minted on first use, again a minute before\n `expires_at` (else every `ttl`), one run at a time, kept in memory only.\n A failed refresh keeps a still-valid value; with none, requests to\n `hosts` fail closed (502) instead of carrying the placeholder upstream."
+          },
+          "commandDir": {
+            "type": "string",
+            "title": "command_dir",
+            "description": "Working directory for `command` (default: the API process's home)."
+          },
+          "ttl": {
+            "type": "string",
+            "examples": [
+              "15m"
+            ],
+            "title": "ttl",
+            "pattern": "^$|^[0-9]+(s|m|h)?$",
+            "description": "Refresh interval when `command` reports no expiry, e.g. \"15m\", \"1h\",\n \"90s\" (default 5m)."
+          },
+          "hosts": {
+            "type": "array",
+            "examples": [
+              [
+                "api.openai.com"
+              ]
+            ],
+            "items": {
+              "type": "string",
+              "examples": [
+                [
+                  "api.openai.com"
+                ]
+              ],
+              "maxLength": 253,
+              "minLength": 1
+            },
+            "title": "hosts",
+            "maxItems": 64,
+            "minItems": 1,
+            "description": "HTTPS hosts whose requests get the real value (\"*.example.com\" matches\n subdomains)."
+          }
+        },
+        "title": "SandboxSecret",
+        "additionalProperties": false,
+        "description": "One secret: a value the caller already has, or a host command that mints\n it (and mints it again before it expires).\nsandbox_secret.source // set exactly one of value or command\n"
+      },
+      "micropod.v1.SignalProcessRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "minLength": 1
+          },
+          "processId": {
+            "type": "string",
+            "title": "process_id",
+            "minLength": 1
+          },
+          "signal": {
+            "type": "string",
+            "examples": [
+              "SIGINT"
+            ],
+            "title": "signal",
+            "description": "\"SIGTERM\" (default), \"KILL\", \"9\", \u2026"
+          }
+        },
+        "title": "SignalProcessRequest",
+        "required": [
+          "id",
+          "processId"
+        ],
+        "additionalProperties": false
+      },
+      "micropod.v1.StartProcessRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "minLength": 1,
+            "description": "Sandbox (container) id."
+          },
+          "command": {
+            "type": "array",
+            "examples": [
+              [
+                "npm",
+                "run",
+                "dev"
+              ]
+            ],
+            "items": {
+              "type": "string",
+              "examples": [
+                [
+                  "npm",
+                  "run",
+                  "dev"
+                ]
+              ]
+            },
+            "title": "command",
+            "minItems": 1,
+            "description": "argv; use [\"sh\", \"-c\", \"\u2026\"] for a shell line."
+          },
+          "cwd": {
+            "type": "string",
+            "examples": [
+              "/workspace"
+            ],
+            "title": "cwd",
+            "description": "Working directory (default: the sandbox's)."
+          },
+          "env": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "env",
+            "description": "Extra KEY=VALUE environment."
+          },
+          "stdin": {
+            "type": "boolean",
+            "title": "stdin",
+            "description": "Keep stdin open for WriteProcessStdin; otherwise the process reads EOF."
+          }
+        },
+        "title": "StartProcessRequest",
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "micropod.v1.StartSandboxRequest": {
+        "type": "object",
+        "properties": {
+          "image": {
+            "type": "string",
+            "examples": [
+              "python:3.12"
+            ],
+            "title": "image",
+            "description": "OCI image to boot (default \"alpine:latest\")."
+          },
+          "fromCheckpoint": {
+            "type": "string",
+            "examples": [
+              "python-env"
+            ],
+            "title": "from_checkpoint",
+            "pattern": "^$|^[A-Za-z0-9][A-Za-z0-9._-]*$",
+            "description": "Or a checkpoint saved by CheckpointSandbox or `micropod sandbox\n checkpoint create`."
+          },
+          "name": {
+            "type": "string",
+            "examples": [
+              "agent-1"
+            ],
+            "title": "name",
+            "description": "Optional name; becomes the sandbox (container) id."
+          },
+          "cpus": {
+            "type": "integer",
+            "examples": [
+              "2"
+            ],
+            "title": "cpus",
+            "maximum": 64,
+            "description": "vCPUs (default 2)."
+          },
+          "memoryMib": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "examples": [
+              "2048"
+            ],
+            "title": "memory_mib",
+            "maximum": 1048576,
+            "minimum": 0,
+            "format": "int64",
+            "description": "Memory in MiB (default 2048)."
+          },
+          "env": {
+            "type": "array",
+            "examples": [
+              [
+                "DEBUG=1"
+              ]
+            ],
+            "items": {
+              "type": "string",
+              "examples": [
+                [
+                  "DEBUG=1"
+                ]
+              ]
+            },
+            "title": "env",
+            "description": "KEY=VALUE environment for the sandbox and every process started in it."
+          },
+          "workdir": {
+            "type": "string",
+            "examples": [
+              "/workspace"
+            ],
+            "title": "workdir",
+            "description": "Default working directory."
+          },
+          "mounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.SandboxMount"
+            },
+            "title": "mounts",
+            "maxItems": 32,
+            "description": "Host directories to share."
+          },
+          "ports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/micropod.v1.PortMapping"
+            },
+            "title": "ports",
+            "maxItems": 64,
+            "description": "TCP ports to publish; an empty host_ip binds 127.0.0.1."
+          },
+          "allowNet": {
+            "type": "boolean",
+            "examples": [
+              "true"
+            ],
+            "title": "allow_net",
+            "description": "A NAT network with internet access (default off: no network device\n unless ports or expose_host need a host-only one)."
+          },
+          "options": {
+            "title": "options",
+            "description": "Host ports, egress allowlist, secrets, DNS, disk size.",
+            "$ref": "#/components/schemas/micropod.v1.SandboxOptions"
+          },
+          "command": {
+            "type": "array",
+            "examples": [
+              []
+            ],
+            "items": {
+              "type": "string",
+              "examples": [
+                []
+              ]
+            },
+            "title": "command",
+            "description": "Main process; empty idles until the sandbox is stopped."
+          },
+          "labels": {
+            "type": "object",
+            "title": "labels",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            },
+            "description": "Arbitrary metadata labels."
+          }
+        },
+        "title": "StartSandboxRequest",
+        "additionalProperties": false,
+        "description": "start_sandbox.base // set image or from_checkpoint, not both\n"
+      },
+      "micropod.v1.StartSandboxRequest.LabelsEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "key"
+          },
+          "value": {
+            "type": "string",
+            "title": "value"
+          }
+        },
+        "title": "LabelsEntry",
+        "additionalProperties": false
+      },
+      "micropod.v1.WatchEvent": {
+        "type": "object",
+        "properties": {
+          "event": {
+            "type": "string",
+            "title": "event",
+            "description": "\"ready\" (first, once the watch is live), then \"create\", \"modify\",\n \"delete\" or \"rename\" (both ends of a move, with inotify)."
+          },
+          "path": {
+            "type": "string",
+            "title": "path",
+            "description": "Absolute guest path of what changed."
+          }
+        },
+        "title": "WatchEvent",
+        "additionalProperties": false
+      },
+      "micropod.v1.WatchPathRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "title": "path",
+            "minLength": 1
+          },
+          "recursive": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "recursive",
+            "description": "Watch the whole tree (default true)."
+          }
+        },
+        "title": "WatchPathRequest",
+        "required": [
+          "id",
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "micropod.v1.WriteFileRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "title": "path",
+            "minLength": 1
+          },
+          "data": {
+            "type": "string",
+            "title": "data",
+            "maxLength": 33554432,
+            "format": "byte"
+          },
+          "append": {
+            "type": "boolean",
+            "title": "append",
+            "description": "Append instead of replacing."
+          },
+          "mode": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "mode",
+            "maximum": 4095,
+            "description": "Permission bits to set, e.g. 493 (0755)."
+          },
+          "createParents": {
+            "type": "boolean",
+            "title": "create_parents",
+            "description": "Create missing parent directories."
+          }
+        },
+        "title": "WriteFileRequest",
+        "required": [
+          "id",
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "micropod.v1.WriteProcessStdinRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id",
+            "minLength": 1
+          },
+          "processId": {
+            "type": "string",
+            "title": "process_id",
+            "minLength": 1
+          },
+          "data": {
+            "type": "string",
+            "title": "data",
+            "maxLength": 33554432,
+            "format": "byte",
+            "description": "Bytes to write (up to 32 MiB)."
+          },
+          "close": {
+            "type": "boolean",
+            "title": "close",
+            "description": "Close stdin after writing `data`."
+          }
+        },
+        "title": "WriteProcessStdinRequest",
+        "required": [
+          "id",
+          "processId"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "security": [],
+  "tags": [
+    {
+      "name": "micropod.v1.SandboxService",
+      "description": "Sandboxes as a programmable environment: boot a micro-VM once, then run\n processes in it, stream their output, move files in and out, and watch\n paths \u2014 the surface the SDKs' `Sandbox` class is built on.\n\n A sandbox is a `runtime: sandbox` container owned by the API process; every\n call names it by container id. Processes and file operations run inside\n the container, seeing its mounts, /tmp and working directory. File\n operations and the idle main process use /bin/sh and the usual tools\n (busybox or coreutils), so distroless images can run processes but not\n file operations."
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://localhost:45454",
+      "description": "Local Micropod daemon"
+    }
+  ],
+  "externalDocs": {
+    "description": "API explorer",
+    "url": "https://castlemilk.github.io/micropod/api/"
+  }
+}
