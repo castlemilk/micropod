@@ -651,7 +651,19 @@
                 </li>
               
                 <li>
+                  <a href="#micropod.v1.GetMetricsHistoryRequest"><span class="badge">M</span>GetMetricsHistoryRequest</a>
+                </li>
+              
+                <li>
                   <a href="#micropod.v1.ListRuntimesResponse"><span class="badge">M</span>ListRuntimesResponse</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.MetricsHistory"><span class="badge">M</span>MetricsHistory</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.MetricsPoint"><span class="badge">M</span>MetricsPoint</a>
                 </li>
               
                 <li>
@@ -1082,6 +1094,10 @@
               
                 <li>
                   <a href="#micropod.v1.StartSandboxRequest.LabelsEntry"><span class="badge">M</span>StartSandboxRequest.LabelsEntry</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.UpdateSandboxSecretRequest"><span class="badge">M</span>UpdateSandboxSecretRequest</a>
                 </li>
               
                 <li>
@@ -4841,6 +4857,44 @@ backends that never create clones.</p></td>
 
         
       
+        <h3 id="micropod.v1.GetMetricsHistoryRequest">GetMetricsHistoryRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>kind</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>&#34;system&#34; (all containers), &#34;container&#34; or &#34;machine&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Container id or machine name; ignored for &#34;system&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>range_seconds</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>How far back, in seconds (0 = one hour; at most 30 days). </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
         <h3 id="micropod.v1.ListRuntimesResponse">ListRuntimesResponse</h3>
         <p></p>
 
@@ -4863,6 +4917,124 @@ backends that never create clones.</p></td>
                   <td><a href="#string">string</a></td>
                   <td></td>
                   <td><p>Name of the default engine. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.MetricsHistory">MetricsHistory</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>resolution_seconds</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>Seconds each point covers (10, 60 or 900). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>points</td>
+                  <td><a href="#micropod.v1.MetricsPoint">MetricsPoint</a></td>
+                  <td>repeated</td>
+                  <td><p>Oldest first; empty when nothing was recorded in the range. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.MetricsPoint">MetricsPoint</h3>
+        <p>One bucket: averages, plus the peak of the metrics that spike.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>timestamp</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Start of the bucket (RFC 3339). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cpu_percent</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p>CPU % (100 = one core): average and peak. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>cpu_percent_max</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory_used_bytes</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p>Memory in use (bytes): average and peak. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory_used_bytes_max</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>memory_limit_bytes</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p>Memory limit (bytes). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>network_rx_bytes_per_second</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p>Network and disk rates (bytes per second), averages. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>network_tx_bytes_per_second</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>block_read_bytes_per_second</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p> </p></td>
+                </tr>
+              
+                <tr>
+                  <td>block_write_bytes_per_second</td>
+                  <td><a href="#double">double</a></td>
+                  <td></td>
+                  <td><p> </p></td>
                 </tr>
               
             </tbody>
@@ -5519,6 +5691,12 @@ engines reject an endpoint with `invalid_argument`. </p></td>
                 <td><p>Last check/apply failed — see `error`.</p></td>
               </tr>
             
+              <tr>
+                <td>STATE_READY_TO_INSTALL</td>
+                <td>8</td>
+                <td><p>Downloaded and staged: ApplyUpdate (or quitting) installs it.</p></td>
+              </tr>
+            
           </tbody>
         </table>
       
@@ -5606,6 +5784,18 @@ unknown or unavailable engine.</p></td>
 Docker engine at an OrbStack or colima socket). Disabled engines are
 left out of ListContainers and refuse RunContainer. The default engine
 cannot be disabled (`failed_precondition`). Persisted server-side.</p></td>
+              </tr>
+            
+              <tr>
+                <td>GetMetricsHistory</td>
+                <td><a href="#micropod.v1.GetMetricsHistoryRequest">GetMetricsHistoryRequest</a></td>
+                <td><a href="#micropod.v1.MetricsHistory">MetricsHistory</a></td>
+                <td><p>Resource usage over time for all containers (&#34;system&#34;), one container,
+or one machine, as recorded by the Micropod app (every 5 s while its
+window is open, 30 s otherwise). Rolled up and pruned by age: 10 s
+points for 3 h, 1 min for 48 h, 15 min for 30 days — the finest that
+covers the range is returned. A container&#39;s or machine&#39;s history is
+deleted with it.</p></td>
               </tr>
             
           </tbody>
@@ -6500,7 +6690,7 @@ the credential never enters the VM. Needs a network. </p></td>
         
       
         <h3 id="micropod.v1.SandboxSecret">SandboxSecret</h3>
-        <p>One secret: a value the caller already has, or a host command that mints</p><p>it (and mints it again before it expires).</p>
+        <p>One secret: its current value and the hosts that may receive it. The API</p><p>never runs programs on the host: to use a minted, expiring credential</p><p>(`gcloud auth print-access-token`, a GitHub App token), mint it on the</p><p>caller's side — the SDKs do this for `command` secrets — and push each</p><p>new value with SandboxService.UpdateSandboxSecret.</p>
 
         
           <table class="field-table">
@@ -6514,34 +6704,29 @@ the credential never enters the VM. Needs a network. </p></td>
                   <td><a href="#string">string</a></td>
                   <td></td>
                   <td><p>The real value. SDKs read `from` environment variables on the caller&#39;s
-side and send the value here. </p></td>
+side and send the value here. CR, LF and NUL are refused. </p></td>
                 </tr>
               
                 <tr>
                   <td>command</td>
                   <td><a href="#string">string</a></td>
                   <td>repeated</td>
-                  <td><p>Or an argv run on the host (no shell) whose stdout is the value — raw,
-or {&#34;version&#34;:1,&#34;value&#34;:&#34;…&#34;,&#34;expires_at&#34;:&#34;&lt;RFC 3339&gt;&#34;} like AWS
-`credential_process`. Minted on first use, again a minute before
-`expires_at` (else every `ttl`), one run at a time, kept in memory only.
-A failed refresh keeps a still-valid value; with none, requests to
-`hosts` fail closed (502) instead of carrying the placeholder upstream. </p></td>
+                  <td><p><strong>Deprecated.</strong> Not accepted: the API doesn&#39;t run host commands (removed in v0.11 for
+that reason; requests that set it fail with `invalid_argument`). </p></td>
                 </tr>
               
                 <tr>
                   <td>command_dir</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p>Working directory for `command` (default: the API process&#39;s home). </p></td>
+                  <td><p><strong>Deprecated.</strong> Not accepted (see `command`). </p></td>
                 </tr>
               
                 <tr>
                   <td>ttl</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p>Refresh interval when `command` reports no expiry, e.g. &#34;15m&#34;, &#34;1h&#34;,
-&#34;90s&#34; (default 5m). </p></td>
+                  <td><p><strong>Deprecated.</strong> Not accepted (see `command`). </p></td>
                 </tr>
               
                 <tr>
@@ -6552,9 +6737,49 @@ A failed refresh keeps a still-valid value; with none, requests to
 subdomains). </p></td>
                 </tr>
               
+                <tr>
+                  <td>expires_at</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>When `value` stops working (RFC 3339). After it, requests to `hosts` fail
+closed (502) until UpdateSandboxSecret supplies a new value. Empty: the
+value doesn&#39;t expire. </p></td>
+                </tr>
+              
             </tbody>
           </table>
 
+          
+            
+            
+            <h4>Fields with deprecated option</h4>
+            <table>
+              <thead>
+                <tr>
+                  <td>Name</td>
+                  <td>Option</td>
+                </tr>
+              </thead>
+              <tbody>
+              
+                <tr>
+                  <td>command</td>
+                  <td><p>true</p></td>
+                </tr>
+              
+                <tr>
+                  <td>command_dir</td>
+                  <td><p>true</p></td>
+                </tr>
+              
+                <tr>
+                  <td>ttl</td>
+                  <td><p>true</p></td>
+                </tr>
+              
+              </tbody>
+            </table>
+            
           
 
         
@@ -9527,6 +9752,51 @@ unless ports or expose_host need a host-only one). </p></td>
 
         
       
+        <h3 id="micropod.v1.UpdateSandboxSecretRequest">UpdateSandboxSecretRequest</h3>
+        <p></p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Sandbox (container) id. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The secret&#39;s name (the guest environment variable). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>value</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The new value; CR, LF and NUL are refused. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>expires_at</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>When it stops working (RFC 3339); empty for never. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
         <h3 id="micropod.v1.WatchEvent">WatchEvent</h3>
         <p></p>
 
@@ -9542,7 +9812,8 @@ unless ports or expose_host need a host-only one). </p></td>
                   <td><a href="#string">string</a></td>
                   <td></td>
                   <td><p>&#34;ready&#34; (first, once the watch is live), then &#34;create&#34;, &#34;modify&#34;,
-&#34;delete&#34; or &#34;rename&#34; (both ends of a move, with inotify). </p></td>
+&#34;delete&#34; or &#34;rename&#34; (both ends of a move); &#34;overflow&#34; when the kernel
+dropped events (re-scan to catch up). </p></td>
                 </tr>
               
                 <tr>
@@ -9708,7 +9979,7 @@ unless ports or expose_host need a host-only one). </p></td>
 
       
         <h3 id="micropod.v1.SandboxService">SandboxService</h3>
-        <p>Sandboxes as a programmable environment: boot a micro-VM once, then run</p><p>processes in it, stream their output, move files in and out, and watch</p><p>paths — the surface the SDKs' `Sandbox` class is built on.</p><p>A sandbox is a `runtime: sandbox` container owned by the API process; every</p><p>call names it by container id. Processes and file operations run inside</p><p>the container, seeing its mounts, /tmp and working directory. File</p><p>operations and the idle main process use /bin/sh and the usual tools</p><p>(busybox or coreutils), so distroless images can run processes but not</p><p>file operations.</p>
+        <p>Sandboxes as a programmable environment: boot a micro-VM once, then run</p><p>processes in it, stream their output, move files in and out, and watch</p><p>paths — the surface the SDKs' `Sandbox` class is built on.</p><p>A sandbox is a `runtime: sandbox` container owned by the API process; every</p><p>call names it by container id. Processes and file operations run inside</p><p>the container, seeing its mounts, /tmp and working directory, as the</p><p>image's user. File operations, watches and the idle main process run on</p><p>micropod's own static guest helper (shared into the sandbox read-only at</p><p>/.micropod), so they need nothing from the image: distroless works.</p>
         <table class="enum-table">
           <thead>
             <tr><td>Method Name</td><td>Request Type</td><td>Response Type</td><td>Description</td></tr>
@@ -9826,11 +10097,11 @@ path does not exist.</p></td>
                 <td>WatchPath</td>
                 <td><a href="#micropod.v1.WatchPathRequest">WatchPathRequest</a></td>
                 <td><a href="#micropod.v1.WatchEvent">WatchEvent</a> stream</td>
-                <td><p>Changes under a path, observed inside the guest — including writes a
-host-side watcher never sees (the root disk, tmpfs, overlay mounts).
-Uses inotify when the image has inotifywait (inotify-tools), otherwise
-polls every 500 ms at one-second mtime resolution. The first event is
-&#34;ready&#34;: changes after it are reported.</p></td>
+                <td><p>Changes under a path, observed inside the guest with inotify —
+including writes a host-side watcher never sees (the root disk, tmpfs,
+overlay mounts). The first event is &#34;ready&#34;: changes after it are
+reported. (A daemon built without the guest helper falls back to the
+image&#39;s inotifywait, else a 500 ms poll.)</p></td>
               </tr>
             
               <tr>
@@ -9853,6 +10124,15 @@ new one from it with StartSandboxRequest.from_checkpoint.</p></td>
                 <td><a href="#micropod.v1.CheckpointRef">CheckpointRef</a></td>
                 <td><a href="#micropod.v1.Empty">Empty</a></td>
                 <td><p>Delete a checkpoint.</p></td>
+              </tr>
+            
+              <tr>
+                <td>UpdateSandboxSecret</td>
+                <td><a href="#micropod.v1.UpdateSandboxSecretRequest">UpdateSandboxSecretRequest</a></td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><p>Replace a running sandbox&#39;s secret value — a refreshed token — without
+the guest noticing (its placeholder never changes). `not_found` when the
+sandbox has no such secret.</p></td>
               </tr>
             
           </tbody>

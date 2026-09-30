@@ -175,6 +175,13 @@
     "name": "machine_stats"
   },
   {
+    "description": "Resource usage over time, as recorded by the Micropod app (10 s points for 3 h, 1 min for 48 h, 15 min for 30 days): per metric the peak, average and latest value plus a sparkline. Arguments: id (container id or machine name; empty for all containers), kind (system|container|machine; default container when id is set), range (e.g. 15m, 1h, 24h, 7d; default 1h).",
+    "inputSchema": {
+      "type": "object"
+    },
+    "name": "metrics_history"
+  },
+  {
     "description": "Pull an image. Arguments: reference.",
     "inputSchema": {
       "type": "object"
