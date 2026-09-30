@@ -80,8 +80,15 @@ while [ "$(date +%s)" -lt "$end" ]; do
     fi
     now_agents="$(agent_pids)"
     [ "$now_agents" != "$BASE_AGENTS" ] && { echo "WARN: agent respawn [$BASE_AGENTS] -> [$now_agents]"; BASE_AGENTS="$now_agents"; fail=1; }
+    # Isolation breach = a process that was running outside the soak before
+    # it started has gone. New outside processes (another session's smoke
+    # run, a relaunch) are noted but are not the soak's doing.
     now_outside="$(outside_pids)"
-    [ "$now_outside" != "$BASE_OUTSIDE" ] && { echo "FAIL: outside pids changed [$BASE_OUTSIDE] -> [$now_outside]"; BASE_OUTSIDE="$now_outside"; fail=1; }
+    for pid in $BASE_OUTSIDE; do
+        case " $now_outside " in *" $pid "*) ;; *) echo "FAIL: outside pid $pid is gone (isolation breach?)"; fail=1 ;; esac
+    done
+    [ "$now_outside" != "$BASE_OUTSIDE" ] && echo "note: outside pids [$BASE_OUTSIDE] -> [$now_outside]"
+    BASE_OUTSIDE="$now_outside"
     [ "$(crash_count)" != "$BASE_CRASHES" ] && { echo "FAIL: new crash report(s):"; ls -t "$REPORTS" | grep '^Micropod' | head -3; BASE_CRASHES="$(crash_count)"; fail=1; }
 done
 wait "$LOAD_PID" || true
