@@ -174,7 +174,8 @@ enum ResourceCommands {
             let parsed = try parseArgs(
                 Array(args.dropFirst()),
                 boolFlags: [],
-                valueFlags: ["--username", "-u", "--password", "-p"],
+                valueFlags: ["--username", "--password"],
+                aliases: ["-u": "--username", "-p": "--password"],
                 commandName: "registry login")
             guard let server = parsed.positionals.first else {
                 throw UsageError(message: "registry login <server> -u user [-p pass]")
