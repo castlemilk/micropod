@@ -46,3 +46,24 @@ jobs:
         run: swift build
       - name: Test
         run: swift test
+
+  # Keeps a warm release build for the Release workflow: a tag run can
+  # only restore caches from its own tag or master, so master pushes save
+  # the release .build (SwiftPM restores it; only changed modules compile).
+  release-build-cache:
+    if: github.event_name == 'push'
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer || true
+      - name: Toolchain fingerprint
+        run: echo "SWIFT_FINGERPRINT=$(swift --version 2>&1 | shasum | cut -c1-12)" >> "$GITHUB_ENV"
+      - uses: actions/cache@v4
+        with:
+          path: .build
+          key: swiftpm-release-${{ env.SWIFT_FINGERPRINT }}-${{ hashFiles('Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            swiftpm-release-${{ env.SWIFT_FINGERPRINT }}-${{ hashFiles('Package.resolved') }}-
+      - name: Release build
+        run: swift build -c release

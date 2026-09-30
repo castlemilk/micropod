@@ -9,6 +9,9 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${1:-$ROOT/.build/guest/micropod-guest}"
+# The build runs inside guest/: a relative OUT must not resolve there (the
+# v0.11.0 release put the helper under guest/dist/ and failed).
+case "$OUT" in /*) ;; *) OUT="$PWD/$OUT" ;; esac
 mkdir -p "$(dirname "$OUT")"
 (cd "$ROOT/guest" && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 GOFLAGS=-buildvcs=false \
     go build -trimpath -ldflags="-s -w -buildid=" -o "$OUT" .)
