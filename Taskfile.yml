@@ -106,6 +106,12 @@ tasks:
       - task: cli
       - .build/debug/micropod sandbox run -v "$PWD/guest:/src" -w /src -e GOFLAGS=-buildvcs=false -e GOTOOLCHAIN=local golang:1 -- sh -c 'go vet ./... && go test -count=1 ./...'
 
+  mcp-live:
+    desc: The MCP server against this machine's real runtime, API daemon, app updater and metrics (MCP=~/.local/bin/micropod-mcp for the installed one)
+    cmds:
+      - swift build --product MicropodMCP
+      - python3 scripts/mcp_live.py
+
   e2e-sdk:
     desc: TypeScript SDK Sandbox class (exec/spawn/files/watch/checkpoint) against a signed MicropodAPI on a scratch port
     cmds:

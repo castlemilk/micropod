@@ -1,4 +1,5 @@
 import Foundation
+import MicropodBuildInfo
 import MicropodCore
 import SwiftProtobuf
 
@@ -25,7 +26,7 @@ enum SystemCommands {
 
     static func version(_ services: Services) async throws {
         let status = try await services.system.status()
-        print("micropod-cli \(CLIVersion.current)")
+        print("micropod-cli \(MicropodBuildInfo.version)")
         print("container cli \(status.cliVersion)")
         print("apiserver \(status.apiServerVersion)")
     }
@@ -399,8 +400,4 @@ enum SystemCommands {
             for line in lines { print(line) }
         }
     }
-}
-
-enum CLIVersion {
-    static let current = "0.1.0"
 }

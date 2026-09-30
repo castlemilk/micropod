@@ -11,6 +11,15 @@ VERSION="${1:-0.1.0}"
 BUNDLE_ID="com.skunkworq.micropod"
 DIST="dist"
 
+# Stamp the version into the CLI and MCP binaries for this build only.
+# (The backup lives outside the target: SwiftPM warns about stray files.)
+BUILD_INFO="Sources/MicropodBuildInfo/BuildInfo.swift"
+BUILD_INFO_ORIG="$(mktemp)"
+cp "$BUILD_INFO" "$BUILD_INFO_ORIG"
+trap 'cp "$BUILD_INFO_ORIG" "$BUILD_INFO" && rm -f "$BUILD_INFO_ORIG"' EXIT
+sed -i '' "s/static let version = \"dev\"/static let version = \"$VERSION\"/" "$BUILD_INFO"
+grep -q "\"$VERSION\"" "$BUILD_INFO" || { echo "!! failed to stamp $BUILD_INFO"; exit 1; }
+
 echo "==> Building release (swift build -c release)"
 swift build -c release
 

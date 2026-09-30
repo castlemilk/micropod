@@ -1,4 +1,5 @@
 import Foundation
+import MicropodBuildInfo
 import MicropodCore
 import MicropodSharedFS
 
@@ -125,12 +126,15 @@ private actor MCPServer {
     /// Human-readable rendering of an update check/status report.
     private func describeUpdate(_ report: [String: Any]) -> String {
         var line = "update: \(report["state"] as? String ?? "unknown")"
+        if let current = report["currentVersion"] as? String, !current.isEmpty { line += " | running \(current)" }
         if let version = report["availableVersion"] as? String {
-            line += " (\(version) available"
+            line += " | \(version) available"
             if report["downloaded"] as? Bool == true { line += ", downloaded" }
-            if report["readyToInstall"] as? Bool == true { line += ", ready to install" }
-            line += ")"
+            if report["readyToInstall"] as? Bool == true {
+                line += ", ready to install (update_apply restarts into it)"
+            }
         }
+        if let checked = report["checkedAt"] as? String { line += " | checked \(checked)" }
         if let error = report["error"] as? String {
             line += " — \(error)"
         }
@@ -186,6 +190,10 @@ private actor MCPServer {
                     "protocolVersion": .string("2024-11-05"),
                     "capabilities": .object([
                         "tools": .object([:])
+                    ]),
+                    "serverInfo": .object([
+                        "name": .string("micropod"),
+                        "version": .string(MicropodBuildInfo.version),
                     ]),
                 ]))
 
@@ -256,6 +264,8 @@ private actor MCPServer {
         (
             "run",
             "Run a container. Arguments: image (required), name (optional), memory (optional), "
+                + "command (optional, run by /bin/sh -c instead of the image's default command — e.g. "
+                + "`sleep infinity` keeps a sandbox up for exec), "
                 + "runtime (optional: apple | docker | sandbox; default is the configured engine)."
         ),
         (
@@ -454,31 +464,45 @@ private actor MCPServer {
                     id, "\(status.status) | cli \(status.cliVersion) | apiserver \(status.apiServerVersion)")
 
             case "list_containers":
-                let containers = try await self.containers.list()
-                let lines = containers.map { c -> String in
+                // Apple's containers from the runtime; sandbox and Docker ones
+                // from the API daemon that owns them.
+                let local: [Micropod_V1_Container]
+                do {
+                    local = try await self.containers.list()
+                } catch {
+                    let remote = await LocalAPI.nonAppleContainers()
+                    guard !remote.isEmpty else { throw error }
+                    local = []
+                }
+                var lines = local.map { c -> String in
                     "\(c.id)\t\(c.state)\t\(c.image)\(c.ipv4Address.isEmpty ? "" : "\t\(c.ipv4Address)")"
-                }.joined(separator: "\n")
-                return toolResult(id, lines.isEmpty ? "No containers" : lines)
+                }
+                lines += await LocalAPI.nonAppleContainers().map { c in
+                    "\(c["id"] as? String ?? "?")\t\(c["state"] as? String ?? "?")\t\(c["image"] as? String ?? "")\t[\(c["runtime"] as? String ?? "")]"
+                }
+                return toolResult(id, lines.isEmpty ? "No containers" : lines.joined(separator: "\n"))
 
-            case "start":
-                try await containers.start(string("id"))
-                return toolResult(id, "Started \(string("id"))")
-
-            case "stop":
-                try await containers.stop(string("id"))
-                return toolResult(id, "Stopped \(string("id"))")
-
-            case "restart":
-                try await containers.restart(string("id"))
-                return toolResult(id, "Restarted \(string("id"))")
-
-            case "kill":
-                try await containers.kill(string("id"))
-                return toolResult(id, "Killed \(string("id"))")
-
-            case "delete":
-                try await containers.delete(string("id"), force: true)
-                return toolResult(id, "Deleted \(string("id"))")
+            case "start", "stop", "restart", "kill", "delete":
+                let target = string("id")
+                let verb = [
+                    "start": "Started", "stop": "Stopped", "restart": "Restarted", "kill": "Killed",
+                    "delete": "Deleted",
+                ][call.name]!
+                if let engine = await LocalAPI.nonAppleEngine(for: target) {
+                    let method = call.name.prefix(1).uppercased() + call.name.dropFirst() + "Container"
+                    var body: [String: Any] = ["id": target]
+                    if call.name == "delete" { body["force"] = true }
+                    _ = try await LocalAPI.connect("ContainerService", method, body)
+                    return toolResult(id, "\(verb) \(target) [\(engine)]")
+                }
+                switch call.name {
+                case "start": try await containers.start(target)
+                case "stop": try await containers.stop(target)
+                case "restart": try await containers.restart(target)
+                case "kill": try await containers.kill(target)
+                default: try await containers.delete(target, force: true)
+                }
+                return toolResult(id, "\(verb) \(target)")
 
             case "run" where !string("runtime").isEmpty && string("runtime") != "apple":
                 // Non-apple engines are owned by the API daemon (sandbox VMs
@@ -486,6 +510,7 @@ private actor MCPServer {
                 var body: [String: Any] = ["image": string("image"), "runtime": string("runtime")]
                 if !string("name").isEmpty { body["name"] = string("name") }
                 if !string("memory").isEmpty { body["memory"] = string("memory") }
+                if !string("command").isEmpty { body["arguments"] = ["/bin/sh", "-c", string("command")] }
                 let reply = try await LocalAPI.call("POST", "/v1/containers", body)
                 return toolResult(id, "Started \(reply["id"] as? String ?? "?") on \(string("runtime"))")
 
@@ -514,10 +539,21 @@ private actor MCPServer {
                     detach: true)
                 let memory = string("memory")
                 if !memory.isEmpty { request.memory = memory }
+                if !string("command").isEmpty { request.arguments = ["/bin/sh", "-c", string("command")] }
                 let containerID = try await containers.run(request)
                 return toolResult(id, "Started \(containerID)")
 
             case "exec":
+                if await LocalAPI.nonAppleEngine(for: string("id")) != nil {
+                    let reply = try await LocalAPI.connect(
+                        "ContainerService", "Exec",
+                        ["id": string("id"), "arguments": ["/bin/sh", "-c", string("command")]])
+                    let output = (reply["output"] as? String ?? "") + (reply["error"] as? String ?? "")
+                    let code = (reply["exitCode"] as? Int) ?? Int(reply["exitCode"] as? String ?? "0") ?? 0
+                    return toolResult(
+                        id, (output.isEmpty ? "No output" : output) + (code == 0 ? "" : "\n(exit \(code))"),
+                        isError: code != 0)
+                }
                 let output = try await containers.exec(
                     ContainerExecRequest(containerID: string("id"), arguments: [string("command")]))
                 return toolResult(id, output.isEmpty ? "No output" : output)
@@ -731,12 +767,22 @@ private actor MCPServer {
                     id, lastLine.isEmpty ? "Pushed \(string("reference"))" : "Pushed \(string("reference"))")
 
             case "inspect":
+                if await LocalAPI.nonAppleEngine(for: string("id")) != nil {
+                    let reply = try await LocalAPI.connect("ContainerService", "GetContainer", ["id": string("id")])
+                    let pretty = try JSONSerialization.data(
+                        withJSONObject: reply, options: [.prettyPrinted, .sortedKeys])
+                    return toolResult(id, String(data: pretty, encoding: .utf8) ?? "")
+                }
                 let data = try await containers.inspect(string("id"))
                 let object = try JSONSerialization.jsonObject(with: data)
                 let pretty = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted])
                 return toolResult(id, String(data: pretty, encoding: .utf8) ?? "")
 
             case "logs":
+                if await LocalAPI.nonAppleEngine(for: string("id")) != nil {
+                    let lines = try await LocalAPI.tailLogs(string("id"), lines: 100)
+                    return toolResult(id, lines.isEmpty ? "No logs" : lines.joined(separator: "\n"))
+                }
                 let lines = try await logStreamer.tail(id: string("id"), lines: 100, boot: false)
                 return toolResult(id, lines.isEmpty ? "No logs" : lines.map(\.text).joined(separator: "\n"))
 
@@ -993,6 +1039,65 @@ enum LocalAPI {
         return json
     }
 
+    /// A Connect unary call on the daemon (`/api/micropod.v1.<service>/<method>`).
+    static func connect(_ service: String, _ method: String, _ body: [String: Any]) async throws -> [String: Any] {
+        try await call("POST", "/api/micropod.v1.\(service)/\(method)", body)
+    }
+
+    /// The engine owning `id` when it isn't Apple's — sandbox micro-VMs and
+    /// Docker containers live in the API daemon (sandbox VMs in its very
+    /// process), so tools must reach them through it. nil for Apple
+    /// containers, unknown ids, or no daemon: the caller's usual path.
+    static func nonAppleEngine(for id: String) async -> String? {
+        guard !id.isEmpty, let reply = try? await connect("ContainerService", "GetContainer", ["id": id]),
+            let runtime = reply["runtime"] as? String, !runtime.isEmpty, runtime != "apple"
+        else { return nil }
+        return runtime
+    }
+
+    /// The daemon's containers on engines other than Apple's.
+    static func nonAppleContainers() async -> [[String: Any]] {
+        guard let reply = try? await connect("ContainerService", "ListContainers", [:]) else { return [] }
+        return (reply["containers"] as? [[String: Any]] ?? []).filter {
+            let runtime = $0["runtime"] as? String ?? "apple"
+            return !runtime.isEmpty && runtime != "apple"
+        }
+    }
+
+    /// The last `lines` log lines. The daemon's log route follows the
+    /// container, so read until `lines` arrive or it goes quiet.
+    static func tailLogs(_ id: String, lines: Int) async throws -> [String] {
+        var components = URLComponents(
+            url: baseURL.appendingPathComponent("/v1/containers/\(id)/logs"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "tail", value: String(lines))]
+        let (bytes, response) = try await URLSession.shared.bytes(from: components.url!)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw MicropodError.message("logs for \(id) unavailable from the API daemon")
+        }
+        let collected = LineBox()
+        let reader = Task {
+            for try await line in bytes.lines where line.hasPrefix("data: ") {
+                collected.append(String(line.dropFirst(6)).replacingOccurrences(of: "\\n", with: "\n"))
+                if collected.count >= lines { break }
+            }
+        }
+        // The tail arrives at once; after that the stream only waits.
+        var quietSince = ContinuousClock.now
+        var seen = 0
+        let deadline = ContinuousClock.now + .seconds(5)
+        while !reader.isCancelled, ContinuousClock.now < deadline, collected.count < lines {
+            try? await Task.sleep(for: .milliseconds(100))
+            if collected.count != seen {
+                seen = collected.count
+                quietSince = .now
+            } else if ContinuousClock.now - quietSince > .milliseconds(700) {
+                break
+            }
+        }
+        reader.cancel()
+        return collected.lines
+    }
+
     /// `/v1/runtimes` → one line per engine.
     static func describe(_ json: [String: Any]) -> String {
         let runtimes = json["runtimes"] as? [[String: Any]] ?? []
@@ -1022,4 +1127,14 @@ private final class OutputBuffer: @unchecked Sendable {
     }
 
     var text: String { lock.withLock { String(decoding: data, as: UTF8.self) } }
+}
+
+/// Lines collected by a background reader.
+private final class LineBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [String] = []
+
+    func append(_ line: String) { lock.withLock { storage.append(line) } }
+    var count: Int { lock.withLock { storage.count } }
+    var lines: [String] { lock.withLock { storage } }
 }

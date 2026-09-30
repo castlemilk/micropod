@@ -40,6 +40,9 @@ def rpc(binary, state_dir, cli_path, requests):
     # Isolate the volume-policy file so policy tool calls don't touch
     # the developer's real config.
     env["MICROPOD_VOLUME_POLICY"] = os.path.join(state_dir, "policy.json")
+    # No API daemon: container tools ask it about sandbox/docker containers,
+    # and a real daemon's containers would leak into the mock's answers.
+    env["MICROPOD_API_PORT"] = "1"
     payload = "".join(json.dumps(r) + "\n" for r in requests)
     proc = subprocess.run(
         [str(binary)], input=payload, capture_output=True, text=True, env=env, timeout=60)
