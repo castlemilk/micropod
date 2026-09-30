@@ -55,6 +55,39 @@ If the signing secrets are absent, the workflow publishes
 `Micropod-unsigned.dmg` instead — deliberately a different name so it can
 never overwrite a signed `Micropod.dmg` attached by a local run.
 
+The `sdk` job (proto drift check, Go/TypeScript/Swift SDK builds and the
+npm tarball) runs **in parallel** with the app build. `sdk-publish` then
+attaches the tarball and tags `sdk/go/vX.Y.Z` once the release exists, so a
+failed release never gets SDK artifacts.
+
+### Where the time goes
+
+Measured on v0.10.x, before these changes:
+
+| step | time |
+|---|---|
+| pre-push hook on the tag push (local build + full test) | ~5 min |
+| `swift build -c release` in "Build + package app" | 11 min of the job's 13 |
+| sign + notarize + staple + DMG | ~1 min |
+| `sdk` job, waiting for the release job | ~3 min |
+| Pages deploy of the appcast | ~1 min, in parallel |
+
+What's changed:
+- **Tag pushes skip the local rebuild.** A tag names a commit that already
+  passed CI and the branch-push hook.
+- **A warm release build cache.** Every push to master runs CI's
+  `release-build-cache` job, which saves the release `.build` (~1 GB). The
+  Release workflow restores it, so only changed modules compile. The cache
+  lives on master because a tag-triggered run can only restore caches from
+  its own tag or the default branch. The key includes the Swift toolchain
+  fingerprint and `Package.resolved`, so a toolchain or dependency change
+  starts cold.
+- **The SDK job is off the critical path.**
+
+Expected: ~16–18 min of Actions time becomes roughly 5–7 min, plus 5 min
+less locally. The first release after a toolchain or dependency bump
+builds cold.
+
 ## Secrets (configured in repo → Settings → Secrets → Actions)
 
 | Secret | Value |
@@ -134,6 +167,7 @@ git push origin :refs/tags/v0.5.0              # if tag pushed but no release
 
 - **pre-commit** — `bash -n` on staged shell scripts, `actionlint` on staged
   workflows, `swift format lint --strict` when Swift files are staged.
-- **pre-push** — `swift build` + `swift test` (mirrors the CI build-test job).
+- **pre-push** — `swift build` + `swift test` (mirrors the CI build-test job);
+  skipped when only tags are pushed (their commits were already gated).
 
 Both honor `--no-verify` for emergencies.

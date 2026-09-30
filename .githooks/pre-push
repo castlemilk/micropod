@@ -5,6 +5,20 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
+# A tag names a commit that already passed CI and this hook when its branch
+# was pushed: a tags-only push (a release) skips the ~5 min rebuild.
+tags_only=true
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+    case "$remote_ref" in
+        refs/tags/*) ;;
+        *) tags_only=false ;;
+    esac
+done
+if $tags_only; then
+    echo "hook: tags only — already built and tested; skipping"
+    exit 0
+fi
+
 echo "hook: swift build…"
 swift build
 
