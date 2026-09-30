@@ -40,7 +40,8 @@ final class MenuBarPanelSnapshotTests: XCTestCase {
         s2.cpuPercent = 3.1
         s2.memoryUsedBytes = 134_217_728
         snap.containers = [s1, s2]
-        store.statsSnapshot = snap
+        store.applyForPreview(
+            stats: snap, diskBytes: ["web-frontend": 412_000_000, "postgres-main": 1_900_000_000])
 
         store.recordActivity("runtime", "Runtime started", level: .success)
         store.recordActivity("containers", "Started web-frontend", level: .info)
