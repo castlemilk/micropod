@@ -164,7 +164,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Authenticated: the action resolves buf's download via the GitHub API,
+      # and anonymous calls from shared runner IPs hit the 60/h limit (the
+      # v0.10.1 sdk job failed here before doing anything).
       - uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
