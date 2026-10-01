@@ -4760,6 +4760,30 @@ backends that never create clones.</p></td>
                   <td><p>Number of processes inside the container. </p></td>
                 </tr>
               
+                <tr>
+                  <td>cpu_usage_usec</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Cumulative CPU time consumed by the container since it started, in
+microseconds (cgroup `cpu.stat` usage_usec), summed across cores.
+Exact on every sample, including the first one for an id (unlike
+`cpu_percent`, which is a delta and reads 0 until a baseline exists),
+so callers can compute their own rates. 0 = not reported by the
+backend (the Docker engine reports its own `cpu_usage.total_usage`
+converted from nanoseconds). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>oom_kill_count</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td>optional</td>
+                  <td><p>Processes in the container killed by the kernel OOM killer since it
+started (cgroup `memory.events` oom_kill), read from the guest agent.
+Unset = not reported (CLI and Docker backends, a guest agent that did
+not answer in time, or one without memory-event support); a set 0
+means &#34;read, no OOM kills&#34;. Native backend only. </p></td>
+                </tr>
+              
             </tbody>
           </table>
 

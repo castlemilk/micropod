@@ -421,9 +421,34 @@ public nonisolated struct Micropod_V1_ContainerStats: Sendable {
   /// Number of processes inside the container.
   public var pids: UInt64 = 0
 
+  /// Cumulative CPU time consumed by the container since it started, in
+  /// microseconds (cgroup `cpu.stat` usage_usec), summed across cores.
+  /// Exact on every sample, including the first one for an id (unlike
+  /// `cpu_percent`, which is a delta and reads 0 until a baseline exists),
+  /// so callers can compute their own rates. 0 = not reported by the
+  /// backend (the Docker engine reports its own `cpu_usage.total_usage`
+  /// converted from nanoseconds).
+  public var cpuUsageUsec: UInt64 = 0
+
+  /// Processes in the container killed by the kernel OOM killer since it
+  /// started (cgroup `memory.events` oom_kill), read from the guest agent.
+  /// Unset = not reported (CLI and Docker backends, a guest agent that did
+  /// not answer in time, or one without memory-event support); a set 0
+  /// means "read, no OOM kills". Native backend only.
+  public var oomKillCount: UInt64 {
+    get {_oomKillCount ?? 0}
+    set {_oomKillCount = newValue}
+  }
+  /// Returns true if `oomKillCount` has been explicitly set.
+  public var hasOomKillCount: Bool {self._oomKillCount != nil}
+  /// Clears the value of `oomKillCount`. Subsequent reads from it will return its default value.
+  public mutating func clearOomKillCount() {self._oomKillCount = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _oomKillCount: UInt64? = nil
 }
 
 /// A registry login, mapped from `container registry list`.
@@ -1307,7 +1332,7 @@ nonisolated extension Micropod_V1_StatsSnapshot: SwiftProtobuf.Message, SwiftPro
 
 nonisolated extension Micropod_V1_ContainerStats: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ContainerStats"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}cpu_percent\0\u{3}memory_used_bytes\0\u{3}memory_limit_bytes\0\u{3}network_rx_bytes\0\u{3}network_tx_bytes\0\u{3}block_read_bytes\0\u{3}block_write_bytes\0\u{1}pids\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}cpu_percent\0\u{3}memory_used_bytes\0\u{3}memory_limit_bytes\0\u{3}network_rx_bytes\0\u{3}network_tx_bytes\0\u{3}block_read_bytes\0\u{3}block_write_bytes\0\u{1}pids\0\u{3}cpu_usage_usec\0\u{3}oom_kill_count\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1324,12 +1349,18 @@ nonisolated extension Micropod_V1_ContainerStats: SwiftProtobuf.Message, SwiftPr
       case 7: try { try decoder.decodeSingularUInt64Field(value: &self.blockReadBytes) }()
       case 8: try { try decoder.decodeSingularUInt64Field(value: &self.blockWriteBytes) }()
       case 9: try { try decoder.decodeSingularUInt64Field(value: &self.pids) }()
+      case 10: try { try decoder.decodeSingularUInt64Field(value: &self.cpuUsageUsec) }()
+      case 11: try { try decoder.decodeSingularUInt64Field(value: &self._oomKillCount) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.id.isEmpty {
       try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
     }
@@ -1357,6 +1388,12 @@ nonisolated extension Micropod_V1_ContainerStats: SwiftProtobuf.Message, SwiftPr
     if self.pids != 0 {
       try visitor.visitSingularUInt64Field(value: self.pids, fieldNumber: 9)
     }
+    if self.cpuUsageUsec != 0 {
+      try visitor.visitSingularUInt64Field(value: self.cpuUsageUsec, fieldNumber: 10)
+    }
+    try { if let v = self._oomKillCount {
+      try visitor.visitSingularUInt64Field(value: v, fieldNumber: 11)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1370,6 +1407,8 @@ nonisolated extension Micropod_V1_ContainerStats: SwiftProtobuf.Message, SwiftPr
     if lhs.blockReadBytes != rhs.blockReadBytes {return false}
     if lhs.blockWriteBytes != rhs.blockWriteBytes {return false}
     if lhs.pids != rhs.pids {return false}
+    if lhs.cpuUsageUsec != rhs.cpuUsageUsec {return false}
+    if lhs._oomKillCount != rhs._oomKillCount {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

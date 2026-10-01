@@ -95,13 +95,15 @@ final class SharedReadsTests: XCTestCase {
         let backend = Backend()
         await backend.release("all")
         _ = try await SharedReadsTests.read(reads, backend, "all")
-        _ = try await SharedReadsTests.read(reads, backend, "all", policy: ReadPolicy(budget: .seconds(5), maxAge: .seconds(60)))
+        _ = try await SharedReadsTests.read(
+            reads, backend, "all", policy: ReadPolicy(budget: .seconds(5), maxAge: .seconds(60)))
         var sent = await backend.count("all")
         XCTAssertEqual(sent, 1, "a recent answer serves a caller that takes one")
         _ = try await SharedReadsTests.read(reads, backend, "all")
         sent = await backend.count("all")
         XCTAssertEqual(sent, 2, "a live read always asks")
-        _ = try await SharedReadsTests.read(reads, backend, "all", policy: ReadPolicy(budget: .seconds(5), maxAge: .zero))
+        _ = try await SharedReadsTests.read(
+            reads, backend, "all", policy: ReadPolicy(budget: .seconds(5), maxAge: .zero))
         sent = await backend.count("all")
         XCTAssertEqual(sent, 3, "an answer older than maxAge is not used")
     }
@@ -123,7 +125,8 @@ final class SharedReadsTests: XCTestCase {
         let second = try await after.value
         XCTAssertEqual(first, 1, "the caller that asked before the write gets the request it joined")
         XCTAssertEqual(second, 2, "the caller after it, its own")
-        _ = try await SharedReadsTests.read(reads, backend, "all", policy: ReadPolicy(budget: .seconds(5), maxAge: .seconds(60)))
+        _ = try await SharedReadsTests.read(
+            reads, backend, "all", policy: ReadPolicy(budget: .seconds(5), maxAge: .seconds(60)))
         let sent = await backend.count("all")
         XCTAssertEqual(sent, 2, "the post-write answer is remembered")
     }
@@ -159,11 +162,13 @@ final class SharedReadsTests: XCTestCase {
         let reads = SharedReads<Int>(route: "volumeInspect")
         let backend = Backend()
         do {
-            _ = try await SharedReadsTests.read(reads, backend, "gold", value: 5, policy: ReadPolicy(budget: .milliseconds(50)))
+            _ = try await SharedReadsTests.read(
+                reads, backend, "gold", value: 5, policy: ReadPolicy(budget: .milliseconds(50)))
             XCTFail("the budget should have run out")
         } catch {
             let text = "\(error)"
-            XCTAssertTrue(text.contains("deadlineExceeded: XPC timeout for com.apple.container.apiserver/volumeInspect"), text)
+            XCTAssertTrue(
+                text.contains("deadlineExceeded: XPC timeout for com.apple.container.apiserver/volumeInspect"), text)
             XCTAssertTrue(text.contains("no answer within 0.1s") || text.contains("no answer within 0.0s"), text)
         }
         let later = Task { try await SharedReadsTests.read(reads, backend, "gold", value: 5) }
@@ -173,7 +178,8 @@ final class SharedReadsTests: XCTestCase {
         await backend.release("gold")
         let value = try await later.value
         XCTAssertEqual(value, 5)
-        _ = try await SharedReadsTests.read(reads, backend, "gold", policy: ReadPolicy(budget: .seconds(5), maxAge: .seconds(60)))
+        _ = try await SharedReadsTests.read(
+            reads, backend, "gold", policy: ReadPolicy(budget: .seconds(5), maxAge: .seconds(60)))
         sent = await backend.count("gold")
         XCTAssertEqual(sent, 1, "and its answer is remembered")
     }
@@ -215,7 +221,8 @@ final class SharedReadsTests: XCTestCase {
         }
         await backend.block("all")
         await backend.release("all")
-        _ = try await SharedReadsTests.read(reads, backend, "all", policy: ReadPolicy(budget: .seconds(5), maxAge: .seconds(60)))
+        _ = try await SharedReadsTests.read(
+            reads, backend, "all", policy: ReadPolicy(budget: .seconds(5), maxAge: .seconds(60)))
         let sent = await backend.count("all")
         XCTAssertEqual(sent, 2, "a failure is not an answer to remember")
     }

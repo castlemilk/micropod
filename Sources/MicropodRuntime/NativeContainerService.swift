@@ -420,7 +420,9 @@ public struct NativeContainerService: ContainerServing {
         let attachments: [JSONValue]
         do {
             attachments = try await networkAttachments(ReadPolicy(budget: .seconds(30), maxAge: .seconds(5)))
-        } catch MicropodError.message(let message) where message.contains("not found") || message.contains("not present") {
+        } catch MicropodError.message(let message)
+            where message.contains("not found") || message.contains("not present")
+        {
             attachments = try await networkAttachments(ReadPolicy(budget: .seconds(30)))
         }
 

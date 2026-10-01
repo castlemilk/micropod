@@ -890,6 +890,20 @@ unchanged — each sample is one XPC call instead of a ~2.4 s
 snapshot to the named containers; the native sampler then skips the
 `containerList` call and asks `containerStats` for those ids only.
 
+Each `ContainerStats` also carries the exact counters a caller needs to
+avoid sampling artefacts: `cpu_usage_usec` (the cumulative cgroup CPU
+time from `containerStats`, also filled by the CLI sampler and the
+Docker engine) and, on the native backend, `oom_kill_count` — the
+guest cgroup's `memory.events` `oom_kill`, read from `vminitd`
+(`ContainerStatistics`, memory-events category only) over the
+`containerDial` vsock path alongside the XPC call. That read is bounded
+to 2 s and abandoned on timeout; when it fails or the guest has no
+memory-event support the field stays unset rather than 0. There is no
+`memory_peak_bytes`: neither `containerStats` nor `vminitd`'s
+`MemoryStats` exposes cgroup `memory.peak`, and an OOM-killed init
+process takes the VM down with it, so `WaitContainer` cannot read the
+counters after exit either.
+
 ## Protobuf/codegen
 
 - `proto/com/apple/containerization/sandbox/v3/SandboxContext.proto` —

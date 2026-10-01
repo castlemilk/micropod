@@ -46,15 +46,7 @@ public actor StatsSampler: StatsSampling {
         snapshot.sampledAt = ISO8601DateFormatter().string(from: Date())
 
         for entry in entries {
-            var stats = Micropod_V1_ContainerStats()
-            stats.id = entry.id
-            stats.memoryUsedBytes = UInt64(entry.memoryUsageBytes ?? 0)
-            stats.memoryLimitBytes = UInt64(entry.memoryLimitBytes ?? 0)
-            stats.networkRxBytes = UInt64(entry.networkRxBytes ?? 0)
-            stats.networkTxBytes = UInt64(entry.networkTxBytes ?? 0)
-            stats.blockReadBytes = UInt64(entry.blockReadBytes ?? 0)
-            stats.blockWriteBytes = UInt64(entry.blockWriteBytes ?? 0)
-            stats.pids = UInt64(entry.numProcesses ?? 0)
+            var stats = Micropod_V1_ContainerStats(entry: entry)
 
             if let usec = entry.cpuUsageUsec {
                 if let previousSample = previous[entry.id] {
@@ -75,5 +67,25 @@ public actor StatsSampler: StatsSampling {
         let liveIDs = Set(entries.map(\.id))
         previous = previous.filter { liveIDs.contains($0.key) }
         return snapshot
+    }
+}
+
+extension Micropod_V1_ContainerStats {
+    /// The counters a `ContainerStatsEntry` carries directly (CLI and XPC
+    /// share the shape). `cpuPercent` is a delta, so each sampler fills it
+    /// from its own baselines; `oomKillCount` is not in the entry at all.
+    /// Negative counters (never expected) clamp to 0 = not reported.
+    public init(entry: ContainerStatsEntry) {
+        self.init()
+        func counter(_ value: Int64?) -> UInt64 { UInt64(max(value ?? 0, 0)) }
+        id = entry.id
+        cpuUsageUsec = counter(entry.cpuUsageUsec)
+        memoryUsedBytes = counter(entry.memoryUsageBytes)
+        memoryLimitBytes = counter(entry.memoryLimitBytes)
+        networkRxBytes = counter(entry.networkRxBytes)
+        networkTxBytes = counter(entry.networkTxBytes)
+        blockReadBytes = counter(entry.blockReadBytes)
+        blockWriteBytes = counter(entry.blockWriteBytes)
+        pids = counter(entry.numProcesses)
     }
 }
