@@ -319,7 +319,20 @@ actor AgentSupervisor {
                     // must be the binary we'd spawn. A stale copy (orphan
                     // exec'd before an update swapped the bundle) or a
                     // foreign build would otherwise be trusted silently.
-                    let owners = endpointOwnerPIDs(spec)
+                    // Unknown is not "nobody": an lsof that timed out (a host at
+                    // load average 100+ takes seconds) must never get a foreign
+                    // or stale endpoint adopted. Keep a previously verified
+                    // owner; otherwise decide on a later tick.
+                    guard let owners = endpointOwnerPIDs(spec) else {
+                        if let prior = adoptedOwners[spec.id], Self.processAlive(prior) {
+                            states[spec.id]?.state = .adopted
+                            states[spec.id]?.pid = nil
+                        } else {
+                            states[spec.id]?.state = .retryPending
+                            states[spec.id]?.lastError = "could not verify who serves the endpoint; retrying"
+                        }
+                        return
+                    }
                     let verified =
                         adoptedOwners[spec.id].map { ownerPID -> Bool in
                             owners.contains(ownerPID) && Self.processAlive(ownerPID)
@@ -579,7 +592,8 @@ actor AgentSupervisor {
     /// same-name holder (a wedged squatter blocking the respawn).
     private func reapForeignCopies(of spec: AgentSpec, onlyPath: String? = nil) {
         let selfPID = ProcessInfo.processInfo.processIdentifier
-        let squatters = endpointOwnerPIDs(spec).filter { pid in
+        // Unknown owners (lsof timed out): reap nothing.
+        let squatters = (endpointOwnerPIDs(spec) ?? []).filter { pid in
             guard pid > 1, pid != selfPID,
                 let path = Self.processPath(pid), path.hasSuffix("/\(spec.binaryName)")
             else { return false }
@@ -637,8 +651,9 @@ actor AgentSupervisor {
     /// `-sTCP:LISTEN` returns only the bound listener — connected clients
     /// can't be mistaken for the owner. For unix sockets the path match
     /// can include transient clients too, so callers must accept the
-    /// endpoint when *any* candidate is the expected binary.
-    private func endpointOwnerPIDs(_ spec: AgentSpec) -> [Int32] {
+    /// endpoint when *any* candidate is the expected binary. Nil means
+    /// unknown (lsof failed or timed out) — distinct from "no owner".
+    private func endpointOwnerPIDs(_ spec: AgentSpec) -> [Int32]? {
         let arguments: [String]
         switch spec.probe {
         case .http(let port, _):
@@ -648,10 +663,13 @@ actor AgentSupervisor {
         case .custom:
             return []
         }
+        // 10s: lsof is tens of ms on an idle host but took ~2.5s at load
+        // average ~100, against the old 3s bound. Still bounded so a hung
+        // helper can't stall the monitor loop.
         guard
             let output = Self.runProcess(
-                "/usr/sbin/lsof", arguments, timeout: 3)
-        else { return [] }
+                "/usr/sbin/lsof", arguments, timeout: 10)
+        else { return nil }
         return output.split(separator: "\n").compactMap {
             Int32($0.trimmingCharacters(in: .whitespaces))
         }
