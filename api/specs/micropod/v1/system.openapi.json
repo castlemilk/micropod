@@ -3,7 +3,7 @@
   "info": {
     "title": "Micropod API \u00b7 SystemService",
     "description": "## micropod.v1.SystemService\n\nDaemon-level operations: runtime snapshot, cleanup usage report, and the\n desktop app's update lifecycle (proxied over the app control socket).",
-    "version": "0.11.6",
+    "version": "0.11.7",
     "contact": {
       "name": "Micropod",
       "url": "https://github.com/castlemilk/micropod"
