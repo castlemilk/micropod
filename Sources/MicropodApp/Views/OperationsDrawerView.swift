@@ -6,6 +6,7 @@ import SwiftUI
 /// Completed ops collapse to a one-line history strip before rolling out.
 struct OperationsDrawerView: View {
     @Bindable var store: AppStore
+    var maximumListHeight: CGFloat = 150
 
     @State private var expanded = true
     @State private var pinned: Set<UUID> = []
@@ -77,7 +78,7 @@ struct OperationsDrawerView: View {
 
     private var opList: some View {
         ScrollView {
-            VStack(spacing: 2) {
+            LazyVStack(spacing: 2) {
                 ForEach(store.operations) { op in
                     OperationRowView(
                         operation: op,
@@ -91,7 +92,7 @@ struct OperationsDrawerView: View {
             .padding(.horizontal, Tokens.Spacing.sm)
             .padding(.bottom, Tokens.Spacing.xs)
         }
-        .frame(maxHeight: 150)
+        .frame(maxHeight: maximumListHeight)
     }
 }
 
@@ -109,7 +110,9 @@ struct OperationRowView: View {
                 Text(operation.title)
                     .font(.caption.weight(.medium))
                     .lineLimit(1)
-                if let preview = operation.events.last, !preview.isEmpty {
+                    .truncationMode(.middle)
+                    .help(operation.title)
+                if let preview = operation.latestEvent, !preview.isEmpty {
                     Text(preview)
                         .font(.footnote.monospaced())
                         .foregroundStyle(.secondary)
@@ -117,6 +120,11 @@ struct OperationRowView: View {
                         .truncationMode(.head)
                 } else {
                     Text(elapsedText)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                if operation.discardedEventCount > 0 || operation.truncatedEventCount > 0 {
+                    Text("Recent output · earlier output trimmed")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }

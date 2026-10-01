@@ -56,12 +56,14 @@ let package = Package(
             dependencies: [
                 "MicropodCore",
                 "MicropodRuntime",
+                "MicropodSharedFS",
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
             resources: [
                 .copy("Resources/micropod-mark.png"),
                 .copy("Resources/icons"),
                 .copy("Resources/brandbrain"),
+                .copy("Resources/uplift"),
                 .process("Localizable.xcstrings"),
             ],
             swiftSettings: [

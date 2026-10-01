@@ -17,21 +17,12 @@ struct ImageDetailSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "photo.stack").foregroundStyle(.secondary)
-                Text(primaryName).font(.title3.weight(.semibold)).lineLimit(1).truncationMode(.middle)
-                Spacer()
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(image.digest, forType: .string)
-                } label: {
-                    IconLabel(title: String(localized: "Copy digest"), icon: "copy", fallback: "doc.on.doc")
-                }
-                .controlSize(.small)
-                .disabled(image.digest.isEmpty)
-                Button(String(localized: "Run…")) { showRun = true }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                Button(String(localized: "Tag…")) { showTag = true }
-                    .controlSize(.small)
+                Text(primaryName)
+                    .font(.title3.weight(.semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .help(primaryName)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             ScrollView {
@@ -45,13 +36,26 @@ struct ImageDetailSheet: View {
                 .padding(4)
             }
 
-            HStack {
-                Spacer()
+            HStack(spacing: 8) {
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(image.digest, forType: .string)
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .help("Copy digest")
+                .accessibilityLabel("Copy digest")
+                .disabled(image.digest.isEmpty)
+                Button(String(localized: "Tag…")) { showTag = true }
+                Spacer(minLength: 8)
+                Button(String(localized: "Run…")) { showRun = true }
+                    .buttonStyle(.borderedProminent)
                 Button(String(localized: "Done")) { dismiss() }.keyboardShortcut(.defaultAction)
             }
+            .controlSize(.small)
         }
         .padding(20)
-        .frame(width: 520, height: 480)
+        .frame(minWidth: 320, idealWidth: 520, maxWidth: 780, minHeight: 260, idealHeight: 460, maxHeight: 760)
         .sheet(isPresented: $showRun) {
             RunContainerSheet(store: store, initialImage: primaryName)
         }
@@ -112,20 +116,7 @@ struct ImageDetailSheet: View {
     }
 
     private func metaRow(_ label: String, _ value: String) -> some View {
-        HStack(spacing: 8) {
-            Text(label).font(.caption).foregroundStyle(.secondary).frame(width: 110, alignment: .leading)
-            Text(value).font(.subheadline.monospaced()).lineLimit(2).textSelection(.enabled)
-            Spacer(minLength: 4)
-            Button {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(value, forType: .string)
-            } label: {
-                Image(systemName: "doc.on.doc")
-            }
-            .buttonStyle(.borderless)
-            .help(String(localized: "Copy"))
-        }
-        .padding(.vertical, 2)
+        InventoryCopyRow(label: label, value: value)
     }
 
     // MARK: - Data

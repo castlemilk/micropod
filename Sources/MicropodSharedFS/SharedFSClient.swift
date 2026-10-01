@@ -1,3 +1,4 @@
+import CoreFoundation
 import Foundation
 
 /// Public protocol the shim/CLI uses to talk to the daemon. The default
@@ -14,6 +15,10 @@ public protocol SharedFSClient: Sendable {
     func refresh(id: ViewID) async throws -> MountInfo
     func list() async throws -> [MountInfo]
     func gc() async throws -> GCResult
+    func cacheSnapshot() async throws -> SharedCacheSnapshot
+    func reviewCacheCleanup() async throws -> SharedCacheCleanupReview
+    func cleanReviewedCache(id: String) async throws -> GCResult
+    func setCacheKeepEnabled(_ enabled: Bool) async throws
 }
 
 public struct MountInfo: Codable, Sendable, Hashable {
@@ -66,6 +71,8 @@ struct AnyCodable: Codable, Hashable {
             self.value = b
         } else if let i = try? container.decode(Int.self) {
             self.value = i
+        } else if let i = try? container.decode(UInt64.self) {
+            self.value = i
         } else if let d = try? container.decode(Double.self) {
             self.value = d
         } else if let s = try? container.decode(String.self) {
@@ -84,6 +91,19 @@ struct AnyCodable: Codable, Hashable {
         switch value {
         case is NSNull:
             try container.encodeNil()
+        case let number as NSNumber:
+            // JSONSerialization returns NSNumber for both booleans and
+            // numbers. Swift's `as? Bool` also accepts numeric 0/1, so
+            // test the Core Foundation identity before any bridge cast.
+            if CFGetTypeID(number) == CFBooleanGetTypeID() {
+                try container.encode(number.boolValue)
+            } else {
+                switch String(cString: number.objCType) {
+                case "f", "d": try container.encode(number.doubleValue)
+                case "Q": try container.encode(number.uint64Value)
+                default: try container.encode(number.int64Value)
+                }
+            }
         case let b as Bool:
             try container.encode(b)
         case let i as Int:

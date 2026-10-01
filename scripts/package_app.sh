@@ -28,9 +28,11 @@ APP_BUNDLE="$DIST/$APP_NAME.app"
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources"
 
-# App icon: prefer the BrandBrain-generated brand mark (assets/logo/Micropod.icns);
-# fall back to the programmatic SF-Symbol icon if it is not checked in.
-if [ -f "$ROOT/assets/logo/Micropod.icns" ]; then
+# App icon: use the uplift vector master/icon, retaining the previous icon as fallback.
+if [ -f "$ROOT/assets/logo/Micropod-uplift.icns" ]; then
+    cp "$ROOT/assets/logo/Micropod-uplift.icns" "$APP_BUNDLE/Contents/Resources/Micropod.icns"
+    echo "==> Icon: Micropod uplift pod/terminal mark"
+elif [ -f "$ROOT/assets/logo/Micropod.icns" ]; then
     cp "$ROOT/assets/logo/Micropod.icns" "$APP_BUNDLE/Contents/Resources/Micropod.icns"
     echo "==> Icon: BrandBrain brand mark (assets/logo/Micropod.icns)"
 else

@@ -29,6 +29,7 @@ struct RunContainerSheet: View {
     @State private var volumesText = ""
     @State private var argsText = ""
     @State private var isRefreshingImages = false
+    @State private var availableWidth: CGFloat = 600
 
     init(store: AppStore, initialImage: String = "alpine:latest") {
         self.store = store
@@ -52,14 +53,21 @@ struct RunContainerSheet: View {
                     advancedSection(evaluation)
                 }
                 .padding(20)
+                .frame(maxWidth: 680, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .top)
             }
 
             Divider()
             footer(evaluation)
         }
         .background(.background)
-        .frame(width: 600)
-        .frame(maxHeight: 680)
+        .frame(minWidth: 420, idealWidth: 600, maxWidth: .infinity)
+        .frame(minHeight: 320, idealHeight: 640, maxHeight: .infinity)
+        .onGeometryChange(for: CGFloat.self) {
+            $0.size.width
+        } action: {
+            availableWidth = $0
+        }
         .task { await refreshLocalImages() }
     }
 
@@ -177,7 +185,7 @@ struct RunContainerSheet: View {
 
             if isAgent {
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack(alignment: .top, spacing: 16) {
+                    pairedFieldLayout {
                         compactField(
                             "Job ID",
                             text: $jobID,
@@ -192,7 +200,7 @@ struct RunContainerSheet: View {
                         )
                     }
 
-                    HStack(alignment: .top, spacing: 16) {
+                    pairedFieldLayout {
                         Toggle("Ephemeral", isOn: $isEphemeral)
                             .toggleStyle(.checkbox)
                             .controlSize(.small)
@@ -231,7 +239,7 @@ struct RunContainerSheet: View {
     private func advancedSection(_ evaluation: LaunchFormEvaluation) -> some View {
         DisclosureGroup(isExpanded: $advancedExpanded) {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top, spacing: 16) {
+                pairedFieldLayout {
                     compactField(
                         "CPUs",
                         text: $cpus,
@@ -247,7 +255,7 @@ struct RunContainerSheet: View {
                     )
                 }
 
-                HStack(alignment: .top, spacing: 16) {
+                pairedFieldLayout {
                     compactField(
                         "Platform",
                         text: $platform,
@@ -262,7 +270,7 @@ struct RunContainerSheet: View {
                     )
                 }
 
-                HStack(alignment: .top, spacing: 16) {
+                pairedFieldLayout {
                     compactField(
                         "Entrypoint",
                         text: $entrypoint,
@@ -304,7 +312,9 @@ struct RunContainerSheet: View {
 
                 Divider()
 
-                HStack(spacing: 16) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 120), alignment: .leading)], alignment: .leading, spacing: 10
+                ) {
                     Toggle("Detach", isOn: $detach)
                     Toggle("Init", isOn: $useInit)
                     Toggle("Rosetta", isOn: $rosetta)
@@ -329,6 +339,14 @@ struct RunContainerSheet: View {
         .accessibilityValue(evaluation.advancedErrorSummary ?? "No validation issues")
     }
 
+    /// Paired controls become a single column before labels and validation
+    /// compete with the editable portion of each field.
+    private var pairedFieldLayout: AnyLayout {
+        availableWidth < 540
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 16))
+    }
+
     private func footer(_ evaluation: LaunchFormEvaluation) -> some View {
         HStack {
             Spacer()
@@ -343,6 +361,7 @@ struct RunContainerSheet: View {
             .keyboardShortcut(.defaultAction)
             .disabled(!evaluation.canRun)
             .accessibilityIdentifier("runContainer.run")
+            .formActionBounds("runContainer.run")
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)

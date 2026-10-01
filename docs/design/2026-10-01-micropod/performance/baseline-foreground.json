@@ -1,0 +1,192 @@
+{
+  "binary_sha256": "97b0205c93f745b7f12af562fcab25a5496d711e187540ec94b638630594ff75",
+  "app": "/private/tmp/micropod-ui-perf-before.app/Contents/MacOS/Micropod",
+  "fixture_stats_disabled": true,
+  "host": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5.1\nBuildVersion:\t\t25F80",
+  "results": [
+    {
+      "count": 10,
+      "tab": "workloads",
+      "duration_seconds": 8.102,
+      "socket_ready_seconds": 0.465,
+      "first_main_actor_ping_ms": 301.985,
+      "rss_start_mib": 185.55,
+      "rss_end_mib": 184.86,
+      "rss_peak_mib": 185.55,
+      "cpu_seconds": 0.04,
+      "cpu_percent_one_core": 0.49,
+      "ping_count": 74,
+      "main_actor_ping_p50_ms": 0.247,
+      "main_actor_ping_p95_ms": 1.935,
+      "main_actor_ping_max_ms": 15.694,
+      "activation": {
+        "requested": true,
+        "active": true
+      },
+      "physical_footprint_mib": 115.4,
+      "physical_footprint_peak_mib": 116.0,
+      "round": 1
+    },
+    {
+      "count": 10,
+      "tab": "dashboard",
+      "duration_seconds": 8.015,
+      "socket_ready_seconds": 0.145,
+      "first_main_actor_ping_ms": 39.442,
+      "rss_start_mib": 211.95,
+      "rss_end_mib": 211.08,
+      "rss_peak_mib": 211.95,
+      "cpu_seconds": 0.02,
+      "cpu_percent_one_core": 0.25,
+      "ping_count": 75,
+      "main_actor_ping_p50_ms": 0.212,
+      "main_actor_ping_p95_ms": 0.24,
+      "main_actor_ping_max_ms": 0.3,
+      "activation": {
+        "requested": true,
+        "active": true
+      },
+      "physical_footprint_mib": 140.2,
+      "physical_footprint_peak_mib": 338.0,
+      "round": 1
+    },
+    {
+      "count": 1000,
+      "tab": "workloads",
+      "duration_seconds": 8.032,
+      "socket_ready_seconds": 0.388,
+      "first_main_actor_ping_ms": 275.789,
+      "rss_start_mib": 206.36,
+      "rss_end_mib": 206.17,
+      "rss_peak_mib": 206.56,
+      "cpu_seconds": 0.1,
+      "cpu_percent_one_core": 1.25,
+      "ping_count": 75,
+      "main_actor_ping_p50_ms": 0.236,
+      "main_actor_ping_p95_ms": 0.279,
+      "main_actor_ping_max_ms": 12.151,
+      "activation": {
+        "requested": true,
+        "active": true
+      },
+      "physical_footprint_mib": 133.2,
+      "physical_footprint_peak_mib": 133.3,
+      "round": 1
+    },
+    {
+      "count": 1000,
+      "tab": "dashboard",
+      "duration_seconds": 8.01,
+      "socket_ready_seconds": 0.566,
+      "first_main_actor_ping_ms": 453.583,
+      "rss_start_mib": 376.41,
+      "rss_end_mib": 376.41,
+      "rss_peak_mib": 376.81,
+      "cpu_seconds": 0.04,
+      "cpu_percent_one_core": 0.5,
+      "ping_count": 75,
+      "main_actor_ping_p50_ms": 0.216,
+      "main_actor_ping_p95_ms": 0.252,
+      "main_actor_ping_max_ms": 0.266,
+      "activation": {
+        "requested": true,
+        "active": true
+      },
+      "physical_footprint_mib": 306.4,
+      "physical_footprint_peak_mib": 498.2,
+      "round": 1
+    },
+    {
+      "count": 10,
+      "tab": "workloads",
+      "duration_seconds": 8.058,
+      "socket_ready_seconds": 0.402,
+      "first_main_actor_ping_ms": 289.605,
+      "rss_start_mib": 188.78,
+      "rss_end_mib": 188.16,
+      "rss_peak_mib": 188.78,
+      "cpu_seconds": 0.05,
+      "cpu_percent_one_core": 0.62,
+      "ping_count": 72,
+      "main_actor_ping_p50_ms": 0.315,
+      "main_actor_ping_p95_ms": 3.485,
+      "main_actor_ping_max_ms": 16.324,
+      "activation": {
+        "requested": true,
+        "active": true
+      },
+      "physical_footprint_mib": 115.2,
+      "physical_footprint_peak_mib": 115.5,
+      "round": 2
+    },
+    {
+      "count": 10,
+      "tab": "dashboard",
+      "duration_seconds": 8.033,
+      "socket_ready_seconds": 0.672,
+      "first_main_actor_ping_ms": 508.933,
+      "rss_start_mib": 212.34,
+      "rss_end_mib": 211.55,
+      "rss_peak_mib": 212.34,
+      "cpu_seconds": 0.03,
+      "cpu_percent_one_core": 0.37,
+      "ping_count": 75,
+      "main_actor_ping_p50_ms": 0.299,
+      "main_actor_ping_p95_ms": 0.34,
+      "main_actor_ping_max_ms": 4.058,
+      "activation": {
+        "requested": true,
+        "active": true
+      },
+      "physical_footprint_mib": 140.6,
+      "physical_footprint_peak_mib": 338.3,
+      "round": 2
+    },
+    {
+      "count": 1000,
+      "tab": "workloads",
+      "duration_seconds": 8.004,
+      "socket_ready_seconds": 0.471,
+      "first_main_actor_ping_ms": 308.775,
+      "rss_start_mib": 207.05,
+      "rss_end_mib": 206.84,
+      "rss_peak_mib": 207.2,
+      "cpu_seconds": 0.11,
+      "cpu_percent_one_core": 1.37,
+      "ping_count": 74,
+      "main_actor_ping_p50_ms": 0.299,
+      "main_actor_ping_p95_ms": 1.422,
+      "main_actor_ping_max_ms": 20.001,
+      "activation": {
+        "requested": true,
+        "active": true
+      },
+      "physical_footprint_mib": 133.9,
+      "physical_footprint_peak_mib": 134.0,
+      "round": 2
+    },
+    {
+      "count": 1000,
+      "tab": "dashboard",
+      "duration_seconds": 8.006,
+      "socket_ready_seconds": 0.67,
+      "first_main_actor_ping_ms": 511.609,
+      "rss_start_mib": 375.55,
+      "rss_end_mib": 375.48,
+      "rss_peak_mib": 375.97,
+      "cpu_seconds": 0.05,
+      "cpu_percent_one_core": 0.62,
+      "ping_count": 75,
+      "main_actor_ping_p50_ms": 0.293,
+      "main_actor_ping_p95_ms": 0.389,
+      "main_actor_ping_max_ms": 1.846,
+      "activation": {
+        "requested": true,
+        "active": true
+      },
+      "physical_footprint_mib": 305.5,
+      "physical_footprint_peak_mib": 499.0,
+      "round": 2
+    }
+  ]
+}

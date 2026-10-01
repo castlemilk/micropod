@@ -5,7 +5,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BIN="$ROOT/.build/debug/MicropodApp"
+BIN="${MICROPOD_APP_BIN:-$ROOT/.build/debug/MicropodApp}"
 
 if [ ! -x "$BIN" ]; then
     echo "app binary not found at $BIN — run \`swift build\` first" >&2
@@ -30,7 +30,9 @@ export MICROPOD_SHIM_SOCKET="$SMOKE_DIR/docker.sock"
 export MICROPOD_SHAREDFS_SOCKET="$SMOKE_DIR/sharedfs.sock"
 
 echo "launching $BIN (cli: $CLI_HINT)"
-"$BIN" &
+# A packaged smoke app must not repoint the user's installed CLI links or
+# start an update check. Argument-domain preferences do not persist.
+"$BIN" -cli.manageLinks NO -SUEnableAutomaticChecks NO &
 APP_PID=$!
 
 ALIVE_AFTER=0

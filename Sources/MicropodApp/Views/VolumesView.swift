@@ -12,26 +12,29 @@ struct VolumesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("\(store.volumes.count) volumes")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button(role: .destructive) {
-                    confirmPrune = true
-                } label: {
-                    IconLabel(title: "Prune Unused", icon: "prune", fallback: "trash")
+            WorkspacePageHeader(
+                title: "Volumes", subtitle: "\(store.volumes.count) \(store.volumes.count == 1 ? "volume" : "volumes")",
+                icon: "storage", fallback: "externaldrive"
+            ) {
+                HStack(spacing: Tokens.Spacing.sm) {
+                    Button(role: .destructive) {
+                        confirmPrune = true
+                    } label: {
+                        IconLabel(title: "Prune Unused", icon: "prune", fallback: "trash")
+                    }
+                    .controlSize(.small)
+                    Button {
+                        showCreateSheet = true
+                    } label: {
+                        IconLabel(title: "Create", icon: "create", fallback: "plus")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .tint(Tokens.Palette.action)
                 }
-                .controlSize(.small)
-                Button {
-                    showCreateSheet = true
-                } label: {
-                    IconLabel(title: "Create", icon: "create", fallback: "plus")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
             }
-            .padding(8)
+            .padding(.horizontal, Tokens.Spacing.contentInset)
+            .padding(.vertical, Tokens.Spacing.lg)
 
             Divider()
 
@@ -68,6 +71,7 @@ struct VolumesView: View {
                 .listStyle(.inset)
             }
         }
+        .background(Tokens.Palette.canvas)
         .task {
             if store.volumes.isEmpty { await store.refreshVolumes() }
         }
@@ -113,23 +117,30 @@ struct VolumeRowView: View, @MainActor Equatable {
             Image(systemName: "externaldrive").foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text(volume.id).font(.callout.weight(.medium))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .help(volume.id)
                 HStack(spacing: 6) {
                     if !volume.driver.isEmpty {
-                        Text(volume.driver).font(.caption2).foregroundStyle(.secondary)
+                        Text(volume.driver).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(volume.driver)
                     }
                     if !volume.format.isEmpty {
-                        Text(volume.format).font(.caption2).foregroundStyle(.secondary)
+                        Text(volume.format).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(volume.format)
                     }
                 }
             }
-            Spacer()
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            Spacer(minLength: 4)
             VStack(alignment: .trailing, spacing: 2) {
                 if volume.sizeBytes > 0 {
                     Text(ByteFormat.string(volume.sizeBytes))
                         .font(.caption.monospacedDigit())
                 }
                 Text(volume.createdAt).font(.caption2).foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .help(volume.createdAt)
             }
+            .frame(width: 100, alignment: .trailing)
         }
         .padding(.vertical, 2)
     }
@@ -162,6 +173,6 @@ struct CreateVolumeSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 360)
+        .frame(minWidth: 320, idealWidth: 360, maxWidth: 640)
     }
 }

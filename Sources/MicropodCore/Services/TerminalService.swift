@@ -35,6 +35,7 @@ public actor TerminalService: TerminalServing {
     private struct LiveSession: Sendable {
         let pid: pid_t
         let masterFD: Int32
+        let reader: TerminalReaderControl
     }
 
     private let client: ContainerCLIClient
@@ -43,6 +44,8 @@ public actor TerminalService: TerminalServing {
     public init(client: ContainerCLIClient) {
         self.client = client
     }
+
+    var activeSessionCount: Int { sessions.count }
 
     public func open(containerID: String, shell: String = "/bin/sh") async throws -> TerminalConnection {
         let sessionID = UUID()
@@ -71,31 +74,64 @@ public actor TerminalService: TerminalServing {
             throw MicropodError.message("Failed to start terminal session (pid \(pid), errno \(errno))")
         }
 
-        let stream = AsyncThrowingStream<Data, Error> { continuation in
+        // The session owns the writable master; the reader owns a duplicate.
+        // Closing one descriptor cannot double-close a reused descriptor on EOF.
+        let readerFD = Darwin.dup(masterFD)
+        guard readerFD >= 0 else {
+            kill(pid, SIGKILL)
+            Darwin.close(masterFD)
+            var status: Int32 = 0
+            waitpid(pid, &status, 0)
+            throw MicropodError.message("Failed to open terminal output reader")
+        }
+        let control = TerminalReaderControl()
+        sessions[sessionID] = LiveSession(pid: pid, masterFD: masterFD, reader: control)
+        let stream = AsyncThrowingStream<Data, Error>(bufferingPolicy: .bufferingOldest(256)) { continuation in
             streams[sessionID] = continuation
-            let readerFD = masterFD
-            let reader = Thread {
-                let handle = FileHandle(fileDescriptor: readerFD, closeOnDealloc: true)
-                while true {
-                    do {
-                        let data = try handle.read(upToCount: 4096)
-                        if let data, !data.isEmpty {
-                            continuation.yield(data)
-                        } else {
-                            try? handle.close()
-                            return
-                        }
-                    } catch {
-                        try? handle.close()
+            continuation.onTermination = { [weak self] _ in
+                control.cancel()
+                Task { [weak self] in try? await self?.close(sessionID: sessionID) }
+            }
+            let reader = Thread { [weak self] in
+                defer {
+                    Darwin.close(readerFD)
+                    reapTerminalProcess(pid)
+                    Task { [weak self] in try? await self?.close(sessionID: sessionID) }
+                }
+                var bytes = [UInt8](repeating: 0, count: 4096)
+                while !control.isCancelled {
+                    var descriptor = pollfd(fd: readerFD, events: Int16(POLLIN), revents: 0)
+                    let available = Darwin.poll(&descriptor, 1, 100)
+                    if available == 0 { continue }
+                    if available < 0 {
+                        if errno == EINTR { continue }
+                        break
+                    }
+                    let count = bytes.withUnsafeMutableBytes { Darwin.read(readerFD, $0.baseAddress, $0.count) }
+                    if count <= 0 {
+                        if count < 0, errno == EINTR { continue }
+                        break
+                    }
+                    switch continuation.yield(Data(bytes.prefix(count))) {
+                    case .enqueued:
+                        continue
+                    case .dropped:
+                        continuation.finish(
+                            throwing: MicropodError.message(
+                                "Terminal output exceeded its 1 MiB delivery buffer; the shell was detached."))
+                        return
+                    case .terminated:
+                        return
+                    @unknown default:
                         return
                     }
                 }
+                continuation.finish()
             }
             reader.name = "micropod-pty-\(sessionID)"
             reader.start()
         }
 
-        sessions[sessionID] = LiveSession(pid: pid, masterFD: masterFD)
         return TerminalConnection(sessionID: sessionID, stream: stream)
     }
 
@@ -113,8 +149,30 @@ public actor TerminalService: TerminalServing {
 
     public func close(sessionID: UUID) async throws {
         guard let session = sessions.removeValue(forKey: sessionID) else { return }
-        kill(session.pid, SIGTERM)
+        session.reader.cancel()
+        kill(-session.pid, SIGTERM)
         streams.removeValue(forKey: sessionID)?.finish()
         Darwin.close(session.masterFD)
     }
+}
+
+private final class TerminalReaderControl: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+    var isCancelled: Bool { lock.withLock { cancelled } }
+    func cancel() { lock.withLock { cancelled = true } }
+}
+
+/// The reader is the sole child reaper. A shell that ignores termination cannot
+/// leave a reader thread or zombie behind after the view has detached.
+private func reapTerminalProcess(_ pid: pid_t) {
+    var status: Int32 = 0
+    let deadline = Date().addingTimeInterval(0.5)
+    while Date() < deadline {
+        let result = waitpid(pid, &status, WNOHANG)
+        if result == pid || (result < 0 && errno == ECHILD) { return }
+        Thread.sleep(forTimeInterval: 0.01)
+    }
+    kill(-pid, SIGKILL)
+    while waitpid(pid, &status, 0) < 0, errno == EINTR {}
 }

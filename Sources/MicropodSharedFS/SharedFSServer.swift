@@ -156,6 +156,22 @@ public final class SharedFSServer: @unchecked Sendable {
                     id: req.id, ok: true,
                     result: AnyCodable(result.toDictionary()),
                     error: nil)
+            case "cacheSnapshot":
+                return try encodedResponse(id: req.id, value: await daemon.cacheSnapshot())
+            case "reviewCacheCleanup":
+                return try encodedResponse(id: req.id, value: await daemon.reviewCacheCleanup())
+            case "cleanReviewedCache":
+                guard let id = params["id"]?.value as? String else {
+                    throw SharedFSError.invalidResponse("Missing cleanup review id.")
+                }
+                let result = try await daemon.cleanReviewedCache(id: id)
+                return .init(id: req.id, ok: true, result: AnyCodable(result.toDictionary()), error: nil)
+            case "setCacheKeepEnabled":
+                guard let enabled = params["enabled"]?.value as? Bool else {
+                    throw SharedFSError.invalidResponse("Missing cache retention preference.")
+                }
+                try await daemon.setCacheKeepEnabled(enabled)
+                return .init(id: req.id, ok: true, result: AnyCodable([:] as [String: Any]), error: nil)
             default:
                 return .init(
                     id: req.id, ok: false, result: nil,
@@ -164,6 +180,11 @@ public final class SharedFSServer: @unchecked Sendable {
         } catch {
             return .init(id: req.id, ok: false, result: nil, error: "\(error)")
         }
+    }
+
+    private func encodedResponse<T: Encodable>(id: String, value: T) throws -> IPCResponse {
+        let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(value))
+        return .init(id: id, ok: true, result: AnyCodable(object), error: nil)
     }
 
     private func respond(_ response: IPCResponse, on connection: NWConnection) {

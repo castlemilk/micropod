@@ -13,54 +13,67 @@ struct ContainerFilesView: View {
     @State private var showExporter = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            GroupBox("Copy Into Container") {
-                HStack {
-                    Text("Pick a local file — it will be copied to /tmp inside \(containerID).")
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                GroupBox("Copy Into Container") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Pick a local file — it will be copied to /tmp inside \(containerID).")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button {
+                            showImporter = true
+                        } label: {
+                            IconLabel(title: "Choose File…", icon: "choosefile", fallback: "square.and.arrow.down")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                    .padding(4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                GroupBox("Copy Out of Container") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Copy a file from /tmp inside \(containerID) to a local location.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        TextField("File name in /tmp", text: $lastCopiedOutName)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.subheadline.monospaced())
+                            .accessibilityLabel("File name in container /tmp")
+                        Button {
+                            showExporter = true
+                        } label: {
+                            IconLabel(title: "Choose Destination…", icon: "choosedest", fallback: "square.and.arrow.up")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(lastCopiedOutName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                    .padding(4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                if let lastError {
+                    Text(lastError)
+                        .font(.caption)
+                        .foregroundStyle(Tokens.Palette.danger)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                }
+                if let lastResult {
+                    Text(lastResult)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Spacer()
-                    Button {
-                        showImporter = true
-                    } label: {
-                        IconLabel(title: "Choose File…", icon: "choosefile", fallback: "square.and.arrow.down")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
                 }
-                .padding(4)
             }
-
-            GroupBox("Copy Out of Container") {
-                HStack {
-                    Text("Copy /tmp/<file> from \(containerID) to a local location.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button {
-                        showExporter = true
-                    } label: {
-                        IconLabel(title: "Choose Destination…", icon: "choosedest", fallback: "square.and.arrow.up")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                }
-                .padding(4)
-            }
-
-            if let lastError {
-                Text(lastError)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
-            if let lastResult {
-                Text(lastResult)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(12)
         .fileImporter(isPresented: $showImporter, allowedContentTypes: [.item]) { result in
             switch result {
             case .success(let url):
@@ -73,7 +86,8 @@ struct ContainerFilesView: View {
             isPresented: $showExporter,
             document: CopyOutDocument(),
             contentType: .item,
-            defaultFilename: lastCopiedOutName ?? "file"
+            defaultFilename: lastCopiedOutName.isEmpty
+                ? "file" : URL(fileURLWithPath: lastCopiedOutName).lastPathComponent
         ) { result in
             switch result {
             case .success(let url):
@@ -84,12 +98,12 @@ struct ContainerFilesView: View {
         }
     }
 
-    @State private var lastCopiedOutName: String?
+    @State private var lastCopiedOutName = ""
 
     private func copyIn(_ url: URL) {
-        let hadAccess = url.startAccessingSecurityScopedResource()
-        defer { if hadAccess { url.stopAccessingSecurityScopedResource() } }
         Task {
+            let hadAccess = url.startAccessingSecurityScopedResource()
+            defer { if hadAccess { url.stopAccessingSecurityScopedResource() } }
             do {
                 try await store.dependencies.containers.copy(
                     from: url.path, to: "\(containerID):/tmp/\(url.lastPathComponent)")
@@ -102,7 +116,8 @@ struct ContainerFilesView: View {
     }
 
     private func copyOut(_ url: URL) {
-        guard let name = lastCopiedOutName else { return }
+        let name = lastCopiedOutName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
         Task {
             do {
                 try await store.dependencies.containers.copy(

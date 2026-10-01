@@ -1,120 +1,167 @@
 import AppKit
 import MicropodCore
+import MicropodSharedFS
 import SwiftUI
 import XCTest
 
 @testable import MicropodApp
 
-/// Temporary visual-verification helper: renders the menu bar panel into a
-/// PNG at /tmp/menubar-panel.png so layout changes can be eyeballed without
-/// clicking the menu bar item. Not a regression test — delete or keep as a
-/// manual aid.
+/// Fitting-size assertions exercise MenuBarExtra's actual sizing path. PNGs
+/// are review artifacts, rather than pixel-perfect platform-dependent goldens.
 final class MenuBarPanelSnapshotTests: XCTestCase {
     @MainActor
-    func testRenderPanelToPNG() throws {
-        let fixture = try AppTestCLI.makeMock()
-        defer { AppTestCLI.cleanUp(fixture) }
-        let store = makeRunningStore(client: fixture.client)
+    func testPanelFittingSizeAndLightDarkPreviews() throws {
+        for variant in ["populated", "empty", "unavailable"] {
+            for scheme in [ColorScheme.light, .dark] {
+                let store = makeRunningStore(client: AppTestCLI.makeFailing())
+                if variant == "populated" { populatePanel(store) }
+                if variant == "unavailable" {
+                    store.clientAvailable = false
+                    store.systemStatus = nil
+                    store.machineError = "Runtime unavailable"
+                }
+                let name = "micropod-tray-\(variant)-\(scheme == .dark ? "dark" : "light")"
+                let size = try render(
+                    MenuBarPanelView(store: store, activateRuntimeObservation: false),
+                    scheme: scheme, name: name)
+                XCTAssertLessThanOrEqual(size.width, 360.5, name)
+                XCTAssertGreaterThanOrEqual(size.width, 359.5, name)
+                XCTAssertGreaterThan(size.height, 250, name)
+                XCTAssertLessThanOrEqual(size.height, 640, name)
+            }
+        }
+    }
 
-        var web = Micropod_V1_Container()
-        web.id = "web-frontend"
-        web.image = "docker.io/library/nginx:latest"
-        web.state = "running"
-        var db = Micropod_V1_Container()
-        db.id = "postgres-main"
-        db.image = "docker.io/library/postgres:17-alpine"
-        db.state = "running"
-        var worker = Micropod_V1_Container()
-        worker.id = "job-runner-3f2a"
-        worker.image = "ghcr.io/skunkworq/runner:dev"
-        worker.state = "exited"
-        store.containers = [web, db, worker]
+    @MainActor
+    func testMenuBarLabelSnapshot() throws {
+        for scheme in [ColorScheme.light, .dark] {
+            let store = makeRunningStore(client: AppTestCLI.makeFailing())
+            populatePanel(store)
+            let size = try render(
+                MenuBarLabel(store: store, activateRuntimeObservation: false).padding(8),
+                scheme: scheme, name: "micropod-tray-label-\(scheme == .dark ? "dark" : "light")")
+            XCTAssertLessThanOrEqual(size.width, 150)
+            XCTAssertLessThanOrEqual(size.height, 40)
+        }
+    }
 
-        var snap = Micropod_V1_StatsSnapshot()
-        var s1 = Micropod_V1_ContainerStats()
-        s1.id = "web-frontend"
-        s1.cpuPercent = 12.4
-        s1.memoryUsedBytes = 268_435_456
-        var s2 = Micropod_V1_ContainerStats()
-        s2.id = "postgres-main"
-        s2.cpuPercent = 3.1
-        s2.memoryUsedBytes = 134_217_728
-        snap.containers = [s1, s2]
-        store.applyForPreview(
-            stats: snap, diskBytes: ["web-frontend": 412_000_000, "postgres-main": 1_900_000_000])
+    func testGuestMetricsPreserveMissingAndPartialSamples() {
+        let now = Date()
+        let measured = workload(name: "api", cpu: 1.25, memory: 268_435_456, sampledAt: now)
+        let missing = workload(name: "vm", cpu: nil, memory: nil, sampledAt: nil)
+        let partial = MenuBarGuestMetrics(workloads: [measured, missing], at: now)
+        XCTAssertEqual(partial.cpuText, "≥ 1.25")
+        XCTAssertEqual(partial.memoryText, "≥ \(ByteFormat.string(268_435_456 as UInt64))")
+        XCTAssertTrue(partial.detail.hasPrefix("1 of 2 sampled"))
 
+        let absent = MenuBarGuestMetrics(workloads: [missing], at: now)
+        XCTAssertEqual(absent.cpuText, "—")
+        XCTAssertEqual(absent.memoryText, "—")
+        let unavailable = MenuBarGuestMetrics(workloads: [measured], available: false, at: now)
+        XCTAssertEqual(unavailable.cpuText, "—")
+        XCTAssertEqual(unavailable.memoryText, "—")
+        let stale = workload(name: "old", cpu: 2, memory: 1_000, sampledAt: now.addingTimeInterval(-60))
+        XCTAssertEqual(MenuBarGuestMetrics(workloads: [stale], at: now).cpuText, "—")
+        XCTAssertEqual(MenuBarGuestMetrics(workloads: [stale], at: now).memoryText, "—")
+    }
+
+    @MainActor
+    func testGuestMetricsIncludePersistentVMAndUseConsumedCores() {
+        let store = makeRunningStore(client: AppTestCLI.makeFailing())
+        var container = Micropod_V1_Container()
+        container.id = "api"
+        container.state = "running"
+        store.containers = [container]
+        store.machines = [MachineEntry(name: "linux-dev", state: "running")]
+        var stats = Micropod_V1_ContainerStats()
+        stats.id = "api"
+        stats.cpuPercent = 250
+        stats.memoryUsedBytes = 268_435_456
+        var snapshot = Micropod_V1_StatsSnapshot()
+        snapshot.sampledAt = ISO8601DateFormatter().string(from: Date())
+        snapshot.containers = [stats]
+        store.applyForPreview(stats: snapshot)
+        XCTAssertEqual(store.workloadItems.count(where: \.isRunning), 2)
+        XCTAssertEqual(MenuBarGuestMetrics(workloads: store.workloadItems).cpuText, "≥ 2.50")
+    }
+
+    private func workload(name: String, cpu: Double?, memory: UInt64?, sampledAt: Date?) -> WorkloadItem {
+        WorkloadItem(
+            route: .container(name), name: name, project: "Standalone", kind: .container,
+            engineLabel: "Apple", state: "running", image: "nginx:latest",
+            cpuCores: cpu, memoryBytes: memory, ports: [], sampledAt: sampledAt, searchTerms: name)
+    }
+
+    @MainActor
+    private func populatePanel(_ store: AppStore) {
+        let specifications = [
+            ("api-gateway", "docker.io/library/nginx:latest", "running"),
+            ("postgres-main", "docker.io/library/postgres:17-alpine", "running"),
+            ("zz-background-jobs-with-a-very-long-workload-name", "ghcr.io/example/runner:dev", "running"),
+            ("archived-worker", "ghcr.io/example/runner:previous", "exited"),
+        ]
+        store.containers = specifications.map { name, image, state in
+            var container = Micropod_V1_Container()
+            container.id = name
+            container.image = image
+            container.state = state
+            return container
+        }
+        store.machines = [MachineEntry(name: "linux-workbench", cpus: 4, memoryBytes: 8_589_934_592, state: "running")]
+        var snapshot = Micropod_V1_StatsSnapshot()
+        snapshot.sampledAt = ISO8601DateFormatter().string(from: Date())
+        snapshot.containers = [
+            ("api-gateway", 124.0, UInt64(268_435_456)), ("postgres-main", 31.0, UInt64(134_217_728)),
+        ].map { id, cpu, memory in
+            var stats = Micropod_V1_ContainerStats()
+            stats.id = id
+            stats.cpuPercent = cpu
+            stats.memoryUsedBytes = memory
+            return stats
+        }
+        store.applyForPreview(stats: snapshot)
+        let measuredAt = Date()
+        store.cacheStore.applyForPreview(
+            CacheSnapshot(
+                measuredAt: measuredAt, buildRoot: URL(fileURLWithPath: "/tmp/micropod-test-cache"),
+                buildEntries: [],
+                buildStats: BuildCacheStats(
+                    entries: 3, contentBytes: 1_288_490_188, sharedBytes: 268_435_456, capBytes: 5_368_709_120),
+                buildDisabled: false, buildError: nil,
+                package: SharedCacheSnapshot(
+                    cacheRoot: "/tmp/micropod-test-package-cache", measuredAt: measuredAt,
+                    storedBytes: 2_147_483_648, capBytes: 10_737_418_240, chunkCount: 128,
+                    activeMounts: [], keepEnabled: true, overCap: false),
+                packageError: nil))
         store.recordActivity("runtime", "Runtime started", level: .success)
-        store.recordActivity("containers", "Started web-frontend", level: .info)
-        store.recordActivity("images", "Pull failed for ghcr.io/private/img", level: .error)
+        store.recordActivity("containers", "Started api-gateway", level: .info)
+        store.recordActivity("images", "Pull failed for ghcr.io/private/very-long-image-name", level: .error)
+    }
 
-        let hosting = NSHostingView(
-            rootView: MenuBarPanelView(store: store)
-                .environment(\.colorScheme, .dark))
-        hosting.frame = NSRect(x: 0, y: 0, width: 340, height: 640)
-        // Text layers only rasterize when the view lives in a real window.
-        let window = NSWindow(
-            contentRect: hosting.frame,
-            styleMask: [.borderless],
-            backing: .buffered,
-            defer: false)
+    @MainActor
+    private func render<Content: View>(_ view: Content, scheme: ColorScheme, name: String) throws -> NSSize {
+        let hosting = NSHostingView(rootView: view.environment(\.colorScheme, scheme))
+        hosting.frame = NSRect(x: 0, y: 0, width: 360, height: 640)
+        let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
         window.contentView = hosting
         window.orderBack(nil)
+        defer { window.orderOut(nil) }
         hosting.layoutSubtreeIfNeeded()
         let fitting = hosting.fittingSize
         hosting.frame = NSRect(origin: .zero, size: fitting)
         window.setContentSize(fitting)
-        hosting.display()
-
-        guard
-            let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds)
-        else {
-            XCTFail("no bitmap rep")
-            return
-        }
-        hosting.cacheDisplay(in: hosting.bounds, to: rep)
-        guard
-            let png = rep.representation(
-                using: NSBitmapImageRep.FileType.png, properties: [:])
-        else {
-            XCTFail("no png")
-            return
-        }
-        try png.write(to: URL(fileURLWithPath: "/tmp/menubar-panel.png"))
-    }
-
-    /// Rasterizes the menu-bar label icon + health badge for visual review.
-    @MainActor
-    func testMenuBarLabelSnapshot() throws {
-        let fixture = try AppTestCLI.makeMock()
-        defer { AppTestCLI.cleanUp(fixture) }
-        let store = makeRunningStore(client: fixture.client)
-
-        let hosting = NSHostingView(
-            rootView: MenuBarLabel(store: store)
-                .padding(8)
-                .environment(\.colorScheme, .dark))
-        let fitting = hosting.fittingSize
-        hosting.frame = NSRect(origin: .zero, size: fitting)
-        let window = NSWindow(
-            contentRect: hosting.frame,
-            styleMask: [.borderless],
-            backing: .buffered,
-            defer: false)
-        window.contentView = hosting
-        window.orderBack(nil)
         hosting.layoutSubtreeIfNeeded()
         hosting.display()
-
         guard let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else {
-            XCTFail("no bitmap rep")
-            return
+            throw NSError(domain: "PanelSnapshot", code: 1)
         }
         hosting.cacheDisplay(in: hosting.bounds, to: rep)
         guard let png = rep.representation(using: .png, properties: [:]) else {
-            XCTFail("no png")
-            return
+            throw NSError(domain: "PanelSnapshot", code: 2)
         }
-        try png.write(to: URL(fileURLWithPath: "/tmp/menubar-label.png"))
+        try png.write(to: URL(fileURLWithPath: "/tmp/\(name).png"))
+        return fitting
     }
 
     /// Same trick for the main-window dashboard — rasterizes the card layout

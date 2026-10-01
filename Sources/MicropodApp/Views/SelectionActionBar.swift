@@ -9,17 +9,24 @@ struct SelectionActionBar<Actions: View>: View {
     var onDone: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Text("\(count) selected")
                 .font(.callout.weight(.semibold))
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
+                .fixedSize()
             Divider().frame(height: 14)
-            actions()
-            Spacer(minLength: 8)
+            ScrollView(.horizontal) {
+                HStack(spacing: 8) { actions() }
+                    .fixedSize(horizontal: true, vertical: false)
+                    .padding(.vertical, 2)
+            }
+            .scrollIndicators(.hidden)
+            .frame(height: 28)
             Button(String(localized: "Done"), action: onDone)
                 .controlSize(.small)
                 .keyboardShortcut(.cancelAction)
+                .fixedSize()
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
@@ -28,7 +35,7 @@ struct SelectionActionBar<Actions: View>: View {
         .shadow(color: .black.opacity(0.16), radius: 10, y: 3)
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
-        .frame(maxWidth: 420)
+        .frame(maxWidth: 760)
         .frame(maxWidth: .infinity)
     }
 }

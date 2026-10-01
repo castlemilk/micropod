@@ -11,17 +11,34 @@ struct CreateMachineSheet: View {
     @State private var memory = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Create Machine").font(.title3.weight(.semibold))
-            TextField("Image", text: $image).textFieldStyle(.roundedBorder)
-            TextField("Name (optional, default)", text: $name).textFieldStyle(.roundedBorder)
-            HStack(spacing: 12) {
-                TextField("CPUs (optional)", text: $cpus).textFieldStyle(.roundedBorder)
-                TextField("Memory (optional, e.g. 4G)", text: $memory).textFieldStyle(.roundedBorder)
+        VStack(spacing: 0) {
+            Text("Create MicroVM")
+                .font(.title3.weight(.semibold))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(20)
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    inputField("Image", hint: "Image reference", text: $image)
+                    inputField("Name", hint: "Optional; default machine", text: $name)
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 160), alignment: .leading)], alignment: .leading,
+                        spacing: 12
+                    ) {
+                        inputField("CPUs", hint: "Optional", text: $cpus)
+                        inputField("Memory", hint: "Optional, e.g. 4G", text: $memory)
+                    }
+                    Text(
+                        "Creates a dedicated VM for the container runtime. This boots a full Linux VM — allow a minute."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Text("Creates a dedicated VM for the container runtime. This boots a full Linux VM — allow a minute.")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            Divider()
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
@@ -35,10 +52,19 @@ struct CreateMachineSheet: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
-                .disabled(image.isEmpty)
+                .disabled(image.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
+            .padding(16)
         }
-        .padding(20)
-        .frame(width: 420)
+        .frame(minWidth: 320, idealWidth: 460, maxWidth: 640, minHeight: 300, idealHeight: 380, maxHeight: 600)
+    }
+
+    private func inputField(_ label: String, hint: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(Tokens.Typography.metadata).foregroundStyle(.secondary)
+            TextField(hint, text: text)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityLabel(label)
+        }
     }
 }

@@ -1,0 +1,160 @@
+[
+  {
+    "iterations": 20,
+    "millisecondsPerIteration": 1.1088013648986816,
+    "scenario": "inventory-pure",
+    "workloads": 1000,
+    "run": 1
+  },
+  {
+    "iterations": 10000,
+    "millisecondsPerIteration": 1.7893314361572265e-05,
+    "scenario": "inventory-cache-hit",
+    "workloads": 1000,
+    "run": 1
+  },
+  {
+    "iterations": 20,
+    "millisecondsPerIteration": 0.396651029586792,
+    "scenario": "inventory-metric-overlay",
+    "workloads": 1000,
+    "run": 1
+  },
+  {
+    "iterations": 20,
+    "millisecondsPerIteration": 1.259303092956543,
+    "scenario": "grouping-pure",
+    "workloads": 1000,
+    "run": 1
+  },
+  {
+    "iterations": 10000,
+    "millisecondsPerIteration": 2.1302700042724608e-05,
+    "scenario": "grouping-cache-hit",
+    "workloads": 1000,
+    "run": 1
+  },
+  {
+    "iterations": 20,
+    "millisecondsPerIteration": 5.702102184295654,
+    "scenario": "inventory-pure",
+    "workloads": 5000,
+    "run": 1
+  },
+  {
+    "iterations": 10000,
+    "millisecondsPerIteration": 1.569986343383789e-05,
+    "scenario": "inventory-cache-hit",
+    "workloads": 5000,
+    "run": 1
+  },
+  {
+    "iterations": 20,
+    "millisecondsPerIteration": 2.1130502223968506,
+    "scenario": "inventory-metric-overlay",
+    "workloads": 5000,
+    "run": 1
+  },
+  {
+    "iterations": 20,
+    "millisecondsPerIteration": 6.619846820831299,
+    "scenario": "grouping-pure",
+    "workloads": 5000,
+    "run": 1
+  },
+  {
+    "iterations": 10000,
+    "millisecondsPerIteration": 1.86920166015625e-05,
+    "scenario": "grouping-cache-hit",
+    "workloads": 5000,
+    "run": 1
+  },
+  {
+    "deliveryQueueLines": 8,
+    "durationMs": 293.260416,
+    "kind": "nativeLogBacklog",
+    "lines": 20000,
+    "linesPerSecond": 68198.77115634999,
+    "readChunkBytes": 65536,
+    "run": 1
+  },
+  {
+    "iterations": 20,
+    "millisecondsPerIteration": 1.1335968971252441,
+    "scenario": "inventory-pure",
+    "workloads": 1000,
+    "run": 2
+  },
+  {
+    "iterations": 10000,
+    "millisecondsPerIteration": 1.5497207641601562e-05,
+    "scenario": "inventory-cache-hit",
+    "workloads": 1000,
+    "run": 2
+  },
+  {
+    "iterations": 20,
+    "millisecondsPerIteration": 0.352400541305542,
+    "scenario": "inventory-metric-overlay",
+    "workloads": 1000,
+    "run": 2
+  },
+  {
+    "iterations": 20,
+    "millisecondsPerIteration": 1.2602508068084717,
+    "scenario": "grouping-pure",
+    "workloads": 1000,
+    "run": 2
+  },
+  {
+    "iterations": 10000,
+    "millisecondsPerIteration": 1.800060272216797e-05,
+    "scenario": "grouping-cache-hit",
+    "workloads": 1000,
+    "run": 2
+  },
+  {
+    "iterations": 20,
+    "millisecondsPerIteration": 6.250900030136108,
+    "scenario": "inventory-pure",
+    "workloads": 5000,
+    "run": 2
+  },
+  {
+    "iterations": 10000,
+    "millisecondsPerIteration": 1.590251922607422e-05,
+    "scenario": "inventory-cache-hit",
+    "workloads": 5000,
+    "run": 2
+  },
+  {
+    "iterations": 20,
+    "millisecondsPerIteration": 2.12630033493042,
+    "scenario": "inventory-metric-overlay",
+    "workloads": 5000,
+    "run": 2
+  },
+  {
+    "iterations": 20,
+    "millisecondsPerIteration": 7.0761024951934814,
+    "scenario": "grouping-pure",
+    "workloads": 5000,
+    "run": 2
+  },
+  {
+    "iterations": 10000,
+    "millisecondsPerIteration": 2.0098686218261718e-05,
+    "scenario": "grouping-cache-hit",
+    "workloads": 5000,
+    "run": 2
+  },
+  {
+    "deliveryQueueLines": 8,
+    "durationMs": 943.6980000000001,
+    "kind": "nativeLogBacklog",
+    "lines": 20000,
+    "linesPerSecond": 21193.220712558465,
+    "readChunkBytes": 65536,
+    "run": 2
+  }
+]

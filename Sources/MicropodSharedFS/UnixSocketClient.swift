@@ -7,9 +7,11 @@ import Network
 /// concerns around long-lived connections.
 public final class UnixSocketClient: SharedFSClient, @unchecked Sendable {
     private let socketPath: String
+    private let timeout: TimeInterval
 
-    public init(socketPath: String) {
+    public init(socketPath: String, timeout: TimeInterval = 30) {
         self.socketPath = socketPath
+        self.timeout = max(0.1, timeout)
     }
 
     public func mount(src: URL, readonly: Bool) async throws -> MountInfo {
@@ -56,6 +58,27 @@ public final class UnixSocketClient: SharedFSClient, @unchecked Sendable {
     public func gc() async throws -> GCResult {
         let result = try await call(method: "gc", params: [:])
         return GCResult(dictionary: result as? [String: Any] ?? [:])
+    }
+
+    public func cacheSnapshot() async throws -> SharedCacheSnapshot {
+        try decode(SharedCacheSnapshot.self, value: await call(method: "cacheSnapshot", params: [:]))
+    }
+
+    public func reviewCacheCleanup() async throws -> SharedCacheCleanupReview {
+        try decode(SharedCacheCleanupReview.self, value: await call(method: "reviewCacheCleanup", params: [:]))
+    }
+
+    public func cleanReviewedCache(id: String) async throws -> GCResult {
+        let result = try await call(method: "cleanReviewedCache", params: ["id": id])
+        return GCResult(dictionary: result as? [String: Any] ?? [:])
+    }
+
+    public func setCacheKeepEnabled(_ enabled: Bool) async throws {
+        _ = try await call(method: "setCacheKeepEnabled", params: ["enabled": enabled])
+    }
+
+    private func decode<T: Decodable>(_ type: T.Type, value: Any) throws -> T {
+        try JSONDecoder().decode(type, from: JSONSerialization.data(withJSONObject: value))
     }
 
     // MARK: - Transport
@@ -119,18 +142,24 @@ public final class UnixSocketClient: SharedFSClient, @unchecked Sendable {
                         completion: .contentProcessed { error in
                             if let error {
                                 once.resume(throwing: error)
+                                connection.cancel()
                                 return
                             }
                             Self.recvAll(connection: connection, once: once)
                         })
                 case .failed(let err):
                     once.resume(throwing: err)
+                    connection.cancel()
                 case .cancelled:
                     once.resume(throwing: SharedFSError.daemonUnavailable)
                 default: break
                 }
             }
             connection.start(queue: queue)
+            queue.asyncAfter(deadline: .now() + timeout) {
+                once.resume(throwing: SharedFSError.invalidResponse("Shared cache request timed out."))
+                connection.cancel()
+            }
         }
     }
 

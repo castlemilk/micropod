@@ -6,11 +6,11 @@ import SwiftUI
 enum ContainerStateStyle {
     static func color(for state: String) -> Color {
         switch state {
-        case "running": .green
-        case "exited": .red
-        case "stopped": .gray
-        case "created": .orange
-        default: .orange
+        case "running": Tokens.Palette.success
+        case "exited", "stopped": Tokens.Palette.tertiary
+        case "failed", "dead": Tokens.Palette.danger
+        case "created", "starting": Tokens.Palette.warning
+        default: Tokens.Palette.tertiary
         }
     }
 

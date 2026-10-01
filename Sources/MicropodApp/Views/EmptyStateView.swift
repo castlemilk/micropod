@@ -13,9 +13,19 @@ struct EmptyStateView: View {
     var accent: Color = Color.accentColor
 
     var body: some View {
+        ViewThatFits(in: .vertical) {
+            content(artworkSize: 120).fixedSize(horizontal: false, vertical: true)
+            content(artworkSize: 64).fixedSize(horizontal: false, vertical: true)
+            ScrollView { content(artworkSize: 64) }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func content(artworkSize: CGFloat) -> some View {
         VStack(spacing: Tokens.Spacing.md) {
             illustration
-                .frame(width: 120, height: 120)
+                .frame(width: artworkSize, height: artworkSize)
             Text(title)
                 .font(.title3.weight(.semibold))
                 .multilineTextAlignment(.center)
@@ -32,8 +42,7 @@ struct EmptyStateView: View {
             }
         }
         .padding(Tokens.Spacing.xl)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityElement(children: .combine)
+        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder

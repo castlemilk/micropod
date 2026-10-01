@@ -168,10 +168,12 @@ public final class MetricsStore: @unchecked Sendable {
             }
             _ = try? exec(ok ? "COMMIT" : "ROLLBACK")
         }
-        if date.timeIntervalSince(lastPrune) > 300 {
+        let shouldPrune = lock.withLock {
+            guard date.timeIntervalSince(lastPrune) > 300 else { return false }
             lastPrune = date
-            prune(now: date)
+            return true
         }
+        if shouldPrune { prune(now: date) }
     }
 
     /// Deletes a series and all its points (a container or machine was

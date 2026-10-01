@@ -7,7 +7,7 @@ import SwiftUI
 
 /// One measured bucket of the runtime's on-disk footprint (macOS app support
 /// directory). Sizes come from `du`, not estimates.
-struct StorageBucket: Identifiable, Equatable {
+struct StorageBucket: Identifiable, Equatable, Sendable {
     let name: String
     let path: String
     let sizeBytes: Int64
@@ -20,7 +20,7 @@ struct StorageBucket: Identifiable, Equatable {
 /// One aggregate resource sample across all running containers.
 /// No per-sample id: the ring is append-only and charted by timestamp, so a
 /// UUID would be 16 bytes of pure overhead per sample.
-struct ResourceSample: Equatable {
+struct ResourceSample: Equatable, Sendable {
     let timestamp: Date
     let cpuPercent: Double
     let memoryUsedBytes: UInt64
@@ -52,7 +52,7 @@ extension MachineSample {
 }
 
 /// One machine metrics point; rates are per second between polls.
-struct MachineSample: Equatable {
+struct MachineSample: Equatable, Sendable {
     let timestamp: Date
     let cpuPercent: Double
     let memoryUsedBytes: UInt64
@@ -125,19 +125,39 @@ final class AppStore {
     // MARK: - Dependencies
 
     let dependencies: AppDependencies
+    let cacheStore = CacheStore()
+    var workloadInspectionRequest: UInt64 = 0
+    var runtimeStopConfirmationRequested = false
+
+    var runtimeStopAffectedCount: Int {
+        workloadItems.count { $0.isRunning && $0.engineLabel == "Apple" }
+    }
+
+    /// UI entry points share the main-window confirmation. Direct runtime
+    /// operations remain available to the watchdog and confirmed actions.
+    func requestRuntimeStop() {
+        if runtimeStopAffectedCount > 0 {
+            runtimeStopConfirmationRequested = true
+        } else {
+            Task { await stopRuntime() }
+        }
+    }
 
     // MARK: - Navigation
 
     enum ActiveTab: String, CaseIterable, Identifiable {
-        case dashboard, containers, machines, images, volumes, networks, registries, build, compose, environments,
+        case dashboard, workloads, containers, machines, images, cache, volumes, networks, registries, build, compose,
+            environments,
             storage, settings
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .dashboard: "Dashboard"
+            case .dashboard: "Overview"
+            case .workloads: "Workloads"
             case .containers: "Containers"
-            case .machines: "Machines"
+            case .machines: "MicroVMs"
             case .images: "Images"
+            case .cache: "Cache"
             case .volumes: "Volumes"
             case .networks: "Networks"
             case .registries: "Registries"
@@ -151,9 +171,11 @@ final class AppStore {
         var icon: String {
             switch self {
             case .dashboard: "gauge.with.dots.needle.50percent"
+            case .workloads: "list.bullet.rectangle"
             case .containers: "shippingbox"
             case .machines: "server.rack"
             case .images: "photo.stack"
+            case .cache: "archivebox"
             case .volumes: "externaldrive"
             case .networks: "network"
             case .registries: "globe"
@@ -166,7 +188,8 @@ final class AppStore {
         }
     }
 
-    var activeTab: ActiveTab = .dashboard
+    var activeTab: ActiveTab = .workloads
+    var selectedWorkloadID: String?
     var selectedContainerID: String?
     var selectedMachineID: String?
     var selectedImageID: String?
@@ -217,8 +240,12 @@ final class AppStore {
 
     // MARK: - Runtime state
 
-    var clientAvailable = false
-    var systemStatus: Micropod_V1_SystemStatus?
+    var clientAvailable = false {
+        didSet { if clientAvailable != oldValue { workloadMetricsRevision &+= 1 } }
+    }
+    var systemStatus: Micropod_V1_SystemStatus? {
+        didSet { if systemStatus?.status != oldValue?.status { workloadMetricsRevision &+= 1 } }
+    }
     var systemStatusError: String?
     var isStartingRuntime = false
     var isRestartingRuntime = false
@@ -242,19 +269,32 @@ final class AppStore {
     var kernelInstallError: String?
     var onboardingComplete = UserDefaults.standard.bool(forKey: UserDefaultsKeys.onboardingComplete)
 
+    @ObservationIgnored let workloadCache = WorkloadInventoryCache()
+    private(set) var workloadMetadataRevision: UInt64 = 0
+    private(set) var workloadMetricsRevision: UInt64 = 0
+    private(set) var networkInventoryRevision: UInt64 = 0
+
     // MARK: - Resource state
 
-    var containers: [Micropod_V1_Container] = []
+    var containers: [Micropod_V1_Container] = [] {
+        didSet { if containers != oldValue { workloadMetadataRevision &+= 1 } }
+    }
     var images: [Micropod_V1_Image] = []
     private(set) var hasLoadedImages = false
     var volumes: [Micropod_V1_Volume] = []
-    var networks: [Micropod_V1_Network] = []
+    var networks: [Micropod_V1_Network] = [] {
+        didSet { if networks != oldValue { networkInventoryRevision &+= 1 } }
+    }
     var registries: [Micropod_V1_RegistryLogin] = []
     var diskUsage: Micropod_V1_DiskUsage?
-    var statsSnapshot: Micropod_V1_StatsSnapshot?
+    var statsSnapshot: Micropod_V1_StatsSnapshot? {
+        didSet { if statsSnapshot != oldValue { workloadMetricsRevision &+= 1 } }
+    }
     /// id → stats for the current snapshot; O(1) lookups for rows/sorts
     /// (the linear `containers.first {}` scan was per-row and per-comparison).
-    private(set) var statsByID: [String: Micropod_V1_ContainerStats] = [:]
+    private(set) var statsByID: [String: Micropod_V1_ContainerStats] = [:] {
+        didSet { if statsByID != oldValue { workloadMetricsRevision &+= 1 } }
+    }
 
     /// Test/preview seam: install a stats snapshot + disk sizes the way the
     /// pollers would, without a runtime.
@@ -273,11 +313,15 @@ final class AppStore {
     /// `recordObservedTransitions`).
     @ObservationIgnored private var hasLoadedContainers = false
     private static let diskUsageInterval: TimeInterval = 15
-    var machines: [MachineEntry] = []
+    var machines: [MachineEntry] = [] {
+        didSet { if machines != oldValue { workloadMetadataRevision &+= 1 } }
+    }
     var systemProperties: SystemPropertyListResponse?
     var machineError: String?
     /// Latest guest /proc sample per running machine.
-    private(set) var machineStatsByID: [String: Micropod_V1_MachineStats] = [:]
+    private(set) var machineStatsByID: [String: Micropod_V1_MachineStats] = [:] {
+        didSet { if machineStatsByID != oldValue { workloadMetricsRevision &+= 1 } }
+    }
     /// Rolling per-machine history for the Machines metrics charts.
     private(set) var machineHistory: [String: [MachineSample]] = [:]
     /// Rolling system-wide resource samples for the dashboard charts —
@@ -297,7 +341,7 @@ final class AppStore {
 
     // MARK: - Derived
 
-    var runningCount: Int { containers.filter { $0.state == "running" }.count }
+    var runningCount: Int { containers.count { $0.state == "running" } }
     var agentWorkloadCount: Int {
         containers.count { WorkloadMetadata(labels: $0.labels).isAgent }
     }
@@ -331,8 +375,14 @@ final class AppStore {
     @ObservationIgnored private var systemStatusTask: Task<Void, Never>?
     @ObservationIgnored private var systemStatusAt = Date.distantPast
     @ObservationIgnored private var wasVisible = false
-    @ObservationIgnored private var mainWindowVisible = false
+    private(set) var mainWindowVisible = false
+    @ObservationIgnored private var visibleMainWindows: Set<UUID> = []
+    @ObservationIgnored private var metricsHistoryTask: Task<Void, Never>?
+    @ObservationIgnored private var machineHistoryTask: Task<Void, Never>?
+    @ObservationIgnored private var restoredMachineHistory: Set<String> = []
     @ObservationIgnored private var panelVisible = false
+    @ObservationIgnored private var machinesRefreshTask: Task<Void, Never>?
+    @ObservationIgnored private var machinesRefreshedAt = Date.distantPast
 
     init(dependencies: AppDependencies = AppDependencies.shared) {
         self.dependencies = dependencies
@@ -510,6 +560,10 @@ final class AppStore {
         statsTask = nil
         runtimeSupervisorTask?.cancel()
         runtimeSupervisorTask = nil
+        metricsHistoryTask?.cancel()
+        metricsHistoryTask = nil
+        machineHistoryTask?.cancel()
+        machineHistoryTask = nil
     }
 
     /// Ensures the Apple container runtime is always running while the app is
@@ -762,6 +816,11 @@ final class AppStore {
         syncVisibility()
     }
 
+    func setMainWindowVisible(_ visible: Bool, windowID: UUID) {
+        if visible { visibleMainWindows.insert(windowID) } else { visibleMainWindows.remove(windowID) }
+        setMainWindowVisible(!visibleMainWindows.isEmpty)
+    }
+
     func setPanelVisible(_ visible: Bool) {
         panelVisible = visible
         syncVisibility()
@@ -788,8 +847,8 @@ final class AppStore {
 
     private func restartContainersPolling() {
         containersTask?.cancel()
-        let containerInterval = UserDefaults.standard.double(forKey: UserDefaultsKeys.pollIntervalContainers)
-            .nonzeroOr(3.0)
+        let configured = UserDefaults.standard.double(forKey: UserDefaultsKeys.pollIntervalContainers)
+        let containerInterval = configured.isFinite && configured > 0 ? max(1, configured) : 3.0
         let hiddenInterval = max(containerInterval, 30.0)
         containersTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -800,6 +859,16 @@ final class AppStore {
                     // status cached in `systemStatus`.
                     await self.refreshSystemStatus()
                     await self.refreshContainers()
+                    if self.panelVisible || self.activeTab == .workloads || self.activeTab == .machines {
+                        await self.refreshMachines()
+                    }
+                    if self.panelVisible || self.activeTab == .cache || self.activeTab == .workloads,
+                        !self.cacheStore.isRefreshing
+                    {
+                        // Cache I/O has its own coalesced cadence; a slow
+                        // shared-cache agent must not delay workload polling.
+                        Task { await self.cacheStore.refresh() }
+                    }
                     try? await Task.sleep(for: .seconds(containerInterval))
                 } else {
                     try? await Task.sleep(for: .seconds(hiddenInterval))
@@ -808,11 +877,17 @@ final class AppStore {
         }
     }
 
+    static func statsPollingCadence(configured: Double) -> (visible: Double, hidden: Double) {
+        let valid = configured.isFinite && configured > 0 ? configured : 5.0
+        return (min(max(1, valid), 5), max(30, valid))
+    }
+
     private func restartStatsPolling() {
         statsTask?.cancel()
         let interval = UserDefaults.standard.double(forKey: UserDefaultsKeys.pollIntervalStats)
-        let hiddenInterval = interval.nonzeroOr(30.0)
-        let visibleInterval = min(hiddenInterval, 5.0)
+        let cadence = Self.statsPollingCadence(configured: interval)
+        let visibleInterval = cadence.visible
+        let hiddenInterval = cadence.hidden
         statsTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
@@ -981,7 +1056,9 @@ final class AppStore {
         async let networks: () = refreshNetworks()
         async let registries: () = refreshRegistries()
         async let disk: () = refreshDiskUsage()
-        _ = await (images, volumes, networks, registries, disk)
+        async let machines: () = refreshMachines(force: true)
+        async let cache: () = cacheStore.refresh(force: true)
+        _ = await (images, volumes, networks, registries, disk, machines, cache)
     }
 
     /// Measures the runtime's on-disk footprint with `du -sk` per bucket
@@ -1006,20 +1083,24 @@ final class AppStore {
             ("Kernels", "kernels", "Installed kernel images for the VM runtime."),
             ("Builder", "builder", "BuildKit builder shim state."),
         ]
-        var measured: [StorageBucket] = []
-        var total: Int64 = 0
-        for (name, dir, explanation) in buckets {
-            let path = root.appendingPathComponent(dir).path
-            let bytes = Self.diskSize(path)
-            total += bytes
-            measured.append(
-                StorageBucket(name: name, path: path, sizeBytes: bytes, explanation: explanation))
-        }
-        storageBuckets = measured
-        storageTotalBytes = total
+        let result = await Task.detached(priority: .utility) {
+            var measured: [StorageBucket] = []
+            var total: Int64 = 0
+            for (name, dir, explanation) in buckets {
+                guard !Task.isCancelled else { break }
+                let path = root.appendingPathComponent(dir).path
+                let bytes = Self.diskSize(path)
+                total += bytes
+                measured.append(StorageBucket(name: name, path: path, sizeBytes: bytes, explanation: explanation))
+            }
+            return (measured, total)
+        }.value
+        guard !Task.isCancelled else { return }
+        storageBuckets = result.0
+        storageTotalBytes = result.1
     }
 
-    private var storageRoot: URL {
+    var storageRoot: URL {
         if let appRoot = systemStatus?.appRoot, !appRoot.isEmpty {
             return URL(fileURLWithPath: appRoot, isDirectory: true)
         }
@@ -1027,7 +1108,7 @@ final class AppStore {
     }
 
     /// `du -sk` (1 KiB blocks) of a directory; 0 when it doesn't exist.
-    private static func diskSize(_ path: String) -> Int64 {
+    nonisolated private static func diskSize(_ path: String) -> Int64 {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/du")
         process.arguments = ["-sk", path]
@@ -1064,11 +1145,18 @@ final class AppStore {
     @discardableResult
     func startPull(reference: String, platform: String?) -> UUID {
         let id = operationRegistry.begin("Pull \(reference)", kind: .pull)
+        let initial =
+            operationRegistry.operation(id) ?? ActiveOperation(title: "Pull \(reference)", kind: .pull, id: id)
         let task = Task {
             do {
-                for try await event in dependencies.images.pull(reference, platform: platform) {
-                    operationRegistry.update(id) { $0.events.append(event.line) }
+                let progress = CoalescedUIStream.snapshots(
+                    from: dependencies.images.pull(reference, platform: platform), initial: initial,
+                    append: { $0.appendEvents([$1.line]) }, snapshot: { $0 })
+                for try await snapshot in progress {
+                    try Task.checkCancellation()
+                    operationRegistry.update(id) { $0 = snapshot }
                 }
+                try Task.checkCancellation()
                 operationRegistry.finish(id, status: .succeeded)
                 await refreshImages()
                 recordActivity("images", "Pulled \(reference)", level: .success)
@@ -1089,15 +1177,18 @@ final class AppStore {
     func startBuild(request: ContainerBuildRequest) -> UUID {
         let tagLabel = request.tags.joined(separator: ", ")
         let id = operationRegistry.begin("Build \(tagLabel.isEmpty ? "image" : tagLabel)", kind: .build)
+        let initial =
+            operationRegistry.operation(id) ?? ActiveOperation(title: "Build \(tagLabel)", kind: .build, id: id)
         let task = Task {
             do {
-                for try await chunk in dependencies.client.stream(ContainerCommandFactory.build(request)) {
-                    if Task.isCancelled { break }
-                    let lines = String(data: chunk, encoding: .utf8)?.split(separator: "\n") ?? []
-                    for line in lines {
-                        operationRegistry.update(id) { $0.events.append(String(line)) }
-                    }
+                let progress = CoalescedUIStream.snapshots(
+                    from: dependencies.images.build(request), initial: initial,
+                    append: { $0.appendEvents([$1.line]) }, snapshot: { $0 })
+                for try await snapshot in progress {
+                    try Task.checkCancellation()
+                    operationRegistry.update(id) { $0 = snapshot }
                 }
+                try Task.checkCancellation()
                 await refreshImages()
                 operationRegistry.finish(id, status: .succeeded)
                 recordActivity("build", "Built \(tagLabel.isEmpty ? "image" : tagLabel)", level: .success)
@@ -1128,7 +1219,7 @@ final class AppStore {
             Task {
                 do {
                     for try await line in execution.stream {
-                        operationRegistry.update(id) { $0.events.append(line) }
+                        operationRegistry.appendEvent(line, to: id)
                         continuation.yield(line)
                     }
                     operationRegistry.finish(id, status: .succeeded)
@@ -1187,7 +1278,7 @@ final class AppStore {
         do {
             let listed = try await dependencies.containers.list()
             recordObservedTransitions(from: containers, to: listed)
-            containers = listed
+            if containers != listed { containers = listed }
             lastRefreshError = nil
         } catch {
             // A transport error can mean the apiserver was re-registered under
@@ -1197,7 +1288,7 @@ final class AppStore {
                 await dependencies.refreshBackendIfNeeded(force: true),
                 let recovered = try? await dependencies.containers.list()
             {
-                containers = recovered
+                if containers != recovered { containers = recovered }
                 lastRefreshError = nil
                 return
             }
@@ -1268,7 +1359,8 @@ final class AppStore {
     func refreshNetworks() async {
         guard isRuntimeRunning, clientAvailable else { return }
         do {
-            networks = try await dependencies.networks.list()
+            let listed = try await dependencies.networks.list()
+            if networks != listed { networks = listed }
         } catch {
             // Background refresh: failures surface as stale panes; not banner-worthy.
         }
@@ -1276,13 +1368,31 @@ final class AppStore {
 
     // MARK: - Machine / VM surface (4.1)
 
-    func refreshMachines() async {
+    func refreshMachines(force: Bool = false) async {
+        if let task = machinesRefreshTask {
+            await task.value
+            return
+        }
+        guard force || Date().timeIntervalSince(machinesRefreshedAt) >= 5 else { return }
+        let task = Task { [weak self] in
+            if let self { await self.performMachinesRefresh() }
+        }
+        machinesRefreshTask = task
+        await task.value
+        machinesRefreshTask = nil
+    }
+
+    private func performMachinesRefresh() async {
         do {
-            machines = try await dependencies.machine.list()
+            let listed = try await dependencies.machine.list()
+            if machines != listed { machines = listed }
+            restoreMachineMetricsHistory()
             machineError = nil
             machinesLoaded = true
+            machinesRefreshedAt = Date()
         } catch {
             machineError = error.localizedDescription
+            machinesRefreshedAt = Date()
         }
     }
 
@@ -1336,7 +1446,7 @@ final class AppStore {
         do {
             try await dependencies.machine.stop(name)
             recordActivity("system", "Stopped machine \(name)")
-            await refreshMachines()
+            await refreshMachines(force: true)
         } catch {
             machineError = error.localizedDescription
             recordActivity("system", "Failed to stop machine \(name): \(error.localizedDescription)", level: .error)
@@ -1358,7 +1468,7 @@ final class AppStore {
                 image: image, name: name.isEmpty ? nil : name,
                 cpus: cpus.isEmpty ? nil : cpus, memory: memory.isEmpty ? nil : memory)
             recordActivity("system", "Created machine \(name.isEmpty ? image : name)", level: .success)
-            await refreshMachines()
+            await refreshMachines(force: true)
         } catch {
             machineError = error.localizedDescription
             recordActivity("system", "Failed to create machine \(name): \(error.localizedDescription)", level: .error)
@@ -1368,9 +1478,11 @@ final class AppStore {
     func deleteMachine(_ name: String) async {
         do {
             try await dependencies.machine.delete(name)
-            if metrics != nil { MetricsStore.shared?.remove(.machine, name) }
+            if metrics != nil, let database = MetricsStore.shared {
+                await Task.detached(priority: .utility) { database.remove(.machine, name) }.value
+            }
             recordActivity("system", "Deleted machine \(name)")
-            await refreshMachines()
+            await refreshMachines(force: true)
         } catch {
             machineError = error.localizedDescription
             recordActivity("system", "Failed to delete machine \(name): \(error.localizedDescription)", level: .error)
@@ -1453,16 +1565,41 @@ final class AppStore {
     /// Loads persisted history into the in-memory rings, so the charts open
     /// with the last 3 h instead of starting empty.
     func loadMetricsHistory() {
-        guard metrics != nil, let store = MetricsStore.shared else { return }
-        let range: TimeInterval = 3 * 3600
-        let persisted = store.history(.system, "all", range: range).points.map(ResourceSample.init)
-        statsHistory = (persisted + statsHistory.filter { $0.timestamp > persisted.last?.timestamp ?? .distantPast })
-            .suffix(2500)
-            .map { $0 }
-        for name in store.targets(.machine) {
-            let points = store.history(.machine, name, range: range).points.map(MachineSample.init)
-            let live = (machineHistory[name] ?? []).filter { $0.timestamp > points.last?.timestamp ?? .distantPast }
-            machineHistory[name] = Array((points + live).suffix(2500))
+        guard metrics != nil, let database = MetricsStore.shared, metricsHistoryTask == nil else { return }
+        metricsHistoryTask = Task { [weak self] in
+            let points = await Task.detached(priority: .utility) {
+                database.history(.system, "all", range: 3 * 3600).points
+            }.value
+            guard !Task.isCancelled, let self else { return }
+            let persisted = points.map(ResourceSample.init)
+            let live = self.statsHistory.filter { $0.timestamp > persisted.last?.timestamp ?? .distantPast }
+            self.statsHistory = Array((persisted + live).suffix(2500))
+            self.metricsHistoryTask = nil
+        }
+    }
+
+    /// Restore only machines in the current inventory, not every historical
+    /// identifier in SQLite. Deleted machines must not inflate launch memory.
+    private func restoreMachineMetricsHistory() {
+        guard metrics != nil, let database = MetricsStore.shared, machineHistoryTask == nil else { return }
+        let names = machines.map(\.name).filter { !restoredMachineHistory.contains($0) }
+        guard !names.isEmpty else { return }
+        machineHistoryTask = Task { [weak self] in
+            let histories = await Task.detached(priority: .utility) {
+                names.map { ($0, database.history(.machine, $0, range: 3 * 3600).points) }
+            }.value
+            guard !Task.isCancelled, let self else { return }
+            let currentNames = Set(self.machines.map(\.name))
+            for (name, points) in histories where currentNames.contains(name) {
+                let persisted = points.map(MachineSample.init)
+                let live = (self.machineHistory[name] ?? []).filter {
+                    $0.timestamp > persisted.last?.timestamp ?? .distantPast
+                }
+                self.machineHistory[name] = Array((persisted + live).suffix(2500))
+                self.restoredMachineHistory.insert(name)
+            }
+            self.restoredMachineHistory.formIntersection(currentNames)
+            self.machineHistoryTask = nil
         }
     }
 
@@ -1544,7 +1681,9 @@ final class AppStore {
     func deleteContainer(_ id: String, force: Bool = false) async {
         do {
             try await dependencies.containers.delete(id, force: force)
-            if metrics != nil { MetricsStore.shared?.remove(.container, id) }
+            if metrics != nil, let database = MetricsStore.shared {
+                await Task.detached(priority: .utility) { database.remove(.container, id) }.value
+            }
             recordActivity("containers", "Deleted \(id)")
         } catch {
             recordActivity("containers", "Failed to delete \(id): \(error.localizedDescription)", level: .error)

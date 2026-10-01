@@ -30,6 +30,7 @@ struct ContainerOverviewView: View {
                     if !container.mounts.isEmpty { mountsSection(container) }
                 }
                 .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 ContentUnavailableView("Container Deleted", systemImage: "shippingbox")
             }
@@ -82,7 +83,9 @@ struct ContainerOverviewView: View {
     private func resourcesSection(_ container: Micropod_V1_Container) -> some View {
         section("Resources") {
             if let stats {
-                HStack(spacing: 16) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 100), alignment: .leading)], alignment: .leading, spacing: 10
+                ) {
                     metricTile("CPU", "\(Int(stats.cpuPercent))%")
                     metricTile("Memory", ByteFormat.string(stats.memoryUsedBytes))
                     metricTile("PIDs", "\(stats.pids)")
@@ -144,50 +147,13 @@ struct ContainerOverviewView: View {
         }
     }
 
-    /// A row with a copy-to-clipboard action.
+    /// Long values stack beneath their labels and remain selectable and copyable.
     private func copyRow(_ label: String, _ value: String) -> some View {
-        HStack(spacing: 8) {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(width: 90, alignment: .leading)
-            Text(value)
-                .font(.subheadline.monospaced())
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .textSelection(.enabled)
-            Spacer(minLength: 4)
-            copyButton(value)
-        }
-        .padding(.vertical, 2)
+        InspectorFieldRow(label: label, value: value)
     }
 
-    /// A row with an optional primary action (e.g. open port in browser).
     private func smartRow(label: String, value: String, primaryAction: (() -> Void)?) -> some View {
-        HStack(spacing: 8) {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(width: 90, alignment: .leading)
-            Text(value)
-                .font(.subheadline.monospaced())
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .textSelection(.enabled)
-            Spacer(minLength: 4)
-            if let primaryAction {
-                Button {
-                    primaryAction()
-                } label: {
-                    Image(systemName: "safari")
-                }
-                .buttonStyle(.borderless)
-                .help("Open in browser")
-                .accessibilityLabel("Open in browser")
-            }
-            copyButton(value)
-        }
-        .padding(.vertical, 2)
+        InspectorFieldRow(label: label, value: value, primaryAction: primaryAction)
     }
 
     private func copyButton(_ value: String) -> some View {

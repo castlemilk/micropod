@@ -1,0 +1,35 @@
+{
+  "platform": "macOS SwiftUI",
+  "updated": "2026-10-02",
+  "implementation": "Sources/MicropodApp/Views/WorkspaceComponents.swift",
+  "components": [
+    {
+      "name": "WorkspacePageHeader",
+      "purpose": "Route identity, metadata and adaptive native actions"
+    },
+    {
+      "name": "WorkspaceIconTile",
+      "purpose": "Cached template pictogram and semantic tint"
+    },
+    {
+      "name": "WorkspaceStatusBadge",
+      "purpose": "Explicit state label, with dense dot-and-text variant"
+    },
+    {
+      "name": "WorkspaceMetric",
+      "purpose": "Current tabular reading and availability detail"
+    },
+    {
+      "name": "WorkspaceBudgetMeter",
+      "purpose": "Static measured ratio; zero-cap meaning belongs to caller"
+    },
+    {
+      "name": "WorkspaceSelectionPlaceholder",
+      "purpose": "Adaptive inspector selection guidance"
+    },
+    {
+      "name": "PanelCard",
+      "purpose": "Token-backed titled section surface"
+    }
+  ]
+}

@@ -4,6 +4,26 @@ import XCTest
 @testable import MicropodCore
 
 final class ContainerCLIClientTests: XCTestCase {
+    func testSlowStreamConsumerFailsExplicitlyWithinMemoryBudget() async throws {
+        let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/bin/sh"))
+        let stream = client.stream(
+            ContainerCommand(arguments: [
+                "-c", "exec /bin/dd if=/dev/zero bs=65536 count=1024 2>/dev/null",
+            ]))
+        // Let the producer fill its queue before consuming. Overflow must
+        // terminate the producer rather than growing indefinitely or silently
+        // dropping raw bytes that may contain partial UTF-8/escape sequences.
+        try await Task.sleep(for: .milliseconds(500))
+        var retainedBytes = 0
+        do {
+            for try await chunk in stream { retainedBytes += chunk.count }
+            XCTFail("Expected the slow-consumer error")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("stream buffer"))
+        }
+        XCTAssertLessThanOrEqual(retainedBytes, 4 * 1024 * 1024)
+    }
+
     /// Metrics labels must be low-cardinality: verb (+ grouped sub-verb)
     /// only — never container names, ids, or flag values.
     func testMetricLabelStripsArguments() {

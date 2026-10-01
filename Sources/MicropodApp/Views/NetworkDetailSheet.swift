@@ -14,36 +14,48 @@ struct NetworkDetailSheet: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
                 Image(systemName: "network").foregroundStyle(Color.accentColor)
-                Text(network.id).font(.title3.weight(.semibold)).lineLimit(1).truncationMode(.middle)
-                if network.builtin { Text(String(localized: "builtin")).font(.caption2).foregroundStyle(.tertiary) }
-                Spacer()
-                if !network.builtin {
-                    Button(role: .destructive) {
-                        confirmDelete = true
-                    } label: {
-                        Label(String(localized: "Delete"), systemImage: "trash")
-                    }
-                    .controlSize(.small)
+                Text(network.id)
+                    .font(.title3.weight(.semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .help(network.id)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if network.builtin {
+                    Text(String(localized: "builtin")).font(.caption2).foregroundStyle(.tertiary)
                 }
-                Button(String(localized: "Done")) { dismiss() }.keyboardShortcut(.defaultAction).controlSize(.small)
             }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     metaSection
                     attachedSection
+                    if attachedRunning {
+                        Text(
+                            String(
+                                localized: "Containers are attached to this network. Deleting it will disconnect them.")
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    }
                 }
                 .padding(4)
             }
 
-            if attachedRunning {
-                Text(String(localized: "Containers are attached to this network. Deleting it will disconnect them."))
-                    .font(.caption)
-                    .foregroundStyle(.orange)
+            HStack {
+                if !network.builtin {
+                    Button(role: .destructive) {
+                        confirmDelete = true
+                    } label: {
+                        Label(String(localized: "Delete"), systemImage: "trash")
+                    }
+                }
+                Spacer()
+                Button(String(localized: "Done")) { dismiss() }.keyboardShortcut(.defaultAction)
             }
+            .controlSize(.small)
         }
         .padding(20)
-        .frame(width: 440, height: 420)
+        .frame(minWidth: 320, idealWidth: 440, maxWidth: 780, minHeight: 260, idealHeight: 460, maxHeight: 760)
         .confirmationDialog(
             attachedRunning ? String(localized: "Delete in-use network?") : String(localized: "Delete network?"),
             isPresented: $confirmDelete
@@ -85,17 +97,27 @@ struct NetworkDetailSheet: View {
                     .foregroundStyle(.tertiary)
             } else {
                 ForEach(attachedContainers, id: \.id) { container in
-                    HStack(spacing: 6) {
-                        Circle().fill(ContainerStateStyle.color(for: container.state)).frame(
-                            width: 6, height: 6)
-                        Text(container.id).font(.caption.monospaced()).lineLimit(1)
-                        Spacer()
-                        if !container.ipv4Address.isEmpty {
-                            Text(container.ipv4Address)
-                                .font(.caption2.monospaced())
-                                .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 6) {
+                            Circle().fill(ContainerStateStyle.color(for: container.state)).frame(width: 6, height: 6)
+                            Text(container.id)
+                                .font(.caption.monospaced())
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .help(container.id)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        Text(container.state).font(.caption2).foregroundStyle(.tertiary)
+                        HStack(spacing: 8) {
+                            if !container.ipv4Address.isEmpty {
+                                Text(container.ipv4Address)
+                                    .font(.caption2.monospaced())
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .help(container.ipv4Address)
+                            }
+                            Text(container.state).font(.caption2).foregroundStyle(.tertiary)
+                        }
+                        .padding(.leading, 12)
                     }
                     .padding(.vertical, 1)
                 }
@@ -121,19 +143,6 @@ struct NetworkDetailSheet: View {
     }
 
     private func copyRow(_ label: String, _ value: String) -> some View {
-        HStack(spacing: 8) {
-            Text(label).font(.caption).foregroundStyle(.secondary).frame(width: 100, alignment: .leading)
-            Text(value).font(.subheadline.monospaced()).lineLimit(1).textSelection(.enabled)
-            Spacer(minLength: 4)
-            Button {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(value, forType: .string)
-            } label: {
-                Image(systemName: "doc.on.doc")
-            }
-            .buttonStyle(.borderless)
-            .help(String(localized: "Copy"))
-        }
-        .padding(.vertical, 2)
+        InventoryCopyRow(label: label, value: value)
     }
 }

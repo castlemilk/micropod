@@ -75,8 +75,18 @@ struct ImagesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            WorkspacePageHeader(
+                title: "Images",
+                subtitle: "\(store.images.count) local \(store.images.count == 1 ? "image" : "images")",
+                icon: "images", fallback: "photo.stack"
+            ) {
+                imageToolbarActions
+            }
+            .padding(.horizontal, Tokens.Spacing.contentInset)
+            .padding(.vertical, Tokens.Spacing.lg)
             imagesToolbar
-                .padding(8)
+                .padding(.horizontal, Tokens.Spacing.contentInset)
+                .padding(.bottom, Tokens.Spacing.md)
 
             Divider()
 
@@ -120,6 +130,7 @@ struct ImagesView: View {
                 .listStyle(.inset)
             }
         }
+        .background(Tokens.Palette.canvas)
         .onAppear { applyFilter() }
         .onChange(of: store.images) { applyFilter() }
         .onChange(of: searchText) { applyFilter() }
@@ -223,32 +234,36 @@ struct ImagesView: View {
         return ByteFormat.string(bytes)
     }
 
-    @ViewBuilder
     private var imagesToolbar: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            imageSearchField
+            if let imageError {
+                Text(imageError)
+                    .font(Tokens.Typography.metadata)
+                    .foregroundStyle(Tokens.Palette.danger)
+                    .lineLimit(2)
+                    .help(imageError)
+            }
+        }
+    }
+
+    private var imageSearchField: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+                .font(.system(size: 11))
+            TextField("Search", text: $searchText)
+                .textFieldStyle(.plain)
+                .accessibilityLabel("Search images")
+                .accessibilityIdentifier("images.search")
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+    }
+
+    private var imageToolbarActions: some View {
         HStack(spacing: 6) {
-            HStack(spacing: 4) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                    .font(.system(size: 11))
-                TextField("Search", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .accessibilityLabel("Search images")
-                    .accessibilityIdentifier("images.search")
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
-            .frame(maxWidth: 260)
-
-            Spacer()
-
-            if let error = imageError {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .lineLimit(1)
-            }
-
             Button {
                 if !reduceMotion { refreshTicks += 1 }
                 Task { await store.refreshImages() }
@@ -298,7 +313,9 @@ struct ImagesView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
+            .tint(Tokens.Palette.action)
         }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var selectedImage: Micropod_V1_Image? {
@@ -398,32 +415,41 @@ struct ImageRowView: View, @MainActor Equatable {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 10) {
-                Image(systemName: "photo.stack")
-                    .foregroundStyle(.secondary)
+                WorkspaceIconTile(name: "images", size: 30, iconSize: 17, fallback: "photo.stack")
                 VStack(alignment: .leading, spacing: 2) {
                     Text(primaryName)
-                        .font(.callout.weight(.medium))
+                        .font(Tokens.Typography.body.weight(.medium))
                         .lineLimit(1)
+                        .truncationMode(.middle)
+                        .help(primaryName)
                         .textSelection(.enabled)
                     HStack(spacing: 6) {
                         Text(platformSummary)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .font(Tokens.Typography.metadata)
+                            .foregroundStyle(Tokens.Palette.secondary)
+                            .lineLimit(1)
+                            .help(platformSummary)
                         if !image.digest.isEmpty {
                             Text(String(image.digest.prefix(19)))
-                                .font(.caption2.monospaced())
-                                .foregroundStyle(.tertiary)
+                                .font(Tokens.Typography.metadata.monospaced())
+                                .foregroundStyle(Tokens.Palette.tertiary)
+                                .lineLimit(1)
+                                .help(image.digest)
                         }
                     }
                 }
-                Spacer()
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                Spacer(minLength: 4)
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(ByteFormat.string(image.sizeBytes))
-                        .font(.caption.monospacedDigit())
+                        .font(Tokens.Typography.body.monospacedDigit())
                     Text(image.createdAt)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .font(Tokens.Typography.metadata)
+                        .foregroundStyle(Tokens.Palette.tertiary)
+                        .lineLimit(1)
+                        .help(image.createdAt)
                 }
+                .frame(width: 100, alignment: .trailing)
                 if image.variants.count > 1 {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 9))
@@ -514,7 +540,7 @@ struct PullImageSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 420)
+        .frame(minWidth: 320, idealWidth: 420, maxWidth: 640)
     }
 }
 
@@ -532,6 +558,9 @@ struct TagImageSheet: View {
                 Text("Source").font(.caption).frame(width: 60, alignment: .leading)
                 Text(image?.names.first ?? image?.id ?? "")
                     .font(.caption.monospaced())
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                    .help(image?.names.first ?? image?.id ?? "")
             }
             HStack {
                 Text("Target").font(.caption).frame(width: 60, alignment: .leading)
@@ -557,7 +586,7 @@ struct TagImageSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 460)
+        .frame(minWidth: 320, idealWidth: 460, maxWidth: 640)
     }
 }
 
@@ -591,6 +620,9 @@ struct PullProgressSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Pulling \(reference)").font(.title3.weight(.semibold))
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                    .help(reference)
                 Spacer()
                 if let op, case .running = op.status {
                     Button {
@@ -618,25 +650,28 @@ struct PullProgressSheet: View {
                 ProgressView().controlSize(.small)
             }
             ScrollView {
-                Text(events.joined(separator: "\n"))
-                    .font(.footnote.monospaced())
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .frame(maxHeight: 200)
-            .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 6))
-            if failed {
-                Label("Pull failed", systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.red)
-                if case .failed(let reason) = op?.status {
-                    Text(reason)
-                        .font(.caption)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(events.joined(separator: "\n"))
+                        .font(.footnote.monospaced())
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(8)
-                        .background(.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
+                    if failed {
+                        Label("Pull failed", systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.red)
+                        if case .failed(let reason) = op?.status {
+                            Text(reason)
+                                .font(.caption)
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(8)
+                                .background(.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
+                        }
+                    }
                 }
+                .padding(8)
             }
+            .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 6))
             HStack {
                 Spacer()
                 Button(finished ? "Done" : "Dismiss") { dismiss() }
@@ -644,6 +679,6 @@ struct PullProgressSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 480)
+        .frame(minWidth: 320, idealWidth: 480, maxWidth: 780, minHeight: 240, idealHeight: 360, maxHeight: 680)
     }
 }

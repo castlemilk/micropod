@@ -31,16 +31,26 @@ struct ChartTimeWindowPicker: View {
     @Binding var window: ChartTimeWindow
 
     var body: some View {
+        ViewThatFits(in: .horizontal) {
+            picker
+                .pickerStyle(.segmented)
+                .fixedSize(horizontal: true, vertical: false)
+            picker
+                .pickerStyle(.menu)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .frame(maxWidth: 360)
+        .help("Chart time window")
+        .accessibilityLabel("Chart time window")
+    }
+
+    private var picker: some View {
         Picker("Time window", selection: $window) {
             ForEach(ChartTimeWindow.allCases) { w in
                 Text(w.rawValue).tag(w)
             }
         }
-        .pickerStyle(.segmented)
         .labelsHidden()
-        .frame(maxWidth: 360)
-        .help("Chart time window")
-        .accessibilityLabel("Chart time window")
     }
 }
 

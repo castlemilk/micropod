@@ -1,0 +1,278 @@
+{
+  "name": "Micropod \u2014 operational icon set",
+  "version": "1.0.0-concept",
+  "created": "2026-10-01",
+  "count": 24,
+  "geometry": {
+    "viewBox": [
+      0,
+      0,
+      24,
+      24
+    ],
+    "strokeWidth": 1.75,
+    "strokeUnits": "SVG user units at a 24px render size",
+    "linecap": "round",
+    "linejoin": "round",
+    "fill": "none",
+    "stroke": "currentColor",
+    "minimumPaintedMargin": 2
+  },
+  "colors": {
+    "accent": "#0A84FF",
+    "lightInk": "#2A2D32",
+    "lightSurface": "#F4F3EF",
+    "darkInk": "#D8DCE3",
+    "darkSurface": "#171A1F"
+  },
+  "provenance": "Original project-local geometry authored for Micropod; not extracted from an icon library.",
+  "validation": {
+    "xml": "passed",
+    "geometricBounds": "passed including half-stroke allowance",
+    "iconFileCount": "24",
+    "visualRendering": "AppKit SVG decoding and PNG rendering verified and visually reviewed for all 24 icons at 28px, in both light and dark; small operational sizes and native app integration remain untested.",
+    "sfSymbolNames": "proposed; unverified against SF Symbols or minimum macOS version"
+  },
+  "icons": [
+    {
+      "id": "workloads",
+      "file": "workloads.svg",
+      "label": "Workloads",
+      "semantics": "All running and stopped containers and microVMs.",
+      "sfSymbolFallback": {
+        "name": "square.stack.3d.up",
+        "verified": false
+      }
+    },
+    {
+      "id": "container",
+      "file": "container.svg",
+      "label": "Container",
+      "semantics": "A single container workload.",
+      "sfSymbolFallback": {
+        "name": "shippingbox",
+        "verified": false
+      }
+    },
+    {
+      "id": "microvm",
+      "file": "microvm.svg",
+      "label": "MicroVM",
+      "semantics": "A lightweight virtual machine and its guest runtime.",
+      "sfSymbolFallback": {
+        "name": "desktopcomputer",
+        "verified": false
+      }
+    },
+    {
+      "id": "stack",
+      "file": "stack.svg",
+      "label": "Stack",
+      "semantics": "A project or compose group containing several workloads.",
+      "sfSymbolFallback": {
+        "name": "square.3.layers.3d",
+        "verified": false
+      }
+    },
+    {
+      "id": "images",
+      "file": "images.svg",
+      "label": "Images",
+      "semantics": "Local or registry container images and their layers.",
+      "sfSymbolFallback": {
+        "name": "square.stack",
+        "verified": false
+      }
+    },
+    {
+      "id": "cache",
+      "file": "cache.svg",
+      "label": "Cache",
+      "semantics": "Shared build and runtime cache inventory.",
+      "sfSymbolFallback": {
+        "name": "externaldrive",
+        "verified": false
+      }
+    },
+    {
+      "id": "cache-hit",
+      "file": "cache-hit.svg",
+      "label": "Cache hit",
+      "semantics": "A build step reused a compatible cached result.",
+      "sfSymbolFallback": {
+        "name": "checkmark.circle",
+        "verified": false
+      }
+    },
+    {
+      "id": "cache-warm",
+      "file": "cache-warm.svg",
+      "label": "Warm cache",
+      "semantics": "Frequently used layers are retained or preloaded.",
+      "sfSymbolFallback": {
+        "name": "flame",
+        "verified": false
+      }
+    },
+    {
+      "id": "cache-pin",
+      "file": "cache-pin.svg",
+      "label": "Pinned cache",
+      "semantics": "Keep selected cache data beyond automatic eviction.",
+      "sfSymbolFallback": {
+        "name": "pin",
+        "verified": false
+      }
+    },
+    {
+      "id": "cache-clean",
+      "file": "cache-clean.svg",
+      "label": "Clean cache",
+      "semantics": "Review and reclaim eligible cached data.",
+      "sfSymbolFallback": {
+        "name": "sparkles",
+        "verified": false
+      }
+    },
+    {
+      "id": "cpu",
+      "file": "cpu.svg",
+      "label": "CPU",
+      "semantics": "Host or guest processor utilization and allocation.",
+      "sfSymbolFallback": {
+        "name": "cpu",
+        "verified": false
+      }
+    },
+    {
+      "id": "memory",
+      "file": "memory.svg",
+      "label": "Memory",
+      "semantics": "Used, available, and assigned RAM.",
+      "sfSymbolFallback": {
+        "name": "memorychip",
+        "verified": false
+      }
+    },
+    {
+      "id": "storage",
+      "file": "storage.svg",
+      "label": "Storage",
+      "semantics": "Disk utilization, volumes, and virtual disks.",
+      "sfSymbolFallback": {
+        "name": "internaldrive",
+        "verified": false
+      }
+    },
+    {
+      "id": "network",
+      "file": "network.svg",
+      "label": "Network",
+      "semantics": "Workload networking, ports, and transfer activity.",
+      "sfSymbolFallback": {
+        "name": "network",
+        "verified": false
+      }
+    },
+    {
+      "id": "logs",
+      "file": "logs.svg",
+      "label": "Logs",
+      "semantics": "Timestamped workload output and events.",
+      "sfSymbolFallback": {
+        "name": "text.alignleft",
+        "verified": false
+      }
+    },
+    {
+      "id": "terminal",
+      "file": "terminal.svg",
+      "label": "Terminal",
+      "semantics": "Open an interactive shell inside a workload.",
+      "sfSymbolFallback": {
+        "name": "terminal",
+        "verified": false
+      }
+    },
+    {
+      "id": "play",
+      "file": "play.svg",
+      "label": "Start",
+      "semantics": "Start a stopped workload or resume a suspended guest.",
+      "sfSymbolFallback": {
+        "name": "play",
+        "verified": false
+      }
+    },
+    {
+      "id": "stop",
+      "file": "stop.svg",
+      "label": "Stop",
+      "semantics": "Gracefully stop a running workload.",
+      "sfSymbolFallback": {
+        "name": "stop",
+        "verified": false
+      }
+    },
+    {
+      "id": "restart",
+      "file": "restart.svg",
+      "label": "Restart",
+      "semantics": "Stop and restart a workload with its existing configuration.",
+      "sfSymbolFallback": {
+        "name": "arrow.clockwise",
+        "verified": false
+      }
+    },
+    {
+      "id": "search",
+      "file": "search.svg",
+      "label": "Search",
+      "semantics": "Filter the current list or invoke global workload search.",
+      "sfSymbolFallback": {
+        "name": "magnifyingglass",
+        "verified": false
+      }
+    },
+    {
+      "id": "settings",
+      "file": "settings.svg",
+      "label": "Settings",
+      "semantics": "Configure host resources and Micropod preferences.",
+      "sfSymbolFallback": {
+        "name": "gearshape",
+        "verified": false
+      }
+    },
+    {
+      "id": "external-link",
+      "file": "external-link.svg",
+      "label": "Open externally",
+      "semantics": "Open a linked endpoint, registry, or documentation in its associated app.",
+      "sfSymbolFallback": {
+        "name": "arrow.up.right.square",
+        "verified": false
+      }
+    },
+    {
+      "id": "download",
+      "file": "download.svg",
+      "label": "Download",
+      "semantics": "Pull an image or download an exported artifact.",
+      "sfSymbolFallback": {
+        "name": "arrow.down.to.line",
+        "verified": false
+      }
+    },
+    {
+      "id": "activity",
+      "file": "activity.svg",
+      "label": "Activity",
+      "semantics": "Live utilization, workload events, or transfer activity.",
+      "sfSymbolFallback": {
+        "name": "waveform.path",
+        "verified": false
+      }
+    }
+  ]
+}

@@ -1,5 +1,28 @@
 import SwiftUI
 
+/// Keeps related controls together, stacking them when their natural widths
+/// exceed the pane. The compact layout lets text wrap without shrinking buttons.
+struct ResponsiveRow<Leading: View, Trailing: View>: View {
+    var spacing: CGFloat = 12
+    @ViewBuilder let leading: () -> Leading
+    @ViewBuilder let trailing: () -> Trailing
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: spacing) {
+                leading().fixedSize(horizontal: true, vertical: false)
+                Spacer(minLength: spacing)
+                trailing().fixedSize(horizontal: true, vertical: false)
+            }
+            VStack(alignment: .leading, spacing: spacing) {
+                leading().fixedSize(horizontal: false, vertical: true)
+                trailing()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
 /// Shared "card" visual language for the whole app — menu bar popover,
 /// dashboard sections, resource tiles. One treatment everywhere: a raised
 /// `controlBackgroundColor` fill with a hairline separator stroke and
@@ -13,10 +36,10 @@ extension View {
     func cardSurface(cornerRadius: CGFloat = 10, fillOpacity: Double = 0.65) -> some View {
         background {
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor).opacity(fillOpacity))
+                .fill(Tokens.Palette.surface.opacity(fillOpacity))
                 .overlay {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5)
+                        .strokeBorder(Tokens.Palette.separator, lineWidth: 0.5)
                 }
         }
     }
@@ -26,24 +49,44 @@ extension View {
 /// matches the rest of the app).
 struct PanelCard<Content: View>: View {
     var title: String? = nil
+    var icon: String? = nil
+    var subtitle: String? = nil
     @ViewBuilder var content: () -> Content
 
-    init(title: String? = nil, @ViewBuilder content: @escaping () -> Content) {
+    init(
+        title: String? = nil, icon: String? = nil, subtitle: String? = nil,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
         self.title = title
+        self.icon = icon
+        self.subtitle = subtitle
         self.content = content
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Tokens.Spacing.md) {
             if let title {
-                Text(title)
-                    .font(.headline)
+                HStack(spacing: Tokens.Spacing.sm) {
+                    if let icon {
+                        WorkspaceIcon(name: icon, size: 16)
+                            .foregroundStyle(Tokens.Palette.secondary)
+                    }
+                    Text(title)
+                        .font(Tokens.Typography.section)
+                        .foregroundStyle(Tokens.Palette.primary)
+                        .accessibilityAddTraits(.isHeader)
+                }
+            }
+            if let subtitle {
+                Text(subtitle)
+                    .font(Tokens.Typography.metadata)
+                    .foregroundStyle(Tokens.Palette.secondary)
             }
             content()
         }
-        .padding(12)
+        .padding(Tokens.Spacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .cardSurface(cornerRadius: 12, fillOpacity: 1)
+        .cardSurface(cornerRadius: Tokens.Radius.lg, fillOpacity: 1)
     }
 }
 
@@ -62,43 +105,5 @@ struct StatusDot: View {
             .font(.system(size: size))
             .foregroundStyle(color)
             .symbolEffect(.breathe, isActive: active && !reduceMotion)
-    }
-}
-
-/// Control Center-style action tile used in the menu bar and dashboard:
-/// tinted rounded fill + leading icon. `prominent` swaps the fill to the
-/// accent color for the single primary action.
-struct TileButton: View {
-    let title: String
-    let icon: String
-    var prominent = false
-    var horizontalPadding: CGFloat = 10
-    var action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: AppIcon.sfName(for: icon))
-                    .font(.system(size: 11, weight: .medium))
-                Text(title)
-                    .font(.caption.weight(.medium))
-                    .lineLimit(1)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(prominent ? .white : .primary)
-            .padding(.horizontal, horizontalPadding)
-            .padding(.vertical, 7)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(
-                        prominent
-                            ? Color.accentColor
-                            : Color(nsColor: .controlBackgroundColor).opacity(0.75))
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        }
-        .buttonStyle(.plain)
     }
 }

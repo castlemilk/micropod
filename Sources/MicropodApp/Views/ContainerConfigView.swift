@@ -7,69 +7,141 @@ struct ContainerConfigView: View {
 
     var body: some View {
         ScrollView {
-            Form {
-                Section("Identity") {
-                    LabeledContent("ID", value: container.id)
-                    LabeledContent("Image", value: container.image)
-                    LabeledContent("Created", value: container.createdAt)
-                    LabeledContent("Runtime", value: container.runtimeHandler)
+            VStack(alignment: .leading, spacing: 16) {
+                configSection("Identity") {
+                    InspectorFieldRow(label: "ID", value: container.id)
+                    InspectorFieldRow(label: "Image", value: container.image)
+                    InspectorFieldRow(label: "Created", value: container.createdAt)
+                    InspectorFieldRow(label: "Runtime", value: container.runtimeHandler)
                 }
-                Section("Resources") {
-                    LabeledContent(
-                        "CPUs", value: container.resources.cpus > 0 ? "\(container.resources.cpus)" : "default")
-                    LabeledContent(
-                        "Memory",
+                configSection("Resources") {
+                    InspectorFieldRow(
+                        label: "CPUs", value: container.resources.cpus > 0 ? "\(container.resources.cpus)" : "default")
+                    InspectorFieldRow(
+                        label: "Memory",
                         value: container.resources.memoryBytes > 0
                             ? ByteFormat.string(container.resources.memoryBytes) : "default")
                 }
-                Section("Networking") {
-                    LabeledContent(
-                        "Networks", value: container.networks.isEmpty ? "—" : container.networks.joined(separator: ", ")
+                configSection("Networking") {
+                    InspectorFieldRow(
+                        label: "Networks",
+                        value: container.networks.isEmpty ? "—" : container.networks.joined(separator: ", ")
                     )
-                    LabeledContent("IPv4", value: container.ipv4Address.isEmpty ? "—" : container.ipv4Address)
+                    InspectorFieldRow(label: "IPv4", value: container.ipv4Address.isEmpty ? "—" : container.ipv4Address)
                     if !container.publishedPorts.isEmpty {
                         ForEach(Array(container.publishedPorts.enumerated()), id: \.offset) { _, port in
-                            LabeledContent(
-                                "Published", value: "\(port.hostPort):\(port.containerPort)/\(port.protocol)")
+                            InspectorFieldRow(
+                                label: "Published", value: "\(port.hostPort):\(port.containerPort)/\(port.protocol)")
                         }
                     }
                 }
-                Section("Flags") {
-                    LabeledContent("Rosetta", value: container.rosetta ? "on" : "off")
-                    LabeledContent("Read-only", value: container.readOnly ? "on" : "off")
-                    LabeledContent("Init", value: container.useInit ? "on" : "off")
-                    LabeledContent("SSH forward", value: container.ssh ? "on" : "off")
-                    LabeledContent("Virtualization", value: container.virtualization ? "on" : "off")
+                configSection("Flags") {
+                    InspectorFieldRow(label: "Rosetta", value: container.rosetta ? "on" : "off")
+                    InspectorFieldRow(label: "Read-only", value: container.readOnly ? "on" : "off")
+                    InspectorFieldRow(label: "Init", value: container.useInit ? "on" : "off")
+                    InspectorFieldRow(label: "SSH forward", value: container.ssh ? "on" : "off")
+                    InspectorFieldRow(label: "Virtualization", value: container.virtualization ? "on" : "off")
                 }
                 if !container.env.isEmpty {
-                    Section("Environment") {
+                    configSection("Environment") {
                         ForEach(Array(container.env.enumerated()), id: \.offset) { _, line in
-                            Text(line)
-                                .font(.subheadline.monospaced())
-                                .textSelection(.enabled)
+                            InspectorFieldRow(label: "Variable", value: line)
                         }
                     }
                 }
                 if !container.mounts.isEmpty {
-                    Section("Mounts") {
+                    configSection("Mounts") {
                         ForEach(Array(container.mounts.enumerated()), id: \.offset) { _, mount in
-                            LabeledContent(
-                                "\(mount.destination)",
+                            InspectorFieldRow(
+                                label: "\(mount.destination)",
                                 value: mount.source.isEmpty
                                     ? mount.type : "\(mount.source) (\(mount.type))\(mount.readOnly ? " ro" : "")")
                         }
                     }
                 }
                 if !container.labels.isEmpty {
-                    Section("Labels") {
+                    configSection("Labels") {
                         ForEach(Array(container.labels.keys.sorted()), id: \.self) { key in
-                            LabeledContent(key, value: container.labels[key] ?? "")
+                            InspectorFieldRow(label: key, value: container.labels[key] ?? "")
                         }
                     }
                 }
             }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private func configSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(Tokens.Typography.section).foregroundStyle(Tokens.Palette.secondary)
+            VStack(alignment: .leading, spacing: 6, content: content)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Tokens.Palette.surface, in: RoundedRectangle(cornerRadius: Tokens.Radius.md))
+        }
+    }
+}
+
+/// Inspector fields use a horizontal row only when the complete label and value fit.
+/// The compact layout wraps long paths and identifiers, without hiding their copy action.
+struct InspectorFieldRow: View {
+    let label: String
+    let value: String
+    var primaryAction: (() -> Void)? = nil
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 8) {
+                labelText.frame(width: 90, alignment: .leading)
+                valueText.fixedSize(horizontal: true, vertical: false)
+                Spacer(minLength: 4)
+                actions
+            }
+            .fixedSize(horizontal: true, vertical: false)
+            VStack(alignment: .leading, spacing: 3) {
+                labelText
+                HStack(alignment: .top, spacing: 8) {
+                    valueText.frame(maxWidth: .infinity, alignment: .leading)
+                    actions
+                }
+            }
+        }
+        .padding(.vertical, 3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var labelText: some View {
+        Text(label).font(.caption).foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .textSelection(.enabled)
+    }
+
+    private var valueText: some View {
+        Text(value.isEmpty ? "—" : value)
+            .font(.subheadline.monospaced())
+            .fixedSize(horizontal: false, vertical: true)
+            .textSelection(.enabled)
+    }
+
+    private var actions: some View {
+        HStack(spacing: 8) {
+            if let primaryAction {
+                Button(action: primaryAction) { Image(systemName: "safari") }
+                    .buttonStyle(.borderless)
+                    .help("Open in browser")
+                    .accessibilityLabel("Open in browser")
+            }
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(value, forType: .string)
+            } label: {
+                Image(systemName: "doc.on.doc")
+            }
+            .buttonStyle(.borderless)
+            .help("Copy \(label)")
+            .accessibilityLabel("Copy \(label)")
+        }
+        .fixedSize()
     }
 }

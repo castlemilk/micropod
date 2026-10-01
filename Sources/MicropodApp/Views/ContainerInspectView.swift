@@ -14,27 +14,54 @@ struct ContainerInspectView: View {
         self.loadData = loadData
     }
 
-    @State private var json: String?
+    @State private var document: InspectionDocument?
     @State private var errorMessage: String?
 
     var body: some View {
-        Group {
-            if let json {
-                ScrollView {
-                    Text(json)
-                        .font(.subheadline.monospaced())
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(12)
+        VStack(spacing: 0) {
+            HStack {
+                Text("Inspect JSON").font(Tokens.Typography.metadata).foregroundStyle(.secondary)
+                Spacer(minLength: 8)
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(document?.text ?? "", forType: .string)
+                } label: {
+                    IconLabel(title: "Copy", icon: "copy", fallback: "doc.on.doc")
                 }
-            } else if let errorMessage {
-                ContentUnavailableView(
-                    "Inspect Failed", systemImage: "exclamationmark.triangle", description: Text(errorMessage))
-            } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(document == nil)
+                .help("Copy complete JSON")
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            Divider()
+            Group {
+                if let document {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(document.lines.indices, id: \.self) { index in
+                                Text(String(document.lines[index]))
+                                    .font(Tokens.Typography.log)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                        .padding(12)
+                    }
+                } else if let errorMessage {
+                    ContentUnavailableView(
+                        "Inspect Failed", systemImage: "exclamationmark.triangle", description: Text(errorMessage))
+                } else {
+                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .task {
+        .task(id: containerID) {
+            document = nil
+            errorMessage = nil
             do {
                 let data: Data
                 if let loadData {
@@ -42,24 +69,12 @@ struct ContainerInspectView: View {
                 } else {
                     data = try await store.dependencies.containers.inspect(containerID)
                 }
-                let object = try JSONSerialization.jsonObject(with: data)
-                let pretty = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
-                json = String(data: pretty, encoding: .utf8)
+                guard !Task.isCancelled else { return }
+                let formatted = try await InspectionDocument.format(data)
+                guard !Task.isCancelled else { return }
+                document = formatted
             } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
-        .overlay(alignment: .bottomTrailing) {
-            if json != nil {
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(json ?? "", forType: .string)
-                } label: {
-                    IconLabel(title: "Copy", icon: "copy", fallback: "doc.on.doc")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .padding(12)
+                if !Task.isCancelled { errorMessage = error.localizedDescription }
             }
         }
     }

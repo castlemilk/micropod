@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Micropod · Native implementation</title>
+<style>
+:root{color-scheme:dark;--bg:#151719;--card:#1f2328;--ink:#f3f5f7;--muted:#b8c0cc;--line:#3d4652;--link:#73b6ff}
+:root[data-theme=light]{color-scheme:light;--bg:#f5f5f3;--card:#fff;--ink:#1d242d;--muted:#4e5a69;--line:#d7dbe0;--link:#0067cf}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 -apple-system,BlinkMacSystemFont,sans-serif}main{max-width:1280px;margin:auto;padding:32px}header{display:flex;justify-content:space-between;align-items:center;gap:24px;border-bottom:1px solid var(--line);padding-bottom:24px}h1{margin:6px 0;font-size:28px;letter-spacing:-.6px}h2{font-size:18px;margin:32px 0 8px}p{color:var(--muted);max-width:780px;margin:8px 0 20px}a{color:var(--link)}button{font:inherit;color:var(--ink);border:1px solid var(--line);border-radius:7px;background:var(--card);padding:6px 12px;cursor:pointer}a:focus-visible,button:focus-visible{outline:3px solid var(--link);outline-offset:4px}figure{margin:0;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:10px}img{display:block;width:100%;height:auto}figcaption{color:var(--muted);font-size:12px;margin-top:12px}.pair{display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start}.tray{max-width:360px;margin:auto}.meta{font-size:12px;color:var(--muted)}footer{margin-top:32px;border-top:1px solid var(--line);padding-top:20px}@media(max-width:800px){main{padding:20px}.pair{grid-template-columns:1fr}header{align-items:start}h1{font-size:24px}}
+</style>
+</head>
+<body><main>
+<p><a href="responsive/index.html">Explore all responsive layouts →</a></p>
+<header><div><a href="../index.html">← Design kit</a><h1>Micropod, implemented.</h1><div class="meta">Native SwiftUI window and menu bar · macOS</div></div><button id="theme" type="button" aria-pressed="false">View light mode</button></header>
+<p>These are native component renders from the implemented app, using isolated test fixtures. They show layout and states; the running app reads your real workload and cache inventory.</p>
+<h2>A shared native component family</h2><p>Page headers, generated pictograms, explicit states, measured readings and static cache meters now share the same visual language across every workspace and the tray.</p>
+<figure><img data-light="components-light.png" data-dark="components-dark.png" src="components-dark.png" alt="Implemented Micropod components with state badges, current readings, empty and over-cap cache meters and original operational pictograms"><figcaption>Actual SwiftUI components with illustrative values. See the <a href="../refinement.md">2 October visual review</a> for adoption and validation.</figcaption></figure>
+<h2>One workload workspace</h2><p>Search and group containers and persistent MicroVMs while inspecting logs, metrics, files and configuration. Missing readings remain unavailable.</p>
+<figure><img data-light="micropod-native-main-light.png" data-dark="micropod-native-main-dark.png" src="micropod-native-main-dark.png" alt="Implemented Micropod workload workspace with project groups, consumed CPU cores and a logs inspector"><figcaption>1280 × 820 pt window content. Native inactive-window styling is visible in these test renders. Log streams are not seeded in the synchronous raster fixture.</figcaption></figure>
+<h2>A quick glance, and a useful small window</h2><div class="pair">
+<figure><img class="tray" data-light="micropod-tray-populated-light.png" data-dark="micropod-tray-populated-dark.png" src="micropod-tray-populated-dark.png" alt="Implemented 360 point menu bar panel showing workload shortcuts, measured resources and separate cache budgets"><figcaption>Tray shortcuts open the exact inspector. Partial measured totals are lower bounds. Runtime stopping confirms when Apple workloads are running.</figcaption></figure>
+<figure><img data-light="micropod-native-main-minimum-light.png" data-dark="micropod-native-main-minimum-dark.png" src="micropod-native-main-minimum-dark.png" alt="Implemented Micropod at its 720 by 460 point minimum window size"><figcaption>The compact rail scrolls, badges stay within bounds, and the inspector opens separately from the workload list.</figcaption></figure>
+</div>
+<h2>Measured local caches</h2><p>Build contexts expose their retained manifests. Package caching supports persistent Keep and reviewed cleanup, coordinated with the owning daemon.</p>
+<figure><img data-light="micropod-native-cache-light.png" data-dark="micropod-native-cache-dark.png" src="micropod-native-cache-dark.png" alt="Implemented cache workspace with separate context and package budgets, retained build contexts and active mounts"><figcaption>Logical retained content and stored chunk data are separate measurements. Build-context inventory is read-only; physical APFS savings are not inferred.</figcaption></figure>
+<footer><a href="../implementation.md">Implementation and validation notes</a> · <a href="../design-system.md">Design system</a></footer>
+</main><script>
+const button=document.getElementById('theme');button.addEventListener('click',()=>{const light=document.documentElement.dataset.theme!=='light';document.documentElement.dataset.theme=light?'light':'dark';button.textContent=light?'View dark mode':'View light mode';button.setAttribute('aria-pressed',String(light));document.querySelectorAll('img[data-light]').forEach(img=>{img.src=img.dataset[light?'light':'dark'];});});
+</script></body></html>

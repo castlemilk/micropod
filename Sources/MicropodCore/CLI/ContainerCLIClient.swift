@@ -196,7 +196,7 @@ public struct ContainerCLIClient: Sendable {
     public func stream(_ command: ContainerCommand, reportExitCode: Bool = false)
         -> AsyncThrowingStream<Data, Error>
     {
-        AsyncThrowingStream { continuation in
+        AsyncThrowingStream(bufferingPolicy: .bufferingOldest(64)) { continuation in
             let process = Process()
             process.executableURL = executableURL
             process.arguments = command.arguments
@@ -229,13 +229,32 @@ public struct ContainerCLIClient: Sendable {
                 // to a long-lived pipe (verified against the real runtime);
                 // readabilityHandler is the reliable async callback.
                 handle.readabilityHandler = { h in
-                    let data = h.availableData
+                    let data: Data
+                    do {
+                        data = try h.read(upToCount: 64 * 1024) ?? Data()
+                    } catch {
+                        h.readabilityHandler = nil
+                        try? h.close()
+                        eof.runOnce { drained.leave() }
+                        cancellation.cancel()
+                        gate.runOnce { continuation.finish(throwing: error) }
+                        return
+                    }
                     if data.isEmpty {
                         h.readabilityHandler = nil
                         try? h.close()
                         eof.runOnce { drained.leave() }
                     } else {
-                        continuation.yield(data)
+                        if case .dropped = continuation.yield(data) {
+                            // Raw bytes cannot be dropped without corrupting UTF-8,
+                            // terminal escapes or build progress. Stop explicitly.
+                            cancellation.cancel()
+                            gate.runOnce {
+                                continuation.finish(
+                                    throwing: MicropodError.message(
+                                        "Output exceeded the 4 MiB stream buffer; the consumer could not keep up."))
+                            }
+                        }
                     }
                 }
             }

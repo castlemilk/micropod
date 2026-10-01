@@ -1,0 +1,289 @@
+{
+  "individualIconCount": 24,
+  "xmlParsing": "passed, including contact-sheet.svg",
+  "requiredProperties": "passed",
+  "boundsMethod": "Analytic line endpoints, cubic extrema, elliptical-arc extrema and primitive bounds; conservative half-stroke expansion for round caps/joins.",
+  "minimumRequiredPaintedMargin": 2,
+  "sfSymbolValidation": "Not performed; all names are proposed and unverified.",
+  "runtimeVisualValidation": {
+    "renderer": "macOS AppKit NSImage SVG decoder and NSBitmapImageRep PNG output",
+    "preview": "contact-sheet.png",
+    "canvasPixels": [
+      1440,
+      1250
+    ],
+    "displayedIconSize": 28,
+    "review": "All 24 symbols inspected in light and dark treatments. No clipping or inconsistent stroke rendering observed. Cache variants require accompanying labels for recognition.",
+    "limitations": [
+      "16\u201318 px operational icons not visually verified in this pass.",
+      "SwiftUI/AppKit template asset integration not tested.",
+      "SF Symbol fallback names remain unverified."
+    ]
+  },
+  "icons": [
+    {
+      "file": "activity.svg",
+      "paintedBounds": [
+        2.125,
+        2.125,
+        21.875,
+        21.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "cache-clean.svg",
+      "paintedBounds": [
+        2.125,
+        3.125,
+        21.875,
+        20.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "cache-hit.svg",
+      "paintedBounds": [
+        2.125,
+        3.125,
+        21.875,
+        20.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "cache-pin.svg",
+      "paintedBounds": [
+        2.125,
+        3.125,
+        21.875,
+        20.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "cache-warm.svg",
+      "paintedBounds": [
+        2.125,
+        3.125,
+        21.875,
+        20.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "cache.svg",
+      "paintedBounds": [
+        2.125,
+        3.125,
+        21.875,
+        20.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "container.svg",
+      "paintedBounds": [
+        2.125,
+        2.125,
+        21.875,
+        21.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "cpu.svg",
+      "paintedBounds": [
+        2.125,
+        2.125,
+        21.875,
+        21.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "download.svg",
+      "paintedBounds": [
+        2.125,
+        2.125,
+        21.875,
+        21.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "external-link.svg",
+      "paintedBounds": [
+        2.125,
+        2.125,
+        21.875,
+        21.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "images.svg",
+      "paintedBounds": [
+        2.125,
+        2.125,
+        21.875,
+        21.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "logs.svg",
+      "paintedBounds": [
+        2.125,
+        2.125,
+        21.875,
+        21.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "memory.svg",
+      "paintedBounds": [
+        2.125,
+        6.125,
+        21.875,
+        21.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "microvm.svg",
+      "paintedBounds": [
+        2.125,
+        2.125,
+        21.875,
+        21.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "network.svg",
+      "paintedBounds": [
+        2.125,
+        2.125,
+        21.875,
+        21.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "play.svg",
+      "paintedBounds": [
+        6.125,
+        3.125,
+        21.875,
+        20.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "restart.svg",
+      "paintedBounds": [
+        2.65274,
+        2.625,
+        21.375,
+        21.42659
+      ],
+      "minimumMargin": 2.57341,
+      "passed": true
+    },
+    {
+      "file": "search.svg",
+      "paintedBounds": [
+        2.125,
+        2.125,
+        21.875,
+        21.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "settings.svg",
+      "paintedBounds": [
+        2.125,
+        2.125,
+        21.875,
+        21.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "stack.svg",
+      "paintedBounds": [
+        2.125,
+        2.125,
+        21.875,
+        21.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "stop.svg",
+      "paintedBounds": [
+        4.125,
+        4.125,
+        19.875,
+        19.875
+      ],
+      "minimumMargin": 4.125,
+      "passed": true
+    },
+    {
+      "file": "storage.svg",
+      "paintedBounds": [
+        2.125,
+        2.125,
+        21.875,
+        21.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "terminal.svg",
+      "paintedBounds": [
+        2.125,
+        3.125,
+        21.875,
+        20.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    },
+    {
+      "file": "workloads.svg",
+      "paintedBounds": [
+        2.125,
+        2.125,
+        21.875,
+        21.875
+      ],
+      "minimumMargin": 2.125,
+      "passed": true
+    }
+  ]
+}
