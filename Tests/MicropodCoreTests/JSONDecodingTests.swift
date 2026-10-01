@@ -54,6 +54,13 @@ final class JSONDecodingTests: XCTestCase {
         XCTAssertEqual(entries[0].memoryLimitBytes, 1073741824)
         XCTAssertEqual(entries[0].numProcesses, 1)
         XCTAssertEqual(entries[0].cpuUsageUsec, 5121)
+
+        // The CLI and native samplers share this mapping onto the wire type.
+        let stats = Micropod_V1_ContainerStats(entry: entries[0])
+        XCTAssertEqual(stats.cpuUsageUsec, 5121)
+        XCTAssertEqual(stats.memoryUsedBytes, 4055040)
+        XCTAssertEqual(stats.pids, 1)
+        XCTAssertFalse(stats.hasOomKillCount, "the CLI entry carries no OOM counter")
     }
 
     func testStatsEmptyArray() throws {

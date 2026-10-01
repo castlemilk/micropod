@@ -1098,7 +1098,21 @@ type ContainerStats struct {
 	// Bytes written to the block device.
 	BlockWriteBytes uint64 `protobuf:"varint,8,opt,name=block_write_bytes,json=blockWriteBytes,proto3" json:"block_write_bytes,omitempty"`
 	// Number of processes inside the container.
-	Pids          uint64 `protobuf:"varint,9,opt,name=pids,proto3" json:"pids,omitempty"`
+	Pids uint64 `protobuf:"varint,9,opt,name=pids,proto3" json:"pids,omitempty"`
+	// Cumulative CPU time consumed by the container since it started, in
+	// microseconds (cgroup `cpu.stat` usage_usec), summed across cores.
+	// Exact on every sample, including the first one for an id (unlike
+	// `cpu_percent`, which is a delta and reads 0 until a baseline exists),
+	// so callers can compute their own rates. 0 = not reported by the
+	// backend (the Docker engine reports its own `cpu_usage.total_usage`
+	// converted from nanoseconds).
+	CpuUsageUsec uint64 `protobuf:"varint,10,opt,name=cpu_usage_usec,json=cpuUsageUsec,proto3" json:"cpu_usage_usec,omitempty"`
+	// Processes in the container killed by the kernel OOM killer since it
+	// started (cgroup `memory.events` oom_kill), read from the guest agent.
+	// Unset = not reported (CLI and Docker backends, a guest agent that did
+	// not answer in time, or one without memory-event support); a set 0
+	// means "read, no OOM kills". Native backend only.
+	OomKillCount  *uint64 `protobuf:"varint,11,opt,name=oom_kill_count,json=oomKillCount,proto3,oneof" json:"oom_kill_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1192,6 +1206,20 @@ func (x *ContainerStats) GetBlockWriteBytes() uint64 {
 func (x *ContainerStats) GetPids() uint64 {
 	if x != nil {
 		return x.Pids
+	}
+	return 0
+}
+
+func (x *ContainerStats) GetCpuUsageUsec() uint64 {
+	if x != nil {
+		return x.CpuUsageUsec
+	}
+	return 0
+}
+
+func (x *ContainerStats) GetOomKillCount() uint64 {
+	if x != nil && x.OomKillCount != nil {
+		return *x.OomKillCount
 	}
 	return 0
 }
@@ -1682,7 +1710,7 @@ const file_micropod_v1_system_proto_rawDesc = "" +
 	"containers\x18\x01 \x03(\v2\x1b.micropod.v1.ContainerStatsR\n" +
 	"containers\x12H\n" +
 	"\n" +
-	"sampled_at\x18\x02 \x01(\tB)\xbaG&:\x18\x12\x16'2026-01-15T10:30:00Z'\x9a\x02\tdate-timeR\tsampledAt\"\xe1\x03\n" +
+	"sampled_at\x18\x02 \x01(\tB)\xbaG&:\x18\x12\x16'2026-01-15T10:30:00Z'\x9a\x02\tdate-timeR\tsampledAt\"\xe2\x04\n" +
 	"\x0eContainerStats\x12\x1c\n" +
 	"\x02id\x18\x01 \x01(\tB\f\xbaG\t:\a\x12\x05'web'R\x02id\x12,\n" +
 	"\vcpu_percent\x18\x02 \x01(\x01B\v\xbaG\b:\x06\x12\x0412.5R\n" +
@@ -1694,7 +1722,12 @@ const file_micropod_v1_system_proto_rawDesc = "" +
 	":\b\x12\x06524288R\x0enetworkTxBytes\x128\n" +
 	"\x10block_read_bytes\x18\a \x01(\x04B\x0e\xbaG\v:\t\x12\a2097152R\x0eblockReadBytes\x12:\n" +
 	"\x11block_write_bytes\x18\b \x01(\x04B\x0e\xbaG\v:\t\x12\a1048576R\x0fblockWriteBytes\x12\x1c\n" +
-	"\x04pids\x18\t \x01(\x04B\b\xbaG\x05:\x03\x12\x017R\x04pids\"\x91\x01\n" +
+	"\x04pids\x18\t \x01(\x04B\b\xbaG\x05:\x03\x12\x017R\x04pids\x127\n" +
+	"\x0ecpu_usage_usec\x18\n" +
+	" \x01(\x04B\x11\xbaG\x0e:\f\x12\n" +
+	"6576389781R\fcpuUsageUsec\x123\n" +
+	"\x0eoom_kill_count\x18\v \x01(\x04B\b\xbaG\x05:\x03\x12\x010H\x00R\foomKillCount\x88\x01\x01B\x11\n" +
+	"\x0f_oom_kill_count\"\x91\x01\n" +
 	"\rRegistryLogin\x12*\n" +
 	"\x06server\x18\x01 \x01(\tB\x12\xbaG\x0f:\r\x12\v'docker.io'R\x06server\x12,\n" +
 	"\busername\x18\x02 \x01(\tB\x10\xbaG\r:\v\x12\t'octocat'R\busername\x12&\n" +
@@ -1841,6 +1874,7 @@ func file_micropod_v1_system_proto_init() {
 	file_micropod_v1_image_proto_init()
 	file_micropod_v1_volume_proto_init()
 	file_micropod_v1_system_proto_msgTypes[5].OneofWrappers = []any{}
+	file_micropod_v1_system_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

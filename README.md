@@ -802,6 +802,8 @@ What a job runner needs, beyond CRUD:
 | `ExecRequest.arguments` | Verbatim argv; takes precedence over the whitespace-split `command`. |
 | `StreamLogsRequest.skip_lines` | Re-open a log stream after a transport error without replaying the lines already delivered. |
 | `GetStatsRequest.ids` | Sample only these containers (the native sampler skips the list call). |
+| `ContainerStats.cpu_usage_usec` | Cumulative CPU time since start (µs, all cores), exact on every sample including the first (`cpu_percent` is a delta and reads 0 until a second sample). Native, CLI and Docker engines; 0 = not reported. |
+| `ContainerStats.oom_kill_count` | Guest cgroup `memory.events` `oom_kill` (processes killed by the OOM killer since start). Native backend only; unset (proto3 `optional`) = not read, a set 0 = read and none. |
 | `VolumeService.CloneVolume{source, name, size?, labels}` | New volume whose image is an APFS clone of the source's (O(1)). `failed_precondition` while the source is attached read-write to a running or stopping container. |
 | `VolumeService.CommitVolumeClone{container_id, volume}` | Promote a stopped container's per-container clone to be the volume's image (fsync + atomic rename, serialised per volume). Returns `allocated_bytes`. Do not restart the container while its commit is in flight: `StartContainer` does not wait for the commit. Swift server only; the Go server answers `unimplemented` because it never creates clones. |
 | `Volume.allocated_bytes` | Bytes the backing image really occupies (`st_blocks × 512`); `size_bytes` stays the provisioned size. |
