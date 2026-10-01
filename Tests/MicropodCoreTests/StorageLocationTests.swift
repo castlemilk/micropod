@@ -139,4 +139,133 @@ final class StorageLocationTests: XCTestCase {
         }
         XCTAssertEqual(control.calls, [], "the runtime is never stopped for a bad path")
     }
+
+    // MARK: - Drive discovery
+
+    private func vol(
+        _ name: String, at mount: String, format: String = "apfs", uuid: String? = nil,
+        internal isInternalDisk: Bool = false, removable: Bool = false, free: Int64 = 100 << 30,
+        total: Int64 = 500 << 30
+    ) -> StorageLocation.Volume {
+        StorageLocation.Volume(
+            mountPoint: URL(fileURLWithPath: mount), name: name, format: format, availableBytes: free,
+            totalBytes: total, isInternal: isInternalDisk, isRemovable: removable, uuid: uuid)
+    }
+
+    private func desc(
+        _ v: StorageLocation.Volume, local: Bool = true, readOnly: Bool = false, root: Bool = false,
+        image: Bool = false
+    ) -> StorageLocation.VolumeDescriptor {
+        StorageLocation.VolumeDescriptor(
+            volume: v, isLocal: local, isReadOnly: readOnly, isRootFileSystem: root, isDiskImage: image)
+    }
+
+    func testClassificationKeepsDrivesAndHidesSystemBackupImageAndNetworkVolumes() {
+        let home = vol("Macintosh HD - Data", at: "/System/Volumes/Data", uuid: "HOME", internal: true)
+        let descriptors = [
+            desc(vol("Macintosh HD", at: "/", internal: true), readOnly: true, root: true),
+            desc(home),
+            desc(vol("Preboot", at: "/System/Volumes/Preboot", internal: true)),
+            desc(vol("Recovery", at: "/Volumes/Recovery", internal: true)),
+            desc(vol("Backups of Ben's Mac", at: "/Volumes/Backups of Ben's Mac", uuid: "TM")),
+            desc(vol("Installer", at: "/Volumes/Installer", uuid: "DMG"), image: true),
+            desc(vol("share", at: "/Volumes/share", format: "smbfs", uuid: "NET"), local: false),
+            desc(vol("Archive", at: "/Volumes/Archive", format: "exfat", uuid: "EXF")),
+            desc(vol("Rig SSD", at: "/Volumes/Rig SSD", uuid: "SSD")),
+            desc(vol("SD", at: "/Volumes/SD", uuid: "SDC", removable: true)),
+            desc(vol("Rig SSD", at: "/Volumes/Rig SSD", uuid: "SSD")),  // reported twice
+        ]
+        let picked = StorageLocation.classify(descriptors, homeVolume: home.mountPoint)
+        XCTAssertEqual(picked.map(\.name), ["Macintosh HD - Data", "Archive", "Rig SSD", "SD"])
+        XCTAssertEqual(picked.map(\.kind), [.internal, .external, .external, .removable])
+        XCTAssertNotNil(picked[1].unusableReason, "exFAT is listed but cannot hold the data")
+        XCTAssertNil(picked[2].unusableReason)
+        XCTAssertEqual(picked[2].defaultFolder.path, "/Volumes/Rig SSD/Micropod")
+    }
+
+    func testDiskImageMountPointsComeFromHdiutil() throws {
+        let plist: [String: Any] = [
+            "images": [
+                ["system-entities": [["dev-entry": "/dev/disk9"], ["mount-point": "/Volumes/Installer/"]]],
+                ["system-entities": [["mount-point": "/Volumes/Other"]]],
+            ]
+        ]
+        let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+        XCTAssertEqual(StorageLocation.parseDiskImageMountPoints(data), ["/Volumes/Installer", "/Volumes/Other"])
+        XCTAssertEqual(StorageLocation.parseDiskImageMountPoints(Data("junk".utf8)), [])
+    }
+
+    func testSetTargetResolvesPathNameOrUUID() {
+        let drives = [vol("Rig SSD", at: "/Volumes/Rig SSD", uuid: "ABCD-1234")]
+        XCTAssertEqual(StorageLocation.resolveTarget("/Volumes/X/data", volumes: drives), "/Volumes/X/data")
+        XCTAssertEqual(StorageLocation.resolveTarget("Rig SSD", volumes: drives), "/Volumes/Rig SSD/Micropod")
+        XCTAssertEqual(StorageLocation.resolveTarget("rig ssd", volumes: drives), "/Volumes/Rig SSD/Micropod")
+        XCTAssertEqual(StorageLocation.resolveTarget("abcd-1234", volumes: drives), "/Volumes/Rig SSD/Micropod")
+        XCTAssertNil(StorageLocation.resolveTarget("Nope", volumes: drives))
+    }
+
+    func testConfigRemembersTheDriveByUUIDAndFollowsItsMountPoint() {
+        let drive = vol("Rig SSD", at: "/Volumes/Rig SSD", uuid: "ABCD")
+        let config = StorageLocation.Config.at(URL(fileURLWithPath: "/Volumes/Rig SSD/Micropod"), on: drive)
+        XCTAssertEqual(config.volumeUUID, "ABCD")
+        XCTAssertEqual(config.relativePath, "Micropod")
+        // Remounted as "Rig SSD 1" (another volume took the name), then renamed.
+        let moved = vol("Rig SSD", at: "/Volumes/Rig SSD 1", uuid: "abcd")
+        XCTAssertEqual(config.resolvedRoot(mounted: [moved]), "/Volumes/Rig SSD 1/Micropod")
+        XCTAssertEqual(config.resolvedRoot(mounted: []), "/Volumes/Rig SSD/Micropod", "unmounted: as recorded")
+        // The internal disk keeps no volume identity.
+        let internalDisk = vol("Data", at: "/System/Volumes/Data", uuid: "HOME", internal: true)
+        XCTAssertNil(StorageLocation.Config.at(URL(fileURLWithPath: "/Users/me/x"), on: internalDisk).volumeUUID)
+    }
+
+    func testDisconnectedDriveAndRemountAreReportedAndRelinked() throws {
+        // Data "moved" to a drive that was mounted at <root>/old-mount.
+        let oldMount = root.appendingPathComponent("old-mount")
+        let newMount = root.appendingPathComponent("new-mount")
+        let target = oldMount.appendingPathComponent("Micropod")
+        for (_, source, dest) in paths.trees(under: target) {
+            try seed(dest)
+            try FileManager.default.createDirectory(
+                at: source.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try FileManager.default.createSymbolicLink(at: source, withDestinationURL: dest)
+        }
+        try StorageLocation.saveConfig(
+            .init(root: target.path, volumeUUID: "U1", volumeName: "Rig SSD", relativePath: "Micropod"), paths)
+
+        let disconnected = StorageLocation.status(paths: paths, mounted: [])
+        XCTAssertTrue(disconnected.driveDisconnected)
+        XCTAssertTrue(disconnected.problems.first?.contains("Rig SSD is not connected") ?? false)
+
+        // The drive comes back at another mount point.
+        try FileManager.default.moveItem(at: oldMount, to: newMount)
+        let drive = vol("Rig SSD", at: newMount.path, uuid: "U1")
+        let remounted = StorageLocation.status(paths: paths, mounted: [drive])
+        XCTAssertFalse(remounted.driveDisconnected)
+        XCTAssertEqual(remounted.relinkTo, newMount.appendingPathComponent("Micropod").path)
+
+        let relinked = try StorageLocation.relink(paths: paths, mounted: [drive])
+        XCTAssertEqual(relinked.count, paths.trees(under: target).count)
+        let after = StorageLocation.status(paths: paths, mounted: [drive])
+        XCTAssertTrue(after.healthy, "\(after.problems)")
+        XCTAssertNil(after.relinkTo)
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: paths.containerAppRoot.appendingPathComponent("data").path))
+    }
+
+    func testMoveRefusesBeforeStoppingWhenTheDataDoesNotFit() async throws {
+        try seed(paths.containerAppRoot)
+        let control = Control()
+        let target = root.appendingPathComponent("ext/micropod")
+        do {
+            try await StorageLocation.apply(
+                root: target.path, migrate: true, paths: paths, control: { try await control($0) },
+                estimate: { _ in Int64.max / 4 })
+            XCTFail("expected a refusal")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("free"), "\(error)")
+        }
+        XCTAssertEqual(control.calls, [], "the runtime was never stopped")
+        XCTAssertEqual(StorageLocation.requiredBytes(forData: 100 << 30), (100 << 30) + (10 << 30))
+        XCTAssertEqual(StorageLocation.requiredBytes(forData: 1 << 30), (1 << 30) + (5 << 30))
+    }
 }
