@@ -3,7 +3,7 @@
   "info": {
     "title": "Micropod API \u00b7 ContainerService",
     "description": "## micropod.v1.ContainerService\n\nContainer lifecycle, logs, stats, and exec against the Apple `container`\n runtime.",
-    "version": "0.11.7",
+    "version": "0.11.8",
     "contact": {
       "name": "Micropod",
       "url": "https://github.com/castlemilk/micropod"
