@@ -11,8 +11,13 @@ enum StorageCommands {
 
         Usage:
           micropod storage [show]                 where the data is, per tree, and its volume
-          micropod storage volumes                local volumes it could move to (free space, format)
-          micropod storage set <dir> [--migrate]  move the data under <dir> (e.g. /Volumes/Ext/micropod)
+          micropod storage volumes                drives it could move to (kind, format, free space)
+          micropod storage set <target> [--migrate]
+                                                  move the data to <target>: a folder
+                                                  (/Volumes/Ext/micropod), or a drive's name or
+                                                  UUID (its Micropod folder)
+          micropod storage relink                 re-point the data at its drive after the
+                                                  drive was renamed or remounted elsewhere
           micropod storage reset [--migrate]      back to the internal disk
           micropod storage remove-old             delete the copies a move left behind
 
@@ -39,7 +44,20 @@ enum StorageCommands {
                     print(helpText)
                     return 2
                 }
-                try await set(root: (args[1] as NSString).expandingTildeInPath, migrate: args.contains("--migrate"))
+                let volumes = StorageLocation.candidateVolumes()
+                guard let root = StorageLocation.resolveTarget(args[1], volumes: volumes) else {
+                    throw MicropodError.message(
+                        "no drive named or with UUID \"\(args[1])\" is mounted (see `micropod storage volumes`)")
+                }
+                try await set(root: root, migrate: args.contains("--migrate"))
+            case "relink":
+                let relinked = try StorageLocation.relink()
+                if relinked.isEmpty {
+                    print("nothing to relink")
+                } else {
+                    print("relinked \(relinked.joined(separator: ", ")); starting the runtime")
+                    try await systemControl(true)
+                }
             case "reset":
                 try await StorageLocation.reset(migrate: args.contains("--migrate"), control: systemControl)
                 print("data is back on the internal disk")
@@ -109,8 +127,10 @@ enum StorageCommands {
             let body = list.map {
                 [
                     "mountPoint": $0.mountPoint.path, "name": $0.name, "format": $0.format,
-                    "availableBytes": $0.availableBytes, "totalBytes": $0.totalBytes, "internal": $0.isInternal,
-                    "removable": $0.isRemovable,
+                    "formatDescription": $0.formatDescription ?? $0.format, "uuid": $0.uuid as Any,
+                    "kind": $0.kind.rawValue, "availableBytes": $0.availableBytes, "totalBytes": $0.totalBytes,
+                    "internal": $0.isInternal, "removable": $0.isRemovable, "usable": $0.unusableReason == nil,
+                    "folder": $0.defaultFolder.path,
                 ] as [String: Any]
             }
             if let data = try? JSONSerialization.data(withJSONObject: body, options: [.prettyPrinted, .sortedKeys]) {
@@ -118,13 +138,15 @@ enum StorageCommands {
             }
             return
         }
+        let current = StorageLocation.status().volumeUUID
         for v in list {
-            var notes: [String] = [v.isInternal ? "internal" : "external"]
-            if v.isRemovable { notes.append("removable") }
-            if !v.isAPFS { notes.append("not APFS: unusable") }
+            var notes: [String] = [v.kind.rawValue]
+            if let current, v.uuid == current { notes.append("current") }
+            if let reason = v.unusableReason { notes.append(reason) }
             print(
-                "\(v.mountPoint.path)  \(v.format)  \(gib(v.availableBytes)) free of \(gib(v.totalBytes))  (\(notes.joined(separator: ", ")))"
+                "\(v.name)  \(v.mountPoint.path)  \(v.formatDescription ?? v.format)  \(gib(v.availableBytes)) free of \(gib(v.totalBytes))  (\(notes.joined(separator: ", ")))"
             )
+            if let uuid = v.uuid { print("    uuid \(uuid)") }
         }
     }
 
@@ -134,7 +156,8 @@ enum StorageCommands {
         if let vol = StorageLocation.volume(containing: URL(fileURLWithPath: root)), !vol.isInternal {
             print("note: \(vol.name) is an external volume; keep it connected, or the runtime will not start")
         }
-        try await StorageLocation.apply(root: root, migrate: migrate, control: systemControl) { step in
+        if migrate { print("measuring the data to copy…") }
+        let progress: @Sendable (StorageLocation.Step) -> Void = { step in
             switch step {
             case .stopRuntime: print("stopping the container runtime")
             case .copy(let name, let from, let to): print("copying \(name): \(from) → \(to)")
@@ -144,6 +167,7 @@ enum StorageCommands {
             case .startRuntime: print("starting the container runtime")
             }
         }
+        try await StorageLocation.apply(root: root, migrate: migrate, control: systemControl, progress: progress)
         print("done. old copies stay until `micropod storage remove-old`")
     }
 

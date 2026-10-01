@@ -53,7 +53,40 @@ public enum StorageLocation {
     public struct Config: Codable, Sendable, Equatable {
         /// Absolute directory the data lives under; nil = the internal disk.
         public var root: String?
-        public init(root: String?) { self.root = root }
+        /// The volume `root` is on, by UUID, and `root` relative to its mount
+        /// point: a drive renamed or remounted at another `/Volumes/<name>`
+        /// is still recognised (and relinked), and a disconnected one is
+        /// named. Nil on the internal disk and in configs from before 0.11.10.
+        public var volumeUUID: String?
+        public var volumeName: String?
+        public var relativePath: String?
+        public init(root: String?, volumeUUID: String? = nil, volumeName: String? = nil, relativePath: String? = nil) {
+            self.root = root
+            self.volumeUUID = volumeUUID
+            self.volumeName = volumeName
+            self.relativePath = relativePath
+        }
+
+        /// A config for `root` on `volume` (nil: no volume identity).
+        public static func at(_ root: URL, on volume: Volume?) -> Config {
+            guard let volume, let uuid = volume.uuid, !volume.isInternal else { return Config(root: root.path) }
+            let mount = volume.mountPoint.standardizedFileURL.path
+            var relative = String(root.path.dropFirst(mount.count))
+            while relative.hasPrefix("/") { relative.removeFirst() }
+            return Config(root: root.path, volumeUUID: uuid, volumeName: volume.name, relativePath: relative)
+        }
+
+        /// Where the data lives now: the configured volume's current mount
+        /// point plus the relative path, when that volume is among `mounted`;
+        /// otherwise the recorded root.
+        public func resolvedRoot(mounted: [Volume]) -> String? {
+            guard let uuid = volumeUUID, let relativePath,
+                let volume = mounted.first(where: { $0.uuid?.caseInsensitiveCompare(uuid) == .orderedSame })
+            else { return root }
+            return relativePath.isEmpty
+                ? volume.mountPoint.standardizedFileURL.path
+                : volume.mountPoint.appendingPathComponent(relativePath).standardizedFileURL.path
+        }
     }
 
     public static func loadConfig(_ paths: Paths = Paths()) -> Config {
@@ -73,14 +106,77 @@ public enum StorageLocation {
     // MARK: - Volumes
 
     public struct Volume: Sendable, Equatable {
+        public enum Kind: String, Sendable, Equatable, Codable {
+            /// The Mac's own disk (the volume holding the home directory).
+            case `internal`
+            /// A fixed external drive: Thunderbolt/USB SSD or HDD.
+            case external
+            /// Removable media: SD cards and the like.
+            case removable
+        }
+
         public var mountPoint: URL
         public var name: String
+        /// `volumeTypeName`: "apfs", "hfs", "exfat", "msdos"…
         public var format: String
         public var availableBytes: Int64
         public var totalBytes: Int64
         public var isInternal: Bool
         public var isRemovable: Bool
+        public var uuid: String? = nil
+        /// Human format, e.g. "APFS" or "ExFAT" (falls back to `format`).
+        public var formatDescription: String? = nil
+        public var isEjectable: Bool = false
+
         public var isAPFS: Bool { format.lowercased() == "apfs" }
+        public var kind: Kind { isInternal && !isRemovable ? .internal : isRemovable ? .removable : .external }
+        public var usedBytes: Int64 { max(0, totalBytes - availableBytes) }
+        /// Why it cannot hold the data, or nil when it can.
+        public var unusableReason: String? { isAPFS ? nil : "Needs APFS — format it with Disk Utility" }
+        /// The folder a click on this volume selects.
+        public var defaultFolder: URL { mountPoint.appendingPathComponent("Micropod") }
+    }
+
+    /// One mounted volume as the system reports it, before filtering.
+    /// Separate from `Volume` so the filtering is testable without disks.
+    public struct VolumeDescriptor: Sendable, Equatable {
+        public var volume: Volume
+        public var isLocal: Bool
+        public var isReadOnly: Bool
+        public var isRootFileSystem: Bool
+        /// Mounted from a disk image (a `.dmg`, per `hdiutil info`).
+        public var isDiskImage: Bool
+        public init(volume: Volume, isLocal: Bool, isReadOnly: Bool, isRootFileSystem: Bool, isDiskImage: Bool) {
+            self.volume = volume
+            self.isLocal = isLocal
+            self.isReadOnly = isReadOnly
+            self.isRootFileSystem = isRootFileSystem
+            self.isDiskImage = isDiskImage
+        }
+    }
+
+    private static let volumeKeys: Set<URLResourceKey> = [
+        .volumeURLKey, .volumeNameKey, .volumeTypeNameKey, .volumeLocalizedFormatDescriptionKey,
+        .volumeAvailableCapacityForImportantUsageKey, .volumeAvailableCapacityKey, .volumeTotalCapacityKey,
+        .volumeIsInternalKey, .volumeIsRemovableKey, .volumeIsEjectableKey, .volumeIsLocalKey,
+        .volumeIsReadOnlyKey, .volumeIsRootFileSystemKey, .volumeUUIDStringKey,
+    ]
+
+    private static func descriptor(at url: URL, diskImages: Set<String>) -> VolumeDescriptor? {
+        guard let values = try? url.resourceValues(forKeys: volumeKeys), let mount = values.volume else { return nil }
+        // "Important usage" counts purgeable space as free; fall back to the
+        // plain figure where a filesystem (exFAT) does not report it.
+        let available = values.volumeAvailableCapacityForImportantUsage ?? Int64(values.volumeAvailableCapacity ?? 0)
+        let volume = Volume(
+            mountPoint: mount, name: values.volumeName ?? mount.lastPathComponent,
+            format: values.volumeTypeName ?? "unknown", availableBytes: available,
+            totalBytes: Int64(values.volumeTotalCapacity ?? 0), isInternal: values.volumeIsInternal ?? false,
+            isRemovable: values.volumeIsRemovable ?? false, uuid: values.volumeUUIDString,
+            formatDescription: values.volumeLocalizedFormatDescription, isEjectable: values.volumeIsEjectable ?? false)
+        return VolumeDescriptor(
+            volume: volume, isLocal: values.volumeIsLocal ?? true, isReadOnly: values.volumeIsReadOnly ?? false,
+            isRootFileSystem: values.volumeIsRootFileSystem ?? false,
+            isDiskImage: diskImages.contains(mount.standardizedFileURL.path))
     }
 
     /// The volume `url` (or its nearest existing ancestor) is on.
@@ -91,30 +187,147 @@ public enum StorageLocation {
             if parent.path == probe.path { return nil }
             probe = parent
         }
-        let keys: Set<URLResourceKey> = [
-            .volumeURLKey, .volumeNameKey, .volumeTypeNameKey, .volumeAvailableCapacityForImportantUsageKey,
-            .volumeTotalCapacityKey, .volumeIsInternalKey, .volumeIsRemovableKey,
-        ]
-        guard let values = try? probe.resourceValues(forKeys: keys), let mount = values.volume else { return nil }
-        return Volume(
-            mountPoint: mount, name: values.volumeName ?? mount.lastPathComponent,
-            format: values.volumeTypeName ?? "unknown",
-            availableBytes: values.volumeAvailableCapacityForImportantUsage ?? 0,
-            totalBytes: Int64(values.volumeTotalCapacity ?? 0), isInternal: values.volumeIsInternal ?? false,
-            isRemovable: values.volumeIsRemovable ?? false)
+        return descriptor(at: probe, diskImages: [])?.volume
+    }
+
+    /// Whether a volume belongs in the picker: writable local storage, not
+    /// the system's own volumes, backups, disk images or network shares.
+    /// The home directory's volume (the internal Data volume, mounted under
+    /// /System/Volumes) is kept: it is the default location.
+    public static func isSelectable(_ d: VolumeDescriptor, homeVolume: URL?) -> Bool {
+        let path = d.volume.mountPoint.standardizedFileURL.path
+        if let homeVolume, path == homeVolume.standardizedFileURL.path { return d.volume.totalBytes > 0 }
+        if d.volume.totalBytes <= 0 || !d.isLocal || d.isReadOnly || d.isDiskImage || d.isRootFileSystem {
+            return false
+        }
+        if path == "/" || path.hasPrefix("/System/Volumes/") || path.hasPrefix("/private/") { return false }
+        let name = d.volume.name
+        if name == "Recovery" || name == "Preboot" || name == "VM" || name == "Update" { return false }
+        // Time Machine: its APFS backup volumes and the snapshot mounts.
+        let backupDB = d.volume.mountPoint.appendingPathComponent("Backups.backupdb").path
+        if name.hasPrefix("Backups of ") || path.contains("/.timemachine/") || path.contains(".backupdb")
+            || FileManager.default.fileExists(atPath: backupDB)
+        {
+            return false
+        }
+        return true
+    }
+
+    /// Filters and orders `descriptors` for the picker: the internal disk
+    /// first, then other volumes by name. Duplicate mounts collapse.
+    public static func classify(_ descriptors: [VolumeDescriptor], homeVolume: URL?) -> [Volume] {
+        var seen = Set<String>()
+        var volumes: [Volume] = []
+        for d in descriptors where isSelectable(d, homeVolume: homeVolume) {
+            let key = d.volume.uuid ?? d.volume.mountPoint.standardizedFileURL.path
+            guard seen.insert(key).inserted else { continue }
+            var volume = d.volume
+            if let homeVolume, d.volume.mountPoint.standardizedFileURL.path == homeVolume.standardizedFileURL.path {
+                volume.isInternal = true
+                volume.isRemovable = false
+            }
+            volumes.append(volume)
+        }
+        let order: (Volume) -> Int = { $0.kind == .internal ? 0 : $0.kind == .external ? 1 : 2 }
+        return volumes.sorted {
+            (order($0), $0.name.localizedLowercase) < (order($1), $1.name.localizedLowercase)
+        }
     }
 
     /// Writable local volumes a user could pick, internal disk first.
-    public static func candidateVolumes() -> [Volume] {
-        let urls =
-            FileManager.default.mountedVolumeURLs(
-                includingResourceValuesForKeys: nil, options: [.skipHiddenVolumes]) ?? []
-        return urls.compactMap { volume(containing: $0) }
-            .filter { $0.totalBytes > 0 }
-            .reduce(into: [Volume]()) { seen, v in
-                if !seen.contains(where: { $0.mountPoint == v.mountPoint }) { seen.append(v) }
+    public static func candidateVolumes(home: URL = URL(fileURLWithPath: NSHomeDirectory())) -> [Volume] {
+        let images = diskImageMountPoints()
+        var descriptors =
+            (FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: Array(volumeKeys), options: [])
+            ?? []).compactMap { descriptor(at: $0, diskImages: images) }
+        let homeDescriptor = descriptor(at: home, diskImages: images)
+        if let homeDescriptor { descriptors.insert(homeDescriptor, at: 0) }
+        return classify(descriptors, homeVolume: homeDescriptor?.volume.mountPoint)
+    }
+
+    /// Mount points of attached disk images (`hdiutil info`): a mounted
+    /// installer `.dmg` looks like any other external APFS/HFS volume.
+    static func diskImageMountPoints() -> Set<String> {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+        process.arguments = ["info", "-plist"]
+        let out = Pipe()
+        process.standardOutput = out
+        process.standardError = FileHandle.nullDevice
+        guard (try? process.run()) != nil else { return [] }
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        return parseDiskImageMountPoints(data)
+    }
+
+    static func parseDiskImageMountPoints(_ plist: Data) -> Set<String> {
+        guard
+            let root = try? PropertyListSerialization.propertyList(from: plist, format: nil) as? [String: Any],
+            let images = root["images"] as? [[String: Any]]
+        else { return [] }
+        var mounts = Set<String>()
+        for image in images {
+            for entity in image["system-entities"] as? [[String: Any]] ?? [] {
+                if let mount = entity["mount-point"] as? String {
+                    mounts.insert(URL(fileURLWithPath: mount).standardizedFileURL.path)
+                }
             }
-            .sorted { ($0.isInternal ? 0 : 1, $0.name) < ($1.isInternal ? 0 : 1, $1.name) }
+        }
+        return mounts
+    }
+
+    /// Resolves a `micropod storage set` argument: a path, or a volume's
+    /// name or UUID among `volumes` (its `Micropod` folder). Nil when a
+    /// name or UUID matches nothing.
+    public static func resolveTarget(_ argument: String, volumes: [Volume]) -> String? {
+        if argument.hasPrefix("/") || argument.hasPrefix("~") || argument.hasPrefix(".") {
+            return (argument as NSString).expandingTildeInPath
+        }
+        let match =
+            volumes.first { $0.uuid?.caseInsensitiveCompare(argument) == .orderedSame }
+            ?? volumes.first { $0.name == argument }
+            ?? volumes.first { $0.name.caseInsensitiveCompare(argument) == .orderedSame }
+        return match?.defaultFolder.path
+    }
+
+    // MARK: - Space
+
+    /// Space the move needs on the target: the data plus headroom (10%, at
+    /// least 5 GiB) so containers can keep writing afterwards.
+    public static func requiredBytes(forData data: Int64) -> Int64 {
+        data + max(data / 10, 5 * 1_073_741_824)
+    }
+
+    /// Bytes on disk under `urls` (`du -sk`, following no links but the
+    /// top-level ones: a moved tree is measured where it now lives).
+    public static func estimateBytes(of urls: [URL]) -> Int64 {
+        let existing = urls.map { $0.resolvingSymlinksInPath() }.filter {
+            FileManager.default.fileExists(atPath: $0.path)
+        }
+        guard !existing.isEmpty else { return 0 }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/du")
+        process.arguments = ["-sk"] + existing.map(\.path)
+        let out = Pipe()
+        process.standardOutput = out
+        process.standardError = FileHandle.nullDevice
+        guard (try? process.run()) != nil else { return 0 }
+        let text = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        process.waitUntilExit()
+        return text.split(separator: "\n").reduce(Int64(0)) { sum, line in
+            sum + (Int64(line.split(whereSeparator: \.isWhitespace).first ?? "") ?? 0) * 1024
+        }
+    }
+
+    /// The data a move to `root` would copy: every tree not already there.
+    public static func dataToMove(root: String, paths: Paths = Paths()) -> [URL] {
+        let rootURL = URL(fileURLWithPath: root).standardizedFileURL
+        return paths.trees(under: rootURL).compactMap { _, source, target in
+            if let link = try? FileManager.default.destinationOfSymbolicLink(atPath: source.path) {
+                return URL(fileURLWithPath: link).standardizedFileURL == target ? nil : URL(fileURLWithPath: link)
+            }
+            return source
+        }
     }
 
     // MARK: - Validation
@@ -126,6 +339,7 @@ public enum StorageLocation {
         case notWritable(String)
         case insideDefaultLocation(String)
         case targetNotEmpty(String)
+        case doesNotFit(volume: String, needed: Int64, available: Int64)
 
         public var description: String {
             switch self {
@@ -141,6 +355,9 @@ public enum StorageLocation {
                     "\(p) is inside the data it would hold (pick a directory outside ~/.micropod and the container app root)"
             case .targetNotEmpty(let p):
                 return "\(p) already holds data; pass --migrate only into an empty or Micropod-created directory"
+            case .doesNotFit(let v, let needed, let available):
+                return
+                    "\(v) has \(ByteFormat.string(available)) free; the data needs \(ByteFormat.string(needed)) with headroom"
             }
         }
     }
@@ -190,14 +407,36 @@ public enum StorageLocation {
         public var trees: [TreeStatus]
         /// Human-readable trouble, empty when healthy.
         public var problems: [String]
+        /// The configured drive (by UUID) is not mounted: the runtime cannot
+        /// start until it is reconnected.
+        public var driveDisconnected: Bool = false
+        /// The drive is mounted, but somewhere else (renamed, or remounted
+        /// as `/Volumes/<name> 1`): `relink` points the data back at it.
+        public var relinkTo: String? = nil
+        public var volumeUUID: String? = nil
+        public var volumeName: String? = nil
         public var healthy: Bool { problems.isEmpty }
     }
 
-    public static func status(paths: Paths = Paths()) -> Status {
+    /// `mounted` is consulted only for a config that names a volume by
+    /// UUID; nil probes the system.
+    public static func status(paths: Paths = Paths(), mounted: [Volume]? = nil) -> Status {
         let config = loadConfig(paths)
         let fm = FileManager.default
         var trees: [TreeStatus] = []
         var problems: [String] = []
+        var disconnected = false
+        var relinkTo: String?
+        if let uuid = config.volumeUUID {
+            let volumes = mounted ?? candidateVolumes(home: paths.home)
+            if !volumes.contains(where: { $0.uuid?.caseInsensitiveCompare(uuid) == .orderedSame }) {
+                disconnected = true
+                problems.append(
+                    "storage drive \(config.volumeName ?? uuid) is not connected: the runtime is stopped until it is")
+            } else if let resolved = config.resolvedRoot(mounted: volumes), resolved != config.root {
+                relinkTo = resolved
+            }
+        }
         let root = config.root.map { URL(fileURLWithPath: $0) } ?? paths.home
         for (name, source, _) in paths.trees(under: root) {
             let link = try? fm.destinationOfSymbolicLink(atPath: source.path)
@@ -208,9 +447,13 @@ public enum StorageLocation {
                 TreeStatus(
                     name: name, defaultPath: source.path, location: target ?? source.path, moved: link != nil,
                     missing: missing, oldDataLeft: old))
-            if missing, let target {
+            if missing, let target, !disconnected, relinkTo == nil {
                 problems.append("\(name) data is at \(target), which is not mounted: connect the drive")
             }
+        }
+        if let relinkTo {
+            problems.append(
+                "storage drive \(config.volumeName ?? "") is now at \(relinkTo): relink (`micropod storage relink`)")
         }
         if let configured = config.root {
             let notMoved = trees.filter { !$0.moved && FileManager.default.fileExists(atPath: $0.defaultPath) }
@@ -220,7 +463,41 @@ public enum StorageLocation {
                 )
             }
         }
-        return Status(configuredRoot: config.root, trees: trees, problems: problems)
+        return Status(
+            configuredRoot: config.root, trees: trees, problems: problems, driveDisconnected: disconnected,
+            relinkTo: relinkTo, volumeUUID: config.volumeUUID, volumeName: config.volumeName)
+    }
+
+    /// Points the moved trees at the configured drive's current mount point
+    /// (it was renamed or remounted elsewhere) and records the new root.
+    /// Returns the trees relinked. The runtime is not touched: it could not
+    /// start while the links dangled, so the caller starts it afterwards.
+    @discardableResult
+    public static func relink(paths: Paths = Paths(), mounted: [Volume]? = nil) throws -> [String] {
+        var config = loadConfig(paths)
+        let volumes = mounted ?? candidateVolumes(home: paths.home)
+        guard let oldRoot = config.root, let newRoot = config.resolvedRoot(mounted: volumes), newRoot != oldRoot else {
+            return []
+        }
+        let fm = FileManager.default
+        let newURL = URL(fileURLWithPath: newRoot)
+        var relinked: [String] = []
+        for (name, source, target) in paths.trees(under: newURL) {
+            guard (try? fm.destinationOfSymbolicLink(atPath: source.path)) != nil else { continue }
+            let staging = source.deletingLastPathComponent().appendingPathComponent(
+                ".\(source.lastPathComponent).relink-\(getpid())")
+            try? fm.removeItem(at: staging)
+            try fm.createSymbolicLink(at: staging, withDestinationURL: target)
+            guard rename(staging.path, source.path) == 0 else {
+                let reason = String(cString: strerror(errno))
+                try? fm.removeItem(at: staging)
+                throw MicropodError.message("relinking \(source.path): \(reason)")
+            }
+            relinked.append(name)
+        }
+        config.root = newRoot
+        try saveConfig(config, paths)
+        return relinked
     }
 
     // MARK: - Applying
@@ -244,11 +521,22 @@ public enum StorageLocation {
     /// way; `removeOldData` deletes it. `progress` reports each step.
     public static func apply(
         root: String, migrate: Bool, paths: Paths = Paths(), control: SystemControl,
+        estimate: @Sendable ([URL]) -> Int64 = { estimateBytes(of: $0) },
         progress: @Sendable (Step) -> Void = { _ in }
     ) async throws {
         let problems = validate(root: root, paths: paths)
         if let first = problems.first { throw MicropodError.message(first.description) }
         let rootURL = URL(fileURLWithPath: root).standardizedFileURL
+        let targetVolume = volume(containing: rootURL)
+        // Refuse before stopping anything when the copy cannot fit.
+        if migrate, let targetVolume {
+            let needed = requiredBytes(forData: estimate(dataToMove(root: root, paths: paths)))
+            if needed > targetVolume.availableBytes {
+                let problem = Problem.doesNotFit(
+                    volume: targetVolume.name, needed: needed, available: targetVolume.availableBytes)
+                throw MicropodError.message(problem.description)
+            }
+        }
         let fm = FileManager.default
         progress(.stopRuntime)
         try await control(false)
@@ -295,7 +583,7 @@ public enum StorageLocation {
                 try fm.createDirectory(at: source.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try fm.createSymbolicLink(at: source, withDestinationURL: target)
             }
-            try saveConfig(Config(root: rootURL.path), paths)
+            try saveConfig(Config.at(rootURL, on: targetVolume), paths)
         } catch {
             // Leave the runtime running on whatever is in place: a partial
             // move still has every tree reachable (aside or linked).
