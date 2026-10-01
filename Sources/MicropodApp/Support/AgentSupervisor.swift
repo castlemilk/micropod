@@ -319,10 +319,9 @@ actor AgentSupervisor {
                     // must be the binary we'd spawn. A stale copy (orphan
                     // exec'd before an update swapped the bundle) or a
                     // foreign build would otherwise be trusted silently.
-                    // Unknown is not "nobody": an lsof that timed out (a host at
-                    // load average 100+ takes seconds) must never get a foreign
-                    // or stale endpoint adopted. Keep a previously verified
-                    // owner; otherwise decide on a later tick.
+                    // Unknown is not "nobody": an unreadable process list must
+                    // never get a foreign or stale endpoint adopted. Keep a
+                    // previously verified owner; otherwise decide on a later tick.
                     guard let owners = endpointOwnerPIDs(spec) else {
                         if let prior = adoptedOwners[spec.id], Self.processAlive(prior) {
                             states[spec.id]?.state = .adopted
@@ -592,7 +591,7 @@ actor AgentSupervisor {
     /// same-name holder (a wedged squatter blocking the respawn).
     private func reapForeignCopies(of spec: AgentSpec, onlyPath: String? = nil) {
         let selfPID = ProcessInfo.processInfo.processIdentifier
-        // Unknown owners (lsof timed out): reap nothing.
+        // Unknown owners: reap nothing.
         let squatters = (endpointOwnerPIDs(spec) ?? []).filter { pid in
             guard pid > 1, pid != selfPID,
                 let path = Self.processPath(pid), path.hasSuffix("/\(spec.binaryName)")
@@ -647,31 +646,20 @@ actor AgentSupervisor {
 
     // MARK: - Endpoint ownership
 
-    /// PIDs holding the spec's probe endpoint. For TCP, lsof's
-    /// `-sTCP:LISTEN` returns only the bound listener — connected clients
-    /// can't be mistaken for the owner. For unix sockets the path match
-    /// can include transient clients too, so callers must accept the
-    /// endpoint when *any* candidate is the expected binary. Nil means
-    /// unknown (lsof failed or timed out) — distinct from "no owner".
+    /// PIDs holding the spec's probe endpoint: a TCP socket listening on
+    /// the port, or a unix socket bound to the path — read in-process from
+    /// libproc (`EndpointOwners`). Connected clients never match. Nil means
+    /// unknown (the process list couldn't be read) — distinct from "no
+    /// owner". `lsof` used to answer this, and at load average 100+ it took
+    /// seconds and timed out, which left ownership undecidable.
     private func endpointOwnerPIDs(_ spec: AgentSpec) -> [Int32]? {
-        let arguments: [String]
         switch spec.probe {
         case .http(let port, _):
-            arguments = ["-nP", "-iTCP:\(port)", "-sTCP:LISTEN", "-t"]
+            return EndpointOwners.tcpListeners(port: port)
         case .unixSocket(let path):
-            arguments = ["-t", "--", path]
+            return EndpointOwners.unixListeners(path: path)
         case .custom:
             return []
-        }
-        // 10s: lsof is tens of ms on an idle host but took ~2.5s at load
-        // average ~100, against the old 3s bound. Still bounded so a hung
-        // helper can't stall the monitor loop.
-        guard
-            let output = Self.runProcess(
-                "/usr/sbin/lsof", arguments, timeout: 10)
-        else { return nil }
-        return output.split(separator: "\n").compactMap {
-            Int32($0.trimmingCharacters(in: .whitespaces))
         }
     }
 
@@ -693,31 +681,6 @@ actor AgentSupervisor {
         else { return true }
         return Date(timeIntervalSince1970: start)
             >= mtime.addingTimeInterval(-1)
-    }
-
-    /// Bounded subprocess for ownership probes — lsof on a single
-    /// endpoint returns in tens of milliseconds, but a hung helper must
-    /// never stall the monitor loop.
-    private static func runProcess(
-        _ path: String, _ arguments: [String], timeout: TimeInterval
-    ) -> String? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: path)
-        process.arguments = arguments
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = FileHandle.nullDevice
-        do { try process.run() } catch { return nil }
-        let deadline = Date().addingTimeInterval(timeout)
-        while process.isRunning, Date() < deadline {
-            Thread.sleep(forTimeInterval: 0.02)
-        }
-        if process.isRunning {
-            process.terminate()
-            return nil
-        }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        return String(data: data, encoding: .utf8)
     }
 
     // MARK: - Binary resolution
