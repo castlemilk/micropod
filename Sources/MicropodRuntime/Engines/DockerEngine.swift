@@ -357,6 +357,11 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
         return Micropod_V1_ContainerStats.with {
             $0.id = id
             $0.cpuPercent = sysDelta > 0 ? cpuDelta / sysDelta * cpus * 100 : 0
+            // Cumulative CPU time is nanoseconds on Linux; read as an
+            // integer so long-lived containers keep full precision.
+            let cpuUsage = (json["cpu_stats"] as? [String: Any])?["cpu_usage"] as? [String: Any]
+            let totalNanos = (cpuUsage?["total_usage"] as? NSNumber)?.uint64Value ?? 0
+            $0.cpuUsageUsec = totalNanos / 1000
             $0.memoryUsedBytes = UInt64(num(json, "memory_stats", "usage"))
             $0.memoryLimitBytes = UInt64(num(json, "memory_stats", "limit"))
             $0.networkRxBytes = UInt64(networks.values.reduce(0) { $0 + num($1, "rx_bytes") })

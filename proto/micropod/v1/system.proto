@@ -249,6 +249,20 @@ message ContainerStats {
   uint64 block_write_bytes = 8 [(gnostic.openapi.v3.property).example = {yaml: "1048576"}];
   // Number of processes inside the container.
   uint64 pids = 9 [(gnostic.openapi.v3.property).example = {yaml: "7"}];
+  // Cumulative CPU time consumed by the container since it started, in
+  // microseconds (cgroup `cpu.stat` usage_usec), summed across cores.
+  // Exact on every sample, including the first one for an id (unlike
+  // `cpu_percent`, which is a delta and reads 0 until a baseline exists),
+  // so callers can compute their own rates. 0 = not reported by the
+  // backend (the Docker engine reports its own `cpu_usage.total_usage`
+  // converted from nanoseconds).
+  uint64 cpu_usage_usec = 10 [(gnostic.openapi.v3.property).example = {yaml: "6576389781"}];
+  // Processes in the container killed by the kernel OOM killer since it
+  // started (cgroup `memory.events` oom_kill), read from the guest agent.
+  // Unset = not reported (CLI and Docker backends, a guest agent that did
+  // not answer in time, or one without memory-event support); a set 0
+  // means "read, no OOM kills". Native backend only.
+  optional uint64 oom_kill_count = 11 [(gnostic.openapi.v3.property).example = {yaml: "0"}];
 }
 
 // A registry login, mapped from `container registry list`.
