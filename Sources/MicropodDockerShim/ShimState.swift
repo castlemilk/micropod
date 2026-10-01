@@ -121,6 +121,7 @@ actor ShimState {
     func isReplacing(id: String) -> Bool { replacingIDs.contains(id) }
 
     func forget(id: String) {
+        startsInFlight.removeValue(forKey: id)
         if let stashed = preStartArchives.removeValue(forKey: id) {
             for archive in stashed { try? FileManager.default.removeItem(at: archive.file) }
             if let directory = stashed.first?.file.deletingLastPathComponent() {
@@ -244,6 +245,26 @@ actor ShimState {
 
     func hasStarted(id: String) -> Bool {
         startedIDs.contains(id)
+    }
+
+    /// Detached `/start`s whose runtime call hasn't returned yet. `markStarted`
+    /// runs *before* that call, and until it returns the runtime still
+    /// reports the container "stopped" — so "started + stopped" in this
+    /// window is a start in progress, not a run that exited (#62). Counted,
+    /// not a set: overlapping starts of one container each end their own.
+    private var startsInFlight: [String: Int] = [:]
+
+    func beginStart(id: String) {
+        startsInFlight[id, default: 0] += 1
+    }
+
+    func endStart(id: String) {
+        guard let n = startsInFlight[id] else { return }
+        startsInFlight[id] = n > 1 ? n - 1 : nil
+    }
+
+    func isStartInFlight(id: String) -> Bool {
+        startsInFlight[id] != nil
     }
 
     /// Detached `/start`s the runtime accepted, per container. Unlike

@@ -14,6 +14,7 @@ final class EventsHubReconcileTests: XCTestCase {
     final actor ScriptedContainers: ContainerServing {
         private let scripts: [[Micropod_V1_Container]]
         private var calls = 0
+        private(set) var deleted: [String] = []
 
         init(_ scripts: [[Micropod_V1_Container]]) {
             self.scripts = scripts
@@ -37,7 +38,7 @@ final class EventsHubReconcileTests: XCTestCase {
         func restart(_ id: String) async throws {}
         func stopAll() async throws {}
         func kill(_ id: String, signal: String) async throws {}
-        func delete(_ id: String, force: Bool) async throws {}
+        func delete(_ id: String, force: Bool) async throws { deleted.append(id) }
         func deleteAll(force: Bool) async throws {}
         func prune() async throws -> String { "" }
         func export(_ id: String, to outputPath: String) async throws {}
@@ -122,6 +123,44 @@ final class EventsHubReconcileTests: XCTestCase {
     /// sightings, no transition, so the die (and with it the AutoRemove reap
     /// and restart policy) was lost forever. A settled start with no handled
     /// exit must produce exactly one die, however many polls follow.
+    /// castlemilk/micropod#62: `docker run -d --rm` failed every time. The
+    /// shim marks a container started *before* the runtime start, and the
+    /// runtime reports "stopped" until the start lands — so a poll in that
+    /// window saw "stopped" + "started", took it for an exit, and the
+    /// AutoRemove reap deleted the container out from under its own start.
+    /// A start in flight is not an exit: no die, no delete, until it settles.
+    func testDetachedStartInFlightIsNotAnExit() async throws {
+        let id = "rm62-probe"
+        let stopped = container(id, state: "stopped")
+        let running = container(id, state: "running")
+        // [0] subscribe, [1] boot snapshot (container not yet created),
+        // then polls see it "stopped" mid-start, then running.
+        let serving = ScriptedContainers([[], [], [stopped], [stopped], [stopped], [running]])
+        let hub = EventsHub(containers: serving, interval: 0.05)
+        let state = ShimState()
+        var request = body()
+        request.HostConfig = DockerHostConfig(AutoRemove: true)
+        await state.remember(id: id, name: id, request: request)
+
+        let (_, stream) = await hub.subscribe(filters: [:], state: state)
+        let loop = Task { await hub.start(state: state) }
+        defer { loop.cancel() }
+
+        // /start began: marked started, runtime start not yet returned.
+        await state.markStarted(id: id)
+        await state.beginStart(id: id)
+        try? await Task.sleep(for: .seconds(0.25))
+        await state.endStart(id: id)
+        await state.noteStartSettled(id: id)
+        try? await Task.sleep(for: .seconds(0.3))
+        loop.cancel()
+
+        let actions = await collect(stream, seconds: 0.1).map(\.Action)
+        let deleted = await serving.deleted
+        XCTAssertFalse(actions.contains("die"), "a start in flight is not an exit, got \(actions)")
+        XCTAssertTrue(deleted.isEmpty, "AutoRemove must not reap a container mid-start, deleted \(deleted)")
+    }
+
     func testRunAndExitBetweenPollsStillEmitsOneDie() async throws {
         let id = "between-polls-1"
         let stopped = container(id, state: "stopped")

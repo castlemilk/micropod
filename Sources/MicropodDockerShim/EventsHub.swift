@@ -349,6 +349,10 @@ actor EventsHub {
                         await handleExit(entry: entry, observation: after, state: state)
                     } else if await state.isAttachRunning(id: id) {
                         syntheticCreated.insert(id)
+                    } else if await state.isStartInFlight(id: id) {
+                        // Detached start mid-flight (#62): defer like an
+                        // attach — the next polls see it run, or settle it.
+                        syntheticCreated.insert(id)
                     }
                 }
                 continue
@@ -376,7 +380,9 @@ actor EventsHub {
                     if await hasEverStarted(id: id, state: state) {
                         await handleExit(entry: entry, observation: after, state: state)
                         syntheticCreated.remove(id)
-                    } else if await state.isAttachRunning(id: id) == false {
+                    } else if await state.isAttachRunning(id: id) == false,
+                        await state.isStartInFlight(id: id) == false
+                    {
                         syntheticCreated.remove(id)
                     }
                 } else {
@@ -433,6 +439,9 @@ actor EventsHub {
         // between /start and actually running, and reaping on that deletes an
         // AutoRemove container out from under its own run.
         if await state.isAttachRunning(id: id) { return false }
+        // Same for a detached start whose runtime call hasn't returned:
+        // markStarted came first, the runtime still says "stopped" (#62).
+        if await state.isStartInFlight(id: id) { return false }
         if await state.hasStarted(id: id) { return true }
         if await state.createRequest(for: id) != nil { return false }
         guard let raw = try? await containers.inspect(id) else { return false }

@@ -2458,12 +2458,17 @@ final class Router: @unchecked Sendable {
         await state.resetHealth(id: id)
         guard let connection = AttachRegistry.shared.claim(containerID: id) else {
             fputs("[shim] start \(id): no parked attach, detached start\n", stderr)
+            // In flight until the runtime answers, either way: the events
+            // loop must not read the pre-start "stopped" as an exit (#62).
+            await state.beginStart(id: id)
             do {
                 try await containers.start(id)
             } catch {
+                await state.endStart(id: id)
                 throw await refuseStart(id, error, wasStarted: wasStarted)
             }
             await state.noteStartSettled(id: id)
+            await state.endStart(id: id)
             return
         }
         fputs("[shim] start \(id): claimed parked attach\n", stderr)
