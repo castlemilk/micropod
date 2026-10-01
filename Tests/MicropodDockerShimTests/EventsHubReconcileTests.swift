@@ -45,6 +45,50 @@ final class EventsHubReconcileTests: XCTestCase {
         func copy(from: String, to: String) async throws {}
     }
 
+    /// ContainerServing whose list() reports the current state — like the
+    /// runtime — and can hold one list() call: the snapshot is taken at call
+    /// time, the reply delivered on release (a slow poll racing a start).
+    final actor LiveContainers: ContainerServing {
+        private var current: Micropod_V1_Container
+        private var holdNext = false
+        private var held: CheckedContinuation<Void, Never>?
+        private(set) var deleted: [String] = []
+
+        init(_ container: Micropod_V1_Container) { current = container }
+
+        func set(_ container: Micropod_V1_Container) { current = container }
+        func holdNextList() { holdNext = true }
+        func releaseHeldList() {
+            holdNext = false
+            held?.resume()
+            held = nil
+        }
+
+        func list() async throws -> [Micropod_V1_Container] {
+            let snapshot = [current]
+            if holdNext {
+                holdNext = false
+                await withCheckedContinuation { held = $0 }
+            }
+            return snapshot
+        }
+
+        func inspect(_ id: String) async throws -> Data { throw MicropodError.message("unused") }
+        func create(_ request: ContainerRunRequest) async throws -> String { throw MicropodError.message("unused") }
+        func run(_ request: ContainerRunRequest) async throws -> String { throw MicropodError.message("unused") }
+        func exec(_ request: ContainerExecRequest) async throws -> String { throw MicropodError.message("unused") }
+        func start(_ id: String) async throws {}
+        func stop(_ id: String, timeout: Int) async throws {}
+        func restart(_ id: String) async throws {}
+        func stopAll() async throws {}
+        func kill(_ id: String, signal: String) async throws {}
+        func delete(_ id: String, force: Bool) async throws { deleted.append(id) }
+        func deleteAll(force: Bool) async throws {}
+        func prune() async throws -> String { "" }
+        func export(_ id: String, to outputPath: String) async throws {}
+        func copy(from: String, to: String) async throws {}
+    }
+
     private func container(_ id: String, state: String) -> Micropod_V1_Container {
         var c = Micropod_V1_Container()
         c.id = id
@@ -131,11 +175,7 @@ final class EventsHubReconcileTests: XCTestCase {
     /// A start in flight is not an exit: no die, no delete, until it settles.
     func testDetachedStartInFlightIsNotAnExit() async throws {
         let id = "rm62-probe"
-        let stopped = container(id, state: "stopped")
-        let running = container(id, state: "running")
-        // [0] subscribe, [1] boot snapshot (container not yet created),
-        // then polls see it "stopped" mid-start, then running.
-        let serving = ScriptedContainers([[], [], [stopped], [stopped], [stopped], [running]])
+        let serving = LiveContainers(container(id, state: "stopped"))
         let hub = EventsHub(containers: serving, interval: 0.05)
         let state = ShimState()
         var request = body()
@@ -146,12 +186,15 @@ final class EventsHubReconcileTests: XCTestCase {
         let loop = Task { await hub.start(state: state) }
         defer { loop.cancel() }
 
-        // /start began: marked started, runtime start not yet returned.
+        // /start began: marked started, runtime start not yet returned —
+        // every poll in this window sees "stopped".
         await state.markStarted(id: id)
         await state.beginStart(id: id)
         try? await Task.sleep(for: .seconds(0.25))
-        await state.endStart(id: id)
+        // The runtime start returns: the container is running from here on.
+        await serving.set(container(id, state: "running"))
         await state.noteStartSettled(id: id)
+        await state.endStart(id: id)
         try? await Task.sleep(for: .seconds(0.3))
         loop.cancel()
 
@@ -159,6 +202,43 @@ final class EventsHubReconcileTests: XCTestCase {
         let deleted = await serving.deleted
         XCTAssertFalse(actions.contains("die"), "a start in flight is not an exit, got \(actions)")
         XCTAssertTrue(deleted.isEmpty, "AutoRemove must not reap a container mid-start, deleted \(deleted)")
+    }
+
+    /// The race CI caught: a list fetched while the start was in flight, but
+    /// reconciled after it settled, still reads the pre-start "stopped". The
+    /// settled start + "stopped" looked like a run that had already exited.
+    /// A snapshot older than the latest start never proves an exit.
+    func testSnapshotOlderThanTheStartIsNotAnExit() async throws {
+        let id = "rm62-race"
+        let serving = LiveContainers(container(id, state: "stopped"))
+        let hub = EventsHub(containers: serving, interval: 0.05)
+        let state = ShimState()
+        var request = body()
+        request.HostConfig = DockerHostConfig(AutoRemove: true)
+        await state.remember(id: id, name: id, request: request)
+
+        let (_, stream) = await hub.subscribe(filters: [:], state: state)
+        let loop = Task { await hub.start(state: state) }
+        defer { loop.cancel() }
+        try? await Task.sleep(for: .seconds(0.15))
+
+        await state.markStarted(id: id)
+        await state.beginStart(id: id)
+        // The next list() captures "stopped" now but doesn't return yet.
+        await serving.holdNextList()
+        try? await Task.sleep(for: .seconds(0.15))
+        // Start settles while that stale snapshot is still in flight.
+        await serving.set(container(id, state: "running"))
+        await state.noteStartSettled(id: id)
+        await state.endStart(id: id)
+        await serving.releaseHeldList()
+        try? await Task.sleep(for: .seconds(0.3))
+        loop.cancel()
+
+        let actions = await collect(stream, seconds: 0.1).map(\.Action)
+        let deleted = await serving.deleted
+        XCTAssertFalse(actions.contains("die"), "a stale snapshot is not an exit, got \(actions)")
+        XCTAssertTrue(deleted.isEmpty, "AutoRemove must not reap on a stale snapshot, deleted \(deleted)")
     }
 
     func testRunAndExitBetweenPollsStillEmitsOneDie() async throws {

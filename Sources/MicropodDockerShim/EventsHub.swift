@@ -345,13 +345,14 @@ actor EventsHub {
                 // of losing the die event forever.
                 let terminal = ["stopped", "exited", "dead"]
                 if terminal.contains(after.state) {
-                    if await hasEverStarted(id: id, state: state) {
+                    if await hasEverStarted(id: id, state: state, observedAt: observedAt) {
                         await handleExit(entry: entry, observation: after, state: state)
                     } else if await state.isAttachRunning(id: id) {
                         syntheticCreated.insert(id)
-                    } else if await state.isStartInFlight(id: id) {
-                        // Detached start mid-flight (#62): defer like an
-                        // attach — the next polls see it run, or settle it.
+                    } else if await state.startNewerThan(id: id, observedAt: observedAt) {
+                        // Detached start mid-flight, or settled after this
+                        // snapshot (#62): defer like an attach — the next
+                        // polls see it run, or settle it.
                         syntheticCreated.insert(id)
                     }
                 }
@@ -377,11 +378,11 @@ actor EventsHub {
                     // Synthetic entry (see above): only a proven run may
                     // exit it. Still vetoed → keep the marker for next poll.
                     // Veto lifted without ever running → settle to observed.
-                    if await hasEverStarted(id: id, state: state) {
+                    if await hasEverStarted(id: id, state: state, observedAt: observedAt) {
                         await handleExit(entry: entry, observation: after, state: state)
                         syntheticCreated.remove(id)
                     } else if await state.isAttachRunning(id: id) == false,
-                        await state.isStartInFlight(id: id) == false
+                        await state.startNewerThan(id: id, observedAt: observedAt) == false
                     {
                         syntheticCreated.remove(id)
                     }
@@ -404,7 +405,7 @@ actor EventsHub {
             syntheticCreated.remove(id)
             handledStarts.removeValue(forKey: id)
         }
-        await reapMissedExits(current, observed: observed, state: state)
+        await reapMissedExits(current, observed: observed, observedAt: observedAt, state: state)
         known = observed
         // Re-apply synthetic-`created` AFTER the bulk assignment, or it
         // silently absorbs the deferred exits (see above).
@@ -433,15 +434,16 @@ actor EventsHub {
     /// is a `container inspect` process on every poll, which at the events
     /// loop's cadence starves the runtime. Only a container this shim never
     /// created (started out of band) needs the runtime asked.
-    private func hasEverStarted(id: String, state: ShimState) async -> Bool {
+    private func hasEverStarted(id: String, state: ShimState, observedAt: Date) async -> Bool {
         // An attached run still in flight has not exited, whatever the runtime
         // currently reports: the container reads "stopped" for the moments
         // between /start and actually running, and reaping on that deletes an
         // AutoRemove container out from under its own run.
         if await state.isAttachRunning(id: id) { return false }
-        // Same for a detached start whose runtime call hasn't returned:
-        // markStarted came first, the runtime still says "stopped" (#62).
-        if await state.isStartInFlight(id: id) { return false }
+        // Same for a detached start whose runtime call hasn't returned, or
+        // that settled after this snapshot was taken: markStarted came
+        // first, and the snapshot can still show the pre-start "stopped".
+        if await state.startNewerThan(id: id, observedAt: observedAt) { return false }
         if await state.hasStarted(id: id) { return true }
         if await state.createRequest(for: id) != nil { return false }
         guard let raw = try? await containers.inspect(id) else { return false }
@@ -457,13 +459,16 @@ actor EventsHub {
     /// container with a settled start not yet covered by a handled exit gets
     /// exactly one.
     private func reapMissedExits(
-        _ current: [Micropod_V1_Container], observed: [String: Observation], state: ShimState
+        _ current: [Micropod_V1_Container], observed: [String: Observation], observedAt: Date,
+        state: ShimState
     ) async {
         let terminal: Set<String> = ["stopped", "exited", "dead"]
         for entry in current {
             guard let observation = observed[entry.id], terminal.contains(observation.state) else { continue }
             let settled = await state.settledStartCount(id: entry.id)
-            guard settled > (handledStarts[entry.id] ?? 0), await !state.isAttachRunning(id: entry.id)
+            guard settled > (handledStarts[entry.id] ?? 0), await !state.isAttachRunning(id: entry.id),
+                // A snapshot older than the latest start can't show its exit.
+                await !state.startNewerThan(id: entry.id, observedAt: observedAt)
             else { continue }
             await handleExit(entry: entry, observation: observation, state: state)
         }

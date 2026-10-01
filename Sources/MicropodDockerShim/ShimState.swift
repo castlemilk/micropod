@@ -130,6 +130,7 @@ actor ShimState {
         }
         startedIDs.remove(id)
         settledStarts.removeValue(forKey: id)
+        lastStartSettledAt.removeValue(forKey: id)
         attachInFlightIDs.remove(id)
         creates.removeValue(forKey: id)
         // lastExitCodes deliberately survives — see noteExit.
@@ -276,6 +277,20 @@ actor ShimState {
 
     func noteStartSettled(id: String) {
         settledStarts[id, default: 0] += 1
+        lastStartSettledAt[id] = Date()
+    }
+
+    /// When the latest detached start settled. A runtime snapshot taken
+    /// before this still shows the pre-start "stopped" — never an exit.
+    private var lastStartSettledAt: [String: Date] = [:]
+
+    /// True when a snapshot taken at `observedAt` can't tell us the
+    /// container exited: a start was in flight, or settled after the
+    /// snapshot was taken (the list raced the start — #62 on slow runners).
+    func startNewerThan(id: String, observedAt: Date) -> Bool {
+        if startsInFlight[id] != nil { return true }
+        if let settled = lastStartSettledAt[id], settled >= observedAt { return true }
+        return false
     }
 
     func settledStartCount(id: String) -> Int {
