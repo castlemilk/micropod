@@ -3,7 +3,7 @@
   "info": {
     "title": "Micropod API \u00b7 VolumeService",
     "description": "## micropod.v1.VolumeService\n\nNamed volumes plus the mount policy applied on container create.",
-    "version": "0.11.8",
+    "version": "0.11.9",
     "contact": {
       "name": "Micropod",
       "url": "https://github.com/castlemilk/micropod"
