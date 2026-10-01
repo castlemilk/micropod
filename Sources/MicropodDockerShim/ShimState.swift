@@ -99,7 +99,34 @@ actor ShimState {
         creates[id]
     }
 
+    /// Archives uploaded before a container's first start (PreStartArchives).
+    private var preStartArchives: [String: [PreStartArchive]] = [:]
+
+    func stashPreStartArchive(_ archive: PreStartArchive, for id: String) {
+        preStartArchives[id, default: []].append(archive)
+    }
+
+    /// Hands over (and forgets) the container's stashed archives, in upload order.
+    func takePreStartArchives(for id: String) -> [PreStartArchive] {
+        preStartArchives.removeValue(forKey: id) ?? []
+    }
+
+    /// Containers being deleted and recreated under the same id. The events
+    /// loop must not read the gap as a removal: it would emit `destroy` and
+    /// forget the create body the recreate is built from.
+    private var replacingIDs: Set<String> = []
+
+    func beginReplacing(id: String) { replacingIDs.insert(id) }
+    func endReplacing(id: String) { replacingIDs.remove(id) }
+    func isReplacing(id: String) -> Bool { replacingIDs.contains(id) }
+
     func forget(id: String) {
+        if let stashed = preStartArchives.removeValue(forKey: id) {
+            for archive in stashed { try? FileManager.default.removeItem(at: archive.file) }
+            if let directory = stashed.first?.file.deletingLastPathComponent() {
+                try? FileManager.default.removeItem(at: directory)
+            }
+        }
         startedIDs.remove(id)
         settledStarts.removeValue(forKey: id)
         attachInFlightIDs.remove(id)

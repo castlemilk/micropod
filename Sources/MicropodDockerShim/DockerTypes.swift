@@ -72,11 +72,20 @@ struct DockerEndpointSettings: Codable {
 extension DockerCreateRequest {
     var attachedNetworks: [String] {
         let mode = HostConfig?.NetworkMode ?? ""
-        switch mode {
-        case "", "default", "bridge", "host", "none":
-            return []
-        default:
-            return [mode]
+        if !Self.isDefaultNetworkName(mode) { return [mode] }
+        // Docker also attaches the networks named in NetworkingConfig's
+        // endpoints, with NetworkMode left empty. testcontainers-go does
+        // exactly that for `ContainerRequest.Networks`; reading NetworkMode
+        // alone left those containers on the default network, where their
+        // aliases on the custom network never resolved.
+        let endpoints = (NetworkingConfig?.EndpointsConfig ?? [:]).keys
+        return endpoints.filter { !Self.isDefaultNetworkName($0) }.sorted()
+    }
+
+    static func isDefaultNetworkName(_ name: String) -> Bool {
+        switch name {
+        case "", "default", "bridge", "host", "none": return true
+        default: return false
         }
     }
 
