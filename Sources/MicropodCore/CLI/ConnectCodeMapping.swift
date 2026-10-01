@@ -144,6 +144,11 @@ public enum ConnectCodeMapping {
         guard let colon = text.firstIndex(of: ":") else { return "internal" }
         switch String(text[..<colon]) {
         case "notFound": return "not_found"
+        // The runtime reports a volume (and some other objects) that already
+        // exists as `invalidArgument: volume 'x' already exists`. Clients
+        // retry or adopt on `already_exists`; on `invalid_argument` they give
+        // up (Cuttlefish ran 86 attempts without their cache this way).
+        case "invalidArgument" where text.lowercased().contains("already exists"): return "already_exists"
         case "invalidArgument": return "invalid_argument"
         // `exists` is `ContainerizationError.Code.exists` as the runtime
         // prints it (XPC error payloads and the CLI's `Error:` line alike).
