@@ -44,7 +44,7 @@ final class AgentSupervisorTests: XCTestCase {
             isEnabled: { _ in true },
             onStatus: { statuses.record($0) })
 
-        await supervisor.tick()
+        await tickUntilOwnerVerified(supervisor)
 
         let status = await supervisor.statuses().first
         XCTAssertEqual(status?.state, .adopted)
@@ -107,7 +107,7 @@ final class AgentSupervisorTests: XCTestCase {
             isEnabled: { _ in false },
             onStatus: { _ in })
 
-        await supervisor.tick()
+        await tickUntilOwnerVerified(supervisor)
 
         let status = await supervisor.statuses().first
         XCTAssertEqual(status?.state, .stopped)
@@ -218,7 +218,7 @@ final class AgentSupervisorTests: XCTestCase {
             isEnabled: { _ in true },
             onStatus: { _ in })
 
-        await supervisor.tick()
+        await tickUntilOwnerVerified(supervisor)
 
         let status = await supervisor.statuses().first
         XCTAssertEqual(status?.state, .retryPending)
@@ -249,7 +249,7 @@ final class AgentSupervisorTests: XCTestCase {
             isEnabled: { _ in true },
             onStatus: { _ in })
 
-        await supervisor.tick()
+        await tickUntilOwnerVerified(supervisor)
 
         let status = await supervisor.statuses().first
         XCTAssertEqual(status?.state, .adopted)
@@ -293,7 +293,7 @@ final class AgentSupervisorTests: XCTestCase {
             isEnabled: { _ in true },
             onStatus: { _ in })
 
-        await supervisor.tick()
+        await tickUntilOwnerVerified(supervisor)
 
         let status = await supervisor.statuses().first
         XCTAssertEqual(status?.state, .retryPending)
@@ -363,7 +363,7 @@ final class AgentSupervisorTests: XCTestCase {
             binaryPathOverride: bins.ours)
         let supervisor = AgentSupervisor(
             specs: [spec], runDirectory: runDirectory, isEnabled: { _ in true }, onStatus: { _ in })
-        await supervisor.tick()
+        await tickUntilOwnerVerified(supervisor)
 
         let status = await supervisor.statuses().first
         XCTAssertEqual(status?.state, .retryPending)
@@ -398,7 +398,7 @@ final class AgentSupervisorTests: XCTestCase {
             isEnabled: { _ in true },
             onStatus: { _ in })
 
-        await supervisor.tick()
+        await tickUntilOwnerVerified(supervisor)
 
         let status = await supervisor.statuses().first
         XCTAssertEqual(status?.state, .retryPending)
@@ -430,6 +430,17 @@ final class AgentSupervisorTests: XCTestCase {
                 try? FileManager.default.removeItem(at: theirsDir)
             }
         )
+    }
+
+    /// Ticks until the supervisor reached an ownership verdict. On a heavily
+    /// loaded host lsof can exceed its bound; the supervisor then refuses to
+    /// decide that tick (fail closed) and says so — the verdict comes later.
+    private func tickUntilOwnerVerified(_ supervisor: AgentSupervisor, attempts: Int = 4) async {
+        for _ in 0..<attempts {
+            await supervisor.tick()
+            let status = await supervisor.statuses().first
+            if status?.lastError?.contains("could not verify") != true { return }
+        }
     }
 
     private func privateSleepBinary() throws -> (name: String, path: String) {

@@ -121,6 +121,7 @@ actor ShimState {
     func isReplacing(id: String) -> Bool { replacingIDs.contains(id) }
 
     func forget(id: String) {
+        startsInFlight.removeValue(forKey: id)
         if let stashed = preStartArchives.removeValue(forKey: id) {
             for archive in stashed { try? FileManager.default.removeItem(at: archive.file) }
             if let directory = stashed.first?.file.deletingLastPathComponent() {
@@ -129,6 +130,7 @@ actor ShimState {
         }
         startedIDs.remove(id)
         settledStarts.removeValue(forKey: id)
+        lastStartSettledAt.removeValue(forKey: id)
         attachInFlightIDs.remove(id)
         creates.removeValue(forKey: id)
         // lastExitCodes deliberately survives — see noteExit.
@@ -246,6 +248,26 @@ actor ShimState {
         startedIDs.contains(id)
     }
 
+    /// Detached `/start`s whose runtime call hasn't returned yet. `markStarted`
+    /// runs *before* that call, and until it returns the runtime still
+    /// reports the container "stopped" — so "started + stopped" in this
+    /// window is a start in progress, not a run that exited (#62). Counted,
+    /// not a set: overlapping starts of one container each end their own.
+    private var startsInFlight: [String: Int] = [:]
+
+    func beginStart(id: String) {
+        startsInFlight[id, default: 0] += 1
+    }
+
+    func endStart(id: String) {
+        guard let n = startsInFlight[id] else { return }
+        startsInFlight[id] = n > 1 ? n - 1 : nil
+    }
+
+    func isStartInFlight(id: String) -> Bool {
+        startsInFlight[id] != nil
+    }
+
     /// Detached `/start`s the runtime accepted, per container. Unlike
     /// `startedIDs` (marked *before* the runtime call, so a poll in between
     /// still sees "stopped"), a settled start proves the container ran: a
@@ -255,6 +277,20 @@ actor ShimState {
 
     func noteStartSettled(id: String) {
         settledStarts[id, default: 0] += 1
+        lastStartSettledAt[id] = Date()
+    }
+
+    /// When the latest detached start settled. A runtime snapshot taken
+    /// before this still shows the pre-start "stopped" — never an exit.
+    private var lastStartSettledAt: [String: Date] = [:]
+
+    /// True when a snapshot taken at `observedAt` can't tell us the
+    /// container exited: a start was in flight, or settled after the
+    /// snapshot was taken (the list raced the start — #62 on slow runners).
+    func startNewerThan(id: String, observedAt: Date) -> Bool {
+        if startsInFlight[id] != nil { return true }
+        if let settled = lastStartSettledAt[id], settled >= observedAt { return true }
+        return false
     }
 
     func settledStartCount(id: String) -> Int {
