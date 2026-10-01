@@ -40,10 +40,28 @@ public final class GuestAgent: Sendable {
     /// Caller should `close()` it when done.
     public func vminitd(id: String) async throws -> GuestConnection {
         let handle = try await api.dial(id: id, port: Self.vminitdPort)
+        // NIO's `withConnectedSocket` takes ownership of the fd it is given
+        // and closes it with the channel. Handing it `handle`'s own fd meant
+        // the fd was closed twice — by NIO, then by `GuestConnection.close`
+        // — and if another connection was given the same number in between,
+        // the second close shut *that* socket, and NIO trapped on it
+        // (`Posix.getsockname` precondition in `setOption`; Micropod.app
+        // crashed twice in 20 minutes once stats sampling read guest memory
+        // events for every container, 2026-10-01). NIO gets a duplicate; the
+        // handle keeps sole ownership of the original.
+        let nioFD = dup(handle.fileDescriptor)
+        guard nioFD >= 0 else {
+            let err = errno
+            try? handle.close()
+            throw MicropodError.transport("dup guest vsock fd: \(String(cString: strerror(err)))")
+        }
         do {
-            let agent = try await Vminitd(connection: handle, group: group)
+            let agent = try await Vminitd(
+                connection: FileHandle(fileDescriptor: nioFD, closeOnDealloc: false), group: group)
             return GuestConnection(agent: agent, handle: handle)
         } catch {
+            // NIO owns `nioFD` from the bootstrap on (it closes it on
+            // failure too); only the original is ours to close.
             try? handle.close()
             throw error
         }
@@ -83,12 +101,11 @@ public final class GuestAgent: Sendable {
     }
 }
 
-/// A live `Vminitd` client plus the `FileHandle` that owns its vsock fd.
+/// A live `Vminitd` client plus the `FileHandle` of the dialed vsock fd.
 ///
-/// `Vminitd` only borrows `connection.fileDescriptor` — the NIO channel
-/// registers the raw fd with kqueue but holds no reference to the handle.
-/// If the handle deallocated it would close the fd underneath the channel
-/// (EBADF precondition in kevent), so the two must travel together.
+/// The NIO channel runs on a duplicate of that fd (see `vminitd(id:)`) and
+/// closes it itself; the handle owns the original, so each fd is closed
+/// exactly once whatever order the two are released in.
 public struct GuestConnection: Sendable {
     public let agent: Vminitd
     private let handle: FileHandle
@@ -98,8 +115,8 @@ public struct GuestConnection: Sendable {
         self.handle = handle
     }
 
-    /// Closes the gRPC channel, then the underlying fd (NIO may already
-    /// have closed it — the error is ignored).
+    /// Closes the gRPC channel (NIO closes its duplicate fd), then the
+    /// original fd.
     public func close() async throws {
         try await agent.close()
         try? handle.close()
