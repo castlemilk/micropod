@@ -486,11 +486,12 @@ final class Router: @unchecked Sendable {
     }
 
     /// GET /metrics — Prometheus text: per-route request latency, per-command
-    /// CLI spawn timings, and read-cache hit/miss counters. Not part of the
-    /// Docker API; pure observability for perf work.
+    /// CLI spawn timings, apiserver XPC traffic, and read-cache hit/miss
+    /// counters. Not part of the Docker API; pure observability for perf work.
     private func metricsResponse() async throws -> ShimResponse {
         var text = metrics.render()
         text += CLIMetrics.shared.render()
+        text += APIServerMetrics.render()
         let (hits, misses) = await readCache.stats()
         text += "# HELP micropod_shim_cache_hits Read-through cache hits\n"
         text += "# TYPE micropod_shim_cache_hits counter\n"

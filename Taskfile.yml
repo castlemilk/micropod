@@ -112,6 +112,20 @@ tasks:
       - swift build --product MicropodMCP
       - python3 scripts/mcp_live.py
 
+  apiserver-contention:
+    desc: Cuttlefish-shaped load (workspace volumes, clone creates, waits, deletes + pollers) against a scratch MicropodAPI; prints per-RPC latency and failures
+    vars:
+      PORT: '{{.PORT | default "45491"}}'
+    cmds:
+      - swift build --product MicropodAPI
+      - |
+        MICROPOD_API_PORT={{.PORT}} .build/debug/MicropodAPI > /tmp/micropod-contention-api.log 2>&1 &
+        api=$!
+        trap 'kill $api' EXIT
+        for _ in $(seq 1 30); do curl -sf -m 2 -X POST -H 'content-type: application/json' -d '{}' http://127.0.0.1:{{.PORT}}/api/micropod.v1.SystemService/Ping >/dev/null && break; sleep 1; done
+        python3 scripts/apiserver_contention.py --base http://127.0.0.1:{{.PORT}} {{.CLI_ARGS}}
+        curl -s http://127.0.0.1:{{.PORT}}/metrics | grep micropod_apiserver_requests_total
+
   e2e-sdk:
     desc: TypeScript SDK Sandbox class (exec/spawn/files/watch/checkpoint) against a signed MicropodAPI on a scratch port
     cmds:

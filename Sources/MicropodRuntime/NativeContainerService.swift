@@ -37,12 +37,18 @@ public struct NativeContainerService: ContainerServing {
         self.exitCodes = exitCodes
     }
 
+    /// Polled (agents' watchdogs, the app, `ps` loops): a recent answer
+    /// (``ReadPolicy/polling``), never one from before this process's own
+    /// last write.
     public func list() async throws -> [Micropod_V1_Container] {
-        try await entries().map(ModelMapper.container(from:))
+        try await entries(policy: .polling).map(ModelMapper.container(from:))
     }
 
+    /// Polled too (exit waits read the state through it): a container in
+    /// the shared recent list is answered from it; one that is not is looked
+    /// up directly before it is reported missing.
     public func inspect(_ id: String) async throws -> Data {
-        guard let data = try await api.get(id: id) else {
+        guard let data = try await api.get(id: id, policy: .polling) else {
             throw Self.containerNotFound(id)
         }
         return data
@@ -302,10 +308,12 @@ public struct NativeContainerService: ContainerServing {
         // pre-checks and the RW multi-attach guard; requests without named
         // volumes skip it. The list must succeed: an XPC failure is
         // `unavailable`, never an empty list that would wave the attach
-        // through (or make every clone dir look orphaned).
+        // through (or make every clone dir look orphaned). Fresh, and as
+        // patient as the create itself: on a busy host the apiserver answers
+        // it late, not never.
         var volumeHolders = VolumeAttachments(entries: [])
         if !cloneSet.isEmpty || attachesDirectly {
-            let entries = try await entries()
+            let entries = try await entries(policy: .patient)
             // A duplicate id fails first: before any clone is written (the
             // clone dir is keyed by id, so cloning would overwrite the existing
             // container's images) and before the multi-attach guard, which
@@ -352,7 +360,7 @@ public struct NativeContainerService: ContainerServing {
                 // cache/sync are {"on":{}} / {"fsync":{}} not strings.
                 if isClone(name) {
                     let golden = try await Self.placeClone(volume: name, containerID: id) {
-                        try await api.volumeInspect(name: name)
+                        try await api.volumeConfig(name: name)
                     }
                     placed.append(name)
                     mounts.append(
@@ -396,15 +404,27 @@ public struct NativeContainerService: ContainerServing {
             }
         }
 
-        // Networks — default attaches to the builtin network.
-        let networkResources = try await api.networkList()
-        let attachments = try NativeConfigBuilder.attachments(
-            request: request,
-            containerID: id,
-            builtinNetworkID: APIServerClient.builtinNetworkID(in: networkResources),
-            dnsDomain: sysConfig.dnsDomain,
-            existingNetworks: APIServerClient.networkIDs(in: networkResources)
-        )
+        // Networks — default attaches to the builtin network. Networks
+        // rarely change: a list up to 5 s old will do, unless it lacks a
+        // network the request names (made since, by another process).
+        func networkAttachments(_ policy: ReadPolicy) async throws -> [JSONValue] {
+            let networkResources = try await api.networkList(policy: policy)
+            return try NativeConfigBuilder.attachments(
+                request: request,
+                containerID: id,
+                builtinNetworkID: APIServerClient.builtinNetworkID(in: networkResources),
+                dnsDomain: sysConfig.dnsDomain,
+                existingNetworks: APIServerClient.networkIDs(in: networkResources)
+            )
+        }
+        let attachments: [JSONValue]
+        do {
+            attachments = try await networkAttachments(ReadPolicy(budget: .seconds(30), maxAge: .seconds(5)))
+        } catch MicropodError.message(let message)
+            where message.contains("not found") || message.contains("not present")
+        {
+            attachments = try await networkAttachments(ReadPolicy(budget: .seconds(30)))
+        }
 
         let memoryBytes: UInt64 =
             if let memory = request.memory {
@@ -799,9 +819,9 @@ public struct NativeContainerService: ContainerServing {
     /// `containerList` as decoded entries. Throws like every other XPC call
     /// (a transport failure is `unavailable`): callers that guard on who
     /// holds what must fail closed rather than reason from an empty list.
-    private func entries(status: String? = nil) async throws -> [ContainerListEntry] {
+    private func entries(status: String? = nil, policy: ReadPolicy = .live) async throws -> [ContainerListEntry] {
         try MicropodJSON.decodeArray(
-            ContainerListEntry.self, from: await api.list(status: status), context: "container list")
+            ContainerListEntry.self, from: await api.list(status: status, policy: policy), context: "container list")
     }
 
     /// Cloning a golden that a running (or still stopping) container has

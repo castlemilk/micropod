@@ -81,10 +81,11 @@ public struct NativeLogStreamer: LogStreaming {
                 // A lookup that fails says nothing about the container: an
                 // apiserver busy behind its request lock answers late. Only
                 // a container the runtime no longer lists, or one in a
-                // finished state, has stopped writing.
+                // finished state, has stopped writing. Every follow shares
+                // the polled list (`get` confirms an absent id directly).
                 let data: Data?
                 do {
-                    data = try await api.get(id: id)
+                    data = try await api.get(id: id, policy: .polling)
                 } catch {
                     return .unknown
                 }

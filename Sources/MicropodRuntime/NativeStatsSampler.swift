@@ -43,7 +43,7 @@ public actor NativeStatsSampler: StatsSampling {
         let guest = GuestAgent(api: api, group: GuestAgent.sharedGroup)
         self.init(
             listRunning: {
-                let listData = try await api.list(status: "running")
+                let listData = try await api.list(status: "running", policy: .polling)
                 return try MicropodJSON.decodeArray(
                     ContainerListEntry.self, from: listData, context: "container list"
                 ).map(\.id)
