@@ -88,6 +88,17 @@ final class ConnectCodeMappingTests: XCTestCase {
     /// `container create` says `container already exists: <id>`, `container
     /// run` says `container with id <id> already exists`. This is the answer
     /// a client adopting the container it already created relies on.
+    /// The runtime reports an existing volume as `invalidArgument: … already
+    /// exists`; clients must see `already_exists` to adopt it.
+    func testInvalidArgumentAlreadyExistsIsAlreadyExists() {
+        XCTAssertEqual(
+            code(
+                .message("invalidArgument: volume 'cf-cache-trusted-node-2406d99cb9c8-05b253c75e78d03c' already exists")
+            ),
+            "already_exists")
+        XCTAssertEqual(code(.message("invalidArgument: invalid volume name 'x y'")), "invalid_argument")
+    }
+
     func testCLIDuplicateIDPhrasesAreAlreadyExists() {
         XCTAssertEqual(
             code(
