@@ -1305,6 +1305,31 @@
             "title": "pids",
             "format": "int64",
             "description": "Number of processes inside the container."
+          },
+          "cpuUsageUsec": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "examples": [
+              "6576389781"
+            ],
+            "title": "cpu_usage_usec",
+            "format": "int64",
+            "description": "Cumulative CPU time consumed by the container since it started, in\n microseconds (cgroup `cpu.stat` usage_usec), summed across cores.\n Exact on every sample, including the first one for an id (unlike\n `cpu_percent`, which is a delta and reads 0 until a baseline exists),\n so callers can compute their own rates. 0 = not reported by the\n backend (the Docker engine reports its own `cpu_usage.total_usage`\n converted from nanoseconds)."
+          },
+          "oomKillCount": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ],
+            "examples": [
+              "0"
+            ],
+            "title": "oom_kill_count",
+            "format": "int64",
+            "description": "Processes in the container killed by the kernel OOM killer since it\n started (cgroup `memory.events` oom_kill), read from the guest agent.\n Unset = not reported (CLI and Docker backends, a guest agent that did\n not answer in time, or one without memory-event support); a set 0\n means \"read, no OOM kills\". Native backend only."
           }
         },
         "title": "ContainerStats",
