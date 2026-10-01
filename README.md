@@ -345,6 +345,15 @@ access are refused until you review the file and run
 secrets (which can run host commands). Editing the file revokes the trust.
 A cloned repository can't open the sandbox up on its own.
 
+## Storage location
+
+Container images, volumes, VMs and sandbox data can live on any local APFS
+volume, such as an external drive on a rig whose internal disk is full:
+`micropod storage set /Volumes/External/micropod --migrate`, or **Settings →
+Storage Location**. The default paths become symlinks, so every
+`container system start` follows them. Keep the drive connected. See
+[docs/storage-location.md](docs/storage-location.md).
+
 ## Metrics history
 
 The app records resource usage for every container, machine and the

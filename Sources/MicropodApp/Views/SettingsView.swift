@@ -265,6 +265,8 @@ struct SettingsView: View {
                 }
                 .controlSize(.small)
             }
+            StorageLocationSection()
+
             Section("Volume Caching") {
                 Picker("Named volumes", selection: cloneModeBinding) {
                     Text("Attach shared").tag(VolumePolicy.CloneMode.labels)

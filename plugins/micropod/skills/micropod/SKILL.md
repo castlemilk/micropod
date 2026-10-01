@@ -580,3 +580,13 @@ fixed-size ext4 images that only grow, so create them large
   send `-H 'Content-Type: application/json'` even on body-less REST POSTs.
 - Images are content-addressed per-variant; the shim derives Docker-style
   `sha256:` IDs deterministically.
+
+## Storage location
+
+To move runtime data (images, volumes, VMs, sandbox data) to another APFS volume, such as an external drive:
+- `micropod storage volumes` lists the candidates.
+- `micropod storage set /Volumes/<name>/micropod --migrate` moves the data; it restarts the runtime, so running containers stop.
+- `micropod storage show` checks where each tree is now.
+- `micropod storage remove-old` frees the internal disk after verifying.
+
+The default paths become symlinks. A disconnected drive stops the runtime from starting, and `storage show` exits 1 and names the volume.
