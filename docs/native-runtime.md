@@ -143,6 +143,88 @@ table used by the Connect mount:
 The REST facade answers `503` for transport errors. Clients should treat
 `unavailable` as "back off and `Ping`", never as a server bug.
 
+### Reads under contention
+
+container-apiserver (1.3.x) answers reads from the same actors and locks
+its writes hold:
+
+- **Volume writes block every volume read.** A volume create formats its
+  ext4 image on the `VolumesService` actor, under the volumes lock: 8 s
+  for the default 512 GiB, minutes when several queue on a loaded host.
+  `volumeInspect` and `volumeList` wait for all of it. A volume delete
+  holds the volumes lock while it waits for the containers lock.
+- **Container deletes block every container read.** A container delete
+  (and an exit with auto-remove) runs `launchctl bootout` and removes the
+  bundle synchronously on the `ContainersService` actor. So does
+  `containerDiskUsage`'s walk. `containerList` and `containerStats` wait
+  meanwhile.
+
+On a CI rig these waits passed 10 s: creates failed with `XPC timeout for
+com.apple.container.apiserver/volumeInspect` or `…/containerList`. Every
+caller sent its own request and sent it again after its timeout. The late
+replies were dropped, and the queue only grew.
+
+`APIServerClient` now sends `containerList`, `volumeInspect`, `volumeList`
+and `networkList` through `SharedReads` (`APIServerReads.swift`):
+
+- **Single flight.** Identical reads in flight share one request.
+  Container lists are keyed by their filters.
+- **Callers give up, the request doesn't.** A caller waits for its
+  `ReadPolicy` budget. The request waits up to 60 s, and callers that
+  arrive meanwhile join it.
+- **Read your writes.** Every write route invalidates what it may change
+  once it settles. That includes a write that failed or timed out, since
+  it may still land:
+  - container lifecycle routes, including `containerWait` returning,
+    invalidate container lists;
+  - `volumeCreate` and `volumeDelete` invalidate volume lists and that one
+    volume;
+  - network create and delete invalidate network lists.
+
+  A request sent before the write is neither joined nor remembered after it.
+- **At most 4 requests in flight per route.** A queued request whose
+  callers all gave up is dropped unsent.
+
+| Policy | Budget | Answer may be | Used by |
+|---|---|---|---|
+| `live` (default) | 10 s | in flight or new | one-off reads, `startTracked`'s existence check |
+| `patient` | 45 s | in flight or new | a write's own pre-checks: create's container list, clone and commit guards, volume lookups for mounts |
+| `polling` | 10 s | ≤ 250 ms old; ≤ 30 s old if the budget runs out | `ListContainers`, `GetContainer` / exit waits, log-follow liveness, stats and volume lists |
+
+`get(id:)` under `polling` is answered from the shared full list, so N
+containers' exit waits and log follows cost at most four `containerList`s a
+second, not N times their poll rate. A container missing from that list is
+looked up directly: absence from a recent list is no proof that it is gone.
+
+Two reads avoid the apiserver's locks altogether:
+
+- **Volume configurations for mounts and clones** (`volumeConfig`,
+  `getOrCreateVolume`) are remembered for 10 minutes. A volume's name,
+  format and backing image never change while it exists. `volumeCreate`'s
+  own reply seeds the entry, and every use checks that the backing image
+  still exists. A clone of a golden therefore no longer waits behind other
+  jobs' workspace volume formats.
+- **`diskUsage(id:)`** walks `<appRoot>/containers/<id>` in-process (same
+  measure as the apiserver). It falls back to the route when the app root
+  is unknown.
+
+**Observability.**
+
+- `/metrics`, on MicropodAPI and the Docker shim, adds
+  `micropod_apiserver_requests_total`:
+  - `method="xpc"` rows per route and status (`504` = timed out), with
+    latency in `…_request_duration_microseconds_total`;
+  - `method="read"` rows with `status` = `sent`, `joined`, `remembered`,
+    `stale`, `budget_exceeded`, `dropped`.
+- Calls of 5 s or more log one line per route per 30 s:
+  `micropod: apiserver volumeCreate answered after 120.2s (+4 more slow since, worst 125.6s)`.
+
+**Load test.** `task apiserver-contention` runs
+`scripts/apiserver_contention.py` against a scratch MicropodAPI. It runs
+cuttlefish-shaped rounds in parallel with list, get and volume-list
+pollers. A round creates a workspace volume, runs a container with cache
+clones, waits for it, then deletes the container and the volume.
+
 ## The XPC protocol
 
 The apiserver speaks a simple protocol over `xpc_connection_t`:

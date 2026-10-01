@@ -16,8 +16,10 @@ public struct NativeVolumeService: VolumeServing {
         self.cli = cli
     }
 
+    /// Polled (the agent's disk manager, the app): a recent answer, never
+    /// one from before this process's own last volume write.
     public func list() async throws -> [Micropod_V1_Volume] {
-        try VolumeTransform.entries(try await api.volumeList()).map(ModelMapper.volume(from:))
+        try VolumeTransform.entries(try await api.volumeList(policy: .polling)).map(ModelMapper.volume(from:))
     }
 
     public func create(name: String, size: String?, labels: [String], options: [String]) async throws {
@@ -96,13 +98,17 @@ public struct NativeVolumeService: VolumeServing {
 
     /// `volumeInspect` as the curated model; nil when the volume is absent.
     private func volume(named name: String) async throws -> Micropod_V1_Volume? {
-        guard let raw = try await api.volumeInspect(name: name), let entry = try VolumeTransform.entry(raw)
+        guard let raw = try await api.volumeInspect(name: name, policy: .patient),
+            let entry = try VolumeTransform.entry(raw)
         else { return nil }
         return ModelMapper.volume(from: entry)
     }
 
+    /// The clone and commit guards' container list: fresh, and as patient
+    /// as the write it guards.
     private func entries() async throws -> [ContainerListEntry] {
-        try MicropodJSON.decodeArray(ContainerListEntry.self, from: await api.list(), context: "container list")
+        try MicropodJSON.decodeArray(
+            ContainerListEntry.self, from: await api.list(policy: .patient), context: "container list")
     }
 
     /// `key=value` specs → dictionary (a bare `key` maps to "").

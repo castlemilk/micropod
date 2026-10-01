@@ -29,12 +29,17 @@ public final class APIMetrics: @unchecked Sendable {
     private static let sep = "\u{1F}"
 
     public func record(route: String, method: String, status: Int, duration: TimeInterval) {
-        let key = "\(route)\(Self.sep)\(method)\(Self.sep)\(status)"
+        record(route: route, method: method, label: String(status), isError: status >= 400, duration: duration)
+    }
+
+    /// A row whose `status` label is a word (an outcome), not an HTTP code.
+    public func record(route: String, method: String, label: String, isError: Bool = false, duration: TimeInterval) {
+        let key = "\(route)\(Self.sep)\(method)\(Self.sep)\(label)"
         let us = Int(duration * 1_000_000)
         queue.async(flags: .barrier) {
             var b = self.buckets[key, default: Bucket()]
             b.count += 1
-            if status >= 400 { b.errors += 1 }
+            if isError { b.errors += 1 }
             b.latencyUs += us
             self.buckets[key] = b
         }

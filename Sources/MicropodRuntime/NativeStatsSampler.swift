@@ -29,7 +29,7 @@ public actor NativeStatsSampler: StatsSampling {
     }
 
     public func snapshot() async throws -> Micropod_V1_StatsSnapshot {
-        let listData = try await api.list(status: "running")
+        let listData = try await api.list(status: "running", policy: .polling)
         let entries = try MicropodJSON.decodeArray(
             ContainerListEntry.self, from: listData, context: "container list")
         return try await sample(ids: entries.map(\.id), forgetOthers: true)

@@ -1,15 +1,41 @@
 import Foundation
 import MicropodCore
+import os
 
 /// Typed client for `container-apiserver` over the XPC protocol.
 ///
 /// One instance owns one persistent XPC connection; calls are independent
 /// and safe to issue concurrently (each is a separate send/reply pair on
 /// the shared connection, matching Apple's `XPCClient` semantics).
+///
+/// The read routes callers poll — `containerList`, `volumeInspect`,
+/// `volumeList`, `networkList` — go through ``SharedReads``: identical
+/// reads share one request, callers give up after their ``ReadPolicy``
+/// budget while the request keeps waiting for later ones, and every write
+/// below invalidates what it may change, so a caller always reads its own
+/// writes.
 public final class APIServerClient: Sendable {
     public static let serviceName = "com.apple.container.apiserver"
 
     private let xpc: XPCConnection
+    private let containerReads = SharedReads<Data>(route: XPCRoute.containerList.rawValue)
+    /// Keyed by volume name; "not found" is never remembered.
+    private let volumeReads = SharedReads<JSONValue?>(route: XPCRoute.volumeInspect.rawValue) { $0 != nil }
+    private let volumeLists = SharedReads<[JSONValue]>(route: XPCRoute.volumeList.rawValue)
+    private let networkLists = SharedReads<[JSONValue]>(route: XPCRoute.networkList.rawValue)
+    /// The apiserver's app root, from the last `ping` (container bundles
+    /// live under `<appRoot>/containers/<id>`).
+    private let appRoot = OSAllocatedUnfairLock<String?>(initialState: nil)
+
+    /// How long a shared read's request waits for its reply. Callers wait
+    /// only their budget; the request outlives them so the callers that
+    /// arrive while the apiserver is still busy join it instead of sending
+    /// another.
+    static let sharedReadTimeout: Duration = .seconds(60)
+    /// A volume's name, format and backing image never change while it
+    /// exists, so its configuration is remembered this long — and checked
+    /// against its backing image on every use.
+    static let volumeConfigLifetime: Duration = .seconds(600)
 
     public init(service: String = APIServerClient.serviceName) {
         self.xpc = XPCConnection(service: service)
@@ -33,6 +59,9 @@ public final class APIServerClient: Sendable {
         else {
             throw MicropodError.message("container-apiserver ping reply was missing version fields")
         }
+        if let root = reply.string(key: .appRoot) {
+            appRoot.withLock { $0 = root }
+        }
         return APIServerHealth(
             apiServerVersion: version,
             apiServerCommit: commit,
@@ -48,26 +77,57 @@ public final class APIServerClient: Sendable {
 
     /// `containerList` → `[ContainerSnapshot]` transformed to
     /// `ManagedContainer` JSON (the `container list --format json` shape).
-    public func list(ids: [String] = [], status: String? = nil, labels: [String: String] = [:])
-        async throws -> Data
-    {
-        let request = XPCMessage(route: XPCRoute.containerList.rawValue)
-        let filters = APIListFilters(ids: ids, status: status, labels: labels)
-        request.set(key: .listFilters, value: try JSONEncoder().encode(filters))
-        let reply = try await send(request, timeout: .seconds(10))
-        guard let data = reply.data(key: .containers) else {
-            return Data("[]".utf8)
+    /// Identical lists in flight share one request (see ``SharedReads``).
+    public func list(
+        ids: [String] = [], status: String? = nil, labels: [String: String] = [:], policy: ReadPolicy = .live
+    ) async throws -> Data {
+        let filters = try Self.keyEncoder.encode(APIListFilters(ids: ids.sorted(), status: status, labels: labels))
+        return try await containerReads.read(
+            String(decoding: filters, as: UTF8.self), policy: policy, requestTimeout: Self.sharedReadTimeout
+        ) { [self] timeout in
+            let request = XPCMessage(route: XPCRoute.containerList.rawValue)
+            request.set(key: .listFilters, value: filters)
+            let reply = try await send(request, timeout: timeout)
+            guard let data = reply.data(key: .containers) else {
+                return Data("[]".utf8)
+            }
+            return try SnapshotTransform.toManagedArrayData(data)
         }
-        return try SnapshotTransform.toManagedArrayData(data)
     }
 
     /// Managed-container JSON for a single id (nil when absent).
-    public func get(id: String) async throws -> Data? {
-        let data = try await list(ids: [id])
+    ///
+    /// A `polling` read is answered from the full list every poller shares —
+    /// N containers' exit waits and log follows cost one request per
+    /// `maxAge`, not N per poll. A container missing from that list is asked
+    /// about directly: absence from a recent list is no proof it is gone.
+    public func get(id: String, policy: ReadPolicy = .live) async throws -> Data? {
+        if policy.maxAge != nil {
+            let all = try MicropodJSON.decodeArray(
+                JSONValue.self, from: try await list(policy: policy), context: "container get")
+            if let entry = all.first(where: { Self.containerID(of: $0) == id }) {
+                return try JSONEncoder().encode([entry])
+            }
+            return try await get(id: id, policy: ReadPolicy(budget: policy.budget))
+        }
+        let data = try await list(ids: [id], policy: policy)
         let entries = try MicropodJSON.decodeArray(JSONValue.self, from: data, context: "container get")
         guard let first = entries.first else { return nil }
         return try JSONEncoder().encode([first])
     }
+
+    private static func containerID(of entry: JSONValue) -> String? {
+        guard case .object(let object) = entry, case .string(let id)? = object["id"] else { return nil }
+        return id
+    }
+
+    /// Filters encode to the same bytes for the same filters: they are the
+    /// shared-read key.
+    private static let keyEncoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        return encoder
+    }()
 
     /// Managed-container JSON object for `createProcess` patching.
     func managed(id: String) async throws -> JSONValue {
@@ -170,9 +230,15 @@ public final class APIServerClient: Sendable {
     // MARK: - Networks
 
     /// `networkList` → `[NetworkResource]` (`{id, configuration, status}`).
-    public func networkList() async throws -> [JSONValue] {
+    public func networkList(policy: ReadPolicy = ReadPolicy(budget: .seconds(5))) async throws -> [JSONValue] {
+        try await networkLists.read("", policy: policy, requestTimeout: .seconds(30)) { [self] timeout in
+            try await fetchNetworks(timeout: timeout)
+        }
+    }
+
+    private func fetchNetworks(timeout: Duration) async throws -> [JSONValue] {
         let request = XPCMessage(route: XPCRoute.networkList.rawValue)
-        let reply = try await send(request, timeout: .seconds(5))
+        let reply = try await send(request, timeout: timeout)
         guard let data = reply.data(key: .networkResources) else { return [] }
         return try MicropodJSON.decoder.decode([JSONValue].self, from: data)
     }
@@ -222,16 +288,20 @@ public final class APIServerClient: Sendable {
         guard let data = reply.data(key: .volume) else {
             throw MicropodError.message("volumeCreate returned no volume")
         }
-        return try MicropodJSON.decoder.decode(JSONValue.self, from: data)
+        let volume = try MicropodJSON.decoder.decode(JSONValue.self, from: data)
+        await volumeReads.remember(name, volume)
+        return volume
     }
 
     /// `volumeList` → `[VolumeConfiguration]` (flat `{name, format, source,
     /// creationDate, sizeInBytes, labels, …}` objects; see
     /// ``VolumeTransform`` for the `{id, configuration}` listing shape).
-    public func volumeList() async throws -> [JSONValue] {
-        let reply = try await send(XPCMessage(route: XPCRoute.volumeList.rawValue), timeout: .seconds(10))
-        guard let data = reply.data(key: .volumes) else { return [] }
-        return try MicropodJSON.decoder.decode([JSONValue].self, from: data)
+    public func volumeList(policy: ReadPolicy = .live) async throws -> [JSONValue] {
+        try await volumeLists.read("", policy: policy, requestTimeout: Self.sharedReadTimeout) { [self] timeout in
+            let reply = try await send(XPCMessage(route: XPCRoute.volumeList.rawValue), timeout: timeout)
+            guard let data = reply.data(key: .volumes) else { return [] }
+            return try MicropodJSON.decoder.decode([JSONValue].self, from: data)
+        }
     }
 
     /// `volumeDelete`.
@@ -242,32 +312,70 @@ public final class APIServerClient: Sendable {
     }
 
     /// `volumeInspect` → `VolumeConfiguration`, nil when absent.
-    public func volumeInspect(name: String) async throws -> JSONValue? {
-        let request = XPCMessage(route: XPCRoute.volumeInspect.rawValue)
-        request.set(key: .volumeName, value: name)
-        do {
-            let reply = try await send(request, timeout: .seconds(10))
-            guard let data = reply.data(key: .volume) else { return nil }
-            return try MicropodJSON.decoder.decode(JSONValue.self, from: data)
-        } catch {
-            // Server surfaces missing volumes as an XPC error, not an empty
-            // reply — treat any error as "not found" only when it says so.
-            if error.localizedDescription.contains("not found")
-                || error.localizedDescription.contains("does not exist")
-            {
-                return nil
+    public func volumeInspect(name: String, policy: ReadPolicy = .live) async throws -> JSONValue? {
+        try await volumeReads.read(name, policy: policy, requestTimeout: Self.sharedReadTimeout) { [self] timeout in
+            let request = XPCMessage(route: XPCRoute.volumeInspect.rawValue)
+            request.set(key: .volumeName, value: name)
+            do {
+                let reply = try await send(request, timeout: timeout)
+                guard let data = reply.data(key: .volume) else { return nil }
+                return try MicropodJSON.decoder.decode(JSONValue.self, from: data)
+            } catch {
+                // Server surfaces missing volumes as an XPC error, not an empty
+                // reply — treat any error as "not found" only when it says so.
+                if error.localizedDescription.contains("not found")
+                    || error.localizedDescription.contains("does not exist")
+                {
+                    return nil
+                }
+                throw error
             }
-            throw error
         }
     }
 
+    /// A volume's configuration for a create's mounts and clones, nil when
+    /// absent. Answered from memory while the volume's backing image is
+    /// still there: the apiserver serves `volumeInspect` under the lock its
+    /// volume creates hold while they format, so on a busy host every
+    /// clone's inspect queued behind every other job's workspace volume.
+    public func volumeConfig(name: String) async throws -> JSONValue? {
+        if let known = await knownVolume(name) {
+            APIServerMetrics.read(XPCRoute.volumeInspect.rawValue, .remembered)
+            return known
+        }
+        return try await volumeInspect(name: name, policy: .patient)
+    }
+
+    /// The remembered configuration of `name`, if its backing image still
+    /// exists (a volume deleted behind this client's back is forgotten).
+    private func knownVolume(_ name: String) async -> JSONValue? {
+        guard let known = await volumeReads.answer(name, maxAge: Self.volumeConfigLifetime), let volume = known
+        else { return nil }
+        guard Self.backingImageExists(volume) else {
+            await volumeReads.invalidate(name)
+            return nil
+        }
+        return volume
+    }
+
+    static func backingImageExists(_ volume: JSONValue) -> Bool {
+        guard case .object(let object) = volume, case .string(let source)? = object["source"], !source.isEmpty
+        else { return false }
+        return FileManager.default.fileExists(atPath: source)
+    }
+
     /// `getOrCreateVolume` — CLI semantics: create, fall back to inspect
-    /// on already-exists.
+    /// on already-exists. A volume this client already knows exists is
+    /// answered without either.
     public func getOrCreateVolume(name: String, labels: [String: String] = [:]) async throws -> JSONValue {
+        if let known = await knownVolume(name) {
+            APIServerMetrics.read(XPCRoute.volumeInspect.rawValue, .remembered)
+            return known
+        }
         do {
             return try await volumeCreate(name: name, labels: labels)
         } catch {
-            if let existing = try await volumeInspect(name: name) {
+            if let existing = try await volumeInspect(name: name, policy: .patient) {
                 return existing
             }
             throw error
@@ -360,12 +468,40 @@ public final class APIServerClient: Sendable {
         return try MicropodJSON.decode(ContainerStatsEntry.self, from: data, context: "container stats")
     }
 
-    /// `containerDiskUsage` → bytes.
+    /// A container's allocated bytes — what `containerDiskUsage` answers.
+    /// The apiserver walks the bundle on its containers actor, so every
+    /// list, stats and delete call waits for the walk; the bundle is a plain
+    /// directory under the app root, so it is walked here instead. Falls
+    /// back to the route when the app root is unknown or the bundle is not
+    /// where it is expected.
     public func diskUsage(id: String) async throws -> UInt64 {
+        if let root = appRoot.withLock({ $0 }),
+            let bytes = Self.allocatedSize(of: URL(fileURLWithPath: root).appendingPathComponent("containers/\(id)"))
+        {
+            return bytes
+        }
         let request = XPCMessage(route: XPCRoute.containerDiskUsage.rawValue)
         request.set(key: .id, value: id)
         let reply = try await send(request, timeout: .seconds(30))
         return reply.uint64(key: .containerSize)
+    }
+
+    /// The apiserver's measure (`FileManager.allocatedSize(of:)`: the
+    /// non-hidden files' total allocated size), or nil when `directory` is
+    /// not a directory.
+    static func allocatedSize(of directory: URL) -> UInt64? {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: directory.path, isDirectory: &isDirectory), isDirectory.boolValue,
+            let files = FileManager.default.enumerator(
+                at: directory, includingPropertiesForKeys: [.totalFileAllocatedSizeKey], options: [.skipsHiddenFiles])
+        else { return nil }
+        var total: UInt64 = 0
+        for case let file as URL in files {
+            if let size = try? file.resourceValues(forKeys: [.totalFileAllocatedSizeKey]).totalFileAllocatedSize {
+                total += UInt64(size)
+            }
+        }
+        return total
     }
 
     // MARK: - vsock
@@ -429,8 +565,87 @@ public final class APIServerClient: Sendable {
     /// timed-out create/bootstrap keeps running server-side, so a bound that
     /// fires on a busy host would strand a half-made container. Creates from
     /// large images under load have been seen to take minutes.
+    ///
+    /// Each send is counted per route in ``APIServerMetrics`` and logged when
+    /// slow; a write, once settled, invalidates the shared reads it may have
+    /// changed (see ``invalidate(after:_:)``).
     private func send(_ request: XPCMessage, timeout: Duration?) async throws -> XPCMessage {
-        try await xpc.send(request, responseTimeout: timeout)
+        let route = request.string(key: XPCMessage.routeKey) ?? "?"
+        let clock = ContinuousClock()
+        let started = clock.now
+        let result: Result<XPCMessage, any Error>
+        do {
+            result = .success(try await xpc.send(request, responseTimeout: timeout))
+        } catch {
+            result = .failure(error)
+        }
+        let took = clock.now - started
+        // Settled, failed or timed out alike: a write the client stopped
+        // waiting for may still land.
+        await invalidate(after: route, request)
+        APIServerMetrics.xpc(route, status: Self.metricStatus(result), duration: took)
+        SlowCalls.note(route: route, took: took, failed: (try? result.get()) == nil)
+        return try result.get()
+    }
+
+    /// Drops the shared reads a write on `route` may have changed.
+    private func invalidate(after route: String, _ request: XPCMessage) async {
+        switch XPCRoute(rawValue: route) {
+        case .containerCreate, .containerBootstrap, .containerStartProcess, .containerStop, .containerKill,
+            .containerDelete, .containerWait:
+            await containerReads.invalidate()
+        case .volumeCreate, .volumeDelete:
+            await volumeLists.invalidate()
+            if let name = request.string(key: .volumeName) {
+                await volumeReads.invalidate(name)
+            }
+        case .networkCreate, .networkDelete:
+            await networkLists.invalidate()
+        default:
+            break
+        }
+    }
+
+    private static func metricStatus(_ result: Result<XPCMessage, any Error>) -> Int {
+        guard case .failure(let error) = result else { return 200 }
+        if case MicropodError.transport = error { return 503 }
+        return error.localizedDescription.contains("deadlineExceeded") ? 504 : 500
+    }
+}
+
+/// Logs apiserver calls slow enough to matter (≥ 5 s), at most one line
+/// per route every 30 s, with how many were slow since the last line — the
+/// stderr trail that says a CI failure was the runtime being busy.
+enum SlowCalls {
+    static let threshold: Duration = .seconds(5)
+    static let interval: Duration = .seconds(30)
+
+    private struct Route {
+        var lastLogged: ContinuousClock.Instant?
+        var suppressed = 0
+        var worst: Duration = .zero
+    }
+
+    private static let routes = OSAllocatedUnfairLock<[String: Route]>(initialState: [:])
+
+    static func note(route: String, took: Duration, failed: Bool) {
+        guard took >= threshold else { return }
+        let now = ContinuousClock.now
+        let line: String? = routes.withLock { routes in
+            var entry = routes[route, default: Route()]
+            entry.worst = max(entry.worst, took)
+            if let last = entry.lastLogged, now - last < interval {
+                entry.suppressed += 1
+                routes[route] = entry
+                return nil
+            }
+            let more =
+                entry.suppressed > 0
+                ? " (+\(entry.suppressed) more slow since, worst \(entry.worst.secondsText))" : ""
+            routes[route] = Route(lastLogged: now)
+            return "micropod: apiserver \(route) \(failed ? "failed" : "answered") after \(took.secondsText)\(more)\n"
+        }
+        if let line { FileHandle.standardError.write(Data(line.utf8)) }
     }
 }
 

@@ -92,9 +92,10 @@ final class APIHandlers: Sendable {
     }
 
     private func handleInner(_ request: HTTPRequest) async -> HTTPResponse {
-        // /metrics — Prometheus text format, always 200
+        // /metrics — Prometheus text format, always 200: this API's routes,
+        // then the apiserver XPC traffic behind them.
         if request.path == "/metrics" {
-            return .text(200, metrics.render())
+            return .text(200, metrics.render() + APIServerMetrics.render())
         }
 
         let path = request.path
