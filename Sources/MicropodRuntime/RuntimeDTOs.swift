@@ -28,7 +28,9 @@ typealias APIContainerStats = ContainerStatsEntry
 
 /// `SystemHealth` — `ping` reply fields we consume.
 public struct APIServerHealth: Sendable, Equatable {
-    /// Banner form, e.g. "container-apiserver version 1.3.1 (build: release, commit: a9a62e2)".
+    /// As the apiserver reports it: the banner through 1.3.x
+    /// ("container-apiserver version 1.3.1 (build: release, commit: a9a62e2)"),
+    /// the bare release from 1.4.0 ("1.5.0"). Use `semver` to compare.
     public let apiServerVersion: String
     public let apiServerCommit: String
     public let apiServerBuild: String

@@ -570,12 +570,32 @@ public enum SandboxVM {
         }
     }
 
+    /// The Containerization release micropod links (Package.swift pins it
+    /// exactly; `SandboxVMInitTests` keeps the two in step).
+    static let linkedContainerizationVersion = "0.42.0"
+
+    /// The `vminit` image the sandbox boots, from the references in the
+    /// store. The store holds the `vminit` of every `container` release that
+    /// ran `system start` here: an upgrade to 1.5.0 adds `vminit:0.47.0`
+    /// beside `0.42.0`. Prefer the one matching the linked library, so the
+    /// guest agent and its host-side client stay one release: from 0.47,
+    /// `vminitd` refuses copy and stat requests without the `root` field a
+    /// 0.42 client never sends. Otherwise the first `vminit`, as before.
+    static func pickVMInit(_ references: [String]) -> String? {
+        let vminits = references.filter { $0.contains("containerization/vminit") }
+        return vminits.first { $0.hasSuffix(":" + linkedContainerizationVersion) } ?? vminits.first
+    }
+
     /// vminitd initfs, unpacked once from the store's `vminit` image.
     static func initfs(store: ImageStore, progress: @Sendable (String) -> Void) async throws -> Containerization.Mount {
         let images = try await store.list()
-        guard let vminit = images.first(where: { $0.reference.contains("containerization/vminit") })
+        guard let reference = pickVMInit(images.map(\.reference)),
+            let vminit = images.first(where: { $0.reference == reference })
         else {
             throw MicropodError.message("no vminit image — run `container system start` once")
+        }
+        if !reference.hasSuffix(":" + linkedContainerizationVersion) {
+            progress("using \(reference); micropod's sandbox is built for vminit \(linkedContainerizationVersion)")
         }
         let tag = vminit.digest.replacingOccurrences(of: ":", with: "-")
         let path = root.appendingPathComponent("initfs-\(tag).ext4")
