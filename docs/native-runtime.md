@@ -75,8 +75,12 @@ silently bypass it. Only an explicit `MICROPOD_RUNTIME=native` overrides.
 
 The `ping` route returns `apiServerVersion` (a banner like
 `"container-apiserver version 1.3.1 (build: release, commit: a9a62e2)"` —
-we extract the semver) and `apiServerCommit`. We accept `1.3.x` (verified
-against installed `1.3.1`, commit `a9a62e2`). In `auto` mode an
+we extract the semver; from 1.4.0 the reply is the bare release, e.g. `"1.5.0"`)
+and `apiServerCommit`. We accept `1.3.x` (live-validated on `1.3.1`, commit
+`a9a62e2`) and `1.4.x`/`1.5.x` (audited: apple/container 1.3.1...1.5.0 only
+adds the `containerClean` route; payloads unchanged; `mcp_live.py` 47/47 on
+1.5.0). `container system status --format json` is nested from 1.5.0
+(`server.version`, `paths.appRoot`); `SystemStatusResponse` reads both shapes. In `auto` mode an
 unverified version falls back to CLI — the wire DTOs are versioned by us,
 not versioned on the wire, so an unknown schema is a correctness risk
 rather than a perf one. Explicit `MICROPOD_RUNTIME=native` proceeds

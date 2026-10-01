@@ -1,7 +1,8 @@
 import Foundation
 
 /// Wire constants for the `container-apiserver` XPC protocol, ported from
-/// `ContainerXPC/XPC+.swift` at container 1.3.1. Raw values are the literal
+/// `ContainerXPC/XPC+.swift` at container 1.3.1 and checked against 1.5.0
+/// (whose only addition is `containerClean`). Raw values are the literal
 /// dictionary keys on the wire — do not rename.
 enum XPCRoute: String {
     case containerList
@@ -23,6 +24,9 @@ enum XPCRoute: String {
     case containerCopyIn
     case containerCopyOut
     case containerExport
+    /// 1.4.0+ (`container clean`). Not sent: a 1.3.x apiserver has no
+    /// handler for it.
+    case containerClean
 
     case pluginLoad
     case pluginGet
