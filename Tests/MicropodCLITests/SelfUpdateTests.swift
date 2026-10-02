@@ -69,7 +69,10 @@ final class SelfUpdateTests: XCTestCase {
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("scripts/package_app.sh")
         let text = try String(contentsOf: script, encoding: .utf8)
-        XCTAssertTrue(text.contains("<key>SUPublicEDKey</key><string>\(SelfUpdate.publicKey)</string>"))
+        let pattern = try NSRegularExpression(pattern: #""SUPublicEDKey"\s*:\s*"([^"]+)""#)
+        let match = try XCTUnwrap(pattern.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)))
+        let keyRange = try XCTUnwrap(Range(match.range(at: 1), in: text))
+        XCTAssertEqual(String(text[keyRange]), SelfUpdate.publicKey)
     }
 
     func testCodeSignatureRequirement() {

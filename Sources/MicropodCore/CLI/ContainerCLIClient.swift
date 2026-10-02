@@ -229,10 +229,18 @@ public struct ContainerCLIClient: Sendable {
                 // to a long-lived pipe (verified against the real runtime);
                 // readabilityHandler is the reliable async callback.
                 handle.readabilityHandler = { h in
-                    let data: Data
-                    do {
-                        data = try h.read(upToCount: 64 * 1024) ?? Data()
-                    } catch {
+                    // A single pipe read returns currently available bytes.
+                    // FileHandle.read(upToCount:) can wait to fill its request,
+                    // delaying small live output until more data or EOF arrives.
+                    var data = Data(count: 64 * 1024)
+                    var count: Int
+                    repeat {
+                        count = data.withUnsafeMutableBytes { buffer in
+                            Darwin.read(h.fileDescriptor, buffer.baseAddress, buffer.count)
+                        }
+                    } while count < 0 && errno == EINTR
+                    if count < 0 {
+                        let error = NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
                         h.readabilityHandler = nil
                         try? h.close()
                         eof.runOnce { drained.leave() }
@@ -240,6 +248,7 @@ public struct ContainerCLIClient: Sendable {
                         gate.runOnce { continuation.finish(throwing: error) }
                         return
                     }
+                    data.count = count
                     if data.isEmpty {
                         h.readabilityHandler = nil
                         try? h.close()
