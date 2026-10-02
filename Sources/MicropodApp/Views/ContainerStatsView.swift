@@ -49,13 +49,23 @@ struct ContainerStatsView: View {
                         columns: [GridItem(.adaptive(minimum: 130), alignment: .leading)], alignment: .leading,
                         spacing: 12
                     ) {
-                        statTile("CPU", "\(Int(stats.cpuPercent))%", icon: "cpu")
-                        statTile("Memory", ByteFormat.string(stats.memoryUsedBytes), icon: "memorychip")
                         statTile(
-                            "Memory limit", ByteFormat.string(stats.memoryLimitBytes), icon: "externaldrive")
-                        statTile("Network Rx", ByteFormat.string(stats.networkRxBytes), icon: "arrow.down")
-                        statTile("Network Tx", ByteFormat.string(stats.networkTxBytes), icon: "arrow.up")
-                        statTile("PIDs", "\(stats.pids)", icon: "list.number")
+                            "CPU", "\(Int(stats.cpuPercent))%", icon: "cpu", fallback: "cpu", color: Tokens.Chart.cpu)
+                        statTile(
+                            "Memory", ByteFormat.string(stats.memoryUsedBytes), icon: "memory", fallback: "memorychip",
+                            color: Tokens.Chart.memory)
+                        statTile(
+                            "Memory limit", ByteFormat.string(stats.memoryLimitBytes), icon: "memory",
+                            fallback: "memorychip", color: Tokens.Chart.memory)
+                        statTile(
+                            "Network Rx", ByteFormat.string(stats.networkRxBytes), icon: "network", fallback: "network",
+                            color: Tokens.Chart.networkRx)
+                        statTile(
+                            "Network Tx", ByteFormat.string(stats.networkTxBytes), icon: "network", fallback: "network",
+                            color: Tokens.Chart.networkTx)
+                        statTile(
+                            "PIDs", "\(stats.pids)", icon: "pids", fallback: "list.number",
+                            color: Tokens.Palette.secondary)
                     }
                 } else {
                     Text("Live readings unavailable. Recorded history remains available.")
@@ -66,7 +76,7 @@ struct ContainerStatsView: View {
                 let samples = history.filter { $0.timestamp >= Date().addingTimeInterval(-window.duration) }
                 let chartSamples = downsample(samples, maxPoints: 360)
 
-                GroupBox("CPU %") {
+                PanelCard(title: "CPU %", icon: "cpu") {
                     Chart {
                         ForEach(chartSamples, id: \.timestamp) { point in
                             LineMark(
@@ -81,7 +91,7 @@ struct ContainerStatsView: View {
                     .frame(height: 120)
                 }
 
-                GroupBox("Memory") {
+                PanelCard(title: "Memory", icon: "memory") {
                     Chart {
                         ForEach(chartSamples, id: \.timestamp) { point in
                             LineMark(
@@ -96,7 +106,7 @@ struct ContainerStatsView: View {
                     .frame(height: 120)
                 }
 
-                GroupBox("Network") {
+                PanelCard(title: "Network", icon: "network") {
                     Chart {
                         ForEach(chartSamples, id: \.timestamp) { point in
                             LineMark(
@@ -119,7 +129,7 @@ struct ContainerStatsView: View {
                     .frame(height: 120)
                 }
 
-                GroupBox("Disk I/O") {
+                PanelCard(title: "Disk I/O", icon: "storage") {
                     Chart {
                         ForEach(chartSamples, id: \.timestamp) { point in
                             LineMark(
@@ -145,6 +155,7 @@ struct ContainerStatsView: View {
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .background(Tokens.Palette.canvas)
         .onChange(of: store.statsSnapshot?.sampledAt) { _, _ in
             appendHistory()
         }
@@ -206,16 +217,8 @@ struct ContainerStatsView: View {
         previousSampleTime = now
     }
 
-    private func statTile(_ label: String, _ value: String, icon: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Label(label, systemImage: icon)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.callout.weight(.semibold).monospacedDigit())
-                .lineLimit(2)
-                .truncationMode(.middle)
-                .help(value)
-        }
+    private func statTile(_ label: String, _ value: String, icon: String, fallback: String, color: Color) -> some View {
+        WorkspaceMetric(title: label, value: value, icon: icon, color: color, fallback: fallback)
+            .help(value)
     }
 }

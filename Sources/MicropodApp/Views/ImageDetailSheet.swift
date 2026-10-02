@@ -15,11 +15,12 @@ struct ImageDetailSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "photo.stack").foregroundStyle(.secondary)
+            HStack(alignment: .top, spacing: Tokens.Spacing.md) {
+                WorkspaceIconTile(name: "images", fallback: "square.stack")
                 Text(primaryName)
                     .font(.title3.weight(.semibold))
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                     .truncationMode(.middle)
                     .help(primaryName)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -30,7 +31,9 @@ struct ImageDetailSheet: View {
                     metadataSection
                     if let inspect { inspectSection(inspect) }
                     if let inspectError {
-                        Text(inspectError).font(.caption).foregroundStyle(.red)
+                        Text(inspectError).font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.danger)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .textSelection(.enabled)
                     }
                 }
                 .padding(4)
@@ -50,11 +53,13 @@ struct ImageDetailSheet: View {
                 Spacer(minLength: 8)
                 Button(String(localized: "Run…")) { showRun = true }
                     .buttonStyle(.borderedProminent)
+                    .tint(Tokens.Palette.action)
                 Button(String(localized: "Done")) { dismiss() }.keyboardShortcut(.defaultAction)
             }
             .controlSize(.small)
         }
         .padding(20)
+        .background(Tokens.Palette.canvas)
         .frame(minWidth: 320, idealWidth: 520, maxWidth: 780, minHeight: 260, idealHeight: 460, maxHeight: 760)
         .sheet(isPresented: $showRun) {
             RunContainerSheet(store: store, initialImage: primaryName)
@@ -104,19 +109,16 @@ struct ImageDetailSheet: View {
         }
     }
 
-    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            VStack(spacing: 0) {
+    private func section<Content: View>(_ title: String, @ViewBuilder content: @escaping () -> Content) -> some View {
+        PanelCard(title: title) {
+            VStack(alignment: .leading, spacing: 0) {
                 content()
             }
-            .padding(8)
-            .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
         }
     }
 
     private func metaRow(_ label: String, _ value: String) -> some View {
-        InventoryCopyRow(label: label, value: value)
+        InspectorFieldRow(label: label, value: value)
     }
 
     // MARK: - Data

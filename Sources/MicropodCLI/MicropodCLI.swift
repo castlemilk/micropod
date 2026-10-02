@@ -58,6 +58,10 @@ struct MicropodCLI {
             let json = args.contains("--json")
             exit(await UpdateCommands.main(Array(args.dropFirst()).filter { $0 != "--json" }, json: json))
         }
+        if args.first == "storage" {
+            let json = args.contains("--json")
+            exit(await StorageCommands.main(Array(args.dropFirst()).filter { $0 != "--json" }, json: json))
+        }
         if args.first == "sandbox" {
             exit(await SandboxCommands.main(Array(args.dropFirst())))
         }
@@ -215,6 +219,7 @@ struct MicropodCLI {
           k8s load <ref|file.tar>|images     push images into the cluster via the host puller
           system start|stop|logs             daemon control + log access
           update [status|check|apply|cli]    keep the app and this CLI current
+          storage [show|volumes|set <dir>]  where runtime data lives; move it to another volume
           metrics [id] [--range 1h] [--machine]  recorded resource history (peak/avg/now + sparkline)
           status / version                   runtime + version info
 

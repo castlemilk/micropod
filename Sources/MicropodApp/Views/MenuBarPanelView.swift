@@ -265,12 +265,9 @@ struct MenuBarPanelView: View {
             HStack(spacing: 6) {
                 Text(title).foregroundStyle(Tokens.Palette.secondary)
                 Spacer(minLength: 4)
-                Text(
-                    cap == 0
-                        ? "\(ByteFormat.string(used)) · no limit"
-                        : "\(ByteFormat.string(used)) / \(ByteFormat.string(cap))"
-                )
-                .monospacedDigit().foregroundStyle(Tokens.Palette.primary).fixedSize(horizontal: true, vertical: false)
+                Text("\(ByteFormat.string(used)) / \(ByteFormat.string(cap))")
+                    .monospacedDigit().foregroundStyle(Tokens.Palette.primary).fixedSize(
+                        horizontal: true, vertical: false)
             }
             if cap > 0 {
                 WorkspaceBudgetMeter(

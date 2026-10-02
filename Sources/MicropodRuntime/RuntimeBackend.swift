@@ -35,11 +35,30 @@ public struct RuntimeServices: Sendable {
     /// additive, but callers may choose to be conservative.
     public var versionSupported: Bool {
         guard let health, let version = health.semver else { return false }
-        return Self.supportedVersions.contains(version) || version.hasPrefix("1.3.")
+        return Self.isVerified(semver: version)
     }
 
-    /// Versions the wire protocol was verified against.
+    /// Versions the wire protocol was validated against live.
     public static let supportedVersions: Set<String> = ["1.3.1"]
+
+    /// Release lines whose wire protocol is verified. 1.3.x is
+    /// live-validated (1.3.1). 1.4.x and 1.5.x are verified by audit of
+    /// apple/container 1.3.1...1.5.0:
+    ///   - the XPC route and key enums gained only `containerClean`, and
+    ///     their raw values are the case names, so no existing value moved;
+    ///   - the ping reply's `apiServerVersion` became the bare release
+    ///     ("1.5.0" rather than the banner), which `APIServerHealth.semver`
+    ///     reads either way;
+    ///   - the container, volume, image and stats payloads did not change.
+    /// A newer line stays on the CLI in auto mode until it is audited the
+    /// same way (docs/native-runtime.md, "Version gating").
+    public static let verifiedReleaseLines: [String] = ["1.3.", "1.4.", "1.5."]
+
+    /// Whether `semver` (as `APIServerHealth.semver` extracts it) is a
+    /// version the native backend may run against in auto mode.
+    public static func isVerified(semver: String) -> Bool {
+        supportedVersions.contains(semver) || verifiedReleaseLines.contains { semver.hasPrefix($0) }
+    }
 }
 
 /// Resolves `RuntimeServices` from the environment.
@@ -119,9 +138,10 @@ public enum RuntimeBackendResolver {
                 // auto stays on CLI. Explicit `native` is an opt-in and
                 // proceeds with a warning.
                 if mode == "native" {
+                    let lines = RuntimeServices.verifiedReleaseLines.map { $0 + "x" }.joined(separator: ", ")
                     let notice =
                         "micropod: apiserver version \(health.apiServerVersion) is unverified "
-                        + "(supported: \(RuntimeServices.supportedVersions.sorted().joined(separator: ", ")) or 1.3.x); proceeding anyway\n"
+                        + "(supported: \(lines)); proceeding anyway\n"
                     FileHandle.standardError.write(Data(notice.utf8))
                     return services
                 }

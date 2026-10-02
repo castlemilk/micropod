@@ -7,6 +7,11 @@ agent-driven container management.
 
 ## What it does
 
+- **Workspaces** — unified container and microVM inventory with project grouping,
+  search, type/state filters and responsive inspectors. Shared light/dark
+  components and original operational icons carry through all 14 views,
+  attached sheets and the menu bar. See the [native design system](docs/design/2026-10-01-micropod/design-system.md)
+  and [responsive preview gallery](docs/design/2026-10-01-micropod/native/responsive/index.html).
 - **Containers** — list/start/stop/kill/delete/prune, live logs, stats
   (CPU/mem/net, 5 s sampling), file explorer (copy in/out), config + inspect
   JSON, and an interactive PTY terminal (`container exec -it`) with real job
@@ -26,8 +31,10 @@ agent-driven container management.
   LoadBalancer IPs that route on the host's vmnet subnet (the part kind can't
   do on macOS), traefik ingress, and a host kubeconfig at
   `~/.micropod/k8s/kubeconfig`. See `docs/kubernetes.md`.
-- **Menu bar** — running-container count, quick stop-all/start-runtime, and a
-  dashboard glance.
+- **Cache** — measured retained build contexts and package-chunk budgets,
+  package-cache Keep and reviewed cleanup with active-mount protection.
+- **Menu bar** — running-workload count, workload shortcuts, measured guest
+  resources, cache budgets and runtime actions.
 - **MCP server** — STDIO JSON-RPC 2.0 (`tools/call`: status, list_containers,
   start/stop/kill/delete, run, pull/push, inspect, logs, df, compose_up,
   share_mount/unmount/list/sync/gc, build_cache_stats — 27 tools).
@@ -344,6 +351,15 @@ access are refused until you review the file and run
 `micropod sandbox trust`: mounts, ports, `expose_host`, networking, and
 secrets (which can run host commands). Editing the file revokes the trust.
 A cloned repository can't open the sandbox up on its own.
+
+## Storage location
+
+Container images, volumes, VMs and sandbox data can live on any local APFS
+volume, such as an external drive on a rig whose internal disk is full:
+`micropod storage set /Volumes/External/micropod --migrate`, or **Settings →
+Storage Location**. The default paths become symlinks, so every
+`container system start` follows them. Keep the drive connected. See
+[docs/storage-location.md](docs/storage-location.md).
 
 ## Metrics history
 

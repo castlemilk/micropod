@@ -5,15 +5,38 @@ import XCTest
 
 final class ContainerCLIClientTests: XCTestCase {
     func testSlowStreamConsumerFailsExplicitlyWithinMemoryBudget() async throws {
+        let directoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("micropod-stream-overflow-\(UUID().uuidString)")
+        let pidURL = directoryURL.appendingPathComponent("pid")
+        let readyURL = directoryURL.appendingPathComponent("ready")
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        var needsCleanup = true
+        defer {
+            if needsCleanup { killProcess(recordedAt: pidURL) }
+            try? FileManager.default.removeItem(at: directoryURL)
+        }
+
         let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/bin/sh"))
         let stream = client.stream(
             ContainerCommand(arguments: [
-                "-c", "exec /bin/dd if=/dev/zero bs=65536 count=1024 2>/dev/null",
+                "-c",
+                "echo $$ > \"$1\"; touch \"$2\"; exec /bin/dd if=/dev/zero bs=65536 count=1024 2>/dev/null",
+                "micropod-test",
+                pidURL.path,
+                readyURL.path,
             ]))
-        // Let the producer fill its queue before consuming. Overflow must
-        // terminate the producer rather than growing indefinitely or silently
-        // dropping raw bytes that may contain partial UTF-8/escape sequences.
-        try await Task.sleep(for: .milliseconds(500))
+        let processIsReady = try await waitForFile(at: readyURL, timeout: .seconds(3))
+        XCTAssertTrue(processIsReady, "The overflow fixture must record its process ID")
+        guard processIsReady else { return }
+
+        // Do not drain until the producer has exited and been reaped. With no
+        // consumer, its 64 MiB output must exceed the queue's 4 MiB bound,
+        // regardless of process startup or pipe callback scheduling speed.
+        let processExited = try await waitForProcessExit(recordedAt: pidURL, timeout: .seconds(15))
+        needsCleanup = !processExited
+        XCTAssertTrue(processExited, "Overflow must stop and reap the producer before consumption begins")
+        guard processExited else { return }
+
         var retainedBytes = 0
         do {
             for try await chunk in stream { retainedBytes += chunk.count }

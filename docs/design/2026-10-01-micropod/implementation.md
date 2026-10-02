@@ -32,7 +32,7 @@ Long image references, paths, digests, and configuration values wrap or truncate
 
 Attached sheets use minimum, ideal, and maximum sizes. Their long content scrolls while the primary action row stays fixed. Empty states reduce artwork or scroll in short viewports; operation history height is bounded to a fraction of the window. The 360 pt menu-bar panel retains its bounded native popover layout. Topology diagrams scroll horizontally below their 452 pt minimum diagram width.
 
-The [responsive preview gallery](native/responsive/index.html) includes 121 native renders across 45 surfaces. Regression tests verify long-value wrapping, proposed compact sizes, actual primary-button bounds, and native search/filter/list bounds during repeated resizing. These renders are visual inspection artifacts, not pixel baselines. Storage previews can include read-only host measurements.
+The [responsive preview gallery](native/responsive/index.html) includes 129 native renders across 49 surfaces. Regression tests verify long-value wrapping, proposed compact sizes, actual primary-button bounds, and native search/filter/list bounds during repeated resizing. These renders are visual inspection artifacts, not pixel baselines. Storage previews can include read-only host measurements.
 
 ## Assets and verification status
 

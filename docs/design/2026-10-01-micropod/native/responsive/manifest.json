@@ -1281,5 +1281,97 @@
         "pixelHeight": 1640
       }
     ]
+  },
+  {
+    "id": "storage-drive-current",
+    "title": "Current internal drive",
+    "group": "Storage location controls",
+    "variants": [
+      {
+        "file": "storage-drive-current-320.png",
+        "label": "320 \u00d7 360 pt \u00b7 Light",
+        "width": 320,
+        "height": 360,
+        "pixelWidth": 640,
+        "pixelHeight": 720
+      },
+      {
+        "file": "storage-drive-current-600-dark.png",
+        "label": "600 \u00d7 260 pt \u00b7 Dark",
+        "width": 600,
+        "height": 260,
+        "pixelWidth": 1200,
+        "pixelHeight": 520
+      }
+    ]
+  },
+  {
+    "id": "storage-drive-selected",
+    "title": "Selected external drive",
+    "group": "Storage location controls",
+    "variants": [
+      {
+        "file": "storage-drive-selected-320.png",
+        "label": "320 \u00d7 360 pt \u00b7 Light",
+        "width": 320,
+        "height": 360,
+        "pixelWidth": 640,
+        "pixelHeight": 720
+      },
+      {
+        "file": "storage-drive-selected-600-dark.png",
+        "label": "600 \u00d7 260 pt \u00b7 Dark",
+        "width": 600,
+        "height": 260,
+        "pixelWidth": 1200,
+        "pixelHeight": 520
+      }
+    ]
+  },
+  {
+    "id": "storage-drive-unusable",
+    "title": "Unsupported removable drive",
+    "group": "Storage location controls",
+    "variants": [
+      {
+        "file": "storage-drive-unusable-320.png",
+        "label": "320 \u00d7 360 pt \u00b7 Light",
+        "width": 320,
+        "height": 360,
+        "pixelWidth": 640,
+        "pixelHeight": 720
+      },
+      {
+        "file": "storage-drive-unusable-600-dark.png",
+        "label": "600 \u00d7 260 pt \u00b7 Dark",
+        "width": 600,
+        "height": 260,
+        "pixelWidth": 1200,
+        "pixelHeight": 520
+      }
+    ]
+  },
+  {
+    "id": "storage-location-actions",
+    "title": "Storage relocation actions",
+    "group": "Storage location controls",
+    "variants": [
+      {
+        "file": "storage-location-actions-320.png",
+        "label": "320 \u00d7 120 pt \u00b7 Light",
+        "width": 320,
+        "height": 120,
+        "pixelWidth": 640,
+        "pixelHeight": 240
+      },
+      {
+        "file": "storage-location-actions-560.png",
+        "label": "560 \u00d7 80 pt \u00b7 Light",
+        "width": 560,
+        "height": 80,
+        "pixelWidth": 1120,
+        "pixelHeight": 160
+      }
+    ]
   }
 ]

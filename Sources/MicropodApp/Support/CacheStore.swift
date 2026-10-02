@@ -27,7 +27,11 @@ final class CacheStore {
 
     @ObservationIgnored private let buildRoot: URL
     @ObservationIgnored private let client: any SharedFSClient
-    @ObservationIgnored private var refreshTask: Task<CacheSnapshot, Never>?
+    @ObservationIgnored private var refreshTask: Task<Void, Never>?
+    @ObservationIgnored private var refreshID: UUID?
+    @ObservationIgnored private var refreshGeneration: UInt64 = 0
+    @ObservationIgnored private var completedGeneration: UInt64 = 0
+    @ObservationIgnored private var refreshEpoch: UInt64 = 0
     @ObservationIgnored private let refreshInterval: TimeInterval
     @ObservationIgnored private var isPreview = false
 
@@ -45,16 +49,44 @@ final class CacheStore {
     }
 
     func refresh(force: Bool = false) async {
-        guard !isPreview else { return }
-        if let refreshTask {
-            _ = await refreshTask.value
-            return
+        guard !isPreview, !Task.isCancelled else { return }
+        // A mutation cannot use a snapshot whose read started beforehand.
+        let epoch = refreshEpoch
+        let requiredGeneration = force ? refreshGeneration + 1 : nil
+        while !Task.isCancelled, epoch == refreshEpoch {
+            let task: Task<Void, Never>
+            if let current = refreshTask {
+                task = current
+            } else {
+                if !force, let snapshot, Date().timeIntervalSince(snapshot.measuredAt) < refreshInterval { return }
+                task = startRefresh()
+            }
+            await task.value
+            guard !Task.isCancelled, !task.isCancelled, epoch == refreshEpoch else { return }
+            guard let requiredGeneration, completedGeneration < requiredGeneration else { return }
         }
-        if !force, let snapshot, Date().timeIntervalSince(snapshot.measuredAt) < refreshInterval { return }
+    }
+
+    /// Stops observers without allowing a late disk or IPC result to replace
+    /// a newer snapshot or restart a forced refresh waiting on this task.
+    func cancelRefresh() {
+        // Completed tasks may already have cleared their handle while forced
+        // observers are still waiting to resume. Invalidate those observers too.
+        refreshEpoch += 1
+        refreshTask?.cancel()
+        refreshTask = nil
+        refreshID = nil
+        isRefreshing = false
+    }
+
+    private func startRefresh() -> Task<Void, Never> {
         isRefreshing = true
+        refreshGeneration += 1
+        let generation = refreshGeneration
+        let id = UUID()
         let root = buildRoot
         let cacheClient = client
-        let task = Task.detached(priority: .utility) {
+        let reader = Task.detached(priority: .utility) {
             let cap = BuildCacheStore.capBytes()
             var entries: [BuildManifest] = []
             var stats = BuildCacheStats(entries: 0, contentBytes: 0, sharedBytes: 0, capBytes: cap)
@@ -86,10 +118,24 @@ final class CacheStore {
                 buildDisabled: BuildCacheStore.disabled(), buildError: buildError,
                 package: package, packageError: packageError)
         }
+        let task = Task { [weak self] in
+            let result = await withTaskCancellationHandler {
+                await reader.value
+            } onCancel: {
+                reader.cancel()
+            }
+            guard let self, self.refreshID == id else { return }
+            if !Task.isCancelled {
+                self.snapshot = result
+                self.completedGeneration = generation
+            }
+            self.refreshTask = nil
+            self.refreshID = nil
+            self.isRefreshing = false
+        }
         refreshTask = task
-        snapshot = await task.value
-        refreshTask = nil
-        isRefreshing = false
+        refreshID = id
+        return task
     }
 
     func reviewCleanup() async {
@@ -139,6 +185,7 @@ final class CacheStore {
     /// Used by deterministic native previews; never scans the user's
     /// cache directories or connects to the shared-cache agent.
     func applyForPreview(_ snapshot: CacheSnapshot, review: SharedCacheCleanupReview? = nil) {
+        cancelRefresh()
         isPreview = true
         self.snapshot = snapshot
         cleanupReview = review

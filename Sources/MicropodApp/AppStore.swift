@@ -382,6 +382,10 @@ final class AppStore {
     @ObservationIgnored private var restoredMachineHistory: Set<String> = []
     @ObservationIgnored private var panelVisible = false
     @ObservationIgnored private var machinesRefreshTask: Task<Void, Never>?
+    @ObservationIgnored private var machinesRefreshID: UUID?
+    @ObservationIgnored private var machinesRefreshGeneration: UInt64 = 0
+    @ObservationIgnored private var machinesCompletedGeneration: UInt64 = 0
+    @ObservationIgnored private var machinesRefreshEpoch: UInt64 = 0
     @ObservationIgnored private var machinesRefreshedAt = Date.distantPast
 
     init(dependencies: AppDependencies = AppDependencies.shared) {
@@ -554,6 +558,7 @@ final class AppStore {
     }
 
     func stopPollers() {
+        machinesRefreshEpoch += 1
         containersTask?.cancel()
         containersTask = nil
         statsTask?.cancel()
@@ -564,6 +569,10 @@ final class AppStore {
         metricsHistoryTask = nil
         machineHistoryTask?.cancel()
         machineHistoryTask = nil
+        machinesRefreshTask?.cancel()
+        machinesRefreshTask = nil
+        machinesRefreshID = nil
+        cacheStore.cancelRefresh()
     }
 
     /// Ensures the Apple container runtime is always running while the app is
@@ -1369,28 +1378,48 @@ final class AppStore {
     // MARK: - Machine / VM surface (4.1)
 
     func refreshMachines(force: Bool = false) async {
-        if let task = machinesRefreshTask {
+        guard !Task.isCancelled else { return }
+        // Mutations need a read started after their request. Callers waiting
+        // behind the same older read can share its one follow-up refresh.
+        let epoch = machinesRefreshEpoch
+        let requiredGeneration = force ? machinesRefreshGeneration + 1 : nil
+        while !Task.isCancelled, epoch == machinesRefreshEpoch {
+            let task: Task<Void, Never>
+            if let current = machinesRefreshTask {
+                task = current
+            } else {
+                guard force || Date().timeIntervalSince(machinesRefreshedAt) >= 5 else { return }
+                machinesRefreshGeneration += 1
+                let generation = machinesRefreshGeneration
+                let id = UUID()
+                task = Task { [weak self] in
+                    guard let self else { return }
+                    await self.performMachinesRefresh()
+                    guard self.machinesRefreshID == id else { return }
+                    if !Task.isCancelled { self.machinesCompletedGeneration = generation }
+                    self.machinesRefreshTask = nil
+                    self.machinesRefreshID = nil
+                }
+                machinesRefreshTask = task
+                machinesRefreshID = id
+            }
             await task.value
-            return
+            guard !Task.isCancelled, !task.isCancelled, epoch == machinesRefreshEpoch else { return }
+            guard let requiredGeneration, machinesCompletedGeneration < requiredGeneration else { return }
         }
-        guard force || Date().timeIntervalSince(machinesRefreshedAt) >= 5 else { return }
-        let task = Task { [weak self] in
-            if let self { await self.performMachinesRefresh() }
-        }
-        machinesRefreshTask = task
-        await task.value
-        machinesRefreshTask = nil
     }
 
     private func performMachinesRefresh() async {
         do {
             let listed = try await dependencies.machine.list()
+            guard !Task.isCancelled else { return }
             if machines != listed { machines = listed }
             restoreMachineMetricsHistory()
             machineError = nil
             machinesLoaded = true
             machinesRefreshedAt = Date()
         } catch {
+            guard !Task.isCancelled else { return }
             machineError = error.localizedDescription
             machinesRefreshedAt = Date()
         }

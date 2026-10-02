@@ -41,36 +41,37 @@ else
     echo "==> Icon: fallback programmatic icon"
 fi
 
-cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleName</key><string>$APP_NAME</string>
-    <key>CFBundleDisplayName</key><string>$APP_NAME</string>
-    <key>CFBundleExecutable</key><string>$APP_NAME</string>
-    <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
-    <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>$VERSION</string>
-    <key>CFBundleVersion</key><string>$VERSION</string>
-    <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-    <key>CFBundleDevelopmentRegion</key><string>en</string>
-    <key>CFBundleAllowMixedLocalizations</key><true/>
-    <key>CFBundleIconFile</key><string>Micropod</string>
-    <key>LSMinimumSystemVersion</key><string>26.0</string>
-    <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
-    <key>NSHighResolutionCapable</key><true/>
-    <key>LSUIElement</key><false/>
-    <key>NSSupportsAutomaticTermination</key><false/>
-    <key>NSSupportsSuddenTermination</key><false/>
-    <key>SUFeedURL</key><string>https://castlemilk.github.io/micropod/appcast.xml</string>
-    <key>SUPublicEDKey</key><string>nJEL+JijqhfC7zxPlqxifCqBM06A3DGki/JmBFTW/VM=</string>
-    <key>SUEnableAutomaticChecks</key><true/>
-    <key>SUScheduledCheckInterval</key><string>3600</string>
-    <key>NSHumanReadableCopyright</key><string>© 2026 skunkworq</string>
-</dict>
-</plist>
-PLIST
+# Write directly instead of a large heredoc: Bash versions that implement
+# heredocs with a small pipe can block before the reader is executed.
+python3 -c '
+import pathlib, plistlib, sys
+path, name, version, identifier = sys.argv[1:]
+metadata = {
+    "CFBundleName": name,
+    "CFBundleDisplayName": name,
+    "CFBundleExecutable": name,
+    "CFBundleIdentifier": identifier,
+    "CFBundlePackageType": "APPL",
+    "CFBundleShortVersionString": version,
+    "CFBundleVersion": version,
+    "CFBundleInfoDictionaryVersion": "6.0",
+    "CFBundleDevelopmentRegion": "en",
+    "CFBundleAllowMixedLocalizations": True,
+    "CFBundleIconFile": "Micropod",
+    "LSMinimumSystemVersion": "26.0",
+    "LSApplicationCategoryType": "public.app-category.developer-tools",
+    "NSHighResolutionCapable": True,
+    "LSUIElement": False,
+    "NSSupportsAutomaticTermination": False,
+    "NSSupportsSuddenTermination": False,
+    "SUFeedURL": "https://castlemilk.github.io/micropod/appcast.xml",
+    "SUPublicEDKey": "nJEL+JijqhfC7zxPlqxifCqBM06A3DGki/JmBFTW/VM=",
+    "SUEnableAutomaticChecks": True,
+    "SUScheduledCheckInterval": "3600",
+    "NSHumanReadableCopyright": "© 2026 skunkworq",
+}
+pathlib.Path(path).write_bytes(plistlib.dumps(metadata, sort_keys=False))
+' "$APP_BUNDLE/Contents/Info.plist" "$APP_NAME" "$VERSION" "$BUNDLE_ID"
 
 cp .build/release/MicropodApp "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"

@@ -14,9 +14,9 @@ struct ContainerFilesView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                GroupBox("Copy Into Container") {
-                    VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: Tokens.Spacing.md) {
+                PanelCard(title: "Copy Into Container", icon: "container") {
+                    VStack(alignment: .leading, spacing: Tokens.Spacing.md) {
                         Text("Pick a local file — it will be copied to /tmp inside \(containerID).")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -27,14 +27,14 @@ struct ContainerFilesView: View {
                             IconLabel(title: "Choose File…", icon: "choosefile", fallback: "square.and.arrow.down")
                         }
                         .buttonStyle(.borderedProminent)
+                        .tint(Tokens.Palette.action)
                         .controlSize(.small)
                     }
-                    .padding(4)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                GroupBox("Copy Out of Container") {
-                    VStack(alignment: .leading, spacing: 10) {
+                PanelCard(title: "Copy Out of Container", icon: "external-link") {
+                    VStack(alignment: .leading, spacing: Tokens.Spacing.md) {
                         Text("Copy a file from /tmp inside \(containerID) to a local location.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -52,7 +52,6 @@ struct ContainerFilesView: View {
                         .controlSize(.small)
                         .disabled(lastCopiedOutName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
-                    .padding(4)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
@@ -71,9 +70,10 @@ struct ContainerFilesView: View {
                         .textSelection(.enabled)
                 }
             }
-            .padding(12)
+            .padding(Tokens.Spacing.md)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .background(Tokens.Palette.canvas)
         .fileImporter(isPresented: $showImporter, allowedContentTypes: [.item]) { result in
             switch result {
             case .success(let url):

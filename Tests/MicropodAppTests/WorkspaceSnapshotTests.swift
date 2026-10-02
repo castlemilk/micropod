@@ -1,11 +1,11 @@
 import AppKit
 import Foundation
-import MicropodCore
 import MicropodSharedFS
 import SwiftUI
 import XCTest
 
 @testable import MicropodApp
+@testable import MicropodCore
 
 /// Native visual verification artifacts, deliberately backed by an isolated
 /// CLI fixture and CacheStore's preview seam. These are not pixel baselines.
@@ -194,6 +194,62 @@ final class WorkspaceSnapshotTests: XCTestCase {
             }
         }
         XCTAssertEqual(store.selectedContainerID, "api-dev")
+    }
+
+    /// Pure drive previews never discover host volumes or execute relocation operations.
+    func testResponsiveStorageLocationControls() throws {
+        let longName = "Development projects and virtual machines on a long named external drive"
+        let fixtures: [(String, StorageLocation.Volume, Bool, Bool)] = [
+            (
+                "current",
+                StorageLocation.Volume(
+                    mountPoint: URL(fileURLWithPath: "/"), name: "Macintosh HD", format: "apfs",
+                    availableBytes: 256 << 30, totalBytes: 1 << 40, isInternal: true, isRemovable: false,
+                    formatDescription: "APFS"), true, false
+            ),
+            (
+                "selected",
+                StorageLocation.Volume(
+                    mountPoint: URL(
+                        fileURLWithPath: "/Volumes/" + longName + "/a-long-project-directory/retained-runtime-data"),
+                    name: longName, format: "apfs", availableBytes: 64 << 30, totalBytes: 512 << 30,
+                    isInternal: false, isRemovable: false, formatDescription: "APFS (Case-sensitive)"), false, true
+            ),
+            (
+                "unusable",
+                StorageLocation.Volume(
+                    mountPoint: URL(fileURLWithPath: "/Volumes/Removable development backup"),
+                    name: "Removable development backup", format: "exfat", availableBytes: 8 << 30,
+                    totalBytes: 64 << 30,
+                    isInternal: false, isRemovable: true, formatDescription: "ExFAT"), false, false
+            ),
+        ]
+        for (name, volume, current, selected) in fixtures {
+            let card = StorageDriveCard(
+                volume: volume, isCurrent: current, isSelected: selected, dataBytes: nil, select: {}
+            )
+            .padding(Tokens.Spacing.md)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(Tokens.Palette.canvas)
+            try rasterize(
+                card, scheme: .light, size: NSSize(width: 320, height: 360),
+                name: "micropod-responsive-storage-drive-\(name)-320")
+            try rasterize(
+                card, scheme: .dark, size: NSSize(width: 600, height: 260),
+                name: "micropod-responsive-storage-drive-\(name)-600-dark")
+        }
+        let actions = StorageLocationActions(
+            working: false, canMove: true, canReset: true, hasOldData: true, move: {}, reset: {}, removeOld: {}
+        )
+        .padding(Tokens.Spacing.md)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Tokens.Palette.canvas)
+        try rasterize(
+            actions, scheme: .light, size: NSSize(width: 320, height: 120),
+            name: "micropod-responsive-storage-location-actions-320")
+        try rasterize(
+            actions, scheme: .light, size: NSSize(width: 560, height: 80),
+            name: "micropod-responsive-storage-location-actions-560")
     }
 
     func testResponsiveSheetsAndOverlays() throws {

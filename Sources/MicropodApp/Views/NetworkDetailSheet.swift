@@ -12,11 +12,12 @@ struct NetworkDetailSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 8) {
-                Image(systemName: "network").foregroundStyle(Color.accentColor)
+            HStack(alignment: .top, spacing: Tokens.Spacing.md) {
+                WorkspaceIconTile(name: "network", fallback: "network")
                 Text(network.id)
                     .font(.title3.weight(.semibold))
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                     .truncationMode(.middle)
                     .help(network.id)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -35,7 +36,8 @@ struct NetworkDetailSheet: View {
                                 localized: "Containers are attached to this network. Deleting it will disconnect them.")
                         )
                         .font(.caption)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Tokens.Palette.warning)
+                        .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 .padding(4)
@@ -55,6 +57,7 @@ struct NetworkDetailSheet: View {
             .controlSize(.small)
         }
         .padding(20)
+        .background(Tokens.Palette.canvas)
         .frame(minWidth: 320, idealWidth: 440, maxWidth: 780, minHeight: 260, idealHeight: 460, maxHeight: 760)
         .confirmationDialog(
             attachedRunning ? String(localized: "Delete in-use network?") : String(localized: "Delete network?"),
@@ -133,16 +136,13 @@ struct NetworkDetailSheet: View {
         attachedContainers.contains { $0.state == "running" }
     }
 
-    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            VStack(spacing: 0) { content() }
-                .padding(8)
-                .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+    private func section<Content: View>(_ title: String, @ViewBuilder content: @escaping () -> Content) -> some View {
+        PanelCard(title: title) {
+            VStack(alignment: .leading, spacing: 0) { content() }
         }
     }
 
     private func copyRow(_ label: String, _ value: String) -> some View {
-        InventoryCopyRow(label: label, value: value)
+        InspectorFieldRow(label: label, value: value)
     }
 }

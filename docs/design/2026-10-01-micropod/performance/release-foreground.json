@@ -1,0 +1,54 @@
+{
+  "binary_sha256": "1fe206a5911bd9a062ab9470c0a643b5f91e3f5cdbb44855fcb0927046327609",
+  "app": "/Users/benebsworth/projects/micropod/dist/Micropod.app/Contents/MacOS/Micropod",
+  "fixture_stats_disabled": true,
+  "host": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5.1\nBuildVersion:\t\t25F80",
+  "results": [
+    {
+      "count": 1000,
+      "tab": "workloads",
+      "duration_seconds": 5.049,
+      "socket_ready_seconds": 0.551,
+      "first_main_actor_ping_ms": 385.585,
+      "rss_start_mib": 224.28,
+      "rss_end_mib": 187.47,
+      "rss_peak_mib": 224.28,
+      "cpu_seconds": 0.03,
+      "cpu_percent_one_core": 0.59,
+      "ping_count": 47,
+      "main_actor_ping_p50_ms": 0.29,
+      "main_actor_ping_p95_ms": 0.343,
+      "main_actor_ping_max_ms": 0.381,
+      "activation": {
+        "requested": true,
+        "active": true
+      },
+      "physical_footprint_mib": 150.2,
+      "physical_footprint_peak_mib": 163.8,
+      "round": 1
+    },
+    {
+      "count": 1000,
+      "tab": "dashboard",
+      "duration_seconds": 5.076,
+      "socket_ready_seconds": 0.15,
+      "first_main_actor_ping_ms": 38.365,
+      "rss_start_mib": 228.5,
+      "rss_end_mib": 229.34,
+      "rss_peak_mib": 229.34,
+      "cpu_seconds": 0.26,
+      "cpu_percent_one_core": 5.12,
+      "ping_count": 47,
+      "main_actor_ping_p50_ms": 0.283,
+      "main_actor_ping_p95_ms": 0.366,
+      "main_actor_ping_max_ms": 48.306,
+      "activation": {
+        "requested": true,
+        "active": true
+      },
+      "physical_footprint_mib": 352.1,
+      "physical_footprint_peak_mib": 370.1,
+      "round": 1
+    }
+  ]
+}
