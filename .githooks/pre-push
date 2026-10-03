@@ -22,5 +22,24 @@ fi
 echo "hook: swift build…"
 swift build
 
-echo "hook: swift test…"
-swift test
+# Test only the targets the push changes (Sources/<T> -> Tests/<T>Tests);
+# CI runs the whole suite. PRE_PUSH_FULL=1, a Package.swift change, or no
+# origin/master base runs everything here too.
+base=$(git merge-base origin/master HEAD 2>/dev/null || true)
+changed=""
+[ -n "$base" ] && changed=$(git diff --name-only "$base" HEAD)
+if [ -n "${PRE_PUSH_FULL:-}" ] || [ -z "$base" ] || echo "$changed" | grep -q '^Package\.swift$'; then
+    echo "hook: swift test…"
+    swift test
+    exit 0
+fi
+
+targets=$(echo "$changed" | sed -n 's|^Sources/\([^/]*\)/.*|\1Tests|p; s|^Tests/\([^/]*\)/.*|\1|p' |
+    sort -u | while read -r t; do [ -d "Tests/$t" ] && echo "$t"; done)
+if [ -z "$targets" ]; then
+    echo "hook: no test target covers this push; skipping swift test"
+    exit 0
+fi
+filter="^($(echo $targets | tr ' ' '|'))\."
+echo "hook: swift test --filter '$filter'…"
+swift test --filter "$filter"
