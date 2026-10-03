@@ -14,11 +14,13 @@ public struct ProgressEvent: Sendable, Equatable {
         self.stageName = stageName
     }
 
+    private static let stageExpression = try? NSRegularExpression(pattern: #"\[[^\]]*?(\d+)/(\d+)\]"#)
+    private static let timerExpression = try? NSRegularExpression(pattern: #"\[\d+s\]\s*$"#)
+
     /// Tolerant parse of progress lines: classic `[3/6] Unpacking image [2s]`
     /// and BuildKit `#5 [linux/arm64 1/2] RUN echo …`.
     public static func parse(line: String) -> ProgressEvent {
-        let pattern = #"\[[^\]]*?(\d+)/(\d+)\]"#
-        guard let regex = try? NSRegularExpression(pattern: pattern),
+        guard let regex = stageExpression,
             let nsMatch = regex.firstMatch(
                 in: line, range: NSRange(line.startIndex..<line.endIndex, in: line)),
             let stageRange = Range(nsMatch.range(at: 1), in: line),
@@ -32,7 +34,10 @@ public struct ProgressEvent: Sendable, Equatable {
         var name = String(line[match.upperBound...])
             .trimmingCharacters(in: .whitespacesAndNewlines)
         // Strip trailing elapsed timers like "[12s]".
-        if let timer = name.range(of: #"\[\d+s\]\s*$"#, options: String.CompareOptions.regularExpression) {
+        if let timerMatch = timerExpression?.firstMatch(
+            in: name, range: NSRange(name.startIndex..<name.endIndex, in: name)),
+            let timer = Range(timerMatch.range, in: name)
+        {
             name = String(name[name.startIndex..<timer.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
         }
         return ProgressEvent(line: line, stage: stage, totalStages: total, stageName: name.isEmpty ? nil : name)

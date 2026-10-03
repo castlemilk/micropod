@@ -10,18 +10,10 @@ struct DashboardView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 10) {
-                    EmptyStateView.brandMark(EmptyStateArtwork.dashboardHero, size: 36)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Micropod").font(.title3.weight(.semibold))
-                        Text(String(localized: "macOS container manager"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.bottom, 2)
+            VStack(alignment: .leading, spacing: Tokens.Spacing.lg) {
+                WorkspacePageHeader(
+                    title: "Overview", subtitle: "Containers, microVMs and local resources",
+                    icon: "activity", fallback: "waveform.path.ecg")
                 runtimeCard
                 workloadsCard
                 liveResourcesCard
@@ -31,7 +23,9 @@ struct DashboardView: View {
                     activityCard
                 }
             }
-            .padding(16)
+            .padding(Tokens.Spacing.contentInset)
+            .frame(maxWidth: 1200, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
         .task { await store.refreshDiskUsage() }
 
@@ -65,7 +59,7 @@ struct DashboardView: View {
     // MARK: - Activity feed
 
     private var activityCard: some View {
-        PanelCard(title: "Recent Activity") {
+        PanelCard(title: "Recent Activity", icon: "activity") {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(store.recentActivity(limit: 12).enumerated()), id: \.element.id) { index, entry in
                     if index > 0 {
@@ -102,17 +96,17 @@ struct DashboardView: View {
 
     private func color(for entry: ActivityEntry) -> Color {
         switch entry.level {
-        case .success: .green
-        case .error: .red
-        case .info: .secondary
+        case .success: Tokens.Palette.success
+        case .error: Tokens.Palette.danger
+        case .info: Tokens.Palette.secondary
         }
     }
 
     // MARK: - Runtime card
 
     private var runtimeCard: some View {
-        PanelCard(title: "Runtime") {
-            HStack(spacing: 12) {
+        PanelCard(title: "Runtime", icon: "workloads") {
+            ResponsiveRow {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 7) {
                         StatusDot(
@@ -120,22 +114,24 @@ struct DashboardView: View {
                             active: store.isStartingRuntime || store.isRestartingRuntime
                                 || store.isHealingRuntime)
                         Text(runtimeStatusTitle)
-                            .font(.title3.weight(.semibold))
+                            .font(Tokens.Typography.metric)
                             .foregroundStyle(store.isRuntimeRunning ? Color.primary : Color.secondary)
                     }
                     Text(subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                Spacer()
+            } trailing: {
                 if !store.isRuntimeRunning && store.clientAvailable {
                     Button {
                         Task { await store.startRuntime() }
                     } label: {
-                        IconLabel(
-                            title: store.isStartingRuntime
-                                ? String(localized: "Starting…") : String(localized: "Start Runtime"),
-                            icon: "start", fallback: "play.fill")
+                        HStack(spacing: 6) {
+                            WorkspaceIcon(name: "play", size: 14, fallback: "play.fill")
+                            Text(
+                                store.isStartingRuntime
+                                    ? String(localized: "Starting…") : String(localized: "Start Runtime"))
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(store.isStartingRuntime)
@@ -144,17 +140,22 @@ struct DashboardView: View {
                         Button {
                             Task { await store.restartRuntime() }
                         } label: {
-                            IconLabel(
-                                title: store.isRestartingRuntime
-                                    ? String(localized: "Restarting…") : String(localized: "Restart"),
-                                icon: "restart", fallback: "arrow.clockwise")
+                            HStack(spacing: 6) {
+                                WorkspaceIcon(name: "restart", size: 14, fallback: "arrow.clockwise")
+                                Text(
+                                    store.isRestartingRuntime
+                                        ? String(localized: "Restarting…") : String(localized: "Restart"))
+                            }
                         }
                         .buttonStyle(.bordered)
                         .disabled(store.isRestartingRuntime || store.isHealingRuntime)
                         Button {
-                            Task { await store.stopRuntime() }
+                            store.requestRuntimeStop()
                         } label: {
-                            IconLabel(title: String(localized: "Stop"), icon: "stop", fallback: "stop.fill")
+                            HStack(spacing: 6) {
+                                WorkspaceIcon(name: "stop", size: 14, fallback: "stop.fill")
+                                Text(String(localized: "Stop"))
+                            }
                         }
                         .buttonStyle(.bordered)
                         .disabled(store.isRestartingRuntime || store.isHealingRuntime)
@@ -162,18 +163,32 @@ struct DashboardView: View {
                 }
             }
 
-            HStack(spacing: 6) {
-                TileButton(title: String(localized: "Run Container…"), icon: "create") {
-                    store.activeTab = .containers
+            HStack(spacing: Tokens.Spacing.sm) {
+                Button {
+                    store.activeTab = .workloads
                     store.pendingRunSheet = true
+                } label: {
+                    HStack(spacing: 6) {
+                        WorkspaceIcon(name: "play", size: 14, fallback: "play.fill")
+                        Text(String(localized: "Run Container…"))
+                    }
                 }
-                TileButton(title: String(localized: "Pull Image…"), icon: "pull") {
+                .buttonStyle(.borderedProminent)
+                .tint(Tokens.Palette.action)
+                Button {
                     store.activeTab = .images
                     store.pendingPullSheet = true
+                } label: {
+                    HStack(spacing: 6) {
+                        WorkspaceIcon(name: "download", size: 14, fallback: "arrow.down.circle")
+                        Text(String(localized: "Pull Image…"))
+                    }
                 }
+                .buttonStyle(.bordered)
                 Spacer()
             }
-            .padding(.top, 10)
+            .controlSize(.regular)
+            .padding(.top, Tokens.Spacing.sm)
 
             if !store.onboardingComplete && store.isRuntimeRunning {
                 Divider().padding(.vertical, 8)
@@ -283,12 +298,12 @@ struct DashboardView: View {
     }
 
     private var runtimeStatusColor: Color {
-        if !store.clientAvailable { return .red }
+        if !store.clientAvailable { return Tokens.Palette.danger }
         if store.isStartingRuntime || store.isHealingRuntime || store.isRestartingRuntime {
-            return .orange
+            return Tokens.Palette.warning
         }
-        if store.runtimeHealth == .wedged { return .orange }
-        return store.isRuntimeRunning ? .green : .gray
+        if store.runtimeHealth == .wedged { return Tokens.Palette.warning }
+        return store.isRuntimeRunning ? Tokens.Palette.success : Tokens.Palette.tertiary
     }
 
     private var runtimeStatusTitle: String {
@@ -339,14 +354,18 @@ struct DashboardView: View {
         PanelCard {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text(String(localized: "Live Resources")).font(.headline)
+                    HStack(spacing: Tokens.Spacing.sm) {
+                        WorkspaceIcon(name: "activity", size: 16, fallback: "waveform.path.ecg")
+                            .foregroundStyle(Tokens.Palette.secondary)
+                        Text(String(localized: "Live Resources")).font(Tokens.Typography.section)
+                    }
                     Spacer()
                     ChartTimeWindowPicker(window: $resourceWindow)
                 }
                 chartBody
-                    .task(id: resourceWindow) {
-                        while !Task.isCancelled && resourceWindow.needsStore {
-                            await loadStoredSamples()
+                    .task(id: ResourceHistoryRequest(window: resourceWindow, visible: store.mainWindowVisible)) {
+                        while !Task.isCancelled && resourceWindow.needsStore && store.mainWindowVisible {
+                            await loadStoredSamples(window: resourceWindow)
                             try? await Task.sleep(for: .seconds(60))
                         }
                     }
@@ -357,10 +376,17 @@ struct DashboardView: View {
     /// Windows past 3 h: the rolled-up history, reloaded each minute.
     @State private var storedSamples: [ResourceSample] = []
 
-    private func loadStoredSamples() async {
-        guard resourceWindow.needsStore, let metricsStore = MetricsStore.shared else { return }
-        let window = resourceWindow.duration
-        let points = await Task.detached { metricsStore.history(.system, "all", range: window).points }.value
+    private struct ResourceHistoryRequest: Equatable {
+        let window: ChartTimeWindow
+        let visible: Bool
+    }
+
+    private func loadStoredSamples(window: ChartTimeWindow) async {
+        guard window.needsStore, store.metrics != nil, let metricsStore = MetricsStore.shared else { return }
+        let points = await Task.detached(priority: .utility) {
+            metricsStore.history(.system, "all", range: window.duration).points
+        }.value
+        guard !Task.isCancelled, resourceWindow == window, store.mainWindowVisible else { return }
         storedSamples = points.map(ResourceSample.init)
     }
 
@@ -368,6 +394,9 @@ struct DashboardView: View {
     private var chartBody: some View {
         let samples = resourceWindow.needsStore ? storedSamples : store.statsHistory.within(resourceWindow)
         let chartSamples = downsample(samples, maxPoints: 360)
+        let cpu = cpuSummary(samples)
+        let memory = memorySummary(samples)
+        let network = netSummary(samples)
         if samples.count < 2 {
             HStack(spacing: 8) {
                 Image(systemName: "waveform.path.ecg")
@@ -383,19 +412,19 @@ struct DashboardView: View {
                     HStack(spacing: 16) {
                         metricSummary(
                             label: "CPU",
-                            value: cpuSummary(samples),
+                            value: cpu,
                             icon: "cpu",
-                            color: .blue)
+                            color: Tokens.Chart.cpu)
                         metricSummary(
                             label: "Memory",
-                            value: memorySummary(samples),
+                            value: memory,
                             icon: "memorychip",
-                            color: .purple)
+                            color: Tokens.Chart.memory)
                         metricSummary(
                             label: "Network",
-                            value: netSummary(samples),
+                            value: network,
                             icon: "arrow.left.arrow.right",
-                            color: .teal)
+                            color: Tokens.Chart.networkRx)
                         Spacer()
                         Text("last \(samples.count) samples · \(spanText(samples)) of data")
                             .font(.caption2)
@@ -405,19 +434,19 @@ struct DashboardView: View {
                         HStack(spacing: 16) {
                             metricSummary(
                                 label: "CPU",
-                                value: cpuSummary(samples),
+                                value: cpu,
                                 icon: "cpu",
-                                color: .blue)
+                                color: Tokens.Chart.cpu)
                             metricSummary(
                                 label: "Memory",
-                                value: memorySummary(samples),
+                                value: memory,
                                 icon: "memorychip",
-                                color: .purple)
+                                color: Tokens.Chart.memory)
                             metricSummary(
                                 label: "Network",
-                                value: netSummary(samples),
+                                value: network,
                                 icon: "arrow.left.arrow.right",
-                                color: .teal)
+                                color: Tokens.Chart.networkRx)
                         }
                         Text("last \(samples.count) samples · \(spanText(samples)) of data")
                             .font(.caption2)
@@ -430,12 +459,12 @@ struct DashboardView: View {
                             x: .value("Time", sample.timestamp),
                             y: .value("CPU %", sample.cpuPercent)
                         )
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(Tokens.Chart.cpu)
                         .interpolationMethod(.catmullRom)
                         .lineStyle(StrokeStyle(lineWidth: 1.5))
                     }
                 }
-                .chartYScale(domain: 0...max(100, (chartSamples.map(\.cpuPercent).max() ?? 0) + 10))
+                .chartYScale(domain: 0...max(100, (chartSamples.lazy.map(\.cpuPercent).max() ?? 0) + 10))
                 .frame(height: 80)
                 Chart {
                     ForEach(chartSamples, id: \.timestamp) { sample in
@@ -443,12 +472,12 @@ struct DashboardView: View {
                             x: .value("Time", sample.timestamp),
                             y: .value("Memory", Double(sample.memoryUsedBytes))
                         )
-                        .foregroundStyle(.purple.opacity(0.25))
+                        .foregroundStyle(Tokens.Chart.memory.opacity(0.2))
                         LineMark(
                             x: .value("Time", sample.timestamp),
                             y: .value("Memory", Double(sample.memoryUsedBytes))
                         )
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(Tokens.Chart.memory)
                         .interpolationMethod(.catmullRom)
                         .lineStyle(StrokeStyle(lineWidth: 1.5))
                     }
@@ -481,9 +510,10 @@ struct DashboardView: View {
 
     private func metricSummary(label: String, value: String, icon: String, color: Color) -> some View {
         HStack(spacing: 5) {
-            Image(systemName: icon)
-                .font(.system(size: 11))
-                .foregroundStyle(color)
+            WorkspaceIcon(
+                name: icon == "memorychip" ? "memory" : icon == "cpu" ? "cpu" : "network", size: 16, fallback: icon
+            )
+            .foregroundStyle(color)
             VStack(alignment: .leading, spacing: 0) {
                 Text(value)
                     .font(.callout.weight(.semibold).monospacedDigit())
@@ -508,8 +538,12 @@ struct DashboardView: View {
     /// effectively zero so a quiet box reads healthy.
     private func netSummary(_ samples: [ResourceSample]) -> String {
         guard !samples.isEmpty else { return "—" }
-        let rx = samples.reduce(0) { $0 + $1.networkRxRate } / Double(samples.count)
-        let tx = samples.reduce(0) { $0 + $1.networkTxRate } / Double(samples.count)
+        let totals = samples.reduce(into: (rx: 0.0, tx: 0.0)) { totals, sample in
+            totals.rx += sample.networkRxRate
+            totals.tx += sample.networkTxRate
+        }
+        let rx = totals.rx / Double(samples.count)
+        let tx = totals.tx / Double(samples.count)
         if rx < 0.05 && tx < 0.05 { return "idle" }
         return "↓\(rate(rx)) ↑\(rate(tx))"
     }
@@ -529,44 +563,44 @@ struct DashboardView: View {
     /// One glance at every resource class; each tile jumps to its tab.
     private var resourcesGrid: some View {
         LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 120), spacing: 10)],
+            columns: [GridItem(.adaptive(minimum: 170), spacing: 10)],
             spacing: 10
         ) {
             resourceTile(
                 title: "Containers",
                 value: "\(store.runningCount)/\(store.containers.count) running",
-                icon: "shippingbox",
-                color: store.runningCount > 0 ? .green : .secondary,
+                icon: "container", fallback: "shippingbox",
+                color: store.runningCount > 0 ? Tokens.Palette.success : Tokens.Palette.secondary,
                 tab: .containers)
             resourceTile(
                 title: "Local Images",
                 value: "\(store.localImageCount) · \(localImageSize)",
-                icon: "photo.stack",
-                color: .secondary,
+                icon: "images", fallback: "photo.stack",
+                color: Tokens.Palette.secondary,
                 tab: .images)
             resourceTile(
                 title: "Volumes",
                 value: "\(store.volumes.count)",
-                icon: "externaldrive",
-                color: .secondary,
+                icon: "storage", fallback: "externaldrive",
+                color: Tokens.Palette.secondary,
                 tab: .volumes)
             resourceTile(
                 title: "Networks",
                 value: "\(store.networks.count)",
-                icon: "network",
-                color: .secondary,
+                icon: "network", fallback: "network",
+                color: Tokens.Palette.secondary,
                 tab: .networks)
             resourceTile(
                 title: "Registries",
                 value: "\(store.registries.count)",
-                icon: "globe",
-                color: .secondary,
+                icon: "network", fallback: "globe",
+                color: Tokens.Palette.secondary,
                 tab: .registries)
             resourceTile(
                 title: "Reclaimable",
                 value: store.diskUsage.map { ByteFormat.string($0.totalReclaimableBytes) } ?? "—",
-                icon: "externaldrive.badge.xmark",
-                color: .orange,
+                icon: "cache-clean", fallback: "externaldrive.badge.xmark",
+                color: Tokens.Palette.warning,
                 tab: .dashboard)
         }
     }
@@ -578,37 +612,34 @@ struct DashboardView: View {
         return ByteFormat.string(store.localImageBytes)
     }
 
-    private func resourceTile(title: String, value: String, icon: String, color: Color, tab: AppStore.ActiveTab)
+    private func resourceTile(
+        title: String, value: String, icon: String, fallback: String, color: Color, tab: AppStore.ActiveTab
+    )
         -> some View
     {
         Button {
             store.activeTab = tab
         } label: {
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .fill(color.opacity(0.16))
-                        Image(systemName: icon)
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(color)
-                    }
-                    .frame(width: 18, height: 18)
+                HStack(spacing: Tokens.Spacing.sm) {
+                    WorkspaceIconTile(name: icon, size: 28, iconSize: 16, color: color, fallback: fallback)
                     Text(title)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .font(Tokens.Typography.metadata)
+                        .foregroundStyle(Tokens.Palette.secondary)
                         .lineLimit(1)
                     Spacer(minLength: 0)
                 }
                 Text(value)
-                    .font(.callout.weight(.semibold).monospacedDigit())
+                    .font(Tokens.Typography.body.weight(.semibold).monospacedDigit())
                     .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .help(value)
                     .contentTransition(.numericText())
                     .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: value)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
-            .cardSurface(cornerRadius: 8, fillOpacity: 0.55)
+            .padding(Tokens.Spacing.md)
+            .cardSurface(cornerRadius: Tokens.Radius.lg, fillOpacity: 1)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -618,7 +649,7 @@ struct DashboardView: View {
     // MARK: - Disk usage card
 
     private var diskUsageCard: some View {
-        PanelCard(title: "Disk Usage") {
+        PanelCard(title: "Disk Usage", icon: "storage", subtitle: "Bars show the reclaimable share of each category.") {
             if let usage = store.diskUsage {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
@@ -627,12 +658,15 @@ struct DashboardView: View {
                         Spacer()
                         Text(ByteFormat.string(usage.totalReclaimableBytes))
                             .font(.callout.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Tokens.Palette.warning)
                     }
                     categoryRow(name: "Containers", category: usage.containers)
                     categoryRow(name: "Images", category: usage.images)
                     categoryRow(name: "Volumes", category: usage.volumes)
-                    HStack(spacing: 8) {
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 180), alignment: .leading)], alignment: .leading,
+                        spacing: 8
+                    ) {
                         pruneButton("Prune Containers", destructive: false) { pendingPrune = .containers }
                         pruneButton("Prune Dangling Images", destructive: false) { pendingPrune = .imagesDangling }
                         pruneButton("Prune All Unused Images", destructive: true) { pendingPrune = .imagesAll }
@@ -652,31 +686,18 @@ struct DashboardView: View {
             Text(name)
                 .font(.caption)
                 .frame(width: 80, alignment: .leading)
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.secondary.opacity(0.15))
-                    Capsule()
-                        .fill(Color.accentColor)
-                        .frame(
-                            width: max(
-                                4, geo.size.width * fraction(used: category.sizeBytes, total: category.sizeBytes)))
-                }
-            }
-            .frame(height: 6)
+            WorkspaceBudgetMeter(
+                used: category.reclaimableBytes, cap: category.sizeBytes,
+                label: "\(name) reclaimable storage", color: Tokens.Palette.warning)
             Text(ByteFormat.string(category.sizeBytes))
                 .font(.caption2.monospacedDigit())
                 .frame(width: 70, alignment: .trailing)
             if category.reclaimableBytes > 0 {
                 Text("\(ByteFormat.string(category.reclaimableBytes)) reclaimable")
                     .font(.caption2)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Tokens.Palette.warning)
             }
         }
-    }
-
-    private func fraction(used: UInt64, total: UInt64) -> Double {
-        guard total > 0 else { return 0 }
-        return min(1.0, Double(used) / Double(total))
     }
 
     private func pruneButton(_ title: String, destructive: Bool, action: @escaping () -> Void) -> some View {
@@ -721,8 +742,9 @@ struct DashboardView: View {
     // MARK: - Workloads
 
     private var workloadsCard: some View {
-        PanelCard(title: "Workloads") {
-            let running = store.containers.filter { $0.state == "running" }
+        PanelCard(title: "Workloads", icon: "workloads") {
+            let running = store.containers.lazy.filter { $0.state == "running" }
+            let visible = Array(running.prefix(8))
             if running.isEmpty {
                 Text("No running workloads")
                     .font(.caption)
@@ -731,13 +753,23 @@ struct DashboardView: View {
                     .padding(.vertical, 12)
             } else {
                 VStack(spacing: 0) {
-                    ForEach(Array(running.enumerated()), id: \.element.id) { index, container in
+                    ForEach(Array(visible.enumerated()), id: \.element.id) { index, container in
                         if index > 0 {
-                            Divider().padding(.leading, 17)
+                            Divider().padding(.leading, 42)
                         }
                         DashboardContainerRow(
                             container: container,
                             stats: store.statsByID[container.id])
+                    }
+                    if running.count > visible.count {
+                        Divider()
+                        Button("View all \(running.count) running workloads") {
+                            store.activeTab = .workloads
+                        }
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                        .padding(.top, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
@@ -756,14 +788,14 @@ struct DashboardContainerRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Circle().fill(.green).frame(width: 7, height: 7)
+            WorkspaceIconTile(name: "container", size: 32, iconSize: 18, fallback: "shippingbox")
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
                     Text(container.id)
-                        .font(.callout.weight(.medium))
+                        .font(Tokens.Typography.body.weight(.semibold))
                         .lineLimit(1)
                     Text(container.image)
-                        .font(.caption)
+                        .font(Tokens.Typography.metadata)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -783,11 +815,12 @@ struct DashboardContainerRow: View {
                 }
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, Tokens.Spacing.sm)
     }
 
     private var workloadMetadata: some View {
         HStack(spacing: 8) {
+            WorkspaceStatusBadge(title: "Running", color: Tokens.Palette.success, compact: true)
             // Provenance is a fact, not an action — no arrow glyph for direct
             // launches (it read as a link). Compose keeps its stack icon.
             if metadata.source == .compose {
@@ -820,7 +853,8 @@ struct DashboardContainerRow: View {
 
     private func metric(_ text: String, icon: String) -> some View {
         HStack(spacing: 3) {
-            Image(systemName: icon).font(.system(size: 9)).foregroundStyle(.secondary)
+            WorkspaceIcon(name: icon == "cpu" ? "cpu" : "memory", size: 12, fallback: icon)
+                .foregroundStyle(Tokens.Palette.secondary)
             Text(text)
                 .font(.caption2.monospacedDigit())
                 .contentTransition(.numericText())

@@ -196,7 +196,7 @@ public struct ContainerCLIClient: Sendable {
     public func stream(_ command: ContainerCommand, reportExitCode: Bool = false)
         -> AsyncThrowingStream<Data, Error>
     {
-        AsyncThrowingStream { continuation in
+        AsyncThrowingStream(bufferingPolicy: .bufferingOldest(64)) { continuation in
             let process = Process()
             process.executableURL = executableURL
             process.arguments = command.arguments
@@ -229,13 +229,41 @@ public struct ContainerCLIClient: Sendable {
                 // to a long-lived pipe (verified against the real runtime);
                 // readabilityHandler is the reliable async callback.
                 handle.readabilityHandler = { h in
-                    let data = h.availableData
+                    // A single pipe read returns currently available bytes.
+                    // FileHandle.read(upToCount:) can wait to fill its request,
+                    // delaying small live output until more data or EOF arrives.
+                    var data = Data(count: 64 * 1024)
+                    var count: Int
+                    repeat {
+                        count = data.withUnsafeMutableBytes { buffer in
+                            Darwin.read(h.fileDescriptor, buffer.baseAddress, buffer.count)
+                        }
+                    } while count < 0 && errno == EINTR
+                    if count < 0 {
+                        let error = NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
+                        h.readabilityHandler = nil
+                        try? h.close()
+                        eof.runOnce { drained.leave() }
+                        cancellation.cancel()
+                        gate.runOnce { continuation.finish(throwing: error) }
+                        return
+                    }
+                    data.count = count
                     if data.isEmpty {
                         h.readabilityHandler = nil
                         try? h.close()
                         eof.runOnce { drained.leave() }
                     } else {
-                        continuation.yield(data)
+                        if case .dropped = continuation.yield(data) {
+                            // Raw bytes cannot be dropped without corrupting UTF-8,
+                            // terminal escapes or build progress. Stop explicitly.
+                            cancellation.cancel()
+                            gate.runOnce {
+                                continuation.finish(
+                                    throwing: MicropodError.message(
+                                        "Output exceeded the 4 MiB stream buffer; the consumer could not keep up."))
+                            }
+                        }
                     }
                 }
             }

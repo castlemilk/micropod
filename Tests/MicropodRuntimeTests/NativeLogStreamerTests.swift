@@ -209,6 +209,60 @@ final class NativeLogStreamerTests: XCTestCase {
         XCTAssertEqual(result.lines, ["b", "c"])
     }
 
+    func testLargeBacklogIsDeliveredInOrderUnderBoundedBackpressure() async throws {
+        let expected = (0..<5000).map { "line \($0): café 👩🏽‍💻" }
+        try append(expected.joined(separator: "\n") + "\n")
+        let probe = StateProbe(runningCalls: 0)
+        let result = try await collect(streamer(probe: probe).stream(id: "job"), timeout: .seconds(5))
+        XCTAssertTrue(result.finished)
+        XCTAssertEqual(result.lines, expected, "a bounded queue must preserve the full CLI/MCP backlog")
+    }
+
+    func testPerformanceNativeLogBacklog() async throws {
+        guard ProcessInfo.processInfo.environment["MICROPOD_PERF_BENCH"] == "1" else {
+            throw XCTSkip("Set MICROPOD_PERF_BENCH=1 for opt-in native log throughput measurements")
+        }
+        let lineCount = 20_000
+        let expected = (0..<lineCount).map { "line \($0): synthetic container output café 👩🏽‍💻" }
+        try append(expected.joined(separator: "\n") + "\n")
+        let probe = StateProbe(runningCalls: 0)
+        let start = ContinuousClock.now
+        let result = try await collect(streamer(probe: probe).stream(id: "job"), timeout: .seconds(30))
+        let elapsed = ContinuousClock.now - start
+        let seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
+        XCTAssertTrue(result.finished)
+        XCTAssertEqual(result.lines, expected)
+        let measurement: [String: Any] = [
+            "kind": "nativeLogBacklog", "lines": lineCount, "durationMs": seconds * 1000,
+            "linesPerSecond": Double(lineCount) / seconds, "deliveryQueueLines": 8,
+            "readChunkBytes": 64 * 1024,
+        ]
+        let encoded = try JSONSerialization.data(withJSONObject: measurement, options: [.sortedKeys])
+        print("MICROPOD_PERF " + String(decoding: encoded, as: UTF8.self))
+    }
+
+    func testTailOfLargeFileIncludesUnicodeAndUnterminatedFinalLine() async throws {
+        try append((0..<20_000).map { "line \($0): café 👩🏽‍💻\n\n" }.joined() + "final 👩🏽‍💻")
+        let probe = StateProbe(runningCalls: 0)
+        let tail = try await streamer(probe: probe).tail(id: "job", lines: 3)
+        XCTAssertEqual(tail.map(\.text), ["line 19998: café 👩🏽‍💻", "line 19999: café 👩🏽‍💻", "final 👩🏽‍💻"])
+        let result = try await collect(streamer(probe: probe).stream(id: "job", tail: 3), timeout: .seconds(5))
+        XCTAssertEqual(
+            result.lines,
+            ["line 19997: café 👩🏽‍💻", "line 19998: café 👩🏽‍💻", "line 19999: café 👩🏽‍💻", "final 👩🏽‍💻"])
+    }
+
+    func testNewlineFreeSourceFailsAtAnExplicitBoundedLimit() async throws {
+        try append(String(repeating: "x", count: 2 * 1024 * 1024))
+        let probe = StateProbe(runningCalls: 0)
+        do {
+            _ = try await collect(streamer(probe: probe).stream(id: "job"), timeout: .seconds(5))
+            XCTFail("Expected an explicit oversized-line error")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("1 MiB delivery limit"), "\(error)")
+        }
+    }
+
     /// Review focus: `stopping` is still live. The runtime enters it before
     /// the graceful stop waits for the process, so ending the stream there
     /// would drop the shutdown output of a cancelled container.

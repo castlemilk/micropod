@@ -7,6 +7,8 @@ import SwiftUI
 struct NetworkTopologyView: View {
     @Bindable var store: AppStore
     @State private var selectedNetwork: NetworkDetailSelection?
+    @State private var topologyCache = NetworkTopologyCache()
+    @State private var scrollOffset = CGPoint.zero
 
     private let networkNodeWidth: CGFloat = 180
     private let networkNodeHeight: CGFloat = 46
@@ -16,88 +18,81 @@ struct NetworkTopologyView: View {
     private let vSpacing: CGFloat = 16
     private let topPad: CGFloat = 16
 
-    private var networks: [Micropod_V1_Network] {
-        store.networks
-    }
-
-    /// Containers with at least one network attachment (the edges).
-    private var attachedContainers: [Micropod_V1_Container] {
-        store.containers.filter { !$0.networks.isEmpty }
-    }
-
     var body: some View {
+        let model = topologyCache.model(
+            networks: store.networks, containers: store.containers,
+            containerRevision: store.workloadMetadataRevision,
+            networkRevision: store.networkInventoryRevision)
         GeometryReader { geo in
-            let leftX = topPad + networkNodeWidth / 2
-            let rightX = geo.size.width - topPad - containerNodeWidth / 2
-            let nodeAreaHeight = max(height, geo.size.height)
-            let networkYs = yPositions(count: networks.count, height: nodeAreaHeight)
-            let containerYs = yPositions(count: attachedContainers.count, height: nodeAreaHeight)
+            let diagramWidth = max(geo.size.width, networkNodeWidth + columnGap + containerNodeWidth + topPad * 2)
+            let count = max(model.networks.count, model.containers.count)
+            let naturalHeight = CGFloat(count) * (networkNodeHeight + vSpacing) + topPad * 2
+            let nodeAreaHeight = max(280, naturalHeight, geo.size.height)
+            let networkStep = (nodeAreaHeight - topPad * 2) / CGFloat(max(1, model.networks.count))
+            let containerStep = (nodeAreaHeight - topPad * 2) / CGFloat(max(1, model.containers.count))
+            let edgeStartX = topPad + networkNodeWidth - scrollOffset.x
+            let edgeEndX = diagramWidth - topPad - containerNodeWidth - scrollOffset.x
 
             ScrollView([.vertical, .horizontal]) {
-                ZStack(alignment: .topLeading) {
-                    // Edges behind nodes.
-                    Canvas { context, size in
-                        for (nIndex, network) in networks.enumerated() {
-                            let nY = networkYs[nIndex]
-                            let start = CGPoint(x: leftX + networkNodeWidth / 2, y: nY + networkNodeHeight / 2)
-                            for (cIndex, container) in attachedContainers.enumerated() {
-                                guard container.networks.contains(network.id) else { continue }
-                                let cY = containerYs[cIndex]
-                                let end = CGPoint(x: rightX - containerNodeWidth / 2, y: cY + containerNodeHeight / 2)
-                                var path = Path()
-                                path.move(to: start)
-                                path.addLine(to: end)
-                                context.stroke(path, with: .color(.accentColor.opacity(0.35)), lineWidth: 1.2)
-                            }
+                HStack(alignment: .top, spacing: 0) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(model.networks, id: \.id) { network in
+                            networkNode(network)
+                                .frame(width: networkNodeWidth, height: networkNodeHeight)
+                                .frame(height: networkStep)
+                                .accessibilityLabel(
+                                    "Network \(network.id) — \(network.ipv4Subnet.isEmpty ? String(localized: "no subnet") : network.ipv4Subnet)"
+                                )
+                                .accessibilityHint(String(localized: "Click for details"))
+                                .onTapGesture {
+                                    selectedNetwork = NetworkDetailSelection(network: network)
+                                }
                         }
                     }
-                    .frame(width: geo.size.width, height: height)
-
-                    // Network nodes.
-                    ForEach(Array(networks.enumerated()), id: \.offset) { index, network in
-                        networkNode(network)
-                            .frame(width: networkNodeWidth, height: networkNodeHeight)
-                            .position(x: leftX, y: networkYs[index])
-                            .accessibilityLabel(
-                                "Network \(network.id) — \(network.ipv4Subnet.isEmpty ? String(localized: "no subnet") : network.ipv4Subnet)"
-                            )
-                            .accessibilityHint(String(localized: "Click for details"))
-                            .onTapGesture {
-                                selectedNetwork = NetworkDetailSelection(network: network)
-                            }
+                    .frame(width: networkNodeWidth)
+                    Spacer(minLength: columnGap)
+                    LazyVStack(spacing: 0) {
+                        ForEach(model.containers, id: \.id) { container in
+                            containerNode(container)
+                                .frame(width: containerNodeWidth, height: containerNodeHeight)
+                                .frame(height: containerStep)
+                                .accessibilityLabel(
+                                    "Container \(container.id) — \(container.state)\(container.ipv4Address.isEmpty ? "" : " at \(container.ipv4Address)")"
+                                )
+                        }
                     }
-
-                    // Container nodes.
-                    ForEach(Array(attachedContainers.enumerated()), id: \.offset) { index, container in
-                        containerNode(container)
-                            .frame(width: containerNodeWidth, height: containerNodeHeight)
-                            .position(x: rightX, y: containerYs[index])
-                            .accessibilityLabel(
-                                "Container \(container.id) — \(container.state)\(container.ipv4Address.isEmpty ? "" : " at \(container.ipv4Address)")"
-                            )
-                    }
+                    .frame(width: containerNodeWidth)
                 }
-                .frame(width: geo.size.width, height: height, alignment: .topLeading)
+                .padding(topPad)
+                .frame(width: diagramWidth, height: nodeAreaHeight, alignment: .topLeading)
+            }
+            .onScrollGeometryChange(for: CGPoint.self) {
+                $0.contentOffset
+            } action: { _, offset in
+                scrollOffset = offset
+            }
+            .overlay(alignment: .topLeading) {
+                // A viewport-sized canvas avoids a bitmap as tall as the
+                // entire graph. The lazy columns allocate only nearby nodes.
+                Canvas { context, size in
+                    var path = Path()
+                    for edge in model.edges {
+                        let startY = topPad + networkStep * (CGFloat(edge.networkIndex) + 0.5) - scrollOffset.y
+                        let endY = topPad + containerStep * (CGFloat(edge.containerIndex) + 0.5) - scrollOffset.y
+                        guard max(startY, endY) >= 0, min(startY, endY) <= size.height else { continue }
+                        path.move(to: CGPoint(x: edgeStartX, y: startY))
+                        path.addLine(to: CGPoint(x: edgeEndX, y: endY))
+                    }
+                    context.stroke(path, with: .color(.accentColor.opacity(0.35)), lineWidth: 1.2)
+                }
+                .frame(width: geo.size.width, height: geo.size.height)
+                .clipped()
+                .allowsHitTesting(false)
             }
         }
         .sheet(item: $selectedNetwork) { selection in
             NetworkDetailSheet(store: store, network: selection.network)
         }
-        .onChange(of: store.networks) { _, _ in }
-        .onChange(of: store.containers) { _, _ in }
-    }
-
-    private var height: CGFloat {
-        let count = max(networks.count, attachedContainers.count)
-        return max(280, CGFloat(count) * (max(networkNodeHeight, containerNodeHeight) + vSpacing) + topPad * 2)
-    }
-
-    /// Evenly distributes `count` node centers down `height`.
-    private func yPositions(count: Int, height: CGFloat) -> [CGFloat] {
-        guard count > 0 else { return [] }
-        let usable = height - topPad * 2
-        let step = usable / CGFloat(count)
-        return (0..<count).map { topPad + step * (CGFloat($0) + 0.5) }
     }
 
     @ViewBuilder
@@ -110,6 +105,8 @@ struct NetworkTopologyView: View {
                 Text(network.id)
                     .font(.caption.weight(.semibold))
                     .lineLimit(1)
+                    .truncationMode(.middle)
+                    .help(network.id)
                 if network.builtin {
                     Text(String(localized: "builtin")).font(.caption2).foregroundStyle(.tertiary)
                 }
@@ -120,6 +117,7 @@ struct NetworkTopologyView: View {
                     .font(.caption2.monospaced())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .help(network.ipv4Subnet)
             }
         }
         .padding(.horizontal, 8)
@@ -133,30 +131,34 @@ struct NetworkTopologyView: View {
                 .stroke(Color.accentColor.opacity(0.35), lineWidth: 1))
     }
 
-    @ViewBuilder
     private func containerNode(_ container: Micropod_V1_Container) -> some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(container.state == "running" ? Color.green : Color.gray)
-                .frame(width: 6, height: 6)
-            Text(container.id)
-                .font(.caption.monospaced())
-                .lineLimit(1)
-                .truncationMode(.middle)
-            Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(ContainerStateStyle.color(for: container.state))
+                    .frame(width: 6, height: 6)
+                Text(container.id)
+                    .font(.caption.monospaced())
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .help(container.id)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             if !container.ipv4Address.isEmpty {
                 Text(container.ipv4Address)
                     .font(.caption2.monospaced())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .help(container.ipv4Address)
+                    .padding(.leading, 12)
             }
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
         .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 7))
-        .overlay(
-            RoundedRectangle(cornerRadius: 7).stroke(Color.secondary.opacity(0.25), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.secondary.opacity(0.25), lineWidth: 1))
     }
+
 }
 
 /// Identifiable wrapper for presenting a network in a sheet.

@@ -2,506 +2,426 @@ import AppKit
 import MicropodCore
 import SwiftUI
 
-/// Menu bar panel: runtime status, quick actions, running containers,
-/// recent activity, and deep links into the main window.
-///
-/// Rendering rules (learned from feedback):
-/// - The ROOT must stay a plain VStack — a ScrollView root breaks the
-///   MenuBarExtra popover window. Variable sections are internally bounded.
-/// - Content is grouped into soft "cards" (Control Center style) instead of
-///   edge-to-edge dividers; the popover gets a real margin around everything.
-/// - Quick actions live in a 2×2 grid so labels never clip.
-/// - Values use `.fixedSize(horizontal:)` + monospaced digits so stats never
-///   truncate; only the container image names middle-truncate.
+/// Keep this root a plain VStack: MenuBarExtra needs a bounded fitting height.
 struct MenuBarPanelView: View {
     @Bindable var store: AppStore
+    var activateRuntimeObservation = true
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismiss) private var dismiss
+    @State private var confirmRuntimeStop = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             header
-            quickActions
-            statsCard
-            containerSection
-            if !store.activity.isEmpty {
-                activitySection
-            }
-            footer
+            resourceSummary
+            workloadSection
+            cacheSection
+            if !store.activity.isEmpty { activitySection }
+            bottomActions
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .frame(width: 340)
-        .task { store.bootstrap() }
-        // Keep the pollers running while the panel is open — otherwise tray
-        // data could be up to 30s stale (pollers sleep when the main window
-        // is hidden). Independent of the main window's own visibility flag.
-        .onAppear { store.setPanelVisible(true) }
-        .onDisappear { store.setPanelVisible(false) }
+        .padding(14)
+        .frame(width: Tokens.Layout.trayWidth)
+        .background(Tokens.Palette.canvas)
+        .task {
+            guard activateRuntimeObservation else { return }
+            store.bootstrap()
+            await store.cacheStore.refresh()
+        }
+        .onAppear { if activateRuntimeObservation { store.setPanelVisible(true) } }
+        .onDisappear { if activateRuntimeObservation { store.setPanelVisible(false) } }
+        .confirmationDialog("Stop the runtime?", isPresented: $confirmRuntimeStop, titleVisibility: .visible) {
+            Button("Stop runtime", role: .destructive) { Task { await store.stopRuntime() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                "This interrupts \(store.runtimeStopAffectedCount) running workloads managed by the Apple runtime. You can start the runtime again from this menu."
+            )
+        }
     }
-
-    // MARK: - Card container
-
-    /// Soft grouped surface used by every section — the shared cardSurface
-    /// treatment (slightly translucent so the popover material shows through).
-    private func card<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        content()
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .cardSurface(cornerRadius: 10, fillOpacity: 0.65)
-    }
-
-    private func sectionHeader(_ title: String) -> some View {
-        Text(title)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.secondary)
-    }
-
-    // MARK: - Header
 
     private var header: some View {
         HStack(spacing: 10) {
-            EmptyStateView.brandMark(EmptyStateArtwork.dashboardHero, size: 30)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Micropod")
-                    .font(.headline)
+            BrandMark(size: 34)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Micropod").font(.system(size: 16, weight: .semibold))
                 HStack(spacing: 5) {
-                    Circle()
-                        .fill(statusDotColor)
-                        .frame(width: 6, height: 6)
-                    Text(statusLine)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    StatusDot(color: healthColor, size: 6, active: runtimeTransitioning)
+                    Text(healthLabel).font(Tokens.Typography.metadata)
+                        .foregroundStyle(Tokens.Palette.secondary).lineLimit(1)
                 }
+                .accessibilityElement(children: .combine)
             }
-            Spacer(minLength: 8)
+            Spacer(minLength: 4)
             Button {
-                openWindow(id: "main-window")
-                dismiss()
+                openAndSet { store.activeTab = .settings }
             } label: {
-                Label("Open", systemImage: "arrow.up.forward.app")
+                WorkspaceIcon(name: "settings", size: 18, fallback: "gearshape")
+                    .frame(width: 26, height: 26).contentShape(Rectangle())
             }
-            .buttonStyle(.borderless)
-            .controlSize(.small)
-            .fixedSize()
+            .buttonStyle(.plain).foregroundStyle(Tokens.Palette.secondary)
+            .help("Micropod settings").accessibilityLabel("Open Micropod settings")
+            overflowMenu
         }
-        .padding(.horizontal, 2)
     }
 
-    private var statusDotColor: Color {
-        if !store.clientAvailable { return .red }
-        if store.isHealingRuntime || store.runtimeHealth == .wedged { return .orange }
-        return store.isRuntimeRunning ? .green : .gray
-    }
-
-    // MARK: - Quick actions (2×2 grid — no clipped labels)
-
-    private var quickActions: some View {
-        // Text-only buttons: the custom icon glyphs cost too much width in the
-        // 320 pt popover and pushed the labels into truncation.
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 6), GridItem(.flexible(), spacing: 6)], spacing: 6) {
-            quickActionButton("Run", icon: "start") {
-                openAndSet {
-                    store.activeTab = .containers
-                    store.pendingRunSheet = true
+    private var overflowMenu: some View {
+        Menu {
+            if store.isRuntimeRunning {
+                Button("Stop runtime…", systemImage: "stop.circle", role: .destructive) { requestRuntimeStop() }
+                    .disabled(runtimeTransitioning)
+            } else if store.clientAvailable {
+                Button("Start runtime", systemImage: "play.circle") { Task { await store.startRuntime() } }
+                    .disabled(runtimeTransitioning)
+            } else {
+                Button("Retry runtime detection", systemImage: "arrow.clockwise") {
+                    Task { await store.refreshSystemStatus(force: true) }
                 }
             }
-            quickActionButton("Pull", icon: "pull") {
+            Divider()
+            Button("Pull image…", systemImage: "arrow.down.to.line") {
                 openAndSet {
                     store.activeTab = .images
                     store.pendingPullSheet = true
                 }
             }
-            quickActionButton("Palette", icon: "palette") {
+            Button("Command palette…", systemImage: "command") {
                 openAndSet { store.showCommandPalette = true }
             }
-            if store.isRuntimeRunning {
-                quickActionButton("Stop", icon: "stop") {
-                    Task { await store.stopRuntime() }
+            Divider()
+            if let version = UpdateController.shared.stagedVersion {
+                Button("Install update \(version)", systemImage: "arrow.down.circle") {
+                    UpdateController.shared.applyStagedUpdate()
                 }
-                .help("Stop the container runtime")
-            } else if store.clientAvailable {
-                quickActionButton("Start", icon: "start", prominent: true) {
-                    Task { await store.startRuntime() }
-                }
-                .help("Start the container runtime")
             } else {
-                quickActionButton("Retry", icon: "refresh") {
-                    Task { await store.refreshSystemStatus() }
+                Button("Check for updates…", systemImage: "arrow.triangle.2.circlepath") {
+                    UpdateController.shared.checkForUpdates()
+                }
+                .disabled(!UpdateController.shared.canCheckForUpdates)
+            }
+            Button("Quit Micropod", systemImage: "power") { NSApp.terminate(nil) }
+        } label: {
+            Image(systemName: "ellipsis").frame(width: 26, height: 26).contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+        .help("Runtime and more actions").accessibilityLabel("Runtime and more actions")
+    }
+
+    private var resourceSummary: some View {
+        let metrics = MenuBarGuestMetrics(workloads: runningWorkloads, available: store.isRuntimeRunning)
+        return card {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: 12) {
+                    metric("\(runningWorkloads.count)", label: store.isRuntimeRunning ? "Running" : "Last seen running")
+                    metric(metrics.cpuText, label: "CPU · cores")
+                    metric(metrics.memoryText, label: "Guest memory")
+                }
+                Text(metrics.detail).font(.system(size: 10))
+                    .foregroundStyle(Tokens.Palette.tertiary).lineLimit(1)
+            }
+        }
+    }
+
+    private func metric(_ value: String, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(value).font(Tokens.Typography.metric)
+                .foregroundStyle(Tokens.Palette.primary).lineLimit(1).minimumScaleFactor(0.75)
+            Text(label).font(.system(size: 10)).foregroundStyle(Tokens.Palette.secondary).lineLimit(1)
+        }
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore).accessibilityLabel("\(label): \(value)")
+    }
+
+    private var workloadSection: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            sectionHeading("Running workloads", icon: "workloads") {
+                Button("View all") { openAndSet { store.activeTab = .workloads } }
+                    .buttonStyle(.plain).foregroundStyle(Tokens.Palette.accentText)
+                    .help("Open all containers and microVMs")
+                    .accessibilityLabel("View all containers and microVMs")
+            }
+            card {
+                if runningWorkloads.isEmpty {
+                    HStack(spacing: 8) {
+                        WorkspaceIcon(name: "workloads", size: 18, fallback: "square.stack.3d.up")
+                        Text(store.isRuntimeRunning ? "No workloads running" : "Start the runtime to run workloads")
+                            .lineLimit(2)
+                    }
+                    .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary).padding(.vertical, 7)
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(Array(runningWorkloads.prefix(3).enumerated()), id: \.element.id) { index, item in
+                            if index > 0 { Divider() }
+                            workloadShortcut(item)
+                        }
+                        if runningWorkloads.count > 3 {
+                            Text("+\(runningWorkloads.count - 3) more running · View all to inspect")
+                                .font(.system(size: 10)).foregroundStyle(Tokens.Palette.tertiary)
+                                .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 5)
+                        }
+                    }
                 }
             }
         }
     }
 
-    /// Control Center-style action tile (shared TileButton in PanelCard.swift).
-    private func quickActionButton(
-        _ title: String, icon: String, prominent: Bool = false,
-        action: @escaping () -> Void
-    ) -> some View {
-        TileButton(title: title, icon: icon, prominent: prominent, action: action)
+    private func workloadShortcut(_ item: WorkloadItem) -> some View {
+        Button {
+            store.openWorkload(item)
+            openWindow(id: "main-window")
+            dismiss()
+        } label: {
+            HStack(spacing: 8) {
+                WorkspaceIconTile(
+                    name: item.kind == .container ? "container" : "microvm", size: 28, iconSize: 16,
+                    color: Tokens.Palette.accentText, fallback: item.kind.symbol
+                )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.name).font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Tokens.Palette.primary).lineLimit(1).truncationMode(.middle)
+                    Text("\(item.kindLabel) · \(item.engineLabel)").font(.system(size: 10))
+                        .foregroundStyle(Tokens.Palette.tertiary).lineLimit(1)
+                }
+                Spacer(minLength: 4)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(
+                        item.metricsAreStale(at: Date())
+                            ? "— cores" : item.cpuCores.map { String(format: "%.2f cores", $0) } ?? "— cores")
+                    Text(item.metricsAreStale(at: Date()) ? "—" : item.memoryBytes.map(ByteFormat.string) ?? "—")
+                }
+                .font(.system(size: 10).monospacedDigit()).foregroundStyle(Tokens.Palette.secondary)
+                .fixedSize(horizontal: true, vertical: false)
+                Image(systemName: "chevron.right").font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(Tokens.Palette.tertiary)
+            }
+            .frame(height: 42).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Open \(item.name), \(item.kindLabel), \(item.state)").help("Inspect \(item.name)")
     }
 
-    private func openAndSet(_ configure: @escaping () -> Void) {
+    private var cacheSection: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            sectionHeading("Cache", icon: "cache") {
+                Button("Manage") { openAndSet { store.activeTab = .cache } }
+                    .buttonStyle(.plain).foregroundStyle(Tokens.Palette.accentText)
+                    .accessibilityLabel("Open cache management")
+            }
+            card {
+                VStack(alignment: .leading, spacing: Tokens.Spacing.sm) {
+                    if let snapshot = store.cacheStore.snapshot {
+                        if snapshot.buildError == nil {
+                            cacheBudget(
+                                "Build contexts", used: snapshot.buildStats.contentBytes,
+                                cap: snapshot.buildStats.capBytes
+                            )
+                            .help(
+                                "Logical retained context bytes. \(snapshot.buildDisabled ? "Build caching is disabled." : "Automatic LRU eviction is enabled.")"
+                            )
+                        } else {
+                            HStack {
+                                Text("Build contexts")
+                                Spacer(minLength: 4)
+                                Text("Unavailable").foregroundStyle(Tokens.Palette.tertiary)
+                            }
+                            .help(snapshot.buildError ?? "Build contexts could not be read")
+                        }
+                        if let package = snapshot.package {
+                            cacheBudget("Package cache", used: package.storedBytes, cap: package.capBytes)
+                        } else {
+                            HStack {
+                                Text("Package cache")
+                                Spacer(minLength: 4)
+                                Text("Unavailable").foregroundStyle(Tokens.Palette.tertiary)
+                            }
+                            .help(snapshot.packageError ?? "Package cache telemetry is unavailable")
+                        }
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock")
+                            if store.cacheStore.isRefreshing {
+                                Text("Refreshing…")
+                            } else if store.cacheStore.error != nil {
+                                Text("Cache action failed · open Cache")
+                            } else {
+                                Text("Measured \(snapshot.measuredAt.formatted(.relative(presentation: .named)))")
+                            }
+                        }
+                        .font(.system(size: 10)).foregroundStyle(Tokens.Palette.tertiary)
+                        .help(snapshot.measuredAt.formatted(date: .abbreviated, time: .standard))
+                    } else {
+                        Text(store.cacheStore.isRefreshing ? "Measuring local cache…" : "Cache not measured")
+                            .foregroundStyle(Tokens.Palette.secondary)
+                        if store.cacheStore.error != nil {
+                            Text("Open Cache to retry").foregroundStyle(Tokens.Palette.tertiary)
+                        }
+                    }
+                }
+                .font(Tokens.Typography.metadata)
+            }
+        }
+    }
+
+    private func cacheBudget(_ title: String, used: UInt64, cap: UInt64) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
+                Text(title).foregroundStyle(Tokens.Palette.secondary)
+                Spacer(minLength: 4)
+                Text("\(ByteFormat.string(used)) / \(ByteFormat.string(cap))")
+                    .monospacedDigit().foregroundStyle(Tokens.Palette.primary).fixedSize(
+                        horizontal: true, vertical: false)
+            }
+            if cap > 0 {
+                WorkspaceBudgetMeter(
+                    used: used, cap: cap, label: title,
+                    color: used > cap ? Tokens.Palette.warning : Tokens.Palette.accent,
+                    height: 5)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var activitySection: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("Recent activity").font(Tokens.Typography.metadata.weight(.semibold)).foregroundStyle(
+                Tokens.Palette.secondary)
+            ForEach(store.recentActivity(limit: 2)) { entry in
+                HStack(spacing: 7) {
+                    Image(systemName: activityIcon(entry)).font(.system(size: 10))
+                        .foregroundStyle(entry.level == .error ? Tokens.Palette.danger : Tokens.Palette.tertiary).frame(
+                            width: 12)
+                    Text(entry.message).lineLimit(1).truncationMode(.tail)
+                    Spacer(minLength: 4)
+                    Text(entry.timestamp.formatted(.relative(presentation: .named)))
+                        .foregroundStyle(Tokens.Palette.tertiary).fixedSize(horizontal: true, vertical: false)
+                }
+                .font(.system(size: 10)).foregroundStyle(Tokens.Palette.secondary)
+                .help(entry.message).accessibilityElement(children: .combine)
+            }
+        }
+    }
+
+    private var bottomActions: some View {
+        HStack(spacing: 8) {
+            Button {
+                openAndSet {
+                    store.activeTab = .workloads
+                    store.pendingRunSheet = true
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    WorkspaceIcon(name: "play", size: 14, fallback: "play")
+                    Text("Run…")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent).tint(Tokens.Palette.action)
+            .accessibilityLabel("Run a container")
+            Button {
+                openWindow(id: "main-window")
+                dismiss()
+            } label: {
+                HStack(spacing: 6) {
+                    WorkspaceIcon(name: "external-link", size: 14, fallback: "arrow.up.right.square")
+                    Text("Open Micropod")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+        }
+        .controlSize(.regular)
+    }
+
+    private func card<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content().padding(.horizontal, 10).padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardSurface(cornerRadius: Tokens.Radius.lg, fillOpacity: 1)
+    }
+
+    private func sectionHeading<Action: View>(_ title: String, icon: String, @ViewBuilder action: () -> Action)
+        -> some View
+    {
+        HStack {
+            WorkspaceIcon(name: icon, size: 14, fallback: "square.stack.3d.up")
+                .foregroundStyle(Tokens.Palette.secondary)
+            Text(title).fontWeight(.semibold).foregroundStyle(Tokens.Palette.secondary)
+            Spacer(minLength: 4)
+            action()
+        }
+        .font(Tokens.Typography.metadata)
+    }
+
+    private var runningWorkloads: [WorkloadItem] {
+        store.workloadItems.filter(\.isRunning).sorted {
+            let lhs = $0.cpuCores ?? -1, rhs = $1.cpuCores ?? -1
+            return lhs == rhs ? $0.name.localizedStandardCompare($1.name) == .orderedAscending : lhs > rhs
+        }
+    }
+    private var runtimeTransitioning: Bool {
+        store.isStartingRuntime || store.isRestartingRuntime || store.isHealingRuntime || store.isInstallingKernel
+    }
+    private var healthLabel: String {
+        if !store.clientAvailable { return "Runtime unavailable" }
+        if store.isHealingRuntime { return "Recovering runtime…" }
+        if store.isStartingRuntime || store.isRestartingRuntime { return "Starting runtime…" }
+        if store.isInstallingKernel { return "Installing Linux kernel…" }
+        if store.runtimeHealth == .wedged { return "Runtime unresponsive" }
+        if !store.isRuntimeRunning { return "Runtime stopped" }
+        if agentsDegraded { return "Runtime running · helper unavailable" }
+        return store.runtimeHealth == .healthy ? "Runtime healthy" : "Runtime running · checking health"
+    }
+    private var healthColor: Color {
+        if !store.clientAvailable { return Tokens.Palette.danger }
+        if runtimeTransitioning || store.runtimeHealth == .wedged || agentsDegraded { return Tokens.Palette.warning }
+        return store.isRuntimeRunning && store.runtimeHealth == .healthy
+            ? Tokens.Palette.success : Tokens.Palette.tertiary
+    }
+    private var agentsDegraded: Bool {
+        store.agentStatuses.contains { $0.state == .retryPending || $0.state == .missing }
+    }
+    private func requestRuntimeStop() {
+        if store.runtimeStopAffectedCount == 0 { Task { await store.stopRuntime() } } else { confirmRuntimeStop = true }
+    }
+    private func openAndSet(_ configure: () -> Void) {
         configure()
         openWindow(id: "main-window")
         dismiss()
     }
-
-    // MARK: - Stats (fixed-size values, never truncated)
-
-    private var statsCard: some View {
-        card {
-            HStack(spacing: 0) {
-                statBlock(value: "\(store.runningCount)", label: "running", icon: "containers")
-                statSeparator
-                statBlock(value: aggregateCPU ?? "—", label: "cpu", icon: "stats")
-                statSeparator
-                statBlock(value: totalMemory, label: "in use", icon: "storage")
-                statSeparator
-                statBlock(value: reclaimable, label: "reclaim", icon: "prune")
-            }
-        }
-    }
-
-    private var statSeparator: some View {
-        Rectangle()
-            .fill(Color(nsColor: .separatorColor))
-            .frame(width: 0.5, height: 26)
-            .padding(.horizontal, 6)
-    }
-
-    /// Total CPU across running containers, e.g. "12%".
-    private var aggregateCPU: String? {
-        guard store.isRuntimeRunning, let snapshot = store.statsSnapshot else { return nil }
-        let total = snapshot.containers.reduce(0.0) { $0 + $1.cpuPercent }
-        return String(format: "%.1f%%", total)
-    }
-
-    private var totalMemory: String {
-        let used = store.statsSnapshot?.containers.reduce(0) { $0 + $1.memoryUsedBytes } ?? 0
-        return ByteFormat.string(used)
-    }
-
-    private var reclaimable: String {
-        guard let usage = store.diskUsage else { return "—" }
-        return ByteFormat.string(usage.totalReclaimableBytes)
-    }
-
-    // MARK: - Containers
-
-    private var containerSection: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            sectionHeader("Containers")
-                .padding(.horizontal, 2)
-            if store.containers.isEmpty {
-                card {
-                    Text("No containers")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 4)
-                }
-            } else {
-                // No inner ScrollView: the list is capped at 6 rows (+ "show
-                // all"), and a ScrollView gets an arbitrary height in the
-                // popover's sizing pass — it clipped the third row.
-                card {
-                    VStack(spacing: 0) {
-                        ForEach(Array(panelContainers.prefix(6).enumerated()), id: \.element.id) {
-                            index, container in
-                            if index > 0 {
-                                Divider().padding(.leading, 18)
-                            }
-                            MenuBarContainerRow(
-                                container: container,
-                                stats: store.statsByID[container.id],
-                                diskBytes: store.diskBytesByID[container.id]
-                            ) {
-                                openContainer(container.id)
-                            } onStop: {
-                                Task { await store.stopContainer(container.id) }
-                            }
-                        }
-                        if store.containers.count > 6 {
-                            Divider().padding(.leading, 18)
-                            Button {
-                                openAndSet { store.activeTab = .containers }
-                            } label: {
-                                Label(
-                                    "Show all \(store.containers.count) containers…",
-                                    systemImage: "square.grid.2x2")
-                            }
-                            .buttonStyle(.plain)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .padding(.vertical, 4)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /// Running containers first (busiest CPU first), then the rest by name —
-    /// the panel is a glance at what is using the machine right now.
-    private var panelContainers: [Micropod_V1_Container] {
-        store.containers.sorted { a, b in
-            let aRunning = a.state == "running"
-            let bRunning = b.state == "running"
-            if aRunning != bRunning { return aRunning }
-            let aCPU = store.statsByID[a.id]?.cpuPercent ?? 0
-            let bCPU = store.statsByID[b.id]?.cpuPercent ?? 0
-            if aCPU != bCPU { return aCPU > bCPU }
-            return a.id < b.id
-        }
-    }
-
-    private func openContainer(_ id: String) {
-        store.activeTab = .containers
-        store.selectedContainerID = id
-        openWindow(id: "main-window")
-        dismiss()
-    }
-
-    // MARK: - Activity
-
-    private var activitySection: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            sectionHeader("Recent Activity")
-                .padding(.horizontal, 2)
-            card {
-                VStack(spacing: 0) {
-                    ForEach(Array(store.recentActivity(limit: 4).enumerated()), id: \.element.id) { index, entry in
-                        if index > 0 {
-                            Divider().padding(.leading, 18)
-                        }
-                        HStack(spacing: 7) {
-                            Image(systemName: activityIcon(entry))
-                                .font(.system(size: 10))
-                                .foregroundStyle(activityColor(entry))
-                                .frame(width: 12)
-                            Text(entry.message)
-                                .font(.caption)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                            Spacer(minLength: 4)
-                            Text(entry.timestamp.formatted(.relative(presentation: .named)))
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                                .fixedSize()
-                        }
-                        .padding(.vertical, 4)
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Footer
-
-    private var footer: some View {
-        HStack(spacing: 8) {
-            if let status = store.systemStatus, !status.cliVersion.isEmpty {
-                Text("cli \(status.cliVersion)").fixedSize()
-            }
-            if let status = store.systemStatus, !status.apiServerVersion.isEmpty {
-                Text("api \(shortAPIServerVersion(status.apiServerVersion))")
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-            Spacer(minLength: 4)
-            if let version = UpdateController.shared.stagedVersion {
-                Button {
-                    UpdateController.shared.applyStagedUpdate()
-                } label: {
-                    Label("Update to \(version)", systemImage: "arrow.down.circle.fill")
-                }
-                .buttonStyle(.borderless)
-                .controlSize(.small)
-                .foregroundStyle(Color.accentColor)
-                .fixedSize()
-                .help("Restart Micropod to install \(version)")
-            } else {
-                Button {
-                    UpdateController.shared.checkForUpdates()
-                } label: {
-                    IconLabel(title: "Updates", icon: "check", fallback: "arrow.triangle.2.circlepath")
-                }
-                .buttonStyle(.borderless)
-                .controlSize(.small)
-                .fixedSize()
-                .disabled(!UpdateController.shared.canCheckForUpdates)
-            }
-            Button {
-                openAndSet { store.activeTab = .settings }
-            } label: {
-                IconLabel(title: "Settings…", icon: "settings", fallback: "gearshape")
-            }
-            .buttonStyle(.borderless)
-            .controlSize(.small)
-            .fixedSize()
-            Button {
-                NSApp.terminate(nil)
-            } label: {
-                IconLabel(title: "Quit", icon: "quit", fallback: "power")
-            }
-            .buttonStyle(.borderless)
-            .controlSize(.small)
-            .fixedSize()
-        }
-        .font(.caption2)
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 2)
-    }
-
-    private func shortAPIServerVersion(_ version: String) -> String {
-        // "container-apiserver version 1.2.2 (build: release…)" → "1.2.2"
-        let parts = version.split(separator: " ")
-        return parts.first { $0.hasPrefix("1.") }?.description ?? version
-    }
-
-    private var statusLine: String {
-        if !store.clientAvailable { return "container CLI not found" }
-        if store.isHealingRuntime { return "Recovering runtime…" }
-        if store.runtimeHealth == .wedged { return "Runtime unresponsive" }
-        if store.isRuntimeRunning {
-            return store.runningCount == 1 ? "Running · 1 container" : "Running · \(store.runningCount) containers"
-        }
-        return "Runtime stopped"
-    }
-
-    private func statBlock(value: String, label: String, icon: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 4) {
-                Image(systemName: AppIcon.sfName(for: icon))
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 10, height: 10)
-                Text(value)
-                    .font(.callout.weight(.semibold).monospacedDigit())
-                    .fixedSize(horizontal: true, vertical: false)
-                    .lineLimit(1)
-            }
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
-    }
-
     private func activityIcon(_ entry: ActivityEntry) -> String {
         switch entry.level {
-        case .success: "checkmark.circle.fill"
-        case .error: "exclamationmark.triangle.fill"
+        case .success: "checkmark.circle"
+        case .error: "exclamationmark.circle"
         case .info: "clock"
         }
     }
-
-    private func activityColor(_ entry: ActivityEntry) -> Color {
-        switch entry.level {
-        case .success: .green
-        case .error: .red
-        case .info: .secondary
-        }
-    }
-
 }
 
-/// One compact row in the menu bar panel: name + live CPU/mem, image + disk
-/// below; click opens the container, the trailing button stops it. Rows sit
-/// inside a section card separated by inset dividers, so the row stays flat.
-struct MenuBarContainerRow: View {
-    let container: Micropod_V1_Container
-    let stats: Micropod_V1_ContainerStats?
-    var diskBytes: UInt64? = nil
-    var onOpen: () -> Void
-    var onStop: () -> Void
+/// Missing/stale samples remain unavailable. Partial guest totals are lower
+/// bounds; these values never claim to include host/runtime memory overhead.
+struct MenuBarGuestMetrics {
+    let cpuText: String
+    let memoryText: String
+    let detail: String
 
-    var body: some View {
-        HStack(spacing: 4) {
-            Button(action: onOpen) {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(stateColor)
-                        .frame(width: 6, height: 6)
-                    VStack(alignment: .leading, spacing: 1) {
-                        HStack(spacing: 6) {
-                            Text(container.id)
-                                .font(.caption.weight(.medium))
-                                .lineLimit(1)
-                            Spacer(minLength: 4)
-                            if container.state == "running" {
-                                Text(cpuText)
-                                    .font(.caption2.monospacedDigit())
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize()
-                                Text(memText)
-                                    .font(.caption2.monospacedDigit())
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize()
-                            } else {
-                                Text(container.state)
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                                    .fixedSize()
-                            }
-                        }
-                        HStack(spacing: 6) {
-                            Text(container.image)
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                            if container.state == "running" {
-                                Spacer(minLength: 4)
-                                Label(diskText, systemImage: "internaldrive")
-                                    .labelStyle(.titleAndIcon)
-                                    .font(.caption2.monospacedDigit())
-                                    .foregroundStyle(.tertiary)
-                                    .fixedSize()
-                                    .help("Container disk usage")
-                            }
-                        }
-                    }
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Open \(container.id)")
-
-            if container.state == "running" {
-                Button(action: onStop) {
-                    Image(systemName: "stop.circle")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 20, height: 20)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help("Stop \(container.id)")
-                .accessibilityLabel("Stop \(container.id)")
-            }
+    init(workloads: [WorkloadItem], available: Bool = true, at date: Date = Date()) {
+        let running = workloads.filter(\.isRunning)
+        let fresh = available ? running.filter { !$0.metricsAreStale(at: date) } : []
+        let cpu = fresh.compactMap(\.cpuCores).filter { $0.isFinite && $0 >= 0 }
+        let memory = fresh.compactMap(\.memoryBytes)
+        cpuText =
+            cpu.isEmpty ? "—" : "\(cpu.count < running.count ? "≥ " : "")\(String(format: "%.2f", cpu.reduce(0, +)))"
+        let memorySum = memory.reduce(UInt64(0)) { sum, value in
+            let result = sum.addingReportingOverflow(value)
+            return result.overflow ? UInt64.max : result.partialValue
         }
-        .padding(.vertical, 5)
-    }
-
-    private var stateColor: Color { ContainerStateStyle.color(for: container.state) }
-
-    private var cpuText: String {
-        guard let stats else { return "—" }
-        return String(format: "%.1f%%", stats.cpuPercent)
-    }
-
-    private var memText: String {
-        guard let stats else { return "—" }
-        return ByteFormat.string(stats.memoryUsedBytes)
-    }
-
-    private var diskText: String {
-        guard let diskBytes else { return "—" }
-        return ByteFormat.string(diskBytes)
+        memoryText = memory.isEmpty ? "—" : "\(memory.count < running.count ? "≥ " : "")\(ByteFormat.string(memorySum))"
+        let sampled = fresh.count { $0.cpuCores != nil && $0.memoryBytes != nil }
+        if !available {
+            detail = "Guest measurements unavailable"
+        } else if cpu.isEmpty && memory.isEmpty {
+            detail = "Waiting for guest measurements"
+        } else if sampled < running.count {
+            detail = "\(sampled) of \(running.count) sampled · totals are lower bounds"
+        } else {
+            detail = "Guest usage · host overhead excluded"
+        }
     }
 }

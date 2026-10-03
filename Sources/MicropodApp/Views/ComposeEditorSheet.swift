@@ -29,14 +29,19 @@ struct ComposeEditorSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Edit \(environment.spec.name)").font(.title3.weight(.semibold))
+                Text("Edit \(environment.spec.name)")
+                    .font(.title3.weight(.semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .help(environment.spec.name)
                 Spacer()
                 validationIndicator
+                    .fixedSize()
             }
 
             TextEditor(text: $text)
                 .font(.subheadline.monospaced())
-                .frame(minHeight: 300)
+                .frame(minHeight: 120, maxHeight: .infinity)
                 .scrollContentBackground(.hidden)
                 .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 6))
                 .overlay(
@@ -45,11 +50,19 @@ struct ComposeEditorSheet: View {
                 )
 
             if let errorMessage {
-                Text(errorMessage).font(.caption).foregroundStyle(.red)
+                ScrollView {
+                    Text(errorMessage)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                }
+                .frame(maxHeight: 70)
             }
             Text("Changes to a working environment are applied on Save; Save & Up also starts it.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             HStack {
                 Spacer()
@@ -68,10 +81,14 @@ struct ComposeEditorSheet: View {
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
                 .disabled(isSaving)
+                .accessibilityIdentifier("composeEditor.saveAndUp")
+                .formActionBounds("composeEditor.saveAndUp")
             }
+            .fixedSize(horizontal: false, vertical: true)
         }
         .padding(20)
-        .frame(width: 620, height: 480)
+        .frame(minWidth: 420, idealWidth: 620, maxWidth: .infinity)
+        .frame(minHeight: 320, idealHeight: 480, maxHeight: .infinity)
         .onChange(of: text) { _, _ in
             validateDebounced()
         }

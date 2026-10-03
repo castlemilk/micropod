@@ -1,0 +1,233 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1440" height="1250" viewBox="0 0 1440 1250" role="img" aria-labelledby="sheet-title sheet-desc">
+<title id="sheet-title">Micropod iconography — light and dark</title>
+<desc id="sheet-desc">Twenty-four original operational pictograms, shown on warm light gray and graphite surfaces. One point seven five unit stroke on a twenty-four unit grid.</desc>
+<defs>
+<symbol id="icon-workloads" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="3" y="9.5" width="5" height="5" rx="1"/><rect x="3" y="16" width="5" height="5" rx="1"/><path d="M11 5.5h10M11 12h10M11 18.5h10"/></symbol>
+<symbol id="icon-container" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 4.5v9L12 21l-9-4.5v-9L12 3Z M3 7.5l9 4.5 9-4.5 M12 12v9"/></symbol>
+<symbol id="icon-microvm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="15" rx="2"/><rect x="8.5" y="7" width="7" height="7" rx="1"/><path d="M12 18v3M8 21h8M6 10.5h2.5M15.5 10.5H18"/></symbol>
+<symbol id="icon-stack" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 4.5-9 4.5-9-4.5L12 3ZM3 12l9 4.5 9-4.5M3 16.5l9 4.5 9-4.5"/></symbol>
+<symbol id="icon-images" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="16" height="16" rx="2"/><path d="M17 21H5a2 2 0 0 1-2-2V7"/><rect x="9" y="7" width="8" height="8" rx="1"/><path d="M9 10h8M13 7v3"/></symbol>
+<symbol id="icon-cache" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 8 3 3-3 3m5-6 3 3-3 3M6 17h12"/></symbol>
+<symbol id="icon-cache-hit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m8 11 3 3 5-5M6 17h12"/></symbol>
+<symbol id="icon-cache-warm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 8c-1.4 1.3 1.4 2.7 0 4M12 7c-1.4 1.7 1.4 3.3 0 5M16 8c-1.4 1.3 1.4 2.7 0 4M6 17h12"/></symbol>
+<symbol id="icon-cache-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 7h6M10 7v4l-2 3h8l-2-3V7M12 14v3"/></symbol>
+<symbol id="icon-cache-clean" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m13 7-5 5m-1-1 6 4-3 3-5-4 2-3ZM8 14l3 2M6.5 15.5l3 2"/></symbol>
+<symbol id="icon-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="1.5"/><rect x="10" y="10" width="4" height="4" rx=".5"/><path d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"/></symbol>
+<symbol id="icon-memory" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="10" rx="1.5"/><rect x="6" y="10" width="4" height="4" rx=".5"/><rect x="14" y="10" width="4" height="4" rx=".5"/><path d="M6 17v4M9 17v4M12 17v4M15 17v4M18 17v4"/></symbol>
+<symbol id="icon-storage" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="9" ry="2.5"/><path d="M3 5.5v13C3 19.9 7 21 12 21s9-1.1 9-2.5v-13M3 12c0 1.4 4 2.5 9 2.5s9-1.1 9-2.5"/></symbol>
+<symbol id="icon-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v5H5v5M12 12h7v5"/></symbol>
+<symbol id="icon-logs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M6 7h1M10 7h8M6 12h1M10 12h8M6 17h1M10 17h5"/></symbol>
+<symbol id="icon-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></symbol>
+<symbol id="icon-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m7 4 14 8-14 8V4Z"/></symbol>
+<symbol id="icon-stop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="1.5"/></symbol>
+<symbol id="icon-restart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 8a8.5 8.5 0 1 0 .5 7M20.5 3.5v5h-5"/></symbol>
+<symbol id="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="7.5"/><path d="m16 16 5 5"/></symbol>
+<symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="12.000,3.000 13.756,3.173 14.832,5.163 16.111,5.847 18.364,5.636 19.483,7.000 18.837,9.168 19.258,10.556 21.000,12.000 20.827,13.756 18.837,14.832 18.153,16.111 18.364,18.364 17.000,19.483 14.832,18.837 13.444,19.258 12.000,21.000 10.244,20.827 9.168,18.837 7.889,18.153 5.636,18.364 4.517,17.000 5.163,14.832 4.742,13.444 3.000,12.000 3.173,10.244 5.163,9.168 5.847,7.889 5.636,5.636 7.000,4.517 9.168,5.163 10.556,4.742"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="icon-external-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3h8v8M21 3 11 13M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/></symbol>
+<symbol id="icon-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M3 16v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/></symbol>
+<symbol id="icon-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-9 4 18 3-9h4"/></symbol>
+</defs>
+<rect width="1440" height="1250" fill="#F4F3EF"/>
+<g font-family="-apple-system, BlinkMacSystemFont, Inter, Helvetica, Arial, sans-serif">
+<text x="60" y="64" fill="#2A2D32" font-size="29" font-weight="650">micropod / iconography</text>
+<text x="60" y="100" fill="#74787E" font-size="16">24 original symbols · 24 × 24 grid · 1.75 stroke · round caps + joins</text>
+<rect x="1316" y="40" width="44" height="44" rx="13" fill="#0A84FF"/>
+<use href="#icon-microvm" x="1326" y="50" width="24" height="24" color="#FFFFFF"/>
+<text x="60" y="149" fill="#5C6168" font-size="12" font-weight="650" letter-spacing="1.5">LIGHT / WARM PAPER</text>
+<rect x="60" y="177" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-workloads" x="76" y="194" width="28" height="28" color="#2A2D32"/>
+<text x="118" y="213" fill="#2A2D32" font-size="14" font-weight="550">Workloads</text>
+<text x="76" y="245" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">workloads.svg</text>
+<rect x="285" y="177" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-container" x="301" y="194" width="28" height="28" color="#2A2D32"/>
+<text x="343" y="213" fill="#2A2D32" font-size="14" font-weight="550">Container</text>
+<text x="301" y="245" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">container.svg</text>
+<rect x="510" y="177" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-microvm" x="526" y="194" width="28" height="28" color="#2A2D32"/>
+<text x="568" y="213" fill="#2A2D32" font-size="14" font-weight="550">MicroVM</text>
+<text x="526" y="245" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">microvm.svg</text>
+<rect x="735" y="177" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-stack" x="751" y="194" width="28" height="28" color="#2A2D32"/>
+<text x="793" y="213" fill="#2A2D32" font-size="14" font-weight="550">Stack</text>
+<text x="751" y="245" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">stack.svg</text>
+<rect x="960" y="177" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-images" x="976" y="194" width="28" height="28" color="#2A2D32"/>
+<text x="1018" y="213" fill="#2A2D32" font-size="14" font-weight="550">Images</text>
+<text x="976" y="245" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">images.svg</text>
+<rect x="1185" y="177" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-cache" x="1201" y="194" width="28" height="28" color="#2A2D32"/>
+<text x="1243" y="213" fill="#2A2D32" font-size="14" font-weight="550">Cache</text>
+<text x="1201" y="245" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">cache.svg</text>
+<rect x="60" y="282" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-cache-hit" x="76" y="299" width="28" height="28" color="#2A2D32"/>
+<text x="118" y="318" fill="#2A2D32" font-size="14" font-weight="550">Cache hit</text>
+<text x="76" y="350" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">cache-hit.svg</text>
+<rect x="285" y="282" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-cache-warm" x="301" y="299" width="28" height="28" color="#2A2D32"/>
+<text x="343" y="318" fill="#2A2D32" font-size="14" font-weight="550">Warm cache</text>
+<text x="301" y="350" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">cache-warm.svg</text>
+<rect x="510" y="282" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-cache-pin" x="526" y="299" width="28" height="28" color="#2A2D32"/>
+<text x="568" y="318" fill="#2A2D32" font-size="14" font-weight="550">Pinned cache</text>
+<text x="526" y="350" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">cache-pin.svg</text>
+<rect x="735" y="282" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-cache-clean" x="751" y="299" width="28" height="28" color="#2A2D32"/>
+<text x="793" y="318" fill="#2A2D32" font-size="14" font-weight="550">Clean cache</text>
+<text x="751" y="350" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">cache-clean.svg</text>
+<rect x="960" y="282" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-cpu" x="976" y="299" width="28" height="28" color="#2A2D32"/>
+<text x="1018" y="318" fill="#2A2D32" font-size="14" font-weight="550">CPU</text>
+<text x="976" y="350" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">cpu.svg</text>
+<rect x="1185" y="282" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-memory" x="1201" y="299" width="28" height="28" color="#2A2D32"/>
+<text x="1243" y="318" fill="#2A2D32" font-size="14" font-weight="550">Memory</text>
+<text x="1201" y="350" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">memory.svg</text>
+<rect x="60" y="387" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-storage" x="76" y="404" width="28" height="28" color="#2A2D32"/>
+<text x="118" y="423" fill="#2A2D32" font-size="14" font-weight="550">Storage</text>
+<text x="76" y="455" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">storage.svg</text>
+<rect x="285" y="387" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-network" x="301" y="404" width="28" height="28" color="#2A2D32"/>
+<text x="343" y="423" fill="#2A2D32" font-size="14" font-weight="550">Network</text>
+<text x="301" y="455" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">network.svg</text>
+<rect x="510" y="387" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-logs" x="526" y="404" width="28" height="28" color="#2A2D32"/>
+<text x="568" y="423" fill="#2A2D32" font-size="14" font-weight="550">Logs</text>
+<text x="526" y="455" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">logs.svg</text>
+<rect x="735" y="387" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-terminal" x="751" y="404" width="28" height="28" color="#2A2D32"/>
+<text x="793" y="423" fill="#2A2D32" font-size="14" font-weight="550">Terminal</text>
+<text x="751" y="455" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">terminal.svg</text>
+<rect x="960" y="387" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-play" x="976" y="404" width="28" height="28" color="#2A2D32"/>
+<text x="1018" y="423" fill="#2A2D32" font-size="14" font-weight="550">Start</text>
+<text x="976" y="455" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">play.svg</text>
+<rect x="1185" y="387" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-stop" x="1201" y="404" width="28" height="28" color="#2A2D32"/>
+<text x="1243" y="423" fill="#2A2D32" font-size="14" font-weight="550">Stop</text>
+<text x="1201" y="455" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">stop.svg</text>
+<rect x="60" y="492" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-restart" x="76" y="509" width="28" height="28" color="#2A2D32"/>
+<text x="118" y="528" fill="#2A2D32" font-size="14" font-weight="550">Restart</text>
+<text x="76" y="560" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">restart.svg</text>
+<rect x="285" y="492" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-search" x="301" y="509" width="28" height="28" color="#2A2D32"/>
+<text x="343" y="528" fill="#2A2D32" font-size="14" font-weight="550">Search</text>
+<text x="301" y="560" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">search.svg</text>
+<rect x="510" y="492" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-settings" x="526" y="509" width="28" height="28" color="#2A2D32"/>
+<text x="568" y="528" fill="#2A2D32" font-size="14" font-weight="550">Settings</text>
+<text x="526" y="560" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">settings.svg</text>
+<rect x="735" y="492" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-external-link" x="751" y="509" width="28" height="28" color="#2A2D32"/>
+<text x="793" y="528" fill="#2A2D32" font-size="14" font-weight="550">Open externally</text>
+<text x="751" y="560" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">external-link.svg</text>
+<rect x="960" y="492" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-download" x="976" y="509" width="28" height="28" color="#2A2D32"/>
+<text x="1018" y="528" fill="#2A2D32" font-size="14" font-weight="550">Download</text>
+<text x="976" y="560" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">download.svg</text>
+<rect x="1185" y="492" width="200" height="86" rx="12" fill="#FAFAF7" stroke="#DEDFDE"/>
+<use href="#icon-activity" x="1201" y="509" width="28" height="28" color="#2A2D32"/>
+<text x="1243" y="528" fill="#2A2D32" font-size="14" font-weight="550">Activity</text>
+<text x="1201" y="560" fill="#82878E" font-size="11" font-family="SFMono-Regular, Menlo, monospace">activity.svg</text>
+<rect x="0" y="613" width="1440" height="637" fill="#171A1F"/>
+<text x="60" y="670" fill="#A7AEB8" font-size="12" font-weight="650" letter-spacing="1.5">DARK / GRAPHITE</text>
+<rect x="60" y="698" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-workloads" x="76" y="715" width="28" height="28" color="#D8DCE3"/>
+<text x="118" y="734" fill="#D8DCE3" font-size="14" font-weight="550">Workloads</text>
+<text x="76" y="766" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">workloads.svg</text>
+<rect x="285" y="698" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-container" x="301" y="715" width="28" height="28" color="#D8DCE3"/>
+<text x="343" y="734" fill="#D8DCE3" font-size="14" font-weight="550">Container</text>
+<text x="301" y="766" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">container.svg</text>
+<rect x="510" y="698" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-microvm" x="526" y="715" width="28" height="28" color="#D8DCE3"/>
+<text x="568" y="734" fill="#D8DCE3" font-size="14" font-weight="550">MicroVM</text>
+<text x="526" y="766" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">microvm.svg</text>
+<rect x="735" y="698" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-stack" x="751" y="715" width="28" height="28" color="#D8DCE3"/>
+<text x="793" y="734" fill="#D8DCE3" font-size="14" font-weight="550">Stack</text>
+<text x="751" y="766" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">stack.svg</text>
+<rect x="960" y="698" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-images" x="976" y="715" width="28" height="28" color="#D8DCE3"/>
+<text x="1018" y="734" fill="#D8DCE3" font-size="14" font-weight="550">Images</text>
+<text x="976" y="766" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">images.svg</text>
+<rect x="1185" y="698" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-cache" x="1201" y="715" width="28" height="28" color="#D8DCE3"/>
+<text x="1243" y="734" fill="#D8DCE3" font-size="14" font-weight="550">Cache</text>
+<text x="1201" y="766" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">cache.svg</text>
+<rect x="60" y="803" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-cache-hit" x="76" y="820" width="28" height="28" color="#D8DCE3"/>
+<text x="118" y="839" fill="#D8DCE3" font-size="14" font-weight="550">Cache hit</text>
+<text x="76" y="871" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">cache-hit.svg</text>
+<rect x="285" y="803" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-cache-warm" x="301" y="820" width="28" height="28" color="#D8DCE3"/>
+<text x="343" y="839" fill="#D8DCE3" font-size="14" font-weight="550">Warm cache</text>
+<text x="301" y="871" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">cache-warm.svg</text>
+<rect x="510" y="803" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-cache-pin" x="526" y="820" width="28" height="28" color="#D8DCE3"/>
+<text x="568" y="839" fill="#D8DCE3" font-size="14" font-weight="550">Pinned cache</text>
+<text x="526" y="871" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">cache-pin.svg</text>
+<rect x="735" y="803" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-cache-clean" x="751" y="820" width="28" height="28" color="#D8DCE3"/>
+<text x="793" y="839" fill="#D8DCE3" font-size="14" font-weight="550">Clean cache</text>
+<text x="751" y="871" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">cache-clean.svg</text>
+<rect x="960" y="803" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-cpu" x="976" y="820" width="28" height="28" color="#D8DCE3"/>
+<text x="1018" y="839" fill="#D8DCE3" font-size="14" font-weight="550">CPU</text>
+<text x="976" y="871" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">cpu.svg</text>
+<rect x="1185" y="803" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-memory" x="1201" y="820" width="28" height="28" color="#D8DCE3"/>
+<text x="1243" y="839" fill="#D8DCE3" font-size="14" font-weight="550">Memory</text>
+<text x="1201" y="871" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">memory.svg</text>
+<rect x="60" y="908" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-storage" x="76" y="925" width="28" height="28" color="#D8DCE3"/>
+<text x="118" y="944" fill="#D8DCE3" font-size="14" font-weight="550">Storage</text>
+<text x="76" y="976" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">storage.svg</text>
+<rect x="285" y="908" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-network" x="301" y="925" width="28" height="28" color="#D8DCE3"/>
+<text x="343" y="944" fill="#D8DCE3" font-size="14" font-weight="550">Network</text>
+<text x="301" y="976" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">network.svg</text>
+<rect x="510" y="908" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-logs" x="526" y="925" width="28" height="28" color="#D8DCE3"/>
+<text x="568" y="944" fill="#D8DCE3" font-size="14" font-weight="550">Logs</text>
+<text x="526" y="976" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">logs.svg</text>
+<rect x="735" y="908" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-terminal" x="751" y="925" width="28" height="28" color="#D8DCE3"/>
+<text x="793" y="944" fill="#D8DCE3" font-size="14" font-weight="550">Terminal</text>
+<text x="751" y="976" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">terminal.svg</text>
+<rect x="960" y="908" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-play" x="976" y="925" width="28" height="28" color="#D8DCE3"/>
+<text x="1018" y="944" fill="#D8DCE3" font-size="14" font-weight="550">Start</text>
+<text x="976" y="976" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">play.svg</text>
+<rect x="1185" y="908" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-stop" x="1201" y="925" width="28" height="28" color="#D8DCE3"/>
+<text x="1243" y="944" fill="#D8DCE3" font-size="14" font-weight="550">Stop</text>
+<text x="1201" y="976" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">stop.svg</text>
+<rect x="60" y="1013" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-restart" x="76" y="1030" width="28" height="28" color="#D8DCE3"/>
+<text x="118" y="1049" fill="#D8DCE3" font-size="14" font-weight="550">Restart</text>
+<text x="76" y="1081" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">restart.svg</text>
+<rect x="285" y="1013" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-search" x="301" y="1030" width="28" height="28" color="#D8DCE3"/>
+<text x="343" y="1049" fill="#D8DCE3" font-size="14" font-weight="550">Search</text>
+<text x="301" y="1081" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">search.svg</text>
+<rect x="510" y="1013" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-settings" x="526" y="1030" width="28" height="28" color="#D8DCE3"/>
+<text x="568" y="1049" fill="#D8DCE3" font-size="14" font-weight="550">Settings</text>
+<text x="526" y="1081" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">settings.svg</text>
+<rect x="735" y="1013" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-external-link" x="751" y="1030" width="28" height="28" color="#D8DCE3"/>
+<text x="793" y="1049" fill="#D8DCE3" font-size="14" font-weight="550">Open externally</text>
+<text x="751" y="1081" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">external-link.svg</text>
+<rect x="960" y="1013" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-download" x="976" y="1030" width="28" height="28" color="#D8DCE3"/>
+<text x="1018" y="1049" fill="#D8DCE3" font-size="14" font-weight="550">Download</text>
+<text x="976" y="1081" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">download.svg</text>
+<rect x="1185" y="1013" width="200" height="86" rx="12" fill="#1F2329" stroke="#343A43"/>
+<use href="#icon-activity" x="1201" y="1030" width="28" height="28" color="#D8DCE3"/>
+<text x="1243" y="1049" fill="#D8DCE3" font-size="14" font-weight="550">Activity</text>
+<text x="1201" y="1081" fill="#818B98" font-size="11" font-family="SFMono-Regular, Menlo, monospace">activity.svg</text>
+<line x1="60" y1="1168" x2="1380" y2="1168" stroke="#343A43"/>
+<text x="60" y="1206" fill="#87919E" font-size="13">Use color to reinforce state. Pair unfamiliar glyphs with labels. Reserve blue for selection, links, and primary actions.</text>
+</g></svg>

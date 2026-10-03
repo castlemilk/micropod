@@ -19,33 +19,24 @@ struct NetworksView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("\(store.networks.count) networks")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Picker("View", selection: $mode) {
-                    ForEach(Mode.allCases) { m in
-                        Text(m.title).tag(m)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    networkCount
+                    networkModePicker.frame(width: 200)
+                    Spacer(minLength: 8)
+                    networkActions
+                }
+                VStack(spacing: 8) {
+                    HStack {
+                        networkCount
+                        Spacer(minLength: 8)
+                        networkActions
                     }
+                    networkModePicker
                 }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 200)
-                Spacer()
-                Button(role: .destructive) {
-                    confirmPrune = true
-                } label: {
-                    IconLabel(title: "Prune Unused", icon: "prune", fallback: "trash")
-                }
-                .controlSize(.small)
-                Button {
-                    showCreateSheet = true
-                } label: {
-                    IconLabel(title: "Create", icon: "create", fallback: "plus")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
             }
-            .padding(8)
+            .padding(.horizontal, Tokens.Spacing.contentInset)
+            .padding(.vertical, Tokens.Spacing.lg)
 
             Divider()
 
@@ -56,6 +47,7 @@ struct NetworksView: View {
                 NetworkTopologyView(store: store)
             }
         }
+        .background(Tokens.Palette.canvas)
         .task {
             if store.networks.isEmpty { await store.refreshNetworks() }
         }
@@ -86,6 +78,41 @@ struct NetworksView: View {
         .sheet(item: $detail) { selection in
             NetworkDetailSheet(store: store, network: selection.network)
         }
+    }
+
+    private var networkCount: some View {
+        WorkspacePageHeader(
+            title: "Networks",
+            subtitle: "\(store.networks.count) \(store.networks.count == 1 ? "network" : "networks")", icon: "network",
+            fallback: "network"
+        )
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var networkModePicker: some View {
+        Picker("View", selection: $mode) {
+            ForEach(Mode.allCases) { mode in Text(mode.title).tag(mode) }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var networkActions: some View {
+        HStack(spacing: 8) {
+            Button(role: .destructive) {
+                confirmPrune = true
+            } label: {
+                IconLabel(title: "Prune Unused", icon: "prune", fallback: "trash")
+            }
+            Button {
+                showCreateSheet = true
+            } label: {
+                IconLabel(title: "Create", icon: "create", fallback: "plus")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Tokens.Palette.action)
+        }
+        .controlSize(.small)
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     @ViewBuilder
@@ -135,21 +162,31 @@ struct NetworkRowView: View, @MainActor Equatable {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(network.id).font(.callout.weight(.medium))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .help(network.id)
+                        .layoutPriority(1)
                     if network.builtin {
-                        Text("builtin").font(.caption2).foregroundStyle(.tertiary)
+                        Text("builtin").font(.caption2).foregroundStyle(.tertiary).fixedSize()
                     }
                     if network.mode == "internal" || network.mode == "hostOnly" {
-                        Text("internal").font(.caption2).foregroundStyle(.orange)
+                        Text("internal").font(.caption2).foregroundStyle(Tokens.Palette.warning).fixedSize()
                     }
                 }
                 if !network.ipv4Subnet.isEmpty {
                     Text(network.ipv4Subnet)
                         .font(.caption2.monospaced())
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .help(network.ipv4Subnet)
                 }
             }
-            Spacer()
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            Spacer(minLength: 4)
             Text(network.plugin).font(.caption2).foregroundStyle(.tertiary)
+                .lineLimit(1)
+                .help(network.plugin)
+                .frame(width: 100, alignment: .trailing)
         }
         .padding(.vertical, 2)
     }
@@ -182,6 +219,6 @@ struct CreateNetworkSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 360)
+        .frame(minWidth: 320, idealWidth: 360, maxWidth: 640)
     }
 }

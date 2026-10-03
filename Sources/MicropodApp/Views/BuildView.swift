@@ -22,72 +22,84 @@ struct BuildView: View {
     @State private var buildHistory: [BuildHistoryEntry] = []
 
     @State private var buildOpID: UUID?
-
-    /// Live build progress, streamed from the store's operations drawer.
-    private var building: Bool {
-        buildOp?.status == .running
-    }
+    @State private var availableWidth: CGFloat = 820
+    @State private var availableHeight: CGFloat = 600
+    @State private var outputExpanded = true
+    @State private var progressCache = BuildProgressCache()
 
     var body: some View {
-        VStack(spacing: 0) {
+        let operation = buildOp
+        let progress = progressCache.snapshot(for: operation)
+        let building = operation?.status == .running
+        return VStack(spacing: 0) {
+            WorkspacePageHeader(
+                title: "Build", subtitle: "Build container images with BuildKit",
+                icon: "terminal", fallback: "terminal"
+            )
+            .padding(Tokens.Spacing.contentInset)
+            .frame(maxWidth: 920)
+            .frame(maxWidth: .infinity, alignment: .top)
             Form {
-                HStack {
-                    LabeledContent(String(localized: "Context")) {
-                        HStack {
-                            Text(contextDirectory).font(.subheadline.monospaced()).lineLimit(1)
-                            Button(String(localized: "Choose…")) { showContextPicker = true }
-                                .controlSize(.small)
-                        }
+                fileFieldLayout {
+                    fileSelectionField(String(localized: "Context"), path: contextDirectory) {
+                        Button(String(localized: "Choose…")) { showContextPicker = true }
                     }
-                    LabeledContent(String(localized: "Dockerfile")) {
-                        HStack {
-                            Text(dockerfile.isEmpty ? String(localized: "Dockerfile (default)") : dockerfile)
-                                .font(.subheadline.monospaced())
-                                .lineLimit(1)
-                            Button(String(localized: "Choose…")) { showDockerfilePicker = true }
-                                .controlSize(.small)
-                            if !dockerfile.isEmpty {
-                                Button(String(localized: "Clear")) { dockerfile = "" }
-                                    .controlSize(.small)
-                            }
+                    fileSelectionField(
+                        String(localized: "Dockerfile"),
+                        path: dockerfile.isEmpty ? String(localized: "Dockerfile (default)") : dockerfile
+                    ) {
+                        Button(String(localized: "Choose…")) { showDockerfilePicker = true }
+                        if !dockerfile.isEmpty {
+                            Button(String(localized: "Clear")) { dockerfile = "" }
                         }
                     }
                 }
                 LabeledContent(String(localized: "Tags")) {
                     TextField(String(localized: "myapp:latest, myapp:v1"), text: $tagsText)
                         .textFieldStyle(.roundedBorder)
+                        .labelsHidden()
+                        .accessibilityLabel(String(localized: "Tags"))
                 }
                 LabeledContent(String(localized: "Build args")) {
                     TextField(String(localized: "KEY=VALUE, one per line"), text: $buildArgsText, axis: .vertical)
                         .textFieldStyle(.plain)
                         .font(.subheadline.monospaced())
                         .lineLimit(1...3)
+                        .labelsHidden()
+                        .accessibilityLabel(String(localized: "Build args"))
                 }
                 LabeledContent(String(localized: "Platform")) {
                     TextField(String(localized: "linux/amd64 (optional)"), text: $platform)
                         .textFieldStyle(.roundedBorder)
+                        .labelsHidden()
+                        .accessibilityLabel(String(localized: "Platform"))
                 }
-                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
-                    GridRow {
-                        LabeledContent(String(localized: "CPUs")) {
-                            TextField("e.g. 2", text: $cpus).textFieldStyle(.roundedBorder).frame(maxWidth: 120)
-                        }
-                        LabeledContent(String(localized: "Memory")) {
-                            TextField("e.g. 2G", text: $memory).textFieldStyle(.roundedBorder).frame(maxWidth: 120)
-                        }
-                        LabeledContent(String(localized: "No cache")) {
-                            Toggle("", isOn: $noCache).labelsHidden().toggleStyle(.switch)
-                        }
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), alignment: .leading)], spacing: 12) {
+                    LabeledContent(String(localized: "CPUs")) {
+                        TextField("e.g. 2", text: $cpus)
+                            .textFieldStyle(.roundedBorder)
+                            .labelsHidden()
+                            .accessibilityLabel(String(localized: "CPUs"))
+                            .frame(maxWidth: 120)
+                    }
+                    LabeledContent(String(localized: "Memory")) {
+                        TextField("e.g. 2G", text: $memory)
+                            .textFieldStyle(.roundedBorder)
+                            .labelsHidden()
+                            .accessibilityLabel(String(localized: "Memory"))
+                            .frame(maxWidth: 120)
+                    }
+                    LabeledContent(String(localized: "No cache")) {
+                        Toggle("", isOn: $noCache).labelsHidden().toggleStyle(.switch)
                     }
                 }
                 Section {
                     DisclosureGroup(String(localized: "Dockerfile editor")) {
                         VStack(alignment: .leading, spacing: 6) {
-                            HStack {
+                            editorToolbarLayout {
                                 Toggle(String(localized: "Use editor content for this build"), isOn: $editorEnabled)
                                     .toggleStyle(.checkbox)
                                     .controlSize(.small)
-                                Spacer()
                                 Button(String(localized: "Load from file…")) { showDockerfilePicker = true }
                                     .controlSize(.small)
                             }
@@ -129,21 +141,39 @@ struct BuildView: View {
                         }
                     }
                 }
+                Section {
+                    DisclosureGroup(String(localized: "Build output"), isExpanded: $outputExpanded) {
+                        buildOutput(progress: progress, operation: operation, building: building)
+                            .frame(height: min(320, max(140, availableHeight * 0.35)))
+                    }
+                    if case .failed(let reason) = buildOp?.status {
+                        Text(reason)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .textSelection(.enabled)
+                    }
+                }
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
+            .frame(maxWidth: 920)
+            .frame(maxWidth: .infinity, alignment: .top)
 
             Divider()
 
             HStack {
                 if building {
-                    if let current = buildEvents.last, current.stage != nil {
+                    if let current = progress.events.last, current.stage != nil {
                         ProgressView(
                             value: Double(current.stage ?? 0),
-                            total: Double(current.totalStages ?? 1))
+                            total: Double(current.totalStages ?? 1)
+                        )
+                        .frame(maxWidth: 160)
                         Text(current.stageName ?? String(localized: "Building…"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .help(current.stageName ?? String(localized: "Building…"))
                     } else {
                         ProgressView().controlSize(.small)
                         Text(String(localized: "Preparing build…")).font(.caption).foregroundStyle(.secondary)
@@ -167,36 +197,17 @@ struct BuildView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
                 .disabled(building || tagsText.trimmingCharacters(in: .whitespaces).isEmpty)
+                .accessibilityIdentifier("build.start")
+                .formActionBounds("build.start")
             }
             .padding(10)
-
-            Divider()
-
-            ScrollView {
-                Text(buildEvents.map(\.line).joined(separator: "\n"))
-                    .font(.footnote.monospaced())
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(12)
-            }
-            .background(.background)
-            .overlay {
-                if buildEvents.isEmpty && !building && buildOp == nil {
-                    Text(
-                        String(
-                            localized:
-                                "Output appears here. The builder is BuildKit — cache mounts and multi-stage builds are supported. Note: build context transfer is slow for large directories; keep .dockerignore tight."
-                        )
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .frame(maxWidth: 320)
-                }
-            }
-            .frame(minHeight: 160)
-            if case .failed(let reason) = buildOp?.status {
-                Text(reason).font(.caption).foregroundStyle(.red).padding(8)
-            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .onGeometryChange(for: CGSize.self) {
+            $0.size
+        } action: {
+            availableWidth = $0.width
+            availableHeight = $0.height
         }
         .fileImporter(isPresented: $showContextPicker, allowedContentTypes: [.folder]) { result in
             switch result {
@@ -225,6 +236,64 @@ struct BuildView: View {
                 recordHistory(succeeded: true)
             } else if case .failed = status {
                 recordHistory(succeeded: false)
+            }
+        }
+    }
+
+    private var fileFieldLayout: AnyLayout {
+        availableWidth < 880
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 20))
+    }
+
+    private var editorToolbarLayout: AnyLayout {
+        availableWidth < 720
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 12))
+    }
+
+    private func fileSelectionField<Actions: View>(
+        _ title: String, path: String, @ViewBuilder actions: () -> Actions
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Text(path)
+                    .font(.subheadline.monospaced())
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .help(path)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                actions().fixedSize().controlSize(.small)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func buildOutput(
+        progress: BuildProgressSnapshot, operation: ActiveOperation?, building: Bool
+    ) -> some View {
+        ScrollView([.horizontal, .vertical]) {
+            Text(progress.outputText)
+                .font(.footnote.monospaced())
+                .textSelection(.enabled)
+                .fixedSize(horizontal: true, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+        }
+        .background(.background)
+        .overlay {
+            if progress.events.isEmpty && !building && operation == nil {
+                Text(
+                    String(
+                        localized:
+                            "Build output appears here. Cache mounts and multi-stage builds are supported. Keep .dockerignore tight for faster context transfers."
+                    )
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: 320)
+                .padding(12)
             }
         }
     }
@@ -304,11 +373,6 @@ struct BuildView: View {
         return store.operations.first { $0.id == buildOpID }
     }
 
-    /// Latest build output lines, capped to keep the pane fast.
-    private var buildEvents: [ProgressEvent] {
-        guard let op = buildOp else { return [] }
-        return Array(op.events.suffix(500)).compactMap { ProgressEvent.parse(line: $0) }
-    }
 }
 
 /// A recorded build outcome, persisted for the Recent builds list.

@@ -5,7 +5,7 @@ import Foundation
 /// container 1.x emits `id`/`status`/`ipAddress`/`createdDate` with byte
 /// counts for `memory`/`diskSize`; older builds used `name`/`state`/`ip`/
 /// `created` with display strings. Both shapes decode into the same entry.
-public struct MachineEntry: Codable, Sendable, Identifiable {
+public struct MachineEntry: Codable, Sendable, Identifiable, Equatable {
     public let name: String
     public let created: String?
     public let ip: String?

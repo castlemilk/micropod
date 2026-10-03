@@ -12,22 +12,15 @@ struct VolumeDetailSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 8) {
-                Image(systemName: "externaldrive").foregroundStyle(.secondary)
-                Text(volume.id).font(.title3.weight(.semibold)).lineLimit(1).truncationMode(.middle)
-                Spacer()
-                if mountedByRunning {
-                    Label(String(localized: "in use"), systemImage: "lock.fill")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.orange)
-                }
-                Button(role: .destructive) {
-                    confirmDelete = true
-                } label: {
-                    Label(String(localized: "Delete"), systemImage: "trash")
-                }
-                .controlSize(.small)
-                Button(String(localized: "Done")) { dismiss() }.keyboardShortcut(.defaultAction).controlSize(.small)
+            HStack(alignment: .top, spacing: Tokens.Spacing.md) {
+                WorkspaceIconTile(name: "storage", fallback: "externaldrive")
+                Text(volume.id)
+                    .font(.title3.weight(.semibold))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .truncationMode(.middle)
+                    .help(volume.id)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             ScrollView {
@@ -35,23 +28,38 @@ struct VolumeDetailSheet: View {
                     sizeSection
                     metaSection
                     mountedBySection
+                    if mountedByRunning {
+                        Label(String(localized: "In use by a running container"), systemImage: "lock.fill")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(Tokens.Palette.warning)
+                        Text(
+                            String(
+                                localized:
+                                    "This volume is mounted by a running container. Deleting it may cause that container to fail on next I/O."
+                            )
+                        )
+                        .font(.caption)
+                        .foregroundStyle(Tokens.Palette.warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 .padding(4)
             }
 
-            if mountedByRunning {
-                Text(
-                    String(
-                        localized:
-                            "This volume is mounted by a running container. Deleting it may cause that container to fail on next I/O."
-                    )
-                )
-                .font(.caption)
-                .foregroundStyle(.orange)
+            HStack {
+                Button(role: .destructive) {
+                    confirmDelete = true
+                } label: {
+                    Label(String(localized: "Delete"), systemImage: "trash")
+                }
+                Spacer()
+                Button(String(localized: "Done")) { dismiss() }.keyboardShortcut(.defaultAction)
             }
+            .controlSize(.small)
         }
         .padding(20)
-        .frame(width: 460, height: 440)
+        .background(Tokens.Palette.canvas)
+        .frame(minWidth: 320, idealWidth: 460, maxWidth: 780, minHeight: 260, idealHeight: 460, maxHeight: 760)
         .confirmationDialog(
             mountedByRunning ? String(localized: "Delete in-use volume?") : String(localized: "Delete volume?"),
             isPresented: $confirmDelete
@@ -76,15 +84,18 @@ struct VolumeDetailSheet: View {
     private var sizeSection: some View {
         section(String(localized: "Size")) {
             if volume.sizeBytes > 0 {
-                let fraction = volume.sizeBytes == 0 ? 0 : Double(volume.sizeBytes) / Double(maxSizeBytes)
-                ProgressView(value: fraction)
+                WorkspaceBudgetMeter(
+                    used: volume.sizeBytes, cap: maxSizeBytes,
+                    label: "Volume size relative to the largest volume", color: Tokens.Palette.accent)
                 HStack {
                     Text(ByteFormat.string(volume.sizeBytes))
                         .font(.callout.weight(.semibold).monospaced())
                     Text(String(localized: "of \(ByteFormat.string(maxSizeBytes)) (largest volume)"))
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
-                    Spacer()
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
                 }
             } else {
                 Text(String(localized: "Unknown size"))
@@ -122,8 +133,11 @@ struct VolumeDetailSheet: View {
                         Circle().fill(ContainerStateStyle.color(for: container.state)).frame(
                             width: 6, height: 6)
                         Text(container.id).font(.caption.monospaced())
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .help(container.id)
                         Spacer()
-                        Text(container.state).font(.caption2).foregroundStyle(.secondary)
+                        Text(container.state).font(.caption2).foregroundStyle(.secondary).fixedSize()
                     }
                     .padding(.vertical, 1)
                 }
@@ -133,30 +147,14 @@ struct VolumeDetailSheet: View {
 
     // MARK: - Helpers
 
-    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            VStack(spacing: 0) { content() }
-                .padding(8)
-                .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+    private func section<Content: View>(_ title: String, @ViewBuilder content: @escaping () -> Content) -> some View {
+        PanelCard(title: title) {
+            VStack(alignment: .leading, spacing: 0) { content() }
         }
     }
 
     private func copyRow(_ label: String, _ value: String) -> some View {
-        HStack(spacing: 8) {
-            Text(label).font(.caption).foregroundStyle(.secondary).frame(width: 100, alignment: .leading)
-            Text(value).font(.subheadline.monospaced()).lineLimit(1).textSelection(.enabled)
-            Spacer(minLength: 4)
-            Button {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(value, forType: .string)
-            } label: {
-                Image(systemName: "doc.on.doc")
-            }
-            .buttonStyle(.borderless)
-            .help(String(localized: "Copy"))
-        }
-        .padding(.vertical, 2)
+        InspectorFieldRow(label: label, value: value)
     }
 
     /// Largest volume size across the store, for the relative size bar.

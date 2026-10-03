@@ -22,30 +22,53 @@ struct ContainerStatsView: View {
     @State private var previousStats: Micropod_V1_ContainerStats?
     @State private var previousSampleTime: Date?
     @State private var window: ChartTimeWindow = .fifteenMinutes
+    @State private var historyTarget: String?
+
+    private struct HistoryRequest: Equatable {
+        let target: String
+        let window: ChartTimeWindow
+        let visible: Bool
+    }
 
     private var stats: Micropod_V1_ContainerStats? {
-        store.statsByID[containerID]
+        guard store.isRuntimeRunning, store.clientAvailable,
+            store.containers.contains(where: { $0.id == containerID && $0.state == "running" })
+        else { return nil }
+        return store.statsByID[containerID]
     }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
+            LazyVStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Spacer()
                     ChartTimeWindowPicker(window: $window)
                 }
                 if let stats {
-                    HStack(spacing: 24) {
-                        statTile("CPU", "\(Int(stats.cpuPercent))%", icon: "cpu")
-                        statTile("Memory", ByteFormat.string(stats.memoryUsedBytes), icon: "memorychip")
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 130), alignment: .leading)], alignment: .leading,
+                        spacing: 12
+                    ) {
                         statTile(
-                            "Memory limit", ByteFormat.string(stats.memoryLimitBytes), icon: "externaldrive")
-                        statTile("Network Rx", ByteFormat.string(stats.networkRxBytes), icon: "arrow.down")
-                        statTile("Network Tx", ByteFormat.string(stats.networkTxBytes), icon: "arrow.up")
-                        statTile("PIDs", "\(stats.pids)", icon: "list.number")
+                            "CPU", "\(Int(stats.cpuPercent))%", icon: "cpu", fallback: "cpu", color: Tokens.Chart.cpu)
+                        statTile(
+                            "Memory", ByteFormat.string(stats.memoryUsedBytes), icon: "memory", fallback: "memorychip",
+                            color: Tokens.Chart.memory)
+                        statTile(
+                            "Memory limit", ByteFormat.string(stats.memoryLimitBytes), icon: "memory",
+                            fallback: "memorychip", color: Tokens.Chart.memory)
+                        statTile(
+                            "Network Rx", ByteFormat.string(stats.networkRxBytes), icon: "network", fallback: "network",
+                            color: Tokens.Chart.networkRx)
+                        statTile(
+                            "Network Tx", ByteFormat.string(stats.networkTxBytes), icon: "network", fallback: "network",
+                            color: Tokens.Chart.networkTx)
+                        statTile(
+                            "PIDs", "\(stats.pids)", icon: "pids", fallback: "list.number",
+                            color: Tokens.Palette.secondary)
                     }
                 } else {
-                    Text("No stats — container must be running.")
+                    Text("Live readings unavailable. Recorded history remains available.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -53,7 +76,7 @@ struct ContainerStatsView: View {
                 let samples = history.filter { $0.timestamp >= Date().addingTimeInterval(-window.duration) }
                 let chartSamples = downsample(samples, maxPoints: 360)
 
-                GroupBox("CPU %") {
+                PanelCard(title: "CPU %", icon: "cpu") {
                     Chart {
                         ForEach(chartSamples, id: \.timestamp) { point in
                             LineMark(
@@ -63,11 +86,12 @@ struct ContainerStatsView: View {
                             .interpolationMethod(.catmullRom)
                         }
                     }
+                    .foregroundStyle(Tokens.Chart.cpu)
                     .chartYScale(domain: 0...max(100, (chartSamples.map(\.cpu).max() ?? 0) + 10))
                     .frame(height: 120)
                 }
 
-                GroupBox("Memory") {
+                PanelCard(title: "Memory", icon: "memory") {
                     Chart {
                         ForEach(chartSamples, id: \.timestamp) { point in
                             LineMark(
@@ -77,52 +101,53 @@ struct ContainerStatsView: View {
                             .interpolationMethod(.catmullRom)
                         }
                     }
+                    .foregroundStyle(Tokens.Chart.memory)
                     .chartYAxisLabel("MiB")
                     .frame(height: 120)
                 }
 
-                GroupBox("Network") {
+                PanelCard(title: "Network", icon: "network") {
                     Chart {
                         ForEach(chartSamples, id: \.timestamp) { point in
                             LineMark(
                                 x: .value("Time", point.timestamp),
                                 y: .value("Rx", point.netRxRate / 1024)
                             )
-                            .foregroundStyle(.green)
+                            .foregroundStyle(Tokens.Chart.networkRx)
                             .interpolationMethod(.catmullRom)
                             LineMark(
                                 x: .value("Time", point.timestamp),
                                 y: .value("Tx", point.netTxRate / 1024)
                             )
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Tokens.Chart.networkTx)
                             .interpolationMethod(.catmullRom)
                         }
                     }
-                    .chartForegroundStyleScale(["Rx": .green, "Tx": .blue])
-                    .chartLegend(position: .trailing)
+                    .chartForegroundStyleScale(["Rx": Tokens.Chart.networkRx, "Tx": Tokens.Chart.networkTx])
+                    .chartLegend(position: .bottom)
                     .chartYAxisLabel("KiB/s")
                     .frame(height: 120)
                 }
 
-                GroupBox("Disk I/O") {
+                PanelCard(title: "Disk I/O", icon: "storage") {
                     Chart {
                         ForEach(chartSamples, id: \.timestamp) { point in
                             LineMark(
                                 x: .value("Time", point.timestamp),
                                 y: .value("Read", point.blockReadRate / 1024)
                             )
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Tokens.Chart.diskRead)
                             .interpolationMethod(.catmullRom)
                             LineMark(
                                 x: .value("Time", point.timestamp),
                                 y: .value("Write", point.blockWriteRate / 1024)
                             )
-                            .foregroundStyle(.purple)
+                            .foregroundStyle(Tokens.Chart.diskWrite)
                             .interpolationMethod(.catmullRom)
                         }
                     }
-                    .chartForegroundStyleScale(["Read": .orange, "Write": .purple])
-                    .chartLegend(position: .trailing)
+                    .chartForegroundStyleScale(["Read": Tokens.Chart.diskRead, "Write": Tokens.Chart.diskWrite])
+                    .chartLegend(position: .bottom)
                     .chartYAxisLabel("KiB/s")
                     .frame(height: 120)
                 }
@@ -130,19 +155,32 @@ struct ContainerStatsView: View {
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .background(Tokens.Palette.canvas)
         .onChange(of: store.statsSnapshot?.sampledAt) { _, _ in
             appendHistory()
         }
         // Open with the persisted history (recorded while this view was
         // closed, even with the window hidden), then keep appending live.
-        .task(id: window) { await loadHistory() }
+        .task(id: HistoryRequest(target: containerID, window: window, visible: store.mainWindowVisible)) {
+            if historyTarget != containerID {
+                historyTarget = containerID
+                history = []
+                previousStats = nil
+                previousSampleTime = nil
+            }
+            guard store.mainWindowVisible else { return }
+            await loadHistory()
+        }
     }
 
     private func loadHistory() async {
-        guard let metricsStore = MetricsStore.shared else { return appendHistory() }
+        guard store.metrics != nil, let metricsStore = MetricsStore.shared else { return appendHistory() }
         let id = containerID
         let range = window.duration
-        let points = await Task.detached { metricsStore.history(.container, id, range: range).points }.value
+        let points = await Task.detached(priority: .utility) {
+            metricsStore.history(.container, id, range: range).points
+        }.value
+        guard !Task.isCancelled, id == containerID else { return }
         let stored = points.map {
             HistoryPoint(
                 timestamp: $0.timestamp, cpu: $0.average.cpuPercent,
@@ -156,7 +194,7 @@ struct ContainerStatsView: View {
     }
 
     private func appendHistory() {
-        guard let stats else { return }
+        guard store.mainWindowVisible, historyTarget == containerID, let stats else { return }
         let now = Date()
         let deltas: StatsDeltas
         if let previous = previousStats, let previousTime = previousSampleTime, previousTime < now {
@@ -179,13 +217,8 @@ struct ContainerStatsView: View {
         previousSampleTime = now
     }
 
-    private func statTile(_ label: String, _ value: String, icon: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Label(label, systemImage: icon)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.callout.weight(.semibold).monospacedDigit())
-        }
+    private func statTile(_ label: String, _ value: String, icon: String, fallback: String, color: Color) -> some View {
+        WorkspaceMetric(title: label, value: value, icon: icon, color: color, fallback: fallback)
+            .help(value)
     }
 }

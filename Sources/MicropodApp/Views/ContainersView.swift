@@ -20,34 +20,84 @@ struct ContainersView: View {
     @State private var sortKey: ContainerSortKey = .id
     @State private var sortAscending = true
     @State private var visibleColumns: Set<ContainerSortKey> = [.id, .image, .state, .ports, .cpu, .memory]
-    /// Available width of the table column — drives the responsive layout.
-    @State private var tableWidth: CGFloat = 340
+    @State private var showCompactDetail = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Incremented per refresh tap — drives the rotate symbol effect.
     @State private var refreshTicks = 0
 
-    private var columnLayout: ContainerColumnLayout {
-        ContainerColumnLayout.compute(visible: visibleColumns, width: tableWidth)
-    }
-
     var body: some View {
-        NavigationSplitView {
-            containerListColumn
-                .toolbar { containerToolbar }
-                .sheet(isPresented: $showRunSheet) {
-                    RunContainerSheet(store: store)
-                }
-                .onChange(of: store.pendingRunSheet) { _, pending in
-                    if pending {
-                        showRunSheet = true
-                        store.pendingRunSheet = false
+        GeometryReader { geometry in
+            let showsInspector = geometry.size.width >= 880
+            VStack(spacing: 0) {
+                WorkspacePageHeader(
+                    title: "Containers",
+                    subtitle:
+                        "\(store.containers.count(where: { $0.state == "running" })) running · \(store.containers.count) total",
+                    icon: "container", fallback: "shippingbox"
+                )
+                .padding(.horizontal, Tokens.Spacing.contentInset)
+                .padding(.vertical, Tokens.Spacing.lg)
+                Divider()
+                Group {
+                    if showsInspector {
+                        HSplitView {
+                            containerListColumn
+                                .frame(minWidth: 340, idealWidth: 520, maxWidth: .infinity)
+                            detailView
+                                .frame(minWidth: 320, idealWidth: 360, maxWidth: .infinity)
+                        }
+                    } else if showCompactDetail, selection != nil {
+                        VStack(spacing: 0) {
+                            HStack {
+                                Button {
+                                    showCompactDetail = false
+                                } label: {
+                                    Label("Containers", systemImage: "chevron.left")
+                                }
+                                .buttonStyle(.borderless)
+                                Spacer()
+                            }
+                            .padding(8)
+                            Divider()
+                            detailView
+                        }
+                    } else {
+                        containerListColumn
                     }
                 }
-        } detail: {
-            detailView
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+            .toolbar { containerToolbar }
+            .onChange(of: selection) { _, selected in
+                if !showsInspector, selected != nil { showCompactDetail = true }
+            }
+            .onChange(of: showsInspector) { _, showsInspector in
+                if !showsInspector, selection != nil { showCompactDetail = true }
+            }
+            .onChange(of: store.selectedContainerID) { _, selected in
+                if selected != selection { selection = selected }
+            }
+            .onAppear {
+                selection = store.selectedContainerID
+                if !showsInspector, selection != nil { showCompactDetail = true }
+            }
+        }
+        .background(Tokens.Palette.canvas)
+        .sheet(isPresented: $showRunSheet) { RunContainerSheet(store: store) }
+        .onChange(of: store.pendingRunSheet) { _, pending in
+            if pending {
+                showRunSheet = true
+                store.pendingRunSheet = false
+            }
         }
         .onAppear { applyFilter() }
-        .onChange(of: store.containers) { applyFilter() }
+        .onChange(of: store.containers) {
+            applyFilter()
+            if let selected = selection, !store.containers.contains(where: { $0.id == selected }) {
+                selection = nil
+                showCompactDetail = false
+            }
+        }
         .onChange(of: searchText) { applyFilter() }
         .onChange(of: filter) { applyFilter() }
         .onChange(of: sortKey) { applyFilter() }
@@ -154,14 +204,21 @@ struct ContainersView: View {
         .keyboardShortcut("n", modifiers: .command)
     }
 
-    @ViewBuilder
     private var containerListColumn: some View {
-        VStack(spacing: 0) {
-            filterBar
+        GeometryReader { geometry in
+            containerInventoryColumn(width: geometry.size.width)
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+        }
+    }
+
+    private func containerInventoryColumn(width: CGFloat) -> some View {
+        let layout = ContainerColumnLayout.compute(visible: visibleColumns, width: width)
+        return VStack(spacing: 0) {
+            filterBar(width: width)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 8)
 
-            tableHeader
+            tableHeader(layout: layout)
 
             if store.containers.isEmpty && store.clientAvailable && !hasSearchQuery && filter == .all {
                 EmptyStateView(
@@ -181,14 +238,14 @@ struct ContainersView: View {
             } else if isSelecting {
                 List(selection: $batchSelection) {
                     ForEach(displayed) { container in
-                        selectableRow(container)
+                        selectableRow(container, layout: layout)
                             .tag(container.id)
                     }
                 }
                 .listStyle(.sidebar)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     if isSelecting {
-                        selectionBar
+                        selectionBar(width: width)
                             .transition(
                                 reduceMotion
                                     ? .opacity
@@ -198,21 +255,20 @@ struct ContainersView: View {
             } else {
                 List(selection: $selection) {
                     ForEach(displayed) { container in
-                        containerListRow(container)
+                        containerListRow(container, layout: layout)
                             .tag(container.id)
+                            .simultaneousGesture(
+                                TapGesture().onEnded {
+                                    selection = container.id
+                                    showCompactDetail = true
+                                })
                     }
                 }
                 .listStyle(.sidebar)
             }
         }
-        .onGeometryChange(for: CGFloat.self) {
-            $0.size.width
-        } action: {
-            tableWidth = $0
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: isSelecting)
-        .navigationSplitViewColumnWidth(min: 300, ideal: 460)
-        .navigationSplitViewStyle(.balanced)
         .navigationTitle("Containers")
     }
 
@@ -224,14 +280,12 @@ struct ContainersView: View {
             ContainerDetailView(store: store, containerID: selected)
                 .id(selected)
         } else {
-            EmptyStateView(
+            WorkspaceSelectionPlaceholder(
                 title: String(localized: "Select a Container"),
                 description: String(
                     localized: "Choose a container to inspect logs, stats, files, and configuration."),
-                symbol: "shippingbox"
+                icon: "container", fallback: "shippingbox"
             )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(20)
         }
     }
 
@@ -239,9 +293,9 @@ struct ContainersView: View {
     // Renders one header cell per layout spec so the header aligns with the
     // rows' cells at every width the layout can produce.
 
-    private var tableHeader: some View {
+    private func tableHeader(layout: ContainerColumnLayout) -> some View {
         HStack(spacing: ContainerColumnLayout.spacing) {
-            ForEach(columnLayout.specs) { spec in
+            ForEach(layout.specs) { spec in
                 sortButton(spec.key, title: spec.key.title, width: spec.width)
             }
             Spacer(minLength: 2)
@@ -249,7 +303,7 @@ struct ContainersView: View {
         }
         .font(.caption.weight(.semibold))
         .foregroundStyle(.secondary)
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 16)
         .padding(.bottom, 6)
     }
 
@@ -323,41 +377,55 @@ struct ContainersView: View {
 
     // MARK: - Rows
 
-    private func containerListRow(_ container: Micropod_V1_Container) -> some View {
+    private func containerListRow(_ container: Micropod_V1_Container, layout: ContainerColumnLayout) -> some View {
         ContainerRowView(
             container: container,
             stats: store.statsByID[container.id],
-            layout: columnLayout
+            layout: layout
         )
         .contextMenu {
             contextMenu(for: container)
         }
     }
 
-    private func selectableRow(_ container: Micropod_V1_Container) -> some View {
+    private func selectableRow(_ container: Micropod_V1_Container, layout: ContainerColumnLayout) -> some View {
         ContainerRowView(
             container: container,
             stats: store.statsByID[container.id],
-            layout: columnLayout
+            layout: layout
         )
         .contextMenu {
             contextMenu(for: container)
         }
     }
 
-    private var filterBar: some View {
-        HStack(spacing: 6) {
-            searchField
-            Picker("Filter", selection: $filter) {
-                ForEach(ContainerFilter.allCases) { f in
-                    Text(f.title)
-                        .tag(f)
-                        .accessibilityIdentifier("containers.filter.\(f.rawValue)")
-                }
+    @ViewBuilder
+    private func filterBar(width: CGFloat) -> some View {
+        if width >= 500 {
+            HStack(spacing: 6) {
+                searchField.frame(minWidth: 150, maxWidth: .infinity)
+                filterPicker
             }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 224)
+        } else {
+            VStack(spacing: 8) {
+                searchField
+                filterPicker
+            }
         }
+    }
+
+    private var filterPicker: some View {
+        Picker("Filter", selection: $filter) {
+            ForEach(ContainerFilter.allCases) { filter in
+                Text(filter.title)
+                    .tag(filter)
+                    .accessibilityIdentifier("containers.filter.\(filter.rawValue)")
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .fixedSize(horizontal: true, vertical: false)
+        .padding(.trailing, 12)
     }
 
     private var hasSearchQuery: Bool {
@@ -538,43 +606,53 @@ struct ContainersView: View {
     }
 
     /// Embedded multi-select action bar (floating bottom capsule).
-    private var selectionBar: some View {
+    private func selectionBar(width: CGFloat) -> some View {
         SelectionActionBar(count: batchSelection.count) {
-            Button {
-                runBatch(store.batchStart)
-            } label: {
-                IconLabel(title: "Start", icon: "start", fallback: "play.fill")
-            }
-            Button {
-                runBatch(store.batchStop)
-            } label: {
-                IconLabel(title: "Stop", icon: "stop", fallback: "stop.fill")
-            }
-            Button {
-                runBatch(store.batchRestart)
-            } label: {
-                IconLabel(title: "Restart", icon: "restart", fallback: "arrow.clockwise")
-            }
-            Button {
-                runBatch(store.batchKill)
-            } label: {
-                IconLabel(title: "Kill", icon: "kill", fallback: "bolt")
-            }
-            .foregroundStyle(.orange)
-            Button(role: .destructive) {
-                confirmDeleteIDs = batchSelection
-            } label: {
-                IconLabel(title: "Delete…", icon: "delete", fallback: "trash")
-            }
-            Button {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(batchSelection.sorted().joined(separator: "\n"), forType: .string)
-            } label: {
-                IconLabel(title: "Copy IDs", icon: "copy", fallback: "doc.on.doc")
+            if width < 880 {
+                Menu("Actions") { batchActions }
+                    .disabled(batchSelection.isEmpty)
+            } else {
+                batchActions
             }
         } onDone: {
             isSelecting = false
             batchSelection.removeAll()
+        }
+    }
+
+    @ViewBuilder
+    private var batchActions: some View {
+        Button {
+            runBatch(store.batchStart)
+        } label: {
+            IconLabel(title: "Start", icon: "start", fallback: "play.fill")
+        }
+        Button {
+            runBatch(store.batchStop)
+        } label: {
+            IconLabel(title: "Stop", icon: "stop", fallback: "stop.fill")
+        }
+        Button {
+            runBatch(store.batchRestart)
+        } label: {
+            IconLabel(title: "Restart", icon: "restart", fallback: "arrow.clockwise")
+        }
+        Button {
+            runBatch(store.batchKill)
+        } label: {
+            IconLabel(title: "Kill", icon: "kill", fallback: "bolt")
+        }
+        .foregroundStyle(.orange)
+        Button(role: .destructive) {
+            confirmDeleteIDs = batchSelection
+        } label: {
+            IconLabel(title: "Delete…", icon: "delete", fallback: "trash")
+        }
+        Button {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(batchSelection.sorted().joined(separator: "\n"), forType: .string)
+        } label: {
+            IconLabel(title: "Copy IDs", icon: "copy", fallback: "doc.on.doc")
         }
     }
 
@@ -654,8 +732,8 @@ struct ContainerRowView: View, @MainActor Equatable {
     @ViewBuilder
     private func cell(_ spec: ContainerColumnLayout.Spec) -> some View {
         switch spec.key {
-        case .id: nameCell(minWidth: spec.width ?? ContainerColumnLayout.minName)
-        case .image: imageCell
+        case .id: nameCell(width: spec.width ?? ContainerColumnLayout.minName)
+        case .image: imageCell.frame(width: spec.width, alignment: .leading)
         case .state: fixedCell(spec.width, alignment: .leading) { statePill }
         case .ports: fixedCell(spec.width, alignment: .leading) { portsText }
         case .cpu: fixedCell(spec.width, alignment: .trailing) { cpuText }
@@ -674,24 +752,25 @@ struct ContainerRowView: View, @MainActor Equatable {
 
     // MARK: - Cells
 
-    private func nameCell(minWidth: CGFloat) -> some View {
+    private func nameCell(width: CGFloat) -> some View {
         HStack(spacing: 6) {
             stateIcon
             VStack(alignment: .leading, spacing: 1) {
                 Text(container.id)
                     .font(.callout.weight(.medium))
+                    .foregroundStyle(Tokens.Palette.primary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+                    .help(container.id)
                 Text(workloadMetadataSummary)
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Tokens.Palette.tertiary)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .help(workloadMetadataSummary)
             }
         }
-        .frame(minWidth: minWidth, alignment: .leading)
-        .layoutPriority(1)
+        .frame(width: width, alignment: .leading)
     }
 
     private var imageCell: some View {
@@ -701,7 +780,6 @@ struct ContainerRowView: View, @MainActor Equatable {
             .lineLimit(1)
             .truncationMode(.middle)
             .help(container.image + (container.platform.isEmpty ? "" : " · \(container.platform)"))
-            .frame(minWidth: ContainerColumnLayout.minImage, alignment: .leading)
     }
 
     /// Uptime joins the metadata line only when the row is roomy (several
@@ -787,13 +865,7 @@ struct ContainerRowView: View, @MainActor Equatable {
     private var stateColor: Color { ContainerStateStyle.color(for: container.state) }
 
     private var statePill: some View {
-        Text(container.state)
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 1)
-            .background(stateColor.opacity(0.18), in: Capsule())
-            .overlay(Capsule().stroke(stateColor.opacity(0.4), lineWidth: 1))
-            .foregroundStyle(stateColor)
+        WorkspaceStatusBadge(title: container.state, color: stateColor)
     }
 
     private var uptime: String? {
@@ -850,35 +922,70 @@ struct ContainerColumnLayout: Equatable {
     static let spacing: CGFloat = 8
 
     static func compute(visible: Set<ContainerSortKey>, width: CGFloat) -> ContainerColumnLayout {
-        var keys = visible
-        // List rows apply their own horizontal insets (~28pt) on top of the
-        // pane width — budget for them or flexible cells get squeezed.
-        let usable = max(0, width - 36)
+        var keys = visible.union([.id])
+        let order: [ContainerSortKey] = [.id, .image, .state, .ports, .cpu, .memory, .created]
+        // Include list insets and the header's column menu in the budget.
+        let usable = max(0, width - 60)
         func requiredWidth() -> CGFloat {
-            var total = minName + spacing
-            if keys.contains(.image) {
-                total += minImage + spacing
+            let columnWidths = keys.reduce(CGFloat.zero) { total, key in
+                total + (key == .id ? minName : key == .image ? minImage : fixedWidths[key] ?? 0)
             }
-            for key in keys where fixedWidths[key] != nil {
-                total += fixedWidths[key]! + spacing
-            }
-            return total
+            return columnWidths + CGFloat(max(0, keys.count - 1)) * spacing
         }
         for drop in dropOrder {
-            if requiredWidth() <= usable {
-                break
-            }
+            if requiredWidth() <= usable { break }
             keys.remove(drop)
         }
-        let order: [ContainerSortKey] = [.id, .image, .state, .ports, .cpu, .memory, .created]
-        let specs: [Spec] =
-            order
-            .filter { key in key == .id || keys.contains(key) }
-            .map { key in Spec(key: key, width: fixedWidths[key]) }
+        let columns = order.filter { keys.contains($0) }
+        let extra = max(0, usable - requiredWidth())
+        let specs = columns.map { key in
+            let cellWidth: CGFloat
+            switch key {
+            case .id: cellWidth = minName + extra * (keys.contains(.image) ? 0.6 : 1)
+            case .image: cellWidth = minImage + extra * 0.4
+            default: cellWidth = fixedWidths[key] ?? 0
+            }
+            return Spec(key: key, width: cellWidth)
+        }
         return ContainerColumnLayout(specs: specs)
     }
 
     func contains(_ key: ContainerSortKey) -> Bool {
         specs.contains { $0.key == key }
+    }
+}
+
+/// Metadata remains readable at compact sheet widths; the original value is
+/// always available through selection, help, and the copy action.
+struct InventoryCopyRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .help(label)
+                .frame(width: 88, alignment: .leading)
+            Text(value)
+                .font(.subheadline.monospaced())
+                .lineLimit(3)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+                .help(value)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(value, forType: .string)
+            } label: {
+                Image(systemName: "doc.on.doc")
+            }
+            .buttonStyle(.borderless)
+            .help("Copy \(label)")
+            .accessibilityLabel("Copy \(label)")
+        }
+        .padding(.vertical, 4)
     }
 }

@@ -27,12 +27,12 @@ struct StorageLocationSection: View {
                 banner(
                     "Storage drive \(status.volumeName ?? "") is disconnected",
                     detail: "The container runtime is stopped until it is reconnected.",
-                    systemImage: "externaldrive.badge.xmark", tint: .red)
+                    systemImage: "externaldrive.badge.xmark", tint: Tokens.Palette.danger)
             } else if let relinkTo = status.relinkTo {
                 banner(
                     "\(status.volumeName ?? "The storage drive") is now at \(relinkTo)",
                     detail: "It was renamed or remounted. Point the data back at it to start the runtime.",
-                    systemImage: "externaldrive.badge.exclamationmark", tint: .orange
+                    systemImage: "externaldrive.badge.exclamationmark", tint: Tokens.Palette.warning
                 ) {
                     Button("Reconnect") { Task { await relink() } }
                         .disabled(working)
@@ -41,12 +41,13 @@ struct StorageLocationSection: View {
             ForEach(otherProblems, id: \.self) { problem in
                 Label(problem, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Tokens.Palette.danger)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             VStack(spacing: 8) {
                 ForEach(volumes, id: \.mountPoint) { volume in
-                    DriveCard(
+                    StorageDriveCard(
                         volume: volume, isCurrent: isCurrent(volume), isSelected: isSelected(volume),
                         dataBytes: dataBytes
                     ) { select(volume) }
@@ -69,39 +70,34 @@ struct StorageLocationSection: View {
             .font(.caption)
 
             if !chosen.isEmpty, chosen != status.configuredRoot {
-                HStack {
-                    Text("Move to").foregroundStyle(.secondary)
-                    Text(chosen).font(.caption.monospaced())
-                    Spacer()
-                }
-                .font(.caption)
+                InspectorFieldRow(label: "Move to", value: chosen)
                 if let warning {
-                    Text(warning).font(.caption).foregroundStyle(.orange)
+                    Text(warning).font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.warning)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 if let fit = fitMessage {
-                    Text(fit.text).font(.caption).foregroundStyle(fit.fits ? Color.secondary : Color.red)
+                    Text(fit.text).font(Tokens.Typography.metadata)
+                        .foregroundStyle(fit.fits ? Tokens.Palette.secondary : Tokens.Palette.danger)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Toggle("Copy existing data (otherwise start empty)", isOn: $migrate)
             }
-            HStack(spacing: 8) {
-                Button(working ? "Moving…" : "Move Data Here") { confirming = true }
-                    .disabled(!canMove)
-                Button("Back to Internal Disk") {
+            StorageLocationActions(
+                working: working, canMove: canMove, canReset: status.configuredRoot != nil,
+                hasOldData: status.trees.contains(where: \.oldDataLeft),
+                move: { confirming = true },
+                reset: {
                     Task { await run { try await StorageLocation.reset(migrate: migrate, control: Self.control) } }
-                }
-                .disabled(working || status.configuredRoot == nil)
-                if status.trees.contains(where: \.oldDataLeft) {
-                    Button("Remove Old Data") { removeOld() }
-                        .disabled(working)
-                        .help("Deletes the copies kept on the internal disk by the last move.")
-                }
-            }
-            .controlSize(.small)
+                }, removeOld: { removeOld() })
             ForEach(Array(log.suffix(6).enumerated()), id: \.offset) { _, line in
-                Text(line).font(.caption.monospaced()).foregroundStyle(.secondary)
+                Text(line).font(Tokens.Typography.log).foregroundStyle(Tokens.Palette.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
             }
             if let error {
-                Text(error).font(.caption).foregroundStyle(.red)
+                Text(error).font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.danger)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
             }
         }
         .onAppear {
@@ -256,18 +252,23 @@ struct StorageLocationSection: View {
     @ViewBuilder
     private func banner(
         _ title: String, detail: String, systemImage: String, tint: Color,
-        @ViewBuilder action: () -> some View = { EmptyView() }
+        @ViewBuilder action: @escaping () -> some View = { EmptyView() }
     ) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: systemImage).foregroundStyle(tint).font(.title3)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.callout.weight(.semibold))
-                Text(detail).font(.caption).foregroundStyle(.secondary)
+        ResponsiveRow(spacing: Tokens.Spacing.md) {
+            HStack(alignment: .top, spacing: Tokens.Spacing.sm) {
+                Image(systemName: systemImage).foregroundStyle(tint).font(.title3)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: Tokens.Spacing.xs) {
+                    Text(title).font(Tokens.Typography.section)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(detail).font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            Spacer()
+        } trailing: {
             action()
         }
-        .padding(10)
+        .padding(Tokens.Spacing.md)
         .background(tint.opacity(0.1), in: RoundedRectangle(cornerRadius: Tokens.Radius.md, style: .continuous))
     }
 
@@ -300,8 +301,48 @@ struct StorageLocationSection: View {
     }
 }
 
-/// One drive in the picker: icon, name, format, usage bar and badges.
-private struct DriveCard: View {
+/// Relocation controls keep their native button sizes and stack on narrow settings panes.
+struct StorageLocationActions: View {
+    let working: Bool
+    let canMove: Bool
+    let canReset: Bool
+    let hasOldData: Bool
+    let move: () -> Void
+    let reset: () -> Void
+    let removeOld: () -> Void
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: Tokens.Spacing.sm) { buttons }
+                .fixedSize(horizontal: true, vertical: false)
+            VStack(alignment: .leading, spacing: Tokens.Spacing.sm) { buttons }
+        }
+        .controlSize(.small)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var buttons: some View {
+        Button(working ? "Moving…" : "Move Data Here", action: move)
+            .disabled(!canMove)
+            .accessibilityIdentifier("storageLocation.move")
+            .formActionBounds("storageLocation.move")
+        Button("Back to Internal Disk", action: reset)
+            .disabled(working || !canReset)
+            .accessibilityIdentifier("storageLocation.reset")
+            .formActionBounds("storageLocation.reset")
+        if hasOldData {
+            Button("Remove Old Data", action: removeOld)
+                .disabled(working)
+                .help("Deletes the copies kept on the internal disk by the last move.")
+                .accessibilityIdentifier("storageLocation.removeOld")
+                .formActionBounds("storageLocation.removeOld")
+        }
+    }
+}
+
+/// One drive in the picker: native disk distinctions with shared meters and state badges.
+struct StorageDriveCard: View {
     let volume: StorageLocation.Volume
     let isCurrent: Bool
     let isSelected: Bool
@@ -310,56 +351,76 @@ private struct DriveCard: View {
 
     var body: some View {
         Button(action: select) {
-            HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .top, spacing: Tokens.Spacing.md) {
                 Image(systemName: icon)
                     .font(.title2)
-                    .foregroundStyle(usable ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(usable ? Tokens.Palette.accentText : Tokens.Palette.secondary)
                     .frame(width: 28)
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text(volume.kind == .internal ? "\(volume.name) (internal)" : volume.name)
-                            .font(.callout.weight(.medium))
-                        Text(volume.formatDescription ?? volume.format)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        if isCurrent { badge("Current", .green) }
-                        if volume.kind == .external { badge("External", .blue) }
-                        if volume.kind == .removable { badge("Removable", .orange) }
-                        Spacer()
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: Tokens.Spacing.sm) {
+                    ResponsiveRow(spacing: Tokens.Spacing.sm) {
+                        VStack(alignment: .leading, spacing: Tokens.Spacing.xs) {
+                            Text(volume.kind == .internal ? "\(volume.name) (internal)" : volume.name)
+                                .font(Tokens.Typography.section)
+                                .foregroundStyle(Tokens.Palette.primary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(volume.formatDescription ?? volume.format)
+                                .font(Tokens.Typography.metadata)
+                                .foregroundStyle(Tokens.Palette.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    } trailing: {
+                        HStack(spacing: Tokens.Spacing.xs) {
+                            if isCurrent { WorkspaceStatusBadge(title: "Current", color: Tokens.Palette.success) }
+                            if volume.kind == .external {
+                                WorkspaceStatusBadge(title: "External", color: Tokens.Palette.accentText)
+                            }
+                            if volume.kind == .removable {
+                                WorkspaceStatusBadge(title: "Removable", color: Tokens.Palette.warning)
+                            }
+                        }
                     }
-                    ProgressView(value: usedFraction)
-                        .tint(usedFraction > 0.9 ? .red : usedFraction > 0.75 ? .orange : .accentColor)
-                    HStack {
+                    WorkspaceBudgetMeter(
+                        used: UInt64(max(0, volume.usedBytes)), cap: UInt64(max(0, volume.totalBytes)),
+                        label: "\(volume.name) disk space used", color: pressureColor)
+                    ResponsiveRow(spacing: Tokens.Spacing.sm) {
                         Text(
                             "\(ByteFormat.string(volume.availableBytes)) free of \(ByteFormat.string(volume.totalBytes))"
                         )
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                        Spacer()
+                        .font(Tokens.Typography.metadata).monospacedDigit()
+                        .foregroundStyle(Tokens.Palette.secondary)
+                    } trailing: {
                         if let reason = volume.unusableReason {
-                            Text(reason).font(.caption2).foregroundStyle(.orange)
+                            Text(reason).font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.warning)
+                                .fixedSize(horizontal: false, vertical: true)
                         } else if !isCurrent, volume.kind != .internal {
-                            Text(volume.defaultFolder.path).font(.caption2.monospaced()).foregroundStyle(.tertiary)
+                            Text(volume.defaultFolder.path).font(Tokens.Typography.log).foregroundStyle(
+                                Tokens.Palette.tertiary
+                            )
+                            .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             }
-            .padding(10)
+            .padding(Tokens.Spacing.md)
             .contentShape(Rectangle())
             .background(
-                RoundedRectangle(cornerRadius: Tokens.Radius.md, style: .continuous)
-                    .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.06))
+                RoundedRectangle(cornerRadius: Tokens.Radius.lg, style: .continuous)
+                    .fill(isSelected ? Tokens.Palette.selection : Tokens.Palette.surface)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: Tokens.Radius.md, style: .continuous)
-                    .strokeBorder(isSelected ? Color.accentColor : .clear, lineWidth: 1.5)
+                RoundedRectangle(cornerRadius: Tokens.Radius.lg, style: .continuous)
+                    .strokeBorder(isSelected ? Tokens.Palette.focus : Tokens.Palette.separator, lineWidth: 1)
             )
-            .opacity(usable ? 1 : 0.55)
         }
         .buttonStyle(.plain)
         .disabled(!usable)
         .help(usable ? "Store Micropod's data on \(volume.name)" : (volume.unusableReason ?? ""))
         .accessibilityLabel("\(volume.name), \(ByteFormat.string(volume.availableBytes)) free")
+        .accessibilityValue(
+            volume.unusableReason
+                ?? (isCurrent ? "Current storage location" : isSelected ? "Selected target" : volume.kind.rawValue))
     }
 
     private var usable: Bool { volume.unusableReason == nil }
@@ -374,12 +435,8 @@ private struct DriveCard: View {
         volume.totalBytes > 0 ? min(1, Double(volume.usedBytes) / Double(volume.totalBytes)) : 0
     }
 
-    private func badge(_ text: String, _ color: Color) -> some View {
-        Text(text)
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 1)
-            .background(color.opacity(0.15), in: Capsule())
-            .foregroundStyle(color)
+    private var pressureColor: Color {
+        usedFraction > 0.9
+            ? Tokens.Palette.danger : usedFraction > 0.75 ? Tokens.Palette.warning : Tokens.Palette.accent
     }
 }

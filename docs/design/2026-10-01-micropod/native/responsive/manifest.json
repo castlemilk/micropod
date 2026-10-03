@@ -1,0 +1,1377 @@
+[
+  {
+    "id": "dashboard",
+    "title": "Overview",
+    "group": "Workspaces",
+    "variants": [
+      {
+        "file": "dashboard-720.png",
+        "label": "720 \u00d7 460 pt \u00b7 Light",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "dashboard-720-dark.png",
+        "label": "720 \u00d7 460 pt \u00b7 Dark",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "dashboard-1040.png",
+        "label": "1040 \u00d7 700 pt \u00b7 Light",
+        "width": 1040,
+        "height": 700,
+        "pixelWidth": 2080,
+        "pixelHeight": 1400
+      },
+      {
+        "file": "dashboard-1920.png",
+        "label": "1920 \u00d7 1080 pt \u00b7 Light",
+        "width": 1920,
+        "height": 1080,
+        "pixelWidth": 3840,
+        "pixelHeight": 2160
+      }
+    ]
+  },
+  {
+    "id": "workloads",
+    "title": "Workloads",
+    "group": "Workspaces",
+    "variants": [
+      {
+        "file": "workloads-720.png",
+        "label": "720 \u00d7 460 pt \u00b7 Light",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "workloads-720-dark.png",
+        "label": "720 \u00d7 460 pt \u00b7 Dark",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "workloads-1040.png",
+        "label": "1040 \u00d7 700 pt \u00b7 Light",
+        "width": 1040,
+        "height": 700,
+        "pixelWidth": 2080,
+        "pixelHeight": 1400
+      },
+      {
+        "file": "workloads-1920.png",
+        "label": "1920 \u00d7 1080 pt \u00b7 Light",
+        "width": 1920,
+        "height": 1080,
+        "pixelWidth": 3840,
+        "pixelHeight": 2160
+      }
+    ]
+  },
+  {
+    "id": "containers",
+    "title": "Containers",
+    "group": "Workspaces",
+    "variants": [
+      {
+        "file": "containers-720.png",
+        "label": "720 \u00d7 460 pt \u00b7 Light",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "containers-720-dark.png",
+        "label": "720 \u00d7 460 pt \u00b7 Dark",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "containers-1040.png",
+        "label": "1040 \u00d7 700 pt \u00b7 Light",
+        "width": 1040,
+        "height": 700,
+        "pixelWidth": 2080,
+        "pixelHeight": 1400
+      },
+      {
+        "file": "containers-1920.png",
+        "label": "1920 \u00d7 1080 pt \u00b7 Light",
+        "width": 1920,
+        "height": 1080,
+        "pixelWidth": 3840,
+        "pixelHeight": 2160
+      }
+    ]
+  },
+  {
+    "id": "machines",
+    "title": "MicroVMs",
+    "group": "Workspaces",
+    "variants": [
+      {
+        "file": "machines-720.png",
+        "label": "720 \u00d7 460 pt \u00b7 Light",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "machines-720-dark.png",
+        "label": "720 \u00d7 460 pt \u00b7 Dark",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "machines-1040.png",
+        "label": "1040 \u00d7 700 pt \u00b7 Light",
+        "width": 1040,
+        "height": 700,
+        "pixelWidth": 2080,
+        "pixelHeight": 1400
+      },
+      {
+        "file": "machines-1920.png",
+        "label": "1920 \u00d7 1080 pt \u00b7 Light",
+        "width": 1920,
+        "height": 1080,
+        "pixelWidth": 3840,
+        "pixelHeight": 2160
+      }
+    ]
+  },
+  {
+    "id": "images",
+    "title": "Images",
+    "group": "Workspaces",
+    "variants": [
+      {
+        "file": "images-720.png",
+        "label": "720 \u00d7 460 pt \u00b7 Light",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "images-720-dark.png",
+        "label": "720 \u00d7 460 pt \u00b7 Dark",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "images-1040.png",
+        "label": "1040 \u00d7 700 pt \u00b7 Light",
+        "width": 1040,
+        "height": 700,
+        "pixelWidth": 2080,
+        "pixelHeight": 1400
+      },
+      {
+        "file": "images-1920.png",
+        "label": "1920 \u00d7 1080 pt \u00b7 Light",
+        "width": 1920,
+        "height": 1080,
+        "pixelWidth": 3840,
+        "pixelHeight": 2160
+      }
+    ]
+  },
+  {
+    "id": "cache",
+    "title": "Cache",
+    "group": "Workspaces",
+    "variants": [
+      {
+        "file": "cache-720.png",
+        "label": "720 \u00d7 460 pt \u00b7 Light",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "cache-720-dark.png",
+        "label": "720 \u00d7 460 pt \u00b7 Dark",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "cache-1040.png",
+        "label": "1040 \u00d7 700 pt \u00b7 Light",
+        "width": 1040,
+        "height": 700,
+        "pixelWidth": 2080,
+        "pixelHeight": 1400
+      },
+      {
+        "file": "cache-1920.png",
+        "label": "1920 \u00d7 1080 pt \u00b7 Light",
+        "width": 1920,
+        "height": 1080,
+        "pixelWidth": 3840,
+        "pixelHeight": 2160
+      }
+    ]
+  },
+  {
+    "id": "volumes",
+    "title": "Volumes",
+    "group": "Workspaces",
+    "variants": [
+      {
+        "file": "volumes-720.png",
+        "label": "720 \u00d7 460 pt \u00b7 Light",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "volumes-720-dark.png",
+        "label": "720 \u00d7 460 pt \u00b7 Dark",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "volumes-1040.png",
+        "label": "1040 \u00d7 700 pt \u00b7 Light",
+        "width": 1040,
+        "height": 700,
+        "pixelWidth": 2080,
+        "pixelHeight": 1400
+      },
+      {
+        "file": "volumes-1920.png",
+        "label": "1920 \u00d7 1080 pt \u00b7 Light",
+        "width": 1920,
+        "height": 1080,
+        "pixelWidth": 3840,
+        "pixelHeight": 2160
+      }
+    ]
+  },
+  {
+    "id": "networks",
+    "title": "Networks",
+    "group": "Workspaces",
+    "variants": [
+      {
+        "file": "networks-720.png",
+        "label": "720 \u00d7 460 pt \u00b7 Light",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "networks-720-dark.png",
+        "label": "720 \u00d7 460 pt \u00b7 Dark",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "networks-1040.png",
+        "label": "1040 \u00d7 700 pt \u00b7 Light",
+        "width": 1040,
+        "height": 700,
+        "pixelWidth": 2080,
+        "pixelHeight": 1400
+      },
+      {
+        "file": "networks-1920.png",
+        "label": "1920 \u00d7 1080 pt \u00b7 Light",
+        "width": 1920,
+        "height": 1080,
+        "pixelWidth": 3840,
+        "pixelHeight": 2160
+      }
+    ]
+  },
+  {
+    "id": "registries",
+    "title": "Registries",
+    "group": "Workspaces",
+    "variants": [
+      {
+        "file": "registries-720.png",
+        "label": "720 \u00d7 460 pt \u00b7 Light",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "registries-720-dark.png",
+        "label": "720 \u00d7 460 pt \u00b7 Dark",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "registries-1040.png",
+        "label": "1040 \u00d7 700 pt \u00b7 Light",
+        "width": 1040,
+        "height": 700,
+        "pixelWidth": 2080,
+        "pixelHeight": 1400
+      },
+      {
+        "file": "registries-1920.png",
+        "label": "1920 \u00d7 1080 pt \u00b7 Light",
+        "width": 1920,
+        "height": 1080,
+        "pixelWidth": 3840,
+        "pixelHeight": 2160
+      }
+    ]
+  },
+  {
+    "id": "build",
+    "title": "Build",
+    "group": "Workspaces",
+    "variants": [
+      {
+        "file": "build-720.png",
+        "label": "720 \u00d7 460 pt \u00b7 Light",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "build-720-dark.png",
+        "label": "720 \u00d7 460 pt \u00b7 Dark",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "build-1040.png",
+        "label": "1040 \u00d7 700 pt \u00b7 Light",
+        "width": 1040,
+        "height": 700,
+        "pixelWidth": 2080,
+        "pixelHeight": 1400
+      },
+      {
+        "file": "build-1920.png",
+        "label": "1920 \u00d7 1080 pt \u00b7 Light",
+        "width": 1920,
+        "height": 1080,
+        "pixelWidth": 3840,
+        "pixelHeight": 2160
+      }
+    ]
+  },
+  {
+    "id": "compose",
+    "title": "Compose",
+    "group": "Workspaces",
+    "variants": [
+      {
+        "file": "compose-720.png",
+        "label": "720 \u00d7 460 pt \u00b7 Light",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "compose-720-dark.png",
+        "label": "720 \u00d7 460 pt \u00b7 Dark",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "compose-1040.png",
+        "label": "1040 \u00d7 700 pt \u00b7 Light",
+        "width": 1040,
+        "height": 700,
+        "pixelWidth": 2080,
+        "pixelHeight": 1400
+      },
+      {
+        "file": "compose-1920.png",
+        "label": "1920 \u00d7 1080 pt \u00b7 Light",
+        "width": 1920,
+        "height": 1080,
+        "pixelWidth": 3840,
+        "pixelHeight": 2160
+      }
+    ]
+  },
+  {
+    "id": "environments",
+    "title": "Environments",
+    "group": "Workspaces",
+    "variants": [
+      {
+        "file": "environments-720.png",
+        "label": "720 \u00d7 460 pt \u00b7 Light",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "environments-720-dark.png",
+        "label": "720 \u00d7 460 pt \u00b7 Dark",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "environments-1040.png",
+        "label": "1040 \u00d7 700 pt \u00b7 Light",
+        "width": 1040,
+        "height": 700,
+        "pixelWidth": 2080,
+        "pixelHeight": 1400
+      },
+      {
+        "file": "environments-1920.png",
+        "label": "1920 \u00d7 1080 pt \u00b7 Light",
+        "width": 1920,
+        "height": 1080,
+        "pixelWidth": 3840,
+        "pixelHeight": 2160
+      }
+    ]
+  },
+  {
+    "id": "storage",
+    "title": "Storage",
+    "group": "Workspaces",
+    "variants": [
+      {
+        "file": "storage-720.png",
+        "label": "720 \u00d7 460 pt \u00b7 Light",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "storage-720-dark.png",
+        "label": "720 \u00d7 460 pt \u00b7 Dark",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "storage-1040.png",
+        "label": "1040 \u00d7 700 pt \u00b7 Light",
+        "width": 1040,
+        "height": 700,
+        "pixelWidth": 2080,
+        "pixelHeight": 1400
+      },
+      {
+        "file": "storage-1920.png",
+        "label": "1920 \u00d7 1080 pt \u00b7 Light",
+        "width": 1920,
+        "height": 1080,
+        "pixelWidth": 3840,
+        "pixelHeight": 2160
+      }
+    ]
+  },
+  {
+    "id": "settings",
+    "title": "Settings",
+    "group": "Workspaces",
+    "variants": [
+      {
+        "file": "settings-720.png",
+        "label": "720 \u00d7 460 pt \u00b7 Light",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "settings-720-dark.png",
+        "label": "720 \u00d7 460 pt \u00b7 Dark",
+        "width": 720,
+        "height": 460,
+        "pixelWidth": 1440,
+        "pixelHeight": 920
+      },
+      {
+        "file": "settings-1040.png",
+        "label": "1040 \u00d7 700 pt \u00b7 Light",
+        "width": 1040,
+        "height": 700,
+        "pixelWidth": 2080,
+        "pixelHeight": 1400
+      },
+      {
+        "file": "settings-1920.png",
+        "label": "1920 \u00d7 1080 pt \u00b7 Light",
+        "width": 1920,
+        "height": 1080,
+        "pixelWidth": 3840,
+        "pixelHeight": 2160
+      }
+    ]
+  },
+  {
+    "id": "inspector-overview",
+    "title": "Container \u00b7 Overview",
+    "group": "Inspectors",
+    "variants": [
+      {
+        "file": "inspector-overview-320.png",
+        "label": "320 \u00d7 460 pt \u00b7 Light",
+        "width": 320,
+        "height": 460,
+        "pixelWidth": 640,
+        "pixelHeight": 920
+      },
+      {
+        "file": "inspector-overview-360.png",
+        "label": "360 \u00d7 600 pt \u00b7 Light",
+        "width": 360,
+        "height": 600,
+        "pixelWidth": 720,
+        "pixelHeight": 1200
+      },
+      {
+        "file": "inspector-overview-600.png",
+        "label": "600 \u00d7 700 pt \u00b7 Light",
+        "width": 600,
+        "height": 700,
+        "pixelWidth": 1200,
+        "pixelHeight": 1400
+      }
+    ]
+  },
+  {
+    "id": "inspector-logs",
+    "title": "Container \u00b7 Logs",
+    "group": "Inspectors",
+    "variants": [
+      {
+        "file": "inspector-logs-320.png",
+        "label": "320 \u00d7 460 pt \u00b7 Light",
+        "width": 320,
+        "height": 460,
+        "pixelWidth": 640,
+        "pixelHeight": 920
+      },
+      {
+        "file": "inspector-logs-360.png",
+        "label": "360 \u00d7 600 pt \u00b7 Light",
+        "width": 360,
+        "height": 600,
+        "pixelWidth": 720,
+        "pixelHeight": 1200
+      },
+      {
+        "file": "inspector-logs-600.png",
+        "label": "600 \u00d7 700 pt \u00b7 Light",
+        "width": 600,
+        "height": 700,
+        "pixelWidth": 1200,
+        "pixelHeight": 1400
+      }
+    ]
+  },
+  {
+    "id": "inspector-stats",
+    "title": "Container \u00b7 Stats",
+    "group": "Inspectors",
+    "variants": [
+      {
+        "file": "inspector-stats-320.png",
+        "label": "320 \u00d7 460 pt \u00b7 Light",
+        "width": 320,
+        "height": 460,
+        "pixelWidth": 640,
+        "pixelHeight": 920
+      },
+      {
+        "file": "inspector-stats-360.png",
+        "label": "360 \u00d7 600 pt \u00b7 Light",
+        "width": 360,
+        "height": 600,
+        "pixelWidth": 720,
+        "pixelHeight": 1200
+      },
+      {
+        "file": "inspector-stats-600.png",
+        "label": "600 \u00d7 700 pt \u00b7 Light",
+        "width": 600,
+        "height": 700,
+        "pixelWidth": 1200,
+        "pixelHeight": 1400
+      }
+    ]
+  },
+  {
+    "id": "inspector-inspect",
+    "title": "Container \u00b7 Inspect",
+    "group": "Inspectors",
+    "variants": [
+      {
+        "file": "inspector-inspect-320.png",
+        "label": "320 \u00d7 460 pt \u00b7 Light",
+        "width": 320,
+        "height": 460,
+        "pixelWidth": 640,
+        "pixelHeight": 920
+      },
+      {
+        "file": "inspector-inspect-360.png",
+        "label": "360 \u00d7 600 pt \u00b7 Light",
+        "width": 360,
+        "height": 600,
+        "pixelWidth": 720,
+        "pixelHeight": 1200
+      },
+      {
+        "file": "inspector-inspect-600.png",
+        "label": "600 \u00d7 700 pt \u00b7 Light",
+        "width": 600,
+        "height": 700,
+        "pixelWidth": 1200,
+        "pixelHeight": 1400
+      }
+    ]
+  },
+  {
+    "id": "inspector-config",
+    "title": "Container \u00b7 Config",
+    "group": "Inspectors",
+    "variants": [
+      {
+        "file": "inspector-config-320.png",
+        "label": "320 \u00d7 460 pt \u00b7 Light",
+        "width": 320,
+        "height": 460,
+        "pixelWidth": 640,
+        "pixelHeight": 920
+      },
+      {
+        "file": "inspector-config-360.png",
+        "label": "360 \u00d7 600 pt \u00b7 Light",
+        "width": 360,
+        "height": 600,
+        "pixelWidth": 720,
+        "pixelHeight": 1200
+      },
+      {
+        "file": "inspector-config-600.png",
+        "label": "600 \u00d7 700 pt \u00b7 Light",
+        "width": 600,
+        "height": 700,
+        "pixelWidth": 1200,
+        "pixelHeight": 1400
+      }
+    ]
+  },
+  {
+    "id": "inspector-files",
+    "title": "Container \u00b7 Files",
+    "group": "Inspectors",
+    "variants": [
+      {
+        "file": "inspector-files-320.png",
+        "label": "320 \u00d7 460 pt \u00b7 Light",
+        "width": 320,
+        "height": 460,
+        "pixelWidth": 640,
+        "pixelHeight": 920
+      },
+      {
+        "file": "inspector-files-360.png",
+        "label": "360 \u00d7 600 pt \u00b7 Light",
+        "width": 360,
+        "height": 600,
+        "pixelWidth": 720,
+        "pixelHeight": 1200
+      },
+      {
+        "file": "inspector-files-600.png",
+        "label": "600 \u00d7 700 pt \u00b7 Light",
+        "width": 600,
+        "height": 700,
+        "pixelWidth": 1200,
+        "pixelHeight": 1400
+      }
+    ]
+  },
+  {
+    "id": "inspector-terminal",
+    "title": "Container \u00b7 Terminal",
+    "group": "Inspectors",
+    "variants": [
+      {
+        "file": "inspector-terminal-320.png",
+        "label": "320 \u00d7 460 pt \u00b7 Light",
+        "width": 320,
+        "height": 460,
+        "pixelWidth": 640,
+        "pixelHeight": 920
+      },
+      {
+        "file": "inspector-terminal-360.png",
+        "label": "360 \u00d7 600 pt \u00b7 Light",
+        "width": 360,
+        "height": 600,
+        "pixelWidth": 720,
+        "pixelHeight": 1200
+      },
+      {
+        "file": "inspector-terminal-600.png",
+        "label": "600 \u00d7 700 pt \u00b7 Light",
+        "width": 600,
+        "height": 700,
+        "pixelWidth": 1200,
+        "pixelHeight": 1400
+      }
+    ]
+  },
+  {
+    "id": "machine-metrics",
+    "title": "MicroVM \u00b7 Metrics",
+    "group": "Inspectors",
+    "variants": [
+      {
+        "file": "machine-metrics-320.png",
+        "label": "320 \u00d7 460 pt \u00b7 Light",
+        "width": 320,
+        "height": 460,
+        "pixelWidth": 640,
+        "pixelHeight": 920
+      },
+      {
+        "file": "machine-metrics-600.png",
+        "label": "600 \u00d7 460 pt \u00b7 Light",
+        "width": 600,
+        "height": 460,
+        "pixelWidth": 1200,
+        "pixelHeight": 920
+      }
+    ]
+  },
+  {
+    "id": "machine-logs",
+    "title": "MicroVM \u00b7 Logs",
+    "group": "Inspectors",
+    "variants": [
+      {
+        "file": "machine-logs-320.png",
+        "label": "320 \u00d7 460 pt \u00b7 Light",
+        "width": 320,
+        "height": 460,
+        "pixelWidth": 640,
+        "pixelHeight": 920
+      },
+      {
+        "file": "machine-logs-600.png",
+        "label": "600 \u00d7 460 pt \u00b7 Light",
+        "width": 600,
+        "height": 460,
+        "pixelWidth": 1200,
+        "pixelHeight": 920
+      }
+    ]
+  },
+  {
+    "id": "machine-inspect",
+    "title": "MicroVM \u00b7 Inspect",
+    "group": "Inspectors",
+    "variants": [
+      {
+        "file": "machine-inspect-320.png",
+        "label": "320 \u00d7 460 pt \u00b7 Light",
+        "width": 320,
+        "height": 460,
+        "pixelWidth": 640,
+        "pixelHeight": 920
+      },
+      {
+        "file": "machine-inspect-600.png",
+        "label": "600 \u00d7 460 pt \u00b7 Light",
+        "width": 600,
+        "height": 460,
+        "pixelWidth": 1200,
+        "pixelHeight": 920
+      }
+    ]
+  },
+  {
+    "id": "sheet-run",
+    "title": "Run",
+    "group": "Sheets",
+    "variants": [
+      {
+        "file": "sheet-run-minimum.png",
+        "label": "420 \u00d7 320 pt \u00b7 Light",
+        "width": 420,
+        "height": 320,
+        "pixelWidth": 840,
+        "pixelHeight": 640
+      },
+      {
+        "file": "sheet-run-wide.png",
+        "label": "600 \u00d7 480 pt \u00b7 Dark",
+        "width": 600,
+        "height": 480,
+        "pixelWidth": 1200,
+        "pixelHeight": 960
+      }
+    ]
+  },
+  {
+    "id": "sheet-machine",
+    "title": "Machine",
+    "group": "Sheets",
+    "variants": [
+      {
+        "file": "sheet-machine-minimum.png",
+        "label": "320 \u00d7 300 pt \u00b7 Light",
+        "width": 320,
+        "height": 300,
+        "pixelWidth": 640,
+        "pixelHeight": 600
+      },
+      {
+        "file": "sheet-machine-wide.png",
+        "label": "600 \u00d7 480 pt \u00b7 Dark",
+        "width": 600,
+        "height": 480,
+        "pixelWidth": 1200,
+        "pixelHeight": 960
+      }
+    ]
+  },
+  {
+    "id": "sheet-compose-editor",
+    "title": "Compose Editor",
+    "group": "Sheets",
+    "variants": [
+      {
+        "file": "sheet-compose-editor-minimum.png",
+        "label": "420 \u00d7 320 pt \u00b7 Light",
+        "width": 420,
+        "height": 320,
+        "pixelWidth": 840,
+        "pixelHeight": 640
+      },
+      {
+        "file": "sheet-compose-editor-wide.png",
+        "label": "600 \u00d7 480 pt \u00b7 Dark",
+        "width": 600,
+        "height": 480,
+        "pixelWidth": 1200,
+        "pixelHeight": 960
+      }
+    ]
+  },
+  {
+    "id": "sheet-onboarding",
+    "title": "Onboarding",
+    "group": "Sheets",
+    "variants": [
+      {
+        "file": "sheet-onboarding-minimum.png",
+        "label": "420 \u00d7 320 pt \u00b7 Light",
+        "width": 420,
+        "height": 320,
+        "pixelWidth": 840,
+        "pixelHeight": 640
+      },
+      {
+        "file": "sheet-onboarding-wide.png",
+        "label": "600 \u00d7 480 pt \u00b7 Dark",
+        "width": 600,
+        "height": 480,
+        "pixelWidth": 1200,
+        "pixelHeight": 960
+      }
+    ]
+  },
+  {
+    "id": "sheet-pull",
+    "title": "Pull",
+    "group": "Sheets",
+    "variants": [
+      {
+        "file": "sheet-pull-minimum.png",
+        "label": "320 \u00d7 280 pt \u00b7 Light",
+        "width": 320,
+        "height": 280,
+        "pixelWidth": 640,
+        "pixelHeight": 560
+      },
+      {
+        "file": "sheet-pull-wide.png",
+        "label": "600 \u00d7 480 pt \u00b7 Dark",
+        "width": 600,
+        "height": 480,
+        "pixelWidth": 1200,
+        "pixelHeight": 960
+      }
+    ]
+  },
+  {
+    "id": "sheet-tag",
+    "title": "Tag",
+    "group": "Sheets",
+    "variants": [
+      {
+        "file": "sheet-tag-minimum.png",
+        "label": "320 \u00d7 300 pt \u00b7 Light",
+        "width": 320,
+        "height": 300,
+        "pixelWidth": 640,
+        "pixelHeight": 600
+      },
+      {
+        "file": "sheet-tag-wide.png",
+        "label": "600 \u00d7 480 pt \u00b7 Dark",
+        "width": 600,
+        "height": 480,
+        "pixelWidth": 1200,
+        "pixelHeight": 960
+      }
+    ]
+  },
+  {
+    "id": "sheet-image-detail",
+    "title": "Image Detail",
+    "group": "Sheets",
+    "variants": [
+      {
+        "file": "sheet-image-detail-minimum.png",
+        "label": "320 \u00d7 260 pt \u00b7 Light",
+        "width": 320,
+        "height": 260,
+        "pixelWidth": 640,
+        "pixelHeight": 520
+      },
+      {
+        "file": "sheet-image-detail-wide.png",
+        "label": "600 \u00d7 480 pt \u00b7 Dark",
+        "width": 600,
+        "height": 480,
+        "pixelWidth": 1200,
+        "pixelHeight": 960
+      }
+    ]
+  },
+  {
+    "id": "sheet-network-detail",
+    "title": "Network Detail",
+    "group": "Sheets",
+    "variants": [
+      {
+        "file": "sheet-network-detail-minimum.png",
+        "label": "320 \u00d7 260 pt \u00b7 Light",
+        "width": 320,
+        "height": 260,
+        "pixelWidth": 640,
+        "pixelHeight": 520
+      },
+      {
+        "file": "sheet-network-detail-wide.png",
+        "label": "600 \u00d7 480 pt \u00b7 Dark",
+        "width": 600,
+        "height": 480,
+        "pixelWidth": 1200,
+        "pixelHeight": 960
+      }
+    ]
+  },
+  {
+    "id": "sheet-volume-detail",
+    "title": "Volume Detail",
+    "group": "Sheets",
+    "variants": [
+      {
+        "file": "sheet-volume-detail-minimum.png",
+        "label": "320 \u00d7 260 pt \u00b7 Light",
+        "width": 320,
+        "height": 260,
+        "pixelWidth": 640,
+        "pixelHeight": 520
+      },
+      {
+        "file": "sheet-volume-detail-wide.png",
+        "label": "600 \u00d7 480 pt \u00b7 Dark",
+        "width": 600,
+        "height": 480,
+        "pixelWidth": 1200,
+        "pixelHeight": 960
+      }
+    ]
+  },
+  {
+    "id": "sheet-registry",
+    "title": "Registry",
+    "group": "Sheets",
+    "variants": [
+      {
+        "file": "sheet-registry-minimum.png",
+        "label": "320 \u00d7 250 pt \u00b7 Light",
+        "width": 320,
+        "height": 250,
+        "pixelWidth": 640,
+        "pixelHeight": 500
+      },
+      {
+        "file": "sheet-registry-wide.png",
+        "label": "600 \u00d7 480 pt \u00b7 Dark",
+        "width": 600,
+        "height": 480,
+        "pixelWidth": 1200,
+        "pixelHeight": 960
+      }
+    ]
+  },
+  {
+    "id": "sheet-volume-create",
+    "title": "Volume Create",
+    "group": "Sheets",
+    "variants": [
+      {
+        "file": "sheet-volume-create-minimum.png",
+        "label": "320 \u00d7 280 pt \u00b7 Light",
+        "width": 320,
+        "height": 280,
+        "pixelWidth": 640,
+        "pixelHeight": 560
+      },
+      {
+        "file": "sheet-volume-create-wide.png",
+        "label": "600 \u00d7 480 pt \u00b7 Dark",
+        "width": 600,
+        "height": 480,
+        "pixelWidth": 1200,
+        "pixelHeight": 960
+      }
+    ]
+  },
+  {
+    "id": "sheet-network-create",
+    "title": "Network Create",
+    "group": "Sheets",
+    "variants": [
+      {
+        "file": "sheet-network-create-minimum.png",
+        "label": "320 \u00d7 300 pt \u00b7 Light",
+        "width": 320,
+        "height": 300,
+        "pixelWidth": 640,
+        "pixelHeight": 600
+      },
+      {
+        "file": "sheet-network-create-wide.png",
+        "label": "600 \u00d7 480 pt \u00b7 Dark",
+        "width": 600,
+        "height": 480,
+        "pixelWidth": 1200,
+        "pixelHeight": 960
+      }
+    ]
+  },
+  {
+    "id": "sheet-pull-progress",
+    "title": "Pull Progress",
+    "group": "Sheets",
+    "variants": [
+      {
+        "file": "sheet-pull-progress-minimum.png",
+        "label": "320 \u00d7 300 pt \u00b7 Light",
+        "width": 320,
+        "height": 300,
+        "pixelWidth": 640,
+        "pixelHeight": 600
+      },
+      {
+        "file": "sheet-pull-progress-wide.png",
+        "label": "600 \u00d7 480 pt \u00b7 Dark",
+        "width": 600,
+        "height": 480,
+        "pixelWidth": 1200,
+        "pixelHeight": 960
+      }
+    ]
+  },
+  {
+    "id": "sheet-cleanup-ready",
+    "title": "Cleanup Ready",
+    "group": "Sheets",
+    "variants": [
+      {
+        "file": "sheet-cleanup-ready-minimum.png",
+        "label": "360 \u00d7 280 pt \u00b7 Light",
+        "width": 360,
+        "height": 280,
+        "pixelWidth": 720,
+        "pixelHeight": 560
+      }
+    ]
+  },
+  {
+    "id": "sheet-cleanup-blocked",
+    "title": "Cleanup Blocked",
+    "group": "Sheets",
+    "variants": [
+      {
+        "file": "sheet-cleanup-blocked-minimum.png",
+        "label": "360 \u00d7 280 pt \u00b7 Light",
+        "width": 360,
+        "height": 280,
+        "pixelWidth": 720,
+        "pixelHeight": 560
+      }
+    ]
+  },
+  {
+    "id": "palette-compact",
+    "title": "Palette Compact",
+    "group": "Shared controls",
+    "variants": [
+      {
+        "file": "palette-compact.png",
+        "label": "320 \u00d7 300 pt \u00b7 Light",
+        "width": 320,
+        "height": 300,
+        "pixelWidth": 640,
+        "pixelHeight": 600
+      }
+    ]
+  },
+  {
+    "id": "empty-short",
+    "title": "Empty Short",
+    "group": "Shared controls",
+    "variants": [
+      {
+        "file": "empty-short.png",
+        "label": "320 \u00d7 180 pt \u00b7 Light",
+        "width": 320,
+        "height": 180,
+        "pixelWidth": 640,
+        "pixelHeight": 360
+      }
+    ]
+  },
+  {
+    "id": "batch-actions",
+    "title": "Batch Actions",
+    "group": "Shared controls",
+    "variants": [
+      {
+        "file": "batch-actions.png",
+        "label": "360 \u00d7 64 pt \u00b7 Light",
+        "width": 360,
+        "height": 64,
+        "pixelWidth": 720,
+        "pixelHeight": 128
+      }
+    ]
+  },
+  {
+    "id": "topology",
+    "title": "Network topology",
+    "group": "Diagrams",
+    "variants": [
+      {
+        "file": "topology-320.png",
+        "label": "320 \u00d7 460 pt \u00b7 Light",
+        "width": 320,
+        "height": 460,
+        "pixelWidth": 640,
+        "pixelHeight": 920
+      },
+      {
+        "file": "topology-660.png",
+        "label": "660 \u00d7 460 pt \u00b7 Light",
+        "width": 660,
+        "height": 460,
+        "pixelWidth": 1320,
+        "pixelHeight": 920
+      },
+      {
+        "file": "topology-1200.png",
+        "label": "1200 \u00d7 460 pt \u00b7 Light",
+        "width": 1200,
+        "height": 460,
+        "pixelWidth": 2400,
+        "pixelHeight": 920
+      }
+    ]
+  },
+  {
+    "id": "project-compose",
+    "title": "Compose \u00b7 populated plan",
+    "group": "Project layouts",
+    "variants": [
+      {
+        "file": "project-compose-660.png",
+        "label": "660 \u00d7 400 pt \u00b7 Light",
+        "width": 660,
+        "height": 400,
+        "pixelWidth": 1320,
+        "pixelHeight": 800
+      },
+      {
+        "file": "project-compose-1200.png",
+        "label": "1200 \u00d7 820 pt \u00b7 Light",
+        "width": 1200,
+        "height": 820,
+        "pixelWidth": 2400,
+        "pixelHeight": 1640
+      }
+    ]
+  },
+  {
+    "id": "project-environments",
+    "title": "Environments \u00b7 populated cards",
+    "group": "Project layouts",
+    "variants": [
+      {
+        "file": "project-environments-660.png",
+        "label": "660 \u00d7 400 pt \u00b7 Light",
+        "width": 660,
+        "height": 400,
+        "pixelWidth": 1320,
+        "pixelHeight": 800
+      },
+      {
+        "file": "project-environments-1200.png",
+        "label": "1200 \u00d7 820 pt \u00b7 Light",
+        "width": 1200,
+        "height": 820,
+        "pixelWidth": 2400,
+        "pixelHeight": 1640
+      }
+    ]
+  },
+  {
+    "id": "storage-drive-current",
+    "title": "Current internal drive",
+    "group": "Storage location controls",
+    "variants": [
+      {
+        "file": "storage-drive-current-320.png",
+        "label": "320 \u00d7 360 pt \u00b7 Light",
+        "width": 320,
+        "height": 360,
+        "pixelWidth": 640,
+        "pixelHeight": 720
+      },
+      {
+        "file": "storage-drive-current-600-dark.png",
+        "label": "600 \u00d7 260 pt \u00b7 Dark",
+        "width": 600,
+        "height": 260,
+        "pixelWidth": 1200,
+        "pixelHeight": 520
+      }
+    ]
+  },
+  {
+    "id": "storage-drive-selected",
+    "title": "Selected external drive",
+    "group": "Storage location controls",
+    "variants": [
+      {
+        "file": "storage-drive-selected-320.png",
+        "label": "320 \u00d7 360 pt \u00b7 Light",
+        "width": 320,
+        "height": 360,
+        "pixelWidth": 640,
+        "pixelHeight": 720
+      },
+      {
+        "file": "storage-drive-selected-600-dark.png",
+        "label": "600 \u00d7 260 pt \u00b7 Dark",
+        "width": 600,
+        "height": 260,
+        "pixelWidth": 1200,
+        "pixelHeight": 520
+      }
+    ]
+  },
+  {
+    "id": "storage-drive-unusable",
+    "title": "Unsupported removable drive",
+    "group": "Storage location controls",
+    "variants": [
+      {
+        "file": "storage-drive-unusable-320.png",
+        "label": "320 \u00d7 360 pt \u00b7 Light",
+        "width": 320,
+        "height": 360,
+        "pixelWidth": 640,
+        "pixelHeight": 720
+      },
+      {
+        "file": "storage-drive-unusable-600-dark.png",
+        "label": "600 \u00d7 260 pt \u00b7 Dark",
+        "width": 600,
+        "height": 260,
+        "pixelWidth": 1200,
+        "pixelHeight": 520
+      }
+    ]
+  },
+  {
+    "id": "storage-location-actions",
+    "title": "Storage relocation actions",
+    "group": "Storage location controls",
+    "variants": [
+      {
+        "file": "storage-location-actions-320.png",
+        "label": "320 \u00d7 120 pt \u00b7 Light",
+        "width": 320,
+        "height": 120,
+        "pixelWidth": 640,
+        "pixelHeight": 240
+      },
+      {
+        "file": "storage-location-actions-560.png",
+        "label": "560 \u00d7 80 pt \u00b7 Light",
+        "width": 560,
+        "height": 80,
+        "pixelWidth": 1120,
+        "pixelHeight": 160
+      }
+    ]
+  }
+]

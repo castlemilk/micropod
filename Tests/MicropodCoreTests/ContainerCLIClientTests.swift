@@ -4,6 +4,49 @@ import XCTest
 @testable import MicropodCore
 
 final class ContainerCLIClientTests: XCTestCase {
+    func testSlowStreamConsumerFailsExplicitlyWithinMemoryBudget() async throws {
+        let directoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("micropod-stream-overflow-\(UUID().uuidString)")
+        let pidURL = directoryURL.appendingPathComponent("pid")
+        let readyURL = directoryURL.appendingPathComponent("ready")
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        var needsCleanup = true
+        defer {
+            if needsCleanup { killProcess(recordedAt: pidURL) }
+            try? FileManager.default.removeItem(at: directoryURL)
+        }
+
+        let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/bin/sh"))
+        let stream = client.stream(
+            ContainerCommand(arguments: [
+                "-c",
+                "echo $$ > \"$1\"; touch \"$2\"; exec /bin/dd if=/dev/zero bs=65536 count=1024 2>/dev/null",
+                "micropod-test",
+                pidURL.path,
+                readyURL.path,
+            ]))
+        let processIsReady = try await waitForFile(at: readyURL, timeout: .seconds(3))
+        XCTAssertTrue(processIsReady, "The overflow fixture must record its process ID")
+        guard processIsReady else { return }
+
+        // Do not drain until the producer has exited and been reaped. With no
+        // consumer, its 64 MiB output must exceed the queue's 4 MiB bound,
+        // regardless of process startup or pipe callback scheduling speed.
+        let processExited = try await waitForProcessExit(recordedAt: pidURL, timeout: .seconds(15))
+        needsCleanup = !processExited
+        XCTAssertTrue(processExited, "Overflow must stop and reap the producer before consumption begins")
+        guard processExited else { return }
+
+        var retainedBytes = 0
+        do {
+            for try await chunk in stream { retainedBytes += chunk.count }
+            XCTFail("Expected the slow-consumer error")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("stream buffer"))
+        }
+        XCTAssertLessThanOrEqual(retainedBytes, 4 * 1024 * 1024)
+    }
+
     /// Metrics labels must be low-cardinality: verb (+ grouped sub-verb)
     /// only — never container names, ids, or flag values.
     func testMetricLabelStripsArguments() {
@@ -281,6 +324,77 @@ final class ContainerCLIClientTests: XCTestCase {
         XCTAssertFalse(
             FileManager.default.fileExists(atPath: markerURL.path),
             "A pre-cancelled stream must not spawn the process")
+    }
+
+    func testQuietLiveProducerDeliversSmallOutputBeforeReleaseAndDrainsItsFinalOutput() async throws {
+        let directoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("micropod-quiet-stream-\(UUID().uuidString)")
+        let pidURL = directoryURL.appendingPathComponent("pid")
+        let readyURL = directoryURL.appendingPathComponent("ready")
+        let releaseURL = directoryURL.appendingPathComponent("release")
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        var needsCleanup = true
+        defer {
+            if needsCleanup { killProcess(recordedAt: pidURL) }
+            try? FileManager.default.removeItem(at: directoryURL)
+        }
+
+        let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/bin/sh"))
+        let stream = client.stream(
+            ContainerCommand(arguments: [
+                "-c",
+                """
+                echo $$ > "$1"
+                printf 'first stdout\\n'
+                printf 'first stderr\\n' >&2
+                touch "$2"
+                while [ ! -f "$3" ]; do /bin/sleep 0.01; done
+                printf 'last stdout\\n'
+                printf 'last stderr\\n' >&2
+                exit 1
+                """,
+                "micropod-test",
+                pidURL.path,
+                readyURL.path,
+                releaseURL.path,
+            ]), reportExitCode: true)
+        let firstOutput = expectation(description: "Both small pipe writes arrive while the producer is still alive")
+        let consumer = Task {
+            var text = ""
+            var initialOutputDelivered = false
+            var exitCode: Int32?
+            do {
+                for try await chunk in stream {
+                    text += String(decoding: chunk, as: UTF8.self)
+                    if !initialOutputDelivered, text.contains("first stdout\n"), text.contains("first stderr\n") {
+                        initialOutputDelivered = true
+                        firstOutput.fulfill()
+                    }
+                }
+            } catch MicropodError.cliFailure(_, let code, _) {
+                exitCode = code
+            }
+            return (text: text, exitCode: exitCode)
+        }
+        defer { consumer.cancel() }
+
+        let processIsReady = try await waitForFile(at: readyURL, timeout: .seconds(3))
+        XCTAssertTrue(processIsReady)
+        guard processIsReady else { return }
+        // The fixture cannot exit or write more output until this assertion
+        // finishes. EOF-only readers therefore fail without a timing race.
+        await fulfillment(of: [firstOutput], timeout: 3)
+        XCTAssertTrue(processIsRunning(recordedAt: pidURL))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: releaseURL.path))
+        try Data().write(to: releaseURL)
+        let result = try await consumer.value
+        let processExited = try await waitForProcessExit(recordedAt: pidURL, timeout: .seconds(3))
+        needsCleanup = !processExited
+        XCTAssertTrue(processExited)
+        XCTAssertEqual(result.exitCode, 1)
+        for line in ["first stdout\n", "first stderr\n", "last stdout\n", "last stderr\n"] {
+            XCTAssertTrue(result.text.contains(line), "Missing pipe output: \(line)")
+        }
     }
 
     /// Output a process writes just before it exits reaches the consumer

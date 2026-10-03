@@ -1,35 +1,29 @@
 # Micropod brand
 
-Logo assets generated via the **BrandBrain flow-orchestrator MCP**
-(~/projects/brandbrain/mcp/flow-orchestrator) against the local backend,
-`logo-exploration` template, live mode (OpenAI `gpt-image-1`).
+The current native treatment preserves Micropod's pod outline, three internal bars, and terminal chevron. It is editable vector geometry; the app and menu bar draw the same identity directly in SwiftUI.
 
-## Files
+## Current assets
 
-- `Micropod.icns` — app icon: the generated mark composited as a white
-  glyph on the Micropod blue gradient rounded square, full 16–1024px
-  icon set. Bundled by `scripts/package_app.sh` (programmatic SF-symbol
-  icon in `scripts/make_icon.swift` is the fallback if this is absent).
-- `exploration-1.png` — first exploration: geometric "M" mark (stylized
-  shipping container + terminal cursor) in `#0A84FF` on warm off-white.
-  **This mark is the app icon.**
-- `exploration-2.png` — second exploration (white-ground variant).
+- `Micropod-uplift.svg` — editable 1024 × 1024 app tile master, with white geometry on a blue gradient and transparent outer margins.
+- `Micropod-uplift.icns` — macOS icon set generated from that master, covering the standard 16–1024 pixel representations.
+- `Sources/MicropodApp/Views/BrandMark.swift` — native `MicropodGlyph` and `BrandMark` drawing code. The menu bar uses the monochrome glyph; the window and tray header use the blue tile.
+- `docs/design/2026-10-01-micropod/brand/` — additional vector lockups, the imagegen raster concept, and native raster previews.
 
-## The flow
+`scripts/package_app.sh` selects `Micropod-uplift.icns` first and installs it into the app bundle as `Micropod.icns`. The previous icon remains a fallback. If neither `.icns` exists, packaging runs the vector generator.
 
-1. Boot local backend: `USE_MEMORY_STORE=true
-   BRANDBRAIN_FLOW_TEMPLATE_ROOT=~/projects/brandbrain/evals/flows
-   BRANDBRAIN_FLOW_ARTIFACT_ROOT=/tmp/bb-flow-runs bin/server` (fresh
-   build: `go build -o /tmp/bb-server ./cmd/server`).
-2. Mint a flow token: `POST /api/v1/ml/auth/tokens` with
-   `X-BrandBrain-Mint-Secret` (set `ML_TOKEN_MINT_SECRET` on the backend),
-   scopes `["agent:flows"]`.
-3. `create_asset_flow` (templateId `logo-exploration`) with the Micropod
-   brief; refine `prompt_mark`/`style_mark` via `update_flow_node`
-   (monochrome-first, `#0A84FF`/`#0B1E3F` palette, favicon-legible,
-   no text/gradients).
-4. `validate_asset_flow` → `start_asset_flow_run` `mock` (free) → `live`
-   (spend-capped) → pull the artifact from
-   `BRANDBRAIN_FLOW_ARTIFACT_ROOT/objects/sha256/…` (WebP).
+## Regenerate the icon
 
-Session: `flow_session_ad86b0b40587` (backend shut down after generation).
+Run from the repository root on macOS:
+
+```sh
+swift scripts/make_icon.swift /tmp/micropod-icon-build
+cp /tmp/micropod-icon-build/Micropod.icns assets/logo/Micropod-uplift.icns
+```
+
+`scripts/make_icon.swift` loads `Micropod-uplift.svg` with AppKit, draws exact pixel dimensions into bitmap representations, and calls macOS `iconutil`. An optional second argument selects another vector source. The native SwiftUI mark is authored separately with the same geometry; keep it aligned when changing the SVG master.
+
+## Previous exploration
+
+`Micropod.icns`, `exploration-1.png`, and `exploration-2.png` are the earlier BrandBrain explorations and are preserved. They were generated with the `logo-exploration` flow against the local BrandBrain backend using OpenAI `gpt-image-1`; session `flow_session_ad86b0b40587`.
+
+The new imagegen mockups are design references. The packaged app tile and native glyph use the editable vector treatment, rather than raster mockup artwork.

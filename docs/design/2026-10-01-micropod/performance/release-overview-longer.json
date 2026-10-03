@@ -1,0 +1,33 @@
+{
+  "binary_sha256": "02973c0010d878f9065fa94bbd95b7f0012fcbe1726047a5804ea4d5443e4092",
+  "app": "/private/tmp/micropod-release-perf-setdg9wk/Micropod.app/Contents/MacOS/Micropod",
+  "fixture_stats_disabled": true,
+  "host": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5.1\nBuildVersion:\t\t25F80",
+  "results": [
+    {
+      "count": 1000,
+      "tab": "dashboard",
+      "duration_seconds": 20.101,
+      "socket_ready_seconds": 0.552,
+      "first_main_actor_ping_ms": 392.607,
+      "rss_start_mib": 242.67,
+      "rss_end_mib": 236.09,
+      "rss_peak_mib": 242.67,
+      "cpu_seconds": 0.14,
+      "cpu_percent_one_core": 0.7,
+      "ping_count": 190,
+      "main_actor_ping_p50_ms": 0.231,
+      "main_actor_ping_p95_ms": 0.29,
+      "main_actor_ping_max_ms": 1.597,
+      "activation": {
+        "requested": true,
+        "active": true
+      },
+      "physical_footprint_mib": 164.9,
+      "physical_footprint_peak_mib": 377.2,
+      "round": 1
+    }
+  ],
+  "base_binary_sha256": "1fe206a5911bd9a062ab9470c0a643b5f91e3f5cdbb44855fcb0927046327609",
+  "review_configuration": "Temporary copy of the packaged app; SUFeedURL removed, bundle identifier com.micropod.release-perf, ad-hoc signature renewed. Executable code unchanged."
+}

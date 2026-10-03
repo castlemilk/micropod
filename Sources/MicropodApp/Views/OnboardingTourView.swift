@@ -13,7 +13,9 @@ struct OnboardingTourView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
                 EmptyStateView.brandMark(EmptyStateArtwork.dashboardHero, size: 30)
-                Text(String(localized: "Get Started with Micropod")).font(.title3.weight(.semibold))
+                Text(String(localized: "Get Started with Micropod"))
+                    .font(.title3.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer()
                 Button(String(localized: "Skip")) { finish() }
                     .controlSize(.small)
@@ -120,6 +122,8 @@ struct OnboardingTourView: View {
                         })
                 }
                 .padding(16)
+                .frame(maxWidth: 680, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .top)
             }
 
             Divider()
@@ -128,13 +132,18 @@ struct OnboardingTourView: View {
                 Text(String(localized: "All set when the checkmarks are green — or skip any time."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer()
                 Button(String(localized: "Finish")) { finish() }
                     .buttonStyle(.borderedProminent)
+                    .fixedSize()
+                    .accessibilityIdentifier("onboarding.finish")
+                    .formActionBounds("onboarding.finish")
             }
             .padding(12)
         }
-        .frame(width: 520, height: 560)
+        .frame(minWidth: 420, idealWidth: 520, maxWidth: .infinity)
+        .frame(minHeight: 320, idealHeight: 560, maxHeight: .infinity)
         .sheet(isPresented: $showRunSheet) {
             RunContainerSheet(store: store, initialImage: store.images.first?.names.first ?? "alpine:latest")
         }
@@ -161,7 +170,10 @@ struct OnboardingTourView: View {
                             .foregroundStyle(.green)
                     }
                 }
-                Text(description).font(.caption).foregroundStyle(.secondary)
+                Text(description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 control()
                     .padding(.top, 2)
             }

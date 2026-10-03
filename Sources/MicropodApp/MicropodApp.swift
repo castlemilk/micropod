@@ -8,6 +8,12 @@ struct MicropodApp: App {
     @Environment(\.openWindow) private var openWindow
 
     init() {
+        if let url = Bundle.micropodResources.url(
+            forResource: "app-tile", withExtension: "svg", subdirectory: "uplift"),
+            let image = NSImage(contentsOf: url)
+        {
+            NSApplication.shared.applicationIconImage = image
+        }
         // Control socket for the API server / MCP to reach app-process
         // features (Sparkle update checks today).
         AppControlServer.shared.start()
@@ -24,11 +30,14 @@ struct MicropodApp: App {
             MainPanelView(store: store)
                 .frame(minWidth: 720, minHeight: 460)
                 .background(MainWindowFrameRestorer())
+                .background(
+                    MainWindowVisibilityObserver { id, visible in
+                        store.setMainWindowVisible(visible, windowID: id)
+                    }
+                )
                 .preferredColorScheme(store.appearance.colorScheme)
-                .onAppear { store.setMainWindowVisible(true) }
-                .onDisappear { store.setMainWindowVisible(false) }
         }
-        .defaultSize(width: 1080, height: 700)
+        .defaultSize(width: 1280, height: 820)
         .windowStyle(.titleBar)
         .commands {
             CommandGroup(replacing: .newItem) {}
@@ -70,7 +79,8 @@ struct MicropodApp: App {
                 }
                 .disabled(store.isRuntimeRunning)
                 Button("Stop Runtime") {
-                    Task { await store.stopRuntime() }
+                    openWindow(id: "main-window")
+                    store.requestRuntimeStop()
                 }
                 .disabled(!store.isRuntimeRunning)
                 Divider()
@@ -81,7 +91,7 @@ struct MicropodApp: App {
         }
 
         MenuBarExtra {
-            // Width is owned by MenuBarPanelView (340pt); don't pin a second,
+            // Width is owned by MenuBarPanelView; don't pin a second,
             // conflicting width here.
             MenuBarPanelView(store: store)
         } label: {
@@ -105,7 +115,7 @@ struct MicropodApp: App {
         case .build: "7"
         case .compose: "8"
         case .environments: "9"
-        case .machines, .storage: nil
+        case .machines, .storage, .workloads, .cache: nil
         case .settings: "0"
         }
     }

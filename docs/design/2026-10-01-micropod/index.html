@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Micropod macOS design concept: workload, menu bar and cache mockups, brand assets, semantic tokens and original iconography.">
+<title>Micropod · Design kit</title>
+<style>
+:root{--canvas:#151719;--sidebar:#1B1E22;--surface:#1F2328;--elevated:#292E35;--separator:#3D4652;--control-border:#7C8999;--ink:#F3F5F7;--secondary:#B8C0CC;--muted:#98A3B3;--accent:#0A84FF;--accent-text:#73B6FF;--action:#0067CF;--on-accent:#FFFFFF;--success:#68D6A0;--warning:#E6B65D;--danger:#FF8888;--selected:#163452;--chart-cpu:#73B6FF;--chart-memory:#65D2C3;--chart-in:#B7A6F7;--chart-out:#E6B65D;--shadow:0 8px 24px rgba(0,0,0,.12);color-scheme:dark}
+:root[data-theme="light"]{--canvas:#F5F5F3;--sidebar:#ECEDEA;--surface:#FFFFFF;--elevated:#FFFFFF;--separator:#D7DBE0;--control-border:#858F9D;--ink:#1D242D;--secondary:#4E5A69;--muted:#606B79;--accent:#0067CF;--accent-text:#0067CF;--success:#197548;--warning:#8A5900;--danger:#BA3038;--selected:#E4F0FF;--chart-cpu:#0067CF;--chart-memory:#127E71;--chart-in:#6D51B7;--chart-out:#8A5900;--shadow:0 8px 24px rgba(29,36,45,.06);color-scheme:light}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--canvas);color:var(--ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}button,input,a{font:inherit}button,a{-webkit-tap-highlight-color:transparent}a{color:var(--accent-text);text-decoration:none}a:hover{text-decoration:underline}button{cursor:pointer}button:disabled{cursor:default}button:focus-visible,a:focus-visible{outline:3px solid var(--accent-text);outline-offset:4px;border-radius:5px}button{color:var(--ink)}[hidden]{display:none!important}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}.skip-link{position:fixed;left:16px;top:-60px;background:var(--surface);padding:8px 14px;z-index:30;border:1px solid var(--control-border);border-radius:6px}.skip-link:focus{top:12px}.app-header{border-bottom:1px solid var(--separator);background:var(--sidebar)}.header-inner{max-width:1280px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:20px 28px}.identity{display:flex;align-items:center;gap:12px}.identity-mark{width:34px;height:34px;display:grid;place-items:center;background:#0067CF;border-radius:9px;color:#fff;flex-shrink:0}.identity-mark svg{width:29px;height:22px}.identity-name{font-size:16px;font-weight:600;letter-spacing:-.35px;line-height:1.3}.identity-meta{color:var(--secondary);font-size:11px;margin-top:2px}.header-tools{display:flex;align-items:center;gap:16px}.header-tools>a{color:var(--secondary);font-size:12px}.theme-button,.small-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:30px;padding:4px 10px;border:1px solid var(--control-border);border-radius:6px;background:var(--surface);font-size:12px;white-space:nowrap}.theme-button:hover,.small-button:hover{background:var(--elevated);text-decoration:none}.theme-button svg{width:15px;height:15px}.theme-button .sun{display:none}:root[data-theme="light"] .theme-button .sun{display:block}:root[data-theme="light"] .theme-button .moon{display:none}.shell{max-width:1280px;margin:auto;padding:0 28px 28px}.intro{display:flex;justify-content:space-between;gap:24px;align-items:end;padding:26px 0 22px}.intro h1{font-size:22px;font-weight:600;letter-spacing:-.6px;margin:0 0 4px}.intro p{margin:0;color:var(--secondary);max-width:710px}.label{font-size:11px;color:var(--secondary);border:1px solid var(--separator);padding:4px 8px;border-radius:5px;white-space:nowrap}.tabs{display:flex;gap:5px;border-bottom:1px solid var(--separator);padding-bottom:9px;margin-bottom:24px}.tab{background:transparent;border:0;border-radius:6px;padding:6px 12px;color:var(--secondary);min-height:32px;font-weight:500}.tab[aria-selected="true"]{background:var(--selected);color:var(--accent-text)}.tab:hover{color:var(--ink);background:var(--sidebar)}.panel-heading{display:flex;gap:20px;align-items:center;justify-content:space-between;margin-bottom:16px}.panel-heading h2{font-size:15px;font-weight:600;margin:0 0 2px;letter-spacing:-.2px}.panel-heading p{font-size:12px;margin:0;color:var(--secondary)}.screen-selector{display:flex;gap:4px;padding:3px;border:1px solid var(--separator);background:var(--sidebar);border-radius:7px}.screen-choice{background:transparent;border:0;border-radius:4px;min-height:28px;padding:4px 12px;color:var(--secondary);font-size:12px;white-space:nowrap}.screen-choice[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}figure{margin:0}.screen-stage{border:1px solid var(--separator);border-radius:10px;overflow:hidden;background:var(--sidebar);min-height:280px;display:grid;place-items:center;padding:12px}.screen-stage img{display:block;width:auto;max-width:100%;max-height:72vh;object-fit:contain;border-radius:6px}.screen-caption{display:flex;justify-content:space-between;gap:20px;align-items:start;padding:14px 0 18px}.screen-caption strong{font-weight:600}.screen-caption p{margin:3px 0 0;max-width:800px;color:var(--secondary);font-size:12px}.screen-caption a{font-size:12px;white-space:nowrap}.missing-message{padding:48px 24px;text-align:center;max-width:420px;color:var(--secondary)}.missing-message strong{display:block;font-size:13px;margin-bottom:5px;color:var(--ink);font-weight:500}.missing-message p{font-size:12px;margin:0}.note{padding:12px 16px;background:var(--sidebar);border:1px solid var(--separator);border-radius:8px;color:var(--secondary);font-size:12px}.note strong{color:var(--ink);font-weight:500}.subheading{font-size:13px;font-weight:600;margin:26px 0 12px}.brand-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.brand-card{border:1px solid var(--separator);border-radius:10px;overflow:hidden;background:var(--surface)}.brand-art{height:205px;display:grid;place-items:center;padding:24px;background:var(--sidebar)}.brand-art img{max-width:100%;max-height:155px;width:auto;object-fit:contain}.brand-art.is-light{background:#F5F5F3;color:#1D242D}.brand-art.is-dark{background:#151719;color:#F3F5F7}.brand-art .missing-message{padding:12px;font-size:11px}.brand-art.is-light .missing-message,.brand-art.is-light .missing-message strong{color:#4E5A69}.brand-art.is-dark .missing-message,.brand-art.is-dark .missing-message strong{color:#B8C0CC}.brand-meta{padding:12px 14px}.brand-title{display:flex;justify-content:space-between;align-items:center;gap:12px;font-weight:500}.brand-title a{font-size:11px;font-weight:400}.brand-meta p{font-size:11px;margin:4px 0 0;color:var(--secondary)}.wordmark img{max-width:260px;width:90%}.brand-guidance{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:20px}.brand-guidance p{font-size:12px;color:var(--secondary);margin:0}.brand-guidance strong{display:block;color:var(--ink);font-weight:500;margin-bottom:4px}.system-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:24px}.system-block{border:1px solid var(--separator);border-radius:10px;background:var(--surface);padding:18px}.system-block h3{margin:0 0 4px;font-size:13px;font-weight:600}.system-block>p{margin:0 0 16px;font-size:12px;color:var(--secondary)}.color-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.color-item{display:flex;align-items:center;gap:8px;padding:6px 0}.color-chip{height:26px;width:26px;border-radius:6px;flex-shrink:0;border:1px solid var(--control-border);background:var(--chip)}.color-name{font-size:11px;font-weight:500;line-height:1.35}.color-value{font-size:10px;color:var(--muted);font-family:ui-monospace,"SFMono-Regular",Menlo,monospace;line-height:1.5}.type-item{padding:10px 0;border-bottom:1px solid var(--separator)}.type-item:last-child{border-bottom:0;padding-bottom:0}.type-caption{font-size:10px;color:var(--muted);margin-top:3px}.type-page{font-size:22px;font-weight:600;letter-spacing:-.5px}.type-title{font-size:13px;font-weight:600}.type-body{font-size:13px}.type-meta{font-size:11px;color:var(--secondary)}.type-metric{font-size:20px;font-weight:500;font-variant-numeric:tabular-nums}.type-log{font:12px ui-monospace,"SFMono-Regular",Menlo,monospace}.status-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.status{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:4px 8px;border:1px solid var(--separator);border-radius:6px}.status-dot{height:6px;width:6px;display:inline-block;border-radius:50%;background:var(--muted)}.status.running .status-dot{background:var(--success)}.status.starting .status-dot{background:none;border:1.5px dashed var(--accent-text)}.status.stale .status-dot{background:var(--warning)}.status.stopped .status-dot{background:none;border:1px solid var(--muted)}.status.failed .status-dot{background:var(--danger)}.status.unavailable .status-dot{background:none;border:1px solid var(--muted)}.density-info{font-size:11px;color:var(--secondary);margin-top:12px}.density-scale{display:flex;gap:16px;align-items:end;margin-top:12px}.scale-unit{display:flex;gap:5px;align-items:end;font-size:10px;color:var(--secondary)}.scale-block{width:10px;height:var(--size);background:var(--accent);opacity:.8;border-radius:2px}.component-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.component-card{border:1px solid var(--separator);border-radius:10px;background:var(--surface);overflow:hidden}.component-title{padding:12px 14px;border-bottom:1px solid var(--separator);font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:space-between;gap:10px}.component-tag{color:var(--muted);font-size:10px;font-weight:400}.workload-demo{padding:13px 14px;display:grid;grid-template-columns:24px minmax(90px,1fr) auto auto;gap:10px;align-items:center}.workload-demo>svg{width:20px;height:20px;color:var(--secondary)}.workload-name{font-weight:500;font-size:13px;line-height:1.35}.workload-engine{font-size:11px;color:var(--muted)}.workload-number{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px}.workload-number small{display:block;color:var(--muted);font-size:10px}.component-explanation{margin:0;padding:0 14px 13px;font-size:11px;color:var(--secondary)}.cache-demo{padding:14px}.cache-reading{display:flex;justify-content:space-between;gap:12px;margin-bottom:8px;font-size:12px;font-variant-numeric:tabular-nums}.cache-reading span{color:var(--secondary)}progress{display:block;appearance:none;width:100%;height:6px;border:0;border-radius:10px;overflow:hidden;background:var(--separator)}progress::-webkit-progress-bar{background:var(--separator);border-radius:10px}progress::-webkit-progress-value{background:var(--accent);border-radius:10px}progress::-moz-progress-bar{background:var(--accent);border-radius:10px}.cache-details{display:flex;justify-content:space-between;gap:8px;margin-top:10px;color:var(--secondary);font-size:11px}.cache-details strong{font-weight:500;color:var(--success)}.logs-demo{padding:13px 14px;font:11px/1.8 ui-monospace,"SFMono-Regular",Menlo,monospace;overflow-x:auto}.log-line{display:flex;gap:12px;min-width:350px;white-space:nowrap}.log-time{color:var(--muted)}.log-level{color:var(--secondary);width:28px}.log-line.warn .log-level,.log-line.warn .log-message{color:var(--warning)}.sample-actions{display:flex;gap:8px;padding:14px}.action-sample{font-size:12px;min-height:28px;padding:4px 10px;border-radius:6px;border:1px solid var(--control-border);background:var(--surface)}.action-sample.primary{background:var(--action);color:var(--on-accent);border-color:var(--action)}.action-sample.destructive{color:var(--danger)}.action-sample[aria-disabled="true"]{cursor:default}.icon-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px}.icon-item{display:flex;flex-direction:column;align-items:center;text-align:center;padding:18px 6px 14px;border:1px solid var(--separator);border-radius:8px;background:var(--surface);color:var(--ink);transition:border-color .15s,background .15s}.icon-item:hover{background:var(--elevated);border-color:var(--control-border);text-decoration:none}.icon-drawing{display:grid;place-items:center;min-height:42px;margin-bottom:10px}.icon-drawing svg{height:28px;width:28px}.icon-name{font-size:11px;font-family:ui-monospace,"SFMono-Regular",Menlo,monospace}.icon-meaning{font-size:10px;color:var(--muted);margin-top:3px}.doc-row{display:flex;gap:18px;flex-wrap:wrap;margin-top:18px;font-size:12px}.kit-footer{display:flex;justify-content:space-between;gap:24px;padding-top:22px;margin-top:28px;border-top:1px solid var(--separator);font-size:11px;color:var(--muted)}.kit-footer p{margin:0;max-width:720px}.kit-footer a{white-space:nowrap}noscript .no-script{padding:16px;color:var(--warning)}
+@media(max-width:1000px){.icon-grid{grid-template-columns:repeat(6,minmax(0,1fr))}.system-grid{gap:16px}.brand-art{height:185px}.header-tools{gap:12px}}
+@media(max-width:760px){.shell{padding:0 18px 22px}.header-inner{padding:16px 18px;gap:12px}.header-tools>a{display:none}.intro{padding-top:22px;align-items:start}.intro .label{display:none}.panel-heading{flex-direction:column;align-items:start;gap:12px}.screen-selector{width:100%}.screen-choice{flex:1}.brand-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.brand-guidance{grid-template-columns:1fr;gap:12px}.system-grid,.component-grid{grid-template-columns:1fr}.icon-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.screen-stage{min-height:240px;padding:8px}.screen-caption{flex-direction:column;gap:10px}.kit-footer{flex-direction:column;gap:8px}}
+@media(max-width:420px){.identity-meta{font-size:10px}.theme-button{font-size:11px;padding:4px 8px}.tabs{gap:2px}.tab{padding:6px 10px}.brand-grid{grid-template-columns:1fr}.icon-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.workload-demo{grid-template-columns:20px minmax(80px,1fr) auto;gap:8px}.workload-demo .workload-number:last-child{display:none}.color-grid{gap:3px}.color-name{font-size:10px}.color-chip{height:22px;width:22px}.color-value{font-size:9px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+@media(prefers-contrast:more){.label,.status,.brand-card,.system-block,.component-card,.icon-item{border-color:var(--control-border)}}
+@media print{.header-tools,.tabs,.screen-selector,.skip-link{display:none}.panel[hidden]{display:block!important}.panel{break-before:page}body{background:white;color:#1D242D}.shell{max-width:none}.screen-stage img{max-height:700px}.kit-footer{display:none}}
+</style>
+<script>
+try { document.documentElement.dataset.theme = localStorage.getItem('micropod-kit-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); } catch (_) { document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; }
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to design kit</a>
+<header class="app-header"><div class="header-inner">
+<div class="identity"><span class="identity-mark" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 64" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="square" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 10H65L86 32L65 54H10Z"/><path d="M24 22V42M37 22V42M50 22V42M63 22L72 32L63 42"/></svg></span><div><div class="identity-name">micropod <span style="font-weight:400;color:var(--secondary)">/ design kit</span></div><div class="identity-meta">macOS app · Menu bar · Identity</div></div></div>
+<div class="header-tools"><a href="README.md">Read the proposal</a><a href="design-system.md">Design system</a><button class="theme-button" id="theme-toggle" type="button" aria-label="Switch to light appearance"><svg class="moon" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15.5 12.5A6.5 6.5 0 0 1 7.5 4.5a6.5 6.5 0 1 0 8 8Z"/></svg><svg class="sun" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="10" r="3.3"/><path d="M10 1.5v2M10 16.5v2M1.5 10h2M16.5 10h2M4 4l1.4 1.4M14.6 14.6 16 16M4 16l1.4-1.4M14.6 5.4 16 4"/></svg><span id="theme-name">Dark</span></button></div>
+</div></header>
+<main class="shell" id="main">
+<div class="intro"><div><h1>A quieter place to run things.</h1><p>A design concept for navigating workloads, reading their signals, and understanding what Micropod keeps cached.</p></div><span class="label">Concept · 01 Oct 2026</span></div>
+<div class="tabs" role="tablist" aria-label="Design kit sections"><button class="tab" role="tab" id="tab-screens" aria-controls="screens" aria-selected="true" tabindex="0" type="button">Screens</button><button class="tab" role="tab" id="tab-brand" aria-controls="brand" aria-selected="false" tabindex="-1" type="button">Brand</button><button class="tab" role="tab" id="tab-system" aria-controls="system" aria-selected="false" tabindex="-1" type="button">System</button><button class="tab" role="tab" id="tab-icons" aria-controls="icons" aria-selected="false" tabindex="-1" type="button">Icons <span style="font-size:10px;margin-left:4px">24</span></button></div>
+<noscript><p class="no-script">JavaScript is disabled. Browse every asset through the <a href="README.md">kit index</a>.</p></noscript>
+<section class="panel" id="screens" role="tabpanel" aria-labelledby="tab-screens" tabindex="0">
+<div class="panel-heading"><div><h2>The macOS workspace</h2><p>Generated visual references. Illustrative workload and cache data.</p></div><div class="screen-selector" aria-label="Select a screen"><button class="screen-choice" type="button" data-screen="workloads" aria-pressed="true">Workloads</button><button class="screen-choice" type="button" data-screen="menu-bar" aria-pressed="false">Menu bar</button><button class="screen-choice" type="button" data-screen="cache" aria-pressed="false">Cache</button></div></div>
+<figure class="screen-figure" id="screen-workloads"><div class="screen-stage" data-asset><img src="mockups/workloads.png" alt="Generated concept of the Micropod macOS workload workspace, with a project-grouped workload list, resource readings and a logs inspector." hidden><div class="missing-message"><strong>Workloads preview is arriving.</strong><p>The generated image will appear here when it is saved in the kit.</p></div></div><figcaption class="screen-caption"><div><strong>Workloads, with context.</strong><p>Keep running containers and persistent machines in view while inspecting logs, metrics, files or terminal. Type and engine labels preserve the difference between Apple, Docker and sandbox workloads.</p></div><a href="mockups/workloads.png" download>Download PNG ↗</a></figcaption></figure>
+<figure class="screen-figure" id="screen-menu-bar" hidden><div class="screen-stage" data-asset><img src="mockups/menu-bar.png" alt="Generated Micropod menu bar concept showing runtime health, workload shortcuts, resource readings and separate cache budgets." hidden><div class="missing-message"><strong>Menu bar preview is arriving.</strong><p>The generated image will appear here when it is saved in the kit.</p></div></div><figcaption class="screen-caption"><div><strong>A useful glance from the menu bar.</strong><p>Runtime health, CPU and memory sit above workload shortcuts. Separate build-context and package-cache budgets make retention visible; the main app handles deeper inspection.</p></div><a href="mockups/menu-bar.png" download>Download PNG ↗</a></figcaption></figure>
+<figure class="screen-figure" id="screen-cache" hidden><div class="screen-stage" data-asset><img src="mockups/cache.png" alt="Generated Micropod cache manager concept with separate budgets for build contexts and stored chunks, entry protection states and a cleanup review." hidden><div class="missing-message"><strong>Cache preview is arriving.</strong><p>The generated image will appear here when it is saved in the kit.</p></div></div><figcaption class="screen-caption"><div><strong>Cache you can understand.</strong><p>Separate build contexts, shared chunks and clone-backed volumes. “Keep cached” and cleanup review are proposed controls; implementation must protect active work and shared references.</p></div><a href="mockups/cache.png" download>Download PNG ↗</a></figcaption></figure>
+<div class="note"><strong>Design proposal.</strong> These screens do not change the running app. Generated small text may vary; the design system and exact prompts are authoritative. CPU uses consumed cores. Logical context content is distinct from physical stored chunks and disk reclaimed.</div>
+<div class="doc-row"><a href="native/index.html">Native implementation previews</a><a href="implementation.md">Implementation notes</a><a href="README.md">Product direction</a><a href="design-system.md">Interaction &amp; performance rules</a><a href="prompts.json">Exact generation prompts &amp; provenance</a></div>
+</section>
+<section class="panel" id="brand" role="tabpanel" aria-labelledby="tab-brand" tabindex="0" hidden>
+<div class="panel-heading"><div><h2>The pod, refined</h2><p>Continue the pod and terminal identity. Blue for the app; a monochrome template for the menu bar.</p></div><a class="small-button" href="design-system.md">Identity rules</a></div>
+<div class="brand-grid">
+<article class="brand-card"><div class="brand-art" data-asset><img src="brand/app-icon.png" alt="Imagegen concept of the Micropod macOS app icon" hidden><div class="missing-message"><strong>App icon concept is arriving.</strong><p>Generated raster artwork.</p></div></div><div class="brand-meta"><div class="brand-title">App icon concept<a href="brand/app-icon.png" download>PNG ↗</a></div><p>Raster exploration · imagegen</p></div></article>
+<article class="brand-card"><div class="brand-art is-light" data-asset><img src="brand/mark-blue.svg" alt="Micropod blue vector brand mark" hidden><div class="missing-message"><strong>Blue mark is arriving.</strong></div></div><div class="brand-meta"><div class="brand-title">Blue mark<a href="brand/mark-blue.svg" download>SVG ↗</a></div><p>Exact geometry · vector master</p></div></article>
+<article class="brand-card"><div class="brand-art is-light" data-asset><img src="brand/mark-template.svg" alt="Micropod monochrome template brand mark" hidden><div class="missing-message"><strong>Template mark is arriving.</strong></div></div><div class="brand-meta"><div class="brand-title">Menu bar template<a href="brand/mark-template.svg" download>SVG ↗</a></div><p>Monochrome · native tint at implementation</p></div></article>
+<article class="brand-card"><div class="brand-art is-light wordmark" data-asset><img src="brand/wordmark-light.svg" alt="Micropod wordmark for a light background" hidden><div class="missing-message"><strong>Light wordmark is arriving.</strong></div></div><div class="brand-meta"><div class="brand-title">Wordmark / light<a href="brand/wordmark-light.svg" download>SVG ↗</a></div><p>System typography · outline before distribution</p></div></article>
+<article class="brand-card"><div class="brand-art is-dark wordmark" data-asset><img src="brand/wordmark-dark.svg" alt="Micropod wordmark for a dark background" hidden><div class="missing-message"><strong>Dark wordmark is arriving.</strong></div></div><div class="brand-meta"><div class="brand-title">Wordmark / dark<a href="brand/wordmark-dark.svg" download>SVG ↗</a></div><p>System typography · outline before distribution</p></div></article>
+<article class="brand-card"><div class="brand-art" data-asset><img src="brand/app-tile.svg" alt="Micropod vector app tile concept" hidden><div class="missing-message"><strong>Vector tile is arriving.</strong></div></div><div class="brand-meta"><div class="brand-title">App tile master<a href="brand/app-tile.svg" download>SVG ↗</a></div><p>Deterministic vector · complementary raster treatment</p></div></article>
+</div>
+<div class="doc-row"><a href="brand/README.md">Brand asset notes</a><a href="brand/mark-white.svg" download>White mark SVG</a></div><div class="brand-guidance"><p><strong>Give it space.</strong>Clear space is one quarter of the mark width. Keep runtime badges beside the mark.</p><p><strong>Keep it recognizable.</strong>Minimum size: 16 pt for the template mark; 24 pt for a lockup. Use the mark alone at small sizes.</p><p><strong>Use the right source.</strong>SVGs define exact geometry. The generated icon explores finish and may differ from the vector master.</p></div>
+</section>
+<section class="panel" id="system" role="tabpanel" aria-labelledby="tab-system" tabindex="0" hidden>
+<div class="panel-heading"><div><h2>Small system, clear rules</h2><p>Semantic color, native typography, compact density, and explicit states.</p></div><a class="small-button" href="tokens/tokens.json" download>Download tokens</a></div>
+<div class="system-grid"><div class="system-block"><h3>Semantic palette</h3><p>Values follow the current appearance. Brand blue remains #0A84FF.</p><div class="color-grid" id="color-grid"></div><h3 style="margin-top:20px">Chart series</h3><p style="margin-bottom:8px">Series are labeled separately from runtime status.</p><div class="color-grid" id="chart-grid"></div></div><div class="system-block"><h3>System typography</h3><p>Use system fonts. Tabular digits for metrics; monospace for logs and identifiers.</p><div class="type-item"><div class="type-page">Workloads</div><div class="type-caption">Page title · 22 / semibold</div></div><div class="type-item"><div class="type-title">Recent activity</div><div class="type-caption">Section · 13 / semibold</div></div><div class="type-item"><div class="type-body">Your workloads, close at hand.</div><div class="type-caption">Body · 13 / regular</div></div><div class="type-item"><div class="type-meta">Sampled 5 seconds ago · Apple engine</div><div class="type-caption">Metadata · 11 / regular</div></div><div class="type-item"><div class="type-metric">0.42 cores</div><div class="type-caption">Metric · 20 / medium · tabular digits</div></div><div class="type-item"><div class="type-log">GET /health 200 · 2 ms</div><div class="type-caption">Log · 12 / regular · monospace</div></div></div></div>
+<h3 class="subheading">States and spacing</h3><div class="system-block"><div class="status-row"><span class="status running"><i class="status-dot" aria-hidden="true"></i>Running</span><span class="status stopped"><i class="status-dot" aria-hidden="true"></i>Stopped</span><span class="status starting"><i class="status-dot" aria-hidden="true"></i>Starting</span><span class="status unavailable"><i class="status-dot" aria-hidden="true"></i>Unavailable</span><span class="status failed"><i class="status-dot" aria-hidden="true"></i>Failed</span><span class="status stale"><i class="status-dot" aria-hidden="true"></i>Stale</span></div><p style="margin:0">Every state has a text label. Stopped and unavailable readings use an em dash; stale data retains its age.</p><div class="density-scale" aria-label="Spacing scale: 4, 8, 12, 16, 24 and 32 points"><span class="scale-unit"><i class="scale-block" style="--size:4px"></i>4</span><span class="scale-unit"><i class="scale-block" style="--size:8px"></i>8</span><span class="scale-unit"><i class="scale-block" style="--size:12px"></i>12</span><span class="scale-unit"><i class="scale-block" style="--size:16px"></i>16</span><span class="scale-unit"><i class="scale-block" style="--size:24px"></i>24</span><span class="scale-unit"><i class="scale-block" style="--size:32px"></i>32 pt</span></div><div class="density-info">40 pt table row · 44 pt tray row · 28 pt toolbar control · 6 / 10 / 14 pt radii</div></div>
+<h3 class="subheading">Component specimens <span style="font-weight:400;color:var(--muted);font-size:11px">· sample data</span></h3>
+<div class="component-grid"><div class="component-card"><div class="component-title">Workload row<span class="component-tag">Name · type · state · usage</span></div><div class="workload-demo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 9 5v8l-9 5-9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg><div><div class="workload-name">api-dev</div><div class="workload-engine">Container · Apple</div></div><div class="workload-number">0.18 cores<small>CPU</small></div><div class="workload-number">384 MiB<small>Memory</small></div></div><p class="component-explanation">Consumed cores are independent of host core count. Every Apple container already runs in its own isolated microVM.</p></div><div class="component-card"><div class="component-title">Cache budget<span class="component-tag">Logical content</span></div><div class="cache-demo"><div class="cache-reading"><strong style="font-weight:500">Build contexts</strong><span>1.8 / 5 GiB</span></div><progress value="1.8" max="5" aria-label="Build-context budget: 1.8 of 5 GiB">36%</progress><div class="cache-details"><span>24 retained contexts</span><strong>Active builds protected</strong></div></div><p class="component-explanation">640 MiB content reused across contexts is logical reuse, not physical disk saved.</p></div><div class="component-card"><div class="component-title">Log output<span class="status running"><i class="status-dot" aria-hidden="true"></i>Live · sample</span></div><div class="logs-demo"><div class="log-line"><span class="log-time">10:42:18</span><span class="log-level">INFO</span><span class="log-message">Listening on :8080</span></div><div class="log-line warn"><span class="log-time">10:42:23</span><span class="log-level">WARN</span><span class="log-message">Connection pool nearing limit</span></div><div class="log-line"><span class="log-time">10:42:24</span><span class="log-level">INFO</span><span class="log-message">GET /health 200 · 2 ms</span></div></div><p class="component-explanation">Selectable output, bounded history, a clear Live/Paused control and preserved scroll position.</p></div><div class="component-card"><div class="component-title">Action hierarchy<span class="component-tag">Appearance specimens</span></div><div class="sample-actions" aria-label="Noninteractive button appearance specimens"><span class="action-sample primary">Run workload</span><span class="action-sample">Inspect</span><span class="action-sample destructive">Delete</span></div><p class="component-explanation">Filled actions use #0067CF with white labels in both appearances. Destructive operations include explicit consequences.</p></div></div>
+<h3 class="subheading">Visual reference board</h3><figure><div class="screen-stage" data-asset><img src="mockups/design-system.png" alt="Generated visual reference board for the Micropod design system, showing brand, typography, palette and component direction." hidden><div class="missing-message"><strong>Design-system board is arriving.</strong><p>The generated visual reference will appear here when saved.</p></div></div><figcaption class="screen-caption"><div><strong>One visual language.</strong><p>Generated board for visual direction. The editable SVGs, semantic tokens and written design-system rules define the authoritative geometry and values.</p></div><a href="mockups/design-system.png" download>Download PNG ↗</a></figcaption></figure>
+<div class="doc-row"><a href="design-system.md">Full component &amp; accessibility rules</a><a href="tokens/tokens.json" download>Portable tokens</a><a href="tokens/MicropodDesignTokens.swift" download>Swift reference</a></div>
+</section>
+<section class="panel" id="icons" role="tabpanel" aria-labelledby="tab-icons" tabindex="0" hidden>
+<div class="panel-heading"><div><h2>24 operational pictograms</h2><p>Original 24 pt geometry · 1.75 pt stroke · round caps and joins · currentColor.</p></div><a class="small-button" href="icons/manifest.json" download>Semantic manifest</a></div>
+<div class="icon-grid"><a class="icon-item" href="icons/workloads.svg" download title="Download Workloads SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <rect x="3" y="3" width="5" height="5" rx="1"/><rect x="3" y="9.5" width="5" height="5" rx="1"/><rect x="3" y="16" width="5" height="5" rx="1"/><path d="M11 5.5h10M11 12h10M11 18.5h10"/>
+</svg>
+</span><span class="icon-name">workloads</span><span class="icon-meaning">Workloads</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/container.svg" download title="Download Container SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="m12 3 9 4.5v9L12 21l-9-4.5v-9L12 3Z M3 7.5l9 4.5 9-4.5 M12 12v9"/>
+</svg>
+</span><span class="icon-name">container</span><span class="icon-meaning">Container</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/microvm.svg" download title="Download MicroVM SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <rect x="3" y="3" width="18" height="15" rx="2"/><rect x="8.5" y="7" width="7" height="7" rx="1"/><path d="M12 18v3M8 21h8M6 10.5h2.5M15.5 10.5H18"/>
+</svg>
+</span><span class="icon-name">microvm</span><span class="icon-meaning">MicroVM</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/stack.svg" download title="Download Stack SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="m12 3 9 4.5-9 4.5-9-4.5L12 3ZM3 12l9 4.5 9-4.5M3 16.5l9 4.5 9-4.5"/>
+</svg>
+</span><span class="icon-name">stack</span><span class="icon-meaning">Stack</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/images.svg" download title="Download Images SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <rect x="5" y="3" width="16" height="16" rx="2"/><path d="M17 21H5a2 2 0 0 1-2-2V7"/><rect x="9" y="7" width="8" height="8" rx="1"/><path d="M9 10h8M13 7v3"/>
+</svg>
+</span><span class="icon-name">images</span><span class="icon-meaning">Images</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/cache.svg" download title="Download Cache SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 8 3 3-3 3m5-6 3 3-3 3M6 17h12"/>
+</svg>
+</span><span class="icon-name">cache</span><span class="icon-meaning">Cache</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/cache-hit.svg" download title="Download Cache hit SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <rect x="3" y="4" width="18" height="16" rx="2"/><path d="m8 11 3 3 5-5M6 17h12"/>
+</svg>
+</span><span class="icon-name">cache-hit</span><span class="icon-meaning">Cache hit</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/cache-warm.svg" download title="Download Warm cache SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 8c-1.4 1.3 1.4 2.7 0 4M12 7c-1.4 1.7 1.4 3.3 0 5M16 8c-1.4 1.3 1.4 2.7 0 4M6 17h12"/>
+</svg>
+</span><span class="icon-name">cache-warm</span><span class="icon-meaning">Warm cache</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/cache-pin.svg" download title="Download Pinned cache SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 7h6M10 7v4l-2 3h8l-2-3V7M12 14v3"/>
+</svg>
+</span><span class="icon-name">cache-pin</span><span class="icon-meaning">Pinned cache</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/cache-clean.svg" download title="Download Clean cache SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <rect x="3" y="4" width="18" height="16" rx="2"/><path d="m13 7-5 5m-1-1 6 4-3 3-5-4 2-3ZM8 14l3 2M6.5 15.5l3 2"/>
+</svg>
+</span><span class="icon-name">cache-clean</span><span class="icon-meaning">Clean cache</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/cpu.svg" download title="Download CPU SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <rect x="7" y="7" width="10" height="10" rx="1.5"/><rect x="10" y="10" width="4" height="4" rx=".5"/><path d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4"/>
+</svg>
+</span><span class="icon-name">cpu</span><span class="icon-meaning">CPU</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/memory.svg" download title="Download Memory SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <rect x="3" y="7" width="18" height="10" rx="1.5"/><rect x="6" y="10" width="4" height="4" rx=".5"/><rect x="14" y="10" width="4" height="4" rx=".5"/><path d="M6 17v4M9 17v4M12 17v4M15 17v4M18 17v4"/>
+</svg>
+</span><span class="icon-name">memory</span><span class="icon-meaning">Memory</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/storage.svg" download title="Download Storage SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <ellipse cx="12" cy="5.5" rx="9" ry="2.5"/><path d="M3 5.5v13C3 19.9 7 21 12 21s9-1.1 9-2.5v-13M3 12c0 1.4 4 2.5 9 2.5s9-1.1 9-2.5"/>
+</svg>
+</span><span class="icon-name">storage</span><span class="icon-meaning">Storage</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/network.svg" download title="Download Network SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v5H5v5M12 12h7v5"/>
+</svg>
+</span><span class="icon-name">network</span><span class="icon-meaning">Network</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/logs.svg" download title="Download Logs SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M6 7h1M10 7h8M6 12h1M10 12h8M6 17h1M10 17h5"/>
+</svg>
+</span><span class="icon-name">logs</span><span class="icon-meaning">Logs</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/terminal.svg" download title="Download Terminal SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/>
+</svg>
+</span><span class="icon-name">terminal</span><span class="icon-meaning">Terminal</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/play.svg" download title="Download Start SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="m7 4 14 8-14 8V4Z"/>
+</svg>
+</span><span class="icon-name">play</span><span class="icon-meaning">Start</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/stop.svg" download title="Download Stop SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <rect x="5" y="5" width="14" height="14" rx="1.5"/>
+</svg>
+</span><span class="icon-name">stop</span><span class="icon-meaning">Stop</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/restart.svg" download title="Download Restart SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M19.5 8a8.5 8.5 0 1 0 .5 7M20.5 3.5v5h-5"/>
+</svg>
+</span><span class="icon-name">restart</span><span class="icon-meaning">Restart</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/search.svg" download title="Download Search SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <circle cx="10.5" cy="10.5" r="7.5"/><path d="m16 16 5 5"/>
+</svg>
+</span><span class="icon-name">search</span><span class="icon-meaning">Search</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/settings.svg" download title="Download Settings SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <polygon points="12.000,3.000 13.756,3.173 14.832,5.163 16.111,5.847 18.364,5.636 19.483,7.000 18.837,9.168 19.258,10.556 21.000,12.000 20.827,13.756 18.837,14.832 18.153,16.111 18.364,18.364 17.000,19.483 14.832,18.837 13.444,19.258 12.000,21.000 10.244,20.827 9.168,18.837 7.889,18.153 5.636,18.364 4.517,17.000 5.163,14.832 4.742,13.444 3.000,12.000 3.173,10.244 5.163,9.168 5.847,7.889 5.636,5.636 7.000,4.517 9.168,5.163 10.556,4.742"/><circle cx="12" cy="12" r="3"/>
+</svg>
+</span><span class="icon-name">settings</span><span class="icon-meaning">Settings</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/external-link.svg" download title="Download Open externally SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M13 3h8v8M21 3 11 13M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/>
+</svg>
+</span><span class="icon-name">external-link</span><span class="icon-meaning">Open externally</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/download.svg" download title="Download Download SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M12 3v12m-5-5 5 5 5-5M3 16v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/>
+</svg>
+</span><span class="icon-name">download</span><span class="icon-meaning">Download</span><span class="sr-only">Download SVG</span></a>
+<a class="icon-item" href="icons/activity.svg" download title="Download Activity SVG"><span class="icon-drawing"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  
+  <path d="M3 12h4l3-9 4 18 3-9h4"/>
+</svg>
+</span><span class="icon-name">activity</span><span class="icon-meaning">Activity</span><span class="sr-only">Download SVG</span></a></div>
+<div class="doc-row"><a href="icons/README.md">Sizing &amp; usage</a><a href="icons/contact-sheet.svg">Open contact sheet</a><a href="icons/validation.json">Geometry validation</a></div>
+<div class="note" style="margin-top:18px">Click an icon to download its SVG. Display at 16–20 pt in the app and tint through native template rendering. Suggested SF Symbol fallbacks in the manifest are unverified against the target SDK.</div>
+</section>
+<footer class="kit-footer"><p>Design concept and illustrative data. SVGs and tokens are implementation references; generated screens are visual explorations. Runtime behavior has not been changed.</p><a href="prompts.json">Imagegen prompts ↗</a></footer>
+</main>
+<div class="sr-only" role="status" aria-live="polite" id="announcer"></div>
+<script>
+(() => {
+  'use strict';
+  const root = document.documentElement;
+  const themeButton = document.getElementById('theme-toggle');
+  const announce = message => { document.getElementById('announcer').textContent = message; };
+  const palette = [
+    ['canvas','#151719','#F5F5F3'],['sidebar','#1B1E22','#ECEDEA'],
+    ['surface','#1F2328','#FFFFFF'],['elevated','#292E35','#FFFFFF'],
+    ['separator','#3D4652','#D7DBE0'],['controlBorder','#7C8999','#858F9D'],
+    ['textPrimary','#F3F5F7','#1D242D'],['textSecondary','#B8C0CC','#4E5A69'],
+    ['textTertiary','#98A3B3','#606B79'],['accent','#0A84FF','#0067CF'],
+    ['accentText','#73B6FF','#0067CF'],['actionFill','#0067CF','#0067CF'],
+    ['onAccent','#FFFFFF','#FFFFFF'],['success','#68D6A0','#197548'],
+    ['warning','#E6B65D','#8A5900'],['danger','#FF8888','#BA3038']
+  ];
+  const chartPalette = [['CPU','#73B6FF','#0067CF'],['Memory','#65D2C3','#127E71'],['Network in','#B7A6F7','#6D51B7'],['Network out','#E6B65D','#8A5900']];
+  function renderPalette() {
+    const isDark = root.dataset.theme === 'dark';
+    themeButton.setAttribute('aria-label', `Switch to ${isDark ? 'light' : 'dark'} appearance`);
+    document.getElementById('theme-name').textContent = isDark ? 'Dark' : 'Light';
+    [['color-grid',palette],['chart-grid',chartPalette]].forEach(([id,colors]) => {
+    const grid = document.getElementById(id);
+    grid.replaceChildren(...colors.map(([name,dark,light]) => {
+      const value = isDark ? dark : light;
+      const item = document.createElement('div'); item.className = 'color-item';
+      const chip = document.createElement('span'); chip.className = 'color-chip'; chip.style.setProperty('--chip',value); chip.setAttribute('aria-hidden','true');
+      const labels = document.createElement('div');
+      const label = document.createElement('div'); label.className = 'color-name'; label.textContent = name;
+      const code = document.createElement('div'); code.className = 'color-value'; code.textContent = value;
+      labels.append(label,code); item.append(chip,labels); return item;
+    }));
+    });
+  }
+  themeButton.addEventListener('click', () => {
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('micropod-kit-theme',root.dataset.theme); } catch (_) {}
+    renderPalette(); announce(`${root.dataset.theme === 'dark' ? 'Dark' : 'Light'} appearance selected.`);
+  });
+  renderPalette();
+  const tabs = [...document.querySelectorAll('.tab')];
+  function selectTab(tab,updateHash = true) {
+    tabs.forEach(item => {
+      const active = item === tab;
+      item.setAttribute('aria-selected',String(active)); item.tabIndex = active ? 0 : -1;
+      document.getElementById(item.getAttribute('aria-controls')).hidden = !active;
+    });
+    if (updateHash) {
+      try { history.replaceState(null,'',`#${tab.getAttribute('aria-controls')}`); } catch (_) {}
+    }
+  }
+  tabs.forEach((tab,index) => {
+    tab.addEventListener('click', () => selectTab(tab));
+    tab.addEventListener('keydown',event => {
+      let target;
+      if (event.key === 'ArrowRight') target = tabs[(index+1)%tabs.length];
+      if (event.key === 'ArrowLeft') target = tabs[(index+tabs.length-1)%tabs.length];
+      if (event.key === 'Home') target = tabs[0];
+      if (event.key === 'End') target = tabs[tabs.length-1];
+      if (target) { event.preventDefault(); selectTab(target); target.focus(); }
+    });
+  });
+  const initialTab = tabs.find(tab => `#${tab.getAttribute('aria-controls')}` === location.hash);
+  if (initialTab) selectTab(initialTab,false);
+  window.addEventListener('hashchange',() => { const tab = tabs.find(item => `#${item.getAttribute('aria-controls')}` === location.hash); if (tab) selectTab(tab,false); });
+  document.querySelectorAll('.screen-choice').forEach(button => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('.screen-choice').forEach(item => item.setAttribute('aria-pressed',String(item === button)));
+      document.querySelectorAll('.screen-figure').forEach(figure => { figure.hidden = figure.id !== `screen-${button.dataset.screen}`; });
+      announce(`${button.textContent} concept selected.`);
+    });
+  });
+  document.querySelectorAll('[data-asset]').forEach(stage => {
+    const img = stage.querySelector('img');
+    const missing = stage.querySelector('.missing-message');
+    function showAsset() { if (img.naturalWidth) { img.hidden = false; missing.hidden = true; } }
+    function showMissing() { img.hidden = true; missing.hidden = false; }
+    img.addEventListener('load',showAsset); img.addEventListener('error',showMissing);
+    if (img.complete) { if (img.naturalWidth) showAsset(); else showMissing(); }
+  });
+})();
+</script>
+</body>
+</html>

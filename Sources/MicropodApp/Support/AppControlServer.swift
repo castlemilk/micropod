@@ -63,7 +63,7 @@ final class AppControlServer: @unchecked Sendable {
             data, _, isComplete, error in
             var buffer = buffer
             if let data { buffer.append(data) }
-            if error != nil || isComplete {
+            if error != nil || isComplete || buffer.count > 1024 * 1024 {
                 connection.cancel()
                 return
             }

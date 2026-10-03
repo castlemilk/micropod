@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 /// edit, duplicate, export/import, per-environment run counts, and delete.
 struct EnvironmentsView: View {
     @Bindable var store: AppStore
+    private let usesPreviewData: Bool
 
     @State private var environments: [SavedEnvironment] = []
     @State private var editing: ComposeEditSelection?
@@ -22,6 +23,12 @@ struct EnvironmentsView: View {
         let binURL: URL
     }
 
+    init(store: AppStore, initialEnvironments: [SavedEnvironment]? = nil) {
+        self._store = Bindable(store)
+        self._environments = State(initialValue: initialEnvironments ?? [])
+        self.usesPreviewData = initialEnvironments != nil
+    }
+
     struct ExportSelection: Identifiable {
         let id = UUID()
         let environment: SavedEnvironment
@@ -29,28 +36,38 @@ struct EnvironmentsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("\(environments.count) environments")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if let errorMessage {
-                    Text(errorMessage).font(.caption).foregroundStyle(.red).lineLimit(1)
+            WorkspacePageHeader(
+                title: "Environments",
+                subtitle: "\(environments.count) saved \(environments.count == 1 ? "environment" : "environments")",
+                icon: "workloads", fallback: "folder"
+            ) {
+                HStack(spacing: Tokens.Spacing.sm) {
+                    Button {
+                        showImporter = true
+                    } label: {
+                        IconLabel(title: String(localized: "Import…"), icon: "import", fallback: "arrow.down.doc")
+                    }
+                    .controlSize(.small)
+                    Button {
+                        loadEnvironments()
+                    } label: {
+                        IconLabel(title: String(localized: "Reload"), icon: "refresh", fallback: "arrow.clockwise")
+                    }
+                    .controlSize(.small)
                 }
-                Spacer()
-                Button {
-                    showImporter = true
-                } label: {
-                    IconLabel(title: String(localized: "Import…"), icon: "import", fallback: "arrow.down.doc")
-                }
-                .controlSize(.small)
-                Button {
-                    loadEnvironments()
-                } label: {
-                    IconLabel(title: String(localized: "Reload"), icon: "refresh", fallback: "arrow.clockwise")
-                }
-                .controlSize(.small)
             }
-            .padding(8)
+            .padding(Tokens.Spacing.contentInset)
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .lineLimit(2)
+                    .help(errorMessage)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, Tokens.Spacing.contentInset)
+                    .padding(.bottom, 8)
+            }
 
             Divider()
 
@@ -67,7 +84,7 @@ struct EnvironmentsView: View {
                     action: { showImporter = true })
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 8) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 460), alignment: .top)], spacing: 12) {
                         ForEach(environments) { environment in
                             EnvironmentCardView(
                                 store: store,
@@ -80,11 +97,13 @@ struct EnvironmentsView: View {
                                 onChanged: { loadEnvironments() })
                         }
                     }
-                    .padding(10)
+                    .padding(Tokens.Spacing.contentInset)
+                    .frame(maxWidth: 1200)
+                    .frame(maxWidth: .infinity, alignment: .top)
                 }
             }
         }
-        .onAppear { loadEnvironments() }
+        .onAppear { if !usesPreviewData { loadEnvironments() } }
         .sheet(item: $editing) { selection in
             ComposeEditorSheet(store: store, environment: selection.environment, initialYAML: selection.yaml)
                 .onDisappear { loadEnvironments() }
@@ -247,6 +266,7 @@ struct EnvironmentCardView: View {
 
     @State private var isRunning = false
     @State private var statusText: String?
+    @State private var availableWidth: CGFloat = 800
 
     private var isEnvironmentRunning: Bool {
         store.containers.contains {
@@ -259,13 +279,46 @@ struct EnvironmentCardView: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
+            cardLayout {
+                summary
+                actions
+            }
+            if let statusText {
+                Text(statusText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+            }
+        }
+        .padding(12)
+        .background(.quaternary.opacity(0.2), in: RoundedRectangle(cornerRadius: 8))
+        .onGeometryChange(for: CGFloat.self) {
+            $0.size.width
+        } action: {
+            availableWidth = $0
+        }
+    }
+
+    private var cardLayout: AnyLayout {
+        availableWidth < 780
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 16))
+    }
+
+    private var summary: some View {
+        HStack(alignment: .top, spacing: 10) {
             Image(systemName: "square.stack.3d.up").foregroundStyle(Color.accentColor)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(environment.spec.name).font(.callout.weight(.medium))
+                    Text(environment.spec.name)
+                        .font(.callout.weight(.medium))
+                        .lineLimit(2)
+                        .truncationMode(.middle)
+                        .help(environment.spec.name)
                     if runCount > 0 {
-                        Text("ran \(runCount)×").font(.caption2).foregroundStyle(.tertiary)
+                        Text("ran \(runCount)×").font(.caption2).foregroundStyle(Tokens.Palette.tertiary).fixedSize()
                     }
                 }
                 Text(
@@ -273,20 +326,28 @@ struct EnvironmentCardView: View {
                 )
                 .font(.caption2)
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
+                .lineLimit(2)
+                .help(environment.spec.services.map(\.name).joined(separator: ", "))
             }
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var actions: some View {
+        HStack(spacing: 10) {
             if isRunning {
                 ProgressView().controlSize(.small)
             } else if isEnvironmentRunning {
-                Text(String(localized: "running")).font(.caption2.weight(.medium)).foregroundStyle(.green)
+                Text(String(localized: "running")).font(.caption2.weight(.medium)).foregroundStyle(
+                    Tokens.Palette.success)
             } else if hasContainers {
                 Text(String(localized: "stopped")).font(.caption2).foregroundStyle(.secondary)
             } else {
-                Text(String(localized: "not started")).font(.caption2).foregroundStyle(.tertiary)
+                Text(String(localized: "not started")).font(.caption2).foregroundStyle(Tokens.Palette.tertiary)
             }
-            if let statusText {
-                Text(statusText).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            if availableWidth < 780 {
+                Spacer(minLength: 0)
             }
             Menu {
                 Button {
@@ -334,8 +395,7 @@ struct EnvironmentCardView: View {
             .controlSize(.small)
             .disabled(isRunning)
         }
-        .padding(10)
-        .background(.quaternary.opacity(0.2), in: RoundedRectangle(cornerRadius: 8))
+        .fixedSize(horizontal: availableWidth >= 780, vertical: true)
     }
 
     private func up() {

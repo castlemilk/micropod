@@ -1,0 +1,550 @@
+{
+  "scope": "Deterministic tokens only; imagegen screenshots are visual references, not audited UI pixels. Decorative separators intentionally not subject to control-boundary threshold.",
+  "checks": [
+    {
+      "mode": "dark",
+      "foreground": "textPrimary",
+      "background": "canvas",
+      "ratio": 16.44,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "textPrimary",
+      "background": "sidebar",
+      "ratio": 15.31,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "textPrimary",
+      "background": "surface",
+      "ratio": 14.45,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "textPrimary",
+      "background": "elevated",
+      "ratio": 12.51,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "textSecondary",
+      "background": "canvas",
+      "ratio": 9.8,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "textSecondary",
+      "background": "sidebar",
+      "ratio": 9.12,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "textSecondary",
+      "background": "surface",
+      "ratio": 8.61,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "textSecondary",
+      "background": "elevated",
+      "ratio": 7.45,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "textTertiary",
+      "background": "canvas",
+      "ratio": 7.04,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "textTertiary",
+      "background": "sidebar",
+      "ratio": 6.55,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "textTertiary",
+      "background": "surface",
+      "ratio": 6.19,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "textTertiary",
+      "background": "elevated",
+      "ratio": 5.35,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "accentText",
+      "background": "canvas",
+      "ratio": 8.44,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "accentText",
+      "background": "sidebar",
+      "ratio": 7.86,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "accentText",
+      "background": "surface",
+      "ratio": 7.42,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "accentText",
+      "background": "elevated",
+      "ratio": 6.42,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "success",
+      "background": "canvas",
+      "ratio": 10.03,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "success",
+      "background": "sidebar",
+      "ratio": 9.33,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "success",
+      "background": "surface",
+      "ratio": 8.81,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "success",
+      "background": "elevated",
+      "ratio": 7.62,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "warning",
+      "background": "canvas",
+      "ratio": 9.6,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "warning",
+      "background": "sidebar",
+      "ratio": 8.93,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "warning",
+      "background": "surface",
+      "ratio": 8.44,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "warning",
+      "background": "elevated",
+      "ratio": 7.3,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "danger",
+      "background": "canvas",
+      "ratio": 7.81,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "danger",
+      "background": "sidebar",
+      "ratio": 7.27,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "danger",
+      "background": "surface",
+      "ratio": 6.87,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "danger",
+      "background": "elevated",
+      "ratio": 5.94,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "onAccent",
+      "background": "actionFill",
+      "ratio": 5.47,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "chart.cpu",
+      "background": "surface",
+      "ratio": 7.42,
+      "threshold": 3,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "chart.memory",
+      "background": "surface",
+      "ratio": 8.7,
+      "threshold": 3,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "chart.networkIn",
+      "background": "surface",
+      "ratio": 7.38,
+      "threshold": 3,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "chart.networkOut",
+      "background": "surface",
+      "ratio": 8.44,
+      "threshold": 3,
+      "pass": true
+    },
+    {
+      "mode": "dark",
+      "foreground": "controlBorder",
+      "background": "surface",
+      "ratio": 4.43,
+      "threshold": 3,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "textPrimary",
+      "background": "canvas",
+      "ratio": 14.33,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "textPrimary",
+      "background": "sidebar",
+      "ratio": 13.31,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "textPrimary",
+      "background": "surface",
+      "ratio": 15.64,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "textPrimary",
+      "background": "elevated",
+      "ratio": 15.64,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "textSecondary",
+      "background": "canvas",
+      "ratio": 6.43,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "textSecondary",
+      "background": "sidebar",
+      "ratio": 5.98,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "textSecondary",
+      "background": "surface",
+      "ratio": 7.02,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "textSecondary",
+      "background": "elevated",
+      "ratio": 7.02,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "textTertiary",
+      "background": "canvas",
+      "ratio": 4.96,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "textTertiary",
+      "background": "sidebar",
+      "ratio": 4.61,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "textTertiary",
+      "background": "surface",
+      "ratio": 5.42,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "textTertiary",
+      "background": "elevated",
+      "ratio": 5.42,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "accentText",
+      "background": "canvas",
+      "ratio": 5.01,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "accentText",
+      "background": "sidebar",
+      "ratio": 4.65,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "accentText",
+      "background": "surface",
+      "ratio": 5.47,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "accentText",
+      "background": "elevated",
+      "ratio": 5.47,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "success",
+      "background": "canvas",
+      "ratio": 5.23,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "success",
+      "background": "sidebar",
+      "ratio": 4.86,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "success",
+      "background": "surface",
+      "ratio": 5.71,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "success",
+      "background": "elevated",
+      "ratio": 5.71,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "warning",
+      "background": "canvas",
+      "ratio": 5.48,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "warning",
+      "background": "sidebar",
+      "ratio": 5.09,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "warning",
+      "background": "surface",
+      "ratio": 5.98,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "warning",
+      "background": "elevated",
+      "ratio": 5.98,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "danger",
+      "background": "canvas",
+      "ratio": 5.39,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "danger",
+      "background": "sidebar",
+      "ratio": 5.01,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "danger",
+      "background": "surface",
+      "ratio": 5.89,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "danger",
+      "background": "elevated",
+      "ratio": 5.89,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "onAccent",
+      "background": "actionFill",
+      "ratio": 5.47,
+      "threshold": 4.5,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "chart.cpu",
+      "background": "surface",
+      "ratio": 5.47,
+      "threshold": 3,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "chart.memory",
+      "background": "surface",
+      "ratio": 4.94,
+      "threshold": 3,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "chart.networkIn",
+      "background": "surface",
+      "ratio": 5.98,
+      "threshold": 3,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "chart.networkOut",
+      "background": "surface",
+      "ratio": 5.98,
+      "threshold": 3,
+      "pass": true
+    },
+    {
+      "mode": "light",
+      "foreground": "controlBorder",
+      "background": "surface",
+      "ratio": 3.27,
+      "threshold": 3,
+      "pass": true
+    }
+  ],
+  "allPass": true
+}

@@ -10,14 +10,12 @@ struct RegistriesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("\(store.registries.count) registries")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if let errorMessage {
-                    Text(errorMessage).font(.caption).foregroundStyle(.red).lineLimit(1)
-                }
+            WorkspacePageHeader(
+                title: "Registries",
+                subtitle: "\(store.registries.count) \(store.registries.count == 1 ? "registry" : "registries")",
+                icon: "network",
+                fallback: "globe"
+            ) {
                 Button {
                     showLoginSheet = true
                 } label: {
@@ -25,8 +23,20 @@ struct RegistriesView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
+                .tint(Tokens.Palette.action)
             }
-            .padding(8)
+            .padding(.horizontal, Tokens.Spacing.contentInset)
+            .padding(.vertical, Tokens.Spacing.lg)
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .lineLimit(2)
+                    .help(errorMessage)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 8)
+            }
 
             Divider()
 
@@ -48,12 +58,19 @@ struct RegistriesView: View {
                             Image(systemName: "lock.shield").foregroundStyle(.secondary)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(login.server).font(.callout.weight(.medium))
-                                Text("Logged in").font(.caption2).foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                    .help(login.server)
+                                Text(login.username.isEmpty ? "Logged in" : "Logged in as \(login.username)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                    .help(login.username)
                             }
-                            Spacer()
-                            if !login.username.isEmpty {
-                                Text(login.username).font(.caption).foregroundStyle(.secondary)
-                            }
+                            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                            .layoutPriority(1)
+                            Spacer(minLength: 8)
                             Button {
                                 Task {
                                     do {
@@ -68,6 +85,7 @@ struct RegistriesView: View {
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.small)
+                            .fixedSize()
                         }
                         .padding(.vertical, 2)
                     }
@@ -75,6 +93,7 @@ struct RegistriesView: View {
                 .listStyle(.inset)
             }
         }
+        .background(Tokens.Palette.canvas)
         .task {
             if store.registries.isEmpty { await store.refreshRegistries() }
         }
@@ -96,14 +115,20 @@ struct RegistryLoginSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Registry Login").font(.title3.weight(.semibold))
-            TextField("Server, e.g. registry.docker.io", text: $server)
-                .textFieldStyle(.roundedBorder)
-            TextField("Username", text: $username)
-                .textFieldStyle(.roundedBorder)
-            SecureField("Password or token", text: $password)
-                .textFieldStyle(.roundedBorder)
-            if let errorMessage {
-                Text(errorMessage).font(.caption).foregroundStyle(.red)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    TextField("Server, e.g. registry.docker.io", text: $server)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("Username", text: $username)
+                        .textFieldStyle(.roundedBorder)
+                    SecureField("Password or token", text: $password)
+                        .textFieldStyle(.roundedBorder)
+                    if let errorMessage {
+                        Text(errorMessage).font(.caption).foregroundStyle(.red)
+                            .textSelection(.enabled)
+                    }
+                }
+                .padding(.vertical, 4)
             }
             HStack {
                 Spacer()
@@ -119,7 +144,7 @@ struct RegistryLoginSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 420)
+        .frame(minWidth: 320, idealWidth: 420, maxWidth: 640, minHeight: 250, idealHeight: 300, maxHeight: 640)
     }
 
     private func login() {

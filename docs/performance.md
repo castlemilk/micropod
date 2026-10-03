@@ -3,6 +3,11 @@
 How Micropod is measured against Docker Desktop, current numbers, and how to
 reproduce or extend them.
 
+The [desktop UI evaluation from 1 October 2026](design/2026-10-01-micropod/performance.md)
+covers the native app's CPU, memory, responsiveness, bounded streaming and
+inventory-model benchmarks. Guest VM and runtime measurements below have a
+different scope.
+
 ## Methodology
 
 Same machine, both runtimes warm, `alpine:3.20` pre-pulled on both engines.

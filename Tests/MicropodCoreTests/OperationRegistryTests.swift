@@ -123,4 +123,90 @@ final class OperationRegistryTests: XCTestCase {
             Array(ids.dropFirst(2)) + [ids[0]]
         )
     }
+    func testOneHundredThousandEventsRetainBoundedRecentOutput() {
+        let registry = OperationRegistry()
+        let id = registry.begin("Busy build", kind: .build)
+        for index in 0..<100_000 { registry.appendEvent("step \(index)", to: id) }
+        let operation = registry.operation(id)!
+        XCTAssertEqual(operation.events.count, ActiveOperation.maximumEventCount)
+        XCTAssertEqual(operation.events.first, "step \(100_000 - ActiveOperation.maximumEventCount)")
+        XCTAssertEqual(operation.events.last, "step 99999")
+        XCTAssertEqual(operation.discardedEventCount, 100_000 - ActiveOperation.maximumEventCount)
+        XCTAssertEqual(operation.truncatedEventCount, 0)
+        XCTAssertEqual(operation.retainedEventBytes, operation.events.reduce(0) { $0 + $1.utf8.count })
+        XCTAssertLessThanOrEqual(operation.retainedEventBytes, ActiveOperation.maximumEventBytes)
+        XCTAssertEqual(operation.status, .running)
+    }
+
+    func testByteBudgetEvictsLongEventsBeforeCountLimit() {
+        let registry = OperationRegistry()
+        let id = registry.begin("Verbose pull", kind: .pull)
+        let event = String(repeating: "x", count: ActiveOperation.maximumSingleEventBytes)
+        registry.appendEvents(repeatElement(event, count: 1000), to: id)
+        let operation = registry.operation(id)!
+        let expectedCount = ActiveOperation.maximumEventBytes / event.utf8.count
+        XCTAssertEqual(operation.events.count, expectedCount)
+        XCTAssertEqual(operation.retainedEventBytes, expectedCount * event.utf8.count)
+        XCTAssertEqual(operation.discardedEventCount, 1000 - expectedCount)
+    }
+
+    func testPathologicalSingleEventIsUTF8SafeAndBounded() {
+        let registry = OperationRegistry()
+        let id = registry.begin("Noisy operation", kind: .compose)
+        let event = String(repeating: "🚀", count: 1_000_000) + " completed"
+        registry.appendEvent(event, to: id)
+        let operation = registry.operation(id)!
+        XCTAssertEqual(operation.events.count, 1)
+        XCTAssertEqual(operation.discardedEventCount, 0)
+        XCTAssertEqual(operation.truncatedEventCount, 1)
+        XCTAssertLessThanOrEqual(operation.retainedEventBytes, ActiveOperation.maximumSingleEventBytes)
+        XCTAssertTrue(operation.events[0].hasSuffix(" completed"))
+        XCTAssertTrue(operation.events[0].hasPrefix("[Earlier output truncated] "))
+        XCTAssertFalse(operation.events[0].contains("�"))
+    }
+
+    func testLegacyMutationAndBatchUpdatesBothApplyBounds() {
+        let registry = OperationRegistry()
+        let id = registry.begin("Legacy updater", kind: .container)
+        registry.update(id) { $0.events = (0..<1000).map { "line \($0)" } }
+        registry.update(id) { $0.events.append("newest") }
+        let operation = registry.operation(id)!
+        XCTAssertEqual(operation.events.count, ActiveOperation.maximumEventCount)
+        XCTAssertEqual(operation.events.last, "newest")
+        XCTAssertEqual(operation.discardedEventCount, 1001 - ActiveOperation.maximumEventCount)
+        XCTAssertLessThanOrEqual(operation.retainedEventBytes, ActiveOperation.maximumEventBytes)
+    }
+
+    func testBatchPublishesOneObservableMutation() {
+        let registry = OperationRegistry()
+        let id = registry.begin("Batched build", kind: .build)
+        let mutation = expectation(description: "event batch observed")
+        withObservationTracking {
+            _ = registry.operations
+        } onChange: {
+            mutation.fulfill()
+        }
+        registry.appendEvents(["first", "second", "last"], to: id)
+        wait(for: [mutation], timeout: 1)
+        XCTAssertEqual(registry.operation(id)?.events, ["first", "second", "last"])
+    }
+
+    func testFinishedHistoryByteBoundKeepsRunningOperations() {
+        let registry = OperationRegistry()
+        let running = registry.begin("Still working", kind: .build)
+        let event = String(repeating: "x", count: ActiveOperation.maximumSingleEventBytes)
+        registry.appendEvents(repeatElement(event, count: 100), to: running)
+        for index in 0..<110 {
+            let id = registry.begin("Finished \(index)", kind: .pull)
+            registry.appendEvents(repeatElement(event, count: 100), to: id)
+            registry.finish(id, status: .succeeded)
+        }
+        XCTAssertEqual(registry.operations.count, 101)
+        XCTAssertNotNil(registry.operation(running))
+        XCTAssertEqual(registry.runningCount, 1)
+        XCTAssertLessThanOrEqual(
+            registry.operations.reduce(0) { $0 + $1.retainedEventBytes },
+            101 * ActiveOperation.maximumEventBytes)
+    }
+
 }

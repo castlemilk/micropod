@@ -16,6 +16,8 @@ struct MainPanelView: View {
     private let railThreshold: CGFloat = 640
 
     @State private var lastKnownWidth: CGFloat?
+    @State private var resourcesExpanded = false
+    @State private var projectsExpanded = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -33,9 +35,11 @@ struct MainPanelView: View {
                 content
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .safeAreaInset(edge: .bottom, spacing: 0) {
-                        OperationsDrawerView(store: store)
+                        if !store.operations.isEmpty {
+                            OperationsDrawerView(store: store, maximumListHeight: min(150, geo.size.height * 0.24))
+                        }
                     }
-                    .navigationTitle(store.activeTab.title)
+                    .navigationTitle("Micropod")
                     .toolbar {
                         if width < railThreshold {
                             ToolbarItem(placement: .navigation) {
@@ -50,13 +54,20 @@ struct MainPanelView: View {
                             Button {
                                 store.showCommandPalette = true
                             } label: {
-                                Label("Command Palette", systemImage: "command")
+                                HStack(spacing: 8) {
+                                    Image(systemName: "magnifyingglass")
+                                    Text(width < 900 ? "Search" : "Search or run a command")
+                                    Text("⌘K").foregroundStyle(Tokens.Palette.tertiary)
+                                }
+                                .font(Tokens.Typography.body)
                             }
                             .keyboardShortcut("k", modifiers: .command)
                             .help("Command Palette (⌘K)")
                         }
                     }
             }
+            .background(Tokens.Palette.canvas)
+            .tint(Tokens.Palette.accent)
             .onAppear { lastKnownWidth = width }
         }
         .task { store.bootstrap() }
@@ -87,47 +98,86 @@ struct MainPanelView: View {
             }
         }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: store.showCommandPalette)
+        .confirmationDialog(
+            "Stop the runtime?", isPresented: $store.runtimeStopConfirmationRequested, titleVisibility: .visible
+        ) {
+            Button("Stop runtime", role: .destructive) { Task { await store.stopRuntime() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                "This interrupts \(store.runtimeStopAffectedCount) running workloads managed by the Apple runtime. You can start the runtime again from Micropod."
+            )
+        }
     }
 
     // MARK: - Full sidebar
 
     private var fullSidebar: some View {
         List(selection: $store.activeTab) {
-            Section("Overview") {
-                tabRow(.dashboard)
+            Section {
+                HStack(spacing: 10) {
+                    BrandMark(size: 28)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Micropod").font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Tokens.Palette.primary)
+                        Text("Local workspace").font(Tokens.Typography.metadata)
+                            .foregroundStyle(Tokens.Palette.secondary)
+                    }
+                }
+                .padding(.vertical, 8)
+                .listRowSeparator(.hidden)
             }
-            Section("Resources") {
-                tabRow(.containers)
+            Section("Workspace") {
+                tabRow(.dashboard)
+                tabRow(.workloads)
                 tabRow(.machines)
                 tabRow(.images)
-                tabRow(.volumes)
-                tabRow(.networks)
-                tabRow(.registries)
+                tabRow(.cache)
                 tabRow(.storage)
-            }
-            Section("Build & Compose") {
                 tabRow(.build)
-                tabRow(.compose)
-                tabRow(.environments)
+            }
+            Section {
+                DisclosureGroup("Resources", isExpanded: $resourcesExpanded) {
+                    tabRow(.containers)
+                    tabRow(.volumes)
+                    tabRow(.networks)
+                    tabRow(.registries)
+                }
+                DisclosureGroup("Projects", isExpanded: $projectsExpanded) {
+                    tabRow(.compose)
+                    tabRow(.environments)
+                }
             }
             Section("System") {
                 tabRow(.settings)
             }
         }
         .listStyle(.sidebar)
-        .frame(minWidth: 180, idealWidth: 200)
+        .scrollContentBackground(.hidden)
+        .background(Tokens.Palette.sidebar)
+        .frame(minWidth: 190, idealWidth: 200)
         .safeAreaInset(edge: .bottom) {
             runtimeStatusCard
         }
         // Cap the whole column (inset included): otherwise the HStack hands
         // the sidebar half the window whenever a tab's content is narrow.
-        .frame(maxWidth: 240)
+        .frame(maxWidth: 220)
+        .onAppear { revealSelection(store.activeTab) }
+        .onChange(of: store.activeTab) { _, tab in revealSelection(tab) }
     }
 
     private func tabRow(_ tab: AppStore.ActiveTab) -> some View {
-        Label(tab.title, systemImage: tab.icon)
-            .badge(count(for: tab).flatMap { $0 > 0 ? Text("\($0)") : nil })
-            .tag(tab)
+        let selected = store.activeTab == tab
+        return Label {
+            Text(tab.title)
+                .font(Tokens.Typography.body.weight(selected ? .semibold : .regular))
+                .foregroundStyle(selected ? Tokens.Palette.accentText : Tokens.Palette.primary)
+        } icon: {
+            WorkspaceIcon(name: pictogram(for: tab), size: 18, fallback: tab.icon)
+                .foregroundStyle(selected ? Tokens.Palette.accentText : Tokens.Palette.secondary)
+        }
+        .badge(count(for: tab).flatMap { $0 > 0 ? Text("\($0)") : nil })
+        .tag(tab)
     }
 
     // MARK: - Icon rail
@@ -135,42 +185,45 @@ struct MainPanelView: View {
     /// Compact icon-only navigation (Finder-style rail) for medium windows.
     private var iconRail: some View {
         VStack(spacing: 2) {
-            ForEach(AppStore.ActiveTab.allCases) { tab in
-                let isSelected = store.activeTab == tab
-                Button {
-                    store.activeTab = tab
-                } label: {
-                    Image(systemName: tab.icon)
-                        .font(.system(size: 15, weight: .medium))
-                        .frame(width: 34, height: 30)
-                        .contentShape(Rectangle())
-                        .overlay(alignment: .topTrailing) {
-                            if let count = count(for: tab), count > 0 {
-                                Text("\(count)")
-                                    .font(.system(size: 8, weight: .semibold).monospacedDigit())
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 3)
-                                    .padding(.vertical, 1)
-                                    .background(Color.accentColor, in: Capsule())
-                                    .contentTransition(.numericText())
-                                    .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: count)
-                                    .offset(x: 4, y: -2)
-                            }
+            ScrollView(.vertical) {
+                VStack(spacing: 2) {
+                    ForEach(AppStore.ActiveTab.allCases) { tab in
+                        let isSelected = store.activeTab == tab
+                        Button {
+                            store.activeTab = tab
+                        } label: {
+                            WorkspaceIcon(name: pictogram(for: tab), size: 18, fallback: tab.icon)
+                                .frame(width: 34, height: 30)
+                                .contentShape(Rectangle())
+                                .overlay(alignment: .topTrailing) {
+                                    if let count = count(for: tab), count > 0 {
+                                        Text("\(count)")
+                                            .font(.system(size: 8, weight: .semibold).monospacedDigit())
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 3)
+                                            .padding(.vertical, 1)
+                                            .background(Tokens.Palette.action, in: Capsule())
+                                            .contentTransition(.numericText())
+                                            .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: count)
+                                            .offset(x: -1, y: -1)
+                                    }
+                                }
                         }
+                        .buttonStyle(.plain)
+                        .help(tab.title)
+                        .accessibilityLabel(tab.title)
+                        .foregroundStyle(isSelected ? Tokens.Palette.accentText : Tokens.Palette.secondary)
+                        .background(
+                            isSelected ? Tokens.Palette.selection : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 6))
+                    }
                 }
-                .buttonStyle(.plain)
-                .help(tab.title)
-                .accessibilityLabel(tab.title)
-                .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
-                .background(
-                    isSelected ? Color.accentColor.opacity(0.16) : Color.clear,
-                    in: RoundedRectangle(cornerRadius: 6))
             }
-            Spacer()
+            .scrollIndicators(.hidden)
             // Runtime status stays one glance away in rail mode.
             Button {
                 if store.isRuntimeRunning {
-                    Task { await store.stopRuntime() }
+                    store.activeTab = .settings
                 } else if store.clientAvailable {
                     Task { await store.startRuntime() }
                 }
@@ -180,11 +233,12 @@ struct MainPanelView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("\(statusText) — click to \(store.isRuntimeRunning ? "stop" : "start")")
+            .help(store.isRuntimeRunning ? "Runtime settings" : "Start runtime")
             .accessibilityLabel(statusText)
         }
         .padding(.vertical, 8)
         .frame(width: 50)
+        .background(Tokens.Palette.sidebar)
     }
 
     // MARK: - Content
@@ -193,6 +247,8 @@ struct MainPanelView: View {
     private var content: some View {
         switch store.activeTab {
         case .dashboard: DashboardView(store: store)
+        case .workloads: WorkloadsView(store: store)
+        case .cache: CacheView(store: store)
         case .containers: ContainersView(store: store)
         case .machines: MachinesView(store: store)
         case .images: ImagesView(store: store)
@@ -210,7 +266,9 @@ struct MainPanelView: View {
     // MARK: - Runtime status
 
     private var runtimeStatusCard: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let count = store.workloadItems.count(where: \.isRunning)
+        let available = store.clientAvailable && store.isRuntimeRunning
+        return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 StatusDot(color: statusColor, size: 8, active: store.isStartingRuntime)
                 Text(statusText)
@@ -227,11 +285,11 @@ struct MainPanelView: View {
                     .accessibilityLabel("Start runtime")
                 }
             }
-            Text("\(store.runningCount) running · \(store.containers.count) total")
+            Text(available ? "\(count) running · Local" : "\(count) last seen running")
                 .font(.caption2.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .contentTransition(.numericText())
-                .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: store.runningCount)
+                .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: count)
         }
         .padding(10)
         .cardSurface(cornerRadius: 10, fillOpacity: 0.8)
@@ -241,20 +299,22 @@ struct MainPanelView: View {
     private var statusText: String {
         if !store.clientAvailable { return "container CLI not found" }
         if store.isStartingRuntime { return "Starting runtime…" }
-        if store.isRuntimeRunning { return "Runtime running" }
+        if store.runtimeHealth == .wedged { return "Runtime needs attention" }
+        if store.isRuntimeRunning { return "Runtime ready" }
         return "Runtime stopped"
     }
 
     private var statusColor: Color {
-        if !store.clientAvailable { return .red }
-        if store.isStartingRuntime { return .orange }
-        if store.isRuntimeRunning { return .green }
-        return .gray
+        if !store.clientAvailable { return Tokens.Palette.danger }
+        if store.isStartingRuntime || store.runtimeHealth == .wedged { return Tokens.Palette.warning }
+        if store.isRuntimeRunning { return Tokens.Palette.success }
+        return Tokens.Palette.tertiary
     }
 
     /// Live counts per tab (HIG: badges communicate state at a glance).
     private func count(for tab: AppStore.ActiveTab) -> Int? {
         switch tab {
+        case .workloads: store.workloadItems.count
         case .containers: store.containers.count
         case .machines: store.machines.filter(\.isRunning).count
         case .images: store.images.count
@@ -264,10 +324,34 @@ struct MainPanelView: View {
         }
     }
 
+    private func revealSelection(_ tab: AppStore.ActiveTab) {
+        if [.containers, .volumes, .networks, .registries].contains(tab) { resourcesExpanded = true }
+        if [.compose, .environments].contains(tab) { projectsExpanded = true }
+    }
+
+    private func pictogram(for tab: AppStore.ActiveTab) -> String {
+        switch tab {
+        case .dashboard: "activity"
+        case .workloads: "workloads"
+        case .containers: "container"
+        case .machines: "microvm"
+        case .images: "images"
+        case .cache: "cache"
+        case .storage, .volumes: "storage"
+        case .networks, .registries: "network"
+        case .build: "terminal"
+        case .compose: "stack"
+        case .environments: "workloads"
+        case .settings: "settings"
+        }
+    }
+
     private func handleDeepLink(_ url: URL) {
         guard url.scheme == "micropod" else { return }
         switch url.host {
         case "dashboard": store.activeTab = .dashboard
+        case "workloads": store.activeTab = .workloads
+        case "cache": store.activeTab = .cache
         case "containers":
             store.activeTab = .containers
             if url.pathComponents.count > 1 {

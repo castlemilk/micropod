@@ -5,11 +5,14 @@ public struct LogLine: Sendable, Equatable, Identifiable {
     public let id: UUID
     public let text: String
     public let timestamp: Date
+    /// Cumulative complete lines discarded by a saturated source queue.
+    public let upstreamDiscardedLines: Int
 
-    public init(id: UUID = UUID(), text: String, timestamp: Date = Date()) {
+    public init(id: UUID = UUID(), text: String, timestamp: Date = Date(), upstreamDiscardedLines: Int = 0) {
         self.id = id
         self.text = text
         self.timestamp = timestamp
+        self.upstreamDiscardedLines = upstreamDiscardedLines
     }
 }
 
@@ -47,32 +50,98 @@ public struct LogStreamer: LogStreaming {
     /// Re-chunks raw CLI output into complete lines (partial trailing lines
     /// are held until their newline arrives, flushed at EOF).
     public static func lines(_ chunks: AsyncThrowingStream<Data, Error>) -> AsyncThrowingStream<LogLine, Error> {
-        AsyncThrowingStream { continuation in
-            let task = Task {
-                var buffer = ""
+        // Shared CLI/API consumers require every complete line. Backpressure
+        // bounds queued text near 1 MiB without silently dropping log output.
+        AsyncThrowingStream(bufferingPolicy: .bufferingOldest(64)) { continuation in
+            let task = Task.detached {
+                var decoder = StreamingUTF8Decoder()
+                var buffer = BoundedLogLineAccumulator()
+                var iterator = chunks.makeAsyncIterator()
+                func yield(_ text: String) async throws {
+                    let line = LogLine(text: text)
+                    var yieldedOnce = false
+                    while true {
+                        try Task.checkCancellation()
+                        switch continuation.yield(line) {
+                        case .enqueued:
+                            return
+                        case .dropped:
+                            if !yieldedOnce {
+                                yieldedOnce = true
+                                await Task.yield()
+                            } else {
+                                try await Task.sleep(for: .milliseconds(1))
+                            }
+                        case .terminated:
+                            throw CancellationError()
+                        @unknown default:
+                            throw CancellationError()
+                        }
+                    }
+                }
                 do {
-                    for try await chunk in chunks {
-                        guard let text = String(data: chunk, encoding: .utf8) else { continue }
-                        buffer += text
-                        var lines = buffer.split(separator: "\n", omittingEmptySubsequences: false)
-                        if buffer.last == "\n" {
-                            buffer = ""
-                        } else if let incomplete = lines.popLast() {
-                            buffer = String(incomplete)
-                        }
-                        for line in lines where !line.isEmpty {
-                            continuation.yield(LogLine(text: String(line)))
-                        }
+                    while let chunk = try await iterator.next() {
+                        try Task.checkCancellation()
+                        for line in buffer.append(decoder.decode(chunk)) { try await yield(line) }
                     }
-                    if !buffer.isEmpty {
-                        continuation.yield(LogLine(text: buffer))
-                    }
+                    for line in buffer.append(decoder.finish()) { try await yield(line) }
+                    if let trailing = buffer.finish() { try await yield(trailing) }
                     continuation.finish()
                 } catch {
+                    if Task.isCancelled || error is CancellationError {
+                        // Cancellation can arrive while a saturated delivery
+                        // queue is waiting rather than inside the raw next().
+                        // Re-enter next in the cancelled task so the upstream
+                        // stream runs its termination handler immediately.
+                        withUnsafeCurrentTask { $0?.cancel() }
+                        _ = try? await iterator.next()
+                    }
                     continuation.finish(throwing: error)
                 }
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+}
+
+/// A newline-free source cannot grow an unbounded partial line. The retained
+/// prefix has a visible truncation marker; the next newline resets the budget.
+struct BoundedLogLineAccumulator: Sendable {
+    static let maximumBytes = 16 * 1024
+    private var partial = ""
+    private var partialBytes = 0
+    private var truncated = false
+
+    mutating func append(_ text: String) -> [String] {
+        let fragments = text.split(separator: "\n", omittingEmptySubsequences: false)
+        var complete: [String] = []
+        for (index, fragment) in fragments.enumerated() {
+            if !truncated {
+                let remaining = Self.maximumBytes - partialBytes
+                let fragmentBytes = fragment.utf8.count
+                if fragmentBytes <= remaining {
+                    partial.append(contentsOf: fragment)
+                    partialBytes += fragmentBytes
+                } else {
+                    var decoder = StreamingUTF8Decoder()
+                    let prefix = decoder.decode(Data(fragment.utf8.prefix(remaining)))
+                    partial.append(prefix)
+                    partialBytes += prefix.utf8.count
+                    truncated = true
+                }
+            }
+            if index < fragments.count - 1, let line = finish() { complete.append(line) }
+        }
+        return complete
+    }
+
+    mutating func finish() -> String? {
+        defer {
+            partial = ""
+            partialBytes = 0
+            truncated = false
+        }
+        guard !partial.isEmpty || truncated else { return nil }
+        return partial + (truncated ? " … [line truncated at 16 KiB]" : "")
     }
 }

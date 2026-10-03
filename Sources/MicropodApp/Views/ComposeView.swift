@@ -21,31 +21,42 @@ struct ComposeView: View {
     @State private var serviceLogs: Set<String> = []
     @State private var rawYAML: String?
 
+    init(store: AppStore, initialSpec: Micropod_V1_ComposeSpec? = nil) {
+        self.store = store
+        _spec = State(initialValue: initialSpec)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                if spec != nil {
-                    Button {
-                        saveEnvironment()
-                    } label: {
-                        saved
-                            ? IconLabel(title: String(localized: "Saved"), icon: "save", fallback: "checkmark")
-                            : IconLabel(
-                                title: String(localized: "Save"), icon: "save", fallback: "square.and.arrow.down")
+            WorkspacePageHeader(
+                title: "Compose", subtitle: "Multi-container environments",
+                icon: "stack", fallback: "square.stack.3d.up"
+            ) {
+                HStack(spacing: Tokens.Spacing.sm) {
+                    if spec != nil {
+                        Button {
+                            saveEnvironment()
+                        } label: {
+                            saved
+                                ? IconLabel(title: String(localized: "Saved"), icon: "save", fallback: "checkmark")
+                                : IconLabel(
+                                    title: String(localized: "Save"), icon: "save", fallback: "square.and.arrow.down")
+                        }
+                        .controlSize(.small)
+                        .disabled(saved)
                     }
+                    Button {
+                        showImporter = true
+                    } label: {
+                        IconLabel(
+                            title: String(localized: "Import compose file…"), icon: "import", fallback: "arrow.down.doc"
+                        )
+                    }
+                    .buttonStyle(.borderedProminent)
                     .controlSize(.small)
-                    .disabled(saved)
                 }
-                Button {
-                    showImporter = true
-                } label: {
-                    IconLabel(
-                        title: String(localized: "Import compose file…"), icon: "import", fallback: "arrow.down.doc")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
             }
-            .padding(12)
+            .padding(Tokens.Spacing.contentInset)
 
             if let spec, !availableProfiles.isEmpty {
                 profileBar(spec)
@@ -53,24 +64,35 @@ struct ComposeView: View {
 
             Divider()
 
-            if let spec {
-                specSummary(spec)
-            } else if let parseError {
-                ContentUnavailableView(
-                    String(localized: "Compose Import Failed"),
-                    systemImage: "exclamationmark.triangle",
-                    description: Text(parseError))
-            } else {
-                EmptyStateView(
-                    title: String(localized: "No Compose File"),
-                    description: String(
-                        localized:
-                            "Import a docker-compose.yml to orchestrate multi-container environments on the container runtime. Apple's `container` has no native compose — Micropod translates it: networks, volumes, builds, ordered starts, and real healthcheck-based readiness probes."
-                    ),
-                    imageName: EmptyStateArtwork.compose,
-                    symbol: "square.stack.3d.up",
-                    actionTitle: String(localized: "Import compose file…"),
-                    action: { showImporter = true })
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    if let spec {
+                        specSummary(spec)
+                    } else if let parseError {
+                        ContentUnavailableView(
+                            String(localized: "Compose Import Failed"),
+                            systemImage: "exclamationmark.triangle",
+                            description: Text(parseError))
+                    } else {
+                        EmptyStateView(
+                            title: String(localized: "No Compose File"),
+                            description: String(
+                                localized:
+                                    "Import a docker-compose.yml to orchestrate multi-container environments on the container runtime. Micropod translates its networks, volumes, builds, ordered starts, and healthchecks."
+                            ),
+                            imageName: EmptyStateArtwork.compose,
+                            symbol: "square.stack.3d.up",
+                            actionTitle: String(localized: "Import compose file…"),
+                            action: { showImporter = true })
+                    }
+                    if !run.steps.isEmpty || runError != nil || !run.rawLog.isEmpty {
+                        Divider()
+                        stepPipeline
+                    }
+                }
+                .padding(.horizontal, Tokens.Spacing.contentInset)
+                .frame(maxWidth: 920, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .top)
             }
 
             Divider()
@@ -90,6 +112,7 @@ struct ComposeView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .disabled(running)
+                    .accessibilityIdentifier("compose.down")
                     Button {
                         up()
                     } label: {
@@ -98,14 +121,12 @@ struct ComposeView: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                     .disabled(running)
+                    .accessibilityIdentifier("compose.up")
+                    .formActionBounds("compose.up")
                 }
             }
             .padding(10)
-
-            if !run.steps.isEmpty || runError != nil || run.rawLog.isEmpty == false {
-                Divider()
-                stepPipeline
-            }
+            .fixedSize(horizontal: false, vertical: true)
         }
         .fileImporter(isPresented: $showImporter, allowedContentTypes: [.plainText]) { result in
             switch result {
@@ -120,18 +141,16 @@ struct ComposeView: View {
     // MARK: - Step pipeline (plan → live stepper → service logs)
 
     private var stepPipeline: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 8) {
-                stepper
-                if let runError {
-                    Text(runError).font(.footnote.monospaced()).foregroundStyle(.red)
-                }
-                serviceLogSection
-                rawLogDisclosure
+        VStack(alignment: .leading, spacing: 8) {
+            stepper
+            if let runError {
+                Text(runError).font(.footnote.monospaced()).foregroundStyle(.red)
+                    .textSelection(.enabled)
             }
-            .padding(10)
+            serviceLogSection
+            rawLogDisclosure
         }
-        .frame(maxHeight: .infinity)
+        .padding(12)
         .background(.quaternary.opacity(0.25))
     }
 
@@ -341,64 +360,67 @@ struct ComposeView: View {
     }
 
     private func specSummary(_ spec: Micropod_V1_ComposeSpec) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text(spec.name).font(.headline)
-                    Text(spec.path).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                }
-                ForEach(Array(spec.services.enumerated()), id: \.offset) { _, service in
-                    let isActive =
-                        service.profiles.isEmpty
-                        || service.profiles.contains(where: enabledProfiles.contains)
-                    VStack(alignment: .leading, spacing: 2) {
-                        if !isActive {
-                            Text(String(localized: "off — profile \(service.profiles.joined(separator: ", "))"))
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(spec.name).font(.headline).textSelection(.enabled)
+                Text(spec.path)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .help(spec.path)
+            }
+            ForEach(Array(spec.services.enumerated()), id: \.offset) { _, service in
+                let isActive =
+                    service.profiles.isEmpty
+                    || service.profiles.contains(where: enabledProfiles.contains)
+                VStack(alignment: .leading, spacing: 2) {
+                    if !isActive {
+                        Text(String(localized: "off — profile \(service.profiles.joined(separator: ", "))"))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(service.name).font(.callout.weight(.medium))
+                        if !service.image.isEmpty {
+                            Text(service.image).font(.caption).foregroundStyle(.secondary)
+                        } else if !service.buildContext.isEmpty {
+                            Text(String(localized: "build: \(service.buildContext)")).font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-                        HStack(spacing: 6) {
-                            Text(service.name).font(.callout.weight(.medium))
-                            if !service.image.isEmpty {
-                                Text(service.image).font(.caption).foregroundStyle(.secondary)
-                            } else if !service.buildContext.isEmpty {
-                                Text(String(localized: "build: \(service.buildContext)")).font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            if !service.healthcheckCommand.isEmpty {
-                                Text(String(localized: "healthcheck")).font(.caption2).foregroundStyle(.orange)
-                            }
-                            if !service.dependsOn.isEmpty {
-                                Text(String(localized: "depends on: \(service.dependsOn.joined(separator: ", "))"))
-                                    .font(.caption2).foregroundStyle(.tertiary)
-                            }
+                        if !service.healthcheckCommand.isEmpty {
+                            Text(String(localized: "healthcheck")).font(.caption2).foregroundStyle(.orange)
                         }
-                        if !service.ports.isEmpty {
-                            Text(
-                                service.ports.map { "\($0.hostPort):\($0.containerPort)/\($0.protocol)" }.joined(
-                                    separator: ", ")
-                            )
-                            .font(.caption2.monospaced())
-                            .foregroundStyle(.secondary)
-                        }
-                        let extras = composeExtras(service)
-                        if !extras.isEmpty {
-                            Text(extras).font(.caption2).foregroundStyle(.secondary)
+                        if !service.dependsOn.isEmpty {
+                            Text(String(localized: "depends on: \(service.dependsOn.joined(separator: ", "))"))
+                                .font(.caption2).foregroundStyle(.tertiary)
                         }
                     }
-                    .padding(8)
-                    .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 6))
-                    .opacity(isActive ? 1 : 0.45)
-                }
-                if let plan {
-                    Text(String(localized: "Plan: \(plan.steps.count) steps"))
-                        .font(.caption)
+                    if !service.ports.isEmpty {
+                        Text(
+                            service.ports.map { "\($0.hostPort):\($0.containerPort)/\($0.protocol)" }.joined(
+                                separator: ", ")
+                        )
+                        .font(.caption2.monospaced())
                         .foregroundStyle(.secondary)
+                    }
+                    let extras = composeExtras(service)
+                    if !extras.isEmpty {
+                        Text(extras).font(.caption2).foregroundStyle(.secondary)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8)
+                .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 6))
+                .opacity(isActive ? 1 : 0.45)
             }
-            .padding(12)
+            if let plan {
+                Text(String(localized: "Plan: \(plan.steps.count) steps"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
-        .frame(maxHeight: .infinity)
+        .padding(12)
     }
 
     private var availableProfiles: [String] {
@@ -408,33 +430,35 @@ struct ComposeView: View {
 
     /// HIG: chips toggle profiles; profiled services are dimmed until enabled.
     private func profileBar(_ spec: Micropod_V1_ComposeSpec) -> some View {
-        HStack(spacing: 6) {
-            Text(String(localized: "Profiles")).font(.caption.weight(.medium)).foregroundStyle(.secondary)
-            ForEach(ProfileChip.all(availableProfiles)) { chip in
-                Button {
-                    if profileIsOn(chip.name) {
-                        enabledProfiles.remove(chip.name)
-                    } else {
-                        enabledProfiles.insert(chip.name)
+        ScrollView(.horizontal) {
+            HStack(spacing: 6) {
+                Text(String(localized: "Profiles")).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                ForEach(ProfileChip.all(availableProfiles)) { chip in
+                    Button {
+                        if profileIsOn(chip.name) {
+                            enabledProfiles.remove(chip.name)
+                        } else {
+                            enabledProfiles.insert(chip.name)
+                        }
+                        plan = try? store.dependencies.compose.plan(spec: spec, enabledProfiles: enabledProfiles)
+                    } label: {
+                        Text(chip.name)
+                            .font(.caption.weight(.medium))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(
+                                profileIsOn(chip.name) ? Color.accentColor : Color(nsColor: .quaternaryLabelColor),
+                                in: Capsule()
+                            )
+                            .foregroundStyle(profileIsOn(chip.name) ? .white : .primary)
                     }
-                    plan = try? store.dependencies.compose.plan(spec: spec, enabledProfiles: enabledProfiles)
-                } label: {
-                    Text(chip.name)
-                        .font(.caption.weight(.medium))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(
-                            profileIsOn(chip.name) ? Color.accentColor : Color(nsColor: .quaternaryLabelColor),
-                            in: Capsule()
-                        )
-                        .foregroundStyle(profileIsOn(chip.name) ? .white : .primary)
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
-            Spacer()
+            .padding(.horizontal, 12)
+            .padding(.bottom, 8)
         }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 8)
+        .scrollIndicators(.hidden)
     }
 
     private func profileIsOn(_ name: String) -> Bool {

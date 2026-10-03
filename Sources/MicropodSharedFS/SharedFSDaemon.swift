@@ -31,12 +31,40 @@ public actor SharedFSDaemon: SharedFSClient {
     private var viewsBySrc: [String: Set<ViewID>] = [:]
     private var viewWatchers: [ViewID: FSEventsWatcher] = [:]
     private var srcWatchers: [String: FSEventsWatcher] = [:]
+    /// A persistent, whole-cache retention preference. It also protects
+    /// future chunks, unlike a UI-only list of currently visible hashes.
+    private var cacheKeepEnabled: Bool
+    private var cacheRetentionWarning: String? = nil
+    private var cleanupReviews: [String: (createdAt: Date, hashes: [ChunkHash])] = [:]
+
+    /// Shared mounts are also registered in `views` for inspect/refresh.
+    /// Merge by identity so metrics and inventories count each view once.
+    private var activeViews: [SharedView] {
+        var unique = views
+        for view in sharedViews.values { unique[view.id] = view }
+        return Array(unique.values)
+    }
 
     public init(cacheRoot: URL, cacheMaxBytes: UInt64? = nil) throws {
         self.cacheRoot = cacheRoot
         self.viewsRoot = cacheRoot.appendingPathComponent("views", isDirectory: true)
         self.store = try ChunkStore(root: cacheRoot.appendingPathComponent("chunks", isDirectory: true))
         try FileManager.default.createDirectory(at: viewsRoot, withIntermediateDirectories: true)
+        let retentionURL = cacheRoot.appendingPathComponent("retention.json")
+        if FileManager.default.fileExists(atPath: retentionURL.path) {
+            do {
+                cacheKeepEnabled = try JSONDecoder().decode(Bool.self, from: Data(contentsOf: retentionURL))
+            } catch {
+                // A damaged preference cannot be interpreted as consent
+                // to evict kept data. Keep serving mounts and fail closed.
+                cacheKeepEnabled = true
+                cacheRetentionWarning =
+                    "Retention preferences could not be read. Package data is kept until you choose a retention setting."
+                fputs("[sharedfs] unreadable retention preference; preserving package cache\n", stderr)
+            }
+        } else {
+            cacheKeepEnabled = false
+        }
         if let cacheMaxBytes {
             self.cacheMaxBytes = cacheMaxBytes
         } else if let env = ProcessInfo.processInfo.environment["RUNNER_CACHE_MAX_BYTES"],
@@ -88,14 +116,22 @@ public actor SharedFSDaemon: SharedFSClient {
             sharedCachePinnedOverCap = 0
             return GCResult(chunksRemoved: 0, bytesReclaimed: 0)
         }
+        if cacheKeepEnabled {
+            sharedCachePinnedOverCap = 1
+            return GCResult(chunksRemoved: 0, bytesReclaimed: 0)
+        }
+        // After a restart, the daemon cannot prove that a retained view
+        // directory is idle. Preserve its backing data rather than evict
+        // against an incomplete mount registry; unreadable inventories
+        // also fail closed.
+        if (try? hasUntrackedViewDirectories()) != false {
+            sharedCachePinnedOverCap = 1
+            return GCResult(chunksRemoved: 0, bytesReclaimed: 0)
+        }
         // Collect live pinned chunks from active views (view-backed pinning)
         var livePinned: Set<String> = []
-        for view in views.values {
-            let hashes = await chunksInUse(view: view.root)
-            livePinned.formUnion(hashes)
-        }
-        for view in sharedViews.values {
-            let hashes = await chunksInUse(view: view.root)
+        for view in activeViews {
+            let hashes = chunksInUse(view: view.root)
             livePinned.formUnion(hashes)
         }
 
@@ -205,7 +241,7 @@ public actor SharedFSDaemon: SharedFSClient {
     /// evicted_chunks_total, gcs_push_errors_total, shared_views_pinned.
     public func cacheMetrics() -> [String: Int] {
         // shared_views_pinned = active sharedViews count (pinned)
-        let pinned = sharedViews.count + views.count  // approx
+        let pinned = activeViews.count
         return [
             "shared_cache_hit_total_local": localHits,
             "shared_cache_hit_total_remote": remoteHits,
@@ -339,7 +375,7 @@ public actor SharedFSDaemon: SharedFSClient {
     }
 
     public func list() async throws -> [MountInfo] {
-        views.values.map { view in
+        activeViews.map { view in
             MountInfo(
                 id: view.id, src: view.source.path, viewPath: view.root.path,
                 sizeBytes: view.size(), readonly: false, createdAt: view.createdAt)
@@ -347,25 +383,24 @@ public actor SharedFSDaemon: SharedFSClient {
     }
 
     public func gc() async throws -> GCResult {
-        // Reference count = sum of live views' file references. We do a
-        // simple GC by counting how many store chunks each view references
-        // (by walking and hashing), then removing anything not referenced.
-        // Also keep indexedSize in sync via ChunkStore index (no du).
-        var liveChunks: Set<String> = []
-        for view in views.values {
-            let chunkSet = await chunksInUse(view: view.root)
-            for hash in chunkSet { liveChunks.insert(hash) }
+        // Live views can change while the host hashes their contents. A
+        // manual purge therefore runs only when every ordinary/shared
+        // mount is idle, and also honours explicit retention/ref counts.
+        // Automatic cap eviction retains its bounded LRU policy.
+        guard try cleanupBlockedReason() == nil else {
+            return GCResult(chunksRemoved: 0, bytesReclaimed: 0)
         }
         // Use store index for size tracking; enumerate via store to keep index authoritative.
         let allHashes = store.allChunkHashes()
         // Also include any stray files not in index (e.g., pre-existing) by scanning filesystem.
         let fsNames = (try? FileManager.default.contentsOfDirectory(atPath: store.root.path)) ?? []
         var allNames = Set(allHashes.map { $0.value })
-        allNames.formUnion(fsNames.filter { $0.count == 64 })
+        allNames.formUnion(fsNames.filter { $0.count == 64 && $0.allSatisfy(\.isHexDigit) })
         var removed = 0
         var bytesReclaimed: UInt64 = 0
-        for name in allNames where !liveChunks.contains(name) {
+        for name in allNames {
             let hash = ChunkHash(unchecked: name)
+            guard store.refCount(for: hash) == 0 else { continue }
             let url = store.root.appendingPathComponent(name)
             let size =
                 store.chunkSize(hash)
@@ -376,13 +411,8 @@ public actor SharedFSDaemon: SharedFSClient {
                     return UInt64(0)
                 }()
             // Use store.remove to keep indexedSize consistent; check existence without bumping atime.
-            let exists = store.exists(hash) || FileManager.default.fileExists(atPath: url.path)
-            if exists {
-                try? store.remove(hash)
-                if FileManager.default.fileExists(atPath: url.path) {
-                    try? FileManager.default.removeItem(at: url)
-                }
-            }
+            guard store.exists(hash) || FileManager.default.fileExists(atPath: url.path) else { continue }
+            try store.remove(hash)
             removed += 1
             bytesReclaimed += size
         }
@@ -390,6 +420,91 @@ public actor SharedFSDaemon: SharedFSClient {
             evictedChunksTotal += removed
         }
         return GCResult(chunksRemoved: removed, bytesReclaimed: bytesReclaimed)
+    }
+
+    /// Snapshot reads the daemon's size index. Mount identities are cheap;
+    /// sizeBytes is intentionally omitted rather than walking every view.
+    public func cacheSnapshot() async throws -> SharedCacheSnapshot {
+        let mounts = activeViews.map { view in
+            MountInfo(
+                id: view.id, src: view.source.path, viewPath: view.root.path,
+                sizeBytes: 0, readonly: false, createdAt: view.createdAt)
+        }.sorted { $0.src < $1.src }
+        return SharedCacheSnapshot(
+            cacheRoot: cacheRoot.path, measuredAt: Date(), storedBytes: store.indexedSize,
+            capBytes: cacheMaxBytes, chunkCount: store.allChunkHashes().count,
+            activeMounts: mounts, keepEnabled: cacheKeepEnabled,
+            overCap: store.indexedSize > cacheMaxBytes, retentionWarning: cacheRetentionWarning)
+    }
+
+    public func setCacheKeepEnabled(_ enabled: Bool) async throws {
+        let data = try JSONEncoder().encode(enabled)
+        try data.write(to: cacheRoot.appendingPathComponent("retention.json"), options: .atomic)
+        cacheKeepEnabled = enabled
+        cacheRetentionWarning = nil
+        cleanupReviews.removeAll()
+    }
+
+    public func reviewCacheCleanup() async throws -> SharedCacheCleanupReview {
+        let now = Date()
+        cleanupReviews = cleanupReviews.filter { now.timeIntervalSince($0.value.createdAt) < 300 }
+        let all = store.allChunkHashes()
+        let reason = try cleanupBlockedReason()
+        let candidates = reason == nil ? all.filter { store.refCount(for: $0) == 0 } : []
+        let id = UUID().uuidString
+        // At most one current review; a newer review invalidates older UI.
+        cleanupReviews.removeAll()
+        if reason == nil { cleanupReviews[id] = (now, candidates) }
+        return SharedCacheCleanupReview(
+            id: id, createdAt: now, chunkCount: candidates.count,
+            storedBytes: candidates.reduce(0) { $0 + (store.chunkSize($1) ?? 0) },
+            protectedChunkCount: all.count - candidates.count, blockedReason: reason)
+    }
+
+    public func cleanReviewedCache(id: String) async throws -> GCResult {
+        guard let review = cleanupReviews.removeValue(forKey: id),
+            Date().timeIntervalSince(review.createdAt) < 300
+        else {
+            throw SharedFSError.invalidResponse("Cleanup review expired. Review the cache again.")
+        }
+        // These checks and deletions contain no actor suspension. A mount
+        // arriving after the preview prevents cleanup of every candidate.
+        if let reason = try cleanupBlockedReason() {
+            throw SharedFSError.invalidResponse("Cache state changed. \(reason)")
+        }
+        var removed = 0
+        var bytes: UInt64 = 0
+        for hash in review.hashes where store.refCount(for: hash) == 0 && store.exists(hash) {
+            let size = store.chunkSize(hash) ?? 0
+            try store.remove(hash)
+            removed += 1
+            bytes += size
+        }
+        evictedChunksTotal += removed
+        return GCResult(chunksRemoved: removed, bytesReclaimed: bytes)
+    }
+
+    /// View directories can outlive the daemon after a restart. They may
+    /// still be mounted by a container, so an empty in-memory registry
+    /// alone cannot authorize a manual purge. Never delete these views.
+    private func cleanupBlockedReason() throws -> String? {
+        if cacheKeepEnabled {
+            return "Turn off Keep package cache before reviewing cleanup."
+        }
+        if !views.isEmpty || !sharedViews.isEmpty {
+            return "Cleanup is available when all active cache mounts finish."
+        }
+        if try hasUntrackedViewDirectories() {
+            return
+                "Retained view directories may still be mounted after an agent restart. Cleanup is paused until their ownership can be verified."
+        }
+        return nil
+    }
+
+    private func hasUntrackedViewDirectories() throws -> Bool {
+        let registered = Set(activeViews.map { $0.root.lastPathComponent })
+        return try FileManager.default.contentsOfDirectory(atPath: viewsRoot.path)
+            .contains { !registered.contains($0) }
     }
 
     // MARK: - Live sync internals (user-space, per-file, efficient)
@@ -608,31 +723,35 @@ public actor SharedFSDaemon: SharedFSClient {
     /// Returns the set of chunk hashes a view's file contents resolve to,
     /// used for refcounted GC. The per-view tree is built from cloned chunks
     /// so the mapping is chunk→view; we walk and hash to recompute.
-    private func chunksInUse(view: URL) async -> Set<String> {
+    private func chunksInUse(view: URL) -> Set<String> {
         var chunks: Set<String> = []
+        var unreadable = false
         guard
             let enumerator = FileManager.default.enumerator(
                 at: view, includingPropertiesForKeys: [.isRegularFileKey],
-                options: [.skipsHiddenFiles])
-        else { return chunks }
-        let urls = enumerator.allObjects.compactMap { $0 as? URL }
-        for url in urls {
-            if let size = try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile,
-                size != true
-            {
-                continue
-            }
-            // Map the view file back to a chunk hash by reading its inode
-            // via `lstat` and matching that to a chunk filename. Cheap because
-            // chunks are filename = hash and APFS clonefile preserves the
-            // source inode. We do a fast stat + readlink-free match against
-            // the chunk store by content: just compute the digest and add.
-            // (This is heavier than inode matching but the daemon runs
-            // out-of-band on GC so it's fine; for hot paths we'd cache.)
-            if let hash = try? ChunkHash.computeFile(url) {
-                chunks.insert(hash.value)
+                options: [],
+                errorHandler: { _, _ in
+                    unreadable = true
+                    return false
+                })
+        else { return Set(store.allChunkHashes().map(\.value)) }
+        for case let url as URL in enumerator {
+            do {
+                guard try url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true else { continue }
+                let handle = try FileHandle(forReadingFrom: url)
+                defer { try? handle.close() }
+                // Match ingestFile's chunk boundaries, including hidden
+                // package-manager data and files larger than one block.
+                while let block = try handle.read(upToCount: store.blockSize), !block.isEmpty {
+                    chunks.insert(try ChunkHash.compute(block).value)
+                }
+            } catch {
+                unreadable = true
+                break
             }
         }
+        // An incomplete inventory cannot prove which chunks are unused.
+        if unreadable { return Set(store.allChunkHashes().map(\.value)) }
         return chunks
     }
 }

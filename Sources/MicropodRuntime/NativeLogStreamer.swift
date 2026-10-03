@@ -43,23 +43,49 @@ public struct NativeLogStreamer: LogStreaming {
     private let exitCodes: ExitCodeRegistry?
 
     /// A log fd plus the read cursor, reopened once per stream.
-    private struct Source {
+    private struct Source: Sendable {
         let handle: FileHandle
         var offset: UInt64 = 0
 
-        /// Reads everything appended since the last call.
-        mutating func drain() -> Data {
-            do {
-                try handle.seek(toOffset: offset)
-            } catch {
-                return Data()
+        func endOffset() throws -> UInt64 { try handle.seekToEnd() }
+
+        /// One bounded read from the bytes present when this drain began.
+        mutating func read(upTo end: UInt64) throws -> Data {
+            guard offset < end else { return Data() }
+            try handle.seek(toOffset: offset)
+            let chunk = try handle.read(upToCount: Int(min(1 << 16, end - offset))) ?? Data()
+            offset += UInt64(chunk.count)
+            return chunk
+        }
+
+        /// Find a line boundary near the end without materializing the whole
+        /// file. One extra line accommodates an unterminated trailing fragment.
+        mutating func seekForTail(_ lines: Int) throws {
+            var cursor = try endOffset()
+            var found = 0
+            var hasContent = false
+            while cursor > 0 {
+                try Task.checkCancellation()
+                let start = cursor > 1 << 16 ? cursor - (1 << 16) : 0
+                try handle.seek(toOffset: start)
+                let chunk = try handle.read(upToCount: Int(cursor - start)) ?? Data()
+                for index in chunk.indices.reversed() {
+                    if chunk[index] == 0x0A {
+                        if hasContent {
+                            found += 1
+                            hasContent = false
+                        }
+                        if found > max(0, lines) {
+                            offset = start + UInt64(index - chunk.startIndex) + 1
+                            return
+                        }
+                    } else {
+                        hasContent = true
+                    }
+                }
+                cursor = start
             }
-            var out = Data()
-            while let chunk = try? handle.read(upToCount: 1 << 16), !chunk.isEmpty {
-                out.append(chunk)
-            }
-            offset += UInt64(out.count)
-            return out
+            offset = 0
         }
     }
 
@@ -152,27 +178,82 @@ public struct NativeLogStreamer: LogStreaming {
     }
 
     public func tail(id: String, lines: Int = 100, boot: Bool = false) async throws -> [LogLine] {
-        var sources = try await sources(id: id, boot: boot)
-        var splitter = LineSplitter()
-        let all = splitter.feed(Self.drain(&sources)) + splitter.finish()
-        return all.suffix(lines).map { LogLine(text: $0) }
+        let sources = try await sources(id: id, boot: boot)
+        let worker = Task.detached {
+            var sources = sources
+            defer { Self.close(sources) }
+            if sources.count == 1 { try sources[0].seekForTail(lines) }
+            var splitter = LineSplitter()
+            var retained = TailBuffer(limit: max(0, lines))
+            for index in sources.indices {
+                let end = try sources[index].endOffset()
+                while true {
+                    try Task.checkCancellation()
+                    let chunk = try sources[index].read(upTo: end)
+                    if chunk.isEmpty { break }
+                    retained.append(contentsOf: try splitter.feed(chunk))
+                }
+            }
+            retained.append(contentsOf: splitter.finish())
+            return retained.lines.map { LogLine(text: $0) }
+        }
+        return try await withTaskCancellationHandler {
+            try await worker.value
+        } onCancel: {
+            worker.cancel()
+        }
     }
 
     public func stream(id: String, tail: Int? = nil, boot: Bool = false) -> AsyncThrowingStream<
         LogLine, Error
     > {
-        return AsyncThrowingStream { continuation in
-            let task = Task {
+        // Eight queued lines cap even pathological 1 MiB lines at 8 MiB.
+        return AsyncThrowingStream(bufferingPolicy: .bufferingOldest(8)) { continuation in
+            let task = Task.detached {
                 do {
                     var sources = try await self.sources(id: id, boot: boot)
+                    defer { Self.close(sources) }
                     var splitter = LineSplitter()
-                    func emit(_ lines: some Sequence<String>) {
-                        for line in lines { continuation.yield(LogLine(text: line)) }
+                    func emit(_ lines: [String]) async throws {
+                        for text in lines {
+                            let line = LogLine(text: text)
+                            var yieldedOnce = false
+                            while true {
+                                try Task.checkCancellation()
+                                switch continuation.yield(line) {
+                                case .enqueued: break
+                                case .dropped:
+                                    // Preserve full CLI/MCP output under slow
+                                    // consumers without an unbounded queue.
+                                    if !yieldedOnce {
+                                        yieldedOnce = true
+                                        await Task.yield()
+                                    } else {
+                                        try await Task.sleep(for: .milliseconds(1))
+                                    }
+                                    continue
+                                case .terminated: throw CancellationError()
+                                @unknown default: throw CancellationError()
+                                }
+                                break
+                            }
+                        }
                     }
 
                     // Backlog, honoring `tail`.
-                    let backlog = splitter.feed(Self.drain(&sources))
-                    emit(tail.map { backlog.suffix($0) } ?? backlog[...])
+                    if let tail, sources.count == 1 { try sources[0].seekForTail(tail) }
+                    var backlog = tail.map { TailBuffer(limit: max(0, $0)) }
+                    for index in sources.indices {
+                        let end = try sources[index].endOffset()
+                        while true {
+                            try Task.checkCancellation()
+                            let chunk = try sources[index].read(upTo: end)
+                            if chunk.isEmpty { break }
+                            let lines = try splitter.feed(chunk)
+                            if backlog != nil { backlog?.append(contentsOf: lines) } else { try await emit(lines) }
+                        }
+                    }
+                    if let backlog { try await emit(backlog.lines) }
 
                     // Follow until the stop signal.
                     let clock = ContinuousClock()
@@ -182,9 +263,18 @@ public struct NativeLogStreamer: LogStreaming {
                         if await self.exitRecorded(id: id) { break }
                         try await self.pause(id: id)
                         self.onTick()
-                        let fresh = Self.drain(&sources)
-                        if !fresh.isEmpty {
-                            emit(splitter.feed(fresh))
+                        var sawBytes = false
+                        for index in sources.indices {
+                            let end = try sources[index].endOffset()
+                            while true {
+                                try Task.checkCancellation()
+                                let chunk = try sources[index].read(upTo: end)
+                                if chunk.isEmpty { break }
+                                sawBytes = true
+                                try await emit(try splitter.feed(chunk))
+                            }
+                        }
+                        if sawBytes {
                             schedule.sawBytes(at: clock.now)
                             continue
                         }
@@ -213,7 +303,16 @@ public struct NativeLogStreamer: LogStreaming {
                     }
 
                     // Final drain: bytes that landed after the last tick.
-                    emit(splitter.feed(Self.drain(&sources)) + splitter.finish())
+                    for index in sources.indices {
+                        let end = try sources[index].endOffset()
+                        while true {
+                            try Task.checkCancellation()
+                            let chunk = try sources[index].read(upTo: end)
+                            if chunk.isEmpty { break }
+                            try await emit(try splitter.feed(chunk))
+                        }
+                    }
+                    try await emit(splitter.finish())
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -248,12 +347,8 @@ public struct NativeLogStreamer: LogStreaming {
         return await exitCodes.entry(for: id)?.exitCode != nil
     }
 
-    private static func drain(_ sources: inout [Source]) -> Data {
-        var data = Data()
-        for i in sources.indices {
-            data.append(sources[i].drain())
-        }
-        return data
+    private static func close(_ sources: [Source]) {
+        for source in sources { try? source.handle.close() }
     }
 
     /// When the follow loop next asks the runtime whether the container is
@@ -298,17 +393,19 @@ public struct NativeLogStreamer: LogStreaming {
         private var carry = Data()
 
         /// The complete, non-empty lines once `data` is appended.
-        mutating func feed(_ data: Data) -> [String] {
+        mutating func feed(_ data: Data) throws -> [String] {
             carry.append(data)
             var lines: [String] = []
             var start = carry.startIndex
             while let newline = carry[start...].firstIndex(of: 0x0A) {
                 if newline > start {
+                    guard newline - start <= 1024 * 1024 else { throw Self.oversizedLine() }
                     lines.append(String(decoding: carry[start..<newline], as: UTF8.self))
                 }
                 start = carry.index(after: newline)
             }
             carry.removeSubrange(carry.startIndex..<start)
+            guard carry.count <= 1024 * 1024 else { throw Self.oversizedLine() }
             return lines
         }
 
@@ -317,5 +414,33 @@ public struct NativeLogStreamer: LogStreaming {
             defer { carry.removeAll() }
             return carry.isEmpty ? [] : [String(decoding: carry, as: UTF8.self)]
         }
+
+        private static func oversizedLine() -> MicropodError {
+            .message("Log line exceeded the 1 MiB delivery limit; insert line breaks to continue streaming.")
+        }
+    }
+
+    /// A fixed-size ring for a requested backlog, rather than retaining every
+    /// decoded line before selecting its suffix.
+    private struct TailBuffer {
+        private var storage: [String?]
+        private var head = 0
+        private var count = 0
+        init(limit: Int) { storage = Array(repeating: nil, count: limit) }
+
+        mutating func append(contentsOf lines: [String]) {
+            guard !storage.isEmpty else { return }
+            for line in lines {
+                if count == storage.count {
+                    storage[head] = line
+                    head = (head + 1) % storage.count
+                } else {
+                    storage[(head + count) % storage.count] = line
+                    count += 1
+                }
+            }
+        }
+
+        var lines: [String] { (0..<count).compactMap { storage[(head + $0) % storage.count] } }
     }
 }

@@ -1,0 +1,28 @@
+{
+  "scope": "Design assets only; app/runtime code was not changed",
+  "staticReferenceCount": 45,
+  "missingReferences": [],
+  "duplicateIds": false,
+  "svgXmlFilesParsed": 31,
+  "iconCount": 24,
+  "tokenContrastChecks": 68,
+  "tokenContrastAllPass": true,
+  "swiftTokensTypecheck": "passed",
+  "browser": {
+    "screenSelectors": "passed",
+    "themeToggle": "passed",
+    "brandImagesLoaded": 6,
+    "iconDownloads": 24,
+    "keyboardTabNavigation": "passed",
+    "visibleBrokenImages": 0,
+    "horizontalOverflow": false,
+    "consoleErrorsOrWarnings": 0
+  },
+  "nativeSvgRendering": "AppKit contact sheet reviewed; brand mark reviewed at16/18/32px heights",
+  "limitations": [
+    "Visual concepts, not app implementation",
+    "SF Symbol fallbacks unverified against target SDK",
+    "Operational icons at16/18px and actual app template integration remain untested",
+    "No achieved runtime-performance or cache-efficiency claims"
+  ]
+}

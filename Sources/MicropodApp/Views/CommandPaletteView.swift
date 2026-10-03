@@ -25,7 +25,7 @@ struct CommandPaletteView: View {
         if !actions.isEmpty { result.append(PaletteSection(title: "Actions", items: actions)) }
         let navigate = navigateItems.filter { $0.matches(q) }
         if !navigate.isEmpty { result.append(PaletteSection(title: "Navigate", items: navigate)) }
-        let resources = resourceItems.filter { $0.matches(q) }
+        let resources = resourceItems(query: q)
         if !resources.isEmpty { result.append(PaletteSection(title: "Resources", items: resources)) }
         return result
     }
@@ -41,34 +41,47 @@ struct CommandPaletteView: View {
             flatItems.enumerated().map { ($0.element.id, $0.offset) },
             uniquingKeysWith: { first, _ in first })
 
-        ZStack {
-            Color.black.opacity(0.25)
-                .ignoresSafeArea()
-                .onTapGesture { store.showCommandPalette = false }
+        GeometryReader { geometry in
+            ZStack {
+                Color.black.opacity(0.25)
+                    .ignoresSafeArea()
+                    .onTapGesture { store.showCommandPalette = false }
 
-            VStack(spacing: 0) {
-                searchField(flatItems: flatItems, selection: effectiveSelection)
-                Divider()
-                if flatItems.isEmpty {
-                    ContentUnavailableView.search(text: query)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    resultList(sections: sections, indexByID: indexByID, selection: effectiveSelection)
+                VStack(spacing: 0) {
+                    searchField(flatItems: flatItems, selection: effectiveSelection)
+                    Divider()
+                    if flatItems.isEmpty {
+                        ContentUnavailableView.search(text: query)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        resultList(sections: sections, indexByID: indexByID, selection: effectiveSelection)
+                    }
+                    footer
                 }
-                footer
+                .frame(
+                    width: min(560, max(0, geometry.size.width - 32)),
+                    height: min(380, max(0, geometry.size.height - 32))
+                )
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.quaternary))
+                .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
+                .onExitCommand { store.showCommandPalette = false }
             }
-            .frame(width: 560, height: 380)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.quaternary))
-            .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
-            .onExitCommand { store.showCommandPalette = false }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .onAppear {
-            searchFocused = true
             selection = 0
             if let previous = UserDefaults.standard.string(forKey: Self.lastQueryKey) {
                 query = previous
             }
+        }
+        .task {
+            // The overlay's native text field must be installed before it
+            // can replace the page's current field editor. Requesting focus
+            // during onAppear can leave shortcuts reaching the page below.
+            try? await Task.sleep(for: .milliseconds(50))
+            guard !Task.isCancelled, store.showCommandPalette else { return }
+            searchFocused = true
         }
         .onDisappear {
             UserDefaults.standard.set(query, forKey: Self.lastQueryKey)
@@ -105,7 +118,7 @@ struct CommandPaletteView: View {
         .padding(.vertical, 12)
     }
 
-    private func resultList(sections: [PaletteSection], indexByID: [UUID: Int], selection: Int) -> some View {
+    private func resultList(sections: [PaletteSection], indexByID: [PaletteAction: Int], selection: Int) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2) {
@@ -150,6 +163,9 @@ struct CommandPaletteView: View {
                     Text(item.title)
                         .font(.callout)
                         .foregroundStyle(isSelected ? Color.accentColor : .primary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .help(item.title)
                     if let subtitle = item.subtitle, !subtitle.isEmpty {
                         Text(subtitle)
                             .font(.caption)
@@ -163,6 +179,7 @@ struct CommandPaletteView: View {
                     Text(badge)
                         .font(.caption2.monospaced())
                         .foregroundStyle(.secondary)
+                        .fixedSize()
                 }
             }
             .padding(.horizontal, 12)
@@ -222,27 +239,20 @@ struct CommandPaletteView: View {
         }
     }
 
-    private var resourceItems: [PaletteItem] {
+    private func resourceItems(query q: String) -> [PaletteItem] {
         // Filter the FULL arrays first — the palette must stay a real search
         // no matter how many resources exist — then cap only for rendering.
-        let q = query.lowercased()
+        let workloadTerms = PaletteSearch.terms(in: q)
         func matches(_ title: String, _ subtitle: String?) -> Bool {
             guard !q.isEmpty else { return true }
             return title.lowercased().contains(q) || subtitle?.lowercased().contains(q) == true
         }
         var items: [PaletteItem] = []
-        items += store.containers
-            .filter { matches($0.id, $0.image) }
+        items += store.workloadItems.lazy
+            .filter { PaletteSearch.matchesNormalizedWorkload($0.searchTerms, terms: workloadTerms) }
             .prefix(15)
-            .map { container in
-                PaletteItem(
-                    icon: "shippingbox",
-                    title: container.id,
-                    subtitle: container.image,
-                    badge: container.state,
-                    action: .selectContainer(container.id))
-            }
-        items += store.images
+            .map(PaletteItem.forWorkload)
+        items += store.images.lazy
             .filter { matches($0.names.first ?? $0.id, $0.id) }
             .prefix(10)
             .map { image in
@@ -253,7 +263,7 @@ struct CommandPaletteView: View {
                     badge: ByteFormat.string(image.sizeBytes),
                     action: .selectImage(image.id))
             }
-        items += store.volumes
+        items += store.volumes.lazy
             .filter { matches($0.id, $0.driver) }
             .prefix(8)
             .map { volume in
@@ -264,7 +274,7 @@ struct CommandPaletteView: View {
                     badge: ByteFormat.string(volume.sizeBytes),
                     action: .selectVolume(volume.id))
             }
-        items += store.networks
+        items += store.networks.lazy
             .filter { matches($0.id, "\($0.mode) · \($0.ipv4Subnet)") }
             .prefix(8)
             .map { network in
@@ -282,9 +292,14 @@ struct CommandPaletteView: View {
         store.showCommandPalette = false
         switch item.action {
         case .switchTab(let tab): store.activeTab = tab
+        case .selectWorkload(let route):
+            if let item = store.workloadItems.first(where: { $0.route == route }) {
+                store.openWorkload(item)
+            }
         case .selectContainer(let id):
-            store.activeTab = .containers
+            store.activeTab = .workloads
             store.selectedContainerID = id
+            store.selectedWorkloadID = "container:\(id)"
         case .selectImage(let id):
             store.activeTab = .images
             store.selectedImageID = id
@@ -295,14 +310,14 @@ struct CommandPaletteView: View {
             store.activeTab = .networks
             store.selectedNetworkID = id
         case .runContainer:
-            store.activeTab = .containers
+            store.activeTab = .workloads
             store.pendingRunSheet = true
         case .pullImage:
             store.activeTab = .images
             store.pendingPullSheet = true
         case .refreshAll: Task { await store.refreshAll() }
         case .startRuntime: Task { await store.startRuntime() }
-        case .stopRuntime: Task { await store.stopRuntime() }
+        case .stopRuntime: store.requestRuntimeStop()
         case .installKernel: Task { await store.installRecommendedKernel() }
         case .pruneContainers: Task { await store.pruneContainers() }
         }
@@ -311,21 +326,51 @@ struct CommandPaletteView: View {
 
 /// One palette row.
 struct PaletteItem: Identifiable {
-    let id = UUID()
+    var id: PaletteAction { action }
     let icon: String
     let title: String
     var subtitle: String? = nil
     var badge: String? = nil
     let action: PaletteAction
     var isEnabled = true
+    var searchTerms: String? = nil
 
     func matches(_ query: String) -> Bool {
-        title.lowercased().contains(query) || subtitle?.lowercased().contains(query) == true
+        if let searchTerms { return PaletteSearch.matchesWorkload(searchTerms, query: query) }
+        return title.lowercased().contains(query) || subtitle?.lowercased().contains(query) == true
+    }
+
+    static func forWorkload(_ workload: WorkloadItem) -> PaletteItem {
+        PaletteItem(
+            icon: workload.kind == .machine ? "server.rack" : "shippingbox",
+            title: workload.name,
+            subtitle: "\(workload.kindLabel) · \(workload.engineLabel) · \(workload.project)",
+            badge: workload.state, action: .selectWorkload(workload.route),
+            searchTerms: workload.searchTerms)
     }
 }
 
-enum PaletteAction {
+/// The palette uses the inventory's real indexed metadata at both filter
+/// stages. Static commands keep their existing title/subtitle matching.
+enum PaletteSearch {
+    static func terms(in query: String) -> [Substring] {
+        query.lowercased().split(whereSeparator: \.isWhitespace)
+    }
+
+    /// Inventory metadata is already normalized. Parse the query once for
+    /// the whole search, and stop scanning once the result limit is reached.
+    static func matchesNormalizedWorkload(_ searchTerms: String, terms: [Substring]) -> Bool {
+        terms.allSatisfy { searchTerms.contains($0) }
+    }
+
+    static func matchesWorkload(_ searchTerms: String, query: String) -> Bool {
+        matchesNormalizedWorkload(searchTerms.lowercased(), terms: terms(in: query))
+    }
+}
+
+enum PaletteAction: Hashable {
     case switchTab(AppStore.ActiveTab)
+    case selectWorkload(WorkloadRoute)
     case selectContainer(String)
     case selectImage(String)
     case selectVolume(String)

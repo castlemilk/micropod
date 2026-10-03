@@ -24,6 +24,12 @@ struct ContainerDetailView: View {
 
     @State private var pane: Pane = .overview
 
+    init(store: AppStore, containerID: String, initialPane: Pane = .overview) {
+        self._store = Bindable(store)
+        self.containerID = containerID
+        self._pane = State(initialValue: initialPane)
+    }
+
     private var container: Micropod_V1_Container? {
         store.containers.first { $0.id == containerID }
     }
@@ -33,27 +39,36 @@ struct ContainerDetailView: View {
             if let container {
                 header(container)
                 Divider()
-                Picker("Pane", selection: $pane) {
-                    ForEach(Pane.allCases) { p in
-                        Text(p.title).tag(p)
+                ViewThatFits(in: .horizontal) {
+                    Picker("Pane", selection: $pane) {
+                        ForEach(Pane.allCases) { p in Text(p.title).tag(p) }
                     }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize(horizontal: true, vertical: false)
+                    Picker("Inspector", selection: $pane) {
+                        ForEach(Pane.allCases) { p in Text(p.title).tag(p) }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(Tokens.Palette.accent)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
 
                 Divider()
 
-                switch pane {
-                case .overview: ContainerOverviewView(store: store, containerID: containerID)
-                case .logs: ContainerLogsView(store: store, containerID: containerID)
-                case .stats: ContainerStatsView(store: store, containerID: containerID)
-                case .inspect: ContainerInspectView(store: store, containerID: containerID)
-                case .config: ContainerConfigView(container: container)
-                case .files: ContainerFilesView(store: store, containerID: containerID)
-                case .terminal: ContainerTerminalView(store: store, containerID: containerID)
+                Group {
+                    switch pane {
+                    case .overview: ContainerOverviewView(store: store, containerID: containerID)
+                    case .logs: ContainerLogsView(store: store, containerID: containerID)
+                    case .stats: ContainerStatsView(store: store, containerID: containerID)
+                    case .inspect: ContainerInspectView(store: store, containerID: containerID)
+                    case .config: ContainerConfigView(container: container)
+                    case .files: ContainerFilesView(store: store, containerID: containerID)
+                    case .terminal: ContainerTerminalView(store: store, containerID: containerID)
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ContentUnavailableView(
                     "Container Deleted",
@@ -63,6 +78,9 @@ struct ContainerDetailView: View {
         }
         .onChange(of: containerID) { _, _ in
             pane = .overview
+        }
+        .sheet(isPresented: $showRunAgainSheet) {
+            RunContainerSheet(store: store, initialImage: container?.image ?? "alpine:latest")
         }
         .confirmationDialog(
             "Delete Container?",
@@ -89,22 +107,37 @@ struct ContainerDetailView: View {
                     .fill(stateColor(container))
                     .frame(width: 9, height: 9)
                 Text(container.id)
-                    .font(.title3.weight(.semibold))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(maxWidth: 260, alignment: .leading)
-                Text(container.image)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .font(Tokens.Typography.section)
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .layoutPriority(0)
-                Spacer()
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(container.id, forType: .string)
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.borderless)
+                .help("Copy container ID")
+                .accessibilityLabel("Copy container ID")
+            }
+            Text(container.image)
+                .font(Tokens.Typography.metadata)
+                .foregroundStyle(Tokens.Palette.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .help(container.image)
+                .textSelection(.enabled)
+            HStack(spacing: 8) {
+                Text(ContainerStateStyle.label(for: container.state).localizedCapitalized)
+                    .font(Tokens.Typography.metadata)
+                    .foregroundStyle(Tokens.Palette.secondary)
+                Spacer(minLength: 4)
                 actionButtons(container)
             }
-            HStack(spacing: 12) {
-                infoItem("State", container.state)
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 125), alignment: .leading)], alignment: .leading, spacing: 4
+            ) {
                 if !container.ipv4Address.isEmpty {
                     infoItem("IP", container.ipv4Address)
                 }
@@ -119,13 +152,14 @@ struct ContainerDetailView: View {
                 }
                 if container.rosetta { infoItem("Rosetta", "on") }
             }
-            .font(.caption)
+            .font(Tokens.Typography.metadata)
         }
         .padding(12)
-        .background(.background.secondary)
+        .background(Tokens.Palette.canvas)
     }
 
     @State private var confirmDeleteID: String?
+    @State private var showRunAgainSheet = false
 
     @ViewBuilder
     private func actionButtons(_ container: Micropod_V1_Container) -> some View {
@@ -137,6 +171,11 @@ struct ContainerDetailView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
+        } else if container.runtime == "sandbox" {
+            Button("Run image…") { showRunAgainSheet = true }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .help("Ephemeral VMs cannot restart. Open the new-container form using this image.")
         } else {
             Button {
                 Task { await store.startContainer(container.id) }
@@ -146,27 +185,22 @@ struct ContainerDetailView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
         }
-        Button(role: .destructive) {
-            confirmDeleteID = container.id
+        Menu {
+            Button("Delete…", role: .destructive) { confirmDeleteID = container.id }
         } label: {
-            IconLabel(title: "Delete", icon: "delete", fallback: "trash")
+            Image(systemName: "ellipsis.circle")
         }
-        .buttonStyle(.bordered)
+        .menuStyle(.borderlessButton)
+        .fixedSize()
         .controlSize(.small)
-        Button {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(container.id, forType: .string)
-        } label: {
-            Image(systemName: "doc.on.doc")
-        }
-        .buttonStyle(.borderless)
-        .help("Copy container ID")
+        .accessibilityLabel("More container actions")
     }
 
     private func infoItem(_ label: String, _ value: String) -> some View {
         HStack(spacing: 4) {
             Text(label).foregroundStyle(.secondary)
-            Text(value).font(.monospaced(.caption)())
+            Text(value).font(.system(size: 11, design: .monospaced)).lineLimit(1)
+                .truncationMode(.middle).help(value)
         }
     }
 

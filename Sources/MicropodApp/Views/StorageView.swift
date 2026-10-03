@@ -33,14 +33,18 @@ struct StorageView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: Tokens.Spacing.xl) {
+                header
                 totalCard
                 dfCard
                 bucketsCard
                 tipsCard
             }
-            .padding(16)
+            .padding(Tokens.Spacing.xl)
+            .frame(maxWidth: 1200, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
+        .background(Tokens.Palette.canvas)
         .task { await store.refreshStorage() }
         .confirmationDialog(
             pendingPrune?.title ?? "",
@@ -68,189 +72,207 @@ struct StorageView: View {
         }
     }
 
-    private var totalCard: some View {
-        GroupBox {
-            HStack(spacing: 12) {
-                Image(systemName: "internaldrive")
-                    .font(.system(size: 22))
-                    .foregroundStyle(.tint)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(ByteFormat.string(UInt64(store.storageTotalBytes))) on disk")
-                        .font(.title3.weight(.semibold).monospacedDigit())
-                    Text("Runtime data under \\(store.storageRoot.path)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+    private var header: some View {
+        WorkspacePageHeader(
+            title: "Storage", subtitle: "Measured runtime data and reclaimable resources.",
+            icon: "storage", fallback: "internaldrive"
+        ) {
+            Button {
+                if !reduceMotion { refreshTicks += 1 }
+                Task {
+                    await store.refreshStorage()
+                    await store.refreshDiskUsage()
                 }
-                Spacer()
-                Button {
-                    if !reduceMotion { refreshTicks += 1 }
-                    Task {
-                        await store.refreshStorage()
-                        await store.refreshDiskUsage()
-                    }
-                } label: {
+            } label: {
+                Label {
+                    Text("Refresh")
+                } icon: {
                     Image(systemName: "arrow.clockwise")
                         .symbolEffect(.rotate.byLayer, value: refreshTicks)
                 }
-                .buttonStyle(.borderless)
-                .help("Re-measure storage")
             }
-            .padding(4)
+            .help("Re-measure storage")
+        }
+    }
+
+    private var totalCard: some View {
+        PanelCard(title: "Runtime footprint", icon: "storage") {
+            HStack(alignment: .firstTextBaseline, spacing: Tokens.Spacing.sm) {
+                Text(ByteFormat.string(UInt64(store.storageTotalBytes)))
+                    .font(Tokens.Typography.metric)
+                Text("on disk")
+                    .font(Tokens.Typography.body)
+                    .foregroundStyle(Tokens.Palette.secondary)
+            }
+            Text("Runtime data under \(store.storageRoot.path)")
+                .font(Tokens.Typography.metadata)
+                .foregroundStyle(Tokens.Palette.tertiary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+                .help(store.storageRoot.path)
         }
     }
 
     /// Reclaimable per category from `container system df` + confirmed prunes.
     private var dfCard: some View {
-        GroupBox("Reclaimable") {
+        PanelCard(title: "Reclaimable", icon: "cache-clean", subtitle: "Unused resources reported by the runtime.") {
             if let usage = store.diskUsage {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
+                VStack(alignment: .leading, spacing: Tokens.Spacing.md) {
+                    ResponsiveRow {
                         Text("Total reclaimable")
-                            .font(.caption.weight(.semibold))
-                        Spacer()
+                            .font(Tokens.Typography.section)
+                    } trailing: {
                         Text(ByteFormat.string(usage.totalReclaimableBytes))
-                            .font(.callout.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(.orange)
+                            .font(Tokens.Typography.metric)
+                            .foregroundStyle(Tokens.Palette.warning)
                     }
+                    Divider()
                     reclaimRow(
-                        label: "Containers",
+                        label: "Containers", icon: "container", fallback: "shippingbox",
                         category: usage.containers,
                         action: { pendingPrune = .containers })
+                    Divider()
                     reclaimRow(
-                        label: "Images",
+                        label: "Images", icon: "images", fallback: "square.stack",
                         category: usage.images,
                         action: { pendingPrune = .imagesDangling })
+                    Divider()
                     reclaimRow(
-                        label: "Volumes",
+                        label: "Volumes", icon: "storage", fallback: "internaldrive",
                         category: usage.volumes,
                         action: { pendingPrune = .volumes })
                 }
-                .padding(4)
             } else {
                 Text("Disk usage unavailable — run the runtime to measure.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(Tokens.Typography.body)
+                    .foregroundStyle(Tokens.Palette.secondary)
             }
         }
     }
 
     private func reclaimRow(
-        label: String, category: Micropod_V1_DiskCategory, action: @escaping () -> Void
+        label: String, icon: String, fallback: String,
+        category: Micropod_V1_DiskCategory, action: @escaping () -> Void
     ) -> some View {
-        HStack(spacing: 8) {
-            Text(label)
-                .font(.caption)
-                .frame(width: 90, alignment: .leading)
-            Text(ByteFormat.string(category.sizeBytes))
-                .font(.caption2.monospacedDigit())
-                .frame(width: 80, alignment: .trailing)
-            if category.reclaimableBytes > 0 {
-                Text("\(ByteFormat.string(category.reclaimableBytes)) reclaimable")
-                    .font(.caption2)
-                    .foregroundStyle(.orange)
-            } else {
-                Text("nothing reclaimable")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+        ResponsiveRow {
+            HStack(spacing: Tokens.Spacing.md) {
+                WorkspaceIcon(name: icon, fallback: fallback)
+                    .foregroundStyle(Tokens.Palette.accentText)
+                VStack(alignment: .leading, spacing: Tokens.Spacing.xs) {
+                    Text(label).font(Tokens.Typography.section)
+                    Text("\(ByteFormat.string(category.sizeBytes)) used")
+                        .font(Tokens.Typography.metadata)
+                        .monospacedDigit()
+                        .foregroundStyle(Tokens.Palette.secondary)
+                }
             }
-            Spacer()
-            Button {
-                action()
-            } label: {
-                IconLabel(title: "Prune…", icon: "prune", fallback: "trash")
+        } trailing: {
+            HStack(spacing: Tokens.Spacing.md) {
+                if category.reclaimableBytes > 0 {
+                    Text("\(ByteFormat.string(category.reclaimableBytes)) reclaimable")
+                        .font(Tokens.Typography.metadata)
+                        .monospacedDigit()
+                        .foregroundStyle(Tokens.Palette.warning)
+                } else {
+                    Text("Nothing reclaimable")
+                        .font(Tokens.Typography.metadata)
+                        .foregroundStyle(Tokens.Palette.tertiary)
+                }
+                Button {
+                    action()
+                } label: {
+                    IconLabel(title: "Prune…", icon: "prune", fallback: "trash")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, Tokens.Spacing.xs)
     }
 
     /// The measured bucket breakdown with size bars and copyable paths.
     private var bucketsCard: some View {
-        GroupBox("Where the space goes") {
+        PanelCard(
+            title: "Where the space goes", icon: "storage", subtitle: "Measured directories in the runtime data folder."
+        ) {
             if store.storageBuckets.isEmpty {
-                HStack(spacing: 8) {
+                HStack(spacing: Tokens.Spacing.sm) {
                     ProgressView().controlSize(.small)
-                    Text("Measuring…").font(.caption).foregroundStyle(.secondary)
+                    Text("Measuring…").font(Tokens.Typography.body).foregroundStyle(Tokens.Palette.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.vertical, 12)
+                .padding(.vertical, Tokens.Spacing.md)
             } else {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: Tokens.Spacing.lg) {
                     ForEach(store.storageBuckets) { bucket in
                         bucketRow(bucket)
                     }
                 }
-                .padding(4)
             }
         }
     }
 
     private func bucketRow(_ bucket: StorageBucket) -> some View {
-        let fraction =
-            store.storageTotalBytes > 0
-            ? min(1.0, Double(bucket.sizeBytes) / Double(store.storageTotalBytes)) : 0
-        return VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: Tokens.Spacing.xs) {
+            HStack(spacing: Tokens.Spacing.md) {
                 Text(bucket.name)
-                    .font(.callout.weight(.medium))
-                    .frame(width: 110, alignment: .leading)
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Color.secondary.opacity(0.15))
-                        Capsule()
-                            .fill(Color.accentColor)
-                            .frame(width: max(4, geo.size.width * fraction))
-                    }
-                }
-                .frame(height: 6)
-                Text(ByteFormat.string(UInt64(bucket.sizeBytes)))
-                    .font(.caption2.monospacedDigit())
-                    .frame(width: 80, alignment: .trailing)
-                Text(bucket.explanation)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(Tokens.Typography.section)
                     .lineLimit(1)
-                    .truncationMode(.tail)
+                    .help(bucket.name)
+                    .frame(width: 100, alignment: .leading)
+                WorkspaceBudgetMeter(
+                    used: UInt64(bucket.sizeBytes), cap: UInt64(store.storageTotalBytes),
+                    label: "\(bucket.name) share of measured runtime footprint", color: Tokens.Palette.accent)
+                Text(ByteFormat.string(UInt64(bucket.sizeBytes)))
+                    .font(Tokens.Typography.metadata)
+                    .monospacedDigit()
+                    .fixedSize()
             }
+            Text(bucket.explanation)
+                .font(Tokens.Typography.metadata)
+                .foregroundStyle(Tokens.Palette.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             Button(bucket.path) {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(bucket.path, forType: .string)
             }
             .buttonStyle(.plain)
-            .font(.caption2.monospaced())
-            .foregroundStyle(.tertiary)
-            .help("Copy path")
+            .font(Tokens.Typography.log)
+            .foregroundStyle(Tokens.Palette.tertiary)
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .help("Copy path: \(bucket.path)")
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, Tokens.Spacing.xs)
     }
 
     private var tipsCard: some View {
-        GroupBox("macOS storage tips") {
-            VStack(alignment: .leading, spacing: 6) {
+        PanelCard(title: "macOS storage tips") {
+            VStack(alignment: .leading, spacing: Tokens.Spacing.sm) {
                 tip(
-                    "Snapshots dominate: image layers and container writable layers live in `snapshots/`. `Prune All Unused Images` reclaims the most."
+                    "Image and container filesystem layers live in snapshots/. Removing unused images can reclaim their retained layers."
                 )
                 tip(
-                    "Container VM disks live in `containers/` — deleting a container frees its full disk, not just its snapshot."
+                    "Container VM disks live in containers/. Deleting a stopped container removes its disk data."
                 )
                 tip(
-                    "Reclaimable figures come from the runtime itself (`container system df`) and are always safe to apply — unused resources only."
+                    "The runtime reports unused resources with container system df. Review each cleanup before applying it."
                 )
             }
-            .padding(4)
         }
     }
 
     private func tip(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 6) {
+        HStack(alignment: .top, spacing: Tokens.Spacing.sm) {
             Image(systemName: "info.circle")
                 .font(.system(size: 11))
-                .foregroundStyle(.tint)
+                .foregroundStyle(Tokens.Palette.accentText)
                 .padding(.top, 1)
-            Text(text).font(.caption).foregroundStyle(.secondary)
+            Text(text)
+                .font(Tokens.Typography.metadata)
+                .foregroundStyle(Tokens.Palette.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
