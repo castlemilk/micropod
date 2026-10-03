@@ -12,9 +12,8 @@ struct MenuBarLabel: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            MicropodGlyph()
-                .frame(width: 24, height: 16)
-                .foregroundStyle(.primary)
+            Image(nsImage: MenuBarImages.brandMark)
+                .renderingMode(.template)
                 .overlay(alignment: .bottomTrailing) {
                     Circle().fill(healthColor).frame(width: 5, height: 5)
                         .overlay(Circle().strokeBorder(.background, lineWidth: 0.8))

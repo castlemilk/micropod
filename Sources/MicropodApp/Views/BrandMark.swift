@@ -1,4 +1,26 @@
+import AppKit
 import SwiftUI
+
+/// MenuBarExtra extracts native images from its label; arbitrary SwiftUI
+/// shapes are omitted. Keep a vector-backed template at its native size.
+@MainActor
+enum MenuBarImages {
+    static let brandMark: NSImage = {
+        let image = NSImage(size: NSSize(width: 24, height: 16), flipped: true) { rect in
+            guard let context = NSGraphicsContext.current?.cgContext else { return false }
+            context.setStrokeColor(NSColor.black.cgColor)
+            context.setLineWidth(7 * rect.height / 64)
+            context.setLineCap(.square)
+            context.setLineJoin(.round)
+            context.addPath(MicropodGlyph.PodShape().path(in: rect).cgPath)
+            context.strokePath()
+            return true
+        }
+        image.isTemplate = true
+        image.accessibilityDescription = "Micropod"
+        return image
+    }()
+}
 
 /// The pod/terminal identity, drawn directly at its display scale.
 struct MicropodGlyph: View {
@@ -15,7 +37,7 @@ struct MicropodGlyph: View {
         .accessibilityHidden(true)
     }
 
-    private struct PodShape: Shape {
+    fileprivate struct PodShape: Shape {
         func path(in rect: CGRect) -> Path {
             func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
                 CGPoint(x: x * rect.width / 96, y: y * rect.height / 64)

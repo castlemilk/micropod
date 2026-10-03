@@ -6,8 +6,9 @@ import XCTest
 
 @testable import MicropodApp
 
-/// Fitting-size assertions exercise MenuBarExtra's actual sizing path. PNGs
-/// are review artifacts, rather than pixel-perfect platform-dependent goldens.
+/// Hosting-view snapshots check panel sizing and appearance. The status-item
+/// bridge needs a separate native MenuBarExtra smoke check; it ignores shapes
+/// that render normally here. PNGs are review artifacts, not golden images.
 final class MenuBarPanelSnapshotTests: XCTestCase {
     @MainActor
     func testPanelFittingSizeAndLightDarkPreviews() throws {
@@ -42,6 +43,57 @@ final class MenuBarPanelSnapshotTests: XCTestCase {
                 scheme: scheme, name: "micropod-tray-label-\(scheme == .dark ? "dark" : "light")")
             XCTAssertLessThanOrEqual(size.width, 150)
             XCTAssertLessThanOrEqual(size.height, 40)
+        }
+    }
+
+    @MainActor
+    func testMenuBarLogoIsCachedVisibleTemplateAtStandardAndRetinaScale() throws {
+        let image = MenuBarImages.brandMark
+        XCTAssertTrue(image === MenuBarImages.brandMark)
+        XCTAssertTrue(image.isTemplate)
+        XCTAssertEqual(image.size, NSSize(width: 24, height: 16))
+        for scale in [1, 2] {
+            let width = 24 * scale
+            let height = 16 * scale
+            let bitmap = try XCTUnwrap(
+                NSBitmapImageRep(
+                    bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height,
+                    bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                    colorSpaceName: .deviceRGB, bytesPerRow: width * 4, bitsPerPixel: 32))
+            let context = try XCTUnwrap(NSGraphicsContext(bitmapImageRep: bitmap))
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = context
+            image.draw(in: NSRect(x: 0, y: 0, width: width, height: height))
+            NSGraphicsContext.restoreGraphicsState()
+            let visiblePixels = (0..<height).reduce(0) { total, y in
+                total
+                    + (0..<width).count { x in
+                        (bitmap.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.1
+                    }
+            }
+            XCTAssertGreaterThan(visiblePixels, width * height / 10, "Logo must not be blank at \(scale)x")
+            XCTAssertLessThan(visiblePixels, width * height * 3 / 4, "Template must retain transparent space")
+            XCTAssertEqual(try XCTUnwrap(bitmap.colorAt(x: 0, y: 0)).alphaComponent, 0)
+        }
+    }
+
+    @MainActor
+    func testMenuBarLogoRemainsVisibleWithoutWorkloadCount() throws {
+        let suite = "micropod-menu-bar-test-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        for showCount in [true, false] {
+            defaults.set(showCount, forKey: UserDefaultsKeys.showMenuBarCount)
+            for populated in [false, true] {
+                let store = makeRunningStore(client: AppTestCLI.makeFailing())
+                if populated { populatePanel(store) }
+                let size = try render(
+                    MenuBarLabel(store: store, activateRuntimeObservation: false)
+                        .defaultAppStorage(defaults),
+                    scheme: .light, name: "micropod-tray-count-\(showCount)-populated-\(populated)")
+                XCTAssertGreaterThanOrEqual(size.width, 24)
+                XCTAssertGreaterThanOrEqual(size.height, 16)
+            }
         }
     }
 
