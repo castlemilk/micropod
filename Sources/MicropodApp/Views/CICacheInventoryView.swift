@@ -8,6 +8,7 @@ struct CICacheInventoryView: View {
     @State private var selection = CICacheSelection()
     @State private var showAll = false
     @State private var showAllProxyReports = false
+    @State private var showAllCacheGroups = false
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 15)) { context in
@@ -39,6 +40,7 @@ struct CICacheInventoryView: View {
             selection = CICacheSelection()
             showAll = false
             showAllProxyReports = false
+            showAllCacheGroups = false
         }
     }
 
@@ -192,83 +194,200 @@ struct CICacheInventoryView: View {
                 Text(error).font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.warning)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            if !selection.owner.isEmpty || !selection.project.isEmpty {
-                Text("Proxy and store reports have no project/owner identity. They are unavailable for this selection.")
-                    .font(Tokens.Typography.body).foregroundStyle(Tokens.Palette.secondary)
-            } else if let telemetry = cache.telemetry {
-                Text("Runner proxy counters · since process start").font(Tokens.Typography.metadata)
-                    .foregroundStyle(Tokens.Palette.secondary)
-                let proxyCounters = telemetry.observations(for: selection).filter { $0.label.hasPrefix("Proxy") }
-                if proxyCounters.isEmpty {
-                    Text("Process-wide proxy counters: Not reported. Attempt reports are a separate source.")
-                        .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
-                }
-                ForEach(proxyCounters, id: \.label) { counterRow($0, now: now) }
-                Text("Job cache reports").font(Tokens.Typography.section)
-                    .foregroundStyle(Tokens.Palette.secondary)
-                let measured = telemetry.proxyReports(for: selection)
-                if telemetry.attempts.isEmpty {
-                    Text("Job cache reports: Not reported")
-                        .font(Tokens.Typography.body).foregroundStyle(Tokens.Palette.secondary)
-                } else {
-                    ForEach(Array(telemetry.attempts.reversed().prefix(showAllProxyReports ? 20 : 1))) { attempt in
-                        attemptReport(attempt)
-                    }
-                    if telemetry.attempts.count > 1 {
-                        Button(
-                            showAllProxyReports
-                                ? "Show newest job" : "Show all \(telemetry.attempts.count) buffered jobs"
-                        ) {
-                            showAllProxyReports.toggle()
-                        }.controlSize(.small)
-                    }
-                }
-                let missing = telemetry.attempts.filter { $0.report.proxy == nil }.count
-                Text(
-                    "\(measured.count) measured · \(missing) without proxy measurements · latest \(telemetry.attempts.count) buffered reports"
-                )
-                .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                if telemetry.attempts.contains(where: { $0.report.invalidProxy }) {
-                    Text("Incomplete or invalid proxy reports remain unknown.")
-                        .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.warning)
-                }
-                Text(
-                    "Completed reports have no event time or rig identity; running attempts may not have reported. Received \(telemetry.receivedAt.formatted(date: .abbreviated, time: .standard))."
-                )
-                .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.tertiary)
-                .fixedSize(horizontal: false, vertical: true)
-            } else if cache.telemetryError == nil {
-                Text("Attempt proxy usage: Not yet read").font(Tokens.Typography.body)
-                    .foregroundStyle(Tokens.Palette.secondary)
-            }
             if let telemetry = cache.telemetry {
-                let observations = telemetry.observations(for: selection)
+                if selection.owner.isEmpty && selection.project.isEmpty {
+                    Text("Runner proxy counters · since process start").font(Tokens.Typography.metadata)
+                        .foregroundStyle(Tokens.Palette.secondary)
+                    let counters = telemetry.observations(for: selection).filter { $0.label.hasPrefix("Proxy") }
+                    if counters.isEmpty {
+                        Text("Process-wide proxy counters: Not reported. Job reports are a separate source.")
+                            .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+                    }
+                    ForEach(counters, id: \.label) { counterRow($0, now: now) }
+                } else {
+                    Text(
+                        "Process-wide proxy counters have no project/owner attribution and are hidden for this selection."
+                    )
+                    .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+                }
+                jobReportsBody(telemetry)
+                cacheGroupsBody(telemetry)
                 Text("Golden/store resolution").font(Tokens.Typography.section)
-                let resolutions = observations.filter { !$0.label.hasPrefix("Proxy") }
+                let resolutions = telemetry.observations(for: selection).filter { !$0.label.hasPrefix("Proxy") }
                 if resolutions.isEmpty {
                     Text("Resolution outcomes: Not reported for this selection")
                         .font(Tokens.Typography.body).foregroundStyle(Tokens.Palette.secondary)
                 }
                 ForEach(resolutions, id: \.label) { counterRow($0, now: now) }
                 Text(
-                    "Existing/seeded/cold describe store provisioning, not compiler or package content hits. Counters reset with the runner process."
+                    "Existing/seeded/cold describe store provisioning. Proxy hits measure requests; neither establishes compiler/package content hits. Process counters reset with the runner."
                 )
                 .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
+                Text(
+                    "Received \(telemetry.receivedAt.formatted(date: .abbreviated, time: .standard)). Latest 20 job reports and 128 late saves are local, volatile windows. Restarts, missed polls and rollover leave history incomplete."
+                )
+                .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+                if telemetry.invalidSaves > 0 {
+                    Text("\(telemetry.invalidSaves) invalid late-save records remain unknown.")
+                        .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.warning)
+                }
+            } else if cache.telemetryError == nil {
+                Text("Job cache usage: Not yet read").font(Tokens.Typography.body)
+                    .foregroundStyle(Tokens.Palette.secondary)
             }
             Text(
-                "Compiler/package hit or miss counts: Not reported · Cache-volume I/O: Not reported · Guest filesystem used: Not reported"
+                "Per-cache tool hits/misses, cache-volume I/O, total clone restore time, time saved and guest filesystem used: Not reported"
             )
             .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
             .fixedSize(horizontal: false, vertical: true)
         }
     }
 
+    private func jobReportsBody(_ telemetry: CICacheTelemetry) -> some View {
+        let jobs = telemetry.jobReports(for: selection)
+        let measured = jobs.filter { $0.report.proxy != nil }.count
+        return VStack(alignment: .leading, spacing: Tokens.Spacing.sm) {
+            Text("Job cache reports").font(Tokens.Typography.section)
+            if !selection.owner.isEmpty {
+                Text(
+                    "The inventory owner label is not a runner ID. Job attribution is unavailable for this owner selection."
+                )
+                .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+            } else if jobs.isEmpty {
+                Text(
+                    "No attributed job reports in this window for the selection. This does not establish unused caches."
+                )
+                .font(Tokens.Typography.body).foregroundStyle(Tokens.Palette.secondary)
+            }
+            ForEach(Array(jobs.prefix(showAllProxyReports ? 20 : 1))) { attempt in
+                attemptReport(attempt)
+            }
+            if jobs.count > 1 {
+                Button(showAllProxyReports ? "Show newest job" : "Show all \(jobs.count) buffered jobs") {
+                    showAllProxyReports.toggle()
+                }.controlSize(.small)
+            }
+            if !jobs.isEmpty {
+                Text(
+                    "\(measured) proxy measurements · \(jobs.count - measured) without proxy measurements · \(jobs.count) job reports shown by this selection"
+                )
+                .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            if jobs.contains(where: { $0.runnerId?.isEmpty != false || $0.observationTime == nil }) {
+                Text(
+                    "Legacy reports lack rig identity or event time. They cannot establish per-cache history; running jobs may not have reported."
+                )
+                .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.warning)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func cacheGroupsBody(_ telemetry: CICacheTelemetry) -> some View {
+        let groups = CICacheRecentActivity.observations(telemetry, selection: selection)
+        let saves = telemetry.saveReports(for: selection)
+        return VStack(alignment: .leading, spacing: Tokens.Spacing.sm) {
+            Text("Buffered cache observations").font(Tokens.Typography.section)
+            if groups.isEmpty {
+                Text("Per-cache attribution: Not reported for this selection")
+                    .font(Tokens.Typography.body).foregroundStyle(Tokens.Palette.secondary)
+            }
+            ForEach(Array(groups.prefix(showAllCacheGroups ? 50 : 5))) { group in
+                VStack(alignment: .leading, spacing: Tokens.Spacing.xs) {
+                    Text("Rig \(group.id.runnerID) · Cache \(group.id.cacheID)")
+                        .font(Tokens.Typography.log).lineLimit(2).textSelection(.enabled)
+                    Text(
+                        "Named volume: \(group.volumeNames.sorted().joined(separator: ", ").isEmpty ? "Not reported" : group.volumeNames.sorted().joined(separator: ", "))"
+                    )
+                    .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+                    .lineLimit(2).textSelection(.enabled)
+                    Text(
+                        "\(group.attemptIDs.count) buffered job observations · Existing \(group.existing) · Seeded \(group.seeded) · Cold \(group.cold)"
+                    )
+                    .font(Tokens.Typography.metadata).fixedSize(horizontal: false, vertical: true)
+                    Text(
+                        "Measured resolution: \(CICacheDurationFormat.string(group.resolutionCost)) across \(group.resolutions.count) measurements · Save operation cost: \(CICacheDurationFormat.string(group.saveCost)) across \(group.saves.compactMap(\.save.durationMs).count) of \(group.saves.count) observed outcomes"
+                    )
+                    .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    Text(
+                        "Last report observation: \(time(group.lastReport)) · Last save finish: \(time(group.lastSave))"
+                    )
+                    .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    ForEach(Array(group.saves.prefix(3))) { event in saveRow(event) }
+                    if group.saves.count > 3 {
+                        Text("\(group.saves.count - 3) additional late-save outcomes in this buffer")
+                            .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+                    }
+                    Divider()
+                }
+            }
+            if groups.count > 5 {
+                Button(showAllCacheGroups ? "Show newest 5 caches" : "Show newest \(min(groups.count, 50)) caches") {
+                    showAllCacheGroups.toggle()
+                }.controlSize(.small)
+            }
+            if !telemetry.saveFeedAvailable {
+                Text("Completed save measurements: Not reported by this producer")
+                    .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+            } else if saves.isEmpty {
+                Text("No completed save observations in this selected window; absence does not establish no saves.")
+                    .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+            }
+            Text(
+                "Resolution measures lookup/provision/seed including waits; it excludes attachment, clone creation and tool execution. A measured 0 ms is below one millisecond. Save duration includes generation waiting and retries. These are costs, not measured benefit."
+            )
+            .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.tertiary)
+            .fixedSize(horizontal: false, vertical: true)
+            Text(
+                "Identity is a logical name on a rig, not a physical incarnation. Named-volume joins need confirmation of the same rig. Last content hit/access, complete history and unique/reclaimable space remain unknown; pruning is unavailable."
+            )
+            .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.tertiary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func saveRow(_ event: CICacheSaveReport) -> some View {
+        VStack(alignment: .leading, spacing: Tokens.Spacing.xs) {
+            Text(
+                "\(event.save.outcomeLabel) · \(CICacheDurationFormat.string(event.save.durationMs)) · \(time(event.save.finishTime))"
+            )
+            .font(Tokens.Typography.metadata).foregroundStyle(
+                event.save.outcome == "unknown" ? Tokens.Palette.warning : Tokens.Palette.secondary
+            )
+            .fixedSize(horizontal: false, vertical: true)
+            Text("Job \(event.attemptId) · Clone owner \(event.save.containerId)")
+                .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.tertiary).lineLimit(2).textSelection(
+                    .enabled)
+            if let allocation = event.save.acknowledgedAllocation {
+                Text("Acknowledged golden allocation: \(bytes(allocation)); not bytes written or reclaimable space")
+                    .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func time(_ date: Date?) -> String {
+        guard let date else { return "Unknown" }
+        guard date.timeIntervalSinceNow <= 5 else { return "Invalid sample time" }
+        return date.formatted(date: .abbreviated, time: .standard)
+    }
+
     private func attemptReport(_ attempt: CICacheAttemptReport) -> some View {
         VStack(alignment: .leading, spacing: Tokens.Spacing.sm) {
             Text("\(attempt.nodeId) · \(attempt.attemptId)")
                 .font(Tokens.Typography.log).textSelection(.enabled).lineLimit(1).truncationMode(.middle)
+            Text(
+                "Run \(attempt.runId ?? "Unknown") · Project \(attempt.projectId ?? "Unknown") · Rig \(attempt.runnerId ?? "Unknown")"
+            )
+            .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+            .lineLimit(2).textSelection(.enabled)
+            Text("Observed \(time(attempt.observationTime)) · Trust tier \(attempt.report.trust ?? "Unknown")")
+                .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.tertiary)
             if let proxy = attempt.report.proxy {
                 proxyReport(attempt, proxy: proxy)
             } else {
@@ -278,10 +397,7 @@ struct CICacheInventoryView: View {
                 .font(Tokens.Typography.body).foregroundStyle(Tokens.Palette.secondary)
             }
             ForEach(Array(attempt.report.stores.prefix(4).enumerated()), id: \.offset) { _, store in
-                Text("\(store.ecosystem ?? "Cache") \(store.kind) · \(store.mountPath)")
-                    .font(Tokens.Typography.metadata).lineLimit(2).textSelection(.enabled)
-                Text("\(store.provisioning) · \(store.commitDecision)")
-                    .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+                reportedStoreRow(store)
             }
             if attempt.report.stores.count > 4 {
                 Text("\(attempt.report.stores.count - 4) additional stores reported")
@@ -295,11 +411,25 @@ struct CICacheInventoryView: View {
                 .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
             }
             Text(
-                "Per-store volume/key attribution, tool hits/misses, exact/partial restore match and restore/save duration: Not reported. A mounted store does not establish content reuse."
+                "Per-store tool hits/misses, exact/partial restore match, attachment/clone restore duration and time saved: Not reported. Resolution or a mount report does not establish content reuse."
             )
             .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.tertiary)
             .fixedSize(horizontal: false, vertical: true)
         }.padding(.vertical, Tokens.Spacing.sm)
+    }
+
+    private func reportedStoreRow(_ store: CICacheStoreReport) -> some View {
+        VStack(alignment: .leading, spacing: Tokens.Spacing.xs) {
+            Text("\(store.ecosystem ?? "Cache") \(store.kind) · \(store.mountPath)")
+                .font(Tokens.Typography.metadata).lineLimit(2).textSelection(.enabled)
+            Text("\(store.provisioning) · \(store.commitDecision)")
+                .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+            Text(
+                "Cache \(store.cacheId ?? "Unknown") · Volume \(store.volumeName ?? "Not reported") · Resolution \(CICacheDurationFormat.string(store.resolveMs))"
+            )
+            .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+            .lineLimit(3).textSelection(.enabled)
+        }
     }
 
     private func proxyReport(_ attempt: CICacheAttemptReport, proxy: CICacheProxyReport) -> some View {

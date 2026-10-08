@@ -25,7 +25,7 @@ final class CICacheActivityTests: XCTestCase {
         XCTAssertNil(report.proxy, "Existing store is not a measured proxy/content hit")
         XCTAssertEqual(
             report.stores.map(\.provisioning),
-            ["Existing store mounted", "Store seeded from earlier lineage", "Cold store provisioned"])
+            ["Existing store resolved", "Store seeded from earlier lineage", "Cold store provisioned"])
         XCTAssertEqual(report.stores[0].commitDecision, "Save queued; completion unknown")
         let invalid = try decode([
             [
@@ -45,7 +45,7 @@ final class CICacheActivityTests: XCTestCase {
             ["attemptId": "invalid", "nodeId": "test", "report": ["proxy": proxy(local: -1)]],
         ])
         let reports = telemetry.proxyReports(for: .init())
-        XCTAssertEqual(reports.map(\.id), ["measured"])
+        XCTAssertEqual(reports.map(\.attemptId), ["measured"])
         XCTAssertEqual(reports.first?.report.proxy?.localHits, 0)
         XCTAssertEqual(reports.first?.report.proxy?.upstreamFetches, 1724)
         XCTAssertNil(telemetry.attempts[1].report.proxy)

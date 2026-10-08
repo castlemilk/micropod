@@ -2,22 +2,30 @@ import Foundation
 import MicropodCore
 
 /// A projection of /cache's buffered reports. Environment and cache contents
-/// are deliberately not decoded. These reports supply no rig/project or time.
+/// are deliberately not decoded. Legacy producers omit attribution and time.
 struct CICacheAttemptReport: Decodable, Sendable, Identifiable {
     let attemptId: String
     let nodeId: String
+    let runnerId: String?
+    let projectId: String?
+    let runId: String?
+    let observedAt: String?
     let report: Report
-    var id: String { attemptId }
+    var id: String { (runnerId ?? "unattributed") + "\u{1f}" + attemptId }
+    var observationTime: Date? { CICacheTelemetry.date(observedAt) }
 
     struct Report: Decodable, Sendable {
         let proxy: CICacheProxyReport?
         let invalidProxy: Bool
         let stores: [CICacheStoreReport]
         let invalidStores: Bool
+        let trust: String?
 
-        private enum CodingKeys: String, CodingKey { case proxy, stores }
+        private enum CodingKeys: String, CodingKey { case proxy, stores, trust }
         init(from decoder: Decoder) throws {
             let fields = try decoder.container(keyedBy: CodingKeys.self)
+            let tier = try? fields.decodeIfPresent(String.self, forKey: .trust)
+            trust = ["trusted", "untrusted"].contains(tier ?? "") ? tier : nil
             if fields.contains(.proxy), try !fields.decodeNil(forKey: .proxy) {
                 proxy = try? fields.decode(CICacheProxyReport.self, forKey: .proxy)
                 invalidProxy = proxy == nil
@@ -45,8 +53,13 @@ struct CICacheStoreReport: Decodable, Sendable {
     let mountPath: String
     let golden: String
     let commit: String?
+    let cacheId: String?
+    let volumeName: String?
+    let resolveMs: UInt64?
 
-    private enum CodingKeys: String, CodingKey { case ecosystem, kind, mountPath, golden, commit }
+    private enum CodingKeys: String, CodingKey {
+        case ecosystem, kind, mountPath, golden, commit, cacheId, volumeName, resolveMs
+    }
     init(from decoder: Decoder) throws {
         let fields = try decoder.container(keyedBy: CodingKeys.self)
         ecosystem = try fields.decodeIfPresent(String.self, forKey: .ecosystem)
@@ -54,13 +67,21 @@ struct CICacheStoreReport: Decodable, Sendable {
         mountPath = try fields.decode(String.self, forKey: .mountPath)
         golden = try fields.decode(String.self, forKey: .golden)
         commit = try fields.decodeIfPresent(String.self, forKey: .commit)
+        let identity = try fields.decodeIfPresent(String.self, forKey: .cacheId)
+        cacheId = identity?.isEmpty == false ? identity : nil
+        let volume = try fields.decodeIfPresent(String.self, forKey: .volumeName)
+        volumeName = volume?.isEmpty == false ? volume : nil
+        resolveMs = try fields.decodeIfPresent(UInt64.self, forKey: .resolveMs)
+        guard cacheId == nil || CICacheMeasurementIdentity.valid(cacheId!),
+            volumeName == nil || (cacheId != nil && CICacheMeasurementIdentity.namedVolume(volumeName!))
+        else { throw CICacheReadError.invalidCounters }
         guard [ecosystem ?? "", kind, mountPath, golden, commit ?? ""].allSatisfy({ $0.count <= 512 })
         else { throw CICacheReadError.invalidCounters }
     }
 
     var provisioning: String {
         switch golden {
-        case "hit": "Existing store mounted"
+        case "hit": "Existing store resolved"
         case "seeded": "Store seeded from earlier lineage"
         case "cold": "Cold store provisioned"
         default: "Provisioning outcome unknown"

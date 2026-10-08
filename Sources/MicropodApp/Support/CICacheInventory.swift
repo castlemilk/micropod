@@ -144,28 +144,56 @@ struct CICacheCounter: Decodable, Sendable {
 
 struct CICacheTelemetry: Sendable {
     static let endpoint = URL(string: "http://127.0.0.1:5555/cache")!
+    static let byteLimit = 1_048_576
     let receivedAt: Date
     let counters: [CICacheCounter]
     var attempts: [CICacheAttemptReport] = []
+    var saves: [CICacheSaveReport] = []
+    var invalidSaves = 0
+    var saveFeedAvailable = false
 
     static func decode(_ data: Data, receivedAt: Date) throws -> Self {
         struct Envelope: Decodable {
             let ok: Bool
             let metrics: [CICacheCounter]
             let attempts: [CICacheAttemptReport]?
+            let saves: [CICacheOptionalSave]?
         }
-        guard data.count <= 131_072 else { throw CICacheReadError.invalidCounters }
+        guard data.count <= Self.byteLimit else { throw CICacheReadError.invalidCounters }
         let envelope = try JSONDecoder().decode(Envelope.self, from: data)
         guard envelope.ok, envelope.metrics.count <= 1024, (envelope.attempts?.count ?? 0) <= 20,
-            (envelope.attempts ?? []).allSatisfy({ $0.attemptId.count <= 512 && $0.nodeId.count <= 512 }),
+            (envelope.saves?.count ?? 0) <= 128,
+            (envelope.attempts ?? []).allSatisfy({
+                [$0.attemptId, $0.nodeId, $0.runnerId ?? "", $0.projectId ?? "", $0.runId ?? "", $0.observedAt ?? ""]
+                    .allSatisfy { $0.count <= 512 }
+            }),
             envelope.metrics.allSatisfy({ $0.value.isFinite && $0.value >= 0 })
         else { throw CICacheReadError.invalidCounters }
-        return Self(receivedAt: receivedAt, counters: envelope.metrics, attempts: envelope.attempts ?? [])
+        return Self(
+            receivedAt: receivedAt, counters: envelope.metrics, attempts: envelope.attempts ?? [],
+            saves: (envelope.saves ?? []).compactMap(\.value),
+            invalidSaves: (envelope.saves ?? []).filter { $0.value == nil }.count,
+            saveFeedAvailable: envelope.saves != nil)
+    }
+
+    func jobReports(for selection: CICacheSelection) -> [CICacheAttemptReport] {
+        guard selection.owner.isEmpty else { return [] }  // owner path is not a runner ID
+        var seen = Set<String>()
+        return attempts.reversed().filter {
+            (selection.project.isEmpty || $0.projectId == selection.project) && seen.insert($0.id).inserted
+        }
     }
 
     func proxyReports(for selection: CICacheSelection) -> [CICacheAttemptReport] {
-        guard selection.project.isEmpty, selection.owner.isEmpty else { return [] }
-        return attempts.reversed().filter { $0.report.proxy != nil }
+        jobReports(for: selection).filter { $0.report.proxy != nil }
+    }
+
+    func saveReports(for selection: CICacheSelection) -> [CICacheSaveReport] {
+        guard selection.owner.isEmpty else { return [] }
+        var seen = Set<CICacheSaveReport.Key>()
+        return saves.reversed().filter {
+            (selection.project.isEmpty || $0.projectId == selection.project) && seen.insert($0.id).inserted
+        }
     }
 
     /// Resolution events and proxy activity have distinct definitions.
@@ -221,6 +249,7 @@ struct CICacheCounterObservation: Sendable {
     let unit: Unit
 
     var formatted: String {
+        if unit == .bytes, value == 0 { return "0 B" }
         if unit == .bytes, value < Double(Int64.max) {
             return ByteCountFormatter.string(fromByteCount: Int64(value), countStyle: .file)
         }
@@ -238,6 +267,7 @@ struct CICacheCounterObservation: Sendable {
 enum CICacheByteFormat {
     static func string(_ value: UInt64?) -> String {
         guard let value else { return "Unknown" }
+        if value == 0 { return "0 B" }
         guard value <= UInt64(Int64.max) else { return "\(value.formatted()) bytes" }
         return ByteCountFormatter.string(fromByteCount: Int64(value), countStyle: .file)
     }
@@ -272,7 +302,7 @@ struct LocalCICacheTelemetryReader: CICacheTelemetryReading {
         guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw CICacheReadError.unavailable }
         var data = Data()
         for try await byte in bytes {
-            guard data.count < 131_072 else { throw CICacheReadError.invalidCounters }
+            guard data.count < CICacheTelemetry.byteLimit else { throw CICacheReadError.invalidCounters }
             try Task.checkCancellation()
             data.append(byte)
         }
