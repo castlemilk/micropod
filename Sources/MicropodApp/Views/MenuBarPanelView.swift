@@ -90,8 +90,9 @@ struct MenuBarPanelView: View {
             Divider()
             if let version = UpdateController.shared.stagedVersion {
                 Button("Install update \(version)", systemImage: "arrow.down.circle") {
-                    UpdateController.shared.applyStagedUpdate()
+                    Task { await UpdateController.shared.applyStagedUpdate() }
                 }
+                .disabled(!UpdateController.shared.restartGuard.isAvailable)
             } else {
                 Button("Check for updates…", systemImage: "arrow.triangle.2.circlepath") {
                     UpdateController.shared.checkForUpdates()

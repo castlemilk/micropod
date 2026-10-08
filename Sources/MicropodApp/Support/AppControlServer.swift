@@ -19,9 +19,14 @@ final class AppControlServer: @unchecked Sendable {
 
     let socketPath: String
     private var listener: NWListener?
+    private let updateController: @MainActor () -> UpdateController
 
-    init(socketPath: String = AppControlClient.defaultSocketPath) {
+    init(
+        socketPath: String = AppControlClient.defaultSocketPath,
+        updateController: @escaping @MainActor () -> UpdateController = { .shared }
+    ) {
         self.socketPath = socketPath
+        self.updateController = updateController
     }
 
     func start() {
@@ -83,18 +88,18 @@ final class AppControlServer: @unchecked Sendable {
         else { return }
         let id = request["id"] as? String ?? ""
         Task { @MainActor in
-            let result = self.route(method)
+            let result = await self.route(method)
             self.respond(id: id, result: result, on: connection)
         }
     }
 
     @MainActor
-    private func route(_ method: String) -> (ok: Bool, result: [String: Any], error: String?) {
+    private func route(_ method: String) async -> (ok: Bool, result: [String: Any], error: String?) {
         switch method {
         case "ping":
             return (true, ["pong": true], nil)
         case "update.check":
-            let updates = UpdateController.shared
+            let updates = updateController()
             guard updates.status != .unavailable else {
                 return (false, [:], "no update feed configured (not a packaged build)")
             }
@@ -103,13 +108,13 @@ final class AppControlServer: @unchecked Sendable {
         case "update.apply":
             // Runs Sparkle's staged installer: terminates the app,
             // swaps in the update, relaunches on the new version.
-            let updates = UpdateController.shared
-            guard updates.applyStagedUpdate() else {
-                return (false, [:], "no staged update ready to install")
+            let updates = updateController()
+            guard await updates.applyStagedUpdate() else {
+                return (false, [:], updates.restartBlockedReason ?? "no staged update ready to install")
             }
             return (true, updates.statusReport, nil)
         case "update.status":
-            return (true, UpdateController.shared.statusReport, nil)
+            return (true, updateController().statusReport, nil)
         default:
             return (false, [:], "unknown method: \(method)")
         }

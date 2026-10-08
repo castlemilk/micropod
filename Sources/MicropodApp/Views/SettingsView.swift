@@ -42,10 +42,12 @@ struct SettingsView: View {
         case .unavailable: return "Not available in development builds"
         case .checking: return "Checking…"
         case .upToDate, .idle: return "Up to date (\(updates.currentVersion))" + checked
-        case .updateAvailable: return "Downloading \(updates.availableVersion ?? "update")…"
+        case .updateAvailable: return "\(updates.availableVersion ?? "Update") available"
         case .readyToInstall: return "\(updates.stagedVersion ?? "Update") ready to install"
         case .installing: return "Installing…"
-        case .error: return "Last check failed: \(updates.lastError ?? "unknown error")"
+        case .error:
+            if updates.restartGuard.state == .recoveryRequired { return "Update recovery required" }
+            return "Last check failed: \(updates.lastError ?? "unknown error")"
         }
     }
 
@@ -98,12 +100,16 @@ struct SettingsView: View {
                 }
                 Section("Updates") {
                     settingValueRow("Status", value: updateStatusText)
+                    if let reason = UpdateController.shared.restartBlockedReason {
+                        Text(reason).font(.caption).foregroundStyle(.secondary)
+                    }
                     Toggle(
                         "Automatically check for updates", isOn: UpdateController.shared.automaticallyChecksForUpdates
                     )
                     .toggleStyle(.checkbox)
                     Toggle("Install updates when I'm away and nothing is running", isOn: $installsUpdatesAutomatically)
                         .toggleStyle(.checkbox)
+                        .disabled(!UpdateController.shared.restartGuard.isAvailable)
                     Toggle(
                         "Keep the micropod CLI and MCP server (~/.local/bin) on this app's version",
                         isOn: $managesCLILinks
@@ -124,8 +130,11 @@ struct SettingsView: View {
                         .controlSize(.small)
                         .disabled(!UpdateController.shared.canCheckForUpdates)
                         if let version = UpdateController.shared.stagedVersion {
-                            Button("Restart to Update to \(version)") { UpdateController.shared.applyStagedUpdate() }
-                                .controlSize(.small)
+                            Button("Restart to Update to \(version)") {
+                                Task { await UpdateController.shared.applyStagedUpdate() }
+                            }
+                            .controlSize(.small)
+                            .disabled(!UpdateController.shared.restartGuard.isAvailable)
                         }
                     }
                 }
