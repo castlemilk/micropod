@@ -102,8 +102,26 @@ final class CICacheInventoryTests: XCTestCase {
         XCTAssertEqual(zero.observations(for: CICacheSelection()).first?.value, 0)
         XCTAssertEqual(zero.observations(for: CICacheSelection()).first?.freshness(at: now), "Sample time unknown")
         XCTAssertThrowsError(try counters([metric("cache_volume_total", -1, ["outcome": "hit"])]))
-        XCTAssertThrowsError(try CICacheTelemetry.decode(Data(repeating: 32, count: 131_073), receivedAt: now))
         XCTAssertThrowsError(try CICacheTelemetry.decode(Data("{}".utf8), receivedAt: now))
+    }
+
+    func testValidTelemetryJSONRespectsExactByteLimit() throws {
+        let prefix = "{\"ok\":true,\"metrics\":[],\"padding\":\""
+        let suffix = "\"}"
+        func payload(bytes: Int) -> Data {
+            Data((prefix + String(repeating: "x", count: bytes - prefix.utf8.count - suffix.utf8.count) + suffix).utf8)
+        }
+        for size in [CICacheTelemetry.byteLimit - 1, CICacheTelemetry.byteLimit] {
+            let data = payload(bytes: size)
+            XCTAssertEqual(data.count, size)
+            XCTAssertTrue(try CICacheTelemetry.decode(data, receivedAt: now).counters.isEmpty)
+        }
+        let oversized = payload(bytes: CICacheTelemetry.byteLimit + 1)
+        XCTAssertEqual(oversized.count, CICacheTelemetry.byteLimit + 1)
+        XCTAssertNotNil(try JSONSerialization.jsonObject(with: oversized) as? [String: Any])
+        XCTAssertThrowsError(try CICacheTelemetry.decode(oversized, receivedAt: now)) { error in
+            XCTAssertTrue(error is CICacheReadError, "Valid JSON must be refused by the size guard")
+        }
     }
 
     @MainActor
