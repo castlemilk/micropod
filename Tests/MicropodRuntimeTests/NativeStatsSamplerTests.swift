@@ -45,6 +45,23 @@ final class NativeStatsSamplerTests: XCTestCase {
         XCTAssertEqual(snap.containers[0].cpuUsageUsec, 0)
     }
 
+    func testBlockIOPresenceSurvivesWireAndDistinguishesZeroFromUnavailable() async throws {
+        let snap = try await sampler().snapshot()
+        let decoded = try Micropod_V1_StatsSnapshot(jsonUTF8Data: try snap.jsonUTF8Data())
+        XCTAssertTrue(decoded.containers[0].hasBlockIoObserved)
+        XCTAssertTrue(decoded.containers[0].blockIoObserved)
+        XCTAssertEqual(decoded.containers[0].blockWriteBytes, 0, "A measured zero is retained")
+        let absent = try MicropodJSON.decode(
+            ContainerStatsEntry.self, from: Data(#"{"id":"a"}"#.utf8), context: "missing I/O")
+        let missing = Micropod_V1_ContainerStats(entry: absent)
+        XCTAssertTrue(missing.hasBlockIoObserved)
+        XCTAssertFalse(missing.blockIoObserved)
+        let negative = try MicropodJSON.decode(
+            ContainerStatsEntry.self,
+            from: Data(#"{"id":"a","blockReadBytes":-1,"blockWriteBytes":0}"#.utf8), context: "invalid I/O")
+        XCTAssertFalse(Micropod_V1_ContainerStats(entry: negative).blockIoObserved)
+    }
+
     func testOOMKillCountFromGuest() async throws {
         let snap = try await sampler(oomKills: { $0 == "a" ? 3 : 0 }).snapshot()
         XCTAssertTrue(snap.containers[0].hasOomKillCount)

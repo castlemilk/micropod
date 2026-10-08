@@ -247,6 +247,7 @@ final class MicropodAPITests: XCTestCase {
         let stats = try await json("GET", "v1/stats")
         let statEntries = stats["containers"] as? [[String: Any]] ?? []
         XCTAssertTrue(statEntries.contains { $0["id"] as? String == id })
+        XCTAssertNotNil(statEntries.first { $0["id"] as? String == id }?["blockIoObserved"] as? Bool)
 
         // Compose up
         let composeDir = stateDir.appendingPathComponent("compose")

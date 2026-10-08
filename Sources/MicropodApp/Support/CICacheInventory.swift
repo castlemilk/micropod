@@ -10,6 +10,11 @@ struct CICacheVolume: Identifiable, Equatable, Sendable {
     let owner: String
     let ecosystem: String
     let source: String
+    let key: String
+    let scope: String
+    let trust: String
+    let lineage: String
+    let createdAt: Date?
     let capacityBytes: UInt64?
     let allocatedBytes: UInt64?
     let activeContainers: [String]?
@@ -91,6 +96,11 @@ struct CICacheInventorySnapshot: Sendable {
                 owner: volume.labels["cuttle.owner"] ?? "",
                 ecosystem: volume.labels["cuttle.ecosystem"] ?? volume.labels["cuttle.scope"] ?? "",
                 source: volume.source,
+                key: volume.labels["cuttle.key"] ?? "",
+                scope: volume.labels["cuttle.scope"] ?? "",
+                trust: volume.labels["cuttle.trust"] ?? "",
+                lineage: volume.labels["cuttle.lineage"] ?? "",
+                createdAt: CICacheTelemetry.date(volume.createdAt),
                 capacityBytes: volume.sizeBytes > 0 ? volume.sizeBytes : nil,
                 // Proto3 zero does not distinguish an omitted sample from zero
                 // allocation. Stay conservative until the runtime supplies presence.
@@ -132,33 +142,53 @@ struct CICacheTelemetry: Sendable {
     static let endpoint = URL(string: "http://127.0.0.1:5555/cache")!
     let receivedAt: Date
     let counters: [CICacheCounter]
+    var attempts: [CICacheAttemptReport] = []
 
     static func decode(_ data: Data, receivedAt: Date) throws -> Self {
         struct Envelope: Decodable {
             let ok: Bool
             let metrics: [CICacheCounter]
+            let attempts: [CICacheAttemptReport]?
         }
         guard data.count <= 131_072 else { throw CICacheReadError.invalidCounters }
         let envelope = try JSONDecoder().decode(Envelope.self, from: data)
-        guard envelope.ok, envelope.metrics.count <= 1024,
+        guard envelope.ok, envelope.metrics.count <= 1024, (envelope.attempts?.count ?? 0) <= 20,
+            (envelope.attempts ?? []).allSatisfy({ $0.attemptId.count <= 512 && $0.nodeId.count <= 512 }),
             envelope.metrics.allSatisfy({ $0.value.isFinite && $0.value >= 0 })
         else { throw CICacheReadError.invalidCounters }
-        return Self(receivedAt: receivedAt, counters: envelope.metrics)
+        return Self(receivedAt: receivedAt, counters: envelope.metrics, attempts: envelope.attempts ?? [])
     }
 
+    func proxyReports(for selection: CICacheSelection) -> [CICacheAttemptReport] {
+        guard selection.project.isEmpty, selection.owner.isEmpty else { return [] }
+        return attempts.reversed().filter { $0.report.proxy != nil }
+    }
+
+    /// Resolution events and proxy activity have distinct definitions.
     /// The endpoint does not assert rig/owner identity. Never join it to an
     /// owner selection. Project-less counters are hidden under a project filter.
     func observations(for selection: CICacheSelection) -> [CICacheCounterObservation] {
         guard selection.owner.isEmpty else { return [] }
-        let definitions: [(String, String, String, String)] =
+        let definitions: [(String, String, String, String, CICacheCounterObservation.Unit)] =
             selection.project.isEmpty
             ? [
-                ("Volume resolutions", "cache_volume_total", "outcome", "hit"),
-                ("Store resolutions", "cache_store_total", "outcome", "hit"),
-                ("Dependency proxy", "depcache_requests_total", "tier", "local"),
+                ("Existing goldens", "cache_volume_total", "outcome", "hit", .count),
+                ("New goldens", "cache_volume_total", "outcome", "created", .count),
+                ("Existing store mounts", "cache_store_total", "outcome", "hit", .count),
+                ("Seeded store mounts", "cache_store_total", "outcome", "seeded", .count),
+                ("Cold store mounts", "cache_store_total", "outcome", "cold", .count),
+                ("Proxy local requests", "depcache_requests_total", "tier", "local", .count),
+                ("Proxy upstream requests", "depcache_requests_total", "tier", "upstream", .count),
+                ("Proxy stale responses", "depcache_requests_total", "tier", "stale", .count),
+                ("Proxy errors", "depcache_requests_total", "tier", "error", .count),
+                ("Proxy bytes served", "depcache_bytes_total", "source", "local", .bytes),
+                ("Proxy bytes fetched", "depcache_bytes_total", "source", "upstream", .bytes),
             ]
-            : [("Volume resolutions", "cache_volume_total", "outcome", "hit")]
-        return definitions.compactMap { label, name, attribute, value in
+            : [
+                ("Existing goldens", "cache_volume_total", "outcome", "hit", .count),
+                ("New goldens", "cache_volume_total", "outcome", "created", .count),
+            ]
+        return definitions.compactMap { label, name, attribute, value, unit in
             let matching = counters.filter {
                 $0.name == name && $0.type == "counter" && $0.attributes?[attribute] == value
                     && (selection.project.isEmpty || $0.attributes?["project"] == selection.project)
@@ -168,11 +198,11 @@ struct CICacheTelemetry: Sendable {
             guard total.isFinite else { return nil }
             let dates = matching.compactMap { Self.date($0.capturedAt) }
             return CICacheCounterObservation(
-                label: label, hits: total, capturedAt: dates.count == matching.count ? dates.min() : nil)
+                label: label, value: total, unit: unit, capturedAt: dates.count == matching.count ? dates.min() : nil)
         }
     }
 
-    private static func date(_ string: String?) -> Date? {
+    static func date(_ string: String?) -> Date? {
         guard let string else { return nil }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -182,7 +212,16 @@ struct CICacheTelemetry: Sendable {
 
 struct CICacheCounterObservation: Sendable {
     let label: String
-    let hits: Double
+    enum Unit: Sendable { case count, bytes }
+    let value: Double
+    let unit: Unit
+
+    var formatted: String {
+        if unit == .bytes, value < Double(Int64.max) {
+            return ByteCountFormatter.string(fromByteCount: Int64(value), countStyle: .file)
+        }
+        return value.formatted(.number.precision(.fractionLength(0))) + (unit == .bytes ? " bytes" : "")
+    }
     let capturedAt: Date?
 
     func freshness(at now: Date) -> String {

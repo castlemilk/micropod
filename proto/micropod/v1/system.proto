@@ -263,6 +263,11 @@ message ContainerStats {
   // not answer in time, or one without memory-event support); a set 0
   // means "read, no OOM kills". Native backend only.
   optional uint64 oom_kill_count = 11 [(gnostic.openapi.v3.property).example = {yaml: "0"}];
+  // Whether the backend observed both block byte counters in this sample.
+  // true includes measured zero; false means unavailable. Absent is an older
+  // producer: a positive counter is reported, but zero has unknown presence.
+  // These counters cover every container device, not individual cache volumes.
+  optional bool block_io_observed = 12;
 }
 
 // A registry login, mapped from `container registry list`.

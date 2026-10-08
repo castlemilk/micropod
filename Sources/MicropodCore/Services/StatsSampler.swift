@@ -86,6 +86,9 @@ extension Micropod_V1_ContainerStats {
         networkTxBytes = counter(entry.networkTxBytes)
         blockReadBytes = counter(entry.blockReadBytes)
         blockWriteBytes = counter(entry.blockWriteBytes)
+        blockIoObserved =
+            entry.blockReadBytes.map { $0 >= 0 } == true
+            && entry.blockWriteBytes.map { $0 >= 0 } == true
         pids = counter(entry.numProcesses)
     }
 }
