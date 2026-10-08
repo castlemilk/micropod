@@ -136,7 +136,7 @@ struct CICacheInventoryView: View {
             .lineLimit(2).truncationMode(.middle).textSelection(.enabled)
             DisclosureGroup(
                 review.disposition == .protected
-                    ? "Retain: active reference observed" : "Retention: insufficient evidence"
+                    ? "Retain: container reference observed" : "Retention: insufficient evidence"
             ) {
                 ForEach(review.reasons, id: \.self) { reason in
                     Text(reason).font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
@@ -151,8 +151,8 @@ struct CICacheInventoryView: View {
             Text("Backing image: \(volume.source.isEmpty ? "Unknown" : volume.source)")
                 .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.tertiary)
                 .textSelection(.enabled).lineLimit(2).truncationMode(.middle).help(volume.source)
-            if let active = volume.activeContainers, !active.isEmpty {
-                Text("Containers: \(active.joined(separator: ", "))")
+            if let references = volume.containerReferences, !references.isEmpty {
+                Text("Container references (including stopped): \(references.joined(separator: ", "))")
                     .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
                     .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
             }

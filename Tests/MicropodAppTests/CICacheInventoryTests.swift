@@ -32,9 +32,11 @@ final class CICacheInventoryTests: XCTestCase {
         let direct = container("job-b", "stopping", golden.source)
         let alias = container("job-c", "running", "/local/volume-clones/job-c/cf-cache-a-extra.img")
         let stopped = container("job-d", "stopped", golden.id)
-        let snapshot = inventory([golden], containers: [clone, direct, alias, stopped])
-        XCTAssertEqual(snapshot.volumes.first?.activeContainers, ["job-a", "job-b"])
-        XCTAssertEqual(snapshot.volumes.first?.activityLabel, "Active in 2 container(s)")
+        let snapshot = inventory(
+            [golden], containers: [clone, direct, alias, stopped, container("job-e", "paused", golden.id)])
+        XCTAssertEqual(snapshot.volumes.first?.activeContainers, ["job-a", "job-b", "job-e"])
+        XCTAssertEqual(snapshot.volumes.first?.containerReferences, ["job-a", "job-b", "job-d", "job-e"])
+        XCTAssertEqual(snapshot.volumes.first?.activityLabel, "Active in 3 container(s)")
     }
 
     func testUnavailableReferencesAreUnknownAndNonCIVolumesAreExcluded() {

@@ -1,4 +1,5 @@
 import Foundation
+import MicropodCore
 import XCTest
 
 @testable import MicropodApp
@@ -28,6 +29,24 @@ final class CICacheRetentionTests: XCTestCase {
             }, lastAccess: now.addingTimeInterval(-20 * 86400),
             protectionObservedAt: now.addingTimeInterval(-protectionAge), activeReferences: active,
             cloneLeaseCoverageComplete: leases != nil, activeClonesOrLeases: leases)
+    }
+
+    func testStoppedContainerReferenceProtectsLocalCache() {
+        let volume = Micropod_V1_Volume.with {
+            $0.id = "cf-cache-example"
+            $0.format = "ext4"
+        }
+        let stopped = Micropod_V1_Container.with {
+            $0.id = "stopped-owner"
+            $0.state = "stopped"
+            $0.mounts = [.with { $0.source = volume.id }]
+        }
+        let inventory = CICacheInventorySnapshot(
+            read: .init(volumes: [volume], containers: [stopped], truncated: false),
+            sourceID: "native", measuredAt: now)
+        XCTAssertEqual(inventory.volumes[0].activeContainers, [])
+        XCTAssertEqual(
+            CICacheRetention.localReview(inventory.volumes[0], inventory: inventory, now: now).disposition, .protected)
     }
 
     func testColdProvisioningOrMissingTelemetryCannotRecommendPruning() {

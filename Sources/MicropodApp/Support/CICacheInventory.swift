@@ -18,6 +18,7 @@ struct CICacheVolume: Identifiable, Equatable, Sendable {
     let capacityBytes: UInt64?
     let allocatedBytes: UInt64?
     let activeContainers: [String]?
+    let containerReferences: [String]?
 
     var activityLabel: String {
         guard let activeContainers else { return "Active use unknown" }
@@ -83,13 +84,16 @@ struct CICacheInventorySnapshot: Sendable {
             $0.format.lowercased() == "ext4"
                 && ($0.labels["cuttle.kind"] == "cache" || $0.id.hasPrefix("cf-cache-"))
         }.map { volume in
-            let active = read.containers.map { containers in
+            let references = read.containers.map { containers in
                 containers.filter { container in
-                    ["running", "starting", "stopping"].contains(container.state.lowercased())
-                        && container.mounts.contains { mount in
-                            Self.references(mount.source, volume: volume, containerID: container.id)
-                        }
-                }.map(\.id).sorted()
+                    container.mounts.contains { mount in
+                        Self.references(mount.source, volume: volume, containerID: container.id)
+                    }
+                }
+            }
+            let active = references.map {
+                $0.filter { ["running", "starting", "stopping", "paused"].contains($0.state.lowercased()) }
+                    .map(\.id).sorted()
             }
             return CICacheVolume(
                 id: volume.id, project: volume.labels["cuttle.project"] ?? "",
@@ -105,7 +109,7 @@ struct CICacheInventorySnapshot: Sendable {
                 // Proto3 zero does not distinguish an omitted sample from zero
                 // allocation. Stay conservative until the runtime supplies presence.
                 allocatedBytes: volume.allocatedBytes > 0 ? volume.allocatedBytes : nil,
-                activeContainers: active)
+                activeContainers: active, containerReferences: references?.map(\.id).sorted())
         }.sorted {
             if $0.allocatedBytes != $1.allocatedBytes {
                 return ($0.allocatedBytes ?? 0) > ($1.allocatedBytes ?? 0)

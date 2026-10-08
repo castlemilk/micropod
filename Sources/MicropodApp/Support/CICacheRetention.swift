@@ -55,7 +55,7 @@ enum CICacheRetention {
             Review(identity: evidence.identity, disposition: disposition, reasons: reasons, observedAt: now)
         }
         if evidence.activeReferences?.isEmpty == false || evidence.activeClonesOrLeases == true {
-            return result(.protected, ["Active mount, clone or lease observed; retain."])
+            return result(.protected, ["Container mount reference, clone or lease observed; retain."])
         }
         if evidence.observations.contains(where: {
             ($0.contentHits ?? 0) > 0 && $0.observedAt <= now
@@ -144,7 +144,7 @@ enum CICacheRetention {
                 createdAt: volume.createdAt, coverageStart: nil, coverageEnd: nil, historyComplete: false,
                 observations: [], lastAccess: nil,
                 protectionObservedAt: inventory.measuredAt,
-                activeReferences: inventory.isStale(at: now) ? nil : volume.activeContainers,
+                activeReferences: inventory.isStale(at: now) ? nil : volume.containerReferences,
                 cloneLeaseCoverageComplete: false, activeClonesOrLeases: nil), now: now)
     }
 }
