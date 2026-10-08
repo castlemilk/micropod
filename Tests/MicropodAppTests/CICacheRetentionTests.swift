@@ -13,7 +13,7 @@ final class CICacheRetentionTests: XCTestCase {
     private func evidence(
         hits: UInt64? = 0, misses: UInt64? = 4, complete: Bool = true,
         active: [String]? = [], leases: Bool? = false, protectionAge: TimeInterval = 0,
-        replacement: CICacheRetention.Identity? = nil, duplicate: Bool = false
+        replacement: CICacheRetention.Identity? = nil, duplicate: Bool = false, sampleAge: TimeInterval = 20 * 86400
     ) -> CICacheRetention.Evidence {
         .init(
             identity: replacement ?? identity,
@@ -23,7 +23,7 @@ final class CICacheRetentionTests: XCTestCase {
             observations: (0..<3).map {
                 .init(
                     attemptID: duplicate ? "one" : "job-\($0)",
-                    observedAt: now.addingTimeInterval(-20 * 86400),
+                    observedAt: now.addingTimeInterval(-sampleAge),
                     producerSession: $0 == 0 ? "before-restart" : "after-restart",
                     contentHits: hits, contentMisses: misses)
             }, lastAccess: now.addingTimeInterval(-20 * 86400),
@@ -81,6 +81,12 @@ final class CICacheRetentionTests: XCTestCase {
         XCTAssertEqual(CICacheRetention.review(evidence(leases: nil), now: now).disposition, .insufficient)
         XCTAssertEqual(CICacheRetention.review(evidence(active: nil), now: now).disposition, .insufficient)
         XCTAssertEqual(CICacheRetention.review(evidence(protectionAge: 31), now: now).disposition, .insufficient)
+    }
+
+    func testRecentMeasuredAccessCannotQualifyAgainstOlderLastAccess() {
+        let review = CICacheRetention.review(evidence(sampleAge: 86400), now: now)
+        XCTAssertEqual(review.disposition, .insufficient)
+        XCTAssertTrue(review.reasons.contains { $0.contains("last access") })
     }
 
     func testConcurrentMountLeaseOrIdentityChangeInvalidatesReview() {

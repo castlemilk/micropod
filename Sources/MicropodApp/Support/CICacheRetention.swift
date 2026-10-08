@@ -100,7 +100,9 @@ enum CICacheRetention {
                 "At least three distinct attempts with measured per-cache content misses and no hits are required.")
         }
         if let created = evidence.createdAt, let access = evidence.lastAccess,
-            created <= access, access <= now, now.timeIntervalSince(access) >= policy.minimumIdleAge
+            created <= access, access <= now,
+            evidence.observations.allSatisfy({ $0.observedAt <= access }),
+            now.timeIntervalSince(access) >= policy.minimumIdleAge
         {
         } else {
             gaps.append(
