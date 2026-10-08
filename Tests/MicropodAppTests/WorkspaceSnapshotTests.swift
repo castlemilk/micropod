@@ -442,6 +442,9 @@ final class WorkspaceSnapshotTests: XCTestCase {
         store.applyForPreview(stats: snapshot)
         store.selectWorkload(store.workloadItems.first { $0.name == "api-dev" }!)
         store.cacheStore.applyForPreview(try cacheSnapshot(in: fixture.directory, at: now))
+        store.ciCacheStore.applyForPreview(
+            CICacheInventorySnapshot(
+                read: CICacheRead(volumes: [], containers: [], truncated: false), sourceID: "fixture", measuredAt: now))
         store.recordActivity("containers", "Started api-dev", level: .success)
         return store
     }

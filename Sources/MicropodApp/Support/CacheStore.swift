@@ -184,10 +184,11 @@ final class CacheStore {
 
     /// Used by deterministic native previews; never scans the user's
     /// cache directories or connects to the shared-cache agent.
-    func applyForPreview(_ snapshot: CacheSnapshot, review: SharedCacheCleanupReview? = nil) {
+    func applyForPreview(_ snapshot: CacheSnapshot?, review: SharedCacheCleanupReview? = nil, error: String? = nil) {
         cancelRefresh()
         isPreview = true
         self.snapshot = snapshot
+        self.error = error
         cleanupReview = review
     }
 }

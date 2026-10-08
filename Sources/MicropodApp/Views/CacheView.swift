@@ -24,9 +24,7 @@ struct CacheView: View {
                 }
                 if let snapshot = cache.snapshot {
                     cacheSummary(snapshot)
-                    buildInventory(snapshot)
-                    packageInventory(snapshot)
-                } else {
+                } else if cache.error == nil {
                     HStack(spacing: Tokens.Spacing.sm) {
                         ProgressView().controlSize(.small)
                         Text("Reading local cache state…")
@@ -34,13 +32,18 @@ struct CacheView: View {
                     }
                     .padding(.vertical, Tokens.Spacing.xl)
                 }
+                CICacheInventoryView(cache: store.ciCacheStore)
+                if let snapshot = cache.snapshot {
+                    buildInventory(snapshot)
+                    packageInventory(snapshot)
+                }
             }
             .padding(Tokens.Spacing.xl)
             .frame(maxWidth: 1200, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
         .background(Tokens.Palette.canvas)
-        .task { await cache.refresh() }
+        .task { await refresh() }
         .sheet(
             isPresented: $showCleanup,
             onDismiss: { cache.dismissCleanupReview() },
@@ -49,16 +52,16 @@ struct CacheView: View {
 
     private var header: some View {
         WorkspacePageHeader(
-            title: "Cache", subtitle: "Reuse local work. Keep disk use predictable.",
+            title: "Cache", subtitle: "Build contexts, shared package chunks and CI named volumes.",
             icon: "cache", fallback: "externaldrive"
         ) {
             VStack(alignment: .leading, spacing: Tokens.Spacing.xs) {
                 Button {
-                    Task { await cache.refresh(force: true) }
+                    Task { await refresh(force: true) }
                 } label: {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
-                .disabled(cache.isRefreshing || cache.isMutating)
+                .disabled(cache.isRefreshing || cache.isMutating || store.ciCacheStore.isRefreshing)
                 if let date = cache.snapshot?.measuredAt {
                     Text("Updated \(date.formatted(date: .omitted, time: .shortened))")
                         .font(Tokens.Typography.metadata)
@@ -66,6 +69,12 @@ struct CacheView: View {
                 }
             }
         }
+    }
+
+    private func refresh(force: Bool = false) async {
+        async let localCache: Void = cache.refresh(force: force)
+        async let volumes: Void = store.refreshCICacheInventory()
+        _ = await (localCache, volumes)
     }
 
     private func cacheSummary(_ snapshot: CacheSnapshot) -> some View {
