@@ -126,6 +126,7 @@ final class AppStore {
 
     let dependencies: AppDependencies
     let cacheStore = CacheStore()
+    let ciCacheStore = CICacheStore()
     var workloadInspectionRequest: UInt64 = 0
     var runtimeStopConfirmationRequested = false
 
@@ -573,6 +574,7 @@ final class AppStore {
         machinesRefreshTask = nil
         machinesRefreshID = nil
         cacheStore.cancelRefresh()
+        ciCacheStore.cancelRefresh()
     }
 
     /// Ensures the Apple container runtime is always running while the app is
@@ -1363,6 +1365,13 @@ final class AppStore {
         } catch {
             // Background refresh: failures surface as stale panes; not banner-worthy.
         }
+    }
+
+    func refreshCICacheInventory() async {
+        let backend = dependencies.runtime?.kind.rawValue ?? "cli"
+        await ciCacheStore.refresh(
+            reader: RuntimeCICacheReader(volumes: dependencies.volumes, containers: dependencies.containers),
+            sourceID: backend)
     }
 
     func refreshNetworks() async {
