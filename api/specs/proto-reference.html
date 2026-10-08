@@ -4784,6 +4784,16 @@ not answer in time, or one without memory-event support); a set 0
 means &#34;read, no OOM kills&#34;. Native backend only. </p></td>
                 </tr>
               
+                <tr>
+                  <td>block_io_observed</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td>optional</td>
+                  <td><p>Whether the backend observed both block byte counters in this sample.
+true includes measured zero; false means unavailable. Absent is an older
+producer: a positive counter is reported, but zero has unknown presence.
+These counters cover every container device, not individual cache volumes. </p></td>
+                </tr>
+              
             </tbody>
           </table>
 
