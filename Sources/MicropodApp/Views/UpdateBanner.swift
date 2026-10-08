@@ -1,8 +1,6 @@
 import SwiftUI
 
-/// Pinned under the toolbar while an update is downloading or waiting to be
-/// installed — Sparkle installs silently on quit, and Micropod rarely quits,
-/// so without this an update could sit staged and unseen.
+/// Shows available/staged updates and why coordinated installation is blocked.
 struct UpdateBanner: View {
     let updates: UpdateController
     @State private var dismissedVersion: String?
@@ -18,9 +16,10 @@ struct UpdateBanner: View {
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if updates.status == .readyToInstall {
-                    Button("Restart to Update") { updates.applyStagedUpdate() }
+                    Button("Restart to Update") { Task { await updates.applyStagedUpdate() } }
                         .controlSize(.small)
                         .keyboardShortcut(.defaultAction)
+                        .disabled(!updates.restartGuard.isAvailable || updates.restartGuard.state == .preparing)
                 }
                 Button {
                     dismissedVersion = version
@@ -56,7 +55,8 @@ struct UpdateBanner: View {
     }
 
     private func message(_ version: String) -> String {
-        guard updates.status == .readyToInstall else { return "Downloading Micropod \(version)…" }
+        if let reason = updates.restartBlockedReason { return "Micropod \(version) available. \(reason)" }
+        guard updates.status == .readyToInstall else { return "Micropod \(version) is available." }
         return updates.installsAutomatically
             ? "Micropod \(version) is ready. It installs itself when you're away and nothing is running — or restart now."
             : "Micropod \(version) is ready to install."

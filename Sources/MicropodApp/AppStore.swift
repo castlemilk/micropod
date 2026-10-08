@@ -539,23 +539,21 @@ final class AppStore {
         }
     }
 
-    /// Whether a restart (which stops the app's agents) would disrupt
-    /// anything: running containers here, or sandboxes the local API hosts.
-    func nothingRunning() async -> Bool {
-        guard runningCount == 0 else { return false }
-        var request = URLRequest(
-            url: URL(string: "http://127.0.0.1:45454/api/micropod.v1.ContainerService/ListContainers")!)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = Data("{}".utf8)
-        request.timeoutInterval = 5
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-            (response as? HTTPURLResponse)?.statusCode == 200
-        else {
-            return true  // no local API: nothing hosted there
-        }
-        let list = try? Micropod_V1_ListContainersResponse(jsonUTF8Data: data)
-        return !(list?.containers.contains { $0.state == "running" } ?? false)
+    /// Conservative observation of local work. This does not hold admission
+    /// and cannot by itself authorize a race-free restart.
+    func nothingRunning(
+        readLocalAPI: @MainActor () async -> Bool = { await UpdateWorkloadPreflight.readLocalAPI() }
+    ) async -> Bool {
+        guard restartHasNoLocalObservedWork else { return false }
+        guard await readLocalAPI(), !Task.isCancelled else { return false }
+        // The MainActor may have accepted local work while the read awaited.
+        return restartHasNoLocalObservedWork
+    }
+
+    private var restartHasNoLocalObservedWork: Bool {
+        clientAvailable && isRuntimeRunning && hasLoadedContainers && lastRefreshError == nil
+            && !operations.contains { $0.status == .running }
+            && UpdateWorkloadPreflight.hasNoObservedWork(states: containers.map(\.state))
     }
 
     func stopPollers() {

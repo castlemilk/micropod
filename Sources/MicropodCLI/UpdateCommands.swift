@@ -12,13 +12,13 @@ enum UpdateCommands {
 
         Usage:
           micropod update [status]     the app's and this CLI's versions and updates
-          micropod update check        look for a newer version now (the app downloads it)
+          micropod update check        look for a newer version now
           micropod update apply        restart the app into its downloaded update
           micropod update cli [--force]  update a standalone CLI install from the
                                        release channel (signature-verified)
 
-        The app checks hourly and installs downloaded updates when you're away
-        and nothing runs. It links ~/.local/bin/micropod and micropod-mcp into
+        App installation requires coordinated workload admission; status explains
+        when it is blocked. It links ~/.local/bin/micropod and micropod-mcp into
         its bundle, so they update with it. A CLI installed on its own says so
         after commands once a newer release is out.
         """
@@ -103,19 +103,30 @@ enum UpdateCommands {
     }
 
     static func appLine(_ status: [String: Any]) -> String {
+        let line = appStateLine(status)
+        guard let reason = status["restartBlockedReason"] as? String else { return line }
+        return line + " — installation blocked: " + reason
+    }
+
+    private static func appStateLine(_ status: [String: Any]) -> String {
         let current = status["currentVersion"] as? String ?? "?"
         switch status["state"] as? String {
         case "unavailable":
             return "Micropod app \(current) — updates aren't available in development builds"
         case "readyToInstall":
             let staged = status["downloadedVersion"] as? String ?? status["availableVersion"] as? String ?? "?"
-            return "Micropod app \(current) — \(staged) is downloaded: `micropod update apply` restarts into it"
+            if status["restartBlockedReason"] != nil { return "Micropod app \(current) — \(staged) is downloaded" }
+            return
+                "Micropod app \(current) — \(staged) is downloaded: `micropod update apply` requests guarded installation"
         case "updateAvailable":
             return
-                "Micropod app \(current) — \(status["availableVersion"] as? String ?? "a newer version") is downloading"
+                "Micropod app \(current) — \(status["availableVersion"] as? String ?? "a newer version") is available"
         case "checking":
             return "Micropod app \(current) — checking…"
         case "error":
+            if status["restartGuard"] as? String == "recoveryRequired" {
+                return "Micropod app \(current) — update recovery required"
+            }
             return "Micropod app \(current) — the last check failed: \(status["error"] as? String ?? "unknown error")"
         default:
             let checked = (status["checkedAt"] as? String).map { " (checked \($0))" } ?? ""

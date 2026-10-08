@@ -131,13 +131,14 @@ private actor MCPServer {
             line += " | \(version) available"
             if report["downloaded"] as? Bool == true { line += ", downloaded" }
             if report["readyToInstall"] as? Bool == true {
-                line += ", ready to install (update_apply restarts into it)"
+                line += ", staged"
             }
         }
         if let checked = report["checkedAt"] as? String { line += " | checked \(checked)" }
         if let error = report["error"] as? String {
             line += " — \(error)"
         }
+        if let reason = report["restartBlockedReason"] as? String { line += " | installation blocked: \(reason)" }
         return line
     }
 

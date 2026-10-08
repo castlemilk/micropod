@@ -1238,7 +1238,10 @@ extension APIHandlers {
             proto.downloaded = (report["downloaded"] as? Bool) ?? false
             if let v = report["downloadedVersion"] as? String { proto.downloadedVersion = v }
             proto.readyToInstall = (report["readyToInstall"] as? Bool) ?? false
-            if let v = report["error"] as? String { proto.error = v }
+            // Older typed clients have one diagnostic field. Preserve the
+            // admission blocker there rather than silently discarding it.
+            proto.error = [report["error"] as? String, report["restartBlockedReason"] as? String]
+                .compactMap { $0 }.joined(separator: " — ")
             if let v = report["checkedAt"] as? String { proto.checkedAt = v }
         }
     }
