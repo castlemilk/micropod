@@ -17,6 +17,12 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      qualification_version:
+        description: "Draft-only signed qualification version (vX.Y.Z)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -32,9 +38,36 @@ jobs:
   release:
     runs-on: macos-26
     env:
-      VERSION: ${{ github.ref_name }}
+      VERSION: ${{ inputs.qualification_version || github.ref_name }}
     steps:
       - uses: actions/checkout@v7
+
+      - name: Qualify source and signing requirements
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          SPARKLE_ED25519_KEY: ${{ secrets.SPARKLE_ED25519_KEY }}
+        run: |
+          set -euo pipefail
+          [ "$(git rev-parse HEAD)" = "$GITHUB_SHA" ] || exit 1
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+          [ "$GITHUB_REF" = "refs/heads/master" ] || exit 1
+          [ -n "$APPLE_SIGNING_IDENTITY" ] && [ -n "$MACOS_CERTIFICATE" ] && [ -n "$SPARKLE_ED25519_KEY" ] || exit 1
+          gh run list --workflow ci.yml --commit "$GITHUB_SHA" --event push \
+            --json headSha,status,conclusion --limit 20 > "$RUNNER_TEMP/source-checks.json"
+          jq -e --arg sha "$GITHUB_SHA" 'any(.[]; .headSha == $sha and .status == "completed" and .conclusion == "success")' \
+            "$RUNNER_TEMP/source-checks.json" >/dev/null
+          # Qualify once under a fresh version; never clobber an existing release.
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[].tag_name' > "$RUNNER_TEMP/release-tags.txt"
+          if awk -v version="$VERSION" '$0 == version { found=1 } END { exit found ? 0 : 1 }' "$RUNNER_TEMP/release-tags.txt"; then exit 1; fi
+          if git ls-remote --exit-code origin "refs/tags/$VERSION" > "$RUNNER_TEMP/qualification-tag.txt"; then
+            exit 1
+          else
+            lookup_status=$?
+            [ "$lookup_status" = 2 ] || exit "$lookup_status"
+          fi
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer || true
@@ -143,6 +176,24 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            [ "$DMG_ASSET" = "Micropod.dmg" ] || exit 1
+            printf '%s\n' "$GITHUB_SHA" > dist/qualification-source.txt
+            gh release create "$VERSION" \
+              "dist/$DMG_ASSET" "dist/$DMG_ASSET.sha256" "dist/Micropod.${VERSION#v}.tgz" \
+              dist/qualification-source.txt --target "$GITHUB_SHA" --draft --latest=false \
+              --title "$VERSION — qualification only" --notes "Signed candidate; no appcast publication or installation."
+            gh release view "$VERSION" --json isDraft,targetCommitish > "$RUNNER_TEMP/candidate.json"
+            jq -e --arg sha "$GITHUB_SHA" '.isDraft == true and .targetCommitish == $sha' "$RUNNER_TEMP/candidate.json" >/dev/null
+            if git ls-remote --exit-code origin "refs/tags/$VERSION" "refs/tags/$VERSION^{}" > "$RUNNER_TEMP/qualification-tag.txt"; then
+              candidate_tag_sha=$(awk 'NR==1 { direct=$1 } /\^\{\}$/ { peeled=$1 } END { print peeled ? peeled : direct }' "$RUNNER_TEMP/qualification-tag.txt")
+              [ "$candidate_tag_sha" = "$GITHUB_SHA" ] || exit 1
+            else
+              lookup_status=$?
+              [ "$lookup_status" = 2 ] || exit "$lookup_status"
+            fi
+            exit 0
+          fi
           # "Latest" (what the landing page downloads) only if no higher
           # version is already released.
           highest=$( (gh release list --limit 100 --json tagName --jq '.[].tagName'; echo "$VERSION") | sort -V | tail -1)
@@ -161,6 +212,7 @@ jobs:
       - name: Sign DMG for Sparkle feed
         if: env.DMG_ASSET == 'Micropod.dmg'
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SPARKLE_ED25519_KEY: ${{ secrets.SPARKLE_ED25519_KEY }}
         run: |
           if [ -z "$SPARKLE_ED25519_KEY" ]; then
@@ -183,9 +235,17 @@ jobs:
             --version "${VERSION#v}" \
             --url "https://github.com/castlemilk/micropod/releases/download/$VERSION/Micropod.dmg" \
             --signature "$SIG" --length "$LEN"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            gh release view "$VERSION" --json isDraft,targetCommitish > "$RUNNER_TEMP/candidate.json"
+            jq -e --arg sha "$GITHUB_SHA" '.isDraft == true and .targetCommitish == $sha' "$RUNNER_TEMP/candidate.json" >/dev/null
+            cp landing/appcast.xml "$RUNNER_TEMP/qualification-appcast.xml"
+            gh release upload "$VERSION" "$RUNNER_TEMP/qualification-appcast.xml"
+            gh release view "$VERSION" --json isDraft,targetCommitish > "$RUNNER_TEMP/candidate.json"
+            jq -e --arg sha "$GITHUB_SHA" '.isDraft == true and .targetCommitish == $sha' "$RUNNER_TEMP/candidate.json" >/dev/null
+          fi
 
       - name: Publish appcast
-        if: env.DMG_ASSET == 'Micropod.dmg'
+        if: env.DMG_ASSET == 'Micropod.dmg' && github.event_name != 'workflow_dispatch'
         env:
           SPARKLE_ED25519_KEY: ${{ secrets.SPARKLE_ED25519_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -219,7 +279,7 @@ jobs:
   sdk:
     runs-on: macos-26
     env:
-      VERSION: ${{ github.ref_name }}
+      VERSION: ${{ inputs.qualification_version || github.ref_name }}
     steps:
       - uses: actions/checkout@v7
 
@@ -275,10 +335,11 @@ jobs:
           retention-days: 7
 
   sdk-publish:
+    if: github.event_name != 'workflow_dispatch'
     needs: [release, sdk]
     runs-on: ubuntu-latest
     env:
-      VERSION: ${{ github.ref_name }}
+      VERSION: ${{ inputs.qualification_version || github.ref_name }}
     steps:
       - uses: actions/checkout@v7
 
@@ -295,6 +356,7 @@ jobs:
       # Go modules resolve by path-versioned tag: sdk/go/v0.7.0 makes
       # `go get github.com/castlemilk/micropod/sdk/go@sdk/go/v0.7.0` work.
       - name: Tag Go module version
+        if: github.event_name != 'workflow_dispatch'
         # Idempotent: a re-run, or a tag pushed by hand alongside vX.Y.Z, is
         # fine as long as it names this commit; one elsewhere fails loudly.
         run: |
