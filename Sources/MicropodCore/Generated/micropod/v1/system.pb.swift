@@ -444,11 +444,25 @@ public nonisolated struct Micropod_V1_ContainerStats: Sendable {
   /// Clears the value of `oomKillCount`. Subsequent reads from it will return its default value.
   public mutating func clearOomKillCount() {self._oomKillCount = nil}
 
+  /// Whether the backend observed both block byte counters in this sample.
+  /// true includes measured zero; false means unavailable. Absent is an older
+  /// producer: a positive counter is reported, but zero has unknown presence.
+  /// These counters cover every container device, not individual cache volumes.
+  public var blockIoObserved: Bool {
+    get {_blockIoObserved ?? false}
+    set {_blockIoObserved = newValue}
+  }
+  /// Returns true if `blockIoObserved` has been explicitly set.
+  public var hasBlockIoObserved: Bool {self._blockIoObserved != nil}
+  /// Clears the value of `blockIoObserved`. Subsequent reads from it will return its default value.
+  public mutating func clearBlockIoObserved() {self._blockIoObserved = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _oomKillCount: UInt64? = nil
+  fileprivate var _blockIoObserved: Bool? = nil
 }
 
 /// A registry login, mapped from `container registry list`.
@@ -1332,7 +1346,7 @@ nonisolated extension Micropod_V1_StatsSnapshot: SwiftProtobuf.Message, SwiftPro
 
 nonisolated extension Micropod_V1_ContainerStats: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ContainerStats"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}cpu_percent\0\u{3}memory_used_bytes\0\u{3}memory_limit_bytes\0\u{3}network_rx_bytes\0\u{3}network_tx_bytes\0\u{3}block_read_bytes\0\u{3}block_write_bytes\0\u{1}pids\0\u{3}cpu_usage_usec\0\u{3}oom_kill_count\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}cpu_percent\0\u{3}memory_used_bytes\0\u{3}memory_limit_bytes\0\u{3}network_rx_bytes\0\u{3}network_tx_bytes\0\u{3}block_read_bytes\0\u{3}block_write_bytes\0\u{1}pids\0\u{3}cpu_usage_usec\0\u{3}oom_kill_count\0\u{3}block_io_observed\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1351,6 +1365,7 @@ nonisolated extension Micropod_V1_ContainerStats: SwiftProtobuf.Message, SwiftPr
       case 9: try { try decoder.decodeSingularUInt64Field(value: &self.pids) }()
       case 10: try { try decoder.decodeSingularUInt64Field(value: &self.cpuUsageUsec) }()
       case 11: try { try decoder.decodeSingularUInt64Field(value: &self._oomKillCount) }()
+      case 12: try { try decoder.decodeSingularBoolField(value: &self._blockIoObserved) }()
       default: break
       }
     }
@@ -1394,6 +1409,9 @@ nonisolated extension Micropod_V1_ContainerStats: SwiftProtobuf.Message, SwiftPr
     try { if let v = self._oomKillCount {
       try visitor.visitSingularUInt64Field(value: v, fieldNumber: 11)
     } }()
+    try { if let v = self._blockIoObserved {
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 12)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1409,6 +1427,7 @@ nonisolated extension Micropod_V1_ContainerStats: SwiftProtobuf.Message, SwiftPr
     if lhs.pids != rhs.pids {return false}
     if lhs.cpuUsageUsec != rhs.cpuUsageUsec {return false}
     if lhs._oomKillCount != rhs._oomKillCount {return false}
+    if lhs._blockIoObserved != rhs._blockIoObserved {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

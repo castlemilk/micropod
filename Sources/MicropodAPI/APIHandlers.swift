@@ -756,7 +756,7 @@ final class APIHandlers: Sendable {
     }
 
     private func projection(_ stats: Micropod_V1_ContainerStats) -> [String: Any] {
-        [
+        var result: [String: Any] = [
             "id": stats.id,
             "cpuPercent": stats.cpuPercent,
             "memoryUsedBytes": stats.memoryUsedBytes,
@@ -767,6 +767,8 @@ final class APIHandlers: Sendable {
             "blockWriteBytes": stats.blockWriteBytes,
             "pids": stats.pids,
         ]
+        if stats.hasBlockIoObserved { result["blockIoObserved"] = stats.blockIoObserved }
+        return result
     }
 
     private func projection(_ machine: MachineEntry) -> [String: Any] {

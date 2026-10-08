@@ -22,6 +22,7 @@ struct CacheView: View {
                         .foregroundStyle(Tokens.Palette.danger)
                         .textSelection(.enabled)
                 }
+                CICacheInventoryView(cache: store.ciCacheStore, stats: store.statsSnapshot)
                 if let snapshot = cache.snapshot {
                     cacheSummary(snapshot)
                 } else if cache.error == nil {
@@ -32,7 +33,6 @@ struct CacheView: View {
                     }
                     .padding(.vertical, Tokens.Spacing.xl)
                 }
-                CICacheInventoryView(cache: store.ciCacheStore)
                 if let snapshot = cache.snapshot {
                     buildInventory(snapshot)
                     packageInventory(snapshot)
@@ -43,7 +43,7 @@ struct CacheView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Tokens.Palette.canvas)
-        .task { await refresh() }
+        .task { await CachePageRefreshLoop.run { await refresh() } }
         .sheet(
             isPresented: $showCleanup,
             onDismiss: { cache.dismissCleanupReview() },
@@ -89,15 +89,19 @@ struct CacheView: View {
                 title: "Build contexts", icon: "cache", fallback: "externaldrive",
                 value: snapshot.buildError == nil ? bytes(snapshot.buildStats.contentBytes) : "Unavailable",
                 detail: "Logical retained content",
-                used: snapshot.buildStats.contentBytes, cap: snapshot.buildStats.capBytes,
+                used: snapshot.buildError == nil ? snapshot.buildStats.contentBytes : nil,
+                cap: snapshot.buildStats.capBytes,
                 color: Tokens.Palette.accent,
                 footer:
-                    "\(snapshot.buildStats.entries) contexts · \(snapshot.buildDisabled ? "Caching disabled" : "Automatic LRU eviction")"
+                    snapshot.buildError == nil
+                    ? "\(snapshot.buildStats.entries) contexts · \(snapshot.buildDisabled ? "Caching disabled" : "Automatic LRU eviction")"
+                    : "Context inventory unavailable"
             )
             if let package = snapshot.package {
                 summaryCard(
-                    title: "Package cache", icon: "container", fallback: "shippingbox",
-                    value: bytes(package.storedBytes), detail: "Stored chunk data",
+                    title: "Shared package chunks", icon: "container", fallback: "shippingbox",
+                    value: bytes(package.storedBytes),
+                    detail: "SharedFS chunk data; separate from the CI dependency proxy",
                     used: package.storedBytes, cap: package.capBytes,
                     color: Tokens.Palette.success,
                     footer: "\(package.chunkCount) chunks · \(package.activeMounts.count) active mounts")
@@ -105,7 +109,7 @@ struct CacheView: View {
                 PanelCard {
                     HStack(spacing: Tokens.Spacing.md) {
                         WorkspaceIconTile(name: "container", fallback: "shippingbox")
-                        Text("Package cache").font(Tokens.Typography.section)
+                        Text("Shared package chunks").font(Tokens.Typography.section)
                     }
                     Text("Agent unavailable").font(Tokens.Typography.metric)
                     Text(snapshot.packageError ?? "The shared cache agent has not reported its state.")
@@ -120,7 +124,7 @@ struct CacheView: View {
 
     private func summaryCard(
         title: String, icon: String, fallback: String, value: String, detail: String,
-        used: UInt64, cap: UInt64, color: Color, footer: String
+        used: UInt64?, cap: UInt64, color: Color, footer: String
     ) -> some View {
         PanelCard {
             HStack(alignment: .top, spacing: Tokens.Spacing.md) {
@@ -131,9 +135,14 @@ struct CacheView: View {
                 }
             }
             Text(detail).font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
-            WorkspaceBudgetMeter(
-                used: used, cap: cap, label: "\(title) configured limit",
-                color: used > cap ? Tokens.Palette.warning : color)
+            if let used {
+                WorkspaceBudgetMeter(
+                    used: used, cap: cap, label: "\(title) configured limit",
+                    color: used > cap ? Tokens.Palette.warning : color)
+            } else {
+                Text("Usage unknown").font(Tokens.Typography.metadata)
+                    .foregroundStyle(Tokens.Palette.secondary)
+            }
             ResponsiveRow(spacing: Tokens.Spacing.sm) {
                 Text(footer)
             } trailing: {

@@ -10,9 +10,15 @@ struct CICacheVolume: Identifiable, Equatable, Sendable {
     let owner: String
     let ecosystem: String
     let source: String
+    let key: String
+    let scope: String
+    let trust: String
+    let lineage: String
+    let createdAt: Date?
     let capacityBytes: UInt64?
     let allocatedBytes: UInt64?
     let activeContainers: [String]?
+    let containerReferences: [String]?
 
     var activityLabel: String {
         guard let activeContainers else { return "Active use unknown" }
@@ -78,24 +84,32 @@ struct CICacheInventorySnapshot: Sendable {
             $0.format.lowercased() == "ext4"
                 && ($0.labels["cuttle.kind"] == "cache" || $0.id.hasPrefix("cf-cache-"))
         }.map { volume in
-            let active = read.containers.map { containers in
+            let references = read.containers.map { containers in
                 containers.filter { container in
-                    ["running", "starting", "stopping"].contains(container.state.lowercased())
-                        && container.mounts.contains { mount in
-                            Self.references(mount.source, volume: volume, containerID: container.id)
-                        }
-                }.map(\.id).sorted()
+                    container.mounts.contains { mount in
+                        Self.references(mount.source, volume: volume, containerID: container.id)
+                    }
+                }
+            }
+            let active = references.map {
+                $0.filter { ["running", "starting", "stopping", "paused"].contains($0.state.lowercased()) }
+                    .map(\.id).sorted()
             }
             return CICacheVolume(
                 id: volume.id, project: volume.labels["cuttle.project"] ?? "",
                 owner: volume.labels["cuttle.owner"] ?? "",
                 ecosystem: volume.labels["cuttle.ecosystem"] ?? volume.labels["cuttle.scope"] ?? "",
                 source: volume.source,
+                key: volume.labels["cuttle.key"] ?? "",
+                scope: volume.labels["cuttle.scope"] ?? "",
+                trust: volume.labels["cuttle.trust"] ?? "",
+                lineage: volume.labels["cuttle.lineage"] ?? "",
+                createdAt: CICacheTelemetry.date(volume.createdAt),
                 capacityBytes: volume.sizeBytes > 0 ? volume.sizeBytes : nil,
                 // Proto3 zero does not distinguish an omitted sample from zero
                 // allocation. Stay conservative until the runtime supplies presence.
                 allocatedBytes: volume.allocatedBytes > 0 ? volume.allocatedBytes : nil,
-                activeContainers: active)
+                activeContainers: active, containerReferences: references?.map(\.id).sorted())
         }.sorted {
             if $0.allocatedBytes != $1.allocatedBytes {
                 return ($0.allocatedBytes ?? 0) > ($1.allocatedBytes ?? 0)
@@ -130,35 +144,83 @@ struct CICacheCounter: Decodable, Sendable {
 
 struct CICacheTelemetry: Sendable {
     static let endpoint = URL(string: "http://127.0.0.1:5555/cache")!
+    static let byteLimit = 1_048_576
     let receivedAt: Date
     let counters: [CICacheCounter]
+    var attempts: [CICacheAttemptReport] = []
+    var saves: [CICacheSaveReport] = []
+    var invalidSaves = 0
+    var saveFeedAvailable = false
 
     static func decode(_ data: Data, receivedAt: Date) throws -> Self {
         struct Envelope: Decodable {
             let ok: Bool
             let metrics: [CICacheCounter]
+            let attempts: [CICacheAttemptReport]?
+            let saves: [CICacheOptionalSave]?
         }
-        guard data.count <= 131_072 else { throw CICacheReadError.invalidCounters }
+        guard data.count <= Self.byteLimit else { throw CICacheReadError.invalidCounters }
         let envelope = try JSONDecoder().decode(Envelope.self, from: data)
-        guard envelope.ok, envelope.metrics.count <= 1024,
+        guard envelope.ok, envelope.metrics.count <= 1024, (envelope.attempts?.count ?? 0) <= 20,
+            (envelope.saves?.count ?? 0) <= 128,
+            (envelope.attempts ?? []).allSatisfy({
+                [$0.attemptId, $0.nodeId, $0.runnerId ?? "", $0.projectId ?? "", $0.runId ?? "", $0.observedAt ?? ""]
+                    .allSatisfy { $0.count <= 512 }
+            }),
             envelope.metrics.allSatisfy({ $0.value.isFinite && $0.value >= 0 })
         else { throw CICacheReadError.invalidCounters }
-        return Self(receivedAt: receivedAt, counters: envelope.metrics)
+        return Self(
+            receivedAt: receivedAt, counters: envelope.metrics, attempts: envelope.attempts ?? [],
+            saves: (envelope.saves ?? []).compactMap(\.value),
+            invalidSaves: (envelope.saves ?? []).filter { $0.value == nil }.count,
+            saveFeedAvailable: envelope.saves != nil)
     }
 
+    func jobReports(for selection: CICacheSelection) -> [CICacheAttemptReport] {
+        guard selection.owner.isEmpty else { return [] }  // owner path is not a runner ID
+        var seen = Set<String>()
+        return attempts.reversed().filter {
+            (selection.project.isEmpty || $0.projectId == selection.project) && seen.insert($0.id).inserted
+        }
+    }
+
+    func proxyReports(for selection: CICacheSelection) -> [CICacheAttemptReport] {
+        jobReports(for: selection).filter { $0.report.proxy != nil }
+    }
+
+    func saveReports(for selection: CICacheSelection) -> [CICacheSaveReport] {
+        guard selection.owner.isEmpty else { return [] }
+        var seen = Set<CICacheSaveReport.Key>()
+        return saves.reversed().filter {
+            (selection.project.isEmpty || $0.projectId == selection.project) && seen.insert($0.id).inserted
+        }
+    }
+
+    /// Resolution events and proxy activity have distinct definitions.
     /// The endpoint does not assert rig/owner identity. Never join it to an
     /// owner selection. Project-less counters are hidden under a project filter.
     func observations(for selection: CICacheSelection) -> [CICacheCounterObservation] {
         guard selection.owner.isEmpty else { return [] }
-        let definitions: [(String, String, String, String)] =
+        let definitions: [(String, String, String, String, CICacheCounterObservation.Unit)] =
             selection.project.isEmpty
             ? [
-                ("Volume resolutions", "cache_volume_total", "outcome", "hit"),
-                ("Store resolutions", "cache_store_total", "outcome", "hit"),
-                ("Dependency proxy", "depcache_requests_total", "tier", "local"),
+                ("Existing goldens", "cache_volume_total", "outcome", "hit", .count),
+                ("New goldens", "cache_volume_total", "outcome", "created", .count),
+                ("Existing store mounts", "cache_store_total", "outcome", "hit", .count),
+                ("Seeded store mounts", "cache_store_total", "outcome", "seeded", .count),
+                ("Cold store mounts", "cache_store_total", "outcome", "cold", .count),
+                ("Proxy local requests", "depcache_requests_total", "tier", "local", .count),
+                ("Proxy upstream requests", "depcache_requests_total", "tier", "upstream", .count),
+                ("Proxy stale responses", "depcache_requests_total", "tier", "stale", .count),
+                ("Proxy errors", "depcache_requests_total", "tier", "error", .count),
+                ("Proxy bytes served", "depcache_bytes_total", "source", "local", .bytes),
+                ("Proxy bytes fetched", "depcache_bytes_total", "source", "upstream", .bytes),
             ]
-            : [("Volume resolutions", "cache_volume_total", "outcome", "hit")]
-        return definitions.compactMap { label, name, attribute, value in
+            : [
+                ("Existing goldens", "cache_volume_total", "outcome", "hit", .count),
+                ("New goldens", "cache_volume_total", "outcome", "created", .count),
+            ]
+        return definitions.compactMap { label, name, attribute, value, unit in
             let matching = counters.filter {
                 $0.name == name && $0.type == "counter" && $0.attributes?[attribute] == value
                     && (selection.project.isEmpty || $0.attributes?["project"] == selection.project)
@@ -168,11 +230,11 @@ struct CICacheTelemetry: Sendable {
             guard total.isFinite else { return nil }
             let dates = matching.compactMap { Self.date($0.capturedAt) }
             return CICacheCounterObservation(
-                label: label, hits: total, capturedAt: dates.count == matching.count ? dates.min() : nil)
+                label: label, value: total, unit: unit, capturedAt: dates.count == matching.count ? dates.min() : nil)
         }
     }
 
-    private static func date(_ string: String?) -> Date? {
+    static func date(_ string: String?) -> Date? {
         guard let string else { return nil }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -182,7 +244,17 @@ struct CICacheTelemetry: Sendable {
 
 struct CICacheCounterObservation: Sendable {
     let label: String
-    let hits: Double
+    enum Unit: Sendable { case count, bytes }
+    let value: Double
+    let unit: Unit
+
+    var formatted: String {
+        if unit == .bytes, value == 0 { return "0 B" }
+        if unit == .bytes, value < Double(Int64.max) {
+            return ByteCountFormatter.string(fromByteCount: Int64(value), countStyle: .file)
+        }
+        return value.formatted(.number.precision(.fractionLength(0))) + (unit == .bytes ? " bytes" : "")
+    }
     let capturedAt: Date?
 
     func freshness(at now: Date) -> String {
@@ -195,6 +267,7 @@ struct CICacheCounterObservation: Sendable {
 enum CICacheByteFormat {
     static func string(_ value: UInt64?) -> String {
         guard let value else { return "Unknown" }
+        if value == 0 { return "0 B" }
         guard value <= UInt64(Int64.max) else { return "\(value.formatted()) bytes" }
         return ByteCountFormatter.string(fromByteCount: Int64(value), countStyle: .file)
     }
@@ -229,7 +302,7 @@ struct LocalCICacheTelemetryReader: CICacheTelemetryReading {
         guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw CICacheReadError.unavailable }
         var data = Data()
         for try await byte in bytes {
-            guard data.count < 131_072 else { throw CICacheReadError.invalidCounters }
+            guard data.count < CICacheTelemetry.byteLimit else { throw CICacheReadError.invalidCounters }
             try Task.checkCancellation()
             data.append(byte)
         }

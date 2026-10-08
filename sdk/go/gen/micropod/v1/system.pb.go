@@ -1112,9 +1112,14 @@ type ContainerStats struct {
 	// Unset = not reported (CLI and Docker backends, a guest agent that did
 	// not answer in time, or one without memory-event support); a set 0
 	// means "read, no OOM kills". Native backend only.
-	OomKillCount  *uint64 `protobuf:"varint,11,opt,name=oom_kill_count,json=oomKillCount,proto3,oneof" json:"oom_kill_count,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	OomKillCount *uint64 `protobuf:"varint,11,opt,name=oom_kill_count,json=oomKillCount,proto3,oneof" json:"oom_kill_count,omitempty"`
+	// Whether the backend observed both block byte counters in this sample.
+	// true includes measured zero; false means unavailable. Absent is an older
+	// producer: a positive counter is reported, but zero has unknown presence.
+	// These counters cover every container device, not individual cache volumes.
+	BlockIoObserved *bool `protobuf:"varint,12,opt,name=block_io_observed,json=blockIoObserved,proto3,oneof" json:"block_io_observed,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ContainerStats) Reset() {
@@ -1222,6 +1227,13 @@ func (x *ContainerStats) GetOomKillCount() uint64 {
 		return *x.OomKillCount
 	}
 	return 0
+}
+
+func (x *ContainerStats) GetBlockIoObserved() bool {
+	if x != nil && x.BlockIoObserved != nil {
+		return *x.BlockIoObserved
+	}
+	return false
 }
 
 // A registry login, mapped from `container registry list`.
@@ -1710,7 +1722,7 @@ const file_micropod_v1_system_proto_rawDesc = "" +
 	"containers\x18\x01 \x03(\v2\x1b.micropod.v1.ContainerStatsR\n" +
 	"containers\x12H\n" +
 	"\n" +
-	"sampled_at\x18\x02 \x01(\tB)\xbaG&:\x18\x12\x16'2026-01-15T10:30:00Z'\x9a\x02\tdate-timeR\tsampledAt\"\xe2\x04\n" +
+	"sampled_at\x18\x02 \x01(\tB)\xbaG&:\x18\x12\x16'2026-01-15T10:30:00Z'\x9a\x02\tdate-timeR\tsampledAt\"\xa9\x05\n" +
 	"\x0eContainerStats\x12\x1c\n" +
 	"\x02id\x18\x01 \x01(\tB\f\xbaG\t:\a\x12\x05'web'R\x02id\x12,\n" +
 	"\vcpu_percent\x18\x02 \x01(\x01B\v\xbaG\b:\x06\x12\x0412.5R\n" +
@@ -1726,8 +1738,10 @@ const file_micropod_v1_system_proto_rawDesc = "" +
 	"\x0ecpu_usage_usec\x18\n" +
 	" \x01(\x04B\x11\xbaG\x0e:\f\x12\n" +
 	"6576389781R\fcpuUsageUsec\x123\n" +
-	"\x0eoom_kill_count\x18\v \x01(\x04B\b\xbaG\x05:\x03\x12\x010H\x00R\foomKillCount\x88\x01\x01B\x11\n" +
-	"\x0f_oom_kill_count\"\x91\x01\n" +
+	"\x0eoom_kill_count\x18\v \x01(\x04B\b\xbaG\x05:\x03\x12\x010H\x00R\foomKillCount\x88\x01\x01\x12/\n" +
+	"\x11block_io_observed\x18\f \x01(\bH\x01R\x0fblockIoObserved\x88\x01\x01B\x11\n" +
+	"\x0f_oom_kill_countB\x14\n" +
+	"\x12_block_io_observed\"\x91\x01\n" +
 	"\rRegistryLogin\x12*\n" +
 	"\x06server\x18\x01 \x01(\tB\x12\xbaG\x0f:\r\x12\v'docker.io'R\x06server\x12,\n" +
 	"\busername\x18\x02 \x01(\tB\x10\xbaG\r:\v\x12\t'octocat'R\busername\x12&\n" +

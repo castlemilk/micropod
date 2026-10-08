@@ -32,9 +32,11 @@ final class CICacheInventoryTests: XCTestCase {
         let direct = container("job-b", "stopping", golden.source)
         let alias = container("job-c", "running", "/local/volume-clones/job-c/cf-cache-a-extra.img")
         let stopped = container("job-d", "stopped", golden.id)
-        let snapshot = inventory([golden], containers: [clone, direct, alias, stopped])
-        XCTAssertEqual(snapshot.volumes.first?.activeContainers, ["job-a", "job-b"])
-        XCTAssertEqual(snapshot.volumes.first?.activityLabel, "Active in 2 container(s)")
+        let snapshot = inventory(
+            [golden], containers: [clone, direct, alias, stopped, container("job-e", "paused", golden.id)])
+        XCTAssertEqual(snapshot.volumes.first?.activeContainers, ["job-a", "job-b", "job-e"])
+        XCTAssertEqual(snapshot.volumes.first?.containerReferences, ["job-a", "job-b", "job-d", "job-e"])
+        XCTAssertEqual(snapshot.volumes.first?.activityLabel, "Active in 3 container(s)")
     }
 
     func testUnavailableReferencesAreUnknownAndNonCIVolumesAreExcluded() {
@@ -85,23 +87,41 @@ final class CICacheInventoryTests: XCTestCase {
             metric("depcache_requests_total", 10, ["tier": "local"]),
         ])
         let project = telemetry.observations(for: CICacheSelection(project: "alpha"))
-        XCTAssertEqual(project.map(\.hits), [7])
+        XCTAssertEqual(project.map(\.value), [7])
         XCTAssertEqual(project.first?.freshness(at: now), "Recent sample")
         XCTAssertEqual(project.first?.freshness(at: now.addingTimeInterval(100)), "Stale sample")
         XCTAssertEqual(project.first?.freshness(at: now.addingTimeInterval(-10)), "Sample time invalid")
         XCTAssertTrue(telemetry.observations(for: CICacheSelection(project: "foreign")).isEmpty)
         XCTAssertTrue(telemetry.observations(for: CICacheSelection(owner: "rig-a:/state")).isEmpty)
-        XCTAssertEqual(telemetry.observations(for: CICacheSelection()).map(\.hits), [107, 300, 10])
+        XCTAssertEqual(telemetry.observations(for: CICacheSelection()).map(\.value), [107, 300, 10])
     }
 
     func testMissingZeroStaleAndInvalidCountersAreDistinct() throws {
         XCTAssertTrue(try counters([]).observations(for: CICacheSelection()).isEmpty)
         let zero = try counters([metric("cache_volume_total", 0, ["outcome": "hit"], sampled: false)])
-        XCTAssertEqual(zero.observations(for: CICacheSelection()).first?.hits, 0)
+        XCTAssertEqual(zero.observations(for: CICacheSelection()).first?.value, 0)
         XCTAssertEqual(zero.observations(for: CICacheSelection()).first?.freshness(at: now), "Sample time unknown")
         XCTAssertThrowsError(try counters([metric("cache_volume_total", -1, ["outcome": "hit"])]))
-        XCTAssertThrowsError(try CICacheTelemetry.decode(Data(repeating: 32, count: 131_073), receivedAt: now))
         XCTAssertThrowsError(try CICacheTelemetry.decode(Data("{}".utf8), receivedAt: now))
+    }
+
+    func testValidTelemetryJSONRespectsExactByteLimit() throws {
+        let prefix = "{\"ok\":true,\"metrics\":[],\"padding\":\""
+        let suffix = "\"}"
+        func payload(bytes: Int) -> Data {
+            Data((prefix + String(repeating: "x", count: bytes - prefix.utf8.count - suffix.utf8.count) + suffix).utf8)
+        }
+        for size in [CICacheTelemetry.byteLimit - 1, CICacheTelemetry.byteLimit] {
+            let data = payload(bytes: size)
+            XCTAssertEqual(data.count, size)
+            XCTAssertTrue(try CICacheTelemetry.decode(data, receivedAt: now).counters.isEmpty)
+        }
+        let oversized = payload(bytes: CICacheTelemetry.byteLimit + 1)
+        XCTAssertEqual(oversized.count, CICacheTelemetry.byteLimit + 1)
+        XCTAssertNotNil(try JSONSerialization.jsonObject(with: oversized) as? [String: Any])
+        XCTAssertThrowsError(try CICacheTelemetry.decode(oversized, receivedAt: now)) { error in
+            XCTAssertTrue(error is CICacheReadError, "Valid JSON must be refused by the size guard")
+        }
     }
 
     @MainActor

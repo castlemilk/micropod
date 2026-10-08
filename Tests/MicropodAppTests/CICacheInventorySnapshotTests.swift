@@ -14,7 +14,8 @@ final class CICacheInventorySnapshotTests: XCTestCase {
             for scheme in [ColorScheme.light, .dark] {
                 let cache = preview()
                 try render(
-                    CICacheInventoryView(cache: cache), width: width, height: 1400, scheme: scheme,
+                    CICacheInventoryView(cache: cache, stats: runtimeStats()), width: width, height: 2400,
+                    scheme: scheme,
                     name: "ci-cache-\(width)-\(scheme == .dark ? "dark" : "light")")
             }
         }
@@ -33,7 +34,7 @@ final class CICacheInventorySnapshotTests: XCTestCase {
             CICacheInventoryView(cache: unavailable), width: 720, height: 500, scheme: .dark,
             name: "ci-cache-unavailable")
         let stale = preview(stale: true)
-        try render(CICacheInventoryView(cache: stale), width: 720, height: 1400, scheme: .dark, name: "ci-cache-stale")
+        try render(CICacheInventoryView(cache: stale), width: 720, height: 2400, scheme: .dark, name: "ci-cache-stale")
     }
 
     func testRenderCachePageWithZeroSharedChunksAndActiveCIVolume() throws {
@@ -49,8 +50,10 @@ final class CICacheInventorySnapshotTests: XCTestCase {
                     chunkCount: 0, activeMounts: [], keepEnabled: false, overCap: false), packageError: nil))
         let ci = preview()
         store.ciCacheStore.applyForPreview(ci.inventory, telemetry: ci.telemetry)
+        store.applyForPreview(stats: runtimeStats())
         try render(CacheView(store: store), width: 720, height: 1100, scheme: .light, name: "ci-cache-page-zero-shared")
         XCTAssertEqual(store.cacheStore.snapshot?.package?.storedBytes, 0)
+        XCTAssertEqual(store.ciCacheStore.telemetry?.attempts.last?.report.proxy?.localHits, 75)
         XCTAssertEqual(store.ciCacheStore.inventory?.volumes.first?.allocatedBytes, 51 << 30)
     }
 
@@ -61,6 +64,7 @@ final class CICacheInventorySnapshotTests: XCTestCase {
         store.cacheStore.applyForPreview(nil, error: "Build context snapshot unavailable.")
         let ci = preview()
         store.ciCacheStore.applyForPreview(ci.inventory, telemetry: ci.telemetry)
+        store.applyForPreview(stats: runtimeStats())
         try render(
             CacheView(store: store), width: 720, height: 1100, scheme: .light,
             name: "ci-cache-page-unavailable-shared")
@@ -81,6 +85,7 @@ final class CICacheInventorySnapshotTests: XCTestCase {
                 "cuttle.project": "example-project",
                 "cuttle.owner": "local-rig:/Users/example/.cuttlefish/runner-state",
                 "cuttle.ecosystem": "docker",
+                "cuttle.key": "example-lock-digest", "cuttle.scope": "project", "cuttle.trust": "trusted",
             ]
         }
         var unknown = golden
@@ -96,15 +101,102 @@ final class CICacheInventorySnapshotTests: XCTestCase {
         let snapshot = CICacheInventorySnapshot(
             read: CICacheRead(volumes: [golden, unknown], containers: [job], truncated: false),
             sourceID: "local/native", measuredAt: date)
-        let counters = [
-            CICacheCounter(
-                name: "cache_volume_total", type: "counter", value: 42,
-                capturedAt: ISO8601DateFormatter().string(from: date),
-                attributes: ["outcome": "hit", "project": "example-project"])
+        let time = ISO8601DateFormatter().string(from: date)
+        let values: [(String, Double, [String: String])] = [
+            ("cache_volume_total", 42, ["outcome": "hit", "project": "example-project"]),
+            ("cache_volume_total", 8, ["outcome": "created", "project": "example-project"]),
+            ("cache_store_total", 30, ["outcome": "hit"]),
+            ("cache_store_total", 7, ["outcome": "cold"]),
+            ("cache_store_total", 3, ["outcome": "seeded"]),
+            ("depcache_requests_total", 75, ["tier": "local", "eco": "go"]),
+            ("depcache_requests_total", 25, ["tier": "upstream", "eco": "go"]),
+            ("depcache_requests_total", 2, ["tier": "error", "eco": "go"]),
+            ("depcache_bytes_total", Double(128 << 20), ["source": "local", "eco": "go"]),
+            ("depcache_bytes_total", Double(32 << 20), ["source": "upstream", "eco": "go"]),
         ]
+        let counters = values.map { name, value, attributes in
+            CICacheCounter(name: name, type: "counter", value: value, capturedAt: time, attributes: attributes)
+        }
+        let attempts = try! CICacheTelemetry.decode(
+            Data(
+                #"{"ok":true,"metrics":[],"attempts":[{"attemptId":"job-without-proxy-report","nodeId":"test","report":{"stores":[{"kind":"build","ecosystem":"go","mountPath":"/cache/go","golden":"cold","commit":"not-committed"}]}},{"attemptId":"warm-install-job","nodeId":"install","report":{"stores":[{"kind":"dep","ecosystem":"npm","mountPath":"/cache/npm","golden":"hit","commit":"queued"}],"proxy":{"requests":100,"localHits":75,"upstreamFetches":25,"upstreamMetadataFetches":0,"upstreamBytes":33554432,"servedBytes":134217728}}}]}"#
+                    .utf8), receivedAt: date
+        ).attempts
         let cache = CICacheStore()
-        cache.applyForPreview(snapshot, telemetry: CICacheTelemetry(receivedAt: date, counters: counters))
+        cache.applyForPreview(
+            snapshot, telemetry: CICacheTelemetry(receivedAt: date, counters: counters, attempts: attempts))
         return cache
+    }
+
+    func testRenderAttributedProducerResolutionAndLateSaveOutcomes() throws {
+        let cache = preview()
+        let identity = String(repeating: "a", count: 64)
+        let time = ISO8601DateFormatter().string(from: Date())
+        let store: [String: Any] = [
+            "cacheId": identity, "volumeName": "cf-cache-example", "resolveMs": 0,
+            "ecosystem": "go", "kind": "build", "mountPath": "/cache/go", "golden": "hit", "commit": "queued",
+        ]
+        let job: [String: Any] = [
+            "attemptId": "job-example", "nodeId": "build", "projectId": "example-project",
+            "runId": "run-example", "runnerId": "rig-example", "observedAt": time,
+            "report": [
+                "stores": [store],
+                "proxy": [
+                    "requests": 100, "localHits": 75,
+                    "upstreamFetches": 25, "upstreamMetadataFetches": 0,
+                    "upstreamBytes": 33554432, "servedBytes": 134217728,
+                ],
+            ],
+        ]
+        func save(_ outcome: String, clone: String) -> [String: Any] {
+            [
+                "attemptId": "job-example", "nodeId": "build", "projectId": "example-project", "runId": "run-example",
+                "runnerId": "rig-example", "observedAt": time,
+                "save": [
+                    "cacheId": identity, "volumeName": "cf-cache-example", "containerId": clone,
+                    "outcome": outcome, "durationMs": 24, "finishedAt": time, "allocatedBytes": 1073741824,
+                ],
+            ]
+        }
+        let data = try JSONSerialization.data(withJSONObject: [
+            "ok": true, "metrics": [], "attempts": [job],
+            "saves": [save("committed", clone: "clone-a"), save("unknown", clone: "clone-b")],
+        ])
+        let telemetry = try CICacheTelemetry.decode(data, receivedAt: Date())
+        cache.applyForPreview(cache.inventory, telemetry: telemetry)
+        try render(
+            CICacheInventoryView(cache: cache, stats: runtimeStats()), width: 1200, height: 3000,
+            scheme: .dark, name: "ci-cache-producer-resolution-saves")
+        XCTAssertEqual(telemetry.attempts.first?.report.stores.first?.resolveMs, 0)
+        XCTAssertEqual(telemetry.saveReports(for: .init()).count, 2)
+        XCTAssertEqual(CICacheRecentActivity.observations(telemetry, selection: .init()).first?.saveCost, 48)
+    }
+
+    private func runtimeStats() -> Micropod_V1_StatsSnapshot {
+        .with {
+            $0.sampledAt = ISO8601DateFormatter().string(from: Date())
+            $0.containers = [
+                .with {
+                    $0.id = "cf-attempt-01"
+                    $0.blockIoObserved = true
+                    $0.blockWriteBytes = 128 << 10
+                }
+            ]
+        }
+    }
+
+    func testRenderJobWithUnknownProxyAndColdStore() throws {
+        let cache = preview()
+        let source = try XCTUnwrap(cache.telemetry)
+        cache.applyForPreview(
+            cache.inventory,
+            telemetry: CICacheTelemetry(
+                receivedAt: source.receivedAt, counters: [], attempts: Array(source.attempts.prefix(1))))
+        try render(
+            CICacheInventoryView(cache: cache), width: 720, height: 2200, scheme: .light,
+            name: "ci-cache-job-unknown-cold")
+        XCTAssertNil(cache.telemetry?.attempts.first?.report.proxy)
+        XCTAssertEqual(cache.telemetry?.attempts.first?.report.stores.first?.golden, "cold")
     }
 
     private func render<Content: View>(
