@@ -329,6 +329,7 @@ jobs:
         run: cd sdk/swift && swift build
 
       - uses: actions/upload-artifact@v4
+        if: github.event_name != 'workflow_dispatch'
         with:
           name: typescript-sdk
           path: dist/micropod-sdk-*.tgz

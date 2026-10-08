@@ -10,7 +10,7 @@ and SDK verification jobs, requires successful exact-master source CI and existi
 signing configuration, and creates a fresh draft release. It stores source identity
 and the public signed appcast envelope beside the draft's artifacts. It does not
 push the live appcast, dispatch Pages or publish SDK assets/module tags. SDK build
-verification still runs and its package remains a workflow artifact. There
+verification still runs, without a retained SDK Actions artifact for qualification. There
 is no automatic promotion or installed-app update. Missing prerequisites fail the
 qualification. A draft left by a failed qualification is not accepted as a release.
 
