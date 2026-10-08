@@ -127,6 +127,7 @@ final class AppStore {
     let dependencies: AppDependencies
     let cacheStore = CacheStore()
     let ciCacheStore = CICacheStore()
+    @ObservationIgnored private let ciCacheHistory = CICacheHistoryConsumer()
     var workloadInspectionRequest: UInt64 = 0
     var runtimeStopConfirmationRequested = false
 
@@ -1369,7 +1370,7 @@ final class AppStore {
         let backend = dependencies.runtime?.kind.rawValue ?? "cli"
         await ciCacheStore.refresh(
             reader: RuntimeCICacheReader(volumes: dependencies.volumes, containers: dependencies.containers),
-            sourceID: backend)
+            sourceID: backend, historyReader: ciCacheHistory)
     }
 
     func refreshNetworks() async {

@@ -21,6 +21,7 @@ struct CICacheInventoryView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 if let inventory = cache.inventory { filters(inventory) }
                 telemetryBody(now: context.date)
+                historyBody
                 if let inventory = cache.inventory { runtimeIOBody(inventory, now: context.date) }
                 Divider()
                 Label("CI storage", systemImage: "externaldrive").font(Tokens.Typography.section)
@@ -245,6 +246,73 @@ struct CICacheInventoryView: View {
         }
     }
 
+    private var historyBody: some View {
+        VStack(alignment: .leading, spacing: Tokens.Spacing.sm) {
+            Divider()
+            Text("Persisted producer history").font(Tokens.Typography.section)
+            Text("Source: \(LocalCICacheHistoryPageReader.endpoint.absoluteString)")
+                .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+                .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+            if let history = cache.history {
+                if let error = history.error {
+                    Text(error).font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Text("History \(history.state.historyId ?? "Unknown") · consumed sequence \(history.state.after)")
+                    .font(Tokens.Typography.metadata).textSelection(.enabled)
+                if let summary = history.state.summary {
+                    Text(
+                        "Producer status \(summary.status) · sessions \(summary.sessions) · oldest sequence \(summary.oldestSequence) · last sequence \(summary.lastSequence)"
+                    )
+                    .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    Text(
+                        "Producer retains \(summary.retainedRecords) records / \(CICacheByteFormat.string(summary.retainedBytes)) of event payload · pending \(summary.pendingRecords) · evicted \(summary.evictedRecords) · persisted loss \(summary.lostRecords) · unpersisted loss at least \(summary.unpersistedLoss)"
+                    )
+                    .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    Text(
+                        "Producer retention budget: 2,048 events / 4 MiB payload; database overhead is additional. No multi-day coverage is promised."
+                    )
+                    .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    Text("Producer coverage: \(summary.coverageReasons.joined(separator: ", "))")
+                        .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Text(
+                    "Observer retains \(history.state.events.count) curated records across projects · cursor and records \(history.persisted ? "persisted together" : "not confirmed persisted") · read \(time(history.state.sampledAt))"
+                )
+                .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                if history.traversalLimited {
+                    Text(
+                        "Read paused after four bounded pages; the next visible refresh resumes. The captured window is not fully consumed."
+                    )
+                    .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.warning)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                if !history.state.gaps.isEmpty {
+                    Text("Observed coverage gaps: \(history.state.gaps.joined(separator: ", "))")
+                        .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                ForEach(history.retentionBlockers, id: \.self) { reason in
+                    Text(reason).font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.warning)
+                }
+                cacheGroupsBody(history.telemetry, title: "Persisted cache observations", sampleKind: "persisted")
+            } else {
+                Text("Durable history has not been read. Older installed producers may not provide it.")
+                    .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
+            }
+            Text(
+                "History belongs to the local producer; it is not a confirmed join to the selected runtime or owner. Empty pages do not establish zero use. Physical incarnation and lease protection remain unknown. No pruning action is available."
+            )
+            .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.tertiary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     private func jobReportsBody(_ telemetry: CICacheTelemetry) -> some View {
         let jobs = telemetry.jobReports(for: selection)
         let measured = jobs.filter { $0.report.proxy != nil }.count
@@ -286,11 +354,14 @@ struct CICacheInventoryView: View {
         }
     }
 
-    private func cacheGroupsBody(_ telemetry: CICacheTelemetry) -> some View {
+    private func cacheGroupsBody(
+        _ telemetry: CICacheTelemetry, title: String = "Buffered cache observations",
+        sampleKind: String = "buffered"
+    ) -> some View {
         let groups = CICacheRecentActivity.observations(telemetry, selection: selection)
         let saves = telemetry.saveReports(for: selection)
         return VStack(alignment: .leading, spacing: Tokens.Spacing.sm) {
-            Text("Buffered cache observations").font(Tokens.Typography.section)
+            Text(title).font(Tokens.Typography.section)
             if groups.isEmpty {
                 Text("Per-cache attribution: Not reported for this selection")
                     .font(Tokens.Typography.body).foregroundStyle(Tokens.Palette.secondary)
@@ -305,7 +376,7 @@ struct CICacheInventoryView: View {
                     .font(Tokens.Typography.metadata).foregroundStyle(Tokens.Palette.secondary)
                     .lineLimit(2).textSelection(.enabled)
                     Text(
-                        "\(group.attemptIDs.count) buffered job observations · Existing \(group.existing) · Seeded \(group.seeded) · Cold \(group.cold)"
+                        "\(group.attemptIDs.count) \(sampleKind) job observations · Existing \(group.existing) · Seeded \(group.seeded) · Cold \(group.cold)"
                     )
                     .font(Tokens.Typography.metadata).fixedSize(horizontal: false, vertical: true)
                     Text(

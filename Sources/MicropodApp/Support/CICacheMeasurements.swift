@@ -10,7 +10,7 @@ enum CICacheMeasurementIdentity {
 }
 
 /// A late background observation. A queued job report is not this result.
-struct CICacheSaveReport: Decodable, Sendable, Identifiable {
+struct CICacheSaveReport: Codable, Sendable, Identifiable {
     let runnerId: String?
     let projectId: String?
     let runId: String?
@@ -32,7 +32,7 @@ struct CICacheSaveReport: Decodable, Sendable, Identifiable {
             container: save.containerId, finished: save.finishedAt)
     }
 
-    struct Save: Decodable, Sendable {
+    struct Save: Codable, Sendable {
         let cacheId: String
         let volumeName: String?
         let containerId: String

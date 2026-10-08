@@ -199,6 +199,47 @@ final class CICacheInventorySnapshotTests: XCTestCase {
         XCTAssertEqual(cache.telemetry?.attempts.first?.report.stores.first?.golden, "cold")
     }
 
+    func testRenderDurableHistoryWithRestartLossAndUnavailableProtection() throws {
+        let page = try CICacheHistoryPage.decode(
+            Data(
+                """
+                {"schemaVersion":"cache-history-v1","historyId":"00000000-0000-0000-0000-000000000001",
+                 "sessionId":"00000000-0000-0000-0000-000000000002","createdAt":"2026-10-08T22:00:00Z",
+                 "lastSequence":2,"sessions":2,"evictedRecords":9,"lostRecords":3,"retainedBytes":1024,
+                 "retainedRecords":2,"status":"available","complete":false,"leaseCoverage":"unavailable",
+                 "coverageReasons":["partial-instrumentation","restart-gap-unmeasured","retention-truncated","no-authoritative-lease-snapshot"],
+                 "pendingRecords":2,"unpersistedLoss":1,"oldestSequence":1,"nextAfter":2,"truncatedBefore":true,
+                 "events":[{"sequence":1,"sessionId":"00000000-0000-0000-0000-000000000002",
+                  "recordedAt":"2026-10-08T22:00:00Z","kind":"attempt",
+                  "attempt":{"runnerId":"rig-fixture","projectId":"alpha","runId":"run-fixture",
+                   "attemptId":"attempt-fixture","nodeId":"build","observedAt":"2026-10-08T22:00:00Z",
+                   "report":{"trust":"trusted","stores":[{"kind":"volume","mountPath":"/cache","golden":"hit",
+                    "cacheId":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","volumeName":"cf-cache-node-fixture","resolveMs":0}]}}},
+                  {"sequence":2,"sessionId":"00000000-0000-0000-0000-000000000002","recordedAt":"2026-10-08T22:00:00Z","kind":"save",
+                   "save":{"runnerId":"rig-fixture","projectId":"alpha","runId":"run-fixture","attemptId":"attempt-fixture","nodeId":"build",
+                    "save":{"cacheId":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","volumeName":"cf-cache-node-fixture",
+                     "containerId":"job-fixture","outcome":"unknown","durationMs":2,"finishedAt":"2026-10-08T22:00:00Z"}}}]}
+                """.utf8))
+        var state = CICacheHistoryState()
+        state.historyId = page.historyId
+        state.sessionId = page.sessionId
+        state.after = 2
+        state.events = page.events ?? []
+        state.summary = page
+        state.sampledAt = Date()
+        state.gaps = ["producer-restart-gap", "producer-retention-truncated", "producer-observations-lost"]
+        let history = CICacheHistorySnapshot(state: state, error: nil, persisted: true, traversalLimited: true)
+        for (width, scheme) in [(720, ColorScheme.light), (1200, .dark)] {
+            let cache = CICacheStore()
+            cache.applyForPreview(nil, history: history)
+            try render(
+                CICacheInventoryView(cache: cache), width: width, height: 2300, scheme: scheme,
+                name: "ci-cache-durable-history-\(width)")
+        }
+        XCTAssertEqual(history.retentionBlockers.count, 2)
+        XCTAssertNil(history.telemetry.saves.first?.save.acknowledgedAllocation)
+    }
+
     private func render<Content: View>(
         _ view: Content, width: Int, height: Int, scheme: ColorScheme, name: String
     ) throws {
