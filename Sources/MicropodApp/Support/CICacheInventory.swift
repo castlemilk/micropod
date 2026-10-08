@@ -289,6 +289,16 @@ private final class CacheCounterRedirectPolicy: NSObject, URLSessionTaskDelegate
 
 struct LocalCICacheTelemetryReader: CICacheTelemetryReading {
     func read() async throws -> CICacheTelemetry {
+        try await CICacheTelemetry.decode(
+            Self.readData(
+                from: CICacheTelemetry.endpoint,
+                byteLimit: CICacheTelemetry.byteLimit), receivedAt: Date())
+    }
+
+    static func readData(from url: URL, byteLimit: Int) async throws -> Data {
+        guard url.scheme == "http", url.host == "127.0.0.1", url.port == 5555,
+            ["/cache", "/cache/history"].contains(url.path)
+        else { throw CICacheReadError.unavailable }
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 3
         configuration.timeoutIntervalForResource = 3
@@ -298,15 +308,15 @@ struct LocalCICacheTelemetryReader: CICacheTelemetryReading {
         let session = URLSession(
             configuration: configuration, delegate: CacheCounterRedirectPolicy(), delegateQueue: nil)
         defer { session.invalidateAndCancel() }
-        let (bytes, response) = try await session.bytes(from: CICacheTelemetry.endpoint)
+        let (bytes, response) = try await session.bytes(from: url)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw CICacheReadError.unavailable }
         var data = Data()
         for try await byte in bytes {
-            guard data.count < CICacheTelemetry.byteLimit else { throw CICacheReadError.invalidCounters }
+            guard data.count < byteLimit else { throw CICacheReadError.invalidCounters }
             try Task.checkCancellation()
             data.append(byte)
         }
-        return try CICacheTelemetry.decode(data, receivedAt: Date())
+        return data
     }
 }
 
@@ -314,6 +324,7 @@ struct LocalCICacheTelemetryReader: CICacheTelemetryReading {
 final class CICacheStore {
     private(set) var inventory: CICacheInventorySnapshot?
     private(set) var telemetry: CICacheTelemetry?
+    private(set) var history: CICacheHistorySnapshot?
     private(set) var inventoryError: String?
     private(set) var telemetryError: String?
     private(set) var isRefreshing = false
@@ -324,7 +335,8 @@ final class CICacheStore {
 
     func refresh(
         reader: any CICacheInventoryReading, sourceID: String,
-        telemetryReader: any CICacheTelemetryReading = LocalCICacheTelemetryReader()
+        telemetryReader: any CICacheTelemetryReading = LocalCICacheTelemetryReader(),
+        historyReader: (any CICacheHistoryReading)? = nil
     ) async {
         guard !isPreview, !Task.isCancelled else { return }
         if self.sourceID != sourceID {
@@ -332,6 +344,7 @@ final class CICacheStore {
             self.sourceID = sourceID
             inventory = nil
             telemetry = nil
+            history = nil
             inventoryError = nil
             telemetryError = nil
         }
@@ -344,7 +357,8 @@ final class CICacheStore {
         let task = Task { [weak self] in
             async let inventoryResult = Self.inventoryResult(reader)
             async let telemetryResult = Self.telemetryResult(telemetryReader)
-            let (inventoryRead, telemetryRead) = await (inventoryResult, telemetryResult)
+            async let historyResult = historyReader?.read()
+            let (inventoryRead, telemetryRead, historyRead) = await (inventoryResult, telemetryResult, historyResult)
             guard let self, !Task.isCancelled, self.epoch == epoch else { return }
             switch inventoryRead {
             case .success(let read):
@@ -360,6 +374,7 @@ final class CICacheStore {
             case .failure:
                 telemetryError = "Local runner counters unavailable. Any retained counters are an earlier observation."
             }
+            history = historyRead
             isRefreshing = false
             self.task = nil
         }
@@ -387,12 +402,14 @@ final class CICacheStore {
     }
 
     func applyForPreview(
-        _ inventory: CICacheInventorySnapshot?, telemetry: CICacheTelemetry? = nil, error: String? = nil
+        _ inventory: CICacheInventorySnapshot?, telemetry: CICacheTelemetry? = nil, error: String? = nil,
+        history: CICacheHistorySnapshot? = nil
     ) {
         cancelRefresh()
         isPreview = true
         self.inventory = inventory
         self.telemetry = telemetry
+        self.history = history
         inventoryError = error
     }
 }

@@ -3,7 +3,7 @@ import MicropodCore
 
 /// A projection of /cache's buffered reports. Environment and cache contents
 /// are deliberately not decoded. Legacy producers omit attribution and time.
-struct CICacheAttemptReport: Decodable, Sendable, Identifiable {
+struct CICacheAttemptReport: Codable, Sendable, Identifiable {
     let attemptId: String
     let nodeId: String
     let runnerId: String?
@@ -14,32 +14,34 @@ struct CICacheAttemptReport: Decodable, Sendable, Identifiable {
     var id: String { (runnerId ?? "unattributed") + "\u{1f}" + attemptId }
     var observationTime: Date? { CICacheTelemetry.date(observedAt) }
 
-    struct Report: Decodable, Sendable {
+    struct Report: Codable, Sendable {
         let proxy: CICacheProxyReport?
         let invalidProxy: Bool
         let stores: [CICacheStoreReport]
         let invalidStores: Bool
         let trust: String?
 
-        private enum CodingKeys: String, CodingKey { case proxy, stores, trust }
+        private enum CodingKeys: String, CodingKey { case proxy, stores, trust, invalidProxy, invalidStores }
         init(from decoder: Decoder) throws {
             let fields = try decoder.container(keyedBy: CodingKeys.self)
             let tier = try? fields.decodeIfPresent(String.self, forKey: .trust)
             trust = ["trusted", "untrusted"].contains(tier ?? "") ? tier : nil
+            let persistedInvalidProxy = (try? fields.decode(Bool.self, forKey: .invalidProxy)) ?? false
+            let persistedInvalidStores = (try? fields.decode(Bool.self, forKey: .invalidStores)) ?? false
             if fields.contains(.proxy), try !fields.decodeNil(forKey: .proxy) {
-                proxy = try? fields.decode(CICacheProxyReport.self, forKey: .proxy)
+                proxy = persistedInvalidProxy ? nil : try? fields.decode(CICacheProxyReport.self, forKey: .proxy)
                 invalidProxy = proxy == nil
             } else {
                 proxy = nil
-                invalidProxy = false
+                invalidProxy = persistedInvalidProxy
             }
             if fields.contains(.stores), try !fields.decodeNil(forKey: .stores) {
                 let decoded = try? fields.decode([CICacheStoreReport].self, forKey: .stores)
-                invalidStores = decoded == nil || (decoded?.count ?? 0) > 32
+                invalidStores = persistedInvalidStores || decoded == nil || (decoded?.count ?? 0) > 32
                 stores = invalidStores ? [] : decoded ?? []
             } else {
                 stores = []
-                invalidStores = false
+                invalidStores = persistedInvalidStores
             }
         }
     }
@@ -47,7 +49,7 @@ struct CICacheAttemptReport: Decodable, Sendable, Identifiable {
 
 /// Curated mount/provisioning facts only. Lockfiles and environment are ignored.
 /// The producer currently supplies no volume ID/key, content hits, or overhead.
-struct CICacheStoreReport: Decodable, Sendable {
+struct CICacheStoreReport: Codable, Sendable {
     let ecosystem: String?
     let kind: String
     let mountPath: String
@@ -101,7 +103,7 @@ struct CICacheStoreReport: Decodable, Sendable {
 
 /// Presence of a complete report distinguishes measured zero from no report.
 /// Requests - localHits is not an artifact-miss count: errors and metadata exist.
-struct CICacheProxyReport: Decodable, Sendable {
+struct CICacheProxyReport: Codable, Sendable {
     let requests: UInt64
     let localHits: UInt64
     let upstreamFetches: UInt64

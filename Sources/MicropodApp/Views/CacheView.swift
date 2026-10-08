@@ -44,6 +44,7 @@ struct CacheView: View {
         }
         .background(Tokens.Palette.canvas)
         .task { await CachePageRefreshLoop.run { await refresh() } }
+        .onDisappear { store.ciCacheStore.cancelRefresh() }
         .sheet(
             isPresented: $showCleanup,
             onDismiss: { cache.dismissCleanupReview() },
