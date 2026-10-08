@@ -3,7 +3,7 @@
   "info": {
     "title": "Micropod API \u00b7 MachineService",
     "description": "## micropod.v1.MachineService\n\nContainer machines: persistent Linux VMs (`container machine`) that\n keep a warm guest between runs \u2014 the keep-alive CI path. `container list`\n omits them and `container logs` doesn't know machine names, so they were\n invisible to container tooling. A running machine is backed by a per-boot\n container named `<machine>-<6 hex>` that `container stats` does report;\n metrics come from there, logs from the machine's own stdio/boot log.",
-    "version": "0.12.1",
+    "version": "0.12.2",
     "contact": {
       "name": "Micropod",
       "url": "https://github.com/castlemilk/micropod"
