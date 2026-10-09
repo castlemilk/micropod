@@ -52,23 +52,31 @@ final class MenuBarPanelSnapshotTests: XCTestCase {
                 XCTAssertGreaterThan(size.height, 250, name)
                 XCTAssertLessThanOrEqual(size.height, 640, name)
                 let text = try recognizedText(name)
-                for label in ["Largest file allocation", "Host requests", "SharedFS packages", "benefit unknown"] {
-                    XCTAssertTrue(text.contains(label), "Cache scope must remain visible at tray dimensions: \(text)")
+                // Vision can confuse i/l and f/t in 10-point metadata. These
+                // bounded patterns still require the label to be rendered.
+                for label in ["Largest file allocation", "Host requests", "SharedFS packages", #"bene[ft]it unknown"#] {
+                    XCTAssertNotNil(
+                        text.range(of: label, options: .regularExpression),
+                        "Cache scope must remain visible at tray dimensions: \(text)")
                 }
                 if variant == "populated" {
-                    XCTAssertTrue(text.contains("124 / 9"), text)
-                    XCTAssertTrue(text.contains("0 B /"), "Zero SharedFS must remain separately scoped: \(text)")
+                    XCTAssertNotNil(text.range(of: #"\b124\s*/\s*9\b"#, options: .regularExpression), text)
+                    XCTAssertNotNil(
+                        text.range(of: #"\b0\s*B\s*/"#, options: .regularExpression),
+                        "Zero SharedFS must remain separately scoped: \(text)")
                     XCTAssertFalse(text.contains("300 GB"), "Capacity must not masquerade as allocation: \(text)")
                 }
                 if variant == "empty" { XCTAssertTrue(text.contains("None observed"), text) }
                 if variant == "unsupported" { XCTAssertTrue(text.contains("proxy counters unknown"), text) }
-                if variant == "retained-error" { XCTAssertTrue(text.contains("retained"), text) }
+                if variant == "retained-error" {
+                    XCTAssertNotNil(text.range(of: #"\breta[iIl]ned\b"#, options: .regularExpression), text)
+                }
                 if variant == "stale-local" {
                     XCTAssertTrue(text.contains("proxy recent"), text)
                     XCTAssertTrue(text.contains("local stale"), text)
                 }
                 if variant == "unavailable" {
-                    XCTAssertNotNil(text.range(of: #"C[I1l] unavailable"#, options: .regularExpression), text)
+                    XCTAssertNotNil(text.range(of: #"C[I1l] unava[iIl]lable"#, options: .regularExpression), text)
                 }
             }
         }

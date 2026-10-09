@@ -222,7 +222,7 @@ final class MenuBarCacheTests: XCTestCase {
         try await wait { reads == 1 }
         try await Task.sleep(for: .milliseconds(20))
         let opened = try captureLifecycle(hosting, window: window, name: "opened")
-        XCTAssertTrue(opened.contains("10 / 1"), opened)
+        XCTAssertNotNil(opened.range(of: #"\b10\s*/\s*1\b"#, options: .regularExpression), opened)
         XCTAssertTrue(opened.contains(CICacheByteFormat.string(1 << 30)), opened)
         hosting.rootView = AnyView(EmptyView())
         hosting.layoutSubtreeIfNeeded()
@@ -234,9 +234,11 @@ final class MenuBarCacheTests: XCTestCase {
         XCTAssertEqual(reads, 2)
         try await Task.sleep(for: .milliseconds(20))
         let reopened = try captureLifecycle(hosting, window: window, name: "reopened")
-        XCTAssertTrue(reopened.contains("20 / 2"), reopened)
+        XCTAssertNotNil(reopened.range(of: #"\b20\s*/\s*2\b"#, options: .regularExpression), reopened)
         XCTAssertTrue(reopened.contains(CICacheByteFormat.string(2 << 30)), reopened)
-        XCTAssertFalse(reopened.contains("10 / 1"), "Reopening must visibly replace the earlier counters: \(reopened)")
+        XCTAssertNil(
+            reopened.range(of: #"\b10\s*/\s*1\b"#, options: .regularExpression),
+            "Reopening must visibly replace the earlier counters: \(reopened)")
     }
 
     private func captureLifecycle(_ hosting: NSHostingView<AnyView>, window: NSWindow, name: String) throws -> String {
