@@ -21,7 +21,11 @@ on:
     inputs:
       qualification_version:
         description: "Draft-only signed qualification version (vX.Y.Z)"
-        required: true
+        required: false
+        type: string
+      publication_version:
+        description: "Publish an existing qualified draft as an informational announcement (vX.Y.Z); no build or installation"
+        required: false
         type: string
 
 permissions:
@@ -36,6 +40,7 @@ concurrency:
 
 jobs:
   release:
+    if: github.event_name != 'workflow_dispatch' || (inputs.qualification_version != '' && inputs.publication_version == '')
     runs-on: macos-26
     env:
       VERSION: ${{ inputs.qualification_version || github.ref_name }}
@@ -277,6 +282,7 @@ jobs:
   # parallel with the app build; sdk-publish attaches them once the release
   # exists, so they never land on a release that failed.
   sdk:
+    if: github.event_name != 'workflow_dispatch' || (inputs.qualification_version != '' && inputs.publication_version == '')
     runs-on: macos-26
     env:
       VERSION: ${{ inputs.qualification_version || github.ref_name }}
@@ -369,3 +375,129 @@ jobs:
           fi
           git tag "sdk/go/$VERSION"
           git push origin "refs/tags/sdk/go/$VERSION"
+
+  publication-inputs:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require exactly one release mode
+        env:
+          QUALIFICATION: ${{ inputs.qualification_version }}
+          PUBLICATION: ${{ inputs.publication_version }}
+        run: |
+          set -euo pipefail
+          if [ -n "$QUALIFICATION" ] && [ -z "$PUBLICATION" ]; then version="$QUALIFICATION"
+          elif [ -n "$PUBLICATION" ] && [ -z "$QUALIFICATION" ]; then version="$PUBLICATION"
+          else echo "::error::choose exactly one qualification or publication version"; exit 1
+          fi
+          [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+
+  publish-qualified:
+    if: github.event_name == 'workflow_dispatch' && inputs.publication_version != '' && inputs.qualification_version == ''
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.publication_version }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Verify publication source and frozen qualification
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$GITHUB_REF" = refs/heads/* ]]
+          [ "$(git rev-parse HEAD)" = "$GITHUB_SHA" ]
+          manifest="docs/qualified-releases/$VERSION.json"
+          [ -f "$manifest" ]
+          [ "$(jq -r .policy "$manifest")" = informational ]
+          [ "$(jq -r .tag "$manifest")" = "$VERSION" ]
+          release_id=$(jq -r .releaseID "$manifest")
+          source=$(jq -r .source "$manifest")
+          qualification_run=$(jq -r .qualificationRun "$manifest")
+          if [ "$GITHUB_REF" = refs/heads/master ]; then event=push; else event=pull_request; fi
+          gh run list --workflow ci.yml --commit "$GITHUB_SHA" --event "$event" --json headSha,status,conclusion --limit 20 > "$RUNNER_TEMP/checks.json"
+          jq -e --arg sha "$GITHUB_SHA" 'any(.[]; .headSha == $sha and .status == "completed" and .conclusion == "success")' "$RUNNER_TEMP/checks.json" >/dev/null
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$qualification_run" > "$RUNNER_TEMP/qualification.json"
+          jq -e --arg source "$source" '.head_sha == $source and .event == "workflow_dispatch" and .path == ".github/workflows/release.yml" and .status == "completed" and .conclusion == "success"' "$RUNNER_TEMP/qualification.json" >/dev/null
+          git merge-base --is-ancestor "$source" HEAD
+          gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" > "$RUNNER_TEMP/release-before.json"
+          mkdir -p "$RUNNER_TEMP/qualified-assets"
+          while IFS=$'\t' read -r name asset_id; do
+            gh api -H "Accept: application/octet-stream" "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id" > "$RUNNER_TEMP/qualified-assets/$name"
+          done < <(jq -r '.assets | to_entries[] | [.key, .value.id] | @tsv' "$manifest")
+          node scripts/verify_qualified_release.mjs --verify "$RUNNER_TEMP/release-before.json" "$manifest" "$RUNNER_TEMP/qualified-assets"
+          git ls-remote origin "refs/tags/$VERSION" "refs/tags/$VERSION^{}" > "$RUNNER_TEMP/tag-before.txt"
+          node scripts/verify_qualified_release.mjs --tag "$RUNNER_TEMP/tag-before.txt" "$manifest"
+          if jq -e '.draft == true' "$RUNNER_TEMP/release-before.json" >/dev/null; then
+            # GitHub cannot authorize GITHUB_TOKEN to modify workflows. Promote
+            # from a reviewed branch before master diverges from frozen source.
+            git fetch origin master
+            git diff --quiet "$source" origin/master -- .github/workflows
+          fi
+          node scripts/update_appcast.mjs --informational --version "$VERSION" --url "https://github.com/castlemilk/micropod/releases/tag/$VERSION" --appcast landing/appcast.xml
+          git checkout -- landing/appcast.xml
+
+      - name: Promote the exact existing assets without a tag build
+        run: |
+          set -euo pipefail
+          manifest="docs/qualified-releases/$VERSION.json"
+          release_id=$(jq -r .releaseID "$manifest")
+          gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" > "$RUNNER_TEMP/release-before.json"
+          node scripts/verify_qualified_release.mjs --verify "$RUNNER_TEMP/release-before.json" "$manifest" "$RUNNER_TEMP/qualified-assets"
+          git ls-remote origin "refs/tags/$VERSION" "refs/tags/$VERSION^{}" > "$RUNNER_TEMP/tag-before.txt"
+          node scripts/verify_qualified_release.mjs --tag "$RUNNER_TEMP/tag-before.txt" "$manifest"
+          # GITHUB_TOKEN promotion does not trigger release:published or tag-push
+          # workflows. Never push a tag or call the artifact build/upload path.
+          if jq -e '.draft == true' "$RUNNER_TEMP/release-before.json" >/dev/null; then
+            git fetch origin master
+            git diff --quiet "$(jq -r .source "$manifest")" origin/master -- .github/workflows
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
+              --field draft=false --raw-field make_latest=false \
+              --raw-field name="$VERSION — cache visibility" \
+              --raw-field body="Cache visibility fixes in the app and tray. These are the already qualified signed and notarized assets; source $(jq -r .source "$manifest"). The update feed announces this release with a web link only: it cannot download or install it. The guarded automatic installer remains unavailable until host admission and recovery are qualified. Close Micropod and stop its workloads before any separately approved manual installation." > "$RUNNER_TEMP/promotion-response.json"
+          else
+            echo "Exact qualified assets already public; do not repeat release mutation."
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" > "$RUNNER_TEMP/release-after.json"
+          jq -e '.draft == false' "$RUNNER_TEMP/release-after.json" >/dev/null
+          node scripts/verify_qualified_release.mjs --verify "$RUNNER_TEMP/release-after.json" "$manifest" "$RUNNER_TEMP/qualified-assets"
+          git ls-remote origin "refs/tags/$VERSION" "refs/tags/$VERSION^{}" > "$RUNNER_TEMP/tag-after.txt"
+          node scripts/verify_qualified_release.mjs --published-tag "$RUNNER_TEMP/tag-after.txt" "$manifest"
+
+      - name: Publish only an informational appcast item
+        if: github.ref == 'refs/heads/master'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          pushed=false
+          for attempt in 1 2 3; do
+            echo "Publishing informational feed, attempt $attempt"
+            # Retry only against fresh master; never overwrite concurrent commits.
+            git fetch origin master
+            git reset --hard origin/master
+            node scripts/update_appcast.mjs --informational --version "$VERSION" --url "https://github.com/castlemilk/micropod/releases/tag/$VERSION"
+            git add landing/appcast.xml
+            if git diff --cached --quiet; then pushed=true; break; fi
+            git commit -m "appcast: $VERSION information only"
+            if git push origin HEAD:master; then pushed=true; break; fi
+          done
+          [ "$pushed" = true ]
+          # Bot pushes suppress downstream push workflows: dispatch existing Pages.
+          gh workflow run gh-pages.yml --ref master
+
+      - name: Retain publication metadata receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qualified-publication-metadata
+          path: |
+            ${{ runner.temp }}/release-before.json
+            ${{ runner.temp }}/release-after.json
+            ${{ runner.temp }}/qualification.json
+            ${{ runner.temp }}/tag-before.txt
+            ${{ runner.temp }}/tag-after.txt
+          retention-days: 14

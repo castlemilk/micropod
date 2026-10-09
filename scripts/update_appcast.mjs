@@ -1,63 +1,34 @@
 #!/usr/bin/env node
-// Insert or replace a Sparkle appcast item for a release.
-//
-//   node scripts/update_appcast.mjs \
-//     --version 0.5.0 \
-//     --url https://github.com/castlemilk/micropod/releases/download/v0.5.0/Micropod.dmg \
-//     --signature "…edSignature…" --length 12916426 \
-//     [--appcast landing/appcast.xml]
-//
-// Items are kept newest-first; an item for the same version is replaced
-// (idempotent re-runs of the release feed workflow).
-
+// Announcements use --informational --url <release-page>, with no enclosure.
+// Parse/update policy uses XML namespace identities, including alternate prefixes.
 import { readFileSync, writeFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
+import { spawnSync } from "node:child_process";
 
-function arg(name, required = true) {
-    const i = process.argv.indexOf(`--${name}`);
-    const v = i >= 0 ? process.argv[i + 1] : null;
-    if (required && !v) {
-        console.error(`missing --${name}`);
-        process.exit(2);
-    }
-    return v;
+export function updateAppcast(xml, options) {
+    const result = spawnSync("python3", [new URL("appcast_policy.py", import.meta.url).pathname, "--update"], {
+        input: JSON.stringify({ xml, options: { pubDate: new Date().toUTCString(), ...options } }),
+        encoding: "utf8", maxBuffer: 2 * 1024 * 1024, timeout: 5000
+    });
+    if (result.status !== 0) throw new Error(result.stderr?.trim() || "invalid appcast policy");
+    return result.stdout;
 }
 
-const version = arg("version").replace(/^v/, "");
-const url = arg("url");
-const signature = arg("signature");
-const length = arg("length");
-const appcastPath = arg("appcast", false) ?? "landing/appcast.xml";
-
-const pubDate = new Date().toUTCString();
-const item = `    <item>
-      <title>Version ${version}</title>
-      <pubDate>${pubDate}</pubDate>
-      <sparkle:version>${version}</sparkle:version>
-      <sparkle:shortVersionString>${version}</sparkle:shortVersionString>
-      <enclosure
-        url="${url}"
-        sparkle:edSignature="${signature}"
-        length="${length}"
-        type="application/octet-stream"/>
-    </item>`;
-
-let xml = readFileSync(appcastPath, "utf8");
-
-// Remove any existing item for this version so re-runs replace rather
-// than duplicate.
-const itemRe = new RegExp(
-    `    <item>\\s*\\n\\s*<title>Version ${version.replace(".", "\\.")}</title>[\\s\\S]*?</item>\\s*\\n`,
-    "g",
-);
-xml = xml.replace(itemRe, "");
-
-const marker = "<language>en</language>";
-const i = xml.indexOf(marker);
-if (i < 0) {
-    console.error(`no ${marker} marker in ${appcastPath}`);
-    process.exit(1);
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+    try {
+        const args = process.argv.slice(2);
+        const options = {};
+        for (let i = 0; i < args.length; i++) {
+            const name = args[i];
+            if (name === "--informational") { options.informational = true; continue; }
+            if (!["--version", "--url", "--signature", "--length", "--appcast"].includes(name) || !args[i + 1] || args[i + 1].startsWith("--")) {
+                throw new Error(`invalid argument ${name}`);
+            }
+            options[name.slice(2)] = args[++i];
+        }
+        if (!options.version || !options.url) throw new Error("missing --version or --url");
+        const path = options.appcast ?? "landing/appcast.xml";
+        writeFileSync(path, updateAppcast(readFileSync(path, "utf8"), options));
+        console.log(`appcast: added ${options.version} (${options.informational ? "information only" : `${options.length} bytes`})`);
+    } catch (error) { console.error(error.message); process.exitCode = 1; }
 }
-xml = `${xml.slice(0, i + marker.length)}\n${item}\n${xml.slice(i + marker.length)}`;
-
-writeFileSync(appcastPath, xml);
-console.log(`appcast: added ${version} (${length} bytes)`);

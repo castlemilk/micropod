@@ -18,7 +18,30 @@ permissions:
   contents: write
 
 jobs:
+  policy:
+    runs-on: ubuntu-latest
+    outputs:
+      kind: ${{ steps.classify.outputs.kind }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: master
+      - name: Classify fresh release before signing or publishing
+        id: classify
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ github.event.release.id }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" > "$RUNNER_TEMP/release.json"
+          kind=$(node scripts/verify_qualified_release.mjs --policy "$RUNNER_TEMP/release.json")
+          echo "kind=$kind" >> "$GITHUB_OUTPUT"
+          if [ "$kind" = qualified ]; then
+            echo "Qualified releases require the manifest-verified informational publication path in release.yml."
+          fi
   feed:
+    needs: policy
+    if: needs.policy.outputs.kind == 'installable'
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
