@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "micropod.v1 \u2014 api types",
-    "version": "0.12.2",
+    "version": "0.12.6",
     "contact": {
       "name": "Micropod",
       "url": "https://github.com/castlemilk/micropod"

@@ -1,261 +1,165 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <title>Micropod Updates</title>
     <link>https://castlemilk.github.io/micropod/appcast.xml</link>
     <description>Micropod release channel — served to Sparkle clients in the app.</description>
     <language>en</language>
     <item>
+      <title>Version 0.12.6</title>
+      <pubDate>Fri, 09 Oct 2026 09:42:48 GMT</pubDate>
+      <sparkle:version>0.12.6</sparkle:version>
+      <sparkle:shortVersionString>0.12.6</sparkle:shortVersionString>
+      <link>https://github.com/castlemilk/micropod/releases/tag/v0.12.6</link>
+      <sparkle:informationalUpdate />
+      <description sparkle:format="plain-text">Cache visibility fixes are available. Installation requires stopping Micropod and its workloads; automatic replacement remains disabled.</description>
+    </item>
+    <item>
       <title>Version 0.12.2</title>
       <pubDate>Thu, 08 Oct 2026 02:10:32 GMT</pubDate>
       <sparkle:version>0.12.2</sparkle:version>
       <sparkle:shortVersionString>0.12.2</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.12.2/Micropod.dmg"
-        sparkle:edSignature="pYEDJbCswqdZb/dPv1eW5yeW7W1loDwRCNYui738p5oLKi2xJvyMlgWpbglSk/fVlbMQ0DP4TfiIiLKHHhrICA=="
-        length="89070197"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.12.2/Micropod.dmg" sparkle:edSignature="pYEDJbCswqdZb/dPv1eW5yeW7W1loDwRCNYui738p5oLKi2xJvyMlgWpbglSk/fVlbMQ0DP4TfiIiLKHHhrICA==" length="89070197" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.12.1</title>
       <pubDate>Sat, 03 Oct 2026 08:46:57 GMT</pubDate>
       <sparkle:version>0.12.1</sparkle:version>
       <sparkle:shortVersionString>0.12.1</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.12.1/Micropod.dmg"
-        sparkle:edSignature="NDZMFFFGyDE0rGkGW1hlE+k0HgmCK1sbeTKoxyVUVFsyU7t8DxRqAV9RCewEdrHldCPcw9KmqUU/UVUckLe8Cg=="
-        length="89011029"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.12.1/Micropod.dmg" sparkle:edSignature="NDZMFFFGyDE0rGkGW1hlE+k0HgmCK1sbeTKoxyVUVFsyU7t8DxRqAV9RCewEdrHldCPcw9KmqUU/UVUckLe8Cg==" length="89011029" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.12.0</title>
       <pubDate>Fri, 02 Oct 2026 02:50:29 GMT</pubDate>
       <sparkle:version>0.12.0</sparkle:version>
       <sparkle:shortVersionString>0.12.0</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.12.0/Micropod.dmg"
-        sparkle:edSignature="703aAwG6URP7n51BbNFBxbSLUfx1cM5D9OtipK7hQGYZB9gkYA8RbAQfTB5NJLacS8ABJXe/RxoNTiEODWzVCw=="
-        length="89009892"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.12.0/Micropod.dmg" sparkle:edSignature="703aAwG6URP7n51BbNFBxbSLUfx1cM5D9OtipK7hQGYZB9gkYA8RbAQfTB5NJLacS8ABJXe/RxoNTiEODWzVCw==" length="89009892" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.11.10</title>
       <pubDate>Thu, 01 Oct 2026 11:31:53 GMT</pubDate>
       <sparkle:version>0.11.10</sparkle:version>
       <sparkle:shortVersionString>0.11.10</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.11.10/Micropod.dmg"
-        sparkle:edSignature="nQ1zpHc8f4oLjxsthXYyRnBKWIRE+T8jrkDhEHSxj2wrlQtCF6IWFFe08J64wopp5wt7PdeSz9Suotb7srk5Aw=="
-        length="86875597"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.11.10/Micropod.dmg" sparkle:edSignature="nQ1zpHc8f4oLjxsthXYyRnBKWIRE+T8jrkDhEHSxj2wrlQtCF6IWFFe08J64wopp5wt7PdeSz9Suotb7srk5Aw==" length="86875597" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.11.9</title>
       <pubDate>Thu, 01 Oct 2026 10:52:06 GMT</pubDate>
       <sparkle:version>0.11.9</sparkle:version>
       <sparkle:shortVersionString>0.11.9</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.11.9/Micropod.dmg"
-        sparkle:edSignature="ZUGCaCTlN5hHYna47UIz56SPhmB66JrUYycqgfhweKSf12b+cdzxp175IrvdOu1N686sm6U5IMzaIWU0CNp/DA=="
-        length="86681785"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.11.9/Micropod.dmg" sparkle:edSignature="ZUGCaCTlN5hHYna47UIz56SPhmB66JrUYycqgfhweKSf12b+cdzxp175IrvdOu1N686sm6U5IMzaIWU0CNp/DA==" length="86681785" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.11.8</title>
       <pubDate>Thu, 01 Oct 2026 08:15:02 GMT</pubDate>
       <sparkle:version>0.11.8</sparkle:version>
       <sparkle:shortVersionString>0.11.8</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.11.8/Micropod.dmg"
-        sparkle:edSignature="pk7cDZUyWpfeFbx5WyR97uWAz7RQQ0DnKH+zX4aPVLloaxG63wrWgsDEuljljnjTF0rMwZ35kjAPmx9rhXwlAg=="
-        length="86191171"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.11.8/Micropod.dmg" sparkle:edSignature="pk7cDZUyWpfeFbx5WyR97uWAz7RQQ0DnKH+zX4aPVLloaxG63wrWgsDEuljljnjTF0rMwZ35kjAPmx9rhXwlAg==" length="86191171" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.11.7</title>
       <pubDate>Thu, 01 Oct 2026 07:26:17 GMT</pubDate>
       <sparkle:version>0.11.7</sparkle:version>
       <sparkle:shortVersionString>0.11.7</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.11.7/Micropod.dmg"
-        sparkle:edSignature="5E+TTH8kppTKp/sw6iTwTkaBxS/BRVLOeWksvB+Y6duQmQpDpKDz7Dgen1JMb1xyu1VwYaag9XLAZf45nlbJCQ=="
-        length="86821095"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.11.7/Micropod.dmg" sparkle:edSignature="5E+TTH8kppTKp/sw6iTwTkaBxS/BRVLOeWksvB+Y6duQmQpDpKDz7Dgen1JMb1xyu1VwYaag9XLAZf45nlbJCQ==" length="86821095" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.11.6</title>
       <pubDate>Thu, 01 Oct 2026 06:04:39 GMT</pubDate>
       <sparkle:version>0.11.6</sparkle:version>
       <sparkle:shortVersionString>0.11.6</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.11.6/Micropod.dmg"
-        sparkle:edSignature="CWEn5XODJ8CNMxHWC0afaCCoLTUjrbDQTItu43DF2q7NpklD+qW3fp2v4YB2zTg+MvH/T/7zoMRChuOSrqkMBQ=="
-        length="86354730"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.11.6/Micropod.dmg" sparkle:edSignature="CWEn5XODJ8CNMxHWC0afaCCoLTUjrbDQTItu43DF2q7NpklD+qW3fp2v4YB2zTg+MvH/T/7zoMRChuOSrqkMBQ==" length="86354730" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.11.5</title>
       <pubDate>Thu, 01 Oct 2026 03:56:17 GMT</pubDate>
       <sparkle:version>0.11.5</sparkle:version>
       <sparkle:shortVersionString>0.11.5</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.11.5/Micropod.dmg"
-        sparkle:edSignature="F0p7aH2hoJrN0teiHdpWOpiJpQWZUubxf/qP186WNRulbgA+nqOwonZmjuiN55qyxp4wu6C1b8W3b+i/Q40pBQ=="
-        length="86356046"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.11.5/Micropod.dmg" sparkle:edSignature="F0p7aH2hoJrN0teiHdpWOpiJpQWZUubxf/qP186WNRulbgA+nqOwonZmjuiN55qyxp4wu6C1b8W3b+i/Q40pBQ==" length="86356046" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.11.4</title>
       <pubDate>Thu, 01 Oct 2026 00:24:23 GMT</pubDate>
       <sparkle:version>0.11.4</sparkle:version>
       <sparkle:shortVersionString>0.11.4</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.11.4/Micropod.dmg"
-        sparkle:edSignature="NkO1rBtgMScI0xO7AZnyWSm77asy/DQ6GlL5wUmL43Cuep8eOGqsyy8saQICZO5ROuB2ZyITloofmHN7rV3KDA=="
-        length="86049063"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.11.4/Micropod.dmg" sparkle:edSignature="NkO1rBtgMScI0xO7AZnyWSm77asy/DQ6GlL5wUmL43Cuep8eOGqsyy8saQICZO5ROuB2ZyITloofmHN7rV3KDA==" length="86049063" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.11.3</title>
       <pubDate>Wed, 30 Sep 2026 23:51:12 GMT</pubDate>
       <sparkle:version>0.11.3</sparkle:version>
       <sparkle:shortVersionString>0.11.3</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.11.3/Micropod.dmg"
-        sparkle:edSignature="cPW9ymewoOOIDgmI73Zb694Fqz6DtL0RbvzB1tt8lA5JCBNJ6oO9YQ3kCpi6uyrW52VRYXoXl6VDy9TdzfVYAA=="
-        length="86025473"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.11.3/Micropod.dmg" sparkle:edSignature="cPW9ymewoOOIDgmI73Zb694Fqz6DtL0RbvzB1tt8lA5JCBNJ6oO9YQ3kCpi6uyrW52VRYXoXl6VDy9TdzfVYAA==" length="86025473" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.11.2</title>
       <pubDate>Wed, 30 Sep 2026 19:47:44 GMT</pubDate>
       <sparkle:version>0.11.2</sparkle:version>
       <sparkle:shortVersionString>0.11.2</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.11.2/Micropod.dmg"
-        sparkle:edSignature="W8bo1taLmIF+s+d/LaKKQcwsnXpX12l8wcTrkJAlekM78usRrRCgg7JsgRZAv49Sbtk9y+g/10hk0XwderPzDg=="
-        length="65324129"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.11.2/Micropod.dmg" sparkle:edSignature="W8bo1taLmIF+s+d/LaKKQcwsnXpX12l8wcTrkJAlekM78usRrRCgg7JsgRZAv49Sbtk9y+g/10hk0XwderPzDg==" length="65324129" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.11.1</title>
       <pubDate>Wed, 30 Sep 2026 11:48:05 GMT</pubDate>
       <sparkle:version>0.11.1</sparkle:version>
       <sparkle:shortVersionString>0.11.1</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.11.1/Micropod.dmg"
-        sparkle:edSignature="PYVY+aRNU5+MWcHKCGDEkerwn3H0M2dWSxDwRaSQH2lCW9SlZnDFuL+nBgVKbymgvt+p7ZNvqCWwSjOjZ5AwCQ=="
-        length="64405730"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.11.1/Micropod.dmg" sparkle:edSignature="PYVY+aRNU5+MWcHKCGDEkerwn3H0M2dWSxDwRaSQH2lCW9SlZnDFuL+nBgVKbymgvt+p7ZNvqCWwSjOjZ5AwCQ==" length="64405730" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.10.1</title>
       <pubDate>Wed, 30 Sep 2026 10:11:21 GMT</pubDate>
       <sparkle:version>0.10.1</sparkle:version>
       <sparkle:shortVersionString>0.10.1</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.10.1/Micropod.dmg"
-        sparkle:edSignature="xxzUq9btEEjuHQQJr9Zn/s/6nup1P6jUE9aOnutm+hfZX11DzjPQ51PYcyPNNLf7xYkW6dzwo77DuevGCgj6Dg=="
-        length="63160720"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.10.1/Micropod.dmg" sparkle:edSignature="xxzUq9btEEjuHQQJr9Zn/s/6nup1P6jUE9aOnutm+hfZX11DzjPQ51PYcyPNNLf7xYkW6dzwo77DuevGCgj6Dg==" length="63160720" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.10.0</title>
       <pubDate>Wed, 30 Sep 2026 08:20:44 GMT</pubDate>
       <sparkle:version>0.10.0</sparkle:version>
       <sparkle:shortVersionString>0.10.0</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.10.0/Micropod.dmg"
-        sparkle:edSignature="MLAgxgKo/NUK0bo0q3ml0avSzOUuiBgk+ZyVSWNIXH1Y0ucMoJ9WbqLcv/XiuxtWBDJAbnyArk7gGaZU/S6OAw=="
-        length="63066716"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.10.0/Micropod.dmg" sparkle:edSignature="MLAgxgKo/NUK0bo0q3ml0avSzOUuiBgk+ZyVSWNIXH1Y0ucMoJ9WbqLcv/XiuxtWBDJAbnyArk7gGaZU/S6OAw==" length="63066716" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.9.1</title>
       <pubDate>Wed, 30 Sep 2026 01:17:07 GMT</pubDate>
       <sparkle:version>0.9.1</sparkle:version>
       <sparkle:shortVersionString>0.9.1</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.9.1/Micropod.dmg"
-        sparkle:edSignature="YtmheRS74cmFWVG8pVUhMiO7lXm954a+PMLtYUZ47T64Y/PN4weSIkpxJI1F9aqE9gGTJzFvgBbWcudXcIXdDw=="
-        length="61888475"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.9.1/Micropod.dmg" sparkle:edSignature="YtmheRS74cmFWVG8pVUhMiO7lXm954a+PMLtYUZ47T64Y/PN4weSIkpxJI1F9aqE9gGTJzFvgBbWcudXcIXdDw==" length="61888475" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.8.0</title>
       <pubDate>Thu, 24 Sep 2026 07:25:19 GMT</pubDate>
       <sparkle:version>0.8.0</sparkle:version>
       <sparkle:shortVersionString>0.8.0</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.8.0/Micropod.dmg"
-        sparkle:edSignature="i86WzDaWxL+7Zw+vLSz6pwoGO9kbLZ9j8K8622+LLUdIpL+C3tResZJVWoEa0LmId8JXynxLEH6J9/z/RGyvAA=="
-        length="59068889"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.8.0/Micropod.dmg" sparkle:edSignature="i86WzDaWxL+7Zw+vLSz6pwoGO9kbLZ9j8K8622+LLUdIpL+C3tResZJVWoEa0LmId8JXynxLEH6J9/z/RGyvAA==" length="59068889" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.7.0</title>
       <pubDate>Thu, 24 Sep 2026 04:06:38 GMT</pubDate>
       <sparkle:version>0.7.0</sparkle:version>
       <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.7.0/Micropod.dmg"
-        sparkle:edSignature="aQJBGL1ts5qM6fSa6reZILeTfFszjgvJKq1JB4ODxPmJhQAx/yE75er9bW1YaACyTqATbBvXZYeJpUwdcMjoDw=="
-        length="59051940"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.7.0/Micropod.dmg" sparkle:edSignature="aQJBGL1ts5qM6fSa6reZILeTfFszjgvJKq1JB4ODxPmJhQAx/yE75er9bW1YaACyTqATbBvXZYeJpUwdcMjoDw==" length="59051940" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.6.0</title>
       <pubDate>Wed, 23 Sep 2026 09:40:37 GMT</pubDate>
       <sparkle:version>0.6.0</sparkle:version>
       <sparkle:shortVersionString>0.6.0</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.6.0/Micropod.dmg"
-        sparkle:edSignature="w151wD9Gg2dFKZ9fJGdnWjdddaHQy6BjwiCAsf/N+qqtkI1QabZcuSfhW8mJsqyMNA98p9ijJOYtHQONvaVfCA=="
-        length="14093696"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.6.0/Micropod.dmg" sparkle:edSignature="w151wD9Gg2dFKZ9fJGdnWjdddaHQy6BjwiCAsf/N+qqtkI1QabZcuSfhW8mJsqyMNA98p9ijJOYtHQONvaVfCA==" length="14093696" type="application/octet-stream" />
     </item>
-
     <item>
       <title>Version 0.5.0</title>
       <pubDate>Wed, 23 Sep 2026 04:21:21 GMT</pubDate>
       <sparkle:version>0.5.0</sparkle:version>
       <sparkle:shortVersionString>0.5.0</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.5.0/Micropod.dmg"
-        sparkle:edSignature="h59fvTM2+27El5dx79NaGqPM+PydCW8YA/Gq2QV1nRuTTIOedFwogTPUEgiAum5gpOTTAot3t8JLcUcdMJT+Bw=="
-        length="13982198"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.5.0/Micropod.dmg" sparkle:edSignature="h59fvTM2+27El5dx79NaGqPM+PydCW8YA/Gq2QV1nRuTTIOedFwogTPUEgiAum5gpOTTAot3t8JLcUcdMJT+Bw==" length="13982198" type="application/octet-stream" />
     </item>
-
-    <!-- Newest first. Release workflow appends items via scripts/update_appcast.mjs -->
     <item>
       <title>Version 0.4.0</title>
       <pubDate>Tue, 23 Sep 2026 00:00:00 +0000</pubDate>
       <sparkle:version>0.4.0</sparkle:version>
       <sparkle:shortVersionString>0.4.0</sparkle:shortVersionString>
-      <enclosure
-        url="https://github.com/castlemilk/micropod/releases/download/v0.4.0/Micropod.dmg"
-        sparkle:edSignature="C0m0X74K8DntIB1+C0OBooqCcrWSlLmtVz6x4ugcpc06ApxZ6dX1PNIlJ4hpPTxleuBPPd4GIATItQNc1sMMDQ=="
-        length="12916426"
-        type="application/octet-stream"/>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.4.0/Micropod.dmg" sparkle:edSignature="C0m0X74K8DntIB1+C0OBooqCcrWSlLmtVz6x4ugcpc06ApxZ6dX1PNIlJ4hpPTxleuBPPd4GIATItQNc1sMMDQ==" length="12916426" type="application/octet-stream" />
     </item>
   </channel>
 </rss>
