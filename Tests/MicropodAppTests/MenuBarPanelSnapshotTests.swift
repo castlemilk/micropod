@@ -54,7 +54,8 @@ final class MenuBarPanelSnapshotTests: XCTestCase {
                 let text = try recognizedText(name)
                 // Vision can confuse i/l and f/t in 10-point metadata. These
                 // bounded patterns still require the label to be rendered.
-                for label in ["Largest file allocation", "Host requests", "SharedFS packages", #"bene[ft]it unknown"#] {
+                for label in ["Largest file allocation", "Host requests", "SharedFS packages", #"bene[ft]it unknown"#,
+                              variant == "unavailable" ? "Last seen compute" : "Running compute", "Active jobs", "Unknown"] {
                     XCTAssertNotNil(
                         text.range(of: label, options: .regularExpression),
                         "Cache scope must remain visible at tray dimensions: \(text)")
@@ -79,6 +80,38 @@ final class MenuBarPanelSnapshotTests: XCTestCase {
                     XCTAssertNotNil(text.range(of: #"C[I1l] unava[iIl]lable"#, options: .regularExpression), text)
                 }
             }
+        }
+    }
+
+    @MainActor
+    func testRunnerCapacityDoesNotMasqueradeAsActiveJobs() throws {
+        // A listening persistent runner is running compute even at zero
+        // CPU. A noisy runner is equally insufficient evidence of a job.
+        // Names and labels supplied by users cannot become busy evidence.
+        for cpu in [0.0, 250.0] {
+            let store = makeRunningStore(client: AppTestCLI.makeFailing())
+            var runner = Micropod_V1_Container()
+            runner.id = "persistent-runner-busy-pretend"
+            runner.runtime = "apple"
+            runner.state = "running"
+            runner.labels = ["cuttle.kind": "attempt", "busy": "true", "active_jobs": "42"]
+            store.containers = [runner]
+            var stats = Micropod_V1_ContainerStats()
+            stats.id = runner.id
+            stats.cpuPercent = cpu
+            stats.memoryUsedBytes = 1024
+            var snapshot = Micropod_V1_StatsSnapshot()
+            snapshot.sampledAt = ISO8601DateFormatter().string(from: Date())
+            snapshot.containers = [stats]
+            store.applyForPreview(stats: snapshot)
+            XCTAssertEqual(store.workloadItems.count(where: \.isRunning), 1)
+            let name = "micropod-runner-capacity-\(Int(cpu))"
+            _ = try render(MenuBarPanelView(store: store, activateRuntimeObservation: false), scheme: .light, name: name)
+            let text = try recognizedText(name)
+            XCTAssertTrue(text.contains("Running compute"), text)
+            XCTAssertTrue(text.contains("Active jobs"), text)
+            XCTAssertTrue(text.contains("Unknown"), text)
+            XCTAssertFalse(text.contains("42"), "Unverified metadata cannot supply a job count: \(text)")
         }
     }
 
