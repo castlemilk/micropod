@@ -55,7 +55,9 @@ struct MenuBarLabel: View {
         if store.isInstallingKernel { return "Micropod: installing Linux kernel" }
         if store.runtimeHealth == .wedged { return "Micropod: runtime unresponsive, \(count) last seen running" }
         if !store.isRuntimeRunning { return "Micropod: runtime stopped, \(count) last seen running" }
-        if helpersDegraded { return "Micropod: runtime running, a helper is unavailable, \(count) running\(cpu), active jobs unknown" }
+        if helpersDegraded {
+            return "Micropod: runtime running, a helper is unavailable, \(count) running\(cpu), active jobs unknown"
+        }
         let health = store.runtimeHealth == .healthy ? "healthy" : "running, health not yet verified"
         return "Micropod: runtime \(health), \(count) running\(cpu), active jobs unknown"
     }

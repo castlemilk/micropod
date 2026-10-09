@@ -54,8 +54,10 @@ final class MenuBarPanelSnapshotTests: XCTestCase {
                 let text = try recognizedText(name)
                 // Vision can confuse i/l and f/t in 10-point metadata. These
                 // bounded patterns still require the label to be rendered.
-                for label in ["Largest file allocation", "Host requests", "SharedFS packages", #"bene[ft]it unknown"#,
-                              variant == "unavailable" ? "Last seen compute" : "Running compute", "Active jobs", "Unknown"] {
+                for label in [
+                    "Largest file allocation", "Host requests", "SharedFS packages", #"bene[ft]it unknown"#,
+                    variant == "unavailable" ? "Last seen compute" : "Running compute", "Active jobs", "Unknown",
+                ] {
                     XCTAssertNotNil(
                         text.range(of: label, options: .regularExpression),
                         "Cache scope must remain visible at tray dimensions: \(text)")
@@ -106,7 +108,8 @@ final class MenuBarPanelSnapshotTests: XCTestCase {
             store.applyForPreview(stats: snapshot)
             XCTAssertEqual(store.workloadItems.count(where: \.isRunning), 1)
             let name = "micropod-runner-capacity-\(Int(cpu))"
-            _ = try render(MenuBarPanelView(store: store, activateRuntimeObservation: false), scheme: .light, name: name)
+            _ = try render(
+                MenuBarPanelView(store: store, activateRuntimeObservation: false), scheme: .light, name: name)
             let text = try recognizedText(name)
             XCTAssertTrue(text.contains("Running compute"), text)
             XCTAssertTrue(text.contains("Active jobs"), text)

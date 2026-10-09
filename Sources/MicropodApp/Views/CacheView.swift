@@ -102,7 +102,8 @@ struct CacheView: View {
                 footer:
                     snapshot.buildError == nil
                     ? "\(snapshot.buildStats.entries) contexts"
-                        + (snapshot.buildStats.contentAccountingComplete ? "" : " · \(snapshot.buildStats.unknownContentEntries) content sizes unknown")
+                        + (snapshot.buildStats.contentAccountingComplete
+                            ? "" : " · \(snapshot.buildStats.unknownContentEntries) content sizes unknown")
                         + " · \(snapshot.buildDisabled ? "Caching disabled" : "Automatic LRU eviction")"
                     : "Context inventory unavailable"
             )
@@ -191,10 +192,11 @@ struct CacheView: View {
             } else {
                 Text(
                     "\(bytes(snapshot.buildStats.sharedBytes)) of measured content appears in multiple contexts."
-                        + (snapshot.buildStats.contentAccountingComplete ? "" : " Sharing for legacy contexts is unknown.")
+                        + (snapshot.buildStats.contentAccountingComplete
+                            ? "" : " Sharing for legacy contexts is unknown.")
                 )
-                    .font(Tokens.Typography.body)
-                    .foregroundStyle(Tokens.Palette.secondary)
+                .font(Tokens.Typography.body)
+                .foregroundStyle(Tokens.Palette.secondary)
                 Text("Content reuse is measured from file digests. It does not represent physical disk savings.")
                     .font(Tokens.Typography.metadata)
                     .foregroundStyle(Tokens.Palette.tertiary)

@@ -121,7 +121,9 @@ struct MenuBarPanelView: View {
         return card {
             VStack(alignment: .leading, spacing: 7) {
                 HStack(spacing: 12) {
-                    metric("\(runningWorkloads.count)", label: store.isRuntimeRunning ? "Running compute" : "Last seen compute")
+                    metric(
+                        "\(runningWorkloads.count)",
+                        label: store.isRuntimeRunning ? "Running compute" : "Last seen compute")
                     metric(metrics.cpuText, label: "CPU · cores")
                     metric(metrics.memoryText, label: "Guest memory")
                 }
