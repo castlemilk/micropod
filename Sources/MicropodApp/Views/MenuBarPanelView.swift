@@ -167,9 +167,7 @@ struct MenuBarPanelView: View {
 
     private func workloadShortcut(_ item: WorkloadItem) -> some View {
         Button {
-            store.openWorkload(item)
-            openWindow(id: "main-window")
-            dismiss()
+            openAndSet { store.openWorkload(item) }
         } label: {
             HStack(spacing: 8) {
                 WorkspaceIconTile(
@@ -317,8 +315,7 @@ struct MenuBarPanelView: View {
             .buttonStyle(.borderedProminent).tint(Tokens.Palette.action)
             .accessibilityLabel("Run a container")
             Button {
-                openWindow(id: "main-window")
-                dismiss()
+                openAndSet {}
             } label: {
                 HStack(spacing: 6) {
                     WorkspaceIcon(name: "external-link", size: 14, fallback: "arrow.up.right.square")
@@ -383,8 +380,8 @@ struct MenuBarPanelView: View {
     }
     private func openAndSet(_ configure: () -> Void) {
         configure()
-        openWindow(id: "main-window")
         dismiss()
+        MainWindowPresenter.shared.show { openWindow(id: MainWindowPresenter.sceneID) }
     }
     private func activityIcon(_ entry: ActivityEntry) -> String {
         switch entry.level {
