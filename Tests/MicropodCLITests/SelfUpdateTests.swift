@@ -63,6 +63,21 @@ final class SelfUpdateTests: XCTestCase {
         XCTAssertFalse(SelfUpdate.verify(payload, signature: signature, publicKey: "not base64"))
     }
 
+    func testInformationalAnnouncementCannotBecomeACLIInstall() throws {
+        let announcement = """
+            <item>
+              <sparkle:version>0.12.6</sparkle:version>
+              <sparkle:shortVersionString>0.12.6</sparkle:shortVersionString>
+              <link>https://github.com/castlemilk/micropod/releases/tag/v0.12.6</link>
+              <sparkle:informationalUpdate/>
+            </item>
+            """
+        let announced = feed.replacingOccurrences(of: "</channel>", with: announcement + "</channel>")
+        let releases = try SelfUpdate.parseFeed(Data(announced.utf8))
+        XCTAssertEqual(releases.map(\.version.description), ["0.11.1", "0.11.10"])
+        XCTAssertFalse(releases.contains { $0.version.description == "0.12.6" })
+    }
+
     /// The key the CLI trusts is the one the app ships (SUPublicEDKey).
     func testTrustedKeyMatchesTheAppsSparkleKey() throws {
         let script = URL(fileURLWithPath: #filePath)

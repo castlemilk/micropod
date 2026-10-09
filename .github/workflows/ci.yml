@@ -17,6 +17,8 @@ jobs:
         run: |
           brew install actionlint
           actionlint .github/workflows/*.yml
+      - name: Release publication policy tests
+        run: node --test scripts/release_publication.test.mjs
       - name: Lint shell scripts
         run: |
           for f in scripts/*.sh scripts/install.sh scripts/make_dmg.sh ci/*.sh; do
