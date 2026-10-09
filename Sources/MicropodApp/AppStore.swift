@@ -1373,6 +1373,12 @@ final class AppStore {
             sourceID: backend, historyReader: ciCacheHistory)
     }
 
+    func refreshMenuBarCaches() async {
+        async let local: Void = cacheStore.refresh(force: true)
+        async let ci: Void = refreshCICacheInventory()
+        _ = await (local, ci)
+    }
+
     func refreshNetworks() async {
         guard isRuntimeRunning, clientAvailable else { return }
         do {

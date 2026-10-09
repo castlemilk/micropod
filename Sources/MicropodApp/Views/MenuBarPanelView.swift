@@ -6,12 +6,15 @@ import SwiftUI
 struct MenuBarPanelView: View {
     @Bindable var store: AppStore
     var activateRuntimeObservation = true
+    /// Native lifecycle tests can observe cache reads without bootstrapping a runtime.
+    var cacheRefresh: (@MainActor () async -> Void)? = nil
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismiss) private var dismiss
     @State private var confirmRuntimeStop = false
+    @State private var cacheObservation = MenuBarCacheObservation()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 11) {
             header
             resourceSummary
             workloadSection
@@ -22,13 +25,19 @@ struct MenuBarPanelView: View {
         .padding(14)
         .frame(width: Tokens.Layout.trayWidth)
         .background(Tokens.Palette.canvas)
-        .task {
-            guard activateRuntimeObservation else { return }
-            store.bootstrap()
-            await store.cacheStore.refresh()
+        .onAppear {
+            if activateRuntimeObservation {
+                store.bootstrap()
+                store.setPanelVisible(true)
+            }
+            if activateRuntimeObservation || cacheRefresh != nil {
+                cacheObservation.open(refresh: cacheRefresh ?? { await store.refreshMenuBarCaches() })
+            }
         }
-        .onAppear { if activateRuntimeObservation { store.setPanelVisible(true) } }
-        .onDisappear { if activateRuntimeObservation { store.setPanelVisible(false) } }
+        .onDisappear {
+            cacheObservation.close()
+            if activateRuntimeObservation { store.setPanelVisible(false) }
+        }
         .confirmationDialog("Stop the runtime?", isPresented: $confirmRuntimeStop, titleVisibility: .visible) {
             Button("Stop runtime", role: .destructive) { Task { await store.stopRuntime() } }
             Button("Cancel", role: .cancel) {}
@@ -201,81 +210,22 @@ struct MenuBarPanelView: View {
     private var cacheSection: some View {
         VStack(alignment: .leading, spacing: 7) {
             sectionHeading("Cache", icon: "cache") {
+                Button {
+                    cacheObservation.refreshNow()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.plain).foregroundStyle(Tokens.Palette.secondary)
+                .disabled(store.cacheStore.isRefreshing || store.ciCacheStore.isRefreshing)
+                .help("Refresh cache observations").accessibilityLabel("Refresh cache observations")
                 Button("Manage") { openAndSet { store.activeTab = .cache } }
                     .buttonStyle(.plain).foregroundStyle(Tokens.Palette.accentText)
                     .accessibilityLabel("Open cache management")
             }
             card {
-                VStack(alignment: .leading, spacing: Tokens.Spacing.sm) {
-                    if let snapshot = store.cacheStore.snapshot {
-                        if snapshot.buildError == nil {
-                            cacheBudget(
-                                "Build contexts", used: snapshot.buildStats.contentBytes,
-                                cap: snapshot.buildStats.capBytes
-                            )
-                            .help(
-                                "Logical retained context bytes. \(snapshot.buildDisabled ? "Build caching is disabled." : "Automatic LRU eviction is enabled.")"
-                            )
-                        } else {
-                            HStack {
-                                Text("Build contexts")
-                                Spacer(minLength: 4)
-                                Text("Unavailable").foregroundStyle(Tokens.Palette.tertiary)
-                            }
-                            .help(snapshot.buildError ?? "Build contexts could not be read")
-                        }
-                        if let package = snapshot.package {
-                            cacheBudget("Package cache", used: package.storedBytes, cap: package.capBytes)
-                        } else {
-                            HStack {
-                                Text("Package cache")
-                                Spacer(minLength: 4)
-                                Text("Unavailable").foregroundStyle(Tokens.Palette.tertiary)
-                            }
-                            .help(snapshot.packageError ?? "Package cache telemetry is unavailable")
-                        }
-                        HStack(spacing: 4) {
-                            Image(systemName: "clock")
-                            if store.cacheStore.isRefreshing {
-                                Text("Refreshing…")
-                            } else if store.cacheStore.error != nil {
-                                Text("Cache action failed · open Cache")
-                            } else {
-                                Text("Measured \(snapshot.measuredAt.formatted(.relative(presentation: .named)))")
-                            }
-                        }
-                        .font(.system(size: 10)).foregroundStyle(Tokens.Palette.tertiary)
-                        .help(snapshot.measuredAt.formatted(date: .abbreviated, time: .standard))
-                    } else {
-                        Text(store.cacheStore.isRefreshing ? "Measuring local cache…" : "Cache not measured")
-                            .foregroundStyle(Tokens.Palette.secondary)
-                        if store.cacheStore.error != nil {
-                            Text("Open Cache to retry").foregroundStyle(Tokens.Palette.tertiary)
-                        }
-                    }
-                }
-                .font(Tokens.Typography.metadata)
+                MenuBarCacheView(cache: store.cacheStore, ci: store.ciCacheStore)
             }
         }
-    }
-
-    private func cacheBudget(_ title: String, used: UInt64, cap: UInt64) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 6) {
-                Text(title).foregroundStyle(Tokens.Palette.secondary)
-                Spacer(minLength: 4)
-                Text("\(ByteFormat.string(used)) / \(ByteFormat.string(cap))")
-                    .monospacedDigit().foregroundStyle(Tokens.Palette.primary).fixedSize(
-                        horizontal: true, vertical: false)
-            }
-            if cap > 0 {
-                WorkspaceBudgetMeter(
-                    used: used, cap: cap, label: title,
-                    color: used > cap ? Tokens.Palette.warning : Tokens.Palette.accent,
-                    height: 5)
-            }
-        }
-        .accessibilityElement(children: .combine)
     }
 
     private var activitySection: some View {

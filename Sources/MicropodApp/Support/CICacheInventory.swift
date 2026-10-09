@@ -403,7 +403,7 @@ final class CICacheStore {
 
     func applyForPreview(
         _ inventory: CICacheInventorySnapshot?, telemetry: CICacheTelemetry? = nil, error: String? = nil,
-        history: CICacheHistorySnapshot? = nil
+        history: CICacheHistorySnapshot? = nil, telemetryError: String? = nil
     ) {
         cancelRefresh()
         isPreview = true
@@ -411,5 +411,6 @@ final class CICacheStore {
         self.telemetry = telemetry
         self.history = history
         inventoryError = error
+        self.telemetryError = telemetryError
     }
 }
