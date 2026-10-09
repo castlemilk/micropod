@@ -2,6 +2,7 @@ import AppKit
 import MicropodCore
 import MicropodSharedFS
 import SwiftUI
+import Vision
 import XCTest
 
 @testable import MicropodApp
@@ -190,14 +191,28 @@ final class MenuBarCacheTests: XCTestCase {
         let store = makeRunningStore(client: AppTestCLI.makeFailing())
         store.cacheStore.applyForPreview(nil)
         store.ciCacheStore.applyForPreview(inventory([]))
+        let samples = [
+            inventory([volume("cf-cache-reopen", allocated: 1 << 30)]),
+            inventory([volume("cf-cache-reopen", allocated: 2 << 30)]),
+        ]
+        let counters = [try telemetry(local: 10, upstream: 1), try telemetry(local: 20, upstream: 2)]
         var reads = 0
         func panel() -> AnyView {
-            AnyView(MenuBarPanelView(store: store, activateRuntimeObservation: false, cacheRefresh: { reads += 1 }))
+            AnyView(
+                MenuBarPanelView(
+                    store: store, activateRuntimeObservation: false,
+                    cacheRefresh: {
+                        reads += 1
+                        let index = min(reads - 1, samples.count - 1)
+                        store.ciCacheStore.applyForPreview(samples[index], telemetry: counters[index])
+                    }
+                ).environment(\.colorScheme, .dark))
         }
         let hosting = NSHostingView(rootView: panel())
         hosting.frame = NSRect(x: 0, y: 0, width: 360, height: 640)
         let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
         window.contentView = hosting
+        window.appearance = NSAppearance(named: .darkAqua)
         window.orderBack(nil)
         defer {
             hosting.rootView = AnyView(EmptyView())
@@ -205,6 +220,10 @@ final class MenuBarCacheTests: XCTestCase {
         }
         hosting.layoutSubtreeIfNeeded()
         try await wait { reads == 1 }
+        try await Task.sleep(for: .milliseconds(20))
+        let opened = try captureLifecycle(hosting, window: window, name: "opened")
+        XCTAssertTrue(opened.contains("10 / 1"), opened)
+        XCTAssertTrue(opened.contains(CICacheByteFormat.string(1 << 30)), opened)
         hosting.rootView = AnyView(EmptyView())
         hosting.layoutSubtreeIfNeeded()
         try await Task.sleep(for: .milliseconds(30))
@@ -213,6 +232,33 @@ final class MenuBarCacheTests: XCTestCase {
         hosting.layoutSubtreeIfNeeded()
         try await wait { reads == 2 }
         XCTAssertEqual(reads, 2)
+        try await Task.sleep(for: .milliseconds(20))
+        let reopened = try captureLifecycle(hosting, window: window, name: "reopened")
+        XCTAssertTrue(reopened.contains("20 / 2"), reopened)
+        XCTAssertTrue(reopened.contains(CICacheByteFormat.string(2 << 30)), reopened)
+        XCTAssertFalse(reopened.contains("10 / 1"), "Reopening must visibly replace the earlier counters: \(reopened)")
+    }
+
+    private func captureLifecycle(_ hosting: NSHostingView<AnyView>, window: NSWindow, name: String) throws -> String {
+        hosting.layoutSubtreeIfNeeded()
+        let fitting = hosting.fittingSize
+        XCTAssertEqual(fitting.width, 360, accuracy: 0.5)
+        XCTAssertLessThanOrEqual(fitting.height, 640)
+        hosting.frame = NSRect(origin: .zero, size: fitting)
+        window.setContentSize(fitting)
+        hosting.layoutSubtreeIfNeeded()
+        hosting.display()
+        let bitmap = try XCTUnwrap(hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds))
+        hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
+        let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+        let url = URL(fileURLWithPath: "/tmp/micropod-tray-lifecycle-\(name).png")
+        try png.write(to: url)
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["en-US"]
+        request.usesLanguageCorrection = false
+        try VNImageRequestHandler(url: url, options: [:]).perform([request])
+        return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
     }
 
     private func wait(_ predicate: @MainActor () -> Bool) async throws {
