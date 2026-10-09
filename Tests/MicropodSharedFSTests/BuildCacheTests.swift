@@ -66,5 +66,63 @@ final class BuildCacheTests: XCTestCase {
         XCTAssertEqual(stats.entries, 0)
         XCTAssertEqual(stats.contentBytes, 0)
         XCTAssertEqual(stats.sharedBytes, 0)
+        XCTAssertTrue(stats.contentAccountingComplete)
+        XCTAssertEqual(stats.unknownContentEntries, 0)
+    }
+
+    func testLegacyContextDoesNotEstablishZeroContentBytes() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("bcache-legacy-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let legacy = root.appendingPathComponent(String(repeating: "l", count: 64), isDirectory: true)
+        try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+        try Data(#"{"bytes":24000000}"#.utf8).write(to: legacy.appendingPathComponent("meta.json"))
+
+        let (manifests, stats) = BuildCacheStore.scan(root: root)
+        XCTAssertEqual(stats.entries, 1)
+        XCTAssertEqual(stats.contentBytes, 0)  // Known subtotal, not measured total.
+        XCTAssertEqual(stats.unknownContentEntries, 1)
+        XCTAssertFalse(stats.contentAccountingComplete)
+        XCTAssertFalse(try XCTUnwrap(manifests.first).contentBytesKnown)
+        XCTAssertEqual(manifests.first?.legacyBytes, 24_000_000)
+    }
+
+    func testMixedLegacyAndManifestContentRemainsPartial() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("bcache-mixed-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try entry(root, hash: String(repeating: "a", count: 64), files: [("f", "digest", 42)])
+        let legacy = root.appendingPathComponent(String(repeating: "b", count: 64), isDirectory: true)
+        try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+        try Data(#"{"bytes":1000000}"#.utf8).write(to: legacy.appendingPathComponent("meta.json"))
+
+        let (_, stats) = BuildCacheStore.scan(root: root)
+        XCTAssertEqual(stats.entries, 2)
+        XCTAssertEqual(stats.contentBytes, 42)
+        XCTAssertEqual(stats.sharedBytes, 0)
+        XCTAssertEqual(stats.unknownContentEntries, 1)
+        XCTAssertFalse(stats.contentAccountingComplete)
+    }
+
+    func testEmptyModernManifestIsMeasuredZeroEvenAtLegacySentinelDate() throws {
+        let modern = BuildManifest(
+            treeHash: String(repeating: "a", count: 64), files: [], tarBytes: 0,
+            storedAt: .distantPast)
+        let decoded = try JSONDecoder().decode(BuildManifest.self, from: JSONEncoder().encode(modern))
+        XCTAssertTrue(decoded.contentBytesKnown)
+        XCTAssertEqual(decoded.contentBytes, 0)
+        XCTAssertNil(decoded.legacyBytes)
+    }
+
+    func testLargeLegacyByteMetadataDoesNotTrapOrBecomeKnownContent() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("bcache-large-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let legacy = root.appendingPathComponent(String(repeating: "a", count: 64), isDirectory: true)
+        try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+        try Data(#"{"bytes":18446744073709551615}"#.utf8).write(to: legacy.appendingPathComponent("meta.json"))
+        let manifest = try XCTUnwrap(BuildCacheStore.readManifest(entry: legacy))
+        XCTAssertEqual(manifest.legacyBytes, UInt64.max)
+        XCTAssertFalse(manifest.contentBytesKnown)
     }
 }
