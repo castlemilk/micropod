@@ -4,6 +4,7 @@ import SwiftUI
 
 @main
 struct MicropodApp: App {
+    @NSApplicationDelegateAdaptor(MicropodApplicationDelegate.self) private var appDelegate
     @State private var store = AppStore()
     @Environment(\.openWindow) private var openWindow
 
@@ -26,7 +27,7 @@ struct MicropodApp: App {
     }
 
     var body: some Scene {
-        WindowGroup(id: "main-window") {
+        MainWindowScene {
             MainPanelView(store: store)
                 .frame(minWidth: 720, minHeight: 460)
                 .background(MainWindowFrameRestorer())
@@ -49,7 +50,7 @@ struct MicropodApp: App {
             }
             CommandGroup(after: .appInfo) {
                 Button("Open Main Window") {
-                    openWindow(id: "main-window")
+                    showMainWindow()
                 }
                 .keyboardShortcut("o", modifiers: [.command, .shift])
                 Button("Check for Updates…") {
@@ -79,7 +80,7 @@ struct MicropodApp: App {
                 }
                 .disabled(store.isRuntimeRunning)
                 Button("Stop Runtime") {
-                    openWindow(id: "main-window")
+                    showMainWindow()
                     store.requestRuntimeStop()
                 }
                 .disabled(!store.isRuntimeRunning)
@@ -102,6 +103,10 @@ struct MicropodApp: App {
         Settings {
             SettingsView(store: store)
         }
+    }
+
+    private func showMainWindow() {
+        MainWindowPresenter.shared.show { openWindow(id: MainWindowPresenter.sceneID) }
     }
 
     private func shortcut(for tab: AppStore.ActiveTab) -> KeyEquivalent? {
