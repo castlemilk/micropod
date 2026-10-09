@@ -12,28 +12,33 @@ struct CICacheInventoryView: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 15)) { context in
-            PanelCard {
-                Label("CI cache activity", systemImage: "chart.bar")
-                    .font(Tokens.Typography.section)
-                Text("Measured dependency-proxy requests, golden-store resolution and CI image allocation.")
-                    .font(Tokens.Typography.body)
-                    .foregroundStyle(Tokens.Palette.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                if let inventory = cache.inventory { filters(inventory) }
-                telemetryBody(now: context.date)
-                historyBody
-                if let inventory = cache.inventory { runtimeIOBody(inventory, now: context.date) }
-                Divider()
-                Label("CI storage", systemImage: "externaldrive").font(Tokens.Typography.section)
-                if let error = cache.inventoryError {
-                    Text(error).foregroundStyle(Tokens.Palette.warning)
-                        .font(Tokens.Typography.metadata).fixedSize(horizontal: false, vertical: true)
-                }
-                if let inventory = cache.inventory {
-                    inventoryBody(inventory, now: context.date)
-                } else {
-                    Text(cache.isRefreshing ? "Reading local named-volume metadata…" : "Inventory has not been read.")
+            VStack(alignment: .leading, spacing: Tokens.Spacing.xl) {
+                PanelCard {
+                    Label("CI storage", systemImage: "externaldrive").font(Tokens.Typography.section)
+                    if let error = cache.inventoryError {
+                        Text(error).foregroundStyle(Tokens.Palette.warning)
+                            .font(Tokens.Typography.metadata).fixedSize(horizontal: false, vertical: true)
+                    }
+                    if let inventory = cache.inventory {
+                        filters(inventory)
+                        inventoryBody(inventory, now: context.date)
+                    } else if cache.inventoryError == nil {
+                        Text(
+                            cache.isRefreshing ? "Reading local named-volume metadata…" : "Inventory has not been read."
+                        )
                         .font(Tokens.Typography.body).foregroundStyle(Tokens.Palette.secondary)
+                    }
+                }
+                PanelCard {
+                    Label("CI cache activity", systemImage: "chart.bar")
+                        .font(Tokens.Typography.section)
+                    Text("Measured dependency-proxy requests and golden-store resolution.")
+                        .font(Tokens.Typography.body)
+                        .foregroundStyle(Tokens.Palette.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    telemetryBody(now: context.date)
+                    historyBody
+                    if let inventory = cache.inventory { runtimeIOBody(inventory, now: context.date) }
                 }
             }
         }

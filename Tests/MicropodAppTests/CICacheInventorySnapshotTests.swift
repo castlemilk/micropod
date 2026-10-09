@@ -2,6 +2,7 @@ import AppKit
 import MicropodCore
 import MicropodSharedFS
 import SwiftUI
+import Vision
 import XCTest
 
 @testable import MicropodApp
@@ -9,6 +10,95 @@ import XCTest
 /// Deterministic native rendering: fixtures only, no live cache/RPC access.
 @MainActor
 final class CICacheInventorySnapshotTests: XCTestCase {
+    func testVisibleCacheViewportShowsStorageBeforeLegacyJobReports() throws {
+        let fixture = try AppTestCLI.makeMock()
+        defer { AppTestCLI.cleanUp(fixture) }
+        let store = AppStore(dependencies: AppDependencies(client: fixture.client))
+        store.cacheStore.applyForPreview(nil, error: "Build context snapshot unavailable.")
+        let ci = preview()
+        store.ciCacheStore.applyForPreview(ci.inventory, telemetry: ci.telemetry)
+        for width in [720, 1280] {
+            let name = "ci-cache-visible-viewport-\(width)"
+            try render(CacheView(store: store), width: width, height: 820, scheme: .dark, name: name)
+            let text = try recognizedText(name)
+            // Vision can recognize the narrow capital I as a lowercase l or numeral 1.
+            XCTAssertNotNil(
+                text.range(of: #"\b2 C[I1l] volumes\b"#, options: .regularExpression),
+                "CI inventory count must be visible without scrolling: \(text)")
+            XCTAssertTrue(
+                text.contains("Host allocated"),
+                "Backing-file allocation must be visible before long job reports: \(text)")
+        }
+        try render(
+            CacheView(store: store), width: 720, height: 820, scheme: .dark,
+            name: "ci-cache-visible-scrolled", scrollOffset: 700)
+        let scrolled = try recognizedText("ci-cache-visible-scrolled")
+        XCTAssertTrue(scrolled.contains("cache activity"), "Scrolling must reach the activity panel: \(scrolled)")
+        XCTAssertTrue(scrolled.contains("local requests"), "Measured activity must remain readable: \(scrolled)")
+    }
+
+    func testUnsupportedHistoryDoesNotHideStorageOrInventUsage() throws {
+        let cache = preview()
+        cache.applyForPreview(
+            cache.inventory,
+            history: CICacheHistorySnapshot(
+                state: CICacheHistoryState(), error: "Producer history unsupported.",
+                persisted: false, traversalLimited: false))
+        try render(
+            CICacheInventoryView(cache: cache), width: 720, height: 1800, scheme: .light,
+            name: "ci-cache-unsupported-history")
+        let text = try recognizedText("ci-cache-unsupported-history")
+        XCTAssertTrue(text.contains("Host allocated"), text)
+        XCTAssertTrue(text.contains("history unsupported"), text)
+        XCTAssertTrue(text.contains("Unknown"), "Missing measurements must remain unknown: \(text)")
+        XCTAssertFalse(text.contains("No CI named volumes"), text)
+    }
+
+    func testInventoryErrorKeepsRetainedAllocationMarkedStale() throws {
+        let fixture = try AppTestCLI.makeMock()
+        defer { AppTestCLI.cleanUp(fixture) }
+        let store = AppStore(dependencies: AppDependencies(client: fixture.client))
+        store.cacheStore.applyForPreview(nil, error: "Build context snapshot unavailable.")
+        let cache = preview()
+        store.ciCacheStore.applyForPreview(cache.inventory, error: "Named-volume inventory unavailable.")
+        try render(
+            CacheView(store: store), width: 720, height: 820, scheme: .dark,
+            name: "ci-cache-visible-stale-error")
+        let text = try recognizedText("ci-cache-visible-stale-error")
+        XCTAssertTrue(text.contains("inventory unavailable"), text)
+        XCTAssertTrue(text.contains("Stale observation"), text)
+        XCTAssertTrue(text.contains("Host allocated"), text)
+        XCTAssertFalse(text.contains("No CI named volumes"), text)
+    }
+
+    func testVisibleCacheViewportDistinguishesEmptyFromUnavailableInventory() throws {
+        let fixture = try AppTestCLI.makeMock()
+        defer { AppTestCLI.cleanUp(fixture) }
+        for unavailable in [false, true] {
+            let store = AppStore(dependencies: AppDependencies(client: fixture.client))
+            store.cacheStore.applyForPreview(nil, error: "Build context snapshot unavailable.")
+            let inventory =
+                unavailable
+                ? nil
+                : CICacheInventorySnapshot(
+                    read: CICacheRead(volumes: [], containers: [], truncated: false),
+                    sourceID: "local/native", measuredAt: Date())
+            store.ciCacheStore.applyForPreview(
+                inventory, error: unavailable ? "Named-volume inventory unavailable." : nil)
+            let name = "ci-cache-visible-\(unavailable ? "unavailable" : "empty")"
+            try render(CacheView(store: store), width: 1280, height: 820, scheme: .light, name: name)
+            let text = try recognizedText(name)
+            XCTAssertTrue(text.contains("Build contexts"), "Initial viewport must include the page header: \(text)")
+            if unavailable {
+                XCTAssertTrue(text.contains("inventory unavailable"), text)
+                XCTAssertFalse(text.contains("named volumes observed"), "Unavailable must not become empty: \(text)")
+            } else {
+                XCTAssertTrue(
+                    text.contains("named volumes observed"), "Measured empty inventory must be visible: \(text)")
+            }
+        }
+    }
+
     func testRenderSparseActiveAndUnknownInventoryAtWindowWidths() throws {
         for width in [720, 1200] {
             for scheme in [ColorScheme.light, .dark] {
@@ -240,11 +330,21 @@ final class CICacheInventorySnapshotTests: XCTestCase {
         XCTAssertNil(history.telemetry.saves.first?.save.acknowledgedAllocation)
     }
 
+    private func recognizedText(_ name: String) throws -> String {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["en-US"]
+        request.usesLanguageCorrection = false
+        try VNImageRequestHandler(url: URL(fileURLWithPath: "/tmp/\(name).png"), options: [:]).perform([request])
+        return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
+    }
+
     private func render<Content: View>(
-        _ view: Content, width: Int, height: Int, scheme: ColorScheme, name: String
+        _ view: Content, width: Int, height: Int, scheme: ColorScheme, name: String,
+        scrollOffset: CGFloat? = nil
     ) throws {
         let hosting = NSHostingView(
-            rootView: view.padding(24)
+            rootView: view.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).padding(24)
                 .background(Tokens.Palette.canvas).environment(\.colorScheme, scheme)
                 .environment(\.locale, Locale(identifier: "en")))
         hosting.sizingOptions = []
@@ -256,6 +356,23 @@ final class CICacheInventorySnapshotTests: XCTestCase {
         defer { window.orderOut(nil) }
         hosting.layoutSubtreeIfNeeded()
         hosting.display()
+        if let scroll = firstScrollView(in: hosting) {
+            scroll.contentView.scroll(to: .zero)
+            scroll.reflectScrolledClipView(scroll.contentView)
+            hosting.layoutSubtreeIfNeeded()
+            hosting.display()
+        }
+        if let scrollOffset {
+            let scroll = try XCTUnwrap(firstScrollView(in: hosting))
+            let document = try XCTUnwrap(scroll.documentView)
+            let maximum = document.bounds.height - scroll.contentView.bounds.height
+            XCTAssertGreaterThan(maximum, 0, "Cache content must be scrollable at a narrow window width")
+            scroll.contentView.scroll(to: NSPoint(x: 0, y: min(scrollOffset, maximum)))
+            scroll.reflectScrolledClipView(scroll.contentView)
+            XCTAssertGreaterThan(scroll.contentView.bounds.origin.y, 0)
+            hosting.layoutSubtreeIfNeeded()
+            hosting.display()
+        }
         hosting.layoutSubtreeIfNeeded()
         hosting.display()
         guard let bitmap = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else {
@@ -266,5 +383,13 @@ final class CICacheInventorySnapshotTests: XCTestCase {
         XCTAssertGreaterThan(png.count, 5000)
         XCTAssertGreaterThanOrEqual(bitmap.pixelsWide, width)
         try png.write(to: URL(fileURLWithPath: "/tmp/\(name).png"))
+    }
+
+    private func firstScrollView(in view: NSView) -> NSScrollView? {
+        if let scroll = view as? NSScrollView { return scroll }
+        for child in view.subviews {
+            if let scroll = firstScrollView(in: child) { return scroll }
+        }
+        return nil
     }
 }
