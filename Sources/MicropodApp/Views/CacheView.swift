@@ -43,8 +43,9 @@ struct CacheView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Tokens.Palette.canvas)
+        // SwiftUI cancels this surface's loop on disappearance. Leave the
+        // coalesced store read alive for another observer, including the tray.
         .task { await CachePageRefreshLoop.run { await refresh() } }
-        .onDisappear { store.ciCacheStore.cancelRefresh() }
         .sheet(
             isPresented: $showCleanup,
             onDismiss: { cache.dismissCleanupReview() },

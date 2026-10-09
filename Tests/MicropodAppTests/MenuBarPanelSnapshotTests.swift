@@ -2,6 +2,7 @@ import AppKit
 import MicropodCore
 import MicropodSharedFS
 import SwiftUI
+import Vision
 import XCTest
 
 @testable import MicropodApp
@@ -12,14 +13,35 @@ import XCTest
 final class MenuBarPanelSnapshotTests: XCTestCase {
     @MainActor
     func testPanelFittingSizeAndLightDarkPreviews() throws {
-        for variant in ["populated", "empty", "unavailable"] {
+        for variant in ["populated", "empty", "unsupported", "unavailable", "retained-error", "stale-local"] {
             for scheme in [ColorScheme.light, .dark] {
                 let store = makeRunningStore(client: AppTestCLI.makeFailing())
-                if variant == "populated" { populatePanel(store) }
+                if ["populated", "retained-error", "stale-local"].contains(variant) { populatePanel(store) }
+                if variant == "stale-local", let snapshot = store.cacheStore.snapshot {
+                    store.cacheStore.applyForPreview(
+                        CacheSnapshot(
+                            measuredAt: Date().addingTimeInterval(-3600), buildRoot: snapshot.buildRoot,
+                            buildEntries: snapshot.buildEntries, buildStats: snapshot.buildStats,
+                            buildDisabled: snapshot.buildDisabled, buildError: snapshot.buildError,
+                            package: snapshot.package, packageError: snapshot.packageError))
+                }
+                if variant == "empty" || variant == "unsupported" {
+                    store.ciCacheStore.applyForPreview(
+                        CICacheInventorySnapshot(
+                            read: CICacheRead(volumes: [], containers: [], truncated: false),
+                            sourceID: "apple", measuredAt: Date()))
+                }
+                if variant == "retained-error" {
+                    store.ciCacheStore.applyForPreview(
+                        store.ciCacheStore.inventory, telemetry: store.ciCacheStore.telemetry,
+                        error: "Named-volume inventory unavailable.",
+                        telemetryError: "Local runner counters unavailable.")
+                }
                 if variant == "unavailable" {
                     store.clientAvailable = false
                     store.systemStatus = nil
                     store.machineError = "Runtime unavailable"
+                    store.ciCacheStore.applyForPreview(nil, error: "Named-volume inventory unavailable.")
                 }
                 let name = "micropod-tray-\(variant)-\(scheme == .dark ? "dark" : "light")"
                 let size = try render(
@@ -29,6 +51,25 @@ final class MenuBarPanelSnapshotTests: XCTestCase {
                 XCTAssertGreaterThanOrEqual(size.width, 359.5, name)
                 XCTAssertGreaterThan(size.height, 250, name)
                 XCTAssertLessThanOrEqual(size.height, 640, name)
+                let text = try recognizedText(name)
+                for label in ["Largest file allocation", "Host requests", "SharedFS packages", "benefit unknown"] {
+                    XCTAssertTrue(text.contains(label), "Cache scope must remain visible at tray dimensions: \(text)")
+                }
+                if variant == "populated" {
+                    XCTAssertTrue(text.contains("124 / 9"), text)
+                    XCTAssertTrue(text.contains("0 B /"), "Zero SharedFS must remain separately scoped: \(text)")
+                    XCTAssertFalse(text.contains("300 GB"), "Capacity must not masquerade as allocation: \(text)")
+                }
+                if variant == "empty" { XCTAssertTrue(text.contains("None observed"), text) }
+                if variant == "unsupported" { XCTAssertTrue(text.contains("proxy counters unknown"), text) }
+                if variant == "retained-error" { XCTAssertTrue(text.contains("retained"), text) }
+                if variant == "stale-local" {
+                    XCTAssertTrue(text.contains("proxy recent"), text)
+                    XCTAssertTrue(text.contains("local stale"), text)
+                }
+                if variant == "unavailable" {
+                    XCTAssertNotNil(text.range(of: #"C[I1l] unavailable"#, options: .regularExpression), text)
+                }
             }
         }
     }
@@ -182,12 +223,41 @@ final class MenuBarPanelSnapshotTests: XCTestCase {
                 buildDisabled: false, buildError: nil,
                 package: SharedCacheSnapshot(
                     cacheRoot: "/tmp/micropod-test-package-cache", measuredAt: measuredAt,
-                    storedBytes: 2_147_483_648, capBytes: 10_737_418_240, chunkCount: 128,
+                    storedBytes: 0, capBytes: 10_737_418_240, chunkCount: 0,
                     activeMounts: [], keepEnabled: true, overCap: false),
                 packageError: nil))
+        var golden = Micropod_V1_Volume()
+        golden.id = "cf-cache-tray-fixture"
+        golden.format = "ext4"
+        golden.sizeBytes = 300 << 30
+        golden.allocatedBytes = 51 << 30
+        let sampled = ISO8601DateFormatter().string(from: measuredAt)
+        store.ciCacheStore.applyForPreview(
+            CICacheInventorySnapshot(
+                read: CICacheRead(volumes: [golden], containers: [], truncated: false),
+                sourceID: "apple", measuredAt: measuredAt),
+            telemetry: CICacheTelemetry(
+                receivedAt: measuredAt,
+                counters: [
+                    CICacheCounter(
+                        name: "depcache_requests_total", type: "counter", value: 124, capturedAt: sampled,
+                        attributes: ["tier": "local"]),
+                    CICacheCounter(
+                        name: "depcache_requests_total", type: "counter", value: 9, capturedAt: sampled,
+                        attributes: ["tier": "upstream"]),
+                ]))
         store.recordActivity("runtime", "Runtime started", level: .success)
         store.recordActivity("containers", "Started api-gateway", level: .info)
         store.recordActivity("images", "Pull failed for ghcr.io/private/very-long-image-name", level: .error)
+    }
+
+    private func recognizedText(_ name: String) throws -> String {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["en-US"]
+        request.usesLanguageCorrection = false
+        try VNImageRequestHandler(url: URL(fileURLWithPath: "/tmp/\(name).png"), options: [:]).perform([request])
+        return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
     }
 
     @MainActor
