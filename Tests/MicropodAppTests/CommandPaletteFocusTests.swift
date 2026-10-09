@@ -38,8 +38,19 @@ final class CommandPaletteFocusTests: XCTestCase {
 
         store.showCommandPalette = true
         let hosting = NSHostingView(
-            rootView: CommandPaletteView(store: store)
-                .environment(\.locale, Locale(identifier: "en")))
+            rootView: AnyView(
+                CommandPaletteView(store: store)
+                    .environment(\.locale, Locale(identifier: "en"))))
+        defer {
+            // End the SwiftUI presentation before the native window closes.
+            // Otherwise its focus task can outlive the hosting hierarchy.
+            window.makeFirstResponder(nil)
+            store.showCommandPalette = false
+            hosting.rootView = AnyView(EmptyView())
+            hosting.layoutSubtreeIfNeeded()
+            hosting.removeFromSuperview()
+            window.contentView = nil
+        }
         hosting.sizingOptions = []
         hosting.frame = NSRect(origin: .zero, size: size)
         root.addSubview(hosting)
