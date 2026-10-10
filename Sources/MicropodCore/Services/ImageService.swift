@@ -60,9 +60,16 @@ public protocol ImageServing: Sendable {
 
 public struct ImageService: ImageServing {
     private let client: ContainerCLIClient
+    private let retrySleep: @Sendable (Duration) async throws -> Void
 
     public init(client: ContainerCLIClient) {
         self.client = client
+        retrySleep = { try await Task.sleep(for: $0) }
+    }
+
+    init(client: ContainerCLIClient, retrySleep: @escaping @Sendable (Duration) async throws -> Void) {
+        self.client = client
+        self.retrySleep = retrySleep
     }
 
     public func list() async throws -> [Micropod_V1_Image] {
@@ -71,21 +78,10 @@ public struct ImageService: ImageServing {
         return entries.map(ModelMapper.image(from:))
     }
 
-    /// Pull with stall detection + credential recovery.
-    ///
-    /// The runtime's registry client can wedge before any network I/O —
-    /// most reproducibly when a stored credential for the registry exists
-    /// and the token endpoint challenges back (`Fetching image` ticks
-    /// forever, zero connections). Without a watchdog that pull hangs the
-    /// caller forever, so:
-    ///
-    ///   1. Watch progress markers: if the line (minus the elapsed-time
-    ///      ticker and transfer-rate suffix) doesn't change for
-    ///      `MICROPOD_PULL_STALL_TIMEOUT` seconds (default 90), fail the
-    ///      pull with `MicropodError.pullStalled`.
-    ///   2. On stall, if the registry has a stored credential, log it out
-    ///      and retry once anonymously — the known-good path for registries
-    ///      with anonymous reads.
+    /// Pull with bounded progress observation and safe terminal diagnostics.
+    /// Classified transient fetch failures get at most two retries, after
+    /// one and two seconds. Authentication, storage, TLS, unknown failures
+    /// and stalls stop without credential changes or runtime operations.
     ///
     /// A nil or empty `platform` pulls `defaultPullPlatform`, not every
     /// platform in the index. If the image has no variant for it, the pull
@@ -95,39 +91,52 @@ public struct ImageService: ImageServing {
         ProgressEvent, Error
     > {
         let requested = platform.flatMap { $0.isEmpty ? nil : $0 }
+        let callerWasCancelled = withUnsafeCurrentTask { $0?.isCancelled ?? false }
         return AsyncThrowingStream { continuation in
             let task = Task {
-                var recovered = false
+                guard !callerWasCancelled else {
+                    continuation.finish(throwing: CancellationError())
+                    return
+                }
+                var attempts = 0
                 // nil only once a defaulted pull found no host variant.
                 var pinned: String? = requested ?? Self.defaultPullPlatform
                 while true {
                     let widenable = requested == nil && pinned != nil
-                    var platformMissing = false
+                    attempts += 1
                     do {
+                        try Task.checkCancellation()
                         for try await event in pullOnce(reference, platform: pinned) {
-                            if widenable, Self.reportsMissingPlatform(event.line) { platformMissing = true }
                             continuation.yield(event)
                         }
                         continuation.finish()
                         return
                     } catch MicropodError.pullStalled {
-                        guard !recovered, !Task.isCancelled else {
-                            continuation.finish(throwing: MicropodError.pullStalled(reference: reference))
-                            return
-                        }
-                        recovered = true
-                        if await clearStoredCredential(Self.registryHost(of: reference)) {
-                            continue
-                        }
                         continuation.finish(throwing: MicropodError.pullStalled(reference: reference))
                         return
                     } catch {
-                        if platformMissing, let missing = pinned, !Task.isCancelled {
+                        let failure = ImagePullFailure.from(error)
+                        if widenable, failure?.category == .platform, failure?.completedCLIExit == true,
+                            failure?.outputTruncated == false,
+                            attempts < 3, let missing = pinned, !Task.isCancelled
+                        {
                             pinned = nil
                             continuation.yield(
                                 ProgressEvent(
-                                    line: "\(reference) has no \(missing) variant; pulling every platform it has"))
+                                    line: "Image has no \(missing) variant; pulling every platform it has"))
                             continue
+                        }
+                        if failure?.retryAllowed == true, attempts < 3, !Task.isCancelled {
+                            do {
+                                try await retrySleep(.seconds(attempts))
+                                try Task.checkCancellation()
+                                continuation.yield(
+                                    ProgressEvent(line: "Retrying transient image fetch (attempt \(attempts + 1)/3)"))
+                                continue
+                            } catch {
+                                continuation.finish(throwing: error)
+                                return
+                            }
                         }
                         continuation.finish(throwing: error)
                         return
@@ -177,29 +186,13 @@ public struct ImageService: ImageServing {
         return "registry-1.docker.io"
     }
 
-    /// If the registry has a stored credential, log it out so the retry
-    /// goes through the anonymous path. Returns true when a credential was
-    /// actually cleared.
-    private func clearStoredCredential(_ host: String) async -> Bool {
-        guard
-            let output = try? await client.run(
-                ContainerCommandFactory.registryList(), timeout: .seconds(15)),
-            let entries = try? JSONSerialization.jsonObject(with: Data(output.utf8))
-                as? [[String: Any]],
-            entries.contains(where: { ($0["name"] as? String) == host })
-        else { return false }
-        _ = try? await client.run(
-            ContainerCommandFactory.registryLogout(host), timeout: .seconds(15))
-        return true
-    }
-
     /// One pull attempt with a forward-progress watchdog layered over the
     /// raw CLI stream. A separate watchdog task so a pull that emits zero
     /// lines (wedged before first output) still fails within the budget.
     private func pullOnce(_ reference: String, platform: String?) -> AsyncThrowingStream<
         ProgressEvent, Error
     > {
-        let inner = progressStream(ContainerCommandFactory.pullImage(reference, platform: platform))
+        let inner = pullProgressStream(ContainerCommandFactory.pullImage(reference, platform: platform))
         let stallTimeout = Self.pullStallTimeout
         return AsyncThrowingStream { continuation in
             let progress = PullProgress()
@@ -334,6 +327,36 @@ public struct ImageService: ImageServing {
     public func inspect(_ reference: String) async throws -> Data {
         let output = try await client.run(ContainerCommandFactory.inspectImage(reference), timeout: .seconds(15))
         return Data(output.utf8)
+    }
+
+    private func pullProgressStream(_ command: ContainerCommand) -> AsyncThrowingStream<ProgressEvent, Error> {
+        AsyncThrowingStream(bufferingPolicy: .bufferingNewest(64)) { continuation in
+            let task = Task {
+                var evidence = ImagePullEvidence()
+                do {
+                    for try await chunk in client.stream(command, reportExitCode: true) {
+                        for event in evidence.consume(chunk) { continuation.yield(event) }
+                    }
+                    if let event = evidence.finish() { continuation.yield(event) }
+                    try Task.checkCancellation()
+                    continuation.finish()
+                } catch {
+                    if let event = evidence.finish() { continuation.yield(event) }
+                    if Task.isCancelled || error is CancellationError {
+                        continuation.finish(throwing: CancellationError())
+                    } else if case MicropodError.cliFailure(_, let exitCode, _) = error {
+                        var failure = evidence.failure
+                        failure.exitCode = exitCode
+                        continuation.finish(
+                            throwing: MicropodError.cliFailure(
+                                command: "container image pull", exitCode: exitCode, stderr: failure.message))
+                    } else {
+                        continuation.finish(throwing: MicropodError.message(evidence.failure.message))
+                    }
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
     }
 
     private func progressStream(_ command: ContainerCommand) -> AsyncThrowingStream<ProgressEvent, Error> {

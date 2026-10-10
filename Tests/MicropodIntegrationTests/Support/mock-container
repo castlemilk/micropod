@@ -706,6 +706,11 @@ cmd_image_list() {
 }
 
 cmd_image_pull() {
+    if [ -f "$STATE_DIR/pull-refusal" ]; then
+        printf '[1/2] Fetching image 42%% https://private.example/?signature=fake-pull-secret\n'
+        printf 'Error: unauthorized credential=fake-pull-secret\n' >&2
+        exit 29
+    fi
     local reference="" platform=""
     while [ $# -gt 0 ]; do
         case "$1" in

@@ -300,7 +300,10 @@ public struct ContainerCLIClient: Sendable {
                     _ = drained.wait(timeout: .now() + .milliseconds(500))
                 }
                 let wasCancelledWhileRunning = cancelledWhileRunning
-                let exitCode = process.terminationStatus
+                // Foundation returns a positive signal number for uncaughtSignal.
+                // Preserve that distinction so a killed fetch cannot authorize retries.
+                let exitCode =
+                    process.terminationReason == .exit ? process.terminationStatus : -abs(process.terminationStatus)
                 let displayName = command.displayName
                 gate.runOnce {
                     if wasCancelledWhileRunning {
