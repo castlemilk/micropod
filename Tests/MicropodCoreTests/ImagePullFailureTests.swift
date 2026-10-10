@@ -26,13 +26,47 @@ final class ImagePullFailureTests: XCTestCase {
         XCTAssertEqual(events.map(\.line), ["[1/2] Fetching image 42%"])
         XCTAssertEqual(evidence.failure.category, .transientRegistry)
         XCTAssertEqual(evidence.failure.httpStatus, 503)
-        XCTAssertTrue(evidence.failure.retryAllowed)
+        XCTAssertFalse(evidence.failure.retryAllowed, "Output alone is not a completed CLI failure")
         XCTAssertFalse(evidence.failure.message.contains("fake-secret"))
         XCTAssertFalse(evidence.failure.message.contains("example.test"))
+        var completed = evidence.failure
+        completed.exitCode = 29
         let error = MicropodError.cliFailure(
-            command: "container image pull", exitCode: 29, stderr: evidence.failure.message)
-        XCTAssertEqual(ImagePullFailure.from(error), evidence.failure)
+            command: "container image pull", exitCode: 29, stderr: completed.message)
+        XCTAssertEqual(ImagePullFailure.from(error), completed)
         XCTAssertTrue(error.localizedDescription.contains("\"retryAllowed\":true"))
+    }
+
+    func testMissingZeroAndSignalExitCannotAuthorizeTransientRetry() {
+        var failure = ImagePullFailure(category: .transientNetwork, stage: .fetch)
+        for status: Int32? in [nil, 0, -9] {
+            failure.exitCode = status
+            XCTAssertFalse(failure.retryAllowed)
+            XCTAssertFalse(failure.completedCLIExit)
+            XCTAssertTrue(failure.message.contains("\"retryAllowed\":false"))
+        }
+        failure.exitCode = 29
+        XCTAssertTrue(failure.retryAllowed)
+    }
+
+    func testSelfSignalledFetchCannotRetryOrWidenPlatform() async throws {
+        for line in [
+            "Error: connection reset by peer",
+            "Error: invalidArgument: \"unsupported platform linux/arm64\"",
+        ] {
+            let fixture = try makeFixture(line, failures: 100, selfSignal: true)
+            defer { try? FileManager.default.removeItem(at: fixture.directory) }
+            let service = ImageService(client: fixture.client, retrySleep: { _ in XCTFail("Must not retry") })
+            do {
+                for try await _ in service.pull("fixture/image:1") {}
+                XCTFail("Expected signalled failure")
+            } catch {
+                let failure = ImagePullFailure.from(error)
+                XCTAssertEqual(failure?.exitCode, -9)
+                XCTAssertFalse(failure?.retryAllowed ?? true)
+            }
+            XCTAssertEqual(try calls(fixture), ["image pull"])
+        }
     }
 
     func testPermanentAndUnknownErrorsDominateTransientMarkersInEitherOrder() {
@@ -79,7 +113,7 @@ final class ImagePullFailureTests: XCTestCase {
         _ = evidence.consume(Data("reset by peer".utf8))
         _ = evidence.finish()
         XCTAssertEqual(evidence.failure.category, .transientNetwork)
-        XCTAssertTrue(evidence.failure.retryAllowed)
+        XCTAssertFalse(evidence.failure.retryAllowed, "Output alone is not a completed CLI failure")
     }
 
     func testNumericProgressSurvivesRedactionWithoutTickerOrRateNoise() {
@@ -215,7 +249,7 @@ final class ImagePullFailureTests: XCTestCase {
         let client: ContainerCLIClient
     }
 
-    private func makeFixture(_ errorLine: String, failures: Int) throws -> Fixture {
+    private func makeFixture(_ errorLine: String, failures: Int, selfSignal: Bool = false) throws -> Fixture {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
             "pull-diagnostic-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -227,7 +261,7 @@ final class ImagePullFailureTests: XCTestCase {
             count=$(wc -l < "\(trace)")
             if [ "$count" -le \(failures) ]; then
               printf '%s\\n' '\(literal)'
-              exit 29
+              \(selfSignal ? "kill -KILL $$" : "exit 29")
             fi
             echo '[2/2] Unpacking image 100%'
             """

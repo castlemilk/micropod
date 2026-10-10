@@ -16,8 +16,12 @@ struct ImagePullFailure: Codable, Equatable, Sendable {
     var httpStatus: Int?
     var outputTruncated = false
 
+    // Only an ordinary, completed CLI failure can authorize another pull.
+    // Missing status means a stream/launch failure; negative status means a signal.
+    var completedCLIExit: Bool { exitCode.map { (1...255).contains($0) } ?? false }
+
     var retryAllowed: Bool {
-        !outputTruncated && stage == .fetch
+        completedCLIExit && !outputTruncated && stage == .fetch
             && (category == .transientNetwork || category == .transientRegistry)
     }
 

@@ -116,7 +116,8 @@ public struct ImageService: ImageServing {
                         return
                     } catch {
                         let failure = ImagePullFailure.from(error)
-                        if widenable, failure?.category == .platform, failure?.outputTruncated == false,
+                        if widenable, failure?.category == .platform, failure?.completedCLIExit == true,
+                            failure?.outputTruncated == false,
                             attempts < 3, let missing = pinned, !Task.isCancelled
                         {
                             pinned = nil
