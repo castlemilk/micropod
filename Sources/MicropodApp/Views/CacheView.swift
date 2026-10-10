@@ -89,14 +89,22 @@ struct CacheView: View {
         Group {
             summaryCard(
                 title: "Build contexts", icon: "cache", fallback: "externaldrive",
-                value: snapshot.buildError == nil ? bytes(snapshot.buildStats.contentBytes) : "Unavailable",
-                detail: "Logical retained content",
-                used: snapshot.buildError == nil ? snapshot.buildStats.contentBytes : nil,
+                value: snapshot.buildError == nil
+                    ? bytes(snapshot.buildStats.contentBytes)
+                        + (snapshot.buildStats.contentAccountingComplete ? "" : " known")
+                    : "Unavailable",
+                detail: snapshot.buildStats.contentAccountingComplete
+                    ? "Logical retained content" : "Partial content measurement; legacy contexts have unknown sizes",
+                used: snapshot.buildError == nil && snapshot.buildStats.contentAccountingComplete
+                    ? snapshot.buildStats.contentBytes : nil,
                 cap: snapshot.buildStats.capBytes,
                 color: Tokens.Palette.accent,
                 footer:
                     snapshot.buildError == nil
-                    ? "\(snapshot.buildStats.entries) contexts · \(snapshot.buildDisabled ? "Caching disabled" : "Automatic LRU eviction")"
+                    ? "\(snapshot.buildStats.entries) contexts"
+                        + (snapshot.buildStats.contentAccountingComplete
+                            ? "" : " · \(snapshot.buildStats.unknownContentEntries) content sizes unknown")
+                        + " · \(snapshot.buildDisabled ? "Caching disabled" : "Automatic LRU eviction")"
                     : "Context inventory unavailable"
             )
             if let package = snapshot.package {
@@ -182,9 +190,13 @@ struct CacheView: View {
                 .foregroundStyle(Tokens.Palette.secondary)
                 .padding(.vertical, Tokens.Spacing.lg)
             } else {
-                Text("\(bytes(snapshot.buildStats.sharedBytes)) of content appears in multiple contexts.")
-                    .font(Tokens.Typography.body)
-                    .foregroundStyle(Tokens.Palette.secondary)
+                Text(
+                    "\(bytes(snapshot.buildStats.sharedBytes)) of measured content appears in multiple contexts."
+                        + (snapshot.buildStats.contentAccountingComplete
+                            ? "" : " Sharing for legacy contexts is unknown.")
+                )
+                .font(Tokens.Typography.body)
+                .foregroundStyle(Tokens.Palette.secondary)
                 Text("Content reuse is measured from file digests. It does not represent physical disk savings.")
                     .font(Tokens.Typography.metadata)
                     .foregroundStyle(Tokens.Palette.tertiary)
@@ -215,10 +227,10 @@ struct CacheView: View {
                         .font(.system(size: 10, weight: .semibold))
                     Text(String(entry.treeHash.prefix(12)))
                         .font(Tokens.Typography.log)
-                    Text(entry.storedAt == .distantPast ? "Legacy manifest" : "\(entry.files.count) files")
+                    Text(entry.contentBytesKnown ? "\(entry.files.count) files" : "Legacy context")
                         .foregroundStyle(Tokens.Palette.secondary)
                     Spacer()
-                    Text(entry.storedAt == .distantPast ? "Content unknown" : bytes(entry.contentBytes))
+                    Text(entry.contentBytesKnown ? bytes(entry.contentBytes) : "Content unknown")
                         .monospacedDigit()
                 }
                 .font(Tokens.Typography.body)
@@ -226,7 +238,9 @@ struct CacheView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Inspect context \(entry.treeHash.prefix(12)), \(entry.files.count) files")
+            .accessibilityLabel(
+                "Inspect context \(entry.treeHash.prefix(12)), "
+                    + (entry.contentBytesKnown ? "\(entry.files.count) files" : "content unknown"))
             if expandedContext == entry.treeHash {
                 VStack(alignment: .leading, spacing: Tokens.Spacing.xs) {
                     ForEach(Array(entry.files.prefix(50).enumerated()), id: \.offset) { _, file in

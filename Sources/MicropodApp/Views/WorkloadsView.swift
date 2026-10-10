@@ -105,8 +105,8 @@ struct WorkloadsView: View {
         WorkspacePageHeader(
             title: "Workloads",
             subtitle: store.isRuntimeRunning
-                ? "\(summary.runningCount) running · \(summary.totalCount) total"
-                : "\(summary.runningCount) last seen running · \(summary.totalCount) total",
+                ? "\(summary.runningCount) compute running · \(summary.totalCount) total · Active jobs unknown"
+                : "\(summary.runningCount) compute last seen running · \(summary.totalCount) total · Active jobs unknown",
             icon: "workloads", fallback: "square.stack.3d.up"
         ) {
             HStack(spacing: Tokens.Spacing.sm) {
