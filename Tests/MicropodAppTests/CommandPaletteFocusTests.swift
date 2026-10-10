@@ -7,11 +7,14 @@ import XCTest
 final class CommandPaletteFocusTests: XCTestCase {
     @MainActor
     func testPresentedPaletteTakesFieldEditorFocusFromUnderlyingSearch() async throws {
+        var phase = "fixture"
+        defer { print("CommandPaletteFocusTests finalPhase=\(phase)") }
         let fixture = try AppTestCLI.makeMock()
         defer { AppTestCLI.cleanUp(fixture) }
         let store = makeRunningStore(client: fixture.client)
         defer { store.stopPollers() }
 
+        phase = "native-window"
         _ = NSApplication.shared
         let size = NSSize(width: 640, height: 460)
         let root = NSView(frame: NSRect(origin: .zero, size: size))
@@ -33,21 +36,17 @@ final class CommandPaletteFocusTests: XCTestCase {
         // packaged foreground keyboard behavior is exercised separately.
         window.orderFront(nil)
         XCTAssertTrue(window.makeFirstResponder(underlyingSearch))
+        phase = "underlying-editor"
         let previousEditor = try XCTUnwrap(underlyingSearch.currentEditor())
         XCTAssertTrue(window.firstResponder === previousEditor)
 
+        phase = "palette-mount"
         store.showCommandPalette = true
+        let lifecycle = PaletteLifecycle()
         let hosting = NSHostingView(
-            rootView: AnyView(
-                CommandPaletteView(store: store)
-                    .environment(\.locale, Locale(identifier: "en"))))
+            rootView: PaletteFocusFixture(store: store, lifecycle: lifecycle))
         defer {
-            // End the SwiftUI presentation before the native window closes.
-            // Otherwise its focus task can outlive the hosting hierarchy.
             window.makeFirstResponder(nil)
-            store.showCommandPalette = false
-            hosting.rootView = AnyView(EmptyView())
-            hosting.layoutSubtreeIfNeeded()
             hosting.removeFromSuperview()
             window.contentView = nil
         }
@@ -56,21 +55,43 @@ final class CommandPaletteFocusTests: XCTestCase {
         root.addSubview(hosting)
         hosting.layoutSubtreeIfNeeded()
 
-        // The native search field must become first responder after insertion;
-        // an immediate SwiftUI onAppear focus request can leave focus underneath.
-        try await waitUntil(timeout: .milliseconds(800)) {
-            guard let search = self.editableTextFields(in: hosting).first,
-                let editor = search.currentEditor()
-            else { return false }
-            return window.firstResponder === editor && underlyingSearch.currentEditor() == nil
+        func dismissPalette() async throws {
+            window.makeFirstResponder(underlyingSearch)
+            store.showCommandPalette = false
+            hosting.layoutSubtreeIfNeeded()
+            // Retain the window and host until SwiftUI acknowledges removal.
+            try await waitUntil(timeout: .milliseconds(800)) {
+                lifecycle.disappeared && self.editableTextFields(in: hosting).isEmpty
+            }
         }
 
-        let fields = editableTextFields(in: hosting)
-        XCTAssertEqual(fields.count, 1, "The palette has one editable search field")
-        let paletteSearch = try XCTUnwrap(fields.first)
-        let paletteEditor = try XCTUnwrap(paletteSearch.currentEditor())
-        XCTAssertTrue(window.firstResponder === paletteEditor, "Typing must go to the palette's field editor")
-        XCTAssertNil(underlyingSearch.currentEditor(), "The previous page search must relinquish editing")
+        do {
+            // The native search field must become first responder after insertion;
+            // an immediate SwiftUI onAppear focus request can leave focus underneath.
+            phase = "focus-poll"
+            try await waitUntil(timeout: .milliseconds(800)) {
+                guard let search = self.editableTextFields(in: hosting).first,
+                    let editor = search.currentEditor()
+                else { return false }
+                return window.firstResponder === editor && underlyingSearch.currentEditor() == nil
+            }
+
+            phase = "focus-assertions"
+            let fields = editableTextFields(in: hosting)
+            XCTAssertEqual(fields.count, 1, "The palette has one editable search field")
+            let paletteSearch = try XCTUnwrap(fields.first)
+            let paletteEditor = try XCTUnwrap(paletteSearch.currentEditor())
+            XCTAssertTrue(window.firstResponder === paletteEditor, "Typing must go to the palette's field editor")
+            XCTAssertNil(underlyingSearch.currentEditor(), "The previous page search must relinquish editing")
+            phase = "palette-dismiss"
+            try await dismissPalette()
+            phase = "complete"
+        } catch {
+            let failurePhase = phase
+            try? await dismissPalette()
+            phase = failurePhase
+            throw error
+        }
     }
 
     @MainActor
@@ -79,5 +100,23 @@ final class CommandPaletteFocusTests: XCTestCase {
         if let field = view as? NSTextField, field.isEditable { fields.append(field) }
         for child in view.subviews { fields.append(contentsOf: editableTextFields(in: child)) }
         return fields
+    }
+}
+
+@MainActor
+private final class PaletteLifecycle {
+    var disappeared = false
+}
+
+private struct PaletteFocusFixture: View {
+    @Bindable var store: AppStore
+    let lifecycle: PaletteLifecycle
+
+    var body: some View {
+        if store.showCommandPalette {
+            CommandPaletteView(store: store)
+                .environment(\.locale, Locale(identifier: "en"))
+                .onDisappear { lifecycle.disappeared = true }
+        }
     }
 }
