@@ -288,6 +288,40 @@ final class MicropodAPITests: XCTestCase {
         }
         XCTAssertTrue(collected.contains("data: mock log line"), "SSE events: \(collected)")
     }
+    /// Pull failures survive the real Connect transport without opaque CLI output.
+    func testConnectPullFailureRetainsStructuredReceiptWithoutOpaqueOutput() async throws {
+        try Data().write(to: stateDir.appendingPathComponent("pull-refusal"))
+        let payload = try JSONSerialization.data(withJSONObject: [
+            "reference": "fixture/image:1", "platform": "linux/arm64",
+        ])
+        var request = URLRequest(url: baseURL.appendingPathComponent("api/micropod.v1.ImageService/PullImage"))
+        request.httpMethod = "POST"
+        request.setValue("application/connect+json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = ConnectFrames.envelope(payload, flags: 0)
+        request.timeoutInterval = 20
+        let (data, response) = try await URLSession.shared.data(for: request)
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+        let wire = String(decoding: data, as: UTF8.self)
+        XCTAssertFalse(wire.contains("fake-pull-secret"))
+        XCTAssertFalse(wire.contains("private.example"))
+        let parsed = ConnectFrames.parse(data)
+        XCTAssertEqual(parsed.trailing, 0)
+        let trailer = try XCTUnwrap(parsed.frames.last)
+        XCTAssertEqual(trailer.flags, 0x02)
+        let object = try XCTUnwrap(try JSONSerialization.jsonObject(with: trailer.payload) as? [String: Any])
+        let error = try XCTUnwrap(object["error"] as? [String: Any])
+        let message = try XCTUnwrap(error["message"] as? String)
+        let boundary = try XCTUnwrap(message.range(of: "image_pull_v1 "))
+        let receipt = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: Data(message[boundary.upperBound...].utf8)) as? [String: Any])
+        XCTAssertEqual(receipt["category"] as? String, "authentication")
+        XCTAssertEqual(receipt["exitCode"] as? Int, 29)
+        XCTAssertEqual(receipt["stage"] as? String, "fetch")
+        XCTAssertEqual(receipt["retryAllowed"] as? Bool, false)
+        XCTAssertEqual(mockCalls().filter { $0.hasPrefix("image pull ") }.count, 1)
+        XCTAssertFalse(mockCalls().contains { $0.hasPrefix("registry ") })
+    }
+
     /// Connect server-streams end with an EndStream frame (flag 0x02). The
     /// server must not close the socket until that frame has been flushed —
     /// connect-go otherwise fails the stream with "protocol error: unexpected
