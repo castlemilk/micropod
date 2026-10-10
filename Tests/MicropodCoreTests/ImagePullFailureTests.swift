@@ -4,6 +4,19 @@ import XCTest
 @testable import MicropodCore
 
 final class ImagePullFailureTests: XCTestCase {
+    func testLegacyThreeStageProgressRetainsOnlyCanonicalLabels() {
+        var evidence = ImagePullEvidence()
+        let events = evidence.consume(
+            Data(
+                "[1/3] Resolving https://private.example/?token=fake-secret\n[2/3] Downloading opaque=fake-secret\n[3/3] Pull complete Digest: fake-secret\n"
+                    .utf8))
+        XCTAssertEqual(events.map(\.line), ["[1/3] Resolving", "[2/3] Downloading", "[3/3] Pull complete"])
+        XCTAssertEqual(events.first?.stage, 1)
+        XCTAssertEqual(events.first?.totalStages, 3)
+        XCTAssertEqual(events.last?.stageName, "Pull complete")
+        XCTAssertFalse(events.contains { $0.line.contains("fake-secret") })
+    }
+
     func testClassificationAndStructuredReceiptNeverPublishOpaqueValues() {
         var evidence = ImagePullEvidence()
         let events = evidence.consume(

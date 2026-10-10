@@ -81,6 +81,7 @@ struct ImagePullEvidence {
         // Publish a canonical progress label and bounded percentage only.
         for (prefix, stage) in [
             ("[1/2] Fetching image", ImagePullFailure.Stage.fetch), ("[2/2] Unpacking image", .unpack),
+            ("[1/3] Resolving", .fetch), ("[2/3] Downloading", .fetch), ("[3/3] Pull complete", .unpack),
         ] {
             if text.hasPrefix(prefix) {
                 if failure.stage != .unpack { failure.stage = stage }
