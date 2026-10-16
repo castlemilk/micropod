@@ -38,9 +38,8 @@ public enum MicropodError: LocalizedError, Sendable, Equatable {
             return "The container runtime is not running. Start it from the menu bar or the dashboard."
         case .unsupported(let detail):
             return detail
-        case .pullStalled(let reference):
-            return
-                "Pull of \(reference) made no progress — the registry fetch appears wedged (known runtime auth deadlock). A stored credential was cleared and the pull retried anonymously where possible; if it persists, restart the runtime (`container system stop && container system start`)."
+        case .pullStalled:
+            return ImagePullFailure(category: .stalled).message
         case .transport(let detail):
             return "Runtime transport error: \(detail)"
         case .message(let detail):

@@ -5,7 +5,7 @@ import XCTest
 
 /// Pull-stall watchdog: the runtime can wedge mid-fetch emitting only
 /// elapsed-time ticker lines — Micropod must bound that to an error and
-/// recover by clearing the stored registry credential.
+/// stop without changing stored registry credentials.
 final class ImagePullStallTests: XCTestCase {
 
     // MARK: - stallMarker
@@ -74,7 +74,7 @@ final class ImagePullStallTests: XCTestCase {
     /// A fixture `container` CLI that wedges the pull (ticker lines, no
     /// progress) until `registry logout` has run — mimicking the stored-
     /// credential deadlock — then succeeds.
-    func testStalledPullClearsCredentialAndRetries() async throws {
+    func testStalledPullDoesNotClearCredentialOrRetry() async throws {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("pull-stall-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -83,6 +83,7 @@ final class ImagePullStallTests: XCTestCase {
 
         let script = """
             #!/bin/bash
+            echo "$1 $2" >> "\(dir.appendingPathComponent("calls").path)"
             case "$1 $2" in
               "image pull")
                 if [ -f "\(logoutMarker)" ]; then
@@ -114,11 +115,13 @@ final class ImagePullStallTests: XCTestCase {
 
         let service = ImageService(client: ContainerCLIClient(executableURL: exe))
         var events: [ProgressEvent] = []
-        for try await event in service.pull("wedged.local/img:1.0") {
-            events.append(event)
-        }
-        // Recovery path: logout marker created, retry succeeded.
-        XCTAssertTrue(FileManager.default.fileExists(atPath: logoutMarker))
+        do {
+            for try await event in service.pull("wedged.local/img:1.0") { events.append(event) }
+            XCTFail("expected pullStalled")
+        } catch MicropodError.pullStalled {}
+        XCTAssertFalse(FileManager.default.fileExists(atPath: logoutMarker))
+        let calls = try String(contentsOf: dir.appendingPathComponent("calls"), encoding: .utf8)
+        XCTAssertEqual(calls.split(separator: "\n").map(String.init), ["image pull"])
         XCTAssertTrue(events.contains { $0.line.contains("Fetching image") })
     }
 

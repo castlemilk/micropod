@@ -21,7 +21,7 @@ extension APIHandlers {
 
     /// Route `/api/micropod.v1.<Service>/*`. Returns nil for methods that
     /// don't exist so the caller can fall through to 404.
-    func connectRPC(method: String, body: Data) async -> HTTPResponse? {
+    func connectRPC(method: String, body: Data, headers: [String: String]) async -> HTTPResponse? {
         // The liveness RPCs are where a CLI-started API notices the runtime
         // came up: they re-resolve the backend (rate-limited) before
         // answering, so `runtime_backend` flips to native on the first
@@ -151,9 +151,10 @@ extension APIHandlers {
                 try check(req)
                 // No platform pulls linux/<host arch>, not every platform in
                 // the index (see ImageService.pull).
-                let events = images.pull(
+                let budget = try ImagePullBudget.api(headers: headers)
+                let events = images.pullForAPI(
                     req.reference,
-                    platform: req.hasPlatform ? req.platform : nil)
+                    platform: req.hasPlatform ? req.platform : nil, budget: budget)
                 return streamEnvelope(events) { event in
                     Micropod_V1_ProgressLine.with {
                         $0.line = event.line
@@ -610,6 +611,8 @@ extension APIHandlers {
             default:
                 return nil
             }
+        } catch is ImagePullBudget.InvalidHeaders {
+            return connectError(.invalidArgument, "Invalid image pull budget headers")
         } catch let error as ConnectDecodeError {
             return connectError(error.code, error.message)
         } catch let error as AppControlError {
