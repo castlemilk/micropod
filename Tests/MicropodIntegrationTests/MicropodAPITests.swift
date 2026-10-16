@@ -322,6 +322,129 @@ final class MicropodAPITests: XCTestCase {
         XCTAssertFalse(mockCalls().contains { $0.hasPrefix("registry ") })
     }
 
+    func testConnectPullBudgetRunsOneCLIForEachOfThreeCallerAttempts() async throws {
+        try Data().write(to: stateDir.appendingPathComponent("pull-transient"))
+        let deadline = Int64(Date().timeIntervalSince1970 * 1000) + 60_000
+        for attempt in 1...3 {
+            let (status, data) = try await connectBudgetPull(headers: pullBudgetHeaders(attempt, deadline))
+            XCTAssertEqual(status, 200)
+            XCTAssertFalse(String(decoding: data, as: UTF8.self).contains("fake-pull-secret"))
+            let frames = ConnectFrames.parse(data)
+            XCTAssertEqual(frames.trailing, 0)
+            let trailer = try XCTUnwrap(frames.frames.last)
+            XCTAssertEqual(trailer.flags, 0x02)
+            let object = try XCTUnwrap(try JSONSerialization.jsonObject(with: trailer.payload) as? [String: Any])
+            let error = try XCTUnwrap(object["error"] as? [String: Any])
+            let receipt = try pullReceipt(try XCTUnwrap(error["message"] as? String))
+            XCTAssertEqual(receipt["budgetOwner"] as? String, "caller")
+            XCTAssertEqual(receipt["attempts"] as? Int, 1)
+            XCTAssertEqual(receipt["callerAttempt"] as? Int, attempt)
+            XCTAssertEqual(receipt["maximumTotalAttempts"] as? Int, 3)
+            XCTAssertEqual(receipt["deadlineUnixMilliseconds"] as? Int64, deadline)
+            XCTAssertEqual(receipt["retryBudgetExhausted"] as? Bool, attempt == 3)
+            XCTAssertEqual(receipt["retryAllowed"] as? Bool, attempt < 3)
+            XCTAssertEqual(receipt["category"] as? String, "transientRegistry")
+            XCTAssertEqual(mockCalls().filter { $0.hasPrefix("image pull ") }.count, attempt)
+            // Fixed fields from the disposable fixture permit an independent
+            // consumer to validate the actual wire receipt from this run.
+            let wire = try JSONSerialization.data(withJSONObject: receipt, options: .sortedKeys)
+            print("ImagePullBudgetContract receipt=\(String(decoding: wire, as: UTF8.self))")
+        }
+        XCTAssertFalse(mockCalls().contains { $0.hasPrefix("registry ") })
+    }
+
+    func testConnectPullRejectsPartialBudgetAndExpiredBudgetStartsNoCLI() async throws {
+        let (invalidStatus, _) = try await connectBudgetPull(headers: ["Micropod-Pull-Budget-Owner": "caller"])
+        XCTAssertEqual(invalidStatus, 400)
+        let expired = Int64(Date().timeIntervalSince1970 * 1000) - 1
+        let (status, data) = try await connectBudgetPull(headers: pullBudgetHeaders(1, expired))
+        XCTAssertEqual(status, 200)
+        let trailer = try XCTUnwrap(ConnectFrames.parse(data).frames.last)
+        let object = try XCTUnwrap(try JSONSerialization.jsonObject(with: trailer.payload) as? [String: Any])
+        let error = try XCTUnwrap(object["error"] as? [String: Any])
+        let receipt = try pullReceipt(try XCTUnwrap(error["message"] as? String))
+        XCTAssertEqual(receipt["category"] as? String, "deadline")
+        XCTAssertEqual(receipt["attempts"] as? Int, 0)
+        XCTAssertEqual(receipt["retryAllowed"] as? Bool, false)
+        XCTAssertFalse(mockCalls().contains { $0.hasPrefix("image pull ") })
+    }
+
+    func testRESTPullEchoesBudgetAndHeaderlessRequestNeverRetries() async throws {
+        try Data().write(to: stateDir.appendingPathComponent("pull-transient"))
+        let deadline = Int64(Date().timeIntervalSince1970 * 1000) + 60_000
+        for headers in [pullBudgetHeaders(2, deadline), [:]] {
+            var request = URLRequest(url: baseURL.appendingPathComponent("v1/images/pull"))
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["reference": "fixture/image:1"])
+            request.timeoutInterval = 10
+            let (data, response) = try await URLSession.shared.data(for: request)
+            XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 500)
+            XCTAssertFalse(String(decoding: data, as: UTF8.self).contains("fake-pull-secret"))
+            let object = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+            let receipt = try pullReceipt(try XCTUnwrap(object["error"] as? String))
+            XCTAssertEqual(receipt["attempts"] as? Int, 1)
+            XCTAssertEqual(receipt["budgetOwner"] as? String, headers.isEmpty ? "micropod" : "caller")
+            XCTAssertEqual(receipt["retryAllowed"] as? Bool, !headers.isEmpty)
+            if !headers.isEmpty {
+                XCTAssertEqual(receipt["callerAttempt"] as? Int, 2)
+                XCTAssertEqual(receipt["deadlineUnixMilliseconds"] as? Int64, deadline)
+            }
+        }
+        XCTAssertEqual(mockCalls().filter { $0.hasPrefix("image pull ") }.count, 2)
+        XCTAssertFalse(mockCalls().contains { $0.hasPrefix("registry ") })
+    }
+
+    func testRESTRejectsPartialAndExpiredBudgetsBeforePulling() async throws {
+        let expired = Int64(Date().timeIntervalSince1970 * 1000) - 1
+        for headers in [["Micropod-Pull-Budget-Owner": "caller"], pullBudgetHeaders(1, expired)] {
+            var request = URLRequest(url: baseURL.appendingPathComponent("v1/images/pull"))
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["reference": "fixture/image:1"])
+            request.timeoutInterval = 10
+            let (data, response) = try await URLSession.shared.data(for: request)
+            XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, headers.count == 1 ? 400 : 500)
+            if headers.count > 1 {
+                let object = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+                let receipt = try pullReceipt(try XCTUnwrap(object["error"] as? String))
+                XCTAssertEqual(receipt["category"] as? String, "deadline")
+                XCTAssertEqual(receipt["attempts"] as? Int, 0)
+                XCTAssertEqual(receipt["retryAllowed"] as? Bool, false)
+            }
+        }
+        XCTAssertFalse(mockCalls().contains { $0.hasPrefix("image pull ") })
+    }
+
+    private func pullBudgetHeaders(_ attempt: Int, _ deadline: Int64) -> [String: String] {
+        [
+            "Micropod-Pull-Budget-Owner": "caller", "Micropod-Pull-Attempt": String(attempt),
+            "Micropod-Pull-Max-Attempts": "3", "Micropod-Pull-Deadline-Unix-Ms": String(deadline),
+        ]
+    }
+
+    private func connectBudgetPull(headers: [String: String]) async throws -> (Int?, Data) {
+        var request = URLRequest(url: baseURL.appendingPathComponent("api/micropod.v1.ImageService/PullImage"))
+        request.httpMethod = "POST"
+        request.setValue("application/connect+json", forHTTPHeaderField: "Content-Type")
+        for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
+        let payload = try JSONSerialization.data(withJSONObject: [
+            "reference": "fixture/image:1", "platform": "linux/arm64",
+        ])
+        request.httpBody = ConnectFrames.envelope(payload, flags: 0)
+        request.timeoutInterval = 10
+        let (data, response) = try await URLSession.shared.data(for: request)
+        return ((response as? HTTPURLResponse)?.statusCode, data)
+    }
+
+    private func pullReceipt(_ message: String) throws -> [String: Any] {
+        let start = try XCTUnwrap(message.range(of: "image_pull_v1 "))
+        return try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: Data(message[start.upperBound...].utf8)) as? [String: Any])
+    }
+
     /// Connect server-streams end with an EndStream frame (flag 0x02). The
     /// server must not close the socket until that frame has been flushed —
     /// connect-go otherwise fails the stream with "protocol error: unexpected

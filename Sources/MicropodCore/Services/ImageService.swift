@@ -147,6 +147,59 @@ public struct ImageService: ImageServing {
         }
     }
 
+    /// API callers own any retry across requests. Never retry or widen the
+    /// platform inside one API request, including requests without budget headers.
+    public func pullForAPI(
+        _ reference: String, platform: String? = nil, budget: ImagePullBudget
+    ) -> AsyncThrowingStream<ProgressEvent, Error> {
+        let pinned = platform.flatMap { $0.isEmpty ? nil : $0 } ?? Self.defaultPullPlatform
+        let callerWasCancelled = withUnsafeCurrentTask { $0?.isCancelled ?? false }
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                guard !callerWasCancelled else {
+                    continuation.finish(throwing: CancellationError())
+                    return
+                }
+                guard !budget.expired else {
+                    continuation.finish(throwing: budget.deadlineError(attempts: 0))
+                    return
+                }
+                do {
+                    try Task.checkCancellation()
+                    for try await event in pullOnce(reference, platform: pinned) {
+                        continuation.yield(event)
+                    }
+                    try Task.checkCancellation()
+                    if budget.expired { throw budget.deadlineError(attempts: 1) }
+                    continuation.finish()
+                } catch {
+                    if budget.expired {
+                        continuation.finish(throwing: budget.deadlineError(attempts: 1))
+                    } else if Task.isCancelled || error is CancellationError {
+                        continuation.finish(throwing: CancellationError())
+                    } else {
+                        continuation.finish(throwing: budget.terminalError(error, attempts: 1))
+                    }
+                }
+            }
+            let deadlineTask = Task {
+                do {
+                    while let remaining = budget.remainingMilliseconds {
+                        if remaining <= 0 {
+                            task.cancel()
+                            return
+                        }
+                        try await Task.sleep(for: .milliseconds(min(remaining, 3_600_000)))
+                    }
+                } catch {}
+            }
+            continuation.onTermination = { _ in
+                task.cancel()
+                deadlineTask.cancel()
+            }
+        }
+    }
+
     /// The platform a pull fetches when the caller names none: the one
     /// CreateContainer defaults to. With no `--platform` the CLI fetches and
     /// unpacks every platform in the index (9 snapshots, about 10 GiB, for

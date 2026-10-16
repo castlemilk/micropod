@@ -119,7 +119,7 @@ final class APIHandlers: Sendable {
         // across services, so dispatch never needs the service segment.
         if segments.count == 3, segments[0] == "api",
             segments[1].hasPrefix("micropod.v1."), method == .post,
-            let resp = await connectRPC(method: segments[2], body: request.body)
+            let resp = await connectRPC(method: segments[2], body: request.body, headers: request.headers)
         {
             return resp
         }
@@ -300,7 +300,10 @@ final class APIHandlers: Sendable {
                 guard !reference.isEmpty else { return .json(400, ["error": "reference is required"]) }
                 var lastLine = ""
                 // No platform pulls linux/<host arch> (see ImageService.pull).
-                for try await event in images.pull(reference, platform: payload["platform"] as? String) {
+                let budget = try ImagePullBudget.api(headers: request.headers)
+                for try await event in images.pullForAPI(
+                    reference, platform: payload["platform"] as? String, budget: budget)
+                {
                     lastLine = event.line
                 }
                 return .json(200, ["pulled": reference, "lastLine": lastLine])
@@ -549,6 +552,8 @@ final class APIHandlers: Sendable {
             default:
                 return .json(404, ["error": "not found: \(method.rawValue) \(path)"])
             }
+        } catch is ImagePullBudget.InvalidHeaders {
+            return .json(400, ["error": "Invalid image pull budget headers"])
         } catch let error as BadRequest {
             return .json(400, ["error": error.message])
         } catch let error as AppControlError {

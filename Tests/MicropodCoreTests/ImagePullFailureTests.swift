@@ -244,12 +244,163 @@ final class ImagePullFailureTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.directory.appendingPathComponent("calls").path))
     }
 
+    func testAPIRequestMakesOneAttemptAndEchoesCallerBudget() async throws {
+        let fixture = try makeFixture("Error: HTTP status 503", failures: 100)
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        let service = ImageService(client: fixture.client, retrySleep: { _ in XCTFail("API must not back off") })
+        let deadline = Int64(Date().timeIntervalSince1970 * 1000) + 60_000
+        for attempt in 1...3 {
+            let budget = try ImagePullBudget.api(headers: budgetHeaders(attempt: attempt, deadline: deadline))
+            do {
+                for try await _ in service.pullForAPI("fixture/image:1", platform: "linux/arm64", budget: budget) {}
+                XCTFail("Expected failure")
+            } catch {
+                let receipt = try apiReceipt(error)
+                XCTAssertEqual(receipt["budgetOwner"] as? String, "caller")
+                XCTAssertEqual(receipt["attempts"] as? Int, 1)
+                XCTAssertEqual(receipt["callerAttempt"] as? Int, attempt)
+                XCTAssertEqual(receipt["maximumTotalAttempts"] as? Int, 3)
+                XCTAssertEqual(receipt["deadlineUnixMilliseconds"] as? Int64, deadline)
+                XCTAssertEqual(receipt["retryBudgetExhausted"] as? Bool, attempt == 3)
+                XCTAssertEqual(receipt["retryAllowed"] as? Bool, attempt < 3)
+                XCTAssertEqual(receipt["exitCode"] as? Int, 29)
+            }
+            XCTAssertEqual(try calls(fixture).count, attempt)
+        }
+    }
+
+    func testHeaderlessAPIDoesNotRetryOrWidenPlatform() async throws {
+        let fixture = try makeFixture(
+            "Error: invalidArgument: \"unsupported platform linux/arm64\"", failures: 100)
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        let service = ImageService(client: fixture.client, retrySleep: { _ in XCTFail("Must not retry") })
+        do {
+            for try await _ in service.pullForAPI("fixture/image:1", budget: try .api(headers: [:])) {}
+            XCTFail("Expected platform failure")
+        } catch {
+            let receipt = try apiReceipt(error)
+            XCTAssertEqual(receipt["category"] as? String, "platform")
+            XCTAssertEqual(receipt["budgetOwner"] as? String, "micropod")
+            XCTAssertEqual(receipt["retryAllowed"] as? Bool, false)
+        }
+        XCTAssertEqual(try calls(fixture), ["image pull"])
+    }
+
+    func testExpiredAPIBudgetDoesNotStartCLI() async throws {
+        let fixture = try makeFixture("Error: connection timed out", failures: 100)
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        let service = ImageService(client: fixture.client)
+        let deadline = Int64(Date().timeIntervalSince1970 * 1000) - 1
+        let budget = try ImagePullBudget.api(headers: budgetHeaders(attempt: 1, deadline: deadline))
+        do {
+            for try await _ in service.pullForAPI("fixture/image:1", budget: budget) {}
+            XCTFail("Expected expired deadline")
+        } catch {
+            let receipt = try apiReceipt(error)
+            XCTAssertEqual(receipt["category"] as? String, "deadline")
+            XCTAssertEqual(receipt["attempts"] as? Int, 0)
+            XCTAssertEqual(receipt["retryAllowed"] as? Bool, false)
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.directory.appendingPathComponent("calls").path))
+    }
+
+    func testAPIDeadlineCancelsStalledOwnedFixture() async throws {
+        let fixture = try makeFixture("", failures: 100, stall: true)
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        let deadline = Int64(Date().timeIntervalSince1970 * 1000) + 2_000
+        let budget = try ImagePullBudget.api(headers: budgetHeaders(attempt: 1, deadline: deadline))
+        let started = Date()
+        do {
+            for try await _ in ImageService(client: fixture.client).pullForAPI("fixture/image:1", budget: budget) {}
+            XCTFail("Expected deadline")
+        } catch {
+            let receipt = try apiReceipt(error)
+            XCTAssertEqual(receipt["category"] as? String, "deadline")
+            XCTAssertEqual(receipt["retryAllowed"] as? Bool, false)
+        }
+        XCTAssertLessThan(Date().timeIntervalSince(started), 8)
+        XCTAssertEqual(try calls(fixture), ["image pull"])
+    }
+
+    func testAPIPermanentOrSignalFailureNeverGrantsRetry() async throws {
+        for (line, signal) in [
+            ("Error: unauthorized", false), ("Error: no space left on device", false),
+            ("Error: certificate verification failed", false), ("Error: HTTP status 429", false),
+            ("Error: opaque failure", false), ("Error: connection reset by peer", true),
+        ] {
+            let fixture = try makeFixture(line, failures: 100, selfSignal: signal)
+            defer { try? FileManager.default.removeItem(at: fixture.directory) }
+            let deadline = Int64(Date().timeIntervalSince1970 * 1000) + 60_000
+            let budget = try ImagePullBudget.api(headers: budgetHeaders(attempt: 1, deadline: deadline))
+            do {
+                for try await _ in ImageService(client: fixture.client).pullForAPI("fixture/image:1", budget: budget) {}
+                XCTFail("Expected failure")
+            } catch {
+                let receipt = try apiReceipt(error)
+                XCTAssertEqual(receipt["budgetOwner"] as? String, "caller")
+                XCTAssertEqual(receipt["retryAllowed"] as? Bool, false)
+                XCTAssertEqual(receipt["exitCode"] as? Int, signal ? -9 : 29)
+            }
+            XCTAssertEqual(try calls(fixture), ["image pull"])
+        }
+    }
+
+    func testPreCancelledAPIPullDoesNotStartCLI() async throws {
+        let fixture = try makeFixture("Error: connection reset by peer", failures: 100)
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        let service = ImageService(client: fixture.client)
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            do {
+                for try await _ in service.pullForAPI("fixture/image:1", budget: try .api(headers: [:])) {}
+            } catch is CancellationError {}
+        }
+        try await task.value
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.directory.appendingPathComponent("calls").path))
+    }
+
+    func testPartialAndMalformedAPIBudgetsAreRejected() throws {
+        let deadline = Int64(Date().timeIntervalSince1970 * 1000) + 60_000
+        let valid = budgetHeaders(attempt: 1, deadline: deadline)
+        for (key, value) in [
+            ("micropod-pull-budget-owner", "runtime"), ("micropod-pull-attempt", "0"),
+            ("micropod-pull-attempt", "4"), ("micropod-pull-attempt", "+1"),
+            ("micropod-pull-max-attempts", "4"), ("micropod-pull-max-attempts", "0"),
+            ("micropod-pull-deadline-unix-ms", "9223372036854775808"),
+        ] {
+            var headers = valid
+            headers[key] = value
+            XCTAssertThrowsError(try ImagePullBudget.api(headers: headers))
+        }
+        for key in valid.keys {
+            var headers = valid
+            headers.removeValue(forKey: key)
+            XCTAssertThrowsError(try ImagePullBudget.api(headers: headers))
+        }
+    }
+
+    private func budgetHeaders(attempt: Int, deadline: Int64) -> [String: String] {
+        [
+            "micropod-pull-budget-owner": "caller", "micropod-pull-attempt": String(attempt),
+            "micropod-pull-max-attempts": "3", "micropod-pull-deadline-unix-ms": String(deadline),
+        ]
+    }
+
+    private func apiReceipt(_ error: Error) throws -> [String: Any] {
+        let message = error.localizedDescription
+        let start = try XCTUnwrap(message.range(of: "image_pull_v1 "))
+        return try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: Data(message[start.upperBound...].utf8)) as? [String: Any])
+    }
+
     private struct Fixture {
         let directory: URL
         let client: ContainerCLIClient
     }
 
-    private func makeFixture(_ errorLine: String, failures: Int, selfSignal: Bool = false) throws -> Fixture {
+    private func makeFixture(
+        _ errorLine: String, failures: Int, selfSignal: Bool = false, stall: Bool = false
+    ) throws -> Fixture {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
             "pull-diagnostic-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -258,6 +409,7 @@ final class ImagePullFailureTests: XCTestCase {
         let script = """
             #!/bin/bash
             echo "$1 $2" >> "\(trace)"
+            \(stall ? "exec sleep 20" : "")
             count=$(wc -l < "\(trace)")
             if [ "$count" -le \(failures) ]; then
               printf '%s\\n' '\(literal)'

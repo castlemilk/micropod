@@ -5,7 +5,7 @@ import Foundation
 struct ImagePullFailure: Codable, Equatable, Sendable {
     enum Category: String, Codable, Sendable, Hashable {
         case unknown, authentication, storage, tls, notFound, platform, rateLimited
-        case transientNetwork, transientRegistry, stalled
+        case transientNetwork, transientRegistry, stalled, deadline
     }
     enum Stage: String, Codable, Sendable { case unknown, fetch, unpack }
 
@@ -15,13 +15,19 @@ struct ImagePullFailure: Codable, Equatable, Sendable {
     var exitCode: Int32?
     var httpStatus: Int?
     var outputTruncated = false
+    var budgetOwner: String?
+    var attempts: Int?
+    var callerAttempt: Int?
+    var maximumTotalAttempts: Int?
+    var deadlineUnixMilliseconds: Int64?
+    var retryBudgetExhausted: Bool?
 
     // Only an ordinary, completed CLI failure can authorize another pull.
     // Missing status means a stream/launch failure; negative status means a signal.
     var completedCLIExit: Bool { exitCode.map { (1...255).contains($0) } ?? false }
 
     var retryAllowed: Bool {
-        completedCLIExit && !outputTruncated && stage == .fetch
+        completedCLIExit && !outputTruncated && retryBudgetExhausted != true && stage == .fetch
             && (category == .transientNetwork || category == .transientRegistry)
     }
 
