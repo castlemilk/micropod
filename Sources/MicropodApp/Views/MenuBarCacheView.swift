@@ -31,7 +31,7 @@ struct MenuBarCacheView: View {
                 Divider()
                 row("Build contexts", summary.build)
                     .help(
-                        "Logical retained build-context bytes and their configured cap; separate from CI volume storage."
+                        "Known logical build-context content and its configured cap; legacy contexts without file manifests make the total partial. Separate from CI volume storage."
                     )
                 row("SharedFS packages", summary.packages)
                     .help(
@@ -111,7 +111,9 @@ struct MenuBarCacheSummary {
                 localStatus = "local time invalid"
             } else if ages.contains(where: { $0 > 90 }) {
                 localStatus = "local stale"
-            } else if snapshot.buildError != nil || snapshot.package == nil {
+            } else if snapshot.buildError != nil || snapshot.package == nil
+                || !snapshot.buildStats.contentAccountingComplete
+            {
                 localStatus = "local partial"
             } else {
                 localStatus = "local recent"
@@ -127,7 +129,9 @@ struct MenuBarCacheSummary {
         if let snapshot = cache.snapshot {
             build =
                 snapshot.buildError == nil
-                ? "\(ByteFormat.string(snapshot.buildStats.contentBytes)) / \(ByteFormat.string(snapshot.buildStats.capBytes))"
+                ? snapshot.buildStats.contentAccountingComplete
+                    ? "\(ByteFormat.string(snapshot.buildStats.contentBytes)) / \(ByteFormat.string(snapshot.buildStats.capBytes))"
+                    : "\(ByteFormat.string(snapshot.buildStats.contentBytes)) known · partial"
                 : "Unavailable"
             packages =
                 snapshot.package.map {

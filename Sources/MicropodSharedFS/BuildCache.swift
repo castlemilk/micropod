@@ -33,14 +33,23 @@ public struct BuildManifest: Codable, Sendable {
     public var files: [BuildFileEntry]
     public var tarBytes: Int
     public var storedAt: Date
+    /// A legacy sidecar has no content digest/file-size inventory. Its byte
+    /// field cannot establish the per-entry unique-content measurement.
+    public var legacyBytes: UInt64?
 
-    public init(treeHash: String, files: [BuildFileEntry], tarBytes: Int, storedAt: Date = Date()) {
+    public init(
+        treeHash: String, files: [BuildFileEntry], tarBytes: Int, storedAt: Date = Date(),
+        legacyBytes: UInt64? = nil
+    ) {
         self.version = Self.currentVersion
         self.treeHash = treeHash
         self.files = files
         self.tarBytes = tarBytes
         self.storedAt = storedAt
+        self.legacyBytes = legacyBytes
     }
+
+    public var contentBytesKnown: Bool { legacyBytes == nil }
 
     /// Unique content bytes (deduped by digest within the entry).
     public var contentBytes: UInt64 {
@@ -61,18 +70,24 @@ struct LegacyBuildMeta: Codable {
 
 public struct BuildCacheStats: Sendable {
     public var entries: Int
-    /// Sum of per-entry unique content bytes.
+    /// Sum of known per-entry unique content bytes; partial when legacy entries exist.
     public var contentBytes: UInt64
-    /// Bytes whose digest appears in two or more entries — the directly
-    /// measurable cross-context re-use.
+    /// Bytes whose digest appears in two or more measured entries. Legacy
+    /// entries cannot contribute to this digest-based observation.
     public var sharedBytes: UInt64
     public var capBytes: UInt64
+    public var unknownContentEntries: Int
+    public var contentAccountingComplete: Bool { unknownContentEntries == 0 }
 
-    public init(entries: Int, contentBytes: UInt64, sharedBytes: UInt64, capBytes: UInt64) {
+    public init(
+        entries: Int, contentBytes: UInt64, sharedBytes: UInt64, capBytes: UInt64,
+        unknownContentEntries: Int = 0
+    ) {
         self.entries = entries
         self.contentBytes = contentBytes
         self.sharedBytes = sharedBytes
         self.capBytes = capBytes
+        self.unknownContentEntries = unknownContentEntries
     }
 
     public static let empty = BuildCacheStats(entries: 0, contentBytes: 0, sharedBytes: 0, capBytes: 0)
@@ -119,7 +134,8 @@ public enum BuildCacheStore {
         let stats = BuildCacheStats(
             entries: manifests.count, contentBytes: contentBytes,
             sharedBytes: sharedBytes(manifests: manifests),
-            capBytes: capBytes())
+            capBytes: capBytes(),
+            unknownContentEntries: manifests.filter { !$0.contentBytesKnown }.count)
         return (manifests, stats)
     }
 
@@ -162,7 +178,8 @@ public enum BuildCacheStore {
         {
             return BuildManifest(
                 treeHash: entry.lastPathComponent, files: [],
-                tarBytes: Int(meta.bytes), storedAt: Date.distantPast)
+                tarBytes: Int(clamping: meta.bytes), storedAt: Date.distantPast,
+                legacyBytes: meta.bytes)
         }
         return nil
     }

@@ -121,12 +121,23 @@ struct MenuBarPanelView: View {
         return card {
             VStack(alignment: .leading, spacing: 7) {
                 HStack(spacing: 12) {
-                    metric("\(runningWorkloads.count)", label: store.isRuntimeRunning ? "Running" : "Last seen running")
+                    metric(
+                        "\(runningWorkloads.count)",
+                        label: store.isRuntimeRunning ? "Running compute" : "Last seen compute")
                     metric(metrics.cpuText, label: "CPU · cores")
                     metric(metrics.memoryText, label: "Guest memory")
                 }
-                Text(metrics.detail).font(.system(size: 10))
-                    .foregroundStyle(Tokens.Palette.tertiary).lineLimit(1)
+                // Runtime state and resource samples describe compute, not
+                // runner job activity. Without a fresh, identity-bound job
+                // observation we cannot label a running runner busy or idle.
+                HStack(spacing: 10) {
+                    Text("Active jobs: Unknown").fixedSize()
+                    Text(metrics.detail).lineLimit(1)
+                        .foregroundStyle(Tokens.Palette.tertiary)
+                }
+                .font(.system(size: 10)).foregroundStyle(Tokens.Palette.secondary)
+                .accessibilityElement(children: .combine)
+                .help("Job activity is unavailable. Running compute includes idle runners. \(metrics.detail).")
             }
         }
     }
@@ -143,7 +154,7 @@ struct MenuBarPanelView: View {
 
     private var workloadSection: some View {
         VStack(alignment: .leading, spacing: 7) {
-            sectionHeading("Running workloads", icon: "workloads") {
+            sectionHeading("Running compute", icon: "workloads") {
                 Button("View all") { openAndSet { store.activeTab = .workloads } }
                     .buttonStyle(.plain).foregroundStyle(Tokens.Palette.accentText)
                     .help("Open all containers and microVMs")

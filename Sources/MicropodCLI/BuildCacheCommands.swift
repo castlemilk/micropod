@@ -56,7 +56,10 @@ enum BuildCacheCommands {
         let (_, stats) = BuildCacheStore.scan(root: root(args: args))
         print("entries: \(stats.entries)")
         print("content-bytes: \(stats.contentBytes)")
+        print("content-bytes-complete: \(stats.contentAccountingComplete)")
+        print("content-bytes-unknown-entries: \(stats.unknownContentEntries)")
         print("shared-bytes: \(stats.sharedBytes)")
+        print("shared-bytes-complete: \(stats.contentAccountingComplete)")
         print("cap-bytes: \(stats.capBytes)")
     }
 
@@ -81,8 +84,9 @@ enum BuildCacheCommands {
         }
         print("tree: \(manifest.treeHash)")
         print("files: \(manifest.files.count)")
-        print("content-bytes: \(manifest.contentBytes)")
+        print("content-bytes: \(manifest.contentBytesKnown ? String(manifest.contentBytes) : "unknown")")
         print("shared-with-others-bytes: \(shared)")
+        print("shared-with-others-bytes-complete: \(manifests.allSatisfy(\.contentBytesKnown))")
         print("tar-bytes: \(manifest.tarBytes)")
         for file in manifest.files.sorted(by: { $0.path < $1.path }).prefix(50) {
             let mark = otherHashes.contains(file.sha256) ? "*" : " "

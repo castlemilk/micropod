@@ -896,7 +896,10 @@ private actor MCPServer {
                     """
                     entries: \(stats.entries)
                     content-bytes: \(stats.contentBytes)
+                    content-bytes-complete: \(stats.contentAccountingComplete)
+                    content-bytes-unknown-entries: \(stats.unknownContentEntries)
                     shared-bytes: \(stats.sharedBytes)
+                    shared-bytes-complete: \(stats.contentAccountingComplete)
                     cap-bytes: \(stats.capBytes)
                     """)
 

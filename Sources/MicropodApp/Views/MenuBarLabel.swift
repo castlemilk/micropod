@@ -47,7 +47,7 @@ struct MenuBarLabel: View {
     }
 
     private var accessibilityLabel: String {
-        let count = "\(runningCount) workload\(runningCount == 1 ? "" : "s")"
+        let count = "\(runningCount) compute workload\(runningCount == 1 ? "" : "s")"
         let cpu = cpuLabel.map { ", \($0.dropLast()) consumed guest CPU cores" } ?? ""
         if !store.clientAvailable { return "Micropod: runtime unavailable, \(count) last seen running" }
         if store.isHealingRuntime { return "Micropod: recovering runtime, \(count) last seen running" }
@@ -55,9 +55,11 @@ struct MenuBarLabel: View {
         if store.isInstallingKernel { return "Micropod: installing Linux kernel" }
         if store.runtimeHealth == .wedged { return "Micropod: runtime unresponsive, \(count) last seen running" }
         if !store.isRuntimeRunning { return "Micropod: runtime stopped, \(count) last seen running" }
-        if helpersDegraded { return "Micropod: runtime running, a helper is unavailable, \(count) running\(cpu)" }
+        if helpersDegraded {
+            return "Micropod: runtime running, a helper is unavailable, \(count) running\(cpu), active jobs unknown"
+        }
         let health = store.runtimeHealth == .healthy ? "healthy" : "running, health not yet verified"
-        return "Micropod: runtime \(health), \(count) running\(cpu)"
+        return "Micropod: runtime \(health), \(count) running\(cpu), active jobs unknown"
     }
 
     private var helpersDegraded: Bool {

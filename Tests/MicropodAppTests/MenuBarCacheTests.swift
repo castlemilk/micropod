@@ -9,6 +9,29 @@ import XCTest
 
 @MainActor
 final class MenuBarCacheTests: XCTestCase {
+    func testLegacyBuildContextSubtotalIsExplicitlyPartial() {
+        let now = Date()
+        let cache = CacheStore()
+        cache.applyForPreview(
+            CacheSnapshot(
+                measuredAt: now, buildRoot: URL(fileURLWithPath: "/tmp/tray-fixture"),
+                buildEntries: [],
+                buildStats: BuildCacheStats(
+                    entries: 20, contentBytes: 42_000, sharedBytes: 0, capBytes: 5 << 30,
+                    unknownContentEntries: 10),
+                buildDisabled: false, buildError: nil,
+                package: SharedCacheSnapshot(
+                    cacheRoot: "/tmp/tray-fixture", measuredAt: now, storedBytes: 0,
+                    capBytes: 100, chunkCount: 0, activeMounts: [], keepEnabled: true, overCap: false),
+                packageError: nil))
+        let ci = CICacheStore()
+        ci.applyForPreview(inventory([]))
+        let summary = MenuBarCacheSummary(cache: cache, ci: ci, now: now)
+        XCTAssertEqual(summary.build, "\(ByteFormat.string(UInt64(42_000))) known · partial")
+        XCTAssertTrue(summary.status.contains("local partial"))
+        XCTAssertTrue(summary.hasWarning)
+    }
+
     func testAllocationIsLargestObservedFileAndMissingProxyIsUnknown() {
         let cache = CacheStore()
         cache.applyForPreview(nil)
