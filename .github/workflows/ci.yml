@@ -19,11 +19,10 @@ jobs:
           actionlint .github/workflows/*.yml
       - name: Release publication policy tests
         run: node --test scripts/release_publication.test.mjs
+      - name: Qualify shell syntax gate
+        run: node --test scripts/check_shell_syntax.test.mjs
       - name: Lint shell scripts
-        run: |
-          for f in scripts/*.sh scripts/install.sh scripts/make_dmg.sh ci/*.sh; do
-            [ -f "$f" ] && bash -n "$f" || true
-          done
+        run: bash scripts/check_shell_syntax.sh
       - name: Lint protos
         run: |
           brew install buf
