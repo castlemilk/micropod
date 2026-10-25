@@ -1,3 +1,4 @@
+import MicropodCore
 import XCTest
 
 @testable import MicropodRuntime
@@ -6,6 +7,59 @@ import XCTest
 /// containers wake on the registry's exit signal, untracked ones fall back
 /// to a state poll. No live runtime needed.
 final class ContainerExitWaitTests: XCTestCase {
+
+    func testRegistryGenerationChangedDuringStateReadCannotReportOldExit() async throws {
+        let registry = ExitCodeRegistry()
+        await registry.track(id: "reused") { 3 }
+        _ = await registry.await(id: "reused", timeout: .seconds(2))
+        let states = ScriptedStates(["starting", "stopped"])
+        let outcome = try await ContainerExitWait.wait(id: "reused", timeout: .seconds(2), exitCodes: registry) {
+            _, _ in
+            let state = await states.next()
+            if state == "starting" {
+                await registry.forget(id: "reused")
+                await registry.track(id: "reused") { 7 }
+                _ = await registry.await(id: "reused", timeout: .seconds(2))
+            }
+            return state
+        }
+        XCTAssertEqual(outcome, .init(exited: true, known: true, exitCode: 7, state: "stopped"))
+        let calls = await states.calls
+        XCTAssertEqual(calls, 2)
+    }
+
+    func testExitArrivingDuringStateReadIsNotLost() async throws {
+        let registry = ExitCodeRegistry()
+        let states = ScriptedStates(["first", "stopped"])
+        let outcome = try await ContainerExitWait.wait(id: "late", timeout: .seconds(2), exitCodes: registry) { _, _ in
+            if await states.next() == "first" {
+                await registry.track(id: "late") { 9 }
+                _ = await registry.await(id: "late", timeout: .seconds(2))
+            }
+            return "stopped"
+        }
+        XCTAssertEqual(outcome, .init(exited: true, known: true, exitCode: 9, state: "stopped"))
+        let calls = await states.calls
+        XCTAssertEqual(calls, 2)
+    }
+
+    func testCreateBeginsDuringAbsentFallbackReadIsNotAnExit() async throws {
+        let claims = ContainerLifecycleClaims()
+        let outcome = try await ContainerExitWait.wait(
+            id: "creating", timeout: .zero, exitCodes: nil,
+            observationRevision: { await claims.revision() },
+            state: { _, _ in
+                // Reproduce pending check returning nil, a create being
+                // admitted, then the fallback list answering empty.
+                let before = await claims.kind(of: "creating")
+                XCTAssertNil(before)
+                _ = await claims.claimIfIdle("creating", kind: .creating)
+                return "unknown"
+            })
+        XCTAssertFalse(outcome.exited)
+        XCTAssertFalse(outcome.known)
+        XCTAssertNil(outcome.exitCode)
+    }
 
     /// A tracked container's exit returns the wait as soon as it is recorded,
     /// long before the next state poll, and the runtime is barely asked.

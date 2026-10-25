@@ -64,8 +64,7 @@ extension APIHandlers {
 
             case "ListContainers":
                 var resp = Micropod_V1_ListContainersResponse()
-                resp.containers = await withExitCodes(
-                    try await services.containers.list(), from: services.exitCodes)
+                resp.containers = try await listedContainersWithExitCodes(in: services)
                 return unary(resp)
 
             case "GetContainer":
@@ -78,7 +77,9 @@ extension APIHandlers {
                 try check(req)
                 // Unknown ids fail fast — never a silent `exited: true`, and
                 // never a wait against a container that does not exist.
-                _ = try await lookupContainer(req.id, in: services)
+                if await pendingNativeState(req.id, in: services) == nil {
+                    _ = try await lookupContainer(req.id, in: services)
+                }
                 let seconds = req.timeoutSeconds == 0 ? 30 : min(req.timeoutSeconds, 300)
                 return unary(try await waitContainer(id: req.id, timeout: .seconds(Int(seconds)), in: services))
 
@@ -679,10 +680,21 @@ extension APIHandlers {
     private func lookupContainer(
         _ id: String, in services: RuntimeServices
     ) async throws -> Micropod_V1_Container {
-        guard let container = try await listedContainer(id, in: services) else {
+        guard let container = try await listedContainersWithExitCodes(in: services).first(where: { $0.id == id }) else {
             throw ConnectDecodeError(code: .notFound, message: "container \(id) not found")
         }
-        return await withExitCodes([container], from: services.exitCodes)[0]
+        return container
+    }
+
+    private func listedContainersWithExitCodes(in services: RuntimeServices) async throws -> [Micropod_V1_Container] {
+        for _ in 0..<3 {
+            let revision = await ContainerLifecycleClaims.shared.revision()
+            let list = try await services.containers.list()
+            let enriched = await withExitCodes(list, from: services.exitCodes)
+            if services.kind != .native { return enriched }
+            if await ContainerLifecycleClaims.shared.revision() == revision { return enriched }
+        }
+        throw MicropodError.message("unavailable: container lifecycle changed during observation; retry")
     }
 
     /// The container as the runtime lists it, nil when it is not listed.
@@ -702,7 +714,11 @@ extension APIHandlers {
         guard let exitCodes else { return list }
         var out = list
         for index in out.indices {
-            if let entry = await exitCodes.entry(for: out[index].id), let code = entry.exitCode {
+            let id = out[index].id
+            let snapshot = await exitCodes.snapshot(for: id)
+            if await NativeContainerService.acceptsExitCode(id),
+                await exitCodes.snapshot(for: id) == snapshot, let code = snapshot.entry?.exitCode
+            {
                 out[index].exitCode = String(code)
             }
         }
@@ -714,6 +730,15 @@ extension APIHandlers {
     /// request the moment its exit is recorded; any other is polled at 150 ms.
     /// A runtime that stops answering mid-wait throws (`unavailable`)
     /// instead of reporting a false exit.
+    private func pendingNativeState(_ id: String, in services: RuntimeServices) async -> String? {
+        guard services.kind == .native else { return nil }
+        switch await ContainerLifecycleClaims.shared.kind(of: id) {
+        case .starting: return "starting"
+        case .creating: return "created"
+        default: return nil
+        }
+    }
+
     private func waitContainer(
         id: String, timeout: Duration, in services: RuntimeServices
     ) async throws -> Micropod_V1_WaitContainerResponse {
@@ -723,16 +748,24 @@ extension APIHandlers {
             park = { id, timeout in await router.awaitStateChange(id, timeout: timeout) }
         }
         let outcome = try await ContainerExitWait.wait(
-            id: id, timeout: timeout, exitCodes: exitCodes, park: park
-        ) { id, exitKnown in
-            let state = await services.containers.state(of: id)
-            guard state == "unknown", !exitKnown else { return state }
-            // `state(of:)` answers `unknown` both for a container that is
-            // gone and for a runtime that is not answering. The list tells
-            // them apart: it throws when the runtime is down, and a
-            // container it no longer lists has really vanished.
-            return try await listedContainer(id, in: services)?.state ?? "unknown"
-        }
+            id: id, timeout: timeout, exitCodes: exitCodes, park: park,
+            observationRevision: {
+                services.kind == .native ? await ContainerLifecycleClaims.shared.revision() : 0
+            },
+            acceptExitCode: { id in
+                if services.kind != .native { return true }
+                return await NativeContainerService.acceptsExitCode(id)
+            },
+            state: { id, exitKnown in
+                let state = await services.containers.state(of: id)
+                guard state == "unknown", !exitKnown else { return state }
+                if let pending = await pendingNativeState(id, in: services) { return pending }
+                // `state(of:)` answers `unknown` both for a container that is
+                // gone and for a runtime that is not answering. The list tells
+                // them apart: it throws when the runtime is down, and a
+                // container it no longer lists has really vanished.
+                return try await listedContainer(id, in: services)?.state ?? "unknown"
+            })
         var known = outcome.known
         var exitCode = outcome.exitCode
         // The sandbox engine records its sessions' exit codes itself.

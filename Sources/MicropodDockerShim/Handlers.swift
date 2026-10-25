@@ -1655,8 +1655,9 @@ final class Router: @unchecked Sendable {
         // As the runtime's own prune does: clone dirs whose container is
         // gone (a raw `container delete`, a crashed runtime) go too — only
         // against a list the runtime answered, never a failed one.
+        let cloneEpoch = await ContainerLifecycleClaims.shared.creationEpoch()
         if let live = try? await containers.list() {
-            await VolumeClone.sweepOrphanClones(live: Set(live.map(\.id)))
+            await VolumeClone.sweepOrphanClones(live: Set(live.map(\.id)), observedBefore: cloneEpoch)
         }
         await readCache.invalidateContainers()
         return deleted
@@ -2108,11 +2109,14 @@ final class Router: @unchecked Sendable {
                     // container reaches "stopped"; returning now would report 0
                     // for a failed container.
                     let awaitingExitCode = AttachRegistry.shared.isRunning(containerID: target)
+                    let pending = ["created", "starting", "creating"].contains(stateName)
                     // Refused and never run: no exit is coming.
-                    if neverRan, let refusal = await state.startRefusal(for: target, after: refusalsAfter) {
+                    if stateName != "starting", neverRan,
+                        let refusal = await state.startRefusal(for: target, after: refusalsAfter)
+                    {
                         return Self.refusedWait(target, refusal)
                     }
-                    if stateName != "running" && !neverRan && !awaitingExitCode {
+                    if !pending && stateName != "running" && !neverRan && !awaitingExitCode {
                         // The runtime omits exit codes for stopped containers;
                         // assume a clean exit unless an event captured one.
                         let parsed = Int(container.exitCode)

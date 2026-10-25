@@ -121,7 +121,7 @@ final class NativeCreateGuardsTests: XCTestCase {
         let releaseFirst = Gate()
 
         let first = Task {
-            await creates.withExclusive("job") {
+            try await creates.withExclusive("job") {
                 await events.record("first-start")
                 await firstStarted.open()
                 await releaseFirst.wait()
@@ -131,22 +131,22 @@ final class NativeCreateGuardsTests: XCTestCase {
         await firstStarted.wait()
 
         let second = Task {
-            await creates.withExclusive("job") { await events.record("second-start") }
+            try await creates.withExclusive("job") { await events.record("second-start") }
         }
         let third = Task {
-            await creates.withExclusive("job") { await events.record("third-start") }
+            try await creates.withExclusive("job") { await events.record("third-start") }
         }
         // Another id is independent of `job`.
-        await creates.withExclusive("other") { await events.record("other-start") }
+        try await creates.withExclusive("other") { await events.record("other-start") }
         try await Task.sleep(for: .milliseconds(200))
         let whileHeld = await events.list
         XCTAssertEqual(
             whileHeld, ["first-start", "other-start"], "a second create of `job` started while the first was in flight")
 
         await releaseFirst.open()
-        await first.value
-        await second.value
-        await third.value
+        try await first.value
+        try await second.value
+        try await third.value
         let after = await events.list
         XCTAssertEqual(
             Array(after.prefix(3)), ["first-start", "other-start", "first-end"],
@@ -165,7 +165,7 @@ final class NativeCreateGuardsTests: XCTestCase {
             XCTFail("the body's error must propagate")
         } catch is Failed {
         }
-        let ran = await creates.withExclusive("job") { true }
+        let ran = try await creates.withExclusive("job") { true }
         XCTAssertTrue(ran, "the id is free once the throwing create ended")
     }
 

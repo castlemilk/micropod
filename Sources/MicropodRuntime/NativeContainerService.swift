@@ -41,17 +41,51 @@ public struct NativeContainerService: ContainerServing {
     /// (``ReadPolicy/polling``), never one from before this process's own
     /// last write.
     public func list() async throws -> [Micropod_V1_Container] {
-        try await entries(policy: .polling).map(ModelMapper.container(from:))
+        for _ in 0..<3 {
+            let revision = await ContainerLifecycleClaims.shared.revision()
+            let entries = try await entries(policy: .polling)
+            var result: [Micropod_V1_Container] = []
+            for entry in entries {
+                var container = ModelMapper.container(from: entry)
+                container.state = await visibleState(container.state, id: entry.id)
+                result.append(container)
+            }
+            if await ContainerLifecycleClaims.shared.revision() == revision { return result }
+        }
+        throw MicropodError.message("unavailable: container lifecycle changed during list; retry observation")
     }
 
-    /// Polled too (exit waits read the state through it): a container in
-    /// the shared recent list is answered from it; one that is not is looked
-    /// up directly before it is reported missing.
+    /// State/metadata reads are fenced against our own lifecycle changes.
+    /// This prevents a raw stopped snapshot from straddling start admission.
     public func inspect(_ id: String) async throws -> Data {
-        guard let data = try await api.get(id: id, policy: .polling) else {
-            throw Self.containerNotFound(id)
+        for _ in 0..<3 {
+            let revision = await ContainerLifecycleClaims.shared.revision()
+            let raw = try await api.get(id: id, policy: .polling)
+            let data: Data?
+            if let raw {
+                data = try await NativePendingState.normalizeInspect(raw) { id, state in
+                    await visibleState(state, id: id)
+                }
+            } else {
+                data = nil
+            }
+            guard await ContainerLifecycleClaims.shared.revision() == revision else { continue }
+            guard let data else { throw Self.containerNotFound(id) }
+            return data
         }
-        return data
+        throw MicropodError.message("unavailable: container lifecycle changed during inspect; retry observation")
+    }
+
+    private func visibleState(_ state: String, id: String) async -> String {
+        await NativeLifecycleOperations.shared.reconcileKnownExit(id)
+        let kind = await ContainerLifecycleClaims.shared.kind(of: id)
+        let unstarted = await UnstartedCreates.shared.contains(id)
+        return NativePendingState.state(
+            state, starting: kind == .starting, creating: kind == .creating, unstarted: unstarted)
+    }
+
+    public static func acceptsExitCode(_ id: String) async -> Bool {
+        await NativeLifecycleOperations.shared.acceptsExitCode(id)
     }
 
     /// What `inspect` throws for an id the runtime does not list: coded
@@ -68,9 +102,7 @@ public struct NativeContainerService: ContainerServing {
             // keep the CLI path for those.
             return try await cli.create(request)
         }
-        let id = try await createNative(request)
-        await UnstartedCreates.shared.record(id)
-        return id
+        return try await createNative(request)
     }
 
     public func run(_ request: ContainerRunRequest) async throws -> String {
@@ -81,16 +113,11 @@ public struct NativeContainerService: ContainerServing {
         }
         let id = try await createNative(request)
         do {
-            try await startTracked(id, createdHere: true)
+            try await start(id)
         } catch {
-            // Match the CLI: a failed start cleans up the created container.
-            // Under the id's create mutex, so a replayed create of this id
-            // waits for the cleanup and then finds neither container nor
-            // clone dir, instead of having a clone it just placed unlinked.
-            await InFlightCreates.shared.withExclusive(id) {
-                try? await api.delete(id: id, force: true)
-                await VolumeClone.removeClones(containerID: id)
-            }
+            // An uncertain dispatched start retains its claim; deletion
+            // refuses it instead of racing late bootstrap or waiting forever.
+            try? await delete(id, force: true)
             throw error
         }
         return id
@@ -106,23 +133,35 @@ public struct NativeContainerService: ContainerServing {
     /// error say it was deleted. The three steps run as one attempt under the
     /// process-wide ``StartGate``, one start at a time.
     private func startTracked(_ id: String, createdHere: Bool) async throws {
-        try await Self.startLookingIntoNotFound(
-            id: id,
-            createdHere: createdHere,
-            gate: .shared,
-            bootstrap: { try await api.bootstrap(id: id) },
-            startProcess: {
-                await exitCodes.track(id: id) { [api] in
-                    try await api.waitProcess(containerId: id, processId: id)
-                }
-                do {
-                    try await api.startProcess(containerId: id, processId: id)
-                } catch {
-                    await exitCodes.forget(id: id)
-                    throw error
-                }
-            },
-            exists: { try await api.get(id: id) != nil })
+        let operations = NativeLifecycleOperations.shared
+        try await operations.perform(
+            id, kind: .starting, knownExit: { await exitCodes.entry(for: id)?.exitCode != nil },
+            operation: { claim in
+                await exitCodes.forget(id: id)
+                try await Self.startLookingIntoNotFound(
+                    id: id,
+                    createdHere: createdHere,
+                    gate: .shared,
+                    beforeDispatch: {
+                        try await operations.dispatch(claim)
+                        await UnstartedCreates.shared.remove(id)
+                    },
+                    bootstrap: { try await api.bootstrap(id: id) },
+                    startProcess: {
+                        await exitCodes.track(id: id) { [api] in
+                            try await api.waitProcess(containerId: id, processId: id)
+                        }
+                        do {
+                            try await api.startProcess(containerId: id, processId: id)
+                        } catch {
+                            if !ContainerLifecycleClaims.outcomeUncertain(error) {
+                                await exitCodes.forget(id: id)
+                            }
+                            throw error
+                        }
+                    },
+                    exists: { try await api.get(id: id) != nil })
+            })
     }
 
     /// Waits between start attempts that answered `notFound` while the
@@ -167,6 +206,7 @@ public struct NativeContainerService: ContainerServing {
         createdHere: Bool,
         backoff: [Duration] = startNotFoundBackoff,
         gate: StartGate = .shared,
+        beforeDispatch: () async throws -> Void = {},
         bootstrap: () async throws -> Void,
         startProcess: () async throws -> Void,
         exists: () async throws -> Bool,
@@ -177,6 +217,7 @@ public struct NativeContainerService: ContainerServing {
             var call = "bootstrap"
             do {
                 try await gate.withExclusive {
+                    try await beforeDispatch()
                     try await bootstrap()
                     call = "startProcess"
                     try await startProcess()
@@ -258,7 +299,11 @@ public struct NativeContainerService: ContainerServing {
         return try await InFlightCreates.shared.withExclusive(id) {
             var placed: [String] = []
             do {
-                return try await createNativeInner(request, id: id, placed: &placed)
+                let created = try await createNativeInner(request, id: id, placed: &placed)
+                // Publish never-started state before releasing the create
+                // claim, leaving no stopped/terminal observation window.
+                await UnstartedCreates.shared.record(created)
+                return created
             } catch {
                 await VolumeClone.removeClones(containerID: id, volumes: placed)
                 throw error
@@ -313,6 +358,7 @@ public struct NativeContainerService: ContainerServing {
         // it late, not never.
         var volumeHolders = VolumeAttachments(entries: [])
         if !cloneSet.isEmpty || attachesDirectly {
+            let cloneEpoch = await ContainerLifecycleClaims.shared.creationEpoch()
             let entries = try await entries(policy: .patient)
             // A duplicate id fails first: before any clone is written (the
             // clone dir is keyed by id, so cloning would overwrite the existing
@@ -328,7 +374,7 @@ public struct NativeContainerService: ContainerServing {
                 // Self-heal: a clone dir orphaned by a raw `container delete`
                 // (or a crashed runtime) is swept on the next cloning create.
                 let live = Set(entries.map(\.id))
-                await VolumeClone.sweepOrphanClones(live: live)
+                await VolumeClone.sweepOrphanClones(live: live, observedBefore: cloneEpoch)
                 // No container has this id (checked above) and, under the
                 // id's create mutex, no other create in this process is
                 // placing under it, so a clone dir here is the leftover of a
@@ -593,17 +639,15 @@ public struct NativeContainerService: ContainerServing {
 
     public func start(_ id: String) async throws {
         let createdHere = await UnstartedCreates.shared.contains(id)
-        do {
-            try await startTracked(id, createdHere: createdHere)
-        } catch {
-            await UnstartedCreates.shared.remove(id)
-            throw error
-        }
-        await UnstartedCreates.shared.remove(id)
+        try await startTracked(id, createdHere: createdHere)
     }
 
     public func stop(_ id: String, timeout: Int = 10) async throws {
-        try await api.stop(id: id, timeoutSeconds: Int32(timeout))
+        let operations = NativeLifecycleOperations.shared
+        try await operations.perform(id, kind: .deleting) { claim in
+            try await operations.dispatch(claim)
+            try await api.stop(id: id, timeoutSeconds: Int32(timeout))
+        }
     }
 
     public func restart(_ id: String) async throws {
@@ -616,21 +660,30 @@ public struct NativeContainerService: ContainerServing {
         let running = try await entries(status: "running")
         try await withThrowingTaskGroup(of: Void.self) { group in
             for entry in running {
-                group.addTask { try await self.api.stop(id: entry.id) }
+                group.addTask { try await self.stop(entry.id) }
             }
             try await group.waitForAll()
         }
     }
 
     public func kill(_ id: String, signal: String = "KILL") async throws {
-        try await api.killContainer(id: id, signal: signal)
+        let operations = NativeLifecycleOperations.shared
+        try await operations.perform(id, kind: .deleting) { claim in
+            try await operations.dispatch(claim)
+            try await api.killContainer(id: id, signal: signal)
+        }
     }
 
     public func delete(_ id: String, force: Bool = false) async throws {
-        try await api.delete(id: id, force: force)
-        await exitCodes.forget(id: id)
-        await UnstartedCreates.shared.remove(id)
-        await VolumeClone.removeClones(containerID: id)
+        await NativeLifecycleOperations.shared.reconcileKnownExit(id)
+        let operations = NativeLifecycleOperations.shared
+        try await operations.perform(id, kind: .deleting) { claim in
+            try await operations.dispatch(claim)
+            try await api.delete(id: id, force: force)
+            await exitCodes.forget(id: id)
+            await UnstartedCreates.shared.remove(id)
+            await VolumeClone.removeClones(containerID: id)
+        }
     }
 
     public func deleteAll(force: Bool = false) async throws {
@@ -638,10 +691,7 @@ public struct NativeContainerService: ContainerServing {
         try await withThrowingTaskGroup(of: Void.self) { group in
             for entry in all {
                 group.addTask {
-                    try await self.api.delete(id: entry.id, force: force)
-                    await self.exitCodes.forget(id: entry.id)
-                    await UnstartedCreates.shared.remove(entry.id)
-                    await VolumeClone.removeClones(containerID: entry.id)
+                    try await self.delete(entry.id, force: force)
                 }
             }
             try await group.waitForAll()
@@ -658,10 +708,7 @@ public struct NativeContainerService: ContainerServing {
         for entry in stopped where Self.isPrunable(entry, now: now) {
             do {
                 totalSize += (try? await api.diskUsage(id: entry.id)) ?? 0
-                try await api.delete(id: entry.id)
-                await exitCodes.forget(id: entry.id)
-                await UnstartedCreates.shared.remove(entry.id)
-                await VolumeClone.removeClones(containerID: entry.id)
+                try await delete(entry.id)
                 pruned.append(entry.id)
             } catch {
                 continue
@@ -671,8 +718,9 @@ public struct NativeContainerService: ContainerServing {
         // deleted via the raw `container` CLI) would otherwise leak. Only
         // with the runtime's answer in hand — a failed list is not an empty
         // one, and sweeping against it would unlink live containers' clones.
+        let cloneEpoch = await ContainerLifecycleClaims.shared.creationEpoch()
         if let live = try? await entries() {
-            await VolumeClone.sweepOrphanClones(live: Set(live.map(\.id)))
+            await VolumeClone.sweepOrphanClones(live: Set(live.map(\.id)), observedBefore: cloneEpoch)
         }
         let freed = ByteCountFormatter().string(fromByteCount: Int64(totalSize))
         return pruned.joined(separator: "\n") + (pruned.isEmpty ? "" : "\nReclaimed \(freed) in disk space")

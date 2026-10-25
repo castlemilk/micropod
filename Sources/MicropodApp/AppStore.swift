@@ -541,7 +541,7 @@ final class AppStore {
     /// Whether a restart (which stops the app's agents) would disrupt
     /// anything: running containers here, or sandboxes the local API hosts.
     func nothingRunning() async -> Bool {
-        guard runningCount == 0 else { return false }
+        guard Self.restartInventoryIsQuiescent(containers) else { return false }
         var request = URLRequest(
             url: URL(string: "http://127.0.0.1:45454/api/micropod.v1.ContainerService/ListContainers")!)
         request.httpMethod = "POST"
@@ -551,10 +551,14 @@ final class AppStore {
         guard let (data, response) = try? await URLSession.shared.data(for: request),
             (response as? HTTPURLResponse)?.statusCode == 200
         else {
-            return true  // no local API: nothing hosted there
+            return false  // absence of an answer does not establish quiescence
         }
-        let list = try? Micropod_V1_ListContainersResponse(jsonUTF8Data: data)
-        return !(list?.containers.contains { $0.state == "running" } ?? false)
+        guard let list = try? Micropod_V1_ListContainersResponse(jsonUTF8Data: data) else { return false }
+        return Self.restartInventoryIsQuiescent(list.containers)
+    }
+
+    static func restartInventoryIsQuiescent(_ containers: [Micropod_V1_Container]) -> Bool {
+        containers.allSatisfy { ContainerActivity.isTerminal($0.state) }
     }
 
     func stopPollers() {

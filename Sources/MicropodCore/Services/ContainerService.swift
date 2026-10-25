@@ -220,8 +220,9 @@ public struct ContainerService: ContainerServing {
     public func prune() async throws -> String {
         let before = try await entries().map(\.id)
         let output = try await client.run(ContainerCommandFactory.pruneContainers(), timeout: .seconds(60))
+        let cloneEpoch = await ContainerLifecycleClaims.shared.creationEpoch()
         if let live = await removeClonesOfDeparted(from: before) {
-            await VolumeClone.sweepOrphanClones(live: live)
+            await VolumeClone.sweepOrphanClones(live: live, observedBefore: cloneEpoch)
         }
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
     }

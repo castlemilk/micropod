@@ -9,6 +9,36 @@ import XCTest
 /// state comes from a scripted probe.
 final class NativeLogStreamerTests: XCTestCase {
 
+    func testPendingNewStartDoesNotEndLogsOnPreviousRunsExit() async throws {
+        try append("backlog\n")
+        let url = logURL!
+        let id = "pending-log-\(UUID().uuidString)"
+        let claims = ContainerLifecycleClaims.shared
+        let acquired = await claims.claimIfIdle(id, kind: .starting)
+        let claim = try XCTUnwrap(acquired)
+        let exits = ExitCodeRegistry()
+        await exits.track(id: id) { 0 }
+        _ = await exits.await(id: id, timeout: .seconds(2))
+        let logs = NativeLogStreamer(
+            sourceProvider: { _, _ in [try FileHandle(forReadingFrom: url)] },
+            liveness: { _ in
+                // If the old registry code incorrectly ends the follow,
+                // this observation and the actual attempt's output are lost.
+                await claims.finish(claim)
+                try? Self.append("cf-steps: actual attempt output\n", to: url)
+                return .stopped
+            }, exitCodes: exits)
+        do {
+            let result = try await collect(logs.stream(id: id), timeout: .seconds(3))
+            XCTAssertTrue(result.finished)
+            XCTAssertEqual(result.lines, ["backlog", "cf-steps: actual attempt output"])
+            await claims.finish(claim)
+        } catch {
+            await claims.finish(claim)
+            throw error
+        }
+    }
+
     private var logURL: URL!
 
     override func setUpWithError() throws {
@@ -272,7 +302,9 @@ final class NativeLogStreamerTests: XCTestCase {
             NativeLogStreamer.isLive(state: "stopping"),
             "the process may still be writing while the runtime stops it")
         XCTAssertFalse(NativeLogStreamer.isLive(state: "stopped"))
-        XCTAssertFalse(NativeLogStreamer.isLive(state: "created"))
+        XCTAssertTrue(NativeLogStreamer.isLive(state: "created"))
+        XCTAssertTrue(NativeLogStreamer.isLive(state: "creating"))
+        XCTAssertTrue(NativeLogStreamer.isLive(state: "starting"))
         XCTAssertFalse(NativeLogStreamer.isLive(state: "unknown"))
         XCTAssertFalse(NativeLogStreamer.isLive(state: ""))
     }

@@ -553,6 +553,26 @@ final class VolumeCloneTests: XCTestCase {
     /// The orphan sweep removes clone dirs of containers that no longer
     /// exist — except dirs younger than the grace period, which may belong
     /// to a create that has not reached the runtime yet.
+    func testOrphanSweepProtectsAnAgedInFlightCreate() async throws {
+        setenv("MICROPOD_VOLUME_CLONE_ROOT", dir.path, 1)
+        defer { unsetenv("MICROPOD_VOLUME_CLONE_ROOT") }
+        let id = "held-create"
+        try FileManager.default.createDirectory(atPath: path(id), withIntermediateDirectories: true)
+        try Data("in-flight-clone".utf8).write(to: URL(fileURLWithPath: path("\(id)/cache.img")))
+        try FileManager.default.setAttributes(
+            [.creationDate: Date().addingTimeInterval(-(VolumeClone.orphanGrace + 600))], ofItemAtPath: path(id))
+        let claimed = await ContainerLifecycleClaims.shared.claimIfIdle(id, kind: .creating)
+        let claim = try XCTUnwrap(claimed)
+        let beforeHeldSweep = await ContainerLifecycleClaims.shared.creationEpoch()
+        await VolumeClone.sweepOrphanClones(live: [], observedBefore: beforeHeldSweep)
+        XCTAssertEqual(
+            try Data(contentsOf: URL(fileURLWithPath: path("\(id)/cache.img"))), Data("in-flight-clone".utf8))
+        await ContainerLifecycleClaims.shared.finish(claim)
+        let afterCreate = await ContainerLifecycleClaims.shared.creationEpoch()
+        await VolumeClone.sweepOrphanClones(live: [], observedBefore: afterCreate)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: path(id)), "a genuine orphan is still reclaimed")
+    }
+
     func testSweepOrphanClonesKeepsLiveAndYoungDirs() async throws {
         setenv("MICROPOD_VOLUME_CLONE_ROOT", dir.path, 1)
         defer { unsetenv("MICROPOD_VOLUME_CLONE_ROOT") }
@@ -566,10 +586,40 @@ final class VolumeCloneTests: XCTestCase {
         }
         try Data("keep".utf8).write(to: URL(fileURLWithPath: path("stray-file")))
 
-        await VolumeClone.sweepOrphanClones(live: ["live"])
+        let observedBefore = await ContainerLifecycleClaims.shared.creationEpoch()
+        await VolumeClone.sweepOrphanClones(live: ["live"], observedBefore: observedBefore)
 
         XCTAssertEqual(
             try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted(), ["live", "stray-file", "young"])
+    }
+
+    func testOrphanSweepRejectsSnapshotFromBeforeCreateFinished() async throws {
+        setenv("MICROPOD_VOLUME_CLONE_ROOT", dir.path, 1)
+        defer { unsetenv("MICROPOD_VOLUME_CLONE_ROOT") }
+        let id = "finished-after-list"
+        try FileManager.default.createDirectory(atPath: path(id), withIntermediateDirectories: true)
+        let clone = URL(fileURLWithPath: path("\(id)/cache.img"))
+        let contents = Data("now-live-clone".utf8)
+        try contents.write(to: clone)
+        try FileManager.default.setAttributes(
+            [.creationDate: Date().addingTimeInterval(-(VolumeClone.orphanGrace + 600))], ofItemAtPath: path(id))
+
+        // The runtime listed no container while this create owned its
+        // clone directory. It then finished before cleanup inspected it.
+        let claimed = await ContainerLifecycleClaims.shared.claimIfIdle(id, kind: .creating)
+        let claim = try XCTUnwrap(claimed)
+        let observedBefore = await ContainerLifecycleClaims.shared.creationEpoch()
+        let staleLive = Set<String>()
+        await ContainerLifecycleClaims.shared.finish(claim)
+        await VolumeClone.sweepOrphanClones(live: staleLive, observedBefore: observedBefore)
+        XCTAssertEqual(try Data(contentsOf: clone), contents, "idle claims do not make an old empty list safe")
+
+        let refreshed = await ContainerLifecycleClaims.shared.creationEpoch()
+        await VolumeClone.sweepOrphanClones(live: [id], observedBefore: refreshed)
+        XCTAssertEqual(try Data(contentsOf: clone), contents)
+        // A subsequent authoritative absence still permits normal cleanup.
+        await VolumeClone.sweepOrphanClones(live: [], observedBefore: refreshed)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: path(id)))
     }
 
     /// A dir under the clone root whose name is outside the id grammar
@@ -587,7 +637,8 @@ final class VolumeCloneTests: XCTestCase {
             try FileManager.default.setAttributes([.creationDate: old], ofItemAtPath: path(name))
         }
 
-        await VolumeClone.sweepOrphanClones(live: [])
+        let observedBefore = await ContainerLifecycleClaims.shared.creationEpoch()
+        await VolumeClone.sweepOrphanClones(live: [], observedBefore: observedBefore)
 
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path), ["-not-an-id"])
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: path("-not-an-id")), ["npm.img"])

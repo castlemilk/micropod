@@ -309,7 +309,7 @@ actor EventsHub {
     /// (see `reapMissedExits`).
     private var handledStarts: [String: Int] = [:]
 
-    private func reconcile(
+    func reconcile(
         _ current: [Micropod_V1_Container], observedAt: Date, state: ShimState
     ) async {
         var observed = observe(current)
@@ -359,6 +359,10 @@ actor EventsHub {
                 continue
             }
             guard before.state != after.state else { continue }
+            // Pending startup is not an exit, even when this container ID
+            // has run before. In particular created -> starting must never
+            // drive AutoRemove or restart supervision.
+            if ["starting", "created", "creating"].contains(after.state) { continue }
             let wasLive = before.state == "running"
             let isLive = after.state == "running"
             if isLive {
@@ -373,7 +377,7 @@ actor EventsHub {
             } else if wasLive {
                 await handleExit(entry: entry, observation: after, state: state)
                 syntheticCreated.remove(id)
-            } else if before.state == "created" || before.state == "creating" {
+            } else if ["created", "creating", "starting"].contains(before.state) {
                 if syntheticCreated.contains(id) {
                     // Synthetic entry (see above): only a proven run may
                     // exit it. Still vetoed → keep the marker for next poll.

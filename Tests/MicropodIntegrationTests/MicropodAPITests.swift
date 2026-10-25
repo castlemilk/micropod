@@ -675,6 +675,96 @@ final class MicropodAPITests: XCTestCase {
         _ = try await json("DELETE", "v1/containers/\(id)")
     }
 
+    /// The public Connect surface exposes GetContainer rather than a raw
+    /// InspectContainer RPC. Both it and ListContainers must preserve the
+    /// runtime's explicit pending state, and REST's list must agree.
+    func testStartingContainerReadsAndWaitRemainNonterminal() async throws {
+        try await assertPendingContainerReadsAndWait(state: "starting")
+    }
+
+    func testCreatedContainerReadsAndWaitRemainNonterminal() async throws {
+        try await assertPendingContainerReadsAndWait(state: "created")
+    }
+
+    private func assertPendingContainerReadsAndWait(state: String) async throws {
+        let created = try await json(
+            "POST", "api/micropod.v1.ContainerService/CreateContainer",
+            body: ["image": "alpine:3.20", "name": "api-pending-\(state)"])
+        let id = try XCTUnwrap(created["id"] as? String)
+        try setMockState(id, to: state)
+
+        let container = try await json(
+            "POST", "api/micropod.v1.ContainerService/GetContainer", body: ["id": id])
+        XCTAssertEqual(container["id"] as? String, id)
+        XCTAssertEqual(container["state"] as? String, state)
+        XCTAssertNil(container["exitCode"], "pending work has no observed exit")
+
+        for (method, path) in [
+            ("POST", "api/micropod.v1.ContainerService/ListContainers"),
+            ("GET", "v1/containers"),
+        ] {
+            let list = try await json(method, path, body: method == "POST" ? [:] : nil)
+            let entry = try XCTUnwrap(
+                (list["containers"] as? [[String: Any]])?.first { $0["id"] as? String == id })
+            XCTAssertEqual(entry["state"] as? String, state, path)
+            if method == "POST" {
+                XCTAssertNil(entry["exitCode"], "Connect must not fabricate an exit")
+            }
+        }
+
+        let clock = ContinuousClock()
+        let began = clock.now
+        let wait = try await json(
+            "POST", "api/micropod.v1.ContainerService/WaitContainer",
+            body: ["id": id, "timeoutSeconds": 1])
+        XCTAssertEqual(wait["exited"] as? Bool ?? false, false, "\(state): \(wait)")
+        XCTAssertEqual(wait["known"] as? Bool ?? false, false, "\(state): \(wait)")
+        XCTAssertEqual(wait["state"] as? String, state)
+        XCTAssertNil(wait["exitCode"], "an observation timeout is not a process exit")
+        XCTAssertGreaterThanOrEqual(began.duration(to: clock.now), .milliseconds(900))
+    }
+
+    func testWaitStartingContainerOnlyExitsAfterTerminalState() async throws {
+        try await assertPendingWaitTracksTerminalTransition(state: "starting")
+    }
+
+    func testWaitCreatedContainerOnlyExitsAfterTerminalState() async throws {
+        try await assertPendingWaitTracksTerminalTransition(state: "created")
+    }
+
+    private func assertPendingWaitTracksTerminalTransition(state: String) async throws {
+        let created = try await json(
+            "POST", "api/micropod.v1.ContainerService/CreateContainer",
+            body: ["image": "alpine:3.20", "name": "api-transition-\(state)"])
+        let id = try XCTUnwrap(created["id"] as? String)
+        try setMockState(id, to: state)
+
+        func inspections() -> Int {
+            mockCalls().filter { $0 == "inspect \(id)" }.count
+        }
+        let before = inspections()
+        let wait = try startWait(id: id, timeoutSeconds: 10)
+        defer { wait.cancel() }
+        // Synchronize on actual CLI observations, not on an assumed HTTP
+        // scheduling delay. Two polls prove the pending state did not end
+        // the first observation. The mock is private to this test server.
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(5))
+        while inspections() < before + 2, clock.now < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertGreaterThanOrEqual(inspections(), before + 2, "Wait must keep observing \(state)")
+        try setMockState(id, to: "stopped")
+        let (status, data) = try await wait.value
+        let body = try decodeObject(data)
+        XCTAssertEqual(status, 200, "\(body)")
+        XCTAssertEqual(body["exited"] as? Bool, true, "\(body)")
+        XCTAssertEqual(body["state"] as? String, "stopped", "\(body)")
+        XCTAssertEqual(body["known"] as? Bool ?? false, false, "the CLI mock has no exit-code registry")
+        XCTAssertNil(body["exitCode"], "terminal state alone must not fabricate an exit code")
+        XCTAssertFalse(mockCalls().contains { $0 == "start \(id)" }, "observation must not replay Start")
+    }
+
     /// Unknown ids are `not_found` for both RPCs — never a silent
     /// `exited: true`, and never a 30 s wait.
     func testWaitContainerUnknownId() async throws {

@@ -78,6 +78,18 @@ public actor ExitCodeRegistry {
         entries[id]
     }
 
+    /// One actor read for a wait observation. Comparing snapshots before
+    /// and after a runtime read rejects both a superseded process's exit
+    /// and an exit which arrived during that read.
+    public struct Snapshot: Sendable, Equatable {
+        public let generation: UInt64?
+        public let entry: Entry?
+    }
+
+    public func snapshot(for id: String) -> Snapshot {
+        Snapshot(generation: generations[id], entry: entries[id])
+    }
+
     /// Whether a waiter runs or has recorded for `id` — i.e. whether
     /// ``await(id:timeout:)`` will be woken by this container's exit. False
     /// for containers this process never started (CLI-created, or started

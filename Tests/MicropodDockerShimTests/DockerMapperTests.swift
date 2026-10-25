@@ -10,8 +10,23 @@ final class DockerMapperTests: XCTestCase {
         XCTAssertEqual(DockerMapper.stateName("exited"), "exited")
         XCTAssertEqual(DockerMapper.stateName("creating"), "created")
         XCTAssertEqual(DockerMapper.stateName("created"), "created")
+        XCTAssertEqual(DockerMapper.stateName("starting"), "starting")
         XCTAssertEqual(DockerMapper.stateName("unknown-state"), "unknown-state")
         XCTAssertEqual(DockerMapper.stateName(""), "")
+    }
+
+    func testStartingInspectAndSummaryAreNonterminal() {
+        var container = Micropod_V1_Container()
+        container.id = "pending"
+        container.state = "starting"
+        let summary = DockerMapper.summary(container, create: nil)
+        let inspect = DockerMapper.inspect(container, create: nil)
+        XCTAssertEqual(summary.State, "starting")
+        XCTAssertEqual(summary.Status, "Starting")
+        XCTAssertEqual(inspect.State.Status, "starting")
+        XCTAssertFalse(inspect.State.Running)
+        XCTAssertFalse(inspect.State.Dead)
+        XCTAssertEqual(inspect.State.FinishedAt, "0001-01-01T00:00:00Z")
     }
 
     func testPlainIPRemovesCIDRSuffix() {

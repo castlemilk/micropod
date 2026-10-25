@@ -5,6 +5,20 @@ import XCTest
 
 @MainActor
 final class AppStoreLaunchTests: XCTestCase {
+    func testUpdateRestartSafetyIncludesPendingContainers() {
+        for state in ["running", "stopping", "starting", "creating", "created", "unknown", ""] {
+            var pending = Micropod_V1_Container()
+            pending.state = state
+            XCTAssertFalse(AppStore.restartInventoryIsQuiescent([pending]), "unsafe restart in state \(state)")
+        }
+        for state in ["stopped", "exited", "dead"] {
+            var terminal = Micropod_V1_Container()
+            terminal.state = state
+            XCTAssertTrue(AppStore.restartInventoryIsQuiescent([terminal]))
+        }
+        XCTAssertTrue(AppStore.restartInventoryIsQuiescent([]))
+    }
+
     func testSuccessfulLaunchIsTrackedRefreshedAndSelected() async throws {
         let fixture = try AppTestCLI.makeMock()
         defer { AppTestCLI.cleanUp(fixture) }
