@@ -999,14 +999,23 @@ final class MicropodAPITests: XCTestCase {
         func followers() -> Int {
             let ps = Process()
             ps.executableURL = URL(fileURLWithPath: "/bin/ps")
-            ps.arguments = ["-axo", "args="]
+            ps.arguments = ["-axww", "-o", "ppid=,args="]
             let pipe = Pipe()
             ps.standardOutput = pipe
             try? ps.run()
             let out = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
             ps.waitUntilExit()
-            return out.split(separator: "\n").filter {
-                $0.contains(MockContainerCLI.scriptURL.path) && $0.contains("logs") && $0.contains(id)
+            // Process canonicalizes /private/tmp to /tmp on macOS. The
+            // compiler's #filePath may retain the other spelling, so accept
+            // either and only count children of this test's private server.
+            let script = MockContainerCLI.scriptURL
+            let scriptPaths = [script.path, script.resolvingSymlinksInPath().path]
+            return out.split(separator: "\n").filter { row in
+                let fields = row.split(maxSplits: 1, whereSeparator: \.isWhitespace)
+                guard fields.count == 2, Int32(fields[0]) == server.processIdentifier else { return false }
+                let command = fields[1]
+                return scriptPaths.contains { command.contains($0) }
+                    && command.contains(" logs ") && command.contains(id)
             }.count
         }
 
