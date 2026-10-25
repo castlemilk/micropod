@@ -11,8 +11,8 @@ import MicropodCore
 /// the container has stopped — matching `container logs -f` behavior:
 ///
 /// - **Stop signal.** A recorded exit code in the ``ExitCodeRegistry``, or a
-///   runtime state that is no longer `running` or `stopping` (see
-///   ``isLive(state:)``), or the container no longer listed. A lookup that
+///   proven terminal runtime state with no pending create/start (see
+///   ``isLive(state:)``), or an unowned absent container. A lookup that
 ///   fails is not a stop signal: the stream keeps following, and fails
 ///   (rather than ending cleanly) if the runtime stays silent for
 ///   ``defaultUnknownLivenessLimit``. The registry is checked before every tick and each
@@ -109,20 +109,22 @@ public struct NativeLogStreamer: LogStreaming {
                 // a container the runtime no longer lists, or one in a
                 // finished state, has stopped writing. Every follow shares
                 // the polled list (`get` confirms an absent id directly).
-                let data: Data?
                 do {
-                    data = try await api.get(id: id, policy: .polling)
-                } catch {
-                    return .unknown
-                }
-                guard let data else { return .stopped }
-                guard
-                    let entries = try? MicropodJSON.decodeArray(JSONValue.self, from: data, context: "container get"),
-                    case .object(let obj)? = entries.first,
-                    case .object(let status) = obj["status"],
-                    case .string(let state) = status["state"]
-                else { return .unknown }
-                return Self.isLive(state: state) ? .live : .stopped
+                    let state = try await NativePendingState.observe(id: id) {
+                        guard let data = try await api.get(id: id, policy: .polling) else { return nil }
+                        guard
+                            let entries = try? MicropodJSON.decodeArray(
+                                JSONValue.self, from: data, context: "container get"),
+                            case .object(let obj)? = entries.first,
+                            case .object(let status) = obj["status"],
+                            case .string(let state) = status["state"]
+                        else { throw MicropodError.message("unavailable: invalid container state") }
+                        return state
+                    }
+                    guard let state else { return .stopped }
+                    if Self.isLive(state: state) { return .live }
+                    return ContainerActivity.isTerminal(state) ? .stopped : .unknown
+                } catch { return .unknown }
             },
             exitCodes: exitCodes)
     }
@@ -174,7 +176,7 @@ public struct NativeLogStreamer: LogStreaming {
     /// `stopping` counts: the runtime enters it before the graceful stop
     /// waits for the process, which can keep writing until it exits.
     static func isLive(state: String) -> Bool {
-        state == "running" || state == "stopping"
+        ContainerActivity.mayExecute(state)
     }
 
     public func tail(id: String, lines: Int = 100, boot: Bool = false) async throws -> [LogLine] {
@@ -344,7 +346,14 @@ public struct NativeLogStreamer: LogStreaming {
     /// container, so the runtime state stays authoritative.
     private func exitRecorded(id: String) async -> Bool {
         guard let exitCodes else { return false }
-        return await exitCodes.entry(for: id)?.exitCode != nil
+        let revision = await ContainerLifecycleClaims.shared.revision()
+        let snapshot = await exitCodes.snapshot(for: id)
+        guard await NativeLifecycleOperations.shared.acceptsExitCode(id),
+            snapshot.entry?.exitCode != nil,
+            await exitCodes.snapshot(for: id) == snapshot,
+            await ContainerLifecycleClaims.shared.revision() == revision
+        else { return false }
+        return true
     }
 
     private static func close(_ sources: [Source]) {

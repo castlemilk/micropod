@@ -287,8 +287,10 @@ public enum VolumeClone {
     /// list: sweeping against that would unlink live containers' clones.
     /// A dir whose name is outside ``componentGrammar`` (only a pre-guard
     /// build or a hand can have put one here) is never a path this code
-    /// builds: it is left in place, and said so on stderr.
-    public static func sweepOrphanClones(live: Set<String>) async {
+    /// builds: it is left in place, and said so on stderr. `observedBefore`
+    /// must be the creation epoch captured before requesting `live`, so a
+    /// create that completes after the snapshot cannot lose its live clones.
+    public static func sweepOrphanClones(live: Set<String>, observedBefore: UInt64) async {
         let cutoff = Date().addingTimeInterval(-orphanGrace)
         for dir
             in (try? FileManager.default.contentsOfDirectory(
@@ -305,7 +307,9 @@ public enum VolumeClone {
                             + "(\(componentGrammar)); left in place\n").utf8))
                 continue
             }
-            await removeClones(containerID: id)
+            await ContainerLifecycleClaims.shared.withCleanupIfIdle(id, observedBefore: observedBefore) {
+                await removeClones(containerID: id)
+            }
         }
     }
 

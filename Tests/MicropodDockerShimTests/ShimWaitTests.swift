@@ -117,6 +117,26 @@ final class ShimWaitTests: XCTestCase {
 
     // MARK: - Wait
 
+    func testStartingWithAnOldStartedDateDoesNotReportExit() async throws {
+        let id = runtimeID()
+        let containers = ScriptedInspect(
+            id: id, [.state("starting"), .state("starting"), .state("running"), .state("stopped")])
+        let shim = try shim(containers) { $0.waitPollInterval = .milliseconds(1) }
+        let response = try shim.raw().request("POST", "/containers/\(id)/wait", timeout: 8)
+        _ = try waitBody(response)
+        let calls = await containers.inspectCalls
+        XCTAssertEqual(calls, 4, "starting must not look like a previous run's exit")
+    }
+
+    func testCreatedWithAnOldStartedDateDoesNotReportExit() async throws {
+        let id = runtimeID()
+        let containers = ScriptedInspect(id: id, [.state("created"), .state("running"), .state("stopped")])
+        let shim = try shim(containers) { $0.waitPollInterval = .milliseconds(1) }
+        _ = try waitBody(shim.raw().request("POST", "/containers/\(id)/wait", timeout: 8))
+        let calls = await containers.inspectCalls
+        XCTAssertEqual(calls, 3)
+    }
+
     /// The live hang: the container is deleted while `/wait` polls it and the
     /// native backend answers its own not-found, which the shim used to read
     /// as a transient error and retry every 200 ms forever.
