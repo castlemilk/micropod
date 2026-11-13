@@ -40,7 +40,7 @@ public enum IsolatedRuntimeProcessInventory {
             guard before == after else { throw refused() }
             if daemons.contains(executable) || executable == api { continue }
             if executable.hasPrefix("/System/Library/") || executable.hasPrefix("/usr/libexec/")
-                || executable == "/usr/sbin/cfprefsd", isApplePlatformProcess(pid)
+                || ["/usr/sbin/cfprefsd", "/usr/sbin/distnoted"].contains(executable), isApplePlatformProcess(pid)
             {
                 continue
             }

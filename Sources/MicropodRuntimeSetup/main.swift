@@ -58,6 +58,27 @@ private final class RuntimeSetupModel {
             }
         } catch { self.error = error.localizedDescription }
     }
+
+    func pauseHelperForUpdate() async {
+        guard !busy else { return }
+        busy = true
+        defer { busy = false }
+        do {
+            let current = try await client.call(.init(action: .status))
+            guard current.isTerminal, current.phase != "recoveryRequired",
+                current.rigAttempted != true,
+                current.localGeneration == nil || current.actionVerified == true,
+                try current.workerBirth?.hasExited() != false
+            else {
+                throw MicropodError.message("Finish or verify runtime maintenance before updating the helper")
+            }
+            // Service Management owns termination. The durable runtime journal
+            // and admission fence survive replacement of this app bundle.
+            try await service.unregister()
+            approvalMessage = "The helper is paused for an app update"
+            error = nil
+        } catch { self.error = error.localizedDescription }
+    }
 }
 
 @main
@@ -94,6 +115,8 @@ struct MicropodRuntimeSetup: App {
                         Button("Verify Runtime") { Task { await model.request(.verify) } }
                         Button("Run Isolated Test") { Task { await model.request(.workload) } }
                     }.disabled(model.busy)
+                    Button("Pause Helper for Update") { Task { await model.pauseHelperForUpdate() } }
+                        .disabled(model.busy)
                     if model.busy {
                         HStack {
                             ProgressView().controlSize(.small)

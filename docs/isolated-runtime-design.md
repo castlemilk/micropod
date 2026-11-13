@@ -116,12 +116,26 @@ MICROPOD_RUNTIME_NOTARY_PROFILE=micropod-notary \
 bash scripts/package_runtime_setup.sh
 ```
 
-The original setup candidate was notarized and installed separately. macOS
-administrator approval is still pending. The private account has not yet been
-created, and the new account's bootstrap, native workload, cancellation/reboot
-and signed Cuttlefish handoff have not been physically accepted. #89 remains
-open until those checks succeed. Passing source tests is not clean-machine
-acceptance or permission to replace the rig's currently running software.
+On Gamma, administrator approval succeeded and the helper created the locked
+`_micropod` account (uid 400, gid 401). Installation and offline repair verified
+Apple's package and staged immutable private tools without modifying the
+existing `/usr/local` installation. The first startup checks exposed two
+physical-Mac defects: launchd's umask reduced public control/tool directories
+to 0700, and the process inventory omitted Apple's per-user `distnoted`.
+The helper now explicitly publishes protected directories through no-follow
+descriptors and permits that exact Apple-platform-signed service. Regression
+tests reject symlinks, unexpected owners and writable directories.
+
+Service Management's unregister/register APIs refreshed the separately
+installed Setup helper after maintenance was reconciled. The existing
+administrator approval persisted; no system security setting was bypassed.
+Previous signed bundles were retained. The current qualification candidate
+was notarized under submission `d8ada9cb-d02c-47e4-97bf-fac26e8f8bbe`.
+
+The new account's native workload, cancellation/domain recovery and signed
+Cuttlefish handoff are still being qualified. #89 remains open until those
+checks succeed. Passing source tests is not clean-machine acceptance or
+permission to replace the rig's currently running software.
 
 Existing data is not migrated. Host bind mounts still require that the service
 account can access the explicitly shared directory; no broad home-directory

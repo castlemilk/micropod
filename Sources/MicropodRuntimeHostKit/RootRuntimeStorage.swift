@@ -15,6 +15,7 @@ public enum RootRuntimeStorage {
 
     public static func prepareRoot() throws {
         guard geteuid() == 0 else { throw MicropodError.message("Runtime setup requires the approved macOS helper") }
+        try ensureRootDirectory(IsolatedRuntimePolicy.root.deletingLastPathComponent())
         try ensureRootDirectory(IsolatedRuntimePolicy.root)
     }
 
@@ -37,6 +38,28 @@ public enum RootRuntimeStorage {
             try validateAncestors(directory)
             try RuntimeDurableFile.syncDirectory(directory.deletingLastPathComponent())
         }
+        // launchd starts the authority with umask 077. mkdir's requested 0755
+        // is therefore insufficient, and older setup candidates left these
+        // public control/tool ancestors at 0700. Publish only the requested
+        // protected tree; never change permissions on system ancestors.
+        let boundary = IsolatedRuntimePolicy.root.deletingLastPathComponent()
+        var directory = url
+        while directory == boundary || directory.path.hasPrefix(boundary.path + "/") {
+            try publishReadableDirectory(directory, ownerUID: 0)
+            if directory == boundary { break }
+            directory.deleteLastPathComponent()
+        }
+    }
+
+    static func publishReadableDirectory(_ url: URL, ownerUID: uid_t) throws {
+        let fd = open(url.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+        guard fd >= 0 else { throw MicropodError.message("The protected runtime directory is unavailable") }
+        defer { close(fd) }
+        var info = stat()
+        guard fstat(fd, &info) == 0, info.st_uid == ownerUID,
+            info.st_mode & S_IFMT == S_IFDIR, info.st_mode & 0o022 == 0,
+            fchmod(fd, 0o755) == 0, fsync(fd) == 0
+        else { throw MicropodError.message("Could not publish the protected runtime directory") }
     }
 
     public static func validateAncestors(_ url: URL) throws {
