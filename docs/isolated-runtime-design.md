@@ -185,6 +185,12 @@ runtime change, released the gate and preserved native readiness. A cancelled
 operation is reconciled rather than replayed. The shared desktop-account
 Apple API retained its original process throughout these tests.
 
+A persisted-recovery fault test reconstructs the controller after an interrupted
+start with a previous-boot worker record and a reused PID. Recovery retains the
+same operation and admission fence while native readiness is absent, refuses a
+fresh start and only verifies the retained outcome. It never replays the start.
+This fault simulation does not replace a real boot/domain recovery test.
+
 The signed Cuttlefish host handoff and boot/domain recovery remain unaccepted.
 #89 remains open until the remaining checks succeed. Passing source tests is
 not clean-machine acceptance or permission to replace the rig's currently

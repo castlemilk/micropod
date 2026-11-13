@@ -93,8 +93,8 @@ Sparkle or unattended app replacement under #90.
 - API: `GET /v1/system/runtime`, `POST /v1/system/runtime/<action>`.
 - MCP: `runtime_manage` with the same actions (`operation` reads progress).
 
-The app must run to expose these controls; the approved helper and private API have
-independent lifetimes. Installation approval remains a visible macOS action.
+GUI, CLI, HTTP and MCP use the same approved helper for lifecycle controls.
+The helper and private API have independent lifetimes. Installation approval remains a visible macOS action.
 `recover` reconciles a retained operation; it cannot override foreign ownership,
 pending work or incomplete coverage.
 
@@ -107,9 +107,21 @@ health probes. Earlier tests verified the official package, offline repair, corr
 package/permission errors and an isolated Alpine workload through a staged CLI
 without restarting the existing user service.
 
-Those results do not prove activation in the new account. Administrator approval
-for the notarized setup app is pending on the authorized Mac. Still required: private
-account/bootstrap/native workload acceptance, cancellation/reboot faults, paired
-signed Cuttlefish deployment through its guarded installation flow and a real drain
-race. Bind-mounted workspace access must be qualified explicitly; setup makes no
-broad ACL grant. Keep #89 and both draft PRs open until those checks pass.
+The operator approved the notarized setup on Gamma. Physical qualification passed
+managed installation and offline repair, private-account/bootstrap/native readiness,
+an isolated Alpine workload, scoped generated inputs/read-only secrets/nested
+artifacts, idle stop/start and restart, saved-volume/image reuse, and verified
+pre-action cancellation. The ordinary desktop Apple service stayed intact.
+
+Persisted-recovery fault tests also reconstruct the controller with a worker
+identity from another boot, including a reused live PID. They prove that an
+interrupted start retains admission, cannot be replaced by a new start, and is
+only released after the retained outcome is independently verified. These are
+simulated reboot faults, separate from a real boot acceptance test.
+
+Still required: paired signed Cuttlefish deployment through its guarded
+installation flow, a complete scheduled job with workspace/cache exchange,
+signed host handoff, a live drain race and actual boot/domain recovery.
+The intended-runner CI is being repaired in Cuttlefish #686; provider allowance
+currently blocks its cloud runner. Keep #89 and both draft PRs open until these
+checks pass. Setup makes no broad ACL grant.

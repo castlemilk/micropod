@@ -61,6 +61,7 @@ private actor HostDriverFixture: IsolatedRuntimeHostDriving {
     }
     func failOneStart() { failAfterStart = true }
     func setBusy(_ value: Bool) { busy = value }
+    func setReady(_ value: Bool) { ready = value }
     func actions() -> [IsolatedRuntimeAction] { events }
     func preparationCount() -> Int { prepares }
     func run(
@@ -200,6 +201,63 @@ final class IsolatedRuntimeHostControllerTests: XCTestCase {
         XCTAssertEqual(actions.filter { $0 == .stop }.count, 1)
         let rig = await driver.rigHistory()
         XCTAssertEqual(rig, ["drain", "prepare", "begin", "verify", "complete", "verify", "complete"])
+    }
+
+    func testReloadedInterruptedStartAfterBootRetainsFenceUntilOutcomeIsVerified() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let journal = root.appendingPathComponent("operation.json")
+        let admissionRoot = root.appendingPathComponent("admission")
+        let originalDriver = HostDriverFixture()
+        let original = IsolatedRuntimeHostController(
+            driver: originalDriver, journal: journal, admissionRoot: admissionRoot)
+        _ = try await original.submit(.init(action: .install), ownerUID: 501)
+        var retained = try await terminal(original)
+        let operation = UUID()
+        retained.operation = operation
+        retained.action = .start
+        retained.phase = "starting"
+        retained.actionVerified = false
+        // Retained bytes represent the worker from the previous boot, even
+        // when macOS has reused its PID for this test process.
+        var birth = try XCTUnwrap(
+            JSONSerialization.jsonObject(
+                with: JSONEncoder().encode(
+                    XCTUnwrap(RuntimeProcessBirth.read(getpid())))) as? [String: Any])
+        birth["bootSession"] = UUID().uuidString
+        retained.workerBirth = try JSONDecoder().decode(
+            RuntimeProcessBirth.self, from: JSONSerialization.data(withJSONObject: birth))
+        try RuntimeDurableFile.write(retained, to: journal)
+        let admission = RuntimeAdmission(root: admissionRoot)
+        do {
+            let fence = try admission.begin(operation: operation)
+            try fence.beginAction()
+        }
+        let afterBootDriver = HostDriverFixture()
+        let restored = IsolatedRuntimeHostController(
+            driver: afterBootDriver, journal: journal, admissionRoot: admissionRoot)
+        let initial = try await restored.submit(.init(action: .status), ownerUID: 501)
+        XCTAssertEqual(initial.phase, "recoveryRequired")
+        XCTAssertTrue(admission.isClosed)
+        do {
+            _ = try await restored.submit(.init(action: .start), ownerUID: 501)
+            XCTFail("A new start must not replace an unverified retained operation")
+        } catch {}
+        _ = try await restored.submit(.init(action: .verify), ownerUID: 501)
+        let unknown = try await terminal(restored)
+        XCTAssertEqual(unknown.phase, "recoveryRequired")
+        XCTAssertEqual(unknown.operation, operation)
+        XCTAssertTrue(admission.isClosed)
+        let refusedActions = await afterBootDriver.actions()
+        XCTAssertEqual(refusedActions, [.verify], "Recovery must inspect, never replay a start")
+        await afterBootDriver.setReady(true)
+        _ = try await restored.submit(.init(action: .verify), ownerUID: 501)
+        let verified = try await terminal(restored)
+        XCTAssertEqual(verified.phase, "completed", verified.error ?? "")
+        XCTAssertEqual(verified.operation, operation)
+        XCTAssertFalse(admission.isClosed)
+        let recoveredActions = await afterBootDriver.actions()
+        XCTAssertEqual(recoveredActions, [.verify, .verify])
     }
 
     func testFreshHealthProbeCannotOverlapAStartOrChangeItsOperationIdentity() async throws {
