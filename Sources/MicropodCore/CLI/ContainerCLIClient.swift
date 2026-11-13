@@ -14,6 +14,7 @@ import OSLog
 /// Docker shim serve concurrent lifecycles without serialising them.
 public struct ContainerCLIClient: Sendable {
     private let executableOverride: URL?
+    private let admission: RuntimeAdmission
 
     public var executableURL: URL {
         executableOverride ?? ContainerExecutableLocator.resolve()
@@ -21,6 +22,12 @@ public struct ContainerCLIClient: Sendable {
 
     public init(executableURL: URL? = nil) {
         self.executableOverride = executableURL
+        self.admission = .shared
+    }
+
+    init(executableURL: URL, admission: RuntimeAdmission) {
+        self.executableOverride = executableURL
+        self.admission = admission
     }
 
     public var followsDefaultSelection: Bool {
@@ -75,7 +82,7 @@ public struct ContainerCLIClient: Sendable {
                 IsolatedRuntimePolicy.root.appendingPathComponent("apple/versions").path + "/")
         let claim =
             command.observesRuntimeOnly || ["pkgutil", "spctl", "codesign"].contains(executableURL.lastPathComponent)
-            ? nil : try RuntimeAdmission.shared.claim(command.metricLabel)
+            ? nil : try admission.claim(command.metricLabel)
         defer { withExtendedLifetime(claim) {} }
         let started = Date()
         let signpostState = Self.signposter.beginInterval(
@@ -167,7 +174,8 @@ public struct ContainerCLIClient: Sendable {
                         // Instant exit detection — no polling latency.
                         process.terminationHandler = { _ in
                             let outcome = cancellation.outcome(
-                                exitCode: process.terminationStatus,
+                                exitCode: process.terminationReason == .exit
+                                    ? process.terminationStatus : -abs(process.terminationStatus),
                                 cancelledWhileRunning: cancellation.cancelTerminated,
                                 timedOut: cancellation.timeoutTerminated)
                             switch outcome {
@@ -226,11 +234,13 @@ public struct ContainerCLIClient: Sendable {
 
         let stdout = (try? String(contentsOf: stdoutURL, encoding: .utf8)) ?? ""
         let stderr = (try? String(contentsOf: stderrURL, encoding: .utf8)) ?? ""
-        guard acceptingExitCodes.contains(exitCode) else {
+        // A normal, reaped exit settles the command even when it reports an
+        // error. Cancellation, signal death and unknown delivery keep intent.
+        if exitCode >= 0 { try claim?.completed() }
+        guard exitCode >= 0, acceptingExitCodes.contains(exitCode) else {
             throw MicropodError.cliFailure(
                 command: command.displayName, exitCode: exitCode, stderr: stderr)
         }
-        try claim?.completed()
         return stdout
     }
 
@@ -285,7 +295,7 @@ public struct ContainerCLIClient: Sendable {
         return AsyncThrowingStream(bufferingPolicy: .bufferingOldest(64)) { continuation in
             let claim: RuntimeAdmissionClaim?
             do {
-                claim = command.observesRuntimeOnly ? nil : try RuntimeAdmission.shared.claim(command.metricLabel)
+                claim = command.observesRuntimeOnly ? nil : try admission.claim(command.metricLabel)
             } catch {
                 continuation.finish(throwing: error)
                 return
@@ -395,13 +405,15 @@ public struct ContainerCLIClient: Sendable {
                     }
                     Thread.sleep(forTimeInterval: 0.02)
                 }
+                var pipesDrained = false
                 if !cancelledWhileRunning {
                     process.waitUntilExit()
                     // Bounded: a descendant that inherited the pipes can hold
                     // them open after the process itself has exited.
-                    _ = drained.wait(timeout: .now() + .milliseconds(500))
+                    pipesDrained = drained.wait(timeout: .now() + .milliseconds(500)) == .success
                 }
                 let wasCancelledWhileRunning = cancelledWhileRunning
+                let outputSettled = pipesDrained
                 // Foundation returns a positive signal number for uncaughtSignal.
                 // Preserve that distinction so a killed fetch cannot authorize retries.
                 let exitCode =
@@ -410,18 +422,28 @@ public struct ContainerCLIClient: Sendable {
                 gate.runOnce {
                     if wasCancelledWhileRunning {
                         continuation.finish(throwing: CancellationError())
-                    } else if reportExitCode, exitCode != 0 {
+                    } else if exitCode < 0 {
                         continuation.finish(
                             throwing: MicropodError.cliFailure(
                                 command: displayName, exitCode: exitCode, stderr: ""))
                     } else {
-                        if exitCode == 0 {
-                            do { try claim?.completed() } catch {
-                                continuation.finish(throwing: error)
-                                return
-                            }
+                        guard outputSettled else {
+                            continuation.finish(
+                                throwing: MicropodError.message(
+                                    "Command output did not settle; check runtime status before retrying"))
+                            return
                         }
-                        continuation.finish()
+                        do { try claim?.completed() } catch {
+                            continuation.finish(throwing: error)
+                            return
+                        }
+                        if reportExitCode, exitCode != 0 {
+                            continuation.finish(
+                                throwing: MicropodError.cliFailure(command: displayName, exitCode: exitCode, stderr: "")
+                            )
+                        } else {
+                            continuation.finish()
+                        }
                     }
                 }
             }
