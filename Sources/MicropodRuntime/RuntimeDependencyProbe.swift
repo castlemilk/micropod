@@ -10,8 +10,14 @@ public enum RuntimeDependencyProbe {
             do {
                 let health = try await api.ping(timeout: .seconds(2))
                 let version = health.semver ?? health.apiServerVersion
-                return health.semver.map(RuntimeServices.isVerified(semver:)) == true
-                    ? .ready(version: version) : .unsupported(version: version)
+                guard health.semver.map(RuntimeServices.isVerified(semver:)) == true else {
+                    return .unsupported(version: version)
+                }
+                if let root = health.installRoot {
+                    let path = URL(string: root).flatMap { $0.isFileURL ? $0.path : nil } ?? root
+                    return .managedReady(version: version, installRoot: path)
+                }
+                return .ready(version: version)
             } catch {
                 return .unavailable
             }

@@ -40,6 +40,11 @@ public struct ContainerCLIClient: Sendable {
     ) async throws -> String {
         try Task.checkCancellation()
         let executableURL = self.executableURL
+        let managed = executableURL.path.hasPrefix(ManagedRuntimeLocation.root.path + "/versions/")
+        let claim =
+            command.observesRuntimeOnly || ["pkgutil", "spctl", "codesign"].contains(executableURL.lastPathComponent)
+            ? nil : try RuntimeAdmission.shared.claim(command.metricLabel)
+        defer { withExtendedLifetime(claim) {} }
         let started = Date()
         let signpostState = Self.signposter.beginInterval(
             "cli", "\(command.displayName, privacy: .public)")
@@ -57,6 +62,10 @@ public struct ContainerCLIClient: Sendable {
         process.executableURL = executableURL
         process.arguments = command.arguments
         process.environment = ProcessInfo.processInfo.environment
+        if managed {
+            process.environment?["CONTAINER_INSTALL_ROOT"] =
+                executableURL.deletingLastPathComponent().deletingLastPathComponent().path
+        }
 
         let stdoutURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("micropod-out-\(UUID().uuidString)")
@@ -188,6 +197,7 @@ public struct ContainerCLIClient: Sendable {
             throw MicropodError.cliFailure(
                 command: command.displayName, exitCode: exitCode, stderr: stderr)
         }
+        try claim?.completed()
         return stdout
     }
 
@@ -204,10 +214,21 @@ public struct ContainerCLIClient: Sendable {
         -> AsyncThrowingStream<Data, Error>
     {
         AsyncThrowingStream(bufferingPolicy: .bufferingOldest(64)) { continuation in
+            let claim: RuntimeAdmissionClaim?
+            do {
+                claim = command.observesRuntimeOnly ? nil : try RuntimeAdmission.shared.claim(command.metricLabel)
+            } catch {
+                continuation.finish(throwing: error)
+                return
+            }
             let process = Process()
             process.executableURL = executableURL
             process.arguments = command.arguments
             process.environment = ProcessInfo.processInfo.environment
+            if executableURL.path.hasPrefix(ManagedRuntimeLocation.root.path + "/versions/") {
+                process.environment?["CONTAINER_INSTALL_ROOT"] =
+                    executableURL.deletingLastPathComponent().deletingLastPathComponent().path
+            }
 
             let stdoutPipe = Pipe()
             let stderrPipe = Pipe()
@@ -291,6 +312,7 @@ public struct ContainerCLIClient: Sendable {
             // The watcher is the sole process reaper. Cancellation only flips
             // the controller flag; the watcher owns TERM, KILL, wait, and finish.
             Thread.detachNewThread {
+                defer { withExtendedLifetime(claim) {} }
                 var cancelledWhileRunning = false
                 while process.isRunning {
                     if cancellation.shouldCancel(process) {
@@ -320,6 +342,12 @@ public struct ContainerCLIClient: Sendable {
                             throwing: MicropodError.cliFailure(
                                 command: displayName, exitCode: exitCode, stderr: ""))
                     } else {
+                        if exitCode == 0 {
+                            do { try claim?.completed() } catch {
+                                continuation.finish(throwing: error)
+                                return
+                            }
+                        }
                         continuation.finish()
                     }
                 }

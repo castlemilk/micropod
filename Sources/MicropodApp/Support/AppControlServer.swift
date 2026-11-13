@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import MicropodCore
+import MicropodRuntime
 import Network
 
 /// Newline-JSON control socket the app serves at
@@ -20,13 +21,16 @@ final class AppControlServer: @unchecked Sendable {
     let socketPath: String
     private var listener: NWListener?
     private let updateController: @MainActor () -> UpdateController
+    private let runtimeController: @MainActor () -> ManagedRuntimeController
 
     init(
         socketPath: String = AppControlClient.defaultSocketPath,
-        updateController: @escaping @MainActor () -> UpdateController = { .shared }
+        updateController: @escaping @MainActor () -> UpdateController = { .shared },
+        runtimeController: @escaping @MainActor () -> ManagedRuntimeController = { .shared }
     ) {
         self.socketPath = socketPath
         self.updateController = updateController
+        self.runtimeController = runtimeController
     }
 
     func start() {
@@ -35,10 +39,17 @@ final class AppControlServer: @unchecked Sendable {
         try? FileManager.default.createDirectory(
             at: URL(fileURLWithPath: socketPath).deletingLastPathComponent(),
             withIntermediateDirectories: true)
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: 0o700], ofItemAtPath: URL(fileURLWithPath: socketPath).deletingLastPathComponent().path)
         let parameters = NWParameters.tcp
         parameters.requiredLocalEndpoint = .unix(path: socketPath)
         parameters.allowLocalEndpointReuse = true
         guard let listener = try? NWListener(using: parameters) else { return }
+        listener.stateUpdateHandler = { [socketPath] state in
+            if case .ready = state {
+                try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: socketPath)
+            }
+        }
         listener.newConnectionHandler = { [weak self] connection in
             self?.handle(connection)
         }
@@ -95,7 +106,28 @@ final class AppControlServer: @unchecked Sendable {
 
     @MainActor
     private func route(_ method: String) async -> (ok: Bool, result: [String: Any], error: String?) {
+        let managed = runtimeController()
         switch method {
+        case "runtime.status":
+            await managed.refresh()
+            return (true, managed.statusReport, nil)
+        case "runtime.cancel":
+            await managed.cancel()
+            return (true, managed.statusReport, nil)
+        case "runtime.recover":
+            do {
+                try await managed.recover()
+                return (true, managed.statusReport, nil)
+            } catch { return (false, [:], error.localizedDescription) }
+        case "runtime.install", "runtime.repair", "runtime.start", "runtime.stop", "runtime.restart":
+            let action = String(method.dropFirst("runtime.".count))
+            guard let action = RuntimeLifecycleAction(rawValue: action) else {
+                return (false, [:], "Unknown runtime action")
+            }
+            do {
+                _ = try await managed.begin(action)
+                return (true, managed.statusReport, nil)
+            } catch { return (false, [:], error.localizedDescription) }
         case "ping":
             return (true, ["pong": true], nil)
         case "update.check":

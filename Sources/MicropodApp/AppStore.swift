@@ -276,6 +276,7 @@ final class AppStore {
     var isHealingRuntime = false
     var runtimeOperationInProgress: Bool {
         isStartingRuntime || isStoppingRuntime || isRestartingRuntime || isHealingRuntime || isInstallingKernel
+            || ManagedRuntimeController.shared.isBusy
     }
     /// Liveness of the apiserver's container path — `system status` can keep
     /// answering while list/create/df are wedged, so health tracks the probe
@@ -390,6 +391,7 @@ final class AppStore {
     @ObservationIgnored private var consecutiveStartFailures = 0
     @ObservationIgnored private var consecutiveProbeMisses = 0
     @ObservationIgnored private var runtimeIntentGeneration: UInt64 = 0
+    @ObservationIgnored private var managedStartIntentGeneration: UInt64 = 0
     /// Coalesces `container system status` spawns: the containers poller,
     /// stats poller, and runtime supervisor would otherwise each fire their
     /// own process every few seconds. One in-flight refresh serves all
@@ -539,6 +541,25 @@ final class AppStore {
     func bootstrap() {
         guard containersTask == nil else { return }
         clientAvailable = dependencies.client.isAvailable()
+        if NSClassFromString("XCTestCase") == nil {
+            ManagedRuntimeController.shared.didBegin = { [weak self] action in
+                guard let self else { return }
+                if action == .stop {
+                    runtimeIntentGeneration += 1
+                } else {
+                    managedStartIntentGeneration = runtimeIntentGeneration
+                }
+                runtimeAutomationPaused = true
+            }
+            ManagedRuntimeController.shared.didComplete = { [weak self] operation in
+                guard let self else { return }
+                if operation.action != .stop, managedStartIntentGeneration == runtimeIntentGeneration {
+                    runtimeAutomationPaused = false
+                }
+                await dependencies.refreshBackendIfNeeded(force: true)
+                await refreshSystemStatus(force: true)
+            }
+        }
         Task {
             await refreshSystemStatus()
             if canAutomaticallyStartRuntime {
@@ -716,35 +737,8 @@ final class AppStore {
 
     /// Explicit operator recovery. The health supervisor never calls this.
     private func healRuntime(reason: String) async {
-        guard !runtimeOperationInProgress else { return }
-        let intentGeneration = runtimeIntentGeneration
-        runtimeAutomationPaused = true
-        isHealingRuntime = true
-        defer { isHealingRuntime = false }
-        runtimeHealCount += 1
-        recordActivity(
-            "system",
-            "Runtime unresponsive (\(reason)) — restarting system service…",
-            level: .error)
-        do {
-            try await dependencies.system.stop()
-            try Task.checkCancellation()
-            try await dependencies.system.startWithKernelInstall()
-            consecutiveProbeMisses = 0
-            consecutiveStartFailures = 0
-            runtimeHealth = .unknown
-            lastRuntimeHealAt = Date()
-            await refreshSystemStatus(force: true)
-            runtimeAutomationPaused = !isRuntimeRunning || runtimeIntentGeneration != intentGeneration
-            recordActivity("system", "Runtime recovery command completed; readiness checked", level: .info)
-            Task { await refreshContainers() }
-        } catch {
-            lastRuntimeHealAt = Date()
-            recordActivity(
-                "system",
-                "Runtime recovery failed: \(error.localizedDescription)",
-                level: .error)
-        }
+        recordActivity("system", "Runtime recovery requested: \(reason)")
+        await restartRuntime()
     }
 
     /// Explicit operator recovery from Settings.
@@ -755,26 +749,17 @@ final class AppStore {
 
     /// User-initiated bounce of the container runtime (stop + start).
     func restartRuntime() async {
-        guard clientAvailable, !runtimeOperationInProgress else { return }
-        let intentGeneration = runtimeIntentGeneration
-        isRestartingRuntime = true
-        defer { isRestartingRuntime = false }
-        // Explicit user action — the supervisor must not treat the stopped
-        // gap as "user wants it off" (and must not fight the restart).
         runtimeAutomationPaused = true
-        recordActivity("system", "Restarting runtime…")
-        do {
-            try await dependencies.system.stop()
-            try Task.checkCancellation()
-            try await dependencies.system.startWithKernelInstall()
-            await refreshSystemStatus(force: true)
-            runtimeAutomationPaused = !isRuntimeRunning || runtimeIntentGeneration != intentGeneration
-            recordActivity("system", "Runtime restart command completed; readiness checked", level: .info)
-        } catch {
-            recordActivity(
-                "system", "Runtime restart failed: \(error.localizedDescription)", level: .error)
+        guard !runtimeOperationInProgress else { return }
+        guard ManagedRuntimeLocation.executable() != nil else {
+            systemStatusError =
+                "Install the managed runtime before requesting coordinated maintenance. The shared service was left running."
+            recordActivity("system", systemStatusError!, level: .error)
+            return
         }
-        Task { await refreshContainers() }
+        do { _ = try await ManagedRuntimeController.shared.begin(.restart) } catch {
+            systemStatusError = error.localizedDescription
+        }
     }
 
     /// Restart every enabled agent (Settings "Restart All Agents").
@@ -784,6 +769,12 @@ final class AppStore {
     }
 
     private func attemptRuntimeStart(reason: String) async {
+        if ManagedRuntimeLocation.executable() != nil {
+            guard canAutomaticallyStartRuntime, !ManagedRuntimeController.shared.isBusy else { return }
+            runtimeAutomationPaused = true
+            _ = try? await ManagedRuntimeController.shared.begin(.start)
+            return
+        }
         guard canAutomaticallyStartRuntime else { return }
         let intentGeneration = runtimeIntentGeneration
         // Persist before invoking the CLI. A crash, cancellation or uncertain
@@ -983,6 +974,10 @@ final class AppStore {
     }
 
     func startRuntime() async {
+        if ManagedRuntimeLocation.executable() != nil {
+            _ = try? await ManagedRuntimeController.shared.begin(.start)
+            return
+        }
         guard dependencies.client.isAvailable(), RuntimeDependencyStatus.hostSupported,
             !runtimeOperationInProgress
         else { return }
@@ -1005,28 +1000,17 @@ final class AppStore {
     }
 
     func stopRuntime() async {
-        // Persist user intent before awaiting anything, including a failed
-        // stop. Neither a timer nor relaunch may undo maintenance intent.
+        // A stop request also pauses automation when maintenance is refused.
         runtimeIntentGeneration += 1
         runtimeAutomationPaused = true
-        guard !runtimeOperationInProgress else {
-            recordActivity(
-                "system", "Automatic startup paused; wait for the current runtime operation before stopping the service"
-            )
+        guard !runtimeOperationInProgress else { return }
+        guard ManagedRuntimeLocation.executable() != nil else {
+            systemStatusError =
+                "Install the managed runtime before requesting coordinated maintenance. The shared service was left running."
+            recordActivity("system", systemStatusError!, level: .error)
             return
         }
-        isStoppingRuntime = true
-        defer { isStoppingRuntime = false }
-        do {
-            try await dependencies.system.stop()
-            recordActivity("system", "Runtime stopped")
-            systemStatus = nil
-            dependencyNativeReadiness = .unobserved
-            runtimeHealth = .unknown
-            consecutiveProbeMisses = 0
-            await refreshSystemStatus(force: true)
-        } catch {
-            recordActivity("system", "Failed to stop runtime: \(error.localizedDescription)", level: .error)
+        do { _ = try await ManagedRuntimeController.shared.begin(.stop) } catch {
             systemStatusError = error.localizedDescription
         }
     }

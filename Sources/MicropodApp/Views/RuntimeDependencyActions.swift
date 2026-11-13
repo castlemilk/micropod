@@ -7,13 +7,14 @@ struct RuntimeDependencyActions: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            ManagedRuntimeView(store: store)
             Text(store.runtimeDependencyStatus.message)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if store.runtimeDependencyStatus.state == .missingCLI {
                 Text(
-                    "Open Apple's release page, download the signed installer package, and follow macOS Installer. Micropod checks for the installation while it stays open."
+                    "Micropod can download, verify and manage Apple's runtime for this account. You can also install a separate copy from Apple's release page."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)

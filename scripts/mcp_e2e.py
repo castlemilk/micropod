@@ -43,6 +43,7 @@ def rpc(binary, state_dir, cli_path, requests):
     # No API daemon: container tools ask it about sandbox/docker containers,
     # and a real daemon's containers would leak into the mock's answers.
     env["MICROPOD_API_PORT"] = "1"
+    env["MICROPOD_APP_CONTROL_SOCKET"] = os.path.join(state_dir, "app-control.sock")
     payload = "".join(json.dumps(r) + "\n" for r in requests)
     proc = subprocess.run(
         [str(binary)], input=payload, capture_output=True, text=True, env=env, timeout=60)
@@ -79,7 +80,7 @@ def main():
         {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}])
     tools = (responses[0].get("result", {}).get("tools", []) if responses else [])
     names = [t.get("name") for t in tools]
-    expected = {"status", "runtime_status", "list_containers", "start", "stop", "restart", "kill", "delete",
+    expected = {"status", "runtime_status", "runtime_manage", "list_containers", "start", "stop", "restart", "kill", "delete",
                 "run", "exec", "logs", "stats", "inspect",
                 "list_images", "list_volumes", "list_networks",
                 "pull", "push", "df", "compose_up", "compose_down", "compose_ps",
@@ -124,6 +125,11 @@ def main():
     check("runtime_status reports missing runtime without a tool error",
           not result.get("isError", False) and missing.get("state") == "missingCLI"
           and missing.get("cliPath") == missing_path and missing.get("installerURL"))
+
+    r = call(105, "runtime_manage", action="shell")
+    check("runtime_manage rejects unknown actions", r["isError"] and "Unknown runtime action" in r["text"])
+    r = call(106, "runtime_manage", action="operation")
+    check("runtime_manage reports unavailable app without changing runtime", r["isError"])
 
     print("== run")
     r = call(4, "run", image="nginx:1.27", name="e2e-box")

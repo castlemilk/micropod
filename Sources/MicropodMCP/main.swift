@@ -251,6 +251,10 @@ private actor MCPServer {
     // MARK: - Tools
 
     private static let toolDefinitions: [(String, String)] = [
+        (
+            "runtime_manage",
+            "Prepare Apple's verified runtime through the Micropod app. Arguments: action (install, repair, start, stop, restart, operation, cancel, recover). Activation requires qualified consumer coordination and is currently blocked."
+        ),
         ("status", "Runtime status: running/stopped + CLI + apiserver versions."),
         (
             "runtime_status",
@@ -464,6 +468,17 @@ private actor MCPServer {
 
         do {
             switch call.name {
+            case "runtime_manage":
+                let action = string("action")
+                guard
+                    ["install", "repair", "start", "stop", "restart", "operation", "cancel", "recover"].contains(action)
+                else { return toolResult(id, "Unknown runtime action", isError: true) }
+                let report = try await AppControlClient().call("runtime." + (action == "operation" ? "status" : action))
+                return toolResult(
+                    id,
+                    String(
+                        decoding: try JSONSerialization.data(withJSONObject: report, options: [.sortedKeys]),
+                        as: UTF8.self))
             case "runtime_status":
                 let report = await system.dependencyStatus()
                 return toolResult(id, String(decoding: try JSONEncoder().encode(report), as: UTF8.self))

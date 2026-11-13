@@ -35,7 +35,7 @@ agent-driven container management.
   package-cache Keep and reviewed cleanup with active-mount protection.
 - **Menu bar** — running-workload count, workload shortcuts, measured guest
   resources, cache budgets and runtime actions.
-- **Runtime setup** — missing-runtime detection and guided Apple installer setup,
+- **Runtime setup** — missing-runtime detection, verified private Apple runtime staging,
   opt-in automatic startup, persistent manual stops and native readiness diagnostics.
   See [dependency management](docs/runtime-dependencies.md).
 - **MCP server** — STDIO JSON-RPC 2.0 (`tools/call`: status, runtime_status, list_containers,
@@ -77,8 +77,10 @@ task bench     # performance benchmark (real runtime)
 task ci        # Go + Node CI pipelines on micropod (below)
 ```
 
-Requires the Apple `container` CLI at `/usr/local/bin/container` (v1.2.x+,
-validated on v1.3.1) for runtime features; the app still builds/runs without it.
+Runtime features currently require an installed Apple `container` CLI and service.
+Micropod can download and verify a private Apple 1.5.0 installation; activation
+remains blocked pending complete rig consumer coordination. The app builds and
+runs without the CLI. See [dependency management](docs/runtime-dependencies.md).
 
 ## Validation
 

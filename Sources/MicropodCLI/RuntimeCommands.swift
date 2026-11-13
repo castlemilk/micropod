@@ -8,6 +8,8 @@ import MicropodRuntime
 enum RuntimeCommands {
     static let usage = """
         runtime ls                            engines, availability, default
+        runtime install|repair|start|stop|restart  managed runtime operations (app must be running)
+        runtime operation|cancel|recover        progress, cancellation and verified recovery
         runtime status                        Apple dependency readiness and next action (--json supported)
         runtime use <name>                    make <name> the default for new containers
         runtime enable|disable <name>         include/exclude an engine from ps and run
@@ -18,6 +20,17 @@ enum RuntimeCommands {
         let registry = EngineRegistry.shared
         let apple = services.runtime.router?.apple ?? AppleEngine(services: services.runtime)
         switch args.first ?? "ls" {
+        case "install", "repair", "start", "stop", "restart", "cancel", "recover", "operation":
+            let method = args[0] == "operation" ? "status" : args[0]
+            let response = try await AppControlClient().call("runtime." + method)
+            if MicropodCLI.jsonOutput {
+                print(
+                    String(
+                        decoding: try JSONSerialization.data(withJSONObject: response, options: [.sortedKeys]),
+                        as: UTF8.self))
+            } else {
+                print(response["message"] as? String ?? response["phase"] as? String ?? "Runtime operation requested")
+            }
         case "status":
             let parsed = try parseArgs(
                 Array(args.dropFirst()), boolFlags: [], valueFlags: [], commandName: "runtime status")

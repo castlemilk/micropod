@@ -193,6 +193,12 @@ final class APIHandlers: Sendable {
                 let report = try await appControl.updateStatus()
                 return .json(200, report)
 
+            case ("system", .get) where segments == ["v1", "system", "runtime"]:
+                return .json(200, try await appControl.call("runtime.status"))
+            case ("system", .post) where segments.count == 4 && segments[2] == "runtime":
+                guard ["install", "repair", "start", "stop", "restart", "cancel", "recover"].contains(segments[3])
+                else { return .json(400, ["error": "Unknown runtime operation"]) }
+                return .json(202, try await appControl.call("runtime." + segments[3]))
             case ("system", .get) where segments == ["v1", "system", "dependency"]:
                 let report = await RuntimeDependencyProbe.inspect(system: system, services: services)
                 let data = try JSONEncoder().encode(report)

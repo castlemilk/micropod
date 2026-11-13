@@ -106,6 +106,8 @@ public struct NativeContainerService: ContainerServing {
     /// error say it was deleted. The three steps run as one attempt under the
     /// process-wide ``StartGate``, one start at a time.
     private func startTracked(_ id: String, createdHere: Bool) async throws {
+        let admission = try RuntimeAdmission.shared.claim("native.start")
+        defer { withExtendedLifetime(admission) {} }
         try await Self.startLookingIntoNotFound(
             id: id,
             createdHere: createdHere,
@@ -123,6 +125,7 @@ public struct NativeContainerService: ContainerServing {
                 }
             },
             exists: { try await api.get(id: id) != nil })
+        try admission?.completed()
     }
 
     /// Waits between start attempts that answered `notFound` while the
@@ -248,6 +251,8 @@ public struct NativeContainerService: ContainerServing {
     /// 63-character cap) for the volumes — before the mutex and before any
     /// filesystem or XPC work.
     private func createNative(_ request: ContainerRunRequest) async throws -> String {
+        let admission = try RuntimeAdmission.shared.claim("native.create")
+        defer { withExtendedLifetime(admission) {} }
         if let name = request.name {
             try VolumeClone.requireSafeComponent(name, as: "container id")
         }
@@ -255,7 +260,7 @@ public struct NativeContainerService: ContainerServing {
             try VolumeClone.requireSafeVolumeName(volume, as: "volume name")
         }
         let id = request.name ?? UUID().uuidString.lowercased()
-        return try await InFlightCreates.shared.withExclusive(id) {
+        let result = try await InFlightCreates.shared.withExclusive(id) {
             var placed: [String] = []
             do {
                 return try await createNativeInner(request, id: id, placed: &placed)
@@ -264,6 +269,8 @@ public struct NativeContainerService: ContainerServing {
                 throw error
             }
         }
+        try admission?.completed()
+        return result
     }
 
     /// Runs under the id's create mutex (see `createNative`). `placed`

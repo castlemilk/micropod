@@ -218,6 +218,10 @@ final class RuntimeLifecyclePolicyTests: XCTestCase {
         await fixture.store.restartRuntime()
         XCTAssertTrue(fixture.store.runtimeAutomationPaused)
         XCTAssertFalse(fixture.calls.contains { $0.hasPrefix("system start") })
+        XCTAssertFalse(
+            fixture.calls.contains { $0.hasPrefix("system stop") },
+            "An unmanaged shared service cannot be restarted without consumer fencing")
+        XCTAssertTrue(fixture.store.systemStatusError?.contains("coordinated maintenance") == true)
     }
 
     func testForcedReadAfterStartDoesNotReusePreStartStatus() async throws {

@@ -15,6 +15,7 @@ public enum ContainerExecutableLocator {
         if let path = environment["MICROPOD_CONTAINER_CLI_PATH"] {
             return URL(fileURLWithPath: path)
         }
+        if let managed = ManagedRuntimeLocation.executable() { return managed }
         let directories = defaultDirectories + (environment["PATH"] ?? "").split(separator: ":").map(String.init)
         var seen = Set<String>()
         for directory in directories where directory.hasPrefix("/") && seen.insert(directory).inserted {

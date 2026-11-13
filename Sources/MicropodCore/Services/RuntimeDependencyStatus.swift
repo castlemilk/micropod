@@ -27,6 +27,7 @@ public struct RuntimeDependencyStatus: Codable, Sendable, Equatable {
     public enum NativeReadiness: Sendable {
         case unobserved
         case ready(version: String)
+        case managedReady(version: String, installRoot: String)
         case unsupported(version: String)
         case unavailable
     }
@@ -37,6 +38,8 @@ public struct RuntimeDependencyStatus: Codable, Sendable, Equatable {
     public let cliVersionSupported: Bool
     public let apiServerVersion: String
     public let backend: String
+    public let runtimeInstallRoot: String
+    public let maintenanceBlocked: Bool
     public let message: String
     public let nextAction: String
     public let installerURL: String
@@ -62,10 +65,12 @@ public struct RuntimeDependencyStatus: Codable, Sendable, Equatable {
         cliVersionSupported = AppleContainerCompatibility.isVerified(semver: cliVersion)
         apiServerVersion =
             switch native {
-            case .ready(let version), .unsupported(let version): version
+            case .ready(let version), .managedReady(let version, _), .unsupported(let version): version
             case .unobserved, .unavailable: status?.apiServerVersion ?? ""
             }
         self.backend = backend
+        maintenanceBlocked = RuntimeAdmission.shared.isClosed
+        runtimeInstallRoot = if case .managedReady(_, let root) = native { root } else { "" }
 
         if !hostSupported {
             state = .unsupportedHost
@@ -97,7 +102,7 @@ public struct RuntimeDependencyStatus: Codable, Sendable, Equatable {
                 : "Choose a supported CLI release before enabling automatic startup on this rig."
         } else if status?.status == "running" {
             switch native {
-            case .ready:
+            case .ready, .managedReady:
                 state = .nativeReady
                 message = "The native Apple container API answered its readiness check."
                 nextAction = "No setup required."

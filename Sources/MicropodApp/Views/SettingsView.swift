@@ -237,7 +237,7 @@ struct SettingsView: View {
                         .controlSize(.small)
                         .disabled(store.isHealingRuntime || store.isRestartingRuntime)
                         .help(
-                            "Stops and starts the shared Apple container service. This can interrupt other runtime consumers."
+                            "Waits for coordinated rig maintenance before restarting the managed Apple container service."
                         )
                     }
                     settingValueRow("App root", value: store.systemStatus?.appRoot ?? "—", monospaced: true)
