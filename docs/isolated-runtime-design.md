@@ -146,8 +146,26 @@ An idle preflight now runs after closing admission but before marking a
 runtime action as started. A busy refusal can therefore be reconciled without
 trapping the active workload behind a retained disruptive-action fence. Tests
 verify that no stop runs and that workload admission reopens after recovery.
-Live stop/restart, cancellation/domain recovery and signed Cuttlefish handoff
-are still being qualified. #89 remains open until those
+Live acceptance also proved that an active private container blocks stop,
+that verification reopens admission without issuing a stop, and that the
+same container remains usable afterward. A helper/app replacement preserved
+the independent API process and active container.
+
+A delayed-stream test exposed Darwin's inherited `O_NONBLOCK` on accepted
+Unix sockets. The relay interpreted EAGAIN as EOF, truncating delayed output.
+Both API and rig listeners now clear that flag and set close-on-exec on each
+accepted connection. A real Network.framework listener plus authenticated
+BSD gateway regression fails before the fix and passes afterward. Stream
+requests also preserve the caller's nonzero-exit policy, including older
+request decoding.
+
+Those failed live streams left unconfirmed request receipts in the private
+qualification instance. Routine maintenance correctly refuses to ignore them.
+Their command results have not been inferred from an empty inventory, and no
+requests have been replayed or receipts deleted. The Setup details now report
+bounded, redacted pending-request diagnostics. Idle stop/start, saved-volume
+verification and signed Cuttlefish handoff remain unaccepted until those test
+receipts are resolved through an explicit operator recovery. #89 remains open until those
 checks succeed. Passing source tests is not clean-machine acceptance or
 permission to replace the rig's currently running software.
 

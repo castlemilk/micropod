@@ -43,6 +43,14 @@ public enum RuntimeUnixSocket {
             throw error
         }
     }
+    /// Darwin accept inherits the listener's O_NONBLOCK. The bounded worker
+    /// must wait for bytes rather than treating EAGAIN as the peer's EOF.
+    public static func configureAccepted(_ fd: Int32) throws {
+        let flags = fcntl(fd, F_GETFL)
+        guard flags >= 0, fcntl(fd, F_SETFL, flags & ~O_NONBLOCK) == 0,
+            fcntl(fd, F_SETFD, FD_CLOEXEC) == 0
+        else { throw failure() }
+    }
     public static func peer(_ fd: Int32) throws -> RuntimeProcessBirth {
         var uid: uid_t = 0
         var gid: gid_t = 0

@@ -46,7 +46,28 @@ public actor IsolatedRuntimeHostController {
         else {
             throw MicropodError.message("This runtime belongs to another macOS account")
         }
-        if request.action == .status { return state }
+        if request.action == .status {
+            var snapshot = state
+            if let identity = state.identity {
+                let pending = gate.root.appendingPathComponent("pending")
+                if let files = try? FileManager.default.contentsOfDirectory(
+                    at: pending, includingPropertiesForKeys: nil)
+                {
+                    snapshot.pendingOperationCount = files.count
+                    struct PendingRoute: Decodable { let route: String }
+                    snapshot.pendingOperationRoutes = files.prefix(16).map { file in
+                        guard file.pathExtension == "json",
+                            UUID(uuidString: file.deletingPathExtension().lastPathComponent) != nil,
+                            let bytes = try? RuntimeDurableFile.read(
+                                file, maximumBytes: 4096, ownerUID: identity.serviceUID),
+                            let item = try? JSONDecoder().decode(PendingRoute.self, from: bytes)
+                        else { return "Unconfirmed request" }
+                        return String(item.route.prefix(80))
+                    }
+                }
+            }
+            return snapshot
+        }
         if request.action == .probe {
             guard task == nil, !gate.isClosed, let identity = state.identity,
                 let digest = state.workerSHA256, let selection = state.selection ?? state.pendingSelection

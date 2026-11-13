@@ -6,6 +6,69 @@ import XCTest
 @testable import MicropodAPI
 
 final class IsolatedRuntimeGatewayTests: XCTestCase {
+    func testPrivateHTTPStreamDeliversCompletionThroughGateway() async throws {
+        let root = URL(fileURLWithPath: "/private/tmp").appendingPathComponent("gw-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let identity = IsolatedRuntimeIdentity(
+            instance: UUID(), ownerUID: getuid(), serviceUID: getuid(), serviceGID: getgid(), accountGUID: UUID(),
+            groupGUID: UUID())
+        let session = IsolatedRuntimeAPISession(
+            id: UUID(), instance: identity.instance, token: String(repeating: "a", count: 43),
+            subject: try XCTUnwrap(RuntimeProcessBirth.read(getpid())), expiresAt: Date().addingTimeInterval(60))
+        try RuntimeDurableFile.write(
+            IsolatedRuntimeAPISessionRecord(session: session),
+            to: root.appendingPathComponent(session.id.uuidString + ".json"))
+        let path = root.appendingPathComponent("a.sock").path
+        let internalPath = root.appendingPathComponent("b.sock").path
+        let server = HTTPServer(port: 45454) { _ in
+            .stream(
+                200, "application/x-ndjson",
+                AsyncStream { continuation in
+                    let task = Task {
+                        try? await Task.sleep(for: .milliseconds(100))
+                        continuation.yield(Data("{\"chunk\":\"b2s=\"}\n".utf8))
+                        continuation.yield(Data("{\"complete\":true}\n".utf8))
+                        continuation.finish()
+                    }
+                    continuation.onTermination = { _ in task.cancel() }
+                })
+        }
+        try await server.startPrivateSocket(path: internalPath)
+        defer { server.stop() }
+        let gateway = IsolatedRuntimeGateway(
+            identity: identity, socketPath: path, internalSocketPath: internalPath, sessionsRoot: root,
+            registryOwnerUID: getuid())
+        try gateway.start()
+        defer { gateway.stop() }
+        let response: Data = try await withCheckedThrowingContinuation { done in
+            DispatchQueue.global().async {
+                done.resume(
+                    with: Result {
+                        let client = try RuntimeUnixSocket.connect(path, expectedUID: getuid())
+                        defer { close(client) }
+                        try RuntimeUnixSocket.timeout(client, seconds: 3)
+                        try RuntimeUnixSocket.write(
+                            Data(
+                                ("POST /stream HTTP/1.1\r\nHost: localhost:45454\r\nContent-Type: application/json\r\n"
+                                    + "Authorization: \(session.authorization)\r\nContent-Length: 2\r\n\r\n{}").utf8),
+                            to: client)
+                        var response = Data()
+                        var bytes = [UInt8](repeating: 0, count: 4096)
+                        while true {
+                            let count = Darwin.read(client, &bytes, bytes.count)
+                            guard count >= 0 else { throw CocoaError(.fileReadUnknown) }
+                            if count == 0 { return response }
+                            response.append(contentsOf: bytes.prefix(count))
+                        }
+                    })
+            }
+        }
+        let text = String(decoding: response, as: UTF8.self)
+        XCTAssertTrue(text.contains("{\"chunk\":\"b2s=\"}\n"), text)
+        XCTAssertTrue(text.hasSuffix("{\"complete\":true}\n"), text)
+    }
+
     private func listener(_ path: String) throws -> Int32 {
         let fd = try RuntimeUnixSocket.open()
         var address = try RuntimeUnixSocket.address(path)

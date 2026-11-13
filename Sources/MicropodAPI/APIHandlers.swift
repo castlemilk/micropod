@@ -188,7 +188,9 @@ final class APIHandlers: Sendable {
                         let events = AsyncStream<Data> { continuation in
                             let task = Task {
                                 do {
-                                    for try await bytes in client.stream(command) {
+                                    for try await bytes in client.stream(
+                                        command, reportExitCode: request.reportExitCode ?? false)
+                                    {
                                         continuation.yield(Self.cliFrame(["chunk": bytes.base64EncodedString()]))
                                     }
                                     continuation.yield(Self.cliFrame(["complete": true]))

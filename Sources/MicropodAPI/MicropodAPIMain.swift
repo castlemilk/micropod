@@ -194,8 +194,7 @@ final class HTTPServer: @unchecked Sendable {
         try await Task.sleep(for: .seconds(3600 * 24 * 365))
     }
 
-    func startPrivateSocket() async throws {
-        let path = IsolatedRuntimeAPIConfiguration.internalSocketURL.path
+    func startPrivateSocket(path: String = IsolatedRuntimeAPIConfiguration.internalSocketURL.path) async throws {
         var existing = stat()
         if lstat(path, &existing) == 0 {
             guard existing.st_uid == getuid(), existing.st_mode & S_IFMT == S_IFSOCK, unlink(path) == 0 else {
@@ -254,6 +253,11 @@ final class HTTPServer: @unchecked Sendable {
     }
 
     private var listeners: [NWListener] = []
+
+    func stop() {
+        for listener in listeners { listener.cancel() }
+        listeners.removeAll()
+    }
 
     /// A request must make progress: the head and body have to finish
     /// arriving within `requestDeadline`, with no silence longer than

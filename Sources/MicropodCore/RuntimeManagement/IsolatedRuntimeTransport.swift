@@ -182,7 +182,10 @@ public struct IsolatedRuntimeCLIRequest: Codable, Sendable {
     public let stdin: Data?
     public let timeoutSeconds: Int
     public let acceptingExitCodes: Set<Int32>
-    public init(command: ContainerCommand, timeout: Duration, acceptingExitCodes: Set<Int32> = [0]) throws {
+    public let reportExitCode: Bool?
+    public init(
+        command: ContainerCommand, timeout: Duration, acceptingExitCodes: Set<Int32> = [0], reportExitCode: Bool? = nil
+    ) throws {
         guard command.environment.isEmpty, command.stdinFile == nil else {
             throw MicropodError.message(
                 "Managed runtime commands do not accept host environment overrides or file stdin; send an explicit stdin payload"
@@ -192,6 +195,7 @@ public struct IsolatedRuntimeCLIRequest: Codable, Sendable {
         stdin = command.stdinData
         timeoutSeconds = max(1, min(600, Int(timeout.components.seconds)))
         self.acceptingExitCodes = acceptingExitCodes
+        self.reportExitCode = reportExitCode
     }
     public func command() throws -> ContainerCommand {
         let roots: Set<String> = [

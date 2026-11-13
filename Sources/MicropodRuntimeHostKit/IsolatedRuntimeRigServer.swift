@@ -36,6 +36,10 @@ public final class IsolatedRuntimeRigServer: @unchecked Sendable {
                 while true {
                     let client = accept(fd, nil, nil)
                     if client < 0 { return }
+                    do { try RuntimeUnixSocket.configureAccepted(client) } catch {
+                        close(client)
+                        continue
+                    }
                     guard slots.wait(timeout: .now()) == .success else {
                         close(client)
                         continue

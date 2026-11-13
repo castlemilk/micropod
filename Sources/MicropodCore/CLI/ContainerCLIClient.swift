@@ -250,7 +250,8 @@ public struct ContainerCLIClient: Sendable {
             return AsyncThrowingStream { continuation in
                 let task = Task {
                     do {
-                        let request = try IsolatedRuntimeCLIRequest(command: command, timeout: .seconds(600))
+                        let request = try IsolatedRuntimeCLIRequest(
+                            command: command, timeout: .seconds(600), reportExitCode: reportExitCode)
                         var buffer = Data()
                         var completed = false
                         for try await bytes in IsolatedRuntimeTransport.shared.stream(

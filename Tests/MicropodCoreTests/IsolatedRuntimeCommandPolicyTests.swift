@@ -4,6 +4,15 @@ import XCTest
 @testable import MicropodCore
 
 final class IsolatedRuntimeCommandPolicyTests: XCTestCase {
+    func testStreamExitPolicyRoundTripsAndOlderRequestsRemainCompatible() throws {
+        let request = try IsolatedRuntimeCLIRequest(
+            command: .init(arguments: ["image", "pull", "alpine"]), timeout: .seconds(10), reportExitCode: true)
+        let roundTrip = try JSONDecoder().decode(
+            IsolatedRuntimeCLIRequest.self, from: JSONEncoder().encode(request))
+        XCTAssertEqual(roundTrip.reportExitCode, true)
+        let legacy = Data(#"{"arguments":["image","pull","alpine"],"timeoutSeconds":10,"acceptingExitCodes":[0]}"#.utf8)
+        XCTAssertNil(try JSONDecoder().decode(IsolatedRuntimeCLIRequest.self, from: legacy).reportExitCode)
+    }
     func testLifecycleAndRuntimeRetargetingCannotCrossDataPlane() throws {
         for arguments in [
             ["system", "stop"], ["system", "start"], ["plugin", "restart", "container-runtime-linux"],

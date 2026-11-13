@@ -58,7 +58,10 @@ final class IsolatedRuntimeGateway: @unchecked Sendable {
                 while true {
                     let client = accept(fd, nil, nil)
                     if client < 0 { return }
-                    _ = fcntl(client, F_SETFD, FD_CLOEXEC)
+                    do { try RuntimeUnixSocket.configureAccepted(client) } catch {
+                        close(client)
+                        continue
+                    }
                     guard slots.wait(timeout: .now()) == .success else {
                         close(client)
                         continue

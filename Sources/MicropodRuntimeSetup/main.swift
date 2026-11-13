@@ -132,6 +132,13 @@ struct MicropodRuntimeSetup: App {
                                 .font(.caption.monospaced()).textSelection(.enabled)
                             Text("State: \(model.status.nativeState ?? model.status.phase)")
                                 .font(.caption).textSelection(.enabled)
+                            if let count = model.status.pendingOperationCount, count > 0 {
+                                Text("Unconfirmed requests: \(count)").font(.caption)
+                                ForEach(Array((model.status.pendingOperationRoutes ?? []).enumerated()), id: \.offset) {
+                                    _, route in
+                                    Text(route).font(.caption.monospaced()).textSelection(.enabled)
+                                }
+                            }
                             if let root = model.status.nativeAppRoot {
                                 Text("Data: \(root)").font(.caption.monospaced()).textSelection(.enabled)
                             }

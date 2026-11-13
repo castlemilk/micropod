@@ -33,6 +33,8 @@ public struct IsolatedRuntimeStatus: Codable, Sendable {
     public var nativeAppRoot: String?
     public var nativeInstallRoot: String?
     public var error: String?
+    public var pendingOperationCount: Int?
+    public var pendingOperationRoutes: [String]?
     /// Ephemeral capability, returned only over authenticated IPC. Never journaled.
     public var session: IsolatedRuntimeAPISession?
     public var isTerminal: Bool {
