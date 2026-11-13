@@ -132,8 +132,10 @@ final class APIHandlers: Sendable {
         {
             do {
                 let services = await runtime.current
-                let entries = try await services.containers.list()
-                return .json(200, ["idle": entries.allSatisfy { ["stopped", "exited", "dead"].contains($0.state) }])
+                let idle = try await ManagedRuntimeIdleCheck.check(
+                    visible: { try await services.containers.list() },
+                    ownedSandboxes: { try await self.sandboxEngine.list() })
+                return .json(200, ["idle": idle])
             } catch { return .json(503, ["idle": false]) }
         }
         if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1", method == .post {
