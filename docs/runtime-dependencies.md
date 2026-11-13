@@ -1,132 +1,115 @@
 # Apple container dependency management
 
-[#89](https://github.com/castlemilk/micropod/issues/89) now has dependency diagnostics,
-a managed signed-package installer and durable lifecycle orchestration. **It remains
-open:** activation requires complete runtime consumer coverage, which the current
-Cuttlefish broker does not implement. CI admission ownership alone is insufficient.
-There is no setting that overrides this requirement.
+[#89](https://github.com/castlemilk/micropod/issues/89) adds dependency diagnostics,
+a verified installer and a dedicated-account lifecycle authority. It remains open
+for physical qualification. The released 0.12.6 app still uses the external Apple
+runtime; the development setup app is installed separately for acceptance.
 
 ## Discovery and diagnostics
 
 The app, API, CLI, MCP server and Docker shim share one executable locator.
-An explicit `--cli` or `MICROPOD_CONTAINER_CLI_PATH` remains authoritative, even
-when missing. The shim also supports `MICROPOD_CLI_PATH`. Otherwise a valid managed
-selection takes precedence over `/usr/local/bin`, `/opt/homebrew/bin` and absolute
-PATH entries. An invalid managed selection fails closed instead of switching stores.
-Discovery and executable-version identity are refreshed while the app remains open.
+An explicit `--cli` or `MICROPOD_CONTAINER_CLI_PATH` remains authoritative, including
+when missing. The shim also supports `MICROPOD_CLI_PATH`. Otherwise the owning
+account's system-managed selection takes precedence over a legacy managed copy,
+`/usr/local/bin`, `/opt/homebrew/bin` and absolute PATH entries. A broken selection
+does not silently select another store. Installation/version changes are detected
+while the app remains open.
 
-The shared dependency report distinguishes missing CLI, unsupported host/version,
+The dependency report distinguishes missing CLI, unsupported host/version,
 stopped, starting/stopping, native readiness, CLI fallback, API unavailable and
-degraded states. It includes CLI/API versions, backend, runtime installation root,
-maintenance closure and the next action. Raw command output is excluded.
+degraded states. It includes versions, backend, installation root, maintenance
+closure and a next action. Raw command output and session credentials are excluded.
 
 - GUI: onboarding, main window and Settings → Runtime.
 - CLI: `micropod --json runtime status`.
 - API: `GET /v1/system/dependency`.
 - MCP: `runtime_status`.
 
-App/API/CLI native readiness uses a fresh bounded XPC ping. MCP's direct CLI
-observation reports native readiness as unconfirmed. A cached backend, process
-existence or an idle list does not authorize lifecycle maintenance.
+The managed API performs a fresh native probe. If it is stopped, the authenticated
+helper can perform a bounded private-account probe without changing the lifecycle
+operation ID. A cached backend, process record or idle list cannot authorize a
+runtime change. Legacy MCP CLI observations leave native readiness unconfirmed.
 
-## Managed installer
+## Install and repair
 
-“Prepare Apple Container…” obtains explicit consent to download and stage Apple's
-1.5.0 runtime. The installer uses the official signed package, pinned to:
+“Install Apple Container…” describes the dedicated account and requests consent.
+macOS then asks an administrator to approve Micropod's signed helper through
+System Settings → General → Login Items & Extensions. Setup verifies Apple's
+1.5.0 official package, its notarization and signer, and all 17 payload hashes:
 
-- URL: Apple's `container` GitHub release, `container-1.5.0-installer-signed.pkg`.
 - Size: 118,045,087 bytes.
 - SHA-256: `a24808cb202318fa1c3bbee0c6c6887fe1225fe899d7b687a0ddd939bd6573f8`.
-- Developer ID Installer: Apple Inc. – Containerization, team `UPBK2H6LZM`.
+- Installer team: `UPBK2H6LZM` (Apple Inc. – Containerization).
 
-Downloads use an ephemeral HTTPS session, restricted redirects, bounded size and a
-five-minute resource deadline. Package integrity, installer signature, Gatekeeper
-assessment, package metadata and all 17 payload hashes are checked. Mach-O signatures
-are verified against Apple's team. Installer scripts are never executed.
+Downloads use an ephemeral HTTPS session, restricted redirects, size limits and a
+five-minute resource deadline. Installer scripts are not executed. Verified packages
+are retained for offline repair; repair stages another immutable directory instead
+of overwriting an executable in use.
 
-Files stay in the account's private `~/Library/Application Support/Micropod/Runtime`:
-`versions/<version>-<digest>-<UUID>` contains each immutable installation; `packages`
-retains the verified package for reuse and offline repair. Each use rechecks its
-integrity. A repair stages a new directory without replacing running executables.
-`current.json` changes only after maintenance admission and an acknowledged stop.
-No root installer, security-setting change, global CLI replacement or store migration
-is performed. Images, volumes and networks remain in Apple's existing application root.
+The approved helper provisions a hidden, locked `_micropod` account. Executables
+and control state remain root-owned under
+`/Library/Application Support/Micropod/RuntimeHost`. The private home and Apple
+store live under `/private/var/db/micropod-runtime`. The desktop runtime, `/usr/local`
+and its images, volumes and networks stay separate. Setup does not migrate data,
+grant access to the whole home directory, or delete/relocate shared build caches.
+See [the account, gateway and recovery design](isolated-runtime-design.md).
 
-Preparing files works independently of runtime activation. On the current production
-bridge, activation is refused and the current service remains running. The signed
-package and staged files remain available; a refusal is not installation completion.
+## Lifecycle and rig coordination
 
-## Lifecycle protocol
+GUI, CLI/API/MCP controls reach one signed root authority. It serializes operations
+and synchronizes progress, operation UUIDs, artifact selection, worker incarnation,
+local generation and rig ownership. Its worker enters the dedicated launchd
+namespace, irreversibly drops uid/gid and verifies the namespace before any action.
+The managed API runs independently of the GUI. Its gateway authenticates a live
+client process and holds the same durable admission gate as native and CLI work.
 
-One app-owned actor and cross-process owner lock serialize GUI/API/CLI/MCP operations.
-Progress, operation UUID, target artifact, local generation and host ownership are
-atomically written and synchronized to disk. Journal reads reject oversized files
-and symbolic links. Cancellation before action conditionally aborts the same owner;
-a lost grant, interrupted action or unconfirmed release retains recovery state.
+For an enrolled rig, maintenance follows this order:
 
-The intended sequence is:
+1. Stage and verify artifacts.
+2. Ask Cuttlefish to pause intake and drain current jobs.
+3. Close Micropod admission; reject pending or uncertain operations.
+4. Obtain host admission and a live coverage proof bound to the private runtime
+   instance, operation, artifact, host and generations.
+5. Record begin intent, check native/API workloads and lingering client processes,
+   then stop the drained API and runtime. Activate the staged configuration and start.
+6. Verify the exact private native version, app root and install root. Cuttlefish
+   independently requests fresh readiness over its authenticated helper connection.
+7. Release Micropod's gate, then complete the retained host handoff. A manual stop
+   keeps automatic startup and rig intake paused.
 
-1. Verify and stage the pinned runtime, without changing the running service.
-2. Ask the authenticated rig coordinator to hold new work and drain existing jobs.
-3. Obtain durable host admission ownership and proof of complete consumer coverage.
-4. Close Micropod mutation admission, reject pending/uncertain operations and recheck
-   fresh container/machine inventory. Recheck artifact bytes and owner/generation.
-5. Persist one-time begin intent, stop the drained service, select the version and
-   start it with the explicitly consented kernel-install option.
-6. Verify CLI version and a fresh native API response naming the exact installation
-   root. Cuttlefish independently verifies the pinned files and native backend.
-7. Complete the local handoff, then release the exact host owner/generation. A manual
-   stop keeps automatic startup and rig intake paused.
+Before an action, cancellation uses the same owner's two-stage abort. An interrupted
+or unknown action retains its fence. Recovery verifies kernel process incarnations,
+private-account process inventory and the expected native state without blindly
+repeating start/stop. A missing, untrusted or offline enrolled coordinator cannot be
+ignored. Apple's shared user runtime still cannot supply all-consumer coverage.
 
-The bridge uses a private Unix socket and OS-derived peer PID/UID with live
-Security.framework code-signature verification in both directions. Cuttlefish retains
-its control-plane credentials. Requests contain fixed transitions and artifact identity,
-never shell commands. The transport has one total twenty-second budget. Drain waits
-are limited to two minutes; stop/start commands have separate bounded deadlines.
-
-Native create/start sequences, XPC mutations and CLI mutations participate in the local
-admission gate. Late ordinary XPC replies can settle their own pending receipts;
-transport loss cannot erase uncertainty. Recovery verifies a started operation rather
-than blindly replaying stop/start. A stop with unknown outcome remains blocked.
-
-Automatic startup remains off by default and persists user stop/maintenance intent.
-The app's legacy restart/recovery/stop controls cannot bypass managed admission.
-The existing app-update guard remains unavailable; this protocol does not qualify
-Sparkle, helper replacement or unattended application updates under #90.
+Automatic startup remains off by default and respects the existing user opt-in and
+manual-stop intent. The app-update guard is unchanged; this work does not qualify
+Sparkle or unattended app replacement under #90.
 
 ## Operation surfaces
-
-All actions use the same manager and durable journal:
 
 - CLI: `micropod runtime install|repair|start|stop|restart|operation|cancel|recover`.
 - API: `GET /v1/system/runtime`, `POST /v1/system/runtime/<action>`.
 - MCP: `runtime_manage` with the same actions (`operation` reads progress).
 
-The app must be running to own the operation. `recover` performs reconciliation;
-it is not an override for missing ownership, foreign generations or incomplete coverage.
+The app must run to expose these controls; the approved helper and private API have
+independent lifetimes. Installation approval remains a visible macOS action.
+`recover` reconciles a retained operation; it cannot override foreign ownership,
+pending work or incomplete coverage.
 
-## Qualification and remaining work
+## Qualification
 
-Cuttlefish's `RuntimeConsumerCoverage` contract explicitly requires every supported
-Apple CLI/API, Micropod and shim entry point to participate in durable closure across
-pending/late work and process replacement. **No production broker supplies this proof.**
-An enrolled CI rig or a zero-container snapshot cannot substitute for it. A missing,
-untrusted, offline or CI-only coordinator refuses activation. Pending native-start work
-in PR #87 and external consumer enrollment must be resolved before this can be qualified.
+Full Swift and Cuttlefish source suites and focused race checks pass. Real Unix
+socket tests reject stolen process-bound credentials and verify credential stripping.
+Fault tests cover unknown start, lost host-release replies, replay and overlapping
+health probes. Earlier tests verified the official package, offline repair, corrupt
+package/permission errors and an isolated Alpine workload through a staged CLI
+without restarting the existing user service.
 
-Validated on this Mac on 13 November 2026:
-
-- Official package verification and private staging, including all file pins.
-- An isolated Alpine container through the staged Apple CLI; it returned the expected
-  output and removed itself. The shared service was not stopped or restarted.
-- Corrupt-package rejection, durable gate/journal boundaries, cancellation, competing
-  app ownership, late preparation, changed host owner, failed-start verification and
-  lost-completion reconciliation across app replacement.
-- Cuttlefish host authority/recovery tests and live process-signature checks.
-
-This is not fresh-Mac or managed-backend activation acceptance. Still required: a
-production all-consumer provider; signed paired deployment through the existing guarded
-agent updater; real drain/activation/native adoption; partial-install
-fault qualification; reboot recovery and an unmanaged/late consumer racing closure.
-Keep #89 and the paired pull requests open until those checks pass. No shared build
-cache is deleted or relocated by the installer or its tests.
+Those results do not prove activation in the new account. Administrator approval
+for the notarized setup app is pending on the authorized Mac. Still required: private
+account/bootstrap/native workload acceptance, cancellation/reboot faults, paired
+signed Cuttlefish deployment through its guarded installation flow and a real drain
+race. Bind-mounted workspace access must be qualified explicitly; setup makes no
+broad ACL grant. Keep #89 and both draft PRs open until those checks pass.

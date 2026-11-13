@@ -84,6 +84,30 @@ public struct SystemService: SystemServing {
         backend: String = "cli",
         nativeReadiness: @Sendable () async -> RuntimeDependencyStatus.NativeReadiness = { .unobserved }
     ) async -> RuntimeDependencyStatus {
+        if client.usesIsolatedTransport {
+            do {
+                let bytes = try await IsolatedRuntimeTransport.shared.request(
+                    path: "/v1/managed/dependency", body: Data("{}".utf8), timeout: .seconds(10))
+                return try JSONDecoder().decode(RuntimeDependencyStatus.self, from: bytes)
+            } catch {
+                if let probe = try? await IsolatedRuntimeClient().call(.init(action: .probe)) {
+                    var system = Micropod_V1_SystemStatus()
+                    system.status = probe.nativeState == "stopped" ? "stopped" : "running"
+                    system.cliVersion = (probe.selection ?? probe.pendingSelection)?.version ?? ""
+                    system.apiServerVersion = probe.nativeVersion ?? ""
+                    return RuntimeDependencyStatus(
+                        cliAvailable: client.isAvailable(), cliPath: client.executableURL.path,
+                        status: probe.nativeState == nil ? nil : system,
+                        statusFailed: probe.nativeState == nil && probe.isTerminal, backend: "managed",
+                        native: .unavailable,
+                        starting: !probe.isTerminal && probe.action != .stop,
+                        stopping: !probe.isTerminal && probe.action == .stop)
+                }
+                return RuntimeDependencyStatus(
+                    cliAvailable: client.isAvailable(), cliPath: client.executableURL.path,
+                    status: nil, statusFailed: true, backend: "managed")
+            }
+        }
         let path = client.executableURL.path
         let available = client.isAvailable()
         guard available, RuntimeDependencyStatus.hostSupported else {
@@ -144,10 +168,18 @@ public struct SystemService: SystemServing {
     }
 
     public func start() async throws {
+        if client.usesIsolatedTransport {
+            _ = try await IsolatedRuntimeClient().call(.init(action: .start))
+            return
+        }
         _ = try await client.run(ContainerCommandFactory.systemStart(), timeout: .seconds(60))
     }
 
     public func startWithKernelInstall() async throws {
+        if client.usesIsolatedTransport {
+            _ = try await IsolatedRuntimeClient().call(.init(action: .start))
+            return
+        }
         // No --disable-kernel-install flag: the CLI installs the recommended
         // kernel if the local one is missing or stale.
         _ = try await client.run(
@@ -156,6 +188,10 @@ public struct SystemService: SystemServing {
     }
 
     public func stop() async throws {
+        if client.usesIsolatedTransport {
+            _ = try await IsolatedRuntimeClient().call(.init(action: .stop))
+            return
+        }
         _ = try await client.run(ContainerCommandFactory.systemStop(), timeout: .seconds(60))
     }
 

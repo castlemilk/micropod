@@ -2,6 +2,7 @@ import Foundation
 import MicropodCore
 import MicropodRuntime
 import Observation
+import ServiceManagement
 
 @MainActor @Observable
 final class ManagedRuntimeController {
@@ -30,6 +31,28 @@ final class ManagedRuntimeController {
         } catch {
             self.error = error.localizedDescription
             throw error
+        }
+    }
+    func installWithApproval() {
+        let helper = SMAppService.daemon(plistName: IsolatedRuntimePolicy.serviceName + ".plist")
+        do {
+            if helper.status != .enabled && helper.status != .requiresApproval { try helper.register() }
+            guard helper.status == .enabled else {
+                SMAppService.openSystemSettingsLoginItems()
+                error =
+                    "Approve Micropod in System Settings → General → Login Items & Extensions, then choose Install Apple Container again."
+                return
+            }
+            request(.install)
+        } catch {
+            let failure = error as NSError
+            if failure.domain == "SMAppServiceErrorDomain", failure.code == Int(kSMErrorLaunchDeniedByUser) {
+                SMAppService.openSystemSettingsLoginItems()
+                self.error =
+                    "macOS is waiting for administrator approval. Approve Micropod, then choose Install Apple Container again."
+            } else {
+                self.error = error.localizedDescription
+            }
         }
     }
     func request(_ action: RuntimeLifecycleAction) {

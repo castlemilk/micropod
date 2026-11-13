@@ -4,13 +4,13 @@ import Foundation
 /// Atomic replacement plus file and directory fsync. This is used for action
 /// intent, not just preferences: failure must stop the action before it begins.
 public enum RuntimeDurableFile {
-    public static func read(_ url: URL, maximumBytes: Int) throws -> Data {
+    public static func read(_ url: URL, maximumBytes: Int, ownerUID: uid_t = getuid()) throws -> Data {
         let fd = open(url.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
         guard fd >= 0 else { throw failure() }
         defer { close(fd) }
         var info = stat()
         guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG,
-            info.st_uid == getuid(), info.st_size >= 0, info.st_size <= maximumBytes
+            info.st_uid == ownerUID, info.st_size >= 0, info.st_size <= maximumBytes
         else { throw failure() }
         var result = Data()
         var buffer = [UInt8](repeating: 0, count: min(maximumBytes + 1, 8192))

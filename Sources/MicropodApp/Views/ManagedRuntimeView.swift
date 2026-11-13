@@ -35,13 +35,13 @@ struct ManagedRuntimeView: View {
             }
             if !controller.isBusy && !controller.needsRecovery {
                 HStack {
-                    Button("Prepare Apple Container…") {
+                    Button("Install Apple Container…") {
                         confirmsInstall = true
                     }
                     .buttonStyle(.borderedProminent)
                     .accessibilityIdentifier("runtime.managedInstall")
                     .disabled(!RuntimeDependencyStatus.hostSupported)
-                    if ManagedRuntimeLocation.executable() != nil {
+                    if FileManager.default.fileExists(atPath: IsolatedRuntimePolicy.identityURL.path) {
                         Button("Start") { controller.request(.start) }
                         Button("Stop") { controller.request(.stop) }
                         Button("Restart") { controller.request(.restart) }
@@ -52,13 +52,13 @@ struct ManagedRuntimeView: View {
         }
         .task { await controller.refresh() }
         .confirmationDialog(
-            "Prepare Apple's container runtime?", isPresented: $confirmsInstall, titleVisibility: .visible
+            "Install Apple's container runtime?", isPresented: $confirmsInstall, titleVisibility: .visible
         ) {
-            Button("Download and Verify Runtime") { controller.request(store.clientAvailable ? .repair : .install) }
+            Button("Approve and Install") { controller.installWithApproval() }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(
-                "Micropod downloads and verifies Apple's 1.5.0 runtime (118 MB) and stages a private copy for your account. Activation and kernel setup require qualified coordination for every runtime consumer. That coordination is not yet available, so the current service will keep running."
+                "Micropod verifies Apple's 1.5.0 runtime (118 MB) and installs it in a dedicated, locked macOS account. macOS asks an administrator to approve Micropod's helper. Your existing Apple runtime and its jobs stay separate. You can start the managed runtime after installation."
             )
         }
     }

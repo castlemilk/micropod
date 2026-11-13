@@ -9,6 +9,14 @@ public struct RuntimeRigReceipt: Codable, Sendable, Equatable {
     public let owner: String
     public let generation: Int64
     public let reason: String?
+    public init(operation: UUID, phase: String, hostID: String, owner: String, generation: Int64, reason: String?) {
+        self.operation = operation
+        self.phase = phase
+        self.hostID = hostID
+        self.owner = owner
+        self.generation = generation
+        self.reason = reason
+    }
 }
 
 public protocol RuntimeRigCoordinating: Sendable {
@@ -30,7 +38,14 @@ public enum RuntimeRigAdmissionError: LocalizedError, Sendable {
 /// A missing socket is not permission to ignore an enrolled/offline rig.
 /// Host credentials and authority remain inside the signed Cuttlefish process.
 public struct RuntimeRigClient: RuntimeRigCoordinating {
-    public init() {}
+    private let ownerHome: URL?
+    private let peerUID: UInt32?
+    private let runtimeInstance: UUID?
+    public init(ownerHome: URL? = nil, peerUID: UInt32? = nil, runtimeInstance: UUID? = nil) {
+        self.ownerHome = ownerHome
+        self.peerUID = peerUID
+        self.runtimeInstance = runtimeInstance
+    }
     public static var socketPath: String {
         NSHomeDirectory() + "/.cuttlefish/runner-state/micropod-maintenance.sock"
     }
@@ -38,9 +53,10 @@ public struct RuntimeRigClient: RuntimeRigCoordinating {
         operation: UUID, action: String, installRoot: URL, localGeneration: UInt64, targetState: String
     ) async throws -> RuntimeRigReceipt? {
         let fm = FileManager.default
-        let home = fm.homeDirectoryForCurrentUser
+        let home = ownerHome ?? fm.homeDirectoryForCurrentUser
+        let socketPath = home.appendingPathComponent(".cuttlefish/runner-state/micropod-maintenance.sock").path
         let knownRig =
-            fm.fileExists(atPath: Self.socketPath)
+            fm.fileExists(atPath: socketPath)
             || fm.fileExists(atPath: home.appendingPathComponent(".cuttlefish/agent-desktop-state.json").path)
             || fm.fileExists(atPath: home.appendingPathComponent(".cuttlefish/desktop-state.json").path)
             || fm.fileExists(
@@ -60,13 +76,14 @@ public struct RuntimeRigClient: RuntimeRigCoordinating {
             let installRoot: String
             let localGeneration: UInt64
             let targetState: String
+            let runtimeInstance: UUID?
         }
         let request = Request(
             operation: operation, action: action, version: AppleRuntimeRelease.supported.version,
             packageSHA256: AppleRuntimeRelease.supported.packageSHA256, installRoot: installRoot.path,
-            localGeneration: localGeneration, targetState: targetState)
+            localGeneration: localGeneration, targetState: targetState, runtimeInstance: runtimeInstance)
         let data = try JSONEncoder().encode(request) + Data([10])
-        let response = try await RuntimePeerSocket.exchange(path: Self.socketPath, request: data)
+        let response = try await RuntimePeerSocket.exchange(path: socketPath, request: data, expectedUID: peerUID)
         let receipt = try JSONDecoder().decode(RuntimeRigReceipt.self, from: response)
         guard receipt.operation == operation, receipt.generation >= 0 else {
             throw MicropodError.message("Rig maintenance ownership did not match")
@@ -81,15 +98,16 @@ public struct RuntimeRigClient: RuntimeRigCoordinating {
 /// Authenticates the connected process, rather than a path/snapshot of the
 /// listener. There are no HTTP redirects, cookies, bearer tokens or shell hooks.
 enum RuntimePeerSocket {
-    static func exchange(path: String, request: Data) async throws -> Data {
+    static func exchange(path: String, request: Data, expectedUID: UInt32? = nil) async throws -> Data {
         try Task.checkCancellation()
         return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                continuation.resume(with: Result { try blockingExchange(path: path, request: request) })
+                continuation.resume(
+                    with: Result { try blockingExchange(path: path, request: request, expectedUID: expectedUID) })
             }
         }
     }
-    private static func blockingExchange(path: String, request: Data) throws -> Data {
+    private static func blockingExchange(path: String, request: Data, expectedUID: UInt32?) throws -> Data {
         guard request.count <= 8192 else { throw refused() }
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw notSent() }
@@ -119,7 +137,7 @@ enum RuntimePeerSocket {
         var gid: gid_t = 0
         var pid: pid_t = 0
         var length = socklen_t(MemoryLayout<pid_t>.size)
-        guard getpeereid(fd, &uid, &gid) == 0, uid == getuid(),
+        guard getpeereid(fd, &uid, &gid) == 0, uid == (expectedUID ?? getuid()),
             getsockopt(fd, SOL_LOCAL, LOCAL_PEERPID, &pid, &length) == 0,
             signedCoordinator(pid: pid)
         else { throw notSent() }

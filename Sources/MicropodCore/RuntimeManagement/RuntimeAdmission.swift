@@ -4,7 +4,10 @@ import Foundation
 /// One interprocess gate for Micropod's Apple runtime consumers. Unknown
 /// operation outcomes remain durable and prevent disruptive maintenance.
 public struct RuntimeAdmission: Sendable {
-    public static let shared = RuntimeAdmission(root: ManagedRuntimeLocation.root.appendingPathComponent("admission"))
+    public static let shared = RuntimeAdmission(
+        root:
+            ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1"
+            ? IsolatedRuntimePolicy.admissionRoot : ManagedRuntimeLocation.root.appendingPathComponent("admission"))
     @TaskLocal public static var maintenanceOwner: UUID?
     public let root: URL
     public init(root: URL) { self.root = root }
@@ -20,6 +23,7 @@ public struct RuntimeAdmission: Sendable {
         let pid: Int32
     }
     private var fenceURL: URL { root.appendingPathComponent("fence.json") }
+    private var stateOwnerUID: uid_t { root == IsolatedRuntimePolicy.admissionRoot ? 0 : getuid() }
     public var isClosed: Bool { FileManager.default.fileExists(atPath: fenceURL.path) }
 
     public func nextGeneration() throws -> UInt64 {
@@ -89,7 +93,7 @@ public struct RuntimeAdmission: Sendable {
     }
 
     public func readFence() throws -> Fence {
-        let data = try RuntimeDurableFile.read(fenceURL, maximumBytes: 4096)
+        let data = try RuntimeDurableFile.read(fenceURL, maximumBytes: 4096, ownerUID: stateOwnerUID)
         return try JSONDecoder().decode(Fence.self, from: data)
     }
 

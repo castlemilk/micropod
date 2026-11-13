@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 /// Shared by the app, API, CLI, MCP server and Docker shim. Resolve again on
@@ -15,6 +16,7 @@ public enum ContainerExecutableLocator {
         if let path = environment["MICROPOD_CONTAINER_CLI_PATH"] {
             return URL(fileURLWithPath: path)
         }
+        if let managed = isolatedExecutable() { return managed }
         if let managed = ManagedRuntimeLocation.executable() { return managed }
         let directories = defaultDirectories + (environment["PATH"] ?? "").split(separator: ":").map(String.init)
         var seen = Set<String>()
@@ -24,6 +26,20 @@ public enum ContainerExecutableLocator {
         }
         // A stable missing path makes diagnostics useful on a fresh Mac.
         return URL(fileURLWithPath: "/usr/local/bin/container")
+    }
+
+    public static func isolatedExecutable() -> URL? {
+        guard FileManager.default.fileExists(atPath: IsolatedRuntimePolicy.identityURL.path),
+            let identity = try? IsolatedRuntimeIdentity.readRootOwned(),
+            getuid() == identity.ownerUID || getuid() == identity.serviceUID
+        else { return nil }
+        do {
+            let configuration = try IsolatedRuntimeAPIConfiguration.read(identity: identity, allowStaged: true)
+            return IsolatedRuntimePolicy.root.appendingPathComponent(
+                "apple/versions/" + configuration.selection.directoryName + "/bin/container")
+        } catch {
+            return IsolatedRuntimePolicy.root.appendingPathComponent("invalid-selection/bin/container")
+        }
     }
 
     public static func isExecutableFile(_ path: String) -> Bool {

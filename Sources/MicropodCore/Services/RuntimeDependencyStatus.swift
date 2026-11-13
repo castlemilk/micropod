@@ -69,7 +69,9 @@ public struct RuntimeDependencyStatus: Codable, Sendable, Equatable {
             case .unobserved, .unavailable: status?.apiServerVersion ?? ""
             }
         self.backend = backend
-        maintenanceBlocked = RuntimeAdmission.shared.isClosed
+        maintenanceBlocked =
+            cliPath.hasPrefix(IsolatedRuntimePolicy.root.path + "/")
+            ? RuntimeAdmission(root: IsolatedRuntimePolicy.admissionRoot).isClosed : RuntimeAdmission.shared.isClosed
         runtimeInstallRoot = if case .managedReady(_, let root) = native { root } else { "" }
 
         if !hostSupported {

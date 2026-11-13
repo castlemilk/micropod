@@ -8,6 +8,8 @@ public enum RuntimeBackendKind: String, Sendable {
     case native
     /// Per-call `container` process spawns (the historic path).
     case cli
+    /// CLI operations executed through the isolated native API gateway.
+    case managed
 }
 
 /// The resolved set of runtime-facing services.
@@ -95,9 +97,9 @@ public enum RuntimeBackendResolver {
         let cliStats = StatsSampler(client: client)
         let cliVolumes = VolumeService(client: client)
 
-        func cliServices(health: APIServerHealth? = nil) -> RuntimeServices {
+        func cliServices(health: APIServerHealth? = nil, kind: RuntimeBackendKind = .cli) -> RuntimeServices {
             RuntimeServices(
-                kind: .cli,
+                kind: kind,
                 containers: cliContainers,
                 logs: cliLogs,
                 stats: cliStats,
@@ -108,6 +110,9 @@ public enum RuntimeBackendResolver {
             )
         }
 
+        // A dedicated account is reached through its authenticated gateway.
+        // Never bind the desktop's legacy Apple XPC service by accident.
+        if client.usesIsolatedTransport { return cliServices(kind: .managed) }
         guard mode != "cli" else { return cliServices() }
 
         // An explicit CLI path means the caller deliberately chose a
@@ -225,6 +230,7 @@ public actor RuntimeHolder {
     /// CLI may still become native; native is final while its connection lives.
     private static func isReplaceable(_ services: RuntimeServices) -> Bool {
         services.kind == .cli || services.api?.isInvalidated == true
+            || (services.kind == .native && ContainerCLIClient().usesIsolatedTransport)
     }
 
     /// Swaps to `resolved` when it upgrades CLI to native or replaces a dead
@@ -233,7 +239,7 @@ public actor RuntimeHolder {
     /// the same attempt may apply it.
     private func adopt(_ resolved: RuntimeServices) {
         guard Self.isReplaceable(services),
-            resolved.kind == .native || services.kind == .native
+            resolved.kind == .native || resolved.kind == .managed || services.kind == .native
         else { return }
         let reason =
             services.kind == .native

@@ -23,6 +23,13 @@ public struct ContainerCLIClient: Sendable {
         self.executableOverride = executableURL
     }
 
+    public var usesIsolatedTransport: Bool {
+        guard let identity = try? IsolatedRuntimeIdentity.readRootOwned(), getuid() == identity.ownerUID else {
+            return false
+        }
+        return executableURL == ContainerExecutableLocator.isolatedExecutable()
+    }
+
     /// Instruments signposts so `xctrace record --template "os_signpost"`
     /// splits CLI spawn+XPC+run time from caller overhead (perf workstream).
     private static let signposter = OSSignposter(
@@ -39,8 +46,20 @@ public struct ContainerCLIClient: Sendable {
         _ command: ContainerCommand, timeout: Duration = .seconds(60), acceptingExitCodes: Set<Int32> = [0]
     ) async throws -> String {
         try Task.checkCancellation()
+        if usesIsolatedTransport {
+            let request = try IsolatedRuntimeCLIRequest(
+                command: command, timeout: timeout, acceptingExitCodes: acceptingExitCodes)
+            let bytes = try await IsolatedRuntimeTransport.shared.request(
+                path: "/v1/managed/cli",
+                body: JSONEncoder().encode(request), timeout: timeout)
+            struct Response: Decodable { let output: String }
+            return try JSONDecoder().decode(Response.self, from: bytes).output
+        }
         let executableURL = self.executableURL
-        let managed = executableURL.path.hasPrefix(ManagedRuntimeLocation.root.path + "/versions/")
+        let managed =
+            executableURL.path.hasPrefix(ManagedRuntimeLocation.root.path + "/versions/")
+            || executableURL.path.hasPrefix(
+                IsolatedRuntimePolicy.root.appendingPathComponent("apple/versions").path + "/")
         let claim =
             command.observesRuntimeOnly || ["pkgutil", "spctl", "codesign"].contains(executableURL.lastPathComponent)
             ? nil : try RuntimeAdmission.shared.claim(command.metricLabel)
@@ -62,6 +81,7 @@ public struct ContainerCLIClient: Sendable {
         process.executableURL = executableURL
         process.arguments = command.arguments
         process.environment = ProcessInfo.processInfo.environment
+        process.environment?.merge(command.environment, uniquingKeysWith: { _, requested in requested })
         if managed {
             process.environment?["CONTAINER_INSTALL_ROOT"] =
                 executableURL.deletingLastPathComponent().deletingLastPathComponent().path
@@ -213,7 +233,42 @@ public struct ContainerCLIClient: Sendable {
     public func stream(_ command: ContainerCommand, reportExitCode: Bool = false)
         -> AsyncThrowingStream<Data, Error>
     {
-        AsyncThrowingStream(bufferingPolicy: .bufferingOldest(64)) { continuation in
+        if usesIsolatedTransport {
+            return AsyncThrowingStream { continuation in
+                let task = Task {
+                    do {
+                        let request = try IsolatedRuntimeCLIRequest(command: command, timeout: .seconds(600))
+                        var buffer = Data()
+                        var completed = false
+                        for try await bytes in IsolatedRuntimeTransport.shared.stream(
+                            path: "/v1/managed/cli-stream", body: try JSONEncoder().encode(request))
+                        {
+                            buffer.append(bytes)
+                            guard buffer.count <= 16 * 1024 * 1024 else {
+                                throw MicropodError.message("Managed command output frame exceeded its limit")
+                            }
+                            while let end = buffer.firstIndex(of: 10) {
+                                let frame =
+                                    try JSONSerialization.jsonObject(with: buffer.prefix(upTo: end)) as? [String: Any]
+                                buffer.removeSubrange(...end)
+                                if let text = frame?["error"] as? String { throw MicropodError.message(text) }
+                                if let chunk = frame?["chunk"] as? String, let value = Data(base64Encoded: chunk) {
+                                    continuation.yield(value)
+                                }
+                                if frame?["complete"] as? Bool == true { completed = true }
+                            }
+                        }
+                        guard completed, buffer.isEmpty else {
+                            throw MicropodError.message(
+                                "Managed command completion is unconfirmed; check status before retrying")
+                        }
+                        continuation.finish()
+                    } catch { continuation.finish(throwing: error) }
+                }
+                continuation.onTermination = { _ in task.cancel() }
+            }
+        }
+        return AsyncThrowingStream(bufferingPolicy: .bufferingOldest(64)) { continuation in
             let claim: RuntimeAdmissionClaim?
             do {
                 claim = command.observesRuntimeOnly ? nil : try RuntimeAdmission.shared.claim(command.metricLabel)
@@ -225,7 +280,11 @@ public struct ContainerCLIClient: Sendable {
             process.executableURL = executableURL
             process.arguments = command.arguments
             process.environment = ProcessInfo.processInfo.environment
-            if executableURL.path.hasPrefix(ManagedRuntimeLocation.root.path + "/versions/") {
+            process.environment?.merge(command.environment, uniquingKeysWith: { _, requested in requested })
+            if executableURL.path.hasPrefix(ManagedRuntimeLocation.root.path + "/versions/")
+                || executableURL.path.hasPrefix(
+                    IsolatedRuntimePolicy.root.appendingPathComponent("apple/versions").path + "/")
+            {
                 process.environment?["CONTAINER_INSTALL_ROOT"] =
                     executableURL.deletingLastPathComponent().deletingLastPathComponent().path
             }

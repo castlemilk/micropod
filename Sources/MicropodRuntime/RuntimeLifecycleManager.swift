@@ -21,7 +21,8 @@ public struct RuntimeLifecycleOperation: Codable, Sendable {
 /// One owner for runtime lifecycle, shared by GUI/API/CLI/MCP. The filesystem
 /// gate fences other processes; the rig coordinator retains scheduler authority.
 public actor RuntimeLifecycleManager {
-    public static let shared = RuntimeLifecycleManager()
+    public static let shared = RuntimeLifecycleManager(isolatedHost: true)
+    private let isolatedHost: Bool
     public let root: URL
     private let rig: any RuntimeRigCoordinating
     private let driver: any RuntimeLifecycleDriving
@@ -34,12 +35,15 @@ public actor RuntimeLifecycleManager {
 
     public init(
         root: URL = ManagedRuntimeLocation.root, rig: any RuntimeRigCoordinating = RuntimeRigClient(),
-        driver: any RuntimeLifecycleDriving = NativeRuntimeLifecycleDriver()
+        driver: any RuntimeLifecycleDriving = NativeRuntimeLifecycleDriver(), isolatedHost: Bool = false
     ) {
+        self.isolatedHost = isolatedHost
         self.root = root
         self.rig = rig
         self.driver = driver
-        if let data = try? RuntimeDurableFile.read(root.appendingPathComponent("operation.json"), maximumBytes: 65536) {
+        if !isolatedHost,
+            let data = try? RuntimeDurableFile.read(root.appendingPathComponent("operation.json"), maximumBytes: 65536)
+        {
             operation = try? JSONDecoder().decode(RuntimeLifecycleOperation.self, from: data)
             if operation?.isTerminal == false {
                 let interruptedPhase = operation?.phase
@@ -50,10 +54,33 @@ public actor RuntimeLifecycleManager {
         }
     }
 
-    public func status() -> RuntimeLifecycleOperation? { operation }
+    public func status() async -> RuntimeLifecycleOperation? {
+        if isolatedHost, let status = try? await IsolatedRuntimeClient().call(.init(action: .status)) {
+            operation = Self.operation(status)
+        }
+        return operation
+    }
+    private static func operation(_ status: IsolatedRuntimeStatus) -> RuntimeLifecycleOperation? {
+        guard let id = status.operation, let action = status.action,
+            let lifecycle = RuntimeLifecycleAction(rawValue: action.rawValue)
+        else { return nil }
+        return RuntimeLifecycleOperation(
+            id: id, action: lifecycle, phase: status.phase, message: status.message,
+            selection: status.selection ?? status.pendingSelection, error: status.error)
+    }
 
     @discardableResult
-    public func begin(_ action: RuntimeLifecycleAction) throws -> RuntimeLifecycleOperation {
+    public func begin(_ action: RuntimeLifecycleAction) async throws -> RuntimeLifecycleOperation {
+        if isolatedHost {
+            let mapped: IsolatedRuntimeAction =
+                action == .repair ? .install : IsolatedRuntimeAction(rawValue: action.rawValue)!
+            let status = try await IsolatedRuntimeClient().call(.init(action: mapped))
+            guard let result = Self.operation(status) else {
+                throw MicropodError.message(status.error ?? "Approve Micropod's runtime helper to continue setup")
+            }
+            operation = result
+            return result
+        }
         guard task == nil else { throw MicropodError.message("A runtime operation is already running") }
         try lockOwner()
         do { try reload() } catch {
@@ -79,11 +106,23 @@ public actor RuntimeLifecycleManager {
         return snapshot
     }
 
-    public func cancel() {
+    public func cancel() async {
+        if isolatedHost {
+            _ = try? await IsolatedRuntimeClient().call(.init(action: .cancel))
+            return
+        }
         task?.cancel()
     }
 
-    public func recover() throws -> RuntimeLifecycleOperation {
+    public func recover() async throws -> RuntimeLifecycleOperation {
+        if isolatedHost {
+            let status = try await IsolatedRuntimeClient().call(.init(action: .verify))
+            guard let result = Self.operation(status) else {
+                throw MicropodError.message(status.error ?? status.message)
+            }
+            operation = result
+            return result
+        }
         guard task == nil else { throw MicropodError.message("A runtime operation is already running") }
         try lockOwner()
         do { try reload() } catch {

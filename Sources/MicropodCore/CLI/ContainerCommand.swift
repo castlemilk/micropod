@@ -27,7 +27,7 @@ public struct ContainerCommand: Sendable, Equatable {
 
     public var observesRuntimeOnly: Bool {
         let read: Set<String> = [
-            "list", "ls", "inspect", "logs", "stats", "events", "--version", "--help",
+            "list", "ls", "inspect", "logs", "stats", "events", "--version", "--help", "managername", "manageruid",
             "system status", "system version", "system df", "system logs",
             "image list", "image inspect", "volume list", "volume inspect",
             "network list", "network inspect", "machine list", "machine inspect",
