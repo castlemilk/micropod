@@ -23,11 +23,17 @@ public struct ContainerCLIClient: Sendable {
         self.executableOverride = executableURL
     }
 
+    public var followsDefaultSelection: Bool {
+        executableOverride == nil && ProcessInfo.processInfo.environment["MICROPOD_CONTAINER_CLI_PATH"] == nil
+    }
+
     public var usesIsolatedTransport: Bool {
         guard let identity = try? IsolatedRuntimeIdentity.readRootOwned(), getuid() == identity.ownerUID else {
             return false
         }
         return executableURL == ContainerExecutableLocator.isolatedExecutable()
+            || executableURL.path.hasPrefix(
+                IsolatedRuntimePolicy.root.appendingPathComponent("apple/versions").path + "/")
     }
 
     /// Instruments signposts so `xctrace record --template "os_signpost"`
