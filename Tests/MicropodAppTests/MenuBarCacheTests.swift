@@ -138,15 +138,22 @@ final class MenuBarCacheTests: XCTestCase {
     func testCloseStopsPollingAndReopenStartsFreshRead() async throws {
         var reads = 0
         let observation = MenuBarCacheObservation(interval: .milliseconds(20))
-        observation.open { reads += 1 }
+        // Close in the first read's main-actor turn. A loaded CI host can
+        // resume this test after another 20 ms poll has already run; that
+        // pre-close read says nothing about cancellation after closing.
+        observation.open {
+            reads += 1
+            observation.close()
+        }
         try await wait { reads == 1 }
-        observation.close()
         observation.refreshNow()
         try await Task.sleep(for: .milliseconds(70))
         XCTAssertEqual(reads, 1, "A closed tray must not poll or manually refresh")
-        observation.open { reads += 1 }
+        observation.open {
+            reads += 1
+            observation.close()
+        }
         try await wait { reads == 2 }
-        observation.close()
     }
 
     func testRefreshCoalescesAndReopenWaitsThenReadsAfterInflightObservation() async throws {
