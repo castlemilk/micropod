@@ -5,6 +5,13 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
+# Git exports repository-local variables to hooks. SwiftPM runs Git in its
+# dependency repositories, where those variables would redirect fetches back
+# into this worktree instead of the dependency's repository.
+for git_local_env in $(git rev-parse --local-env-vars); do
+    unset "$git_local_env"
+done
+
 # A tag names a commit that already passed CI and this hook when its branch
 # was pushed: a tags-only push (a release) skips the ~5 min rebuild.
 tags_only=true
