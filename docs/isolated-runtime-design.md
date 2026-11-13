@@ -130,7 +130,8 @@ Service Management's unregister/register APIs refreshed the separately
 installed Setup helper after maintenance was reconciled. The existing
 administrator approval persisted; no system security setting was bypassed.
 Previous signed bundles were retained. The current qualification candidate
-was notarized under submission `bba0ba46-48fb-462d-8bd8-879f2afcaf6d`.
+at source `dc2bd787` was notarized under submission
+`77d07bdd-11a2-4996-98a9-0a1daea14b02`.
 
 The dedicated native runtime passed an isolated Alpine workload and verified
 auto-removal (`micropod-isolated-runtime-ok`). Its managed API now launches in
@@ -159,17 +160,37 @@ BSD gateway regression fails before the fix and passes afterward. Stream
 requests also preserve the caller's nonzero-exit policy, including older
 request decoding.
 
-Those failed live streams left unconfirmed request receipts in the private
-qualification instance. Routine maintenance correctly refuses to ignore them.
-Their command results have not been inferred from an empty inventory, and no
-requests have been replayed or receipts deleted. The Setup details now report
-bounded, redacted pending-request diagnostics. Idle stop/start, saved-volume
-verification and signed Cuttlefish handoff remain unaccepted until those test
-receipts are resolved through an explicit operator recovery. #89 remains open until those
-checks succeed. Passing source tests is not clean-machine acceptance or
-permission to replace the rig's currently running software.
+The operator acknowledged the two uncertain, pre-fix test results and retained
+their receipts under `qualification-receipts/a4e7e658-17b0-44c6-83f8-93d9e33f17b4`.
+No command was replayed, service stopped or runtime data deleted by that
+recovery. Routine operations cannot discard uncertain receipts. Setup reports
+bounded, redacted pending-request diagnostics.
 
-Existing data is not migrated. Host bind mounts still require that the service
-account can access the explicitly shared directory; no broad home-directory
-ACL grant is made by setup. Qualification must include the rig's real workspace
-and volume paths before adopting this runtime for CI.
+The updated runtime delivered delayed output and saved a marker in a named
+volume. An ordinary failed image pull reported failure and released its
+admission claim; signal termination, cancellation and incomplete output still
+retain uncertain intent. Idle stop/start preserved the saved contents and the
+exact cached Alpine image digest. A signed current CLI also completed an
+explicit restart through the root helper with zero pending requests. Managed
+CLI lifecycle commands now use that helper directly, independently of the
+desktop app's lifetime or version.
+
+Live cancellation before a runtime action retained admission until explicit
+verification. Recovery confirmed that preparation ended before a private
+runtime change, released the gate and preserved native readiness. A cancelled
+operation is reconciled rather than replayed. The shared desktop-account
+Apple API retained its original process throughout these tests.
+
+The signed Cuttlefish host handoff and boot/domain recovery remain unaccepted.
+#89 remains open until the remaining checks succeed. Passing source tests is
+not clean-machine acceptance or permission to replace the rig's currently
+running software.
+
+Existing data is not migrated. A scoped bind-mount test proved that the service
+account can read disposable job inputs and read-only secrets, return an output
+readable by the desktop owner, and reuse the named volume. The paired
+Cuttlefish change prepares only generated job exchanges outside the owner's
+home; named workspaces and cache clones remain in the managed store. Explicit
+host cache/bundle paths still require their own deliberate sharing. Setup does
+not grant broad home-directory ACLs. A complete scheduled Cuttlefish attempt
+and its signed maintenance handoff must pass before CI adoption.

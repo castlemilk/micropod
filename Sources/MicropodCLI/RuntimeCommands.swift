@@ -8,7 +8,7 @@ import MicropodRuntime
 enum RuntimeCommands {
     static let usage = """
         runtime ls                            engines, availability, default
-        runtime install|repair|start|stop|restart  managed runtime operations (app must be running)
+        runtime install|repair|start|stop|restart  managed runtime operations (approved helper required)
         runtime operation|cancel|recover        progress, cancellation and verified recovery
         runtime status                        Apple dependency readiness and next action (--json supported)
         runtime use <name>                    make <name> the default for new containers
@@ -21,15 +21,21 @@ enum RuntimeCommands {
         let apple = services.runtime.router?.apple ?? AppleEngine(services: services.runtime)
         switch args.first ?? "ls" {
         case "install", "repair", "start", "stop", "restart", "cancel", "recover", "operation":
-            let method = args[0] == "operation" ? "status" : args[0]
-            let response = try await AppControlClient().call("runtime." + method)
+            let parsed = try parseArgs(
+                Array(args.dropFirst()), boolFlags: [], valueFlags: [], commandName: "runtime " + args[0])
+            guard !parsed.has("--help") else {
+                print("usage: micropod runtime \(args[0]) [--json]")
+                return
+            }
+            guard parsed.positionals.isEmpty else {
+                throw UsageError(message: "usage: micropod runtime \(args[0]) [--json]")
+            }
+            let response = try await managedOperation(args[0])
             if MicropodCLI.jsonOutput {
-                print(
-                    String(
-                        decoding: try JSONSerialization.data(withJSONObject: response, options: [.sortedKeys]),
-                        as: UTF8.self))
+                print(String(decoding: try JSONEncoder().encode(response), as: UTF8.self))
             } else {
-                print(response["message"] as? String ?? response["phase"] as? String ?? "Runtime operation requested")
+                print(response.message)
+                if let error = response.error { print(error) }
             }
         case "status":
             let parsed = try parseArgs(
@@ -82,6 +88,33 @@ enum RuntimeCommands {
         default:
             throw UsageError(message: "unknown runtime command '\(args[0])'\n\(usage)")
         }
+    }
+
+    /// The signed CLI talks to the same durable authority as the app. A
+    /// desktop app exiting or running an older version cannot strand control
+    /// of an already approved dedicated runtime.
+    static func managedOperation(
+        _ command: String,
+        call: @Sendable (IsolatedRuntimeRequest) async throws -> IsolatedRuntimeStatus = {
+            try await IsolatedRuntimeClient().call($0)
+        }
+    ) async throws -> IsolatedRuntimeStatus {
+        let action: IsolatedRuntimeAction
+        switch command {
+        case "repair": action = .install
+        case "recover": action = .verify
+        case "operation": action = .status
+        default:
+            guard let requested = IsolatedRuntimeAction(rawValue: command),
+                [.install, .start, .stop, .restart, .cancel].contains(requested)
+            else { throw UsageError(message: "unknown managed runtime action '\(command)'") }
+            action = requested
+        }
+        let response = try await call(.init(action: action))
+        if command != "operation", response.isTerminal, let error = response.error {
+            throw MicropodError.message(error)
+        }
+        return response
     }
 
     static func requireName(_ args: [String]) throws -> String {
