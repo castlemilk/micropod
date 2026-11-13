@@ -60,6 +60,7 @@ public final class APIMetrics: @unchecked Sendable {
         var snapshot: [(String, Bucket)] = []
         queue.sync { snapshot = self.buckets.map { ($0.key, $0.value) } }
         snapshot.sort { $0.0 < $1.0 }
+        var durations: [String: Int] = [:]
         for (key, b) in snapshot {
             let parts = key.split(separator: Self.sep, maxSplits: 2).map(String.init)
             guard parts.count == 3 else { continue }
@@ -68,7 +69,14 @@ public final class APIMetrics: @unchecked Sendable {
             let durLabels = "route=\"\(route)\",method=\"\(method)\""
             lines.append("\(prefix)_requests_total{\(labels)} \(b.count)")
             lines.append("\(prefix)_errors_total{\(labels)} \(b.errors)")
-            lines.append("\(prefix)_request_duration_microseconds_total{\(durLabels)} \(b.latencyUs)")
+            // Duration has no status label: sum the status buckets before
+            // emitting it, so each Prometheus series occurs exactly once.
+            durations[durLabels, default: 0] += b.latencyUs
+        }
+        for labels in durations.keys.sorted() {
+            if let duration = durations[labels] {
+                lines.append("\(prefix)_request_duration_microseconds_total{\(labels)} \(duration)")
+            }
         }
         return lines.joined(separator: "\n") + "\n"
     }
