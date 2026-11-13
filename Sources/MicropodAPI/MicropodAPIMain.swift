@@ -38,12 +38,9 @@ struct MicropodAPI {
         // When spawned by the app, die with it — no orphaned apiserver.
         ParentDeathWatch.install()
 
-        let cliPath =
-            ProcessInfo.processInfo.environment["MICROPOD_CONTAINER_CLI_PATH"]
-            ?? "/usr/local/bin/container"
         let port = UInt16(ProcessInfo.processInfo.environment["MICROPOD_API_PORT"] ?? "45454") ?? 45454
 
-        let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: cliPath))
+        let client = ContainerCLIClient()
         let runtime = await RuntimeBackendResolver.resolve(client: client)
         // Started before the runtime (or against an unverified apiserver):
         // re-resolve lazily and swap to native once it answers. The request
@@ -63,7 +60,7 @@ struct MicropodAPI {
         do {
             try await server.run()
             print(
-                "Micropod API listening on http://127.0.0.1:\(port) and http://[::1]:\(port) (cli: \(cliPath), backend: \(runtime.kind.rawValue))"
+                "Micropod API listening on http://127.0.0.1:\(port) and http://[::1]:\(port) (cli: \(client.executableURL.path), backend: \(runtime.kind.rawValue))"
             )
             await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
         } catch {

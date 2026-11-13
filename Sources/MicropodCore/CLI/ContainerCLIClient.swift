@@ -13,10 +13,14 @@ import OSLog
 /// instead of queueing behind a single actor mailbox. This is what lets the
 /// Docker shim serve concurrent lifecycles without serialising them.
 public struct ContainerCLIClient: Sendable {
-    public let executableURL: URL
+    private let executableOverride: URL?
 
-    public init(executableURL: URL = URL(fileURLWithPath: "/usr/local/bin/container")) {
-        self.executableURL = executableURL
+    public var executableURL: URL {
+        executableOverride ?? ContainerExecutableLocator.resolve()
+    }
+
+    public init(executableURL: URL? = nil) {
+        self.executableOverride = executableURL
     }
 
     /// Instruments signposts so `xctrace record --template "os_signpost"`
@@ -26,13 +30,16 @@ public struct ContainerCLIClient: Sendable {
 
     /// Whether the `container` binary exists on disk.
     public func isAvailable() -> Bool {
-        FileManager.default.isExecutableFile(atPath: executableURL.path)
+        ContainerExecutableLocator.isExecutableFile(executableURL.path)
     }
 
     /// Runs a command to completion and returns its stdout.
     /// Stderr is captured and surfaced only on failure.
-    public func run(_ command: ContainerCommand, timeout: Duration = .seconds(60)) async throws -> String {
+    public func run(
+        _ command: ContainerCommand, timeout: Duration = .seconds(60), acceptingExitCodes: Set<Int32> = [0]
+    ) async throws -> String {
         try Task.checkCancellation()
+        let executableURL = self.executableURL
         let started = Date()
         let signpostState = Self.signposter.beginInterval(
             "cli", "\(command.displayName, privacy: .public)")
@@ -177,7 +184,7 @@ public struct ContainerCLIClient: Sendable {
 
         let stdout = (try? String(contentsOf: stdoutURL, encoding: .utf8)) ?? ""
         let stderr = (try? String(contentsOf: stderrURL, encoding: .utf8)) ?? ""
-        guard exitCode == 0 else {
+        guard acceptingExitCodes.contains(exitCode) else {
             throw MicropodError.cliFailure(
                 command: command.displayName, exitCode: exitCode, stderr: stderr)
         }

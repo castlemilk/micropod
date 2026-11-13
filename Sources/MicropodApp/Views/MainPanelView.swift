@@ -79,6 +79,14 @@ struct MainPanelView: View {
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
+                if store.runtimeDependencyStatus.state == .missingCLI
+                    || store.runtimeDependencyStatus.state == .unsupportedHost
+                {
+                    RuntimeDependencyActions(store: store)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                        .background(.quaternary.opacity(0.4))
+                }
                 UpdateBanner(updates: UpdateController.shared)
                     .padding(.horizontal, 12)
                     .padding(.top, 6)
@@ -297,11 +305,7 @@ struct MainPanelView: View {
     }
 
     private var statusText: String {
-        if !store.clientAvailable { return "container CLI not found" }
-        if store.isStartingRuntime { return "Starting runtime…" }
-        if store.runtimeHealth == .wedged { return "Runtime needs attention" }
-        if store.isRuntimeRunning { return "Runtime ready" }
-        return "Runtime stopped"
+        store.runtimeDependencyStatus.state.title
     }
 
     private var statusColor: Color {

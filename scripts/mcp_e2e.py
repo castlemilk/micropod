@@ -79,7 +79,7 @@ def main():
         {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}])
     tools = (responses[0].get("result", {}).get("tools", []) if responses else [])
     names = [t.get("name") for t in tools]
-    expected = {"status", "list_containers", "start", "stop", "restart", "kill", "delete",
+    expected = {"status", "runtime_status", "list_containers", "start", "stop", "restart", "kill", "delete",
                 "run", "exec", "logs", "stats", "inspect",
                 "list_images", "list_volumes", "list_networks",
                 "pull", "push", "df", "compose_up", "compose_down", "compose_ps",
@@ -108,6 +108,22 @@ def main():
     r = call(3, "status")
     check("status reports runtime + versions",
           "running" in r["text"] and "cli 1.2.3" in r["text"], r["text"])
+
+    r = call(103, "runtime_status")
+    dependency = json.loads(r["text"])
+    check("runtime_status distinguishes CLI fallback from native readiness",
+          not r["isError"] and dependency.get("state") == "cliFallback"
+          and dependency.get("cliVersion") == "1.2.3" and dependency.get("nextAction"), r["text"])
+
+    missing_path = os.path.join(state_dir, "container-not-installed")
+    (responses, _) = rpc(binary, state_dir, missing_path, [
+        {"jsonrpc": "2.0", "id": 104, "method": "tools/call",
+         "params": {"name": "runtime_status", "arguments": {}}}])
+    result = responses[0].get("result", {})
+    missing = json.loads(result["content"][0]["text"])
+    check("runtime_status reports missing runtime without a tool error",
+          not result.get("isError", False) and missing.get("state") == "missingCLI"
+          and missing.get("cliPath") == missing_path and missing.get("installerURL"))
 
     print("== run")
     r = call(4, "run", image="nginx:1.27", name="e2e-box")

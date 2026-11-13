@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 public protocol SystemServing: Sendable {
@@ -5,8 +6,8 @@ public protocol SystemServing: Sendable {
     func status() async throws -> Micropod_V1_SystemStatus
     func start() async throws
     /// Like `start()` but lets the CLI install the recommended kernel if the
-    /// local one is missing. Used by the runtime supervisor so the daemon
-    /// always comes back without requiring user interaction.
+    /// local one is missing. Used by explicit operator restart/recovery;
+    /// automatic startup does not install a kernel.
     func startWithKernelInstall() async throws
     func stop() async throws
     func diskUsage() async throws -> Micropod_V1_DiskUsage
@@ -27,30 +28,77 @@ public protocol SystemServing: Sendable {
 /// forbids `NSLock` in async contexts, and the lock never spans an await.
 private final class CLIVersionCache: @unchecked Sendable {
     private let lock = NSLock()
-    private var value: String?
+    private var value: (identity: CLIExecutableIdentity, version: String)?
 
-    func get() -> String? {
+    func get(for identity: CLIExecutableIdentity) -> String? {
         lock.lock()
         defer { lock.unlock() }
-        return value
+        return value?.identity == identity ? value?.version : nil
     }
 
-    func set(_ version: String) {
+    func set(_ version: String, for identity: CLIExecutableIdentity) {
         lock.lock()
         defer { lock.unlock() }
-        value = version
+        value = (identity, version)
+    }
+}
+
+/// Includes inode and ctime so atomic replacement, symlink retargeting and
+/// in-place upgrades invalidate the cache even when mtime was preserved.
+private struct CLIExecutableIdentity: Equatable {
+    let path: String
+    let device: dev_t
+    let inode: ino_t
+    let size: off_t
+    let modifiedSeconds: Int
+    let modifiedNanoseconds: Int
+    let changedSeconds: Int
+    let changedNanoseconds: Int
+
+    static func read(_ url: URL) -> Self? {
+        var metadata = stat()
+        guard
+            url.withUnsafeFileSystemRepresentation({ path in
+                guard let path else { return false }
+                return stat(path, &metadata) == 0
+            })
+        else { return nil }
+        return Self(
+            path: url.resolvingSymlinksInPath().path, device: metadata.st_dev,
+            inode: metadata.st_ino, size: metadata.st_size,
+            modifiedSeconds: metadata.st_mtimespec.tv_sec, modifiedNanoseconds: metadata.st_mtimespec.tv_nsec,
+            changedSeconds: metadata.st_ctimespec.tv_sec, changedNanoseconds: metadata.st_ctimespec.tv_nsec)
     }
 }
 
 public struct SystemService: SystemServing {
     private let client: ContainerCLIClient
-    /// The CLI version never changes under a running process, so
-    /// cache-on-first-use is safe. A struct (not an actor) so concurrent
-    /// status/df/version calls run their CLIs in parallel.
+    /// Reuse a version only while the installed executable is unchanged.
     private let versionCache = CLIVersionCache()
 
     public init(client: ContainerCLIClient) {
         self.client = client
+    }
+
+    public func dependencyStatus(
+        backend: String = "cli",
+        nativeReadiness: @Sendable () async -> RuntimeDependencyStatus.NativeReadiness = { .unobserved }
+    ) async -> RuntimeDependencyStatus {
+        let path = client.executableURL.path
+        let available = client.isAvailable()
+        guard available, RuntimeDependencyStatus.hostSupported else {
+            return RuntimeDependencyStatus(cliAvailable: available, cliPath: path, status: nil, backend: backend)
+        }
+        do {
+            let status = try await status()
+            let native = status.status == "running" ? await nativeReadiness() : .unobserved
+            return RuntimeDependencyStatus(
+                cliAvailable: true, cliPath: path, status: status, backend: backend, native: native)
+        } catch {
+            // Do not expose raw process output/environment in rig diagnostics.
+            return RuntimeDependencyStatus(
+                cliAvailable: true, cliPath: path, status: nil, statusFailed: true, backend: backend)
+        }
     }
 
     /// A stopped runtime is a *status* (`status == "stopped"`), never an
@@ -61,19 +109,10 @@ public struct SystemService: SystemServing {
         // Independent CLIs — fetch concurrently (the version is cached after
         // the first call, so steady-state this is a single round-trip).
         async let version = cliVersion()
-        let output: String
-        do {
-            output = try await client.run(
-                ContainerCommandFactory.systemStatus(), timeout: .seconds(15))
-        } catch let error as MicropodError where Self.isStoppedRuntime(error) {
-            // `system version` is a local call — it still answers while the
-            // daemon is down, so the CLI version stays known offline.
-            let cli = (try? await version) ?? ""
-            return Micropod_V1_SystemStatus.with {
-                $0.status = "stopped"
-                $0.cliVersion = cli
-            }
-        }
+        // Exit 1 is normal for a stopped service, but its JSON must actually
+        // say that. An empty/error response must never trigger auto-start.
+        let output = try await client.run(
+            ContainerCommandFactory.systemStatus(), timeout: .seconds(15), acceptingExitCodes: [0, 1])
         let cli = try await version
         let response = try MicropodJSON.decode(
             SystemStatusResponse.self, from: Data(output.utf8), context: "system status")
@@ -84,32 +123,23 @@ public struct SystemService: SystemServing {
         return status
     }
 
-    /// `container system status --format json` renders
-    /// `{"status":"unregistered"}` / `{"status":"not running"}` on **stdout**
-    /// and exits 1 with an empty stderr when the apiserver is down (table mode
-    /// prints "apiserver is not running and not registered with launchd").
-    /// Either shape — a known runtime-down phrase, or exit 1 with nothing on
-    /// stderr — is a stopped runtime. Every other failure (usage errors exit
-    /// 64 and print to stderr, a missing binary is `cliUnavailable`) still
-    /// throws.
-    static func isStoppedRuntime(_ error: MicropodError) -> Bool {
-        guard case .cliFailure(_, let exitCode, let stderr) = error else { return false }
-        if ConnectCodeMapping.indicatesRuntimeDown(stderr) { return true }
-        return exitCode == 1 && stderr.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
     /// The CLI's own words for a down apiserver, normalised to "stopped" so
     /// consumers compare against one value.
     static let stoppedStatusValues: Set<String> = ["unregistered", "not running"]
 
     public func cliVersion() async throws -> String {
-        if let cached = versionCache.get() { return cached }
-        let output = try await client.run(ContainerCommandFactory.systemVersion(), timeout: .seconds(15))
+        let executable = client.executableURL
+        let identity = CLIExecutableIdentity.read(executable)
+        if let identity, let cached = versionCache.get(for: identity) { return cached }
+        let output = try await ContainerCLIClient(executableURL: executable).run(
+            ContainerCommandFactory.systemVersion(), timeout: .seconds(15))
         let entries = try MicropodJSON.decodeArray(
             SystemVersionEntry.self, from: Data(output.utf8), context: "system version")
         let cli = entries.first { $0.appName == "container" } ?? entries.first
         let version = cli?.version ?? "unknown"
-        versionCache.set(version)
+        if let identity, CLIExecutableIdentity.read(executable) == identity {
+            versionCache.set(version, for: identity)
+        }
         return version
     }
 

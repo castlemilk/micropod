@@ -35,9 +35,12 @@ agent-driven container management.
   package-cache Keep and reviewed cleanup with active-mount protection.
 - **Menu bar** — running-workload count, workload shortcuts, measured guest
   resources, cache budgets and runtime actions.
-- **MCP server** — STDIO JSON-RPC 2.0 (`tools/call`: status, list_containers,
+- **Runtime setup** — missing-runtime detection and guided Apple installer setup,
+  opt-in automatic startup, persistent manual stops and native readiness diagnostics.
+  See [dependency management](docs/runtime-dependencies.md).
+- **MCP server** — STDIO JSON-RPC 2.0 (`tools/call`: status, runtime_status, list_containers,
   start/stop/kill/delete, run, pull/push, inspect, logs, df, compose_up,
-  share_mount/unmount/list/sync/gc, build_cache_stats — 27 tools).
+  share_mount/unmount/list/sync/gc, build_cache_stats).
 
 ## Architecture
 

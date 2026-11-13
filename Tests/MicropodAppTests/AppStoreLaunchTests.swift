@@ -275,7 +275,7 @@ final class AppStoreLaunchTests: XCTestCase {
 
     /// The runtime liveness probe (`container list` under an 8s ceiling)
     /// must succeed against a healthy mock runtime and fail fast against a
-    /// dead one — it drives the wedged-apiserver self-heal path.
+    /// dead one — it drives the unresponsive-runtime diagnostic path.
     func testLivenessProbeSucceedsAgainstHealthyRuntime() async throws {
         let fixture = try AppTestCLI.makeMock()
         defer { AppTestCLI.cleanUp(fixture) }
@@ -283,18 +283,14 @@ final class AppStoreLaunchTests: XCTestCase {
         try await store.dependencies.system.livenessProbe()
     }
 
-    /// A restart kills every running container: an idle runtime is bounced
-    /// after two misses, a busy one only once the misses persist, and never
-    /// when automatic restarts are off.
+    /// A failed probe can report an outage, never authorize a shared-runtime restart.
     func testRuntimeHealSparesBusyRuntimeAndHonoursTheSwitch() {
         let decide = AppStore.runtimeHealDecision
-        XCTAssertEqual(decide(1, 0, true), .confirm)
-        XCTAssertEqual(decide(AppStore.idleHealMisses, 0, true), .heal)
-        XCTAssertEqual(decide(AppStore.idleHealMisses, 3, true), .confirm)
-        XCTAssertEqual(decide(AppStore.busyHealMisses - 1, 3, true), .confirm)
-        XCTAssertEqual(decide(AppStore.busyHealMisses, 3, true), .heal)
-        XCTAssertEqual(decide(AppStore.idleHealMisses, 0, false), .reportWedged)
-        XCTAssertEqual(decide(AppStore.busyHealMisses, 3, false), .reportWedged)
+        XCTAssertEqual(decide(1, 0), .confirm)
+        XCTAssertEqual(decide(AppStore.idleHealMisses, 0), .reportWedged)
+        XCTAssertEqual(decide(AppStore.idleHealMisses, 3), .confirm)
+        XCTAssertEqual(decide(AppStore.busyHealMisses - 1, 3), .confirm)
+        XCTAssertEqual(decide(AppStore.busyHealMisses, 3), .reportWedged)
         XCTAssertGreaterThan(AppStore.busyHealMisses, AppStore.idleHealMisses)
     }
 

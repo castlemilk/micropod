@@ -1,5 +1,6 @@
 import AppKit
 import MicropodCore
+import MicropodRuntime
 import Observation
 import SwiftUI
 
@@ -249,9 +250,33 @@ final class AppStore {
         didSet { if systemStatus?.status != oldValue?.status { workloadMetricsRevision &+= 1 } }
     }
     var systemStatusError: String?
+    private var hasCheckedRuntimeDependency = false
+    private var dependencyNativeReadiness = RuntimeDependencyStatus.NativeReadiness.unobserved
+    @ObservationIgnored private let runtimeDefaults: UserDefaults
+    var runtimeAutoStartEnabled: Bool {
+        didSet { runtimeDefaults.set(runtimeAutoStartEnabled, forKey: UserDefaultsKeys.runtimeAutoStart) }
+    }
+    private(set) var runtimeAutomationPaused: Bool {
+        didSet { runtimeDefaults.set(runtimeAutomationPaused, forKey: UserDefaultsKeys.runtimeAutomationPaused) }
+    }
+    var runtimeDependencyStatus: RuntimeDependencyStatus {
+        RuntimeDependencyStatus(
+            cliAvailable: hasCheckedRuntimeDependency || systemStatus != nil ? clientAvailable : true,
+            cliPath: dependencies.client.executableURL.path,
+            status: systemStatus, statusFailed: systemStatusError != nil,
+            backend: dependencies.runtime?.kind.rawValue ?? "cli",
+            native: dependencyNativeReadiness,
+            starting: isStartingRuntime || isRestartingRuntime || isHealingRuntime,
+            stopping: isStoppingRuntime,
+            unresponsive: runtimeHealth == .wedged)
+    }
     var isStartingRuntime = false
+    var isStoppingRuntime = false
     var isRestartingRuntime = false
     var isHealingRuntime = false
+    var runtimeOperationInProgress: Bool {
+        isStartingRuntime || isStoppingRuntime || isRestartingRuntime || isHealingRuntime || isInstallingKernel
+    }
     /// Liveness of the apiserver's container path — `system status` can keep
     /// answering while list/create/df are wedged, so health tracks the probe
     /// that exercises the path that actually breaks.
@@ -259,8 +284,7 @@ final class AppStore {
         case unknown, healthy, wedged
     }
     private(set) var runtimeHealth: RuntimeHealth = .unknown
-    /// When the last self-heal (stop+start bounce) finished, and how many
-    /// heals ran inside the current 15-minute window.
+    /// Timing and count of explicit operator recovery attempts.
     private(set) var lastRuntimeHealAt: Date?
     private(set) var runtimeHealCount = 0
     var isInstallingKernel = false
@@ -360,21 +384,19 @@ final class AppStore {
 
     @ObservationIgnored private var containersTask: Task<Void, Never>?
     @ObservationIgnored private var statsTask: Task<Void, Never>?
-    /// Background supervisor that keeps the container runtime running.
-    /// On bootstrap it auto-starts if stopped; on every tick it restarts the
-    /// runtime when it sees the status go from running to stopped or a CLI
-    /// failure that smells like "runtime down". Respects `userStoppedUntil`
-    /// so an explicit user Stop action is honored for ~2 minutes.
+    /// Observes dependency health. Starting a confirmed stopped service needs
+    /// an explicit opt-in; disruptive automatic recovery is never attempted.
     @ObservationIgnored private var runtimeSupervisorTask: Task<Void, Never>?
-    @ObservationIgnored private var lastSupervisedRuntimeRunning = false
     @ObservationIgnored private var consecutiveStartFailures = 0
     @ObservationIgnored private var consecutiveProbeMisses = 0
-    @ObservationIgnored private var userStoppedUntil: Date?
+    @ObservationIgnored private var runtimeIntentGeneration: UInt64 = 0
     /// Coalesces `container system status` spawns: the containers poller,
     /// stats poller, and runtime supervisor would otherwise each fire their
     /// own process every few seconds. One in-flight refresh serves all
     /// callers; a fresh (<2s) result is reused unless `force` is passed.
     @ObservationIgnored private var systemStatusTask: Task<Void, Never>?
+    @ObservationIgnored private var systemStatusGeneration: UInt64 = 0
+    @ObservationIgnored private var systemStatusCompletedGeneration: UInt64 = 0
     @ObservationIgnored private var systemStatusAt = Date.distantPast
     @ObservationIgnored private var wasVisible = false
     private(set) var mainWindowVisible = false
@@ -390,8 +412,11 @@ final class AppStore {
     @ObservationIgnored private var machinesRefreshEpoch: UInt64 = 0
     @ObservationIgnored private var machinesRefreshedAt = Date.distantPast
 
-    init(dependencies: AppDependencies = AppDependencies.shared) {
+    init(dependencies: AppDependencies = AppDependencies.shared, runtimeDefaults: UserDefaults = .standard) {
         self.dependencies = dependencies
+        self.runtimeDefaults = runtimeDefaults
+        runtimeAutoStartEnabled = runtimeDefaults.bool(forKey: UserDefaultsKeys.runtimeAutoStart)
+        runtimeAutomationPaused = runtimeDefaults.bool(forKey: UserDefaultsKeys.runtimeAutomationPaused)
         // Restore the last visited tab (macOS convention: return to where
         // you left off).
         if let raw = UserDefaults.standard.string(forKey: UserDefaultsKeys.lastTab),
@@ -516,10 +541,7 @@ final class AppStore {
         clientAvailable = dependencies.client.isAvailable()
         Task {
             await refreshSystemStatus()
-            // Auto-start the daemon right away — the supervisor takes its
-            // first tick 5s later, but we don't want to sit on a stopped
-            // runtime in that gap.
-            if clientAvailable, !isRuntimeRunning {
+            if canAutomaticallyStartRuntime {
                 await attemptRuntimeStart(reason: "auto-start on launch")
             }
             await refreshImages()
@@ -576,11 +598,8 @@ final class AppStore {
         ciCacheStore.cancelRefresh()
     }
 
-    /// Ensures the Apple container runtime is always running while the app is
-    /// alive. Polls system status every 30s; if it observes running → stopped
-    /// or a CLI error that smells like "runtime down", it kicks off
-    /// `startRuntime()`. On repeated failures the supervisor backs off
-    /// exponentially up to 5 minutes so it doesn't thrash.
+    /// Observe even while automation is disabled so installs performed with
+    /// the app open are discovered. Never infer a stopped service from an error.
     private func startRuntimeSupervisor() {
         runtimeSupervisorTask?.cancel()
         runtimeSupervisorTask = Task { [weak self] in
@@ -604,9 +623,7 @@ final class AppStore {
         return seconds
     }
 
-    private func runRuntimeSupervisorTick() async {
-        defer { lastSupervisedRuntimeRunning = isRuntimeRunning }
-
+    func runRuntimeSupervisorTick() async {
         // Always refresh status first — the containers/stats pollers don't
         // touch systemStatus, so without this the supervisor would reason
         // on stale data after any external daemon change.
@@ -619,32 +636,8 @@ final class AppStore {
             consecutiveProbeMisses = 0
         }
 
-        guard clientAvailable else { return }
-
-        // Honor the user's explicit Stop action for a short cooldown.
-        if let until = userStoppedUntil, until > Date() {
-            return
-        }
-        userStoppedUntil = nil
-
-        // If we observe the daemon running now but it was stopped last tick,
-        // record a fresh edge; otherwise just ensure it stays up.
-        let err = systemStatusError?.lowercased() ?? ""
-        if !isRuntimeRunning, !err.isEmpty {
-            // Common CLI messages: the runtime VM isn't registered / started.
-            if err.contains("ensure container system service has been started")
-                || err.contains("xpc connection")
-                || err.contains("system is not running")
-                || err.contains("unregistered")
-                || err.contains("connection invalid")
-            {
-                await attemptRuntimeStart(reason: "auto-restart: status error")
-                return
-            }
-        }
-
+        guard clientAvailable, !Task.isCancelled else { return }
         if isRuntimeRunning {
-            lastSupervisedRuntimeRunning = true
             consecutiveStartFailures = 0
             // Status says running — but a crash-looping network plugin (or a
             // stuck pending op) wedges the apiserver so `list`/`create`/`df`
@@ -652,38 +645,39 @@ final class AppStore {
             await probeRuntimeLiveness()
             return
         }
-        // Not running and no obvious "restart" error: try once anyway.
-        await attemptRuntimeStart(reason: "auto-start: runtime not running")
+        if canAutomaticallyStartRuntime {
+            await attemptRuntimeStart(reason: "auto-start: service confirmed stopped")
+        }
     }
 
-    /// Self-healing for the Apple container runtime: consecutive liveness
-    /// misses (the probe times out inside 8s or exits non-zero while status
-    /// claims "running") mean the apiserver is wedged — bounce it via
-    /// `container system stop` + `start` (how many misses: see
-    /// `runtimeHealDecision`). Heals are capped at 3 per 15-minute
-    /// window; beyond that we surface `.wedged` and let the user escalate
-    /// (the runbook's deeper steps need admin rights or a logout).
+    var canAutomaticallyStartRuntime: Bool {
+        runtimeAutoStartEnabled && !runtimeAutomationPaused && clientAvailable
+            && RuntimeDependencyStatus.hostSupported && systemStatus?.status == "stopped"
+            && runtimeDependencyStatus.cliVersionSupported
+            && systemStatusError == nil && consecutiveStartFailures < 3
+            && !runtimeOperationInProgress && !Task.isCancelled
+    }
+
+    /// Liveness failures are diagnostic. Restarting a shared runtime needs
+    /// consumer admission fencing; a miss count cannot authorize disruption.
     private func probeRuntimeLiveness() async {
-        guard !isHealingRuntime, !isRestartingRuntime, !isInstallingKernel else { return }
+        guard !runtimeOperationInProgress else { return }
         do {
             try await dependencies.system.livenessProbe()
+            guard !runtimeOperationInProgress else { return }
             consecutiveProbeMisses = 0
             if runtimeHealth != .healthy { runtimeHealth = .healthy }
         } catch {
+            guard !runtimeOperationInProgress else { return }
             consecutiveProbeMisses += 1
-            let autoHeal = UserDefaults.standard.object(forKey: UserDefaultsKeys.runtimeAutoHeal) as? Bool ?? true
             switch Self.runtimeHealDecision(
-                consecutiveMisses: consecutiveProbeMisses, runningContainers: runningCount,
-                autoHealEnabled: autoHeal)
+                consecutiveMisses: consecutiveProbeMisses, runningContainers: runningCount)
             {
-            case .heal:
-                runtimeHealth = .wedged
-                await healRuntime(reason: error.localizedDescription, manual: false)
             case .reportWedged:
                 if runtimeHealth != .wedged {
                     recordActivity(
                         "system",
-                        "Runtime liveness probe keeps failing (\(error.localizedDescription)); automatic restart is off",
+                        "Runtime liveness probe keeps failing (\(error.localizedDescription)); shared-runtime restart requires maintenance",
                         level: .error)
                 }
                 runtimeHealth = .wedged
@@ -699,40 +693,32 @@ final class AppStore {
     enum RuntimeHealDecision: Equatable {
         /// Not yet: keep probing.
         case confirm
-        /// Bounce the runtime.
-        case heal
-        /// Wedged, but automatic restarts are off.
+        /// Wedged. Report without stopping consumers.
         case reportWedged
     }
 
-    /// Misses before an idle runtime is bounced (~40 s at the 20 s tick).
+    /// Misses before reporting an idle runtime as unresponsive.
     static let idleHealMisses = 2
-    /// Misses before a runtime with running containers is bounced (~5 min).
-    /// A restart kills every one of them, and a busy apiserver answers
+    /// Misses before reporting a busy runtime as unresponsive (~5 min).
+    /// A busy apiserver answers
     /// `list` slowly (it serialises requests behind container starts), so a
     /// slow probe under load is not taken for a wedge until it persists.
     static let busyHealMisses = 15
 
-    /// Whether consecutive liveness misses warrant a restart.
+    /// Whether consecutive liveness misses warrant reporting an outage.
     static func runtimeHealDecision(
-        consecutiveMisses: Int, runningContainers: Int, autoHealEnabled: Bool
+        consecutiveMisses: Int, runningContainers: Int
     ) -> RuntimeHealDecision {
         let needed = runningContainers > 0 ? busyHealMisses : idleHealMisses
         guard consecutiveMisses >= needed else { return .confirm }
-        return autoHealEnabled ? .heal : .reportWedged
+        return .reportWedged
     }
 
-    /// Bounce the runtime: `system stop` (best-effort — it may itself be
-    /// blocked by the wedge, the client timeout kills it) then
-    /// `system start` with kernel install.
-    private func healRuntime(reason: String, manual: Bool) async {
-        guard !isHealingRuntime else { return }
-        if !manual {
-            if let last = lastRuntimeHealAt, Date().timeIntervalSince(last) > 900 {
-                runtimeHealCount = 0
-            }
-            guard runtimeHealCount < 3 else { return }
-        }
+    /// Explicit operator recovery. The health supervisor never calls this.
+    private func healRuntime(reason: String) async {
+        guard !runtimeOperationInProgress else { return }
+        let intentGeneration = runtimeIntentGeneration
+        runtimeAutomationPaused = true
         isHealingRuntime = true
         defer { isHealingRuntime = false }
         runtimeHealCount += 1
@@ -740,15 +726,17 @@ final class AppStore {
             "system",
             "Runtime unresponsive (\(reason)) — restarting system service…",
             level: .error)
-        try? await dependencies.system.stop()
         do {
+            try await dependencies.system.stop()
+            try Task.checkCancellation()
             try await dependencies.system.startWithKernelInstall()
             consecutiveProbeMisses = 0
             consecutiveStartFailures = 0
-            runtimeHealth = .healthy
+            runtimeHealth = .unknown
             lastRuntimeHealAt = Date()
-            recordActivity("system", "Runtime recovered after restart", level: .success)
             await refreshSystemStatus(force: true)
+            runtimeAutomationPaused = !isRuntimeRunning || runtimeIntentGeneration != intentGeneration
+            recordActivity("system", "Runtime recovery command completed; readiness checked", level: .info)
             Task { await refreshContainers() }
         } catch {
             lastRuntimeHealAt = Date()
@@ -759,30 +747,33 @@ final class AppStore {
         }
     }
 
-    /// Manual "Recover runtime" from Settings — bypasses the heal cap.
+    /// Explicit operator recovery from Settings.
     func recoverRuntimeNow() {
         recordActivity("system", "Manual runtime recovery requested")
-        Task { await healRuntime(reason: "manual recovery", manual: true) }
+        Task { await healRuntime(reason: "manual recovery") }
     }
 
     /// User-initiated bounce of the container runtime (stop + start).
     func restartRuntime() async {
-        guard clientAvailable, !isRestartingRuntime, !isHealingRuntime else { return }
+        guard clientAvailable, !runtimeOperationInProgress else { return }
+        let intentGeneration = runtimeIntentGeneration
         isRestartingRuntime = true
         defer { isRestartingRuntime = false }
         // Explicit user action — the supervisor must not treat the stopped
         // gap as "user wants it off" (and must not fight the restart).
-        userStoppedUntil = nil
+        runtimeAutomationPaused = true
         recordActivity("system", "Restarting runtime…")
-        try? await dependencies.system.stop()
         do {
+            try await dependencies.system.stop()
+            try Task.checkCancellation()
             try await dependencies.system.startWithKernelInstall()
-            recordActivity("system", "Runtime restarted", level: .success)
+            await refreshSystemStatus(force: true)
+            runtimeAutomationPaused = !isRuntimeRunning || runtimeIntentGeneration != intentGeneration
+            recordActivity("system", "Runtime restart command completed; readiness checked", level: .info)
         } catch {
             recordActivity(
                 "system", "Runtime restart failed: \(error.localizedDescription)", level: .error)
         }
-        await refreshSystemStatus(force: true)
         Task { await refreshContainers() }
     }
 
@@ -793,18 +784,22 @@ final class AppStore {
     }
 
     private func attemptRuntimeStart(reason: String) async {
+        guard canAutomaticallyStartRuntime else { return }
+        let intentGeneration = runtimeIntentGeneration
+        // Persist before invoking the CLI. A crash, cancellation or uncertain
+        // response leaves automatic retries paused across the next app launch.
+        runtimeAutomationPaused = true
         recordActivity("system", "Runtime supervisor: \(reason) — starting…", level: .info)
         isStartingRuntime = true
         defer { isStartingRuntime = false }
         do {
-            // Use the kernel-installing variant so the daemon always comes
-            // back, even if the local kernel image was lost. CLI is fast when
-            // the kernel is already present.
-            try await dependencies.system.startWithKernelInstall()
+            try await dependencies.system.start()
             consecutiveStartFailures = 0
-            lastSupervisedRuntimeRunning = true
             recordActivity("system", "Runtime supervisor: started daemon", level: .success)
             await refreshSystemStatus(force: true)
+            if isRuntimeRunning, !Task.isCancelled, runtimeIntentGeneration == intentGeneration {
+                runtimeAutomationPaused = false
+            }
             // Refresh dependents without blocking the supervisor — these
             // can hang on the wedged CLI and we don't want to delay the
             // next supervisor tick.
@@ -929,26 +924,47 @@ final class AppStore {
         {
             return
         }
-        if let inFlight = systemStatusTask {
+        // A force after mutation cannot reuse a read that began before that
+        // mutation. Concurrent forced callers can share the next generation.
+        let requiredGeneration = force ? systemStatusGeneration + 1 : 0
+        while let inFlight = systemStatusTask {
             await inFlight.value
-            return
+            if !force || systemStatusCompletedGeneration >= requiredGeneration { return }
         }
+        systemStatusGeneration += 1
+        let generation = systemStatusGeneration
         let task = Task { [weak self] in
-            if let self { await self.performSystemStatusRefresh() }
+            guard let self else { return }
+            await self.performSystemStatusRefresh()
+            self.systemStatusCompletedGeneration = generation
+            self.systemStatusTask = nil
         }
         systemStatusTask = task
         await task.value
-        systemStatusTask = nil
     }
 
     private func performSystemStatusRefresh() async {
         // Re-check on every refresh so installing/removing the CLI mid-session
         // is picked up without relaunching the app.
         clientAvailable = dependencies.client.isAvailable()
+        hasCheckedRuntimeDependency = true
+        guard clientAvailable, RuntimeDependencyStatus.hostSupported else {
+            systemStatus = nil
+            systemStatusError = nil
+            dependencyNativeReadiness = .unobserved
+            systemStatusAt = Date()
+            return
+        }
         do {
             systemStatus = try await dependencies.system.status()
             systemStatusError = nil
             systemStatusAt = Date()
+            if isRuntimeRunning {
+                await dependencies.refreshBackendIfNeeded()
+                dependencyNativeReadiness = await RuntimeDependencyProbe.nativeReadiness(dependencies.runtime)
+            } else {
+                dependencyNativeReadiness = .unobserved
+            }
             // The kernel banner is stale when the kernel is already on disk
             // (e.g. installed before the app, or by an earlier session).
             if !onboardingComplete, isKernelInstalled {
@@ -962,16 +978,26 @@ final class AppStore {
             // never tries to restart.
             systemStatus = nil
             systemStatusError = error.localizedDescription
+            dependencyNativeReadiness = .unobserved
         }
     }
 
     func startRuntime() async {
+        guard dependencies.client.isAvailable(), RuntimeDependencyStatus.hostSupported,
+            !runtimeOperationInProgress
+        else { return }
+        let intentGeneration = runtimeIntentGeneration
+        runtimeAutomationPaused = true
+        consecutiveStartFailures = 0
         isStartingRuntime = true
         defer { isStartingRuntime = false }
         do {
             try await dependencies.system.start()
             recordActivity("system", "Runtime started", level: .success)
             await refreshSystemStatus(force: true)
+            if isRuntimeRunning, !Task.isCancelled, runtimeIntentGeneration == intentGeneration {
+                runtimeAutomationPaused = false
+            }
         } catch {
             recordActivity("system", "Failed to start runtime: \(error.localizedDescription)", level: .error)
             systemStatusError = error.localizedDescription
@@ -979,15 +1005,26 @@ final class AppStore {
     }
 
     func stopRuntime() async {
-        // Honor the explicit user action for ~2 minutes; the supervisor
-        // won't fight back and restart it during this window.
-        userStoppedUntil = Date().addingTimeInterval(120)
+        // Persist user intent before awaiting anything, including a failed
+        // stop. Neither a timer nor relaunch may undo maintenance intent.
+        runtimeIntentGeneration += 1
+        runtimeAutomationPaused = true
+        guard !runtimeOperationInProgress else {
+            recordActivity(
+                "system", "Automatic startup paused; wait for the current runtime operation before stopping the service"
+            )
+            return
+        }
+        isStoppingRuntime = true
+        defer { isStoppingRuntime = false }
         do {
             try await dependencies.system.stop()
             recordActivity("system", "Runtime stopped")
             systemStatus = nil
+            dependencyNativeReadiness = .unobserved
             runtimeHealth = .unknown
             consecutiveProbeMisses = 0
+            await refreshSystemStatus(force: true)
         } catch {
             recordActivity("system", "Failed to stop runtime: \(error.localizedDescription)", level: .error)
             systemStatusError = error.localizedDescription
@@ -995,6 +1032,9 @@ final class AppStore {
     }
 
     func installRecommendedKernel() async {
+        guard dependencies.client.isAvailable(), RuntimeDependencyStatus.hostSupported,
+            !runtimeOperationInProgress
+        else { return }
         isInstallingKernel = true
         kernelInstallProgress = []
         kernelInstallFraction = nil

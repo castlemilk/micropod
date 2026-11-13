@@ -39,7 +39,7 @@ public struct RuntimeServices: Sendable {
     }
 
     /// Versions the wire protocol was validated against live.
-    public static let supportedVersions: Set<String> = ["1.3.1"]
+    public static let supportedVersions = AppleContainerCompatibility.supportedVersions
 
     /// Release lines whose wire protocol is verified. 1.3.x is
     /// live-validated (1.3.1). 1.4.x and 1.5.x are verified by audit of
@@ -52,12 +52,12 @@ public struct RuntimeServices: Sendable {
     ///   - the container, volume, image and stats payloads did not change.
     /// A newer line stays on the CLI in auto mode until it is audited the
     /// same way (docs/native-runtime.md, "Version gating").
-    public static let verifiedReleaseLines: [String] = ["1.3.", "1.4.", "1.5."]
+    public static let verifiedReleaseLines = AppleContainerCompatibility.verifiedReleaseLines
 
     /// Whether `semver` (as `APIServerHealth.semver` extracts it) is a
     /// version the native backend may run against in auto mode.
     public static func isVerified(semver: String) -> Bool {
-        supportedVersions.contains(semver) || verifiedReleaseLines.contains { semver.hasPrefix($0) }
+        AppleContainerCompatibility.isVerified(semver: semver)
     }
 }
 

@@ -129,7 +129,8 @@ final class APIHandlers: Sendable {
         // `GET /v1/system` is the REST liveness read: like Ping/GetSystem it
         // gives a CLI-started API the chance to swap to native first.
         let services =
-            resource == "system" && method == .get && segments.count == 2
+            resource == "system" && method == .get
+                && (segments.count == 2 || segments == ["v1", "system", "dependency"])
             ? await runtime.refreshIfNeeded() : await runtime.current
 
         do {
@@ -191,6 +192,11 @@ final class APIHandlers: Sendable {
                 }
                 let report = try await appControl.updateStatus()
                 return .json(200, report)
+
+            case ("system", .get) where segments == ["v1", "system", "dependency"]:
+                let report = await RuntimeDependencyProbe.inspect(system: system, services: services)
+                let data = try JSONEncoder().encode(report)
+                return .json(200, try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:])
 
             case ("system", .get):
                 let status = try await system.status()
