@@ -130,6 +130,14 @@ struct MicropodRuntimeSetup: App {
                         DisclosureGroup("Runtime details") {
                             Text("Service account: \(identity.serviceUID) · Instance: \(identity.instance.uuidString)")
                                 .font(.caption.monospaced()).textSelection(.enabled)
+                            Text("State: \(model.status.nativeState ?? model.status.phase)")
+                                .font(.caption).textSelection(.enabled)
+                            if let root = model.status.nativeAppRoot {
+                                Text("Data: \(root)").font(.caption.monospaced()).textSelection(.enabled)
+                            }
+                            if let root = model.status.nativeInstallRoot {
+                                Text("Runtime: \(root)").font(.caption.monospaced()).textSelection(.enabled)
+                            }
                         }.font(.callout)
                     }
                     if let version = model.status.nativeVersion {

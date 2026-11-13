@@ -751,7 +751,7 @@ final class AppStore {
     func restartRuntime() async {
         runtimeAutomationPaused = true
         guard !runtimeOperationInProgress else { return }
-        guard ContainerExecutableLocator.isolatedExecutable() != nil || ManagedRuntimeLocation.executable() != nil
+        guard dependencies.client.usesManagedLifecycle
         else {
             systemStatusError =
                 "Install the managed runtime before requesting coordinated maintenance. The shared service was left running."
@@ -770,7 +770,7 @@ final class AppStore {
     }
 
     private func attemptRuntimeStart(reason: String) async {
-        if ContainerExecutableLocator.isolatedExecutable() != nil {
+        if dependencies.client.usesIsolatedTransport {
             guard let status = try? await IsolatedRuntimeClient().call(.init(action: .status)), status.action != .stop,
                 status.phase != "recoveryRequired"
             else {
@@ -778,7 +778,7 @@ final class AppStore {
                 return
             }
         }
-        if ContainerExecutableLocator.isolatedExecutable() != nil || ManagedRuntimeLocation.executable() != nil {
+        if dependencies.client.usesManagedLifecycle {
             guard canAutomaticallyStartRuntime, !ManagedRuntimeController.shared.isBusy else { return }
             runtimeAutomationPaused = true
             _ = try? await ManagedRuntimeController.shared.begin(.start)
@@ -983,7 +983,7 @@ final class AppStore {
     }
 
     func startRuntime() async {
-        if ContainerExecutableLocator.isolatedExecutable() != nil || ManagedRuntimeLocation.executable() != nil {
+        if dependencies.client.usesManagedLifecycle {
             _ = try? await ManagedRuntimeController.shared.begin(.start)
             return
         }
@@ -1013,7 +1013,7 @@ final class AppStore {
         runtimeIntentGeneration += 1
         runtimeAutomationPaused = true
         guard !runtimeOperationInProgress else { return }
-        guard ContainerExecutableLocator.isolatedExecutable() != nil || ManagedRuntimeLocation.executable() != nil
+        guard dependencies.client.usesManagedLifecycle
         else {
             systemStatusError =
                 "Install the managed runtime before requesting coordinated maintenance. The shared service was left running."

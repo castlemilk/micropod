@@ -189,6 +189,10 @@ public actor IsolatedRuntimeHostController {
                 try await finish()
                 return
             }
+            // Refusal for active workloads must precede actionStarted. That
+            // allows verified cancellation to reopen admission so those same
+            // workloads can finish or be stopped through the data plane.
+            _ = try await run(.verify, identity: identity, digest: digest, selection: selection, requiresIdle: true)
             try Task.checkCancellation()
             if state.rigAttempted == true { _ = try await requireRig("begin", phase: "begun") }
             try fence!.beginAction()
@@ -225,7 +229,7 @@ public actor IsolatedRuntimeHostController {
 
     private func run(
         _ action: IsolatedRuntimeAction, identity: IsolatedRuntimeIdentity, digest: String,
-        selection: ManagedRuntimeLocation.Selection
+        selection: ManagedRuntimeLocation.Selection, requiresIdle: Bool = false
     ) async throws -> IsolatedRuntimeObservation {
         guard !workerRunning else {
             throw MicropodError.message("A private runtime verification or action is already running")
@@ -240,7 +244,9 @@ public actor IsolatedRuntimeHostController {
         try save()
         return try await driver.run(
             identity: identity, workerSHA256: digest,
-            request: .init(action: action, selection: selection, maintenanceOwner: fence?.fence.operation)
+            request: .init(
+                action: action, selection: selection, maintenanceOwner: fence?.fence.operation,
+                requiresIdle: requiresIdle)
         ) { birth in
             try await self.recordWorker(birth)
         }

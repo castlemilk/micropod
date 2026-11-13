@@ -9,6 +9,9 @@ public enum ContainerExecutableLocator {
     public static func resolve(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         defaultDirectories: [String] = ["/usr/local/bin", "/opt/homebrew/bin"],
+        managedExecutable: () -> URL? = {
+            isolatedExecutable() ?? ManagedRuntimeLocation.executable()
+        },
         isExecutable: (String) -> Bool = ContainerExecutableLocator.isExecutableFile
     ) -> URL {
         // An explicit path is authoritative, including when it is missing.
@@ -16,8 +19,7 @@ public enum ContainerExecutableLocator {
         if let path = environment["MICROPOD_CONTAINER_CLI_PATH"] {
             return URL(fileURLWithPath: path)
         }
-        if let managed = isolatedExecutable() { return managed }
-        if let managed = ManagedRuntimeLocation.executable() { return managed }
+        if let managed = managedExecutable() { return managed }
         let directories = defaultDirectories + (environment["PATH"] ?? "").split(separator: ":").map(String.init)
         var seen = Set<String>()
         for directory in directories where directory.hasPrefix("/") && seen.insert(directory).inserted {

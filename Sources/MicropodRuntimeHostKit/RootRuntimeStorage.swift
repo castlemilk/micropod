@@ -202,6 +202,7 @@ public enum RootRuntimeStorage {
             "Label": IsolatedRuntimeAPIConfiguration.serviceLabel,
             "ProgramArguments": [destination.path],
             "EnvironmentVariables": environment,
+            "LimitLoadToSessionType": ["Background"],
             "RunAtLoad": true, "KeepAlive": true, "ProcessType": "Background", "ThrottleInterval": 10, "Umask": 0o077,
         ]
         let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)

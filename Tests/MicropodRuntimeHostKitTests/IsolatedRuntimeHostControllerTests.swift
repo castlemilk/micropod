@@ -8,6 +8,7 @@ private actor HostDriverFixture: IsolatedRuntimeHostDriving {
     var events: [IsolatedRuntimeAction] = []
     var ready = false
     var failAfterStart = false
+    var busy = false
     var prepares = 0
     var rigEvents: [String] = []
     var loseCompletion = false
@@ -59,6 +60,7 @@ private actor HostDriverFixture: IsolatedRuntimeHostDriving {
                 files: AppleRuntimeRelease.payloadSHA256), workerSHA256: String(repeating: "a", count: 64))
     }
     func failOneStart() { failAfterStart = true }
+    func setBusy(_ value: Bool) { busy = value }
     func actions() -> [IsolatedRuntimeAction] { events }
     func preparationCount() -> Int { prepares }
     func run(
@@ -66,6 +68,7 @@ private actor HostDriverFixture: IsolatedRuntimeHostDriving {
         willBegin: @escaping @Sendable (RuntimeProcessBirth) async throws -> Void
     ) async throws -> IsolatedRuntimeObservation {
         events.append(request.action)
+        if request.requiresIdle && busy { throw CocoaError(.fileWriteNoPermission) }
         if request.action == .verify, pauseNextVerification {
             pauseNextVerification = false
             await withCheckedContinuation {
@@ -96,6 +99,32 @@ final class IsolatedRuntimeHostControllerTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(5))
         }
         throw CocoaError(.fileReadUnknown)
+    }
+    func testBusyWorkloadRefusesBeforeActionAndRecoveryReopensDataPlane() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let admission = RuntimeAdmission(root: root.appendingPathComponent("admission"))
+        let driver = HostDriverFixture()
+        let controller = IsolatedRuntimeHostController(
+            driver: driver, journal: root.appendingPathComponent("operation.json"),
+            admissionRoot: root.appendingPathComponent("admission"))
+        _ = try await controller.submit(.init(action: .install), ownerUID: 501)
+        _ = try await terminal(controller)
+        _ = try await controller.submit(.init(action: .start), ownerUID: 501)
+        _ = try await terminal(controller)
+        let before = await driver.actions().filter { $0 == .stop }.count
+        await driver.setBusy(true)
+        _ = try await controller.submit(.init(action: .stop), ownerUID: 501)
+        let refused = try await terminal(controller)
+        XCTAssertEqual(refused.phase, "recoveryRequired")
+        XCTAssertTrue(admission.isClosed)
+        let stopped = await driver.actions().filter { $0 == .stop }.count
+        XCTAssertEqual(stopped, before, "No stop may run while work remains active")
+        _ = try await controller.submit(.init(action: .verify), ownerUID: 501)
+        let recovered = try await terminal(controller)
+        XCTAssertEqual(recovered.phase, "blocked", recovered.error ?? "")
+        XCTAssertFalse(admission.isClosed, "Work must be able to finish through the data plane")
+        withExtendedLifetime(try admission.claim("finish active work")) {}
     }
     func testInstallDoesNotStartRuntimeAndRetiredOperationCannotReplay() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

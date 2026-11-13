@@ -130,10 +130,24 @@ Service Management's unregister/register APIs refreshed the separately
 installed Setup helper after maintenance was reconciled. The existing
 administrator approval persisted; no system security setting was bypassed.
 Previous signed bundles were retained. The current qualification candidate
-was notarized under submission `d8ada9cb-d02c-47e4-97bf-fac26e8f8bbe`.
+was notarized under submission `bba0ba46-48fb-462d-8bd8-879f2afcaf6d`.
 
-The new account's native workload, cancellation/domain recovery and signed
-Cuttlefish handoff are still being qualified. #89 remains open until those
+The dedicated native runtime passed an isolated Alpine workload and verified
+auto-removal (`micropod-isolated-runtime-ok`). Its managed API now launches in
+the Background session; a signed CLI returned the exact private native roots
+and an empty private inventory while the old runtime continued serving its
+own containers. An unauthenticated gateway request was rejected. This also
+qualified payload repair and selection replacement with persistent image
+storage. Explicit external CLI selections now retain their own lifecycle;
+locator fixtures supply their managed-selection boundary rather than reading
+the host installation.
+
+An idle preflight now runs after closing admission but before marking a
+runtime action as started. A busy refusal can therefore be reconciled without
+trapping the active workload behind a retained disruptive-action fence. Tests
+verify that no stop runs and that workload admission reopens after recovery.
+Live stop/restart, cancellation/domain recovery and signed Cuttlefish handoff
+are still being qualified. #89 remains open until those
 checks succeed. Passing source tests is not clean-machine acceptance or
 permission to replace the rig's currently running software.
 

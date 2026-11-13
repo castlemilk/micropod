@@ -36,6 +36,13 @@ public struct ContainerCLIClient: Sendable {
                 IsolatedRuntimePolicy.root.appendingPathComponent("apple/versions").path + "/")
     }
 
+    /// Lifecycle must follow the selected backend. A separately installed
+    /// managed account never authorizes changing an explicit external runtime.
+    public var usesManagedLifecycle: Bool {
+        usesIsolatedTransport
+            || executableURL.path.hasPrefix(ManagedRuntimeLocation.root.path + "/versions/")
+    }
+
     /// Instruments signposts so `xctrace record --template "os_signpost"`
     /// splits CLI spawn+XPC+run time from caller overhead (perf workstream).
     private static let signposter = OSSignposter(

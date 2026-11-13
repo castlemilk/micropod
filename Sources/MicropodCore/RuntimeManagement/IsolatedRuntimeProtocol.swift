@@ -48,12 +48,15 @@ public struct IsolatedRuntimeWorkerRequest: Codable, Sendable {
     public let action: IsolatedRuntimeAction
     public let selection: ManagedRuntimeLocation.Selection
     public let maintenanceOwner: UUID?
+    public let requiresIdle: Bool
     public init(
-        action: IsolatedRuntimeAction, selection: ManagedRuntimeLocation.Selection, maintenanceOwner: UUID? = nil
+        action: IsolatedRuntimeAction, selection: ManagedRuntimeLocation.Selection, maintenanceOwner: UUID? = nil,
+        requiresIdle: Bool = false
     ) {
         self.action = action
         self.selection = selection
         self.maintenanceOwner = maintenanceOwner
+        self.requiresIdle = requiresIdle
     }
 }
 

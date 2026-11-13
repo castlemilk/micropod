@@ -53,13 +53,7 @@ public enum IsolatedRuntimeWorker {
                     try await stopGateway(identity: identity)
                     return observation
                 }
-                let containers = try await ContainerService(client: client).list()
-                let machines = try await MachineService(client: client).list()
-                guard containers.allSatisfy({ ["stopped", "exited", "dead"].contains($0.state) }),
-                    machines.allSatisfy({ ["stopped", "exited"].contains($0.state) })
-                else {
-                    throw MicropodError.message("Private runtime work is still active; no workload was stopped")
-                }
+                try await assertNativeIdle(client: client)
                 try await stopGateway(identity: identity)
                 try await SystemService(client: client).stop()
                 guard try await SystemService(client: client).status().status == "stopped" else {
@@ -68,7 +62,12 @@ public enum IsolatedRuntimeWorker {
                 return .init(
                     serviceUID: identity.serviceUID, bootstrapDomain: "user/\(identity.serviceUID)", state: "stopped")
             case .status, .verify:
-                return try await observe(client: client, root: root, identity: identity)
+                let observed = try await observe(client: client, root: root, identity: identity)
+                if request.requiresIdle {
+                    if observed.state != "stopped" { try await assertNativeIdle(client: client) }
+                    try await assertGatewayIdle(identity: identity)
+                }
+                return observed
             case .workload:
                 _ = try await observe(client: client, root: root, identity: identity)
                 let id = "mp-owned-" + UUID().uuidString.lowercased()
@@ -125,6 +124,21 @@ public enum IsolatedRuntimeWorker {
         let launchctl = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/bin/launchctl"))
         let service = "user/\(identity.serviceUID)/" + IsolatedRuntimeAPIConfiguration.serviceLabel
         if (try? await launchctl.run(.init(arguments: ["print", service]), timeout: .seconds(5))) != nil {
+            try await assertGatewayIdle(identity: identity)
+            _ = try await launchctl.run(.init(arguments: ["bootout", service]), timeout: .seconds(15))
+        }
+    }
+    private static func assertNativeIdle(client: ContainerCLIClient) async throws {
+        let containers = try await ContainerService(client: client).list()
+        let machines = try await MachineService(client: client).list()
+        guard containers.allSatisfy({ ["stopped", "exited", "dead"].contains($0.state) }),
+            machines.allSatisfy({ ["stopped", "exited"].contains($0.state) })
+        else { throw MicropodError.message("Private runtime work is still active; no workload was stopped") }
+    }
+    private static func assertGatewayIdle(identity: IsolatedRuntimeIdentity) async throws {
+        let launchctl = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/bin/launchctl"))
+        let service = "user/\(identity.serviceUID)/" + IsolatedRuntimeAPIConfiguration.serviceLabel
+        if (try? await launchctl.run(.init(arguments: ["print", service]), timeout: .seconds(5))) != nil {
             let response = try await ContainerCLIClient(executableURL: URL(fileURLWithPath: "/usr/bin/curl")).run(
                 .init(arguments: [
                     "--fail", "--silent", "--max-time", "5", "--unix-socket",
@@ -138,7 +152,6 @@ public enum IsolatedRuntimeWorker {
                 throw MicropodError.message(
                     "Managed API workloads remain active or unconfirmed; the API was left running")
             }
-            _ = try await launchctl.run(.init(arguments: ["bootout", service]), timeout: .seconds(15))
         }
     }
 
