@@ -30,7 +30,7 @@ enum RuntimeCommands {
             guard parsed.positionals.isEmpty else {
                 throw UsageError(message: "usage: micropod runtime \(args[0]) [--json]")
             }
-            let response = try await managedOperation(args[0])
+            let response = try await ManagedRuntimeControl.request(args[0])
             if MicropodCLI.jsonOutput {
                 print(String(decoding: try JSONEncoder().encode(response), as: UTF8.self))
             } else {
@@ -88,33 +88,6 @@ enum RuntimeCommands {
         default:
             throw UsageError(message: "unknown runtime command '\(args[0])'\n\(usage)")
         }
-    }
-
-    /// The signed CLI talks to the same durable authority as the app. A
-    /// desktop app exiting or running an older version cannot strand control
-    /// of an already approved dedicated runtime.
-    static func managedOperation(
-        _ command: String,
-        call: @Sendable (IsolatedRuntimeRequest) async throws -> IsolatedRuntimeStatus = {
-            try await IsolatedRuntimeClient().call($0)
-        }
-    ) async throws -> IsolatedRuntimeStatus {
-        let action: IsolatedRuntimeAction
-        switch command {
-        case "repair": action = .install
-        case "recover": action = .verify
-        case "operation": action = .status
-        default:
-            guard let requested = IsolatedRuntimeAction(rawValue: command),
-                [.install, .start, .stop, .restart, .cancel].contains(requested)
-            else { throw UsageError(message: "unknown managed runtime action '\(command)'") }
-            action = requested
-        }
-        let response = try await call(.init(action: action))
-        if command != "operation", response.isTerminal, let error = response.error {
-            throw MicropodError.message(error)
-        }
-        return response
     }
 
     static func requireName(_ args: [String]) throws -> String {

@@ -171,9 +171,13 @@ volume. An ordinary failed image pull reported failure and released its
 admission claim; signal termination, cancellation and incomplete output still
 retain uncertain intent. Idle stop/start preserved the saved contents and the
 exact cached Alpine image digest. A signed current CLI also completed an
-explicit restart through the root helper with zero pending requests. Managed
-CLI lifecycle commands now use that helper directly, independently of the
-desktop app's lifetime or version.
+explicit restart through the root helper with zero pending requests. GUI,
+CLI, HTTP and MCP lifecycle controls use one client policy and the same
+authenticated authority, independently of the desktop app's lifetime or
+version. Signed MCP and HTTP qualification clients returned the exact current
+native-ready operation without using the desktop control socket. Unknown
+actions cannot request API capabilities; refused HTTP mutations return a
+conflict and are never replayed.
 
 Live cancellation before a runtime action retained admission until explicit
 verification. Recovery confirmed that preparation ended before a private

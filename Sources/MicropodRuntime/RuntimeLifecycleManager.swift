@@ -72,9 +72,7 @@ public actor RuntimeLifecycleManager {
     @discardableResult
     public func begin(_ action: RuntimeLifecycleAction) async throws -> RuntimeLifecycleOperation {
         if isolatedHost {
-            let mapped: IsolatedRuntimeAction =
-                action == .repair ? .install : IsolatedRuntimeAction(rawValue: action.rawValue)!
-            let status = try await IsolatedRuntimeClient().call(.init(action: mapped))
+            let status = try await ManagedRuntimeControl.request(action.rawValue)
             guard let result = Self.operation(status) else {
                 throw MicropodError.message(status.error ?? "Approve Micropod's runtime helper to continue setup")
             }

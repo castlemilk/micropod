@@ -26,6 +26,7 @@ final class APIHandlers: Sendable {
     let metrics = APIMetrics()
     let appControl = AppControlClient()
     let managedTerminals: ManagedTerminalSessions
+    let managedControl: @Sendable (String) async throws -> IsolatedRuntimeStatus
 
     init(
         client: ContainerCLIClient,
@@ -33,7 +34,10 @@ final class APIHandlers: Sendable {
         images: ImageService,
         networks: NetworkService,
         compose: ComposeService,
-        runtime: RuntimeHolder
+        runtime: RuntimeHolder,
+        managedControl: @escaping @Sendable (String) async throws -> IsolatedRuntimeStatus = {
+            try await ManagedRuntimeControl.request($0)
+        }
     ) {
         self.client = client
         self.managedTerminals = ManagedTerminalSessions(client: client)
@@ -42,6 +46,7 @@ final class APIHandlers: Sendable {
         self.networks = networks
         self.compose = compose
         self.runtime = runtime
+        self.managedControl = managedControl
         self.machineStats = MachineStatsSampler(client: client)
     }
 
@@ -310,11 +315,20 @@ final class APIHandlers: Sendable {
                 return .json(200, report)
 
             case ("system", .get) where segments == ["v1", "system", "runtime"]:
-                return .json(200, try await appControl.call("runtime.status"))
+                let report = try await managedControl("operation")
+                return .json(
+                    200, try JSONSerialization.jsonObject(with: JSONEncoder().encode(report)) as? [String: Any] ?? [:])
             case ("system", .post) where segments.count == 4 && segments[2] == "runtime":
                 guard ["install", "repair", "start", "stop", "restart", "cancel", "recover"].contains(segments[3])
                 else { return .json(400, ["error": "Unknown runtime operation"]) }
-                return .json(202, try await appControl.call("runtime." + segments[3]))
+                do {
+                    let report = try await managedControl(segments[3])
+                    return .json(
+                        202,
+                        try JSONSerialization.jsonObject(with: JSONEncoder().encode(report)) as? [String: Any] ?? [:])
+                } catch {
+                    return .json(409, ["error": error.localizedDescription])
+                }
             case ("system", .get) where segments == ["v1", "system", "dependency"]:
                 let report = await RuntimeDependencyProbe.inspect(system: system, services: services)
                 let data = try JSONEncoder().encode(report)
