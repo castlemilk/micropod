@@ -37,7 +37,10 @@ final class RuntimeCoordinatorAuthorityTests: XCTestCase {
             peer: try XCTUnwrap(RuntimeProcessBirth.read(getpid())),
             file: dir.appendingPathComponent("runtime-coordinator.json"))
     }
-    private func sign(_ f: Fixture, challenge: String, peer: RuntimeProcessBirth? = nil, generation: Int64 = 7) throws
+    private func sign(
+        _ f: Fixture, challenge: String, peer: RuntimeProcessBirth? = nil, generation: Int64 = 7,
+        purpose: String = "enrollment", state: [String: Any]? = nil
+    ) throws
         -> String
     {
         func encode(_ bytes: Data) -> String {
@@ -45,10 +48,10 @@ final class RuntimeCoordinatorAuthorityTests: XCTestCase {
                 .replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
         }
         let birth = try JSONSerialization.jsonObject(with: JSONEncoder().encode(peer ?? f.peer))
-        let claims: [String: Any] = [
+        var claims: [String: Any] = [
             "iss": "https://api.cuttlefish.sh", "aud": "micropod-runtime-coordination", "sub": "runner:rig-a",
             "iat": 1_700_000_000, "nbf": 1_699_999_995, "exp": 1_700_000_120, "jti": UUID().uuidString,
-            "schemaVersion": "micropod-runtime-proof-v1", "purpose": "enrollment",
+            "schemaVersion": "micropod-runtime-proof-v1", "purpose": purpose,
             "scope": "micropod-dedicated-runtime",
             "peer": birth, "sessionGeneration": generation, "challenge": challenge,
             "enrollment": [
@@ -62,6 +65,7 @@ final class RuntimeCoordinatorAuthorityTests: XCTestCase {
                 ],
             ],
         ]
+        claims["state"] = state
         let head = try JSONSerialization.data(withJSONObject: [
             "alg": "RS256", "typ": "micropod-runtime-proof+jwt", "kid": "fixture",
         ])
@@ -165,5 +169,106 @@ final class RuntimeCoordinatorAuthorityTests: XCTestCase {
                 sign(f, challenge: expired), challenge: expired, identity: f.identity, peer: f.peer, now: f.now))
         XCTAssertNoThrow(try authority.issueChallenge(identity: f.identity, peer: f.peer, purpose: "enrollment"))
         XCTAssertThrowsError(try authority.issueChallenge(identity: f.identity, peer: f.peer, purpose: "reboot"))
+    }
+
+    func testLifecycleNoncesBindTheRootOperationAndCannotBecomeSessionsOrReplayAfterRestart() throws {
+        let f = try fixture()
+        var authority = RuntimeCoordinatorAuthority(fileURL: f.file, ownerUID: getuid(), verifier: f.verifier)
+        let enrollmentNonce = try authority.issueChallenge(identity: f.identity, peer: f.peer, purpose: "enrollment")
+        let enrollment = try authority.enroll(
+            sign(f, challenge: enrollmentNonce), challenge: enrollmentNonce,
+            identity: f.identity, peer: f.peer, now: f.now)
+        let operation = try RuntimeCoordinationOperation(
+            operation: UUID(), identity: f.identity, action: "start", localGeneration: 42,
+            selection: .init(
+                version: AppleRuntimeRelease.supported.version,
+                packageSHA256: AppleRuntimeRelease.supported.packageSHA256, incarnation: UUID()))
+        let empty: [String: Any] = [
+            "id": "", "runtimeInstance": "", "action": "", "localGeneration": 0,
+            "version": "", "packageSHA256": "", "installRoot": "", "targetState": "",
+        ]
+        let op = try JSONSerialization.jsonObject(with: JSONEncoder().encode(operation))
+        let state: [String: Any] = [
+            "scope": enrollment.scope, "resourceId": enrollment.resourceId, "revision": enrollment.revision,
+            "owner": operation.id, "generation": 1, "closed": true, "operation": op,
+            "lastReleasedOwner": "", "lastReleasedGeneration": -1, "lastReleasedRevision": 0,
+            "lastReleasedKind": "", "lastReleasedOperation": empty,
+        ]
+        func nonce(_ purpose: String = "maintenance") throws -> String {
+            try authority.issueOperationChallenge(
+                identity: f.identity, peer: f.peer, operation: operation, purpose: purpose)
+        }
+        let first = try nonce()
+        let token = try sign(f, challenge: first, purpose: "maintenance", state: state)
+        let retained = try authority.authorizeMaintenance(
+            token, challenge: first, identity: f.identity, peer: f.peer,
+            operation: operation, resourceGeneration: 1, now: f.now)
+        XCTAssertEqual(retained.enrollment, enrollment)
+        XCTAssertEqual(retained.operation, operation)
+        XCTAssertEqual(retained.resourceGeneration, 1)
+        let encoded = String(decoding: try JSONEncoder().encode(retained), as: UTF8.self)
+        XCTAssertFalse(encoded.contains(token))
+        XCTAssertFalse(encoded.contains(first))
+        XCTAssertThrowsError(
+            try authority.authorizeMaintenance(
+                token, challenge: first, identity: f.identity, peer: f.peer,
+                operation: operation, resourceGeneration: 1, now: f.now))
+        let session = try authority.issueChallenge(identity: f.identity, peer: f.peer, purpose: "session")
+        XCTAssertThrowsError(
+            try authority.authorizeMaintenance(
+                sign(f, challenge: session, purpose: "maintenance", state: state), challenge: session,
+                identity: f.identity, peer: f.peer, operation: operation, resourceGeneration: 1, now: f.now))
+        let maintenance = try nonce()
+        XCTAssertThrowsError(
+            try authority.authorizeSession(
+                sign(f, challenge: maintenance), challenge: maintenance, identity: f.identity, peer: f.peer, now: f.now)
+        )
+        let wrongGeneration = try nonce()
+        XCTAssertThrowsError(
+            try authority.authorizeMaintenance(
+                sign(f, challenge: wrongGeneration, purpose: "maintenance", state: state), challenge: wrongGeneration,
+                identity: f.identity, peer: f.peer, operation: operation, resourceGeneration: 2, now: f.now))
+        let different = try RuntimeCoordinationOperation(
+            operation: UUID(), identity: f.identity, action: "start", localGeneration: 43,
+            selection: .init(
+                version: AppleRuntimeRelease.supported.version,
+                packageSHA256: AppleRuntimeRelease.supported.packageSHA256))
+        let wrongOperation = try nonce()
+        XCTAssertThrowsError(
+            try authority.authorizeMaintenance(
+                sign(f, challenge: wrongOperation, purpose: "maintenance", state: state), challenge: wrongOperation,
+                identity: f.identity, peer: f.peer, operation: different, resourceGeneration: 1, now: f.now))
+        let beforeRestart = try nonce()
+        var restarted = RuntimeCoordinatorAuthority(fileURL: f.file, ownerUID: getuid(), verifier: f.verifier)
+        XCTAssertThrowsError(
+            try restarted.authorizeMaintenance(
+                sign(f, challenge: beforeRestart, purpose: "maintenance", state: state), challenge: beforeRestart,
+                identity: f.identity, peer: f.peer, operation: operation, resourceGeneration: 1, now: f.now))
+
+        var released = state
+        released["owner"] = ""
+        released["operation"] = empty
+        released["generation"] = 2
+        released["closed"] = true
+        released["lastReleasedOwner"] = operation.id
+        released["lastReleasedGeneration"] = 1
+        released["lastReleasedRevision"] = enrollment.revision
+        released["lastReleasedOperation"] = op
+        released["lastReleasedKind"] = "cancelled"
+        let releaseNonce = try nonce("release-observation")
+        let releaseToken = try sign(f, challenge: releaseNonce, purpose: "release-observation", state: released)
+        let observed = try authority.observeRelease(
+            releaseToken, challenge: releaseNonce, identity: f.identity, peer: f.peer,
+            retained: retained, kind: .cancelled, now: f.now)
+        XCTAssertTrue(observed.state.closed, "Cancellation must not open intake for an unexecuted start")
+        XCTAssertThrowsError(
+            try authority.observeRelease(
+                releaseToken, challenge: releaseNonce, identity: f.identity, peer: f.peer,
+                retained: retained, kind: .cancelled, now: f.now))
+
+        for _ in 0..<100 {
+            authority.discardChallenge(try nonce())
+        }
+        XCTAssertNoThrow(try nonce(), "Ordinary drain polling must not exhaust pending challenges")
     }
 }

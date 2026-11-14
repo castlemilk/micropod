@@ -140,6 +140,8 @@ public actor IsolatedRuntimeHostController {
         state.workerBirth = nil
         state.rig = nil
         state.rigAttempted = false
+        state.runtimeCancelledBeforeAction = false
+        state.runtimeActionStarted = false
         state.actionVerified = false
         state.localGeneration = nil
         state.phase = "preparing"
@@ -212,8 +214,7 @@ public actor IsolatedRuntimeHostController {
                 // A ready native runtime may still need its independent API
                 // service restored after an interrupted setup.
                 if state.rigAttempted == true { _ = try await requireRig("begin", phase: "begun") }
-                try fence!.beginAction()
-                try publishFence()
+                try beginRuntimeAction()
                 let ready = try await run(.start, identity: identity, digest: digest, selection: selection)
                 adopt(ready)
                 try await finish()
@@ -225,8 +226,7 @@ public actor IsolatedRuntimeHostController {
             _ = try await run(.verify, identity: identity, digest: digest, selection: selection, requiresIdle: true)
             try Task.checkCancellation()
             if state.rigAttempted == true { _ = try await requireRig("begin", phase: "begun") }
-            try fence!.beginAction()
-            try publishFence()
+            try beginRuntimeAction()
             try update("stopping", "Settling the drained dedicated runtime and API")
             _ = try await run(.stop, identity: identity, digest: digest, selection: selection)
             if request.action == .stop {
@@ -296,11 +296,24 @@ public actor IsolatedRuntimeHostController {
                 throw MicropodError.message("The prior runtime worker remains active; wait for its outcome")
             }
             if !gate.isClosed, state.actionVerified == true {
+                if state.runtimeCancelledBeforeAction == true {
+                    if state.rigAttempted == true { _ = try await requireRig("abortComplete", phase: "cancelled") }
+                    state.rigAttempted = false
+                    state.workerBirth = nil
+                    try update("blocked", "Preparation was cancelled before any private runtime change")
+                    return
+                }
                 try await finish()
                 return
             }
             if !gate.isClosed, state.rigAttempted == true {
+                guard state.runtimeActionStarted == false else {
+                    throw MicropodError.message("The retained runtime action may have begun; cancellation is refused")
+                }
                 _ = try await requireRig("abort", phase: "aborting")
+                state.runtimeCancelledBeforeAction = true
+                state.actionVerified = true
+                try update("releasing", "Cancelling rig preparation before any private runtime change")
                 _ = try await requireRig("abortComplete", phase: "cancelled")
                 state.rigAttempted = false
                 try update("cancelled", "Rig preparation was cancelled before any private runtime change")
@@ -309,8 +322,14 @@ public actor IsolatedRuntimeHostController {
             if fence == nil { fence = try gate.begin(operation: id, recovering: true) }
             try publishFence()
             if fence?.fence.actionStarted == false {
+                // The exact durable local fence positively precedes every
+                // native action. It can settle a crash between saving intent
+                // and marking that fence, after the worker's exit was proved.
+                state.runtimeActionStarted = false
+                try save()
                 if state.rigAttempted == true { _ = try await requireRig("abort", phase: "aborting") }
                 state.actionVerified = true
+                state.runtimeCancelledBeforeAction = true
                 try update("releasing", "Cancelling runtime preparation before any change")
                 try fence?.releaseAfterVerification()
                 fence = nil
@@ -461,6 +480,34 @@ public actor IsolatedRuntimeHostController {
             // admission transition or lifecycle permission is issued here.
             return .init(identity: identity, peer: peer)
         }
+        if call.action == "runtime-observe" {
+            guard call.purpose == nil, call.proof == nil, call.challenge == nil,
+                let record = try runtimeCoordinator.read(identity: identity), record.peer == peer
+            else { throw MicropodError.message("The runtime observation request is invalid") }
+            let operation = try coordinatedOperation()
+            let closed = gate.isClosed
+            let retainedFence = closed ? try gate.readFence() : nil
+            if let retainedFence {
+                guard retainedFence.operation == state.operation,
+                    retainedFence.generation == state.localGeneration
+                else { throw MicropodError.message("Runtime observation does not own the admission fence") }
+            }
+            let workerActive = try state.workerBirth.map { try !$0.hasExited() } ?? false
+            guard state.runtimeActionStarted != nil,
+                closed || state.runtimeActionStarted == false || state.actionVerified == true,
+                state.runtimeCancelledBeforeAction != true || state.runtimeActionStarted == false
+            else { throw MicropodError.message("The private runtime action outcome remains uncertain") }
+            return .init(
+                identity: identity, peer: peer, enrollment: record.enrollment,
+                coverage: .init(
+                    operation: operation, phase: state.phase, admissionClosed: closed,
+                    actionStarted: retainedFence?.actionStarted == true || state.runtimeActionStarted == true,
+                    actionVerified: state.actionVerified == true,
+                    cancelledBeforeAction: state.runtimeCancelledBeforeAction == true,
+                    workerActive: workerRunning || workerActive, nativeState: state.nativeState,
+                    nativeVersion: state.nativeVersion, nativeAppRoot: state.nativeAppRoot,
+                    nativeInstallRoot: state.nativeInstallRoot))
+        }
         guard state.identity == identity, state.phase == "completed", state.rigAttempted != true,
             task == nil, probe == nil, !workerRunning,
             !gate.isClosed, try registration(identity) == nil,
@@ -494,6 +541,16 @@ public actor IsolatedRuntimeHostController {
         }
     }
 
+    private func coordinatedOperation() throws -> RuntimeCoordinationOperation {
+        guard let operation = state.operation, let identity = state.identity, let action = state.action,
+            let generation = state.localGeneration, generation <= UInt64(Int64.max),
+            let selection = state.pendingSelection ?? state.selection
+        else { throw MicropodError.message("The private runtime operation is incomplete") }
+        return try .init(
+            operation: operation, identity: identity, action: action.rawValue,
+            localGeneration: Int64(generation), selection: selection)
+    }
+
     private func publishFence() throws {
         // Service-account workers need read access, never write access, to the
         // root-owned fence. The admission directory prevents unlink/replace.
@@ -503,6 +560,15 @@ public actor IsolatedRuntimeHostController {
         guard fd >= 0 else { throw MicropodError.message("Runtime fence could not be published") }
         defer { close(fd) }
         guard fsync(fd) == 0 else { throw MicropodError.message("Runtime fence synchronization failed") }
+    }
+    private func beginRuntimeAction() throws {
+        guard let fence else { throw MicropodError.message("Runtime admission is not owned") }
+        // Retain conservative action intent before touching either the native
+        // runtime or its fence. A lost local receipt cannot become cancellation.
+        state.runtimeActionStarted = true
+        try save()
+        try fence.beginAction()
+        try publishFence()
     }
     private func fail(_ error: Error) {
         state.error = error.localizedDescription

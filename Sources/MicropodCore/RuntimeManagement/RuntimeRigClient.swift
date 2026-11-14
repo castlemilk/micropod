@@ -98,17 +98,26 @@ public struct RuntimeRigClient: RuntimeRigCoordinating {
 /// Authenticates the connected process, rather than a path/snapshot of the
 /// listener. There are no HTTP redirects, cookies, bearer tokens or shell hooks.
 enum RuntimePeerSocket {
-    static func exchange(path: String, request: Data, expectedUID: UInt32? = nil) async throws -> Data {
+    static func exchange(
+        path: String, request: Data, expectedUID: UInt32? = nil,
+        expectedPeer: RuntimeProcessBirth? = nil, maximumReply: Int = 16384
+    ) async throws -> Data {
         try Task.checkCancellation()
         return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 continuation.resume(
-                    with: Result { try blockingExchange(path: path, request: request, expectedUID: expectedUID) })
+                    with: Result {
+                        try blockingExchange(
+                            path: path, request: request, expectedUID: expectedUID,
+                            expectedPeer: expectedPeer, maximumReply: maximumReply)
+                    })
             }
         }
     }
-    private static func blockingExchange(path: String, request: Data, expectedUID: UInt32?) throws -> Data {
-        guard request.count <= 8192 else { throw refused() }
+    private static func blockingExchange(
+        path: String, request: Data, expectedUID: UInt32?, expectedPeer: RuntimeProcessBirth?, maximumReply: Int
+    ) throws -> Data {
+        guard request.count <= 8192, (1...32768).contains(maximumReply) else { throw refused() }
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw notSent() }
         defer { close(fd) }
@@ -139,7 +148,8 @@ enum RuntimePeerSocket {
         var length = socklen_t(MemoryLayout<pid_t>.size)
         guard getpeereid(fd, &uid, &gid) == 0, uid == (expectedUID ?? getuid()),
             getsockopt(fd, SOL_LOCAL, LOCAL_PEERPID, &pid, &length) == 0,
-            signedCoordinator(pid: pid)
+            let birth = try RuntimeProcessBirth.read(pid), birth.uid == uid,
+            expectedPeer == nil || expectedPeer == birth, signedCoordinator(pid: pid)
         else { throw notSent() }
         try request.withUnsafeBytes { buffer in
             var offset = 0
@@ -156,7 +166,7 @@ enum RuntimePeerSocket {
         }
         var result = Data()
         var buffer = [UInt8](repeating: 0, count: 4096)
-        while result.count <= 16384 {
+        while result.count <= maximumReply {
             let count = Darwin.read(fd, &buffer, buffer.count)
             if count < 0, errno == EINTR { continue }
             if count < 0, errno == EAGAIN || errno == EWOULDBLOCK {
@@ -165,8 +175,13 @@ enum RuntimePeerSocket {
             }
             guard count > 0 else { throw refused() }
             result.append(contentsOf: buffer.prefix(count))
-            guard result.count <= 16384 else { throw refused() }
-            if let newline = result.firstIndex(of: 10) { return result.prefix(upTo: newline) }
+            guard result.count <= maximumReply else { throw refused() }
+            if let newline = result.firstIndex(of: 10) {
+                guard try RuntimeProcessBirth.read(pid) == birth, signedCoordinator(pid: pid) else {
+                    throw refused()
+                }
+                return result.prefix(upTo: newline)
+            }
         }
         throw refused()
     }

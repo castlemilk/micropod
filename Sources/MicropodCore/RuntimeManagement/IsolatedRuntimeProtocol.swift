@@ -27,6 +27,10 @@ public struct IsolatedRuntimeStatus: Codable, Sendable {
     public var rig: RuntimeRigReceipt?
     public var actionVerified: Bool?
     public var rigAttempted: Bool?
+    public var runtimeRig: RuntimeCoordinationRetainedReceipt?
+    public var runtimeRigAttempted: Bool?
+    public var runtimeCancelledBeforeAction: Bool?
+    public var runtimeActionStarted: Bool?
     public var selection: ManagedRuntimeLocation.Selection?
     public var nativeVersion: String?
     public var nativeState: String?

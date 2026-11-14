@@ -13,6 +13,8 @@ private actor HostDriverFixture: IsolatedRuntimeHostDriving {
     var rigEvents: [String] = []
     var loseCompletion = false
     var rigCompleted = false
+    var rigCancelled = false
+    var loseCancellationCompletion = false
     var pauseNextVerification = false
     var paused: CheckedContinuation<Void, Never>?
     var pauseWaiter: CheckedContinuation<Void, Never>?
@@ -27,6 +29,7 @@ private actor HostDriverFixture: IsolatedRuntimeHostDriving {
     }
     func rigHistory() -> [String] { rigEvents }
     func loseOneRigCompletion() { loseCompletion = true }
+    func loseOneRigCancellationCompletion() { loseCancellationCompletion = true }
     func rigTransition(
         identity: IsolatedRuntimeIdentity, operation: UUID, action: String, installRoot: URL,
         generation: UInt64, targetState: String
@@ -39,13 +42,22 @@ private actor HostDriverFixture: IsolatedRuntimeHostDriving {
                 throw CocoaError(.fileReadUnknown)
             }
         }
+        if action == "abortComplete" {
+            rigCancelled = true
+            if loseCancellationCompletion {
+                loseCancellationCompletion = false
+                throw CocoaError(.fileReadUnknown)
+            }
+        }
         let phase =
-            rigCompleted
-            ? "completed"
-            : [
-                "drain": "drained", "prepare": "prepared", "begin": "begun",
-                "verify": "verified", "abort": "aborting", "abortComplete": "cancelled",
-            ][action] ?? "blocked"
+            rigCancelled
+            ? "cancelled"
+            : rigCompleted
+                ? "completed"
+                : [
+                    "drain": "drained", "prepare": "prepared", "begin": "begun",
+                    "verify": "verified", "abort": "aborting", "abortComplete": "cancelled",
+                ][action] ?? "blocked"
         return .init(operation: operation, phase: phase, hostID: "host-a", owner: "owner", generation: 7, reason: nil)
     }
     func prepare(ownerUID: UInt32) throws -> PreparedIsolatedRuntime {
@@ -258,6 +270,68 @@ final class IsolatedRuntimeHostControllerTests: XCTestCase {
         XCTAssertFalse(admission.isClosed)
         let recoveredActions = await afterBootDriver.actions()
         XCTAssertEqual(recoveredActions, [.verify, .verify])
+    }
+
+    func testLostCancellationReplyCannotTurnAnUnexecutedStartIntoVerifiedRunningCompletion() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let driver = HostDriverFixture()
+        let controller = IsolatedRuntimeHostController(
+            driver: driver, journal: root.appendingPathComponent("operation.json"),
+            admissionRoot: root.appendingPathComponent("admission"),
+            registration: { .init(identity: $0, hostID: "host-a") })
+        _ = try await controller.submit(.init(action: .install), ownerUID: 501)
+        _ = try await terminal(controller)
+        await driver.setBusy(true)
+        _ = try await controller.submit(.init(action: .start), ownerUID: 501)
+        let blocked = try await terminal(controller)
+        XCTAssertEqual(blocked.phase, "recoveryRequired")
+        await driver.loseOneRigCancellationCompletion()
+        _ = try await controller.submit(.init(action: .verify), ownerUID: 501)
+        let uncertain = try await terminal(controller)
+        XCTAssertEqual(uncertain.phase, "recoveryRequired")
+        XCTAssertEqual(uncertain.runtimeCancelledBeforeAction, true)
+        XCTAssertEqual(uncertain.runtimeActionStarted, false)
+        XCTAssertFalse(RuntimeAdmission(root: root.appendingPathComponent("admission")).isClosed)
+        _ = try await controller.submit(.init(action: .verify), ownerUID: 501)
+        let recovered = try await terminal(controller)
+        XCTAssertEqual(recovered.phase, "blocked", recovered.error ?? "")
+        let history = await driver.rigHistory()
+        XCTAssertEqual(history, ["drain", "prepare", "abort", "abortComplete", "abortComplete"])
+        let actions = await driver.actions()
+        XCTAssertFalse(actions.contains(.start))
+        XCTAssertFalse(actions.contains(.stop))
+    }
+
+    func testDurablePreActionFenceSettlesIntentSavedBeforeAnInterruptedBegin() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let driver = HostDriverFixture()
+        let journal = root.appendingPathComponent("operation.json")
+        let admissionRoot = root.appendingPathComponent("admission")
+        let installer = IsolatedRuntimeHostController(driver: driver, journal: journal, admissionRoot: admissionRoot)
+        _ = try await installer.submit(.init(action: .install), ownerUID: 501)
+        var retained = try await terminal(installer)
+        let operation = UUID()
+        let admission = RuntimeAdmission(root: admissionRoot)
+        var localFence: RuntimeMaintenanceFence? = try admission.begin(operation: operation)
+        retained.operation = operation
+        retained.action = .start
+        retained.phase = "draining"
+        retained.localGeneration = localFence?.fence.generation
+        retained.runtimeActionStarted = true
+        retained.actionVerified = false
+        try RuntimeDurableFile.write(retained, to: journal)
+        localFence = nil  // A dead process drops its lock but retains the durable fence.
+        let restored = IsolatedRuntimeHostController(driver: driver, journal: journal, admissionRoot: admissionRoot)
+        _ = try await restored.submit(.init(action: .verify), ownerUID: 501)
+        let cancelled = try await terminal(restored)
+        XCTAssertEqual(cancelled.phase, "blocked", cancelled.error ?? "")
+        XCTAssertEqual(cancelled.runtimeActionStarted, false)
+        XCTAssertEqual(cancelled.runtimeCancelledBeforeAction, true)
+        XCTAssertFalse(admission.isClosed)
+        let actions = await driver.actions()
+        XCTAssertTrue(actions.isEmpty, "Recovery must not execute or verify a runtime action that never began")
     }
 
     func testFreshHealthProbeCannotOverlapAStartOrChangeItsOperationIdentity() async throws {

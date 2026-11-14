@@ -287,7 +287,7 @@ public struct RuntimeCoordinationProofVerifier: Sendable {
     static func refused() -> Error { MicropodError.message("The dedicated runtime approval proof is unconfirmed") }
 }
 
-private extension RuntimeCoordinationOperation {
+extension RuntimeCoordinationOperation {
     func validateLocal(identity: IsolatedRuntimeIdentity) throws {
         let prefix = IsolatedRuntimePolicy.root.appendingPathComponent(
             "apple/versions/" + version + "-" + packageSHA256

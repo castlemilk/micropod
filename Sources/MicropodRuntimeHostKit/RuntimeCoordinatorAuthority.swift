@@ -19,6 +19,7 @@ struct RuntimeCoordinatorAuthority {
         let instance: UUID
         let purpose: String
         let deadline: UInt64
+        let operation: RuntimeCoordinationOperation?
     }
     static var fileURL: URL { IsolatedRuntimePolicy.root.appendingPathComponent("runtime-coordinator.json") }
     private let fileURL: URL
@@ -56,9 +57,28 @@ struct RuntimeCoordinatorAuthority {
     mutating func issueChallenge(identity: IsolatedRuntimeIdentity, peer: RuntimeProcessBirth, purpose: String) throws
         -> String
     {
-        guard geteuid() == ownerUID, peer.uid == identity.ownerUID,
-            ["enrollment", "session"].contains(purpose)
+        guard ["enrollment", "session"].contains(purpose) else { throw refused() }
+        return try issue(identity: identity, peer: peer, purpose: purpose, operation: nil)
+    }
+
+    /// Only the controller calls this with its own durable action intent.
+    /// It is not exposed as a general challenge request over the agent socket.
+    mutating func issueOperationChallenge(
+        identity: IsolatedRuntimeIdentity, peer: RuntimeProcessBirth,
+        operation: RuntimeCoordinationOperation, purpose: String
+    ) throws -> String {
+        guard ["maintenance", "release-observation"].contains(purpose),
+            operation.runtimeInstance == identity.instance.uuidString,
+            let record = try read(identity: identity), record.peer == peer
         else { throw refused() }
+        return try issue(identity: identity, peer: peer, purpose: purpose, operation: operation)
+    }
+
+    private mutating func issue(
+        identity: IsolatedRuntimeIdentity, peer: RuntimeProcessBirth, purpose: String,
+        operation: RuntimeCoordinationOperation?
+    ) throws -> String {
+        guard geteuid() == ownerUID, peer.uid == identity.ownerUID else { throw refused() }
         let now = uptime()
         challenges = challenges.filter { $0.value.deadline > now }
         // Bound both a single signed peer and the entire helper. Restart drops
@@ -70,8 +90,44 @@ struct RuntimeCoordinatorAuthority {
         guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else { throw refused() }
         let nonce = bytes.map { String(format: "%02x", $0) }.joined()
         challenges[nonce] = Challenge(
-            peer: peer, instance: identity.instance, purpose: purpose, deadline: now + 120_000_000_000)
+            peer: peer, instance: identity.instance, purpose: purpose, deadline: now + 120_000_000_000,
+            operation: operation)
         return nonce
+    }
+
+    // A drain poll may return before a resource fence can be acquired. Retire
+    // that poll's nonce so normal waiting cannot exhaust the bounded queue.
+    mutating func discardChallenge(_ nonce: String) { challenges.removeValue(forKey: nonce) }
+
+    mutating func authorizeMaintenance(
+        _ token: String, challenge: String, identity: IsolatedRuntimeIdentity,
+        peer: RuntimeProcessBirth, operation: RuntimeCoordinationOperation,
+        resourceGeneration: Int64, now: Date = Date()
+    ) throws -> RuntimeCoordinationRetainedReceipt {
+        try consume(challenge, purpose: "maintenance", identity: identity, peer: peer, operation: operation)
+        guard let record = try read(identity: identity), record.peer == peer else { throw refused() }
+        _ = try verifier.verifyMaintenance(
+            token, identity: identity, peer: peer, challenge: challenge,
+            enrollment: record.enrollment, sessionGeneration: record.sessionGeneration,
+            operation: operation, resourceGeneration: resourceGeneration, now: now)
+        return .init(
+            enrollment: record.enrollment, peer: peer, sessionGeneration: record.sessionGeneration,
+            operation: operation, resourceGeneration: resourceGeneration,
+            proofSHA256: SHA256.hash(data: Data(token.utf8)).map { String(format: "%02x", $0) }.joined())
+    }
+
+    mutating func observeRelease(
+        _ token: String, challenge: String, identity: IsolatedRuntimeIdentity, peer: RuntimeProcessBirth,
+        retained: RuntimeCoordinationRetainedReceipt, kind: RuntimeCoordinationReleaseKind, now: Date = Date()
+    ) throws -> RuntimeCoordinationReleaseObservation {
+        try consume(
+            challenge, purpose: "release-observation", identity: identity, peer: peer, operation: retained.operation)
+        // Reconciliation is deliberately separate from session or new action
+        // permission. Only the exact retained release can be observed here.
+        return try verifier.verifyReleaseObservation(
+            token, identity: identity, peer: peer, challenge: challenge,
+            originalEnrollment: retained.enrollment, operation: retained.operation,
+            resourceGeneration: retained.resourceGeneration, kind: kind, now: now)
     }
 
     mutating func enroll(
@@ -117,11 +173,12 @@ struct RuntimeCoordinatorAuthority {
     }
 
     private mutating func consume(
-        _ nonce: String, purpose: String, identity: IsolatedRuntimeIdentity, peer: RuntimeProcessBirth
+        _ nonce: String, purpose: String, identity: IsolatedRuntimeIdentity, peer: RuntimeProcessBirth,
+        operation: RuntimeCoordinationOperation? = nil
     ) throws {
         guard geteuid() == ownerUID, let pending = challenges.removeValue(forKey: nonce),
             pending.deadline > uptime(), pending.peer == peer, pending.instance == identity.instance,
-            pending.purpose == purpose
+            pending.purpose == purpose, pending.operation == operation
         else { throw refused() }
     }
     private func refused() -> Error { MicropodError.message("The dedicated runtime coordinator is unconfirmed") }
