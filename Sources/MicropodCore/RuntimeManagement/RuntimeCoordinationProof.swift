@@ -132,6 +132,7 @@ public enum RuntimeCoordinationReleaseKind: String, Codable, Sendable {
 public struct RuntimeCoordinationReleaseObservation: Sendable {
     public let enrollment: RuntimeCoordinationEnrollment
     public let state: RuntimeCoordinationState
+    public let sessionGeneration: Int64
 }
 
 /// No network key discovery or caller-supplied trust. The public initializer
@@ -208,7 +209,8 @@ public struct RuntimeCoordinationProofVerifier: Sendable {
             kind == .cancelled || kind.rawValue == operation.targetState,
             state.closed || (current.enabled && kind == .running)
         else { throw Self.refused() }
-        return RuntimeCoordinationReleaseObservation(enrollment: current, state: state)
+        return RuntimeCoordinationReleaseObservation(
+            enrollment: current, state: state, sessionGeneration: proof.sessionGeneration)
     }
 
     private func verifyProof(

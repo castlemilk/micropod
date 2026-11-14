@@ -15,6 +15,7 @@ public actor IsolatedRuntimeHostController {
     private var workerRunning = false
     private var fence: RuntimeMaintenanceFence?
     private var runtimeCoordinator: RuntimeCoordinatorAuthority
+    private let verifyCoordinatorAccount: @Sendable (IsolatedRuntimeIdentity) throws -> Void
 
     public init(
         driver: any IsolatedRuntimeHostDriving, journal: URL = RootRuntimeStorage.operation,
@@ -30,18 +31,23 @@ public actor IsolatedRuntimeHostController {
         self.runtimeCoordinator = RuntimeCoordinatorAuthority(
             fileURL: journal.deletingLastPathComponent().appendingPathComponent("runtime-coordinator.json"),
             ownerUID: geteuid())
+        self.verifyCoordinatorAccount = { try ServiceAccountProvisioner.verifyExisting(identity: $0) }
         state = Self.initialStatus(journal: journal)
     }
 
     init(
         driver: any IsolatedRuntimeHostDriving, journal: URL, admissionRoot: URL,
-        coordinator: RuntimeCoordinatorAuthority
+        coordinator: RuntimeCoordinatorAuthority,
+        verifyCoordinatorAccount: @escaping @Sendable (IsolatedRuntimeIdentity) throws -> Void = {
+            try ServiceAccountProvisioner.verifyExisting(identity: $0)
+        }
     ) {
         self.driver = driver
         self.registration = { _ in nil }
         self.journal = journal
         self.gate = RuntimeAdmission(root: admissionRoot)
         self.runtimeCoordinator = coordinator
+        self.verifyCoordinatorAccount = verifyCoordinatorAccount
         state = Self.initialStatus(journal: journal)
     }
 
@@ -574,7 +580,7 @@ public actor IsolatedRuntimeHostController {
         guard state.identity == identity, try registration(identity) == nil,
             try RuntimeProcessBirth.read(peer.pid) == peer, peer.uid == identity.ownerUID
         else { throw MicropodError.message("The dedicated runtime coordinator identity is unconfirmed") }
-        try ServiceAccountProvisioner.verifyExisting(identity: identity)
+        try verifyCoordinatorAccount(identity)
         if call.action == "runtime-inspect" {
             guard call.purpose == nil, call.proof == nil, call.challenge == nil else {
                 throw MicropodError.message("The runtime inspection request is invalid")
@@ -583,33 +589,41 @@ public actor IsolatedRuntimeHostController {
             // admission transition or lifecycle permission is issued here.
             return .init(identity: identity, peer: peer)
         }
+        if call.action == "runtime-recovery-challenge" || call.action == "runtime-reconcile-peer" {
+            guard call.purpose == nil, task == nil, probe == nil, !workerRunning, !gate.isClosed,
+                state.phase == "recoveryRequired", state.actionVerified == true, state.runtimeRigAttempted == true,
+                try state.workerBirth?.hasExited() != false,
+                let retained = state.runtimeRig, try coordinatedOperation() == retained.operation
+            else {
+                throw MicropodError.message("Only the exact released runtime receipt can refresh its departed peer")
+            }
+            if call.action == "runtime-recovery-challenge" {
+                guard call.challenge == nil, call.proof == nil else {
+                    throw MicropodError.message("The release recovery challenge request is invalid")
+                }
+                let challenge = try runtimeCoordinator.issueReleaseRebindingChallenge(
+                    identity: identity, peer: peer, retained: retained)
+                return .init(
+                    identity: identity, peer: peer, challenge: challenge, enrollment: retained.enrollment,
+                    coverage: try runtimeCoverage())
+            }
+            guard let proof = call.proof, let challenge = call.challenge else {
+                throw MicropodError.message("The release recovery proof is incomplete")
+            }
+            let kind: RuntimeCoordinationReleaseKind =
+                state.runtimeCancelledBeforeAction == true
+                ? .cancelled : (state.action == .stop ? .stopped : .running)
+            let enrollment = try runtimeCoordinator.rebindReleasedPeer(
+                proof, challenge: challenge, identity: identity, peer: peer, retained: retained, kind: kind)
+            return .init(identity: identity, peer: peer, enrollment: enrollment)
+        }
         if call.action == "runtime-observe" {
             guard call.purpose == nil, call.proof == nil, call.challenge == nil,
                 let record = try runtimeCoordinator.read(identity: identity), record.peer == peer
             else { throw MicropodError.message("The runtime observation request is invalid") }
-            let operation = try coordinatedOperation()
-            let closed = gate.isClosed
-            let retainedFence = closed ? try gate.readFence() : nil
-            if let retainedFence {
-                guard retainedFence.operation == state.operation,
-                    retainedFence.generation == state.localGeneration
-                else { throw MicropodError.message("Runtime observation does not own the admission fence") }
-            }
-            let workerActive = try state.workerBirth.map { try !$0.hasExited() } ?? false
-            guard state.runtimeActionStarted != nil,
-                closed || state.runtimeActionStarted == false || state.actionVerified == true,
-                state.runtimeCancelledBeforeAction != true || state.runtimeActionStarted == false
-            else { throw MicropodError.message("The private runtime action outcome remains uncertain") }
             return .init(
                 identity: identity, peer: peer, enrollment: record.enrollment,
-                coverage: .init(
-                    operation: operation, phase: state.phase, admissionClosed: closed,
-                    actionStarted: retainedFence?.actionStarted == true || state.runtimeActionStarted == true,
-                    actionVerified: state.actionVerified == true,
-                    cancelledBeforeAction: state.runtimeCancelledBeforeAction == true,
-                    workerActive: workerRunning || workerActive, nativeState: state.nativeState,
-                    nativeVersion: state.nativeVersion, nativeAppRoot: state.nativeAppRoot,
-                    nativeInstallRoot: state.nativeInstallRoot))
+                coverage: try runtimeCoverage())
         }
         let enrolling =
             call.action == "runtime-enroll" || (call.action == "runtime-challenge" && call.purpose == "enrollment")
@@ -660,6 +674,30 @@ public actor IsolatedRuntimeHostController {
         default:
             throw MicropodError.message("Unknown runtime coordination request")
         }
+    }
+
+    private func runtimeCoverage() throws -> RuntimeCoordinationCoverage {
+        let operation = try coordinatedOperation()
+        let closed = gate.isClosed
+        let retainedFence = closed ? try gate.readFence() : nil
+        if let retainedFence {
+            guard retainedFence.operation == state.operation, retainedFence.generation == state.localGeneration else {
+                throw MicropodError.message("Runtime observation does not own the admission fence")
+            }
+        }
+        let workerActive = try state.workerBirth.map { try !$0.hasExited() } ?? false
+        guard state.runtimeActionStarted != nil,
+            closed || state.runtimeActionStarted == false || state.actionVerified == true,
+            state.runtimeCancelledBeforeAction != true || state.runtimeActionStarted == false
+        else { throw MicropodError.message("The private runtime action outcome remains uncertain") }
+        return .init(
+            operation: operation, phase: state.phase, admissionClosed: closed,
+            actionStarted: retainedFence?.actionStarted == true || state.runtimeActionStarted == true,
+            actionVerified: state.actionVerified == true,
+            cancelledBeforeAction: state.runtimeCancelledBeforeAction == true,
+            workerActive: workerRunning || workerActive, nativeState: state.nativeState,
+            nativeVersion: state.nativeVersion, nativeAppRoot: state.nativeAppRoot,
+            nativeInstallRoot: state.nativeInstallRoot)
     }
 
     static func sessionMayContinue(_ state: IsolatedRuntimeStatus, gateClosed: Bool, taskActive: Bool) -> Bool {

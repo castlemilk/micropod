@@ -13,7 +13,7 @@ private final class ScopedProofFixture: @unchecked Sendable {
     let peer: RuntimeProcessBirth
     let enrollment: RuntimeCoordinationEnrollment
 
-    init() throws {
+    init(peer: RuntimeProcessBirth? = nil) throws {
         key = try XCTUnwrap(
             SecKeyCreateRandomKey(
                 [
@@ -25,7 +25,7 @@ private final class ScopedProofFixture: @unchecked Sendable {
         identity = .init(
             instance: UUID(), ownerUID: getuid(), serviceUID: 400, serviceGID: 401,
             accountGUID: UUID(), groupGUID: UUID())
-        peer = try XCTUnwrap(RuntimeProcessBirth.read(getpid()))
+        self.peer = try peer ?? XCTUnwrap(RuntimeProcessBirth.read(getpid()))
         enrollment = .init(
             schemaVersion: RuntimeCoordinationEnrollment.capability, scope: RuntimeCoordinationEnrollment.runtimeScope,
             resourceId: "mrt-" + UUID().uuidString.lowercased(), organizationId: "org-a", runnerId: "rig-a",
@@ -36,7 +36,10 @@ private final class ScopedProofFixture: @unchecked Sendable {
                 accountGUID: identity.accountGUID.uuidString, groupGUID: identity.groupGUID.uuidString))
     }
 
-    func sign(challenge: String, purpose: String, state: [String: Any]? = nil) throws -> String {
+    func sign(
+        challenge: String, purpose: String, state: [String: Any]? = nil,
+        peer: RuntimeProcessBirth? = nil, enrollment: RuntimeCoordinationEnrollment? = nil, generation: Int64 = 7
+    ) throws -> String {
         func encode(_ data: Data) -> String {
             data.base64EncodedString().replacingOccurrences(of: "+", with: "-")
                 .replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
@@ -46,9 +49,10 @@ private final class ScopedProofFixture: @unchecked Sendable {
             "iss": "https://api.cuttlefish.sh", "aud": "micropod-runtime-coordination", "sub": "runner:rig-a",
             "iat": now, "nbf": now - 5, "exp": now + 120, "jti": UUID().uuidString,
             "schemaVersion": "micropod-runtime-proof-v1", "purpose": purpose,
-            "scope": RuntimeCoordinationEnrollment.runtimeScope, "sessionGeneration": 7, "challenge": challenge,
-            "enrollment": try JSONSerialization.jsonObject(with: JSONEncoder().encode(enrollment)),
-            "peer": try JSONSerialization.jsonObject(with: JSONEncoder().encode(peer)),
+            "scope": RuntimeCoordinationEnrollment.runtimeScope, "sessionGeneration": generation,
+            "challenge": challenge,
+            "enrollment": try JSONSerialization.jsonObject(with: JSONEncoder().encode(enrollment ?? self.enrollment)),
+            "peer": try JSONSerialization.jsonObject(with: JSONEncoder().encode(peer ?? self.peer)),
         ]
         claims["state"] = state
         let header = try JSONSerialization.data(withJSONObject: [
@@ -80,9 +84,19 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
     var current: RuntimeCoordinationOperation?
     var released: RuntimeCoordinationOperation?
     var kind = ""
+    var coordinatorPeer: RuntimeProcessBirth
+    var policy: RuntimeCoordinationEnrollment
+    var sessionGeneration: Int64 = 7
     init(proofs: ScopedProofFixture, admissionRoot: URL) {
         self.proofs = proofs
         gate = RuntimeAdmission(root: admissionRoot)
+        coordinatorPeer = proofs.peer
+        policy = proofs.enrollment
+    }
+    func replaceCoordinator(_ peer: RuntimeProcessBirth, policy: RuntimeCoordinationEnrollment) {
+        coordinatorPeer = peer
+        self.policy = policy
+        sessionGeneration += 1
     }
     func setBusy() { busy = true }
     func loseOneCompletion() { loseCompletion = true }
@@ -104,7 +118,7 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
         identity: IsolatedRuntimeIdentity, peer: RuntimeProcessBirth, call: RuntimeCoordinationRigCall
     ) throws -> RuntimeCoordinationRigReply {
         XCTAssertEqual(identity, proofs.identity)
-        XCTAssertEqual(peer, proofs.peer)
+        XCTAssertEqual(peer, coordinatorPeer)
         XCTAssertEqual(call.enrollment, proofs.enrollment)
         history.append(call.action)
         gateAtPhase[call.action] = gate.isClosed
@@ -128,8 +142,9 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
             "version": "", "packageSHA256": "", "installRoot": "", "targetState": "",
         ]
         var state: [String: Any] = [
-            "scope": proofs.enrollment.scope, "resourceId": proofs.enrollment.resourceId, "revision": 1,
-            "owner": current?.id ?? "", "generation": generation, "closed": current != nil || kind != "running",
+            "scope": proofs.enrollment.scope, "resourceId": proofs.enrollment.resourceId, "revision": policy.revision,
+            "owner": current?.id ?? "", "generation": generation,
+            "closed": current != nil || kind != "running" || !policy.enabled,
             "operation": try current.map { try JSONSerialization.jsonObject(with: JSONEncoder().encode($0)) } ?? empty,
             "lastReleasedOwner": released?.id ?? "", "lastReleasedGeneration": released == nil ? -1 : generation - 1,
             "lastReleasedRevision": released == nil ? 0 : 1, "lastReleasedKind": kind,
@@ -142,7 +157,9 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
             state["owner"] = UUID().uuidString.lowercased()
         }
         let purpose = completing ? "release-observation" : "maintenance"
-        let proof = try proofs.sign(challenge: call.challenge, purpose: purpose, state: state)
+        let proof = try proofs.sign(
+            challenge: call.challenge, purpose: purpose, state: state,
+            peer: coordinatorPeer, enrollment: policy, generation: sessionGeneration)
         let phase = [
             "drain": "drained", "prepare": "prepared", "begin": "begun", "verify": "verified",
             "complete": "completed", "abort": "aborting", "abortComplete": "cancelled",
@@ -184,10 +201,12 @@ final class ScopedRuntimeHostControllerTests: XCTestCase {
         }
         throw CocoaError(.fileReadUnknown)
     }
-    private func fixture() async throws -> (IsolatedRuntimeHostController, ScopedHostDriverFixture, URL) {
+    private func fixture(peer: RuntimeProcessBirth? = nil) async throws -> (
+        IsolatedRuntimeHostController, ScopedHostDriverFixture, URL
+    ) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         addTeardownBlock { try FileManager.default.removeItem(at: root) }
-        let proofs = try ScopedProofFixture()
+        let proofs = try ScopedProofFixture(peer: peer)
         let journal = root.appendingPathComponent("operation.json")
         let admissionRoot = root.appendingPathComponent("admission")
         let driver = ScopedHostDriverFixture(proofs: proofs, admissionRoot: admissionRoot)
@@ -204,7 +223,7 @@ final class ScopedRuntimeHostControllerTests: XCTestCase {
         return (
             IsolatedRuntimeHostController(
                 driver: driver, journal: journal, admissionRoot: admissionRoot,
-                coordinator: coordinator), driver, root
+                coordinator: coordinator, verifyCoordinatorAccount: { _ in }), driver, root
         )
     }
 
@@ -246,6 +265,85 @@ final class ScopedRuntimeHostControllerTests: XCTestCase {
         XCTAssertFalse(native.contains(.start))
         XCTAssertFalse(native.contains(.stop))
         XCTAssertEqual(history, ["drain", "prepare", "abort", "abortComplete"])
+    }
+
+    func testDepartedPeerReconcilesLostReleaseUnderRevokedPolicyWithoutRestoringAccess() async throws {
+        let prior = Process()
+        prior.executableURL = URL(fileURLWithPath: "/bin/sleep")
+        prior.arguments = ["60"]
+        try prior.run()
+        defer {
+            if prior.isRunning { prior.terminate() }
+            prior.waitUntilExit()
+        }
+        let oldPeer = try XCTUnwrap(RuntimeProcessBirth.read(prior.processIdentifier))
+        let (controller, driver, root) = try await fixture(peer: oldPeer)
+        await driver.loseOneCompletion()
+        _ = try await controller.submit(.init(action: .start), ownerUID: getuid())
+        let uncertain = try await terminal(controller)
+        XCTAssertEqual(uncertain.phase, "recoveryRequired", uncertain.error ?? "")
+        let retained = try XCTUnwrap(uncertain.runtimeRig)
+        let proofs = driver.proofs
+        let before = await driver.snapshot()
+        prior.terminate()
+        prior.waitUntilExit()
+        XCTAssertTrue(try oldPeer.hasExited())
+        let replacement = try XCTUnwrap(RuntimeProcessBirth.read(getpid()))
+        let disabled = RuntimeCoordinationEnrollment(
+            schemaVersion: proofs.enrollment.schemaVersion, scope: proofs.enrollment.scope,
+            resourceId: proofs.enrollment.resourceId, organizationId: proofs.enrollment.organizationId,
+            runnerId: proofs.enrollment.runnerId, revision: 2, enabled: false, binding: proofs.enrollment.binding)
+        let challenge = try await controller.coordinateRuntime(
+            .init(action: "runtime-recovery-challenge"), identity: proofs.identity, peer: replacement)
+        XCTAssertEqual(challenge.enrollment, retained.enrollment)
+        XCTAssertEqual(challenge.coverage?.operation, retained.operation)
+        XCTAssertEqual(challenge.coverage?.admissionClosed, false)
+        XCTAssertNil(challenge.session)
+        let nonce = try XCTUnwrap(challenge.challenge)
+        let empty: [String: Any] = [
+            "id": "", "runtimeInstance": "", "action": "", "localGeneration": 0,
+            "version": "", "packageSHA256": "", "installRoot": "", "targetState": "",
+        ]
+        let released: [String: Any] = [
+            "scope": disabled.scope, "resourceId": disabled.resourceId, "revision": disabled.revision,
+            "owner": "", "generation": retained.resourceGeneration + 1, "closed": true, "operation": empty,
+            "lastReleasedOwner": retained.operation.id, "lastReleasedGeneration": retained.resourceGeneration,
+            "lastReleasedRevision": retained.enrollment.revision, "lastReleasedKind": "running",
+            "lastReleasedOperation": try JSONSerialization.jsonObject(with: JSONEncoder().encode(retained.operation)),
+        ]
+        let proof = try proofs.sign(
+            challenge: nonce, purpose: "release-observation", state: released,
+            peer: replacement, enrollment: disabled, generation: 8)
+        let rebound = try await controller.coordinateRuntime(
+            .init(action: "runtime-reconcile-peer", challenge: nonce, proof: proof),
+            identity: proofs.identity, peer: replacement)
+        XCTAssertEqual(rebound.enrollment, retained.enrollment)
+        XCTAssertNil(rebound.session)
+        let authority = RuntimeCoordinatorAuthority(
+            fileURL: root.appendingPathComponent("runtime-coordinator.json"), ownerUID: getuid(),
+            verifier: proofs.verifier)
+        XCTAssertEqual(try authority.read(identity: proofs.identity)?.peer, replacement)
+        XCTAssertEqual(try authority.read(identity: proofs.identity)?.reconciliationOnly, true)
+
+        await driver.replaceCoordinator(replacement, policy: disabled)
+        _ = try await controller.submit(.init(action: .verify), ownerUID: getuid())
+        let completed = try await terminal(controller)
+        XCTAssertEqual(completed.phase, "completed", completed.error ?? "")
+        XCTAssertEqual(completed.runtimeRigAttempted, false)
+        let after = await driver.snapshot()
+        XCTAssertEqual(after.0, before.0 + [.verify])
+        XCTAssertEqual(after.1, before.1 + ["complete"])
+        let sessionChallenge = try await controller.coordinateRuntime(
+            .init(action: "runtime-challenge", purpose: "session"), identity: proofs.identity, peer: replacement)
+        let sessionNonce = try XCTUnwrap(sessionChallenge.challenge)
+        let oldApproval = try proofs.sign(
+            challenge: sessionNonce, purpose: "enrollment", peer: replacement, generation: 8)
+        do {
+            _ = try await controller.coordinateRuntime(
+                .init(action: "runtime-session", challenge: sessionNonce, proof: oldApproval),
+                identity: proofs.identity, peer: replacement)
+            XCTFail("Receipt reconciliation must not issue a data session")
+        } catch {}
     }
 
     func testWrongSignedBeginOwnerRefusesBeforeAnyNativeAction() async throws {

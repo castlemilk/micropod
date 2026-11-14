@@ -143,6 +143,16 @@ Tests reconstruct the helper after a lost completion, preserve cancelled
 outcomes after lost release replies, and refuse a changed native outcome
 without replaying a start or stop.
 
+When a release is committed but its reply is lost, a departed agent can be
+replaced for receipt reconciliation even if its runtime approval has since
+been revoked. Root requires positive prior-process exit, a newer signed
+status generation and a fresh proof of the exact original release. It retains
+the original enrollment and marks the replacement as reconciliation-only.
+That record cannot authorize a data session or new maintenance. The controller
+test exercises real process birth and exit with test-only signatures, verifies
+that no native action is repeated, and refuses an old approval as a session.
+Uncertain actions or uncommitted releases remain held.
+
 Source verification on 14 November passed the full Swift suite (1,397 tests,
 86 skipped), full Cuttlefish Go suite, targeted race tests, lint, TypeScript
 and three isolated browser journeys covering approval, pause, refusal and

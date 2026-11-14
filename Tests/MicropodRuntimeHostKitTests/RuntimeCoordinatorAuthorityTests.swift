@@ -39,7 +39,7 @@ final class RuntimeCoordinatorAuthorityTests: XCTestCase {
     }
     private func sign(
         _ f: Fixture, challenge: String, peer: RuntimeProcessBirth? = nil, generation: Int64 = 7,
-        purpose: String = "enrollment", state: [String: Any]? = nil
+        purpose: String = "enrollment", state: [String: Any]? = nil, revision: Int64 = 1, enabled: Bool = true
     ) throws
         -> String
     {
@@ -56,8 +56,8 @@ final class RuntimeCoordinatorAuthorityTests: XCTestCase {
             "peer": birth, "sessionGeneration": generation, "challenge": challenge,
             "enrollment": [
                 "schemaVersion": "micropod-runtime-coordination-v1", "scope": "micropod-dedicated-runtime",
-                "resourceId": f.resource, "organizationId": "org-a", "runnerId": "rig-a", "revision": 1,
-                "enabled": true,
+                "resourceId": f.resource, "organizationId": "org-a", "runnerId": "rig-a", "revision": revision,
+                "enabled": enabled,
                 "binding": [
                     "instance": f.identity.instance.uuidString, "hostKey": String(repeating: "b", count: 64),
                     "ownerUID": f.identity.ownerUID, "serviceUID": 400, "serviceGID": 401,
@@ -270,5 +270,79 @@ final class RuntimeCoordinatorAuthorityTests: XCTestCase {
             authority.discardChallenge(try nonce())
         }
         XCTAssertNoThrow(try nonce(), "Ordinary drain polling must not exhaust pending challenges")
+
+        let replacement = RuntimeProcessBirth(
+            pid: f.peer.pid + 1, uid: f.peer.uid, seconds: f.peer.seconds + 1,
+            microseconds: f.peer.microseconds, bootSession: f.peer.bootSession)
+        XCTAssertThrowsError(
+            try authority.issueReleaseRebindingChallenge(
+                identity: f.identity, peer: replacement, retained: retained, priorProcessExited: { _ in false }))
+        released["revision"] = 2
+        func recoveryNonce() throws -> String {
+            try authority.issueReleaseRebindingChallenge(
+                identity: f.identity, peer: replacement, retained: retained, priorProcessExited: { _ in true })
+        }
+        let stale = try recoveryNonce()
+        XCTAssertThrowsError(
+            try authority.rebindReleasedPeer(
+                sign(
+                    f, challenge: stale, peer: replacement, generation: 7, purpose: "release-observation",
+                    state: released, revision: 2, enabled: false),
+                challenge: stale, identity: f.identity, peer: replacement, retained: retained, kind: .cancelled,
+                now: f.now, priorProcessExited: { _ in true }))
+        XCTAssertEqual(try authority.read(identity: f.identity)?.peer, f.peer)
+        let wrongKind = try recoveryNonce()
+        XCTAssertThrowsError(
+            try authority.rebindReleasedPeer(
+                sign(
+                    f, challenge: wrongKind, peer: replacement, generation: 8, purpose: "release-observation",
+                    state: released, revision: 2, enabled: false),
+                challenge: wrongKind, identity: f.identity, peer: replacement, retained: retained, kind: .running,
+                now: f.now, priorProcessExited: { _ in true }))
+        XCTAssertEqual(try authority.read(identity: f.identity)?.peer, f.peer)
+        let recovery = try recoveryNonce()
+        let recoveryProof = try sign(
+            f, challenge: recovery, peer: replacement, generation: 8, purpose: "release-observation", state: released,
+            revision: 2, enabled: false)
+        XCTAssertEqual(
+            try authority.rebindReleasedPeer(
+                recoveryProof, challenge: recovery, identity: f.identity, peer: replacement, retained: retained,
+                kind: .cancelled, now: f.now, priorProcessExited: { _ in true }), enrollment)
+        XCTAssertEqual(try authority.read(identity: f.identity)?.peer, replacement)
+        XCTAssertEqual(try authority.read(identity: f.identity)?.reconciliationOnly, true)
+        XCTAssertThrowsError(
+            try authority.rebindReleasedPeer(
+                recoveryProof, challenge: recovery, identity: f.identity, peer: replacement, retained: retained,
+                kind: .cancelled, now: f.now, priorProcessExited: { _ in true }))
+        XCTAssertThrowsError(
+            try authority.issueOperationChallenge(
+                identity: f.identity, peer: replacement, operation: operation, purpose: "maintenance"))
+        let noData = try authority.issueChallenge(identity: f.identity, peer: replacement, purpose: "session")
+        XCTAssertThrowsError(
+            try authority.authorizeSession(
+                sign(f, challenge: noData, peer: replacement, generation: 8), challenge: noData,
+                identity: f.identity, peer: replacement, now: f.now))
+        let historical = try authority.issueOperationChallenge(
+            identity: f.identity, peer: replacement, operation: operation, purpose: "release-observation")
+        XCTAssertTrue(
+            try authority.observeRelease(
+                sign(
+                    f, challenge: historical, peer: replacement, generation: 8, purpose: "release-observation",
+                    state: released, revision: 2, enabled: false),
+                challenge: historical, identity: f.identity, peer: replacement, retained: retained, kind: .cancelled,
+                now: f.now
+            ).state.closed)
+        let renewed = try authority.issueChallenge(identity: f.identity, peer: replacement, purpose: "enrollment")
+        _ = try authority.enroll(
+            sign(f, challenge: renewed, peer: replacement, generation: 8, revision: 3), challenge: renewed,
+            identity: f.identity, peer: replacement, now: f.now)
+        XCTAssertNil(try authority.read(identity: f.identity)?.reconciliationOnly)
+        let approvedData = try authority.issueChallenge(identity: f.identity, peer: replacement, purpose: "session")
+        XCTAssertNoThrow(
+            try authority.authorizeSession(
+                sign(f, challenge: approvedData, peer: replacement, generation: 8, revision: 3),
+                challenge: approvedData,
+                identity: f.identity, peer: replacement, now: f.now))
+
     }
 }

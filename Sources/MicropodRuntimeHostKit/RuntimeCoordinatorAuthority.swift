@@ -13,6 +13,7 @@ struct RuntimeCoordinatorAuthority {
         let sessionGeneration: Int64
         let issuer: String
         let proofSHA256: String
+        let reconciliationOnly: Bool?
     }
     private struct Challenge {
         let peer: RuntimeProcessBirth
@@ -70,7 +71,8 @@ struct RuntimeCoordinatorAuthority {
     ) throws -> String {
         guard ["maintenance", "release-observation"].contains(purpose),
             operation.runtimeInstance == identity.instance.uuidString,
-            let record = try read(identity: identity), record.peer == peer
+            let record = try read(identity: identity), record.peer == peer,
+            record.reconciliationOnly != true || purpose == "release-observation"
         else { throw refused() }
         return try issue(identity: identity, peer: peer, purpose: purpose, operation: operation)
     }
@@ -106,7 +108,9 @@ struct RuntimeCoordinatorAuthority {
         resourceGeneration: Int64, now: Date = Date()
     ) throws -> RuntimeCoordinationRetainedReceipt {
         try consume(challenge, purpose: "maintenance", identity: identity, peer: peer, operation: operation)
-        guard let record = try read(identity: identity), record.peer == peer else { throw refused() }
+        guard let record = try read(identity: identity), record.peer == peer, record.reconciliationOnly != true else {
+            throw refused()
+        }
         _ = try verifier.verifyMaintenance(
             token, identity: identity, peer: peer, challenge: challenge,
             enrollment: record.enrollment, sessionGeneration: record.sessionGeneration,
@@ -158,7 +162,8 @@ struct RuntimeCoordinatorAuthority {
         }
         let record = Registration(
             enrollment: proof.enrollment, peer: peer, sessionGeneration: proof.sessionGeneration, issuer: proof.iss,
-            proofSHA256: SHA256.hash(data: Data(token.utf8)).map { String(format: "%02x", $0) }.joined())
+            proofSHA256: SHA256.hash(data: Data(token.utf8)).map { String(format: "%02x", $0) }.joined(),
+            reconciliationOnly: nil)
         try RuntimeDurableFile.write(record, to: fileURL)
         return proof.enrollment
     }
@@ -170,9 +175,48 @@ struct RuntimeCoordinatorAuthority {
         try consume(challenge, purpose: "session", identity: identity, peer: peer)
         let proof = try verifier.verifyEnrollment(token, identity: identity, peer: peer, challenge: challenge, now: now)
         guard let record = try read(identity: identity), record.enrollment == proof.enrollment,
-            record.peer == peer, record.sessionGeneration == proof.sessionGeneration
+            record.peer == peer, record.sessionGeneration == proof.sessionGeneration, record.reconciliationOnly != true
         else { throw refused() }
         return proof
+    }
+
+    /// Replacement of a departed coordinator for receipt reconciliation only.
+    /// The controller supplies its own retained operation, never caller data.
+    mutating func issueReleaseRebindingChallenge(
+        identity: IsolatedRuntimeIdentity, peer: RuntimeProcessBirth,
+        retained: RuntimeCoordinationRetainedReceipt,
+        priorProcessExited: (RuntimeProcessBirth) throws -> Bool = { try $0.hasExited() }
+    ) throws -> String {
+        guard let record = try read(identity: identity), record.enrollment == retained.enrollment,
+            try record.peer == peer ? record.reconciliationOnly == true : priorProcessExited(record.peer)
+        else { throw refused() }
+        return try issue(identity: identity, peer: peer, purpose: "release-rebind", operation: retained.operation)
+    }
+
+    mutating func rebindReleasedPeer(
+        _ token: String, challenge: String, identity: IsolatedRuntimeIdentity, peer: RuntimeProcessBirth,
+        retained: RuntimeCoordinationRetainedReceipt, kind: RuntimeCoordinationReleaseKind, now: Date = Date(),
+        priorProcessExited: (RuntimeProcessBirth) throws -> Bool = { try $0.hasExited() }
+    ) throws -> RuntimeCoordinationEnrollment {
+        try consume(challenge, purpose: "release-rebind", identity: identity, peer: peer, operation: retained.operation)
+        guard let old = try read(identity: identity), old.enrollment == retained.enrollment else { throw refused() }
+        let observed = try verifier.verifyReleaseObservation(
+            token, identity: identity, peer: peer, challenge: challenge,
+            originalEnrollment: retained.enrollment, operation: retained.operation,
+            resourceGeneration: retained.resourceGeneration, kind: kind, now: now)
+        let replacementAllowed =
+            try old.peer == peer
+            ? old.reconciliationOnly == true && observed.sessionGeneration >= old.sessionGeneration
+            : observed.sessionGeneration > old.sessionGeneration && priorProcessExited(old.peer)
+        guard replacementAllowed else { throw refused() }
+        // Keep the original enrollment. The current, possibly revoked policy
+        // proves historical release only, and cannot become a data grant.
+        let record = Registration(
+            enrollment: old.enrollment, peer: peer, sessionGeneration: observed.sessionGeneration, issuer: old.issuer,
+            proofSHA256: SHA256.hash(data: Data(token.utf8)).map { String(format: "%02x", $0) }.joined(),
+            reconciliationOnly: true)
+        try RuntimeDurableFile.write(record, to: fileURL)
+        return record.enrollment
     }
 
     private mutating func consume(
