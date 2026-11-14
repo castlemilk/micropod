@@ -57,9 +57,20 @@ public final class IsolatedRuntimeRigServer: @unchecked Sendable {
                                 if count < 0, errno == EINTR { continue }
                                 guard count > 0 else { throw refused() }
                                 bytes.append(contentsOf: part.prefix(count))
+                                guard bytes.count <= 32768 else { throw refused() }
+                            }
+                            guard let fields = try JSONSerialization.jsonObject(with: bytes) as? [String: Any],
+                                let action = fields["action"] as? String
+                            else { throw refused() }
+                            let scoped = action.hasPrefix("runtime-")
+                            if scoped {
+                                guard Set(fields.keys).isSubset(of: ["action", "purpose", "challenge", "proof"]) else {
+                                    throw refused()
+                                }
+                            } else {
                                 guard bytes.count <= 4096 else { throw refused() }
                             }
-                            let call = try JSONDecoder().decode(IsolatedRuntimeRigCall.self, from: bytes)
+                            let request = bytes
                             guard try RuntimeUnixSocket.peer(client) == peer, authorized(peer) else { throw refused() }
                             Task { [self] in
                                 defer {
@@ -67,11 +78,20 @@ public final class IsolatedRuntimeRigServer: @unchecked Sendable {
                                     slots.signal()
                                 }
                                 do {
-                                    let proof = try await controller.rigProof(call, identity: identity)
+                                    let reply: Data
+                                    if scoped {
+                                        let call = try JSONDecoder().decode(RuntimeCoordinationCall.self, from: request)
+                                        reply = try await JSONEncoder().encode(
+                                            controller.coordinateRuntime(call, identity: identity, peer: peer))
+                                    } else {
+                                        let call = try JSONDecoder().decode(IsolatedRuntimeRigCall.self, from: request)
+                                        reply = try await JSONEncoder().encode(
+                                            controller.rigProof(call, identity: identity))
+                                    }
                                     guard try RuntimeUnixSocket.peer(client) == peer, authorized(peer) else {
                                         throw refused()
                                     }
-                                    try RuntimeUnixSocket.write(JSONEncoder().encode(proof) + Data([10]), to: client)
+                                    try RuntimeUnixSocket.write(reply + Data([10]), to: client)
                                 } catch { /* A missing proof always refuses permission. */  }
                             }
                         } catch {

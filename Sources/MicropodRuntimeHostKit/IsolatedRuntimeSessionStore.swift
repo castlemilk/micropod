@@ -20,17 +20,22 @@ public enum IsolatedRuntimeSessionStore {
             FileManager.default.fileExists(atPath: root.appendingPathComponent($0).path)
         }
     }
-    public static func issue(identity: IsolatedRuntimeIdentity, subject: RuntimeProcessBirth) throws
+    public static func issue(
+        identity: IsolatedRuntimeIdentity, subject: RuntimeProcessBirth,
+        expiresAt: Date = Date().addingTimeInterval(3600)
+    ) throws
         -> IsolatedRuntimeAPISession
     {
-        guard geteuid() == 0, subject.uid == identity.ownerUID, try RuntimeProcessBirth.read(subject.pid) == subject
+        let now = Date()
+        guard geteuid() == 0, subject.uid == identity.ownerUID, expiresAt > now,
+            expiresAt <= now.addingTimeInterval(3600), try RuntimeProcessBirth.read(subject.pid) == subject
         else {
             throw MicropodError.message("The API client process identity is unavailable")
         }
         try RootRuntimeStorage.ensureRootDirectory(IsolatedRuntimeAPIConfiguration.sessionsRoot)
         let session = IsolatedRuntimeAPISession(
             id: UUID(), instance: identity.instance, token: try secret(), subject: subject,
-            expiresAt: Date().addingTimeInterval(3600))
+            expiresAt: expiresAt)
         let file = IsolatedRuntimeAPIConfiguration.sessionsRoot.appendingPathComponent(session.id.uuidString + ".json")
         try RuntimeDurableFile.write(IsolatedRuntimeAPISessionRecord(session: session), to: file)
         try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file.path)

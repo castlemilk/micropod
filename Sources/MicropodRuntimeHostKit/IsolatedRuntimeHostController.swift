@@ -14,6 +14,7 @@ public actor IsolatedRuntimeHostController {
     private var probe: Task<IsolatedRuntimeObservation, Error>?
     private var workerRunning = false
     private var fence: RuntimeMaintenanceFence?
+    private var runtimeCoordinator = RuntimeCoordinatorAuthority()
 
     public init(
         driver: any IsolatedRuntimeHostDriving, journal: URL = RootRuntimeStorage.operation,
@@ -92,6 +93,14 @@ public actor IsolatedRuntimeHostController {
         if request.action == .cancel {
             task?.cancel()
             return state
+        }
+        // The new enrollment/session boundary is not a legacy host grant.
+        // Keep disruptive calls closed until the resource-scoped lifecycle
+        // coordinator is wired through the same durable operation protocol.
+        if FileManager.default.fileExists(atPath: RuntimeCoordinatorAuthority.fileURL.path),
+            [.install, .start, .stop, .restart].contains(request.action)
+        {
+            throw MicropodError.message("Runtime-only lifecycle coordination is not available in this helper release")
         }
         if state.operation == request.operation {
             guard state.action == request.action else {
@@ -375,6 +384,10 @@ public actor IsolatedRuntimeHostController {
         -> IsolatedRuntimeRigProof
     {
         if call.action == "enroll" {
+            guard !FileManager.default.fileExists(atPath: RuntimeCoordinatorAuthority.fileURL.path) else {
+                throw MicropodError.message(
+                    "Runtime-only coordination cannot enroll the public provider or physical host")
+            }
             guard let host = call.hostID, !host.isEmpty, host.utf8.count <= 128,
                 host.utf8.allSatisfy({
                     (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0)
@@ -429,6 +442,44 @@ public actor IsolatedRuntimeHostController {
             admissionClosed: closed, actionVerified: state.actionVerified == true, phase: state.phase,
             nativeState: observation?.state, nativeVersion: observation?.nativeVersion,
             nativeInstallRoot: observation?.nativeInstallRoot, nativeAppRoot: observation?.nativeAppRoot)
+    }
+
+    /// Runtime-only enrollment does not mutate rig.json, select a public API,
+    /// reopen scheduler admission or grant host update/reboot authority.
+    public func coordinateRuntime(
+        _ call: RuntimeCoordinationCall, identity: IsolatedRuntimeIdentity, peer: RuntimeProcessBirth
+    ) throws -> RuntimeCoordinationReply {
+        guard state.identity == identity, state.phase == "completed", state.rigAttempted != true,
+            task == nil, probe == nil, !workerRunning,
+            !gate.isClosed, try registration(identity) == nil,
+            try RuntimeProcessBirth.read(peer.pid) == peer, peer.uid == identity.ownerUID
+        else {
+            throw MicropodError.message("Complete retained runtime maintenance before coordinating the private runtime")
+        }
+        switch call.action {
+        case "runtime-challenge":
+            guard let purpose = call.purpose, call.proof == nil, call.challenge == nil else {
+                throw MicropodError.message("The runtime challenge request is invalid")
+            }
+            let challenge = try runtimeCoordinator.issueChallenge(identity: identity, peer: peer, purpose: purpose)
+            return .init(identity: identity, peer: peer, challenge: challenge)
+        case "runtime-enroll", "runtime-session":
+            guard call.purpose == nil, let proof = call.proof, let challenge = call.challenge else {
+                throw MicropodError.message("The runtime coordination request is incomplete")
+            }
+            if call.action == "runtime-enroll" {
+                let enrollment = try runtimeCoordinator.enroll(
+                    proof, challenge: challenge, identity: identity, peer: peer)
+                return .init(identity: identity, peer: peer, enrollment: enrollment)
+            }
+            let verified = try runtimeCoordinator.authorizeSession(
+                proof, challenge: challenge, identity: identity, peer: peer)
+            let session = try IsolatedRuntimeSessionStore.issue(
+                identity: identity, subject: peer, expiresAt: Date(timeIntervalSince1970: Double(verified.exp)))
+            return .init(identity: identity, peer: peer, enrollment: verified.enrollment, session: session)
+        default:
+            throw MicropodError.message("Unknown runtime coordination request")
+        }
     }
 
     private func publishFence() throws {

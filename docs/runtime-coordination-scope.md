@@ -1,8 +1,11 @@
 # Runtime coordination on a Mac with independent CI services
 
-Status: design requirement for #89. The runtime-scoped contract described here
-is not implemented or approved by the current host enrollment. The managed
-public API remains blocked on Gamma.
+Status: implementation in progress for #89. The separate approval, resource
+fence and signed helper enrollment/session boundary are staged in source.
+The control-plane feature flag is off. The agent's private transport and
+resource-scoped lifecycle integration remain incomplete, and the staged helper
+refuses disruptive operations after runtime-only registration. This work has
+not been installed or approved on Gamma; its managed public API remains blocked.
 
 On 14 November 2026 the owner asked to keep Gamma's independent CI services.
 The observed configuration contains six native GitHub runners, the SFH VM
@@ -26,12 +29,36 @@ resource and revision. Existing host grants, project credentials, machine
 tokens and OAuth clients cannot create this grant. A signed local process
 alone does not establish control-plane approval.
 
+The helper must verify a control-plane signature, using an explicitly trusted
+issuer and pinned public key. Caller-supplied approval metadata, a configurable
+server address or a local test control plane cannot supply this proof. The
+signed enrollment must bind the approved account/runtime/rig and the actual
+coordinator process incarnation. Maintenance proofs must also bind the exact
+operation, local generation, selected artifact and resource-fence generation.
+Ordinary pipeline identity tokens and host-update receipts must be rejected.
+Do not learn verification keys from an agent's request or silently trust a new
+issuer during recovery. Key rotation requires a verified update or explicit
+administrator trust setup.
+
+Control-plane creation and transition endpoints must start disabled. Deploy
+and verify every admission writer before enabling them; an older backend that
+does not enforce the resource fence cannot participate in that release or its
+rollback. Retained runtime admission records must remain enforced when the new
+endpoint flag is turned off. An operator pause is insufficient as a substitute
+for this deployment requirement.
+
 The runtime grant must confer no physical-host ownership, desktop app update,
 machine reboot, legacy-service control or changes to the desktop Apple store.
 Existing host-maintenance authorization and its refusal tests must remain
 unchanged. Each operation must state its scope; an unknown, missing or
 mismatched scope must refuse the new contract. A runtime receipt must never be
 accepted by a host-update or reboot path.
+
+The first version supports one coordinator rig per dedicated runtime. Its
+resource fence covers that rig's work across projects. Adding another rig or
+changing the protected account/instance requires explicit reconciliation;
+re-registration cannot silently change membership. The separate root-owned
+`runtime-coordinator.json` must never satisfy the legacy `rig.json` check.
 
 ## Selection and admission
 
@@ -97,6 +124,14 @@ Record the selected endpoint and engine so an ordinary desktop-runtime job
 cannot be mistaken for managed-runtime qualification. A refused public API
 adoption or a passing CLI-only workload does not qualify the scheduled Connect
 executor.
+
+Source verification so far includes a real isolated PostgreSQL test database,
+race tests for late leases, retained native/pool cleanup claims, manual stop
+across agent replacement, and exact lost-release receipts. The local database
+is PostgreSQL 18.6; intended CI PostgreSQL coverage remains separate. The helper
+tests verify pinned RSA signatures, account/process/operation substitution,
+expiry, one-use challenges, restart invalidation and replacement ownership.
+These results do not qualify a live agent handoff or reboot.
 
 A real Mac reboot remains a separate operator maintenance action after active
 jobs finish. This runtime grant cannot authorize it. Boot UUID, retained
