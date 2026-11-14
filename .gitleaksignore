@@ -1,0 +1,3 @@
+# Public SHA-256 of Apple's signed container-apiserver payload, not a credential.
+# Exact historical commit/file/rule/line only; new findings remain reportable.
+88bda58c903de60681c91dbbfc92403a4ee8094c:Sources/MicropodCore/RuntimeManagement/AppleRuntimePayload.swift:generic-api-key:8
