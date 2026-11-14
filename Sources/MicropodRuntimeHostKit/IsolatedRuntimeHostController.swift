@@ -449,6 +449,18 @@ public actor IsolatedRuntimeHostController {
     public func coordinateRuntime(
         _ call: RuntimeCoordinationCall, identity: IsolatedRuntimeIdentity, peer: RuntimeProcessBirth
     ) throws -> RuntimeCoordinationReply {
+        guard state.identity == identity, try registration(identity) == nil,
+            try RuntimeProcessBirth.read(peer.pid) == peer, peer.uid == identity.ownerUID
+        else { throw MicropodError.message("The dedicated runtime coordinator identity is unconfirmed") }
+        try ServiceAccountProvisioner.verifyExisting(identity: identity)
+        if call.action == "runtime-inspect" {
+            guard call.purpose == nil, call.proof == nil, call.challenge == nil else {
+                throw MicropodError.message("The runtime inspection request is invalid")
+            }
+            // Public identity facts only: no nonce, session, registration,
+            // admission transition or lifecycle permission is issued here.
+            return .init(identity: identity, peer: peer)
+        }
         guard state.identity == identity, state.phase == "completed", state.rigAttempted != true,
             task == nil, probe == nil, !workerRunning,
             !gate.isClosed, try registration(identity) == nil,
@@ -456,7 +468,6 @@ public actor IsolatedRuntimeHostController {
         else {
             throw MicropodError.message("Complete retained runtime maintenance before coordinating the private runtime")
         }
-        try ServiceAccountProvisioner.verifyExisting(identity: identity)
         switch call.action {
         case "runtime-challenge":
             guard let purpose = call.purpose, call.proof == nil, call.challenge == nil else {

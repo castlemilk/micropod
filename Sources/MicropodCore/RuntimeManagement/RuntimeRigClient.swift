@@ -49,21 +49,21 @@ public struct RuntimeRigClient: RuntimeRigCoordinating {
     public static var socketPath: String {
         NSHomeDirectory() + "/.cuttlefish/runner-state/micropod-maintenance.sock"
     }
+    /// A selection hint, never proof of ownership or complete CI coverage.
+    public static func hasConfiguredRig(ownerHome: URL = FileManager.default.homeDirectoryForCurrentUser) -> Bool {
+        [
+            ".cuttlefish/runner-state/micropod-maintenance.sock", ".cuttlefish/agent-desktop-state.json",
+            ".cuttlefish/desktop-state.json", "Library/LaunchAgents/dev.cuttlefish.agent.desktop.plist",
+            "Library/LaunchAgents/dev.cuttlefish.agent.hostlocal.plist",
+        ].contains { FileManager.default.fileExists(atPath: ownerHome.appendingPathComponent($0).path) }
+    }
     public func transition(
         operation: UUID, action: String, installRoot: URL, localGeneration: UInt64, targetState: String
     ) async throws -> RuntimeRigReceipt? {
         let fm = FileManager.default
         let home = ownerHome ?? fm.homeDirectoryForCurrentUser
         let socketPath = home.appendingPathComponent(".cuttlefish/runner-state/micropod-maintenance.sock").path
-        let knownRig =
-            fm.fileExists(atPath: socketPath)
-            || fm.fileExists(atPath: home.appendingPathComponent(".cuttlefish/agent-desktop-state.json").path)
-            || fm.fileExists(atPath: home.appendingPathComponent(".cuttlefish/desktop-state.json").path)
-            || fm.fileExists(
-                atPath: home.appendingPathComponent("Library/LaunchAgents/dev.cuttlefish.agent.desktop.plist").path)
-            || fm.fileExists(
-                atPath: home.appendingPathComponent("Library/LaunchAgents/dev.cuttlefish.agent.hostlocal.plist").path)
-        guard knownRig else {
+        guard Self.hasConfiguredRig(ownerHome: home) else {
             throw RuntimeRigAdmissionError.unavailable(
                 "Runtime files are staged. Activation requires a qualified runtime consumer coordinator; an idle snapshot cannot authorize a shared-service restart."
             )

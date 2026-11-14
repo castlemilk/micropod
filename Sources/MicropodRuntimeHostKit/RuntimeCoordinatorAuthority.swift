@@ -81,13 +81,19 @@ struct RuntimeCoordinatorAuthority {
         try consume(challenge, purpose: "enrollment", identity: identity, peer: peer)
         let proof = try verifier.verifyEnrollment(token, identity: identity, peer: peer, challenge: challenge, now: now)
         if let old = try read(identity: identity) {
-            let sameProcessSession = old.peer == peer && old.sessionGeneration == proof.sessionGeneration
-            let canReplace = try sameProcessSession || priorProcessExited(old.peer)
+            // A status credential can rotate within the same kernel process.
+            // It does not replace worker ownership. A different process still
+            // needs positive exit proof, and neither path may roll back a
+            // generation already verified under the control-plane signature.
+            let canReplace =
+                try old.peer == peer
+                || (proof.sessionGeneration > old.sessionGeneration && priorProcessExited(old.peer))
             guard old.enrollment.resourceId == proof.enrollment.resourceId,
                 old.enrollment.organizationId == proof.enrollment.organizationId,
                 old.enrollment.runnerId == proof.enrollment.runnerId,
                 old.enrollment.binding == proof.enrollment.binding,
                 old.enrollment.revision <= proof.enrollment.revision,
+                old.sessionGeneration <= proof.sessionGeneration,
                 canReplace
             else { throw refused() }
         }

@@ -12,13 +12,7 @@ public enum IsolatedRuntimeSessionStore {
             result != nil, let home = user.pw_dir
         else { throw MicropodError.message("The runtime owner's home is unavailable") }
         let root = URL(fileURLWithPath: String(cString: home))
-        return [
-            ".cuttlefish/runner-state/micropod-maintenance.sock", ".cuttlefish/agent-desktop-state.json",
-            ".cuttlefish/desktop-state.json", "Library/LaunchAgents/dev.cuttlefish.agent.desktop.plist",
-            "Library/LaunchAgents/dev.cuttlefish.agent.hostlocal.plist",
-        ].contains {
-            FileManager.default.fileExists(atPath: root.appendingPathComponent($0).path)
-        }
+        return RuntimeRigClient.hasConfiguredRig(ownerHome: root)
     }
     public static func issue(
         identity: IsolatedRuntimeIdentity, subject: RuntimeProcessBirth,

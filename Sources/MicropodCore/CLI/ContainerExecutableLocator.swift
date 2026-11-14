@@ -12,6 +12,7 @@ public enum ContainerExecutableLocator {
         managedExecutable: () -> URL? = {
             isolatedExecutable() ?? ManagedRuntimeLocation.executable()
         },
+        hasConfiguredRig: () -> Bool = { RuntimeRigClient.hasConfiguredRig() },
         isExecutable: (String) -> Bool = ContainerExecutableLocator.isExecutableFile
     ) -> URL {
         // An explicit path is authoritative, including when it is missing.
@@ -19,13 +20,25 @@ public enum ContainerExecutableLocator {
         if let path = environment["MICROPOD_CONTAINER_CLI_PATH"] {
             return URL(fileURLWithPath: path)
         }
-        if let managed = managedExecutable() { return managed }
+        let requested = (environment["MICROPOD_RUNTIME_CONTEXT"] ?? "automatic")
+            .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard ["automatic", "existing", "managed"].contains(requested) else {
+            return IsolatedRuntimePolicy.root.appendingPathComponent("invalid-context/bin/container")
+        }
+        // The dedicated service is launched with this fixed environment by
+        // the helper. Desktop clients must choose the managed context
+        // explicitly when a prior installation or CI configuration exists.
+        if requested == "managed" || environment["MICROPOD_ISOLATED_RUNTIME"] == "1" {
+            return managedExecutable()
+                ?? IsolatedRuntimePolicy.root.appendingPathComponent("missing-managed-runtime/bin/container")
+        }
         let directories = defaultDirectories + (environment["PATH"] ?? "").split(separator: ":").map(String.init)
         var seen = Set<String>()
         for directory in directories where directory.hasPrefix("/") && seen.insert(directory).inserted {
             let candidate = URL(fileURLWithPath: directory, isDirectory: true).appendingPathComponent("container")
             if isExecutable(candidate.path) { return candidate }
         }
+        if requested == "automatic", !hasConfiguredRig(), let managed = managedExecutable() { return managed }
         // A stable missing path makes diagnostics useful on a fresh Mac.
         return URL(fileURLWithPath: "/usr/local/bin/container")
     }

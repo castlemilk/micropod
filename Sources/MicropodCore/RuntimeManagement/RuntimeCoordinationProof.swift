@@ -18,13 +18,18 @@ public struct RuntimeCoordinationEnrollment: Codable, Sendable, Equatable {
     public static let runtimeScope = "micropod-dedicated-runtime"
 
     public func validate(identity: IsolatedRuntimeIdentity) throws {
+        try validateMetadata(identity: identity)
+        guard enabled else { throw RuntimeCoordinationProofVerifier.refused() }
+    }
+
+    fileprivate func validateMetadata(identity: IsolatedRuntimeIdentity) throws {
         try identity.validate()
         let resourceUUID = String(resourceId.dropFirst(4))
         guard schemaVersion == Self.capability, scope == Self.runtimeScope,
             resourceId.hasPrefix("mrt-"), let resource = UUID(uuidString: resourceUUID),
             resource != UUID.zero, resourceId == "mrt-" + resource.uuidString.lowercased(),
             !organizationId.isEmpty, organizationId.utf8.count <= 256,
-            !runnerId.isEmpty, runnerId.utf8.count <= 256, revision > 0, enabled,
+            !runnerId.isEmpty, runnerId.utf8.count <= 256, revision > 0,
             binding.matches(identity)
         else { throw RuntimeCoordinationProofVerifier.refused() }
     }
@@ -110,10 +115,22 @@ public struct RuntimeCoordinationState: Codable, Sendable, Equatable {
     public let lastReleasedOwner: String
     public let lastReleasedGeneration: Int64
     public let lastReleasedRevision: Int64
+    public let lastReleasedKind: String
     public let operation: RuntimeCoordinationOperation
     // Empty operations are represented as JSON objects with zero-valued fields
     // by the control plane. This history is audit data, never a new action.
     public let lastReleasedOperation: RuntimeCoordinationOperation
+}
+
+public enum RuntimeCoordinationReleaseKind: String, Codable, Sendable {
+    case running, stopped, cancelled
+}
+
+/// An observation can settle only the exact already completed operation.
+/// It is never an enrollment, API capability or permission for another action.
+public struct RuntimeCoordinationReleaseObservation: Sendable {
+    public let enrollment: RuntimeCoordinationEnrollment
+    public let state: RuntimeCoordinationState
 }
 
 /// No network key discovery or caller-supplied trust. The public initializer
@@ -157,6 +174,7 @@ public struct RuntimeCoordinationProofVerifier: Sendable {
         enrollment: RuntimeCoordinationEnrollment, sessionGeneration: Int64,
         operation: RuntimeCoordinationOperation, resourceGeneration: Int64, now: Date = Date()
     ) throws -> RuntimeCoordinationEnrollmentProof {
+        try operation.validateLocal(identity: identity)
         let proof = try verifyProof(
             token, identity: identity, peer: peer, challenge: challenge, purpose: "maintenance", now: now)
         guard proof.enrollment == enrollment, proof.sessionGeneration == sessionGeneration,
@@ -165,6 +183,31 @@ public struct RuntimeCoordinationProofVerifier: Sendable {
             state.operation == operation, state.generation > 0, state.generation == resourceGeneration
         else { throw Self.refused() }
         return proof
+    }
+
+    public func verifyReleaseObservation(
+        _ token: String, identity: IsolatedRuntimeIdentity, peer: RuntimeProcessBirth, challenge: String,
+        originalEnrollment: RuntimeCoordinationEnrollment, operation: RuntimeCoordinationOperation,
+        resourceGeneration: Int64, kind: RuntimeCoordinationReleaseKind, now: Date = Date()
+    ) throws -> RuntimeCoordinationReleaseObservation {
+        try originalEnrollment.validate(identity: identity)
+        try operation.validateLocal(identity: identity)
+        let proof = try verifyProof(
+            token, identity: identity, peer: peer, challenge: challenge, purpose: "release-observation", now: now)
+        let current = proof.enrollment
+        guard current.organizationId == originalEnrollment.organizationId,
+            current.runnerId == originalEnrollment.runnerId, current.resourceId == originalEnrollment.resourceId,
+            current.binding == originalEnrollment.binding, current.revision >= originalEnrollment.revision,
+            let state = proof.state, state.scope == current.scope, state.resourceId == current.resourceId,
+            state.revision == current.revision, state.owner.isEmpty, state.operation.isEmpty,
+            resourceGeneration > 0, resourceGeneration < Int64.max, state.generation == resourceGeneration + 1,
+            state.lastReleasedOwner == operation.id, state.lastReleasedOperation == operation,
+            state.lastReleasedGeneration == resourceGeneration,
+            state.lastReleasedRevision == originalEnrollment.revision, state.lastReleasedKind == kind.rawValue,
+            kind == .cancelled || kind.rawValue == operation.targetState,
+            state.closed || (current.enabled && kind == .running)
+        else { throw Self.refused() }
+        return RuntimeCoordinationReleaseObservation(enrollment: current, state: state)
     }
 
     private func verifyProof(
@@ -214,7 +257,11 @@ public struct RuntimeCoordinationProofVerifier: Sendable {
             let boot = UUID(uuidString: peer.bootSession), boot != UUID.zero,
             peer.bootSession == boot.uuidString
         else { throw Self.refused() }
-        try proof.enrollment.validate(identity: identity)
+        if purpose == "release-observation" {
+            try proof.enrollment.validateMetadata(identity: identity)
+        } else {
+            try proof.enrollment.validate(identity: identity)
+        }
         return proof
     }
 
@@ -238,6 +285,32 @@ public struct RuntimeCoordinationProofVerifier: Sendable {
     }
 
     static func refused() -> Error { MicropodError.message("The dedicated runtime approval proof is unconfirmed") }
+}
+
+private extension RuntimeCoordinationOperation {
+    func validateLocal(identity: IsolatedRuntimeIdentity) throws {
+        let prefix = IsolatedRuntimePolicy.root.appendingPathComponent(
+            "apple/versions/" + version + "-" + packageSHA256
+        ).path
+        guard let identifier = UUID(uuidString: id), identifier != UUID.zero,
+            id == identifier.uuidString.lowercased(), runtimeInstance == identity.instance.uuidString,
+            localGeneration > 0, ["start", "stop", "restart", "install"].contains(action),
+            targetState == (action == "stop" ? "stopped" : "running"),
+            version == AppleRuntimeRelease.supported.version,
+            packageSHA256 == AppleRuntimeRelease.supported.packageSHA256
+        else { throw RuntimeCoordinationProofVerifier.refused() }
+        if installRoot != prefix {
+            guard installRoot.hasPrefix(prefix + "-"),
+                let incarnation = UUID(uuidString: String(installRoot.dropFirst(prefix.count + 1))),
+                incarnation != UUID.zero, installRoot == prefix + "-" + incarnation.uuidString
+            else { throw RuntimeCoordinationProofVerifier.refused() }
+        }
+    }
+
+    var isEmpty: Bool {
+        id.isEmpty && runtimeInstance.isEmpty && action.isEmpty && localGeneration == 0 && version.isEmpty
+            && packageSHA256.isEmpty && installRoot.isEmpty && targetState.isEmpty
+    }
 }
 
 private extension UUID {

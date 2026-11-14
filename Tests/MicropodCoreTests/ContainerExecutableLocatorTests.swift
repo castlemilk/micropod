@@ -53,13 +53,54 @@ final class ContainerExecutableLocatorTests: XCTestCase {
         XCTAssertEqual(resolve().path, "/usr/local/bin/container")
     }
 
-    func testManagedSelectionPrecedesDiscoveredExternalCLI() {
+    func testExplicitManagedSelectionPrecedesDiscoveredExternalCLI() {
         let managed = URL(fileURLWithPath: "/managed/bin/container")
         XCTAssertEqual(
             ContainerExecutableLocator.resolve(
-                environment: ["PATH": "/custom/bin"], managedExecutable: { managed }, isExecutable: { _ in true }),
+                environment: ["PATH": "/custom/bin", "MICROPOD_RUNTIME_CONTEXT": "managed"],
+                managedExecutable: { managed }, isExecutable: { _ in true }),
             managed)
         XCTAssertFalse(
             ContainerCLIClient(executableURL: URL(fileURLWithPath: "/custom/bin/container")).usesManagedLifecycle)
+    }
+
+    func testInstallingManagedRuntimeDoesNotRetargetExistingClientsOrConfiguredRig() {
+        let managed = URL(fileURLWithPath: "/managed/bin/container")
+        XCTAssertEqual(
+            ContainerExecutableLocator.resolve(
+                environment: [:], defaultDirectories: ["/legacy/bin"], managedExecutable: { managed },
+                hasConfiguredRig: { false }, isExecutable: { $0 == "/legacy/bin/container" }
+            ).path,
+            "/legacy/bin/container")
+        XCTAssertEqual(
+            ContainerExecutableLocator.resolve(
+                environment: [:], defaultDirectories: [],
+                managedExecutable: {
+                    XCTFail("An unavailable prior runtime must not silently switch stores")
+                    return managed
+                }, hasConfiguredRig: { true }, isExecutable: { _ in false }
+            ).path,
+            "/usr/local/bin/container")
+        XCTAssertEqual(
+            ContainerExecutableLocator.resolve(
+                environment: [:], defaultDirectories: [], managedExecutable: { managed },
+                hasConfiguredRig: { false }, isExecutable: { _ in false }), managed)
+    }
+
+    func testExplicitContextsFailClosedAndPrivateServiceUsesOnlyManagedSelection() {
+        for context in ["existing", "managed", "misspelled"] {
+            let resolved = ContainerExecutableLocator.resolve(
+                environment: ["MICROPOD_RUNTIME_CONTEXT": context], defaultDirectories: [],
+                managedExecutable: { nil }, hasConfiguredRig: { false }, isExecutable: { _ in false })
+            XCTAssertNotEqual(resolved.path, "/managed/bin/container")
+            if context == "existing" { XCTAssertEqual(resolved.path, "/usr/local/bin/container") }
+            if context == "managed" { XCTAssertTrue(resolved.path.contains("missing-managed-runtime")) }
+            if context == "misspelled" { XCTAssertTrue(resolved.path.contains("invalid-context")) }
+        }
+        let managed = URL(fileURLWithPath: "/managed/bin/container")
+        XCTAssertEqual(
+            ContainerExecutableLocator.resolve(
+                environment: ["MICROPOD_ISOLATED_RUNTIME": "1"], defaultDirectories: ["/legacy/bin"],
+                managedExecutable: { managed }, hasConfiguredRig: { true }, isExecutable: { _ in true }), managed)
     }
 }

@@ -217,6 +217,7 @@ final class RuntimeCoordinationProofTests: XCTestCase {
             "scope": enrollment.scope, "resourceId": enrollment.resourceId, "revision": enrollment.revision,
             "owner": operation.id, "generation": 1, "closed": true, "operation": op,
             "lastReleasedOwner": "", "lastReleasedGeneration": -1, "lastReleasedRevision": 0,
+            "lastReleasedKind": "",
             "lastReleasedOperation": empty,
         ]
         func maintenance(_ token: String) throws -> RuntimeCoordinationEnrollmentProof {
@@ -254,5 +255,101 @@ final class RuntimeCoordinationProofTests: XCTestCase {
             claims["state"] = changed
             XCTAssertThrowsError(try maintenance(sign(claims, fixture: f)), field)
         }
+        for field in ["id", "localGeneration", "version", "packageSHA256", "installRoot", "targetState"] {
+            var changedOp = op
+            changedOp[field] = field == "localGeneration" ? 0 : "unconfirmed"
+            let retained = try JSONDecoder().decode(
+                RuntimeCoordinationOperation.self, from: JSONSerialization.data(withJSONObject: changedOp))
+            var changed = state
+            changed["operation"] = changedOp
+            changed["owner"] = retained.id
+            claims["state"] = changed
+            let token = try sign(claims, fixture: f)
+            XCTAssertThrowsError(
+                try f.verifier.verifyMaintenance(
+                    token, identity: f.identity, peer: f.peer, challenge: f.challenge, enrollment: enrollment,
+                    sessionGeneration: 7, operation: retained, resourceGeneration: 1, now: f.now), field)
+        }
+    }
+
+    func testRevokedReleaseObservationSettlesOnlyTheExactOutcomeWithoutGrantingAuthority() throws {
+        let f = try fixture()
+        let original = try verify(sign(f.claims, fixture: f), f).enrollment
+        let operation = try RuntimeCoordinationOperation(
+            operation: UUID(), identity: f.identity, action: "start", localGeneration: 42,
+            selection: .init(
+                version: AppleRuntimeRelease.supported.version,
+                packageSHA256: AppleRuntimeRelease.supported.packageSHA256))
+        let op = try JSONSerialization.jsonObject(with: JSONEncoder().encode(operation)) as! [String: Any]
+        let empty: [String: Any] = [
+            "id": "", "runtimeInstance": "", "action": "", "localGeneration": 0,
+            "version": "", "packageSHA256": "", "installRoot": "", "targetState": "",
+        ]
+        var state: [String: Any] = [
+            "scope": original.scope, "resourceId": original.resourceId, "revision": original.revision,
+            "owner": "", "generation": 2, "closed": false, "operation": empty,
+            "lastReleasedOwner": operation.id, "lastReleasedGeneration": 1, "lastReleasedRevision": 1,
+            "lastReleasedKind": "running", "lastReleasedOperation": op,
+        ]
+        var claims = f.claims
+        claims["purpose"] = "release-observation"
+        claims["state"] = state
+        func observe(_ claims: [String: Any], kind: RuntimeCoordinationReleaseKind = .running) throws
+            -> RuntimeCoordinationReleaseObservation
+        {
+            try f.verifier.verifyReleaseObservation(
+                sign(claims, fixture: f), identity: f.identity, peer: f.peer, challenge: f.challenge,
+                originalEnrollment: original, operation: operation, resourceGeneration: 1, kind: kind, now: f.now)
+        }
+        XCTAssertFalse(try observe(claims).state.closed)
+        var current = claims["enrollment"] as! [String: Any]
+        current["revision"] = 2
+        current["enabled"] = false
+        claims["enrollment"] = current
+        state["revision"] = 2
+        state["closed"] = true
+        claims["state"] = state
+        let revoked = try observe(claims)
+        XCTAssertFalse(revoked.enrollment.enabled)
+        XCTAssertTrue(revoked.state.closed)
+        var reapproved = claims
+        var reapprovedEnrollment = current
+        reapprovedEnrollment["revision"] = 3
+        reapprovedEnrollment["enabled"] = true
+        reapproved["enrollment"] = reapprovedEnrollment
+        var reapprovedState = state
+        reapprovedState["revision"] = 3
+        reapproved["state"] = reapprovedState
+        XCTAssertTrue(try observe(reapproved).state.closed)
+        let token = try sign(claims, fixture: f)
+        XCTAssertThrowsError(try verify(token, f))
+        XCTAssertThrowsError(
+            try f.verifier.verifyMaintenance(
+                token, identity: f.identity, peer: f.peer, challenge: f.challenge, enrollment: original,
+                sessionGeneration: 7, operation: operation, resourceGeneration: 1, now: f.now))
+        for field in [
+            "lastReleasedOwner", "lastReleasedGeneration", "lastReleasedRevision", "lastReleasedKind", "generation",
+            "owner", "operation",
+        ] {
+            var changed = state
+            if field == "lastReleasedGeneration" || field == "lastReleasedRevision" || field == "generation" {
+                changed[field] = 99
+            } else if field == "operation" {
+                changed[field] = op
+            } else {
+                changed[field] = "other"
+            }
+            var different = claims
+            different["state"] = changed
+            XCTAssertThrowsError(try observe(different), field)
+        }
+        state["lastReleasedKind"] = "cancelled"
+        claims["state"] = state
+        XCTAssertThrowsError(try observe(claims))
+        XCTAssertTrue(try observe(claims, kind: .cancelled).state.closed)
+        current["runnerId"] = "another-rig"
+        claims["enrollment"] = current
+        claims["sub"] = "runner:another-rig"
+        XCTAssertThrowsError(try observe(claims, kind: .cancelled))
     }
 }

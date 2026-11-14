@@ -108,22 +108,44 @@ final class RuntimeCoordinatorAuthorityTests: XCTestCase {
         let first = try authority.issueChallenge(identity: f.identity, peer: f.peer, purpose: "enrollment")
         _ = try authority.enroll(
             sign(f, challenge: first), challenge: first, identity: f.identity, peer: f.peer, now: f.now)
-        let live = try authority.issueChallenge(identity: f.identity, peer: f.peer, purpose: "enrollment")
+        let rotated = try authority.issueChallenge(identity: f.identity, peer: f.peer, purpose: "enrollment")
+        _ = try authority.enroll(
+            sign(f, challenge: rotated, generation: 8), challenge: rotated, identity: f.identity, peer: f.peer,
+            now: f.now,
+            priorProcessExited: { _ in
+                XCTFail("same process was treated as a replacement")
+                return false
+            })
+        XCTAssertEqual(try authority.read(identity: f.identity)?.sessionGeneration, 8)
+        let rollback = try authority.issueChallenge(identity: f.identity, peer: f.peer, purpose: "enrollment")
         XCTAssertThrowsError(
             try authority.enroll(
-                sign(f, challenge: live, generation: 8), challenge: live, identity: f.identity, peer: f.peer,
-                now: f.now, priorProcessExited: { _ in false }))
-        let exited = try authority.issueChallenge(identity: f.identity, peer: f.peer, purpose: "enrollment")
+                sign(f, challenge: rollback, generation: 7), challenge: rollback, identity: f.identity, peer: f.peer,
+                now: f.now, priorProcessExited: { _ in true }))
+        let replacement = RuntimeProcessBirth(
+            pid: f.peer.pid + 1, uid: f.peer.uid, seconds: f.peer.seconds + 1,
+            microseconds: f.peer.microseconds, bootSession: f.peer.bootSession)
+        let oldSession = try authority.issueChallenge(identity: f.identity, peer: replacement, purpose: "enrollment")
+        XCTAssertThrowsError(
+            try authority.enroll(
+                sign(f, challenge: oldSession, peer: replacement, generation: 8), challenge: oldSession,
+                identity: f.identity, peer: replacement, now: f.now, priorProcessExited: { _ in true }))
+        let live = try authority.issueChallenge(identity: f.identity, peer: replacement, purpose: "enrollment")
+        XCTAssertThrowsError(
+            try authority.enroll(
+                sign(f, challenge: live, peer: replacement, generation: 9), challenge: live,
+                identity: f.identity, peer: replacement, now: f.now, priorProcessExited: { _ in false }))
+        let exited = try authority.issueChallenge(identity: f.identity, peer: replacement, purpose: "enrollment")
         _ = try authority.enroll(
-            sign(f, challenge: exited, generation: 8), challenge: exited, identity: f.identity, peer: f.peer,
-            now: f.now, priorProcessExited: { _ in true })
-        XCTAssertEqual(try authority.read(identity: f.identity)?.sessionGeneration, 8)
-        let beforeRestart = try authority.issueChallenge(identity: f.identity, peer: f.peer, purpose: "session")
+            sign(f, challenge: exited, peer: replacement, generation: 9), challenge: exited,
+            identity: f.identity, peer: replacement, now: f.now, priorProcessExited: { _ in true })
+        let beforeRestart = try authority.issueChallenge(identity: f.identity, peer: replacement, purpose: "session")
         var restarted = RuntimeCoordinatorAuthority(fileURL: f.file, ownerUID: getuid(), verifier: f.verifier)
         XCTAssertThrowsError(
             try restarted.authorizeSession(
-                sign(f, challenge: beforeRestart, generation: 8), challenge: beforeRestart, identity: f.identity,
-                peer: f.peer, now: f.now))
+                sign(f, challenge: beforeRestart, peer: replacement, generation: 9), challenge: beforeRestart,
+                identity: f.identity,
+                peer: replacement, now: f.now))
     }
     func testNonceLimitsAndExpiryUseMonotonicTime() throws {
         let f = try fixture()
