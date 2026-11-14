@@ -63,18 +63,21 @@ namespace, irreversibly drops uid/gid and verifies the namespace before any acti
 The managed API runs independently of the GUI. Its gateway authenticates a live
 client process and holds the same durable admission gate as native and CLI work.
 
-For an enrolled rig, maintenance follows this order:
+For an enrolled consumer, maintenance follows this order:
 
 1. Stage and verify artifacts.
 2. Ask Cuttlefish to pause intake and drain current jobs.
 3. Close Micropod admission; reject pending or uncertain operations.
-4. Obtain host admission and a live coverage proof bound to the private runtime
-   instance, operation, artifact, host and generations.
+4. Obtain admission for the approved scope and a live coverage proof bound to
+   the private runtime instance, operation, artifact and generations. On a Mac
+   with independent services, use the separately approved runtime-only contract
+   in [runtime coordination](runtime-coordination-scope.md); it grants no
+   physical-host or reboot authority.
 5. Record begin intent, check native/API workloads and lingering client processes,
    then stop the drained API and runtime. Activate the staged configuration and start.
 6. Verify the exact private native version, app root and install root. Cuttlefish
    independently requests fresh readiness over its authenticated helper connection.
-7. Release Micropod's gate, then complete the retained host handoff. A manual stop
+7. Release Micropod's gate, then complete the retained scoped handoff. A manual stop
    keeps automatic startup and rig intake paused.
 
 Before an action, cancellation uses the same owner's two-stage abort. An interrupted
@@ -119,9 +122,15 @@ interrupted start retains admission, cannot be replaced by a new start, and is
 only released after the retained outcome is independently verified. These are
 simulated reboot faults, separate from a real boot acceptance test.
 
-Still required: paired signed Cuttlefish deployment through its guarded
-installation flow, a complete scheduled job with workspace/cache exchange,
-signed host handoff, a live drain race and actual boot/domain recovery.
-The intended-runner CI is being repaired in Cuttlefish #686; provider allowance
-currently blocks its cloud runner. Keep #89 and both draft PRs open until these
-checks pass. Setup makes no broad ACL grant.
+The latest local Swift suite passed 1,401 tests with 86 skipped. A separate
+standalone live-filesystem notification gap remains tracked in
+[#93](https://github.com/castlemilk/micropod/issues/93); explicit sync/refresh
+tests do not substitute for that observation.
+
+Still required: final-source CI, paired signed deployment through the guarded
+installation flow, normal human runtime approval, a complete private Connect
+scheduled job with workspace/read-only-secret/cache/artifact exchange, signed
+runtime handoff, a live drain race and actual boot/domain recovery. The shared
+CI backend and workspace configuration have been repaired; the release owner
+is coordinating source publication and the next Mac window. Keep #89 and both
+draft PRs open until these checks pass. Setup makes no broad ACL grant.

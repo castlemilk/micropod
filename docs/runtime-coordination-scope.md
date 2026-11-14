@@ -1,11 +1,11 @@
 # Runtime coordination on a Mac with independent CI services
 
-Status: implementation in progress for #89. The separate approval, resource
-fence and signed helper enrollment/session boundary are staged in source.
-The control-plane feature flag is off. The agent's private transport and
-resource-scoped lifecycle integration remain incomplete, and the staged helper
-refuses disruptive operations after runtime-only registration. This work has
-not been installed or approved on Gamma; its managed public API remains blocked.
+Status: the runtime-only implementation for #89 is staged and locally tested.
+It includes the separate approval, resource fence, signed helper handoff,
+private transport and process-bound data sessions. The control-plane feature
+flag is off. This implementation has not been installed or approved on Gamma;
+its public managed API adoption remains blocked. Exact-source CI and physical
+qualification remain required.
 
 On 14 November 2026 the owner asked to keep Gamma's independent CI services.
 The observed configuration contains six native GitHub runners, the SFH VM
@@ -153,15 +153,23 @@ test exercises real process birth and exit with test-only signatures, verifies
 that no native action is repeated, and refuses an old approval as a session.
 Uncertain actions or uncommitted releases remain held.
 
-Source verification on 14 November passed the full Swift suite (1,397 tests,
+Source verification on 15 November passed the full Swift suite (1,401 tests,
 86 skipped), full Cuttlefish Go suite, targeted race tests, lint, TypeScript
 and three isolated browser journeys covering approval, pause, refusal and
 lost-response page reload. The file-exchange suite exposed a delayed FSEvents
 notification overwriting a newer write. The fix compares each source/view
 pair with its exchanged snapshot and replaces copied files atomically;
-deterministic event-order tests and the original live-sync test pass.
-These are local source results, not installed-agent or physical reboot
-qualification. Both Macs remain in the release owners' coordinated pause.
+deterministic event-order tests cover that repair. A separate daemon lifetime
+regression verifies that releasing a daemon also releases its background
+maintenance and watchers. Explicit refresh tests establish their contents with
+explicit sync rather than fixed notification sleeps.
+
+A later standalone probe received no live filesystem updates in either
+direction despite successfully started FSEvents streams. This remains open in
+[#93](https://github.com/castlemilk/micropod/issues/93); the passing explicit
+sync/refresh checks do not qualify live notification delivery. These are local
+source results, not installed-agent or physical reboot qualification. Both Macs
+remain in the release owners' coordinated pause.
 
 A real Mac reboot remains a separate operator maintenance action after active
 jobs finish. This runtime grant cannot authorize it. Boot UUID, retained

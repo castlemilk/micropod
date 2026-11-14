@@ -75,21 +75,23 @@ public actor SharedFSDaemon: SharedFSClient {
         } else {
             self.cacheMaxBytes = 10 << 30  // 10GB default
         }
-        // DiskManager integration: async 5m sweep (same interval as sweepOrphanedVolumes).
-        // Start background sweep; not awaited, runs for daemon lifetime.
-        // Use detached task to avoid actor isolation deadlock during init.
+        // Bootstrap without retaining the daemon while the sweep sleeps.
         Task.detached { [weak self] in
-            guard let self else { return }
-            await self.startSweepLoop()
+            await self?.startSweepLoop()
         }
     }
 
-    private func startSweepLoop() async {
-        while !Task.isCancelled {
-            try? await Task.sleep(nanoseconds: 300_000_000_000)  // 5m
-            _ = await enforceStorageCapIfNeeded()
-            // Also run orphan-volume style sweep if needed (disk hygiene).
-            try? await sweepOrphanedIfNeeded()
+    deinit { sweepTask?.cancel() }
+
+    private func startSweepLoop() {
+        guard sweepTask == nil else { return }
+        sweepTask = Task.detached { [weak self] in
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(300)) } catch { return }
+                guard !Task.isCancelled else { return }
+                _ = await self?.enforceStorageCapIfNeeded()
+                try? await self?.sweepOrphanedIfNeeded()
+            }
         }
     }
 

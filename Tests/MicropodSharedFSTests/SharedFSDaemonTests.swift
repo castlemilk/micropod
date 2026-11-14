@@ -3,6 +3,24 @@ import XCTest
 @testable import MicropodSharedFS
 
 final class SharedFSDaemonTests: XCTestCase {
+    func testReleasingDaemonStopsBackgroundMaintenanceAndWatchers() async throws {
+        let source = try writeSourceTree()
+        let cache = cacheRoot("release")
+        addTeardownBlock {
+            try FileManager.default.removeItem(at: source)
+            try FileManager.default.removeItem(at: cache)
+        }
+        var daemon: SharedFSDaemon? = try SharedFSDaemon(cacheRoot: cache)
+        weak var released = daemon
+        _ = try await daemon?.mount(src: source, readonly: false)
+        daemon = nil
+        for _ in 0..<100 {
+            if released == nil { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTAssertNil(released, "Background maintenance must not keep a discarded daemon and its watchers alive")
+    }
+
     func testMountBuildsAndExposesView() async throws {
         let src = try writeSourceTree()
         let daemon = try SharedFSDaemon(cacheRoot: cacheRoot("mount"))
@@ -27,20 +45,15 @@ final class SharedFSDaemonTests: XCTestCase {
         let src = try writeSourceTree()
         let daemon = try SharedFSDaemon(cacheRoot: cacheRoot("refresh"))
         let info = try await daemon.mount(src: src, readonly: false)
-        // Live sync is now active: wait for initial mount to settle before
-        // dirtying the view, so the view->host sync for "old" completes
-        // before we overwrite host with "refreshed-payload".
-        try await Task.sleep(nanoseconds: 300_000_000)
         try "old".write(toFile: "\(info.viewPath)/a.txt", atomically: true, encoding: .utf8)
-        // Wait for view->host live sync to complete
-        try await Task.sleep(nanoseconds: 600_000_000)
-        XCTAssertEqual(try String(contentsOfFile: src.appendingPathComponent("a.txt").path, encoding: .utf8), "old")
+        // Establish the source contents explicitly. Background notifications
+        // are asynchronous and are not the refresh operation being tested.
+        _ = try await daemon.sync(id: info.id)
+        XCTAssertEqual(try String(contentsOf: src.appendingPathComponent("a.txt"), encoding: .utf8), "old")
 
         try "refreshed-payload".write(
             toFile: src.appendingPathComponent("a.txt").path, atomically: true, encoding: .utf8)
-        // Wait for host->view live sync
-        try await Task.sleep(nanoseconds: 600_000_000)
-
+        // Refresh must publish this source change without waiting for an event.
         let refreshed = try await daemon.refresh(id: info.id)
         let data = try String(contentsOfFile: "\(refreshed.viewPath)/a.txt", encoding: .utf8)
         XCTAssertEqual(data, "refreshed-payload")
