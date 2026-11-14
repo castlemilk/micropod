@@ -32,6 +32,7 @@ public enum IsolatedRuntimeSessionStore {
         else {
             throw MicropodError.message("The API client process identity is unavailable")
         }
+        try ServiceAccountProvisioner.verifyExisting(identity: identity)
         try RootRuntimeStorage.ensureRootDirectory(IsolatedRuntimeAPIConfiguration.sessionsRoot)
         let session = IsolatedRuntimeAPISession(
             id: UUID(), instance: identity.instance, token: try secret(), subject: subject,

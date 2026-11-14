@@ -82,10 +82,7 @@ public struct NativeIsolatedRuntimeHostDriver: IsolatedRuntimeHostDriving {
         identity: IsolatedRuntimeIdentity, workerSHA256: String, request: IsolatedRuntimeWorkerRequest,
         willBegin: @escaping @Sendable (RuntimeProcessBirth) async throws -> Void
     ) async throws -> IsolatedRuntimeObservation {
-        guard let record = try LocalServiceAccountDirectory().user() else {
-            throw MicropodError.message("The managed runtime account is missing")
-        }
-        try ServiceAccountPlan.verify(record, identity: identity)
+        try ServiceAccountProvisioner.verifyExisting(identity: identity)
         try IsolatedRuntimeProcessInventory.assertSettled(identity: identity, selection: request.selection)
         let result = try await IsolatedWorkerRunner().run(
             identity: identity, workerSHA256: workerSHA256, request: request, willBegin: willBegin)

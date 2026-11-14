@@ -66,6 +66,34 @@ private final class DirectoryFixture: ServiceAccountDirectory, @unchecked Sendab
     }
 }
 extension ServiceAccountPlanTests {
+    func testExistingIdentityCheckNeverRecreatesMissingOrReusedAccountOrGroup() throws {
+        let identity = try ServiceAccountPlan.allocate(ownerUID: 501, occupiedUIDs: [], occupiedGIDs: [])
+        let directory = DirectoryFixture()
+        try directory.createGroup(identity: identity)
+        try directory.createUser(identity: identity)
+        try ServiceAccountProvisioner.verifyExisting(identity: identity, directory: directory)
+        let originalGroup = directory.groupRecord
+        let originalUser = directory.userRecord
+        directory.groupRecord = .init(
+            name: IsolatedRuntimePolicy.accountName, gid: identity.serviceGID, guid: UUID(),
+            comment: identity.accountComment)
+        XCTAssertThrowsError(try ServiceAccountProvisioner.verifyExisting(identity: identity, directory: directory))
+        directory.groupRecord = nil
+        XCTAssertThrowsError(try ServiceAccountProvisioner.verifyExisting(identity: identity, directory: directory))
+        directory.groupRecord = originalGroup
+        directory.userRecord = .init(
+            name: IsolatedRuntimePolicy.accountName, uid: identity.serviceUID, gid: identity.serviceGID, guid: UUID(),
+            home: IsolatedRuntimePolicy.home.path, shell: "/usr/bin/false", comment: identity.accountComment,
+            hidden: true, loginDisabled: true)
+        XCTAssertThrowsError(try ServiceAccountProvisioner.verifyExisting(identity: identity, directory: directory))
+        directory.userRecord = nil
+        XCTAssertThrowsError(try ServiceAccountProvisioner.verifyExisting(identity: identity, directory: directory))
+        directory.userRecord = originalUser
+        try ServiceAccountProvisioner.verifyExisting(identity: identity, directory: directory)
+        XCTAssertEqual(directory.userCreates, 1)
+        XCTAssertEqual(directory.groupCreates, 1)
+    }
+
     func testInterruptedCreationResumesSameIdentityAndNeverRepeatsGroupCreation() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

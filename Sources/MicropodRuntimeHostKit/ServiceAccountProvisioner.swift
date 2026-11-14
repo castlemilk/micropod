@@ -55,14 +55,14 @@ public struct ServiceAccountProvisioner: Sendable {
         }
         if let user = try directory.user() { try ServiceAccountPlan.verify(user, identity: identity) }
         if let group = try directory.group() {
-            try verify(group, identity: identity)
+            try Self.verify(group, identity: identity)
         } else {
             try directory.createGroup(identity: identity)
         }
         guard let group = try directory.group() else {
             throw MicropodError.message("Service group creation is unconfirmed")
         }
-        try verify(group, identity: identity)
+        try Self.verify(group, identity: identity)
         if try directory.user() == nil { try directory.createUser(identity: identity) }
         guard let user = try directory.user() else {
             throw MicropodError.message("Service account creation is unconfirmed")
@@ -71,7 +71,21 @@ public struct ServiceAccountProvisioner: Sendable {
         return identity
     }
 
-    private func verify(_ group: ServiceGroupRecord, identity: IsolatedRuntimeIdentity) throws {
+    /// Read-only identity check. Session issuance and every worker boundary
+    /// must reject a replaced account/group even when its numeric IDs match.
+    public static func verifyExisting(
+        identity: IsolatedRuntimeIdentity,
+        directory: any ServiceAccountDirectory = LocalServiceAccountDirectory()
+    ) throws {
+        try identity.validate()
+        guard let user = try directory.user(), let group = try directory.group() else {
+            throw MicropodError.message("The dedicated runtime account or group is missing")
+        }
+        try ServiceAccountPlan.verify(user, identity: identity)
+        try verify(group, identity: identity)
+    }
+
+    private static func verify(_ group: ServiceGroupRecord, identity: IsolatedRuntimeIdentity) throws {
         guard group.name == IsolatedRuntimePolicy.accountName, group.gid == identity.serviceGID,
             group.guid == identity.groupGUID, group.comment == identity.accountComment
         else {

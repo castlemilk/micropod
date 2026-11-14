@@ -456,6 +456,7 @@ public actor IsolatedRuntimeHostController {
         else {
             throw MicropodError.message("Complete retained runtime maintenance before coordinating the private runtime")
         }
+        try ServiceAccountProvisioner.verifyExisting(identity: identity)
         switch call.action {
         case "runtime-challenge":
             guard let purpose = call.purpose, call.proof == nil, call.challenge == nil else {
