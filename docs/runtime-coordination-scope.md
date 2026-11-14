@@ -133,6 +133,26 @@ tests verify pinned RSA signatures, account/process/operation substitution,
 expiry, one-use challenges, restart invalidation and replacement ownership.
 These results do not qualify a live agent handoff or reboot.
 
+The local paired implementation now wires the root controller through signed
+runtime-only drain, prepare, begin, verify and release handoffs. The private
+API fixes its engine to Apple and refuses generic engine, lifecycle and updater
+controls; its feature advertisement lets the agent require that restriction
+before admitting work. Runtime sessions can renew while existing work drains,
+but cannot reopen a closed local fence or change a retained enrollment.
+Tests reconstruct the helper after a lost completion, preserve cancelled
+outcomes after lost release replies, and refuse a changed native outcome
+without replaying a start or stop.
+
+Source verification on 14 November passed the full Swift suite (1,397 tests,
+86 skipped), full Cuttlefish Go suite, targeted race tests, lint, TypeScript
+and three isolated browser journeys covering approval, pause, refusal and
+lost-response page reload. The file-exchange suite exposed a delayed FSEvents
+notification overwriting a newer write. The fix compares each source/view
+pair with its exchanged snapshot and replaces copied files atomically;
+deterministic event-order tests and the original live-sync test pass.
+These are local source results, not installed-agent or physical reboot
+qualification. Both Macs remain in the release owners' coordinated pause.
+
 A real Mac reboot remains a separate operator maintenance action after active
 jobs finish. This runtime grant cannot authorize it. Boot UUID, retained
 operation, account/domain identity and stored image/volume contents must be
