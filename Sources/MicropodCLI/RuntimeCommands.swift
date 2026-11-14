@@ -8,6 +8,9 @@ import MicropodRuntime
 enum RuntimeCommands {
     static let usage = """
         runtime ls                            engines, availability, default
+        runtime install|repair|start|stop|restart  managed runtime operations (approved helper required)
+        runtime operation|cancel|recover        progress, cancellation and verified recovery
+        runtime status                        Apple dependency readiness and next action (--json supported)
         runtime use <name>                    make <name> the default for new containers
         runtime enable|disable <name>         include/exclude an engine from ps and run
         runtime endpoint <name> <url|default> point docker at another socket (unix:// or tcp://)
@@ -17,6 +20,41 @@ enum RuntimeCommands {
         let registry = EngineRegistry.shared
         let apple = services.runtime.router?.apple ?? AppleEngine(services: services.runtime)
         switch args.first ?? "ls" {
+        case "install", "repair", "start", "stop", "restart", "cancel", "recover", "operation":
+            let parsed = try parseArgs(
+                Array(args.dropFirst()), boolFlags: [], valueFlags: [], commandName: "runtime " + args[0])
+            guard !parsed.has("--help") else {
+                print("usage: micropod runtime \(args[0]) [--json]")
+                return
+            }
+            guard parsed.positionals.isEmpty else {
+                throw UsageError(message: "usage: micropod runtime \(args[0]) [--json]")
+            }
+            let response = try await ManagedRuntimeControl.request(args[0])
+            if MicropodCLI.jsonOutput {
+                print(String(decoding: try JSONEncoder().encode(response), as: UTF8.self))
+            } else {
+                print(response.message)
+                if let error = response.error { print(error) }
+            }
+        case "status":
+            let parsed = try parseArgs(
+                Array(args.dropFirst()), boolFlags: [], valueFlags: [], commandName: "runtime status")
+            guard !parsed.has("--help") else {
+                print("usage: micropod runtime status [--json]")
+                return
+            }
+            let report = await RuntimeDependencyProbe.inspect(
+                system: services.system, services: services.runtime)
+            if MicropodCLI.jsonOutput {
+                print(String(decoding: try JSONEncoder().encode(report), as: UTF8.self))
+            } else {
+                print("dependency: \(report.state.rawValue)")
+                print("cli: \(report.cliPath)\(report.cliVersion.isEmpty ? "" : " (\(report.cliVersion))")")
+                print(report.message)
+                print("next: \(report.nextAction)")
+                if report.state == .missingCLI { print("installer: \(report.installerURL)") }
+            }
         case "ls", "list":
             let response = await registry.describe(apple: apple)
             if MicropodCLI.jsonOutput {

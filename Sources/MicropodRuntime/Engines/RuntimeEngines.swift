@@ -475,7 +475,7 @@ extension RuntimeServices {
         let router = RuntimeRouter(apple: AppleEngine(services: self), registry: registry)
         return RuntimeServices(
             kind: kind, containers: router, logs: router, stats: router, volumes: volumes,
-            api: api, health: health, exitCodes: exitCodes)
+            api: api, health: health, exitCodes: exitCodes, followsManagedSelection: followsManagedSelection)
     }
 
     /// The router when these services are routed, for engine management.

@@ -14,6 +14,8 @@ let package = Package(
         // and this product share one implementation.
         .library(name: "MicropodSDK", targets: ["MicropodSDK"]),
         .executable(name: "MicropodApp", targets: ["MicropodApp"]),
+        .executable(name: "MicropodRuntimeHost", targets: ["MicropodRuntimeHost"]),
+        .executable(name: "MicropodRuntimeSetup", targets: ["MicropodRuntimeSetup"]),
         .executable(name: "MicropodMCP", targets: ["MicropodMCP"]),
         .executable(name: "MicropodBench", targets: ["MicropodBench"]),
         .executable(name: "MicropodAPI", targets: ["MicropodAPI"]),
@@ -105,6 +107,11 @@ let package = Package(
         // Nothing depends on it but the binaries that print a version, so
         // stamping it at release time recompiles one file.
         .target(name: "MicropodBuildInfo"),
+        .target(name: "MicropodRuntimeHostKit", dependencies: ["MicropodCore", "MicropodRuntime"]),
+        .executableTarget(name: "MicropodRuntimeHost", dependencies: ["MicropodRuntimeHostKit", "MicropodCore"]),
+        .executableTarget(name: "MicropodRuntimeSetup", dependencies: ["MicropodCore"]),
+        .testTarget(name: "MicropodAPITests", dependencies: ["MicropodAPI", "MicropodCore"]),
+        .testTarget(name: "MicropodRuntimeHostKitTests", dependencies: ["MicropodRuntimeHostKit", "MicropodCore"]),
         .executableTarget(
             name: "MicropodCLI",
             dependencies: [

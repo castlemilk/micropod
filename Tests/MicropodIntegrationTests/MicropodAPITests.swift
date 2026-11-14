@@ -92,6 +92,32 @@ final class MicropodAPITests: XCTestCase {
         return text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
     }
 
+    func testDependencyStatusReportsMissingCLIWithOfficialSetupAction() async throws {
+        let missing = stateDir.appendingPathComponent("not-installed-container").path
+        try await relaunchServer(extraEnvironment: ["MICROPOD_CONTAINER_CLI_PATH": missing])
+        let report = try await json("GET", "v1/system/dependency")
+        XCTAssertEqual(report["state"] as? String, "missingCLI")
+        XCTAssertEqual(report["cliPath"] as? String, missing)
+        XCTAssertEqual(report["installerURL"] as? String, ContainerExecutableLocator.installerURL.absoluteString)
+        XCTAssertFalse((report["nextAction"] as? String ?? "").isEmpty)
+    }
+
+    func testDependencyStatusReportsStoppedWithoutStartingOrRequestingDiskUsage() async throws {
+        try await relaunchServerWithStoppedRuntime()
+        let before = mockCalls().count
+        let report = try await json("GET", "v1/system/dependency")
+        XCTAssertEqual(report["state"] as? String, "stopped")
+        XCTAssertEqual(report["cliVersion"] as? String, "1.2.3")
+        let calls = mockCalls().dropFirst(before)
+        XCTAssertFalse(calls.contains { $0.hasPrefix("system start") || $0.hasPrefix("system df") })
+    }
+
+    func testDependencyStatusDoesNotConfuseCLIFallbackWithNativeReadiness() async throws {
+        let report = try await json("GET", "v1/system/dependency")
+        XCTAssertEqual(report["state"] as? String, "cliFallback")
+        XCTAssertEqual(report["backend"] as? String, "cli")
+    }
+
     private func json(_ method: String, _ path: String, body: [String: Any]? = nil) async throws -> [String: Any] {
         var request = URLRequest(url: baseURL.appendingPathComponent(path))
         request.httpMethod = method

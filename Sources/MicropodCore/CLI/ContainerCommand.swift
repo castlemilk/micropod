@@ -25,6 +25,17 @@ public struct ContainerCommand: Sendable, Equatable {
         "container " + arguments.joined(separator: " ")
     }
 
+    public var observesRuntimeOnly: Bool {
+        let read: Set<String> = [
+            "list", "ls", "inspect", "logs", "stats", "events", "--version", "--help", "managername", "manageruid",
+            "system status", "system version", "system df", "system logs",
+            "image list", "image inspect", "volume list", "volume inspect",
+            "network list", "network inspect", "machine list", "machine inspect",
+            "machine stats", "machine logs", "registry list", "plugin list",
+        ]
+        return read.contains(metricLabel)
+    }
+
     /// Low-cardinality label for metrics: the verb, plus a sub-verb for
     /// resource-grouped commands (`image list`, `system start`). Arguments
     /// (names, ids, flags) are never included — one label per operation.

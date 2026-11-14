@@ -120,6 +120,29 @@ final class RuntimeHolderTests: XCTestCase {
         XCTAssertEqual(calls, 1)
     }
 
+    func testExplicitLegacyRuntimeKeepsConnectionAndExitRegistryWhenManagedRuntimeAppears() async throws {
+        let original = Self.services(.native, tag: "explicit-legacy")
+        let resolver = ScriptedResolver([.managed])
+        let holder = RuntimeHolder(initial: original, resolve: resolver.resolve, managedSelectionPresent: { true })
+        let refreshed = await holder.refreshIfNeeded(force: true)
+        XCTAssertEqual(refreshed.kind, .native)
+        XCTAssertEqual(refreshed.health?.apiServerVersion, "explicit-legacy")
+        XCTAssertTrue(refreshed.exitCodes === original.exitCodes)
+        let calls = await resolver.calls
+        XCTAssertEqual(calls, 0)
+    }
+
+    func testAutomaticDiscoveryCanAdoptManagedSelection() async throws {
+        var original = Self.services(.native, tag: "automatic")
+        original.followsManagedSelection = true
+        let resolver = ScriptedResolver([.managed])
+        let holder = RuntimeHolder(initial: original, resolve: resolver.resolve, managedSelectionPresent: { true })
+        let refreshed = await holder.refreshIfNeeded(force: true)
+        XCTAssertEqual(refreshed.kind, .managed)
+        let calls = await resolver.calls
+        XCTAssertEqual(calls, 1)
+    }
+
     // MARK: - Fixtures
 
     private static let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/usr/bin/false"))

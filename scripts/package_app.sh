@@ -73,6 +73,18 @@ metadata = {
 pathlib.Path(path).write_bytes(plistlib.dumps(metadata, sort_keys=False))
 ' "$APP_BUNDLE/Contents/Info.plist" "$APP_NAME" "$VERSION" "$BUNDLE_ID"
 
+mkdir -p "$APP_BUNDLE/Contents/Library/LaunchDaemons"
+cp .build/release/MicropodRuntimeHost "$APP_BUNDLE/Contents/MacOS/MicropodRuntimeHost"
+python3 - "$APP_BUNDLE/Contents/Library/LaunchDaemons/com.skunkworq.micropod.runtime.host.plist" <<'PYPLIST'
+import pathlib,plistlib,sys
+pathlib.Path(sys.argv[1]).write_bytes(plistlib.dumps({
+    'Label':'com.skunkworq.micropod.runtime.host',
+    'BundleProgram':'Contents/MacOS/MicropodRuntimeHost',
+    'MachServices':{'com.skunkworq.micropod.runtime.host':True},
+    'RunAtLoad':True,'ProcessType':'Background','ThrottleInterval':10,
+    'KeepAlive':{'SuccessfulExit':False},'Umask':0o077,
+}))
+PYPLIST
 cp .build/release/MicropodApp "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 

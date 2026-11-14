@@ -36,7 +36,9 @@ struct OnboardingTourView: View {
                         symbol: "power",
                         done: store.isRuntimeRunning,
                         control: {
-                            if store.isRuntimeRunning {
+                            if !store.clientAvailable || store.runtimeDependencyStatus.state == .unsupportedHost {
+                                RuntimeDependencyActions(store: store)
+                            } else if store.isRuntimeRunning {
                                 statusCheck(String(localized: "Runtime running"))
                             } else {
                                 Button {
@@ -46,7 +48,7 @@ struct OnboardingTourView: View {
                                         title: String(localized: "Start Runtime"), icon: "start", fallback: "play.fill")
                                 }
                                 .buttonStyle(.borderedProminent)
-                                .disabled(store.isStartingRuntime)
+                                .disabled(store.runtimeOperationInProgress)
                             }
                         })
                     stepCard(
@@ -75,6 +77,7 @@ struct OnboardingTourView: View {
                                         fallback: "arrow.down.circle")
                                 }
                                 .buttonStyle(.borderedProminent)
+                                .disabled(!store.clientAvailable || store.runtimeOperationInProgress)
                             }
                         })
                     stepCard(

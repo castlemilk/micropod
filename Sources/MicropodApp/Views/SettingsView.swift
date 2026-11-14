@@ -179,6 +179,24 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
                 }
                 Section("Runtime") {
+                    settingValueRow("Dependency", value: store.runtimeDependencyStatus.state.title)
+                    settingValueRow("CLI path", value: store.dependencies.client.executableURL.path, monospaced: true)
+                    RuntimeDependencyActions(store: store)
+                    Toggle("Automatically start a stopped runtime", isOn: $store.runtimeAutoStartEnabled)
+                        .toggleStyle(.checkbox)
+                        .accessibilityIdentifier("runtime.autoStart")
+                    Text(
+                        "Off by default. Starts the service only after a confirmed stopped status. Kernel installation stays a separate action; an unresponsive service is reported without an automatic restart."
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    if store.runtimeAutomationPaused {
+                        Text(
+                            "Automatic startup is paused after a stop or an incomplete start. Review runtime status, then use Start Runtime to resume."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
                     HStack {
                         Text("Health")
                         Spacer()
@@ -219,7 +237,7 @@ struct SettingsView: View {
                         .controlSize(.small)
                         .disabled(store.isHealingRuntime || store.isRestartingRuntime)
                         .help(
-                            "Bounces `container system` (stop + start) — the same recovery the supervisor runs when the apiserver stops answering."
+                            "Waits for coordinated rig maintenance before restarting the managed Apple container service."
                         )
                     }
                     settingValueRow("App root", value: store.systemStatus?.appRoot ?? "—", monospaced: true)
@@ -564,7 +582,7 @@ struct SettingsView: View {
         if !store.clientAvailable { return "CLI not found" }
         if store.isHealingRuntime { return "recovering…" }
         if store.isRestartingRuntime { return "restarting…" }
-        if store.runtimeHealth == .wedged { return "unresponsive (self-healing)" }
+        if store.runtimeHealth == .wedged { return "unresponsive — recovery required" }
         return store.isRuntimeRunning ? "healthy" : "stopped"
     }
 

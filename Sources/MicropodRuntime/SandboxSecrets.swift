@@ -205,8 +205,12 @@ public final class SecretSource: @unchecked Sendable {
         process.standardOutput = stdout
         process.standardError = stderr
         let collected = OutputCollector()
-        stdout.fileHandleForReading.readabilityHandler = { collected.append(out: $0.availableData) }
-        stderr.fileHandleForReading.readabilityHandler = { collected.append(err: $0.availableData) }
+        stdout.fileHandleForReading.readabilityHandler = { handle in
+            collected.readOut { handle.availableData }
+        }
+        stderr.fileHandleForReading.readabilityHandler = { handle in
+            collected.readErr { handle.availableData }
+        }
         let status: Int32 = try await withCheckedThrowingContinuation { continuation in
             process.terminationHandler = { continuation.resume(returning: $0.terminationStatus) }
             do {
@@ -223,9 +227,9 @@ public final class SecretSource: @unchecked Sendable {
         }
         stdout.fileHandleForReading.readabilityHandler = nil
         stderr.fileHandleForReading.readabilityHandler = nil
-        collected.append(out: stdout.fileHandleForReading.readDataToEndOfFile())
-        collected.append(err: stderr.fileHandleForReading.readDataToEndOfFile())
-        let (out, err) = collected.snapshot
+        let (out, err) = collected.finish(
+            stdout: { stdout.fileHandleForReading.readDataToEndOfFile() },
+            stderr: { stderr.fileHandleForReading.readDataToEndOfFile() })
         guard status == 0 else {
             let detail = String(decoding: err.suffix(512), as: UTF8.self)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -256,11 +260,25 @@ public final class SecretSource: @unchecked Sendable {
 
 /// Collects a child's stdout/stderr from two readability handlers.
 private final class OutputCollector: @unchecked Sendable {
-    private let lock = NSLock()
+    private let outLock = NSLock()
+    private let errLock = NSLock()
     private var out = Data()
     private var err = Data()
 
-    func append(out data: Data) { lock.withLock { out.append(data) } }
-    func append(err data: Data) { lock.withLock { err.append(data) } }
-    var snapshot: (Data, Data) { lock.withLock { (out, err) } }
+    // Reading and publishing bytes are one critical section per stream. Exit
+    // cannot snapshot a consumed but unpublished chunk; stderr can still drain
+    // independently while a stdout callback waits for bytes (and vice versa).
+    func readOut(_ read: () -> Data) { outLock.withLock { out.append(read()) } }
+    func readErr(_ read: () -> Data) { errLock.withLock { err.append(read()) } }
+    func finish(stdout: () -> Data, stderr: () -> Data) -> (Data, Data) {
+        let output = outLock.withLock {
+            out.append(stdout())
+            return out
+        }
+        let diagnostic = errLock.withLock {
+            err.append(stderr())
+            return err
+        }
+        return (output, diagnostic)
+    }
 }

@@ -25,6 +25,8 @@ final class APIHandlers: Sendable {
     let machineStats: MachineStatsSampler
     let metrics = APIMetrics()
     let appControl = AppControlClient()
+    let managedTerminals: ManagedTerminalSessions
+    let managedControl: @Sendable (String) async throws -> IsolatedRuntimeStatus
 
     init(
         client: ContainerCLIClient,
@@ -32,14 +34,19 @@ final class APIHandlers: Sendable {
         images: ImageService,
         networks: NetworkService,
         compose: ComposeService,
-        runtime: RuntimeHolder
+        runtime: RuntimeHolder,
+        managedControl: @escaping @Sendable (String) async throws -> IsolatedRuntimeStatus = {
+            try await ManagedRuntimeControl.request($0)
+        }
     ) {
         self.client = client
+        self.managedTerminals = ManagedTerminalSessions(client: client)
         self.system = system
         self.images = images
         self.networks = networks
         self.compose = compose
         self.runtime = runtime
+        self.managedControl = managedControl
         self.machineStats = MachineStatsSampler(client: client)
     }
 
@@ -69,6 +76,19 @@ final class APIHandlers: Sendable {
     }
 
     func handle(_ request: HTTPRequest) async -> HTTPResponse {
+        let desktopControl =
+            request.path == "/health" || request.path == "/"
+            || request.path == "/v1/system/update" || request.path == "/v1/system/update/apply"
+            || request.path == "/v1/system/runtime" || request.path.hasPrefix("/v1/system/runtime/")
+            || ["CheckForUpdates", "GetUpdateStatus", "ApplyUpdate"].contains(
+                request.path.split(separator: "/").last.map(String.init) ?? "")
+        if client.usesIsolatedTransport, !desktopControl {
+            if request.method == .get, request.path == "/v1/system/dependency" {
+                let report = await system.dependencyStatus()
+                return .data(200, "application/json", (try? JSONEncoder().encode(report)) ?? Data())
+            }
+            return .relay { connection in await IsolatedRuntimeProxy.forward(request, downstream: connection) }
+        }
         let started = Date()
         let resp = await handleInner(request)
         let elapsed = Date().timeIntervalSince(started)
@@ -81,6 +101,10 @@ final class APIHandlers: Sendable {
         return resp
     }
 
+    private static func cliFrame(_ object: [String: Any]) -> Data {
+        ((try? JSONSerialization.data(withJSONObject: object)) ?? Data()) + Data([10])
+    }
+
     private static func status(of resp: HTTPResponse) -> Int {
         switch resp {
         case .json(let code, _): return code
@@ -88,6 +112,7 @@ final class APIHandlers: Sendable {
         case .data(let code, _, _): return code
         case .stream(let code, _, _): return code
         case .bridge(let code, _): return code
+        case .relay: return 200
         }
     }
 
@@ -105,6 +130,102 @@ final class APIHandlers: Sendable {
         // CORS preflight — the Allow-* headers are attached by dispatch.
         if method == .options {
             return .data(204, "text/plain", Data())
+        }
+
+        if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1", path == "/v1/managed/maintenance",
+            method == .get
+        {
+            do {
+                let services = await runtime.current
+                let idle = try await ManagedRuntimeIdleCheck.check(
+                    visible: { try await services.containers.list() },
+                    ownedSandboxes: { try await self.sandboxEngine.list() })
+                return .json(200, ["idle": idle])
+            } catch { return .json(503, ["idle": false]) }
+        }
+        if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1", method == .post {
+            if path == "/v1/managed/dependency" {
+                let services = await runtime.refreshIfNeeded()
+                let report = await RuntimeDependencyProbe.inspect(system: system, services: services)
+                return .data(200, "application/json", (try? JSONEncoder().encode(report)) ?? Data())
+            }
+            if path.hasPrefix("/v1/managed/terminal/") {
+                do {
+                    let body = try JSONSerialization.jsonObject(with: request.body) as? [String: String] ?? [:]
+                    if path.hasSuffix("/open") {
+                        let id = try await managedTerminals.open(
+                            container: body["containerID"] ?? "", shell: body["shell"] ?? "/bin/sh")
+                        return .json(200, ["sessionID": id.uuidString])
+                    }
+                    guard let text = body["sessionID"], let id = UUID(uuidString: text) else {
+                        return .json(400, ["error": "Invalid terminal session"])
+                    }
+                    if path.hasSuffix("/read") {
+                        let connection = try await managedTerminals.take(id)
+                        let events = AsyncStream<Data> { continuation in
+                            let task = Task {
+                                do { for try await bytes in connection.stream { continuation.yield(bytes) } } catch {}
+                                try? await managedTerminals.close(id)
+                                continuation.finish()
+                            }
+                            continuation.onTermination = { _ in task.cancel() }
+                        }
+                        return .stream(200, "application/octet-stream", events)
+                    }
+                    if path.hasSuffix("/write"), let text = body["data"], let bytes = Data(base64Encoded: text),
+                        bytes.count <= 65536
+                    {
+                        try await managedTerminals.write(bytes, id: id)
+                        return .json(200, ["ok": true])
+                    }
+                    if path.hasSuffix("/close") {
+                        try await managedTerminals.close(id)
+                        return .json(200, ["ok": true])
+                    }
+                } catch { return .json(409, ["error": "The managed terminal is unavailable"]) }
+                return .json(400, ["error": "Invalid terminal request"])
+            }
+            if path == "/v1/managed/cli" || path == "/v1/managed/cli-stream" {
+                do {
+                    let request = try JSONDecoder().decode(IsolatedRuntimeCLIRequest.self, from: request.body)
+                    let command = try request.command()
+                    if path.hasSuffix("cli-stream") {
+                        let events = AsyncStream<Data> { continuation in
+                            let task = Task {
+                                do {
+                                    for try await bytes in client.stream(
+                                        command, reportExitCode: request.reportExitCode ?? false)
+                                    {
+                                        continuation.yield(Self.cliFrame(["chunk": bytes.base64EncodedString()]))
+                                    }
+                                    continuation.yield(Self.cliFrame(["complete": true]))
+                                } catch {
+                                    continuation.yield(
+                                        Self.cliFrame([
+                                            "error":
+                                                "Managed container command did not complete; check runtime status before retrying"
+                                        ]))
+                                }
+                                continuation.finish()
+                            }
+                            continuation.onTermination = { _ in task.cancel() }
+                        }
+                        return .stream(200, "application/x-ndjson", events)
+                    }
+                    let output = try await client.run(
+                        command, timeout: .seconds(request.timeoutSeconds),
+                        acceptingExitCodes: request.acceptingExitCodes)
+                    return .json(200, ["output": output])
+                } catch {
+                    return .json(
+                        409,
+                        [
+                            "code": "failed_precondition",
+                            "message":
+                                "Managed container command did not complete; check runtime status and command permissions before retrying",
+                        ])
+                }
+            }
         }
 
         // /health
@@ -129,7 +250,8 @@ final class APIHandlers: Sendable {
         // `GET /v1/system` is the REST liveness read: like Ping/GetSystem it
         // gives a CLI-started API the chance to swap to native first.
         let services =
-            resource == "system" && method == .get && segments.count == 2
+            resource == "system" && method == .get
+                && (segments.count == 2 || segments == ["v1", "system", "dependency"])
             ? await runtime.refreshIfNeeded() : await runtime.current
 
         do {
@@ -191,6 +313,26 @@ final class APIHandlers: Sendable {
                 }
                 let report = try await appControl.updateStatus()
                 return .json(200, report)
+
+            case ("system", .get) where segments == ["v1", "system", "runtime"]:
+                let report = try await managedControl("operation")
+                return .json(
+                    200, try JSONSerialization.jsonObject(with: JSONEncoder().encode(report)) as? [String: Any] ?? [:])
+            case ("system", .post) where segments.count == 4 && segments[2] == "runtime":
+                guard ["install", "repair", "start", "stop", "restart", "cancel", "recover"].contains(segments[3])
+                else { return .json(400, ["error": "Unknown runtime operation"]) }
+                do {
+                    let report = try await managedControl(segments[3])
+                    return .json(
+                        202,
+                        try JSONSerialization.jsonObject(with: JSONEncoder().encode(report)) as? [String: Any] ?? [:])
+                } catch {
+                    return .json(409, ["error": error.localizedDescription])
+                }
+            case ("system", .get) where segments == ["v1", "system", "dependency"]:
+                let report = await RuntimeDependencyProbe.inspect(system: system, services: services)
+                let data = try JSONEncoder().encode(report)
+                return .json(200, try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:])
 
             case ("system", .get):
                 let status = try await system.status()

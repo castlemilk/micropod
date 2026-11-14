@@ -8,6 +8,8 @@ public enum RuntimeBackendKind: String, Sendable {
     case native
     /// Per-call `container` process spawns (the historic path).
     case cli
+    /// CLI operations executed through the isolated native API gateway.
+    case managed
 }
 
 /// The resolved set of runtime-facing services.
@@ -29,6 +31,9 @@ public struct RuntimeServices: Sendable {
     /// which has no exit-code source (`Container.exit_code` stays empty and
     /// `WaitContainer` answers `known: false`).
     public let exitCodes: ExitCodeRegistry?
+    /// Explicit legacy clients retain their own connections and exit registry
+    /// when a separate managed account is installed on the same Mac.
+    public var followsManagedSelection = false
 
     /// True when the apiserver reported a version we've verified the
     /// protocol against. Unknown versions still work when the route set is
@@ -39,7 +44,7 @@ public struct RuntimeServices: Sendable {
     }
 
     /// Versions the wire protocol was validated against live.
-    public static let supportedVersions: Set<String> = ["1.3.1"]
+    public static let supportedVersions = AppleContainerCompatibility.supportedVersions
 
     /// Release lines whose wire protocol is verified. 1.3.x is
     /// live-validated (1.3.1). 1.4.x and 1.5.x are verified by audit of
@@ -52,12 +57,12 @@ public struct RuntimeServices: Sendable {
     ///   - the container, volume, image and stats payloads did not change.
     /// A newer line stays on the CLI in auto mode until it is audited the
     /// same way (docs/native-runtime.md, "Version gating").
-    public static let verifiedReleaseLines: [String] = ["1.3.", "1.4.", "1.5."]
+    public static let verifiedReleaseLines = AppleContainerCompatibility.verifiedReleaseLines
 
     /// Whether `semver` (as `APIServerHealth.semver` extracts it) is a
     /// version the native backend may run against in auto mode.
     public static func isVerified(semver: String) -> Bool {
-        supportedVersions.contains(semver) || verifiedReleaseLines.contains { semver.hasPrefix($0) }
+        AppleContainerCompatibility.isVerified(semver: semver)
     }
 }
 
@@ -95,19 +100,24 @@ public enum RuntimeBackendResolver {
         let cliStats = StatsSampler(client: client)
         let cliVolumes = VolumeService(client: client)
 
-        func cliServices(health: APIServerHealth? = nil) -> RuntimeServices {
+        func cliServices(health: APIServerHealth? = nil, kind: RuntimeBackendKind = .cli) -> RuntimeServices {
             RuntimeServices(
-                kind: .cli,
+                kind: kind,
                 containers: cliContainers,
                 logs: cliLogs,
                 stats: cliStats,
                 volumes: cliVolumes,
                 api: nil,
                 health: health,
-                exitCodes: nil
+                exitCodes: nil,
+                followsManagedSelection: client.followsDefaultSelection
+                    && environment["MICROPOD_CONTAINER_CLI_PATH"] == nil
             )
         }
 
+        // A dedicated account is reached through its authenticated gateway.
+        // Never bind the desktop's legacy Apple XPC service by accident.
+        if client.usesIsolatedTransport { return cliServices(kind: .managed) }
         guard mode != "cli" else { return cliServices() }
 
         // An explicit CLI path means the caller deliberately chose a
@@ -130,7 +140,9 @@ public enum RuntimeBackendResolver {
                 volumes: NativeVolumeService(api: api, cli: cliVolumes),
                 api: api,
                 health: health,
-                exitCodes: exitCodes
+                exitCodes: exitCodes,
+                followsManagedSelection: client.followsDefaultSelection
+                    && environment["MICROPOD_CONTAINER_CLI_PATH"] == nil
             )
             guard services.versionSupported else {
                 // The wire DTOs are versioned by us, not on the wire — an
@@ -182,6 +194,7 @@ public enum RuntimeBackendResolver {
 public actor RuntimeHolder {
     private var services: RuntimeServices
     private let resolve: @Sendable () async -> RuntimeServices
+    private let managedSelectionPresent: @Sendable () -> Bool
     private let minInterval: Duration
     /// Start of the most recent resolution attempt.
     private var lastAttempt: ContinuousClock.Instant
@@ -190,10 +203,12 @@ public actor RuntimeHolder {
     public init(
         initial: RuntimeServices,
         resolve: @escaping @Sendable () async -> RuntimeServices,
-        minInterval: Duration = .seconds(10)
+        minInterval: Duration = .seconds(10),
+        managedSelectionPresent: @escaping @Sendable () -> Bool = { ContainerCLIClient().usesIsolatedTransport }
     ) {
         self.services = initial
         self.resolve = resolve
+        self.managedSelectionPresent = managedSelectionPresent
         self.minInterval = minInterval
         self.lastAttempt = .now
     }
@@ -209,7 +224,7 @@ public actor RuntimeHolder {
             adopt(await inFlight.value)
             return services
         }
-        guard Self.isReplaceable(services) else { return services }
+        guard isReplaceable(services) else { return services }
         let now = ContinuousClock.now
         guard force || now - lastAttempt >= minInterval else { return services }
         lastAttempt = now
@@ -223,8 +238,9 @@ public actor RuntimeHolder {
     }
 
     /// CLI may still become native; native is final while its connection lives.
-    private static func isReplaceable(_ services: RuntimeServices) -> Bool {
+    private func isReplaceable(_ services: RuntimeServices) -> Bool {
         services.kind == .cli || services.api?.isInvalidated == true
+            || (services.kind == .native && services.followsManagedSelection && managedSelectionPresent())
     }
 
     /// Swaps to `resolved` when it upgrades CLI to native or replaces a dead
@@ -232,13 +248,13 @@ public actor RuntimeHolder {
     /// services (and their state). Idempotent, so every caller that awaited
     /// the same attempt may apply it.
     private func adopt(_ resolved: RuntimeServices) {
-        guard Self.isReplaceable(services),
-            resolved.kind == .native || services.kind == .native
+        guard isReplaceable(services),
+            resolved.kind == .native || resolved.kind == .managed || services.kind == .native
         else { return }
         let reason =
-            services.kind == .native
-            ? "apiserver connection invalidated"
-            : "apiserver reachable"
+            resolved.kind == .managed
+            ? "managed selection changed"
+            : services.kind == .native ? "apiserver connection invalidated" : "apiserver reachable"
         let notice = "micropod: runtime backend \(services.kind.rawValue) -> \(resolved.kind.rawValue) (\(reason))\n"
         FileHandle.standardError.write(Data(notice.utf8))
         services = resolved
