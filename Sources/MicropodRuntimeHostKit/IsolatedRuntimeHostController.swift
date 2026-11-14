@@ -14,7 +14,7 @@ public actor IsolatedRuntimeHostController {
     private var probe: Task<IsolatedRuntimeObservation, Error>?
     private var workerRunning = false
     private var fence: RuntimeMaintenanceFence?
-    private var runtimeCoordinator = RuntimeCoordinatorAuthority()
+    private var runtimeCoordinator: RuntimeCoordinatorAuthority
 
     public init(
         driver: any IsolatedRuntimeHostDriving, journal: URL = RootRuntimeStorage.operation,
@@ -27,6 +27,26 @@ public actor IsolatedRuntimeHostController {
         self.registration = registration
         self.journal = journal
         self.gate = RuntimeAdmission(root: admissionRoot)
+        self.runtimeCoordinator = RuntimeCoordinatorAuthority(
+            fileURL: journal.deletingLastPathComponent().appendingPathComponent("runtime-coordinator.json"),
+            ownerUID: geteuid())
+        state = Self.initialStatus(journal: journal)
+    }
+
+    init(
+        driver: any IsolatedRuntimeHostDriving, journal: URL, admissionRoot: URL,
+        coordinator: RuntimeCoordinatorAuthority
+    ) {
+        self.driver = driver
+        self.registration = { _ in nil }
+        self.journal = journal
+        self.gate = RuntimeAdmission(root: admissionRoot)
+        self.runtimeCoordinator = coordinator
+        state = Self.initialStatus(journal: journal)
+    }
+
+    private static func initialStatus(journal: URL) -> IsolatedRuntimeStatus {
+        var state = IsolatedRuntimeStatus()
         if let data = try? RuntimeDurableFile.read(journal, maximumBytes: 65536),
             let status = try? JSONDecoder().decode(IsolatedRuntimeStatus.self, from: data)
         {
@@ -39,6 +59,7 @@ public actor IsolatedRuntimeHostController {
             state.phase = "recoveryRequired"
             state.message = "Runtime control metadata is unavailable; no lifecycle action is permitted"
         }
+        return state
     }
 
     public func submit(_ request: IsolatedRuntimeRequest, ownerUID: UInt32) async throws -> IsolatedRuntimeStatus {
@@ -94,13 +115,12 @@ public actor IsolatedRuntimeHostController {
             task?.cancel()
             return state
         }
-        // The new enrollment/session boundary is not a legacy host grant.
-        // Keep disruptive calls closed until the resource-scoped lifecycle
-        // coordinator is wired through the same durable operation protocol.
-        if FileManager.default.fileExists(atPath: RuntimeCoordinatorAuthority.fileURL.path),
-            [.install, .start, .stop, .restart].contains(request.action)
-        {
-            throw MicropodError.message("Runtime-only lifecycle coordination is not available in this helper release")
+        if runtimeCoordinator.hasRecord {
+            guard let identity = state.identity, try registration(identity) == nil,
+                try runtimeCoordinator.read(identity: identity) != nil
+            else {
+                throw MicropodError.message("The private runtime coordinator identity is incomplete or conflicting")
+            }
         }
         if state.operation == request.operation {
             guard state.action == request.action else {
@@ -111,7 +131,7 @@ public actor IsolatedRuntimeHostController {
         guard task == nil, probe == nil else {
             throw MicropodError.message("A managed runtime operation is already running")
         }
-        if request.action == .verify, gate.isClosed || state.rigAttempted == true {
+        if request.action == .verify, gate.isClosed || handoffAttempted {
             state.phase = "recovering"
             state.message = "Verifying the retained private runtime operation"
             try save()
@@ -140,6 +160,8 @@ public actor IsolatedRuntimeHostController {
         state.workerBirth = nil
         state.rig = nil
         state.rigAttempted = false
+        state.runtimeRig = nil
+        state.runtimeRigAttempted = false
         state.runtimeCancelledBeforeAction = false
         state.runtimeActionStarted = false
         state.actionVerified = false
@@ -157,6 +179,9 @@ public actor IsolatedRuntimeHostController {
             if request.action == .install {
                 try update("installing", "Verifying Apple's runtime and creating the locked service account")
                 let prepared = try await driver.prepare(ownerUID: ownerUID)
+                if runtimeCoordinator.hasRecord, state.identity != prepared.identity {
+                    throw MicropodError.message("Runtime staging changed the enrolled private account")
+                }
                 state.identity = prepared.identity
                 state.pendingSelection = prepared.receipt.selection
                 state.workerSHA256 = prepared.workerSHA256
@@ -181,15 +206,18 @@ public actor IsolatedRuntimeHostController {
             }
             state.localGeneration = try gate.nextGeneration()
             try update("draining", "Waiting for rig work to finish before closing runtime admission")
-            if try registration(identity) != nil {
-                state.rigAttempted = true
+            let scoped = try runtimeCoordinator.read(identity: identity)
+            let legacy = try registration(identity)
+            if scoped != nil || legacy != nil {
+                state.runtimeRigAttempted = scoped != nil
+                state.rigAttempted = scoped == nil
                 try save()
                 let deadline = ContinuousClock.now.advanced(by: .seconds(120))
                 while true {
                     try Task.checkCancellation()
-                    let receipt = try await rigTransition("drain")
-                    if receipt?.phase == "drained" { break }
-                    guard receipt?.phase == "draining", ContinuousClock.now < deadline else {
+                    let phase = try await handoffPhase("drain")
+                    if phase == "drained" { break }
+                    guard phase == "draining", ContinuousClock.now < deadline else {
                         throw MicropodError.message("Rig drain is incomplete; current work was left running")
                     }
                     try await Task.sleep(for: .milliseconds(500))
@@ -208,12 +236,12 @@ public actor IsolatedRuntimeHostController {
                 throw MicropodError.message("Runtime admission generation changed")
             }
             try publishFence()
-            if state.rigAttempted == true { _ = try await requireRig("prepare", phase: "prepared") }
+            if handoffAttempted { try await requireHandoff("prepare", phase: "prepared") }
             let before = try await run(.verify, identity: identity, digest: digest, selection: selection)
             if request.action == .start, before.state == "nativeReady", state.pendingSelection == nil {
                 // A ready native runtime may still need its independent API
                 // service restored after an interrupted setup.
-                if state.rigAttempted == true { _ = try await requireRig("begin", phase: "begun") }
+                if handoffAttempted { try await requireHandoff("begin", phase: "begun") }
                 try beginRuntimeAction()
                 let ready = try await run(.start, identity: identity, digest: digest, selection: selection)
                 adopt(ready)
@@ -225,7 +253,7 @@ public actor IsolatedRuntimeHostController {
             // workloads can finish or be stopped through the data plane.
             _ = try await run(.verify, identity: identity, digest: digest, selection: selection, requiresIdle: true)
             try Task.checkCancellation()
-            if state.rigAttempted == true { _ = try await requireRig("begin", phase: "begun") }
+            if handoffAttempted { try await requireHandoff("begin", phase: "begun") }
             try beginRuntimeAction()
             try update("stopping", "Settling the drained dedicated runtime and API")
             _ = try await run(.stop, identity: identity, digest: digest, selection: selection)
@@ -297,25 +325,30 @@ public actor IsolatedRuntimeHostController {
             }
             if !gate.isClosed, state.actionVerified == true {
                 if state.runtimeCancelledBeforeAction == true {
-                    if state.rigAttempted == true { _ = try await requireRig("abortComplete", phase: "cancelled") }
-                    state.rigAttempted = false
+                    if handoffAttempted { try await requireHandoff("abortComplete", phase: "cancelled") }
+                    clearHandoff()
                     state.workerBirth = nil
                     try update("blocked", "Preparation was cancelled before any private runtime change")
                     return
                 }
+                let observed = try await run(.verify, identity: identity, digest: digest, selection: selection)
+                guard observed.state == (state.action == .stop ? "stopped" : "nativeReady") else {
+                    throw MicropodError.message("The retained native outcome changed; no runtime command was replayed")
+                }
+                adopt(observed)
                 try await finish()
                 return
             }
-            if !gate.isClosed, state.rigAttempted == true {
+            if !gate.isClosed, handoffAttempted {
                 guard state.runtimeActionStarted == false else {
                     throw MicropodError.message("The retained runtime action may have begun; cancellation is refused")
                 }
-                _ = try await requireRig("abort", phase: "aborting")
+                try await requireHandoff("abort", phase: "aborting")
                 state.runtimeCancelledBeforeAction = true
                 state.actionVerified = true
                 try update("releasing", "Cancelling rig preparation before any private runtime change")
-                _ = try await requireRig("abortComplete", phase: "cancelled")
-                state.rigAttempted = false
+                try await requireHandoff("abortComplete", phase: "cancelled")
+                clearHandoff()
                 try update("cancelled", "Rig preparation was cancelled before any private runtime change")
                 return
             }
@@ -327,15 +360,15 @@ public actor IsolatedRuntimeHostController {
                 // and marking that fence, after the worker's exit was proved.
                 state.runtimeActionStarted = false
                 try save()
-                if state.rigAttempted == true { _ = try await requireRig("abort", phase: "aborting") }
+                if handoffAttempted { try await requireHandoff("abort", phase: "aborting") }
                 state.actionVerified = true
                 state.runtimeCancelledBeforeAction = true
                 try update("releasing", "Cancelling runtime preparation before any change")
                 try fence?.releaseAfterVerification()
                 fence = nil
                 state.workerBirth = nil
-                if state.rigAttempted == true { _ = try await requireRig("abortComplete", phase: "cancelled") }
-                state.rigAttempted = false
+                if handoffAttempted { try await requireHandoff("abortComplete", phase: "cancelled") }
+                clearHandoff()
                 try update(
                     "blocked",
                     "Preparation ended before any private runtime change; the existing user runtime is unchanged")
@@ -360,11 +393,11 @@ public actor IsolatedRuntimeHostController {
     private func finish() async throws {
         state.actionVerified = true
         try update("releasing", "Dedicated runtime verified; completing maintenance")
-        if state.rigAttempted == true { _ = try await requireRig("verify", phase: "verified") }
+        if handoffAttempted, gate.isClosed { try await requireHandoff("verify", phase: "verified") }
         try fence?.releaseAfterVerification()
         fence = nil
-        if state.rigAttempted == true { _ = try await requireRig("complete", phase: "completed") }
-        state.rigAttempted = false
+        if handoffAttempted { try await requireHandoff("complete", phase: "completed") }
+        clearHandoff()
         state.workerBirth = nil
         state.error = nil
         try update(
@@ -373,6 +406,76 @@ public actor IsolatedRuntimeHostController {
                 ? "Dedicated runtime stopped; the existing user runtime is unchanged"
                 : "Dedicated native runtime is ready")
     }
+    private var handoffAttempted: Bool { state.rigAttempted == true || state.runtimeRigAttempted == true }
+
+    private func clearHandoff() {
+        state.rigAttempted = false
+        state.runtimeRigAttempted = false
+    }
+
+    private func handoffPhase(_ action: String) async throws -> String {
+        if state.runtimeRigAttempted == true { return try await scopedTransition(action).phase }
+        return try await rigTransition(action)?.phase ?? ""
+    }
+
+    private func requireHandoff(_ action: String, phase: String) async throws {
+        if state.runtimeRigAttempted == true {
+            let reply = try await scopedTransition(action)
+            guard reply.phase == phase else {
+                throw MicropodError.message("The exact private runtime handoff is unconfirmed; admission remains held")
+            }
+        } else {
+            _ = try await requireRig(action, phase: phase)
+        }
+    }
+
+    private func scopedTransition(_ action: String) async throws -> RuntimeCoordinationRigReply {
+        guard let identity = state.identity, let record = try runtimeCoordinator.read(identity: identity) else {
+            throw MicropodError.message("The private runtime coordinator is unavailable")
+        }
+        let operation = try coordinatedOperation()
+        let releaseKind: RuntimeCoordinationReleaseKind? =
+            action == "abortComplete"
+            ? .cancelled : (action == "complete" ? (state.action == .stop ? .stopped : .running) : nil)
+        let challenge = try runtimeCoordinator.issueOperationChallenge(
+            identity: identity, peer: record.peer, operation: operation,
+            purpose: releaseKind == nil ? "maintenance" : "release-observation")
+        defer { runtimeCoordinator.discardChallenge(challenge) }
+        let reply = try await driver.coordinateRuntime(
+            identity: identity, peer: record.peer,
+            call: .init(
+                action: action, operation: operation, enrollment: record.enrollment,
+                challenge: challenge, releaseKind: releaseKind))
+        guard reply.schemaVersion == RuntimeCoordinationEnrollment.capability,
+            reply.scope == RuntimeCoordinationEnrollment.runtimeScope, reply.operation == operation.id
+        else { throw MicropodError.message("The private runtime handoff changed identity") }
+        if let reason = reply.reason, !reason.isEmpty, reply.phase != "draining" {
+            throw MicropodError.message(reason)
+        }
+        if let kind = releaseKind {
+            guard let retained = state.runtimeRig, let proof = reply.releaseProof, reply.maintenanceProof == nil else {
+                throw MicropodError.message("The retained private release proof is unavailable")
+            }
+            _ = try runtimeCoordinator.observeRelease(
+                proof, challenge: challenge, identity: identity, peer: record.peer, retained: retained, kind: kind)
+        } else if reply.phase != "draining" {
+            guard let proof = reply.maintenanceProof, reply.releaseProof == nil, let snapshot = reply.state else {
+                throw MicropodError.message("The signed private scheduler fence is unavailable")
+            }
+            let receipt = try runtimeCoordinator.authorizeMaintenance(
+                proof, challenge: challenge, identity: identity, peer: record.peer,
+                operation: operation, resourceGeneration: snapshot.generation)
+            if let old = state.runtimeRig {
+                guard old.enrollment == receipt.enrollment, old.operation == receipt.operation,
+                    old.resourceGeneration == receipt.resourceGeneration
+                else { throw MicropodError.message("The retained private runtime resource owner changed") }
+            }
+            state.runtimeRig = receipt
+            try save()
+        }
+        return reply
+    }
+
     private func rigTransition(_ action: String) async throws -> RuntimeRigReceipt? {
         guard let identity = state.identity, let operation = state.operation, let generation = state.localGeneration,
             let selection = state.pendingSelection ?? state.selection
@@ -403,7 +506,7 @@ public actor IsolatedRuntimeHostController {
         -> IsolatedRuntimeRigProof
     {
         if call.action == "enroll" {
-            guard !FileManager.default.fileExists(atPath: RuntimeCoordinatorAuthority.fileURL.path) else {
+            guard !runtimeCoordinator.hasRecord else {
                 throw MicropodError.message(
                     "Runtime-only coordination cannot enroll the public provider or physical host")
             }
@@ -508,12 +611,25 @@ public actor IsolatedRuntimeHostController {
                     nativeVersion: state.nativeVersion, nativeAppRoot: state.nativeAppRoot,
                     nativeInstallRoot: state.nativeInstallRoot))
         }
-        guard state.identity == identity, state.phase == "completed", state.rigAttempted != true,
-            task == nil, probe == nil, !workerRunning,
-            !gate.isClosed, try registration(identity) == nil,
-            try RuntimeProcessBirth.read(peer.pid) == peer, peer.uid == identity.ownerUID
-        else {
-            throw MicropodError.message("Complete retained runtime maintenance before coordinating the private runtime")
+        let enrolling =
+            call.action == "runtime-enroll" || (call.action == "runtime-challenge" && call.purpose == "enrollment")
+        if enrolling {
+            let exited = try state.workerBirth.map { try $0.hasExited() } ?? true
+            guard !workerRunning, probe == nil, exited,
+                Self.sessionMayContinue(state, gateClosed: gate.isClosed, taskActive: task != nil)
+                    || (runtimeCoordinator.hasRecord && handoffAttempted && state.localGeneration != nil)
+            else {
+                throw MicropodError.message(
+                    "Wait for the retained private worker before refreshing coordinator identity")
+            }
+        } else {
+            // Data credentials can renew while a drain waits for existing work,
+            // or while immutable installer files are staged. They confer no
+            // new lease or lifecycle permission, and every API request still
+            // crosses the common runtime admission gate.
+            guard Self.sessionMayContinue(state, gateClosed: gate.isClosed, taskActive: task != nil) else {
+                throw MicropodError.message("Complete retained runtime maintenance before opening a data session")
+            }
         }
         switch call.action {
         case "runtime-challenge":
@@ -527,8 +643,13 @@ public actor IsolatedRuntimeHostController {
                 throw MicropodError.message("The runtime coordination request is incomplete")
             }
             if call.action == "runtime-enroll" {
+                var required: RuntimeCoordinationEnrollment?
+                if handoffAttempted {
+                    required = try runtimeCoordinator.read(identity: identity)?.enrollment
+                    if let retained = state.runtimeRig { required = retained.enrollment }
+                }
                 let enrollment = try runtimeCoordinator.enroll(
-                    proof, challenge: challenge, identity: identity, peer: peer)
+                    proof, challenge: challenge, identity: identity, peer: peer, requiredEnrollment: required)
                 return .init(identity: identity, peer: peer, enrollment: enrollment)
             }
             let verified = try runtimeCoordinator.authorizeSession(
@@ -539,6 +660,20 @@ public actor IsolatedRuntimeHostController {
         default:
             throw MicropodError.message("Unknown runtime coordination request")
         }
+    }
+
+    static func sessionMayContinue(_ state: IsolatedRuntimeStatus, gateClosed: Bool, taskActive: Bool) -> Bool {
+        guard !gateClosed else { return false }
+        let retained = state.rigAttempted == true || state.runtimeRigAttempted == true
+        if !taskActive, !retained,
+            state.phase == "completed"
+                || (state.runtimeCancelledBeforeAction == true && ["blocked", "cancelled"].contains(state.phase))
+        {
+            return true
+        }
+        guard state.runtimeActionStarted == false else { return false }
+        return (state.phase == "draining" && state.runtimeRigAttempted == true)
+            || (state.action == .install && ["preparing", "installing"].contains(state.phase))
     }
 
     private func coordinatedOperation() throws -> RuntimeCoordinationOperation {
@@ -572,7 +707,7 @@ public actor IsolatedRuntimeHostController {
     }
     private func fail(_ error: Error) {
         state.error = error.localizedDescription
-        state.phase = gate.isClosed || state.rigAttempted == true ? "recoveryRequired" : "failed"
+        state.phase = gate.isClosed || handoffAttempted ? "recoveryRequired" : "failed"
         state.message =
             gate.isClosed
             ? "Dedicated runtime admission remains closed; verification is required"

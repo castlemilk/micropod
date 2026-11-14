@@ -195,6 +195,7 @@ public enum RootRuntimeStorage {
         try fm.setAttributes([.posixPermissions: 0o644], ofItemAtPath: stagedConfiguration.path)
         var environment = [
             "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "MICROPOD_ISOLATED_RUNTIME": "1",
+            "MICROPOD_ENGINES": "apple",
             "CONTAINER_APP_ROOT": IsolatedRuntimePolicy.appRoot.path,
         ]
         if let guest { environment["MICROPOD_GUEST_TOOL"] = guest.path }

@@ -27,6 +27,7 @@ struct RuntimeCoordinatorAuthority {
     private let verifier: RuntimeCoordinationProofVerifier
     private let uptime: () -> UInt64
     private var challenges: [String: Challenge] = [:]
+    var hasRecord: Bool { FileManager.default.fileExists(atPath: fileURL.path) }
 
     init(
         fileURL: URL = Self.fileURL, ownerUID: UInt32 = 0,
@@ -132,10 +133,12 @@ struct RuntimeCoordinatorAuthority {
 
     mutating func enroll(
         _ token: String, challenge: String, identity: IsolatedRuntimeIdentity, peer: RuntimeProcessBirth,
+        requiredEnrollment: RuntimeCoordinationEnrollment? = nil,
         now: Date = Date(), priorProcessExited: (RuntimeProcessBirth) throws -> Bool = { try $0.hasExited() }
     ) throws -> RuntimeCoordinationEnrollment {
         try consume(challenge, purpose: "enrollment", identity: identity, peer: peer)
         let proof = try verifier.verifyEnrollment(token, identity: identity, peer: peer, challenge: challenge, now: now)
+        if let requiredEnrollment, proof.enrollment != requiredEnrollment { throw refused() }
         if let old = try read(identity: identity) {
             // A status credential can rotate within the same kernel process.
             // It does not replace worker ownership. A different process still

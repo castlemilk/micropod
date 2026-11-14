@@ -212,7 +212,7 @@ final class IsolatedRuntimeHostControllerTests: XCTestCase {
         XCTAssertEqual(actions.filter { $0 == .start }.count, 1)
         XCTAssertEqual(actions.filter { $0 == .stop }.count, 1)
         let rig = await driver.rigHistory()
-        XCTAssertEqual(rig, ["drain", "prepare", "begin", "verify", "complete", "verify", "complete"])
+        XCTAssertEqual(rig, ["drain", "prepare", "begin", "verify", "complete", "complete"])
     }
 
     func testReloadedInterruptedStartAfterBootRetainsFenceUntilOutcomeIsVerified() async throws {

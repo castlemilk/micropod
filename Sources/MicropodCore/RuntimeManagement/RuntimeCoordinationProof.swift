@@ -15,6 +15,7 @@ public struct RuntimeCoordinationEnrollment: Codable, Sendable, Equatable {
     public let binding: RuntimeCoordinationBinding
 
     public static let capability = "micropod-runtime-coordination-v1"
+    public static let dataCapability = "micropod-dedicated-runtime-v1"
     public static let runtimeScope = "micropod-dedicated-runtime"
 
     public func validate(identity: IsolatedRuntimeIdentity) throws {

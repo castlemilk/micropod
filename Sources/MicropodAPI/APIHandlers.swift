@@ -76,6 +76,16 @@ final class APIHandlers: Sendable {
     }
 
     func handle(_ request: HTTPRequest) async -> HTTPResponse {
+        if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1",
+            !IsolatedRuntimeRequestPolicy.allows(request.path)
+        {
+            return .json(
+                403,
+                [
+                    "code": "permission_denied",
+                    "message": "Use Micropod's runtime controls to manage the dedicated Apple runtime",
+                ])
+        }
         let desktopControl =
             request.path == "/health" || request.path == "/"
             || request.path == "/v1/system/update" || request.path == "/v1/system/update/apply"

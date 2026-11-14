@@ -19,6 +19,9 @@ public protocol IsolatedRuntimeHostDriving: Sendable {
         generation: UInt64, targetState: String
     ) async throws -> RuntimeRigReceipt?
     func activateAPI(identity: IsolatedRuntimeIdentity, selection: ManagedRuntimeLocation.Selection) throws
+    func coordinateRuntime(
+        identity: IsolatedRuntimeIdentity, peer: RuntimeProcessBirth, call: RuntimeCoordinationRigCall
+    ) async throws -> RuntimeCoordinationRigReply
     func run(
         identity: IsolatedRuntimeIdentity, workerSHA256: String, request: IsolatedRuntimeWorkerRequest,
         willBegin: @escaping @Sendable (RuntimeProcessBirth) async throws -> Void
@@ -30,6 +33,11 @@ extension IsolatedRuntimeHostDriving {
         generation: UInt64, targetState: String
     ) async throws -> RuntimeRigReceipt? { nil }
     public func activateAPI(identity: IsolatedRuntimeIdentity, selection: ManagedRuntimeLocation.Selection) throws {}
+    public func coordinateRuntime(
+        identity: IsolatedRuntimeIdentity, peer: RuntimeProcessBirth, call: RuntimeCoordinationRigCall
+    ) async throws -> RuntimeCoordinationRigReply {
+        throw MicropodError.message("The private runtime coordinator is unavailable")
+    }
 }
 public struct NativeIsolatedRuntimeHostDriver: IsolatedRuntimeHostDriving {
     public let executable: URL
@@ -77,6 +85,20 @@ public struct NativeIsolatedRuntimeHostDriver: IsolatedRuntimeHostDriving {
     }
     public func activateAPI(identity: IsolatedRuntimeIdentity, selection: ManagedRuntimeLocation.Selection) throws {
         try RootRuntimeStorage.activateAPI(identity: identity, selection: selection)
+    }
+    public func coordinateRuntime(
+        identity: IsolatedRuntimeIdentity, peer: RuntimeProcessBirth, call: RuntimeCoordinationRigCall
+    ) async throws -> RuntimeCoordinationRigReply {
+        try ServiceAccountProvisioner.verifyExisting(identity: identity)
+        var user = passwd()
+        var result: UnsafeMutablePointer<passwd>?
+        var bytes = [CChar](repeating: 0, count: 65536)
+        guard getpwuid_r(identity.ownerUID, &user, &bytes, bytes.count, &result) == 0,
+            result != nil, let home = user.pw_dir
+        else { throw MicropodError.message("The runtime owner's home is unavailable") }
+        return try await RuntimeCoordinationRigClient(
+            ownerHome: URL(fileURLWithPath: String(cString: home)), identity: identity, peer: peer
+        ).transition(call)
     }
     public func run(
         identity: IsolatedRuntimeIdentity, workerSHA256: String, request: IsolatedRuntimeWorkerRequest,

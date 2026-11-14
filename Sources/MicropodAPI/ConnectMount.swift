@@ -648,6 +648,9 @@ extension APIHandlers {
 
         response.runtimeBackend = services.kind.rawValue
         response.features = APIFeatures.supported
+        if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1" {
+            response.features.append(RuntimeCoordinationEnrollment.dataCapability)
+        }
         response.defaultRuntime = EngineRegistry.shared.defaultName
         if let api = services.api {
             if let health = try? await api.ping(timeout: .seconds(2)) {

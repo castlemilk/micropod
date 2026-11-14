@@ -85,7 +85,8 @@ public enum RuntimeBackendResolver {
         // Every engine (apple, docker, sandbox) behind one ContainerServing;
         // `MICROPOD_ENGINES=apple` opts out of routing entirely.
         let apple = await resolveApple(client: client, environment: environment, pingTimeout: pingTimeout)
-        return environment["MICROPOD_ENGINES"] == "apple" ? apple : apple.routed()
+        return environment["MICROPOD_ISOLATED_RUNTIME"] == "1" || environment["MICROPOD_ENGINES"] == "apple"
+            ? apple : apple.routed()
     }
 
     /// The apple engine alone: native XPC or `container` CLI transport.
