@@ -27,6 +27,7 @@ struct SharedViewSync {
         guard changed == origin.path || changed.hasPrefix(origin.path + "/") else { return [] }
         let relative = String(changed.dropFirst(origin.path.count)).trimmingCharacters(
             in: CharacterSet(charactersIn: "/"))
+        guard !relative.split(separator: "/").contains(where: { $0.hasPrefix(".sharedfs-") }) else { return [] }
         var directory: ObjCBool = false
         let exists = FileManager.default.fileExists(atPath: changed, isDirectory: &directory)
         let names: Set<String>

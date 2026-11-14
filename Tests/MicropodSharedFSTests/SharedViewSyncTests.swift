@@ -46,6 +46,16 @@ final class SharedViewSyncTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: view.appendingPathComponent("a.txt"), encoding: .utf8), "after-clone")
     }
 
+    func testStagingNotificationCannotPublishAnUncommittedSnapshot() throws {
+        let (source, view, initial) = try fixture()
+        var sync = initial
+        let staging = view.appendingPathComponent(".sharedfs-uncommitted")
+        try "partial snapshot".write(to: staging, atomically: true, encoding: .utf8)
+        XCTAssertEqual(try sync.synchronize(changedPath: staging.path, fromView: true), [])
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: source.appendingPathComponent(staging.lastPathComponent).path))
+    }
+
     func testOldSourceDirectoryEventPreservesNewViewFileAndDeletionPropagates() throws {
         let (source, view, initial) = try fixture()
         var sync = initial
