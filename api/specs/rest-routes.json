@@ -35,6 +35,21 @@
     "description": "Runtime status, versions, backend."
   },
   {
+    "method": "POST",
+    "path": "/v1/system/runtime/{arg}",
+    "description": ""
+  },
+  {
+    "method": "GET",
+    "path": "/v1/system",
+    "description": "Runtime status, versions, backend."
+  },
+  {
+    "method": "GET",
+    "path": "/v1/system",
+    "description": "Runtime status, versions, backend."
+  },
+  {
     "method": "GET",
     "path": "/v1/runtimes",
     "description": "Execution engines (apple, docker, sandbox): availability, enabled, default, capabilities."
