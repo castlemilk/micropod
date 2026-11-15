@@ -23,6 +23,7 @@ public struct NativeContainerService: ContainerServing {
     /// runtime helper replays a cached status to pre-registered waiters),
     /// so even a container that exits within milliseconds gets a real code.
     private let exitCodes: ExitCodeRegistry
+    private let admissionGate: RuntimeAdmission
 
     public init(
         api: APIServerClient, cli: ContainerService,
@@ -30,11 +31,20 @@ public struct NativeContainerService: ContainerServing {
         policy: @escaping @Sendable () -> VolumePolicy = { VolumePolicyStore.load() },
         exitCodes: ExitCodeRegistry = ExitCodeRegistry()
     ) {
+        self.init(api: api, cli: cli, images: images, policy: policy, exitCodes: exitCodes, admissionGate: .shared)
+    }
+
+    init(
+        api: APIServerClient, cli: ContainerService, images: ImagesServiceClient,
+        policy: @escaping @Sendable () -> VolumePolicy = { VolumePolicyStore.load() },
+        exitCodes: ExitCodeRegistry = ExitCodeRegistry(), admissionGate: RuntimeAdmission
+    ) {
         self.api = api
         self.cli = cli
         self.images = images
         self.policy = policy
         self.exitCodes = exitCodes
+        self.admissionGate = admissionGate
     }
 
     /// Polled (agents' watchdogs, the app, `ps` loops): a recent answer
@@ -106,7 +116,7 @@ public struct NativeContainerService: ContainerServing {
     /// error say it was deleted. The three steps run as one attempt under the
     /// process-wide ``StartGate``, one start at a time.
     private func startTracked(_ id: String, createdHere: Bool) async throws {
-        let admission = try RuntimeAdmission.shared.claim("native.start")
+        let admission = try admissionGate.claim("native.start")
         defer { withExtendedLifetime(admission) {} }
         try await Self.startLookingIntoNotFound(
             id: id,
@@ -251,8 +261,6 @@ public struct NativeContainerService: ContainerServing {
     /// 63-character cap) for the volumes — before the mutex and before any
     /// filesystem or XPC work.
     private func createNative(_ request: ContainerRunRequest) async throws -> String {
-        let admission = try RuntimeAdmission.shared.claim("native.create")
-        defer { withExtendedLifetime(admission) {} }
         if let name = request.name {
             try VolumeClone.requireSafeComponent(name, as: "container id")
         }
@@ -260,10 +268,23 @@ public struct NativeContainerService: ContainerServing {
             try VolumeClone.requireSafeVolumeName(volume, as: "volume name")
         }
         let id = request.name ?? UUID().uuidString.lowercased()
+        let sysConfig = NativeConfigBuilder.loadSystemConfig()
+        let platform = try NativeConfigBuilder.ociPlatform(request.platform)
+        // Image lookup cannot create a container. A no-pull miss or failed
+        // read must not leave an uncertain container-create receipt. Pulls
+        // have their own admission claim at the XPC mutation boundary.
+        let image = try await images.ensure(
+            reference: request.image, platform: platform,
+            registryDomain: sysConfig.registryDomain, noPull: request.noPull)
+        // Recheck admission after lookup, before any clone, volume or
+        // container mutation. A fence acquired during lookup wins here.
+        let admission = try admissionGate.claim("native.create")
+        defer { withExtendedLifetime(admission) {} }
         let result = try await InFlightCreates.shared.withExclusive(id) {
             var placed: [String] = []
             do {
-                return try await createNativeInner(request, id: id, placed: &placed)
+                return try await createNativeInner(
+                    request, id: id, placed: &placed, sysConfig: sysConfig, platform: platform, image: image)
             } catch {
                 await VolumeClone.removeClones(containerID: id, volumes: placed)
                 throw error
@@ -277,19 +298,9 @@ public struct NativeContainerService: ContainerServing {
     /// receives the name of every clone volume this create placed, as it
     /// places it, so the caller can remove exactly those on failure.
     private func createNativeInner(
-        _ request: ContainerRunRequest, id: String, placed: inout [String]
+        _ request: ContainerRunRequest, id: String, placed: inout [String],
+        sysConfig: NativeConfigBuilder.SystemConfig, platform: JSONValue, image: ResolvedImage
     ) async throws -> String {
-        let sysConfig = NativeConfigBuilder.loadSystemConfig()
-        let platform = try NativeConfigBuilder.ociPlatform(request.platform)
-
-        // Image resolution (ClientImage.fetch): local match or pull —
-        // or, under `no_pull`, `not_found` naming the missing platform.
-        let image = try await images.ensure(
-            reference: request.image,
-            platform: platform,
-            registryDomain: sysConfig.registryDomain,
-            noPull: request.noPull
-        )
         let imageDescription = image.description
         let imageConfig = image.config
 
