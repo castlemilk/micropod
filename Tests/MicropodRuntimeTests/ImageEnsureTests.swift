@@ -160,6 +160,35 @@ final class ImageEnsureTests: XCTestCase {
         XCTAssertThrowsError(try gate.begin(operation: UUID()), "a later failure must retain its create intent")
     }
 
+    func testRejectedMountsDoNotBlockMaintenance() async throws {
+        let store = try ScriptedImageStore(root: root, storedArchitectures: ["amd64"])
+        let gate = try enrolledCreateGate()
+        let service = nativeService(images: ImagesServiceClient(transport: store.transport), gate: gate)
+        let missing = root.appendingPathComponent("missing-bind").path
+        let requests = [
+            ContainerRunRequest(
+                image: "alpine:3.20", name: "missing-bind",
+                volumes: [missing + ":/input:ro"], platform: "linux/amd64", noPull: true),
+            ContainerRunRequest(
+                image: "alpine:3.20", name: "invalid-volume",
+                volumes: ["cache:/input:ro:extra"], platform: "linux/amd64", noPull: true),
+            ContainerRunRequest(
+                image: "alpine:3.20", name: "invalid-tmpfs",
+                tmpfs: ["relative"], platform: "linux/amd64", noPull: true),
+        ]
+        for request in requests {
+            do {
+                _ = try await service.create(request)
+                XCTFail("invalid mounts must be rejected before contacting the container service")
+            } catch {
+                XCTAssertFalse(error.localizedDescription.contains("Connection"), "\(error)")
+            }
+            let fence = try gate.begin(operation: UUID())
+            try fence.releaseAfterVerification()
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: missing))
+    }
+
     func testNativeCreateRechecksFenceAfterImageLookup() async throws {
         let store = try ScriptedImageStore(root: root, storedArchitectures: ["amd64"])
         let gate = try enrolledCreateGate()
