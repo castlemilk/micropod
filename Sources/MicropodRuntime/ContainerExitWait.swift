@@ -19,7 +19,9 @@ import Foundation
 /// not flipped to `stopped` yet. `running`/`stopping` are non-terminal; so
 /// is `created` (never started — it may still be). Anything else
 /// (`stopped`, or `unknown` after the container vanished mid-wait) is
-/// `exited: true`, with `known: false` when no registry code exists. Errors
+/// `exited: true`, with `known: false` when no registry code can arrive. A
+/// stopped tracked container with a pending waiter remains non-terminal until
+/// the waiter delivers its result: the runtime snapshot can flip first. Errors
 /// thrown by `state` (the runtime stopped answering) propagate.
 ///
 /// `state(id, exitKnown)` reads the runtime state; `exitKnown` says whether
@@ -58,16 +60,27 @@ public enum ContainerExitWait {
         let clock = ContinuousClock()
         let deadline = clock.now + timeout
         while true {
-            let entry = await exitCodes?.entry(for: id)
+            var entry = await exitCodes?.entry(for: id)
             let current = try await state(id, entry?.exitCode != nil)
+            // Reading runtime state suspends. An exit may have arrived while
+            // that read was in flight; never discard its authoritative code.
+            if entry == nil { entry = await exitCodes?.entry(for: id) }
             if let code = entry?.exitCode {
                 return Outcome(exited: true, known: true, exitCode: code, state: current)
             }
+            // A stopped snapshot can beat the XPC wait reply. Keep waiting
+            // for this generation's real status instead of failing a healthy
+            // startup with "exit code unavailable". An untracked container or
+            // a completed waiter with an unknown code still fails closed.
+            let tracked = await exitCodes?.isTracked(id: id) ?? false
+            let pending = entry == nil && tracked
             switch current {
             case "running", "stopping", "created":
                 break
             default:
-                return Outcome(exited: true, known: false, exitCode: nil, state: current)
+                if !pending {
+                    return Outcome(exited: true, known: false, exitCode: nil, state: current)
+                }
             }
             let now = clock.now
             guard now < deadline, !Task.isCancelled else {
@@ -77,7 +90,7 @@ public enum ContainerExitWait {
             // An entry without a code (the waiter aged out or failed) will
             // never be replaced by a real one: poll the state like an
             // untracked container instead of spinning on the entry.
-            if entry == nil, let exitCodes, await exitCodes.isTracked(id: id) {
+            if pending, let exitCodes {
                 _ = await exitCodes.await(id: id, timeout: min(remaining, trackedPoll))
             } else if let park, await park(id, min(remaining, trackedPoll)) {
                 continue
