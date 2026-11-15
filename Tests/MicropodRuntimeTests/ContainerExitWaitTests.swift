@@ -50,6 +50,50 @@ final class ContainerExitWaitTests: XCTestCase {
         XCTAssertLessThan(ContinuousClock.now - started, .milliseconds(50))
     }
 
+    /// State can become stopped before the XPC exit waiter resumes. Its
+    /// nonzero status must survive that ordering (zero is not inferred).
+    func testStoppedStateWaitsForPendingExitCode() async throws {
+        let registry = ExitCodeRegistry()
+        let release = ExitGate()
+        await registry.track(id: "job") {
+            await release.wait()
+            return 17
+        }
+        let outcome = try await ContainerExitWait.wait(
+            id: "job", timeout: .seconds(2), exitCodes: registry
+        ) { _, _ in
+            await release.open()
+            return "stopped"
+        }
+        XCTAssertEqual(outcome, .init(exited: true, known: true, exitCode: 17, state: "stopped"))
+    }
+
+    /// An unresolved waiter is not a terminal unknown exit merely because
+    /// its snapshot says stopped. A zero timeout avoids a sleep-based race.
+    func testStoppedPendingWaiterHonoursTimeoutWithoutFalseExit() async throws {
+        let registry = ExitCodeRegistry()
+        await registry.track(id: "job") {
+            try await Task.sleep(for: .seconds(60))
+            return 0
+        }
+        let outcome = try await ContainerExitWait.wait(
+            id: "job", timeout: .zero, exitCodes: registry
+        ) { _, _ in "stopped" }
+        XCTAssertEqual(outcome, .init(exited: false, known: false, exitCode: nil, state: "stopped"))
+        await registry.forget(id: "job")
+    }
+
+    func testFailedTrackedWaiterStillReportsUnknownExit() async throws {
+        struct Lost: Error {}
+        let registry = ExitCodeRegistry()
+        await registry.track(id: "job") { throw Lost() }
+        _ = await registry.await(id: "job", timeout: .seconds(2))
+        let outcome = try await ContainerExitWait.wait(
+            id: "job", timeout: .seconds(2), exitCodes: registry
+        ) { _, _ in "stopped" }
+        XCTAssertEqual(outcome, .init(exited: true, known: false, exitCode: nil, state: "stopped"))
+    }
+
     func testTimeoutIsHonoured() async throws {
         let registry = ExitCodeRegistry()
         await registry.track(id: "job") {
@@ -190,4 +234,18 @@ private actor ScriptedStates {
 private actor ExitInstant {
     private(set) var instant: ContinuousClock.Instant?
     func mark() { instant = .now }
+}
+
+private actor ExitGate {
+    private var opened = false
+    private var waiting: CheckedContinuation<Void, Never>?
+    func wait() async {
+        if opened { return }
+        await withCheckedContinuation { waiting = $0 }
+    }
+    func open() {
+        opened = true
+        waiting?.resume()
+        waiting = nil
+    }
 }
