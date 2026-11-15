@@ -267,6 +267,11 @@ public struct NativeContainerService: ContainerServing {
         for volume in VolumeAttachments.namedVolumes(in: request.volumes) {
             try VolumeClone.requireSafeVolumeName(volume, as: "volume name")
         }
+        // Invalid/inaccessible bind paths and malformed mounts are definite
+        // preflight refusals. Validate before image pulls or create admission,
+        // and carry the parsed mounts into the mutation instead of parsing
+        // again after recording a potentially uncertain create.
+        let parsedMounts = try NativeConfigBuilder.parseMounts(request: request)
         let id = request.name ?? UUID().uuidString.lowercased()
         let sysConfig = NativeConfigBuilder.loadSystemConfig()
         let platform = try NativeConfigBuilder.ociPlatform(request.platform)
@@ -284,7 +289,8 @@ public struct NativeContainerService: ContainerServing {
             var placed: [String] = []
             do {
                 return try await createNativeInner(
-                    request, id: id, placed: &placed, sysConfig: sysConfig, platform: platform, image: image)
+                    request, id: id, placed: &placed, sysConfig: sysConfig, platform: platform, image: image,
+                    parsedMounts: parsedMounts)
             } catch {
                 await VolumeClone.removeClones(containerID: id, volumes: placed)
                 throw error
@@ -299,7 +305,8 @@ public struct NativeContainerService: ContainerServing {
     /// places it, so the caller can remove exactly those on failure.
     private func createNativeInner(
         _ request: ContainerRunRequest, id: String, placed: inout [String],
-        sysConfig: NativeConfigBuilder.SystemConfig, platform: JSONValue, image: ResolvedImage
+        sysConfig: NativeConfigBuilder.SystemConfig, platform: JSONValue, image: ResolvedImage,
+        parsedMounts: [NativeConfigBuilder.ParsedMount]
     ) async throws -> String {
         let imageDescription = image.description
         let imageConfig = image.config
@@ -316,7 +323,6 @@ public struct NativeContainerService: ContainerServing {
         let labelMap = Self.labelMap(request.labels)
         let policy = self.policy()
         let cloneSet = policy.cloneSet(labels: labelMap)
-        let parsedMounts = try NativeConfigBuilder.parseMounts(request: request)
         func isClone(_ name: String) -> Bool { cloneSet.contains(name) || cloneSet.contains("*") }
         let attachesDirectly = parsedMounts.contains { mount in
             if case .volume(let name, _, _) = mount { return !isClone(name) }
