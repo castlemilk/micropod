@@ -110,6 +110,107 @@ final class ImageEnsureTests: XCTestCase {
         let pulls = await store.pulls
         XCTAssertTrue(pulls.isEmpty, "a failed read is not a reason to pull: \(pulls)")
     }
+
+    func testNativeNoPullRefusalDoesNotRetainCreateIntent() async throws {
+        let store = try ScriptedImageStore(root: root, storedArchitectures: ["arm64"])
+        let gate = try enrolledCreateGate()
+        let service = nativeService(images: ImagesServiceClient(transport: store.transport), gate: gate)
+        do {
+            _ = try await service.create(
+                ContainerRunRequest(
+                    image: "alpine:3.20", name: "missing-platform", platform: "linux/amd64", noPull: true))
+            XCTFail("the missing platform must be refused")
+        } catch {
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "not_found")
+        }
+        let fence = try gate.begin(operation: UUID())
+        try fence.releaseAfterVerification()
+        let pulls = await store.pulls
+        XCTAssertTrue(pulls.isEmpty)
+    }
+
+    func testNativeImageReadFailureDoesNotRetainCreateIntent() async throws {
+        let store = try ScriptedImageStore(root: root, storedArchitectures: ["arm64", "amd64"])
+        await store.failManifestReads(with: MicropodError.transport("image lookup interrupted"))
+        let gate = try enrolledCreateGate()
+        let service = nativeService(images: ImagesServiceClient(transport: store.transport), gate: gate)
+        do {
+            _ = try await service.create(
+                ContainerRunRequest(image: "alpine:3.20", name: "failed-lookup", platform: "linux/amd64", noPull: true))
+            XCTFail("the read failure must propagate")
+        } catch {
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "unavailable")
+        }
+        let fence = try gate.begin(operation: UUID())
+        try fence.releaseAfterVerification()
+    }
+
+    func testNativeFailureAfterImageResolutionRetainsCreateIntent() async throws {
+        let store = try ScriptedImageStore(root: root, storedArchitectures: ["amd64"])
+        let gate = try enrolledCreateGate()
+        let service = nativeService(images: ImagesServiceClient(transport: store.transport), gate: gate)
+        do {
+            _ = try await service.create(
+                ContainerRunRequest(image: "alpine:3.20", name: "unknown-create", platform: "linux/amd64", noPull: true)
+            )
+            XCTFail("the unavailable container service must refuse creation")
+        } catch {
+            XCTAssertEqual(ConnectCodeMapping.code(for: error), "unavailable")
+        }
+        XCTAssertThrowsError(try gate.begin(operation: UUID()), "a later failure must retain its create intent")
+    }
+
+    func testNativeCreateRechecksFenceAfterImageLookup() async throws {
+        let store = try ScriptedImageStore(root: root, storedArchitectures: ["amd64"])
+        let gate = try enrolledCreateGate()
+        let closer = ImageLookupFence(gate: gate)
+        let images = ImagesServiceClient(transport: { request, timeout in
+            let reply = try await store.transport(request, timeout)
+            if request.string(key: XPCMessage.routeKey) == ImagesRoute.imageList.rawValue {
+                try await closer.close()
+            }
+            return reply
+        })
+        let service = nativeService(images: images, gate: gate)
+        do {
+            _ = try await service.create(
+                ContainerRunRequest(image: "alpine:3.20", name: "late-fence", platform: "linux/amd64", noPull: true))
+            XCTFail("a fence acquired during lookup must prevent creation")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("closed workload admission"), "\(error)")
+        }
+        XCTAssertTrue(gate.isClosed)
+        let pending = try FileManager.default.contentsOfDirectory(
+            at: gate.root.appendingPathComponent("pending"), includingPropertiesForKeys: nil)
+        XCTAssertTrue(pending.isEmpty, "the refused create must not leave an uncertain mutation")
+        try await closer.release()
+    }
+
+    private func enrolledCreateGate() throws -> RuntimeAdmission {
+        let gate = RuntimeAdmission(root: root.appendingPathComponent("admission"))
+        let fence = try gate.begin(operation: UUID())
+        try fence.releaseAfterVerification()
+        return gate
+    }
+
+    private func nativeService(images: ImagesServiceClient, gate: RuntimeAdmission) -> NativeContainerService {
+        NativeContainerService(
+            api: APIServerClient(service: "com.micropod.tests.no-such-apiserver"),
+            cli: ContainerService(
+                client: ContainerCLIClient(executableURL: root.appendingPathComponent("no-such-cli"))),
+            images: images, admissionGate: gate)
+    }
+}
+
+private actor ImageLookupFence {
+    let gate: RuntimeAdmission
+    private var fence: RuntimeMaintenanceFence?
+    init(gate: RuntimeAdmission) { self.gate = gate }
+    func close() throws { fence = try gate.begin(operation: UUID()) }
+    func release() throws {
+        try fence?.releaseAfterVerification()
+        fence = nil
+    }
 }
 
 /// The `container-core-images` routes `ensure` uses, over an on-disk content
