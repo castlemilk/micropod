@@ -41,6 +41,7 @@ public actor TerminalService: TerminalServing {
     private let client: ContainerCLIClient
     private var sessions: [UUID: LiveSession] = [:]
     private var streams: [UUID: AsyncThrowingStream<Data, Error>.Continuation] = [:]
+    private var remoteSessions = Set<UUID>()
     public init(client: ContainerCLIClient) {
         self.client = client
     }
@@ -48,12 +49,42 @@ public actor TerminalService: TerminalServing {
     var activeSessionCount: Int { sessions.count }
 
     public func open(containerID: String, shell: String = "/bin/sh") async throws -> TerminalConnection {
+        if client.usesIsolatedTransport {
+            let body = try JSONSerialization.data(withJSONObject: ["containerID": containerID, "shell": shell])
+            let data = try await IsolatedRuntimeTransport.shared.request(path: "/v1/managed/terminal/open", body: body)
+            struct Opened: Decodable { let sessionID: UUID }
+            let id = try JSONDecoder().decode(Opened.self, from: data).sessionID
+            remoteSessions.insert(id)
+            let request = try JSONSerialization.data(withJSONObject: ["sessionID": id.uuidString])
+            let stream = AsyncThrowingStream<Data, Error> { continuation in
+                let task = Task {
+                    do {
+                        for try await chunk in IsolatedRuntimeTransport.shared.stream(
+                            path: "/v1/managed/terminal/read", body: request)
+                        {
+                            continuation.yield(chunk)
+                        }
+                        continuation.finish()
+                    } catch { continuation.finish(throwing: error) }
+                }
+                continuation.onTermination = { [weak self] _ in
+                    task.cancel()
+                    Task { try? await self?.close(sessionID: id) }
+                }
+            }
+            return .init(sessionID: id, stream: stream)
+        }
+        let claim = try RuntimeAdmission.shared.claim("terminal")
         let sessionID = UUID()
         var argv: [String] = ["container", "exec", "-it", containerID, shell]
         // The CLI is resolved by the client's executableURL.
         argv[0] = client.executableURL.path
 
-        let env = ProcessInfo.processInfo.environment
+        var env = ProcessInfo.processInfo.environment
+        if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1" {
+            env["CONTAINER_INSTALL_ROOT"] =
+                client.executableURL.deletingLastPathComponent().deletingLastPathComponent().path
+        }
         var envp: [String] = env.map { "\($0.key)=\($0.value)" }
         envp.append("TERM=xterm-256color")
 
@@ -71,6 +102,7 @@ public actor TerminalService: TerminalServing {
             return micropod_spawn_pty(&cargv, &cenvp, cwd, &masterFD)
         }
         guard pid > 0 else {
+            try? claim?.completed()
             throw MicropodError.message("Failed to start terminal session (pid \(pid), errno \(errno))")
         }
 
@@ -82,6 +114,7 @@ public actor TerminalService: TerminalServing {
             Darwin.close(masterFD)
             var status: Int32 = 0
             waitpid(pid, &status, 0)
+            try? claim?.completed()
             throw MicropodError.message("Failed to open terminal output reader")
         }
         let control = TerminalReaderControl()
@@ -96,6 +129,8 @@ public actor TerminalService: TerminalServing {
                 defer {
                     Darwin.close(readerFD)
                     reapTerminalProcess(pid)
+                    try? claim?.completed()
+                    withExtendedLifetime(claim) {}
                     Task { [weak self] in try? await self?.close(sessionID: sessionID) }
                 }
                 var bytes = [UInt8](repeating: 0, count: 4096)
@@ -136,6 +171,13 @@ public actor TerminalService: TerminalServing {
     }
 
     public func write(_ data: Data, to sessionID: UUID) async throws {
+        if remoteSessions.contains(sessionID) {
+            let body = try JSONSerialization.data(withJSONObject: [
+                "sessionID": sessionID.uuidString, "data": data.base64EncodedString(),
+            ])
+            _ = try await IsolatedRuntimeTransport.shared.request(path: "/v1/managed/terminal/write", body: body)
+            return
+        }
         guard let session = sessions[sessionID] else {
             throw MicropodError.message("Terminal session not found")
         }
@@ -148,6 +190,11 @@ public actor TerminalService: TerminalServing {
     }
 
     public func close(sessionID: UUID) async throws {
+        if remoteSessions.remove(sessionID) != nil {
+            let body = try JSONSerialization.data(withJSONObject: ["sessionID": sessionID.uuidString])
+            _ = try await IsolatedRuntimeTransport.shared.request(path: "/v1/managed/terminal/close", body: body)
+            return
+        }
         guard let session = sessions.removeValue(forKey: sessionID) else { return }
         session.reader.cancel()
         kill(-session.pid, SIGTERM)

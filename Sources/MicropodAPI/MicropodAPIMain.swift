@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import MicropodCore
 import MicropodRuntime
@@ -38,12 +39,40 @@ struct MicropodAPI {
         // When spawned by the app, die with it — no orphaned apiserver.
         ParentDeathWatch.install()
 
-        let cliPath =
-            ProcessInfo.processInfo.environment["MICROPOD_CONTAINER_CLI_PATH"]
-            ?? "/usr/local/bin/container"
         let port = UInt16(ProcessInfo.processInfo.environment["MICROPOD_API_PORT"] ?? "45454") ?? 45454
 
-        let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: cliPath))
+        let isolated = ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1"
+        let identity: IsolatedRuntimeIdentity?
+        let client: ContainerCLIClient
+        do {
+            if isolated {
+                let account = try IsolatedRuntimeIdentity.readRootOwned()
+                let configuration = try IsolatedRuntimeAPIConfiguration.read(identity: account)
+                guard getuid() == account.serviceUID, geteuid() == account.serviceUID,
+                    getgid() == account.serviceGID,
+                    try await ContainerCLIClient(executableURL: URL(fileURLWithPath: "/bin/launchctl")).run(
+                        .init(arguments: ["managername"]), timeout: .seconds(5)
+                    ).trimmingCharacters(in: .whitespacesAndNewlines) == "Background",
+                    UInt32(
+                        try await ContainerCLIClient(executableURL: URL(fileURLWithPath: "/bin/launchctl")).run(
+                            .init(arguments: ["manageruid"]), timeout: .seconds(5)
+                        ).trimmingCharacters(in: .whitespacesAndNewlines)) == account.serviceUID
+                else { throw MicropodError.message("The managed API is outside its dedicated service namespace") }
+                let root = IsolatedRuntimePolicy.root.appendingPathComponent(
+                    "apple/versions/" + configuration.selection.directoryName)
+                try await ManagedRuntimeInstaller(root: IsolatedRuntimePolicy.root.appendingPathComponent("apple"))
+                    .verify(
+                        .init(selection: configuration.selection, files: AppleRuntimeRelease.payloadSHA256))
+                identity = account
+                client = ContainerCLIClient(executableURL: root.appendingPathComponent("bin/container"))
+            } else {
+                identity = nil
+                client = ContainerCLIClient()
+            }
+        } catch {
+            fputs("Managed API identity verification failed: \(error.localizedDescription)\n", stderr)
+            exit(1)
+        }
         let runtime = await RuntimeBackendResolver.resolve(client: client)
         // Started before the runtime (or against an unverified apiserver):
         // re-resolve lazily and swap to native once it answers. The request
@@ -61,9 +90,17 @@ struct MicropodAPI {
 
         let server = HTTPServer(port: port, handler: api.handle)
         do {
+            if let identity {
+                let gateway = IsolatedRuntimeGateway(identity: identity)
+                try await server.startPrivateSocket()
+                try gateway.start()
+                // launchd owns this service; the GUI and root helper may exit.
+                await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
+                withExtendedLifetime(gateway) {}
+            }
             try await server.run()
             print(
-                "Micropod API listening on http://127.0.0.1:\(port) and http://[::1]:\(port) (cli: \(cliPath), backend: \(runtime.kind.rawValue))"
+                "Micropod API listening on http://127.0.0.1:\(port) and http://[::1]:\(port) (cli: \(client.executableURL.path), backend: \(runtime.kind.rawValue))"
             )
             await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
         } catch {
@@ -75,7 +112,7 @@ struct MicropodAPI {
 
 // MARK: - HTTP plumbing
 
-enum HTTPMethod: String {
+enum HTTPMethod: String, Sendable {
     case get = "GET"
     case post = "POST"
     case put = "PUT"
@@ -84,7 +121,7 @@ enum HTTPMethod: String {
     case options = "OPTIONS"
 }
 
-struct HTTPRequest {
+struct HTTPRequest: Sendable {
     let method: HTTPMethod
     let path: String
     let query: [String: String]
@@ -96,6 +133,8 @@ struct HTTPRequest {
 }
 
 enum HTTPResponse {
+    /// A complete upstream HTTP response, including duplex upgrades.
+    case relay(@Sendable (NWConnection) async -> Void)
     case json(Int, [String: Any])
     case text(Int, String)
     /// Raw body + content type — for byte-exact payloads like proto-JSON
@@ -155,7 +194,70 @@ final class HTTPServer: @unchecked Sendable {
         try await Task.sleep(for: .seconds(3600 * 24 * 365))
     }
 
+    func startPrivateSocket(path: String = IsolatedRuntimeAPIConfiguration.internalSocketURL.path) async throws {
+        var existing = stat()
+        if lstat(path, &existing) == 0 {
+            guard existing.st_uid == getuid(), existing.st_mode & S_IFMT == S_IFSOCK, unlink(path) == 0 else {
+                throw MicropodError.message("The private API socket has another owner")
+            }
+        } else if errno != ENOENT {
+            throw MicropodError.message("Could not inspect the private API socket")
+        }
+        let parameters = NWParameters.tcp
+        parameters.requiredLocalEndpoint = .unix(path: path)
+        let listener = try NWListener(using: parameters)
+        listener.newConnectionHandler = { [weak self] connection in
+            guard let self else {
+                connection.cancel()
+                return
+            }
+            connection.start(queue: .global(qos: .userInitiated))
+            self.startReading(connection)
+        }
+        listeners.append(listener)
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let once = PrivateListenerStart(continuation)
+            listener.stateUpdateHandler = { state in
+                switch state {
+                case .ready:
+                    if chmod(path, 0o600) == 0 {
+                        once.finish(.success(()))
+                    } else {
+                        listener.cancel()
+                        once.finish(.failure(MicropodError.message("Could not protect the private API socket")))
+                    }
+                case .failed(let error): once.finish(.failure(error))
+                case .cancelled: once.finish(.failure(MicropodError.message("Private API listener was cancelled")))
+                default: break
+                }
+            }
+            listener.start(queue: .global(qos: .userInitiated))
+            DispatchQueue.global().asyncAfter(deadline: .now() + 10) {
+                once.finish(.failure(MicropodError.message("Private API listener readiness timed out")))
+            }
+        }
+    }
+
+    private final class PrivateListenerStart: @unchecked Sendable {
+        private let lock = NSLock()
+        private var continuation: CheckedContinuation<Void, Error>?
+        init(_ continuation: CheckedContinuation<Void, Error>) { self.continuation = continuation }
+        func finish(_ result: Result<Void, Error>) {
+            let pending = lock.withLock {
+                let value = continuation
+                continuation = nil
+                return value
+            }
+            pending?.resume(with: result)
+        }
+    }
+
     private var listeners: [NWListener] = []
+
+    func stop() {
+        for listener in listeners { listener.cancel() }
+        listeners.removeAll()
+    }
 
     /// A request must make progress: the head and body have to finish
     /// arriving within `requestDeadline`, with no silence longer than
@@ -286,8 +388,27 @@ final class HTTPServer: @unchecked Sendable {
             return
         }
         Task {
+            let claim: RuntimeAdmissionClaim?
+            do {
+                claim =
+                    ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1"
+                        && !["/health", "/v1/managed/maintenance"].contains(request.path)
+                    ? try RuntimeAdmission.shared.claim("managed-api:" + request.path) : nil
+            } catch {
+                connection.send(
+                    content: Self.serialize(
+                        .json(
+                            503,
+                            ["code": "unavailable", "message": "Runtime maintenance has closed workload admission"])),
+                    completion: .contentProcessed { _ in connection.cancel() })
+                return
+            }
             let response = await handler(request)
             switch response {
+            case .relay(let forward):
+                await forward(connection)
+                try? claim?.completed()
+                withExtendedLifetime(claim) {}
             case .bridge(let status, let attach):
                 let head = Self.streamHead(
                     status: status, contentType: "application/octet-stream",
@@ -295,7 +416,11 @@ final class HTTPServer: @unchecked Sendable {
                 connection.send(
                     content: head,
                     completion: .contentProcessed { _ in
-                        Task { await attach(connection) }
+                        Task {
+                            await attach(connection)
+                            try? claim?.completed()
+                            withExtendedLifetime(claim) {}
+                        }
                     })
             case .stream(let status, let contentType, let events):
                 // SSE/connect-stream: write the head without Content-Length,
@@ -326,6 +451,8 @@ final class HTTPServer: @unchecked Sendable {
                                     return
                                 }
                             }
+                            try? claim?.completed()
+                            withExtendedLifetime(claim) {}
                             // Half-close so the peer sees EOF only after every
                             // frame was processed.
                             connection.send(
@@ -341,6 +468,9 @@ final class HTTPServer: @unchecked Sendable {
                         Self.watchForHangup(connection) { pump.cancel() }
                     })
             default:
+                // The handler has settled; delivery failure cannot replay it.
+                try? claim?.completed()
+                withExtendedLifetime(claim) {}
                 let data = Self.serialize(response, extraHeaders: cors)
                 connection.send(
                     content: data,
@@ -395,7 +525,7 @@ final class HTTPServer: @unchecked Sendable {
             statusLine = reasonLine(for: status)
             headers.append(("Content-Type", contentType))
             body = raw
-        case .stream, .bridge:
+        case .stream, .bridge, .relay:
             // Streams/bridges are written via streamHead + live chunks;
             // this path is unreachable for well-formed responses.
             return Data()

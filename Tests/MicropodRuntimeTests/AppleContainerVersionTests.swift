@@ -43,7 +43,9 @@ final class AppleContainerVersionTests: XCTestCase {
             XCTAssertTrue(RuntimeServices.isVerified(semver: version), version)
         }
         // Older, newer and look-alike lines stay on the CLI in auto mode.
-        for version in ["1.2.2", "1.6.0", "2.0.0", "1.30.0", "1.50.0", "0.0.0", "11.3.0"] {
+        for version in [
+            "1.2.2", "1.6.0", "2.0.0", "1.30.0", "1.50.0", "0.0.0", "11.3.0", "1.5.", "1.5.invalid", "1.5.0-dev",
+        ] {
             XCTAssertFalse(RuntimeServices.isVerified(semver: version), version)
         }
     }

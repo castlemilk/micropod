@@ -307,12 +307,7 @@ struct DashboardView: View {
     }
 
     private var runtimeStatusTitle: String {
-        if store.isRuntimeRunning {
-            if store.isHealingRuntime { return String(localized: "Recovering…") }
-            return store.runtimeHealth == .wedged
-                ? String(localized: "Unresponsive") : String(localized: "Running")
-        }
-        return String(localized: "Stopped")
+        store.runtimeDependencyStatus.state.title
     }
 
     /// `system status` reports verbose strings like
@@ -333,7 +328,7 @@ struct DashboardView: View {
         if store.runtimeHealth == .wedged {
             return store.isHealingRuntime
                 ? "Runtime is unresponsive — restarting the system service…"
-                : "Runtime is unresponsive — self-healing is scheduled; use Recover in Settings to retry now."
+                : "Runtime is unresponsive. Check recovery options in Settings."
         }
         guard let status = store.systemStatus else {
             return store.systemStatusError ?? "Checking runtime status…"

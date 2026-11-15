@@ -13,10 +13,41 @@ import OSLog
 /// instead of queueing behind a single actor mailbox. This is what lets the
 /// Docker shim serve concurrent lifecycles without serialising them.
 public struct ContainerCLIClient: Sendable {
-    public let executableURL: URL
+    private let executableOverride: URL?
+    private let admission: RuntimeAdmission
 
-    public init(executableURL: URL = URL(fileURLWithPath: "/usr/local/bin/container")) {
-        self.executableURL = executableURL
+    public var executableURL: URL {
+        executableOverride ?? ContainerExecutableLocator.resolve()
+    }
+
+    public init(executableURL: URL? = nil) {
+        self.executableOverride = executableURL
+        self.admission = .shared
+    }
+
+    init(executableURL: URL, admission: RuntimeAdmission) {
+        self.executableOverride = executableURL
+        self.admission = admission
+    }
+
+    public var followsDefaultSelection: Bool {
+        executableOverride == nil && ProcessInfo.processInfo.environment["MICROPOD_CONTAINER_CLI_PATH"] == nil
+    }
+
+    public var usesIsolatedTransport: Bool {
+        guard let identity = try? IsolatedRuntimeIdentity.readRootOwned(), getuid() == identity.ownerUID else {
+            return false
+        }
+        return executableURL == ContainerExecutableLocator.isolatedExecutable()
+            || executableURL.path.hasPrefix(
+                IsolatedRuntimePolicy.root.appendingPathComponent("apple/versions").path + "/")
+    }
+
+    /// Lifecycle must follow the selected backend. A separately installed
+    /// managed account never authorizes changing an explicit external runtime.
+    public var usesManagedLifecycle: Bool {
+        usesIsolatedTransport
+            || executableURL.path.hasPrefix(ManagedRuntimeLocation.root.path + "/versions/")
     }
 
     /// Instruments signposts so `xctrace record --template "os_signpost"`
@@ -26,13 +57,33 @@ public struct ContainerCLIClient: Sendable {
 
     /// Whether the `container` binary exists on disk.
     public func isAvailable() -> Bool {
-        FileManager.default.isExecutableFile(atPath: executableURL.path)
+        ContainerExecutableLocator.isExecutableFile(executableURL.path)
     }
 
     /// Runs a command to completion and returns its stdout.
     /// Stderr is captured and surfaced only on failure.
-    public func run(_ command: ContainerCommand, timeout: Duration = .seconds(60)) async throws -> String {
+    public func run(
+        _ command: ContainerCommand, timeout: Duration = .seconds(60), acceptingExitCodes: Set<Int32> = [0]
+    ) async throws -> String {
         try Task.checkCancellation()
+        if usesIsolatedTransport {
+            let request = try IsolatedRuntimeCLIRequest(
+                command: command, timeout: timeout, acceptingExitCodes: acceptingExitCodes)
+            let bytes = try await IsolatedRuntimeTransport.shared.request(
+                path: "/v1/managed/cli",
+                body: JSONEncoder().encode(request), timeout: timeout)
+            struct Response: Decodable { let output: String }
+            return try JSONDecoder().decode(Response.self, from: bytes).output
+        }
+        let executableURL = self.executableURL
+        let managed =
+            executableURL.path.hasPrefix(ManagedRuntimeLocation.root.path + "/versions/")
+            || executableURL.path.hasPrefix(
+                IsolatedRuntimePolicy.root.appendingPathComponent("apple/versions").path + "/")
+        let claim =
+            command.observesRuntimeOnly || ["pkgutil", "spctl", "codesign"].contains(executableURL.lastPathComponent)
+            ? nil : try admission.claim(command.metricLabel)
+        defer { withExtendedLifetime(claim) {} }
         let started = Date()
         let signpostState = Self.signposter.beginInterval(
             "cli", "\(command.displayName, privacy: .public)")
@@ -50,6 +101,11 @@ public struct ContainerCLIClient: Sendable {
         process.executableURL = executableURL
         process.arguments = command.arguments
         process.environment = ProcessInfo.processInfo.environment
+        process.environment?.merge(command.environment, uniquingKeysWith: { _, requested in requested })
+        if managed {
+            process.environment?["CONTAINER_INSTALL_ROOT"] =
+                executableURL.deletingLastPathComponent().deletingLastPathComponent().path
+        }
 
         let stdoutURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("micropod-out-\(UUID().uuidString)")
@@ -118,7 +174,8 @@ public struct ContainerCLIClient: Sendable {
                         // Instant exit detection — no polling latency.
                         process.terminationHandler = { _ in
                             let outcome = cancellation.outcome(
-                                exitCode: process.terminationStatus,
+                                exitCode: process.terminationReason == .exit
+                                    ? process.terminationStatus : -abs(process.terminationStatus),
                                 cancelledWhileRunning: cancellation.cancelTerminated,
                                 timedOut: cancellation.timeoutTerminated)
                             switch outcome {
@@ -177,7 +234,10 @@ public struct ContainerCLIClient: Sendable {
 
         let stdout = (try? String(contentsOf: stdoutURL, encoding: .utf8)) ?? ""
         let stderr = (try? String(contentsOf: stderrURL, encoding: .utf8)) ?? ""
-        guard exitCode == 0 else {
+        // A normal, reaped exit settles the command even when it reports an
+        // error. Cancellation, signal death and unknown delivery keep intent.
+        if exitCode >= 0 { try claim?.completed() }
+        guard exitCode >= 0, acceptingExitCodes.contains(exitCode) else {
             throw MicropodError.cliFailure(
                 command: command.displayName, exitCode: exitCode, stderr: stderr)
         }
@@ -196,11 +256,62 @@ public struct ContainerCLIClient: Sendable {
     public func stream(_ command: ContainerCommand, reportExitCode: Bool = false)
         -> AsyncThrowingStream<Data, Error>
     {
-        AsyncThrowingStream(bufferingPolicy: .bufferingOldest(64)) { continuation in
+        if usesIsolatedTransport {
+            return AsyncThrowingStream { continuation in
+                let task = Task {
+                    do {
+                        let request = try IsolatedRuntimeCLIRequest(
+                            command: command, timeout: .seconds(600), reportExitCode: reportExitCode)
+                        var buffer = Data()
+                        var completed = false
+                        for try await bytes in IsolatedRuntimeTransport.shared.stream(
+                            path: "/v1/managed/cli-stream", body: try JSONEncoder().encode(request))
+                        {
+                            buffer.append(bytes)
+                            guard buffer.count <= 16 * 1024 * 1024 else {
+                                throw MicropodError.message("Managed command output frame exceeded its limit")
+                            }
+                            while let end = buffer.firstIndex(of: 10) {
+                                let frame =
+                                    try JSONSerialization.jsonObject(with: buffer.prefix(upTo: end)) as? [String: Any]
+                                buffer.removeSubrange(...end)
+                                if let text = frame?["error"] as? String { throw MicropodError.message(text) }
+                                if let chunk = frame?["chunk"] as? String, let value = Data(base64Encoded: chunk) {
+                                    continuation.yield(value)
+                                }
+                                if frame?["complete"] as? Bool == true { completed = true }
+                            }
+                        }
+                        guard completed, buffer.isEmpty else {
+                            throw MicropodError.message(
+                                "Managed command completion is unconfirmed; check status before retrying")
+                        }
+                        continuation.finish()
+                    } catch { continuation.finish(throwing: error) }
+                }
+                continuation.onTermination = { _ in task.cancel() }
+            }
+        }
+        return AsyncThrowingStream(bufferingPolicy: .bufferingOldest(64)) { continuation in
+            let claim: RuntimeAdmissionClaim?
+            do {
+                claim = command.observesRuntimeOnly ? nil : try admission.claim(command.metricLabel)
+            } catch {
+                continuation.finish(throwing: error)
+                return
+            }
             let process = Process()
             process.executableURL = executableURL
             process.arguments = command.arguments
             process.environment = ProcessInfo.processInfo.environment
+            process.environment?.merge(command.environment, uniquingKeysWith: { _, requested in requested })
+            if executableURL.path.hasPrefix(ManagedRuntimeLocation.root.path + "/versions/")
+                || executableURL.path.hasPrefix(
+                    IsolatedRuntimePolicy.root.appendingPathComponent("apple/versions").path + "/")
+            {
+                process.environment?["CONTAINER_INSTALL_ROOT"] =
+                    executableURL.deletingLastPathComponent().deletingLastPathComponent().path
+            }
 
             let stdoutPipe = Pipe()
             let stderrPipe = Pipe()
@@ -284,6 +395,7 @@ public struct ContainerCLIClient: Sendable {
             // The watcher is the sole process reaper. Cancellation only flips
             // the controller flag; the watcher owns TERM, KILL, wait, and finish.
             Thread.detachNewThread {
+                defer { withExtendedLifetime(claim) {} }
                 var cancelledWhileRunning = false
                 while process.isRunning {
                     if cancellation.shouldCancel(process) {
@@ -293,13 +405,15 @@ public struct ContainerCLIClient: Sendable {
                     }
                     Thread.sleep(forTimeInterval: 0.02)
                 }
+                var pipesDrained = false
                 if !cancelledWhileRunning {
                     process.waitUntilExit()
                     // Bounded: a descendant that inherited the pipes can hold
                     // them open after the process itself has exited.
-                    _ = drained.wait(timeout: .now() + .milliseconds(500))
+                    pipesDrained = drained.wait(timeout: .now() + .milliseconds(500)) == .success
                 }
                 let wasCancelledWhileRunning = cancelledWhileRunning
+                let outputSettled = pipesDrained
                 // Foundation returns a positive signal number for uncaughtSignal.
                 // Preserve that distinction so a killed fetch cannot authorize retries.
                 let exitCode =
@@ -308,12 +422,28 @@ public struct ContainerCLIClient: Sendable {
                 gate.runOnce {
                     if wasCancelledWhileRunning {
                         continuation.finish(throwing: CancellationError())
-                    } else if reportExitCode, exitCode != 0 {
+                    } else if exitCode < 0 {
                         continuation.finish(
                             throwing: MicropodError.cliFailure(
                                 command: displayName, exitCode: exitCode, stderr: ""))
                     } else {
-                        continuation.finish()
+                        guard outputSettled else {
+                            continuation.finish(
+                                throwing: MicropodError.message(
+                                    "Command output did not settle; check runtime status before retrying"))
+                            return
+                        }
+                        do { try claim?.completed() } catch {
+                            continuation.finish(throwing: error)
+                            return
+                        }
+                        if reportExitCode, exitCode != 0 {
+                            continuation.finish(
+                                throwing: MicropodError.cliFailure(command: displayName, exitCode: exitCode, stderr: "")
+                            )
+                        } else {
+                            continuation.finish()
+                        }
                     }
                 }
             }

@@ -1,0 +1,48 @@
+import Darwin
+import Foundation
+import MicropodCore
+import Security
+
+public enum IsolatedRuntimeSessionStore {
+    public static func hasExistingRig(ownerUID: UInt32) throws -> Bool {
+        var user = passwd()
+        var result: UnsafeMutablePointer<passwd>?
+        var bytes = [CChar](repeating: 0, count: 65536)
+        guard getpwuid_r(ownerUID, &user, &bytes, bytes.count, &result) == 0,
+            result != nil, let home = user.pw_dir
+        else { throw MicropodError.message("The runtime owner's home is unavailable") }
+        let root = URL(fileURLWithPath: String(cString: home))
+        return RuntimeRigClient.hasConfiguredRig(ownerHome: root)
+    }
+    public static func issue(
+        identity: IsolatedRuntimeIdentity, subject: RuntimeProcessBirth,
+        expiresAt: Date = Date().addingTimeInterval(3600)
+    ) throws
+        -> IsolatedRuntimeAPISession
+    {
+        let now = Date()
+        guard geteuid() == 0, subject.uid == identity.ownerUID, expiresAt > now,
+            expiresAt <= now.addingTimeInterval(3600), try RuntimeProcessBirth.read(subject.pid) == subject
+        else {
+            throw MicropodError.message("The API client process identity is unavailable")
+        }
+        try ServiceAccountProvisioner.verifyExisting(identity: identity)
+        try RootRuntimeStorage.ensureRootDirectory(IsolatedRuntimeAPIConfiguration.sessionsRoot)
+        let session = IsolatedRuntimeAPISession(
+            id: UUID(), instance: identity.instance, token: try secret(), subject: subject,
+            expiresAt: expiresAt)
+        let file = IsolatedRuntimeAPIConfiguration.sessionsRoot.appendingPathComponent(session.id.uuidString + ".json")
+        try RuntimeDurableFile.write(IsolatedRuntimeAPISessionRecord(session: session), to: file)
+        try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file.path)
+        return session
+    }
+    public static func secret() throws -> String {
+        var bytes = [UInt8](repeating: 0, count: 32)
+        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
+            throw MicropodError.message("Could not create an API client capability")
+        }
+        return Data(bytes).base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(
+            of: "/", with: "_"
+        ).replacingOccurrences(of: "=", with: "")
+    }
+}

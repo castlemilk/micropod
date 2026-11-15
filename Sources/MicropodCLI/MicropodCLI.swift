@@ -18,11 +18,7 @@ struct Services {
     let runtime: RuntimeServices
 
     init(cliPath: String?) async {
-        let resolved =
-            cliPath
-            ?? ProcessInfo.processInfo.environment["MICROPOD_CONTAINER_CLI_PATH"]
-            ?? "/usr/local/bin/container"
-        client = ContainerCLIClient(executableURL: URL(fileURLWithPath: resolved))
+        client = ContainerCLIClient(executableURL: cliPath.map { URL(fileURLWithPath: $0) })
         runtime = await RuntimeBackendResolver.resolve(client: client)
         system = SystemService(client: client)
         containers = runtime.containers

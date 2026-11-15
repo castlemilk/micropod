@@ -226,11 +226,22 @@ public final class XPCConnection: Sendable {
         if isInvalidated {
             throw MicropodError.transport("\(service): connection invalidated")
         }
+        let route = message.string(key: XPCMessage.routeKey) ?? "unknown"
+        let reads: Set<String> = [
+            "ping", "containerList", "containerWait", "containerState", "containerLogs", "containerEvent",
+            "containerStats", "containerDiskUsage", "containerCopyOut", "containerExport", "getDefaultKernel",
+            "networkList", "volumeList", "volumeInspect", "volumeDiskUsage", "systemDiskUsage", "pluginGet",
+            "pluginList",
+        ]
+        let claim = reads.contains(route) ? nil : try RuntimeAdmission.shared.claim(route)
         let gate = ReplyGate()
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (cont: CheckedContinuation<XPCMessage, any Error>) in
                 gate.arm(cont)
                 xpc_connection_send_message_with_reply(connection, message.underlying, nil) { reply in
+                    // A late ordinary reply is authoritative settlement even
+                    // after the caller's deadline. Transport errors are not.
+                    if !XPCMessage(object: reply).isErrorType { try? claim?.completed() }
                     gate.finish { try self.parseReply(reply) }
                 }
                 if let responseTimeout {

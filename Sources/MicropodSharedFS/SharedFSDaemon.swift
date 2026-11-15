@@ -31,6 +31,7 @@ public actor SharedFSDaemon: SharedFSClient {
     private var viewsBySrc: [String: Set<ViewID>] = [:]
     private var viewWatchers: [ViewID: FSEventsWatcher] = [:]
     private var srcWatchers: [String: FSEventsWatcher] = [:]
+    private var liveSync: [ViewID: SharedViewSync] = [:]
     /// A persistent, whole-cache retention preference. It also protects
     /// future chunks, unlike a UI-only list of currently visible hashes.
     private var cacheKeepEnabled: Bool
@@ -74,21 +75,23 @@ public actor SharedFSDaemon: SharedFSClient {
         } else {
             self.cacheMaxBytes = 10 << 30  // 10GB default
         }
-        // DiskManager integration: async 5m sweep (same interval as sweepOrphanedVolumes).
-        // Start background sweep; not awaited, runs for daemon lifetime.
-        // Use detached task to avoid actor isolation deadlock during init.
+        // Bootstrap without retaining the daemon while the sweep sleeps.
         Task.detached { [weak self] in
-            guard let self else { return }
-            await self.startSweepLoop()
+            await self?.startSweepLoop()
         }
     }
 
-    private func startSweepLoop() async {
-        while !Task.isCancelled {
-            try? await Task.sleep(nanoseconds: 300_000_000_000)  // 5m
-            _ = await enforceStorageCapIfNeeded()
-            // Also run orphan-volume style sweep if needed (disk hygiene).
-            try? await sweepOrphanedIfNeeded()
+    deinit { sweepTask?.cancel() }
+
+    private func startSweepLoop() {
+        guard sweepTask == nil else { return }
+        sweepTask = Task.detached { [weak self] in
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(300)) } catch { return }
+                guard !Task.isCancelled else { return }
+                _ = await self?.enforceStorageCapIfNeeded()
+                try? await self?.sweepOrphanedIfNeeded()
+            }
         }
     }
 
@@ -264,6 +267,7 @@ public actor SharedFSDaemon: SharedFSClient {
         let viewRoot = viewsRoot.appendingPathComponent(id.value, isDirectory: true)
         try SharedView.build(source: normalized, root: viewRoot)
         let view = SharedView(id: id, source: normalized, root: viewRoot)
+        liveSync[id] = try SharedViewSync(source: normalized, view: viewRoot)
         views[id] = view
         viewsBySrc[normalized.path, default: []].insert(id)
         ensureWatchers(for: normalized, view: view)
@@ -296,6 +300,7 @@ public actor SharedFSDaemon: SharedFSClient {
         }
         try SharedView.build(source: normalized, root: viewRoot)
         let view = SharedView(id: id, source: normalized, root: viewRoot)
+        liveSync[id] = try SharedViewSync(source: normalized, view: viewRoot)
         sharedViews[key] = view
         sharedRefCounts[key] = 1
         // Also register in views for list/inspect visibility.
@@ -315,6 +320,7 @@ public actor SharedFSDaemon: SharedFSClient {
             throw SharedFSError.daemonUnavailable
         }
         try SharedView.build(source: view.source, root: view.root)
+        liveSync[id] = try SharedViewSync(source: view.source, view: view.root)
         return MountInfo(
             id: id, src: view.source.path, viewPath: view.root.path,
             sizeBytes: view.size(), readonly: false, createdAt: view.createdAt)
@@ -332,6 +338,7 @@ public actor SharedFSDaemon: SharedFSClient {
                 sharedViews.removeValue(forKey: sharedKey)
                 sharedRefCounts.removeValue(forKey: sharedKey)
                 views.removeValue(forKey: id)
+                liveSync.removeValue(forKey: id)
             } else {
                 sharedRefCounts[sharedKey] = remaining
                 // Keep the view alive for other containers; just forget the
@@ -352,6 +359,7 @@ public actor SharedFSDaemon: SharedFSClient {
         }
         try view.destroy()
         views.removeValue(forKey: id)
+        liveSync.removeValue(forKey: id)
     }
 
     public func inspect(id: ViewID) async throws -> MountInfo {
@@ -368,6 +376,7 @@ public actor SharedFSDaemon: SharedFSClient {
             throw SharedFSError.daemonUnavailable
         }
         let changed = try SharedView.syncToSource(view: view.root, source: view.source)
+        liveSync[id] = try SharedViewSync(source: view.source, view: view.root)
         let bytes = changed.reduce(0) { acc, url in
             (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).map { acc + UInt64($0 ?? 0) } ?? acc
         }
@@ -560,163 +569,37 @@ public actor SharedFSDaemon: SharedFSClient {
         for viewID in targetIDs {
             guard let view = views[viewID] ?? sharedViews[key] else { continue }
             for changed in effective {
-                await syncFileChanged(at: changed, from: src, to: view.root)
-            }
-            // If FSEvents coalesced to a directory-only event, fall back to full tree for that dir
-            if effective.allSatisfy({ $0 == key || $0.hasPrefix(key + "/") }) && effective.count == 1
-                && effective.first == key
-            {
-                await syncTree(from: src, to: view.root)
+                synchronize(changed, viewID: view.id, fromView: false)
             }
         }
     }
 
     private func handleViewChange(paths: [String], view: SharedView) async {
-        let filtered = paths.filter {
-            !$0.contains(".sb-") && !URL(fileURLWithPath: $0).lastPathComponent.hasPrefix(".")
-        }
-        let effective = filtered.isEmpty ? paths.filter { !$0.contains(".sb-") } : filtered
-        fputs("[sharedfs] view \(view.id.value) change \(effective.first ?? "?") (\(effective.count) paths)\n", stderr)
-        for changed in effective {
-            await syncFileChanged(at: changed, from: view.root, to: view.source)
-        }
-        // Host -> siblings (host as hub for cross-container)
+        guard views[view.id] != nil else { return }
+        let effective = paths.filter { !$0.contains(".sb-") }
         let key = view.source.resolvingSymlinksInPath().path
-        let siblings = (viewsBySrc[key] ?? []).union(
-            sharedViews[key].map { Set([$0.id]) } ?? [])
-        for siblingID in siblings where siblingID != view.id {
-            guard let sibling = views[siblingID] ?? sharedViews[key] else { continue }
-            for changed in effective {
-                await syncFileChanged(at: changed, from: view.root, to: sibling.root, viaRelativeFrom: view.root)
-            }
-        }
-        // Directory-only event fallback
-        if effective.allSatisfy({
-            $0 == view.root.resolvingSymlinksInPath().path
-                || $0.hasPrefix(view.root.resolvingSymlinksInPath().path + "/")
-        }) && effective.count == 1 && effective.first == view.root.resolvingSymlinksInPath().path {
-            await syncTree(from: view.root, to: view.source)
-        }
-    }
-
-    private func syncTree(from srcRoot: URL, to dstRoot: URL) async {
-        let realSrc = srcRoot.resolvingSymlinksInPath().standardized
-        let realDst = dstRoot.resolvingSymlinksInPath().standardized
-        var srcFiles: [String: URL] = [:]
-        var dstFiles: [String: URL] = [:]
-        if let e = FileManager.default.enumerator(
-            at: realSrc, includingPropertiesForKeys: [.isRegularFileKey], options: [])
-        {
-            for url in e.allObjects.compactMap({ $0 as? URL }) {
-                if (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) != true { continue }
-                if url.lastPathComponent.contains(".sb-") || url.lastPathComponent.hasPrefix(".") { continue }
-                let rel = relativePath(from: realSrc, to: url)
-                srcFiles[rel] = url
-            }
-        }
-        if let e = FileManager.default.enumerator(
-            at: realDst, includingPropertiesForKeys: [.isRegularFileKey], options: [])
-        {
-            for url in e.allObjects.compactMap({ $0 as? URL }) {
-                if (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) != true { continue }
-                if url.lastPathComponent.contains(".sb-") || url.lastPathComponent.hasPrefix(".") { continue }
-                let rel = relativePath(from: realDst, to: url)
-                dstFiles[rel] = url
-            }
-        }
-        for (rel, srcURL) in srcFiles {
-            let dstURL = realDst.appendingPathComponent(rel)
-            if let dstURLExisting = dstFiles[rel] {
-                if let srcHash = try? ChunkHash.computeFile(srcURL),
-                    let dstHash = try? ChunkHash.computeFile(dstURLExisting),
-                    srcHash == dstHash
-                {
-                    continue
+        let siblings = (viewsBySrc[key] ?? []).union(sharedViews[key].map { Set([$0.id]) } ?? [])
+        for changed in effective {
+            let propagated = synchronize(changed, viewID: view.id, fromView: true)
+            // The host remains the hub. Each sibling has its own baseline;
+            // applying a write to one view cannot suppress another's update.
+            for siblingID in siblings where siblingID != view.id {
+                for relative in propagated {
+                    synchronize(view.source.appendingPathComponent(relative).path, viewID: siblingID, fromView: false)
                 }
             }
-            do {
-                try FileManager.default.createDirectory(
-                    at: dstURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-                if FileManager.default.fileExists(atPath: dstURL.path) {
-                    try FileManager.default.removeItem(at: dstURL)
-                }
-                try cloneOrCopyFile(from: srcURL, to: dstURL)
-            } catch {}
-        }
-        for (rel, dstURL) in dstFiles where srcFiles[rel] == nil {
-            try? FileManager.default.removeItem(at: dstURL)
         }
     }
 
-    private func cloneOrCopyFile(from src: URL, to dst: URL) throws {
-        try FileManager.default.createDirectory(
-            at: dst.deletingLastPathComponent(), withIntermediateDirectories: true)
-        var done = false
-        src.withUnsafeFileSystemRepresentation { s in
-            dst.withUnsafeFileSystemRepresentation { d in
-                guard let s, let d else { return }
-                if clonefile(s, d, 0) == 0 { done = true }
-            }
-        }
-        if done { return }
-        let data = try Data(contentsOf: src)
-        try data.write(to: dst, options: .atomic)
-    }
-
-    /// Efficient per-file sync: clonefile if same APFS volume, else copy.
-    /// Checks content hash first to avoid loops (copying identical files is a no-op).
-    private func syncFileChanged(
-        at changedPath: String, from srcRoot: URL, to dstRoot: URL, viaRelativeFrom base: URL? = nil
-    ) async {
-        let realChanged = URL(fileURLWithPath: changedPath).resolvingSymlinksInPath().standardized.path
-        let realBase = (base ?? srcRoot).resolvingSymlinksInPath().standardized.path
-        guard realChanged.hasPrefix(realBase) else { return }
-        let relative = String(realChanged.dropFirst(realBase.count)).trimmingCharacters(
-            in: CharacterSet(charactersIn: "/"))
-        if relative.isEmpty { return }
-        let realSrcRoot = srcRoot.resolvingSymlinksInPath().standardized
-        let realDstRoot = dstRoot.resolvingSymlinksInPath().standardized
-        let srcFile = realSrcRoot.appendingPathComponent(relative)
-        let dstFile = realDstRoot.appendingPathComponent(relative)
-        var isDir: ObjCBool = false
-        let exists = FileManager.default.fileExists(atPath: changedPath, isDirectory: &isDir)
-        if !exists {
-            try? FileManager.default.removeItem(at: dstFile)
-            return
-        }
-        if isDir.boolValue {
-            try? FileManager.default.createDirectory(at: dstFile, withIntermediateDirectories: true)
-            return
-        }
-        // File: compare hashes before copying (loop avoidance + efficiency)
-        if FileManager.default.fileExists(atPath: dstFile.path),
-            let srcHash = try? ChunkHash.computeFile(srcFile),
-            let dstHash = try? ChunkHash.computeFile(dstFile),
-            srcHash == dstHash
-        {
-            return
-        }
+    @discardableResult
+    private func synchronize(_ path: String, viewID: ViewID, fromView: Bool) -> [String] {
         do {
-            try FileManager.default.createDirectory(
-                at: dstFile.deletingLastPathComponent(), withIntermediateDirectories: true)
-            if FileManager.default.fileExists(atPath: dstFile.path) {
-                try FileManager.default.removeItem(at: dstFile)
-            }
-            // Prefer clonefile (CoW) for same-volume copies.
-            let cloned = srcFile.withUnsafeFileSystemRepresentation { srcPtr in
-                dstFile.withUnsafeFileSystemRepresentation { dstPtr in
-                    guard let s = srcPtr, let d = dstPtr else { return Int32(-1) }
-                    return clonefile(s, d, 0)
-                }
-            }
-            if cloned != 0 {
-                if FileManager.default.fileExists(atPath: srcFile.path) {
-                    let data = try Data(contentsOf: srcFile)
-                    try data.write(to: dstFile, options: .atomic)
-                }
-            }
+            return try liveSync[viewID]?.synchronize(changedPath: path, fromView: fromView) ?? []
         } catch {
-            // Best-effort; FSEvents will retry on next change.
+            // Leave the baseline unchanged on failure. A later event or an
+            // explicit sync can retry; do not treat unreadability as deletion.
+            fputs("[sharedfs] live sync deferred for view \(viewID.value)\n", stderr)
+            return []
         }
     }
 

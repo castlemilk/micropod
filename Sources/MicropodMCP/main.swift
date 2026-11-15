@@ -37,11 +37,7 @@ private struct MCPToolCall: Codable {
 @main
 struct MicropodMCP {
     static func main() async {
-        // Env override so the server can be validated against a mock CLI.
-        let cliPath =
-            ProcessInfo.processInfo.environment["MICROPOD_CONTAINER_CLI_PATH"]
-            ?? "/usr/local/bin/container"
-        let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: cliPath))
+        let client = ContainerCLIClient()
         let server = MCPServer(
             client: client,
             system: SystemService(client: client),
@@ -255,7 +251,15 @@ private actor MCPServer {
     // MARK: - Tools
 
     private static let toolDefinitions: [(String, String)] = [
+        (
+            "runtime_manage",
+            "Manage Apple's dedicated runtime through Micropod's approved helper. Arguments: action (install, repair, start, stop, restart, operation, cancel, recover). Reports durable progress; disruptive actions require idle workloads and qualified rig coordination."
+        ),
         ("status", "Runtime status: running/stopped + CLI + apiserver versions."),
+        (
+            "runtime_status",
+            "Apple container dependency state, detected CLI version and setup/recovery action. Read-only; native readiness is unconfirmed without the native API probe."
+        ),
         ("list_containers", "List all containers (id, state, image, IP) as tab-separated lines."),
         ("start", "Start a container. Arguments: id."),
         ("stop", "Stop a container. Arguments: id."),
@@ -464,6 +468,18 @@ private actor MCPServer {
 
         do {
             switch call.name {
+            case "runtime_manage":
+                let action = string("action")
+                guard
+                    ["install", "repair", "start", "stop", "restart", "operation", "cancel", "recover"].contains(action)
+                else { return toolResult(id, "Unknown runtime action", isError: true) }
+                let report = try await ManagedRuntimeControl.request(action)
+                return toolResult(
+                    id,
+                    String(decoding: try JSONEncoder().encode(report), as: UTF8.self))
+            case "runtime_status":
+                let report = await system.dependencyStatus()
+                return toolResult(id, String(decoding: try JSONEncoder().encode(report), as: UTF8.self))
             case "status":
                 let status = try await system.status()
                 return toolResult(

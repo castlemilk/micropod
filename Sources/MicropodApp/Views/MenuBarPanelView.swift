@@ -82,6 +82,7 @@ struct MenuBarPanelView: View {
                 Button("Start runtime", systemImage: "play.circle") { Task { await store.startRuntime() } }
                     .disabled(runtimeTransitioning)
             } else {
+                Link("Get Apple container…", destination: ContainerExecutableLocator.installerURL)
                 Button("Retry runtime detection", systemImage: "arrow.clockwise") {
                     Task { await store.refreshSystemStatus(force: true) }
                 }
@@ -315,10 +316,11 @@ struct MenuBarPanelView: View {
         }
     }
     private var runtimeTransitioning: Bool {
-        store.isStartingRuntime || store.isRestartingRuntime || store.isHealingRuntime || store.isInstallingKernel
+        store.runtimeOperationInProgress
     }
     private var healthLabel: String {
         if !store.clientAvailable { return "Runtime unavailable" }
+        if store.isStoppingRuntime { return "Stopping runtime…" }
         if store.isHealingRuntime { return "Recovering runtime…" }
         if store.isStartingRuntime || store.isRestartingRuntime { return "Starting runtime…" }
         if store.isInstallingKernel { return "Installing Linux kernel…" }

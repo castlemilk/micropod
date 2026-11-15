@@ -45,6 +45,17 @@ final class RuntimeEngineTests: XCTestCase {
         XCTAssertFalse(reg.isEnabled("docker"), "docker must be opt-in")
     }
 
+    func testDedicatedRuntimeCannotEnableRoutingThroughAnEnginePreference() async {
+        let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: "/usr/bin/false"))
+        let services = await RuntimeBackendResolver.resolve(
+            client: client,
+            environment: [
+                "MICROPOD_RUNTIME": "cli", "MICROPOD_ISOLATED_RUNTIME": "1",
+                "MICROPOD_ENGINES": "all", "MICROPOD_DEFAULT_RUNTIME": "docker",
+            ])
+        XCTAssertNil(services.router, "The fixed private Apple store must not consult another engine's endpoint")
+    }
+
     func testEnvironmentDefaultWins() {
         XCTAssertEqual(registry(["MICROPOD_DEFAULT_RUNTIME": "sandbox"]).defaultName, "sandbox")
     }

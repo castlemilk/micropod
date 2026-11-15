@@ -41,7 +41,15 @@ if [ -n "$IDENTITY" ]; then
         case "$(basename "$bin")" in
             MicropodAPI | micropod-cli) entitlements=(--entitlements "$ROOT/signing/micropod-cli.entitlements") ;;
         esac
-        codesign --force --options runtime --timestamp ${entitlements[@]+"${entitlements[@]}"} \
+        identifiers=()
+        case "$(basename "$bin")" in
+            MicropodRuntimeHost) identifiers=(--identifier com.skunkworq.micropod.runtime.host) ;;
+            MicropodAPI) identifiers=(--identifier com.skunkworq.micropod.api) ;;
+            micropod-cli) identifiers=(--identifier com.skunkworq.micropod.cli) ;;
+            MicropodMCP) identifiers=(--identifier com.skunkworq.micropod.mcp) ;;
+            micropod-docker-shim) identifiers=(--identifier com.skunkworq.micropod.docker-shim) ;;
+        esac
+        codesign --force --options runtime --timestamp ${identifiers[@]+"${identifiers[@]}"} ${entitlements[@]+"${entitlements[@]}"} \
             --sign "$IDENTITY" "$bin"
     done
     # Sparkle.framework (SwiftPM artifact ships unsigned): XPC services and

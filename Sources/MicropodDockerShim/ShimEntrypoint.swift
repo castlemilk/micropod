@@ -20,7 +20,9 @@ struct ShimBootstrap {
         // When spawned by the app, die with it — no orphaned shim.
         ParentDeathWatch.install()
         let environment = ProcessInfo.processInfo.environment
-        let cliPath = environment["MICROPOD_CLI_PATH"] ?? "/usr/local/bin/container"
+        // Keep the shim's older override as a fallback; the shared override
+        // takes precedence everywhere.
+        let cliPath = environment["MICROPOD_CONTAINER_CLI_PATH"] ?? environment["MICROPOD_CLI_PATH"]
         let socketPath =
             environment["MICROPOD_SHIM_SOCKET"]
             ?? NSString("~/.micropod/docker.sock").expandingTildeInPath
@@ -40,7 +42,7 @@ struct ShimBootstrap {
 
         let config = ShimConfig(
             bridgeHost: pinnedBridge ?? "127.0.0.1", tcpPort: tcpPort, defaultVolumeSize: defaultVolumeSize)
-        let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: cliPath))
+        let client = ContainerCLIClient(executableURL: cliPath.map { URL(fileURLWithPath: $0) })
         let networkService = NetworkService(client: client)
         let gateways = VMNetGateways(list: { try await networkService.list() })
         await gateways.refresh()

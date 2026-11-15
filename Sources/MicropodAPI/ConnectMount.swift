@@ -640,8 +640,17 @@ extension APIHandlers {
     /// `SystemService` already reports as a status when the daemon is down.
     private func ping(_ services: RuntimeServices) async -> Micropod_V1_PingResponse {
         var response = Micropod_V1_PingResponse()
+        if RuntimeAdmission.shared.isClosed {
+            response.status = "maintenance"
+            response.runtimeBackend = services.kind.rawValue
+            return response
+        }
+
         response.runtimeBackend = services.kind.rawValue
         response.features = APIFeatures.supported
+        if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1" {
+            response.features.append(RuntimeCoordinationEnrollment.dataCapability)
+        }
         response.defaultRuntime = EngineRegistry.shared.defaultName
         if let api = services.api {
             if let health = try? await api.ping(timeout: .seconds(2)) {

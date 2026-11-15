@@ -25,12 +25,7 @@ public final class AppDependencies {
     private var holder: RuntimeHolder?
 
     private convenience init() {
-        // Env override so the app can be validated against a mock CLI.
-        let cliPath =
-            ProcessInfo.processInfo.environment["MICROPOD_CONTAINER_CLI_PATH"]
-            ?? "/usr/local/bin/container"
-        let client = ContainerCLIClient(executableURL: URL(fileURLWithPath: cliPath))
-        self.init(client: client)
+        self.init(client: ContainerCLIClient())
     }
 
     public init(client: ContainerCLIClient) {
@@ -110,9 +105,8 @@ public enum UserDefaultsKeys {
     public static let agentDockerShim = "agentDockerShim"
     public static let agentAPIServer = "agentAPIServer"
     public static let agentSharedFS = "agentSharedFS"
-    /// Bool; missing means enabled. False stops the app from bouncing a
-    /// runtime whose liveness probe keeps failing (it still reports it
-    /// wedged): set it on a machine where the runtime runs other
-    /// software's work, such as a CI rig.
+    /// Legacy preference; automatic disruptive recovery is no longer used.
     public static let runtimeAutoHeal = "runtimeAutoHeal"
+    public static let runtimeAutoStart = "runtimeAutoStart"
+    public static let runtimeAutomationPaused = "runtimeAutomationPaused"
 }

@@ -27,6 +27,25 @@ final class SandboxSDKTests: XCTestCase {
         XCTAssertThrowsError(try SandboxSecret(name: "T", value: "a\nb", hosts: ["h"]))
     }
 
+    func testCommandOutputIsCompleteWhenConcurrentChildrenExit() async throws {
+        let byteCount = 256 << 10
+        try await withThrowingTaskGroup(of: Data.self) { group in
+            for _ in 0..<16 {
+                group.addTask {
+                    try await SecretSource.run(
+                        [
+                            "/bin/sh", "-c",
+                            "/usr/bin/head -c \(byteCount) /dev/zero; /usr/bin/head -c \(byteCount) /dev/zero >&2",
+                        ],
+                        directory: nil, timeout: SecretSource.commandTimeout)
+                }
+            }
+            for try await output in group {
+                XCTAssertEqual(output, Data(repeating: 0, count: byteCount))
+            }
+        }
+    }
+
     func testCommandSecretMintsOnceRefreshesAndServesWhileRefreshing() async throws {
         let mint = try MintScript()
         let source = SecretSource(command: [mint.path], directory: nil, ttl: .seconds(1), log: { _ in })
@@ -49,7 +68,7 @@ final class SandboxSDKTests: XCTestCase {
         // output — under a loaded CI run a read can land in between. Wait
         // for the refreshed value itself, not the process.
         var fresh = try await source.value()
-        let deadline = ContinuousClock.now + .seconds(5)
+        let deadline = ContinuousClock.now + SecretSource.commandTimeout + .seconds(2)
         while fresh != "token-2", ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(20))
             fresh = try await source.value()

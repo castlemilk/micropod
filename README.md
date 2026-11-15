@@ -35,9 +35,12 @@ agent-driven container management.
   package-cache Keep and reviewed cleanup with active-mount protection.
 - **Menu bar** — running-workload count, workload shortcuts, measured guest
   resources, cache budgets and runtime actions.
-- **MCP server** — STDIO JSON-RPC 2.0 (`tools/call`: status, list_containers,
+- **Runtime setup** — missing-runtime detection, a signed managed installer under
+  qualification, opt-in automatic startup, persistent manual stops and native
+  readiness diagnostics. See [dependency management](docs/runtime-dependencies.md).
+- **MCP server** — STDIO JSON-RPC 2.0 (`tools/call`: status, runtime_status, list_containers,
   start/stop/kill/delete, run, pull/push, inspect, logs, df, compose_up,
-  share_mount/unmount/list/sync/gc, build_cache_stats — 27 tools).
+  share_mount/unmount/list/sync/gc, build_cache_stats).
 
 ## Architecture
 
@@ -74,8 +77,11 @@ task bench     # performance benchmark (real runtime)
 task ci        # Go + Node CI pipelines on micropod (below)
 ```
 
-Requires the Apple `container` CLI at `/usr/local/bin/container` (v1.2.x+,
-validated on v1.3.1) for runtime features; the app still builds/runs without it.
+Released Micropod 0.12.6 uses an externally installed Apple `container` CLI and
+service. This branch adds an administrator-approved installer and dedicated
+runtime account, with rig coordination. Physical qualification is pending under
+[#89](https://github.com/castlemilk/micropod/issues/89). The app builds and runs
+without the CLI. See [dependency management](docs/runtime-dependencies.md).
 
 ## Validation
 
