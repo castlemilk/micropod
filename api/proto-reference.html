@@ -3998,6 +3998,13 @@ not have a pty allocated.</p></td>
                   <td><p>Architecture variant, e.g. &#34;v8&#34;. </p></td>
                 </tr>
               
+                <tr>
+                  <td>manifest_digest</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Actual platform manifest digest; may differ from the local image index. </p></td>
+                </tr>
+              
             </tbody>
           </table>
 
@@ -6703,6 +6710,16 @@ the credential never enters the VM. Needs a network. </p></td>
                   <td><a href="#uint64">uint64</a></td>
                   <td></td>
                   <td><p>Root disk size in MiB for image bases (0 = the default, 8192). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>rootless_docker</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Use the isolated VM as a Linux host for rootless Docker. Proc mount
+locks are omitted so child user namespaces can mount their own proc.
+Requires no host mounts, ports, exposed host services or checkpoints.
+Does not grant extra capabilities or a host Docker socket. </p></td>
                 </tr>
               
             </tbody>

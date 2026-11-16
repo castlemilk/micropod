@@ -1067,6 +1067,11 @@
             ],
             "title": "variant",
             "description": "Architecture variant, e.g. \"v8\"."
+          },
+          "manifestDigest": {
+            "type": "string",
+            "title": "manifest_digest",
+            "description": "Actual platform manifest digest; may differ from the local image index."
           }
         },
         "title": "ImageVariant",
