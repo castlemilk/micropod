@@ -20,7 +20,7 @@ public struct SandboxEngine: RuntimeEngine, ContainerServing, LogStreaming {
     public var kind: String { "microvm" }
     public var summary: String { "micropod sandbox — ephemeral in-process micro-VM per run (CI fast path)" }
     public var capabilities: [String] {
-        ["run", "create", "start", "stop", "kill", "delete", "exec", "logs"]
+        ["run", "create", "start", "stop", "kill", "delete", "exec", "logs", "rootless-docker"]
     }
     public var containers: any ContainerServing { self }
     public var logs: any LogStreaming { self }
@@ -155,11 +155,13 @@ public struct SandboxEngine: RuntimeEngine, ContainerServing, LogStreaming {
         if let sandbox = request.sandbox {
             try apply(sandbox, to: &options)
         }
+        try SandboxVM.validateRootlessDocker(options)
         return options
     }
 
     /// `SandboxOptions` (and StartSandbox's extras) onto the VM options.
     static func apply(_ sandbox: SandboxRunOptions, to options: inout SandboxVM.Options) throws {
+        options.rootlessDocker = sandbox.rootlessDocker
         if sandbox.idle {
             let idle = options.guestTool != nil ? [SandboxGuestTool.guestPath, "idle"] : SandboxEngine.idleCommand
             options.entrypoint = [idle[0]]
@@ -505,6 +507,9 @@ actor SessionStore {
     /// keep that disk as checkpoint `name`.
     func checkpoint(_ id: String, name: String) async throws {
         let session = try require(id)
+        guard !session.options.rootlessDocker else {
+            throw MicropodError.message("failedPrecondition: rootless Docker sandboxes cannot save checkpoints")
+        }
         guard session.state == .running, let prepared = session.prepared else {
             throw MicropodError.message("failedPrecondition: sandbox \(id) is not running")
         }

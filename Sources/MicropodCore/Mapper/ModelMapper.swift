@@ -76,6 +76,7 @@ public enum ModelMapper {
         image.sizeBytes = entry.variants.reduce(UInt64(0)) { $0 + UInt64($1.size ?? 0) }
         image.variants = entry.variants.map { variant in
             var v = Micropod_V1_ImageVariant()
+            v.manifestDigest = variant.digest ?? ""
             v.os = variant.config?.os ?? ""
             v.architecture = variant.config?.architecture ?? ""
             if let platform = variant.platform {

@@ -273,6 +273,12 @@ message SandboxOptions {
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
     (buf.validate.field).uint64 = {gte: 512, lte: 1048576}
   ];
+  // Use the isolated VM as a Linux host for rootless Docker. Proc mount
+  // locks are omitted so child user namespaces can mount their own proc.
+  // Requires no host mounts, ports, exposed host services or checkpoints.
+  // Does not grant extra capabilities or a host Docker socket.
+  bool rootless_docker = 6;
+
 }
 
 // One secret: its current value and the hosts that may receive it. The API

@@ -82,7 +82,8 @@ extension APIHandlers {
         }
         return SandboxRunOptions(
             exposeHost: ports, allowHosts: proto.allowHosts, secrets: secrets, dnsResolvers: proto.dnsResolvers,
-            diskSizeMiB: proto.diskSizeMib > 0 ? proto.diskSizeMib : nil, network: network)
+            diskSizeMiB: proto.diskSizeMib > 0 ? proto.diskSizeMib : nil, network: network,
+            rootlessDocker: proto.rootlessDocker)
     }
 
     /// RFC 3339 (fractional seconds optional); empty is no expiry.

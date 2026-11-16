@@ -64,6 +64,9 @@ public nonisolated struct Micropod_V1_ImageVariant: Sendable {
   /// Architecture variant, e.g. "v8".
   public var variant: String = String()
 
+  /// Actual platform manifest digest; may differ from the local image index.
+  public var manifestDigest: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -221,7 +224,7 @@ nonisolated extension Micropod_V1_Image: SwiftProtobuf.Message, SwiftProtobuf._M
 
 nonisolated extension Micropod_V1_ImageVariant: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ImageVariant"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}os\0\u{1}architecture\0\u{1}variant\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}os\0\u{1}architecture\0\u{1}variant\0\u{3}manifest_digest\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -232,6 +235,7 @@ nonisolated extension Micropod_V1_ImageVariant: SwiftProtobuf.Message, SwiftProt
       case 1: try { try decoder.decodeSingularStringField(value: &self.os) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.architecture) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.variant) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.manifestDigest) }()
       default: break
       }
     }
@@ -247,6 +251,9 @@ nonisolated extension Micropod_V1_ImageVariant: SwiftProtobuf.Message, SwiftProt
     if !self.variant.isEmpty {
       try visitor.visitSingularStringField(value: self.variant, fieldNumber: 3)
     }
+    if !self.manifestDigest.isEmpty {
+      try visitor.visitSingularStringField(value: self.manifestDigest, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -254,6 +261,7 @@ nonisolated extension Micropod_V1_ImageVariant: SwiftProtobuf.Message, SwiftProt
     if lhs.os != rhs.os {return false}
     if lhs.architecture != rhs.architecture {return false}
     if lhs.variant != rhs.variant {return false}
+    if lhs.manifestDigest != rhs.manifestDigest {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

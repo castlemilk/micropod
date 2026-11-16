@@ -66,6 +66,7 @@ public enum SandboxVM {
         /// Host directory holding `micropod-guest`, shared read-only at
         /// ``SandboxGuestTool/guestDirectory`` (SandboxService sandboxes).
         public var guestTool: URL?
+        public var rootlessDocker = false
         public var tmpfsTmp = true
         public var tmpSizeMiB: UInt64?
         /// Keep the run's disk as checkpoint `saveAs` when it exits 0.
@@ -100,6 +101,19 @@ public enum SandboxVM {
         var image: String
         var diskBytes: UInt64
         var created: Date
+    }
+
+    static func validateRootlessDocker(_ options: Options) throws {
+        guard options.rootlessDocker else { return }
+        guard options.mounts.isEmpty, options.ports.isEmpty, options.exposeHost.isEmpty,
+            options.egress.isEmpty, options.saveAs == nil
+        else {
+            throw MicropodError.message(
+                "invalidArgument: rootless Docker sandboxes cannot expose host resources or save checkpoints")
+        }
+        if case .checkpoint = options.base {
+            throw MicropodError.message("invalidArgument: rootless Docker sandboxes cannot use checkpoints")
+        }
     }
 
     // MARK: - Run
@@ -139,6 +153,7 @@ public enum SandboxVM {
         trace: Trace = Trace(),
         progress: @Sendable (String) -> Void
     ) async throws -> Prepared {
+        try validateRootlessDocker(options)
         let store = try imageStore()
         let (baseDisk, imageRef, diskBytes) = try await resolveBase(
             options, store: store, progress: progress)
@@ -220,6 +235,15 @@ public enum SandboxVM {
             cfg.cpus = options.cpus
             cfg.memoryInBytes = options.memoryMiB * 1024 * 1024
             cfg.hostname = options.hostname
+            if options.rootlessDocker {
+                // This VM is the Linux host for rootless Docker. OCI proc
+                // submount locks prevent its child user namespaces from
+                // mounting proc at all. The VM remains the isolation boundary;
+                // no host mounts, sockets, exposed ports or checkpoints are
+                // permitted, and no extra process capability is granted.
+                cfg.readonlyPaths = []
+                cfg.maskedPaths = []
+            }
             if let path = ProcessInfo.processInfo.environment["MICROPOD_SANDBOX_BOOTLOG"] {
                 cfg.bootLog = .file(path: URL(fileURLWithPath: path), append: false)
             }

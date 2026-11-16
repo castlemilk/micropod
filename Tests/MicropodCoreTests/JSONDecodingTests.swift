@@ -81,6 +81,9 @@ final class JSONDecodingTests: XCTestCase {
         XCTAssertEqual(mapped.variants.count, 1)
         XCTAssertEqual(mapped.variants[0].os, "linux")
         XCTAssertEqual(mapped.variants[0].architecture, "amd64")
+        XCTAssertEqual(
+            mapped.variants[0].manifestDigest, "sha256:3912c0143b10cb8a85d155266092fa0a8b17e9e389d5d1ca4de7ce9ff91e1a03"
+        )
     }
 
     func testSystemDFDecoding() throws {
