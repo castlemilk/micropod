@@ -9,6 +9,14 @@ maintenance operations.
 
 ## Supported installations
 
+The first supported updater is 0.13.3. The 0.13.0–0.13.2 candidates used
+`PROC_PIDTBSDINFO` for parent identity, which macOS denies across user accounts.
+Gamma's live qualification caught that denial before any installer transaction
+started; both native test workloads remained running. Parent identity now uses
+the same kernel process query as birth/uid identity. A read-only host regression
+checks the actual signed helper, dedicated API and Apple engine before rebuilding
+the candidates. Older candidates are excluded by the feed compatibility floor.
+
 The packaged app must carry workload protocol 1 and a source revision. Its
 owner must have approved the dedicated runtime. An approved dedicated desktop
 workspace is selected by default; explicit CLI paths and runtime-context choices

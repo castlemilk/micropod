@@ -23,6 +23,19 @@ int micropod_process_birth(pid_t pid, uid_t *uid, int64_t *seconds, int64_t *mic
     return 0;
 }
 
+/* PROC_PIDTBSDINFO is restricted to the caller's uid. KERN_PROC_PID supplies
+ * this identity for launchd's root and dedicated-account children as well. */
+int micropod_process_parent(pid_t pid, pid_t *parent) {
+    int query[] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, pid };
+    struct kinfo_proc info;
+    size_t size = sizeof(info);
+    if (pid <= 0 || sysctl(query, 4, &info, &size, NULL, 0) != 0) return -1;
+    if (size == 0) return 1;
+    if (size != sizeof(info) || info.kp_proc.p_pid != pid) return -1;
+    *parent = info.kp_eproc.e_ppid;
+    return 0;
+}
+
 /* Refuse a full/truncated process inventory rather than treating it as idle. */
 int micropod_uid_processes(uid_t uid, pid_t *pids, int capacity) {
     if (capacity <= 0 || capacity > 16384) { errno = EINVAL; return -1; }

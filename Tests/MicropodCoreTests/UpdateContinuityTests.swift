@@ -4,6 +4,63 @@ import XCTest
 @testable import MicropodCore
 
 final class UpdateContinuityTests: XCTestCase {
+    func testInstalledDedicatedServiceWitnessesReadOnly() throws {
+        guard ProcessInfo.processInfo.environment["MICROPOD_REAL_UPDATE_WITNESS"] == "1" else {
+            throw XCTSkip("opt in on an approved dedicated-runtime host; reads identity only")
+        }
+        let identity = try IsolatedRuntimeIdentity.readRootOwned()
+        let configuration = try IsolatedRuntimeAPIConfiguration.read(identity: identity)
+        let helpers = try UpdateServiceWitness.processIDs(executableName: "MicropodRuntimeHost").filter {
+            try RuntimeProcessBirth.read($0)?.uid == 0 && UpdateServiceWitness.parentPID($0) == 1
+        }
+        XCTAssertEqual(helpers.count, 1)
+        let helper = try XCTUnwrap(helpers.first)
+        let apiPath = IsolatedRuntimePolicy.root.appendingPathComponent(
+            "tools/" + configuration.toolDirectoryName + "/MicropodAPI"
+        ).path
+        let enginePath = IsolatedRuntimePolicy.root.appendingPathComponent(
+            "apple/versions/" + configuration.selection.directoryName + "/bin/container-apiserver"
+        ).path
+        let apis = UpdateServiceWitness.processIDs(executable: apiPath)
+        let engines = UpdateServiceWitness.processIDs(executable: enginePath)
+        XCTAssertEqual(apis.count, 1)
+        XCTAssertEqual(engines.count, 1)
+        let api = try XCTUnwrap(apis.first)
+        let engine = try XCTUnwrap(engines.first)
+        let services = [
+            try UpdateServiceWitness.capture(
+                name: "runtime-setup-helper", pid: helper,
+                identifier: IsolatedRuntimePolicy.helperIdentifier),
+            try UpdateServiceWitness.capture(
+                name: "dedicated-api", pid: api,
+                identifier: IsolatedRuntimeAPIConfiguration.executableIdentifier),
+            try UpdateServiceWitness.capture(
+                name: "dedicated-apple-engine", pid: engine,
+                identifier: "com.apple.container.apiserver", team: AppleRuntimeRelease.supported.teamIdentifier),
+        ]
+        let owner = try XCTUnwrap(RuntimeProcessBirth.read(getpid()))
+        let receipt = UpdateContinuityReceipt(
+            operation: UUID(), owner: owner,
+            sourceVersion: "0.13.0", sourceExecutableSHA256: String(repeating: "a", count: 64),
+            sourceAppPath: "/Applications/Micropod.app", targetVersion: "0.13.4",
+            targetSourceRevision: String(repeating: "a", count: 40),
+            artifactURL: "https://github.com/castlemilk/micropod/releases/download/v0.13.4/Micropod.dmg",
+            artifactSignature: Data(repeating: 0, count: 64).base64EncodedString(), artifactBytes: 1,
+            runtimeInstance: identity.instance,
+            apiConfigurationSHA256: try UpdateServiceWitness.digest(IsolatedRuntimeAPIConfiguration.fileURL),
+            services: services)
+        try receipt.verifyServices()
+    }
+
+    func testKernelParentIdentityIncludesOtherUsersAndRejectsMissingProcesses() throws {
+        // launchd belongs to root, so this catches the cross-uid restriction
+        // that same-user subprocess fixtures cannot exercise.
+        XCTAssertEqual(try RuntimeProcessBirth.read(1)?.uid, 0)
+        XCTAssertEqual(UpdateServiceWitness.parentPID(1), 0)
+        XCTAssertEqual(UpdateServiceWitness.parentPID(getpid()), getppid())
+        XCTAssertNil(UpdateServiceWitness.parentPID(0))
+        XCTAssertNil(UpdateServiceWitness.parentPID(Int32.max))
+    }
     func testDesktopGateCannotCloseAcrossAnActiveOperationAndFencesLateCalls() throws {
         let gate = DesktopActivity()
         XCTAssertNil(try gate.claim())  // Other processes do not opt in.
