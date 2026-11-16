@@ -1,0 +1,37 @@
+{
+  "policy": "workload-preserving-candidate",
+  "tag": "v0.13.3",
+  "source": "4b1d4906cda28c05a452619149b49fd6f31a72c1",
+  "releaseID": 447362534,
+  "qualificationRun": 43916132169,
+  "workloadProtocol": 1,
+  "minimumUpdaterVersion": "0.13.3",
+  "sparkleSignature": "r9Tww1El1CdvgmVzPCRP53Qavp3ZN1Plm8nBrdNhjtiBvhEyLkVIfKSPjUerD1Kvazl3qdV9fOTQ9MdZO/KhCg==",
+  "assets": {
+    "Micropod.0.13.3.tgz": {
+      "id": 755758238,
+      "size": 157773027,
+      "sha256": "86ef9216e144744e964bcd637a63b3d9e9d16bfe74e906dea4c962d22dc031b2"
+    },
+    "Micropod.dmg": {
+      "id": 755758234,
+      "size": 153687901,
+      "sha256": "6a0d5a46a2a8b160e13512cd398a062cb05ad57a0473acee645e1dd9f21a982a"
+    },
+    "Micropod.dmg.sha256": {
+      "id": 755758243,
+      "size": 79,
+      "sha256": "0a9cf620b41e585c5271e4a6df133854fb2946b83dfa66fd7c8f302a82ce173e"
+    },
+    "qualification-appcast.xml": {
+      "id": 755758826,
+      "size": 11992,
+      "sha256": "db316089723dcd6f30c0771e662ca8afa0bb6650220eba5cbf69579006812eec"
+    },
+    "qualification-source.txt": {
+      "id": 755758242,
+      "size": 41,
+      "sha256": "969db6bf66985a01e54d53d54e6cb814e99d14191551044da07c98df568ef74c"
+    }
+  }
+}
