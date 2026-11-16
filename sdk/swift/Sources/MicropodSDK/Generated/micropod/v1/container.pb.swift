@@ -461,6 +461,28 @@ public nonisolated struct Micropod_V1_RunContainerRequest: @unchecked Sendable {
   /// Clears the value of `sandbox`. Subsequent reads from it will return its default value.
   public mutating func clearSandbox() {_uniqueStorage()._sandbox = nil}
 
+  /// Init image the micro-VM boots from in place of the runtime's default
+  /// (`container run --init-image`), e.g. a vminit build that adds a guest
+  /// service. The native backend of the "apple" engine honours it only when
+  /// the image's config label `org.opencontainers.image.base.name` equals the
+  /// runtime's default init image (the `vminit.image` property): an init
+  /// image built for another runtime version may not speak the host's
+  /// guest-agent protocol. Otherwise the VM boots the default init image and
+  /// the container's `com.micropod.init-image.fallback` label holds the
+  /// reason. The `com.micropod.init-image` label names the init image the VM
+  /// booted.
+  /// Follows `no_pull` like `image`. Servers that honour it list
+  /// "init_image" in `PingResponse.features`. Other engines fail the request
+  /// with `unimplemented`.
+  public var initImage: String {
+    get {_storage._initImage ?? String()}
+    set {_uniqueStorage()._initImage = newValue}
+  }
+  /// Returns true if `initImage` has been explicitly set.
+  public var hasInitImage: Bool {_storage._initImage != nil}
+  /// Clears the value of `initImage`. Subsequent reads from it will return its default value.
+  public mutating func clearInitImage() {_uniqueStorage()._initImage = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -495,6 +517,12 @@ public nonisolated struct Micropod_V1_SandboxOptions: Sendable {
 
   /// Root disk size in MiB for image bases (0 = the default, 8192).
   public var diskSizeMib: UInt64 = 0
+
+  /// Use the isolated VM as a Linux host for rootless Docker. Proc mount
+  /// locks are omitted so child user namespaces can mount their own proc.
+  /// Requires no host mounts, ports, exposed host services or checkpoints.
+  /// Does not grant extra capabilities or a host Docker socket.
+  public var rootlessDocker: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1128,7 +1156,7 @@ nonisolated extension Micropod_V1_ListContainersResponse: SwiftProtobuf.Message,
 
 nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RunContainerRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}image\0\u{1}name\0\u{1}detach\0\u{1}cpus\0\u{1}memory\0\u{1}env\0\u{1}ports\0\u{1}volumes\0\u{1}labels\0\u{1}init\0\u{1}arguments\0\u{1}entrypoint\0\u{1}platform\0\u{1}workdir\0\u{1}user\0\u{3}no_pull\0\u{3}cap_add\0\u{3}cap_drop\0\u{1}rosetta\0\u{1}privileged\0\u{1}runtime\0\u{1}sandbox\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}image\0\u{1}name\0\u{1}detach\0\u{1}cpus\0\u{1}memory\0\u{1}env\0\u{1}ports\0\u{1}volumes\0\u{1}labels\0\u{1}init\0\u{1}arguments\0\u{1}entrypoint\0\u{1}platform\0\u{1}workdir\0\u{1}user\0\u{3}no_pull\0\u{3}cap_add\0\u{3}cap_drop\0\u{1}rosetta\0\u{1}privileged\0\u{1}runtime\0\u{1}sandbox\0\u{3}init_image\0")
 
   fileprivate class _StorageClass {
     var _image: String = String()
@@ -1153,6 +1181,7 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
     var _privileged: Bool? = nil
     var _runtime: String? = nil
     var _sandbox: Micropod_V1_SandboxOptions? = nil
+    var _initImage: String? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1185,6 +1214,7 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
       _privileged = source._privileged
       _runtime = source._runtime
       _sandbox = source._sandbox
+      _initImage = source._initImage
     }
   }
 
@@ -1225,6 +1255,7 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
         case 20: try { try decoder.decodeSingularBoolField(value: &_storage._privileged) }()
         case 21: try { try decoder.decodeSingularStringField(value: &_storage._runtime) }()
         case 22: try { try decoder.decodeSingularMessageField(value: &_storage._sandbox) }()
+        case 23: try { try decoder.decodeSingularStringField(value: &_storage._initImage) }()
         default: break
         }
       }
@@ -1303,6 +1334,9 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
       try { if let v = _storage._sandbox {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 22)
       } }()
+      try { if let v = _storage._initImage {
+        try visitor.visitSingularStringField(value: v, fieldNumber: 23)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1334,6 +1368,7 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
         if _storage._privileged != rhs_storage._privileged {return false}
         if _storage._runtime != rhs_storage._runtime {return false}
         if _storage._sandbox != rhs_storage._sandbox {return false}
+        if _storage._initImage != rhs_storage._initImage {return false}
         return true
       }
       if !storagesAreEqual {return false}
@@ -1345,7 +1380,7 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
 
 nonisolated extension Micropod_V1_SandboxOptions: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SandboxOptions"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}expose_host\0\u{3}allow_hosts\0\u{1}secrets\0\u{3}dns_resolvers\0\u{3}disk_size_mib\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}expose_host\0\u{3}allow_hosts\0\u{1}secrets\0\u{3}dns_resolvers\0\u{3}disk_size_mib\0\u{3}rootless_docker\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1358,6 +1393,7 @@ nonisolated extension Micropod_V1_SandboxOptions: SwiftProtobuf.Message, SwiftPr
       case 3: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMessageMap<SwiftProtobuf.ProtobufString,Micropod_V1_SandboxSecret>.self, value: &self.secrets) }()
       case 4: try { try decoder.decodeRepeatedStringField(value: &self.dnsResolvers) }()
       case 5: try { try decoder.decodeSingularUInt64Field(value: &self.diskSizeMib) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.rootlessDocker) }()
       default: break
       }
     }
@@ -1379,6 +1415,9 @@ nonisolated extension Micropod_V1_SandboxOptions: SwiftProtobuf.Message, SwiftPr
     if self.diskSizeMib != 0 {
       try visitor.visitSingularUInt64Field(value: self.diskSizeMib, fieldNumber: 5)
     }
+    if self.rootlessDocker != false {
+      try visitor.visitSingularBoolField(value: self.rootlessDocker, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1388,6 +1427,7 @@ nonisolated extension Micropod_V1_SandboxOptions: SwiftProtobuf.Message, SwiftPr
     if lhs.secrets != rhs.secrets {return false}
     if lhs.dnsResolvers != rhs.dnsResolvers {return false}
     if lhs.diskSizeMib != rhs.diskSizeMib {return false}
+    if lhs.rootlessDocker != rhs.rootlessDocker {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

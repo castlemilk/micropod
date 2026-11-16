@@ -39,3 +39,12 @@ permit routing around a private endpoint's authorization restrictions.
 
 No database or UI flow changes. Real Connect/VM checks replace Playwright for
 this runtime-only change; networked acceptance is deliberately still open.
+
+Reconciliation with per-VM init images (#97): regenerated the Go, Swift and
+TypeScript client contracts through `scripts/gen-sdk.sh`, retaining both
+`RunContainerRequest.init_image` and `SandboxOptions.rootless_docker`. The SDK
+regression covers JSON and protobuf round trips for both independent features.
+The combined native build and all 1,428 Swift tests passed (86 opt-in tests
+skipped, zero failures); Go SDK tests, TypeScript typecheck and standalone
+Swift SDK build also pass. This is source compatibility evidence and does not
+change the outstanding networked acceptance or runtime authorization policy.

@@ -105,6 +105,7 @@ public struct ContainerService: ContainerServing {
     }
 
     public func run(_ request: ContainerRunRequest) async throws -> String {
+        let request = InitImageSelection.unsupported(request)
         try await refuseIfNoPullAndAbsent(request)
         try await refuseIfVolumeHeldElsewhere(request)
         let output = try await client.run(ContainerCommandFactory.run(request), timeout: .seconds(120))
@@ -112,6 +113,7 @@ public struct ContainerService: ContainerServing {
     }
 
     public func create(_ request: ContainerRunRequest) async throws -> String {
+        let request = InitImageSelection.unsupported(request)
         try await refuseIfNoPullAndAbsent(request)
         try await refuseIfVolumeHeldElsewhere(request)
         let output = try await client.run(ContainerCommandFactory.create(request), timeout: .seconds(120))
