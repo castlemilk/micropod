@@ -49,10 +49,28 @@ condition with its previous behavior reproduces the false deletion
 acknowledgement in the regression test. These checks use private fixtures and
 do not qualify an installed runtime or a live GitHub runner.
 
-Full GitHub runner qualification is **not passed**. Positive GitHub egress works
-on Gamma-64GB, but the attached bridge's IPv6 link-local host probe times out
-instead of returning the required rejection. Cuttlefish continues to reject that
-result. Matching vminit 0.42.0 did not resolve it.
+The initially inconclusive IPv6 host probe was traced to Darwin PF in
+Cuttlefish #825: dynamic interface groups omit link-local addresses and the
+generated reset loses the routing scope. The corrected guard explicitly allows
+only each bridge's own link-local DNS and existing guest service ports. The
+driver requires fresh bidirectional same-link positive controls before and after
+blocked-port probes. It accepts a timeout only for that exact proven link-local
+host with zero established TCP connections; all other ambiguity fails closed.
+
+With the guard installed on Gamma-128GB, a private test API built from exact
+Micropod `28c946a9edf7ef471a0623af76befc9e673ae38d` passed three full production
+driver fixtures (16.70s, 16.31s, 16.31s). A deliberately reachable IPv6 canary was
+rejected before Docker/JIT bootstrap in 17.80s. Its exact temporary firewall
+anchor was removed, and the owned VM was confirmed absent.
+
+The final multi-architecture allocation image's ARM64 platform manifest
+`sha256:9f7037b5ad163128c06e93d0b614bcaff69db358e0fbd45a0f056231ffc4ac91`
+was imported through an exact-artifact metadata-hash check and passed the full
+driver three times (129.93s cold, 20.06s and 19.80s warm). Its separate private
+Docker fixture passed in 5.42s: OverlayFS, rootless security options, internet
+image pull, private file read, nested container DNS/GitHub HTTPS, retirement
+fence, acknowledged deletion and subsequent absence. No GitHub or fleet
+credential, host workspace or host Docker socket entered these fixtures.
 
 An earlier Gamma-128GB networked fixture reported
 192.168.66.2/24 with gateway 192.168.66.1, while the attached host bridge had
@@ -62,13 +80,14 @@ is evidence of a possible mechanism, not proof of the exact cause here.
 No shared production runtime restart or network reset was performed. Temporary
 test API processes were replaced only after their owned VMs were removed.
 
-Do not promote this as a qualified networked GitHub runner runtime until the
-real host-isolation and positive egress checks pass on a safe validation host.
+These are source and credential-free runtime-fixture results. Signed release
+qualification, the intended production API transport, a real GitHub job and
+one-job teardown/capacity release remain required before fleet activation.
 The dedicated Apple runtime's API policy is unchanged; this change does not
 permit routing around a private endpoint's authorization restrictions.
 
 No database or UI flow changes. Real Connect/VM checks replace Playwright for
-this runtime-only change; networked acceptance is deliberately still open.
+this runtime-only change; fleet activation acceptance remains open.
 
 Reconciliation with per-VM init images (#97): regenerated the Go, Swift and
 TypeScript client contracts through `scripts/gen-sdk.sh`, retaining both
