@@ -651,7 +651,8 @@ type PingResponse struct {
 	// detect them instead of sending fields an older server would silently
 	// ignore (proto3 drops unknown fields). Names are the
 	// `RunContainerRequest` field names: "cap_add", "cap_drop", "rosetta",
-	// "privileged". Empty on servers that predate the list.
+	// "privileged", and "init_image" on the native backend. Empty on servers
+	// that predate the list.
 	Features []string `protobuf:"bytes,5,rep,name=features,proto3" json:"features,omitempty"`
 	// Engine RunContainer uses when `runtime` is unset (see ListRuntimes).
 	// Empty on servers that predate engine selection.

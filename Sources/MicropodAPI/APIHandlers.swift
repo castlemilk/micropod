@@ -355,7 +355,8 @@ final class APIHandlers: Sendable {
                     // matches the proto field name.
                     "backend": services.kind.rawValue,
                     "runtimeBackend": services.kind.rawValue,
-                    "features": APIFeatures.supported,
+                    "features": APIFeatures.supported
+                        + (services.kind == .native ? [InitImageSelection.feature] : []),
                 ]
                 // A stopped runtime has no `df` to report — and asking would
                 // turn a clean "stopped" into a CLI failure.

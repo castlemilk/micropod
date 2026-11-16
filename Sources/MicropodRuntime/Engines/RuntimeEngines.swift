@@ -299,6 +299,9 @@ public struct RuntimeRouter: ContainerServing, LogStreaming, StatsSampling {
         if request.sandbox != nil && name != "sandbox" {
             throw MicropodError.unsupported("sandbox options need runtime 'sandbox', not '\(name)'")
         }
+        if request.initImage != nil && name != "apple" {
+            throw MicropodError.unsupported("init_image needs runtime 'apple', not '\(name)'")
+        }
         if name == "apple" { return apple }
         guard let engine = registry.engine(name) else {
             throw MicropodError.message(

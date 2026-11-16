@@ -234,6 +234,23 @@ message RunContainerRequest {
   // allowlist, proxy-injected secrets. Honoured by `runtime: "sandbox"`;
   // other engines fail the request with `unimplemented` rather than drop it.
   SandboxOptions sandbox = 22;
+  // Init image the micro-VM boots from in place of the runtime's default
+  // (`container run --init-image`), e.g. a vminit build that adds a guest
+  // service. The native backend of the "apple" engine honours it only when
+  // the image's config label `org.opencontainers.image.base.name` equals the
+  // runtime's default init image (the `vminit.image` property): an init
+  // image built for another runtime version may not speak the host's
+  // guest-agent protocol. Otherwise the VM boots the default init image and
+  // the container's `com.micropod.init-image.fallback` label holds the
+  // reason. The `com.micropod.init-image` label names the init image the VM
+  // booted.
+  // Follows `no_pull` like `image`. Servers that honour it list
+  // "init_image" in `PingResponse.features`. Other engines fail the request
+  // with `unimplemented`.
+  optional string init_image = 23 [
+    (buf.validate.field).string.min_len = 1,
+    (gnostic.openapi.v3.property).example = {yaml: "'registry.example.com/vminit:0.47.0-custom.1'"}
+  ];
 }
 
 // What a sandbox may reach beyond its own VM, and the credentials it may use
