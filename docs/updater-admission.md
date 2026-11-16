@@ -9,13 +9,21 @@ maintenance operations.
 
 ## Supported installations
 
-The first supported updater is 0.13.3. The 0.13.0–0.13.2 candidates used
+The first supported updater is 0.13.6. The 0.13.0–0.13.2 candidates used
 `PROC_PIDTBSDINFO` for parent identity, which macOS denies across user accounts.
 Gamma's live qualification caught that denial before any installer transaction
 started; both native test workloads remained running. Parent identity now uses
 the same kernel process query as birth/uid identity. A read-only host regression
 checks the actual signed helper, dedicated API and Apple engine before rebuilding
-the candidates. Older candidates are excluded by the feed compatibility floor.
+the candidates. A second live test caught Sparkle's default coupling between
+scheduled checks and download permission in 0.13.3–0.13.5. With the app owning
+informational checks, those candidates offered an interactive download instead
+of starting the CLI download. Cancelling that prompt reconciled the unchanged
+original and reopened admission without an installer handoff. The signed bundle
+now explicitly allows downloads independently of Sparkle's scheduler; durable
+admission still controls every installation-capable check. Bundle verification
+and a real Sparkle settings regression enforce that contract. Older candidates
+are excluded by the feed compatibility floor.
 
 The packaged app must carry workload protocol 1 and a source revision. Its
 owner must have approved the dedicated runtime. An approved dedicated desktop

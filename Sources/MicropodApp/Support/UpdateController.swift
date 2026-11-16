@@ -318,6 +318,13 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
         guard !preparingUpdate, status == .updateAvailable, admission?.candidate?.isCompatible == true else {
             return false
         }
+        // Our scheduler disables Sparkle checks, so the signed bundle must
+        // explicitly allow guarded background downloads independently of them.
+        guard controller.updater.allowsAutomaticUpdates else {
+            lastError = "This app bundle cannot download guarded updates. Reinstall the current signed app."
+            status = .error
+            return false
+        }
         preparingUpdate = true
         defer { preparingUpdate = false }
         // Probing reports the actual resumable item too. Sparkle may bypass
@@ -377,7 +384,7 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
                 item.fileURL?.absoluteString == receipt.artifactURL, item.contentLength == receipt.artifactBytes,
                 enclosure?["sparkle:edSignature"] as? String == receipt.artifactSignature,
                 enclosure?["micropodSourceRevision"] as? String == receipt.targetSourceRevision,
-                item.minimumUpdateVersion == "0.13.3"
+                item.minimumUpdateVersion == "0.13.6"
             else { throw MicropodError.message("The selected update does not match its prepared transaction") }
         }
         return receipt
@@ -413,7 +420,7 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
             guard informationCheck == check else { return }
             if ![.readyToInstall, .installing].contains(status) { status = .updateAvailable }
             availableVersion = display
-            if let url, let signature, let source, minimum == "0.13.3" {
+            if let url, let signature, let source, minimum == "0.13.6" {
                 admission?.candidate = .init(
                     version: version, url: url, signature: signature, bytes: bytes,
                     source: source)
