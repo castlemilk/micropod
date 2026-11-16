@@ -9,6 +9,9 @@ struct MicropodApp: App {
     @Environment(\.openWindow) private var openWindow
 
     init() {
+        // Before any desktop command can start, retain a fence left by an
+        // interrupted installer. Other processes keep serving their jobs.
+        DesktopActivity.shared.enable(closed: UpdateContinuityStore.standard.requiresRecovery)
         if let url = Bundle.micropodResources.url(
             forResource: "app-tile", withExtension: "svg", subdirectory: "uplift"),
             let image = NSImage(contentsOf: url)

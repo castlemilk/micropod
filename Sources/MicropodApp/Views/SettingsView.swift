@@ -107,7 +107,7 @@ struct SettingsView: View {
                         "Automatically check for updates", isOn: UpdateController.shared.automaticallyChecksForUpdates
                     )
                     .toggleStyle(.checkbox)
-                    Toggle("Install updates when I'm away and nothing is running", isOn: $installsUpdatesAutomatically)
+                    Toggle("Install updates when I'm away", isOn: $installsUpdatesAutomatically)
                         .toggleStyle(.checkbox)
                         .disabled(!UpdateController.shared.restartGuard.isAvailable)
                     Toggle(
@@ -129,8 +129,8 @@ struct SettingsView: View {
                         }
                         .controlSize(.small)
                         .disabled(!UpdateController.shared.canCheckForUpdates)
-                        if let version = UpdateController.shared.stagedVersion {
-                            Button("Restart to Update to \(version)") {
+                        if let version = UpdateController.shared.installableVersion {
+                            Button("Update to \(version)") {
                                 Task { await UpdateController.shared.applyStagedUpdate() }
                             }
                             .controlSize(.small)
@@ -148,8 +148,11 @@ struct SettingsView: View {
                         IconLabel(title: "Restart All Agents", icon: "restart", fallback: "arrow.clockwise")
                     }
                     .controlSize(.small)
+                    .disabled(PersistentDesktopAgents.enabled)
                     Text(
-                        "Helper processes the app runs for you. They start with the app, restart if they die, and quit when Micropod quits."
+                        PersistentDesktopAgents.enabled
+                            ? "Workload services stay running when Micropod quits or updates. Their versions remain pinned while the app updates."
+                            : "Helper processes start with the app, restart if they die, and quit when Micropod quits."
                     )
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -461,6 +464,7 @@ struct SettingsView: View {
                 }
             }
             .toggleStyle(.checkbox)
+            .disabled(PersistentDesktopAgents.enabled)
             Spacer()
             if let status, status.restarts > 0 {
                 Text("\(status.restarts)× restart")
@@ -475,6 +479,7 @@ struct SettingsView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
+                .disabled(PersistentDesktopAgents.enabled)
                 .help("Restart \(spec.displayName)")
                 .accessibilityLabel("Restart \(spec.displayName)")
             }

@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { readFileSync, mkdtempSync, writeFileSync, rmSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { updateAppcast } from "./update_appcast.mjs";
-import { releasePolicy, validateMetadata, validateTag, verifyAssets } from "./verify_qualified_release.mjs";
+import { releasePolicy, validateMetadata, validateTag, verifyAssets, publicationOptions } from "./verify_qualified_release.mjs";
 
 const base = readFileSync(new URL("../landing/appcast.xml", import.meta.url), "utf8");
 const announcement = { version: "0.12.6", url: "https://github.com/castlemilk/micropod/releases/tag/v0.12.6", informational: true, pubDate: "Fri, 09 Oct 2026 08:00:00 GMT" };
@@ -103,5 +103,55 @@ test("byte verification rejects tampering and an otherwise matching unsigned DMG
         assert.throws(() => verifyAssets(small, directory), /Sparkle signature/);
         writeFileSync(join(directory, "Micropod.dmg"), "tampered");
         assert.throws(() => verifyAssets(small, directory), /bytes changed/);
+    } finally { rmSync(directory, { recursive: true }); }
+});
+
+test("workload candidates remain off the stable feed and carry exact compatibility/source", () => {
+    const candidate = { ...manifest, tag: "v0.13.1", policy: "workload-preserving-candidate", workloadProtocol: 1, minimumUpdaterVersion: "0.13.0" };
+    assert.throws(() => publicationOptions(candidate, "stable"), /cannot enter/);
+    const options = publicationOptions(candidate, "qualification");
+    const xml = updateAppcast(base, options);
+    assert.match(xml, /<sparkle:minimumUpdateVersion>0.13.0<\/sparkle:minimumUpdateVersion>/);
+    assert.match(xml, new RegExp(`micropodSourceRevision="${manifest.source}"`));
+    assert.throws(() => publicationOptions({ ...candidate, workloadProtocol: 2 }, "qualification"), /unsupported/);
+    assert.throws(() => updateAppcast(base, { ...options, "minimum-update-version": "0.12.7" }), /compatibility/);
+    assert.throws(() => updateAppcast(base, { ...options, source: "master" }), /source/);
+});
+
+test("stable workload publication requires untampered manual and automatic physical results", () => {
+    const directory = mkdtempSync(join(tmpdir(), "micropod-continuity-test-"));
+    try {
+        const id = "test-operation";
+        const snapshot = (name) => Buffer.from(JSON.stringify({ id: name, createdAt: "2026-11-16T00:00:00Z", image: "alpine", state: "running", mounts: [{ source: name + "-data" }] })).toString("base64");
+        const hop = (automatic) => ({ id, automatic, passed: true, update: { schema: 1, phase: "succeeded", targetVersion: "0.13.2", targetSourceRevision: manifest.source }, workloads: [0, 7].map(code => ({ id: `job-${code}`, expectedExit: code, exit: code, artifact: id, logBefore: true, logAfter: true, streamCompleted: true, runtimeIdentityBefore: "boot-process-identity", runtimeIdentityAfter: "boot-process-identity", before: snapshot(`job-${code}`), after: snapshot(`job-${code}`) })) });
+        const proof = { schema: 1, source: manifest.source, targetVersion: "0.13.2", faultTestsPassed: true, manual: hop(false), automatic: hop(true) };
+        const path = "docs/updater-acceptance/v0.13.2.json";
+        mkdirSync(join(directory, "docs/updater-acceptance"), { recursive: true });
+        const stable = { ...manifest, tag: "v0.13.2", policy: "workload-preserving-v1", workloadProtocol: 1, minimumUpdaterVersion: "0.13.0", continuityAcceptance: { path, sha256: "" } };
+        const save = (value) => {
+            const bytes = Buffer.from(JSON.stringify(value));
+            writeFileSync(join(directory, path), bytes);
+            stable.continuityAcceptance.sha256 = createHash("sha256").update(bytes).digest("hex");
+        };
+        save(proof);
+        assert.equal(publicationOptions(stable, "stable", directory).source, manifest.source);
+        for (const mutate of [
+            p => { p.manual.passed = false; },
+            p => { p.automatic.automatic = false; },
+            p => { p.automatic.update.targetSourceRevision = "wrong"; },
+            p => { p.automatic.workloads[1].exit = 0; },
+            p => { p.automatic.workloads[0].streamCompleted = false; },
+            p => { p.manual.workloads[0].runtimeIdentityAfter = "rebooted"; },
+            p => { p.manual.workloads[0].after = snapshot("replacement"); },
+            p => { p.faultTestsPassed = false; },
+            p => { p.automatic.error = "unknown exit"; }
+        ]) {
+            const changed = structuredClone(proof); mutate(changed); save(changed);
+            assert.throws(() => publicationOptions(stable, "stable", directory));
+        }
+        save(proof);
+        writeFileSync(join(directory, path), JSON.stringify({ ...proof, source: "tampered" }));
+        assert.throws(() => publicationOptions(stable, "stable", directory), /bytes changed/);
+        assert.throws(() => publicationOptions({ ...stable, continuityAcceptance: { path: "../evidence.json", sha256: "a".repeat(64) } }, "stable", directory), /evidence/);
     } finally { rmSync(directory, { recursive: true }); }
 });

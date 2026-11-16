@@ -1,0 +1,19 @@
+#!/bin/bash
+# Check the signed producer contract before any qualification asset is uploaded.
+set -euo pipefail
+updater_bundle="${1:?app bundle}"
+updater_version="${2:?version}"
+updater_source="${3:?source revision}"
+updater_info="$updater_bundle/Contents/Info.plist"
+[[ "$updater_source" =~ ^[0-9a-f]{40}$ ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :MicropodWorkloadProtocol' "$updater_info")" = 1 ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$updater_info")" = "$updater_version" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :MicropodSourceRevision' "$updater_info")" = "$updater_source" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$updater_info")" = 'nJEL+JijqhfC7zxPlqxifCqBM06A3DGki/JmBFTW/VM=' ]]
+updater_setup="$updater_bundle/Contents/Helpers/Micropod Runtime Setup.app"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$updater_setup/Contents/Info.plist")" = com.skunkworq.micropod.runtime-setup ]]
+[[ -x "$updater_setup/Contents/MacOS/MicropodRuntimeHost" ]]
+[[ -x "$updater_setup/Contents/MacOS/MicropodAPI" ]]
+[[ -f "$updater_setup/Contents/Resources/micropod-guest" ]]
+codesign --verify --deep --strict "$updater_bundle"
+codesign --verify --deep --strict "$updater_setup"

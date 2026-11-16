@@ -133,6 +133,7 @@ actor AgentSupervisor {
     /// whenever the owner changes (a foreign or stale binary can bind the
     /// endpoint between ticks and inherit a stale "adopted" verdict).
     private var adoptedOwners: [String: Int32] = [:]
+    private var persistentBirths: [String: RuntimeProcessBirth] = [:]
     private var started = false
 
     init(
@@ -243,6 +244,12 @@ actor AgentSupervisor {
 
     /// Manual restart from Settings: drop the child, clear backoff, ensure.
     func restart(_ id: String) async {
+        guard !PersistentDesktopAgents.enabled else {
+            states[id]?.lastError =
+                "This workload service stays running across app updates. Use runtime maintenance to replace it."
+            publish()
+            return
+        }
         guard specs.contains(where: { $0.id == id }) else { return }
         if let child = children.get(id), child.isRunning {
             child.terminate()
@@ -283,6 +290,37 @@ actor AgentSupervisor {
             states[spec.id] = AgentStatus(
                 id: spec.id, name: spec.displayName, state: .starting,
                 pid: nil, restarts: 0, lastError: nil, endpoint: spec.endpoint)
+        }
+        if PersistentDesktopAgents.enabled {
+            do {
+                let owners = endpointOwnerPIDs(spec)
+                if !isEnabled(spec), owners?.isEmpty == true,
+                    !FileManager.default.fileExists(atPath: PersistentDesktopAgents.recordURL(spec).path)
+                {
+                    states[spec.id]?.state = .stopped
+                    states[spec.id]?.pid = nil
+                    states[spec.id]?.lastError = nil
+                    return
+                }
+                let healthy = await probe(spec)
+                if healthy, let owners, owners.count == 1, let owner = owners.first,
+                    let birth = try RuntimeProcessBirth.read(owner), persistentBirths[spec.id] == birth
+                {
+                    states[spec.id]?.state = .adopted
+                    states[spec.id]?.pid = owner
+                    states[spec.id]?.lastError = nil
+                    return
+                }
+                let pid = try PersistentDesktopAgents.ensure(spec, owners: owners, healthy: healthy)
+                persistentBirths[spec.id] = try pid.flatMap { try RuntimeProcessBirth.read($0) }
+                states[spec.id]?.state = pid == nil ? .starting : .adopted
+                states[spec.id]?.pid = pid
+                states[spec.id]?.lastError = nil
+            } catch {
+                states[spec.id]?.state = .retryPending
+                states[spec.id]?.lastError = error.localizedDescription
+            }
+            return
         }
         guard isEnabled(spec) else {
             if let child = children.get(spec.id), child.isRunning {

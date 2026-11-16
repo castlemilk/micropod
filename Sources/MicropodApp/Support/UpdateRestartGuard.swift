@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// Future trusted coordinator boundary. No production implementation exists.
+/// The durable workload-owner admission boundary used by the desktop updater.
 /// It must close every runtime/lease admission path before returning a hold,
 /// retain durable owner/generation across relaunch, and settle only verified
 /// replacement or rollback. An idle observation is not an implementation.
@@ -12,6 +12,11 @@ protocol UpdateAdmissionCoordinating {
     /// Nonblocking cancellation of begin permission, including delayed replies.
     /// Unknown outcomes retain the external fence; this is not unconditional release.
     func cancelAcquisition(operation: UUID)
+    func recoverRetainedTransaction() async throws -> Bool
+}
+
+extension UpdateAdmissionCoordinating {
+    func recoverRetainedTransaction() async throws -> Bool { false }
 }
 
 @MainActor
@@ -38,7 +43,7 @@ struct UnavailableUpdateAdmission: UpdateAdmissionCoordinating {
 }
 
 /// Serializes requests and fences cancelled/late replies in the app. This is
-/// scaffolding for a qualified coordinator, not the cross-process fence itself.
+/// The coordinator retains the signed workload owners across app replacement.
 @MainActor @Observable
 final class UpdateRestartGuard {
     enum State: String {
@@ -174,9 +179,22 @@ final class UpdateRestartGuard {
         block(operation, reason: reason)
     }
 
+    func adoptRetainedRecovery() {
+        guard operation == nil else { return }
+        state = .recoveryRequired
+        blockedReason = "A retained update transaction needs verified reconciliation. Workload services remain running."
+    }
+
     /// One explicit coordinator reconciliation; never idle polling or expiry.
     func reconcileRecovery() async -> Bool {
-        guard state == .recoveryRequired, let id = operation, let hold else { return false }
+        guard state == .recoveryRequired else { return false }
+        if operation == nil {
+            guard (try? await coordinator.recoverRetainedTransaction()) == true else { return false }
+            state = .idle
+            blockedReason = nil
+            return true
+        }
+        guard let id = operation, let hold else { return false }
         guard (try? await hold.oldRuntimeIsVerifiedRestored()) == true,
             state == .recoveryRequired, operation == id, !Task.isCancelled
         else { return false }

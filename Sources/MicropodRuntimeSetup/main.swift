@@ -12,8 +12,25 @@ private final class RuntimeSetupModel {
     var awaitingApproval = false
     var approvalMessage = "Administrator approval has not been requested"
     var busy = false
+    private var handledInstallRequest = false
     private let service = SMAppService.daemon(plistName: "com.skunkworq.micropod.runtime.host.plist")
     private let client = IsolatedRuntimeClient()
+    func installRequestedAtLaunch() async {
+        guard !handledInstallRequest, ProcessInfo.processInfo.arguments.contains("--install") else { return }
+        handledInstallRequest = true
+        approveHelper()
+        do {
+            while service.status != .enabled {
+                try Task.checkCancellation()
+                try await Task.sleep(for: .seconds(1))
+                await refresh()
+            }
+            await refresh()
+            guard error == nil, status.isTerminal, status.phase != "recoveryRequired" else { return }
+            if status.identity != nil, status.nativeState == "nativeReady" { return }
+            await request(.install)
+        } catch { self.error = error.localizedDescription }
+    }
     func approveHelper() {
         do {
             if service.status != .enabled && service.status != .requiresApproval { try service.register() }
@@ -154,7 +171,10 @@ struct MicropodRuntimeSetup: App {
                         Text(error).font(.callout).foregroundStyle(.red).textSelection(.enabled)
                     }
                 }.padding(24)
-            }.frame(width: 640, height: 540).task { await model.refresh() }
+            }.frame(width: 640, height: 540).task {
+                await model.refresh()
+                await model.installRequestedAtLaunch()
+            }
         }.windowResizability(.contentSize)
     }
 }

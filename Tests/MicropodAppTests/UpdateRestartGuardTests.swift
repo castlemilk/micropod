@@ -25,11 +25,14 @@ final class UpdateRestartGuardTests: XCTestCase {
         XCTAssertEqual(installs, 0)
     }
 
-    func testEveryInstallationCapableSparkleDriverIsDenied() throws {
-        XCTAssertThrowsError(try UpdateController.requireInformationCheck(.updates))
-        XCTAssertThrowsError(try UpdateController.requireInformationCheck(.updatesInBackground))
-        XCTAssertNoThrow(try UpdateController.requireInformationCheck(.updateInformation))
-        let controller = UpdateController(feedConfigured: false)
+    func testUnqualifiedProductionDriversAreDeniedAtTheActualDelegateBoundary() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("mp-driver-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let controller = UpdateController(feedConfigured: false, store: .init(root: root))
+        let updater = controller.controller.updater
+        XCTAssertThrowsError(try controller.updater(updater, mayPerform: .updates))
+        XCTAssertThrowsError(try controller.updater(updater, mayPerform: .updatesInBackground))
+        XCTAssertNoThrow(try controller.updater(updater, mayPerform: .updateInformation))
         XCTAssertTrue(controller.responds(to: NSSelectorFromString("updater:mayPerformUpdateCheck:error:")))
     }
 

@@ -24,7 +24,7 @@ on:
         required: false
         type: string
       publication_version:
-        description: "Publish an existing qualified draft as an informational announcement (vX.Y.Z); no build or installation"
+        description: "Publish frozen qualified assets using their reviewed channel policy (vX.Y.Z); no rebuild"
         required: false
         type: string
 
@@ -166,6 +166,10 @@ jobs:
             echo "DMG_ASSET=Micropod-unsigned.dmg" >> "$GITHUB_ENV"
           fi
 
+      - name: Verify updater bundle contract
+        if: env.DMG_ASSET == 'Micropod.dmg'
+        run: bash scripts/verify_updater_bundle.sh dist/Micropod.app "${VERSION#v}" "$GITHUB_SHA"
+
       # The tarball was packed before signing: repack it from the signed,
       # notarized bundle, so its standalone CLI and MCP server are the same
       # Developer ID binaries `micropod update cli` installs.
@@ -239,7 +243,7 @@ jobs:
           node scripts/update_appcast.mjs \
             --version "${VERSION#v}" \
             --url "https://github.com/castlemilk/micropod/releases/download/$VERSION/Micropod.dmg" \
-            --signature "$SIG" --length "$LEN"
+            --signature "$SIG" --length "$LEN" --minimum-update-version 0.13.0 --source "$GITHUB_SHA"
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             gh release view "$VERSION" --json isDraft,targetCommitish > "$RUNNER_TEMP/candidate.json"
             jq -e --arg sha "$GITHUB_SHA" '.isDraft == true and .targetCommitish == $sha' "$RUNNER_TEMP/candidate.json" >/dev/null
@@ -249,38 +253,9 @@ jobs:
             jq -e --arg sha "$GITHUB_SHA" '.isDraft == true and .targetCommitish == $sha' "$RUNNER_TEMP/candidate.json" >/dev/null
           fi
 
-      - name: Publish appcast
-        if: env.DMG_ASSET == 'Micropod.dmg' && github.event_name != 'workflow_dispatch'
-        env:
-          SPARKLE_ED25519_KEY: ${{ secrets.SPARKLE_ED25519_KEY }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          [ -n "$SPARKLE_ED25519_KEY" ] || exit 0
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Master can move while the release builds: re-apply this version's
-          # entry on its tip and retry, instead of failing the release.
-          for attempt in 1 2 3 4 5; do
-            git fetch -q origin master
-            git checkout -q --detach origin/master
-            node scripts/update_appcast.mjs \
-              --version "${VERSION#v}" \
-              --url "https://github.com/castlemilk/micropod/releases/download/$VERSION/Micropod.dmg" \
-              --signature "$SPARKLE_SIG" --length "$SPARKLE_LEN"
-            git add landing/appcast.xml
-            git diff --cached --quiet && { echo "no change"; exit 0; }
-            git commit -q -m "appcast: $VERSION"
-            git push origin HEAD:master && break
-            [ "$attempt" = 5 ] && { echo "::error::appcast push kept losing races"; exit 1; }
-            sleep $((attempt * 5))
-          done
-          # GITHUB_TOKEN pushes don't trigger workflows — dispatch the Pages
-          # deploy explicitly so the appcast actually reaches the live feed.
-          gh workflow run gh-pages.yml --ref master
+      # Stable and qualification feeds are published only from a frozen,
+      # reviewed manifest by publish-qualified. Tag builds never enable installs.
 
-  # Publishable client SDKs (proto-generated, sdk/): verified and packed in
-  # parallel with the app build; sdk-publish attaches them once the release
-  # exists, so they never land on a release that failed.
   sdk:
     if: github.event_name != 'workflow_dispatch' || (inputs.qualification_version != '' && inputs.publication_version == '')
     runs-on: macos-26
@@ -404,7 +379,9 @@ jobs:
           [ "$(git rev-parse HEAD)" = "$GITHUB_SHA" ]
           manifest="docs/qualified-releases/$VERSION.json"
           [ -f "$manifest" ]
-          [ "$(jq -r .policy "$manifest")" = informational ]
+          policy=$(jq -r .policy "$manifest")
+          case "$policy" in informational|workload-preserving-candidate|workload-preserving-v1) ;; *) exit 1 ;; esac
+          cp "$manifest" "$RUNNER_TEMP/publication-manifest.json"
           [ "$(jq -r .tag "$manifest")" = "$VERSION" ]
           release_id=$(jq -r .releaseID "$manifest")
           source=$(jq -r .source "$manifest")
@@ -429,8 +406,11 @@ jobs:
             git fetch origin master
             git diff --quiet "$source" origin/master -- .github/workflows
           fi
-          node scripts/update_appcast.mjs --informational --version "$VERSION" --url "https://github.com/castlemilk/micropod/releases/tag/$VERSION" --appcast landing/appcast.xml
-          git checkout -- landing/appcast.xml
+          if [ "$policy" = workload-preserving-candidate ]; then channel=qualification; else channel=stable; fi
+          feed=landing/appcast.xml
+          if [ "$channel" = qualification ]; then feed=landing/qualification-appcast.xml; fi
+          node scripts/verify_qualified_release.mjs --appcast "$RUNNER_TEMP/publication-manifest.json" "$feed" "$channel"
+          git checkout -- "$feed"
 
       - name: Promote the exact existing assets without a tag build
         run: |
@@ -446,10 +426,17 @@ jobs:
           if jq -e '.draft == true' "$RUNNER_TEMP/release-before.json" >/dev/null; then
             git fetch origin master
             git diff --quiet "$(jq -r .source "$manifest")" origin/master -- .github/workflows
+            policy=$(jq -r .policy "$manifest")
+            if [ "$policy" = informational ]; then
+              title="$VERSION — qualified release"
+              body="These frozen signed and notarized assets are announced with a web link only. Automatic installation remains unavailable for this release. Source $(jq -r .source "$manifest")."
+            else
+              title="$VERSION — workload-preserving updater"
+              body="Frozen signed and notarized desktop assets; workload protocol 1. Runtime services and engines retain their existing ownership. Publication policy: $policy. Source $(jq -r .source "$manifest")."
+            fi
             gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
               --field draft=false --raw-field make_latest=false \
-              --raw-field name="$VERSION — cache visibility" \
-              --raw-field body="Cache visibility fixes in the app and tray. These are the already qualified signed and notarized assets; source $(jq -r .source "$manifest"). The update feed announces this release with a web link only: it cannot download or install it. The guarded automatic installer remains unavailable until host admission and recovery are qualified. Close Micropod and stop its workloads before any separately approved manual installation." > "$RUNNER_TEMP/promotion-response.json"
+              --raw-field name="$title" --raw-field body="$body" > "$RUNNER_TEMP/promotion-response.json"
           else
             echo "Exact qualified assets already public; do not repeat release mutation."
           fi
@@ -458,23 +445,36 @@ jobs:
           node scripts/verify_qualified_release.mjs --verify "$RUNNER_TEMP/release-after.json" "$manifest" "$RUNNER_TEMP/qualified-assets"
           git ls-remote origin "refs/tags/$VERSION" "refs/tags/$VERSION^{}" > "$RUNNER_TEMP/tag-after.txt"
           node scripts/verify_qualified_release.mjs --published-tag "$RUNNER_TEMP/tag-after.txt" "$manifest"
+          if [ "$(jq -r .policy "$manifest")" = workload-preserving-v1 ]; then
+            latest_id=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .id)
+            if [ "$latest_id" != "$release_id" ]; then
+              gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
+                --raw-field make_latest=true > "$RUNNER_TEMP/stable-promotion-response.json"
+            fi
+            gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" > "$RUNNER_TEMP/release-after.json"
+            node scripts/verify_qualified_release.mjs --verify "$RUNNER_TEMP/release-after.json" "$manifest" "$RUNNER_TEMP/qualified-assets"
+          fi
 
-      - name: Publish only an informational appcast item
+      - name: Publish the reviewed channel policy
         if: github.ref == 'refs/heads/master'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           pushed=false
+          policy=$(jq -r .policy "$RUNNER_TEMP/publication-manifest.json")
+          channel=stable
+          feed=landing/appcast.xml
+          if [ "$policy" = workload-preserving-candidate ]; then channel=qualification; feed=landing/qualification-appcast.xml; fi
           for attempt in 1 2 3; do
-            echo "Publishing informational feed, attempt $attempt"
+            echo "Publishing $channel feed, attempt $attempt"
             # Retry only against fresh master; never overwrite concurrent commits.
             git fetch origin master
             git reset --hard origin/master
-            node scripts/update_appcast.mjs --informational --version "$VERSION" --url "https://github.com/castlemilk/micropod/releases/tag/$VERSION"
-            git add landing/appcast.xml
+            node scripts/verify_qualified_release.mjs --appcast "$RUNNER_TEMP/publication-manifest.json" "$feed" "$channel"
+            git add "$feed"
             if git diff --cached --quiet; then pushed=true; break; fi
-            git commit -m "appcast: $VERSION information only"
+            git commit -m "appcast: $VERSION $channel policy"
             if git push origin HEAD:master; then pushed=true; break; fi
           done
           [ "$pushed" = true ]
@@ -492,4 +492,6 @@ jobs:
             ${{ runner.temp }}/qualification.json
             ${{ runner.temp }}/tag-before.txt
             ${{ runner.temp }}/tag-after.txt
+            ${{ runner.temp }}/publication-manifest.json
+            ${{ runner.temp }}/stable-promotion-response.json
           retention-days: 14

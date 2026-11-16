@@ -1,33 +1,22 @@
-name: Update Feed
+name: Update Feed Policy
 
-# When a release is published *by a human* (local `gh release create`),
-# sign its DMG with the Sparkle EdDSA key and add an item to
-# landing/appcast.xml on master — the gh-pages workflow then republishes.
-# Tag-push releases are handled inside release.yml instead: releases
-# created by GITHUB_TOKEN do not trigger this event (anti-recursion).
-#
-# Required secret:
-#   SPARKLE_ED25519_KEY  base64 of the exported EdDSA private key
-#                        (`generate_keys -x keyfile && base64 -i keyfile`)
-
+# Human publication does not grant desktop installation permission. The
+# manifest-verified Release publisher owns both stable and qualification feeds.
 on:
   release:
     types: [published]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   policy:
     runs-on: ubuntu-latest
-    outputs:
-      kind: ${{ steps.classify.outputs.kind }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: master
-      - name: Classify fresh release before signing or publishing
-        id: classify
+      - name: Report the required publication path
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ID: ${{ github.event.release.id }}
@@ -35,67 +24,5 @@ jobs:
           set -euo pipefail
           gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" > "$RUNNER_TEMP/release.json"
           kind=$(node scripts/verify_qualified_release.mjs --policy "$RUNNER_TEMP/release.json")
-          echo "kind=$kind" >> "$GITHUB_OUTPUT"
-          if [ "$kind" = qualified ]; then
-            echo "Qualified releases require the manifest-verified informational publication path in release.yml."
-          fi
-  feed:
-    needs: policy
-    if: needs.policy.outputs.kind == 'installable'
-    runs-on: macos-26
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: master
-
-      - name: Download release DMG
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ github.event.release.tag_name }}
-        run: |
-          gh release download "$TAG" --pattern "Micropod.dmg" --dir dist --clobber
-          cd dist
-          if gh release download "$TAG" --pattern "Micropod.dmg.sha256" --clobber; then
-            # Only the hash: sidecars from before v0.9.1 name dist/Micropod.dmg.
-            echo "$(cut -d' ' -f1 Micropod.dmg.sha256)  Micropod.dmg" | shasum -a 256 -c -
-          else
-            echo "::warning::no sha256 sidecar; skipping checksum verify"
-          fi
-
-      - name: Sign update with Sparkle EdDSA key
-        env:
-          SPARKLE_ED25519_KEY: ${{ secrets.SPARKLE_ED25519_KEY }}
-        run: |
-          if [ -z "$SPARKLE_ED25519_KEY" ]; then
-            echo "::error::SPARKLE_ED25519_KEY secret not configured"
-            exit 1
-          fi
-          curl -sL -o /tmp/sparkle.tar.xz \
-            https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-2.10.0.tar.xz
-          mkdir -p /tmp/sparkle && tar -xf /tmp/sparkle.tar.xz -C /tmp/sparkle
-          echo "$SPARKLE_ED25519_KEY" | base64 -d > "$RUNNER_TEMP/ed.key"
-          /tmp/sparkle/bin/sign_update --ed-key-file "$RUNNER_TEMP/ed.key" \
-            dist/Micropod.dmg > "$RUNNER_TEMP/sig.txt"
-          cat "$RUNNER_TEMP/sig.txt"
-          rm "$RUNNER_TEMP/ed.key"
-
-      - name: Update appcast
-        env:
-          TAG: ${{ github.event.release.tag_name }}
-        run: |
-          SIG=$(sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p' "$RUNNER_TEMP/sig.txt")
-          LEN=$(sed -n 's/.*length="\([^"]*\)".*/\1/p' "$RUNNER_TEMP/sig.txt")
-          [ -n "$SIG" ] && [ -n "$LEN" ] || { echo "::error::failed to parse signature"; exit 1; }
-          node scripts/update_appcast.mjs \
-            --version "${TAG#v}" \
-            --url "https://github.com/castlemilk/micropod/releases/download/$TAG/Micropod.dmg" \
-            --signature "$SIG" --length "$LEN"
-
-      - name: Commit appcast to master
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add landing/appcast.xml
-          git diff --cached --quiet && { echo "no change"; exit 0; }
-          git commit -m "appcast: ${{ github.event.release.tag_name }}"
-          git push origin HEAD:master
+          echo "Release classification: $kind. No feed was changed."
+          echo "Qualify the signed assets, review their manifest, then dispatch Release with publication_version."

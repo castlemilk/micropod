@@ -1,11 +1,50 @@
-# Publishing a qualified draft
+# Publishing frozen qualified assets
 
-The app's public feed can announce a qualified release while installation remains unavailable. Use `release.yml` with only `publication_version=vX.Y.Z`. The reviewed `docs/qualified-releases/vX.Y.Z.json` pins the existing qualification run, exact source, release ID, all five asset IDs, sizes and SHA-256 hashes, and the DMG's Sparkle signature. This path downloads and verifies those bytes, promotes the existing release with `make_latest=false`, verifies again, and on tested master commits an informational appcast entry and dispatches the existing Pages deployment. It never builds or uploads an artifact or pushes a tag. Repository `GITHUB_TOKEN` promotion suppresses recursive release/tag workflows.
+Dispatch `release.yml` with `publication_version=vX.Y.Z` after exact-source CI
+passes. The reviewed `docs/qualified-releases/vX.Y.Z.json` pins the qualification
+run, source, release ID, complete asset IDs/sizes/SHA-256 hashes and the DMG's
+Sparkle signature. Publication verifies those bytes before and after promoting
+the existing release. It does not rebuild, replace assets or push a tag.
 
-GitHub requires Workflows authorization when the frozen target's workflow files differ from default master, and its repository bot token cannot obtain that authorization. The workflow fails closed on such a difference while the release is draft. For the initial publisher change, run promotion from the independently reviewed branch after exact pull-request CI passes, while default master still matches frozen source workflows. A branch run cannot publish the feed. Then merge the validated publisher, wait for exact master CI, and dispatch on master; an already public exact release is verified without another PATCH. This preserves candidate bytes, avoids a credential fallback and keeps the public feed change behind reviewed master. [GitHub documents the target restriction](https://docs.github.com/en/rest/releases/releases#update-a-release).
+The manifest chooses one policy:
 
-An informational item contains `sparkle:version`, a public release-page `link` and an empty `sparkle:informationalUpdate`, with no enclosure or delta payload. Sparkle 2.10 parses this as informational for every host version and aborts its automatic driver before downloading. Installed 0.12.4's information-check driver can report the new version as available. Standalone CLI parsing ignores entries without an enclosure. [Sparkle documents this format](https://sparkle-project.org/documentation/publishing/#downloading-from-a-web-site).
+| Policy | Feed | Installation |
+| --- | --- | --- |
+| `informational` | stable | A release-page link with no enclosure. |
+| `workload-preserving-candidate` | qualification | Signed protocol 1 payload, explicitly selected for acceptance. |
+| `workload-preserving-v1` | stable | Accepted manual and automatic workload continuity. |
 
-The human `release:published` handler fresh-queries asset metadata before signing and skips any release with qualification markers. An unknown qualified release requires its own reviewed manifest; it cannot silently fall back to an unrestricted feed item. The generator rejects malformed/duplicate versions and refuses to replace an informational policy with an installable item for the same version. Feed commit retries regenerate against fresh master and use ordinary fast-forward pushes.
+Candidates and informational releases use `make_latest=false`. A stable workload
+release becomes Latest only after its acceptance evidence passes. Existing public
+candidate assets are verified again before stable promotion. Their source, tag
+and asset identities remain unchanged.
 
-Verify the public release ID and asset metadata, download hashes and pinned signature, public feed policy, Pages result, and actual installed-app information check separately. A successful announcement is not installation or tray acceptance. It does not revoke old updates that were already staged. The production admission bridge remains disabled; exact host ingress closure, signed helper handoff, readiness/rollback and installation require their separate qualification and authorization.
+A workload manifest requires `workloadProtocol: 1` and
+`minimumUpdaterVersion: "0.13.0"`. Its enclosure carries the exact source revision,
+EdDSA signature and size. Sparkle's `minimumUpdateVersion` excludes older apps.
+The app binds that metadata into its durable transaction before downloading.
+
+Stable workload publication also requires `continuityAcceptance.path` under
+`docs/updater-acceptance/` and its SHA-256. The evidence must name the frozen
+source and target version, successful manual and automatic update receipts,
+unchanged container identities/mounts, continuous logs, retained volume markers,
+authoritative exit codes 0 and 7, and passing fault tests. Changing those evidence
+bytes, omitting a path, substituting a build or recording an unknown result
+rejects publication. A candidate cannot enter the stable feed.
+
+GitHub's repository bot token cannot promote a draft when its frozen workflow
+files differ from current master. Publication checks that condition and stops;
+it never uses a fallback credential. Keep workflow changes in the source that
+is qualified. Subsequent manifest/evidence commits can then publish those frozen
+assets. Branch publication can promote verified assets but cannot change a feed.
+
+Tag builds and human release publication do not create automatic-install entries.
+Both feeds are written only by manifest-verified publication on tested master.
+Informational versions cannot later be converted into installable entries. Feed
+commit retries use the frozen manifest against fresh master and ordinary pushes.
+Bot publication dispatches the Pages workflow explicitly.
+
+Verify the resulting public asset metadata, pinned signatures, Pages deployment
+and CLI transaction separately. Qualification-channel acceptance does not change
+other rigs or opt them into candidates. [Updater ownership and recovery](updater-admission.md)
+defines the supported update scope and retained failure states.

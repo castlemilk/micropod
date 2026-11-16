@@ -16,6 +16,12 @@ import Network
 /// Same wire shape as the shared-fs socket: `{"id","method","params"}` →
 /// `{"id","ok","result","error"}`.
 final class AppControlServer: @unchecked Sendable {
+    struct UpdateConfiguration: Decodable, Sendable {
+        let automaticChecks: Bool?
+        let automaticInstallation: Bool?
+        let channel: String?
+        let idleSeconds: Double?
+    }
     static let shared = AppControlServer()
 
     let socketPath: String
@@ -98,14 +104,34 @@ final class AppControlServer: @unchecked Sendable {
             let method = request["method"] as? String
         else { return }
         let id = request["id"] as? String ?? ""
+        let configuration: UpdateConfiguration?
+        if method == "update.configure" {
+            do {
+                guard let values = request["params"] as? [String: Any], !values.isEmpty,
+                    Set(values.keys).isSubset(of: [
+                        "automaticChecks", "automaticInstallation", "channel", "idleSeconds",
+                    ])
+                else { throw AppControlError.callFailed("Unknown update settings") }
+                configuration = try JSONDecoder().decode(
+                    UpdateConfiguration.self,
+                    from: JSONSerialization.data(withJSONObject: values))
+            } catch {
+                respond(id: id, result: (false, [:], "Invalid update settings"), on: connection)
+                return
+            }
+        } else {
+            configuration = nil
+        }
         Task { @MainActor in
-            let result = await self.route(method)
+            let result = await self.route(method, configuration: configuration)
             self.respond(id: id, result: result, on: connection)
         }
     }
 
     @MainActor
-    private func route(_ method: String) async -> (ok: Bool, result: [String: Any], error: String?) {
+    private func route(_ method: String, configuration: UpdateConfiguration? = nil) async -> (
+        ok: Bool, result: [String: Any], error: String?
+    ) {
         let managed = runtimeController()
         switch method {
         case "runtime.status":
@@ -130,6 +156,9 @@ final class AppControlServer: @unchecked Sendable {
             } catch { return (false, [:], error.localizedDescription) }
         case "ping":
             return (true, ["pong": true], nil)
+        case "app.hide":
+            NSApp.hide(nil)
+            return (true, ["hidden": true], nil)
         case "update.check":
             let updates = updateController()
             guard updates.status != .unavailable else {
@@ -147,6 +176,35 @@ final class AppControlServer: @unchecked Sendable {
             return (true, updates.statusReport, nil)
         case "update.status":
             return (true, updateController().statusReport, nil)
+        case "update.configure":
+            guard let configuration else { return (false, [:], "Choose update settings") }
+            if configuration.channel != nil, UpdateContinuityStore.standard.requiresRecovery {
+                return (false, [:], "Finish or reconcile the current update before changing release channels")
+            }
+            if let channel = configuration.channel, UpdateController.Channel(rawValue: channel) == nil {
+                return (false, [:], "Unknown release channel")
+            }
+            if let idleSeconds = configuration.idleSeconds {
+                guard idleSeconds.isFinite, idleSeconds >= 0, idleSeconds <= 3600 else {
+                    return (false, [:], "Automatic idle delay must be between 0 and 3600 seconds")
+                }
+            }
+            let updates = updateController()
+            if let value = configuration.automaticChecks { updates.checksAutomatically = value }
+            if let value = configuration.automaticInstallation { updates.installsAutomatically = value }
+            if let channel = configuration.channel, let selected = UpdateController.Channel(rawValue: channel) {
+                updates.channel = selected
+            }
+            if let idleSeconds = configuration.idleSeconds { updates.automaticIdleSeconds = idleSeconds }
+            return (true, updates.statusReport, nil)
+        case "update.recover":
+            let updates = updateController()
+            guard await updates.reconcileUpdateRecovery() else {
+                return (
+                    false, updates.statusReport, "Update recovery is not yet verified; the original receipt is retained"
+                )
+            }
+            return (true, updates.statusReport, nil)
         default:
             return (false, [:], "unknown method: \(method)")
         }

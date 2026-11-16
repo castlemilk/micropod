@@ -70,8 +70,19 @@ def update_feed(xml, options):
             "Cache visibility fixes are available. Installation requires stopping Micropod and its workloads; "
             "automatic replacement remains disabled.")
     else:
-        ET.SubElement(item, "enclosure", {"url": url, SPARKLE + "edSignature": options["signature"],
-                                        "length": str(options["length"]), "type": "application/octet-stream"})
+        source = options.get("source")
+        if source is not None and not re.fullmatch(r"[0-9a-f]{40}", source):
+            raise ValueError("invalid source revision")
+        minimum = options.get("minimum-update-version")
+        if minimum is not None:
+            if minimum != "0.13.0" or tuple(map(int, version.split("."))) < (0, 13, 0):
+                raise ValueError("unsupported workload updater compatibility floor")
+            ET.SubElement(item, SPARKLE + "minimumUpdateVersion").text = minimum
+        attributes = {"url": url, SPARKLE + "edSignature": options["signature"],
+                      "length": str(options["length"]), "type": "application/octet-stream"}
+        if source is not None:
+            attributes["micropodSourceRevision"] = source
+        ET.SubElement(item, "enclosure", attributes)
     channel.insert(list(channel).index(languages[0]) + 1, item)
     ET.indent(root, space="  ")
     result = ET.tostring(root, encoding="utf-8", xml_declaration=True).decode("utf-8") + "\n"

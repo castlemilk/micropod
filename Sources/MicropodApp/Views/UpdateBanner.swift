@@ -15,8 +15,8 @@ struct UpdateBanner: View {
                     .font(.caption)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                if updates.status == .readyToInstall {
-                    Button("Restart to Update") { Task { await updates.applyStagedUpdate() } }
+                if updates.installableVersion != nil {
+                    Button("Update") { Task { await updates.applyStagedUpdate() } }
                         .controlSize(.small)
                         .keyboardShortcut(.defaultAction)
                         .disabled(!updates.restartGuard.isAvailable || updates.restartGuard.state == .preparing)
@@ -58,7 +58,7 @@ struct UpdateBanner: View {
         if let reason = updates.restartBlockedReason { return "Micropod \(version) available. \(reason)" }
         guard updates.status == .readyToInstall else { return "Micropod \(version) is available." }
         return updates.installsAutomatically
-            ? "Micropod \(version) is ready. It installs itself when you're away and nothing is running — or restart now."
+            ? "Micropod \(version) is ready. It can install while you're away and workloads keep running."
             : "Micropod \(version) is ready to install."
     }
 }

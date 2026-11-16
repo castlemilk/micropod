@@ -1,8 +1,9 @@
 # Releasing Micropod
 
-Releases are **fully automated**. Push a `v*` tag and the `Release` workflow
-builds, signs (Developer ID), notarizes, staples, and attaches a DMG to the
-GitHub release. The landing page's download button points at the stable
+The Release workflow builds, signs (Developer ID), notarizes, staples and
+attaches a DMG. Desktop update feeds use the separate
+[qualified publication policy](qualified-release-publication.md). A tag or a
+human release publication does not enable automatic installation. The landing page's download button points at the stable
 permalink, so it always serves the newest release with no site changes:
 
 ```
@@ -17,15 +18,15 @@ https://github.com/castlemilk/micropod/releases/latest/download/Micropod.dmg
 
    ```sh
    git checkout master && git pull --ff-only
-   git tag -a v0.5.0 -m "v0.5.0"
-   git push origin v0.5.0
+   git tag -a v0.13.0 -m "v0.13.0"
+   git push origin v0.13.0
    ```
 
 3. Watch the run: `gh run watch` (or Actions → Release). ~5 min.
 4. Verify:
 
    ```sh
-   gh release view v0.5.0 --json assets --jq '.assets[].name'
+   gh release view v0.13.0 --json assets --jq '.assets[].name'
    # expect: Micropod.dmg, Micropod.dmg.sha256, Micropod.<ver>.tgz
 
    curl -sLO https://github.com/castlemilk/micropod/releases/latest/download/Micropod.dmg
@@ -33,7 +34,8 @@ https://github.com/castlemilk/micropod/releases/latest/download/Micropod.dmg
    # expect: "accepted — source=Notarized Developer ID"
    ```
 
-5. Done — https://castlemilk.github.io/micropod/ serves it immediately.
+5. Qualify the signed payload, review its frozen manifest and publish its
+   approved feed policy. Workload protocol 1 requires versions 0.13.0 or later.
 
 ## What the workflow does
 
@@ -100,7 +102,7 @@ The first release after a toolchain or dependency bump builds cold.
 Releases are serialized (`concurrency: release`). Two tags pushed
 together once raced: v0.10.2 and v0.11.1 named the same commit, and one
 lost the appcast push to master while the other lost GitHub's "Latest"
-flag. The appcast step now re-applies its entry on master's tip and
+flag. The qualified publication step re-applies its entry on master's tip and
 retries. `gh release create` marks a release "Latest" only when no higher
 version is already released, so the landing page never downgrades.
 
@@ -163,7 +165,7 @@ scripts/package_app.sh 0.5.0          # dist/Micropod.app + .tgz
 scripts/make_dmg.sh \
   --sign "Developer ID Application: Ben Ebsworth (WFTX6CN23F)" \
   --notarize --key-profile micropod-notary   # dist/Micropod.dmg + .sha256
-gh release upload v0.5.0 dist/Micropod.dmg dist/Micropod.dmg.sha256
+gh release upload v0.13.0 dist/Micropod.dmg dist/Micropod.dmg.sha256
 ```
 
 (`micropod-notary` keychain profile exists on Ben's machine; recreate with
@@ -173,8 +175,8 @@ NDW5V25889 --issuer f4c22181-…`.)
 ## Rollback
 
 ```sh
-gh release delete v0.5.0 --yes --cleanup-tag   # removes release + tag
-git push origin :refs/tags/v0.5.0              # if tag pushed but no release
+gh release delete v0.13.0 --yes --cleanup-tag   # removes release + tag
+git push origin :refs/tags/v0.13.0              # if tag pushed but no release
 ```
 
 ## Local git hooks

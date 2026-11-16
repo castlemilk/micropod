@@ -45,7 +45,7 @@ fi
 # heredocs with a small pipe can block before the reader is executed.
 python3 -c '
 import pathlib, plistlib, sys
-path, name, version, identifier = sys.argv[1:]
+path, name, version, identifier, source = sys.argv[1:]
 metadata = {
     "CFBundleName": name,
     "CFBundleDisplayName": name,
@@ -67,11 +67,13 @@ metadata = {
     "SUFeedURL": "https://castlemilk.github.io/micropod/appcast.xml",
     "SUPublicEDKey": "nJEL+JijqhfC7zxPlqxifCqBM06A3DGki/JmBFTW/VM=",
     "SUEnableAutomaticChecks": True,
+    "MicropodWorkloadProtocol": 1,
+    "MicropodSourceRevision": source,
     "SUScheduledCheckInterval": "3600",
     "NSHumanReadableCopyright": "© 2026 skunkworq",
 }
 pathlib.Path(path).write_bytes(plistlib.dumps(metadata, sort_keys=False))
-' "$APP_BUNDLE/Contents/Info.plist" "$APP_NAME" "$VERSION" "$BUNDLE_ID"
+' "$APP_BUNDLE/Contents/Info.plist" "$APP_NAME" "$VERSION" "$BUNDLE_ID" "$(git rev-parse HEAD)"
 
 mkdir -p "$APP_BUNDLE/Contents/Library/LaunchDaemons"
 cp .build/release/MicropodRuntimeHost "$APP_BUNDLE/Contents/MacOS/MicropodRuntimeHost"
@@ -188,6 +190,14 @@ if [ -f ".build/release/micropod-sharedfs" ]; then
 else
     echo "!! micropod-sharedfs not found in .build/release — shared mounts will fall back to plain virtiofs"
 fi
+
+# Setup is copied outside this app before approval, so desktop replacement
+# cannot replace the approved daemon or its future maintenance workers.
+MICROPOD_RUNTIME_CONFIGURATION=release MICROPOD_RUNTIME_SIGN_IDENTITY=- \
+    MICROPOD_RUNTIME_SKIP_BUILD=1 \
+    MICROPOD_RUNTIME_OUTPUT="$ROOT/$APP_BUNDLE/Contents/Helpers/Micropod Runtime Setup.app" \
+    MICROPOD_RUNTIME_GUEST_TOOL="$ROOT/$APP_BUNDLE/Contents/Resources/micropod-guest" \
+    bash scripts/package_runtime_setup.sh
 
 # Re-seal: the helpers above were copied into Contents/MacOS after the
 # first bundle signature, which left it invalid ("a sealed resource is
