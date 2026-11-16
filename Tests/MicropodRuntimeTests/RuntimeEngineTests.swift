@@ -134,6 +134,24 @@ final class RuntimeEngineTests: XCTestCase {
         }
     }
 
+    func testInitImageNeedsTheAppleEngine() async throws {
+        let containers = RecordingContainers(ids: [])
+        let router = RuntimeRouter(apple: apple(containers), registry: registry())
+        let steward = "registry.example.com/vminit:0.47.0-steward.3"
+        _ = try await router.run(ContainerRunRequest(image: "alpine", initImage: steward))
+        let ran = await containers.ran
+        XCTAssertEqual(ran, ["alpine"], "unset runtime → apple, which decides the override itself")
+        for runtime in ["sandbox", "docker"] {
+            do {
+                _ = try await router.create(ContainerRunRequest(image: "alpine", runtime: runtime, initImage: steward))
+                XCTFail("init_image on \(runtime) must be refused")
+            } catch {
+                XCTAssertEqual(ConnectCodeMapping.code(for: error), "unimplemented", "\(runtime): \(error)")
+                XCTAssertTrue(error.localizedDescription.contains("init_image"), "\(error)")
+            }
+        }
+    }
+
     func testIdCallsFallBackToApple() async throws {
         let containers = RecordingContainers(ids: ["web"])
         let router = RuntimeRouter(apple: apple(containers), registry: registry())

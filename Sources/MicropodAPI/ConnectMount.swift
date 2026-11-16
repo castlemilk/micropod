@@ -648,6 +648,11 @@ extension APIHandlers {
 
         response.runtimeBackend = services.kind.rawValue
         response.features = APIFeatures.supported
+        // Only the native backend can read an init image's labels, which
+        // the init image guard needs (the CLI backend drops an override).
+        if services.kind == .native {
+            response.features.append(InitImageSelection.feature)
+        }
         if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1" {
             response.features.append(RuntimeCoordinationEnrollment.dataCapability)
         }
@@ -1103,7 +1108,8 @@ extension APIHandlers {
             arguments: proto.arguments,
             noPull: proto.noPull,
             runtime: proto.hasRuntime ? proto.runtime : nil,
-            sandbox: proto.hasSandbox ? try sandboxOptions(from: proto.sandbox, network: nil) : nil)
+            sandbox: proto.hasSandbox ? try sandboxOptions(from: proto.sandbox, network: nil) : nil,
+            initImage: proto.hasInitImage ? proto.initImage : nil)
         do {
             try request.applySecurityOptions(from: proto)
         } catch let error as LinuxCapabilities.InvalidName {

@@ -361,7 +361,8 @@ export type PingResponse = Message<"micropod.v1.PingResponse"> & {
    * detect them instead of sending fields an older server would silently
    * ignore (proto3 drops unknown fields). Names are the
    * `RunContainerRequest` field names: "cap_add", "cap_drop", "rosetta",
-   * "privileged". Empty on servers that predate the list.
+   * "privileged", and "init_image" on the native backend. Empty on servers
+   * that predate the list.
    *
    * @generated from field: repeated string features = 5;
    */

@@ -610,7 +610,21 @@ type RunContainerRequest struct {
 	// Sandbox-only behaviour — host ports the guest may reach, an egress
 	// allowlist, proxy-injected secrets. Honoured by `runtime: "sandbox"`;
 	// other engines fail the request with `unimplemented` rather than drop it.
-	Sandbox       *SandboxOptions `protobuf:"bytes,22,opt,name=sandbox,proto3" json:"sandbox,omitempty"`
+	Sandbox *SandboxOptions `protobuf:"bytes,22,opt,name=sandbox,proto3" json:"sandbox,omitempty"`
+	// Init image the micro-VM boots from in place of the runtime's default
+	// (`container run --init-image`), e.g. a vminit build that adds a guest
+	// service. The native backend of the "apple" engine honours it only when
+	// the image's config label `org.opencontainers.image.base.name` equals the
+	// runtime's default init image (the `vminit.image` property): an init
+	// image built for another runtime version may not speak the host's
+	// guest-agent protocol. Otherwise the VM boots the default init image and
+	// the container's `com.micropod.init-image.fallback` label holds the
+	// reason. The `com.micropod.init-image` label names the init image the VM
+	// booted.
+	// Follows `no_pull` like `image`. Servers that honour it list
+	// "init_image" in `PingResponse.features`. Other engines fail the request
+	// with `unimplemented`.
+	InitImage     *string `protobuf:"bytes,23,opt,name=init_image,json=initImage,proto3,oneof" json:"init_image,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -797,6 +811,13 @@ func (x *RunContainerRequest) GetSandbox() *SandboxOptions {
 		return x.Sandbox
 	}
 	return nil
+}
+
+func (x *RunContainerRequest) GetInitImage() string {
+	if x != nil && x.InitImage != nil {
+		return *x.InitImage
+	}
+	return ""
 }
 
 // What a sandbox may reach beyond its own VM, and the credentials it may use
@@ -1603,8 +1624,7 @@ const file_micropod_v1_container_proto_rawDesc = "" +
 	"\x16ListContainersResponse\x126\n" +
 	"\n" +
 	"containers\x18\x01 \x03(\v2\x16.micropod.v1.ContainerR\n" +
-	"containers\"\xe2\n" +
-	"\n" +
+	"containers\"\xd2\v\n" +
 	"\x13RunContainerRequest\x124\n" +
 	"\x05image\x18\x01 \x01(\tB\x1e\xbaG\x11:\x0f\x12\r'alpine:3.20'\xbaH\a\xc8\x01\x01r\x02\x10\x01R\x05image\x12%\n" +
 	"\x04name\x18\x02 \x01(\tB\f\xbaG\t:\a\x12\x05'web'H\x00R\x04name\x88\x01\x01\x12#\n" +
@@ -1633,7 +1653,10 @@ const file_micropod_v1_container_proto_rawDesc = "" +
 	"privileged\x18\x14 \x01(\bB\v\xbaG\b:\x06\x12\x04trueH\bR\n" +
 	"privileged\x88\x01\x01\x12G\n" +
 	"\aruntime\x18\x15 \x01(\tB(\xbaG\r:\v\x12\t'sandbox'\xbaH\x15r\x132\x11^[a-z][a-z0-9-]*$H\tR\aruntime\x88\x01\x01\x125\n" +
-	"\asandbox\x18\x16 \x01(\v2\x1b.micropod.v1.SandboxOptionsR\asandbox\x1a9\n" +
+	"\asandbox\x18\x16 \x01(\v2\x1b.micropod.v1.SandboxOptionsR\asandbox\x12_\n" +
+	"\n" +
+	"init_image\x18\x17 \x01(\tB;\xbaG1:/\x12-'registry.example.com/vminit:0.47.0-custom.1'\xbaH\x04r\x02\x10\x01H\n" +
+	"R\tinitImage\x88\x01\x01\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\a\n" +
@@ -1649,7 +1672,8 @@ const file_micropod_v1_container_proto_rawDesc = "" +
 	"\b_rosettaB\r\n" +
 	"\v_privilegedB\n" +
 	"\n" +
-	"\b_runtime\"\x98\x04\n" +
+	"\b_runtimeB\r\n" +
+	"\v_init_image\"\x98\x04\n" +
 	"\x0eSandboxOptions\x12@\n" +
 	"\vexpose_host\x18\x01 \x03(\rB\x1f\xbaG\n" +
 	":\b\x12\x06[5432]\xbaH\x0f\x92\x01\f\x10@\"\b*\x06\x18\xff\xff\x03 \x00R\n" +

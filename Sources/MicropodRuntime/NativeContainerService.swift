@@ -24,20 +24,28 @@ public struct NativeContainerService: ContainerServing {
     /// so even a container that exits within milliseconds gets a real code.
     private let exitCodes: ExitCodeRegistry
     private let admissionGate: RuntimeAdmission
+    /// The runtime's default init image (the `vminit.image` property): the
+    /// image a per-VM init image must have been built from. Nil when it
+    /// cannot be read, and then every override falls back to the default.
+    private let defaultInitImage: @Sendable () async -> String?
 
     public init(
         api: APIServerClient, cli: ContainerService,
         images: ImagesServiceClient = ImagesServiceClient(),
         policy: @escaping @Sendable () -> VolumePolicy = { VolumePolicyStore.load() },
-        exitCodes: ExitCodeRegistry = ExitCodeRegistry()
+        exitCodes: ExitCodeRegistry = ExitCodeRegistry(),
+        defaultInitImage: @escaping @Sendable () async -> String? = { nil }
     ) {
-        self.init(api: api, cli: cli, images: images, policy: policy, exitCodes: exitCodes, admissionGate: .shared)
+        self.init(
+            api: api, cli: cli, images: images, policy: policy, exitCodes: exitCodes, admissionGate: .shared,
+            defaultInitImage: defaultInitImage)
     }
 
     init(
         api: APIServerClient, cli: ContainerService, images: ImagesServiceClient,
         policy: @escaping @Sendable () -> VolumePolicy = { VolumePolicyStore.load() },
-        exitCodes: ExitCodeRegistry = ExitCodeRegistry(), admissionGate: RuntimeAdmission
+        exitCodes: ExitCodeRegistry = ExitCodeRegistry(), admissionGate: RuntimeAdmission,
+        defaultInitImage: @escaping @Sendable () async -> String? = { nil }
     ) {
         self.api = api
         self.cli = cli
@@ -45,6 +53,7 @@ public struct NativeContainerService: ContainerServing {
         self.policy = policy
         self.exitCodes = exitCodes
         self.admissionGate = admissionGate
+        self.defaultInitImage = defaultInitImage
     }
 
     /// Polled (agents' watchdogs, the app, `ps` loops): a recent answer
@@ -267,6 +276,11 @@ public struct NativeContainerService: ContainerServing {
         for volume in VolumeAttachments.namedVolumes(in: request.volumes) {
             try VolumeClone.requireSafeVolumeName(volume, as: "volume name")
         }
+        // Invalid/inaccessible bind paths and malformed mounts are definite
+        // preflight refusals. Validate before image pulls or create admission,
+        // and carry the parsed mounts into the mutation instead of parsing
+        // again after recording a potentially uncertain create.
+        let parsedMounts = try NativeConfigBuilder.parseMounts(request: request)
         let id = request.name ?? UUID().uuidString.lowercased()
         let sysConfig = NativeConfigBuilder.loadSystemConfig()
         let platform = try NativeConfigBuilder.ociPlatform(request.platform)
@@ -276,6 +290,10 @@ public struct NativeContainerService: ContainerServing {
         let image = try await images.ensure(
             reference: request.image, platform: platform,
             registryDomain: sysConfig.registryDomain, noPull: request.noPull)
+        // A per-VM init image is looked up with the image, before admission.
+        // A refused or missing one boots the default init image: the create
+        // goes on, and the container's labels say why.
+        let request = await selectingInitImage(request, registryDomain: sysConfig.registryDomain)
         // Recheck admission after lookup, before any clone, volume or
         // container mutation. A fence acquired during lookup wins here.
         let admission = try admissionGate.claim("native.create")
@@ -284,7 +302,8 @@ public struct NativeContainerService: ContainerServing {
             var placed: [String] = []
             do {
                 return try await createNativeInner(
-                    request, id: id, placed: &placed, sysConfig: sysConfig, platform: platform, image: image)
+                    request, id: id, placed: &placed, sysConfig: sysConfig, platform: platform, image: image,
+                    parsedMounts: parsedMounts)
             } catch {
                 await VolumeClone.removeClones(containerID: id, volumes: placed)
                 throw error
@@ -294,12 +313,50 @@ public struct NativeContainerService: ContainerServing {
         return result
     }
 
+    /// `request` with its init image override decided (see
+    /// ``InitImageSelection``): `initImage` is what the runtime boots, nil
+    /// for its default, and the labels record the outcome.
+    func selectingInitImage(_ request: ContainerRunRequest, registryDomain: String) async -> ContainerRunRequest {
+        guard let requested = request.initImage else { return request }
+        let runtimeDefault = await defaultInitImage()
+        let decision = await initImageDecision(
+            requested: requested, runtimeDefault: runtimeDefault, noPull: request.noPull,
+            registryDomain: registryDomain)
+        if case .fallback(let reason, let detail) = decision {
+            FileHandle.standardError.write(
+                Data("micropod: init image \(requested) not used (\(reason.rawValue)): \(detail)\n".utf8))
+        }
+        return InitImageSelection.applying(decision, to: request, runtimeDefault: runtimeDefault)
+    }
+
+    /// The init image guard's inputs, read: the requested image's
+    /// base-name label from its config for the host platform, pulled unless
+    /// `noPull`. The default's own reference needs no lookup.
+    func initImageDecision(requested: String, runtimeDefault: String?, noPull: Bool, registryDomain: String) async
+        -> InitImageSelection.Decision
+    {
+        if runtimeDefault == nil || requested == runtimeDefault {
+            return InitImageSelection.decide(requested: requested, runtimeDefault: runtimeDefault, baseName: nil)
+        }
+        do {
+            let resolved = try await images.ensure(
+                reference: requested, platform: NativeConfigBuilder.systemPlatform(),
+                registryDomain: registryDomain, noPull: noPull)
+            return InitImageSelection.decide(
+                requested: requested, runtimeDefault: runtimeDefault,
+                baseName: resolved.config?.config?.labels?[InitImageSelection.baseNameLabel])
+        } catch {
+            return .fallback(.unavailable, detail: "\(requested): \(error.localizedDescription)")
+        }
+    }
+
     /// Runs under the id's create mutex (see `createNative`). `placed`
     /// receives the name of every clone volume this create placed, as it
     /// places it, so the caller can remove exactly those on failure.
     private func createNativeInner(
         _ request: ContainerRunRequest, id: String, placed: inout [String],
-        sysConfig: NativeConfigBuilder.SystemConfig, platform: JSONValue, image: ResolvedImage
+        sysConfig: NativeConfigBuilder.SystemConfig, platform: JSONValue, image: ResolvedImage,
+        parsedMounts: [NativeConfigBuilder.ParsedMount]
     ) async throws -> String {
         let imageDescription = image.description
         let imageConfig = image.config
@@ -316,7 +373,6 @@ public struct NativeContainerService: ContainerServing {
         let labelMap = Self.labelMap(request.labels)
         let policy = self.policy()
         let cloneSet = policy.cloneSet(labels: labelMap)
-        let parsedMounts = try NativeConfigBuilder.parseMounts(request: request)
         func isClone(_ name: String) -> Bool { cloneSet.contains(name) || cloneSet.contains("*") }
         let attachesDirectly = parsedMounts.contains { mount in
             if case .volume(let name, _, _) = mount { return !isClone(name) }
@@ -512,7 +568,7 @@ public struct NativeContainerService: ContainerServing {
             configJSON: .object(config),
             kernel: kernel,
             options: .object(["autoRemove": .bool(false)]),
-            initImage: nil
+            initImage: request.initImage
         )
         return id
     }

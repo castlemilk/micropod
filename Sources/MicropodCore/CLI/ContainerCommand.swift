@@ -512,6 +512,11 @@ public struct ContainerRunRequest: Sendable, Equatable {
     /// `RunContainerRequest.sandbox` — only the sandbox engine honours it;
     /// the others refuse a request that sets it.
     public var sandbox: SandboxRunOptions?
+    /// `RunContainerRequest.init_image`: the init image the micro-VM boots
+    /// in place of the runtime default. Only the native backend of the apple
+    /// engine honours it, behind ``InitImageSelection``'s guard. Not a CLI
+    /// flag: the CLI backend drops it and records the fallback in labels.
+    public var initImage: String?
 
     public init(
         image: String,
@@ -545,7 +550,8 @@ public struct ContainerRunRequest: Sendable, Equatable {
         noPull: Bool = false,
         privileged: Bool = false,
         runtime: String? = nil,
-        sandbox: SandboxRunOptions? = nil
+        sandbox: SandboxRunOptions? = nil,
+        initImage: String? = nil
     ) {
         self.image = image
         self.name = name
@@ -579,6 +585,7 @@ public struct ContainerRunRequest: Sendable, Equatable {
         self.runtime = runtime
         self.privileged = privileged
         self.sandbox = sandbox
+        self.initImage = initImage
     }
 }
 

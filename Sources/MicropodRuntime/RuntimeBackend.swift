@@ -133,9 +133,12 @@ public enum RuntimeBackendResolver {
         do {
             let health = try await api.ping(timeout: pingTimeout)
             let exitCodes = ExitCodeRegistry()
+            let initImageDefault = RuntimeDefaultInitImage.reading(MachineService(client: client))
             let services = RuntimeServices(
                 kind: .native,
-                containers: NativeContainerService(api: api, cli: cliContainers, exitCodes: exitCodes),
+                containers: NativeContainerService(
+                    api: api, cli: cliContainers, exitCodes: exitCodes,
+                    defaultInitImage: { await initImageDefault.value() }),
                 logs: NativeLogStreamer(api: api, exitCodes: exitCodes),
                 stats: NativeStatsSampler(api: api),
                 volumes: NativeVolumeService(api: api, cli: cliVolumes),
