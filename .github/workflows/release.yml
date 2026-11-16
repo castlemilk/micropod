@@ -303,15 +303,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: stable
-
-      # buf.gen.yaml uses local plugins for the Go surface; pin to the
-      # versions that generated the checked-in code so the drift check is
-      # deterministic.
-      - name: Install protoc plugins
-        run: |
-          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
-          go install connectrpc.com/connect/cmd/protoc-gen-connect-go@v1.20.0
-          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
+          cache-dependency-path: sdk/go/go.sum
 
       - name: Verify generated code is in sync
         run: scripts/gen-sdk.sh --check
