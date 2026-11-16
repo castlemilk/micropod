@@ -6,6 +6,14 @@
     <description>Explicitly selected signed updater candidates. These do not enter the stable feed until workload continuity is accepted.</description>
     <language>en</language>
     <item>
+      <title>Version 0.13.4</title>
+      <pubDate>Mon, 16 Nov 2026 18:21:18 GMT</pubDate>
+      <sparkle:version>0.13.4</sparkle:version>
+      <sparkle:shortVersionString>0.13.4</sparkle:shortVersionString>
+      <sparkle:minimumUpdateVersion>0.13.3</sparkle:minimumUpdateVersion>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.13.4/Micropod.dmg" sparkle:edSignature="cip+uS+KrYTAW4nK1EJZklJSxnE3LG8wKzPiclvnLE6lDxCK5aWR7voNQ+ylsfrDkwi0svMG5CW10xaSxrErCA==" length="154221389" type="application/octet-stream" micropodSourceRevision="4b1d4906cda28c05a452619149b49fd6f31a72c1" />
+    </item>
+    <item>
       <title>Version 0.13.1</title>
       <pubDate>Mon, 16 Nov 2026 16:28:29 GMT</pubDate>
       <sparkle:version>0.13.1</sparkle:version>
