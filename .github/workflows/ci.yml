@@ -43,6 +43,15 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
+      - name: Toolchain fingerprint
+        run: echo "SWIFT_FINGERPRINT=$(swift --version 2>&1 | shasum | cut -c1-12)" >> "$GITHUB_ENV"
+      - name: Restore Swift debug build
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: swiftpm-debug-${{ runner.os }}-${{ runner.arch }}-${{ env.SWIFT_FINGERPRINT }}-${{ hashFiles('Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            swiftpm-debug-${{ runner.os }}-${{ runner.arch }}-${{ env.SWIFT_FINGERPRINT }}-${{ hashFiles('Package.resolved') }}-
       - name: Build
         run: swift build
       - name: Test

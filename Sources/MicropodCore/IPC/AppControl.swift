@@ -1,5 +1,4 @@
 import Foundation
-import Network
 
 /// Minimal newline-delimited JSON client for the desktop app's control
 /// socket (`~/.micropod/app-control.sock`). The app owns Sparkle, so
@@ -83,99 +82,24 @@ public struct AppControlClient: Sendable {
     }
 
     private func send(_ body: Data) async throws -> Data {
-        // Pre-flight: NWConnection to a nonexistent unix path can behave
-        // poorly in bundle-less hosts — fail cheaply instead.
+        try Task.checkCancellation()
         guard FileManager.default.fileExists(atPath: socketPath) else {
             throw AppControlError.unavailable("no control socket at \(socketPath)")
         }
-        return try await withCheckedThrowingContinuation { cont in
-            let once = Once(cont)
-            let parameters = NWParameters.tcp
-            parameters.allowLocalEndpointReuse = true
-            let connection = NWConnection(to: .unix(path: socketPath), using: parameters)
-            connection.stateUpdateHandler = { state in
-                switch state {
-                case .ready:
-                    connection.send(
-                        content: body,
-                        completion: .contentProcessed { error in
-                            if let error {
-                                once.resume(throwing: error)
-                                return
-                            }
-                            Self.recv(connection: connection, once: once, buffer: Data())
+        let cancellation = AppControlSocket.Cancellation()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    continuation.resume(
+                        with: Result {
+                            try AppControlSocket.exchange(
+                                path: socketPath, body: body, timeout: requestTimeout,
+                                cancellation: cancellation)
                         })
-                case .waiting(let error):
-                    // A unix socket that can't connect has no listener —
-                    // don't sit on NWConnection's retry loop.
-                    once.resume(
-                        throwing: AppControlError.unavailable(
-                            "no listener on control socket: \(error.localizedDescription)"))
-                    connection.cancel()
-                case .failed(let error):
-                    once.resume(throwing: error)
-                case .cancelled:
-                    once.resume(throwing: AppControlError.unavailable("connection cancelled"))
-                default:
-                    break
                 }
             }
-            connection.start(queue: DispatchQueue(label: "app-control-client"))
-            // A listener that accepts but never answers would hang the
-            // caller forever — bound the whole exchange.
-            Task {
-                try? await Task.sleep(for: .seconds(requestTimeout))
-                once.resume(
-                    throwing: AppControlError.unavailable("control socket timed out"))
-                connection.cancel()
-            }
-        }
-    }
-
-    private static func recv(
-        connection: NWConnection, once: Once, buffer: Data
-    ) {
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) {
-            data, _, isComplete, error in
-            var buffer = buffer
-            if let data { buffer.append(data) }
-            if let error {
-                once.resume(throwing: error)
-                connection.cancel()
-                return
-            }
-            if let nl = buffer.firstIndex(of: 0x0A) {
-                once.resume(returning: buffer.subdata(in: 0..<nl))
-                connection.cancel()
-                return
-            }
-            if isComplete {
-                once.resume(throwing: AppControlError.unavailable("truncated response"))
-                connection.cancel()
-                return
-            }
-            recv(connection: connection, once: once, buffer: buffer)
-        }
-    }
-
-    private final class Once: @unchecked Sendable {
-        private let lock = NSLock()
-        private var done = false
-        private let cont: CheckedContinuation<Data, Error>
-        init(_ cont: CheckedContinuation<Data, Error>) { self.cont = cont }
-        func resume(returning value: Data) {
-            lock.lock()
-            defer { lock.unlock() }
-            guard !done else { return }
-            done = true
-            cont.resume(returning: value)
-        }
-        func resume(throwing error: Error) {
-            lock.lock()
-            defer { lock.unlock() }
-            guard !done else { return }
-            done = true
-            cont.resume(throwing: error)
+        } onCancel: {
+            cancellation.cancel()
         }
     }
 }

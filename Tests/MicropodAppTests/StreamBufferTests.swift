@@ -122,4 +122,40 @@ final class StreamBufferTests: XCTestCase {
         _ = try? await consumer.value
         await fulfillment(of: [terminated], timeout: 2)
     }
+
+    func testCancellationAfterReceiveStillReachesUpstreamIterator() async throws {
+        let terminated = expectation(description: "upstream observes cancelled producer")
+        // Cancel exactly after next() has produced an element. Throwing out
+        // of the loop body strands the upstream cancellation boundary.
+        let source = CancelAfterReceive { terminated.fulfill() }
+        let snapshots = CoalescedUIStream.snapshots(
+            from: source, initial: BoundedTerminalRenderBuffer(), interval: .seconds(30),
+            append: { $0.append($1) }, snapshot: { $0.snapshot })
+        do {
+            for try await _ in snapshots {}
+        } catch is CancellationError {
+            // The regression also requires upstream to observe cancellation.
+        }
+        await fulfillment(of: [terminated], timeout: 2)
+    }
+}
+
+private struct CancelAfterReceive: AsyncSequence, Sendable {
+    typealias Element = Data
+    let terminated: @Sendable () -> Void
+
+    func makeAsyncIterator() -> Iterator { Iterator(terminated: terminated) }
+
+    struct Iterator: AsyncIteratorProtocol {
+        let terminated: @Sendable () -> Void
+
+        mutating func next() async -> Data? {
+            if Task.isCancelled {
+                terminated()
+                return nil
+            }
+            withUnsafeCurrentTask { $0?.cancel() }
+            return Data("buffered".utf8)
+        }
+    }
 }

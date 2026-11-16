@@ -95,6 +95,58 @@ final class AppControlTests: XCTestCase {
         }
         XCTAssertLessThan(Date().timeIntervalSince(start), 10)
     }
+
+    func testPreCancelledCallNeverSendsAnApplyRequest() async throws {
+        let received = expectation(description: "no request after cancellation")
+        received.isInverted = true
+        let stub = StubControlServer(path: socketPath) { _ in
+            received.fulfill()
+            return ["ok": true, "result": [:]]
+        }
+        try stub.start()
+        defer { stub.stop() }
+        let client = AppControlClient(socketPath: socketPath)
+        let request = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            _ = try await client.call("update.apply")
+        }
+        await XCTAssertThrowsErrorAsync(try await request.value) { error in
+            XCTAssertTrue(error is CancellationError)
+        }
+        await fulfillment(of: [received], timeout: 0.1)
+    }
+
+    func testCancellationEndsAnAcceptedUnresponsiveRequest() async throws {
+        let received = expectation(description: "request accepted")
+        let stub = StubControlServer(path: socketPath) { _ in
+            received.fulfill()
+            return nil
+        }
+        try stub.start()
+        defer { stub.stop() }
+        let client = AppControlClient(socketPath: socketPath)
+        let request = Task { _ = try await client.updateStatus() }
+        await fulfillment(of: [received], timeout: 2)
+        request.cancel()
+        await XCTAssertThrowsErrorAsync(try await request.value) { error in
+            XCTAssertTrue(error is CancellationError)
+        }
+    }
+
+    func testOversizedResponseIsRejected() async throws {
+        let stub = StubControlServer(path: socketPath) { _ in
+            ["ok": true, "result": ["payload": String(repeating: "x", count: 128 * 1024)]]
+        }
+        try stub.start()
+        defer { stub.stop() }
+        let client = AppControlClient(socketPath: socketPath)
+        await XCTAssertThrowsErrorAsync(try await client.updateStatus()) { error in
+            guard case AppControlError.malformedResponse = error else {
+                XCTFail("expected bounded response rejection, got \(error)")
+                return
+            }
+        }
+    }
 }
 
 /// Minimal unix-socket server speaking the app's wire protocol: one
@@ -154,6 +206,8 @@ private final class StubControlServer: @unchecked Sendable {
 
     private func serve(_ conn: Int32) {
         defer { close(conn) }
+        var noSignal: Int32 = 1
+        setsockopt(conn, SOL_SOCKET, SO_NOSIGPIPE, &noSignal, socklen_t(MemoryLayout<Int32>.size))
         var buffer = Data()
         var chunk = [UInt8](repeating: 0, count: 4096)
         while true {
@@ -175,7 +229,13 @@ private final class StubControlServer: @unchecked Sendable {
         else { return }
         let line = body + Data("\n".utf8)
         line.withUnsafeBytes { ptr in
-            _ = send(conn, ptr.baseAddress, ptr.count, 0)
+            var offset = 0
+            while offset < ptr.count {
+                let count = send(conn, ptr.baseAddress!.advanced(by: offset), ptr.count - offset, 0)
+                if count < 0, errno == EINTR { continue }
+                guard count > 0 else { return }
+                offset += count
+            }
         }
     }
 }
