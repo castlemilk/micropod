@@ -20,7 +20,7 @@ candidate assets are verified again before stable promotion. Their source, tag
 and asset identities remain unchanged.
 
 A workload manifest requires `workloadProtocol: 1` and
-`minimumUpdaterVersion: "0.13.0"`. Its enclosure carries the exact source revision,
+`minimumUpdaterVersion: "0.13.3"`. Its enclosure carries the exact source revision,
 EdDSA signature and size. Sparkle's `minimumUpdateVersion` excludes older apps.
 The app binds that metadata into its durable transaction before downloading.
 

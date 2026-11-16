@@ -16,6 +16,7 @@ int micropod_spawn_pty(char *const argv[], char *const envp[], const char *cwd, 
 
 /* 0 = observed incarnation, 1 = kernel-confirmed absence, -1 = unknown. */
 int micropod_process_birth(pid_t pid, uid_t *uid, int64_t *seconds, int64_t *microseconds);
+int micropod_process_parent(pid_t pid, pid_t *parent);
 
 int micropod_uid_processes(uid_t uid, pid_t *pids, int capacity);
 int micropod_process_path(pid_t pid, char *path, int capacity);

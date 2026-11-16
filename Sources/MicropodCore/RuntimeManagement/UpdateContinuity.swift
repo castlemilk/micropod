@@ -1,3 +1,4 @@
+import CPtyShim
 import CryptoKit
 import Darwin
 import Foundation
@@ -64,12 +65,9 @@ public struct UpdateServiceWitness: Codable, Equatable, Sendable {
     }
 
     public static func parentPID(_ pid: Int32) -> Int32? {
-        var info = proc_bsdinfo()
-        guard
-            proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, Int32(MemoryLayout<proc_bsdinfo>.size))
-                == MemoryLayout<proc_bsdinfo>.size
-        else { return nil }
-        return Int32(info.pbi_ppid)
+        var parent: Int32 = 0
+        guard micropod_process_parent(pid, &parent) == 0 else { return nil }
+        return parent
     }
 
     public static func processIDs(executable: String) -> [Int32] {

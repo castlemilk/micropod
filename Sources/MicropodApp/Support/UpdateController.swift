@@ -377,7 +377,7 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
                 item.fileURL?.absoluteString == receipt.artifactURL, item.contentLength == receipt.artifactBytes,
                 enclosure?["sparkle:edSignature"] as? String == receipt.artifactSignature,
                 enclosure?["micropodSourceRevision"] as? String == receipt.targetSourceRevision,
-                item.minimumUpdateVersion == "0.13.0"
+                item.minimumUpdateVersion == "0.13.3"
             else { throw MicropodError.message("The selected update does not match its prepared transaction") }
         }
         return receipt
@@ -413,7 +413,7 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
             guard informationCheck == check else { return }
             if ![.readyToInstall, .installing].contains(status) { status = .updateAvailable }
             availableVersion = display
-            if let url, let signature, let source, minimum == "0.13.0" {
+            if let url, let signature, let source, minimum == "0.13.3" {
                 admission?.candidate = .init(
                     version: version, url: url, signature: signature, bytes: bytes,
                     source: source)

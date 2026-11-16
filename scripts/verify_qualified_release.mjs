@@ -45,7 +45,7 @@ export function publicationOptions(manifest, channel, repository = process.cwd()
         return { version: manifest.tag, url: `https://github.com/castlemilk/micropod/releases/tag/${manifest.tag}`, informational: true };
     }
     if (!["workload-preserving-candidate", "workload-preserving-v1"].includes(manifest.policy) ||
-        manifest.workloadProtocol !== 1 || manifest.minimumUpdaterVersion !== "0.13.0") {
+        manifest.workloadProtocol !== 1 || manifest.minimumUpdaterVersion !== "0.13.3") {
         throw new Error("unsupported workload publication policy");
     }
     if (manifest.policy === "workload-preserving-candidate" && channel !== "qualification") {
@@ -82,7 +82,7 @@ export function publicationOptions(manifest, channel, repository = process.cwd()
         if (proof.manual.automatic !== false || proof.automatic.automatic !== true) throw new Error("manual and automatic paths were not both accepted");
     }
     return { version: manifest.tag, url: `https://github.com/castlemilk/micropod/releases/download/${manifest.tag}/Micropod.dmg`,
-        signature: manifest.sparkleSignature, length: manifest.assets["Micropod.dmg"].size, "minimum-update-version": "0.13.0", source: manifest.source };
+        signature: manifest.sparkleSignature, length: manifest.assets["Micropod.dmg"].size, "minimum-update-version": "0.13.3", source: manifest.source };
 }
 export function verifyAssets(manifest, directory) {
     for (const [name, expected] of Object.entries(manifest.assets)) {
