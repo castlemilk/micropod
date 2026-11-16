@@ -5,14 +5,14 @@ import MicropodCore
 /// interval. Parsing and retention run away from the main actor; an idle source
 /// has no polling timer. Replacing queued snapshots cannot lose retained data.
 enum CoalescedUIStream {
-    static func snapshots<Element: Sendable, State: Sendable, Output: Sendable>(
-        from source: AsyncThrowingStream<Element, Error>,
+    static func snapshots<Source: AsyncSequence & Sendable, State: Sendable, Output: Sendable>(
+        from source: Source,
         initial: State,
         interval: Duration = .milliseconds(33),
-        append: @escaping @Sendable (inout State, Element) -> Void,
+        append: @escaping @Sendable (inout State, Source.Element) -> Void,
         finish: @escaping @Sendable (inout State) -> Void = { _ in },
         snapshot: @escaping @Sendable (State) -> Output
-    ) -> AsyncThrowingStream<Output, Error> {
+    ) -> AsyncThrowingStream<Output, Error> where Source.Element: Sendable {
         AsyncThrowingStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
             let batcher = SnapshotBatcher(
                 state: initial, interval: interval, continuation: continuation,
@@ -20,8 +20,10 @@ enum CoalescedUIStream {
             let producer = Task.detached {
                 do {
                     for try await element in source {
-                        try Task.checkCancellation()
-                        batcher.append(element)
+                        // A buffered next() can win the cancellation race.
+                        // Reach next() again so the source runs its termination
+                        // handler; throwing here leaves its producer alive.
+                        if !Task.isCancelled { batcher.append(element) }
                     }
                     batcher.finish(error: nil)
                 } catch {
