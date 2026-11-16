@@ -20,7 +20,7 @@ public struct SandboxEngine: RuntimeEngine, ContainerServing, LogStreaming {
     public var kind: String { "microvm" }
     public var summary: String { "micropod sandbox — ephemeral in-process micro-VM per run (CI fast path)" }
     public var capabilities: [String] {
-        ["run", "create", "start", "stop", "kill", "delete", "exec", "logs"]
+        ["run", "create", "start", "stop", "kill", "delete", "exec", "logs", "rootless-docker"]
     }
     public var containers: any ContainerServing { self }
     public var logs: any LogStreaming { self }
@@ -155,11 +155,13 @@ public struct SandboxEngine: RuntimeEngine, ContainerServing, LogStreaming {
         if let sandbox = request.sandbox {
             try apply(sandbox, to: &options)
         }
+        try SandboxVM.validateRootlessDocker(options)
         return options
     }
 
     /// `SandboxOptions` (and StartSandbox's extras) onto the VM options.
     static func apply(_ sandbox: SandboxRunOptions, to options: inout SandboxVM.Options) throws {
+        options.rootlessDocker = sandbox.rootlessDocker
         if sandbox.idle {
             let idle = options.guestTool != nil ? [SandboxGuestTool.guestPath, "idle"] : SandboxEngine.idleCommand
             options.entrypoint = [idle[0]]
@@ -331,6 +333,7 @@ struct Session: Sendable {
     var state = State.created
     var exitCode: Int32?
     var prepared: SandboxVM.Prepared?
+    var preparationNetwork: (any SandboxNetworkCleanup)?
     /// Set while a checkpoint takes the root disk: finish() must not delete it.
     var keepDisk = false
 
@@ -380,6 +383,7 @@ struct Session: Sendable {
 actor SessionStore {
     let root: URL
     private var sessions: [String: Session] = [:]
+    private var booting: Set<String> = []
     /// Waiters parked in `awaitFinish`, resumed when their session exits.
     private var finishWaiters: [String: [UUID: CheckedContinuation<Void, Never>]] = [:]
 
@@ -425,41 +429,68 @@ actor SessionStore {
         return prepared
     }
 
-    func boot(_ id: String) async throws {
+    func beginBoot(_ id: String) throws -> Session {
         var session = try require(id)
         guard session.state == .created else {
-            throw MicropodError.message(
-                "failedPrecondition: sandbox \(id) already ran — sandboxes are ephemeral, run a new one")
+            throw MicropodError.message("failedPrecondition: sandbox already ran")
         }
         session.state = .running
         sessions[id] = session
+        booting.insert(id)
+        return session
+    }
+
+    func boot(_ id: String) async throws {
+        let session = try beginBoot(id)
+        defer { booting.remove(id) }
         do {
             let log = try LockedFileWriter(url: session.logURL)
             let prepared = try await SandboxVM.prepareAndCreate(
                 session.options, id: id, runDir: session.runDir, stdout: log, stderr: log,
-                progress: { SecretSource.stderrLog("sandbox \(id): \($0)") })
+                progress: { SecretSource.stderrLog("sandbox \(id): \($0)") },
+                didOwnNetwork: { network in await self.ownPreparationNetwork(id, network) },
+                didPrepare: { prepared in await self.ownPrepared(id, prepared) })
             do {
                 try await SandboxVM.launch(prepared)
             } catch {
                 prepared.forwarding.stop()
-                try? await prepared.container.stop()
+                try? await prepared.stop()
                 throw error
             }
             sessions[id]?.prepared = prepared
             Task { await self.reap(id, prepared) }
         } catch {
-            sessions[id]?.state = .exited
-            sessions[id]?.exitCode = -1
+            recordBootFailure(id)
             throw error
         }
+    }
+
+    func ownPreparationNetwork(_ id: String, _ network: any SandboxNetworkCleanup) {
+        sessions[id]?.preparationNetwork = network
+    }
+
+    func recordBootFailure(_ id: String) {
+        // A bridge can exist before a configured VM does. Neither handle
+        // may be forgotten merely because preparation or launch failed.
+        if sessions[id]?.prepared == nil, sessions[id]?.preparationNetwork == nil {
+            sessions[id]?.state = .exited
+            sessions[id]?.exitCode = -1
+        }
+    }
+
+    private func ownPrepared(_ id: String, _ prepared: SandboxVM.Prepared) {
+        sessions[id]?.prepared = prepared
     }
 
     /// Wait for the workload, then tear the VM down and record the exit.
     private func reap(_ id: String, _ prepared: SandboxVM.Prepared) async {
         let code = (try? await prepared.container.wait().exitCode) ?? -1
-        try? await prepared.container.stop()
-        prepared.forwarding.stop()
-        finish(id, code: code)
+        do {
+            try await prepared.stop()
+            finish(id, code: code)
+        } catch {
+            SecretSource.stderrLog("sandbox \(id): VM stop remains unconfirmed")
+        }
     }
 
     /// Parks until session `id` exits (or is gone) or `timeout` passes, so a
@@ -493,6 +524,7 @@ actor SessionStore {
         session.state = .exited
         if session.exitCode == nil { session.exitCode = code }
         session.prepared = nil
+        session.preparationNetwork = nil
         // The rootfs clone is dead weight once the VM is gone (unless it is
         // becoming a checkpoint); keep logs.
         if !session.keepDisk {
@@ -505,43 +537,56 @@ actor SessionStore {
     /// keep that disk as checkpoint `name`.
     func checkpoint(_ id: String, name: String) async throws {
         let session = try require(id)
+        guard !session.options.rootlessDocker else {
+            throw MicropodError.message("failedPrecondition: rootless Docker sandboxes cannot save checkpoints")
+        }
         guard session.state == .running, let prepared = session.prepared else {
             throw MicropodError.message("failedPrecondition: sandbox \(id) is not running")
         }
         sessions[id]?.keepDisk = true
         sessions[id]?.exitCode = 0
         defer { sessions[id]?.keepDisk = false }
-        try await prepared.container.stop()
-        prepared.forwarding.stop()
+        try await prepared.stop()
         finish(id, code: 0)
         try SandboxVM.saveCheckpoint(
             name: name, disk: prepared.rootfsPath, image: prepared.imageRef, diskBytes: prepared.diskBytes)
     }
 
     func stop(_ id: String, signal: Signal?) async throws {
+        guard !booting.contains(id) else {
+            throw MicropodError.message("failedPrecondition: sandbox preparation is still in progress")
+        }
         let session = try require(id)
-        guard session.state == .running, let prepared = session.prepared else { return }
-        if let signal {
+        guard session.state == .running else { return }
+        if let prepared = session.prepared, let signal {
             try await prepared.container.kill(signal)
             return
         }
+        if let prepared = session.prepared {
+            try await prepared.stop()
+        } else if let network = session.preparationNetwork {
+            try network.stop()
+        } else {
+            return
+        }
         sessions[id]?.exitCode = 137
-        try await prepared.container.stop()
-        prepared.forwarding.stop()
         finish(id, code: 137)
     }
 
     func remove(_ id: String, force: Bool) async throws {
+        guard !booting.contains(id) else {
+            throw MicropodError.message("failedPrecondition: sandbox preparation is still in progress")
+        }
         let session = try require(id)
         if session.state == .running {
             guard force else {
                 throw MicropodError.message("failedPrecondition: sandbox \(id) is running — stop it or force delete")
             }
-            try? await stop(id, signal: nil)
+            try await stop(id, signal: nil)
         }
+        try FileManager.default.removeItem(at: session.runDir)
         sessions[id] = nil
         resumeAll(id)
-        try? FileManager.default.removeItem(at: session.runDir)
     }
 }
 

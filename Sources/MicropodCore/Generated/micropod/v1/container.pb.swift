@@ -518,6 +518,12 @@ public nonisolated struct Micropod_V1_SandboxOptions: Sendable {
   /// Root disk size in MiB for image bases (0 = the default, 8192).
   public var diskSizeMib: UInt64 = 0
 
+  /// Use the isolated VM as a Linux host for rootless Docker. Proc mount
+  /// locks are omitted so child user namespaces can mount their own proc.
+  /// Requires no host mounts, ports, exposed host services or checkpoints.
+  /// Does not grant extra capabilities or a host Docker socket.
+  public var rootlessDocker: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1374,7 +1380,7 @@ nonisolated extension Micropod_V1_RunContainerRequest: SwiftProtobuf.Message, Sw
 
 nonisolated extension Micropod_V1_SandboxOptions: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SandboxOptions"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}expose_host\0\u{3}allow_hosts\0\u{1}secrets\0\u{3}dns_resolvers\0\u{3}disk_size_mib\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}expose_host\0\u{3}allow_hosts\0\u{1}secrets\0\u{3}dns_resolvers\0\u{3}disk_size_mib\0\u{3}rootless_docker\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1387,6 +1393,7 @@ nonisolated extension Micropod_V1_SandboxOptions: SwiftProtobuf.Message, SwiftPr
       case 3: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMessageMap<SwiftProtobuf.ProtobufString,Micropod_V1_SandboxSecret>.self, value: &self.secrets) }()
       case 4: try { try decoder.decodeRepeatedStringField(value: &self.dnsResolvers) }()
       case 5: try { try decoder.decodeSingularUInt64Field(value: &self.diskSizeMib) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.rootlessDocker) }()
       default: break
       }
     }
@@ -1408,6 +1415,9 @@ nonisolated extension Micropod_V1_SandboxOptions: SwiftProtobuf.Message, SwiftPr
     if self.diskSizeMib != 0 {
       try visitor.visitSingularUInt64Field(value: self.diskSizeMib, fieldNumber: 5)
     }
+    if self.rootlessDocker != false {
+      try visitor.visitSingularBoolField(value: self.rootlessDocker, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1417,6 +1427,7 @@ nonisolated extension Micropod_V1_SandboxOptions: SwiftProtobuf.Message, SwiftPr
     if lhs.secrets != rhs.secrets {return false}
     if lhs.dnsResolvers != rhs.dnsResolvers {return false}
     if lhs.diskSizeMib != rhs.diskSizeMib {return false}
+    if lhs.rootlessDocker != rhs.rootlessDocker {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

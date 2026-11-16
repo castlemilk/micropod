@@ -42,6 +42,8 @@ message ImageVariant {
   string architecture = 2 [(gnostic.openapi.v3.property).example = {yaml: "'arm64'"}];
   // Architecture variant, e.g. "v8".
   string variant = 3 [(gnostic.openapi.v3.property).example = {yaml: "'v8'"}];
+  // Actual platform manifest digest; may differ from the local image index.
+  string manifest_digest = 4;
 }
 
 message ListImagesResponse {

@@ -4,6 +4,12 @@ import Foundation
 import MicropodCore
 import vmnet
 
+/// Cleanup can remain uncertain before a configured VM exists. Its session
+/// retains this resource until the same stop operation is confirmed.
+protocol SandboxNetworkCleanup: Sendable {
+    func stop() throws
+}
+
 /// One sandbox's vmnet network (macOS 26 `vmnet_network_create`, no
 /// vm.networking entitlement): vmnet picks a free /24 under 192.168/16, so
 /// parallel runs never contend for addresses, and sandboxes can't reach
@@ -16,12 +22,13 @@ import vmnet
 /// a long-lived API process ran out after ~20 networked sandboxes
 /// (`VMNET_FAILURE`). Released on deinit: keep this alive until the VM has
 /// stopped, or the guest dies mid-teardown.
-final class SandboxNetwork: @unchecked Sendable {
+final class SandboxNetwork: SandboxNetworkCleanup, @unchecked Sendable {
     let interface: VmnetNetwork.Interface
     let gateway: IPv4Address
     private let reference: vmnet_network_ref
+    private let anchor: SandboxNetworkAnchor?
 
-    init(mode: vmnet.operating_modes_t) throws {
+    init(mode: vmnet.operating_modes_t, pinBridge: Bool = false) throws {
         var status: vmnet_return_t = .VMNET_FAILURE
         guard let config = vmnet_network_configuration_create(mode, &status) else {
             throw MicropodError.message("vmnet network configuration failed (status \(status.rawValue))")
@@ -32,7 +39,6 @@ final class SandboxNetwork: @unchecked Sendable {
             throw MicropodError.message("vmnet network creation failed (status \(status.rawValue))")
         }
         self.reference = reference
-
         var subnet = in_addr()
         var mask = in_addr()
         vmnet_network_get_ipv4_subnet(reference, &subnet, &mask)
@@ -66,9 +72,28 @@ final class SandboxNetwork: @unchecked Sendable {
             Self.release(reference)
             throw error
         }
+        do {
+            anchor = pinBridge ? try SandboxNetworkAnchor(network: reference) : nil
+        } catch {
+            Self.release(reference)
+            throw error
+        }
     }
 
-    deinit { Self.release(reference) }
+    func waitUntilReady() throws { try anchor?.waitUntilReady() }
+
+    func stop() throws { try anchor?.stop() }
+
+    deinit {
+        do {
+            try anchor?.stop()
+            Self.release(reference)
+        } catch {
+            // Keep the network reservation when stop is ambiguous. The API
+            // must not turn that failure into a successful cleanup receipt.
+            SecretSource.stderrLog("sandbox network cleanup remains unconfirmed")
+        }
+    }
 
     /// `CFRelease` for vmnet's CF-style objects (Swift hides `CFRelease`).
     private static func release(_ object: OpaquePointer) {

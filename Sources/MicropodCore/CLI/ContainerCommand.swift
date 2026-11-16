@@ -593,6 +593,7 @@ public struct ContainerRunRequest: Sendable, Equatable {
 /// `StartSandbox` adds): what the VM may reach and which secrets it may use
 /// without seeing them.
 public struct SandboxRunOptions: Sendable, Equatable {
+    public var rootlessDocker: Bool
     /// Host loopback ports the guest reaches as `host.micropod.internal`.
     public var exposeHost: [UInt16]
     /// Egress allowlist; non-empty forces all egress through the host proxy.
@@ -611,7 +612,7 @@ public struct SandboxRunOptions: Sendable, Equatable {
     public init(
         exposeHost: [UInt16] = [], allowHosts: [String] = [], secrets: [SandboxSecretSpec] = [],
         dnsResolvers: [String] = [], diskSizeMiB: UInt64? = nil, fromCheckpoint: String? = nil,
-        network: Bool? = nil, idle: Bool = false
+        network: Bool? = nil, idle: Bool = false, rootlessDocker: Bool = false
     ) {
         self.exposeHost = exposeHost
         self.allowHosts = allowHosts
@@ -621,6 +622,7 @@ public struct SandboxRunOptions: Sendable, Equatable {
         self.fromCheckpoint = fromCheckpoint
         self.network = network
         self.idle = idle
+        self.rootlessDocker = rootlessDocker
     }
 }
 

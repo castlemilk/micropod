@@ -66,6 +66,7 @@ public enum SandboxVM {
         /// Host directory holding `micropod-guest`, shared read-only at
         /// ``SandboxGuestTool/guestDirectory`` (SandboxService sandboxes).
         public var guestTool: URL?
+        public var rootlessDocker = false
         public var tmpfsTmp = true
         public var tmpSizeMiB: UInt64?
         /// Keep the run's disk as checkpoint `saveAs` when it exits 0.
@@ -102,6 +103,19 @@ public enum SandboxVM {
         var created: Date
     }
 
+    static func validateRootlessDocker(_ options: Options) throws {
+        guard options.rootlessDocker else { return }
+        guard options.mounts.isEmpty, options.ports.isEmpty, options.exposeHost.isEmpty,
+            options.egress.isEmpty, options.saveAs == nil
+        else {
+            throw MicropodError.message(
+                "invalidArgument: rootless Docker sandboxes cannot expose host resources or save checkpoints")
+        }
+        if case .checkpoint = options.base {
+            throw MicropodError.message("invalidArgument: rootless Docker sandboxes cannot use checkpoints")
+        }
+    }
+
     // MARK: - Run
 
     /// A configured-but-not-booted sandbox VM. `network` keeps the vmnet
@@ -125,6 +139,18 @@ public enum SandboxVM {
         /// `micropod-guest` is mounted at ``SandboxGuestTool/guestPath``.
         let hasGuestTool: Bool
         let forwarding = SandboxForwarding()
+        private let stopper = SandboxVMStop()
+
+        func stop() async throws {
+            try await stopper.run {
+                try await container.stop()
+            }
+            // A late vmnet callback may settle an earlier ambiguous result.
+            // Recheck it without replaying the VM stop mutation.
+            try network?.stop()
+            forwarding.stop()
+        }
+
     }
 
     /// Resolve the base disk, clone it into `runDir` and configure the VM.
@@ -137,8 +163,10 @@ public enum SandboxVM {
         stdin: (any ReaderStream)? = nil,
         terminal: Terminal? = nil,
         trace: Trace = Trace(),
-        progress: @Sendable (String) -> Void
+        progress: @Sendable (String) -> Void,
+        didOwnNetwork: @Sendable (any SandboxNetworkCleanup) async -> Void = { _ in }
     ) async throws -> Prepared {
+        try validateRootlessDocker(options)
         let store = try imageStore()
         let (baseDisk, imageRef, diskBytes) = try await resolveBase(
             options, store: store, progress: progress)
@@ -164,7 +192,13 @@ public enum SandboxVM {
         // One vmnet network per sandbox. Host mode (published ports or
         // exposed host ports without --allow-net) reaches the host and
         // nothing else.
-        let vmnet = try options.networkMode.map { try SandboxNetwork(mode: $0) }
+        let vmnet = try options.networkMode.map {
+            try SandboxNetwork(mode: $0, pinBridge: options.rootlessDocker)
+        }
+        if let vmnet {
+            await didOwnNetwork(vmnet)
+            try vmnet.waitUntilReady()
+        }
         let network = vmnet.map { (interface: $0.interface, gateway: $0.gateway.description) }
         if vmnet != nil { trace.mark("network") }
         var shares: [Containerization.Mount] = []
@@ -220,6 +254,15 @@ public enum SandboxVM {
             cfg.cpus = options.cpus
             cfg.memoryInBytes = options.memoryMiB * 1024 * 1024
             cfg.hostname = options.hostname
+            if options.rootlessDocker {
+                // This VM is the Linux host for rootless Docker. OCI proc
+                // submount locks prevent its child user namespaces from
+                // mounting proc at all. The VM remains the isolation boundary;
+                // no host mounts, sockets, exposed ports or checkpoints are
+                // permitted, and no extra process capability is granted.
+                cfg.readonlyPaths = []
+                cfg.maskedPaths = []
+            }
             if let path = ProcessInfo.processInfo.environment["MICROPOD_SANDBOX_BOOTLOG"] {
                 cfg.bootLog = .file(path: URL(fileURLWithPath: path), append: false)
             }
@@ -314,21 +357,30 @@ public enum SandboxVM {
         stdin: (any ReaderStream)? = nil,
         terminal: Terminal? = nil,
         trace: Trace = Trace(),
-        progress: @Sendable (String) -> Void
+        progress: @Sendable (String) -> Void,
+        didOwnNetwork: @Sendable (any SandboxNetworkCleanup) async -> Void = { _ in },
+        didPrepare: @Sendable (Prepared) async -> Void = { _ in }
     ) async throws -> Prepared {
         var attempt = 1
         while true {
             let prepared = try await prepare(
                 options, id: id, runDir: runDir, stdout: stdout, stderr: stderr, stdin: stdin,
-                terminal: terminal, trace: trace, progress: progress)
+                terminal: terminal, trace: trace, progress: progress, didOwnNetwork: didOwnNetwork)
+            await didPrepare(prepared)
             let container = prepared.container
+            // An allocation owns one VM, including an uncertain create. Do
+            // not detach/retry a boot underneath its durable reservation.
+            if options.rootlessDocker {
+                try await container.create()
+                return prepared
+            }
             do {
                 try await withTimeout(
                     options.bootTimeout / 2, "guest did not boot",
                     abandoned: { try? await container.stop() },
                     { try await container.create() })
                 return prepared
-            } catch  where attempt == 1 && isLostVM(error) {
+            } catch  where !options.rootlessDocker && attempt == 1 && isLostVM(error) {
                 attempt += 1
                 progress("VM lost while booting (\(error)); retrying once")
                 prepared.forwarding.stop()
