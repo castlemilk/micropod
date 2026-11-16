@@ -243,7 +243,7 @@ jobs:
           node scripts/update_appcast.mjs \
             --version "${VERSION#v}" \
             --url "https://github.com/castlemilk/micropod/releases/download/$VERSION/Micropod.dmg" \
-            --signature "$SIG" --length "$LEN" --minimum-update-version 0.13.3 --source "$GITHUB_SHA"
+            --signature "$SIG" --length "$LEN" --minimum-update-version 0.13.6 --source "$GITHUB_SHA"
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             gh release view "$VERSION" --json isDraft,targetCommitish > "$RUNNER_TEMP/candidate.json"
             jq -e --arg sha "$GITHUB_SHA" '.isDraft == true and .targetCommitish == $sha' "$RUNNER_TEMP/candidate.json" >/dev/null

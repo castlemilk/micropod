@@ -67,6 +67,7 @@ metadata = {
     "SUFeedURL": "https://castlemilk.github.io/micropod/appcast.xml",
     "SUPublicEDKey": "nJEL+JijqhfC7zxPlqxifCqBM06A3DGki/JmBFTW/VM=",
     "SUEnableAutomaticChecks": True,
+    "SUAllowsAutomaticUpdates": True,
     "MicropodWorkloadProtocol": 1,
     "MicropodSourceRevision": source,
     "SUScheduledCheckInterval": "3600",

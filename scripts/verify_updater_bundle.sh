@@ -10,6 +10,7 @@ updater_info="$updater_bundle/Contents/Info.plist"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$updater_info")" = "$updater_version" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :MicropodSourceRevision' "$updater_info")" = "$updater_source" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$updater_info")" = 'nJEL+JijqhfC7zxPlqxifCqBM06A3DGki/JmBFTW/VM=' ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :SUAllowsAutomaticUpdates' "$updater_info")" = true ]]
 updater_setup="$updater_bundle/Contents/Helpers/Micropod Runtime Setup.app"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$updater_setup/Contents/Info.plist")" = com.skunkworq.micropod.runtime-setup ]]
 [[ -x "$updater_setup/Contents/MacOS/MicropodRuntimeHost" ]]

@@ -75,7 +75,7 @@ def update_feed(xml, options):
             raise ValueError("invalid source revision")
         minimum = options.get("minimum-update-version")
         if minimum is not None:
-            if minimum != "0.13.3" or tuple(map(int, version.split("."))) < (0, 13, 3):
+            if minimum != "0.13.6" or tuple(map(int, version.split("."))) < (0, 13, 6):
                 raise ValueError("unsupported workload updater compatibility floor")
             ET.SubElement(item, SPARKLE + "minimumUpdateVersion").text = minimum
         attributes = {"url": url, SPARKLE + "edSignature": options["signature"],

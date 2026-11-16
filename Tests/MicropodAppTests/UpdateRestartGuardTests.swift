@@ -6,6 +6,38 @@ import XCTest
 
 @MainActor
 final class UpdateRestartGuardTests: XCTestCase {
+    func testGuardedDownloadsRemainAvailableWithSparklesSchedulerDisabled() throws {
+        for explicitPermission in [false, true] {
+            let identifier = "test.micropod.download-permission." + UUID().uuidString
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent(identifier + ".app")
+            defer {
+                UserDefaults.standard.removePersistentDomain(forName: identifier)
+                try? FileManager.default.removeItem(at: root)
+            }
+            let contents = root.appendingPathComponent("Contents")
+            try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+            var metadata: [String: Any] = [
+                "CFBundleIdentifier": identifier, "CFBundleName": "Update Settings Test",
+                "CFBundleVersion": "1", "CFBundlePackageType": "APPL",
+                "SUEnableAutomaticChecks": true,
+            ]
+            if explicitPermission { metadata["SUAllowsAutomaticUpdates"] = true }
+            try PropertyListSerialization.data(fromPropertyList: metadata, format: .xml, options: 0)
+                .write(to: contents.appendingPathComponent("Info.plist"))
+            let bundle = try XCTUnwrap(Bundle(url: root))
+            let updater = SPUUpdater(
+                hostBundle: bundle, applicationBundle: bundle,
+                userDriver: SPUStandardUserDriver(hostBundle: bundle, delegate: nil), delegate: nil)
+            // Do not start the updater: this exercises Sparkle's actual settings
+            // without any network check, download or installer interaction.
+            updater.automaticallyChecksForUpdates = false
+            updater.automaticallyDownloadsUpdates = true
+            XCTAssertFalse(updater.automaticallyChecksForUpdates)
+            XCTAssertEqual(updater.allowsAutomaticUpdates, explicitPermission)
+            XCTAssertEqual(updater.automaticallyDownloadsUpdates, explicitPermission)
+        }
+    }
+
     func testProductionDefaultBlocksManualApplyWithoutObservingOrInstalling() async {
         let controller = UpdateController(feedConfigured: false)
         var observations = 0

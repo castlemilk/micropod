@@ -107,11 +107,11 @@ test("byte verification rejects tampering and an otherwise matching unsigned DMG
 });
 
 test("workload candidates remain off the stable feed and carry exact compatibility/source", () => {
-    const candidate = { ...manifest, tag: "v0.13.4", policy: "workload-preserving-candidate", workloadProtocol: 1, minimumUpdaterVersion: "0.13.3" };
+    const candidate = { ...manifest, tag: "v0.13.7", policy: "workload-preserving-candidate", workloadProtocol: 1, minimumUpdaterVersion: "0.13.6" };
     assert.throws(() => publicationOptions(candidate, "stable"), /cannot enter/);
     const options = publicationOptions(candidate, "qualification");
     const xml = updateAppcast(base, options);
-    assert.match(xml, /<sparkle:minimumUpdateVersion>0.13.3<\/sparkle:minimumUpdateVersion>/);
+    assert.match(xml, /<sparkle:minimumUpdateVersion>0.13.6<\/sparkle:minimumUpdateVersion>/);
     assert.match(xml, new RegExp(`micropodSourceRevision="${manifest.source}"`));
     assert.throws(() => publicationOptions({ ...candidate, workloadProtocol: 2 }, "qualification"), /unsupported/);
     assert.throws(() => publicationOptions({ ...candidate, minimumUpdaterVersion: "0.13.0" }, "qualification"), /unsupported/);
@@ -124,11 +124,11 @@ test("stable workload publication requires untampered manual and automatic physi
     try {
         const id = "test-operation";
         const snapshot = (name) => Buffer.from(JSON.stringify({ id: name, createdAt: "2026-11-16T00:00:00Z", image: "alpine", state: "running", mounts: [{ source: name + "-data" }] })).toString("base64");
-        const hop = (automatic) => ({ id, automatic, passed: true, update: { schema: 1, phase: "succeeded", targetVersion: "0.13.5", targetSourceRevision: manifest.source }, workloads: [0, 7].map(code => ({ id: `job-${code}`, expectedExit: code, exit: code, artifact: id, logBefore: true, logAfter: true, streamCompleted: true, runtimeIdentityBefore: "boot-process-identity", runtimeIdentityAfter: "boot-process-identity", before: snapshot(`job-${code}`), after: snapshot(`job-${code}`) })) });
-        const proof = { schema: 1, source: manifest.source, targetVersion: "0.13.5", faultTestsPassed: true, manual: hop(false), automatic: hop(true) };
-        const path = "docs/updater-acceptance/v0.13.5.json";
+        const hop = (automatic) => ({ id, automatic, passed: true, update: { schema: 1, phase: "succeeded", targetVersion: "0.13.8", targetSourceRevision: manifest.source }, workloads: [0, 7].map(code => ({ id: `job-${code}`, expectedExit: code, exit: code, artifact: id, logBefore: true, logAfter: true, streamCompleted: true, runtimeIdentityBefore: "boot-process-identity", runtimeIdentityAfter: "boot-process-identity", before: snapshot(`job-${code}`), after: snapshot(`job-${code}`) })) });
+        const proof = { schema: 1, source: manifest.source, targetVersion: "0.13.8", faultTestsPassed: true, manual: hop(false), automatic: hop(true) };
+        const path = "docs/updater-acceptance/v0.13.8.json";
         mkdirSync(join(directory, "docs/updater-acceptance"), { recursive: true });
-        const stable = { ...manifest, tag: "v0.13.5", policy: "workload-preserving-v1", workloadProtocol: 1, minimumUpdaterVersion: "0.13.3", continuityAcceptance: { path, sha256: "" } };
+        const stable = { ...manifest, tag: "v0.13.8", policy: "workload-preserving-v1", workloadProtocol: 1, minimumUpdaterVersion: "0.13.6", continuityAcceptance: { path, sha256: "" } };
         const save = (value) => {
             const bytes = Buffer.from(JSON.stringify(value));
             writeFileSync(join(directory, path), bytes);
