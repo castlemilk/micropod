@@ -5124,7 +5124,8 @@ These counters cover every container device, not individual cache volumes. </p><
 detect them instead of sending fields an older server would silently
 ignore (proto3 drops unknown fields). Names are the
 `RunContainerRequest` field names: &#34;cap_add&#34;, &#34;cap_drop&#34;, &#34;rosetta&#34;,
-&#34;privileged&#34;. Empty on servers that predate the list. </p></td>
+&#34;privileged&#34;, and &#34;init_image&#34; on the native backend. Empty on servers
+that predate the list. </p></td>
                 </tr>
               
                 <tr>
@@ -6594,6 +6595,25 @@ unknown or unavailable engine fails with `failed_precondition`. </p></td>
                   <td><p>Sandbox-only behaviour — host ports the guest may reach, an egress
 allowlist, proxy-injected secrets. Honoured by `runtime: &#34;sandbox&#34;`;
 other engines fail the request with `unimplemented` rather than drop it. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>init_image</td>
+                  <td><a href="#string">string</a></td>
+                  <td>optional</td>
+                  <td><p>Init image the micro-VM boots from in place of the runtime&#39;s default
+(`container run --init-image`), e.g. a vminit build that adds a guest
+service. The native backend of the &#34;apple&#34; engine honours it only when
+the image&#39;s config label `org.opencontainers.image.base.name` equals the
+runtime&#39;s default init image (the `vminit.image` property): an init
+image built for another runtime version may not speak the host&#39;s
+guest-agent protocol. Otherwise the VM boots the default init image and
+the container&#39;s `com.micropod.init-image.fallback` label holds the
+reason. The `com.micropod.init-image` label names the init image the VM
+booted.
+Follows `no_pull` like `image`. Servers that honour it list
+&#34;init_image&#34; in `PingResponse.features`. Other engines fail the request
+with `unimplemented`. </p></td>
                 </tr>
               
             </tbody>

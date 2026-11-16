@@ -1240,7 +1240,7 @@
               ]
             },
             "title": "features",
-            "description": "Optional request capabilities this server honours, so clients can\n detect them instead of sending fields an older server would silently\n ignore (proto3 drops unknown fields). Names are the\n `RunContainerRequest` field names: \"cap_add\", \"cap_drop\", \"rosetta\",\n \"privileged\". Empty on servers that predate the list."
+            "description": "Optional request capabilities this server honours, so clients can\n detect them instead of sending fields an older server would silently\n ignore (proto3 drops unknown fields). Names are the\n `RunContainerRequest` field names: \"cap_add\", \"cap_drop\", \"rosetta\",\n \"privileged\", and \"init_image\" on the native backend. Empty on servers\n that predate the list."
           },
           "defaultRuntime": {
             "type": "string",

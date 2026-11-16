@@ -1899,6 +1899,18 @@
             "title": "sandbox",
             "description": "Sandbox-only behaviour \u2014 host ports the guest may reach, an egress\n allowlist, proxy-injected secrets. Honoured by `runtime: \"sandbox\"`;\n other engines fail the request with `unimplemented` rather than drop it.",
             "$ref": "#/components/schemas/micropod.v1.SandboxOptions"
+          },
+          "initImage": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "examples": [
+              "registry.example.com/vminit:0.47.0-custom.1"
+            ],
+            "title": "init_image",
+            "minLength": 1,
+            "description": "Init image the micro-VM boots from in place of the runtime's default\n (`container run --init-image`), e.g. a vminit build that adds a guest\n service. The native backend of the \"apple\" engine honours it only when\n the image's config label `org.opencontainers.image.base.name` equals the\n runtime's default init image (the `vminit.image` property): an init\n image built for another runtime version may not speak the host's\n guest-agent protocol. Otherwise the VM boots the default init image and\n the container's `com.micropod.init-image.fallback` label holds the\n reason. The `com.micropod.init-image` label names the init image the VM\n booted.\n Follows `no_pull` like `image`. Servers that honour it list\n \"init_image\" in `PingResponse.features`. Other engines fail the request\n with `unimplemented`."
           }
         },
         "title": "RunContainerRequest",
