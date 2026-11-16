@@ -139,6 +139,18 @@ public enum SandboxVM {
         /// `micropod-guest` is mounted at ``SandboxGuestTool/guestPath``.
         let hasGuestTool: Bool
         let forwarding = SandboxForwarding()
+        private let stopper = SandboxVMStop()
+
+        func stop() async throws {
+            try await stopper.run {
+                try await container.stop()
+            }
+            // A late vmnet callback may settle an earlier ambiguous result.
+            // Recheck it without replaying the VM stop mutation.
+            try network?.stop()
+            forwarding.stop()
+        }
+
     }
 
     /// Resolve the base disk, clone it into `runDir` and configure the VM.
@@ -179,7 +191,9 @@ public enum SandboxVM {
         // One vmnet network per sandbox. Host mode (published ports or
         // exposed host ports without --allow-net) reaches the host and
         // nothing else.
-        let vmnet = try options.networkMode.map { try SandboxNetwork(mode: $0) }
+        let vmnet = try options.networkMode.map {
+            try SandboxNetwork(mode: $0, pinBridge: options.rootlessDocker)
+        }
         let network = vmnet.map { (interface: $0.interface, gateway: $0.gateway.description) }
         if vmnet != nil { trace.mark("network") }
         var shares: [Containerization.Mount] = []
@@ -338,21 +352,29 @@ public enum SandboxVM {
         stdin: (any ReaderStream)? = nil,
         terminal: Terminal? = nil,
         trace: Trace = Trace(),
-        progress: @Sendable (String) -> Void
+        progress: @Sendable (String) -> Void,
+        didPrepare: @Sendable (Prepared) async -> Void = { _ in }
     ) async throws -> Prepared {
         var attempt = 1
         while true {
             let prepared = try await prepare(
                 options, id: id, runDir: runDir, stdout: stdout, stderr: stderr, stdin: stdin,
                 terminal: terminal, trace: trace, progress: progress)
+            await didPrepare(prepared)
             let container = prepared.container
+            // An allocation owns one VM, including an uncertain create. Do
+            // not detach/retry a boot underneath its durable reservation.
+            if options.rootlessDocker {
+                try await container.create()
+                return prepared
+            }
             do {
                 try await withTimeout(
                     options.bootTimeout / 2, "guest did not boot",
                     abandoned: { try? await container.stop() },
                     { try await container.create() })
                 return prepared
-            } catch  where attempt == 1 && isLostVM(error) {
+            } catch  where !options.rootlessDocker && attempt == 1 && isLostVM(error) {
                 attempt += 1
                 progress("VM lost while booting (\(error)); retrying once")
                 prepared.forwarding.stop()

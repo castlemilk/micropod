@@ -382,6 +382,7 @@ struct Session: Sendable {
 actor SessionStore {
     let root: URL
     private var sessions: [String: Session] = [:]
+    private var booting: Set<String> = []
     /// Waiters parked in `awaitFinish`, resumed when their session exits.
     private var finishWaiters: [String: [UUID: CheckedContinuation<Void, Never>]] = [:]
 
@@ -427,41 +428,59 @@ actor SessionStore {
         return prepared
     }
 
-    func boot(_ id: String) async throws {
+    func beginBoot(_ id: String) throws -> Session {
         var session = try require(id)
         guard session.state == .created else {
-            throw MicropodError.message(
-                "failedPrecondition: sandbox \(id) already ran — sandboxes are ephemeral, run a new one")
+            throw MicropodError.message("failedPrecondition: sandbox already ran")
         }
         session.state = .running
         sessions[id] = session
+        booting.insert(id)
+        return session
+    }
+
+    func boot(_ id: String) async throws {
+        let session = try beginBoot(id)
+        defer { booting.remove(id) }
         do {
             let log = try LockedFileWriter(url: session.logURL)
             let prepared = try await SandboxVM.prepareAndCreate(
                 session.options, id: id, runDir: session.runDir, stdout: log, stderr: log,
-                progress: { SecretSource.stderrLog("sandbox \(id): \($0)") })
+                progress: { SecretSource.stderrLog("sandbox \(id): \($0)") },
+                didPrepare: { prepared in await self.ownPrepared(id, prepared) })
             do {
                 try await SandboxVM.launch(prepared)
             } catch {
                 prepared.forwarding.stop()
-                try? await prepared.container.stop()
+                try? await prepared.stop()
                 throw error
             }
             sessions[id]?.prepared = prepared
             Task { await self.reap(id, prepared) }
         } catch {
-            sessions[id]?.state = .exited
-            sessions[id]?.exitCode = -1
+            // A VM handle is still ownership evidence even when create or
+            // launch was interrupted. Preserve it until stop is confirmed.
+            if sessions[id]?.prepared == nil {
+                sessions[id]?.state = .exited
+                sessions[id]?.exitCode = -1
+            }
             throw error
         }
+    }
+
+    private func ownPrepared(_ id: String, _ prepared: SandboxVM.Prepared) {
+        sessions[id]?.prepared = prepared
     }
 
     /// Wait for the workload, then tear the VM down and record the exit.
     private func reap(_ id: String, _ prepared: SandboxVM.Prepared) async {
         let code = (try? await prepared.container.wait().exitCode) ?? -1
-        try? await prepared.container.stop()
-        prepared.forwarding.stop()
-        finish(id, code: code)
+        do {
+            try await prepared.stop()
+            finish(id, code: code)
+        } catch {
+            SecretSource.stderrLog("sandbox \(id): VM stop remains unconfirmed")
+        }
     }
 
     /// Parks until session `id` exits (or is gone) or `timeout` passes, so a
@@ -516,14 +535,16 @@ actor SessionStore {
         sessions[id]?.keepDisk = true
         sessions[id]?.exitCode = 0
         defer { sessions[id]?.keepDisk = false }
-        try await prepared.container.stop()
-        prepared.forwarding.stop()
+        try await prepared.stop()
         finish(id, code: 0)
         try SandboxVM.saveCheckpoint(
             name: name, disk: prepared.rootfsPath, image: prepared.imageRef, diskBytes: prepared.diskBytes)
     }
 
     func stop(_ id: String, signal: Signal?) async throws {
+        guard !booting.contains(id) else {
+            throw MicropodError.message("failedPrecondition: sandbox preparation is still in progress")
+        }
         let session = try require(id)
         guard session.state == .running, let prepared = session.prepared else { return }
         if let signal {
@@ -531,22 +552,24 @@ actor SessionStore {
             return
         }
         sessions[id]?.exitCode = 137
-        try await prepared.container.stop()
-        prepared.forwarding.stop()
+        try await prepared.stop()
         finish(id, code: 137)
     }
 
     func remove(_ id: String, force: Bool) async throws {
+        guard !booting.contains(id) else {
+            throw MicropodError.message("failedPrecondition: sandbox preparation is still in progress")
+        }
         let session = try require(id)
         if session.state == .running {
             guard force else {
                 throw MicropodError.message("failedPrecondition: sandbox \(id) is running — stop it or force delete")
             }
-            try? await stop(id, signal: nil)
+            try await stop(id, signal: nil)
         }
+        try FileManager.default.removeItem(at: session.runDir)
         sessions[id] = nil
         resumeAll(id)
-        try? FileManager.default.removeItem(at: session.runDir)
     }
 }
 
