@@ -40,6 +40,15 @@ without a confirmed stop. A bridge anchor is used only by the opt-in rootless
 profile; ordinary sandbox networking retains its previous setup. Focused Swift
 sandbox tests: 52 executed, one skipped, zero failures.
 
+The session also owns its network before waiting for bridge startup, so a
+preparation failure before a configured VM exists cannot discard the cleanup
+handle. An unconfirmed stop retains the session and workspace without inventing
+an exit; a late callback permits deletion without issuing another stop. Ten
+deterministic startup/ownership/stop cases pass. Replacing the fixed failure
+condition with its previous behavior reproduces the false deletion
+acknowledgement in the regression test. These checks use private fixtures and
+do not qualify an installed runtime or a live GitHub runner.
+
 Full GitHub runner qualification is **not passed**. Positive GitHub egress works
 on Gamma-64GB, but the attached bridge's IPv6 link-local host probe times out
 instead of returning the required rejection. Cuttlefish continues to reject that
@@ -65,7 +74,7 @@ Reconciliation with per-VM init images (#97): regenerated the Go, Swift and
 TypeScript client contracts through `scripts/gen-sdk.sh`, retaining both
 `RunContainerRequest.init_image` and `SandboxOptions.rootless_docker`. The SDK
 regression covers JSON and protobuf round trips for both independent features.
-The combined native build and all 1,434 Swift tests passed (86 opt-in tests
+The combined native build and all 1,438 Swift tests passed (86 opt-in tests
 skipped, zero failures); Go SDK tests, TypeScript typecheck and standalone
 Swift SDK build also pass. This is source compatibility evidence and does not
 change the outstanding networked acceptance or runtime authorization policy.

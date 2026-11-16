@@ -163,7 +163,8 @@ public enum SandboxVM {
         stdin: (any ReaderStream)? = nil,
         terminal: Terminal? = nil,
         trace: Trace = Trace(),
-        progress: @Sendable (String) -> Void
+        progress: @Sendable (String) -> Void,
+        didOwnNetwork: @Sendable (any SandboxNetworkCleanup) async -> Void = { _ in }
     ) async throws -> Prepared {
         try validateRootlessDocker(options)
         let store = try imageStore()
@@ -193,6 +194,10 @@ public enum SandboxVM {
         // nothing else.
         let vmnet = try options.networkMode.map {
             try SandboxNetwork(mode: $0, pinBridge: options.rootlessDocker)
+        }
+        if let vmnet {
+            await didOwnNetwork(vmnet)
+            try vmnet.waitUntilReady()
         }
         let network = vmnet.map { (interface: $0.interface, gateway: $0.gateway.description) }
         if vmnet != nil { trace.mark("network") }
@@ -353,13 +358,14 @@ public enum SandboxVM {
         terminal: Terminal? = nil,
         trace: Trace = Trace(),
         progress: @Sendable (String) -> Void,
+        didOwnNetwork: @Sendable (any SandboxNetworkCleanup) async -> Void = { _ in },
         didPrepare: @Sendable (Prepared) async -> Void = { _ in }
     ) async throws -> Prepared {
         var attempt = 1
         while true {
             let prepared = try await prepare(
                 options, id: id, runDir: runDir, stdout: stdout, stderr: stderr, stdin: stdin,
-                terminal: terminal, trace: trace, progress: progress)
+                terminal: terminal, trace: trace, progress: progress, didOwnNetwork: didOwnNetwork)
             await didPrepare(prepared)
             let container = prepared.container
             // An allocation owns one VM, including an uncertain create. Do

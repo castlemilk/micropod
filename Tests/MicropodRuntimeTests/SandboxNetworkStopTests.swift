@@ -5,6 +5,21 @@ import vmnet
 @testable import MicropodRuntime
 
 final class SandboxNetworkStopTests: XCTestCase {
+    func testLateStartConfirmationRemainsObservableAfterTimeout() throws {
+        let startup = SandboxNetworkStartConfirmation(timeout: .milliseconds(0))
+        XCTAssertThrowsError(try startup.wait())
+        startup.complete(.VMNET_SUCCESS)
+        try startup.wait()
+        try startup.wait()
+    }
+
+    func testFailedStartCannotBeOverwrittenByALaterCallback() {
+        let startup = SandboxNetworkStartConfirmation(timeout: .milliseconds(0))
+        startup.complete(.VMNET_FAILURE)
+        startup.complete(.VMNET_SUCCESS)
+        XCTAssertThrowsError(try startup.wait())
+    }
+
     func testConcurrentWaitersShareOneConfirmedStop() {
         let stop = SandboxNetworkStopConfirmation()
         let calls = Mutex(0)

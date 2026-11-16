@@ -4,6 +4,12 @@ import Foundation
 import MicropodCore
 import vmnet
 
+/// Cleanup can remain uncertain before a configured VM exists. Its session
+/// retains this resource until the same stop operation is confirmed.
+protocol SandboxNetworkCleanup: Sendable {
+    func stop() throws
+}
+
 /// One sandbox's vmnet network (macOS 26 `vmnet_network_create`, no
 /// vm.networking entitlement): vmnet picks a free /24 under 192.168/16, so
 /// parallel runs never contend for addresses, and sandboxes can't reach
@@ -16,7 +22,7 @@ import vmnet
 /// a long-lived API process ran out after ~20 networked sandboxes
 /// (`VMNET_FAILURE`). Released on deinit: keep this alive until the VM has
 /// stopped, or the guest dies mid-teardown.
-final class SandboxNetwork: @unchecked Sendable {
+final class SandboxNetwork: SandboxNetworkCleanup, @unchecked Sendable {
     let interface: VmnetNetwork.Interface
     let gateway: IPv4Address
     private let reference: vmnet_network_ref
@@ -73,6 +79,8 @@ final class SandboxNetwork: @unchecked Sendable {
             throw error
         }
     }
+
+    func waitUntilReady() throws { try anchor?.waitUntilReady() }
 
     func stop() throws { try anchor?.stop() }
 

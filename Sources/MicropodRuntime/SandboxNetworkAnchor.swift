@@ -10,10 +10,10 @@ final class SandboxNetworkAnchor: @unchecked Sendable {
     private let interface: interface_ref
     private let queue = DispatchQueue(label: "micropod.sandbox.network-anchor")
     private let confirmation = SandboxNetworkStopConfirmation()
+    private let startup = SandboxNetworkStartConfirmation()
 
     init(network: vmnet_network_ref) throws {
-        let ready = DispatchSemaphore(value: 0)
-        let result = Mutex<vmnet_return_t?>(nil)
+        let startup = self.startup
         let parameters = xpc_dictionary_create(nil, nil, 0)
         let callbackQueue = queue
         guard
@@ -21,19 +21,18 @@ final class SandboxNetworkAnchor: @unchecked Sendable {
                 network, parameters, queue,
                 { status, _ in
                     withExtendedLifetime(callbackQueue) {}
-                    result.withLock { $0 = status }
-                    ready.signal()
+                    startup.complete(status)
                 })
         else {
             throw MicropodError.message("sandbox network anchor could not start")
         }
         self.interface = interface
-        guard ready.wait(timeout: .now() + 10) == .success,
-            result.withLock({ $0 }) == .VMNET_SUCCESS
-        else {
-            try? stop()
-            throw MicropodError.message("sandbox network anchor start was not confirmed")
-        }
+    }
+
+    /// The session must own this anchor before waiting. An uncertain start
+    /// can still allocate a bridge and must retain an observable stop handle.
+    func waitUntilReady() throws {
+        try startup.wait()
     }
 
     /// Never replay an ambiguous stop. A late callback can settle it; callers
@@ -49,6 +48,32 @@ final class SandboxNetworkAnchor: @unchecked Sendable {
     }
 
     deinit { try? stop() }
+}
+
+final class SandboxNetworkStartConfirmation: @unchecked Sendable {
+    private let result = Mutex<vmnet_return_t?>(nil)
+    private let finished = DispatchGroup()
+    private let timeout: DispatchTimeInterval
+
+    init(timeout: DispatchTimeInterval = .seconds(10)) {
+        self.timeout = timeout
+        finished.enter()
+    }
+
+    func complete(_ status: vmnet_return_t) {
+        let first = result.withLock { result in
+            guard result == nil else { return false }
+            result = status
+            return true
+        }
+        if first { finished.leave() }
+    }
+
+    func wait() throws {
+        guard finished.wait(timeout: .now() + timeout) == .success,
+            result.withLock({ $0 }) == .VMNET_SUCCESS
+        else { throw MicropodError.message("sandbox network anchor start was not confirmed") }
+    }
 }
 
 /// Every concurrent waiter observes the same callback. A late confirmation

@@ -333,6 +333,7 @@ struct Session: Sendable {
     var state = State.created
     var exitCode: Int32?
     var prepared: SandboxVM.Prepared?
+    var preparationNetwork: (any SandboxNetworkCleanup)?
     /// Set while a checkpoint takes the root disk: finish() must not delete it.
     var keepDisk = false
 
@@ -447,6 +448,7 @@ actor SessionStore {
             let prepared = try await SandboxVM.prepareAndCreate(
                 session.options, id: id, runDir: session.runDir, stdout: log, stderr: log,
                 progress: { SecretSource.stderrLog("sandbox \(id): \($0)") },
+                didOwnNetwork: { network in await self.ownPreparationNetwork(id, network) },
                 didPrepare: { prepared in await self.ownPrepared(id, prepared) })
             do {
                 try await SandboxVM.launch(prepared)
@@ -458,13 +460,21 @@ actor SessionStore {
             sessions[id]?.prepared = prepared
             Task { await self.reap(id, prepared) }
         } catch {
-            // A VM handle is still ownership evidence even when create or
-            // launch was interrupted. Preserve it until stop is confirmed.
-            if sessions[id]?.prepared == nil {
-                sessions[id]?.state = .exited
-                sessions[id]?.exitCode = -1
-            }
+            recordBootFailure(id)
             throw error
+        }
+    }
+
+    func ownPreparationNetwork(_ id: String, _ network: any SandboxNetworkCleanup) {
+        sessions[id]?.preparationNetwork = network
+    }
+
+    func recordBootFailure(_ id: String) {
+        // A bridge can exist before a configured VM does. Neither handle
+        // may be forgotten merely because preparation or launch failed.
+        if sessions[id]?.prepared == nil, sessions[id]?.preparationNetwork == nil {
+            sessions[id]?.state = .exited
+            sessions[id]?.exitCode = -1
         }
     }
 
@@ -514,6 +524,7 @@ actor SessionStore {
         session.state = .exited
         if session.exitCode == nil { session.exitCode = code }
         session.prepared = nil
+        session.preparationNetwork = nil
         // The rootfs clone is dead weight once the VM is gone (unless it is
         // becoming a checkpoint); keep logs.
         if !session.keepDisk {
@@ -546,13 +557,19 @@ actor SessionStore {
             throw MicropodError.message("failedPrecondition: sandbox preparation is still in progress")
         }
         let session = try require(id)
-        guard session.state == .running, let prepared = session.prepared else { return }
-        if let signal {
+        guard session.state == .running else { return }
+        if let prepared = session.prepared, let signal {
             try await prepared.container.kill(signal)
             return
         }
+        if let prepared = session.prepared {
+            try await prepared.stop()
+        } else if let network = session.preparationNetwork {
+            try network.stop()
+        } else {
+            return
+        }
         sessions[id]?.exitCode = 137
-        try await prepared.stop()
         finish(id, code: 137)
     }
 
