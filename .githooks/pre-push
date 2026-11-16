@@ -42,7 +42,7 @@ if [ -n "${PRE_PUSH_FULL:-}" ] || [ -z "$base" ] || echo "$changed" | grep -q '^
 fi
 
 targets=$(echo "$changed" | sed -n 's|^Sources/\([^/]*\)/.*|\1Tests|p; s|^Tests/\([^/]*\)/.*|\1|p' |
-    sort -u | while read -r t; do [ -d "Tests/$t" ] && echo "$t"; done)
+    sort -u | while read -r t; do if [ -d "Tests/$t" ]; then echo "$t"; fi; done)
 if [ -z "$targets" ]; then
     echo "hook: no test target covers this push; skipping swift test"
     exit 0

@@ -13,7 +13,12 @@ enum UpdateCommands {
         Usage:
           micropod update [status]     the app's and this CLI's versions and updates
           micropod update check        look for a newer version now
-          micropod update apply        restart the app into its downloaded update
+          micropod update apply        download, install and verify the app update
+          micropod update auto [on|off|status] [--idle-after SECONDS]
+          micropod update channel [stable|qualification]  choose the release channel
+          micropod update recover      reconcile a retained update transaction
+          micropod update verify [--automatic] [--image IMAGE]
+                                       verify live workloads through an update
           micropod update cli [--force]  update a standalone CLI install from the
                                        release channel (signature-verified)
 
@@ -34,6 +39,39 @@ enum UpdateCommands {
                 return try await applyApp(json: json)
             case "cli":
                 return try await updateCLI(force: args.contains("--force"))
+            case "auto":
+                let value = args.dropFirst().first ?? "status"
+                guard ["on", "off", "status"].contains(value) else {
+                    throw UsageError(message: "use update auto on, off or status")
+                }
+                let client = AppControlClient()
+                var settings: [String: Any] = ["automaticInstallation": value == "on"]
+                if value == "on" { settings["automaticChecks"] = true }
+                if let index = args.firstIndex(of: "--idle-after") {
+                    guard value != "status", index + 1 < args.count, let seconds = Double(args[index + 1]),
+                        seconds.isFinite, (0...3600).contains(seconds)
+                    else {
+                        throw UsageError(message: "--idle-after requires 0 to 3600 seconds with on or off")
+                    }
+                    settings["idleSeconds"] = seconds
+                }
+                if value != "status" {
+                    _ = try await client.call("update.configure", params: settings)
+                }
+                try await status(json: json, check: false)
+            case "channel":
+                if let value = args.dropFirst().first {
+                    guard ["stable", "qualification"].contains(value) else {
+                        throw UsageError(message: "choose stable or qualification")
+                    }
+                    _ = try await AppControlClient().call("update.configure", params: ["channel": value])
+                }
+                try await status(json: json, check: false)
+            case "recover":
+                _ = try await AppControlClient().call("update.recover")
+                try await status(json: json, check: false)
+            case "verify":
+                return try await UpdateVerification.run(Array(args.dropFirst()), json: json)
             case "--refresh":
                 await UpdateNotice.refresh()
             case "help", "--help", "-h":
@@ -96,6 +134,11 @@ enum UpdateCommands {
         }
         if let app {
             print(appLine(app))
+            if let automatic = app["automaticInstallation"] as? Bool {
+                print(
+                    "Automatic installation: \(automatic ? "on" : "off"); channel: \(app["channel"] as? String ?? "stable")"
+                )
+            }
         } else {
             print("Micropod app — not running")
         }
@@ -151,21 +194,53 @@ enum UpdateCommands {
 
     // MARK: Apply
 
-    private static func applyApp(json: Bool) async throws -> Int32 {
+    static func applyApp(json: Bool, quiet: Bool = false) async throws -> Int32 {
         let client = AppControlClient()
         guard client.isReachable else {
             FileHandle.standardError.write(Data("error: Micropod isn't running (no \(client.socketPath))\n".utf8))
             return ExitCode.failure
         }
-        let status = try await client.updateStatus()
-        guard status["readyToInstall"] as? Bool == true else {
-            print(appLine(status))
-            FileHandle.standardError.write(Data("error: no update is staged yet — run `micropod update check`\n".utf8))
-            return ExitCode.failure
+        var report = try await client.updateStatus()
+        if !["updateAvailable", "readyToInstall"].contains(report["state"] as? String ?? "") {
+            _ = try await client.checkForUpdates()
+            for _ in 0..<60 {
+                try await Task.sleep(for: .seconds(1))
+                report = try await client.updateStatus()
+                if report["state"] as? String != "checking" { break }
+            }
+        }
+        if report["state"] as? String == "upToDate" {
+            if !quiet { try await status(json: json, check: false) }
+            return ExitCode.ok
+        }
+        guard let target = report["downloadedVersion"] as? String ?? report["availableVersion"] as? String else {
+            throw MicropodError.message(appLine(report))
+        }
+        for _ in 0..<10 where report["canCheckForUpdates"] as? Bool == false {
+            try await Task.sleep(for: .milliseconds(200))
+            report = try await client.updateStatus()
         }
         _ = try await client.applyUpdate()
-        print("restarting Micropod into \(status["downloadedVersion"] as? String ?? "the update")…")
-        return ExitCode.ok
+        if !json && !quiet { print("Installing Micropod \(target). Workload services remain running…") }
+        // The CLI process and durable operation survive the GUI replacement.
+        // Lost replies are observations, never permission to replay an apply.
+        for _ in 0..<600 {
+            try await Task.sleep(for: .seconds(1))
+            if let receipt = try UpdateContinuityStore.standard.read(), receipt.isTerminal {
+                guard receipt.phase == .succeeded, receipt.targetVersion == target else {
+                    throw MicropodError.message(receipt.detail ?? "The update did not install; its receipt is retained")
+                }
+                guard let current = try? await client.updateStatus(), current["currentVersion"] as? String == target,
+                    current["desktopAdmission"] as? String == "open", current["restartGuard"] as? String == "idle"
+                else { continue }
+                if !quiet { try await status(json: json, check: false) }
+                if !json && !quiet { print("Verified the signed replacement and unchanged workload owners.") }
+                return ExitCode.ok
+            }
+        }
+        throw MicropodError.message(
+            "Update completion is unconfirmed. Its receipt and workload services are retained; inspect update status before retrying."
+        )
     }
 
     // MARK: CLI self-update

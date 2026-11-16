@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Verification only: never creates, rebuilds, replaces or uploads release assets.
 import { createHash, createPublicKey, verify } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { updateAppcast } from "./update_appcast.mjs";
 
 const publicKey = "nJEL+JijqhfC7zxPlqxifCqBM06A3DGki/JmBFTW/VM=";
 export function releasePolicy(release) {
@@ -19,7 +20,7 @@ export function validateTag(listing, manifest, required = false) {
     if (!resolved || resolved[0] !== manifest.source) throw new Error("tag does not resolve to qualified source");
 }
 export function validateMetadata(release, manifest) {
-    if (manifest.policy !== "informational" || !/^v\d+\.\d+\.\d+$/.test(manifest.tag) || !/^[0-9a-f]{40}$/.test(manifest.source)) {
+    if (!["informational", "workload-preserving-candidate", "workload-preserving-v1"].includes(manifest.policy) || !/^v\d+\.\d+\.\d+$/.test(manifest.tag) || !/^[0-9a-f]{40}$/.test(manifest.source)) {
         throw new Error("invalid qualified publication policy");
     }
     if (release.id !== manifest.releaseID || release.tag_name !== manifest.tag || release.target_commitish !== manifest.source || release.prerelease !== false || typeof release.draft !== "boolean") {
@@ -35,6 +36,53 @@ export function validateMetadata(release, manifest) {
         }
     }
     if (releasePolicy(release) !== "qualified") throw new Error("not a qualified release");
+}
+
+export function publicationOptions(manifest, channel, repository = process.cwd()) {
+    if (!/^v\d+\.\d+\.\d+$/.test(manifest.tag)) throw new Error("invalid publication version");
+    if (manifest.policy === "informational") {
+        if (channel !== "stable") throw new Error("announcements use the stable feed");
+        return { version: manifest.tag, url: `https://github.com/castlemilk/micropod/releases/tag/${manifest.tag}`, informational: true };
+    }
+    if (!["workload-preserving-candidate", "workload-preserving-v1"].includes(manifest.policy) ||
+        manifest.workloadProtocol !== 1 || manifest.minimumUpdaterVersion !== "0.13.0") {
+        throw new Error("unsupported workload publication policy");
+    }
+    if (manifest.policy === "workload-preserving-candidate" && channel !== "qualification") {
+        throw new Error("an unaccepted candidate cannot enter the stable feed");
+    }
+    if (!["stable", "qualification"].includes(channel)) throw new Error("unknown feed channel");
+    if (channel === "stable") {
+        const evidence = manifest.continuityAcceptance;
+        if (!evidence || !/^docs\/updater-acceptance\/v\d+\.\d+\.\d+\.json$/.test(evidence.path) ||
+            !/^[0-9a-f]{64}$/.test(evidence.sha256)) throw new Error("missing continuity acceptance evidence");
+        const bytes = readFileSync(join(repository, evidence.path));
+        if (createHash("sha256").update(bytes).digest("hex") !== evidence.sha256) throw new Error("continuity acceptance bytes changed");
+        const proof = JSON.parse(bytes);
+        if (proof.schema !== 1 || proof.source !== manifest.source || proof.targetVersion !== manifest.tag.slice(1) ||
+            proof.faultTestsPassed !== true || proof.manual?.passed !== true || proof.automatic?.passed !== true ||
+            proof.automatic.update?.targetVersion !== manifest.tag.slice(1)) throw new Error("incomplete continuity acceptance");
+        for (const hop of [proof.manual, proof.automatic]) {
+            if (hop.update?.phase !== "succeeded" || hop.update.schema !== 1 || hop.workloads?.length !== 2 ||
+                hop.error || hop.update.targetSourceRevision !== manifest.source ||
+                hop.workloads.map(w => w.expectedExit).sort().join(",") !== "0,7" ||
+                hop.workloads.some(w => w.exit !== w.expectedExit || !w.artifact || !w.logBefore || !w.logAfter || !w.streamCompleted || !w.before || !w.after || !w.runtimeIdentityBefore || w.runtimeIdentityBefore !== w.runtimeIdentityAfter)) {
+                throw new Error("workload continuity or final results were not verified");
+            }
+            for (const workload of hop.workloads) {
+                const before = JSON.parse(Buffer.from(workload.before, "base64").toString("utf8"));
+                const after = JSON.parse(Buffer.from(workload.after, "base64").toString("utf8"));
+                if (!before.id || before.id !== workload.id || before.id !== after.id || !before.createdAt ||
+                    before.createdAt !== after.createdAt || before.image !== after.image || after.state !== "running" ||
+                    JSON.stringify(before.mounts) !== JSON.stringify(after.mounts) || workload.artifact !== hop.id) {
+                    throw new Error("workload identity or volume artifact changed");
+                }
+            }
+        }
+        if (proof.manual.automatic !== false || proof.automatic.automatic !== true) throw new Error("manual and automatic paths were not both accepted");
+    }
+    return { version: manifest.tag, url: `https://github.com/castlemilk/micropod/releases/download/${manifest.tag}/Micropod.dmg`,
+        signature: manifest.sparkleSignature, length: manifest.assets["Micropod.dmg"].size, "minimum-update-version": "0.13.0", source: manifest.source };
 }
 export function verifyAssets(manifest, directory) {
     for (const [name, expected] of Object.entries(manifest.assets)) {
@@ -58,6 +106,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         const [mode, releasePath, manifestPath, directory] = process.argv.slice(2);
         if (mode === "--tag" || mode === "--published-tag") {
             validateTag(readFileSync(releasePath, "utf8"), JSON.parse(readFileSync(manifestPath, "utf8")), mode === "--published-tag");
+        } else if (mode === "--appcast") {
+            const manifest = JSON.parse(readFileSync(releasePath, "utf8"));
+            writeFileSync(manifestPath, updateAppcast(readFileSync(manifestPath, "utf8"), publicationOptions(manifest, directory)));
         } else if (mode === "--policy") console.log(releasePolicy(JSON.parse(readFileSync(releasePath, "utf8"))));
         else if (mode === "--verify" && manifestPath && directory) {
             const release = JSON.parse(readFileSync(releasePath, "utf8"));

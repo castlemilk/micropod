@@ -21,7 +21,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         for (let i = 0; i < args.length; i++) {
             const name = args[i];
             if (name === "--informational") { options.informational = true; continue; }
-            if (!["--version", "--url", "--signature", "--length", "--appcast"].includes(name) || !args[i + 1] || args[i + 1].startsWith("--")) {
+            if (!["--version", "--url", "--signature", "--length", "--appcast", "--minimum-update-version", "--source"].includes(name) || !args[i + 1] || args[i + 1].startsWith("--")) {
                 throw new Error(`invalid argument ${name}`);
             }
             options[name.slice(2)] = args[++i];

@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import MicropodCore
 import XCTest
 
 @testable import MicropodApp

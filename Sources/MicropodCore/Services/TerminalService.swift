@@ -42,6 +42,7 @@ public actor TerminalService: TerminalServing {
     private var sessions: [UUID: LiveSession] = [:]
     private var streams: [UUID: AsyncThrowingStream<Data, Error>.Continuation] = [:]
     private var remoteSessions = Set<UUID>()
+    private var desktopClaims: [UUID: DesktopActivity.Claim] = [:]
     public init(client: ContainerCLIClient) {
         self.client = client
     }
@@ -49,12 +50,14 @@ public actor TerminalService: TerminalServing {
     var activeSessionCount: Int { sessions.count }
 
     public func open(containerID: String, shell: String = "/bin/sh") async throws -> TerminalConnection {
+        let desktopClaim = try DesktopActivity.shared.claim()
         if client.usesIsolatedTransport {
             let body = try JSONSerialization.data(withJSONObject: ["containerID": containerID, "shell": shell])
             let data = try await IsolatedRuntimeTransport.shared.request(path: "/v1/managed/terminal/open", body: body)
             struct Opened: Decodable { let sessionID: UUID }
             let id = try JSONDecoder().decode(Opened.self, from: data).sessionID
             remoteSessions.insert(id)
+            desktopClaims[id] = desktopClaim
             let request = try JSONSerialization.data(withJSONObject: ["sessionID": id.uuidString])
             let stream = AsyncThrowingStream<Data, Error> { continuation in
                 let task = Task {
@@ -190,6 +193,7 @@ public actor TerminalService: TerminalServing {
     }
 
     public func close(sessionID: UUID) async throws {
+        defer { desktopClaims[sessionID] = nil }
         if remoteSessions.remove(sessionID) != nil {
             let body = try JSONSerialization.data(withJSONObject: ["sessionID": sessionID.uuidString])
             _ = try await IsolatedRuntimeTransport.shared.request(path: "/v1/managed/terminal/close", body: body)

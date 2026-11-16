@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import MicropodCore
 import Observation
 import Sparkle
 import SwiftUI
@@ -16,9 +17,9 @@ import SwiftUI
 /// socket (`update.status`) can report it to the API server and MCP, and
 /// the UI (banner, menu bar, Settings) observes it.
 ///
-/// Installation requires a qualified admission coordinator. Until that bridge exists,
-/// information checks remain available and every installation path is blocked:
-/// a restart stops the app's API/shim agents and can interrupt new work.
+/// Downloads require a durable continuity transaction before Sparkle can stage
+/// an install-on-quit. Workload services retain their signed payloads and process
+/// identities while the desktop and its linked command-line tools are replaced.
 @MainActor
 @Observable
 final class UpdateController: NSObject, SPUUpdaterDelegate {
@@ -28,7 +29,7 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
     /// (weakly-held) updater delegate.
     @ObservationIgnored
     lazy var controller: SPUStandardUpdaterController = SPUStandardUpdaterController(
-        startingUpdater: feedConfigured,
+        startingUpdater: false,
         updaterDelegate: self,
         userDriverDelegate: nil)
 
@@ -59,17 +60,34 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
     /// Sparkle's silent install+relaunch block, captured when the
     /// update is fully staged. nil until then.
     @ObservationIgnored private var immediateInstallHandler: (() -> Void)?
-    /// Whether nothing would be disrupted by a restart right now (no running
-    /// containers) — set by the app once its store is up.
+    /// The desktop gate is closed and no local command is in flight. Workloads
+    /// owned by the retained services may continue running.
     @ObservationIgnored var restartIsSafe: @MainActor () async -> Bool = { false }
     let restartGuard: UpdateRestartGuard
-    var restartBlockedReason: String? { restartGuard.blockedReason }
+    @ObservationIgnored private let admission: ManagedUpdateAdmission?
+    @ObservationIgnored nonisolated private let updateStore: UpdateContinuityStore
+    var restartBlockedReason: String? {
+        if let reason = restartGuard.blockedReason { return reason }
+        if status == .updateAvailable, admission != nil, admission?.candidate?.isCompatible != true {
+            return "This release has no compatible signed desktop payload."
+        }
+        return nil
+    }
     @ObservationIgnored private var autoInstallTimer: Timer?
     @ObservationIgnored private var notifiedVersion: String?
+    @ObservationIgnored nonisolated private let installerBoundary = UpdateInstallerBoundary()
+    @ObservationIgnored private var preparingUpdate = false
+    @ObservationIgnored private var informationCheck: UUID?
+    @ObservationIgnored private var completedInformationCheck: UUID?
+    @ObservationIgnored private var hasStartedUpdater = false
 
     /// How long the user must have been away before an automatic install.
     static let idleBeforeInstall: TimeInterval = 10 * 60
     static let autoInstallKey = "updates.installAutomatically"
+    var automaticIdleSeconds: Double {
+        get { UserDefaults.standard.object(forKey: "updates.idleSeconds") as? Double ?? Self.idleBeforeInstall }
+        set { UserDefaults.standard.set(min(3600, max(0, newValue)), forKey: "updates.idleSeconds") }
+    }
 
     /// Install staged updates on their own when it is safe (default on).
     var installsAutomatically: Bool {
@@ -84,27 +102,55 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
         }
     }
 
-    init(feedConfigured: Bool? = nil, restartGuard: UpdateRestartGuard = UpdateRestartGuard()) {
+    init(feedConfigured: Bool? = nil, restartGuard: UpdateRestartGuard? = nil, store: UpdateContinuityStore = .standard)
+    {
         self.feedConfigured = feedConfigured ?? (Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil)
-        self.restartGuard = restartGuard
+        let production = ManagedUpdateAdmission(store: store)
+        let admission = restartGuard == nil ? production : nil
+        self.updateStore = store
+        self.admission = admission
+        self.restartGuard = restartGuard ?? UpdateRestartGuard(coordinator: production)
         status = self.feedConfigured ? .idle : .unavailable
         super.init()
-        restartGuard.didBlock = { [weak self] in
+        if admission != nil, self.feedConfigured, updateStore.requiresRecovery {
+            self.restartGuard.adoptRetainedRecovery()
+        }
+        self.restartGuard.didBlock = { [weak self] in
             guard let self else { return }
             if self.readyToInstall, [.readyToInstall, .installing].contains(self.status) {
                 self.status = self.restartGuard.state == .recoveryRequired ? .error : .readyToInstall
             }
         }
         guard self.feedConfigured else { return }
+        if UserDefaults.standard.object(forKey: "updates.checkAutomatically") == nil {
+            UserDefaults.standard.set(
+                UserDefaults.standard.object(forKey: "SUEnableAutomaticChecks") as? Bool ?? true,
+                forKey: "updates.checkAutomatically")
+        }
         _ = controller
         // Automatic downloading can stage an install-on-quit outside our
-        // guarded apply path. Keep checks informational until the bridge is
-        // qualified, including resumed Sparkle drivers.
+        // guarded apply path. Checks remain informational until a fresh
+        // workload-owner receipt authorizes this exact artifact.
         controller.updater.automaticallyDownloadsUpdates = false
+        // Own the scheduler so every background check starts informationally.
+        // An installation-capable Sparkle driver needs a durable receipt first.
+        controller.updater.automaticallyChecksForUpdates = false
+        startUpdaterIfPermitted()
+        Task { @MainActor [weak self] in
+            guard let self, self.restartGuard.state == .recoveryRequired else { return }
+            if !(await self.restartGuard.reconcileRecovery()) {
+                self.lastError = self.restartGuard.blockedReason
+                self.status = .error
+            } else {
+                self.startUpdaterIfPermitted()
+            }
+        }
         // Look now rather than up to an hour after launch.
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(20))
-            if self?.status != .readyToInstall { self?.checkForUpdatesInBackground() }
+            if self?.status != .readyToInstall, self?.checksAutomatically == true {
+                self?.checkForUpdatesInBackground()
+            }
         }
         let timer = Timer(timeInterval: 300, repeats: true) { _ in
             Task { @MainActor in await UpdateController.shared.installIfSafe() }
@@ -113,15 +159,22 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
         autoInstallTimer = timer
     }
 
-    /// Installs a staged update when nobody would notice: automatic
-    /// installs on, the app in the background, the user idle, and nothing
-    /// running.
+    /// Apply the automatic policy while the interface is in the background.
+    /// Running workloads are not an idle requirement.
     func installIfSafe() async {
-        guard status == .readyToInstall, installsAutomatically, !NSApp.isActive else { return }
+        guard !preparingUpdate else { return }
+        if checksAutomatically, Date().timeIntervalSince(lastCheckedAt ?? .distantPast) >= 3600,
+            ![.checking, .installing, .readyToInstall].contains(status)
+        {
+            checkForUpdatesInBackground()
+        }
+        guard [.updateAvailable, .readyToInstall].contains(status), installsAutomatically, !NSApp.isActive else {
+            return
+        }
         // kCGAnyInputEventType (~0): the last keyboard/mouse input of any kind.
         guard let anyInput = CGEventType(rawValue: ~0) else { return }
         let away = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: anyInput)
-        guard away >= Self.idleBeforeInstall else { return }
+        guard away >= automaticIdleSeconds else { return }
         await applyStagedUpdate()
     }
 
@@ -133,6 +186,11 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
     var stagedVersion: String? {
         status == .readyToInstall ? (downloadedVersion ?? availableVersion) : nil
     }
+    var installableVersion: String? {
+        guard status == .readyToInstall || status == .updateAvailable && admission?.candidate?.isCompatible == true
+        else { return nil }
+        return downloadedVersion ?? availableVersion
+    }
 
     var canCheckForUpdates: Bool {
         controller.updater.canCheckForUpdates
@@ -140,18 +198,29 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
 
     /// Information-only check while coordinated installation is unavailable.
     func checkForUpdates() {
-        if status != .readyToInstall { status = .checking }
-        // Information checks cannot start a Sparkle installer. Both interactive
-        // and automatic install drivers are denied below until qualification.
-        controller.updater.checkForUpdateInformation()
+        checkForUpdatesInBackground()
     }
 
     /// Information-only check for API/MCP triggers.
     func checkForUpdatesInBackground() {
+        startInformationCheck(forPreparation: false)
+    }
+
+    private func startInformationCheck(forPreparation: Bool) {
+        guard forPreparation || !preparingUpdate, ![.installing, .readyToInstall].contains(status) else { return }
+        guard controller.updater.canCheckForUpdates, !controller.updater.sessionInProgress else { return }
+        informationCheck = installerBoundary.beginInformationCheck()
+        admission?.candidate = nil
         // A staged update stays staged: a newer check can't un-stage it.
         if status != .readyToInstall { status = .checking }
         lastError = nil
         controller.updater.checkForUpdateInformation()
+    }
+
+    private func startUpdaterIfPermitted() {
+        guard feedConfigured, !hasStartedUpdater, !updateStore.requiresRecovery else { return }
+        hasStartedUpdater = true
+        controller.startUpdater()
     }
 
     var statusReport: [String: Any] {
@@ -167,6 +236,25 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
         }
         if readyToInstall { report["readyToInstall"] = true }
         report["restartGuard"] = restartGuard.state.rawValue
+        report["desktopAdmission"] = DesktopActivity.shared.isClosed ? "closed" : "open"
+        report["automaticChecks"] = checksAutomatically
+        report["automaticInstallation"] = installsAutomatically
+        report["canCheckForUpdates"] = canCheckForUpdates
+        report["automaticIdleSeconds"] = automaticIdleSeconds
+        report["channel"] = channel.rawValue
+        report["workloadProtocol"] = 1
+        report["payloadCompatible"] = admission?.candidate?.isCompatible == true
+        report["updateScope"] = "desktop; workload services and Apple runtime are retained"
+        report["desktopRuntimeContext"] =
+            feedConfigured
+            ? (AppDependencies.shared.client.usesIsolatedTransport ? "managed" : "existing") : "unavailable"
+        report["currentSourceRevision"] =
+            Bundle.main.object(forInfoDictionaryKey: "MicropodSourceRevision") as? String ?? "unknown"
+        do {
+            if let receipt = try updateStore.read() {
+                report["transaction"] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(receipt))
+            }
+        } catch { report["recoveryError"] = error.localizedDescription }
         if let restartBlockedReason { report["restartBlockedReason"] = restartBlockedReason }
         // The CLI and MCP server update with the app when linked into it.
         report["cliLinked"] = CLIToolLinks.linked
@@ -175,12 +263,27 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
         return report
     }
 
-    /// Bound to `SUEnableAutomaticChecks`; Sparkle persists it in
-    /// standard user defaults itself.
+    /// Our scheduler keeps checks informational until admission is prepared.
     var automaticallyChecksForUpdates: Binding<Bool> {
         Binding(
-            get: { [controller] in controller.updater.automaticallyChecksForUpdates },
-            set: { [controller] in controller.updater.automaticallyChecksForUpdates = $0 })
+            get: { self.checksAutomatically },
+            set: { self.checksAutomatically = $0 })
+    }
+
+    var checksAutomatically: Bool {
+        get { UserDefaults.standard.object(forKey: "updates.checkAutomatically") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "updates.checkAutomatically") }
+    }
+
+    enum Channel: String { case stable, qualification }
+    var channel: Channel {
+        get { Channel(rawValue: UserDefaults.standard.string(forKey: "updates.channel") ?? "stable") ?? .stable }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "updates.channel") }
+    }
+
+    nonisolated func feedURLString(for updater: SPUUpdater) -> String? {
+        UserDefaults.standard.string(forKey: "updates.channel") == "qualification"
+            ? "https://castlemilk.github.io/micropod/qualification-appcast.xml" : nil
     }
 
     /// Install a staged update via Sparkle's silent install handler —
@@ -189,10 +292,53 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
     /// update (poll `readyToInstall` first).
     @discardableResult
     func applyStagedUpdate() async -> Bool {
-        guard status == .readyToInstall, let handler = immediateInstallHandler else { return false }
+        // Injected coordinators exercise the same serial guard without
+        // touching the installed app's durable production transaction.
+        if admission == nil || !restartGuard.isAvailable {
+            guard status == .readyToInstall, let handler = immediateInstallHandler else { return false }
+            let accepted = await restartGuard.requestInstallation(noObservedWork: restartIsSafe) { handler() }
+            let valid = accepted && [.prepared, .installationStarted].contains(restartGuard.state)
+            if valid { status = .installing }
+            return valid
+        }
+        if status == .readyToInstall, let handler = immediateInstallHandler {
+            do {
+                guard let receipt = try updateStore.read(), receipt.phase == .installing,
+                    receipt.owner == (try RuntimeProcessBirth.read(getpid())), DesktopActivity.shared.isClosed
+                else { return false }
+                try receipt.verifyServices()
+                status = .installing
+                handler()
+                return true
+            } catch {
+                lastError = error.localizedDescription
+                return false
+            }
+        }
+        guard !preparingUpdate, status == .updateAvailable, admission?.candidate?.isCompatible == true else {
+            return false
+        }
+        preparingUpdate = true
+        defer { preparingUpdate = false }
+        // Probing reports the actual resumable item too. Sparkle may bypass
+        // shouldProceed when resuming, so bind that fresh item before permission.
+        startInformationCheck(forPreparation: true)
+        guard let check = informationCheck else { return false }
+        var found = false
+        for _ in 0..<100 {
+            do { try await Task.sleep(for: .milliseconds(50)) } catch { return false }
+            if completedInformationCheck == check, controller.updater.canCheckForUpdates {
+                found = admission?.candidate?.isCompatible == true
+                break
+            }
+        }
+        guard found else { return false }
+        guard controller.updater.canCheckForUpdates else { return false }
         let accepted = await restartGuard.requestInstallation(noObservedWork: restartIsSafe) { [weak self] in
-            self?.spawnRelaunchWatchdog()
-            handler()
+            guard let self else { return }
+            installerBoundary.reset()
+            controller.updater.automaticallyDownloadsUpdates = true
+            controller.updater.checkForUpdatesInBackground()
         }
         let stillAccepted = accepted && [.prepared, .installationStarted].contains(restartGuard.state)
         if stillAccepted { status = .installing }
@@ -200,46 +346,13 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
     }
 
     func reconcileUpdateRecovery() async -> Bool {
+        if DesktopActivity.shared.isClosed, restartGuard.state != .recoveryRequired {
+            restartGuard.adoptRetainedRecovery()
+        }
         guard await restartGuard.reconcileRecovery() else { return false }
+        startUpdaterIfPermitted()
         status = readyToInstall ? .readyToInstall : .idle
         return true
-    }
-
-    /// Belt-and-suspenders relaunch: Sparkle's progress agent relaunches
-    /// the app via NSWorkspace, but that call can race the bundle swap
-    /// or be dropped for silent installs. A detached helper waits for
-    /// this process to exit, then `open`s the bundle (a no-op activate
-    /// if Sparkle already relaunched it). Survives our termination
-    /// because it gets reparented to launchd.
-    private func spawnRelaunchWatchdog() {
-        let pid = ProcessInfo.processInfo.processIdentifier
-        let path = Bundle.main.bundlePath
-        let log = NSString("~/.micropod/run/relaunch.log").expandingTildeInPath
-        let logDir = (log as NSString).deletingLastPathComponent
-        let helper = Process()
-        helper.executableURL = URL(fileURLWithPath: "/bin/sh")
-        helper.arguments = [
-            "-c",
-            """
-            mkdir -p '\(logDir)'
-            exec >>'\(log)' 2>&1
-            echo "watchdog spawned pid=\(pid) path=\(path)"
-            while kill -0 \(pid) 2>/dev/null; do sleep 0.2; done
-            echo "parent exited"
-            sleep 1.5
-            for i in 1 2 3 4 5 6 7 8 9 10; do
-                /usr/bin/open '\(path)' && { echo "relaunched (try $i)"; exit 0; }
-                sleep 1
-            done
-            echo "relaunch failed"
-            exit 1
-            """,
-        ]
-        do {
-            try helper.run()
-        } catch {
-            NSLog("UpdateController: failed to spawn relaunch watchdog: \(error)")
-        }
     }
 
     // MARK: - SPUUpdaterDelegate
@@ -248,21 +361,65 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
     /// Deny every installation-capable driver at the earlier check boundary.
     @objc(updater:mayPerformUpdateCheck:error:)
     nonisolated func updater(_ updater: SPUUpdater, mayPerform updateCheck: SPUUpdateCheck) throws {
-        try Self.requireInformationCheck(updateCheck)
+        if updateCheck == .updateInformation { return }
+        _ = try qualifiedReceipt()
     }
 
-    nonisolated static func requireInformationCheck(_ updateCheck: SPUUpdateCheck) throws {
-        guard updateCheck == .updateInformation else {
-            throw NSError(
-                domain: "Micropod.UpdateAdmission", code: 1,
-                userInfo: [NSLocalizedDescriptionKey: UpdateRestartGuard.unavailableReason])
+    nonisolated func qualifiedReceipt(for item: SUAppcastItem? = nil) throws -> UpdateContinuityReceipt {
+        guard let receipt = try updateStore.read(),
+            [.downloading, .extracting, .installing].contains(receipt.phase),
+            receipt.owner == (try RuntimeProcessBirth.read(getpid())), DesktopActivity.shared.isClosed
+        else { throw UpdateRestartGuard.Failure.unavailable }
+        try receipt.verifyServices()
+        if let item {
+            let enclosure = item.propertiesDictionary["enclosure"] as? [String: Any]
+            guard item.versionString == receipt.targetVersion,
+                item.fileURL?.absoluteString == receipt.artifactURL, item.contentLength == receipt.artifactBytes,
+                enclosure?["sparkle:edSignature"] as? String == receipt.artifactSignature,
+                enclosure?["micropodSourceRevision"] as? String == receipt.targetSourceRevision,
+                item.minimumUpdateVersion == "0.13.0"
+            else { throw MicropodError.message("The selected update does not match its prepared transaction") }
         }
+        return receipt
+    }
+
+    nonisolated func updater(
+        _ updater: SPUUpdater, shouldProceedWithUpdate item: SUAppcastItem,
+        updateCheck: SPUUpdateCheck
+    ) throws {
+        guard updateCheck != .updateInformation else { return }
+        _ = try qualifiedReceipt(for: item)
+    }
+
+    nonisolated private func recordInstallerPhase(_ phase: UpdateContinuityReceipt.Phase, item: SUAppcastItem) throws {
+        let receipt = try qualifiedReceipt(for: item)
+        guard receipt.phase != phase, receipt.phase != .installing else { return }
+        _ = try updateStore.transition(
+            operation: receipt.operation, generation: receipt.generation,
+            from: receipt.phase, to: phase)
     }
 
     nonisolated func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
+        let check = installerBoundary.informationCheck
+        let display = item.displayVersionString
+        let version = item.versionString
+        let url = item.fileURL
+        let enclosure = item.propertiesDictionary["enclosure"] as? [String: Any]
+        let signature = enclosure?["sparkle:edSignature"] as? String
+        let source = enclosure?["micropodSourceRevision"] as? String
+        let minimum = item.minimumUpdateVersion
+        let bytes = item.contentLength
         Task { @MainActor in
+            guard informationCheck == check else { return }
             if ![.readyToInstall, .installing].contains(status) { status = .updateAvailable }
-            availableVersion = item.displayVersionString
+            availableVersion = display
+            if let url, let signature, let source, minimum == "0.13.0" {
+                admission?.candidate = .init(
+                    version: version, url: url, signature: signature, bytes: bytes,
+                    source: source)
+            } else {
+                admission?.candidate = nil
+            }
             lastError = nil
             lastCheckedAt = Date()
         }
@@ -271,6 +428,18 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
     nonisolated func updater(_ updater: SPUUpdater, didDownloadUpdate item: SUAppcastItem) {
         Task { @MainActor in
             downloadedVersion = item.displayVersionString
+        }
+    }
+
+    nonisolated func updater(_ updater: SPUUpdater, willExtractUpdate item: SUAppcastItem) {
+        // Sparkle starts its independent installer during extraction, before
+        // willInstallUpdateOnQuit. Persist this boundary before returning.
+        installerBoundary.markExtraction()
+        do {
+            try recordInstallerPhase(.extracting, item: item)
+        } catch {
+            NSLog(
+                "Installer handoff is unconfirmed; update permission remains retained: %@", error.localizedDescription)
         }
     }
 
@@ -288,6 +457,23 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
         _ updater: SPUUpdater, willInstallUpdateOnQuit item: SUAppcastItem,
         immediateInstallationBlock immediateInstallHandler: @escaping () -> Void
     ) -> Bool {
+        installerBoundary.markPrepared()
+        // Sparkle also installs on ordinary quit. Persist that boundary before
+        // yielding back to its installer, rather than relying on a later Task.
+        do {
+            try recordInstallerPhase(.installing, item: item)
+        } catch {
+            // Permission was already retained before any download. An unknown
+            // staging outcome must remain fenced, including on ordinary quit.
+            NSLog("Update staging could not be reconciled: %@", error.localizedDescription)
+            Task { @MainActor in
+                let reason = "Update staging outcome is unconfirmed; the original receipt is retained."
+                lastError = reason
+                restartGuard.interrupted(reason: reason)
+                status = .error
+            }
+            return true
+        }
         let box = InstallHandlerBox(run: immediateInstallHandler)
         let version = item.displayVersionString
         Task { @MainActor in
@@ -296,6 +482,9 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
                 notifiedVersion = version
                 MicropodNotifier.shared.postUpdateReady(version: version)
             }
+            // The durable hold was acquired before downloading, including the
+            // install-on-quit path. Finish this same transaction immediately.
+            _ = await applyStagedUpdate()
         }
         return true
     }
@@ -309,16 +498,23 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
     }
 
     nonisolated func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: Error) {
+        let check = installerBoundary.informationCheck
         Task { @MainActor in
+            guard informationCheck == check else { return }
             lastCheckedAt = Date()
             // Nothing newer than what is already staged: keep it staged.
             guard status != .readyToInstall else { return }
             status = .upToDate
             availableVersion = nil
+            admission?.candidate = nil
         }
     }
 
     nonisolated func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
+        installerBoundary.markPrepared()
+        do {
+            try recordInstallerPhase(.installing, item: item)
+        } catch { NSLog("Update installation outcome requires recovery: %@", error.localizedDescription) }
         Task { @MainActor in
             status = .installing
         }
@@ -327,7 +523,10 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
     nonisolated func updater(
         _ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: Error?
     ) {
+        let check = installerBoundary.informationCheck
         Task { @MainActor in
+            guard informationCheck == check else { return }
+            if updateCheck == .updateInformation { completedInformationCheck = check }
             lastCheckedAt = Date()
             // "No update found" is also delivered here as SUNoUpdateError —
             // benign, not a real error.
@@ -344,6 +543,60 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
                     status = readyToInstall ? .readyToInstall : .idle
                 }
             }
+            let failure = error as NSError?
+            let rejectedArchive =
+                failure?.domain == SUSparkleErrorDomain
+                && [Int(SUError.validationError.rawValue), Int(SUError.unarchivingError.rawValue)].contains(
+                    failure?.code ?? -1)
+            if updateCheck != .updateInformation, !installerBoundary.hasPrepared,
+                let receipt = try? updateStore.read(),
+                receipt.phase == .downloading && !installerBoundary.hasExtracted
+                    || receipt.phase == .extracting && rejectedArchive
+            {
+                let reason = error?.localizedDescription ?? "No installable update remained after preparation"
+                restartGuard.interrupted(reason: reason)
+                do {
+                    guard receipt.owner == (try RuntimeProcessBirth.read(getpid())),
+                        try ManagedUpdateAdmission.currentExecutableDigest() == receipt.sourceExecutableSHA256
+                    else { throw MicropodError.message("Original desktop identity changed") }
+                    _ = try updateStore.transition(
+                        operation: receipt.operation,
+                        generation: receipt.generation, from: receipt.phase, to: .downloadRejected, detail: reason)
+                    _ = await reconcileUpdateRecovery()
+                    status = error == nil || benign ? .upToDate : .error
+                } catch { status = .error }
+            }
+            if updateCheck == .updateInformation, error == nil { await installIfSafe() }
         }
     }
+}
+
+private final class UpdateInstallerBoundary: @unchecked Sendable {
+    private let lock = NSLock()
+    private var extracted = false
+    private var prepared = false
+    private var check: UUID?
+    func beginInformationCheck() -> UUID {
+        lock.withLock {
+            let id = UUID()
+            check = id
+            return id
+        }
+    }
+    var informationCheck: UUID? { lock.withLock { check } }
+    func markExtraction() { lock.withLock { extracted = true } }
+    func markPrepared() {
+        lock.withLock {
+            extracted = true
+            prepared = true
+        }
+    }
+    func reset() {
+        lock.withLock {
+            extracted = false
+            prepared = false
+        }
+    }
+    var hasExtracted: Bool { lock.withLock { extracted } }
+    var hasPrepared: Bool { lock.withLock { prepared } }
 }

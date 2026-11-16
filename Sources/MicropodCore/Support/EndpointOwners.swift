@@ -10,10 +10,10 @@ import Foundation
 /// Only *bound* addresses match: a TCP socket in LISTEN on the port, or a
 /// unix socket whose local address is the path. Connected clients (whose
 /// local unix address is empty) never count as owners.
-enum EndpointOwners {
+public enum EndpointOwners {
     /// PIDs with a TCP socket listening on `port`. Nil when the process list
     /// itself can't be read (unknown, not "nobody").
-    static func tcpListeners(port: UInt16) -> [pid_t]? {
+    public static func tcpListeners(port: UInt16) -> [pid_t]? {
         scan { info in
             guard info.psi.soi_kind == Int32(SOCKINFO_TCP) else { return false }
             let tcp = info.psi.soi_proto.pri_tcp
@@ -25,7 +25,7 @@ enum EndpointOwners {
     }
 
     /// PIDs with a unix socket bound to `path`. Nil when unknown.
-    static func unixListeners(path: String) -> [pid_t]? {
+    public static func unixListeners(path: String) -> [pid_t]? {
         let wanted = Set([path, canonical(path)])
         return scan { info in
             guard info.psi.soi_kind == Int32(SOCKINFO_UN) else { return false }

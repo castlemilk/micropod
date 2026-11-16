@@ -1,72 +1,121 @@
-# Workload-safe updater admission
+# Desktop updates with retained workload owners
 
-Production update installation is unavailable until Micropod and Cuttlefish
-have a jointly qualified maintenance bridge. Checking for a newer version
-remains informational. Manual, API and automatic apply refuse installation;
-Sparkle's interactive/background drivers are denied before installer resumption.
-Automatic downloading is disabled because it can stage an install on quit
-outside the guarded apply route. No preference can enable a substitute guard.
+Micropod's version 1 updater replaces the desktop app and its linked CLI/MCP
+files. It keeps the dedicated API, Apple engine, Docker bridge and shared
+filesystem processes running. It also keeps their executable paths and data
+formats unchanged. Existing Cuttlefish leases, waits and log streams continue
+against those same owners. Runtime or service upgrades remain separate
+maintenance operations.
 
-The app reports `restartGuard` and `restartBlockedReason` separately from the
-last feed-check error. The GUI, CLI and MCP show the blocker. Typed API clients
-receive the diagnostic in their existing `error` field. A downloaded update
-remains staged after a blocked request; that does not mean apply is authorized.
+## Supported installations
 
-## Local guard scaffolding
+The packaged app must carry workload protocol 1 and a source revision. Its
+owner must have approved the dedicated runtime. An approved dedicated desktop
+workspace is selected by default; explicit CLI paths and runtime-context choices
+remain authoritative. Independent Connect servers, existing Apple installations
+and CI services keep their current context and ownership.
 
-`UpdateRestartGuard` accepts a coordinator interface for deterministic tests.
-The only production coordinator is `UnavailableUpdateAdmission`. This interface
-is internal scaffolding, not an implemented maintenance API or a qualification
-of any installed host.
+The Docker bridge and shared filesystem run as user launch agents from a signed,
+versioned payload under `~/.micropod/services/payloads`. The app records each
+payload before registering it. Relaunches reuse that record and never replace
+its files beneath a live process. An independently installed Connect API stays
+independent. Disabled services are not started solely to enable updates.
 
-- Requests serialize before asynchronous acquisition. A ten-second preparation
-  deadline returns even when a transport ignores cancellation. An operation ID
-  rejects cancelled/late replies and prevents them from invoking an installer.
-- A mock hold spans the workload observation and response-flush delay. A one-time
-  begin transition must validate generation and unexpired permission immediately
-  before watchdog/helper/installer action. Definite denial never invokes action.
-- Before action, cancellation requests a conditional, idempotent abort. The
-  coordinator may release only if it proves action never began and the old
-  runtime is usable. Uncertainty must retain its durable fence.
-- Unknown begin, interrupted installation and missing outcome retain ownership.
-  Expiry revokes begin permission; it never automatically reopens admission.
-  Only a trusted, generation-bound receipt for verified restored runtime can
-  reconcile recovery. There is no periodic idle polling or blind release.
+App-owned legacy services, unknown socket owners, in-process desktop sandbox
+records, unsupported protocols and an unavailable native backend block the
+update. A running service is never killed to make an update eligible. Completed
+sandbox records also block until removed because their in-memory ownership
+cannot be transferred by this protocol.
 
-The workload preflight fails closed on unavailable/unobserved local state,
-pending local operations, nonterminal/unknown container states, API failure,
-malformed responses, cancellation and oversized responses. It rechecks local
-state after awaiting the API. Reads use fixed loopback with no redirects,
-credentials, cookies or response cache and bounded time/bytes. This remains an
-observation: native container listing can use recent cached metadata, and no
-snapshot can fence future work.
+The distribution includes a separately signed setup app in `Contents/Helpers`.
+Initial setup copies it to `/Applications/Micropod Runtime Setup.app` before
+administrator approval. Existing setup app files are never overwritten by a
+desktop update. The CLI opens that setup flow and observes its operation when no
+helper or runtime is installed. An unavailable existing helper is retained for
+recovery. Installing the separate setup app requires write permission in
+Applications; authorizing its daemon still uses macOS administrator approval.
 
-## Required production integration
+## Transaction and admission
 
-Cuttlefish owns authenticated rig/session identity, scheduler admission and
-durable host-fence ownership. Its existing host-maintenance authority is the
-building block; its private native broker job hooks are not a maintenance API.
-Micropod must supply closure and lifecycle acknowledgement for runtime consumers.
-Credentials stay behind the trusted coordinator.
+`DesktopActivity` covers whole desktop container operations, mutating CLI calls
+and interactive terminals. Closing it is atomic with starting another local
+operation. The app checks its local operation registry after closure. Work owned
+by other processes remains admitted through its existing services.
 
-Before adding a production provider or allowing installation, jointly qualify:
+Before downloading, `ManagedUpdateAdmission` verifies:
 
-1. OS-derived host/rig/process-birth identity and an operation capability bound
-   to the expected signed version/artifact, owner and admission generation.
-2. Atomic closure of pending claims, late grants and every Micropod, Docker shim,
-   native Apple CLI/API and external consumer entry point. Unsupported coverage
-   fails closed. Existing work is never killed to obtain an idle window.
-3. Durable prepare/begin/helper-handoff/recovery state across app, API, shim and
-   coordinator replacement, including one-time begin permission and bounded action.
-4. Idempotent generation-bound abort/release that preserves newer ownership and
-   operator drain state. Lost responses and expiry cannot reopen unknown outcomes.
-5. Independently verified replacement build/runtime/helper readiness, or verified
-   rollback to the prior build, before admission resumes.
+- the dedicated runtime identity and root-owned API configuration;
+- the API and Apple engine's unique process incarnations and service-account UID;
+- each public endpoint's signed executable and its registered launchd owner;
+- process birth, boot identity, live/on-disk code-directory identity and executable
+  SHA-256; and
+- fresh native readiness through both the setup helper and the authenticated API.
 
-Required integration regressions include late lease/Apple grants racing closure,
-delayed acquisition after abort, API outage/partial inventory, stale session or
-foreign generation, duplicate release, crashes around helper handoff, coordinator
-replacement, expiry during apply, wrong-build readiness, failed rollback and an
-unmanaged consumer. Mock tests of app ordering do not replace these database,
-runtime and lifecycle checks. Release/adoption of a working coordinated updater
-remains gated on those results.
+The transaction binds an operation and generation to the source executable,
+expected version/source revision, exact official artifact URL, EdDSA signature,
+length and retained service witnesses. Files are fsynced under a kernel lock in
+`~/.micropod/updates`. A monotonic 30-second begin deadline cannot be extended by
+changing wall time. Expiry never clears an existing transaction.
+
+Sparkle's independent installer starts during extraction. The app records that
+boundary before returning from `willExtractUpdate`; it also records preparation
+and installation callbacks. Permission exists before any installation-capable
+Sparkle check, including resumed drivers and install-on-quit. Informational
+checks do not grant installation permission. The old shell relaunch watchdog is
+removed; Sparkle owns its signed installer and relaunch flow.
+
+The replacement verifies its signed running executable, expected source/version
+and protocol, unchanged service witnesses, and fresh native backend before it
+records success and opens desktop admission. A verified expected replacement
+can settle a lost helper acknowledgement. Stale generations, wrong builds,
+changed owners and unsupported schemas remain fenced.
+
+A terminal pre-installer download rejection records its own durable state.
+Archive validation/unarchiving rejection can use that path only before installer
+preparation. Recovery verifies the original executable and retained native
+services before reopening the old desktop. Other interrupted installer outcomes
+require the expected signed replacement; an idle observation, elapsed timer or
+process exit cannot clear them. Reboot changes invalidate the old owner witnesses.
+No command replays an uncertain installation or discards its records.
+
+## CLI and automatic policy
+
+`micropod update apply` checks, downloads, installs and waits for the replacement
+receipt. It never replays an apply after a lost reply. `update status --json`
+reports the app source/version, channel, automatic policy, blocker and transaction.
+`update recover` requests verified reconciliation.
+
+`update auto on|off [--idle-after SECONDS]` controls future automatic installation.
+The default idle delay is ten minutes. The interface must be in the background;
+workloads may remain running. The app performs informational checks on launch and
+hourly while running. It enables Sparkle downloading only after the same durable
+hold used for manual installation. Changing a preference does not cancel an
+installer that already has permission.
+
+`update channel stable|qualification` selects one of two compiled feed URLs.
+Arbitrary feed or package URLs are not accepted. A channel change is refused
+while a transaction needs reconciliation. Standalone CLI installation retains
+its existing signature-verified self-update command; app-managed tools update
+with the app.
+
+## CLI acceptance
+
+`micropod update verify [--automatic] [--image IMAGE]` starts two named-volume
+workloads through the authenticated native API. The image must already be cached;
+the command does not start an implicit image download. It retains live Connect
+log streams across the update, compares container identities and mounts, reads a
+volume marker, then checks authoritative exit codes 0 and 7. The automatic branch
+places the interface in the background and requests only an informational check;
+it never invokes apply. Temporary automatic policy changes are restored.
+
+Evidence is retained under `~/.micropod/updates/verification`. Successful tests
+delete only their two stopped containers; volumes and artifacts remain available
+for review. Failures retain the identified resources and do not force-clean an
+unknown result. Each workload has a bounded 15-minute lifetime if its CLI exits.
+
+A signed bootstrap installation precedes acceptance from older blocked releases.
+An idle bootstrap alone does not qualify self-updating. Stable publication needs
+both a signed manual hop and an automatic hop with jobs in flight, plus fault
+regressions. The reviewed release manifest pins the resulting acceptance JSON.
+Until that evidence exists, candidates remain on the explicitly selected
+qualification channel. See [publication policy](qualified-release-publication.md).

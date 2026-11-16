@@ -1,8 +1,8 @@
+import AppKit
 import Foundation
 import MicropodCore
 import MicropodRuntime
 import Observation
-import ServiceManagement
 
 @MainActor @Observable
 final class ManagedRuntimeController {
@@ -34,25 +34,26 @@ final class ManagedRuntimeController {
         }
     }
     func installWithApproval() {
-        let helper = SMAppService.daemon(plistName: IsolatedRuntimePolicy.serviceName + ".plist")
-        do {
-            if helper.status != .enabled && helper.status != .requiresApproval { try helper.register() }
-            guard helper.status == .enabled else {
-                SMAppService.openSystemSettingsLoginItems()
-                error =
-                    "Approve Micropod in System Settings → General → Login Items & Extensions, then choose Install Apple Container again."
+        Task {
+            if (try? await IsolatedRuntimeClient().call(.init(action: .status))) != nil {
+                request(.install)
                 return
             }
-            request(.install)
-        } catch {
-            let failure = error as NSError
-            if failure.domain == "SMAppServiceErrorDomain", failure.code == Int(kSMErrorLaunchDeniedByUser) {
-                SMAppService.openSystemSettingsLoginItems()
+            do {
+                guard !FileManager.default.fileExists(atPath: IsolatedRuntimePolicy.identityURL.path),
+                    try !RuntimeSetupInstallation.helperIsRunning()
+                else {
+                    throw MicropodError.message(
+                        "The existing runtime helper is unavailable. Its installation and approval were left unchanged."
+                    )
+                }
+                let url = try RuntimeSetupInstallation.prepare(from: Bundle.main.bundleURL)
+                let configuration = NSWorkspace.OpenConfiguration()
+                configuration.arguments = ["--install"]
+                _ = try await NSWorkspace.shared.openApplication(at: url, configuration: configuration)
                 self.error =
-                    "macOS is waiting for administrator approval. Approve Micropod, then choose Install Apple Container again."
-            } else {
-                self.error = error.localizedDescription
-            }
+                    "Complete administrator approval in Micropod Runtime Setup. Installation continues there."
+            } catch { self.error = error.localizedDescription }
         }
     }
     func request(_ action: RuntimeLifecycleAction) {

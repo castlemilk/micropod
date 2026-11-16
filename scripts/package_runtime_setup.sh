@@ -5,17 +5,23 @@ runtime_project="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$runtime_project"
 runtime_configuration="${MICROPOD_RUNTIME_CONFIGURATION:-debug}"
 runtime_identity="${MICROPOD_RUNTIME_SIGN_IDENTITY:?Set MICROPOD_RUNTIME_SIGN_IDENTITY to the Developer ID Application identity}"
-runtime_app="$runtime_project/dist/Micropod Runtime Setup.app"
+runtime_app="${MICROPOD_RUNTIME_OUTPUT:-$runtime_project/dist/Micropod Runtime Setup.app}"
 case "$runtime_configuration" in debug|release) ;; *) echo 'Unknown runtime build configuration' >&2; exit 1 ;; esac
-swift build -c "$runtime_configuration" --product MicropodRuntimeHost
-swift build -c "$runtime_configuration" --product MicropodRuntimeSetup
-swift build -c "$runtime_configuration" --product MicropodAPI
+if [[ "${MICROPOD_RUNTIME_SKIP_BUILD:-0}" != 1 ]]; then
+    swift build -c "$runtime_configuration" --product MicropodRuntimeHost
+    swift build -c "$runtime_configuration" --product MicropodRuntimeSetup
+    swift build -c "$runtime_configuration" --product MicropodAPI
+fi
 mkdir -p "$runtime_project/dist"
 runtime_stage_root="$(mktemp -d "$runtime_project/dist/runtime-setup.XXXXXX")"
 runtime_stage="$runtime_stage_root/Micropod Runtime Setup.app"
 trap 'rm -rf "$runtime_stage_root"' EXIT
 mkdir -p "$runtime_stage/Contents/MacOS" "$runtime_stage/Contents/Resources" "$runtime_stage/Contents/Library/LaunchDaemons"
-(cd guest && env -u GOROOT GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o "$runtime_stage/Contents/Resources/micropod-guest" .)
+if [[ -n "${MICROPOD_RUNTIME_GUEST_TOOL:-}" ]]; then
+    cp "$MICROPOD_RUNTIME_GUEST_TOOL" "$runtime_stage/Contents/Resources/micropod-guest"
+else
+    (cd guest && env -u GOROOT GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o "$runtime_stage/Contents/Resources/micropod-guest" .)
+fi
 cp ".build/$runtime_configuration/MicropodRuntimeHost" "$runtime_stage/Contents/MacOS/"
 cp ".build/$runtime_configuration/MicropodRuntimeSetup" "$runtime_stage/Contents/MacOS/"
 cp ".build/$runtime_configuration/MicropodAPI" "$runtime_stage/Contents/MacOS/"
@@ -40,14 +46,17 @@ root=pathlib.Path(sys.argv[1])
 }))
 (root.parent/'empty-entitlements.plist').write_bytes(plistlib.dumps({}))
 PY
-codesign --force --sign "$runtime_identity" --options runtime --timestamp --entitlements "$runtime_stage_root/empty-entitlements.plist" --identifier com.skunkworq.micropod.runtime.host "$runtime_stage/Contents/MacOS/MicropodRuntimeHost"
-codesign --force --sign "$runtime_identity" --options runtime --timestamp --entitlements "$runtime_project/signing/micropod-cli.entitlements" --identifier com.skunkworq.micropod.api "$runtime_stage/Contents/MacOS/MicropodAPI"
-codesign --force --sign "$runtime_identity" --options runtime --timestamp --entitlements "$runtime_stage_root/empty-entitlements.plist" --identifier com.skunkworq.micropod.runtime-setup "$runtime_stage/Contents/MacOS/MicropodRuntimeSetup"
+runtime_signature_options=(--options runtime)
+if [[ "$runtime_identity" != - ]]; then runtime_signature_options+=(--timestamp); fi
+codesign --force --sign "$runtime_identity" "${runtime_signature_options[@]}" --entitlements "$runtime_stage_root/empty-entitlements.plist" --identifier com.skunkworq.micropod.runtime.host "$runtime_stage/Contents/MacOS/MicropodRuntimeHost"
+codesign --force --sign "$runtime_identity" "${runtime_signature_options[@]}" --entitlements "$runtime_project/signing/micropod-cli.entitlements" --identifier com.skunkworq.micropod.api "$runtime_stage/Contents/MacOS/MicropodAPI"
+codesign --force --sign "$runtime_identity" "${runtime_signature_options[@]}" --entitlements "$runtime_stage_root/empty-entitlements.plist" --identifier com.skunkworq.micropod.runtime-setup "$runtime_stage/Contents/MacOS/MicropodRuntimeSetup"
 rm "$runtime_stage_root/empty-entitlements.plist"
-codesign --force --sign "$runtime_identity" --options runtime --timestamp "$runtime_stage"
+codesign --force --sign "$runtime_identity" "${runtime_signature_options[@]}" "$runtime_stage"
 codesign --verify --deep --strict "$runtime_stage"
 # This path is solely the generated setup bundle, not the installed app.
-if [[ -e "$runtime_app" ]]; then mv "$runtime_app" "$runtime_project/dist/RuntimeSetup.previous.$(date +%s).app"; fi
+if [[ -e "$runtime_app" ]]; then mv "$runtime_app" "$runtime_project/dist/RuntimeSetup.previous.$(uuidgen).app"; fi
+mkdir -p "$(dirname "$runtime_app")"
 mv "$runtime_stage" "$runtime_app"
 rmdir "$runtime_stage_root"
 trap - EXIT

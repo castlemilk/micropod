@@ -579,7 +579,11 @@ final class AppStore {
             Task { await agentSupervisor.start() }
         }
         if NSClassFromString("XCTestCase") == nil {
-            UpdateController.shared.restartIsSafe = { [weak self] in await self?.nothingRunning() ?? false }
+            UpdateController.shared.restartIsSafe = { [weak self] in
+                guard let self else { return false }
+                return DesktopActivity.shared.isClosed && dependencies.client.usesIsolatedTransport
+                    && !operations.contains { $0.status == .running }
+            }
         }
     }
 

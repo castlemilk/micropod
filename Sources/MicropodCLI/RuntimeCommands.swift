@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import MicropodCore
 import MicropodRuntime
@@ -30,7 +31,14 @@ enum RuntimeCommands {
             guard parsed.positionals.isEmpty else {
                 throw UsageError(message: "usage: micropod runtime \(args[0]) [--json]")
             }
-            let response = try await ManagedRuntimeControl.request(args[0])
+            let response: IsolatedRuntimeStatus
+            if ["install", "repair"].contains(args[0]),
+                (try? await IsolatedRuntimeClient().call(.init(action: .status))) == nil
+            {
+                response = try await bootstrapInstallation()
+            } else {
+                response = try await ManagedRuntimeControl.request(args[0])
+            }
             if MicropodCLI.jsonOutput {
                 print(String(decoding: try JSONEncoder().encode(response), as: UTF8.self))
             } else {
@@ -93,5 +101,44 @@ enum RuntimeCommands {
     static func requireName(_ args: [String]) throws -> String {
         guard args.count > 1 else { throw UsageError(message: "missing <name> (apple, docker, sandbox)") }
         return args[1]
+    }
+
+    @MainActor
+    private static func bootstrapInstallation() async throws -> IsolatedRuntimeStatus {
+        guard !FileManager.default.fileExists(atPath: IsolatedRuntimePolicy.identityURL.path),
+            try !RuntimeSetupInstallation.helperIsRunning()
+        else {
+            throw MicropodError.message(
+                "The existing runtime helper is unavailable. Its installation and approval were left unchanged.")
+        }
+        guard case .appManaged(let app) = CLIInstall.kind(of: CLIInstall.currentExecutable()) else {
+            throw MicropodError.message("Initial administrator setup needs the signed Micropod app installation")
+        }
+        let setup = try RuntimeSetupInstallation.prepare(from: app)
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.arguments = ["--install"]
+        _ = try await NSWorkspace.shared.openApplication(at: setup, configuration: configuration)
+        if !MicropodCLI.jsonOutput {
+            print(
+                "Micropod Runtime Setup is open. Complete macOS administrator approval; this command will continue automatically."
+            )
+        }
+        let deadline = ContinuousClock.now.advanced(by: .seconds(300))
+        while ContinuousClock.now < deadline {
+            try Task.checkCancellation()
+            if let status = try? await IsolatedRuntimeClient().call(.init(action: .status)) {
+                if status.nativeState == "nativeReady", status.isTerminal, status.error == nil,
+                    status.identity?.ownerUID == getuid()
+                {
+                    return status
+                }
+                if ["failed", "blocked", "recoveryRequired"].contains(status.phase) {
+                    throw MicropodError.message(status.error ?? status.message)
+                }
+            }
+            try await Task.sleep(for: .seconds(1))
+        }
+        throw MicropodError.message(
+            "Administrator setup has not completed. Its setup window and any runtime operation were retained.")
     }
 }

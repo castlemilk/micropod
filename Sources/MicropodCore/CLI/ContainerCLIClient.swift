@@ -66,6 +66,14 @@ public struct ContainerCLIClient: Sendable {
         _ command: ContainerCommand, timeout: Duration = .seconds(60), acceptingExitCodes: Set<Int32> = [0]
     ) async throws -> String {
         try Task.checkCancellation()
+        // Read one fixed launchd job while desktop admission is closed. This
+        // exception cannot bootstrap, stop or replace any service.
+        let launchdInspection =
+            executableURL.path == "/bin/launchctl"
+            && command.arguments.count == 2 && command.arguments.first == "print"
+            && command.arguments[1].hasPrefix("gui/\(getuid())/")
+        let desktopClaim = command.observesRuntimeOnly || launchdInspection ? nil : try DesktopActivity.shared.claim()
+        defer { withExtendedLifetime(desktopClaim) {} }
         if usesIsolatedTransport {
             let request = try IsolatedRuntimeCLIRequest(
                 command: command, timeout: timeout, acceptingExitCodes: acceptingExitCodes)
@@ -81,7 +89,8 @@ public struct ContainerCLIClient: Sendable {
             || executableURL.path.hasPrefix(
                 IsolatedRuntimePolicy.root.appendingPathComponent("apple/versions").path + "/")
         let claim =
-            command.observesRuntimeOnly || ["pkgutil", "spctl", "codesign"].contains(executableURL.lastPathComponent)
+            command.observesRuntimeOnly || launchdInspection
+                || ["pkgutil", "spctl", "codesign"].contains(executableURL.lastPathComponent)
             ? nil : try admission.claim(command.metricLabel)
         defer { withExtendedLifetime(claim) {} }
         let started = Date()
@@ -260,6 +269,8 @@ public struct ContainerCLIClient: Sendable {
             return AsyncThrowingStream { continuation in
                 let task = Task {
                     do {
+                        let desktopClaim = command.observesRuntimeOnly ? nil : try DesktopActivity.shared.claim()
+                        defer { withExtendedLifetime(desktopClaim) {} }
                         let request = try IsolatedRuntimeCLIRequest(
                             command: command, timeout: .seconds(600), reportExitCode: reportExitCode)
                         var buffer = Data()

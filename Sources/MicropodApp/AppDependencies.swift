@@ -25,13 +25,23 @@ public final class AppDependencies {
     private var holder: RuntimeHolder?
 
     private convenience init() {
-        self.init(client: ContainerCLIClient())
+        // Setup approval enrolls the dedicated desktop workspace. Independent
+        // CLI/Connect/CI processes retain their explicit existing context.
+        let environment = ProcessInfo.processInfo.environment
+        let context =
+            environment["MICROPOD_RUNTIME_CONTEXT"] ?? UserDefaults.standard.string(forKey: "runtime.desktopContext")
+        let approvedOwner = (try? IsolatedRuntimeIdentity.readRootOwned())?.ownerUID == getuid()
+        let managed =
+            environment["MICROPOD_CONTAINER_CLI_PATH"] == nil
+            && (context == "managed" || (context == nil && approvedOwner))
+        self.init(
+            client: ContainerCLIClient(executableURL: managed ? ContainerExecutableLocator.isolatedExecutable() : nil))
     }
 
     public init(client: ContainerCLIClient) {
         self.client = client
         self.system = SystemService(client: client)
-        self.containers = ContainerService(client: client)
+        self.containers = DesktopContainerService(ContainerService(client: client))
         self.images = ImageService(client: client)
         self.volumes = VolumeService(client: client)
         self.networks = NetworkService(client: client)
@@ -83,7 +93,7 @@ public final class AppDependencies {
             return false
         }
         runtime = services
-        containers = services.containers
+        containers = DesktopContainerService(services.containers)
         statsSampler = services.stats
         logStreamer = services.logs
         return true

@@ -48,10 +48,16 @@ if [ -n "$IDENTITY" ]; then
             micropod-cli) identifiers=(--identifier com.skunkworq.micropod.cli) ;;
             MicropodMCP) identifiers=(--identifier com.skunkworq.micropod.mcp) ;;
             micropod-docker-shim) identifiers=(--identifier com.skunkworq.micropod.docker-shim) ;;
+            micropod-sharedfs) identifiers=(--identifier com.skunkworq.micropod.sharedfs) ;;
         esac
         codesign --force --options runtime --timestamp ${identifiers[@]+"${identifiers[@]}"} ${entitlements[@]+"${entitlements[@]}"} \
             --sign "$IDENTITY" "$bin"
     done
+    MICROPOD_RUNTIME_CONFIGURATION=release MICROPOD_RUNTIME_SIGN_IDENTITY="$IDENTITY" \
+        MICROPOD_RUNTIME_SKIP_BUILD=1 \
+        MICROPOD_RUNTIME_OUTPUT="$ROOT/$APP/Contents/Helpers/Micropod Runtime Setup.app" \
+        MICROPOD_RUNTIME_GUEST_TOOL="$ROOT/$APP/Contents/Resources/micropod-guest" \
+        bash scripts/package_runtime_setup.sh
     # Sparkle.framework (SwiftPM artifact ships unsigned): XPC services and
     # helper apps first, then the framework dylib + bundle.
     FW="$APP/Contents/Frameworks/Sparkle.framework"
