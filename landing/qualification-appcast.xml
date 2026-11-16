@@ -1,9 +1,17 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <title>Micropod updater qualification</title>
     <link>https://castlemilk.github.io/micropod/</link>
     <description>Explicitly selected signed updater candidates. These do not enter the stable feed until workload continuity is accepted.</description>
     <language>en</language>
+    <item>
+      <title>Version 0.13.1</title>
+      <pubDate>Mon, 16 Nov 2026 16:28:29 GMT</pubDate>
+      <sparkle:version>0.13.1</sparkle:version>
+      <sparkle:shortVersionString>0.13.1</sparkle:shortVersionString>
+      <sparkle:minimumUpdateVersion>0.13.0</sparkle:minimumUpdateVersion>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.13.1/Micropod.dmg" sparkle:edSignature="TbN7kRvjIe+LuGziiiTQlzca7S+r0f0wGBqm0q7+aIAzt3qGyXEyhPxG0OJde6fUVN4JFLLaDxT5FDmQxxU6Dw==" length="154359699" type="application/octet-stream" micropodSourceRevision="fcdb834e75c6d05a5c31788a975a5d8c07b47adf" />
+    </item>
   </channel>
 </rss>
