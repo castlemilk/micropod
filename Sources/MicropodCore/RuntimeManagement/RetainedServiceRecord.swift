@@ -28,9 +28,13 @@ public struct RetainedServiceRecord: Codable, Equatable, Sendable {
         self.environment = environment
     }
 
-    /// The same service run from another payload bundle: its executable, its
-    /// digest and every environment value that named the previous bundle.
-    public func moved(to payload: URL, sourceVersion version: String, sha256 digest: String) -> Self {
+    /// The same service run from another release's payload: its executable
+    /// and digest, that release's arguments, and this host's environment with
+    /// every value that named the previous bundle moved to the new one and
+    /// the release's own settings applied over it.
+    public func moved(
+        to payload: URL, sourceVersion version: String, sha256 digest: String, definition: RetainedServiceDefinition
+    ) -> Self {
         let binary = URL(fileURLWithPath: executable).lastPathComponent
         let previous = ComponentProbe.enclosingBundle(of: URL(fileURLWithPath: executable))?.path
         var environment = self.environment
@@ -39,10 +43,23 @@ public struct RetainedServiceRecord: Codable, Equatable, Sendable {
                 environment[key] = payload.path + String(value.dropFirst(previous.count))
             }
         }
+        environment.merge(definition.environment, uniquingKeysWith: { _, release in release })
         return Self(
             schema: schema, sourceVersion: version,
             executable: payload.appendingPathComponent("Contents/MacOS/" + binary).path,
-            identifier: identifier, sha256: digest, arguments: arguments, environment: environment)
+            identifier: identifier, sha256: digest, arguments: definition.arguments, environment: environment)
+    }
+}
+
+/// What a release runs a retained service with, beyond this host's
+/// environment. The app builds its agent specs from these, and a staged
+/// release reports its own through `micropod update rig-helper --probe`.
+public struct RetainedServiceDefinition: Codable, Equatable, Sendable {
+    public let arguments: [String]
+    public let environment: [String: String]
+    public init(arguments: [String] = [], environment: [String: String] = [:]) {
+        self.arguments = arguments
+        self.environment = environment
     }
 }
 
@@ -51,6 +68,13 @@ public struct RetainedServiceRecord: Codable, Equatable, Sendable {
 public enum RetainedServiceLaunchAgent {
     /// Service ids in the order the app manages them.
     public static let ids = ["docker-shim", "api-server", "shared-fs"]
+
+    /// This build's definition of each retained service.
+    public static func definition(_ id: String) -> RetainedServiceDefinition { RetainedServiceDefinition() }
+
+    public static var definitions: [String: RetainedServiceDefinition] {
+        Dictionary(uniqueKeysWithValues: ids.map { ($0, definition($0)) })
+    }
 
     public static func label(_ id: String) -> String { "com.skunkworq.micropod.service." + id }
 

@@ -226,3 +226,207 @@ final class RigUpgradeCommandsTests: XCTestCase {
             "Rig upgrade 12345678 — rig-swapping: 0.14.0 → 0.14.1")
     }
 }
+
+/// The launchd helper handoff, with a fake launchd domain.
+final class RigUpgradeHelperTests: XCTestCase {
+    final class FakeLaunch: RigLaunchControlling, @unchecked Sendable {
+        let lock = NSLock()
+        var programs: [String: String] = [:]
+        var calls: [String] = []
+        var failBootstrap = false
+        func record(_ call: String) { lock.withLock { calls.append(call) } }
+        func isLoaded(_ label: String) async -> Bool { lock.withLock { programs[label] != nil } }
+        func loadedProgram(_ label: String) async -> String? { lock.withLock { programs[label] } }
+        func bootout(_ label: String) async throws {
+            record("bootout")
+            lock.withLock { programs[label] = nil }
+        }
+        func bootstrap(_ plist: URL, label: String) async throws {
+            record("bootstrap")
+            if lock.withLock({ failBootstrap }) { throw MicropodError.message("no GUI session") }
+            let data = try Data(contentsOf: plist)
+            let value = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+            lock.withLock { programs[label] = (value?["ProgramArguments"] as? [String])?.first }
+        }
+        func kickstart(_ label: String) async throws { record("kickstart") }
+    }
+
+    private struct Quiet: RigAppControlling, RigDrainCoordinating, RigHealthProbing, RigBundleVerifying {
+        func isRunning(_ app: URL) async -> Bool { false }
+        func stop(_ app: URL, timeout: Duration) async throws {}
+        func launch(_ app: URL) async throws {}
+        func isConfigured() -> Bool { false }
+        func drain(_ spec: RigDrainSpec) async -> RigDrainReply { RigDrainReply(.drained) }
+        func release(_ spec: RigDrainSpec) async throws -> RigDrainRelease { .released }
+        func check(_ expectation: RigHealthExpectation) async -> RigHealthReport { RigHealthReport() }
+        func smoke(_ expectation: RigHealthExpectation, image: String) async throws {}
+        func connectAnswers(port: UInt16) async -> Bool { false }
+        func verifyApp(_ bundle: URL) throws {}
+        func verifyExecutable(_ url: URL, identifier: String) throws {}
+    }
+
+    private var layout: RigUpgradeLayout!
+
+    override func setUpWithError() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent("rig-helper-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
+        layout = RigUpgradeLayout(home: home, appPath: home.appendingPathComponent("Applications/Micropod.app"))
+        addTeardownBlock { try? FileManager.default.removeItem(at: home) }
+    }
+
+    private func engine(_ launch: FakeLaunch) -> RigUpgradeEngine {
+        let quiet = Quiet()
+        return RigUpgradeEngine(
+            layout: layout,
+            environment: RigUpgradeEnvironment(
+                launch: launch, app: quiet, drain: quiet, health: quiet, verifier: quiet, dedicatedRuntime: { false },
+                runningExecutables: { [] }, portOwner: { _ in nil }))
+    }
+
+    /// A journal on disk in `phase`.
+    private func journal(_ phase: RigUpgradeJournal.Phase) throws -> RigUpgradeJournal {
+        func identity(_ version: String) -> RigBundleIdentity {
+            RigBundleIdentity(
+                version: version, build: version, revision: String(repeating: "a", count: 40), executable: "Micropod",
+                executableSHA256: version)
+        }
+        var journal = RigUpgradeJournal(
+            operation: UUID(), createdAt: Date(), source: identity("0.14.0"), target: identity("0.14.1"),
+            appPath: layout.appPath.path,
+            stagedBundle: layout.releasesRoot.appendingPathComponent("x/Micropod.app").path,
+            previousBundle: layout.releasesRoot.appendingPathComponent("y/Micropod.app").path, targetPayload: "/none",
+            appWasRunning: false, dedicatedRuntime: false, services: [], files: [], baseline: RigHealthBaseline(),
+            options: RigUpgradeOptions(dockerShimSocket: "/none", sharedFSSocket: "/none", appControlSocket: "/none"))
+        journal.phase = phase
+        try RigUpgradeStore(layout: layout).write(journal)
+        return journal
+    }
+
+    private func source() throws -> URL {
+        let url = layout.home.appendingPathComponent("micropod-cli")
+        try Data("#!/bin/sh\n".utf8).write(to: url)
+        chmod(url.path, 0o755)
+        return url
+    }
+
+    private let speaks: (URL) -> RigUpgradeHelper.Probe? = { _ in
+        RigUpgradeHelper.parseProbe(RigUpgradeHelper.probe)
+    }
+
+    func testProbeReportsSchemaAndServiceDefinitions() throws {
+        let probe = try XCTUnwrap(RigUpgradeHelper.parseProbe("noise\n" + RigUpgradeHelper.probe))
+        XCTAssertEqual(probe.journalSchemas, [RigUpgradeJournal.schemaVersion])
+        XCTAssertEqual(probe.services, RetainedServiceLaunchAgent.definitions)
+        XCTAssertNil(RigUpgradeHelper.parseProbe("micropod: unknown command"))
+    }
+
+    func testLaunchBootstrapsKickstartsOrReplaces() async throws {
+        let journal = try journal(.prepared)
+        let launch = FakeLaunch()
+        try await RigUpgradeHelper.launch(journal, layout: layout, source: try source(), launch: launch, probe: speaks)
+        XCTAssertEqual(launch.calls, ["bootstrap"])
+        let helper = RigUpgradeHelper.helperURL(journal, layout: layout).path
+        XCTAssertEqual(launch.programs[RigUpgradeLayout.helperLabel], helper)
+        XCTAssertTrue(FileManager.default.isExecutableFile(atPath: helper))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: layout.helperPlist.path))
+
+        // A second caller resuming the same journal does not boot the helper out.
+        try await RigUpgradeHelper.launch(journal, layout: layout, source: try source(), launch: launch, probe: speaks)
+        XCTAssertEqual(launch.calls, ["bootstrap", "kickstart"])
+
+        // An earlier operation's helper, still loaded, is replaced.
+        launch.programs[RigUpgradeLayout.helperLabel] = "/old/helper"
+        try await RigUpgradeHelper.launch(journal, layout: layout, source: try source(), launch: launch, probe: speaks)
+        XCTAssertEqual(launch.calls, ["bootstrap", "kickstart", "bootout", "bootstrap"])
+    }
+
+    func testLaunchDoesNothingWhileAnEngineRuns() async throws {
+        let journal = try journal(.stopping)
+        let lock = try RigUpgradeStore(layout: layout).lock()
+        defer { lock.release() }
+        let launch = FakeLaunch()
+        try await RigUpgradeHelper.launch(journal, layout: layout, source: try source(), launch: launch, probe: speaks)
+        XCTAssertEqual(launch.calls, [])
+    }
+
+    func testHelperThatCannotRunIsNeverInstalled() async throws {
+        let journal = try journal(.prepared)
+        let launch = FakeLaunch()
+        do {
+            try await RigUpgradeHelper.launch(
+                journal, layout: layout, source: try source(), launch: launch, probe: { _ in nil })
+            XCTFail("installed a helper that cannot run")
+        } catch {}
+        XCTAssertEqual(launch.calls, [])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: layout.helperPlist.path))
+    }
+
+    func testFailedHandOffRefusesAPreparedJournal() async throws {
+        let journal = try journal(.prepared)
+        let launch = FakeLaunch()
+        launch.failBootstrap = true
+        let request = try RigUpgradeCommands.parseApply(
+            ["--disruptive", "--detach"], policy: .guarded, environment: [:], channel: { nil })
+        do {
+            _ = try await RigUpgradeCommands.handOff(
+                journal, layout: layout, engine: engine(launch), request: request, json: true, launch: launch)
+            XCTFail("the handoff did not report the failure")
+        } catch {}
+        let after = try XCTUnwrap(try RigUpgradeStore(layout: layout).read())
+        XCTAssertEqual(after.phase, .refused)
+        XCTAssertTrue(after.reason?.contains("helper could not be started") == true, after.reason ?? "")
+        XCTAssertNil(RigUpgradeFence.inFlight(layout: layout))
+    }
+
+    func testFailedHandOffLeavesAStartedUpgradeForRecovery() async throws {
+        _ = try journal(.swapping)
+        let journal = try XCTUnwrap(try RigUpgradeStore(layout: layout).read())
+        let launch = FakeLaunch()
+        launch.failBootstrap = true
+        let request = try RigUpgradeCommands.parseApply(
+            ["--disruptive", "--detach"], policy: .guarded, environment: [:], channel: { nil })
+        _ = try? await RigUpgradeCommands.handOff(
+            journal, layout: layout, engine: engine(launch), request: request, json: true, launch: launch)
+        XCTAssertEqual(try RigUpgradeStore(layout: layout).read()?.phase, .swapping)
+    }
+
+    func testHelperRetiresWithNothingToDoOrItsBudgetSpent() async throws {
+        let launch = FakeLaunch()
+        let idle = await RigUpgradeCommands.runHelper(layout: layout, engine: engine(launch), launch: launch)
+        XCTAssertEqual(idle, 0)
+        XCTAssertEqual(launch.calls, ["bootout"], "no journal: the job boots itself out")
+
+        let journal = try journal(.swapping)
+        let runs = RigUpgradeHelper.runsURL(journal.operation, layout: layout)
+        try FileManager.default.createDirectory(at: runs.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("\(RigUpgradeHelper.restartBudget)".utf8).write(to: runs)
+        let spent = FakeLaunch()
+        let gaveUp = await RigUpgradeCommands.runHelper(layout: layout, engine: engine(spent), launch: spent)
+        XCTAssertEqual(gaveUp, 0)
+        XCTAssertEqual(spent.calls, ["bootout"])
+        XCTAssertEqual(try RigUpgradeStore(layout: layout).read()?.phase, .swapping, "the journal is kept")
+    }
+
+    func testHelperWaitsBoundedForAForegroundEngine() async throws {
+        _ = try journal(.prepared)
+        let lock = try RigUpgradeStore(layout: layout).lock()
+        defer { lock.release() }
+        let launch = FakeLaunch()
+        let code = await RigUpgradeCommands.runHelper(
+            layout: layout, engine: engine(launch), launch: launch, lockWait: .milliseconds(50))
+        XCTAssertEqual(code, 1, "launchd starts it again to resume")
+    }
+
+    func testAbandonAndForceFlags() throws {
+        let abandon = try RigUpgradeCommands.parseApply(
+            ["--abandon"], policy: .guarded, environment: [:], channel: { nil })
+        XCTAssertTrue(abandon.abandon)
+        XCTAssertTrue(abandon.disruptive)
+        let force = try RigUpgradeCommands.parseApply(
+            ["--disruptive", "--force-undrained"], policy: .guarded, environment: [:], channel: { nil })
+        XCTAssertTrue(force.forceUndrained)
+        XCTAssertThrowsError(
+            try RigUpgradeCommands.parseApply(
+                ["--force-undrained"], policy: .guarded, environment: [:], channel: { nil }))
+    }
+}

@@ -15,11 +15,15 @@ enum UpdateCommands {
           micropod update check        look for a newer version now
           micropod update apply        download, install and verify the app update
           micropod update apply --disruptive [--drain-timeout S] [--health-timeout S]
-                [--smoke-image IMAGE | --no-smoke] [--foreground] [--detach]
-                [--channel C] [--feed URL] [--app PATH]
+                [--smoke-image IMAGE | --no-smoke] [--force-undrained] [--foreground]
+                [--detach] [--channel C] [--feed URL] [--app PATH]
                                        rig upgrade: replace the app, CLI/MCP, docker-shim,
                                        shared-fs and Connect API at once; jobs may be
-                                       interrupted, a failed health gate rolls back
+                                       interrupted, a failed health gate rolls back.
+                                       Refused when Cuttlefish does not drain, unless
+                                       --force-undrained
+          micropod update apply --abandon
+                                       drop a rig upgrade that has not stopped anything
           micropod update stage [--channel C] [--feed URL]
                                        download and verify the newest release now, so a
                                        later disruptive apply starts without network
@@ -29,7 +33,8 @@ enum UpdateCommands {
           micropod update channel [stable|qualification]  choose the release channel
           micropod update recover      reconcile a retained update transaction
           micropod update recover --rig
-                                       retry a rig upgrade's rollback that gave up
+                                       resume or roll back an interrupted rig upgrade,
+                                       retry a rollback that gave up, release its drain
           micropod update verify [--automatic] [--image IMAGE]
                                        verify live workloads through an update
           micropod update cli [--force]  update a standalone CLI install from the

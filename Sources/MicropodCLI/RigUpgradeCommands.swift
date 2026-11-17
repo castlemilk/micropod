@@ -90,11 +90,30 @@ struct RigReleaseStager {
 /// The one-shot launchd job that runs the upgrade outside the app it
 /// replaces and outside the shell or CI job that asked for it. A crash
 /// restarts it (KeepAlive on failure) and it resumes from the journal; at
-/// login after a reboot it resumes too. It exits 0 once the journal is
-/// terminal and removes its own definition.
+/// login after a reboot it resumes too. Once the journal is terminal, or its
+/// restart budget is spent, it removes its definition and boots itself out.
 enum RigUpgradeHelper {
-    /// What `update rig-helper --probe` prints: the journal schemas it runs.
-    static let probe = #"{"protocol":1,"journalSchemas":[1]}"#
+    /// What `update rig-helper --probe` prints.
+    struct Probe: Codable, Equatable {
+        let `protocol`: Int
+        let journalSchemas: [Int]
+        /// This build's retained-service definitions.
+        let services: [String: RetainedServiceDefinition]?
+    }
+
+    static var probe: String {
+        let value = Probe(
+            protocol: 1, journalSchemas: [RigUpgradeJournal.schemaVersion],
+            services: RetainedServiceLaunchAgent.definitions)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return String(decoding: (try? encoder.encode(value)) ?? Data(), as: UTF8.self)
+    }
+
+    /// Runs of one operation's helper before it gives up and boots itself out.
+    static let restartBudget = 20
+    /// How long a helper waits for another engine (a `--foreground` run) to finish.
+    static let lockWait: Duration = .seconds(300)
 
     static func configuration(helper: URL, layout: RigUpgradeLayout) -> [String: Any] {
         [
@@ -107,51 +126,111 @@ enum RigUpgradeHelper {
         ]
     }
 
-    /// Whether `cli` runs journals of the schema this build writes.
-    static func speaksJournal(_ cli: URL) -> Bool {
-        guard FileManager.default.isExecutableFile(atPath: cli.path),
-            let output = try? SelfUpdate.output(cli.path, ["update", "rig-helper", "--probe"]),
-            let data = output.split(separator: "\n").last.map({ Data($0.utf8) }),
-            let value = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let schemas = value["journalSchemas"] as? [Int]
-        else { return false }
-        return schemas.contains(RigUpgradeJournal.schemaVersion)
+    static func parseProbe(_ output: String) -> Probe? {
+        guard let line = output.split(separator: "\n").last else { return nil }
+        return try? JSONDecoder().decode(Probe.self, from: Data(line.utf8))
     }
 
-    /// Copies the helper out of the staged bundle (or this CLI when the staged
-    /// one cannot run this journal) and bootstraps its job.
-    @discardableResult
-    static func launch(_ journal: RigUpgradeJournal, layout: RigUpgradeLayout, launch: RigLaunchctl = .init())
-        async throws -> URL
-    {
-        let fm = FileManager.default
+    /// What a CLI binary reports about itself; nil when it cannot run or
+    /// predates rig upgrades.
+    static func readProbe(_ cli: URL) -> Probe? {
+        guard FileManager.default.isExecutableFile(atPath: cli.path),
+            let output = try? SelfUpdate.output(cli.path, ["update", "rig-helper", "--probe"])
+        else { return nil }
+        return parseProbe(output)
+    }
+
+    /// The staged release's CLI when it runs this journal's schema, else this CLI.
+    static func source(for journal: RigUpgradeJournal, probe: (URL) -> Probe? = readProbe) -> URL {
         let staged = URL(fileURLWithPath: journal.stagedBundle).appendingPathComponent("Contents/MacOS/micropod-cli")
-        let source = speaksJournal(staged) ? staged : CLIInstall.currentExecutable()
-        let helper = layout.operationDirectory(journal.operation).appendingPathComponent("micropod")
+        if probe(staged)?.journalSchemas.contains(RigUpgradeJournal.schemaVersion) == true { return staged }
+        return CLIInstall.currentExecutable()
+    }
+
+    static func helperURL(_ journal: RigUpgradeJournal, layout: RigUpgradeLayout) -> URL {
+        layout.operationDirectory(journal.operation).appendingPathComponent("micropod")
+    }
+
+    static func runsURL(_ operation: UUID, layout: RigUpgradeLayout) -> URL {
+        layout.operationDirectory(operation).appendingPathComponent("helper-runs")
+    }
+
+    /// Makes sure one helper runs this journal. Serialised by a lock, so two
+    /// callers resuming at once neither boot out a running helper nor start
+    /// two: a job already loaded from this helper is kickstarted (which
+    /// starts it only if it is not running), anything else replaced.
+    static func launch(
+        _ journal: RigUpgradeJournal, layout: RigUpgradeLayout, source: URL, launch: any RigLaunchControlling,
+        probe: (URL) -> Probe? = readProbe
+    ) async throws {
+        let fm = FileManager.default
+        try fm.createDirectory(
+            at: layout.root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        let fd = open(
+            layout.root.appendingPathComponent("helper-launch.lock").path, O_CREAT | O_RDWR | O_CLOEXEC, 0o600)
+        guard fd >= 0 else { throw MicropodError.message("Cannot open the rig upgrade launch lock") }
+        defer { close(fd) }
+        var locked = false
+        for _ in 0..<300 {
+            if flock(fd, LOCK_EX | LOCK_NB) == 0 {
+                locked = true
+                break
+            }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        guard locked else { throw MicropodError.message("Another micropod is starting the rig upgrade helper") }
+        defer { flock(fd, LOCK_UN) }
+        if RigUpgradeStore(layout: layout).engineIsRunning { return }
+        let helper = helperURL(journal, layout: layout)
         try fm.createDirectory(at: helper.deletingLastPathComponent(), withIntermediateDirectories: true)
         if !fm.fileExists(atPath: helper.path) {
             try fm.copyItem(at: source, to: helper)
             guard chmod(helper.path, 0o755) == 0 else { throw MicropodError.message("Cannot prepare \(helper.path)") }
         }
+        // A helper that cannot run would only crash-loop under launchd.
+        guard probe(helper)?.journalSchemas.contains(journal.schema) == true else {
+            throw MicropodError.message("\(helper.path) does not run rig upgrade journals; it was not started")
+        }
+        try? fm.removeItem(at: runsURL(journal.operation, layout: layout))
         try fm.createDirectory(at: layout.launchAgents, withIntermediateDirectories: true)
         try PropertyListSerialization.data(
             fromPropertyList: configuration(helper: helper, layout: layout), format: .xml, options: 0
         ).write(to: layout.helperPlist, options: .atomic)
-        // A finished helper stays loaded but idle until it is booted out.
-        try await launch.bootout(RigUpgradeLayout.helperLabel)
+        if let loaded = await launch.loadedProgram(RigUpgradeLayout.helperLabel) {
+            if loaded == helper.path {
+                try await launch.kickstart(RigUpgradeLayout.helperLabel)
+                return
+            }
+            // An earlier operation's helper, finished but still loaded.
+            try await launch.bootout(RigUpgradeLayout.helperLabel)
+        }
         try await launch.bootstrap(layout.helperPlist, label: RigUpgradeLayout.helperLabel)
-        return source
     }
 
-    /// The journal is terminal: nothing should start this helper again.
-    static func retire(layout: RigUpgradeLayout) {
+    /// Counts one more run of this operation's helper; false once over budget.
+    static func countRun(_ operation: UUID, layout: RigUpgradeLayout) -> Bool {
+        let url = runsURL(operation, layout: layout)
+        try? FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700])
+        let runs = (try? String(contentsOf: url, encoding: .utf8)).flatMap { Int($0) } ?? 0
+        guard (try? Data("\(runs + 1)".utf8).write(to: url, options: .atomic)) != nil else { return false }
+        return runs + 1 <= restartBudget
+    }
+
+    /// Nothing should start this helper again. Boots the job out last: when
+    /// the caller is the helper itself, that ends it.
+    static func retire(layout: RigUpgradeLayout, launch: any RigLaunchControlling) async {
         try? FileManager.default.removeItem(at: layout.helperPlist)
+        try? await launch.bootout(RigUpgradeLayout.helperLabel)
     }
 }
 
 /// `micropod update stage|apply --disruptive|policy|recover --rig|rig-helper`.
 enum RigUpgradeCommands {
-    static let applyFlags: Set<String> = ["--disruptive", "--foreground", "--detach", "--no-smoke"]
+    static let applyFlags: Set<String> = [
+        "--disruptive", "--foreground", "--detach", "--no-smoke", "--force-undrained", "--abandon",
+    ]
     static let applyValues: Set<String> = [
         "--drain-timeout", "--health-timeout", "--smoke-image", "--channel", "--feed", "--app",
     ]
@@ -166,6 +245,8 @@ enum RigUpgradeCommands {
         var drainTimeout: TimeInterval = 120
         var healthTimeout: TimeInterval = 120
         var smokeImage: String? = "docker.io/library/alpine:3.23.2"
+        var forceUndrained = false
+        var abandon = false
     }
 
     /// Which updater `micropod update apply` runs: the guarded Sparkle path
@@ -177,9 +258,9 @@ enum RigUpgradeCommands {
         let parsed = try parseArgs(args, boolFlags: applyFlags, valueFlags: applyValues, commandName: "update apply")
         guard parsed.positionals.isEmpty else { throw UsageError(message: "update apply takes no arguments") }
         var request = ApplyRequest(
-            disruptive: parsed.has("--disruptive") || policy == .disruptive,
+            disruptive: parsed.has("--disruptive") || parsed.has("--abandon") || policy == .disruptive,
             appPath: URL(fileURLWithPath: parsed.value("--app") ?? "/Applications/Micropod.app"))
-        let rigOnly = applyFlags.subtracting(["--disruptive"]).union(applyValues).filter {
+        let rigOnly = applyFlags.subtracting(["--disruptive", "--abandon"]).union(applyValues).filter {
             parsed.has($0) || parsed.value($0) != nil
         }
         guard request.disruptive else {
@@ -192,6 +273,8 @@ enum RigUpgradeCommands {
             feed: parsed.value("--feed"), channel: parsed.value("--channel"), environment: environment, saved: channel)
         request.foreground = parsed.has("--foreground")
         request.detach = parsed.has("--detach")
+        request.forceUndrained = parsed.has("--force-undrained")
+        request.abandon = parsed.has("--abandon")
         for (flag, keyPath) in [
             ("--drain-timeout", \ApplyRequest.drainTimeout), ("--health-timeout", \ApplyRequest.healthTimeout),
         ] {
@@ -268,15 +351,18 @@ enum RigUpgradeCommands {
 
     static func apply(_ request: ApplyRequest, json: Bool) async throws -> Int32 {
         let layout = RigUpgradeLayout(appPath: request.appPath)
-        let store = RigUpgradeStore(layout: layout)
         let engine = RigUpgradeEngine(layout: layout, environment: .live(layout: layout, log: log))
-        if let journal = RigUpgradeFence.inFlight(layout: layout) {
-            print("Resuming rig upgrade \(journal.operation.uuidString) (\(journal.phase.rawValue)).")
-            if !store.engineIsRunning {
-                if request.foreground { return report(try await engine.run(), json: json) }
-                try await RigUpgradeHelper.launch(journal, layout: layout)
+        if request.abandon {
+            guard RigUpgradeFence.unfinished(layout: layout) != nil else {
+                print("No rig upgrade is waiting to start.")
+                return ExitCode.ok
             }
-            return request.detach ? ExitCode.ok : try await follow(journal.operation, layout: layout, json: json)
+            _ = report(try await engine.abandon(reason: "Abandoned by `micropod update apply --abandon`."), json: json)
+            return ExitCode.ok
+        }
+        if let journal = RigUpgradeFence.unfinished(layout: layout) {
+            print("Resuming rig upgrade \(journal.operation.uuidString) (\(journal.phase.rawValue)).")
+            return try await handOff(journal, layout: layout, engine: engine, request: request, json: json)
         }
         let stager = RigReleaseStager(layout: layout)
         let release = try await stager.latest(feed: request.feed ?? SelfUpdate.feedURL)
@@ -290,14 +376,41 @@ enum RigUpgradeCommands {
         options.drainTimeout = request.drainTimeout
         options.healthTimeout = request.healthTimeout
         options.smokeImage = request.smokeImage
-        let journal = try await engine.prepare(staged, options: options)
+        options.forceUndrained = request.forceUndrained
+        let probe = RigUpgradeHelper.readProbe(
+            staged.bundle(in: layout).appendingPathComponent("Contents/MacOS/micropod-cli"))
+        let journal = try await engine.prepare(staged, options: options, services: probe?.services)
         print(
             "Prepared rig upgrade \(journal.operation.uuidString): \(journal.source.version) → \(journal.target.version). "
                 + "Jobs on this host may be interrupted.")
         if journal.dedicatedRuntime { print(RigUpgradeEngine.dedicatedNote) }
-        if request.foreground { return report(try await engine.run(), json: json) }
-        let helper = try await RigUpgradeHelper.launch(journal, layout: layout)
-        print("The upgrade runs as \(RigUpgradeLayout.helperLabel) (\(helper.path)); log: \(layout.helperLog.path)")
+        return try await handOff(journal, layout: layout, engine: engine, request: request, json: json)
+    }
+
+    /// Runs the journal here (`--foreground`) or hands it to the launchd
+    /// helper. A helper that cannot start leaves no journal waiting for it:
+    /// an upgrade that has not stopped anything is refused.
+    static func handOff(
+        _ journal: RigUpgradeJournal, layout: RigUpgradeLayout, engine: RigUpgradeEngine, request: ApplyRequest,
+        json: Bool, launch: any RigLaunchControlling = RigLaunchctl()
+    ) async throws -> Int32 {
+        if request.foreground {
+            if RigUpgradeStore(layout: layout).engineIsRunning {
+                return try await follow(journal.operation, layout: layout, json: json)
+            }
+            return report(try await engine.run(), json: json)
+        }
+        do {
+            try await RigUpgradeHelper.launch(
+                journal, layout: layout, source: RigUpgradeHelper.source(for: journal), launch: launch)
+        } catch {
+            if [.prepared, .draining].contains(journal.phase) {
+                _ = try? await engine.abandon(
+                    reason: "The upgrade helper could not be started: \(errorMessage(error)).")
+            }
+            throw error
+        }
+        if !json { print("The upgrade runs as \(RigUpgradeLayout.helperLabel); log: \(layout.helperLog.path)") }
         return request.detach ? ExitCode.ok : try await follow(journal.operation, layout: layout, json: json)
     }
 
@@ -345,17 +458,42 @@ enum RigUpgradeCommands {
         }
         let appPath = args.firstIndex(of: "--app").flatMap { args.indices.contains($0 + 1) ? args[$0 + 1] : nil }
         let layout = RigUpgradeLayout(appPath: URL(fileURLWithPath: appPath ?? "/Applications/Micropod.app"))
+        return await runHelper(
+            layout: layout, engine: RigUpgradeEngine(layout: layout, environment: .live(layout: layout, log: log)),
+            launch: RigLaunchctl())
+    }
+
+    /// One helper run: exit 0 ends the job (terminal journal, nothing to do,
+    /// or the restart budget spent); exit 1 lets launchd start it again to
+    /// resume.
+    static func runHelper(
+        layout: RigUpgradeLayout, engine: RigUpgradeEngine, launch: any RigLaunchControlling,
+        lockWait: Duration = RigUpgradeHelper.lockWait
+    ) async -> Int32 {
         guard let journal = try? RigUpgradeStore(layout: layout).read(), !journal.phase.isTerminal else {
-            RigUpgradeHelper.retire(layout: layout)
+            await RigUpgradeHelper.retire(layout: layout, launch: launch)
             return ExitCode.ok
         }
+        guard RigUpgradeHelper.countRun(journal.operation, layout: layout) else {
+            log(
+                "rig upgrade \(journal.operation.uuidString) helper gave up after \(RigUpgradeHelper.restartBudget) runs "
+                    + "in \(journal.phase.rawValue); `micropod update apply --disruptive` or `recover --rig` resumes it"
+            )
+            await RigUpgradeHelper.retire(layout: layout, launch: launch)
+            return ExitCode.ok
+        }
+        // A `--foreground` engine holds the journal: wait for it, bounded.
+        let deadline = ContinuousClock.now + lockWait
+        while RigUpgradeStore(layout: layout).engineIsRunning, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: min(.seconds(2), lockWait))
+        }
         do {
-            let result = try await RigUpgradeEngine(layout: layout, environment: .live(layout: layout, log: log)).run()
+            let result = try await engine.run()
             log("rig upgrade \(result.operation.uuidString) \(result.phase.rawValue): \(result.reason ?? "")")
-            if result.phase.isTerminal { RigUpgradeHelper.retire(layout: layout) }
+            guard result.phase.isTerminal else { return ExitCode.failure }
+            await RigUpgradeHelper.retire(layout: layout, launch: launch)
             return ExitCode.ok
         } catch {
-            // launchd starts this helper again, which resumes the journal.
             log("rig upgrade \(journal.operation.uuidString) will resume: \(errorMessage(error))")
             return ExitCode.failure
         }

@@ -155,12 +155,32 @@ final class RigUpgradeEngineTests: XCTestCase {
         XCTAssertLessThanOrEqual(fixture.drain.drains.get(), 17, "first run polled \(polls)")
     }
 
-    func testUnavailableOrAbsentCoordinatorDoesNotBlock() async throws {
-        let unavailable = try RigFixture(drain: FakeDrain(unavailable: true))
-        try await unavailable.engine.prepare(unavailable.staged, options: unavailable.options)
-        let first = try await unavailable.engine.run()
-        try unavailable.assertUpgraded(first)
-        XCTAssertEqual(first.drain, .unavailable)
+    func testUndrainedCoordinatorRefusesBeforeStoppingUnlessForced() async throws {
+        for state in [RigDrainReply.State.unavailable, .incompatible, .refused] {
+            let refused = try RigFixture(drain: FakeDrain(drainAfter: nil, waiting: state))
+            try await refused.engine.prepare(refused.staged, options: refused.options)
+            let journal = try await refused.engine.run()
+            XCTAssertEqual(journal.phase, .refused, "\(state)")
+            XCTAssertEqual(journal.drain?.rawValue, state.rawValue)
+            XCTAssertTrue(journal.reason?.contains("--force-undrained") == true, journal.reason ?? "")
+            XCTAssertEqual(refused.app.calls.get(), [], "\(state): the app was stopped")
+            XCTAssertEqual(refused.launch.calls.get(), [], "\(state): a service was stopped")
+            XCTAssertEqual(refused.snapshot(), refused.originals)
+
+            let forced = try RigFixture(drain: FakeDrain(drainAfter: nil, waiting: state))
+            var options = forced.options
+            options.forceUndrained = true
+            try await forced.engine.prepare(forced.staged, options: options)
+            let upgraded = try await forced.engine.run()
+            try forced.assertUpgraded(upgraded)
+            XCTAssertEqual(upgraded.drain?.rawValue, state.rawValue)
+            XCTAssertTrue(upgraded.notes.contains { $0.contains("--force-undrained") }, "\(upgraded.notes)")
+        }
+        // An incompatible coordinator is not polled until the timeout.
+        let old = try RigFixture(drain: FakeDrain(drainAfter: nil, waiting: .incompatible))
+        try await old.engine.prepare(old.staged, options: old.options)
+        _ = try await old.engine.run()
+        XCTAssertEqual(old.drain.drains.get(), 1)
 
         let absent = try RigFixture(drain: FakeDrain(configured: false))
         try await absent.engine.prepare(absent.staged, options: absent.options)
@@ -169,6 +189,20 @@ final class RigUpgradeEngineTests: XCTestCase {
         XCTAssertEqual(second.drain, .skipped)
         XCTAssertEqual(absent.drain.drains.get(), 0)
         XCTAssertEqual(absent.drain.releases.get(), [])
+    }
+
+    func testHeartbeatContinuesAfterAnUnreachableCoordinator() async throws {
+        let fixture = try RigFixture(drain: FakeDrain(drainAfter: nil, waiting: .unavailable))
+        fixture.heartbeat = .milliseconds(5)
+        fixture.app.stopDelay.update { $0 = .milliseconds(150) }
+        var options = fixture.options
+        options.forceUndrained = true
+        try await fixture.engine.prepare(fixture.staged, options: options)
+        let journal = try await fixture.engine.run()
+        try fixture.assertUpgraded(journal)
+        // Polls in draining: one per 2 s of the 10 s grace; the rest are heartbeats.
+        XCTAssertGreaterThan(fixture.drain.drains.get(), 10)
+        XCTAssertEqual(fixture.drain.specs.get(), [journal.drainSpec], "every call names the pinned drain")
     }
 
     func testGarbageCollectionKeepsCurrentPreviousAndInUse() async throws {
@@ -209,6 +243,11 @@ final class RigUpgradeEngineTests: XCTestCase {
         fixture.launch.failBootstrap.update { $0 = [RetainedServiceLaunchAgent.label("docker-shim")] }
         let journal = try await fixture.runToEnd()
         XCTAssertEqual(journal.phase, .recoveryRequired, journal.reason ?? "")
+        // Everything else was started again, and the previous bytes are back.
+        XCTAssertNotNil(fixture.launch.loaded.get()[RetainedServiceLaunchAgent.label("shared-fs")])
+        XCTAssertNotNil(fixture.launch.loaded.get()[RigUpgradeLayout.connectLabel])
+        XCTAssertEqual(fixture.app.running.get(), "Micropod 0.14.0")
+        XCTAssertEqual(fixture.snapshot(), fixture.originals)
         // The rollback needs docker-shim back too; once launchd takes it, recovery restores.
         fixture.launch.failBootstrap.update { $0 = [] }
         let recovered = try await fixture.engine.recover()

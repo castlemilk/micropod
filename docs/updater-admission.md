@@ -10,8 +10,8 @@ maintenance operations.
 Rigs that accept interrupted jobs can instead replace the app, docker-shim,
 shared-fs and the Connect API in one journaled operation with
 `micropod update apply --disruptive`; see [rig-upgrade.md](rig-upgrade.md).
-That path does not use this transaction store and leaves the dedicated runtime
-unchanged.
+That path does not use this transaction store, never closes desktop admission,
+and leaves the dedicated runtime unchanged.
 
 ## Supported installations
 

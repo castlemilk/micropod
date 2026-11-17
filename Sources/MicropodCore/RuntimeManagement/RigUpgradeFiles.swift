@@ -24,9 +24,39 @@ extension RigUpgradeEngine {
                 "\(stagedParent) and \(appParent) are on different volumes, so \(app.lastPathComponent) cannot be "
                     + "swapped atomically")
         }
-        guard access(appParent, W_OK) == 0, access(stagedParent, W_OK) == 0 else {
-            throw MicropodError.message("This account cannot replace \(app.path); run as its owner or an administrator")
+        // Moving a directory to another parent rewrites its "..": both
+        // bundles and both parents must be this account's to change.
+        for path in [appParent, stagedParent, app.path, staged.path] {
+            var info = stat()
+            guard lstat(path, &info) == 0, access(path, W_OK) == 0 else {
+                throw MicropodError.message(
+                    "This account cannot replace \(app.path) (\(path) is not writable); run as its owner")
+            }
+            if path == app.path || path == staged.path {
+                guard info.st_mode & S_IFMT == S_IFDIR, info.st_uid == getuid() else {
+                    throw MicropodError.message(
+                        "\(path) is not a directory this account owns; reinstall Micropod as this user first")
+                }
+            }
         }
+    }
+
+    /// Whether a file the upgrade replaces exists. A symbolic link or any
+    /// other non-regular file is refused: it could be replaced forward but
+    /// its previous bytes could not be restored.
+    static func existingRegularFile(_ url: URL) throws -> Bool {
+        var info = stat()
+        guard lstat(url.path, &info) == 0 else {
+            guard errno == ENOENT else {
+                throw MicropodError.message("\(url.path) cannot be inspected: \(String(cString: strerror(errno)))")
+            }
+            return false
+        }
+        guard info.st_mode & S_IFMT == S_IFREG else {
+            throw MicropodError.message(
+                "\(url.path) is a symbolic link or not a regular file; replace it with a regular file before upgrading")
+        }
+        return true
     }
 
     /// The first program argument of a launch agent.
@@ -88,7 +118,7 @@ extension RigUpgradeEngine {
         }
         var backup: URL?
         var backupSHA256: String?
-        if fm.fileExists(atPath: installed.path) {
+        if try Self.existingRegularFile(installed) {
             let saved = directory.appendingPathComponent("previous/" + name)
             try? fm.removeItem(at: saved)
             try fm.copyItem(at: installed, to: saved)
@@ -175,8 +205,13 @@ extension RigUpgradeEngine {
         }
 
         let previousRelease = URL(fileURLWithPath: journal.previousBundle).deletingLastPathComponent().lastPathComponent
+        // When the previous app could not be moved, its only copy is still
+        // in the staged directory.
+        let stagedRelease = URL(fileURLWithPath: journal.stagedBundle).deletingLastPathComponent().lastPathComponent
+        let previousStayed = journal.source.matches(URL(fileURLWithPath: journal.stagedBundle))
         for directory in children(layout.releasesRoot) {
             if directory.lastPathComponent == previousRelease { continue }
+            if previousStayed, directory.lastPathComponent == stagedRelease { continue }
             if let marker = RigStagedRelease.read(directory), marker.isNewer(than: journal.target.version) { continue }
             if inUse(directory) { continue }
             remove(directory, "release")

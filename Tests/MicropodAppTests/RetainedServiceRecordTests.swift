@@ -45,6 +45,15 @@ final class RetainedServiceRecordTests: XCTestCase {
         XCTAssertEqual(configuration["Umask"] as? Int, 0o077)
     }
 
+    func testAgentSpecsUseTheSharedDefinitions() {
+        let specs = AgentSupervisor.micropodSpecs(enabled: { _ in false }, onStatus: { _ in }).specsForUI
+        for spec in specs {
+            XCTAssertEqual(spec.arguments, RetainedServiceLaunchAgent.definition(spec.id).arguments)
+            XCTAssertEqual(spec.environment, RetainedServiceLaunchAgent.definition(spec.id).environment)
+        }
+        XCTAssertEqual(specs.map(\.id).sorted(), RetainedServiceLaunchAgent.ids.sorted())
+    }
+
     func testServiceIdentityIsUnchanged() {
         let identifiers = ["docker-shim", "api-server", "shared-fs"].map { id in
             PersistentDesktopAgents.identifier(
@@ -57,7 +66,7 @@ final class RetainedServiceRecordTests: XCTestCase {
             ["com.skunkworq.micropod.docker-shim", "com.skunkworq.micropod.api", "com.skunkworq.micropod.sharedfs"])
     }
 
-    func testMovingARecordRenamesOnlyThePayload() throws {
+    func testMovingARecordTakesTheNewReleasesDefinition() throws {
         let record = RetainedServiceRecord(
             schema: 1, sourceVersion: "0.13.0", executable: "/p/0.13.0-x/Micropod.app/Contents/MacOS/micropod-sharedfs",
             identifier: "com.skunkworq.micropod.sharedfs", sha256: "old", arguments: ["--flag"],
@@ -66,13 +75,15 @@ final class RetainedServiceRecordTests: XCTestCase {
                 "PATH": "/usr/bin", "OTHER": "/p/0.13.0-x/Micropod.application",
             ])
         let moved = record.moved(
-            to: URL(fileURLWithPath: "/p/0.14.1-y/Micropod.app"), sourceVersion: "0.14.1", sha256: "new")
+            to: URL(fileURLWithPath: "/p/0.14.1-y/Micropod.app"), sourceVersion: "0.14.1", sha256: "new",
+            definition: RetainedServiceDefinition(arguments: ["--serve"], environment: ["MICROPOD_NEW": "1"]))
         XCTAssertEqual(moved.executable, "/p/0.14.1-y/Micropod.app/Contents/MacOS/micropod-sharedfs")
         XCTAssertEqual(
             moved.environment["MICROPOD_GUEST_TOOL"], "/p/0.14.1-y/Micropod.app/Contents/Resources/micropod-guest")
         XCTAssertEqual(moved.environment["PATH"], "/usr/bin")
         XCTAssertEqual(moved.environment["OTHER"], "/p/0.13.0-x/Micropod.application")
-        XCTAssertEqual(moved.arguments, ["--flag"])
+        XCTAssertEqual(moved.environment["MICROPOD_NEW"], "1")
+        XCTAssertEqual(moved.arguments, ["--serve"], "arguments come from the new release")
         XCTAssertEqual(moved.identifier, record.identifier)
         XCTAssertEqual(moved.sha256, "new")
         XCTAssertEqual(moved.sourceVersion, "0.14.1")

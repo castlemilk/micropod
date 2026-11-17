@@ -129,9 +129,11 @@ public enum UpdateStateResolver {
 
     /// A disruptive rig upgrade's state from its journal and the newest staged
     /// release, or nil when neither says anything. `installedVersion` is the
-    /// app on disk, which a staged release must be newer than.
+    /// app on disk, which a staged release must be newer than. `active` is
+    /// false for a journal that has disrupted nothing and that no engine or
+    /// helper will run (RigUpgradeFence.isActive): it is not reported.
     public static func rig(
-        journal: RigUpgradeJournal?, staged: RigStagedRelease?, installedVersion: String?
+        journal: RigUpgradeJournal?, staged: RigStagedRelease?, installedVersion: String?, active: Bool = true
     ) -> Micropod_V1_UpdateState? {
         func state(_ kind: Micropod_V1_UpdateState.Kind) -> Micropod_V1_UpdateState {
             var state = Micropod_V1_UpdateState()
@@ -140,7 +142,7 @@ public enum UpdateStateResolver {
             state.currentVersion = installedVersion ?? ComponentProbe.unknown
             return state
         }
-        if let journal {
+        if let journal, active || ![.prepared, .draining].contains(journal.phase) {
             var result = state(.current)
             result.operationID = journal.operation.uuidString
             result.updatedAt = ISO8601DateFormatter().string(from: journal.updatedAt)
@@ -187,9 +189,11 @@ public enum UpdateStateResolver {
     /// The rig upgrade state this account's files describe.
     public static func rig(layout: RigUpgradeLayout) -> Micropod_V1_UpdateState? {
         let installed = (try? ComponentProbe.bundleStamp(layout.appPath))?.version
+        let journal = try? RigUpgradeStore(layout: layout).read()
         return rig(
-            journal: try? RigUpgradeStore(layout: layout).read(), staged: RigStagedRelease.newest(in: layout),
-            installedVersion: installed == ComponentProbe.unknown ? nil : installed)
+            journal: journal, staged: RigStagedRelease.newest(in: layout),
+            installedVersion: installed == ComponentProbe.unknown ? nil : installed,
+            active: journal.map { RigUpgradeFence.isActive($0, layout: layout) } ?? false)
     }
 
     /// Both updaters plus a disruptive rig upgrade. An upgrade in flight wins

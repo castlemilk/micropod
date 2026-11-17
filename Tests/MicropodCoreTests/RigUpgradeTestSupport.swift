@@ -23,14 +23,29 @@ final class TestClock: @unchecked Sendable {
     }
 }
 
-/// launchd: which labels are loaded, from which plist.
+/// launchd: which labels are loaded, and the definition each was loaded
+/// with. A job keeps running what it was loaded with until it is reloaded,
+/// whatever its plist says now.
 final class FakeLaunchctl: RigLaunchControlling, @unchecked Sendable {
-    let loaded = Locked<[String: URL]>([:])
+    struct Job: Equatable {
+        let plist: URL
+        let program: String
+    }
+    let loaded = Locked<[String: Job]>([:])
     let calls = Locked<[String]>([])
     let failBootstrap = Locked<Set<String>>([])
+    /// Labels whose next bootout fails, once each.
+    let failBootoutOnce = Locked<Set<String>>([])
+
+    func load(_ label: String, _ plist: URL) {
+        loaded.update { $0[label] = Job(plist: plist, program: RigUpgradeEngine.programPath(plist) ?? "") }
+    }
     func isLoaded(_ label: String) async -> Bool { loaded.get()[label] != nil }
+    func loadedProgram(_ label: String) async -> String? { loaded.get()[label]?.program }
     func bootout(_ label: String) async throws {
         calls.update { $0.append("bootout " + label) }
+        let fail = failBootoutOnce.update { $0.remove(label) != nil }
+        if fail { throw MicropodError.message("bootout \(label) timed out") }
         loaded.update { $0[label] = nil }
     }
     func bootstrap(_ plist: URL, label: String) async throws {
@@ -39,11 +54,25 @@ final class FakeLaunchctl: RigLaunchControlling, @unchecked Sendable {
         guard FileManager.default.fileExists(atPath: plist.path) else {
             throw MicropodError.message("no plist at \(plist.path)")
         }
-        loaded.update { $0[label] = plist }
+        if loaded.get()[label]?.program == RigUpgradeEngine.programPath(plist) { return }
+        load(label, plist)
     }
-    /// The executable each loaded job runs (its plist's first argument).
-    func executables() -> [String: String] {
-        loaded.get().compactMapValues { RigUpgradeEngine.programPath($0) }
+    func kickstart(_ label: String) async throws { calls.update { $0.append("kickstart " + label) } }
+    /// The executable each loaded job runs.
+    func executables() -> [String: String] { loaded.get().mapValues(\.program) }
+
+    /// A reboot or re-login: launchd loads every agent on disk that runs at load.
+    func reboot(launchAgents: URL) {
+        loaded.update { $0 = [:] }
+        for plist in (try? FileManager.default.contentsOfDirectory(at: launchAgents, includingPropertiesForKeys: nil))
+            ?? []
+        {
+            guard let data = FileManager.default.contents(atPath: plist.path),
+                let value = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+                let label = value["Label"] as? String, value["RunAtLoad"] as? Bool == true
+            else { continue }
+            load(label, plist)
+        }
     }
 }
 
@@ -51,9 +80,31 @@ final class FakeLaunchctl: RigLaunchControlling, @unchecked Sendable {
 final class FakeApp: RigAppControlling, @unchecked Sendable {
     let running = Locked<String?>(nil)
     let calls = Locked<[String]>([])
+    /// Stops that fail before the app is stopped.
+    let failStops = Locked(0)
+    /// Runs as the app goes, before it is reported stopped (a Sparkle install on quit).
+    let onStop = Locked<(@Sendable () -> Void)?>(nil)
+    /// Real time each stop takes.
+    let stopDelay = Locked<Duration>(.zero)
     func isRunning(_ app: URL) async -> Bool { running.get() != nil }
     func stop(_ app: URL, timeout: Duration) async throws {
         calls.update { $0.append("stop") }
+        let delay = stopDelay.get()
+        if delay > .zero { try await Task.sleep(for: delay) }
+        let fail = failStops.update { value -> Bool in
+            guard value > 0 else { return false }
+            value -= 1
+            return true
+        }
+        if fail { throw MicropodError.message("the app did not exit") }
+        if running.get() != nil,
+            let hook = onStop.update({ value -> (@Sendable () -> Void)? in
+                defer { value = nil }
+                return value
+            })
+        {
+            hook()
+        }
         running.update { $0 = nil }
     }
     func launch(_ app: URL) async throws {
@@ -64,29 +115,35 @@ final class FakeApp: RigAppControlling, @unchecked Sendable {
     }
 }
 
-/// Cuttlefish: drains after `drainAfter` polls (nil: never).
+/// Cuttlefish: answers `waiting` until `drainAfter` calls (nil: never), then drained.
 final class FakeDrain: RigDrainCoordinating, @unchecked Sendable {
     let configured: Bool
     let drainAfter: Int?
-    let unavailable: Bool
+    let waiting: RigDrainReply.State
     let drains = Locked(0)
     let releases = Locked<[UUID]>([])
-    init(configured: Bool = true, drainAfter: Int? = 1, unavailable: Bool = false) {
+    let specs = Locked<Set<RigDrainSpec>>([])
+    let releaseFails = Locked(false)
+    init(configured: Bool = true, drainAfter: Int? = 1, waiting: RigDrainReply.State = .draining) {
         self.configured = configured
         self.drainAfter = drainAfter
-        self.unavailable = unavailable
+        self.waiting = waiting
     }
     func isConfigured() -> Bool { configured }
-    func drain(_ operation: UUID) async throws -> RigDrainReply {
+    func drain(_ spec: RigDrainSpec) async -> RigDrainReply {
+        specs.update { _ = $0.insert(spec) }
         let count = drains.update { value -> Int in
             value += 1
             return value
         }
-        if unavailable { throw RigDrainError.unavailable("no coordinator") }
-        if let drainAfter, count >= drainAfter { return RigDrainReply(drained: true) }
-        return RigDrainReply(drained: false, reason: "Waiting for existing work")
+        if waiting == .draining, let drainAfter, count >= drainAfter { return RigDrainReply(.drained) }
+        return RigDrainReply(waiting, reason: "fake \(waiting.rawValue)")
     }
-    func release(_ operation: UUID) async throws { releases.update { $0.append(operation) } }
+    func release(_ spec: RigDrainSpec) async throws -> RigDrainRelease {
+        if releaseFails.get() { throw MicropodError.message("release unconfirmed") }
+        releases.update { $0.append(spec.operation) }
+        return .released
+    }
 }
 
 /// Healthy when every loaded job and the app run bytes of the expected release.
@@ -94,6 +151,8 @@ final class FakeHealth: RigHealthProbing, @unchecked Sendable {
     let launch: FakeLaunchctl
     let app: FakeApp
     let failVersions = Locked<Set<String>>([])
+    /// Versions whose Connect API does not answer.
+    let connectDown = Locked<Set<String>>([])
     let smokes = Locked<[String]>([])
     let smokeFails = Locked(false)
     init(launch: FakeLaunchctl, app: FakeApp) {
@@ -104,6 +163,9 @@ final class FakeHealth: RigHealthProbing, @unchecked Sendable {
         var report = RigHealthReport(runtimeAvailable: true)
         if failVersions.get().contains(expectation.version) {
             report.failures.append("\(expectation.version) is configured to fail")
+        }
+        if expectation.connectRequired, connectDown.get().contains(expectation.version) {
+            report.failures.append("The Connect API did not answer Ping")
         }
         for (label, executable) in launch.executables() {
             let bytes = (try? String(contentsOfFile: executable, encoding: .utf8)) ?? ""
@@ -181,6 +243,8 @@ final class RigFixture: @unchecked Sendable {
     let crash = CrashPlan()
     let running = Locked<[String]>([])
     let runtimeMaintenance = Locked(false)
+    let installerRunning = Locked(false)
+    var heartbeat: Duration = .seconds(20)
     let dedicated: Bool
     var staged: RigStagedRelease!
     var sourcePayload: URL!
@@ -250,7 +314,7 @@ final class RigFixture: @unchecked Sendable {
             let plist = RetainedServiceLaunchAgent.plistURL(id, launchAgents: layout.launchAgents)
             try RetainedServiceLaunchAgent.plistData(id, record: record, servicesRoot: layout.servicesRoot).write(
                 to: plist)
-            launch.loaded.update { $0[RetainedServiceLaunchAgent.label(id)] = plist }
+            launch.load(RetainedServiceLaunchAgent.label(id), plist)
         }
         if connect {
             let bin = layout.connectBinary.deletingLastPathComponent()
@@ -261,11 +325,11 @@ final class RigFixture: @unchecked Sendable {
             try Data("0.11.0\n".utf8).write(to: layout.connectRoot.appendingPathComponent("VERSION"))
             let plist: [String: Any] = [
                 "Label": RigUpgradeLayout.connectLabel, "ProgramArguments": [layout.connectBinary.path],
-                "KeepAlive": true,
+                "KeepAlive": true, "RunAtLoad": true,
             ]
             try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0).write(
                 to: layout.connectPlist)
-            launch.loaded.update { $0[RigUpgradeLayout.connectLabel] = layout.connectPlist }
+            launch.load(RigUpgradeLayout.connectLabel, layout.connectPlist)
         }
         app.running.update { $0 = "Micropod 0.14.0" }
         staged = try stage(version: "0.14.1", revision: Self.targetRevision)
@@ -320,6 +384,7 @@ final class RigFixture: @unchecked Sendable {
             launch: launch, app: app, drain: drain, health: health, verifier: FakeVerifier(),
             dedicatedRuntime: { dedicated },
             runtimeMaintenance: { [runtimeMaintenance] in runtimeMaintenance.get() },
+            desktopInstallerRunning: { [installerRunning] in installerRunning.get() },
             runningExecutables: {
                 Array(launch.executables().values) + running.get()
                     + (app.running.get() == nil ? [] : [layout.appPath.path + "/Contents/MacOS/Micropod"])
@@ -330,6 +395,7 @@ final class RigFixture: @unchecked Sendable {
                 clock.advance(duration)
                 await Task.yield()
             },
+            heartbeatInterval: heartbeat,
             checkpoint: { try crash.visit($0) })
     }
 
@@ -344,6 +410,23 @@ final class RigFixture: @unchecked Sendable {
     }
 
     func journal() throws -> RigUpgradeJournal { try XCTUnwrap(RigUpgradeStore(layout: layout).read()) }
+
+    /// A reboot or re-login: the app is gone and launchd loads what is on disk.
+    func reboot() {
+        app.running.update { $0 = nil }
+        launch.reboot(launchAgents: layout.launchAgents)
+    }
+
+    /// Every launch agent that was loaded before the upgrade is loaded.
+    func assertServicesLoaded(file: StaticString = #filePath, line: UInt = #line) {
+        var labels = [RetainedServiceLaunchAgent.label("docker-shim"), RetainedServiceLaunchAgent.label("shared-fs")]
+        if FileManager.default.fileExists(atPath: layout.connectPlist.path) {
+            labels.append(RigUpgradeLayout.connectLabel)
+        }
+        for label in labels {
+            XCTAssertNotNil(launch.loaded.get()[label], "\(label) is not loaded", file: file, line: line)
+        }
+    }
 
     /// Runs the engine until it reports a terminal phase, as launchd would.
     @discardableResult

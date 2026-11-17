@@ -1,0 +1,61 @@
+{
+  "description": "Rig-upgrade drain over ~/.cuttlefish/runner-state/micropod-maintenance.sock. One JSON object per line each way. Micropod's RigCuttlefishDrain and Cuttlefish's maintenance server both test against this file.",
+  "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f",
+  "requests": [
+    { "action": "drain", "request": { "action": "drain", "kind": "rig-upgrade", "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f" } },
+    { "action": "abort", "request": { "action": "abort", "kind": "rig-upgrade", "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f" } },
+    { "action": "abortComplete", "request": { "action": "abortComplete", "kind": "rig-upgrade", "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f" } }
+  ],
+  "drainReplies": [
+    {
+      "reply": { "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f", "phase": "draining", "hostID": "", "owner": "", "generation": 0, "reason": "Waiting for existing work; work still running after 1m0s is preempted and handed back" },
+      "state": "draining"
+    },
+    {
+      "reply": { "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f", "phase": "drained", "hostID": "", "owner": "", "generation": 0 },
+      "state": "drained"
+    },
+    {
+      "reply": { "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f", "phase": "refused", "reason": "Another runtime operation retains host maintenance" },
+      "state": "refused"
+    },
+    {
+      "reply": { "operation": "0B6F4C1E-3F0A-4C55-9D2E-6A1B7C8D9E0F", "phase": "drained" },
+      "state": "drained"
+    },
+    {
+      "reply": { "operation": "11111111-2222-3333-4444-555555555555", "phase": "drained" },
+      "state": "incompatible"
+    },
+    {
+      "reply": { "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f", "phase": "completed" },
+      "state": "incompatible"
+    }
+  ],
+  "releaseSequences": [
+    {
+      "replies": [
+        { "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f", "phase": "aborting" },
+        { "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f", "phase": "cancelled" }
+      ],
+      "outcome": "released"
+    },
+    {
+      "replies": [
+        { "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f", "phase": "refused", "reason": "Runtime maintenance operation is unknown" }
+      ],
+      "outcome": "notHeld"
+    },
+    {
+      "replies": [
+        { "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f", "phase": "aborting" },
+        { "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f", "phase": "draining" }
+      ],
+      "outcome": "unconfirmed"
+    }
+  ],
+  "transport": {
+    "closedWithoutReply": "incompatible: an older Cuttlefish rejects the unknown kind field by closing the connection",
+    "notSent": "unavailable: no coordinator, or its identity could not be verified before the request was written"
+  }
+}

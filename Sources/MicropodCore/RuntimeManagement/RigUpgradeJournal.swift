@@ -228,12 +228,16 @@ public struct RigUpgradeOptions: Codable, Equatable, Sendable {
     public var dockerShimSocket: String
     public var sharedFSSocket: String
     public var appControlSocket: String
+    /// Go ahead when a configured rig coordinator did not drain (refused,
+    /// incompatible or unreachable). Without it the upgrade is refused.
+    public var forceUndrained: Bool
 
     public init(
         drainTimeout: TimeInterval = 120, healthTimeout: TimeInterval = 120,
         smokeImage: String? = "docker.io/library/alpine:3.23.2", connectPort: UInt16 = 45454,
-        dockerShimSocket: String, sharedFSSocket: String, appControlSocket: String
+        dockerShimSocket: String, sharedFSSocket: String, appControlSocket: String, forceUndrained: Bool = false
     ) {
+        self.forceUndrained = forceUndrained
         self.drainTimeout = drainTimeout
         self.healthTimeout = healthTimeout
         self.smokeImage = smokeImage
@@ -295,10 +299,18 @@ public struct RigUpgradeJournal: Codable, Equatable, Sendable {
         /// No Cuttlefish rig coordinator is configured on this host.
         case skipped
         case drained
-        /// The bounded wait ended with work still in flight; the upgrade went ahead.
+        /// Cuttlefish held the rig, but work was still handing back when the
+        /// bounded wait ended; the upgrade went ahead.
         case timedOut
-        /// The coordinator did not answer; the upgrade went ahead.
+        /// The coordinator could not be reached.
         case unavailable
+        /// Cuttlefish answered and declined.
+        case refused
+        /// The coordinator does not speak rig-upgrade drains.
+        case incompatible
+
+        /// The rig is held (or there is none to hold).
+        public var isDrained: Bool { [.skipped, .drained, .timedOut].contains(self) }
     }
 
     public let schema: Int
@@ -306,7 +318,7 @@ public struct RigUpgradeJournal: Codable, Equatable, Sendable {
     public let createdAt: Date
     public var updatedAt: Date
     public var phase: Phase
-    /// Engine runs that resumed this operation.
+    /// Engine runs in the current phase; reset when the phase changes.
     public var attempts: Int
     public let source: RigBundleIdentity
     public let target: RigBundleIdentity
@@ -324,6 +336,8 @@ public struct RigUpgradeJournal: Codable, Equatable, Sendable {
     public let files: [RigFileReplacement]
     public let baseline: RigHealthBaseline
     public let options: RigUpgradeOptions
+    /// The drain every call names.
+    public let drainSpec: RigDrainSpec
     public var drain: DrainOutcome?
     public var drainStartedAt: Date?
     public var drainRequested: Bool
@@ -356,6 +370,7 @@ public struct RigUpgradeJournal: Codable, Equatable, Sendable {
         self.files = files
         self.baseline = baseline
         self.options = options
+        drainSpec = RigDrainSpec(operation: operation, createdAt: createdAt)
         drainRequested = false
         drainReleased = false
         self.notes = notes
@@ -430,8 +445,26 @@ public enum RigUpgradeFence {
         return store.engineIsRunning
     }
 
-    /// A disruptive upgrade that has not reached a terminal phase.
+    /// Whether `journal` describes an upgrade that is under way. Before any
+    /// disruption (prepared, draining) it is only while an engine runs or its
+    /// helper is installed: a journal whose helper never started is stale.
+    public static func isActive(_ journal: RigUpgradeJournal, layout: RigUpgradeLayout) -> Bool {
+        guard !journal.phase.isTerminal else { return false }
+        guard [.prepared, .draining].contains(journal.phase) else { return true }
+        return RigUpgradeStore(layout: layout).engineIsRunning
+            || FileManager.default.fileExists(atPath: layout.helperPlist.path)
+    }
+
+    /// A disruptive upgrade under way.
     public static func inFlight(layout: RigUpgradeLayout = .init()) -> RigUpgradeJournal? {
+        guard let journal = try? RigUpgradeStore(layout: layout).read(), isActive(journal, layout: layout) else {
+            return nil
+        }
+        return journal
+    }
+
+    /// A non-terminal journal, active or stale.
+    public static func unfinished(layout: RigUpgradeLayout = .init()) -> RigUpgradeJournal? {
         guard let journal = try? RigUpgradeStore(layout: layout).read(), !journal.phase.isTerminal else { return nil }
         return journal
     }

@@ -6,48 +6,26 @@ import Foundation
 /// The user's launchd domain.
 public protocol RigLaunchControlling: Sendable {
     func isLoaded(_ label: String) async -> Bool
+    /// The program a loaded job runs as launchd loaded it; nil when not loaded.
+    func loadedProgram(_ label: String) async -> String?
     /// Unloads a job; a job that is not loaded is already out.
     func bootout(_ label: String) async throws
-    /// Loads a job; a job that is already loaded is already in.
+    /// Loads the job as `plist` defines it now. A job already loaded with
+    /// another program (an older definition launchd reloaded at login) is
+    /// booted out first.
     func bootstrap(_ plist: URL, label: String) async throws
+    /// Starts a loaded job that is not running.
+    func kickstart(_ label: String) async throws
 }
 
 /// The desktop app process.
 public protocol RigAppControlling: Sendable {
     func isRunning(_ app: URL) async -> Bool
-    /// Ends the app and the agents it spawned from its bundle.
+    /// Ends the app and the agents it spawned from its bundle, without
+    /// running the app's quit path (Sparkle installs a staged update on quit).
     func stop(_ app: URL, timeout: Duration) async throws
     /// Launches the app when it is not running.
     func launch(_ app: URL) async throws
-}
-
-public enum RigDrainError: Error, LocalizedError, Sendable {
-    /// No request reached a coordinator (absent, offline or untrusted).
-    case unavailable(String)
-    public var errorDescription: String? {
-        switch self {
-        case .unavailable(let reason): reason
-        }
-    }
-}
-
-public struct RigDrainReply: Sendable, Equatable {
-    public let drained: Bool
-    public let reason: String?
-    public init(drained: Bool, reason: String? = nil) {
-        self.drained = drained
-        self.reason = reason
-    }
-}
-
-/// The rig controller (Cuttlefish) on the maintenance socket.
-public protocol RigDrainCoordinating: Sendable {
-    /// Whether this host has a rig controller to ask at all.
-    func isConfigured() -> Bool
-    /// Asks the rig to take no new work; repeated until it reports drained.
-    func drain(_ operation: UUID) async throws -> RigDrainReply
-    /// Lets the rig take work again.
-    func release(_ operation: UUID) async throws
 }
 
 public struct RigHealthExpectation: Sendable, Equatable {
@@ -110,12 +88,19 @@ public struct RigUpgradeEnvironment: Sendable {
     public var dedicatedRuntime: @Sendable () -> Bool
     /// Runtime maintenance holds a runtime admission gate now.
     public var runtimeMaintenance: @Sendable () -> Bool
+    /// A Sparkle installer for this app is running.
+    public var desktopInstallerRunning: @Sendable () -> Bool
+    /// Throws unless this process may replace apps signed by Micropod's team
+    /// (App Management lets a same-team signed process update its apps).
+    public var verifySwapper: @Sendable () throws -> Void
     /// Executable paths of running processes; GC never removes one's directory.
     public var runningExecutables: @Sendable () -> [String]
     /// The executable listening on a TCP port, if one is known.
     public var portOwner: @Sendable (UInt16) -> String?
     public var now: @Sendable () -> Date
     public var sleep: @Sendable (Duration) async throws -> Void
+    /// How often the drain is repeated while the rig is held.
+    public var heartbeatInterval: Duration
     /// Named points between durable steps. Tests stop the engine at each.
     public var checkpoint: @Sendable (String) throws -> Void
     public var log: @Sendable (String) -> Void
@@ -126,9 +111,12 @@ public struct RigUpgradeEnvironment: Sendable {
         swap: @escaping @Sendable (URL, URL) throws -> Void = RigUpgradeEngine.swapItems,
         dedicatedRuntime: @escaping @Sendable () -> Bool,
         runtimeMaintenance: @escaping @Sendable () -> Bool = { false },
+        desktopInstallerRunning: @escaping @Sendable () -> Bool = { false },
+        verifySwapper: @escaping @Sendable () throws -> Void = {},
         runningExecutables: @escaping @Sendable () -> [String],
         portOwner: @escaping @Sendable (UInt16) -> String?, now: @escaping @Sendable () -> Date = { Date() },
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
+        heartbeatInterval: Duration = RigUpgradeEngine.heartbeatInterval,
         checkpoint: @escaping @Sendable (String) throws -> Void = { _ in },
         log: @escaping @Sendable (String) -> Void = { _ in }
     ) {
@@ -140,10 +128,13 @@ public struct RigUpgradeEnvironment: Sendable {
         self.swap = swap
         self.dedicatedRuntime = dedicatedRuntime
         self.runtimeMaintenance = runtimeMaintenance
+        self.desktopInstallerRunning = desktopInstallerRunning
+        self.verifySwapper = verifySwapper
         self.runningExecutables = runningExecutables
         self.portOwner = portOwner
         self.now = now
         self.sleep = sleep
+        self.heartbeatInterval = heartbeatInterval
         self.checkpoint = checkpoint
         self.log = log
     }
@@ -153,23 +144,29 @@ public struct RigUpgradeEnvironment: Sendable {
 
 /// A disruptive upgrade of the desktop app and the user-level services it
 /// leaves running (docker-shim, shared-fs, the Connect API). Jobs may be
-/// interrupted; the desktop is never left fenced.
+/// interrupted.
 ///
 /// Every step is preceded by a journal write and is idempotent by inspection
-/// (bundle identity, file digests, launchd state), so any engine run resumes
-/// an interrupted one: forward phases complete, a failure rolls back to the
-/// exact previous bytes. The root runtime helper, the dedicated API and the
-/// Apple runtime are not touched.
+/// (bundle identity, file digests, launchd definitions), so any engine run
+/// resumes an interrupted one: forward phases complete, a failure rolls back
+/// to the exact previous bytes. A rollback restores what it can and always
+/// restarts the services and the app before it reports anything it could
+/// not restore. The root runtime helper, the dedicated API and the Apple
+/// runtime are not touched.
 public struct RigUpgradeEngine: Sendable {
+    /// Engine runs allowed in one phase before it is abandoned.
     public static let maximumAttempts = 5
-    /// How long an unreachable coordinator is retried before going ahead.
+    /// How long an unreachable coordinator is retried.
     public static let unavailableGrace: TimeInterval = 10
+    /// Heartbeat while the rig is held: Cuttlefish lets go after two minutes.
+    public static let heartbeatInterval: Duration = .seconds(20)
     public static let dedicatedNote =
         "The dedicated runtime (setup helper, dedicated API and Apple engine) is left unchanged."
 
     public let layout: RigUpgradeLayout
     public let environment: RigUpgradeEnvironment
     var store: RigUpgradeStore { .init(layout: layout) }
+    var ledger: RigDrainLedger { .init(layout: layout) }
 
     public init(layout: RigUpgradeLayout, environment: RigUpgradeEnvironment) {
         self.layout = layout
@@ -178,23 +175,24 @@ public struct RigUpgradeEngine: Sendable {
 
     // MARK: Prepare
 
-    /// Verifies the staged release and records everything a resume or
-    /// rollback needs. Nothing the host runs is changed.
+    /// Verifies the staged release and the host, and records everything a
+    /// resume or rollback needs. Nothing the host runs is changed.
+    /// `services` are the target release's service definitions, when it
+    /// reports them (`rig-helper --probe`).
     @discardableResult
-    public func prepare(_ staged: RigStagedRelease, options: RigUpgradeOptions, operation: UUID = UUID())
-        async throws -> RigUpgradeJournal
-    {
+    public func prepare(
+        _ staged: RigStagedRelease, options: RigUpgradeOptions, operation: UUID = UUID(),
+        services definitions: [String: RetainedServiceDefinition]? = nil
+    ) async throws -> RigUpgradeJournal {
         let lock = try store.lock()
         defer { lock.release() }
-        if let existing = try store.read() {
-            guard existing.phase.isTerminal else {
-                throw MicropodError.message(
-                    "Rig upgrade \(existing.operation.uuidString) is \(existing.phase.rawValue); "
-                        + "`micropod update apply --disruptive` resumes it")
-            }
-            var last = existing
-            await releaseDrain(&last)
+        if let existing = try store.read(), !existing.phase.isTerminal {
+            throw MicropodError.message(
+                "Rig upgrade \(existing.operation.uuidString) is \(existing.phase.rawValue); "
+                    + "`micropod update apply --disruptive` resumes it and `--abandon` drops one that has not "
+                    + "stopped anything")
         }
+        _ = await releaseOutstandingDrains(keeping: nil)
         try refuseConcurrentUpdates()
         let fm = FileManager.default
         let app = layout.appPath
@@ -213,6 +211,10 @@ public struct RigUpgradeEngine: Sendable {
                 "The staged \(target.version) release changed after it was verified; stage it again")
         }
         try environment.verifier.verifyApp(stagedBundle)
+        // Only Micropod's own signed app is replaced, by a process App
+        // Management lets update it, with rights over both bundles.
+        try environment.verifier.verifyApp(app)
+        try environment.verifySwapper()
         try Self.requireAtomicSwap(stagedBundle, app)
         let payload = try ensurePayload(target, from: stagedBundle)
 
@@ -228,7 +230,7 @@ public struct RigUpgradeEngine: Sendable {
         var retainedAPI = false
         for id in RetainedServiceLaunchAgent.ids {
             let recordURL = RetainedServiceLaunchAgent.recordURL(id, servicesRoot: layout.servicesRoot)
-            guard fm.fileExists(atPath: recordURL.path) else { continue }
+            guard try Self.existingRegularFile(recordURL) else { continue }
             let record = try RetainedServiceLaunchAgent.readRecord(recordURL)
             guard record.schema == 1, record.identifier == RetainedServiceLaunchAgent.identifier(id) else {
                 throw MicropodError.message("The retained \(id) record is not one this upgrade can replace")
@@ -237,12 +239,12 @@ public struct RigUpgradeEngine: Sendable {
             let executable = payload.appendingPathComponent("Contents/MacOS/" + binary)
             try environment.verifier.verifyExecutable(executable, identifier: record.identifier)
             let moved = record.moved(
-                to: payload, sourceVersion: target.build, sha256: try UpdateServiceWitness.digest(executable))
+                to: payload, sourceVersion: target.build, sha256: try UpdateServiceWitness.digest(executable),
+                definition: definitions?[id] ?? RetainedServiceLaunchAgent.definition(id))
             let label = RetainedServiceLaunchAgent.label(id)
             let plist = RetainedServiceLaunchAgent.plistURL(id, launchAgents: layout.launchAgents)
             files.append(
-                try replacement(
-                    installed: recordURL, bytes: JSONEncoder().encode(moved), in: directory, mode: 0o600))
+                try replacement(installed: recordURL, bytes: JSONEncoder().encode(moved), in: directory, mode: 0o600))
             files.append(
                 try replacement(
                     installed: plist,
@@ -255,7 +257,7 @@ public struct RigUpgradeEngine: Sendable {
             if id == "api-server" { retainedAPI = true } else { baseline.retainedComponents.append(id) }
         }
         var connectInstalled = false
-        if fm.fileExists(atPath: layout.connectPlist.path),
+        if try Self.existingRegularFile(layout.connectPlist),
             Self.programPath(layout.connectPlist) == layout.connectBinary.path
         {
             let api = payload.appendingPathComponent("Contents/MacOS/MicropodAPI")
@@ -332,38 +334,14 @@ public struct RigUpgradeEngine: Sendable {
         let lock = try store.lock()
         defer { lock.release() }
         guard var journal = try store.read() else { throw MicropodError.message("No rig upgrade is recorded") }
-        guard !journal.phase.isTerminal else { return journal }
-        journal.attempts += 1
-        if journal.attempts > Self.maximumAttempts {
-            // A phase that keeps crashing its engine is abandoned the way a
-            // failed step is: before any change it is refused, after one it
-            // rolls back; only a rollback that keeps crashing stops here.
-            let stalled = "gave up after \(Self.maximumAttempts) attempts in \(journal.phase.rawValue)"
-            switch journal.phase {
-            case .prepared, .draining:
-                journal.reason = "The upgrade " + stalled + ". Nothing was changed."
-                journal.phase = .refused
-            case .completing:
-                journal.notes.append("Finishing steps " + stalled + "; the verified upgrade stands.")
-                journal.reason = "Micropod \(journal.target.version) replaced \(journal.source.version)."
-                journal.phase = .completed
-            case .rollingBack:
-                journal.reason =
-                    "Rollback " + stalled + (journal.failure.map { " (after \($0))" } ?? "")
-                    + ". Nothing more is changed; `micropod update recover --rig` retries it."
-                journal.phase = .recoveryRequired
-            default:
-                journal.failure = journal.failure ?? stalled
-                journal.attempts = 1
-                journal.phase = .rollingBack
-                try save(&journal)
-                return try await rollBack(&journal)
-            }
-            await releaseDrain(&journal)
-            try save(&journal)
+        guard !journal.phase.isTerminal else {
+            _ = await releaseOutstandingDrains(keeping: nil)
             return journal
         }
+        journal.attempts += 1
+        if journal.attempts > Self.maximumAttempts { return try await abandonStalled(&journal) }
         try save(&journal)
+        _ = await releaseOutstandingDrains(keeping: journal.drainSpec)
         if journal.phase == .rollingBack { return try await rollBack(&journal) }
         do {
             try await forward(&journal)
@@ -392,27 +370,90 @@ public struct RigUpgradeEngine: Sendable {
         }
     }
 
-    /// `micropod update recover --rig`: retries a rollback that gave up, or
-    /// releases a drain a finished upgrade could not release.
+    /// A phase that kept crashing its engine is abandoned the way a failed
+    /// step is: before any change the upgrade is refused, after one it rolls
+    /// back. A rollback that kept crashing is recorded first, then services
+    /// and the app are started once more.
+    private func abandonStalled(_ journal: inout RigUpgradeJournal) async throws -> RigUpgradeJournal {
+        let stalled = "gave up after \(Self.maximumAttempts) runs in \(journal.phase.rawValue)"
+        switch journal.phase {
+        case .prepared, .draining:
+            journal.reason = "The upgrade " + stalled + ". Nothing was changed."
+            journal.phase = .refused
+        case .completing:
+            journal.notes.append("Finishing steps " + stalled + "; the verified upgrade stands.")
+            journal.reason = "Micropod \(journal.target.version) replaced \(journal.source.version)."
+            journal.phase = .completed
+        case .rollingBack:
+            journal.reason =
+                "Rollback " + stalled + (journal.failure.map { " (after \($0))" } ?? "")
+                + ". Services and the app were started as they are; `micropod update recover --rig` retries."
+            journal.phase = .recoveryRequired
+            try save(&journal)
+            _ = try await startAllBestEffort(journal)
+        default:
+            journal.failure = journal.failure ?? stalled
+            try transition(&journal, to: .rollingBack)
+            return try await rollBack(&journal)
+        }
+        await releaseDrain(&journal)
+        try save(&journal)
+        return journal
+    }
+
+    /// `micropod update recover --rig`. Before anything was stopped it
+    /// abandons the upgrade; a rollback that gave up runs again (restarting
+    /// services whatever it cannot restore); an interrupted upgrade resumes;
+    /// a finished one releases drains still outstanding.
     @discardableResult
     public func recover() async throws -> RigUpgradeJournal {
         do {
             let lock = try store.lock()
             defer { lock.release() }
             guard var journal = try store.read() else { throw MicropodError.message("No rig upgrade is recorded") }
-            if journal.phase == .recoveryRequired {
+            switch journal.phase {
+            case .prepared, .draining:
+                return try await abandon(&journal, reason: "Abandoned by `micropod update recover --rig`.")
+            case .recoveryRequired:
                 journal.phase = .rollingBack
                 journal.attempts = 0
                 try save(&journal)
-            } else if journal.phase.isTerminal {
-                await releaseDrain(&journal)
+            case .completed, .rolledBack, .refused:
+                _ = await releaseOutstandingDrains(keeping: nil)
                 return journal
+            default:
+                break
             }
         }
         return try await run()
     }
 
+    /// `micropod update apply --abandon`: drops an upgrade that has not
+    /// stopped anything yet.
+    @discardableResult
+    public func abandon(reason: String) async throws -> RigUpgradeJournal {
+        let lock = try store.lock()
+        defer { lock.release() }
+        guard var journal = try store.read() else { throw MicropodError.message("No rig upgrade is recorded") }
+        return try await abandon(&journal, reason: reason)
+    }
+
+    private func abandon(_ journal: inout RigUpgradeJournal, reason: String) async throws -> RigUpgradeJournal {
+        guard !journal.phase.isTerminal else { return journal }
+        guard [.prepared, .draining].contains(journal.phase) else {
+            throw MicropodError.message(
+                "Rig upgrade \(journal.operation.uuidString) is \(journal.phase.rawValue) and has stopped services; "
+                    + "`micropod update recover --rig` finishes or rolls it back")
+        }
+        journal.reason = reason + " Nothing was changed."
+        journal.phase = .refused
+        await releaseDrain(&journal)
+        try save(&journal)
+        return journal
+    }
+
     private func forward(_ journal: inout RigUpgradeJournal) async throws {
+        let entry = journal.phase
         if journal.phase == .prepared { try transition(&journal, to: .draining) }
         if journal.phase == .draining {
             try verifyBeforeDisruption(journal)
@@ -422,6 +463,11 @@ public struct RigUpgradeEngine: Sendable {
             try transition(&journal, to: .stopping)
         }
         try await whileHeld(journal) {
+            // A resume after a crash, reboot or re-login finds whatever
+            // launchd reloaded and whatever app was launched since: stop it
+            // all again, or start it all again, before going on.
+            if [.swapping, .starting].contains(entry) { try await stopAll(journal) }
+            if entry == .verifying { try await startAll(journal) }
             if journal.phase == .stopping {
                 try await stopAll(journal)
                 try transition(&journal, to: .swapping)
@@ -440,331 +486,48 @@ public struct RigUpgradeEngine: Sendable {
                 try transition(&journal, to: .completing)
             }
         }
-        if journal.phase == .completing { try await complete(&journal) }
+        if journal.phase == .completing {
+            // Verified before a crash or reboot; whatever went down since comes back.
+            if entry == .completing { try await startAll(journal) }
+            try await complete(&journal)
+        }
     }
 
-    /// Runs `body` while a heartbeat keeps the drain held: Cuttlefish lets go
-    /// of a drain nobody has asked about for two minutes. It stops before the
-    /// drain is released.
-    private func whileHeld(_ journal: RigUpgradeJournal, _ body: () async throws -> Void) async throws {
-        guard journal.drainRequested, !journal.drainReleased, journal.drain != .unavailable else {
-            return try await body()
-        }
+    /// Runs `body` while a heartbeat repeats the drain: Cuttlefish lets go of
+    /// a drain nobody has asked about for two minutes. It continues after an
+    /// unreachable coordinator, so one that comes back holds the rig, and it
+    /// stops before the drain is released.
+    func whileHeld(_ journal: RigUpgradeJournal, _ body: () async throws -> Void) async throws {
+        guard journal.drainRequested, !journal.drainReleased else { return try await body() }
         let drain = environment.drain
-        let operation = journal.operation
+        let spec = journal.drainSpec
+        let interval = environment.heartbeatInterval
         let heartbeat = Task {
             while !Task.isCancelled {
-                do { try await Task.sleep(for: .seconds(20)) } catch { return }
-                _ = try? await drain.drain(operation)
+                do { try await Task.sleep(for: interval) } catch { return }
+                _ = await drain.drain(spec)
             }
         }
         defer { heartbeat.cancel() }
         try await body()
     }
 
-    // MARK: Steps
-
-    private func verifyBeforeDisruption(_ journal: RigUpgradeJournal) throws {
-        let app = URL(fileURLWithPath: journal.appPath)
-        let staged = URL(fileURLWithPath: journal.stagedBundle)
-        guard journal.source.matches(app) else {
-            throw MicropodError.message("The installed app changed after the upgrade was prepared")
-        }
-        guard journal.target.matches(staged) else {
-            throw MicropodError.message(
-                "The staged \(journal.target.version) release changed after it was verified; it was not installed")
-        }
-        try environment.verifier.verifyApp(staged)
-        guard journal.target.matches(URL(fileURLWithPath: journal.targetPayload)) else {
-            throw MicropodError.message("The \(journal.target.version) service payload changed after it was verified")
-        }
-        for file in journal.files where Self.digest(file.replacement) != file.replacementSHA256 {
-            throw MicropodError.message("The replacement for \(file.installed) changed after it was verified")
-        }
-        try refuseConcurrentUpdates()
-    }
-
-    private func drain(_ journal: inout RigUpgradeJournal) async throws {
-        guard journal.drain == nil else { return }
-        guard environment.drain.isConfigured() else {
-            journal.drain = .skipped
-            journal.notes.append("No Cuttlefish rig coordinator is configured on this host; nothing was drained.")
-            try save(&journal)
-            return
-        }
-        if journal.drainStartedAt == nil {
-            journal.drainStartedAt = environment.now()
-            journal.drainRequested = true
-            try save(&journal)
-        }
-        let started = journal.drainStartedAt ?? environment.now()
-        let deadline = started.addingTimeInterval(journal.options.drainTimeout)
-        var last = "no answer yet"
-        var unavailableSince: Date?
-        while true {
-            do {
-                let reply = try await environment.drain.drain(journal.operation)
-                unavailableSince = nil
-                if reply.drained {
-                    journal.drain = .drained
-                    journal.notes.append(
-                        "Cuttlefish drained in \(Int(environment.now().timeIntervalSince(started))) s.")
-                    try save(&journal)
-                    return
-                }
-                last = reply.reason ?? "work is still running"
-            } catch let interruption as RigUpgradeInterruption {
-                throw interruption
-            } catch RigDrainError.unavailable(let reason) {
-                last = reason
-                let since = unavailableSince ?? environment.now()
-                unavailableSince = since
-                if environment.now().timeIntervalSince(since) >= Self.unavailableGrace {
-                    journal.drain = .unavailable
-                    journal.notes.append("Cuttlefish did not answer (\(reason)); the upgrade went ahead.")
-                    try save(&journal)
-                    return
-                }
-            } catch {
-                last = Self.describe(error)
-            }
-            try environment.checkpoint("draining:poll")
-            if environment.now() >= deadline {
-                journal.drain = .timedOut
-                journal.notes.append(
-                    "Cuttlefish had not drained after \(Int(journal.options.drainTimeout)) s (\(last)); "
-                        + "work still running was interrupted.")
-                try save(&journal)
-                return
-            }
-            try await environment.sleep(.seconds(2))
-        }
-    }
-
-    private func stopAll(_ journal: RigUpgradeJournal) async throws {
-        try await environment.app.stop(URL(fileURLWithPath: journal.appPath), timeout: .seconds(20))
-        try checkpoint(journal, "stopped-app")
-        for service in journal.services {
-            try await environment.launch.bootout(service.label)
-            try checkpoint(journal, "bootout:" + service.id)
-        }
-    }
-
-    private func swapApp(_ journal: RigUpgradeJournal) throws {
-        let app = URL(fileURLWithPath: journal.appPath)
-        let staged = URL(fileURLWithPath: journal.stagedBundle)
-        if journal.target.matches(app) { return }
-        guard journal.source.matches(app) else {
-            throw MicropodError.message(
-                "\(app.path) is neither \(journal.source.version) nor \(journal.target.version); it was not replaced")
-        }
-        guard journal.target.matches(staged) else {
-            throw MicropodError.message("The staged \(journal.target.version) bundle changed; it was not installed")
-        }
-        try environment.verifier.verifyApp(staged)
-        try environment.swap(staged, app)
-        try checkpoint(journal, "swapped-app")
-        guard journal.target.matches(app) else {
-            throw MicropodError.message("The swap did not install \(journal.target.version)")
-        }
-    }
-
-    private func restoreApp(_ journal: RigUpgradeJournal) throws {
-        let app = URL(fileURLWithPath: journal.appPath)
-        let staged = URL(fileURLWithPath: journal.stagedBundle)
-        if journal.source.matches(app) { return }
-        guard journal.target.matches(app), journal.source.matches(staged) else {
-            throw MicropodError.message(
-                "Neither \(app.path) nor \(staged.path) is the previous \(journal.source.version) app; both are kept")
-        }
-        try environment.swap(staged, app)
-        try checkpoint(journal, "swapped-back")
-        guard journal.source.matches(app) else {
-            throw MicropodError.message("The swap back did not restore \(journal.source.version)")
-        }
-    }
-
-    private func installFiles(_ journal: RigUpgradeJournal) throws {
-        for file in journal.files {
-            if Self.digest(file.installed) == file.replacementSHA256 { continue }
-            guard Self.digest(file.replacement) == file.replacementSHA256 else {
-                throw MicropodError.message("The replacement for \(file.installed) changed; it was not installed")
-            }
-            try Self.install(
-                URL(fileURLWithPath: file.replacement), at: URL(fileURLWithPath: file.installed), mode: file.mode)
-            try checkpoint(journal, "installed:" + URL(fileURLWithPath: file.installed).lastPathComponent)
-        }
-    }
-
-    private func restoreFiles(_ journal: RigUpgradeJournal) throws {
-        for file in journal.files.reversed() {
-            let installed = URL(fileURLWithPath: file.installed)
-            if let backup = file.backup {
-                if Self.digest(file.installed) == file.backupSHA256 { continue }
-                guard Self.digest(backup) == file.backupSHA256 else {
-                    throw MicropodError.message("The saved copy of \(file.installed) changed; it was not restored")
-                }
-                try Self.install(URL(fileURLWithPath: backup), at: installed, mode: file.mode)
-            } else {
-                guard FileManager.default.fileExists(atPath: installed.path) else { continue }
-                try RuntimeDurableFile.remove(installed)
-            }
-            try checkpoint(journal, "restored:" + installed.lastPathComponent)
-        }
-    }
-
-    private func startAll(_ journal: RigUpgradeJournal) async throws {
-        for service in journal.services where service.wasLoaded {
-            try await environment.launch.bootstrap(URL(fileURLWithPath: service.plist), label: service.label)
-            try checkpoint(journal, "bootstrap:" + service.id)
-        }
-        if journal.appWasRunning {
-            try await environment.app.launch(URL(fileURLWithPath: journal.appPath))
-            try checkpoint(journal, "launched-app")
-        }
-    }
-
-    private func verify(_ journal: inout RigUpgradeJournal) async throws {
-        let expectation = expectation(journal, for: journal.target)
-        let report = try await gate(expectation, timeout: journal.options.healthTimeout)
-        for note in report.notes where !journal.notes.contains(note) { journal.notes.append(note) }
-        if let image = journal.baseline.smokeImage {
-            guard report.runtimeAvailable else {
-                throw MicropodError.message(
-                    "The Apple runtime is not available on \(journal.target.version), though the smoke container "
-                        + "ran before the upgrade")
-            }
-            try await environment.health.smoke(expectation, image: image)
-            journal.notes.append("A \(image) smoke container ran and was removed on \(journal.target.version).")
-        }
-        try save(&journal)
-    }
-
-    private func gate(_ expectation: RigHealthExpectation, timeout: TimeInterval) async throws -> RigHealthReport {
-        let deadline = environment.now().addingTimeInterval(timeout)
-        while true {
-            let report = await environment.health.check(expectation)
-            if report.healthy { return report }
-            if environment.now() >= deadline {
-                throw MicropodError.message(
-                    "\(expectation.version) did not pass its health gate within \(Int(timeout)) s: "
-                        + report.failures.joined(separator: "; "))
-            }
-            try await environment.sleep(.seconds(1))
-        }
-    }
-
-    private func complete(_ journal: inout RigUpgradeJournal) async throws {
-        journal.notes += keepPrevious(journal)
-        try checkpoint(journal, "kept-previous")
-        await releaseDrain(&journal)
-        try checkpoint(journal, "released-drain")
-        for note in collectGarbage(journal) where !journal.notes.contains(note) { journal.notes.append(note) }
-        var summary =
-            "Micropod \(journal.target.version) replaced \(journal.source.version): the app with its CLI and MCP"
-        let replaced = journal.services.map(\.id)
-        if !replaced.isEmpty { summary += ", " + replaced.joined(separator: ", ") }
-        summary += ". Drain: \(journal.drain?.rawValue ?? "skipped")."
-        if journal.dedicatedRuntime { summary += " " + Self.dedicatedNote }
-        journal.reason = summary
-        try transition(&journal, to: .completed)
-    }
-
-    private func rollBack(_ journal: inout RigUpgradeJournal) async throws -> RigUpgradeJournal {
-        do {
-            var health = ""
-            try await whileHeld(journal) {
-                try await stopAll(journal)
-                try restoreApp(journal)
-                try restoreFiles(journal)
-                try await startAll(journal)
-                do {
-                    _ = try await gate(
-                        expectation(journal, for: journal.source), timeout: min(journal.options.healthTimeout, 60))
-                } catch let interruption as RigUpgradeInterruption {
-                    throw interruption
-                } catch {
-                    health =
-                        " The restored \(journal.source.version) did not pass its own health gate: "
-                        + Self.describe(error)
-                }
-            }
-            await releaseDrain(&journal)
-            journal.reason =
-                "Rolled back to \(journal.source.version): \(journal.failure ?? "the upgrade failed")." + health
-                + (journal.dedicatedRuntime ? " " + Self.dedicatedNote : "")
-            try transition(&journal, to: .rolledBack)
-            return journal
-        } catch let interruption as RigUpgradeInterruption {
-            throw interruption
-        } catch {
-            journal.notes.append("Rollback attempt \(journal.attempts) did not finish: \(Self.describe(error))")
-            try? save(&journal)
-            throw MicropodError.message("Rollback did not finish (\(Self.describe(error))); the next run resumes it")
-        }
-    }
-
-    private func releaseDrain(_ journal: inout RigUpgradeJournal) async {
-        guard journal.drainRequested, !journal.drainReleased else { return }
-        do {
-            try await environment.drain.release(journal.operation)
-            journal.drainReleased = true
-        } catch {
-            journal.notes.append(
-                "Cuttlefish's drain was not released (\(Self.describe(error))). It lets an abandoned drain go after "
-                    + "two minutes, and the next upgrade releases it.")
-        }
-        try? save(&journal)
-    }
-
-    /// The Sparkle updater and runtime maintenance replace parts of what this
-    /// upgrade stops; neither may be in flight.
-    private func refuseConcurrentUpdates() throws {
-        guard !environment.runtimeMaintenance() else {
-            throw MicropodError.message(
-                "Runtime maintenance holds the runtime's admission gate; let it finish or run "
-                    + "`micropod runtime recover` first")
-        }
-        let receipt: UpdateContinuityReceipt?
-        do {
-            receipt = try layout.desktopUpdates.read()
-        } catch {
-            throw MicropodError.message(
-                "The desktop update transaction cannot be read (\(Self.describe(error))); "
-                    + "reconcile it with `micropod update recover` first")
-        }
-        if let receipt, !receipt.isTerminal {
-            throw MicropodError.message(
-                "A desktop update to \(receipt.targetVersion) is \(receipt.phase.rawValue); "
-                    + "finish or reconcile it with `micropod update recover` first")
-        }
-    }
-
     // MARK: Journal
 
-    private func expectation(_ journal: RigUpgradeJournal, for identity: RigBundleIdentity) -> RigHealthExpectation {
-        RigHealthExpectation(
-            operation: journal.operation, version: identity.version, revision: identity.revision,
-            appRunning: journal.appWasRunning, appControlSocket: journal.options.appControlSocket,
-            sockets: journal.baseline.sockets, connectPort: journal.options.connectPort,
-            connectRequired: journal.baseline.connectAnswered,
-            connectVersionGated: journal.baseline.connectReplaced,
-            retainedComponents: journal.baseline.retainedComponents)
-    }
-
-    private func transition(_ journal: inout RigUpgradeJournal, to phase: RigUpgradeJournal.Phase) throws {
+    func transition(_ journal: inout RigUpgradeJournal, to phase: RigUpgradeJournal.Phase) throws {
         journal.phase = phase
+        journal.attempts = 1
         try save(&journal)
         environment.log("rig upgrade \(journal.operation.uuidString): \(phase.rawValue)")
         try environment.checkpoint(phase.rawValue)
     }
 
-    private func save(_ journal: inout RigUpgradeJournal) throws {
+    func save(_ journal: inout RigUpgradeJournal) throws {
         journal.updatedAt = environment.now()
         try store.write(journal)
     }
 
-    private func checkpoint(_ journal: RigUpgradeJournal, _ name: String) throws {
+    func checkpoint(_ journal: RigUpgradeJournal, _ name: String) throws {
         try environment.checkpoint(journal.phase.rawValue + ":" + name)
     }
 

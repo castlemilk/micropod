@@ -49,6 +49,24 @@ public struct RigLaunchctl: RigLaunchControlling {
         await RigProcess.run("/bin/launchctl", ["print", domain + "/" + label]).status == 0
     }
 
+    /// `program = …` from `launchctl print`, else the first argument.
+    static func program(fromPrint output: String) -> String? {
+        let lines = output.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+        if let line = lines.first(where: { $0.hasPrefix("program = ") }) {
+            return String(line.dropFirst("program = ".count))
+        }
+        if let start = lines.firstIndex(of: "arguments = {"), start + 1 < lines.count, lines[start + 1] != "}" {
+            return lines[start + 1]
+        }
+        return nil
+    }
+
+    public func loadedProgram(_ label: String) async -> String? {
+        let result = await RigProcess.run("/bin/launchctl", ["print", domain + "/" + label])
+        guard result.status == 0 else { return nil }
+        return Self.program(fromPrint: result.output) ?? ""
+    }
+
     public func bootout(_ label: String) async throws {
         let result = await RigProcess.run("/bin/launchctl", ["bootout", domain + "/" + label], timeout: .seconds(60))
         guard result.status != 0, await isLoaded(label) else { return }
@@ -56,10 +74,20 @@ public struct RigLaunchctl: RigLaunchControlling {
     }
 
     public func bootstrap(_ plist: URL, label: String) async throws {
-        if await isLoaded(label) { return }
+        if let loaded = await loadedProgram(label) {
+            if loaded == RigUpgradeEngine.programPath(plist) { return }
+            try await bootout(label)
+        }
         let result = await RigProcess.run("/bin/launchctl", ["bootstrap", domain, plist.path])
         guard result.status != 0, !(await isLoaded(label)) else { return }
         throw MicropodError.message("launchctl bootstrap \(label) failed (\(result.status)): \(result.output)")
+    }
+
+    public func kickstart(_ label: String) async throws {
+        let result = await RigProcess.run("/bin/launchctl", ["kickstart", domain + "/" + label])
+        guard result.status == 0 else {
+            throw MicropodError.message("launchctl kickstart \(label) failed (\(result.status)): \(result.output)")
+        }
     }
 }
 
@@ -111,15 +139,18 @@ public struct RigAppProcesses: RigAppControlling {
 
     public func stop(_ app: URL, timeout: Duration) async throws {
         let agents = Set(Self.agents.map { app.appendingPathComponent("Contents/MacOS/" + $0).path })
-        // The app ends its own agents on SIGTERM; stragglers get their own.
-        try await terminate([Self.mainExecutable(app)], timeout: timeout)
-        try await terminate(agents, timeout: .seconds(10))
+        // SIGKILL, not SIGTERM: the app's SIGTERM handler quits through
+        // NSApp.terminate, where Sparkle installs an update staged for quit
+        // and would replace the bundle under this upgrade. Its agents follow
+        // through ParentDeathWatch; stragglers are stopped on their own.
+        try await terminate([Self.mainExecutable(app)], signal: SIGKILL, timeout: timeout)
+        try await terminate(agents, signal: SIGTERM, timeout: .seconds(10))
     }
 
-    private func terminate(_ paths: Set<String>, timeout: Duration) async throws {
+    private func terminate(_ paths: Set<String>, signal: Int32, timeout: Duration) async throws {
         var running = pids(paths)
         guard !running.isEmpty else { return }
-        for pid in running { kill(pid, SIGTERM) }
+        for pid in running { kill(pid, signal) }
         let deadline = ContinuousClock.now + timeout
         while !running.isEmpty, ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(200))
@@ -143,49 +174,6 @@ public struct RigAppProcesses: RigAppControlling {
             try await Task.sleep(for: .milliseconds(200))
         }
         throw MicropodError.message("\(app.lastPathComponent) did not start")
-    }
-}
-
-/// Cuttlefish's maintenance socket, through the shared-runtime protocol:
-/// `drain` holds new leases and preempts in-flight attempts after the rig's
-/// bounded grace; `abort` then `abortComplete` lets the rig take work again.
-/// No runtime admission fence or host fence is ever taken.
-public struct RigCuttlefishDrain: RigDrainCoordinating {
-    public let home: URL
-    /// Constant per host, so every call names the same operation spec.
-    public let installRoot: URL
-    public init(home: URL, installRoot: URL) {
-        self.home = home
-        self.installRoot = installRoot
-    }
-
-    private func transition(_ operation: UUID, _ action: String) async throws -> RuntimeRigReceipt? {
-        try await RuntimeRigClient(ownerHome: home).transition(
-            operation: operation, action: action, installRoot: installRoot, localGeneration: 1,
-            targetState: "running")
-    }
-
-    public func isConfigured() -> Bool { RuntimeRigClient.hasConfiguredRig(ownerHome: home) }
-
-    public func drain(_ operation: UUID) async throws -> RigDrainReply {
-        do {
-            let receipt = try await transition(operation, "drain")
-            return RigDrainReply(drained: receipt?.phase == "drained", reason: receipt?.reason)
-        } catch let error as RuntimeRigAdmissionError {
-            throw RigDrainError.unavailable(error.localizedDescription)
-        }
-    }
-
-    public func release(_ operation: UUID) async throws {
-        do {
-            _ = try await transition(operation, "abort")
-            let receipt = try await transition(operation, "abortComplete")
-            guard receipt?.phase == "cancelled" else {
-                throw MicropodError.message("Cuttlefish did not confirm the release (\(receipt?.phase ?? "no answer"))")
-            }
-        } catch let error as MicropodError where error.errorDescription?.contains("operation is unknown") == true {
-            // The rig never recorded this drain, so it holds nothing.
-        }
     }
 }
 
@@ -332,18 +320,50 @@ public struct RigCodeSignatureVerifier: RigBundleVerifying {
     }
 }
 
+extension RigCodeSignatureVerifier {
+    /// This process carries Micropod's Developer ID signature, which App
+    /// Management requires of a process that replaces Micropod's app.
+    @Sendable public static func verifySelf() throws {
+        var code: SecCode?
+        var requirement: SecRequirement?
+        let rule =
+            "anchor apple generic and certificate leaf[subject.OU] = \"" + IsolatedRuntimePolicy.teamIdentifier + "\""
+        guard SecCodeCopySelf([], &code) == errSecSuccess, let code,
+            SecRequirementCreateWithString(rule as CFString, [], &requirement) == errSecSuccess,
+            SecCodeCheckValidity(code, [], requirement) == errSecSuccess
+        else {
+            throw MicropodError.message(
+                "This micropod is not signed by Micropod's Developer ID, so macOS would not let it replace the app; "
+                    + "run the release's own CLI")
+        }
+    }
+}
+
 extension RigUpgradeEnvironment {
+    /// A Sparkle installer launched for the app (from its bundle or its cache).
+    static func sparkleInstallerRunning(_ layout: RigUpgradeLayout) -> Bool {
+        let roots = [
+            layout.appPath.path + "/",
+            layout.home.appendingPathComponent("Library/Caches/com.skunkworq.micropod").path + "/",
+        ]
+        return RigProcessTable.executables().contains { path in
+            roots.contains { path.hasPrefix($0) } && path.contains("Sparkle")
+                && ["Autoupdate", "Updater", "Installer"].contains { path.contains($0) }
+        }
+    }
+
     /// The host's real launchd, processes, rig coordinator and probes.
     public static func live(layout: RigUpgradeLayout, log: @escaping @Sendable (String) -> Void = { _ in }) -> Self {
         Self(
-            launch: RigLaunchctl(), app: RigAppProcesses(),
-            drain: RigCuttlefishDrain(home: layout.home, installRoot: layout.releasesRoot),
+            launch: RigLaunchctl(), app: RigAppProcesses(), drain: RigCuttlefishDrain(home: layout.home),
             health: RigHealthProbe(), verifier: RigCodeSignatureVerifier(),
             dedicatedRuntime: { (try? IsolatedRuntimeIdentity.readRootOwned())?.ownerUID == getuid() },
             runtimeMaintenance: {
                 RuntimeAdmission(root: ManagedRuntimeLocation.root.appendingPathComponent("admission")).isClosed
                     || RuntimeAdmission(root: IsolatedRuntimePolicy.admissionRoot).isClosed
             },
+            desktopInstallerRunning: { sparkleInstallerRunning(layout) },
+            verifySwapper: RigCodeSignatureVerifier.verifySelf,
             runningExecutables: RigProcessTable.executables, portOwner: RigProcessTable.portOwner, log: log)
     }
 }
