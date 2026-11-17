@@ -2,7 +2,7 @@
 # Regenerate every publishable client surface from proto/.
 #
 #   scripts/gen-sdk.sh          # regen all languages
-#   scripts/gen-sdk.sh --check  # regen into place, fail if git diff is dirty
+#   scripts/gen-sdk.sh --check  # regen into place, fail on tracked, staged, or new generated changes
 #
 # Layout:
 #   sdk/go/gen/     Go messages + connect-go + grpc stubs  (buf.gen.yaml)
@@ -30,9 +30,12 @@ buf generate --template buf.gen.yaml
 buf generate --template buf.gen.sdk.yaml
 
 if [[ "${1:-}" == "--check" ]]; then
-    if ! git diff --quiet -- sdk/ Sources/MicropodCore/Generated api/; then
+    # Porcelain includes staged changes and newly generated files that diff
+    # alone misses. Read status only: never stage or remove developer output.
+    generated_status=$(git status --porcelain=v1 --untracked-files=all -- sdk/ Sources/MicropodCore/Generated api/)
+    if [[ -n "$generated_status" ]]; then
         echo "error: generated code out of sync — run scripts/gen-sdk.sh" >&2
-        git status --short -- sdk/ Sources/MicropodCore/Generated api/
+        printf '%s\n' "$generated_status"
         exit 1
     fi
 fi
