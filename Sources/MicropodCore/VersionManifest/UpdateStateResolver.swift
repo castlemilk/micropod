@@ -186,14 +186,16 @@ public enum UpdateStateResolver {
         return result
     }
 
-    /// The rig upgrade state this account's files describe.
-    public static func rig(layout: RigUpgradeLayout) -> Micropod_V1_UpdateState? {
+    /// The rig upgrade state this account's files (and launchd) describe.
+    public static func rig(
+        layout: RigUpgradeLayout, helperProgram: (String) -> String? = RigLaunchctl.loadedProgramNow
+    ) -> Micropod_V1_UpdateState? {
         let installed = (try? ComponentProbe.bundleStamp(layout.appPath))?.version
         let journal = try? RigUpgradeStore(layout: layout).read()
         return rig(
             journal: journal, staged: RigStagedRelease.newest(in: layout),
             installedVersion: installed == ComponentProbe.unknown ? nil : installed,
-            active: journal.map { RigUpgradeFence.isActive($0, layout: layout) } ?? false)
+            active: journal.map { RigUpgradeFence.isActive($0, layout: layout, helperProgram: helperProgram) } ?? false)
     }
 
     /// Both updaters plus a disruptive rig upgrade. An upgrade in flight wins

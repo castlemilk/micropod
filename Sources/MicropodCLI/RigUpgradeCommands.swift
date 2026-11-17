@@ -115,10 +115,17 @@ enum RigUpgradeHelper {
     /// How long a helper waits for another engine (a `--foreground` run) to finish.
     static let lockWait: Duration = .seconds(300)
 
-    static func configuration(helper: URL, layout: RigUpgradeLayout) -> [String: Any] {
+    /// A `prepared` journal older than this, with no recent launch by a CLI,
+    /// was left behind: a helper launchd started at login does not run it.
+    static let staleAfter: TimeInterval = 600
+
+    static func configuration(helper: URL, layout: RigUpgradeLayout, operation: UUID) -> [String: Any] {
         [
             "Label": RigUpgradeLayout.helperLabel,
-            "ProgramArguments": [helper.path, "update", "rig-helper", "--app", layout.appPath.path],
+            "ProgramArguments": [
+                helper.path, "update", "rig-helper", "--app", layout.appPath.path, "--operation",
+                operation.uuidString,
+            ],
             "RunAtLoad": true, "KeepAlive": ["SuccessfulExit": false], "ThrottleInterval": 10,
             "ProcessType": "Interactive", "AbandonProcessGroup": true,
             "StandardOutPath": layout.helperLog.path, "StandardErrorPath": layout.helperLog.path,
@@ -148,7 +155,17 @@ enum RigUpgradeHelper {
     }
 
     static func helperURL(_ journal: RigUpgradeJournal, layout: RigUpgradeLayout) -> URL {
-        layout.operationDirectory(journal.operation).appendingPathComponent("micropod")
+        layout.helperExecutable(journal.operation)
+    }
+
+    /// When a CLI last started this operation's helper.
+    static func ticketURL(_ operation: UUID, layout: RigUpgradeLayout) -> URL {
+        layout.operationDirectory(operation).appendingPathComponent("helper-launched-at")
+    }
+
+    static func launchedAt(_ operation: UUID, layout: RigUpgradeLayout) -> Date? {
+        (try? String(contentsOf: ticketURL(operation, layout: layout), encoding: .utf8))
+            .flatMap { Double($0) }.map { Date(timeIntervalSince1970: $0) }
     }
 
     static func runsURL(_ operation: UUID, layout: RigUpgradeLayout) -> URL {
@@ -192,19 +209,31 @@ enum RigUpgradeHelper {
             throw MicropodError.message("\(helper.path) does not run rig upgrade journals; it was not started")
         }
         try? fm.removeItem(at: runsURL(journal.operation, layout: layout))
+        try Data("\(Date().timeIntervalSince1970)".utf8).write(
+            to: ticketURL(journal.operation, layout: layout), options: .atomic)
         try fm.createDirectory(at: layout.launchAgents, withIntermediateDirectories: true)
         try PropertyListSerialization.data(
-            fromPropertyList: configuration(helper: helper, layout: layout), format: .xml, options: 0
+            fromPropertyList: configuration(helper: helper, layout: layout, operation: journal.operation),
+            format: .xml, options: 0
         ).write(to: layout.helperPlist, options: .atomic)
-        if let loaded = await launch.loadedProgram(RigUpgradeLayout.helperLabel) {
-            if loaded == helper.path {
-                try await launch.kickstart(RigUpgradeLayout.helperLabel)
-                return
+        do {
+            if let loaded = await launch.loadedProgram(RigUpgradeLayout.helperLabel) {
+                if loaded == helper.path {
+                    try await launch.kickstart(RigUpgradeLayout.helperLabel)
+                    return
+                }
+                // An earlier operation's helper, finished but still loaded.
+                try await launch.bootout(RigUpgradeLayout.helperLabel)
             }
-            // An earlier operation's helper, finished but still loaded.
-            try await launch.bootout(RigUpgradeLayout.helperLabel)
+            try await launch.bootstrap(layout.helperPlist, label: RigUpgradeLayout.helperLabel)
+        } catch {
+            // Nothing should load this definition at the next login.
+            try? fm.removeItem(at: layout.helperPlist)
+            if await launch.loadedProgram(RigUpgradeLayout.helperLabel) == helper.path {
+                try? await launch.bootout(RigUpgradeLayout.helperLabel)
+            }
+            throw error
         }
-        try await launch.bootstrap(layout.helperPlist, label: RigUpgradeLayout.helperLabel)
     }
 
     /// Counts one more run of this operation's helper; false once over budget.
@@ -456,10 +485,13 @@ enum RigUpgradeCommands {
             print(RigUpgradeHelper.probe)
             return ExitCode.ok
         }
-        let appPath = args.firstIndex(of: "--app").flatMap { args.indices.contains($0 + 1) ? args[$0 + 1] : nil }
-        let layout = RigUpgradeLayout(appPath: URL(fileURLWithPath: appPath ?? "/Applications/Micropod.app"))
+        func value(_ flag: String) -> String? {
+            args.firstIndex(of: flag).flatMap { args.indices.contains($0 + 1) ? args[$0 + 1] : nil }
+        }
+        let layout = RigUpgradeLayout(appPath: URL(fileURLWithPath: value("--app") ?? "/Applications/Micropod.app"))
         return await runHelper(
-            layout: layout, engine: RigUpgradeEngine(layout: layout, environment: .live(layout: layout, log: log)),
+            layout: layout, operation: value("--operation").flatMap(UUID.init(uuidString:)),
+            engine: RigUpgradeEngine(layout: layout, environment: .live(layout: layout, log: log)),
             launch: RigLaunchctl())
     }
 
@@ -467,18 +499,40 @@ enum RigUpgradeCommands {
     /// or the restart budget spent); exit 1 lets launchd start it again to
     /// resume.
     static func runHelper(
-        layout: RigUpgradeLayout, engine: RigUpgradeEngine, launch: any RigLaunchControlling,
-        lockWait: Duration = RigUpgradeHelper.lockWait
+        layout: RigUpgradeLayout, operation: UUID?, engine: RigUpgradeEngine, launch: any RigLaunchControlling,
+        lockWait: Duration = RigUpgradeHelper.lockWait, now: Date = Date()
     ) async -> Int32 {
         guard let journal = try? RigUpgradeStore(layout: layout).read(), !journal.phase.isTerminal else {
             await RigUpgradeHelper.retire(layout: layout, launch: launch)
             return ExitCode.ok
         }
+        // A definition left over from another operation never runs this one.
+        guard let operation, operation == journal.operation else {
+            log(
+                "rig upgrade helper for \(operation?.uuidString ?? "no operation") found journal "
+                    + "\(journal.operation.uuidString); not running it")
+            await RigUpgradeHelper.retire(layout: layout, launch: launch)
+            return ExitCode.ok
+        }
+        // launchd starting a left-behind definition at login: an upgrade that
+        // never got going is not started long after it was prepared.
+        if journal.phase == .prepared, now.timeIntervalSince(journal.updatedAt) > RigUpgradeHelper.staleAfter,
+            now.timeIntervalSince(RigUpgradeHelper.launchedAt(journal.operation, layout: layout) ?? .distantPast)
+                > RigUpgradeHelper.staleAfter
+        {
+            _ = try? await engine.abandon(
+                reason: "Its helper started at login for an upgrade prepared more than 10 minutes earlier, so it "
+                    + "was not run.")
+            log("rig upgrade \(journal.operation.uuidString) was prepared too long ago; abandoned")
+            await RigUpgradeHelper.retire(layout: layout, launch: launch)
+            return ExitCode.ok
+        }
         guard RigUpgradeHelper.countRun(journal.operation, layout: layout) else {
+            _ = try? await engine.stopResuming(
+                reason: "The upgrade helper gave up after \(RigUpgradeHelper.restartBudget) runs")
             log(
                 "rig upgrade \(journal.operation.uuidString) helper gave up after \(RigUpgradeHelper.restartBudget) runs "
-                    + "in \(journal.phase.rawValue); `micropod update apply --disruptive` or `recover --rig` resumes it"
-            )
+                    + "in \(journal.phase.rawValue); `micropod update recover --rig` takes it from here")
             await RigUpgradeHelper.retire(layout: layout, launch: launch)
             return ExitCode.ok
         }

@@ -194,14 +194,16 @@ final class RigUpgradeCommandsTests: XCTestCase {
 
     func testHelperJobRestartsOnlyOnFailureAndResumesAtLogin() {
         let layout = RigUpgradeLayout(home: URL(fileURLWithPath: "/Users/me"))
+        let operation = UUID()
         let configuration = RigUpgradeHelper.configuration(
-            helper: URL(fileURLWithPath: "/Users/me/.micropod/rig-upgrade/ops/x/micropod"), layout: layout)
+            helper: URL(fileURLWithPath: "/Users/me/.micropod/rig-upgrade/ops/x/micropod"), layout: layout,
+            operation: operation)
         XCTAssertEqual(configuration["Label"] as? String, "com.skunkworq.micropod.rig-upgrade")
         XCTAssertEqual(
             configuration["ProgramArguments"] as? [String],
             [
                 "/Users/me/.micropod/rig-upgrade/ops/x/micropod", "update", "rig-helper", "--app",
-                "/Applications/Micropod.app",
+                "/Applications/Micropod.app", "--operation", operation.uuidString,
             ])
         XCTAssertEqual(configuration["KeepAlive"] as? [String: Bool], ["SuccessfulExit": false])
         XCTAssertEqual(configuration["RunAtLoad"] as? Bool, true)
@@ -375,7 +377,9 @@ final class RigUpgradeHelperTests: XCTestCase {
         let after = try XCTUnwrap(try RigUpgradeStore(layout: layout).read())
         XCTAssertEqual(after.phase, .refused)
         XCTAssertTrue(after.reason?.contains("helper could not be started") == true, after.reason ?? "")
-        XCTAssertNil(RigUpgradeFence.inFlight(layout: layout))
+        XCTAssertNil(RigUpgradeFence.inFlight(layout: layout, helperProgram: { _ in nil }))
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: layout.helperPlist.path), "a failed launch left its definition")
     }
 
     func testFailedHandOffLeavesAStartedUpgradeForRecovery() async throws {
@@ -392,19 +396,60 @@ final class RigUpgradeHelperTests: XCTestCase {
 
     func testHelperRetiresWithNothingToDoOrItsBudgetSpent() async throws {
         let launch = FakeLaunch()
-        let idle = await RigUpgradeCommands.runHelper(layout: layout, engine: engine(launch), launch: launch)
+        let idle = await RigUpgradeCommands.runHelper(
+            layout: layout, operation: nil, engine: engine(launch), launch: launch)
         XCTAssertEqual(idle, 0)
         XCTAssertEqual(launch.calls, ["bootout"], "no journal: the job boots itself out")
 
-        let journal = try journal(.swapping)
-        let runs = RigUpgradeHelper.runsURL(journal.operation, layout: layout)
-        try FileManager.default.createDirectory(at: runs.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try Data("\(RigUpgradeHelper.restartBudget)".utf8).write(to: runs)
-        let spent = FakeLaunch()
-        let gaveUp = await RigUpgradeCommands.runHelper(layout: layout, engine: engine(spent), launch: spent)
-        XCTAssertEqual(gaveUp, 0)
-        XCTAssertEqual(spent.calls, ["bootout"])
-        XCTAssertEqual(try RigUpgradeStore(layout: layout).read()?.phase, .swapping, "the journal is kept")
+        for phase in [RigUpgradeJournal.Phase.swapping, .rollingBack] {
+            let journal = try journal(phase)
+            let runs = RigUpgradeHelper.runsURL(journal.operation, layout: layout)
+            try FileManager.default.createDirectory(
+                at: runs.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data("\(RigUpgradeHelper.restartBudget)".utf8).write(to: runs)
+            let spent = FakeLaunch()
+            let gaveUp = await RigUpgradeCommands.runHelper(
+                layout: layout, operation: journal.operation, engine: engine(spent), launch: spent)
+            XCTAssertEqual(gaveUp, 0)
+            XCTAssertEqual(spent.calls, ["bootout"])
+            let after = try XCTUnwrap(try RigUpgradeStore(layout: layout).read())
+            XCTAssertEqual(after.phase, .recoveryRequired, "\(phase): UpdateState must not stay UPGRADING")
+            XCTAssertTrue(after.reason?.contains("gave up after 20 runs") == true, after.reason ?? "")
+        }
+    }
+
+    func testHelperRefusesAnotherOperationsJournal() async throws {
+        let journal = try journal(.prepared)
+        let launch = FakeLaunch()
+        let code = await RigUpgradeCommands.runHelper(
+            layout: layout, operation: UUID(), engine: engine(launch), launch: launch)
+        XCTAssertEqual(code, 0)
+        XCTAssertEqual(launch.calls, ["bootout"])
+        XCTAssertEqual(try RigUpgradeStore(layout: layout).read(), journal, "the journal was not touched")
+    }
+
+    func testHelperStartedAtLoginDoesNotRunAnOldPreparedJournal() async throws {
+        let journal = try journal(.prepared)
+        let later = journal.updatedAt.addingTimeInterval(RigUpgradeHelper.staleAfter + 60)
+        let launch = FakeLaunch()
+        let code = await RigUpgradeCommands.runHelper(
+            layout: layout, operation: journal.operation, engine: engine(launch), launch: launch, now: later)
+        XCTAssertEqual(code, 0)
+        let after = try XCTUnwrap(try RigUpgradeStore(layout: layout).read())
+        XCTAssertEqual(after.phase, .refused)
+        XCTAssertTrue(after.reason?.contains("started at login") == true, after.reason ?? "")
+
+        // Started by a CLI just now, the same journal runs.
+        let fresh = try self.journal(.prepared)
+        let ticket = RigUpgradeHelper.ticketURL(fresh.operation, layout: layout)
+        try FileManager.default.createDirectory(
+            at: ticket.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("\(later.timeIntervalSince1970)".utf8).write(to: ticket)
+        _ = await RigUpgradeCommands.runHelper(
+            layout: layout, operation: fresh.operation, engine: engine(launch), launch: launch, now: later)
+        XCTAssertFalse(
+            try RigUpgradeStore(layout: layout).read()?.reason?.contains("started at login") ?? true,
+            "a helper a CLI just launched was treated as a login start")
     }
 
     func testHelperWaitsBoundedForAForegroundEngine() async throws {
@@ -413,7 +458,8 @@ final class RigUpgradeHelperTests: XCTestCase {
         defer { lock.release() }
         let launch = FakeLaunch()
         let code = await RigUpgradeCommands.runHelper(
-            layout: layout, engine: engine(launch), launch: launch, lockWait: .milliseconds(50))
+            layout: layout, operation: try RigUpgradeStore(layout: layout).read()?.operation, engine: engine(launch),
+            launch: launch, lockWait: .milliseconds(50))
         XCTAssertEqual(code, 1, "launchd starts it again to resume")
     }
 

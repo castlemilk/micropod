@@ -12,10 +12,24 @@ extension RigUpgradeEngine {
     // MARK: Drain
 
     func drain(_ journal: inout RigUpgradeJournal) async throws {
-        if journal.drain != nil { return }
+        // A resume after the outcome was recorded: an undrained one still
+        // refuses, whatever happened between recording it and refusing.
+        if let decided = journal.drain {
+            guard decided.isDrained || journal.options.forceUndrained else {
+                throw MicropodError.message(
+                    "Cuttlefish did not drain this rig (\(decided.rawValue)). Retry once Cuttlefish drains, or pass "
+                        + "--force-undrained to interrupt its jobs without one.")
+            }
+            return
+        }
+        for other in environment.otherCoordinators() {
+            let note = "A Cuttlefish coordinator at \(other) belongs to another account and is not asked to drain."
+            environment.log(note)
+            if !journal.notes.contains(note) { journal.notes.append(note) }
+        }
         guard environment.drain.isConfigured() else {
             journal.drain = .skipped
-            journal.notes.append("No Cuttlefish rig coordinator is configured on this host; nothing was drained.")
+            journal.notes.append("No Cuttlefish rig coordinator is configured for this account; nothing was drained.")
             try save(&journal)
             return
         }
@@ -35,6 +49,7 @@ extension RigUpgradeEngine {
         while outcome == nil {
             let reply = await environment.drain.drain(journal.drainSpec)
             last = reply
+            if [.draining, .drained].contains(reply.state) { try? ledger.acknowledge(journal.drainSpec) }
             switch reply.state {
             case .drained:
                 journal.drain = .drained
@@ -86,11 +101,19 @@ extension RigUpgradeEngine {
         try save(&journal)
     }
 
-    /// Releases this journal's drain if it was ever requested.
+    /// Releases this journal's drain if it was ever requested. A release the
+    /// coordinator rejects ends the drain only when Cuttlefish never
+    /// acknowledged it (an older Cuttlefish rejects every call); otherwise
+    /// the close may be transient and the ledger keeps it for a retry.
     func releaseDrain(_ journal: inout RigUpgradeJournal) async {
         guard journal.drainRequested, !journal.drainReleased else { return }
         do {
-            _ = try await environment.drain.release(journal.drainSpec)
+            let outcome = try await environment.drain.release(journal.drainSpec)
+            if outcome == .rejected {
+                guard journal.drain == .incompatible, !ledger.isAcknowledged(journal.drainSpec) else {
+                    throw MicropodError.message("Cuttlefish closed the release without answering")
+                }
+            }
             journal.drainReleased = true
             try? ledger.remove(journal.drainSpec)
         } catch {
@@ -105,13 +128,17 @@ extension RigUpgradeEngine {
     /// running upgrade's own.
     func releaseOutstandingDrains(keeping current: RigDrainSpec?) async -> [String] {
         var notes: [String] = []
-        for spec in ledger.entries() where spec != current {
+        for entry in ledger.entries() where entry.spec != current {
+            let spec = entry.spec
             if environment.now().timeIntervalSince(spec.createdAt) > RigDrainLedger.retention {
                 try? ledger.remove(spec)
                 continue
             }
             do {
-                _ = try await environment.drain.release(spec)
+                let outcome = try await environment.drain.release(spec)
+                if outcome == .rejected, entry.acknowledged {
+                    throw MicropodError.message("Cuttlefish closed the release without answering")
+                }
                 try? ledger.remove(spec)
                 notes.append("Released the drain of rig upgrade \(spec.operation.uuidString).")
             } catch {

@@ -106,11 +106,12 @@ final class RigUpgradeRegressionTests: XCTestCase {
         XCTAssertNil(RigUpgradeFence.inFlight(layout: fixture.layout))
         XCTAssertNotNil(RigUpgradeFence.unfinished(layout: fixture.layout))
         XCTAssertNotEqual(UpdateStateResolver.rig(layout: fixture.layout)?.kind, .upgrading)
-        // With a helper installed it is under way.
+        // With this operation's helper loaded it is under way.
         try FileManager.default.createDirectory(at: fixture.layout.launchAgents, withIntermediateDirectories: true)
         try Data().write(to: fixture.layout.helperPlist)
-        XCTAssertNotNil(RigUpgradeFence.inFlight(layout: fixture.layout))
-        XCTAssertEqual(UpdateStateResolver.rig(layout: fixture.layout)?.kind, .upgrading)
+        let mine = fixture.layout.helperExecutable(try fixture.journal().operation).path
+        XCTAssertNotNil(RigUpgradeFence.inFlight(layout: fixture.layout, helperProgram: { _ in mine }))
+        XCTAssertEqual(UpdateStateResolver.rig(layout: fixture.layout, helperProgram: { _ in mine })?.kind, .upgrading)
 
         let journal = try await fixture.engine.recover()
         XCTAssertEqual(journal.phase, .refused)
@@ -215,13 +216,13 @@ final class RigUpgradeRegressionTests: XCTestCase {
         let first = try await fixture.engine.run()
         try fixture.assertUpgraded(first)
         XCTAssertFalse(first.drainReleased)
-        XCTAssertEqual(RigDrainLedger(layout: fixture.layout).entries(), [first.drainSpec])
+        XCTAssertEqual(RigDrainLedger(layout: fixture.layout).entries().map(\.spec), [first.drainSpec])
         // A later upgrade replaces the journal, and still releases the first drain.
         fixture.drain.releaseFails.update { $0 = false }
         let next = try fixture.stage(version: "0.14.2", revision: String(repeating: "7", count: 40))
         try await fixture.engine.prepare(next, options: fixture.options)
         XCTAssertEqual(fixture.drain.releases.get(), [first.operation])
-        XCTAssertEqual(RigDrainLedger(layout: fixture.layout).entries(), [])
+        XCTAssertEqual(RigDrainLedger(layout: fixture.layout).entries().map(\.spec), [])
     }
 
     func testPreviousAppIsKeptWhenItCannotBeMoved() async throws {
@@ -343,13 +344,165 @@ final class RigDrainContractTests: XCTestCase {
                 } catch {}
             }
         }
-        // An older Cuttlefish rejects every rig-upgrade call, so it holds nothing.
+        // A closed abort is `rejected`: the engine decides whether anything was held.
         let old = try await client(Script([.failure(RuntimePeerNoReply())])).release(spec(contract))
-        XCTAssertEqual(old, .notHeld)
+        XCTAssertEqual(old, .rejected)
         do {
             _ = try await client(Script([.failure(RuntimeRigAdmissionError.unavailable("down"))])).release(
                 spec(contract))
             XCTFail("a release that was never sent was reported done")
         } catch {}
+    }
+}
+
+/// A coordinator that refuses, and records the journal's phase when released.
+private final class ReleaseObserver: RigDrainCoordinating, @unchecked Sendable {
+    let layout: RigUpgradeLayout
+    let phaseAtRelease = Locked<RigUpgradeJournal.Phase?>(nil)
+    init(_ layout: RigUpgradeLayout) { self.layout = layout }
+    func isConfigured() -> Bool { true }
+    func drain(_ spec: RigDrainSpec) async -> RigDrainReply { RigDrainReply(.refused, reason: "busy") }
+    func release(_ spec: RigDrainSpec) async throws -> RigDrainRelease {
+        phaseAtRelease.update { $0 = try? RigUpgradeStore(layout: layout).read()?.phase }
+        return .released
+    }
+}
+
+/// Regressions from the second review of PR #113.
+final class RigUpgradeSecondReviewTests: XCTestCase {
+    func testResumeAfterARecordedRefusalStillRefuses() async throws {
+        let fixture = try RigFixture(drain: FakeDrain(drainAfter: nil, waiting: .refused))
+        try await fixture.engine.prepare(fixture.staged, options: fixture.options)
+        // The engine recorded the refusal and died before it ended the journal.
+        var journal = try fixture.journal()
+        journal.phase = .draining
+        journal.drainRequested = true
+        journal.drainStartedAt = fixture.clock.now
+        journal.drain = .refused
+        try RigUpgradeStore(layout: fixture.layout).write(journal)
+        let resumed = try await fixture.engine.run()
+        XCTAssertEqual(resumed.phase, .refused)
+        XCTAssertEqual(fixture.app.calls.get(), [], "the app was stopped undrained")
+        XCTAssertEqual(fixture.launch.calls.get(), [])
+        XCTAssertEqual(fixture.snapshot(), fixture.originals)
+    }
+
+    func testRefusalIsRecordedBeforeTheReleaseRuns() async throws {
+        let fixture = try RigFixture()
+        var options = fixture.options
+        options.drainTimeout = 4
+        try await fixture.engine.prepare(fixture.staged, options: options)
+        let observer = ReleaseObserver(fixture.layout)
+        var environment = fixture.environment
+        environment.drain = observer
+        let result = try await RigUpgradeEngine(layout: fixture.layout, environment: environment).run()
+        XCTAssertEqual(result.phase, .refused)
+        XCTAssertEqual(observer.phaseAtRelease.get(), .refused, "the journal was still draining during the release")
+    }
+
+    func testStaleHelperPlistDoesNotMakeAJournalActive() async throws {
+        let fixture = try RigFixture()
+        try await fixture.engine.prepare(fixture.staged, options: fixture.options)
+        try FileManager.default.createDirectory(at: fixture.layout.launchAgents, withIntermediateDirectories: true)
+        try Data("<plist/>".utf8).write(to: fixture.layout.helperPlist)
+        XCTAssertNil(RigUpgradeFence.inFlight(layout: fixture.layout, helperProgram: { _ in nil }))
+        XCTAssertNil(
+            RigUpgradeFence.inFlight(layout: fixture.layout, helperProgram: { _ in "/somewhere/else/micropod" }),
+            "another operation's helper is loaded")
+        XCTAssertNotEqual(
+            UpdateStateResolver.rig(layout: fixture.layout, helperProgram: { _ in nil })?.kind, .upgrading)
+    }
+
+    func testRejectedReleaseEndsOnlyADrainNeverAcknowledged() async throws {
+        // An older Cuttlefish: every call closes, so nothing was ever held.
+        let old = try RigFixture(drain: FakeDrain(drainAfter: nil, waiting: .incompatible))
+        old.drain.releaseOutcome.update { $0 = .rejected }
+        try await old.engine.prepare(old.staged, options: old.options)
+        let refused = try await old.engine.run()
+        XCTAssertEqual(refused.phase, .refused)
+        XCTAssertTrue(refused.drainReleased)
+        XCTAssertEqual(RigDrainLedger(layout: old.layout).entries().map(\.spec), [])
+
+        // Cuttlefish held the rig, then a release closed: the hold may be live.
+        let held = try RigFixture()
+        held.drain.releaseOutcome.update { $0 = .rejected }
+        try await held.engine.prepare(held.staged, options: held.options)
+        let done = try await held.engine.run()
+        XCTAssertEqual(done.phase, .completed)
+        XCTAssertFalse(done.drainReleased)
+        XCTAssertEqual(RigDrainLedger(layout: held.layout).entries().map(\.spec), [done.drainSpec])
+        XCTAssertEqual(RigDrainLedger(layout: held.layout).entries().first?.acknowledged, true)
+        // The next run retries it; once Cuttlefish confirms, it is gone.
+        held.drain.releaseOutcome.update { $0 = .released }
+        _ = try await held.engine.recover()
+        XCTAssertEqual(RigDrainLedger(layout: held.layout).entries().map(\.spec), [])
+    }
+
+    func testSparkleInstallerStartedWhileInterruptedRollsBack() async throws {
+        let fixture = try RigFixture()
+        try await fixture.engine.prepare(fixture.staged, options: fixture.options)
+        fixture.crash.target.update { $0 = "stopping" }
+        _ = try? await fixture.engine.run()
+        fixture.installerRunning.update { $0 = true }
+        let journal = try await fixture.engine.run()
+        XCTAssertTrue(journal.failure?.contains("Sparkle") == true, journal.failure ?? "")
+        fixture.assertRestored(journal)
+    }
+
+    func testOtherAccountsCoordinatorIsNotedNotUsed() async throws {
+        let fixture = try RigFixture(drain: FakeDrain(configured: false))
+        fixture.otherCoordinators.update { $0 = ["/Users/ci/.cuttlefish/runner-state/micropod-maintenance.sock"] }
+        try await fixture.engine.prepare(fixture.staged, options: fixture.options)
+        let journal = try await fixture.engine.run()
+        try fixture.assertUpgraded(journal)
+        XCTAssertTrue(journal.notes.contains { $0.contains("/Users/ci/") && $0.contains("another account") })
+    }
+}
+
+/// RigAppProcesses against real processes in a temporary bundle: the app is
+/// frozen before its agents are asked to stop, and killed after.
+final class RigAppProcessesTests: XCTestCase {
+    func testAgentsStopGracefullyWhileTheAppIsFrozen() async throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent("rig-app-" + UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        let app = root.appendingPathComponent("Micropod.app")
+        let macOS = app.appendingPathComponent("Contents/MacOS")
+        try fm.createDirectory(at: macOS, withIntermediateDirectories: true)
+        try PropertyListSerialization.data(
+            fromPropertyList: ["CFBundleExecutable": "Micropod"], format: .xml, options: 0
+        ).write(to: app.appendingPathComponent("Contents/Info.plist"))
+        try fm.copyItem(at: URL(fileURLWithPath: "/bin/sleep"), to: macOS.appendingPathComponent("Micropod"))
+        try fm.copyItem(at: URL(fileURLWithPath: "/bin/bash"), to: macOS.appendingPathComponent("MicropodAPI"))
+        let main = Process()
+        main.executableURL = macOS.appendingPathComponent("Micropod")
+        main.arguments = ["600"]
+        try main.run()
+        let marker = root.appendingPathComponent("agent-saw")
+        let agent = Process()
+        agent.executableURL = macOS.appendingPathComponent("MicropodAPI")
+        agent.arguments = [
+            "-c",
+            "trap 'ps -o state= -p \(main.processIdentifier) > \(marker.path); exit 0' TERM; while :; do sleep 0.05; done",
+        ]
+        try agent.run()
+        defer {
+            if main.isRunning { kill(main.processIdentifier, SIGKILL) }
+            if agent.isRunning { kill(agent.processIdentifier, SIGKILL) }
+        }
+        // Wait until both are visible under their bundle paths.
+        for _ in 0..<50 where !(await RigAppProcesses().isRunning(app)) { try await Task.sleep(for: .milliseconds(20)) }
+        try await Task.sleep(for: .milliseconds(200))
+        guard await RigAppProcesses().isRunning(app) else {
+            throw XCTSkip("this host does not run copied system binaries from a temporary directory")
+        }
+        try await RigAppProcesses().stop(app, timeout: .seconds(5))
+        main.waitUntilExit()
+        agent.waitUntilExit()
+        XCTAssertEqual(agent.terminationStatus, 0, "the agent stopped on its own TERM handler")
+        XCTAssertEqual(main.terminationReason, .uncaughtSignal)
+        XCTAssertEqual(main.terminationStatus, SIGKILL)
+        let state = try String(contentsOf: marker, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertTrue(state.hasPrefix("T"), "the app was '\(state)' while its agent stopped, not frozen")
     }
 }

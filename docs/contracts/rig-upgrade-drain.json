@@ -20,6 +20,10 @@
       "state": "refused"
     },
     {
+      "reply": { "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f", "phase": "blocked", "hostID": "", "owner": "", "generation": 0, "reason": "Another runtime operation retains host maintenance" },
+      "state": "refused"
+    },
+    {
       "reply": { "operation": "0B6F4C1E-3F0A-4C55-9D2E-6A1B7C8D9E0F", "phase": "drained" },
       "state": "drained"
     },
@@ -48,6 +52,18 @@
     },
     {
       "replies": [
+        { "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f", "phase": "blocked", "hostID": "", "owner": "", "generation": 0, "reason": "Runtime maintenance operation is unknown" }
+      ],
+      "outcome": "notHeld"
+    },
+    {
+      "replies": [
+        { "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f", "phase": "blocked", "reason": "Action outcome is uncertain; abort is refused" }
+      ],
+      "outcome": "unconfirmed"
+    },
+    {
+      "replies": [
         { "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f", "phase": "aborting" },
         { "operation": "0b6f4c1e-3f0a-4c55-9d2e-6a1b7c8d9e0f", "phase": "draining" }
       ],
@@ -55,7 +71,15 @@
     }
   ],
   "transport": {
-    "closedWithoutReply": "incompatible: an older Cuttlefish rejects the unknown kind field by closing the connection",
+    "closedWithoutReply": "drain: incompatible (an older Cuttlefish rejects the unknown kind field by closing the connection); abort: rejected, which ends the drain only if it was never acknowledged with draining or drained",
     "notSent": "unavailable: no coordinator, or its identity could not be verified before the request was written"
-  }
+  },
+  "cuttlefishMustImplement": [
+    "Accept a maintenance-socket peer signed com.skunkworq.micropod.cli (team WFTX6CN23F), as well as com.skunkworq.micropod, for kind rig-upgrade.",
+    "Decode a kind field in the call: it is rejected today by DisallowUnknownFields on micropodMaintenanceCall.",
+    "For kind rig-upgrade, skip the installRoot (validManagedRuntimeRoot), version, packageSHA256, localGeneration and targetState checks: the request carries none of them.",
+    "For kind rig-upgrade, take no host fence, and on abortComplete do not require the local admission fence.json to be absent.",
+    "Always answer a decoded rig-upgrade call with one reply line: draining, drained or refused/blocked with a reason for drain; aborting then cancelled for the release; blocked with a reason containing 'unknown' for an operation it never recorded.",
+    "Preempt attempts still running after the grace, hand them back with maintenance_preempted, and release a hold with no call for two minutes."
+  ]
 }

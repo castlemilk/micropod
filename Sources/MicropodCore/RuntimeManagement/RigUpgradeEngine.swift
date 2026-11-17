@@ -88,6 +88,9 @@ public struct RigUpgradeEnvironment: Sendable {
     public var dedicatedRuntime: @Sendable () -> Bool
     /// Runtime maintenance holds a runtime admission gate now.
     public var runtimeMaintenance: @Sendable () -> Bool
+    /// Maintenance sockets of Cuttlefish agents run by other accounts, which
+    /// this upgrade does not ask to drain.
+    public var otherCoordinators: @Sendable () -> [String]
     /// A Sparkle installer for this app is running.
     public var desktopInstallerRunning: @Sendable () -> Bool
     /// Throws unless this process may replace apps signed by Micropod's team
@@ -112,6 +115,7 @@ public struct RigUpgradeEnvironment: Sendable {
         dedicatedRuntime: @escaping @Sendable () -> Bool,
         runtimeMaintenance: @escaping @Sendable () -> Bool = { false },
         desktopInstallerRunning: @escaping @Sendable () -> Bool = { false },
+        otherCoordinators: @escaping @Sendable () -> [String] = { [] },
         verifySwapper: @escaping @Sendable () throws -> Void = {},
         runningExecutables: @escaping @Sendable () -> [String],
         portOwner: @escaping @Sendable (UInt16) -> String?, now: @escaping @Sendable () -> Date = { Date() },
@@ -129,6 +133,7 @@ public struct RigUpgradeEnvironment: Sendable {
         self.dedicatedRuntime = dedicatedRuntime
         self.runtimeMaintenance = runtimeMaintenance
         self.desktopInstallerRunning = desktopInstallerRunning
+        self.otherCoordinators = otherCoordinators
         self.verifySwapper = verifySwapper
         self.runningExecutables = runningExecutables
         self.portOwner = portOwner
@@ -352,10 +357,12 @@ public struct RigUpgradeEngine: Sendable {
             let message = Self.describe(error)
             switch journal.phase {
             case .prepared, .draining:
+                // Terminal first: a crash during the release must not leave a
+                // draining journal a resume could take past the drain.
                 journal.reason = message + " Nothing was changed."
                 journal.phase = .refused
-                await releaseDrain(&journal)
                 try save(&journal)
+                await releaseDrain(&journal)
                 return journal
             case .completing:
                 // Verified and installed: finishing is retried, never undone.
@@ -380,6 +387,7 @@ public struct RigUpgradeEngine: Sendable {
         case .prepared, .draining:
             journal.reason = "The upgrade " + stalled + ". Nothing was changed."
             journal.phase = .refused
+            try save(&journal)
         case .completing:
             journal.notes.append("Finishing steps " + stalled + "; the verified upgrade stands.")
             journal.reason = "Micropod \(journal.target.version) replaced \(journal.source.version)."
@@ -447,13 +455,50 @@ public struct RigUpgradeEngine: Sendable {
         }
         journal.reason = reason + " Nothing was changed."
         journal.phase = .refused
-        await releaseDrain(&journal)
         try save(&journal)
+        await releaseDrain(&journal)
+        return journal
+    }
+
+    /// The helper is giving up on this journal (its restart budget is spent).
+    /// Recorded where `micropod update recover --rig` can take it from, after
+    /// starting the services and app as they are: an upgrade that stopped
+    /// nothing is refused, a verified one stands, anything in between needs
+    /// recovery.
+    @discardableResult
+    public func stopResuming(reason: String) async throws -> RigUpgradeJournal {
+        let lock = try store.lock()
+        defer { lock.release() }
+        guard var journal = try store.read() else { throw MicropodError.message("No rig upgrade is recorded") }
+        switch journal.phase {
+        case .completed, .rolledBack, .refused, .recoveryRequired:
+            return journal
+        case .prepared, .draining:
+            return try await abandon(&journal, reason: reason + ".")
+        case .completing:
+            journal.notes.append(reason + " while finishing; the verified upgrade stands.")
+            journal.reason = "Micropod \(journal.target.version) replaced \(journal.source.version)."
+            journal.phase = .completed
+        default:
+            journal.reason =
+                reason + " in \(journal.phase.rawValue)"
+                + (journal.failure.map { " (after \($0))" } ?? "")
+                + ". Services and the app were started as they are; `micropod update recover --rig` retries."
+            journal.phase = .recoveryRequired
+            try save(&journal)
+            _ = try await startAllBestEffort(journal)
+        }
+        try save(&journal)
+        await releaseDrain(&journal)
         return journal
     }
 
     private func forward(_ journal: inout RigUpgradeJournal) async throws {
         let entry = journal.phase
+        // Sparkle may have started installing while this engine was down.
+        if [.stopping, .swapping].contains(entry), environment.desktopInstallerRunning() {
+            throw MicropodError.message("Sparkle's installer started for Micropod while the upgrade was interrupted")
+        }
         if journal.phase == .prepared { try transition(&journal, to: .draining) }
         if journal.phase == .draining {
             try verifyBeforeDisruption(journal)
@@ -502,10 +547,13 @@ public struct RigUpgradeEngine: Sendable {
         let drain = environment.drain
         let spec = journal.drainSpec
         let interval = environment.heartbeatInterval
+        let ledger = ledger
         let heartbeat = Task {
             while !Task.isCancelled {
                 do { try await Task.sleep(for: interval) } catch { return }
-                _ = await drain.drain(spec)
+                let reply = await drain.drain(spec)
+                // A coordinator that comes back now holds the rig.
+                if [.draining, .drained].contains(reply.state) { try? ledger.acknowledge(spec) }
             }
         }
         defer { heartbeat.cancel() }

@@ -61,7 +61,8 @@ final class FakeLaunchctl: RigLaunchControlling, @unchecked Sendable {
     /// The executable each loaded job runs.
     func executables() -> [String: String] { loaded.get().mapValues(\.program) }
 
-    /// A reboot or re-login: launchd loads every agent on disk that runs at load.
+    /// A reboot or re-login: launchd loads every agent on disk and starts the
+    /// ones that run at load or are kept alive.
     func reboot(launchAgents: URL) {
         loaded.update { $0 = [:] }
         for plist in (try? FileManager.default.contentsOfDirectory(at: launchAgents, includingPropertiesForKeys: nil))
@@ -69,7 +70,8 @@ final class FakeLaunchctl: RigLaunchControlling, @unchecked Sendable {
         {
             guard let data = FileManager.default.contents(atPath: plist.path),
                 let value = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-                let label = value["Label"] as? String, value["RunAtLoad"] as? Bool == true
+                let label = value["Label"] as? String,
+                value["RunAtLoad"] as? Bool == true || value["KeepAlive"] as? Bool == true
             else { continue }
             load(label, plist)
         }
@@ -124,6 +126,8 @@ final class FakeDrain: RigDrainCoordinating, @unchecked Sendable {
     let releases = Locked<[UUID]>([])
     let specs = Locked<Set<RigDrainSpec>>([])
     let releaseFails = Locked(false)
+    /// What a release answers when it does not fail.
+    let releaseOutcome = Locked(RigDrainRelease.released)
     init(configured: Bool = true, drainAfter: Int? = 1, waiting: RigDrainReply.State = .draining) {
         self.configured = configured
         self.drainAfter = drainAfter
@@ -142,7 +146,7 @@ final class FakeDrain: RigDrainCoordinating, @unchecked Sendable {
     func release(_ spec: RigDrainSpec) async throws -> RigDrainRelease {
         if releaseFails.get() { throw MicropodError.message("release unconfirmed") }
         releases.update { $0.append(spec.operation) }
-        return .released
+        return releaseOutcome.get()
     }
 }
 
@@ -244,6 +248,7 @@ final class RigFixture: @unchecked Sendable {
     let running = Locked<[String]>([])
     let runtimeMaintenance = Locked(false)
     let installerRunning = Locked(false)
+    let otherCoordinators = Locked<[String]>([])
     var heartbeat: Duration = .seconds(20)
     let dedicated: Bool
     var staged: RigStagedRelease!
@@ -325,7 +330,7 @@ final class RigFixture: @unchecked Sendable {
             try Data("0.11.0\n".utf8).write(to: layout.connectRoot.appendingPathComponent("VERSION"))
             let plist: [String: Any] = [
                 "Label": RigUpgradeLayout.connectLabel, "ProgramArguments": [layout.connectBinary.path],
-                "KeepAlive": true, "RunAtLoad": true,
+                "KeepAlive": true,
             ]
             try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0).write(
                 to: layout.connectPlist)
@@ -385,6 +390,7 @@ final class RigFixture: @unchecked Sendable {
             dedicatedRuntime: { dedicated },
             runtimeMaintenance: { [runtimeMaintenance] in runtimeMaintenance.get() },
             desktopInstallerRunning: { [installerRunning] in installerRunning.get() },
+            otherCoordinators: { [otherCoordinators] in otherCoordinators.get() },
             runningExecutables: {
                 Array(launch.executables().values) + running.get()
                     + (app.running.get() == nil ? [] : [layout.appPath.path + "/Contents/MacOS/Micropod"])

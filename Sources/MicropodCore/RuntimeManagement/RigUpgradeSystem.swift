@@ -61,6 +61,26 @@ public struct RigLaunchctl: RigLaunchControlling {
         return nil
     }
 
+    /// `loadedProgram` for the caller's GUI domain, synchronously and bounded
+    /// (two seconds); used only for a journal that has not disrupted anything.
+    public static func loadedProgramNow(_ label: String) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        process.arguments = ["print", "gui/\(getuid())/" + label]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        process.standardInput = FileHandle.nullDevice
+        guard (try? process.run()) != nil else { return nil }
+        let timer = DispatchWorkItem { if process.isRunning { process.terminate() } }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 2, execute: timer)
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        timer.cancel()
+        guard process.terminationStatus == 0 else { return nil }
+        return program(fromPrint: String(decoding: data, as: UTF8.self)) ?? ""
+    }
+
     public func loadedProgram(_ label: String) async -> String? {
         let result = await RigProcess.run("/bin/launchctl", ["print", domain + "/" + label])
         guard result.status == 0 else { return nil }
@@ -121,7 +141,17 @@ public struct RigAppProcesses: RigAppControlling {
     static let agents = ["MicropodAPI", "micropod-docker-shim", "micropod-sharedfs"]
     public init() {}
 
+    /// The path as the process table reports it. realpath(3), not
+    /// `resolvingSymlinksInPath`, which strips /private and so never matches
+    /// proc_pidpath for anything under /var or /tmp.
+    static func real(_ app: URL) -> URL {
+        var buffer = [CChar](repeating: 0, count: Int(PATH_MAX) + 1)
+        guard let resolved = realpath(app.path, &buffer) else { return app }
+        return URL(fileURLWithPath: String(cString: resolved))
+    }
+
     static func mainExecutable(_ app: URL) -> String {
+        let app = real(app)
         let plist = app.appendingPathComponent("Contents/Info.plist")
         let info =
             FileManager.default.contents(atPath: plist.path).flatMap {
@@ -137,14 +167,24 @@ public struct RigAppProcesses: RigAppControlling {
 
     public func isRunning(_ app: URL) async -> Bool { !pids([Self.mainExecutable(app)]).isEmpty }
 
+    /// Freezes the app (SIGSTOP), so it neither respawns its agents nor runs
+    /// its quit path; ends the agents it spawned from its bundle gracefully
+    /// (SIGTERM, then SIGKILL after 10 s), so the API's in-process VMs,
+    /// docker-shim and shared-fs tear down; then SIGKILLs the app. Its quit
+    /// path never runs: that is where Sparkle installs an update staged for
+    /// quit, which would replace the bundle under this upgrade.
     public func stop(_ app: URL, timeout: Duration) async throws {
-        let agents = Set(Self.agents.map { app.appendingPathComponent("Contents/MacOS/" + $0).path })
-        // SIGKILL, not SIGTERM: the app's SIGTERM handler quits through
-        // NSApp.terminate, where Sparkle installs an update staged for quit
-        // and would replace the bundle under this upgrade. Its agents follow
-        // through ParentDeathWatch; stragglers are stopped on their own.
-        try await terminate([Self.mainExecutable(app)], signal: SIGKILL, timeout: timeout)
-        try await terminate(agents, signal: SIGTERM, timeout: .seconds(10))
+        let main = Self.mainExecutable(app)
+        let agents = Set(Self.agents.map { Self.real(app).appendingPathComponent("Contents/MacOS/" + $0).path })
+        for pid in pids([main]) { kill(pid, SIGSTOP) }
+        var agentFailure: Error?
+        do {
+            try await terminate(agents, signal: SIGTERM, timeout: .seconds(10))
+        } catch {
+            agentFailure = error
+        }
+        try await terminate([main], signal: SIGKILL, timeout: timeout)
+        if let agentFailure { throw agentFailure }
     }
 
     private func terminate(_ paths: Set<String>, signal: Int32, timeout: Duration) async throws {
@@ -340,16 +380,53 @@ extension RigCodeSignatureVerifier {
 }
 
 extension RigUpgradeEnvironment {
-    /// A Sparkle installer launched for the app (from its bundle or its cache).
+    /// A Sparkle installer launched for Micropod. A candidate is matched by
+    /// its code signature (a Sparkle identifier signed by Micropod's team),
+    /// wherever Sparkle put it; by its path under the app or its cache only
+    /// when its signature cannot be read.
     static func sparkleInstallerRunning(_ layout: RigUpgradeLayout) -> Bool {
         let roots = [
             layout.appPath.path + "/",
             layout.home.appendingPathComponent("Library/Caches/com.skunkworq.micropod").path + "/",
         ]
-        return RigProcessTable.executables().contains { path in
-            roots.contains { path.hasPrefix($0) } && path.contains("Sparkle")
-                && ["Autoupdate", "Updater", "Installer"].contains { path.contains($0) }
+        return RigProcessTable.processes().contains { process in
+            let path = process.path
+            guard path.contains("Sparkle") || ["Autoupdate", "Updater", "Installer"].contains(where: path.contains)
+            else { return false }
+            if let identifier = signingIdentifier(process.pid, team: IsolatedRuntimePolicy.teamIdentifier) {
+                return identifier.hasPrefix("org.sparkle-project.")
+            }
+            return roots.contains { path.hasPrefix($0) } && path.contains("Sparkle")
         }
+    }
+
+    /// The signing identifier of a process signed by `team`; nil when it is
+    /// not, or its signature cannot be read.
+    static func signingIdentifier(_ pid: Int32, team: String) -> String? {
+        var code: SecCode?
+        var requirement: SecRequirement?
+        var staticCode: SecStaticCode?
+        var information: CFDictionary?
+        let rule = "anchor apple generic and certificate leaf[subject.OU] = \"" + team + "\""
+        guard
+            SecCodeCopyGuestWithAttributes(
+                nil, [kSecGuestAttributePid as String: NSNumber(value: pid)] as CFDictionary, [], &code)
+                == errSecSuccess, let code,
+            SecRequirementCreateWithString(rule as CFString, [], &requirement) == errSecSuccess,
+            SecCodeCheckValidity(code, [], requirement) == errSecSuccess,
+            SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode,
+            SecCodeCopySigningInformation(staticCode, [], &information) == errSecSuccess
+        else { return nil }
+        return (information as? [String: Any])?[kSecCodeInfoIdentifier as String] as? String
+    }
+
+    /// Maintenance sockets of Cuttlefish agents in other accounts' homes.
+    static func otherCoordinators(_ layout: RigUpgradeLayout) -> [String] {
+        let own = layout.home.resolvingSymlinksInPath().path
+        let homes = (try? FileManager.default.contentsOfDirectory(atPath: "/Users")) ?? []
+        return homes.map { "/Users/" + $0 }.filter { URL(fileURLWithPath: $0).resolvingSymlinksInPath().path != own }
+            .map { $0 + "/.cuttlefish/runner-state/micropod-maintenance.sock" }
+            .filter { FileManager.default.fileExists(atPath: $0) }
     }
 
     /// The host's real launchd, processes, rig coordinator and probes.
@@ -363,6 +440,7 @@ extension RigUpgradeEnvironment {
                     || RuntimeAdmission(root: IsolatedRuntimePolicy.admissionRoot).isClosed
             },
             desktopInstallerRunning: { sparkleInstallerRunning(layout) },
+            otherCoordinators: { otherCoordinators(layout) },
             verifySwapper: RigCodeSignatureVerifier.verifySelf,
             runningExecutables: RigProcessTable.executables, portOwner: RigProcessTable.portOwner, log: log)
     }

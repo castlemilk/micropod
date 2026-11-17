@@ -40,7 +40,7 @@ before every step) under a kernel lock that only a running engine holds.
 | --- | --- | --- |
 | `prepared` | Refuses on any of the conditions below. Then copies the staged bundle to a service payload. Saves every file it will replace into `ops/<operation>/previous/` and the new versions into `ops/<operation>/new/`, using the staged release's own service definitions (`rig-helper --probe`). Records which launchd jobs are loaded, and runs a baseline smoke container on the current release. | nothing |
 | `draining` | Verifies the staged bundle, payload and replacements again, and that this process is signed by Micropod's team. Asks Cuttlefish to drain (see [The drain](#the-drain)). | nothing |
-| `stopping` | SIGKILLs the app, then ends the agents it spawned from its bundle (SIGTERM, then SIGKILL after 10 s). Runs `launchctl bootout` for each retained service and for `dev.micropod.api`. The app is killed rather than quit: its quit path is where Sparkle installs an update it staged for quit. | services stopped |
+| `stopping` | Freezes the app (SIGSTOP), so it neither respawns agents nor runs its quit path. Ends the agents it spawned from its bundle gracefully (SIGTERM, then SIGKILL after 10 s), so the API's in-process VMs, docker-shim and shared-fs tear down. Then SIGKILLs the app, and runs `launchctl bootout` for each retained service and for `dev.micropod.api`. The app never quits normally: its quit path is where Sparkle installs an update it staged for quit. | services stopped |
 | `swapping` | `renamex_np(RENAME_SWAP)` exchanges the staged bundle with `/Applications/Micropod.app`. Records, launch agents, `connect/bin/MicropodAPI`, `micropod-guest` and `connect/VERSION` are each replaced atomically. An app that is neither release (replaced by something else since prepare) is never swapped. | app and files |
 | `starting` | Bootstraps each job that was loaded. A job still loaded with another program is booted out and loaded again. Relaunches the app if it was running. | |
 | `verifying` | Runs the health gate (see [Health gate](#health-gate)) within `--health-timeout` (120 s). | |
@@ -49,7 +49,7 @@ before every step) under a kernel lock that only a running engine holds.
 
 `prepared` refuses when any of these hold:
 
-- a Sparkle transaction, Sparkle's installer or runtime maintenance is in flight;
+- a Sparkle transaction, Sparkle's installer or runtime maintenance is in flight (an installer is recognised by a Sparkle signing identifier signed by Micropod's team);
 - the installed app is not Micropod's signed app;
 - this process is not signed by Micropod's team, which App Management requires of a process that replaces the app;
 - either bundle is not a directory this account owns and can write, or the bundles are on different volumes;
@@ -77,6 +77,8 @@ Every step is idempotent by inspection, not by remembered progress:
 A crash, a killed helper, a reboot or a re-login is resumed by running the
 engine again:
 
+- A resume in `draining` with an undrained outcome already recorded still refuses (unless `--force-undrained`). The refusal is written before the drain is released, so no crash can carry an undrained upgrade past the drain.
+- A resume in `stopping` or `swapping` first checks that Sparkle's installer has not started meanwhile.
 - A resume in `swapping` or `starting` stops everything again first. That ends whatever launchd reloaded at login and whatever app was opened since.
 - A resume in `verifying` or `completing` starts everything again first.
 
@@ -129,10 +131,10 @@ and Ping reports `KIND_UPGRADING`. An upgrade counts as under way in either
 case:
 
 - it is past `draining`;
-- it is in `prepared` or `draining`, and an engine holds the lock or its helper is installed.
+- it is in `prepared` or `draining`, and an engine holds the lock or launchd has this operation's helper loaded (`launchctl print` names its binary).
 
 A journal left in `prepared` by a CLI that died before starting its helper
-fences nothing.
+fences nothing, and neither does a helper plist left behind.
 
 The app leaves its retained services alone only while a live engine holds the
 lock in a phase that replaces them.
@@ -150,10 +152,23 @@ journal schema 1) into the operation directory and checks that the copy runs
 - A job already loaded from this helper is kickstarted, which starts it only if it is not running.
 - A job left loaded by an earlier operation is replaced.
 
+A launch that fails removes the plist again, so nothing loads it at the
+next login.
+
 The helper survives the app swap, a closed terminal or a preempted CI job,
 restarts after a crash, and resumes at login after a reboot. It waits, bounded
-(5 minutes), for a `--foreground` engine to finish. It gives up after 20 runs
-of one operation.
+(5 minutes), for a `--foreground` engine to finish.
+
+Each helper is bound to its operation:
+
+- It gets `--operation <uuid>` and refuses any other journal.
+- Started for a `prepared` journal more than 10 minutes old, with no recent launch by a CLI, it abandons the journal instead of starting it: launchd loaded a leftover definition at login.
+
+After 20 runs of one operation the helper gives up. The journal becomes:
+
+- `refused`, before anything stopped;
+- `completed`, if verified;
+- `recoveryRequired` with the reason, otherwise, after the services and the app are started as they are.
 
 When the journal is terminal or its budget is spent, the helper removes its
 definition and boots itself out. `apply` follows the journal and exits 0 only
@@ -198,7 +213,7 @@ which both sides test against.
 - **Reply.** `{"operation","phase","reason"}`:
   - `draining`: Cuttlefish holds new leases. Attempts still running after `min(CUTTLE_MAINTENANCE_GRACE, 60 s)` are preempted and handed back with `maintenance_preempted`, which keeps their retry budget.
   - `drained`.
-  - `refused`, with a reason.
+  - `refused` or `blocked`, with a reason. Cuttlefish frames its refusals as `blocked`.
 - **Unexpected answers.** A closed connection without a reply means an older Cuttlefish that rejects the unknown `kind`; so does an answer that is not one of these phases. Both are `incompatible`, never `draining`. A request that could not be written (no socket, unverified peer) is `unavailable`.
 - **Polling.** Micropod polls every 2 s for up to `--drain-timeout` (120 s), measured from the first request and across resumes. When the time runs out while Cuttlefish is still `draining`, the rig is held and the upgrade goes ahead (`timedOut`).
 - **Undrained rig.** With a coordinator configured, the upgrade is refused before anything stops when the outcome is any of these:
@@ -209,8 +224,28 @@ which both sides test against.
   `--force-undrained` goes ahead anyway and says so loudly. A host with no coordinator configured skips the drain.
 - **Heartbeat.** While services are down, the drain is re-sent every 20 s. This continues after `unavailable`, so a coordinator that comes back holds the rig. Cuttlefish releases the hold itself when no call arrives for two minutes.
 - **Release.** `abort`, then `abortComplete`; the reply is `cancelled`. No local `fence.json` or host fence is involved.
-  - An operation recorded as drained is kept in `~/.micropod/rig-upgrade/unreleased-drains.json` from before the first request until its release is confirmed.
+  - `blocked` or `refused` with a reason containing "unknown" means Cuttlefish holds nothing.
+  - An abort closed without a reply means "not held" only when Cuttlefish never acknowledged this drain. An older Cuttlefish rejects every call that way. Otherwise the close may be transient, and the release is retried.
+  - Every drain is kept in `~/.micropod/rig-upgrade/unreleased-drains.json`, from before the first request until its release is confirmed, with whether Cuttlefish acknowledged it.
   - Any later engine run (including a new prepare that replaces the journal) and `recover --rig` release what is listed. Entries older than seven days are dropped.
+- **Coordinators of other accounts.** Only this account's coordinator is asked to drain. A Cuttlefish maintenance socket found under another account's home is noted and logged, not used.
+
+### What Cuttlefish must implement
+
+None of this is on Cuttlefish `main` yet. Until it ships, every rig-upgrade drain is `incompatible`, and a configured rig refuses the upgrade unless `--force-undrained` is given.
+
+- Accept a maintenance-socket peer signed `com.skunkworq.micropod.cli` (team `WFTX6CN23F`), as well as `com.skunkworq.micropod`, for `kind: rig-upgrade`. Today only the app's identifier is accepted.
+- Decode the `kind` field. `micropodMaintenanceCall` decodes with `DisallowUnknownFields`, which rejects it today.
+- For this kind, skip the `validManagedRuntimeRoot` install-root check and the version, package digest, `localGeneration` and `targetState` validation. The request carries none of them.
+- For this kind, take no host fence, and do not require the local admission `fence.json` to be absent on `abortComplete`.
+- Answer every decoded rig-upgrade call with one reply line, never a silent close:
+  - for `drain`: `draining`, `drained`, or `refused`/`blocked` with a reason;
+  - for a release: `aborting` then `cancelled`;
+  - for an operation it never recorded: `blocked` with a reason containing "unknown".
+
+The bounded grace, preemption with `maintenance_preempted`, and release of a hold with no call for two minutes all come from Cuttlefish changes that are not merged yet: skunkworq/cuttlefish `claude/maintenance-preemption-agent` (d8593eb7, 9e332180). Until they land, a drain only waits for idle, and Micropod's timeout decides.
+
+The list is repeated in the contract fixture as `cuttlefishMustImplement`.
 
 A rig controller that triggers upgrades should run
 `micropod update apply --disruptive --detach` (the helper outlives the job)

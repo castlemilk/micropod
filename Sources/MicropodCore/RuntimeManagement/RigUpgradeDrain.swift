@@ -44,8 +44,13 @@ public struct RigDrainReply: Sendable, Equatable {
 public enum RigDrainRelease: Sendable, Equatable {
     /// Cuttlefish confirmed the drain is over.
     case released
-    /// The coordinator holds nothing for this operation.
+    /// Cuttlefish answered that it holds nothing for this operation.
     case notHeld
+    /// The coordinator closed the release without an answer. An older
+    /// Cuttlefish rejects every rig-upgrade call this way, so this means "not
+    /// held" only for a drain that was never acknowledged; otherwise it may
+    /// be a transient close and the release is retried.
+    case rejected
 }
 
 /// The rig controller (Cuttlefish) on the maintenance socket.
@@ -62,28 +67,48 @@ public protocol RigDrainCoordinating: Sendable {
 /// Drains that may still hold the rig. Kept apart from the journal, so a new
 /// upgrade that replaces the journal still releases an older one.
 public struct RigDrainLedger: Sendable {
+    public struct Entry: Codable, Equatable, Sendable {
+        public let spec: RigDrainSpec
+        /// Cuttlefish answered draining or drained at least once.
+        public var acknowledged: Bool
+    }
     /// Entries older than this are dropped: Cuttlefish lets go of a drain
     /// with no heartbeat for two minutes.
     public static let retention: TimeInterval = 7 * 86400
     public let url: URL
     public init(layout: RigUpgradeLayout) { url = layout.root.appendingPathComponent("unreleased-drains.json") }
 
-    public func entries() -> [RigDrainSpec] {
+    public func entries() -> [Entry] {
         guard let data = try? RuntimeDurableFile.read(url, maximumBytes: 1 << 16) else { return [] }
-        return (try? JSONDecoder().decode([RigDrainSpec].self, from: data)) ?? []
+        return (try? JSONDecoder().decode([Entry].self, from: data)) ?? []
+    }
+
+    public func isAcknowledged(_ spec: RigDrainSpec) -> Bool {
+        entries().contains { $0.spec == spec && $0.acknowledged }
     }
 
     public func add(_ spec: RigDrainSpec) throws {
         var all = entries()
-        guard !all.contains(spec) else { return }
-        all.append(spec)
+        guard !all.contains(where: { $0.spec == spec }) else { return }
+        all.append(Entry(spec: spec, acknowledged: false))
+        try RuntimeDurableFile.write(all, to: url)
+    }
+
+    public func acknowledge(_ spec: RigDrainSpec) throws {
+        var all = entries()
+        if let index = all.firstIndex(where: { $0.spec == spec }) {
+            guard !all[index].acknowledged else { return }
+            all[index].acknowledged = true
+        } else {
+            all.append(Entry(spec: spec, acknowledged: true))
+        }
         try RuntimeDurableFile.write(all, to: url)
     }
 
     public func remove(_ spec: RigDrainSpec) throws {
         let all = entries()
-        guard all.contains(spec) else { return }
-        try RuntimeDurableFile.write(all.filter { $0 != spec }, to: url)
+        guard all.contains(where: { $0.spec == spec }) else { return }
+        try RuntimeDurableFile.write(all.filter { $0.spec != spec }, to: url)
     }
 }
 
@@ -183,9 +208,9 @@ public struct RigCuttlefishDrain: RigDrainCoordinating {
         for action in ["abort", "abortComplete"] {
             let (reply, failure) = await call(spec, action)
             if let failure {
-                // An older coordinator rejects every rig-upgrade call, so it
-                // never held this one.
-                if failure.state == .incompatible, action == "abort" { return .notHeld }
+                // Whether a rejected abort means "never held" depends on
+                // whether this drain was ever acknowledged: the engine decides.
+                if failure.state == .incompatible, action == "abort" { return .rejected }
                 throw MicropodError.message(
                     "Cuttlefish's drain release is unconfirmed (\(failure.reason ?? failure.state.rawValue))")
             }
@@ -193,8 +218,11 @@ public struct RigCuttlefishDrain: RigDrainCoordinating {
             switch (action, reply.phase) {
             case ("abort", "aborting"), ("abort", "cancelled"): continue
             case ("abortComplete", "cancelled"): return .released
-            case (_, "refused") where reply.reason?.localizedCaseInsensitiveContains("unknown") == true:
-                return .notHeld
+            // Cuttlefish reports refusals as `blocked` (and `refused`).
+            case (_, "refused"), (_, "blocked"):
+                if reply.reason?.localizedCaseInsensitiveContains("unknown") == true { return .notHeld }
+                throw MicropodError.message(
+                    "Cuttlefish refused \(action)\(reply.reason.map { ": \($0)" } ?? "")")
             default:
                 throw MicropodError.message(
                     "Cuttlefish answered '\(reply.phase)' to \(action)\(reply.reason.map { ": \($0)" } ?? "")")

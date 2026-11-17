@@ -42,6 +42,10 @@ public struct RigUpgradeLayout: Sendable, Equatable {
     public var connectPlist: URL { launchAgents.appendingPathComponent(Self.connectLabel + ".plist") }
     public static let helperLabel = "com.skunkworq.micropod.rig-upgrade"
     public var helperPlist: URL { launchAgents.appendingPathComponent(Self.helperLabel + ".plist") }
+    /// The helper binary copied for one operation.
+    public func helperExecutable(_ operation: UUID) -> URL {
+        operationDirectory(operation).appendingPathComponent("micropod")
+    }
     /// The Sparkle updater's durable transaction (UpdateContinuityStore).
     public var desktopUpdates: UpdateContinuityStore { .init(root: micropod.appendingPathComponent("updates")) }
 }
@@ -446,20 +450,31 @@ public enum RigUpgradeFence {
     }
 
     /// Whether `journal` describes an upgrade that is under way. Before any
-    /// disruption (prepared, draining) it is only while an engine runs or its
-    /// helper is installed: a journal whose helper never started is stale.
-    public static func isActive(_ journal: RigUpgradeJournal, layout: RigUpgradeLayout) -> Bool {
+    /// disruption (prepared, draining) it is only while an engine runs or
+    /// this operation's helper is loaded in launchd: a journal whose helper
+    /// never started, or a plist left behind, is stale. `helperProgram` is
+    /// the program launchd has loaded for a label.
+    public static func isActive(
+        _ journal: RigUpgradeJournal, layout: RigUpgradeLayout,
+        helperProgram: (String) -> String? = RigLaunchctl.loadedProgramNow
+    ) -> Bool {
         guard !journal.phase.isTerminal else { return false }
         guard [.prepared, .draining].contains(journal.phase) else { return true }
-        return RigUpgradeStore(layout: layout).engineIsRunning
-            || FileManager.default.fileExists(atPath: layout.helperPlist.path)
+        if RigUpgradeStore(layout: layout).engineIsRunning { return true }
+        guard FileManager.default.fileExists(atPath: layout.helperPlist.path),
+            let loaded = helperProgram(RigUpgradeLayout.helperLabel)
+        else { return false }
+        let mine = layout.helperExecutable(journal.operation).resolvingSymlinksInPath().path
+        return URL(fileURLWithPath: loaded).resolvingSymlinksInPath().path == mine
     }
 
     /// A disruptive upgrade under way.
-    public static func inFlight(layout: RigUpgradeLayout = .init()) -> RigUpgradeJournal? {
-        guard let journal = try? RigUpgradeStore(layout: layout).read(), isActive(journal, layout: layout) else {
-            return nil
-        }
+    public static func inFlight(
+        layout: RigUpgradeLayout = .init(), helperProgram: (String) -> String? = RigLaunchctl.loadedProgramNow
+    ) -> RigUpgradeJournal? {
+        guard let journal = try? RigUpgradeStore(layout: layout).read(),
+            isActive(journal, layout: layout, helperProgram: helperProgram)
+        else { return nil }
         return journal
     }
 
