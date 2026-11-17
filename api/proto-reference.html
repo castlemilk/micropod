@@ -639,6 +639,10 @@
             <ul>
               
                 <li>
+                  <a href="#micropod.v1.ComponentVersion"><span class="badge">M</span>ComponentVersion</a>
+                </li>
+              
+                <li>
                   <a href="#micropod.v1.ContainerStats"><span class="badge">M</span>ContainerStats</a>
                 </li>
               
@@ -671,6 +675,10 @@
                 </li>
               
                 <li>
+                  <a href="#micropod.v1.ProtocolRange"><span class="badge">M</span>ProtocolRange</a>
+                </li>
+              
+                <li>
                   <a href="#micropod.v1.RegistryLogin"><span class="badge">M</span>RegistryLogin</a>
                 </li>
               
@@ -699,7 +707,15 @@
                 </li>
               
                 <li>
+                  <a href="#micropod.v1.UpdateState"><span class="badge">M</span>UpdateState</a>
+                </li>
+              
+                <li>
                   <a href="#micropod.v1.UpdateStatus"><span class="badge">M</span>UpdateStatus</a>
+                </li>
+              
+                <li>
+                  <a href="#micropod.v1.UpdateTransaction"><span class="badge">M</span>UpdateTransaction</a>
                 </li>
               
                 <li>
@@ -714,6 +730,10 @@
                   <a href="#micropod.v1.UsageReport.VolumeUsage"><span class="badge">M</span>UsageReport.VolumeUsage</a>
                 </li>
               
+              
+                <li>
+                  <a href="#micropod.v1.UpdateState.Kind"><span class="badge">E</span>UpdateState.Kind</a>
+                </li>
               
                 <li>
                   <a href="#micropod.v1.UpdateStatus.State"><span class="badge">E</span>UpdateStatus.State</a>
@@ -4694,6 +4714,68 @@ backends that never create clones.</p></td>
       <p></p>
 
       
+        <h3 id="micropod.v1.ComponentVersion">ComponentVersion</h3>
+        <p>One installed or running piece of Micropod, as the answering server</p><p>observed it. A value it could not read is "unknown", never a guess.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>&#34;app&#34;, &#34;connect-api&#34;, &#34;dedicated-api&#34;, &#34;setup-helper&#34;, &#34;docker-shim&#34;,
+&#34;shared-fs&#34;, &#34;apple-runtime&#34;, &#34;vminit&#34;, &#34;guest&#34; or &#34;kernel&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>version</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Release the component reports, or &#34;unknown&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>revision</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Source revision it was built from, or &#34;unknown&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>sha256</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>SHA-256 of its executable or payload, hex. Empty when not computed
+(always on Ping) or not readable. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>state</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>&#34;running&#34;, &#34;stopped&#34;, &#34;installed&#34;, &#34;missing&#34;, &#34;not_configured&#34; or
+&#34;unknown&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>detail</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Where it was read from, or why it could not be. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
         <h3 id="micropod.v1.ContainerStats">ContainerStats</h3>
         <p>Per-container resource counters within a StatsSnapshot.</p>
 
@@ -5113,7 +5195,10 @@ These counters cover every container device, not individual cache volumes. </p><
                   <td>api_server_version</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p>Version of the embedded API server. </p></td>
+                  <td><p>Version of Apple&#39;s `container` apiserver (the runtime engine), as it
+reports it: a bare release (&#34;1.5.0&#34;) or, through 1.3.x, its banner.
+Not Micropod&#39;s version — that is `micropod_version`. Kept under this
+name for existing clients; new clients read `apple_api_server_version`. </p></td>
                 </tr>
               
                 <tr>
@@ -5141,6 +5226,99 @@ that predate the list. </p></td>
                   <td></td>
                   <td><p>Engine RunContainer uses when `runtime` is unset (see ListRuntimes).
 Empty on servers that predate engine selection. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>micropod_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Micropod release of the API server that answered (&#34;dev&#34; for a local
+build). Empty on servers that predate the version manifest. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>source_revision</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Git revision that release was built from, or &#34;unknown&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>protocol_version</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>Revision of the Micropod API contract this server implements. It only
+changes when a peer must change behaviour to stay correct; additive
+fields do not change it. 0 on servers that predate it. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>peer_protocol</td>
+                  <td><a href="#micropod.v1.ProtocolRange">ProtocolRange</a></td>
+                  <td></td>
+                  <td><p>Runtime coordination protocol versions this server can speak with a
+rig controller such as Cuttlefish. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>components</td>
+                  <td><a href="#micropod.v1.ComponentVersion">ComponentVersion</a></td>
+                  <td>repeated</td>
+                  <td><p>Every Micropod component this server can observe, with what it is
+running. Ping leaves `sha256` empty; GetSystem fills it. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>update_state</td>
+                  <td><a href="#micropod.v1.UpdateState">UpdateState</a></td>
+                  <td></td>
+                  <td><p>Where this Micropod is in its update lifecycle (see GetUpdateState). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>apple_api_server_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Same value as `api_server_version`, under a name that says whose
+version it is. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.ProtocolRange">ProtocolRange</h3>
+        <p>A contiguous range of protocol versions, inclusive.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>name</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Protocol family, e.g. &#34;micropod-runtime-coordination&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>min_version</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>Oldest version this server accepts. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>max_version</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>Newest version this server speaks. </p></td>
                 </tr>
               
             </tbody>
@@ -5361,6 +5539,48 @@ don&#39;t appear until asked for. </p></td>
                   <td><p>Disk usage grouped by resource kind. </p></td>
                 </tr>
               
+                <tr>
+                  <td>micropod_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Micropod release of the API server that answered (see PingResponse). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>source_revision</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Git revision that release was built from, or &#34;unknown&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>protocol_version</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>Revision of the Micropod API contract (see PingResponse). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>peer_protocol</td>
+                  <td><a href="#micropod.v1.ProtocolRange">ProtocolRange</a></td>
+                  <td></td>
+                  <td><p>Runtime coordination protocol versions this server can speak. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>components</td>
+                  <td><a href="#micropod.v1.ComponentVersion">ComponentVersion</a></td>
+                  <td>repeated</td>
+                  <td><p>Every component this server can observe, with `sha256` where cheap. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>update_state</td>
+                  <td><a href="#micropod.v1.UpdateState">UpdateState</a></td>
+                  <td></td>
+                  <td><p>Where this Micropod is in its update lifecycle (see GetUpdateState). </p></td>
+                </tr>
+              
             </tbody>
           </table>
 
@@ -5403,7 +5623,9 @@ don&#39;t appear until asked for. </p></td>
                   <td>api_server_version</td>
                   <td><a href="#string">string</a></td>
                   <td></td>
-                  <td><p>Version of the embedded API server. </p></td>
+                  <td><p>Version of Apple&#39;s `container` apiserver (the runtime engine), as it
+reports it. Not Micropod&#39;s version — see SystemSnapshot.micropod_version.
+New clients read `apple_api_server_version`. </p></td>
                 </tr>
               
                 <tr>
@@ -5418,6 +5640,14 @@ don&#39;t appear until asked for. </p></td>
                   <td><a href="#string">string</a></td>
                   <td></td>
                   <td><p>Backend the API server is currently driving: &#34;native&#34; (XPC) or &#34;cli&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>apple_api_server_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Same value as `api_server_version`, under a name that says whose
+version it is. </p></td>
                 </tr>
               
             </tbody>
@@ -5458,6 +5688,90 @@ don&#39;t appear until asked for. </p></td>
                   <td><p>Engine endpoint override; empty string restores the default. Docker:
 &#34;unix:///path/docker.sock&#34; or &#34;tcp://host:port&#34; (plain HTTP). Other
 engines reject an endpoint with `invalid_argument`. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.UpdateState">UpdateState</h3>
+        <p>One read-only answer to "what is this Micropod running, and where is</p><p>its update?". Derived from the updater's durable transaction, its guard</p><p>and the runtime admission gate; nothing here is inferred from timing.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>kind</td>
+                  <td><a href="#micropod.v1.UpdateState.Kind">UpdateState.Kind</a></td>
+                  <td></td>
+                  <td><p>Lifecycle position. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>scope</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Which updater this describes: &#34;desktop&#34; (the app and its linked tools)
+or &#34;runtime&#34; (maintenance of the dedicated runtime and its API). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>phase</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>For KIND_UPGRADING: &#34;preparing&#34;, &#34;prepared&#34;, &#34;downloading&#34;,
+&#34;extracting&#34;, &#34;installing&#34;, or &#34;runtime-maintenance&#34; (scope &#34;runtime&#34;). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>reason</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Why, for KIND_ROLLED_BACK, KIND_BLOCKED, KIND_RECOVERY_REQUIRED and
+KIND_UNKNOWN; for KIND_CURRENT, the last updater error, if any. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>current_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Release running now, or &#34;unknown&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>target_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Release being staged, installed, blocked or rolled back. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>available_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Newer release the feed offers, when known. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>operation_id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Transaction (scope &#34;desktop&#34;) or maintenance operation (scope
+&#34;runtime&#34;) this state belongs to. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>updated_at</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>ISO8601 time the transaction last changed, when known. </p></td>
                 </tr>
               
             </tbody>
@@ -5538,6 +5852,155 @@ engines reject an endpoint with `invalid_argument`. </p></td>
                   <td><a href="#string">string</a></td>
                   <td></td>
                   <td><p>ISO8601 time of the last completed check. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>update_state</td>
+                  <td><a href="#micropod.v1.UpdateState">UpdateState</a></td>
+                  <td></td>
+                  <td><p>The same lifecycle as one state (see GetUpdateState). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>restart_blocked_reason</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Why installation cannot proceed now, when it cannot. Older servers
+appended this to `error`. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>restart_guard</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>The workload-owner admission guard: &#34;unavailable&#34;, &#34;idle&#34;, &#34;preparing&#34;,
+&#34;prepared&#34;, &#34;installationStarted&#34;, &#34;blocked&#34; or &#34;recoveryRequired&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>channel</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Update channel: &#34;stable&#34; or &#34;qualification&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>workload_protocol</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>Workload-continuity protocol the running app speaks with its retained
+services. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>payload_compatible</td>
+                  <td><a href="#bool">bool</a></td>
+                  <td></td>
+                  <td><p>Whether the offered release carries a payload this app can install
+without replacing its retained services. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>current_source_revision</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Source revision of the running app, or &#34;unknown&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>transaction</td>
+                  <td><a href="#micropod.v1.UpdateTransaction">UpdateTransaction</a></td>
+                  <td></td>
+                  <td><p>The durable update transaction, when one was ever recorded. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>desktop_admission</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Desktop admission gate: &#34;open&#34; or &#34;closed&#34; (closed while an update
+holds the desktop). </p></td>
+                </tr>
+              
+                <tr>
+                  <td>update_scope</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>What an update replaces and what it retains. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>recovery_error</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Why the durable transaction could not be read, when it could not. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
+        <h3 id="micropod.v1.UpdateTransaction">UpdateTransaction</h3>
+        <p>The app's durable update transaction (~/.micropod/updates).</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>operation_id</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Transaction identifier. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>phase</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>&#34;prepared&#34;, &#34;downloading&#34;, &#34;extracting&#34;, &#34;downloadRejected&#34;,
+&#34;installing&#34;, &#34;succeeded&#34;, &#34;aborted&#34; or &#34;recoveryRequired&#34;. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>source_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Version the transaction started from. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>target_version</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Version it installs. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>target_source_revision</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Source revision of the target release. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>detail</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>Why it reached its phase, when recorded. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>updated_at</td>
+                  <td><a href="#string">string</a></td>
+                  <td></td>
+                  <td><p>ISO8601 time of the last phase change. </p></td>
                 </tr>
               
             </tbody>
@@ -5677,6 +6140,72 @@ engines reject an endpoint with `invalid_argument`. </p></td>
       
 
       
+        <h3 id="micropod.v1.UpdateState.Kind">UpdateState.Kind</h3>
+        <p>Lifecycle position.</p>
+        <table class="enum-table">
+          <thead>
+            <tr><td>Name</td><td>Number</td><td>Description</td></tr>
+          </thead>
+          <tbody>
+            
+              <tr>
+                <td>KIND_UNSPECIFIED</td>
+                <td>0</td>
+                <td><p>Not reported: the server predates UpdateState.</p></td>
+              </tr>
+            
+              <tr>
+                <td>KIND_CURRENT</td>
+                <td>1</td>
+                <td><p>Running its installed release with nothing staged or in flight.
+`available_version` is set when the feed offers a newer release.</p></td>
+              </tr>
+            
+              <tr>
+                <td>KIND_STAGED</td>
+                <td>2</td>
+                <td><p>A verified update is downloaded and staged; a restart installs
+`target_version`.</p></td>
+              </tr>
+            
+              <tr>
+                <td>KIND_UPGRADING</td>
+                <td>3</td>
+                <td><p>A transaction is in flight; `phase` says where.</p></td>
+              </tr>
+            
+              <tr>
+                <td>KIND_ROLLED_BACK</td>
+                <td>4</td>
+                <td><p>The last transaction was abandoned before it took effect, and
+`current_version` kept running; `reason` says why. Replaced by the
+next transaction&#39;s state.</p></td>
+              </tr>
+            
+              <tr>
+                <td>KIND_BLOCKED</td>
+                <td>5</td>
+                <td><p>An update cannot proceed; `reason` says why. Nothing was changed.</p></td>
+              </tr>
+            
+              <tr>
+                <td>KIND_RECOVERY_REQUIRED</td>
+                <td>6</td>
+                <td><p>A transaction&#39;s outcome is unknown. It holds until a verified
+reconciliation (`micropod update recover`, or `micropod runtime
+recover` for scope &#34;runtime&#34;); `reason` says what is retained.</p></td>
+              </tr>
+            
+              <tr>
+                <td>KIND_UNKNOWN</td>
+                <td>7</td>
+                <td><p>The answering server cannot observe this updater (for example the
+desktop app is not running); `reason` says why.</p></td>
+              </tr>
+            
+          </tbody>
+        </table>
+      
         <h3 id="micropod.v1.UpdateStatus.State">UpdateStatus.State</h3>
         <p>Updater lifecycle state.</p>
         <table class="enum-table">
@@ -5790,6 +6319,17 @@ Fails with `unavailable` when the app isn&#39;t running.</p></td>
                 <td><a href="#micropod.v1.UpdateStatus">UpdateStatus</a></td>
                 <td><p>Quit the app so a downloaded update installs and relaunches. Fails
 with `failed_precondition` until `UpdateStatus.ready_to_install`.</p></td>
+              </tr>
+            
+              <tr>
+                <td>GetUpdateState</td>
+                <td><a href="#micropod.v1.Empty">Empty</a></td>
+                <td><a href="#micropod.v1.UpdateState">UpdateState</a></td>
+                <td><p>Read-only: where this Micropod is in its update lifecycle, as one
+state (see UpdateState). Never starts a check, download or restart.
+Served by the dedicated runtime API as well as the desktop API: the
+desktop API combines the app&#39;s updater with runtime maintenance, the
+dedicated API reports runtime maintenance only (scope &#34;runtime&#34;).</p></td>
               </tr>
             
               <tr>
