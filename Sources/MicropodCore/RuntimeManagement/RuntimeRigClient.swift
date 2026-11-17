@@ -35,6 +35,15 @@ public enum RuntimeRigAdmissionError: LocalizedError, Sendable {
     }
 }
 
+/// The coordinator accepted the request bytes and closed without answering:
+/// it rejected the request (an older build refusing a field it does not
+/// know closes silently). Distinct from a request that was never sent.
+public struct RuntimePeerNoReply: LocalizedError, Sendable {
+    public var errorDescription: String? {
+        "The rig maintenance coordinator is unavailable or its identity could not be verified. Update or reconnect Cuttlefish before managing this runtime."
+    }
+}
+
 /// A missing socket is not permission to ignore an enrolled/offline rig.
 /// Host credentials and authority remain inside the signed Cuttlefish process.
 public struct RuntimeRigClient: RuntimeRigCoordinating {
@@ -173,7 +182,7 @@ enum RuntimePeerSocket {
                 try wait(fd, events: Int16(POLLIN), deadline: deadline)
                 continue
             }
-            guard count > 0 else { throw refused() }
+            guard count > 0 else { throw count == 0 ? RuntimePeerNoReply() : refused() }
             result.append(contentsOf: buffer.prefix(count))
             guard result.count <= maximumReply else { throw refused() }
             if let newline = result.firstIndex(of: 10) {

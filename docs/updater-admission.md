@@ -7,6 +7,12 @@ formats unchanged. Existing Cuttlefish leases, waits and log streams continue
 against those same owners. Runtime or service upgrades remain separate
 maintenance operations.
 
+Rigs that accept interrupted jobs can instead replace the app, docker-shim,
+shared-fs and the Connect API in one journaled operation with
+`micropod update apply --disruptive`; see [rig-upgrade.md](rig-upgrade.md).
+That path does not use this transaction store, never closes desktop admission,
+and leaves the dedicated runtime unchanged.
+
 ## Supported installations
 
 The first supported updater is 0.13.6. The 0.13.0–0.13.2 candidates used

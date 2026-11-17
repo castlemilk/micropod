@@ -68,6 +68,9 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
     @ObservationIgnored nonisolated private let updateStore: UpdateContinuityStore
     var restartBlockedReason: String? {
         if let reason = restartGuard.blockedReason { return reason }
+        if let rig = RigUpgradeFence.inFlight() {
+            return "A disruptive rig upgrade to \(rig.target.version) is \(rig.phase.rawValue)."
+        }
         if status == .updateAvailable, admission != nil, admission?.candidate?.isCompatible != true {
             return "This release has no compatible signed desktop payload."
         }
@@ -163,12 +166,17 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
     /// Running workloads are not an idle requirement.
     func installIfSafe() async {
         guard !preparingUpdate else { return }
+        // A rig takes releases with `micropod update apply --disruptive`,
+        // never by itself: checks continue, automatic installs do not.
+        let automaticAllowed = RigUpgradePolicy.read() == .guarded
         if checksAutomatically, Date().timeIntervalSince(lastCheckedAt ?? .distantPast) >= 3600,
             ![.checking, .installing, .readyToInstall].contains(status)
         {
             checkForUpdatesInBackground()
         }
-        guard [.updateAvailable, .readyToInstall].contains(status), installsAutomatically, !NSApp.isActive else {
+        guard [.updateAvailable, .readyToInstall].contains(status), installsAutomatically, automaticAllowed,
+            !NSApp.isActive
+        else {
             return
         }
         // kCGAnyInputEventType (~0): the last keyboard/mouse input of any kind.
@@ -248,6 +256,7 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
         if let floor = UpdaterPolicy.current?.minimumUpdateVersion { report["minimumUpdateVersion"] = floor }
         report["payloadCompatible"] = admission?.candidate?.isCompatible == true
         report["updateScope"] = "desktop; workload services and Apple runtime are retained"
+        report["updatePolicy"] = RigUpgradePolicy.read().rawValue
         report["desktopRuntimeContext"] =
             feedConfigured
             ? (AppDependencies.shared.client.usesIsolatedTransport ? "managed" : "existing") : "unavailable"
@@ -295,6 +304,8 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
     /// update (poll `readyToInstall` first).
     @discardableResult
     func applyStagedUpdate() async -> Bool {
+        // Both updaters replace this app; only one may run at a time.
+        guard RigUpgradeFence.inFlight() == nil else { return false }
         // Injected coordinators exercise the same serial guard without
         // touching the installed app's durable production transaction.
         if admission == nil || !restartGuard.isAvailable {

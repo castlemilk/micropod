@@ -28,6 +28,9 @@ enum SelfUpdate {
         let url: URL
         let signature: Data
         let length: Int
+        /// The commit the release was built from (`micropodSourceRevision`),
+        /// when the feed declares it. A rig upgrade requires it.
+        var sourceRevision: String? = nil
 
         static func == (a: Release, b: Release) -> Bool { a.version == b.version && a.url == b.url }
     }
@@ -71,7 +74,11 @@ enum SelfUpdate {
                 let signature = item["sparkle:edSignature"].flatMap({ Data(base64Encoded: $0) }),
                 let length = item["length"].flatMap(Int.init), length > 0
             else { return nil }
-            return Release(version: version, url: url, signature: signature, length: length)
+            let revision = item["micropodSourceRevision"].flatMap {
+                $0.range(of: "^[0-9a-f]{40}$", options: .regularExpression) == nil ? nil : $0
+            }
+            return Release(
+                version: version, url: url, signature: signature, length: length, sourceRevision: revision)
         }
     }
 
@@ -188,11 +195,11 @@ enum SelfUpdate {
     }
 
     @discardableResult
-    private static func run(_ path: String, _ arguments: [String]) throws -> String {
+    static func run(_ path: String, _ arguments: [String]) throws -> String {
         try output(path, arguments)
     }
 
-    private static func output(_ path: String, _ arguments: [String]) throws -> String {
+    static func output(_ path: String, _ arguments: [String]) throws -> String {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: path)
         process.arguments = arguments

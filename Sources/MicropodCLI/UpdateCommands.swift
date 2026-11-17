@@ -14,9 +14,27 @@ enum UpdateCommands {
           micropod update [status]     the app's and this CLI's versions and updates
           micropod update check        look for a newer version now
           micropod update apply        download, install and verify the app update
+          micropod update apply --disruptive [--drain-timeout S] [--health-timeout S]
+                [--smoke-image IMAGE | --no-smoke] [--force-undrained] [--foreground]
+                [--detach] [--channel C] [--feed URL] [--app PATH]
+                                       rig upgrade: replace the app, CLI/MCP, docker-shim,
+                                       shared-fs and Connect API at once; jobs may be
+                                       interrupted, a failed health gate rolls back.
+                                       Refused when Cuttlefish does not drain, unless
+                                       --force-undrained
+          micropod update apply --abandon
+                                       drop a rig upgrade that has not stopped anything
+          micropod update stage [--channel C] [--feed URL]
+                                       download and verify the newest release now, so a
+                                       later disruptive apply starts without network
+          micropod update policy [guarded|disruptive]
+                                       how this host takes releases (rigs: disruptive)
           micropod update auto [on|off|status] [--idle-after SECONDS]
           micropod update channel [stable|qualification]  choose the release channel
           micropod update recover      reconcile a retained update transaction
+          micropod update recover --rig
+                                       resume or roll back an interrupted rig upgrade,
+                                       retry a rollback that gave up, release its drain
           micropod update verify [--automatic] [--image IMAGE]
                                        verify live workloads through an update
           micropod update cli [--force]  update a standalone CLI install from the
@@ -26,6 +44,11 @@ enum UpdateCommands {
         when it is blocked. It links ~/.local/bin/micropod and micropod-mcp into
         its bundle, so they update with it. A CLI installed on its own says so
         after commands once a newer release is out.
+
+        A disruptive rig upgrade asks Cuttlefish to drain (bounded; it goes ahead
+        when the wait ends), runs as a launchd helper outside the app it replaces,
+        and resumes from its journal after a crash or reboot. The dedicated
+        runtime (setup helper, dedicated API, Apple engine) is left unchanged.
         """
 
     static func main(_ args: [String], json: Bool) async -> Int32 {
@@ -36,7 +59,16 @@ enum UpdateCommands {
             case "check":
                 try await status(json: json, check: true)
             case "apply":
-                return try await applyApp(json: json)
+                let request = try RigUpgradeCommands.parseApply(
+                    Array(args.dropFirst()), policy: RigUpgradePolicy.read())
+                guard request.disruptive else { return try await applyApp(json: json) }
+                return try await RigUpgradeCommands.apply(request, json: json)
+            case "stage":
+                return try await RigUpgradeCommands.stage(Array(args.dropFirst()), json: json)
+            case "policy":
+                return try RigUpgradeCommands.policy(Array(args.dropFirst()), json: json)
+            case "rig-helper":
+                return await RigUpgradeCommands.helper(Array(args.dropFirst()))
             case "cli":
                 return try await updateCLI(force: args.contains("--force"))
             case "auto":
@@ -68,6 +100,9 @@ enum UpdateCommands {
                 }
                 try await status(json: json, check: false)
             case "recover":
+                if args.contains("--rig") {
+                    return try await RigUpgradeCommands.recover(Array(args.dropFirst()), json: json)
+                }
                 _ = try await AppControlClient().call("update.recover")
                 try await status(json: json, check: false)
             case "verify":
@@ -116,6 +151,10 @@ enum UpdateCommands {
             latest = (try? await SelfUpdate.latest())?.version.description
             if let latest { UpdateNotice.save(.init(checkedAt: Date(), latest: latest)) }
         }
+        var rigLayout = RigUpgradeLayout()
+        if case .appManaged(let bundle) = kind { rigLayout.appPath = bundle }
+        let rig = UpdateStateResolver.rig(layout: rigLayout)
+        let policy = RigUpgradePolicy.read(layout: rigLayout)
         if json {
             var cli: [String: Any] = ["version": MicropodBuildInfo.version, "path": exe.path]
             switch kind {
@@ -126,8 +165,14 @@ enum UpdateCommands {
             case .development: cli["install"] = "development"
             }
             if let latest { cli["latestVersion"] = latest }
-            var out: [String: Any] = ["cli": cli]
+            var out: [String: Any] = ["cli": cli, "policy": policy.rawValue]
             if let app { out["app"] = app }
+            if let rig {
+                out["rig"] = [
+                    "kind": "\(rig.kind)", "phase": rig.phase, "operation": rig.operationID,
+                    "currentVersion": rig.currentVersion, "targetVersion": rig.targetVersion, "reason": rig.reason,
+                ]
+            }
             let data = try JSONSerialization.data(withJSONObject: out, options: [.prettyPrinted, .sortedKeys])
             print(String(decoding: data, as: UTF8.self))
             return
@@ -143,6 +188,7 @@ enum UpdateCommands {
             print("Micropod app — not running")
         }
         print(cliLine(kind: kind, path: exe, latest: latest))
+        if let line = RigUpgradeCommands.statusLine(rig, policy: policy) { print(line) }
     }
 
     static func appLine(_ status: [String: Any]) -> String {
