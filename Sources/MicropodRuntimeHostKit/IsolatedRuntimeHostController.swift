@@ -16,6 +16,9 @@ public actor IsolatedRuntimeHostController {
     private var fence: RuntimeMaintenanceFence?
     private var runtimeCoordinator: RuntimeCoordinatorAuthority
     private let verifyCoordinatorAccount: @Sendable (IsolatedRuntimeIdentity) throws -> Void
+    /// How long a lifecycle action waits for rig work to drain before it
+    /// abandons the maintenance and leaves the runtime as it was.
+    private let drainTimeout: Duration
 
     public init(
         driver: any IsolatedRuntimeHostDriving, journal: URL = RootRuntimeStorage.operation,
@@ -23,6 +26,16 @@ public actor IsolatedRuntimeHostController {
         registration: @escaping @Sendable (IsolatedRuntimeIdentity) throws -> IsolatedRuntimeRigRegistration? = {
             try IsolatedRuntimeRigRegistration.read(identity: $0)
         }
+    ) {
+        self.init(
+            driver: driver, journal: journal, admissionRoot: admissionRoot, registration: registration,
+            drainTimeout: .seconds(120))
+    }
+
+    init(
+        driver: any IsolatedRuntimeHostDriving, journal: URL, admissionRoot: URL,
+        registration: @escaping @Sendable (IsolatedRuntimeIdentity) throws -> IsolatedRuntimeRigRegistration?,
+        drainTimeout: Duration
     ) {
         self.driver = driver
         self.registration = registration
@@ -32,6 +45,7 @@ public actor IsolatedRuntimeHostController {
             fileURL: journal.deletingLastPathComponent().appendingPathComponent("runtime-coordinator.json"),
             ownerUID: geteuid())
         self.verifyCoordinatorAccount = { try ServiceAccountProvisioner.verifyExisting(identity: $0) }
+        self.drainTimeout = drainTimeout
         state = Self.initialStatus(journal: journal)
     }
 
@@ -40,7 +54,8 @@ public actor IsolatedRuntimeHostController {
         coordinator: RuntimeCoordinatorAuthority,
         verifyCoordinatorAccount: @escaping @Sendable (IsolatedRuntimeIdentity) throws -> Void = {
             try ServiceAccountProvisioner.verifyExisting(identity: $0)
-        }
+        },
+        drainTimeout: Duration = .seconds(120)
     ) {
         self.driver = driver
         self.registration = { _ in nil }
@@ -48,6 +63,7 @@ public actor IsolatedRuntimeHostController {
         self.gate = RuntimeAdmission(root: admissionRoot)
         self.runtimeCoordinator = coordinator
         self.verifyCoordinatorAccount = verifyCoordinatorAccount
+        self.drainTimeout = drainTimeout
         state = Self.initialStatus(journal: journal)
     }
 
@@ -218,15 +234,21 @@ public actor IsolatedRuntimeHostController {
                 state.runtimeRigAttempted = scoped != nil
                 state.rigAttempted = scoped == nil
                 try save()
-                let deadline = ContinuousClock.now.advanced(by: .seconds(120))
+                let deadline = ContinuousClock.now.advanced(by: drainTimeout)
                 while true {
                     try Task.checkCancellation()
                     let phase = try await handoffPhase("drain")
                     if phase == "drained" { break }
-                    guard phase == "draining", ContinuousClock.now < deadline else {
+                    guard phase == "draining" else {
                         throw MicropodError.message("Rig drain is incomplete; current work was left running")
                     }
-                    try await Task.sleep(for: .milliseconds(500))
+                    guard ContinuousClock.now < deadline else {
+                        try await abandonDrain()
+                        return
+                    }
+                    try await Task.sleep(
+                        until: min(ContinuousClock.now.advanced(by: .milliseconds(500)), deadline),
+                        clock: .continuous)
                 }
             }
             try Task.checkCancellation()
@@ -389,6 +411,27 @@ public actor IsolatedRuntimeHostController {
             adopt(observed)
             try await finish()
         } catch { fail(error) }
+    }
+    /// Rig work outlived the drain deadline. No fence was taken and no
+    /// native action began, so abandon the maintenance with the same two-stage
+    /// abort that recovery uses: the rig resumes leasing at once instead of
+    /// staying held until `micropod runtime recover`, and the runtime is left
+    /// exactly as it was. A failed abort still falls through to recovery.
+    private func abandonDrain() async throws {
+        let timedOut = "Rig work did not drain within \(drainTimeout.components.seconds) s"
+        do {
+            try await requireHandoff("abort", phase: "aborting")
+            state.runtimeCancelledBeforeAction = true
+            state.actionVerified = true
+            try update("releasing", "\(timedOut); releasing the rig before any runtime change")
+            try await requireHandoff("abortComplete", phase: "cancelled")
+        } catch {
+            throw MicropodError.message("\(timedOut); abandoning the maintenance failed: \(error.localizedDescription)")
+        }
+        clearHandoff()
+        state.workerBirth = nil
+        state.error = "\(timedOut); the maintenance was abandoned and the dedicated runtime is unchanged"
+        try update("cancelled", "Maintenance abandoned before any runtime change; the dedicated runtime is unchanged")
     }
     private func adopt(_ observation: IsolatedRuntimeObservation) {
         state.nativeState = observation.state

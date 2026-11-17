@@ -80,8 +80,10 @@ For an enrolled consumer, maintenance follows this order:
 7. Release Micropod's gate, then complete the retained scoped handoff. A manual stop
    keeps automatic startup and rig intake paused.
 
-Before an action, cancellation uses the same owner's two-stage abort. An interrupted
-or unknown action retains its fence. Recovery verifies kernel process incarnations,
+Before an action, cancellation uses the same owner's two-stage abort. A drain that
+has not finished after 120 s uses that abort too: rig intake resumes, the operation
+ends `cancelled` with the timeout in `error`, and the runtime is left as it was, so
+no `micropod runtime recover` is needed. An interrupted or unknown action retains its fence. Recovery verifies kernel process incarnations,
 private-account process inventory and the expected native state without blindly
 repeating start/stop. A missing, untrusted or offline enrolled coordinator cannot be
 ignored. Apple's shared user runtime still cannot supply all-consumer coverage.

@@ -15,6 +15,8 @@ private actor HostDriverFixture: IsolatedRuntimeHostDriving {
     var rigCompleted = false
     var rigCancelled = false
     var loseCancellationCompletion = false
+    var holdDrain = false
+    var rigOperation: UUID?
     var pauseNextVerification = false
     var paused: CheckedContinuation<Void, Never>?
     var pauseWaiter: CheckedContinuation<Void, Never>?
@@ -30,11 +32,23 @@ private actor HostDriverFixture: IsolatedRuntimeHostDriving {
     func rigHistory() -> [String] { rigEvents }
     func loseOneRigCompletion() { loseCompletion = true }
     func loseOneRigCancellationCompletion() { loseCancellationCompletion = true }
+    func setHoldDrain(_ value: Bool) { holdDrain = value }
     func rigTransition(
         identity: IsolatedRuntimeIdentity, operation: UUID, action: String, installRoot: URL,
         generation: UInt64, targetState: String
     ) async throws -> RuntimeRigReceipt? {
         rigEvents.append(action)
+        // Like the rig, a new operation starts a fresh maintenance record.
+        if rigOperation != operation {
+            rigOperation = operation
+            rigCompleted = false
+            rigCancelled = false
+        }
+        if action == "drain", holdDrain {
+            return .init(
+                operation: operation, phase: "draining", hostID: "host-a", owner: "owner", generation: 7,
+                reason: "Waiting for existing work; no jobs will be killed")
+        }
         if action == "complete" {
             rigCompleted = true
             if loseCompletion {
@@ -332,6 +346,46 @@ final class IsolatedRuntimeHostControllerTests: XCTestCase {
         XCTAssertFalse(admission.isClosed)
         let actions = await driver.actions()
         XCTAssertTrue(actions.isEmpty, "Recovery must not execute or verify a runtime action that never began")
+    }
+
+    func testDrainTimeoutAbortsRigHandoffInsteadOfRequiringRecovery() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let admission = RuntimeAdmission(root: root.appendingPathComponent("admission"))
+        let driver = HostDriverFixture()
+        let controller = IsolatedRuntimeHostController(
+            driver: driver, journal: root.appendingPathComponent("operation.json"),
+            admissionRoot: root.appendingPathComponent("admission"),
+            registration: { .init(identity: $0, hostID: "host-a") }, drainTimeout: .milliseconds(50))
+        _ = try await controller.submit(.init(action: .install), ownerUID: 501)
+        _ = try await terminal(controller)
+        _ = try await controller.submit(.init(action: .start), ownerUID: 501)
+        let started = try await terminal(controller)
+        XCTAssertEqual(started.phase, "completed", started.error ?? "")
+        let beforeActions = await driver.actions()
+        let beforeRig = await driver.rigHistory()
+
+        await driver.setHoldDrain(true)
+        _ = try await controller.submit(.init(action: .restart), ownerUID: 501)
+        let abandoned = try await terminal(controller)
+        XCTAssertEqual(abandoned.phase, "cancelled", abandoned.error ?? "")
+        XCTAssertTrue(abandoned.error?.contains("did not drain") == true, abandoned.error ?? "")
+        XCTAssertEqual(abandoned.runtimeCancelledBeforeAction, true)
+        XCTAssertEqual(abandoned.runtimeActionStarted, false)
+        XCTAssertEqual(abandoned.rigAttempted, false, "The rig must not stay held for `runtime recover`")
+        XCTAssertEqual(abandoned.nativeState, "nativeReady")
+        XCTAssertFalse(admission.isClosed)
+        try XCTUnwrap(admission.claim("work continues after the abandoned drain")).completed()
+        let actions = await driver.actions()
+        XCTAssertEqual(actions, beforeActions, "An abandoned drain must not verify, stop or start the runtime")
+        let restartRig = Array(await driver.rigHistory().dropFirst(beforeRig.count))
+        XCTAssertGreaterThanOrEqual(restartRig.filter { $0 == "drain" }.count, 2)
+        XCTAssertEqual(restartRig.filter { $0 != "drain" }, ["abort", "abortComplete"])
+
+        await driver.setHoldDrain(false)
+        _ = try await controller.submit(.init(action: .restart), ownerUID: 501)
+        let restarted = try await terminal(controller)
+        XCTAssertEqual(restarted.phase, "completed", restarted.error ?? "")
     }
 
     func testFreshHealthProbeCannotOverlapAStartOrChangeItsOperationIdentity() async throws {
