@@ -5,8 +5,10 @@ updater_bundle="${1:?app bundle}"
 updater_version="${2:?version}"
 updater_source="${3:?source revision}"
 updater_info="$updater_bundle/Contents/Info.plist"
+updater_policy="$(cd "$(dirname "$0")/.." && pwd)/release/updater-policy.json"
 [[ "$updater_source" =~ ^[0-9a-f]{40}$ ]]
-[[ "$(/usr/libexec/PlistBuddy -c 'Print :MicropodWorkloadProtocol' "$updater_info")" = 1 ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :MicropodWorkloadProtocol' "$updater_info")" = "$(jq -er .workloadProtocol "$updater_policy")" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :MicropodMinimumUpdateVersion' "$updater_info")" = "$(jq -er .minimumUpdateVersion "$updater_policy")" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$updater_info")" = "$updater_version" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :MicropodSourceRevision' "$updater_info")" = "$updater_source" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$updater_info")" = 'nJEL+JijqhfC7zxPlqxifCqBM06A3DGki/JmBFTW/VM=' ]]

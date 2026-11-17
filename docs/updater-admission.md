@@ -23,7 +23,12 @@ original and reopened admission without an installer handoff. The signed bundle
 now explicitly allows downloads independently of Sparkle's scheduler; durable
 admission still controls every installation-capable check. Bundle verification
 and a real Sparkle settings regression enforce that contract. Older candidates
-are excluded by the feed compatibility floor.
+are excluded by the feed compatibility floor. An installed 0.13.0–0.13.5 build
+never sees a compatible payload, because Sparkle skips every item whose floor
+it does not meet; it needs one manual install of a current release. The
+0.13.6–0.13.8 builds accept only a floor of exactly 0.13.6. Later builds admit
+any floor at or above their packaged one, so raising the floor in
+`release/updater-policy.json` does not strand them.
 
 The packaged app must carry workload protocol 1 and a source revision. Its
 owner must have approved the dedicated runtime. An approved dedicated desktop

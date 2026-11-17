@@ -384,7 +384,7 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
                 item.fileURL?.absoluteString == receipt.artifactURL, item.contentLength == receipt.artifactBytes,
                 enclosure?["sparkle:edSignature"] as? String == receipt.artifactSignature,
                 enclosure?["micropodSourceRevision"] as? String == receipt.targetSourceRevision,
-                item.minimumUpdateVersion == "0.13.6"
+                UpdaterPolicy.admitsFeedItem(minimumUpdateVersion: item.minimumUpdateVersion, enclosure: enclosure)
             else { throw MicropodError.message("The selected update does not match its prepared transaction") }
         }
         return receipt
@@ -414,13 +414,14 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
         let enclosure = item.propertiesDictionary["enclosure"] as? [String: Any]
         let signature = enclosure?["sparkle:edSignature"] as? String
         let source = enclosure?["micropodSourceRevision"] as? String
-        let minimum = item.minimumUpdateVersion
+        let admitted = UpdaterPolicy.admitsFeedItem(
+            minimumUpdateVersion: item.minimumUpdateVersion, enclosure: enclosure)
         let bytes = item.contentLength
         Task { @MainActor in
             guard informationCheck == check else { return }
             if ![.readyToInstall, .installing].contains(status) { status = .updateAvailable }
             availableVersion = display
-            if let url, let signature, let source, minimum == "0.13.6" {
+            if let url, let signature, let source, admitted {
                 admission?.candidate = .init(
                     version: version, url: url, signature: signature, bytes: bytes,
                     source: source)

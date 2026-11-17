@@ -267,6 +267,87 @@ final class UpdateRestartGuardTests: XCTestCase {
         XCTAssertEqual(fixture.lease.aborts, 0)
         XCTAssertFalse(fixture.canAdmitJob)
     }
+
+    func testUpdaterPolicyAdmitsFloorsAtOrAboveItsOwnThatTheAppMeets() {
+        let policy = UpdaterPolicy(minimumUpdateVersion: "0.13.6", workloadProtocol: 1)
+        func admits(_ floor: String?, app: String?) -> Bool {
+            policy.admits(itemMinimumUpdateVersion: floor, itemWorkloadProtocol: "1", appVersion: app)
+        }
+        XCTAssertTrue(admits("0.13.6", app: "0.13.6"))
+        XCTAssertTrue(admits("0.13.6", app: "0.13.9"))
+        // A later policy's higher floor must not strand an app that meets it.
+        XCTAssertTrue(admits("0.14.0", app: "0.14.2"))
+        // Components compare numerically, not as strings.
+        XCTAssertTrue(admits("0.13.10", app: "0.13.10"))
+        XCTAssertTrue(admits("1.0.0", app: "1.0.0"))
+        // A floor below ours would also admit known-broken updaters.
+        XCTAssertFalse(admits("0.13.5", app: "0.13.9"))
+        XCTAssertFalse(admits("0.13.3", app: "0.13.9"))
+        XCTAssertFalse(admits("0.9.99", app: "0.13.9"))
+        // The running app must itself meet the item's floor.
+        XCTAssertFalse(admits("0.14.0", app: "0.13.9"))
+    }
+
+    func testUpdaterPolicyRejectsMalformedVersions() {
+        let policy = UpdaterPolicy(minimumUpdateVersion: "0.13.6", workloadProtocol: 1)
+        for floor in [nil, "", "0.13", "0.13.6.1", "v0.13.6", "0.13.x", " 0.13.6", "0.13.6-beta", "0..13", "١.١٣.٦"] {
+            XCTAssertFalse(
+                policy.admits(itemMinimumUpdateVersion: floor, itemWorkloadProtocol: "1", appVersion: "0.13.9"),
+                "floor \(floor ?? "nil")")
+        }
+        for app in [nil, "", "?", "dev", "0.13"] {
+            XCTAssertFalse(
+                policy.admits(itemMinimumUpdateVersion: "0.13.6", itemWorkloadProtocol: "1", appVersion: app),
+                "app \(app ?? "nil")")
+        }
+        let malformed = UpdaterPolicy(minimumUpdateVersion: "latest", workloadProtocol: 1)
+        XCTAssertFalse(
+            malformed.admits(itemMinimumUpdateVersion: "0.13.6", itemWorkloadProtocol: "1", appVersion: "0.13.9"))
+    }
+
+    func testUpdaterPolicyRequiresTheRetainedWorkloadProtocol() {
+        let policy = UpdaterPolicy(minimumUpdateVersion: "0.13.6", workloadProtocol: 1)
+        XCTAssertTrue(
+            policy.admits(itemMinimumUpdateVersion: "0.13.6", itemWorkloadProtocol: "1", appVersion: "0.13.9"))
+        // Items published before the attribute existed carry no protocol.
+        for workload in [nil, "", "2", "0", "01", " 1", "one"] {
+            XCTAssertFalse(
+                policy.admits(itemMinimumUpdateVersion: "0.13.6", itemWorkloadProtocol: workload, appVersion: "0.13.9"),
+                "protocol \(workload ?? "nil")")
+        }
+        let next = UpdaterPolicy(minimumUpdateVersion: "0.13.6", workloadProtocol: 2)
+        XCTAssertTrue(next.admits(itemMinimumUpdateVersion: "0.13.6", itemWorkloadProtocol: "2", appVersion: "0.13.9"))
+        XCTAssertFalse(next.admits(itemMinimumUpdateVersion: "0.13.6", itemWorkloadProtocol: "1", appVersion: "0.13.9"))
+    }
+
+    func testPackagedUpdaterPolicyFallsBackOnlyForAbsentKeys() {
+        XCTAssertEqual(UpdaterPolicy.packaged(nil), .fallback)
+        XCTAssertEqual(UpdaterPolicy.packaged([:]), .fallback)
+        XCTAssertEqual(
+            UpdaterPolicy.packaged([
+                UpdaterPolicy.minimumUpdateVersionKey: "0.14.0", UpdaterPolicy.workloadProtocolKey: 2,
+            ]),
+            UpdaterPolicy(minimumUpdateVersion: "0.14.0", workloadProtocol: 2))
+        for info: [String: Any] in [
+            [UpdaterPolicy.minimumUpdateVersionKey: "0.14"],
+            [UpdaterPolicy.minimumUpdateVersionKey: 14],
+            [UpdaterPolicy.workloadProtocolKey: "1"],
+            [UpdaterPolicy.workloadProtocolKey: 0],
+        ] {
+            XCTAssertNil(UpdaterPolicy.packaged(info), "\(info)")
+        }
+    }
+
+    /// The compiled fallback is the same policy the release scripts stamp.
+    func testCompiledUpdaterPolicyMatchesTheReleasePolicyFile() throws {
+        let file = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("release/updater-policy.json")
+        let policy = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        XCTAssertEqual(policy["schema"] as? Int, 1)
+        XCTAssertEqual(policy["minimumUpdateVersion"] as? String, UpdaterPolicy.fallback.minimumUpdateVersion)
+        XCTAssertEqual(policy["workloadProtocol"] as? Int, UpdaterPolicy.fallback.workloadProtocol)
+    }
 }
 
 @MainActor

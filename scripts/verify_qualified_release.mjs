@@ -7,6 +7,34 @@ import { pathToFileURL } from "node:url";
 import { updateAppcast } from "./update_appcast.mjs";
 
 const publicKey = "nJEL+JijqhfC7zxPlqxifCqBM06A3DGki/JmBFTW/VM=";
+// The one updater compatibility policy, shared with appcast_policy.py,
+// package_app.sh (Info.plist) and the app's UpdaterPolicy.
+export function updaterPolicy(path = new URL("../release/updater-policy.json", import.meta.url)) {
+    const policy = JSON.parse(readFileSync(path, "utf8"));
+    if (policy?.schema !== 1 || !Number.isInteger(policy.workloadProtocol) || policy.workloadProtocol < 1) {
+        throw new Error("invalid updater policy");
+    }
+    releaseVersion(policy.minimumUpdateVersion);
+    return policy;
+}
+function releaseVersion(text) {
+    if (typeof text !== "string" || !/^[0-9]+\.[0-9]+\.[0-9]+$/.test(text)) throw new Error(`invalid version ${text}`);
+    return text.split(".").map(Number);
+}
+function compareVersions(a, b) {
+    const [left, right] = [releaseVersion(a), releaseVersion(b)];
+    for (let i = 0; i < 3; i++) if (left[i] !== right[i]) return left[i] < right[i] ? -1 : 1;
+    return 0;
+}
+// A workload manifest's floor may be the policy's or a later, higher one, but
+// never lower: that would also admit updaters known not to retain workloads.
+export function admitsWorkloadManifest(manifest, policy = updaterPolicy()) {
+    if (manifest.workloadProtocol !== policy.workloadProtocol) return false;
+    try {
+        return compareVersions(manifest.minimumUpdaterVersion, policy.minimumUpdateVersion) >= 0 &&
+            compareVersions(manifest.minimumUpdaterVersion, manifest.tag.slice(1)) <= 0;
+    } catch { return false; }
+}
 export function releasePolicy(release) {
     return release.assets.some((asset) => asset.name.startsWith("qualification-")) ? "qualified" : "installable";
 }
@@ -45,7 +73,7 @@ export function publicationOptions(manifest, channel, repository = process.cwd()
         return { version: manifest.tag, url: `https://github.com/castlemilk/micropod/releases/tag/${manifest.tag}`, informational: true };
     }
     if (!["workload-preserving-candidate", "workload-preserving-v1"].includes(manifest.policy) ||
-        manifest.workloadProtocol !== 1 || manifest.minimumUpdaterVersion !== "0.13.6") {
+        !admitsWorkloadManifest(manifest)) {
         throw new Error("unsupported workload publication policy");
     }
     if (manifest.policy === "workload-preserving-candidate" && channel !== "qualification") {
@@ -82,7 +110,8 @@ export function publicationOptions(manifest, channel, repository = process.cwd()
         if (proof.manual.automatic !== false || proof.automatic.automatic !== true) throw new Error("manual and automatic paths were not both accepted");
     }
     return { version: manifest.tag, url: `https://github.com/castlemilk/micropod/releases/download/${manifest.tag}/Micropod.dmg`,
-        signature: manifest.sparkleSignature, length: manifest.assets["Micropod.dmg"].size, "minimum-update-version": "0.13.6", source: manifest.source };
+        signature: manifest.sparkleSignature, length: manifest.assets["Micropod.dmg"].size,
+        "minimum-update-version": manifest.minimumUpdaterVersion, "workload-protocol": manifest.workloadProtocol, source: manifest.source };
 }
 export function verifyAssets(manifest, directory) {
     for (const [name, expected] of Object.entries(manifest.assets)) {

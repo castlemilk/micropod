@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readFileSync, mkdtempSync, writeFileSync, rmSync, mkdirSync } from "node:fs";
+import { readFileSync, readdirSync, mkdtempSync, writeFileSync, rmSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { updateAppcast } from "./update_appcast.mjs";
-import { releasePolicy, validateMetadata, validateTag, verifyAssets, publicationOptions } from "./verify_qualified_release.mjs";
+import { releasePolicy, validateMetadata, validateTag, verifyAssets, publicationOptions, updaterPolicy, admitsWorkloadManifest } from "./verify_qualified_release.mjs";
 
 const base = readFileSync(new URL("../landing/appcast.xml", import.meta.url), "utf8");
 const announcement = { version: "0.12.6", url: "https://github.com/castlemilk/micropod/releases/tag/v0.12.6", informational: true, pubDate: "Fri, 09 Oct 2026 08:00:00 GMT" };
@@ -113,10 +113,101 @@ test("workload candidates remain off the stable feed and carry exact compatibili
     const xml = updateAppcast(base, options);
     assert.match(xml, /<sparkle:minimumUpdateVersion>0.13.6<\/sparkle:minimumUpdateVersion>/);
     assert.match(xml, new RegExp(`micropodSourceRevision="${manifest.source}"`));
+    assert.match(xml, /micropodWorkloadProtocol="1"/);
     assert.throws(() => publicationOptions({ ...candidate, workloadProtocol: 2 }, "qualification"), /unsupported/);
     assert.throws(() => publicationOptions({ ...candidate, minimumUpdaterVersion: "0.13.0" }, "qualification"), /unsupported/);
     assert.throws(() => updateAppcast(base, { ...options, "minimum-update-version": "0.12.7" }), /compatibility/);
     assert.throws(() => updateAppcast(base, { ...options, source: "master" }), /source/);
+});
+
+test("one updater policy file supplies the floor and protocol", () => {
+    const policy = JSON.parse(readFileSync(new URL("../release/updater-policy.json", import.meta.url), "utf8"));
+    assert.deepEqual(updaterPolicy(), policy);
+    assert.equal(policy.schema, 1);
+    assert.match(policy.minimumUpdateVersion, /^\d+\.\d+\.\d+$/);
+    assert.ok(Number.isInteger(policy.workloadProtocol) && policy.workloadProtocol >= 1);
+    const directory = mkdtempSync(join(tmpdir(), "micropod-policy-test-"));
+    try {
+        for (const invalid of [{}, { ...policy, schema: 2 }, { ...policy, minimumUpdateVersion: "0.13" }, { ...policy, workloadProtocol: "1" }, { ...policy, workloadProtocol: 0 }]) {
+            writeFileSync(join(directory, "policy.json"), JSON.stringify(invalid));
+            assert.throws(() => updaterPolicy(join(directory, "policy.json")), /policy|version/);
+        }
+    } finally { rmSync(directory, { recursive: true }); }
+});
+
+test("workload floors at or above the policy publish; lower floors and other protocols do not", () => {
+    const policy = { schema: 1, minimumUpdateVersion: "0.13.6", workloadProtocol: 1 };
+    const workload = (tag, minimumUpdaterVersion, workloadProtocol = 1) => ({ tag, minimumUpdaterVersion, workloadProtocol });
+    assert.equal(admitsWorkloadManifest(workload("v0.13.9", "0.13.6"), policy), true);
+    // A later, higher floor stays publishable rather than stranding the manifest.
+    assert.equal(admitsWorkloadManifest(workload("v0.14.1", "0.14.0"), policy), true);
+    assert.equal(admitsWorkloadManifest(workload("v0.13.10", "0.13.10"), policy), true);
+    for (const rejected of [
+        workload("v0.13.9", "0.13.5"), workload("v0.13.9", "0.13.3"), workload("v0.13.9", "0.9.99"),
+        workload("v0.13.9", "0.14.0"), workload("v0.13.9", "0.13"), workload("v0.13.9", undefined),
+        workload("v0.13.9", "0.13.6", 2), workload("v0.13.9", "0.13.6", "1")
+    ]) assert.equal(admitsWorkloadManifest(rejected, policy), false, JSON.stringify(rejected));
+});
+
+test("appcast workload items carry the policy floor and protocol together", () => {
+    const item = { version: "0.13.9", url: "https://github.com/castlemilk/micropod/releases/download/v0.13.9/Micropod.dmg", signature: "AAAA", length: 2, source: manifest.source };
+    const xml = updateAppcast(base, { ...item, "minimum-update-version": "0.13.6", "workload-protocol": "1" });
+    const entry = xml.match(/<item>[\s\S]*?<\/item>/)[0];
+    assert.match(entry, /<sparkle:minimumUpdateVersion>0.13.6<\/sparkle:minimumUpdateVersion>/);
+    assert.match(entry, /micropodWorkloadProtocol="1"/);
+    // The CLI passes strings and the publisher passes manifest numbers.
+    assert.equal(updateAppcast(base, { ...item, "minimum-update-version": "0.13.6", "workload-protocol": 1 }).includes('micropodWorkloadProtocol="1"'), true);
+    assert.match(updateAppcast(base, { ...item, "minimum-update-version": "0.13.7", "workload-protocol": 1 }), /<sparkle:minimumUpdateVersion>0.13.7</);
+    for (const [options, message] of [
+        [{ "minimum-update-version": "0.13.6" }, /both/],
+        [{ "workload-protocol": 1 }, /both/],
+        [{ "minimum-update-version": "0.13.5", "workload-protocol": 1 }, /compatibility/],
+        [{ "minimum-update-version": "0.13.10", "workload-protocol": 1 }, /compatibility/],
+        [{ "minimum-update-version": "0.13", "workload-protocol": 1 }, /compatibility/],
+        [{ "minimum-update-version": "0.13.6", "workload-protocol": 2 }, /protocol/],
+        [{ "minimum-update-version": "0.13.6", "workload-protocol": "01" }, /protocol/],
+        [{ "minimum-update-version": "0.13.6", "workload-protocol": true }, /protocol/]
+    ]) assert.throws(() => updateAppcast(base, { ...item, ...options }), message, JSON.stringify(options));
+});
+
+test("every committed workload manifest can still publish under the current policy", () => {
+    const directory = new URL("../docs/qualified-releases/", import.meta.url);
+    for (const name of readdirSync(directory).filter((entry) => entry.endsWith(".json"))) {
+        const frozen = JSON.parse(readFileSync(new URL(name, directory), "utf8"));
+        assert.equal(`${frozen.tag}.json`, name);
+        if (frozen.policy === "informational") continue;
+        assert.ok(admitsWorkloadManifest(frozen), `${name} can never publish: remove it or requalify under the current policy`);
+    }
+});
+
+// Comments may cite history; executable workflow text names no version, so
+// the updater policy and tool pins each have one home outside the workflow.
+test("workflows contain no version literals", () => {
+    const directory = new URL("../.github/workflows/", import.meta.url);
+    for (const name of readdirSync(directory).filter((entry) => /\.ya?ml$/.test(entry))) {
+        const lines = readFileSync(new URL(name, directory), "utf8").split("\n");
+        lines.forEach((line, index) => {
+            const code = line.replace(/^\s*#.*$/, "").replace(/\s#.*$/, "");
+            assert.doesNotMatch(code, /(?<![\w.])\d+\.\d+\.\d+(?![\w.])/, `${name}:${index + 1}: ${line.trim()}`);
+        });
+    }
+});
+
+test("qualification reserves the release tag so publication only flips draft", () => {
+    const workflow = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+    assert.match(workflow, /git\/refs" \\\n\s+-f ref="refs\/tags\/\$VERSION" -f sha="\$GITHUB_SHA"/);
+    assert.match(workflow, /-f ref="refs\/tags\/sdk\/go\/\$VERSION" -f sha="\$source"/);
+    // The workflow-parity gate only remains for drafts frozen before tags were reserved.
+    const gates = [...workflow.matchAll(/-- \.github\/workflows/g)];
+    assert.equal(gates.length, 2);
+    for (const gate of gates) {
+        const preceding = workflow.slice(0, gate.index).split("\n").slice(-10).join("\n");
+        assert.match(preceding, /! -s "\$RUNNER_TEMP\/tag-before\.txt"/);
+    }
+    // A tag for a frozen qualification never rebuilds or replaces its assets.
+    for (const job of ["release", "sdk"]) {
+        assert.match(workflow, new RegExp(`\\n  ${job}:\\n    needs: frozen-qualification\\n    if: needs\\.frozen-qualification\\.outputs\\.frozen != 'true' && `));
+    }
 });
 
 test("stable workload publication requires untampered manual and automatic physical results", () => {

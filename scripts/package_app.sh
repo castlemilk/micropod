@@ -47,9 +47,15 @@ fi
 
 # Write directly instead of a large heredoc: Bash versions that implement
 # heredocs with a small pipe can block before the reader is executed.
+# The updater floor and workload protocol come from the one release policy
+# that the feed scripts also stamp into every workload item.
 python3 -c '
-import pathlib, plistlib, sys
-path, name, version, identifier, source = sys.argv[1:]
+import json, pathlib, plistlib, re, sys
+path, name, version, identifier, source, policy_path = sys.argv[1:]
+policy = json.loads(pathlib.Path(policy_path).read_text())
+if policy.get("schema") != 1 or not re.fullmatch(r"[0-9]+[.][0-9]+[.][0-9]+", str(policy.get("minimumUpdateVersion"))) \
+        or type(policy.get("workloadProtocol")) is not int or policy["workloadProtocol"] < 1:
+    sys.exit("invalid updater policy: " + policy_path)
 metadata = {
     "CFBundleName": name,
     "CFBundleDisplayName": name,
@@ -72,13 +78,15 @@ metadata = {
     "SUPublicEDKey": "nJEL+JijqhfC7zxPlqxifCqBM06A3DGki/JmBFTW/VM=",
     "SUEnableAutomaticChecks": True,
     "SUAllowsAutomaticUpdates": True,
-    "MicropodWorkloadProtocol": 1,
+    "MicropodWorkloadProtocol": policy["workloadProtocol"],
+    "MicropodMinimumUpdateVersion": policy["minimumUpdateVersion"],
     "MicropodSourceRevision": source,
     "SUScheduledCheckInterval": "3600",
     "NSHumanReadableCopyright": "© 2026 skunkworq",
 }
 pathlib.Path(path).write_bytes(plistlib.dumps(metadata, sort_keys=False))
-' "$APP_BUNDLE/Contents/Info.plist" "$APP_NAME" "$VERSION" "$BUNDLE_ID" "$SOURCE_REVISION"
+' "$APP_BUNDLE/Contents/Info.plist" "$APP_NAME" "$VERSION" "$BUNDLE_ID" "$SOURCE_REVISION" \
+    "$ROOT/release/updater-policy.json"
 
 mkdir -p "$APP_BUNDLE/Contents/Library/LaunchDaemons"
 cp .build/release/MicropodRuntimeHost "$APP_BUNDLE/Contents/MacOS/MicropodRuntimeHost"
