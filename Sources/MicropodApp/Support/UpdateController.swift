@@ -242,7 +242,10 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
         report["canCheckForUpdates"] = canCheckForUpdates
         report["automaticIdleSeconds"] = automaticIdleSeconds
         report["channel"] = channel.rawValue
-        report["workloadProtocol"] = 1
+        // The packaged policy (or the compiled one in an unpackaged build); 0
+        // when the bundle's policy keys are malformed and nothing is admitted.
+        report["workloadProtocol"] = UpdaterPolicy.current?.workloadProtocol ?? 0
+        if let floor = UpdaterPolicy.current?.minimumUpdateVersion { report["minimumUpdateVersion"] = floor }
         report["payloadCompatible"] = admission?.candidate?.isCompatible == true
         report["updateScope"] = "desktop; workload services and Apple runtime are retained"
         report["desktopRuntimeContext"] =

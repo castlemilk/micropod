@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFileSync, readdirSync, mkdtempSync, writeFileSync, rmSync, mkdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
@@ -128,7 +130,7 @@ test("one updater policy file supplies the floor and protocol", () => {
     assert.ok(Number.isInteger(policy.workloadProtocol) && policy.workloadProtocol >= 1);
     const directory = mkdtempSync(join(tmpdir(), "micropod-policy-test-"));
     try {
-        for (const invalid of [{}, { ...policy, schema: 2 }, { ...policy, minimumUpdateVersion: "0.13" }, { ...policy, workloadProtocol: "1" }, { ...policy, workloadProtocol: 0 }]) {
+        for (const invalid of [{}, { ...policy, schema: 2 }, { ...policy, minimumUpdateVersion: "0.13" }, { ...policy, minimumUpdateVersion: "0.013.6" }, { ...policy, workloadProtocol: "1" }, { ...policy, workloadProtocol: 0 }]) {
             writeFileSync(join(directory, "policy.json"), JSON.stringify(invalid));
             assert.throws(() => updaterPolicy(join(directory, "policy.json")), /policy|version/);
         }
@@ -145,6 +147,8 @@ test("workload floors at or above the policy publish; lower floors and other pro
     for (const rejected of [
         workload("v0.13.9", "0.13.5"), workload("v0.13.9", "0.13.3"), workload("v0.13.9", "0.9.99"),
         workload("v0.13.9", "0.14.0"), workload("v0.13.9", "0.13"), workload("v0.13.9", undefined),
+        // Released apps compare the floor as an exact string: no leading zeros.
+        workload("v0.13.9", "0.013.6"), workload("v0.13.9", "0.13.06"), workload("v0.13.9", "00.13.6"),
         workload("v0.13.9", "0.13.6", 2), workload("v0.13.9", "0.13.6", "1")
     ]) assert.equal(admitsWorkloadManifest(rejected, policy), false, JSON.stringify(rejected));
 });
@@ -164,20 +168,39 @@ test("appcast workload items carry the policy floor and protocol together", () =
         [{ "minimum-update-version": "0.13.5", "workload-protocol": 1 }, /compatibility/],
         [{ "minimum-update-version": "0.13.10", "workload-protocol": 1 }, /compatibility/],
         [{ "minimum-update-version": "0.13", "workload-protocol": 1 }, /compatibility/],
+        [{ "minimum-update-version": "0.013.6", "workload-protocol": 1 }, /compatibility/],
         [{ "minimum-update-version": "0.13.6", "workload-protocol": 2 }, /protocol/],
         [{ "minimum-update-version": "0.13.6", "workload-protocol": "01" }, /protocol/],
         [{ "minimum-update-version": "0.13.6", "workload-protocol": true }, /protocol/]
     ]) assert.throws(() => updateAppcast(base, { ...item, ...options }), message, JSON.stringify(options));
 });
 
-test("every committed workload manifest can still publish under the current policy", () => {
+// The publisher reads docs/qualified-releases/vX.Y.Z.json only. An unpublished
+// manifest there must still be publishable; one the policy has outgrown moves
+// to archive/, which is kept as a record and never read. Raising the floor
+// never forces deleting the record of a release that a feed already carries.
+test("live workload manifests can publish; archived ones are records the publisher never reads", () => {
     const directory = new URL("../docs/qualified-releases/", import.meta.url);
+    const feeds = ["../landing/appcast.xml", "../landing/qualification-appcast.xml"]
+        .map((path) => readFileSync(new URL(path, import.meta.url), "utf8")).join("\n");
+    const published = (tag) => feeds.includes(`<sparkle:version>${tag.slice(1)}</sparkle:version>`);
     for (const name of readdirSync(directory).filter((entry) => entry.endsWith(".json"))) {
         const frozen = JSON.parse(readFileSync(new URL(name, directory), "utf8"));
         assert.equal(`${frozen.tag}.json`, name);
-        if (frozen.policy === "informational") continue;
-        assert.ok(admitsWorkloadManifest(frozen), `${name} can never publish: remove it or requalify under the current policy`);
+        if (frozen.policy === "informational" || published(frozen.tag)) continue;
+        assert.ok(admitsWorkloadManifest(frozen), `${name} can never publish: move it to archive/ or requalify under the current policy`);
     }
+    const archive = new URL("archive/", directory);
+    const archived = readdirSync(archive).filter((entry) => entry.endsWith(".json"));
+    assert.deepEqual(archived.sort(), ["v0.13.0", "v0.13.1", "v0.13.2", "v0.13.3", "v0.13.4", "v0.13.5"].map((tag) => `${tag}.json`));
+    for (const name of archived) {
+        assert.equal(`${JSON.parse(readFileSync(new URL(name, archive), "utf8")).tag}.json`, name);
+        assert.equal(readdirSync(directory).includes(name), false, `${name} is both live and archived`);
+    }
+    const workflow = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+    const reads = [...workflow.matchAll(/docs\/qualified-releases\/[^"\s]*/g)].map(([path]) => path);
+    assert.ok(reads.length > 0);
+    for (const path of reads) assert.equal(path, "docs/qualified-releases/$VERSION.json");
 });
 
 // Comments may cite history; executable workflow text names no version, so
@@ -193,21 +216,104 @@ test("workflows contain no version literals", () => {
     }
 });
 
-test("qualification reserves the release tag so publication only flips draft", () => {
+function workflowJob(workflow, name) {
+    const start = workflow.indexOf(`\n  ${name}:\n`);
+    assert.ok(start >= 0, `missing job ${name}`);
+    const next = workflow.slice(start + 1).search(/\n  [a-z][\w-]*:\n/);
+    return next < 0 ? workflow.slice(start) : workflow.slice(start, start + 1 + next);
+}
+function workflowStep(job, name) {
+    const start = job.indexOf(`- name: ${name}\n`);
+    assert.ok(start >= 0, `missing step ${name}`);
+    const next = job.slice(start + 1).indexOf("\n      - ");
+    return next < 0 ? job.slice(start) : job.slice(start, start + 1 + next);
+}
+
+test("qualification reserves vX and sdk/go/vX at master's head and returns unused reservations", () => {
     const workflow = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
-    assert.match(workflow, /git\/refs" \\\n\s+-f ref="refs\/tags\/\$VERSION" -f sha="\$GITHUB_SHA"/);
-    assert.match(workflow, /-f ref="refs\/tags\/sdk\/go\/\$VERSION" -f sha="\$source"/);
-    // The workflow-parity gate only remains for drafts frozen before tags were reserved.
-    const gates = [...workflow.matchAll(/-- \.github\/workflows/g)];
-    assert.equal(gates.length, 2);
-    for (const gate of gates) {
-        const preceding = workflow.slice(0, gate.index).split("\n").slice(-10).join("\n");
-        assert.match(preceding, /! -s "\$RUNNER_TEMP\/tag-before\.txt"/);
-    }
-    // A tag for a frozen qualification never rebuilds or replaces its assets.
+    const release = workflowJob(workflow, "release");
+    const reserve = workflowStep(release, "Reserve the release and Go module tags");
+    assert.match(reserve, /if: github\.event_name == 'workflow_dispatch' && github\.ref == 'refs\/heads\/master'/);
+    assert.match(reserve, /-f ref="refs\/tags\/\$ref" -f sha="\$GITHUB_SHA"/);
+    assert.match(reserve, /reserve "\$VERSION"\n/);
+    assert.match(reserve, /reserve "sdk\/go\/\$VERSION"\n/);
+    const cleanup = workflowStep(release, "Release unused qualification tags");
+    assert.match(cleanup, /if: \(failure\(\) \|\| cancelled\(\)\) && github\.event_name == 'workflow_dispatch' && github\.ref == 'refs\/heads\/master'/);
+    assert.match(cleanup, /for ref in "\$VERSION" "sdk\/go\/\$VERSION"; do/);
+    assert.match(cleanup, /\[ "\$reserved_sha" = "\$GITHUB_SHA" \] \|\| continue/);
+    // Any orphan at this source goes, whichever run reserved it.
+    assert.doesNotMatch(workflow, /qualification-tag-reserved/);
+    // Tags are created only at qualification, at the dispatched master commit.
+    const creations = [...workflow.matchAll(/--method POST "repos\/\$GITHUB_REPOSITORY\/git\/refs"/g)];
+    assert.equal(creations.length, 1);
+    assert.ok(reserve.includes(creations[0][0]));
+    assert.doesNotMatch(workflowJob(workflow, "publish-qualified"), /git\/refs"|git tag|git push origin "?refs\/tags/);
+});
+
+test("every release update checks workflow parity unless a protected workflows token is configured", () => {
+    const workflow = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+    const publish = workflowJob(workflow, "publish-qualified");
+    assert.match(publish, /\n    environment: release-publication\n/);
+    const verify = workflowStep(publish, "Verify publication source and frozen qualification");
+    const promote = workflowStep(publish, "Promote the exact existing assets without a tag build");
+    // The secret's value enters one step; elsewhere only its presence is read.
+    assert.equal([...workflow.matchAll(/secrets\.RELEASE_WORKFLOWS_TOKEN/g)].length, 2);
+    assert.match(verify, /WORKFLOWS_TOKEN_PRESENT: \$\{\{ secrets\.RELEASE_WORKFLOWS_TOKEN != '' \}\}/);
+    assert.match(promote, /RELEASE_WORKFLOWS_TOKEN: \$\{\{ secrets\.RELEASE_WORKFLOWS_TOKEN \}\}/);
+    // Parity is decided for every pending update, tagged or not.
+    assert.match(verify, /needs_update=\$draft/);
+    assert.match(verify, /if \[ "\$needs_update" = true \]; then\n\s+parity=0\n\s+bash scripts\/release_workflow_parity\.sh "\$source"/);
+    assert.doesNotMatch(verify, /\[ ! -s "\$RUNNER_TEMP\/tag-before\.txt" \]; then\n\s+parity/);
+    // Without the token the refusal stays readable; a tagless draft is never published with it.
+    assert.match(verify, /if \[ "\$WORKFLOWS_TOKEN_PRESENT" != true \]; then\n\s+echo "::error::/);
+    assert.ok(verify.indexOf("has no tag and its workflows differ") < verify.indexOf('"$WORKFLOWS_TOKEN_PRESENT" != true'));
+    assert.match(verify, /any\(\.type == "required_reviewers"\)\) and \.deployment_branch_policy != null/);
+    // Only the PATCH sees the token.
+    assert.match(promote, /GH_TOKEN="\$patch_token" gh api --method PATCH/);
+    assert.match(promote, /unset RELEASE_WORKFLOWS_TOKEN/);
+    assert.equal([...publish.matchAll(/--method PATCH/g)].length, 1);
+    assert.equal([...publish.matchAll(/release_patch --/g)].length, 2);
+});
+
+test("a tag push for frozen qualified assets never rebuilds them, even on an unreadable listing", () => {
+    const workflow = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+    const frozen = workflowJob(workflow, "frozen-qualification");
+    assert.match(frozen, /\|\| found=\$\?/);
+    assert.match(frozen, /\*\) echo "::error::could not read the release listing[^\n]*exit 1 ;;/);
+    assert.doesNotMatch(frozen, /if jq -es/);
     for (const job of ["release", "sdk"]) {
         assert.match(workflow, new RegExp(`\\n  ${job}:\\n    needs: frozen-qualification\\n    if: needs\\.frozen-qualification\\.outputs\\.frozen != 'true' && `));
     }
+});
+
+test("workflow parity compares a source's workflows with master and fails closed", () => {
+    const script = fileURLToPath(new URL("release_workflow_parity.sh", import.meta.url));
+    const directory = mkdtempSync(join(tmpdir(), "micropod-parity-test-"));
+    const git = (...args) => {
+        const result = spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.org", ...args], { cwd: directory, encoding: "utf8" });
+        assert.equal(result.status, 0, result.stderr);
+        return result.stdout.trim();
+    };
+    const parity = (...args) => spawnSync("bash", [script, ...args], { cwd: directory, encoding: "utf8" });
+    try {
+        git("init", "-q", "-b", "master");
+        mkdirSync(join(directory, ".github/workflows"), { recursive: true });
+        writeFileSync(join(directory, ".github/workflows/release.yml"), "name: Release\n");
+        writeFileSync(join(directory, "README"), "one\n");
+        git("add", "-A"); git("commit", "-qm", "source");
+        const source = git("rev-parse", "HEAD");
+        writeFileSync(join(directory, "README"), "two\n");
+        git("commit", "-qam", "docs only");
+        assert.equal(parity(source, "master").status, 0);
+        writeFileSync(join(directory, ".github/workflows/release.yml"), "name: Release\non: push\n");
+        git("commit", "-qam", "workflow change");
+        const changed = parity(source, "master");
+        assert.equal(changed.status, 1);
+        assert.equal(changed.stdout.trim(), ".github/workflows/release.yml");
+        for (const args of [["master", "master"], ["0".repeat(40), "master"], [source, "missing-branch"], []]) {
+            assert.equal(parity(...args).status, 2, JSON.stringify(args));
+        }
+    } finally { rmSync(directory, { recursive: true }); }
 });
 
 test("stable workload publication requires untampered manual and automatic physical results", () => {

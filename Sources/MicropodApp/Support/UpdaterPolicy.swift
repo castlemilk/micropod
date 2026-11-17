@@ -11,8 +11,11 @@ struct UpdaterPolicy: Equatable, Sendable {
     static let workloadProtocolKey = "MicropodWorkloadProtocol"
     /// Enclosure attribute naming the workload protocol a feed item retains.
     static let enclosureWorkloadProtocolKey = "micropodWorkloadProtocol"
+    /// The workload protocol this binary's code speaks with retained services.
+    static let implementedWorkloadProtocol = 1
     /// The policy this binary implements, for bundles packaged without the keys.
-    static let fallback = UpdaterPolicy(minimumUpdateVersion: "0.13.6", workloadProtocol: 1)
+    static let fallback = UpdaterPolicy(
+        minimumUpdateVersion: "0.13.6", workloadProtocol: implementedWorkloadProtocol)
 
     /// The oldest installed version whose updater retains workload owners.
     let minimumUpdateVersion: String
@@ -31,6 +34,17 @@ struct UpdaterPolicy: Equatable, Sendable {
     }
 
     static var current: UpdaterPolicy? { packaged(Bundle.main.infoDictionary) }
+
+    /// Whether a bundle explicitly declares the workload protocol this code
+    /// implements. Unlike `packaged`, an absent key is not enough: a bundle
+    /// that does not declare the protocol must not adopt or retain services.
+    static func declaresImplementedWorkloadProtocol(_ info: [String: Any]?) -> Bool {
+        info?[workloadProtocolKey] as? Int == implementedWorkloadProtocol
+    }
+
+    static var bundleDeclaresImplementedWorkloadProtocol: Bool {
+        declaresImplementedWorkloadProtocol(Bundle.main.infoDictionary)
+    }
 
     /// Whether a feed item was published for this updater. Its floor must be a
     /// version no lower than ours, so items that would also admit updaters
@@ -55,7 +69,9 @@ struct UpdaterPolicy: Equatable, Sendable {
     }
 }
 
-/// A strict `major.minor.patch` release version.
+/// A strict, canonical `major.minor.patch` release version. Leading zeros are
+/// refused: released apps (0.13.6-0.13.8) compare the floor as an exact string,
+/// so "0.013.6" would mean something different to them.
 struct ReleaseVersion: Comparable, Sendable {
     let components: [Int]
 
@@ -64,7 +80,9 @@ struct ReleaseVersion: Comparable, Sendable {
         guard parts.count == 3 else { return nil }
         var components: [Int] = []
         for part in parts {
-            guard !part.isEmpty, part.allSatisfy({ $0.isASCII && $0.isNumber }), let value = Int(part) else {
+            guard !part.isEmpty, part.allSatisfy({ $0.isASCII && $0.isNumber }),
+                part == "0" || part.first != "0", let value = Int(part)
+            else {
                 return nil
             }
             components.append(value)

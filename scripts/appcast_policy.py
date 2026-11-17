@@ -14,8 +14,12 @@ ET.register_namespace("dc", "http://purl.org/dc/elements/1.1/")
 # with the publication verifier, the packaged Info.plist and the app.
 POLICY_PATH = pathlib.Path(__file__).resolve().parent.parent / "release" / "updater-policy.json"
 
+# Canonical major.minor.patch with no leading zeros: older apps compare the
+# floor as an exact string, so "0.013.6" would not mean "0.13.6" to them.
+CANONICAL_VERSION = r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+
 def parse_version(text):
-    if not isinstance(text, str) or not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", text):
+    if not isinstance(text, str) or not re.fullmatch(CANONICAL_VERSION, text):
         raise ValueError("invalid version " + repr(text))
     return tuple(map(int, text.split(".")))
 
@@ -57,7 +61,7 @@ def parse_feed(text):
 def update_feed(xml, options):
     root, channel, versions = parse_feed(xml)
     version = options["version"].removeprefix("v")
-    if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+    if not re.fullmatch(CANONICAL_VERSION, version):
         raise ValueError("invalid release version")
     url = options["url"]
     if urlparse(url).scheme != "https":

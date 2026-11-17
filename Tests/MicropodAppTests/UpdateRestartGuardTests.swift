@@ -290,12 +290,16 @@ final class UpdateRestartGuardTests: XCTestCase {
 
     func testUpdaterPolicyRejectsMalformedVersions() {
         let policy = UpdaterPolicy(minimumUpdateVersion: "0.13.6", workloadProtocol: 1)
-        for floor in [nil, "", "0.13", "0.13.6.1", "v0.13.6", "0.13.x", " 0.13.6", "0.13.6-beta", "0..13", "١.١٣.٦"] {
+        // Leading zeros are refused: released apps compare the floor as a string.
+        for floor in [
+            nil, "", "0.13", "0.13.6.1", "v0.13.6", "0.13.x", " 0.13.6", "0.13.6-beta", "0..13", "١.١٣.٦",
+            "0.013.6", "00.13.6", "0.13.06",
+        ] {
             XCTAssertFalse(
                 policy.admits(itemMinimumUpdateVersion: floor, itemWorkloadProtocol: "1", appVersion: "0.13.9"),
                 "floor \(floor ?? "nil")")
         }
-        for app in [nil, "", "?", "dev", "0.13"] {
+        for app in [nil, "", "?", "dev", "0.13", "0.013.9"] {
             XCTAssertFalse(
                 policy.admits(itemMinimumUpdateVersion: "0.13.6", itemWorkloadProtocol: "1", appVersion: app),
                 "app \(app ?? "nil")")
@@ -347,6 +351,27 @@ final class UpdateRestartGuardTests: XCTestCase {
         XCTAssertEqual(policy["schema"] as? Int, 1)
         XCTAssertEqual(policy["minimumUpdateVersion"] as? String, UpdaterPolicy.fallback.minimumUpdateVersion)
         XCTAssertEqual(policy["workloadProtocol"] as? Int, UpdaterPolicy.fallback.workloadProtocol)
+        XCTAssertEqual(policy["workloadProtocol"] as? Int, UpdaterPolicy.implementedWorkloadProtocol)
+    }
+
+    func testCanonicalVersionsKeepZeroComponentsAndRefuseLeadingZeros() {
+        XCTAssertNotNil(ReleaseVersion("0.0.0"))
+        XCTAssertNotNil(ReleaseVersion("1.10.0"))
+        for text in ["0.013.6", "01.0.0", "0.0.00"] { XCTAssertNil(ReleaseVersion(text), text) }
+        XCTAssertNil(UpdaterPolicy.packaged([UpdaterPolicy.minimumUpdateVersionKey: "0.013.6"]))
+    }
+
+    /// Service adoption and replacement verification need the key itself;
+    /// the compiled fallback is not a declaration.
+    func testOnlyAnExplicitDeclarationOfTheImplementedProtocolCounts() {
+        let key = UpdaterPolicy.workloadProtocolKey
+        XCTAssertTrue(
+            UpdaterPolicy.declaresImplementedWorkloadProtocol([key: UpdaterPolicy.implementedWorkloadProtocol]))
+        XCTAssertFalse(UpdaterPolicy.declaresImplementedWorkloadProtocol(nil))
+        XCTAssertFalse(UpdaterPolicy.declaresImplementedWorkloadProtocol([:]))
+        XCTAssertFalse(
+            UpdaterPolicy.declaresImplementedWorkloadProtocol([key: UpdaterPolicy.implementedWorkloadProtocol + 1]))
+        XCTAssertFalse(UpdaterPolicy.declaresImplementedWorkloadProtocol([key: "1"]))
     }
 }
 

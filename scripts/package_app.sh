@@ -53,7 +53,7 @@ python3 -c '
 import json, pathlib, plistlib, re, sys
 path, name, version, identifier, source, policy_path = sys.argv[1:]
 policy = json.loads(pathlib.Path(policy_path).read_text())
-if policy.get("schema") != 1 or not re.fullmatch(r"[0-9]+[.][0-9]+[.][0-9]+", str(policy.get("minimumUpdateVersion"))) \
+if policy.get("schema") != 1 or not re.fullmatch(r"(0|[1-9][0-9]*)[.](0|[1-9][0-9]*)[.](0|[1-9][0-9]*)", str(policy.get("minimumUpdateVersion"))) \
         or type(policy.get("workloadProtocol")) is not int or policy["workloadProtocol"] < 1:
     sys.exit("invalid updater policy: " + policy_path)
 metadata = {

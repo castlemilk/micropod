@@ -67,9 +67,10 @@ never overwrite a signed `Micropod.dmg` attached by a local run.
 The `sdk` job (proto drift check, Go/TypeScript/Swift SDK builds and the
 npm tarball) runs **in parallel** with the app build. `sdk-publish` then
 attaches the tarball and tags `sdk/go/vX.Y.Z` once the release exists, so a
-failed release never gets SDK artifacts. A qualified release gets its
-`sdk/go/vX.Y.Z` tag at the frozen source when it is published instead; its
-frozen asset set does not include the npm tarball.
+failed release never gets SDK artifacts. A qualified release reserves
+`sdk/go/vX.Y.Z` with `vX.Y.Z` at the dispatched master commit when
+qualification starts (a failed qualification returns both); its frozen asset
+set does not include the npm tarball.
 
 ### Where the time goes
 

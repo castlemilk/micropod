@@ -17,8 +17,10 @@ export function updaterPolicy(path = new URL("../release/updater-policy.json", i
     releaseVersion(policy.minimumUpdateVersion);
     return policy;
 }
+// Canonical major.minor.patch: no leading zeros, because released apps
+// (0.13.6-0.13.8) compare the floor as an exact string ("0.013.6" is not "0.13.6").
 function releaseVersion(text) {
-    if (typeof text !== "string" || !/^[0-9]+\.[0-9]+\.[0-9]+$/.test(text)) throw new Error(`invalid version ${text}`);
+    if (typeof text !== "string" || !/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(text)) throw new Error(`invalid version ${text}`);
     return text.split(".").map(Number);
 }
 function compareVersions(a, b) {

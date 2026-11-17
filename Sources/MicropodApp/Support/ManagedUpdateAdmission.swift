@@ -171,7 +171,7 @@ final class ManagedUpdateAdmission: UpdateAdmissionCoordinating {
             try receipt.owner.hasExited()
         else { throw MicropodError.message("The interrupted update needs verified recovery; its receipt was retained") }
         try RuntimeCodeIdentity.verifyExecutable(Bundle.main.bundleURL, identifier: "com.skunkworq.micropod")
-        guard Bundle.main.object(forInfoDictionaryKey: "MicropodWorkloadProtocol") as? Int == 1 else {
+        guard UpdaterPolicy.bundleDeclaresImplementedWorkloadProtocol else {
             throw MicropodError.message("The replacement does not support the retained workload protocol")
         }
         try receipt.verifyServices()
