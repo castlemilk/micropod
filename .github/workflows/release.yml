@@ -15,9 +15,10 @@ name: Release
 #   APPLE_TEAM_ID                for future verification
 #
 # Optional, as a secret of the protected release-publication environment:
-#   RELEASE_WORKFLOWS_TOKEN      token with Workflows: write, used only for the
-#                                release PATCH when a frozen source's workflows
-#                                differ from master (docs/qualified-release-publication.md)
+#   RELEASE_WORKFLOWS_TOKEN      token with Workflows: write, used only from
+#                                master for the Go module tag and release PATCH
+#                                when a frozen source's workflows differ from
+#                                master (docs/qualified-release-publication.md)
 
 on:
   push:
@@ -462,8 +463,9 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.publication_version != '' && inputs.qualification_version == ''
     needs: publication-inputs
     runs-on: ubuntu-latest
-    # The optional RELEASE_WORKFLOWS_TOKEN is an environment secret here, and
-    # is used only for the release PATCH (docs/qualified-release-publication.md).
+    # The optional RELEASE_WORKFLOWS_TOKEN is an environment secret here, used
+    # only from master for the Go module tag and the release PATCH
+    # (docs/qualified-release-publication.md).
     environment: release-publication
     env:
       VERSION: ${{ inputs.publication_version }}
