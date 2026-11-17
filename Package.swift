@@ -99,7 +99,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "MicropodAPI",
-            dependencies: ["MicropodCore", "MicropodRuntime"],
+            dependencies: ["MicropodCore", "MicropodRuntime", "MicropodBuildInfo"],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]

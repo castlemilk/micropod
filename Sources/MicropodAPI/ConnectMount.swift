@@ -32,6 +32,9 @@ extension APIHandlers {
         do {
             switch method {
             case "GetSystem":
+                if versionEnvironment.role == .connect, versionEnvironment.usesDedicatedRuntime() {
+                    return unary(try await dedicatedSystem())
+                }
                 var snapshot = Micropod_V1_SystemSnapshot()
                 var status = try await system.status()
                 status.runtimeBackend = services.kind.rawValue
@@ -41,10 +44,27 @@ extension APIHandlers {
                 if status.status != "stopped" {
                     snapshot.diskUsage = try await system.diskUsage()
                 }
+                let health = services.health
+                let manifest = await versionManifest(
+                    apple: AppleObservation(
+                        reported: status.apiServerVersion, commit: health?.apiServerCommit ?? "",
+                        state: status.status == "running" ? .running : .stopped,
+                        appRoot: (health?.appRoot ?? (status.appRoot.isEmpty ? nil : status.appRoot)).map {
+                            URL(fileURLWithPath: $0)
+                        },
+                        installRoot: health?.installRoot ?? (status.installRoot.isEmpty ? nil : status.installRoot)),
+                    digests: true)
+                manifest.apply(to: &snapshot)
                 return unary(snapshot)
 
             case "Ping":
+                if versionEnvironment.role == .connect, versionEnvironment.usesDedicatedRuntime() {
+                    return unary(try await dedicatedPing(services))
+                }
                 return unary(await ping(services))
+
+            case "GetUpdateState":
+                return unary(await currentUpdateState())
 
             case "ListRuntimes":
                 return unary(try await runtimes(services))
@@ -641,9 +661,16 @@ extension APIHandlers {
     /// `SystemService` already reports as a status when the daemon is down.
     private func ping(_ services: RuntimeServices) async -> Micropod_V1_PingResponse {
         var response = Micropod_V1_PingResponse()
-        if RuntimeAdmission.shared.isClosed {
+        if versionEnvironment.runtimeAdmission().isClosed {
             response.status = "maintenance"
             response.runtimeBackend = services.kind.rawValue
+            let manifest = await versionManifest(
+                apple: AppleObservation(
+                    reported: services.health?.apiServerVersion ?? "", commit: services.health?.apiServerCommit ?? "",
+                    state: .unknown, appRoot: services.health?.appRoot.map { URL(fileURLWithPath: $0) },
+                    detail: "Runtime maintenance has closed workload admission"),
+                digests: false)
+            manifest.apply(to: &response)
             return response
         }
 
@@ -658,30 +685,108 @@ extension APIHandlers {
             response.features.append(RuntimeCoordinationEnrollment.dataCapability)
         }
         response.defaultRuntime = EngineRegistry.shared.defaultName
+        var apple = AppleObservation(reported: "", state: .stopped)
         if let api = services.api {
-            if let health = try? await api.ping(timeout: .seconds(2)) {
+            let health = try? await api.ping(timeout: .seconds(2))
+            if let health {
                 response.status = "running"
                 response.apiServerVersion = health.apiServerVersion
             } else {
                 response.status = "stopped"
                 response.apiServerVersion = services.health?.apiServerVersion ?? ""
             }
+            let known = health ?? services.health
+            apple = AppleObservation(
+                reported: response.apiServerVersion, commit: known?.apiServerCommit ?? "",
+                state: health == nil ? .stopped : .running, appRoot: known?.appRoot.map { URL(fileURLWithPath: $0) },
+                installRoot: known?.installRoot)
             // Cached after the first call — no CLI spawn on the hot path.
             response.cliVersion = (try? await system.cliVersion()) ?? ""
+        } else {
+            do {
+                let status = try await system.status()
+                response.status = status.status
+                response.apiServerVersion = status.apiServerVersion
+                response.cliVersion = status.cliVersion
+                apple = AppleObservation(
+                    reported: status.apiServerVersion, state: status.status == "running" ? .running : .stopped,
+                    appRoot: status.appRoot.isEmpty ? nil : URL(fileURLWithPath: status.appRoot),
+                    installRoot: status.installRoot.isEmpty ? nil : status.installRoot)
+            } catch {
+                // A stopped runtime never gets here (it is a status); whatever
+                // did — timeout, missing CLI — means the runtime is not answering.
+                response.status = "stopped"
+                response.cliVersion = (try? await system.cliVersion()) ?? ""
+                apple.detail = "The runtime did not answer: \(error.localizedDescription)"
+            }
+        }
+        await versionManifest(apple: apple, digests: false).apply(to: &response)
+        return response
+    }
+
+    /// Ping in front of a dedicated runtime: its API reports the runtime and
+    /// its own components; this account adds the app, its updater and the
+    /// services it retains. While maintenance holds the runtime's admission
+    /// gate, the answer is `maintenance`, as on a desktop runtime.
+    private func dedicatedPing(_ services: RuntimeServices) async throws -> Micropod_V1_PingResponse {
+        let upstream: Micropod_V1_PingResponse
+        do {
+            upstream = try await dedicatedSystemCall("Ping", as: Micropod_V1_PingResponse.self, timeout: .seconds(5))
+        } catch {
+            guard versionEnvironment.runtimeAdmission().isClosed else {
+                throw ConnectDecodeError(
+                    code: .unavailable,
+                    message: "Managed runtime API unavailable; check runtime setup and maintenance: "
+                        + error.localizedDescription)
+            }
+            var response = Micropod_V1_PingResponse()
+            response.status = "maintenance"
+            response.runtimeBackend = services.kind.rawValue
+            await versionManifest(
+                apple: AppleObservation(
+                    reported: "", state: .unknown, detail: "Runtime maintenance has closed workload admission"),
+                digests: false
+            )
+            .merging(dedicated: [], protocolVersion: MicropodProtocol.apiVersion, peerProtocol: nil, appleReported: "")
+            .apply(to: &response)
             return response
         }
-        do {
-            let status = try await system.status()
-            response.status = status.status
-            response.apiServerVersion = status.apiServerVersion
-            response.cliVersion = status.cliVersion
-        } catch {
-            // A stopped runtime never gets here (it is a status); whatever
-            // did — timeout, missing CLI — means the runtime is not answering.
-            response.status = "stopped"
-            response.cliVersion = (try? await system.cliVersion()) ?? ""
-        }
+        var response = upstream
+        await versionManifest(
+            apple: AppleObservation(reported: upstream.apiServerVersion, state: .running), digests: false
+        )
+        .merging(
+            dedicated: upstream.components, protocolVersion: upstream.protocolVersion,
+            peerProtocol: upstream.hasPeerProtocol ? upstream.peerProtocol : nil,
+            appleReported: upstream.apiServerVersion
+        )
+        .apply(to: &response)
         return response
+    }
+
+    /// GetSystem in front of a dedicated runtime (see dedicatedPing).
+    private func dedicatedSystem() async throws -> Micropod_V1_SystemSnapshot {
+        let upstream: Micropod_V1_SystemSnapshot
+        do {
+            upstream = try await dedicatedSystemCall(
+                "GetSystem", as: Micropod_V1_SystemSnapshot.self, timeout: .seconds(60))
+        } catch {
+            throw ConnectDecodeError(
+                code: .unavailable,
+                message: "Managed runtime API unavailable; check runtime setup and maintenance: "
+                    + error.localizedDescription)
+        }
+        var snapshot = upstream
+        await versionManifest(
+            apple: AppleObservation(reported: upstream.status.apiServerVersion, state: .running), digests: true
+        )
+        .merging(
+            dedicated: upstream.components, protocolVersion: upstream.protocolVersion,
+            peerProtocol: upstream.hasPeerProtocol ? upstream.peerProtocol : nil,
+            appleReported: upstream.status.apiServerVersion
+        )
+        .apply(to: &snapshot)
+        return snapshot
     }
 
     private func code(for error: Error) -> ConnectWireCode {
@@ -1272,7 +1377,7 @@ extension APIHandlers {
     /// App-control statusReport dictionary → typed UpdateStatus. Unknown
     /// keys are ignored so the app can extend the report without a
     /// coordinated daemon bump.
-    private func updateStatus(from report: [String: Any]) -> Micropod_V1_UpdateStatus {
+    func updateStatus(from report: [String: Any]) -> Micropod_V1_UpdateStatus {
         Micropod_V1_UpdateStatus.with { proto in
             switch report["state"] as? String {
             case "unavailable": proto.state = .unavailable
@@ -1291,11 +1396,36 @@ extension APIHandlers {
             proto.downloaded = (report["downloaded"] as? Bool) ?? false
             if let v = report["downloadedVersion"] as? String { proto.downloadedVersion = v }
             proto.readyToInstall = (report["readyToInstall"] as? Bool) ?? false
-            // Older typed clients have one diagnostic field. Preserve the
-            // admission blocker there rather than silently discarding it.
-            proto.error = [report["error"] as? String, report["restartBlockedReason"] as? String]
-                .compactMap { $0 }.joined(separator: " — ")
+            // The blocker has its own field (and shapes update_state); `error`
+            // is the updater's own failure only.
+            if let v = report["error"] as? String { proto.error = v }
             if let v = report["checkedAt"] as? String { proto.checkedAt = v }
+            proto.updateState = UpdateStateResolver.desktop(report: report)
+            if let v = report["restartBlockedReason"] as? String { proto.restartBlockedReason = v }
+            if let v = report["restartGuard"] as? String { proto.restartGuard = v }
+            if let v = report["channel"] as? String { proto.channel = v }
+            if let v = report["workloadProtocol"] as? Int, v >= 0 { proto.workloadProtocol = UInt32(v) }
+            proto.payloadCompatible = (report["payloadCompatible"] as? Bool) ?? false
+            if let v = report["currentSourceRevision"] as? String { proto.currentSourceRevision = v }
+            if let v = report["desktopAdmission"] as? String { proto.desktopAdmission = v }
+            if let v = report["updateScope"] as? String { proto.updateScope = v }
+            if let v = report["recoveryError"] as? String { proto.recoveryError = v }
+            if let transaction = report["transaction"] as? [String: Any] {
+                proto.transaction = updateTransaction(from: transaction)
+            }
+        }
+    }
+
+    /// The durable receipt as the app encodes it (UpdateContinuityReceipt).
+    private func updateTransaction(from receipt: [String: Any]) -> Micropod_V1_UpdateTransaction {
+        Micropod_V1_UpdateTransaction.with { proto in
+            if let v = receipt["operation"] as? String { proto.operationID = v }
+            if let v = receipt["phase"] as? String { proto.phase = v }
+            if let v = receipt["sourceVersion"] as? String { proto.sourceVersion = v }
+            if let v = receipt["targetVersion"] as? String { proto.targetVersion = v }
+            if let v = receipt["targetSourceRevision"] as? String { proto.targetSourceRevision = v }
+            if let v = receipt["detail"] as? String { proto.detail = v }
+            if let v = UpdateStateResolver.timestamp(receipt["updatedAt"]) { proto.updatedAt = v }
         }
     }
 }

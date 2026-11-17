@@ -13,6 +13,9 @@ updater_info="$updater_bundle/Contents/Info.plist"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :SUAllowsAutomaticUpdates' "$updater_info")" = true ]]
 updater_setup="$updater_bundle/Contents/Helpers/Micropod Runtime Setup.app"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$updater_setup/Contents/Info.plist")" = com.skunkworq.micropod.runtime-setup ]]
+# The setup app reports the release it shipped in (Ping's setup-helper component).
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$updater_setup/Contents/Info.plist")" = "$updater_version" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :MicropodSourceRevision' "$updater_setup/Contents/Info.plist")" = "$updater_source" ]]
 [[ -x "$updater_setup/Contents/MacOS/MicropodRuntimeHost" ]]
 [[ -x "$updater_setup/Contents/MacOS/MicropodAPI" ]]
 [[ -f "$updater_setup/Contents/Resources/micropod-guest" ]]

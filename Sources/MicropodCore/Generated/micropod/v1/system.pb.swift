@@ -206,22 +206,37 @@ public nonisolated struct Micropod_V1_SetDefaultRuntimeRequest: Sendable {
 }
 
 /// Cheap liveness reply for detection and health ticks (see Ping).
-public nonisolated struct Micropod_V1_PingResponse: Sendable {
+public nonisolated struct Micropod_V1_PingResponse: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// "running" or "stopped".
-  public var status: String = String()
+  public var status: String {
+    get {_storage._status}
+    set {_uniqueStorage()._status = newValue}
+  }
 
   /// Backend the API server is currently driving: "native" (XPC) or "cli".
-  public var runtimeBackend: String = String()
+  public var runtimeBackend: String {
+    get {_storage._runtimeBackend}
+    set {_uniqueStorage()._runtimeBackend = newValue}
+  }
 
-  /// Version of the embedded API server.
-  public var apiServerVersion: String = String()
+  /// Version of Apple's `container` apiserver (the runtime engine), as it
+  /// reports it: a bare release ("1.5.0") or, through 1.3.x, its banner.
+  /// Not Micropod's version — that is `micropod_version`. Kept under this
+  /// name for existing clients; new clients read `apple_api_server_version`.
+  public var apiServerVersion: String {
+    get {_storage._apiServerVersion}
+    set {_uniqueStorage()._apiServerVersion = newValue}
+  }
 
   /// Version of the bundled `container` CLI.
-  public var cliVersion: String = String()
+  public var cliVersion: String {
+    get {_storage._cliVersion}
+    set {_uniqueStorage()._cliVersion = newValue}
+  }
 
   /// Optional request capabilities this server honours, so clients can
   /// detect them instead of sending fields an older server would silently
@@ -229,11 +244,128 @@ public nonisolated struct Micropod_V1_PingResponse: Sendable {
   /// `RunContainerRequest` field names: "cap_add", "cap_drop", "rosetta",
   /// "privileged", and "init_image" on the native backend. Empty on servers
   /// that predate the list.
-  public var features: [String] = []
+  public var features: [String] {
+    get {_storage._features}
+    set {_uniqueStorage()._features = newValue}
+  }
 
   /// Engine RunContainer uses when `runtime` is unset (see ListRuntimes).
   /// Empty on servers that predate engine selection.
-  public var defaultRuntime: String = String()
+  public var defaultRuntime: String {
+    get {_storage._defaultRuntime}
+    set {_uniqueStorage()._defaultRuntime = newValue}
+  }
+
+  /// Micropod release of the API server that answered ("dev" for a local
+  /// build). Empty on servers that predate the version manifest.
+  public var micropodVersion: String {
+    get {_storage._micropodVersion}
+    set {_uniqueStorage()._micropodVersion = newValue}
+  }
+
+  /// Git revision that release was built from, or "unknown".
+  public var sourceRevision: String {
+    get {_storage._sourceRevision}
+    set {_uniqueStorage()._sourceRevision = newValue}
+  }
+
+  /// Revision of the Micropod API contract this server implements. It only
+  /// changes when a peer must change behaviour to stay correct; additive
+  /// fields do not change it. 0 on servers that predate it.
+  public var protocolVersion: UInt32 {
+    get {_storage._protocolVersion}
+    set {_uniqueStorage()._protocolVersion = newValue}
+  }
+
+  /// Runtime coordination protocol versions this server can speak with a
+  /// rig controller such as Cuttlefish.
+  public var peerProtocol: Micropod_V1_ProtocolRange {
+    get {_storage._peerProtocol ?? Micropod_V1_ProtocolRange()}
+    set {_uniqueStorage()._peerProtocol = newValue}
+  }
+  /// Returns true if `peerProtocol` has been explicitly set.
+  public var hasPeerProtocol: Bool {_storage._peerProtocol != nil}
+  /// Clears the value of `peerProtocol`. Subsequent reads from it will return its default value.
+  public mutating func clearPeerProtocol() {_uniqueStorage()._peerProtocol = nil}
+
+  /// Every Micropod component this server can observe, with what it is
+  /// running. Ping leaves `sha256` empty; GetSystem fills it.
+  public var components: [Micropod_V1_ComponentVersion] {
+    get {_storage._components}
+    set {_uniqueStorage()._components = newValue}
+  }
+
+  /// Where this Micropod is in its update lifecycle (see GetUpdateState).
+  public var updateState: Micropod_V1_UpdateState {
+    get {_storage._updateState ?? Micropod_V1_UpdateState()}
+    set {_uniqueStorage()._updateState = newValue}
+  }
+  /// Returns true if `updateState` has been explicitly set.
+  public var hasUpdateState: Bool {_storage._updateState != nil}
+  /// Clears the value of `updateState`. Subsequent reads from it will return its default value.
+  public mutating func clearUpdateState() {_uniqueStorage()._updateState = nil}
+
+  /// Same value as `api_server_version`, under a name that says whose
+  /// version it is.
+  public var appleApiServerVersion: String {
+    get {_storage._appleApiServerVersion}
+    set {_uniqueStorage()._appleApiServerVersion = newValue}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+/// A contiguous range of protocol versions, inclusive.
+public nonisolated struct Micropod_V1_ProtocolRange: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Protocol family, e.g. "micropod-runtime-coordination".
+  public var name: String = String()
+
+  /// Oldest version this server accepts.
+  public var minVersion: UInt32 = 0
+
+  /// Newest version this server speaks.
+  public var maxVersion: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// One installed or running piece of Micropod, as the answering server
+/// observed it. A value it could not read is "unknown", never a guess.
+public nonisolated struct Micropod_V1_ComponentVersion: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// "app", "connect-api", "dedicated-api", "setup-helper", "docker-shim",
+  /// "shared-fs", "apple-runtime", "vminit", "guest" or "kernel".
+  public var name: String = String()
+
+  /// Release the component reports, or "unknown".
+  public var version: String = String()
+
+  /// Source revision it was built from, or "unknown".
+  public var revision: String = String()
+
+  /// SHA-256 of its executable or payload, hex. Empty when not computed
+  /// (always on Ping) or not readable.
+  public var sha256: String = String()
+
+  /// "running", "stopped", "installed", "missing", "not_configured" or
+  /// "unknown".
+  public var state: String = String()
+
+  /// Where it was read from, or why it could not be.
+  public var detail: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -265,6 +397,50 @@ public nonisolated struct Micropod_V1_SystemSnapshot: @unchecked Sendable {
   /// Clears the value of `diskUsage`. Subsequent reads from it will return its default value.
   public mutating func clearDiskUsage() {_uniqueStorage()._diskUsage = nil}
 
+  /// Micropod release of the API server that answered (see PingResponse).
+  public var micropodVersion: String {
+    get {_storage._micropodVersion}
+    set {_uniqueStorage()._micropodVersion = newValue}
+  }
+
+  /// Git revision that release was built from, or "unknown".
+  public var sourceRevision: String {
+    get {_storage._sourceRevision}
+    set {_uniqueStorage()._sourceRevision = newValue}
+  }
+
+  /// Revision of the Micropod API contract (see PingResponse).
+  public var protocolVersion: UInt32 {
+    get {_storage._protocolVersion}
+    set {_uniqueStorage()._protocolVersion = newValue}
+  }
+
+  /// Runtime coordination protocol versions this server can speak.
+  public var peerProtocol: Micropod_V1_ProtocolRange {
+    get {_storage._peerProtocol ?? Micropod_V1_ProtocolRange()}
+    set {_uniqueStorage()._peerProtocol = newValue}
+  }
+  /// Returns true if `peerProtocol` has been explicitly set.
+  public var hasPeerProtocol: Bool {_storage._peerProtocol != nil}
+  /// Clears the value of `peerProtocol`. Subsequent reads from it will return its default value.
+  public mutating func clearPeerProtocol() {_uniqueStorage()._peerProtocol = nil}
+
+  /// Every component this server can observe, with `sha256` where cheap.
+  public var components: [Micropod_V1_ComponentVersion] {
+    get {_storage._components}
+    set {_uniqueStorage()._components = newValue}
+  }
+
+  /// Where this Micropod is in its update lifecycle (see GetUpdateState).
+  public var updateState: Micropod_V1_UpdateState {
+    get {_storage._updateState ?? Micropod_V1_UpdateState()}
+    set {_uniqueStorage()._updateState = newValue}
+  }
+  /// Returns true if `updateState` has been explicitly set.
+  public var hasUpdateState: Bool {_storage._updateState != nil}
+  /// Clears the value of `updateState`. Subsequent reads from it will return its default value.
+  public mutating func clearUpdateState() {_uniqueStorage()._updateState = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -287,7 +463,9 @@ public nonisolated struct Micropod_V1_SystemStatus: Sendable {
   /// Runtime install root (binaries, kernels, images).
   public var installRoot: String = String()
 
-  /// Version of the embedded API server.
+  /// Version of Apple's `container` apiserver (the runtime engine), as it
+  /// reports it. Not Micropod's version — see SystemSnapshot.micropod_version.
+  /// New clients read `apple_api_server_version`.
   public var apiServerVersion: String = String()
 
   /// Version of the bundled `container` CLI.
@@ -295,6 +473,10 @@ public nonisolated struct Micropod_V1_SystemStatus: Sendable {
 
   /// Backend the API server is currently driving: "native" (XPC) or "cli".
   public var runtimeBackend: String = String()
+
+  /// Same value as `api_server_version`, under a name that says whose
+  /// version it is.
+  public var appleApiServerVersion: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -573,37 +755,143 @@ public nonisolated struct Micropod_V1_UsageReport: Sendable {
 
 /// Desktop-app updater status (Sparkle), proxied over the app control
 /// socket. Reported by CheckForUpdates, GetUpdateStatus, and ApplyUpdate.
-public nonisolated struct Micropod_V1_UpdateStatus: Sendable {
+public nonisolated struct Micropod_V1_UpdateStatus: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Updater lifecycle state.
-  public var state: Micropod_V1_UpdateStatus.State = .unspecified
+  public var state: Micropod_V1_UpdateStatus.State {
+    get {_storage._state}
+    set {_uniqueStorage()._state = newValue}
+  }
 
   /// Whether a Sparkle feed URL is configured.
-  public var feedConfigured: Bool = false
+  public var feedConfigured: Bool {
+    get {_storage._feedConfigured}
+    set {_uniqueStorage()._feedConfigured = newValue}
+  }
 
   /// Currently running app version.
-  public var currentVersion: String = String()
+  public var currentVersion: String {
+    get {_storage._currentVersion}
+    set {_uniqueStorage()._currentVersion = newValue}
+  }
 
   /// Version available on the feed, if an update was found.
-  public var availableVersion: String = String()
+  public var availableVersion: String {
+    get {_storage._availableVersion}
+    set {_uniqueStorage()._availableVersion = newValue}
+  }
 
   /// True once an update has finished downloading.
-  public var downloaded: Bool = false
+  public var downloaded: Bool {
+    get {_storage._downloaded}
+    set {_uniqueStorage()._downloaded = newValue}
+  }
 
   /// Version staged for install.
-  public var downloadedVersion: String = String()
+  public var downloadedVersion: String {
+    get {_storage._downloadedVersion}
+    set {_uniqueStorage()._downloadedVersion = newValue}
+  }
 
   /// True when ApplyUpdate will succeed immediately.
-  public var readyToInstall: Bool = false
+  public var readyToInstall: Bool {
+    get {_storage._readyToInstall}
+    set {_uniqueStorage()._readyToInstall = newValue}
+  }
 
   /// Last updater error, when `state` is STATE_ERROR.
-  public var error: String = String()
+  public var error: String {
+    get {_storage._error}
+    set {_uniqueStorage()._error = newValue}
+  }
 
   /// ISO8601 time of the last completed check.
-  public var checkedAt: String = String()
+  public var checkedAt: String {
+    get {_storage._checkedAt}
+    set {_uniqueStorage()._checkedAt = newValue}
+  }
+
+  /// The same lifecycle as one state (see GetUpdateState).
+  public var updateState: Micropod_V1_UpdateState {
+    get {_storage._updateState ?? Micropod_V1_UpdateState()}
+    set {_uniqueStorage()._updateState = newValue}
+  }
+  /// Returns true if `updateState` has been explicitly set.
+  public var hasUpdateState: Bool {_storage._updateState != nil}
+  /// Clears the value of `updateState`. Subsequent reads from it will return its default value.
+  public mutating func clearUpdateState() {_uniqueStorage()._updateState = nil}
+
+  /// Why installation cannot proceed now, when it cannot. Older servers
+  /// appended this to `error`.
+  public var restartBlockedReason: String {
+    get {_storage._restartBlockedReason}
+    set {_uniqueStorage()._restartBlockedReason = newValue}
+  }
+
+  /// The workload-owner admission guard: "unavailable", "idle", "preparing",
+  /// "prepared", "installationStarted", "blocked" or "recoveryRequired".
+  public var restartGuard: String {
+    get {_storage._restartGuard}
+    set {_uniqueStorage()._restartGuard = newValue}
+  }
+
+  /// Update channel: "stable" or "qualification".
+  public var channel: String {
+    get {_storage._channel}
+    set {_uniqueStorage()._channel = newValue}
+  }
+
+  /// Workload-continuity protocol the running app speaks with its retained
+  /// services.
+  public var workloadProtocol: UInt32 {
+    get {_storage._workloadProtocol}
+    set {_uniqueStorage()._workloadProtocol = newValue}
+  }
+
+  /// Whether the offered release carries a payload this app can install
+  /// without replacing its retained services.
+  public var payloadCompatible: Bool {
+    get {_storage._payloadCompatible}
+    set {_uniqueStorage()._payloadCompatible = newValue}
+  }
+
+  /// Source revision of the running app, or "unknown".
+  public var currentSourceRevision: String {
+    get {_storage._currentSourceRevision}
+    set {_uniqueStorage()._currentSourceRevision = newValue}
+  }
+
+  /// The durable update transaction, when one was ever recorded.
+  public var transaction: Micropod_V1_UpdateTransaction {
+    get {_storage._transaction ?? Micropod_V1_UpdateTransaction()}
+    set {_uniqueStorage()._transaction = newValue}
+  }
+  /// Returns true if `transaction` has been explicitly set.
+  public var hasTransaction: Bool {_storage._transaction != nil}
+  /// Clears the value of `transaction`. Subsequent reads from it will return its default value.
+  public mutating func clearTransaction() {_uniqueStorage()._transaction = nil}
+
+  /// Desktop admission gate: "open" or "closed" (closed while an update
+  /// holds the desktop).
+  public var desktopAdmission: String {
+    get {_storage._desktopAdmission}
+    set {_uniqueStorage()._desktopAdmission = newValue}
+  }
+
+  /// What an update replaces and what it retains.
+  public var updateScope: String {
+    get {_storage._updateScope}
+    set {_uniqueStorage()._updateScope = newValue}
+  }
+
+  /// Why the durable transaction could not be read, when it could not.
+  public var recoveryError: String {
+    get {_storage._recoveryError}
+    set {_uniqueStorage()._recoveryError = newValue}
+  }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -684,6 +972,167 @@ public nonisolated struct Micropod_V1_UpdateStatus: Sendable {
       .installing,
       .error,
       .readyToInstall,
+    ]
+
+  }
+
+  public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+/// The app's durable update transaction (~/.micropod/updates).
+public nonisolated struct Micropod_V1_UpdateTransaction: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Transaction identifier.
+  public var operationID: String = String()
+
+  /// "prepared", "downloading", "extracting", "downloadRejected",
+  /// "installing", "succeeded", "aborted" or "recoveryRequired".
+  public var phase: String = String()
+
+  /// Version the transaction started from.
+  public var sourceVersion: String = String()
+
+  /// Version it installs.
+  public var targetVersion: String = String()
+
+  /// Source revision of the target release.
+  public var targetSourceRevision: String = String()
+
+  /// Why it reached its phase, when recorded.
+  public var detail: String = String()
+
+  /// ISO8601 time of the last phase change.
+  public var updatedAt: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// One read-only answer to "what is this Micropod running, and where is
+/// its update?". Derived from the updater's durable transaction, its guard
+/// and the runtime admission gate; nothing here is inferred from timing.
+public nonisolated struct Micropod_V1_UpdateState: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Lifecycle position.
+  public var kind: Micropod_V1_UpdateState.Kind = .unspecified
+
+  /// Which updater this describes: "desktop" (the app and its linked tools)
+  /// or "runtime" (maintenance of the dedicated runtime and its API).
+  public var scope: String = String()
+
+  /// For KIND_UPGRADING: "preparing", "prepared", "downloading",
+  /// "extracting", "installing", or "runtime-maintenance" (scope "runtime").
+  public var phase: String = String()
+
+  /// Why, for KIND_ROLLED_BACK, KIND_BLOCKED, KIND_RECOVERY_REQUIRED and
+  /// KIND_UNKNOWN; for KIND_CURRENT, the last updater error, if any.
+  public var reason: String = String()
+
+  /// Release running now, or "unknown".
+  public var currentVersion: String = String()
+
+  /// Release being staged, installed, blocked or rolled back.
+  public var targetVersion: String = String()
+
+  /// Newer release the feed offers, when known.
+  public var availableVersion: String = String()
+
+  /// Transaction (scope "desktop") or maintenance operation (scope
+  /// "runtime") this state belongs to.
+  public var operationID: String = String()
+
+  /// ISO8601 time the transaction last changed, when known.
+  public var updatedAt: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  /// Lifecycle position.
+  public nonisolated enum Kind: SwiftProtobuf.Enum, Swift.CaseIterable {
+    public typealias RawValue = Int
+
+    /// Not reported: the server predates UpdateState.
+    case unspecified // = 0
+
+    /// Running its installed release with nothing staged or in flight.
+    /// `available_version` is set when the feed offers a newer release.
+    case current // = 1
+
+    /// A verified update is downloaded and staged; a restart installs
+    /// `target_version`.
+    case staged // = 2
+
+    /// A transaction is in flight; `phase` says where.
+    case upgrading // = 3
+
+    /// The last transaction was abandoned before it took effect, and
+    /// `current_version` kept running; `reason` says why. Replaced by the
+    /// next transaction's state.
+    case rolledBack // = 4
+
+    /// An update cannot proceed; `reason` says why. Nothing was changed.
+    case blocked // = 5
+
+    /// A transaction's outcome is unknown. It holds until a verified
+    /// reconciliation (`micropod update recover`, or `micropod runtime
+    /// recover` for scope "runtime"); `reason` says what is retained.
+    case recoveryRequired // = 6
+
+    /// The answering server cannot observe this updater (for example the
+    /// desktop app is not running); `reason` says why.
+    case unknown // = 7
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .unspecified
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .unspecified
+      case 1: self = .current
+      case 2: self = .staged
+      case 3: self = .upgrading
+      case 4: self = .rolledBack
+      case 5: self = .blocked
+      case 6: self = .recoveryRequired
+      case 7: self = .unknown
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .unspecified: return 0
+      case .current: return 1
+      case .staged: return 2
+      case .upgrading: return 3
+      case .rolledBack: return 4
+      case .blocked: return 5
+      case .recoveryRequired: return 6
+      case .unknown: return 7
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+    // The compiler won't synthesize support with the UNRECOGNIZED case.
+    public static let allCases: [Micropod_V1_UpdateState.Kind] = [
+      .unspecified,
+      .current,
+      .staged,
+      .upgrading,
+      .rolledBack,
+      .blocked,
+      .recoveryRequired,
+      .unknown,
     ]
 
   }
@@ -1031,7 +1480,161 @@ nonisolated extension Micropod_V1_SetDefaultRuntimeRequest: SwiftProtobuf.Messag
 
 nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PingResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}runtime_backend\0\u{3}api_server_version\0\u{3}cli_version\0\u{1}features\0\u{3}default_runtime\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}runtime_backend\0\u{3}api_server_version\0\u{3}cli_version\0\u{1}features\0\u{3}default_runtime\0\u{3}micropod_version\0\u{3}source_revision\0\u{3}protocol_version\0\u{3}peer_protocol\0\u{1}components\0\u{3}update_state\0\u{3}apple_api_server_version\0")
+
+  fileprivate class _StorageClass {
+    var _status: String = String()
+    var _runtimeBackend: String = String()
+    var _apiServerVersion: String = String()
+    var _cliVersion: String = String()
+    var _features: [String] = []
+    var _defaultRuntime: String = String()
+    var _micropodVersion: String = String()
+    var _sourceRevision: String = String()
+    var _protocolVersion: UInt32 = 0
+    var _peerProtocol: Micropod_V1_ProtocolRange? = nil
+    var _components: [Micropod_V1_ComponentVersion] = []
+    var _updateState: Micropod_V1_UpdateState? = nil
+    var _appleApiServerVersion: String = String()
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _status = source._status
+      _runtimeBackend = source._runtimeBackend
+      _apiServerVersion = source._apiServerVersion
+      _cliVersion = source._cliVersion
+      _features = source._features
+      _defaultRuntime = source._defaultRuntime
+      _micropodVersion = source._micropodVersion
+      _sourceRevision = source._sourceRevision
+      _protocolVersion = source._protocolVersion
+      _peerProtocol = source._peerProtocol
+      _components = source._components
+      _updateState = source._updateState
+      _appleApiServerVersion = source._appleApiServerVersion
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularStringField(value: &_storage._status) }()
+        case 2: try { try decoder.decodeSingularStringField(value: &_storage._runtimeBackend) }()
+        case 3: try { try decoder.decodeSingularStringField(value: &_storage._apiServerVersion) }()
+        case 4: try { try decoder.decodeSingularStringField(value: &_storage._cliVersion) }()
+        case 5: try { try decoder.decodeRepeatedStringField(value: &_storage._features) }()
+        case 6: try { try decoder.decodeSingularStringField(value: &_storage._defaultRuntime) }()
+        case 7: try { try decoder.decodeSingularStringField(value: &_storage._micropodVersion) }()
+        case 8: try { try decoder.decodeSingularStringField(value: &_storage._sourceRevision) }()
+        case 9: try { try decoder.decodeSingularUInt32Field(value: &_storage._protocolVersion) }()
+        case 10: try { try decoder.decodeSingularMessageField(value: &_storage._peerProtocol) }()
+        case 11: try { try decoder.decodeRepeatedMessageField(value: &_storage._components) }()
+        case 12: try { try decoder.decodeSingularMessageField(value: &_storage._updateState) }()
+        case 13: try { try decoder.decodeSingularStringField(value: &_storage._appleApiServerVersion) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if !_storage._status.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._status, fieldNumber: 1)
+      }
+      if !_storage._runtimeBackend.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._runtimeBackend, fieldNumber: 2)
+      }
+      if !_storage._apiServerVersion.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._apiServerVersion, fieldNumber: 3)
+      }
+      if !_storage._cliVersion.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._cliVersion, fieldNumber: 4)
+      }
+      if !_storage._features.isEmpty {
+        try visitor.visitRepeatedStringField(value: _storage._features, fieldNumber: 5)
+      }
+      if !_storage._defaultRuntime.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._defaultRuntime, fieldNumber: 6)
+      }
+      if !_storage._micropodVersion.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._micropodVersion, fieldNumber: 7)
+      }
+      if !_storage._sourceRevision.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._sourceRevision, fieldNumber: 8)
+      }
+      if _storage._protocolVersion != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._protocolVersion, fieldNumber: 9)
+      }
+      try { if let v = _storage._peerProtocol {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+      } }()
+      if !_storage._components.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._components, fieldNumber: 11)
+      }
+      try { if let v = _storage._updateState {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
+      } }()
+      if !_storage._appleApiServerVersion.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._appleApiServerVersion, fieldNumber: 13)
+      }
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_PingResponse, rhs: Micropod_V1_PingResponse) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._status != rhs_storage._status {return false}
+        if _storage._runtimeBackend != rhs_storage._runtimeBackend {return false}
+        if _storage._apiServerVersion != rhs_storage._apiServerVersion {return false}
+        if _storage._cliVersion != rhs_storage._cliVersion {return false}
+        if _storage._features != rhs_storage._features {return false}
+        if _storage._defaultRuntime != rhs_storage._defaultRuntime {return false}
+        if _storage._micropodVersion != rhs_storage._micropodVersion {return false}
+        if _storage._sourceRevision != rhs_storage._sourceRevision {return false}
+        if _storage._protocolVersion != rhs_storage._protocolVersion {return false}
+        if _storage._peerProtocol != rhs_storage._peerProtocol {return false}
+        if _storage._components != rhs_storage._components {return false}
+        if _storage._updateState != rhs_storage._updateState {return false}
+        if _storage._appleApiServerVersion != rhs_storage._appleApiServerVersion {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_ProtocolRange: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ProtocolRange"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{3}min_version\0\u{3}max_version\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1039,46 +1642,86 @@ nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProt
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.status) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.runtimeBackend) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self.apiServerVersion) }()
-      case 4: try { try decoder.decodeSingularStringField(value: &self.cliVersion) }()
-      case 5: try { try decoder.decodeRepeatedStringField(value: &self.features) }()
-      case 6: try { try decoder.decodeSingularStringField(value: &self.defaultRuntime) }()
+      case 1: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.minVersion) }()
+      case 3: try { try decoder.decodeSingularUInt32Field(value: &self.maxVersion) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.status.isEmpty {
-      try visitor.visitSingularStringField(value: self.status, fieldNumber: 1)
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
     }
-    if !self.runtimeBackend.isEmpty {
-      try visitor.visitSingularStringField(value: self.runtimeBackend, fieldNumber: 2)
+    if self.minVersion != 0 {
+      try visitor.visitSingularUInt32Field(value: self.minVersion, fieldNumber: 2)
     }
-    if !self.apiServerVersion.isEmpty {
-      try visitor.visitSingularStringField(value: self.apiServerVersion, fieldNumber: 3)
-    }
-    if !self.cliVersion.isEmpty {
-      try visitor.visitSingularStringField(value: self.cliVersion, fieldNumber: 4)
-    }
-    if !self.features.isEmpty {
-      try visitor.visitRepeatedStringField(value: self.features, fieldNumber: 5)
-    }
-    if !self.defaultRuntime.isEmpty {
-      try visitor.visitSingularStringField(value: self.defaultRuntime, fieldNumber: 6)
+    if self.maxVersion != 0 {
+      try visitor.visitSingularUInt32Field(value: self.maxVersion, fieldNumber: 3)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Micropod_V1_PingResponse, rhs: Micropod_V1_PingResponse) -> Bool {
-    if lhs.status != rhs.status {return false}
-    if lhs.runtimeBackend != rhs.runtimeBackend {return false}
-    if lhs.apiServerVersion != rhs.apiServerVersion {return false}
-    if lhs.cliVersion != rhs.cliVersion {return false}
-    if lhs.features != rhs.features {return false}
-    if lhs.defaultRuntime != rhs.defaultRuntime {return false}
+  public static func ==(lhs: Micropod_V1_ProtocolRange, rhs: Micropod_V1_ProtocolRange) -> Bool {
+    if lhs.name != rhs.name {return false}
+    if lhs.minVersion != rhs.minVersion {return false}
+    if lhs.maxVersion != rhs.maxVersion {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_ComponentVersion: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ComponentVersion"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}version\0\u{1}revision\0\u{1}sha256\0\u{1}state\0\u{1}detail\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.version) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.revision) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.sha256) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.state) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.detail) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
+    }
+    if !self.version.isEmpty {
+      try visitor.visitSingularStringField(value: self.version, fieldNumber: 2)
+    }
+    if !self.revision.isEmpty {
+      try visitor.visitSingularStringField(value: self.revision, fieldNumber: 3)
+    }
+    if !self.sha256.isEmpty {
+      try visitor.visitSingularStringField(value: self.sha256, fieldNumber: 4)
+    }
+    if !self.state.isEmpty {
+      try visitor.visitSingularStringField(value: self.state, fieldNumber: 5)
+    }
+    if !self.detail.isEmpty {
+      try visitor.visitSingularStringField(value: self.detail, fieldNumber: 6)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_ComponentVersion, rhs: Micropod_V1_ComponentVersion) -> Bool {
+    if lhs.name != rhs.name {return false}
+    if lhs.version != rhs.version {return false}
+    if lhs.revision != rhs.revision {return false}
+    if lhs.sha256 != rhs.sha256 {return false}
+    if lhs.state != rhs.state {return false}
+    if lhs.detail != rhs.detail {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1086,11 +1729,17 @@ nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProt
 
 nonisolated extension Micropod_V1_SystemSnapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SystemSnapshot"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}disk_usage\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}disk_usage\0\u{3}micropod_version\0\u{3}source_revision\0\u{3}protocol_version\0\u{3}peer_protocol\0\u{1}components\0\u{3}update_state\0")
 
   fileprivate class _StorageClass {
     var _status: Micropod_V1_SystemStatus? = nil
     var _diskUsage: Micropod_V1_DiskUsage? = nil
+    var _micropodVersion: String = String()
+    var _sourceRevision: String = String()
+    var _protocolVersion: UInt32 = 0
+    var _peerProtocol: Micropod_V1_ProtocolRange? = nil
+    var _components: [Micropod_V1_ComponentVersion] = []
+    var _updateState: Micropod_V1_UpdateState? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1103,6 +1752,12 @@ nonisolated extension Micropod_V1_SystemSnapshot: SwiftProtobuf.Message, SwiftPr
     init(copying source: _StorageClass) {
       _status = source._status
       _diskUsage = source._diskUsage
+      _micropodVersion = source._micropodVersion
+      _sourceRevision = source._sourceRevision
+      _protocolVersion = source._protocolVersion
+      _peerProtocol = source._peerProtocol
+      _components = source._components
+      _updateState = source._updateState
     }
   }
 
@@ -1123,6 +1778,12 @@ nonisolated extension Micropod_V1_SystemSnapshot: SwiftProtobuf.Message, SwiftPr
         switch fieldNumber {
         case 1: try { try decoder.decodeSingularMessageField(value: &_storage._status) }()
         case 2: try { try decoder.decodeSingularMessageField(value: &_storage._diskUsage) }()
+        case 3: try { try decoder.decodeSingularStringField(value: &_storage._micropodVersion) }()
+        case 4: try { try decoder.decodeSingularStringField(value: &_storage._sourceRevision) }()
+        case 5: try { try decoder.decodeSingularUInt32Field(value: &_storage._protocolVersion) }()
+        case 6: try { try decoder.decodeSingularMessageField(value: &_storage._peerProtocol) }()
+        case 7: try { try decoder.decodeRepeatedMessageField(value: &_storage._components) }()
+        case 8: try { try decoder.decodeSingularMessageField(value: &_storage._updateState) }()
         default: break
         }
       }
@@ -1141,6 +1802,24 @@ nonisolated extension Micropod_V1_SystemSnapshot: SwiftProtobuf.Message, SwiftPr
       try { if let v = _storage._diskUsage {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
       } }()
+      if !_storage._micropodVersion.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._micropodVersion, fieldNumber: 3)
+      }
+      if !_storage._sourceRevision.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._sourceRevision, fieldNumber: 4)
+      }
+      if _storage._protocolVersion != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._protocolVersion, fieldNumber: 5)
+      }
+      try { if let v = _storage._peerProtocol {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+      } }()
+      if !_storage._components.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._components, fieldNumber: 7)
+      }
+      try { if let v = _storage._updateState {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1152,6 +1831,12 @@ nonisolated extension Micropod_V1_SystemSnapshot: SwiftProtobuf.Message, SwiftPr
         let rhs_storage = _args.1
         if _storage._status != rhs_storage._status {return false}
         if _storage._diskUsage != rhs_storage._diskUsage {return false}
+        if _storage._micropodVersion != rhs_storage._micropodVersion {return false}
+        if _storage._sourceRevision != rhs_storage._sourceRevision {return false}
+        if _storage._protocolVersion != rhs_storage._protocolVersion {return false}
+        if _storage._peerProtocol != rhs_storage._peerProtocol {return false}
+        if _storage._components != rhs_storage._components {return false}
+        if _storage._updateState != rhs_storage._updateState {return false}
         return true
       }
       if !storagesAreEqual {return false}
@@ -1163,7 +1848,7 @@ nonisolated extension Micropod_V1_SystemSnapshot: SwiftProtobuf.Message, SwiftPr
 
 nonisolated extension Micropod_V1_SystemStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SystemStatus"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}app_root\0\u{3}install_root\0\u{3}api_server_version\0\u{3}cli_version\0\u{3}runtime_backend\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}app_root\0\u{3}install_root\0\u{3}api_server_version\0\u{3}cli_version\0\u{3}runtime_backend\0\u{3}apple_api_server_version\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1177,6 +1862,7 @@ nonisolated extension Micropod_V1_SystemStatus: SwiftProtobuf.Message, SwiftProt
       case 4: try { try decoder.decodeSingularStringField(value: &self.apiServerVersion) }()
       case 5: try { try decoder.decodeSingularStringField(value: &self.cliVersion) }()
       case 6: try { try decoder.decodeSingularStringField(value: &self.runtimeBackend) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.appleApiServerVersion) }()
       default: break
       }
     }
@@ -1201,6 +1887,9 @@ nonisolated extension Micropod_V1_SystemStatus: SwiftProtobuf.Message, SwiftProt
     if !self.runtimeBackend.isEmpty {
       try visitor.visitSingularStringField(value: self.runtimeBackend, fieldNumber: 6)
     }
+    if !self.appleApiServerVersion.isEmpty {
+      try visitor.visitSingularStringField(value: self.appleApiServerVersion, fieldNumber: 7)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1211,6 +1900,7 @@ nonisolated extension Micropod_V1_SystemStatus: SwiftProtobuf.Message, SwiftProt
     if lhs.apiServerVersion != rhs.apiServerVersion {return false}
     if lhs.cliVersion != rhs.cliVersion {return false}
     if lhs.runtimeBackend != rhs.runtimeBackend {return false}
+    if lhs.appleApiServerVersion != rhs.appleApiServerVersion {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1614,69 +2304,202 @@ nonisolated extension Micropod_V1_UsageReport.VolumeUsage: SwiftProtobuf.Message
 
 nonisolated extension Micropod_V1_UpdateStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UpdateStatus"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}state\0\u{3}feed_configured\0\u{3}current_version\0\u{3}available_version\0\u{1}downloaded\0\u{3}downloaded_version\0\u{3}ready_to_install\0\u{1}error\0\u{3}checked_at\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}state\0\u{3}feed_configured\0\u{3}current_version\0\u{3}available_version\0\u{1}downloaded\0\u{3}downloaded_version\0\u{3}ready_to_install\0\u{1}error\0\u{3}checked_at\0\u{3}update_state\0\u{3}restart_blocked_reason\0\u{3}restart_guard\0\u{1}channel\0\u{3}workload_protocol\0\u{3}payload_compatible\0\u{3}current_source_revision\0\u{1}transaction\0\u{3}desktop_admission\0\u{3}update_scope\0\u{3}recovery_error\0")
+
+  fileprivate class _StorageClass {
+    var _state: Micropod_V1_UpdateStatus.State = .unspecified
+    var _feedConfigured: Bool = false
+    var _currentVersion: String = String()
+    var _availableVersion: String = String()
+    var _downloaded: Bool = false
+    var _downloadedVersion: String = String()
+    var _readyToInstall: Bool = false
+    var _error: String = String()
+    var _checkedAt: String = String()
+    var _updateState: Micropod_V1_UpdateState? = nil
+    var _restartBlockedReason: String = String()
+    var _restartGuard: String = String()
+    var _channel: String = String()
+    var _workloadProtocol: UInt32 = 0
+    var _payloadCompatible: Bool = false
+    var _currentSourceRevision: String = String()
+    var _transaction: Micropod_V1_UpdateTransaction? = nil
+    var _desktopAdmission: String = String()
+    var _updateScope: String = String()
+    var _recoveryError: String = String()
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _state = source._state
+      _feedConfigured = source._feedConfigured
+      _currentVersion = source._currentVersion
+      _availableVersion = source._availableVersion
+      _downloaded = source._downloaded
+      _downloadedVersion = source._downloadedVersion
+      _readyToInstall = source._readyToInstall
+      _error = source._error
+      _checkedAt = source._checkedAt
+      _updateState = source._updateState
+      _restartBlockedReason = source._restartBlockedReason
+      _restartGuard = source._restartGuard
+      _channel = source._channel
+      _workloadProtocol = source._workloadProtocol
+      _payloadCompatible = source._payloadCompatible
+      _currentSourceRevision = source._currentSourceRevision
+      _transaction = source._transaction
+      _desktopAdmission = source._desktopAdmission
+      _updateScope = source._updateScope
+      _recoveryError = source._recoveryError
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularEnumField(value: &self.state) }()
-      case 2: try { try decoder.decodeSingularBoolField(value: &self.feedConfigured) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self.currentVersion) }()
-      case 4: try { try decoder.decodeSingularStringField(value: &self.availableVersion) }()
-      case 5: try { try decoder.decodeSingularBoolField(value: &self.downloaded) }()
-      case 6: try { try decoder.decodeSingularStringField(value: &self.downloadedVersion) }()
-      case 7: try { try decoder.decodeSingularBoolField(value: &self.readyToInstall) }()
-      case 8: try { try decoder.decodeSingularStringField(value: &self.error) }()
-      case 9: try { try decoder.decodeSingularStringField(value: &self.checkedAt) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularEnumField(value: &_storage._state) }()
+        case 2: try { try decoder.decodeSingularBoolField(value: &_storage._feedConfigured) }()
+        case 3: try { try decoder.decodeSingularStringField(value: &_storage._currentVersion) }()
+        case 4: try { try decoder.decodeSingularStringField(value: &_storage._availableVersion) }()
+        case 5: try { try decoder.decodeSingularBoolField(value: &_storage._downloaded) }()
+        case 6: try { try decoder.decodeSingularStringField(value: &_storage._downloadedVersion) }()
+        case 7: try { try decoder.decodeSingularBoolField(value: &_storage._readyToInstall) }()
+        case 8: try { try decoder.decodeSingularStringField(value: &_storage._error) }()
+        case 9: try { try decoder.decodeSingularStringField(value: &_storage._checkedAt) }()
+        case 10: try { try decoder.decodeSingularMessageField(value: &_storage._updateState) }()
+        case 11: try { try decoder.decodeSingularStringField(value: &_storage._restartBlockedReason) }()
+        case 12: try { try decoder.decodeSingularStringField(value: &_storage._restartGuard) }()
+        case 13: try { try decoder.decodeSingularStringField(value: &_storage._channel) }()
+        case 14: try { try decoder.decodeSingularUInt32Field(value: &_storage._workloadProtocol) }()
+        case 15: try { try decoder.decodeSingularBoolField(value: &_storage._payloadCompatible) }()
+        case 16: try { try decoder.decodeSingularStringField(value: &_storage._currentSourceRevision) }()
+        case 17: try { try decoder.decodeSingularMessageField(value: &_storage._transaction) }()
+        case 18: try { try decoder.decodeSingularStringField(value: &_storage._desktopAdmission) }()
+        case 19: try { try decoder.decodeSingularStringField(value: &_storage._updateScope) }()
+        case 20: try { try decoder.decodeSingularStringField(value: &_storage._recoveryError) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if self.state != .unspecified {
-      try visitor.visitSingularEnumField(value: self.state, fieldNumber: 1)
-    }
-    if self.feedConfigured != false {
-      try visitor.visitSingularBoolField(value: self.feedConfigured, fieldNumber: 2)
-    }
-    if !self.currentVersion.isEmpty {
-      try visitor.visitSingularStringField(value: self.currentVersion, fieldNumber: 3)
-    }
-    if !self.availableVersion.isEmpty {
-      try visitor.visitSingularStringField(value: self.availableVersion, fieldNumber: 4)
-    }
-    if self.downloaded != false {
-      try visitor.visitSingularBoolField(value: self.downloaded, fieldNumber: 5)
-    }
-    if !self.downloadedVersion.isEmpty {
-      try visitor.visitSingularStringField(value: self.downloadedVersion, fieldNumber: 6)
-    }
-    if self.readyToInstall != false {
-      try visitor.visitSingularBoolField(value: self.readyToInstall, fieldNumber: 7)
-    }
-    if !self.error.isEmpty {
-      try visitor.visitSingularStringField(value: self.error, fieldNumber: 8)
-    }
-    if !self.checkedAt.isEmpty {
-      try visitor.visitSingularStringField(value: self.checkedAt, fieldNumber: 9)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if _storage._state != .unspecified {
+        try visitor.visitSingularEnumField(value: _storage._state, fieldNumber: 1)
+      }
+      if _storage._feedConfigured != false {
+        try visitor.visitSingularBoolField(value: _storage._feedConfigured, fieldNumber: 2)
+      }
+      if !_storage._currentVersion.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._currentVersion, fieldNumber: 3)
+      }
+      if !_storage._availableVersion.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._availableVersion, fieldNumber: 4)
+      }
+      if _storage._downloaded != false {
+        try visitor.visitSingularBoolField(value: _storage._downloaded, fieldNumber: 5)
+      }
+      if !_storage._downloadedVersion.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._downloadedVersion, fieldNumber: 6)
+      }
+      if _storage._readyToInstall != false {
+        try visitor.visitSingularBoolField(value: _storage._readyToInstall, fieldNumber: 7)
+      }
+      if !_storage._error.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._error, fieldNumber: 8)
+      }
+      if !_storage._checkedAt.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._checkedAt, fieldNumber: 9)
+      }
+      try { if let v = _storage._updateState {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+      } }()
+      if !_storage._restartBlockedReason.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._restartBlockedReason, fieldNumber: 11)
+      }
+      if !_storage._restartGuard.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._restartGuard, fieldNumber: 12)
+      }
+      if !_storage._channel.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._channel, fieldNumber: 13)
+      }
+      if _storage._workloadProtocol != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._workloadProtocol, fieldNumber: 14)
+      }
+      if _storage._payloadCompatible != false {
+        try visitor.visitSingularBoolField(value: _storage._payloadCompatible, fieldNumber: 15)
+      }
+      if !_storage._currentSourceRevision.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._currentSourceRevision, fieldNumber: 16)
+      }
+      try { if let v = _storage._transaction {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 17)
+      } }()
+      if !_storage._desktopAdmission.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._desktopAdmission, fieldNumber: 18)
+      }
+      if !_storage._updateScope.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._updateScope, fieldNumber: 19)
+      }
+      if !_storage._recoveryError.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._recoveryError, fieldNumber: 20)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Micropod_V1_UpdateStatus, rhs: Micropod_V1_UpdateStatus) -> Bool {
-    if lhs.state != rhs.state {return false}
-    if lhs.feedConfigured != rhs.feedConfigured {return false}
-    if lhs.currentVersion != rhs.currentVersion {return false}
-    if lhs.availableVersion != rhs.availableVersion {return false}
-    if lhs.downloaded != rhs.downloaded {return false}
-    if lhs.downloadedVersion != rhs.downloadedVersion {return false}
-    if lhs.readyToInstall != rhs.readyToInstall {return false}
-    if lhs.error != rhs.error {return false}
-    if lhs.checkedAt != rhs.checkedAt {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._state != rhs_storage._state {return false}
+        if _storage._feedConfigured != rhs_storage._feedConfigured {return false}
+        if _storage._currentVersion != rhs_storage._currentVersion {return false}
+        if _storage._availableVersion != rhs_storage._availableVersion {return false}
+        if _storage._downloaded != rhs_storage._downloaded {return false}
+        if _storage._downloadedVersion != rhs_storage._downloadedVersion {return false}
+        if _storage._readyToInstall != rhs_storage._readyToInstall {return false}
+        if _storage._error != rhs_storage._error {return false}
+        if _storage._checkedAt != rhs_storage._checkedAt {return false}
+        if _storage._updateState != rhs_storage._updateState {return false}
+        if _storage._restartBlockedReason != rhs_storage._restartBlockedReason {return false}
+        if _storage._restartGuard != rhs_storage._restartGuard {return false}
+        if _storage._channel != rhs_storage._channel {return false}
+        if _storage._workloadProtocol != rhs_storage._workloadProtocol {return false}
+        if _storage._payloadCompatible != rhs_storage._payloadCompatible {return false}
+        if _storage._currentSourceRevision != rhs_storage._currentSourceRevision {return false}
+        if _storage._transaction != rhs_storage._transaction {return false}
+        if _storage._desktopAdmission != rhs_storage._desktopAdmission {return false}
+        if _storage._updateScope != rhs_storage._updateScope {return false}
+        if _storage._recoveryError != rhs_storage._recoveryError {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1684,4 +2507,138 @@ nonisolated extension Micropod_V1_UpdateStatus: SwiftProtobuf.Message, SwiftProt
 
 nonisolated extension Micropod_V1_UpdateStatus.State: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0STATE_UNSPECIFIED\0\u{1}STATE_UNAVAILABLE\0\u{1}STATE_IDLE\0\u{1}STATE_CHECKING\0\u{1}STATE_UP_TO_DATE\0\u{1}STATE_UPDATE_AVAILABLE\0\u{1}STATE_INSTALLING\0\u{1}STATE_ERROR\0\u{1}STATE_READY_TO_INSTALL\0")
+}
+
+nonisolated extension Micropod_V1_UpdateTransaction: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpdateTransaction"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}operation_id\0\u{1}phase\0\u{3}source_version\0\u{3}target_version\0\u{3}target_source_revision\0\u{1}detail\0\u{3}updated_at\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.operationID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.phase) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.sourceVersion) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.targetVersion) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.targetSourceRevision) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.detail) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.updatedAt) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.operationID.isEmpty {
+      try visitor.visitSingularStringField(value: self.operationID, fieldNumber: 1)
+    }
+    if !self.phase.isEmpty {
+      try visitor.visitSingularStringField(value: self.phase, fieldNumber: 2)
+    }
+    if !self.sourceVersion.isEmpty {
+      try visitor.visitSingularStringField(value: self.sourceVersion, fieldNumber: 3)
+    }
+    if !self.targetVersion.isEmpty {
+      try visitor.visitSingularStringField(value: self.targetVersion, fieldNumber: 4)
+    }
+    if !self.targetSourceRevision.isEmpty {
+      try visitor.visitSingularStringField(value: self.targetSourceRevision, fieldNumber: 5)
+    }
+    if !self.detail.isEmpty {
+      try visitor.visitSingularStringField(value: self.detail, fieldNumber: 6)
+    }
+    if !self.updatedAt.isEmpty {
+      try visitor.visitSingularStringField(value: self.updatedAt, fieldNumber: 7)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_UpdateTransaction, rhs: Micropod_V1_UpdateTransaction) -> Bool {
+    if lhs.operationID != rhs.operationID {return false}
+    if lhs.phase != rhs.phase {return false}
+    if lhs.sourceVersion != rhs.sourceVersion {return false}
+    if lhs.targetVersion != rhs.targetVersion {return false}
+    if lhs.targetSourceRevision != rhs.targetSourceRevision {return false}
+    if lhs.detail != rhs.detail {return false}
+    if lhs.updatedAt != rhs.updatedAt {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_UpdateState: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpdateState"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}kind\0\u{1}scope\0\u{1}phase\0\u{1}reason\0\u{3}current_version\0\u{3}target_version\0\u{3}available_version\0\u{3}operation_id\0\u{3}updated_at\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.kind) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.scope) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.phase) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.reason) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.currentVersion) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.targetVersion) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.availableVersion) }()
+      case 8: try { try decoder.decodeSingularStringField(value: &self.operationID) }()
+      case 9: try { try decoder.decodeSingularStringField(value: &self.updatedAt) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.kind != .unspecified {
+      try visitor.visitSingularEnumField(value: self.kind, fieldNumber: 1)
+    }
+    if !self.scope.isEmpty {
+      try visitor.visitSingularStringField(value: self.scope, fieldNumber: 2)
+    }
+    if !self.phase.isEmpty {
+      try visitor.visitSingularStringField(value: self.phase, fieldNumber: 3)
+    }
+    if !self.reason.isEmpty {
+      try visitor.visitSingularStringField(value: self.reason, fieldNumber: 4)
+    }
+    if !self.currentVersion.isEmpty {
+      try visitor.visitSingularStringField(value: self.currentVersion, fieldNumber: 5)
+    }
+    if !self.targetVersion.isEmpty {
+      try visitor.visitSingularStringField(value: self.targetVersion, fieldNumber: 6)
+    }
+    if !self.availableVersion.isEmpty {
+      try visitor.visitSingularStringField(value: self.availableVersion, fieldNumber: 7)
+    }
+    if !self.operationID.isEmpty {
+      try visitor.visitSingularStringField(value: self.operationID, fieldNumber: 8)
+    }
+    if !self.updatedAt.isEmpty {
+      try visitor.visitSingularStringField(value: self.updatedAt, fieldNumber: 9)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_UpdateState, rhs: Micropod_V1_UpdateState) -> Bool {
+    if lhs.kind != rhs.kind {return false}
+    if lhs.scope != rhs.scope {return false}
+    if lhs.phase != rhs.phase {return false}
+    if lhs.reason != rhs.reason {return false}
+    if lhs.currentVersion != rhs.currentVersion {return false}
+    if lhs.targetVersion != rhs.targetVersion {return false}
+    if lhs.availableVersion != rhs.availableVersion {return false}
+    if lhs.operationID != rhs.operationID {return false}
+    if lhs.updatedAt != rhs.updatedAt {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_UpdateState.Kind: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0KIND_UNSPECIFIED\0\u{1}KIND_CURRENT\0\u{1}KIND_STAGED\0\u{1}KIND_UPGRADING\0\u{1}KIND_ROLLED_BACK\0\u{1}KIND_BLOCKED\0\u{1}KIND_RECOVERY_REQUIRED\0\u{1}KIND_UNKNOWN\0")
 }

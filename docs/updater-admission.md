@@ -94,6 +94,42 @@ require the expected signed replacement; an idle observation, elapsed timer or
 process exit cannot clear them. Reboot changes invalidate the old owner witnesses.
 No command replays an uncertain installation or discards its records.
 
+## Reporting what runs
+
+`Ping` and `GetSystem` carry a version manifest: `micropod_version` and
+`source_revision` of the API server that answered, `protocol_version` (the API
+contract revision; additive fields never change it), `peer_protocol` (the
+runtime coordination versions the build speaks) and `components[]`. Each
+component — `app`, `connect-api`, `dedicated-api`, `setup-helper`,
+`docker-shim`, `shared-fs`, `apple-runtime`, `vminit`, `guest`, `kernel` — has
+a version, revision, state and, on `GetSystem`, the SHA-256 of its executable.
+Values are read from Info.plists, retained-service records, the runtime's
+kernel link and the app's own report; anything unreadable is `unknown` with the
+reason in `detail`. A retained service reports its payload's release, which can
+be older than the desktop's. Setup apps packaged before version stamping
+declared a placeholder 0.1.0; they report `unknown`. `api_server_version` is
+Apple's apiserver version, now also sent as `apple_api_server_version`.
+
+In front of a dedicated runtime, the desktop's Connect API asks the dedicated
+API for `Ping`/`GetSystem` and keeps its own observations of the app, its
+updater and retained services. The runtime's components come from the
+dedicated API; one that predates the manifest leaves them `unknown`, and
+`protocol_version` is then 0. While maintenance holds the runtime's admission
+gate, `Ping` answers `maintenance` rather than an error.
+
+`UpdateState` (on `Ping`, `GetSystem`, `UpdateStatus` and the read-only
+`GetUpdateState`) is one position: `current`, `staged`, `upgrading` (with
+`phase`), `rolledBack`, `blocked` (with `reason`), `recoveryRequired`, or
+`unknown` when the answering server cannot observe the updater. It is derived
+from the durable transaction, the restart guard, Sparkle's status and the
+runtime admission gate. An unknown desktop outcome outranks runtime
+maintenance, which outranks every other desktop state; runtime maintenance has
+`scope: runtime`.
+The dedicated API serves `GetUpdateState` for runtime maintenance only.
+`UpdateStatus` also carries the restart guard, channel, workload protocol,
+payload compatibility and transaction as typed fields; the restart blocker is
+`restart_blocked_reason`, no longer appended to `error`.
+
 ## CLI and automatic policy
 
 `micropod update apply` checks, downloads, installs and waits for the replacement

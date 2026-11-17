@@ -27,6 +27,12 @@ final class APIHandlers: Sendable {
     let appControl = AppControlClient()
     let managedTerminals: ManagedTerminalSessions
     let managedControl: @Sendable (String) async throws -> IsolatedRuntimeStatus
+    /// What the version manifest reads (Ping, GetSystem, GetUpdateState).
+    let versionEnvironment: VersionEnvironment
+    let desktopObserver = DesktopObserver()
+    /// The runtime's `vminit.image`, kept for five minutes: it only changes
+    /// when the runtime is reconfigured.
+    let initImage: RuntimeDefaultInitImage
 
     init(
         client: ContainerCLIClient,
@@ -37,9 +43,15 @@ final class APIHandlers: Sendable {
         runtime: RuntimeHolder,
         managedControl: @escaping @Sendable (String) async throws -> IsolatedRuntimeStatus = {
             try await ManagedRuntimeControl.request($0)
-        }
+        },
+        versionEnvironment: VersionEnvironment? = nil
     ) {
         self.client = client
+        self.versionEnvironment = versionEnvironment ?? .live(client: client)
+        let machine = MachineService(client: client)
+        self.initImage = RuntimeDefaultInitImage(ttl: .seconds(300)) {
+            RuntimeDefaultInitImage.vminitImage(in: try await machine.properties())
+        }
         self.managedTerminals = ManagedTerminalSessions(client: client)
         self.system = system
         self.images = images
@@ -92,6 +104,11 @@ final class APIHandlers: Sendable {
             || request.path == "/v1/system/runtime" || request.path.hasPrefix("/v1/system/runtime/")
             || ["CheckForUpdates", "GetUpdateStatus", "ApplyUpdate"].contains(
                 request.path.split(separator: "/").last.map(String.init) ?? "")
+            // The version manifest and update state combine this account's
+            // observations with the dedicated runtime's own (ConnectMount).
+            || request.path.hasPrefix("/api/micropod.v1.")
+                && ["Ping", "GetSystem", "GetUpdateState"].contains(
+                    request.path.split(separator: "/").last.map(String.init) ?? "")
         if client.usesIsolatedTransport, !desktopControl {
             if request.method == .get, request.path == "/v1/system/dependency" {
                 let report = await system.dependencyStatus()

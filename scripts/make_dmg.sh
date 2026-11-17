@@ -53,8 +53,11 @@ if [ -n "$IDENTITY" ]; then
         codesign --force --options runtime --timestamp ${identifiers[@]+"${identifiers[@]}"} ${entitlements[@]+"${entitlements[@]}"} \
             --sign "$IDENTITY" "$bin"
     done
+    # Re-sign the setup app as the same release the desktop bundle declares.
     MICROPOD_RUNTIME_CONFIGURATION=release MICROPOD_RUNTIME_SIGN_IDENTITY="$IDENTITY" \
         MICROPOD_RUNTIME_SKIP_BUILD=1 \
+        MICROPOD_RUNTIME_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")" \
+        MICROPOD_RUNTIME_SOURCE_REVISION="$(/usr/libexec/PlistBuddy -c 'Print :MicropodSourceRevision' "$APP/Contents/Info.plist")" \
         MICROPOD_RUNTIME_OUTPUT="$ROOT/$APP/Contents/Helpers/Micropod Runtime Setup.app" \
         MICROPOD_RUNTIME_GUEST_TOOL="$ROOT/$APP/Contents/Resources/micropod-guest" \
         bash scripts/package_runtime_setup.sh

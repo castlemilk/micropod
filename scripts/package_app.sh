@@ -11,14 +11,18 @@ VERSION="${1:-0.1.0}"
 BUNDLE_ID="com.skunkworq.micropod"
 DIST="dist"
 
-# Stamp the version into the CLI and MCP binaries for this build only.
+# Stamp the version and source revision into the CLI, MCP and API binaries
+# for this build only.
 # (The backup lives outside the target: SwiftPM warns about stray files.)
 BUILD_INFO="Sources/MicropodBuildInfo/BuildInfo.swift"
 BUILD_INFO_ORIG="$(mktemp)"
 cp "$BUILD_INFO" "$BUILD_INFO_ORIG"
 trap 'cp "$BUILD_INFO_ORIG" "$BUILD_INFO" && rm -f "$BUILD_INFO_ORIG"' EXIT
+SOURCE_REVISION="$(git rev-parse HEAD)"
 sed -i '' "s/static let version = \"dev\"/static let version = \"$VERSION\"/" "$BUILD_INFO"
+sed -i '' "s/static let sourceRevision = \"unknown\"/static let sourceRevision = \"$SOURCE_REVISION\"/" "$BUILD_INFO"
 grep -q "\"$VERSION\"" "$BUILD_INFO" || { echo "!! failed to stamp $BUILD_INFO"; exit 1; }
+grep -q "\"$SOURCE_REVISION\"" "$BUILD_INFO" || { echo "!! failed to stamp the revision into $BUILD_INFO"; exit 1; }
 
 echo "==> Building release (swift build -c release)"
 swift build -c release
@@ -74,7 +78,7 @@ metadata = {
     "NSHumanReadableCopyright": "© 2026 skunkworq",
 }
 pathlib.Path(path).write_bytes(plistlib.dumps(metadata, sort_keys=False))
-' "$APP_BUNDLE/Contents/Info.plist" "$APP_NAME" "$VERSION" "$BUNDLE_ID" "$(git rev-parse HEAD)"
+' "$APP_BUNDLE/Contents/Info.plist" "$APP_NAME" "$VERSION" "$BUNDLE_ID" "$SOURCE_REVISION"
 
 mkdir -p "$APP_BUNDLE/Contents/Library/LaunchDaemons"
 cp .build/release/MicropodRuntimeHost "$APP_BUNDLE/Contents/MacOS/MicropodRuntimeHost"
@@ -196,6 +200,7 @@ fi
 # cannot replace the approved daemon or its future maintenance workers.
 MICROPOD_RUNTIME_CONFIGURATION=release MICROPOD_RUNTIME_SIGN_IDENTITY=- \
     MICROPOD_RUNTIME_SKIP_BUILD=1 \
+    MICROPOD_RUNTIME_VERSION="$VERSION" MICROPOD_RUNTIME_SOURCE_REVISION="$SOURCE_REVISION" \
     MICROPOD_RUNTIME_OUTPUT="$ROOT/$APP_BUNDLE/Contents/Helpers/Micropod Runtime Setup.app" \
     MICROPOD_RUNTIME_GUEST_TOOL="$ROOT/$APP_BUNDLE/Contents/Resources/micropod-guest" \
     bash scripts/package_runtime_setup.sh

@@ -7,6 +7,19 @@ runtime_configuration="${MICROPOD_RUNTIME_CONFIGURATION:-debug}"
 runtime_identity="${MICROPOD_RUNTIME_SIGN_IDENTITY:?Set MICROPOD_RUNTIME_SIGN_IDENTITY to the Developer ID Application identity}"
 runtime_app="${MICROPOD_RUNTIME_OUTPUT:-$runtime_project/dist/Micropod Runtime Setup.app}"
 case "$runtime_configuration" in debug|release) ;; *) echo 'Unknown runtime build configuration' >&2; exit 1 ;; esac
+# The setup app reports the release it was packaged from. Packaging passes
+# the desktop app's version and revision; a standalone build reports 0.0.0,
+# which is never a release, with this checkout's revision.
+runtime_version="${MICROPOD_RUNTIME_VERSION:-0.0.0}"
+runtime_source_revision="${MICROPOD_RUNTIME_SOURCE_REVISION:-$(git -C "$runtime_project" rev-parse HEAD 2>/dev/null || echo unknown)}"
+if [[ ! "$runtime_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
+    echo "MICROPOD_RUNTIME_VERSION must be a release version such as 0.14.0" >&2
+    exit 1
+fi
+if [[ ! "$runtime_source_revision" =~ ^([0-9a-f]{40}|unknown)$ ]]; then
+    echo "MICROPOD_RUNTIME_SOURCE_REVISION must be a full git revision" >&2
+    exit 1
+fi
 if [[ "${MICROPOD_RUNTIME_SKIP_BUILD:-0}" != 1 ]]; then
     swift build -c "$runtime_configuration" --product MicropodRuntimeHost
     swift build -c "$runtime_configuration" --product MicropodRuntimeSetup
@@ -25,14 +38,16 @@ fi
 cp ".build/$runtime_configuration/MicropodRuntimeHost" "$runtime_stage/Contents/MacOS/"
 cp ".build/$runtime_configuration/MicropodRuntimeSetup" "$runtime_stage/Contents/MacOS/"
 cp ".build/$runtime_configuration/MicropodAPI" "$runtime_stage/Contents/MacOS/"
-python3 - "$runtime_stage" <<'PY'
+python3 - "$runtime_stage" "$runtime_version" "$runtime_source_revision" <<'PY'
 import pathlib,plistlib,sys
 root=pathlib.Path(sys.argv[1])
+version,revision=sys.argv[2],sys.argv[3]
 (root/'Contents/Info.plist').write_bytes(plistlib.dumps({
  'CFBundleIdentifier':'com.skunkworq.micropod.runtime-setup',
  'CFBundleExecutable':'MicropodRuntimeSetup','CFBundleName':'Micropod Runtime Setup',
  'CFBundleDisplayName':'Micropod Runtime Setup','CFBundlePackageType':'APPL',
- 'CFBundleShortVersionString':'0.1.0','CFBundleVersion':'1',
+ 'CFBundleShortVersionString':version,'CFBundleVersion':version,
+ 'MicropodSourceRevision':revision,
  'LSMinimumSystemVersion':'26.0','NSHighResolutionCapable':True,
  'NSSupportsAutomaticTermination':False,'NSSupportsSuddenTermination':False,
  'NSHumanReadableCopyright':'© 2026 skunkworq',

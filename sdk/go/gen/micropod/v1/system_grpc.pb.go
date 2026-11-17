@@ -24,6 +24,7 @@ const (
 	SystemService_CheckForUpdates_FullMethodName   = "/micropod.v1.SystemService/CheckForUpdates"
 	SystemService_GetUpdateStatus_FullMethodName   = "/micropod.v1.SystemService/GetUpdateStatus"
 	SystemService_ApplyUpdate_FullMethodName       = "/micropod.v1.SystemService/ApplyUpdate"
+	SystemService_GetUpdateState_FullMethodName    = "/micropod.v1.SystemService/GetUpdateState"
 	SystemService_Ping_FullMethodName              = "/micropod.v1.SystemService/Ping"
 	SystemService_ListRuntimes_FullMethodName      = "/micropod.v1.SystemService/ListRuntimes"
 	SystemService_SetDefaultRuntime_FullMethodName = "/micropod.v1.SystemService/SetDefaultRuntime"
@@ -51,6 +52,12 @@ type SystemServiceClient interface {
 	// Quit the app so a downloaded update installs and relaunches. Fails
 	// with `failed_precondition` until `UpdateStatus.ready_to_install`.
 	ApplyUpdate(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*UpdateStatus, error)
+	// Read-only: where this Micropod is in its update lifecycle, as one
+	// state (see UpdateState). Never starts a check, download or restart.
+	// Served by the dedicated runtime API as well as the desktop API: the
+	// desktop API combines the app's updater with runtime maintenance, the
+	// dedicated API reports runtime maintenance only (scope "runtime").
+	GetUpdateState(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*UpdateState, error)
 	// Millisecond liveness: runtime status and active backend without disk
 	// usage. Answers `status: stopped` (never an error) when the runtime is
 	// down but the API server is up.
@@ -134,6 +141,16 @@ func (c *systemServiceClient) ApplyUpdate(ctx context.Context, in *Empty, opts .
 	return out, nil
 }
 
+func (c *systemServiceClient) GetUpdateState(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*UpdateState, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateState)
+	err := c.cc.Invoke(ctx, SystemService_GetUpdateState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *systemServiceClient) Ping(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*PingResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(PingResponse)
@@ -204,6 +221,12 @@ type SystemServiceServer interface {
 	// Quit the app so a downloaded update installs and relaunches. Fails
 	// with `failed_precondition` until `UpdateStatus.ready_to_install`.
 	ApplyUpdate(context.Context, *Empty) (*UpdateStatus, error)
+	// Read-only: where this Micropod is in its update lifecycle, as one
+	// state (see UpdateState). Never starts a check, download or restart.
+	// Served by the dedicated runtime API as well as the desktop API: the
+	// desktop API combines the app's updater with runtime maintenance, the
+	// dedicated API reports runtime maintenance only (scope "runtime").
+	GetUpdateState(context.Context, *Empty) (*UpdateState, error)
 	// Millisecond liveness: runtime status and active backend without disk
 	// usage. Answers `status: stopped` (never an error) when the runtime is
 	// down but the API server is up.
@@ -251,6 +274,9 @@ func (UnimplementedSystemServiceServer) GetUpdateStatus(context.Context, *Empty)
 }
 func (UnimplementedSystemServiceServer) ApplyUpdate(context.Context, *Empty) (*UpdateStatus, error) {
 	return nil, status.Error(codes.Unimplemented, "method ApplyUpdate not implemented")
+}
+func (UnimplementedSystemServiceServer) GetUpdateState(context.Context, *Empty) (*UpdateState, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUpdateState not implemented")
 }
 func (UnimplementedSystemServiceServer) Ping(context.Context, *Empty) (*PingResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Ping not implemented")
@@ -378,6 +404,24 @@ func _SystemService_ApplyUpdate_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SystemService_GetUpdateState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SystemServiceServer).GetUpdateState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SystemService_GetUpdateState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SystemServiceServer).GetUpdateState(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SystemService_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Empty)
 	if err := dec(in); err != nil {
@@ -494,6 +538,10 @@ var SystemService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ApplyUpdate",
 			Handler:    _SystemService_ApplyUpdate_Handler,
+		},
+		{
+			MethodName: "GetUpdateState",
+			Handler:    _SystemService_GetUpdateState_Handler,
 		},
 		{
 			MethodName: "Ping",
