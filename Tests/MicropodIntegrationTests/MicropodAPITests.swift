@@ -16,7 +16,7 @@ final class MicropodAPITests: XCTestCase {
     }
 
     override func tearDown() async throws {
-        server?.terminate()
+        if let server { await server.stopBounded() }
         try? FileManager.default.removeItem(at: stateDir)
     }
 
@@ -29,9 +29,8 @@ final class MicropodAPITests: XCTestCase {
             .deletingLastPathComponent()  // Tests/
             .deletingLastPathComponent()  // repo root
         let binary = root.appendingPathComponent(".build/debug/MicropodAPI")
-        guard FileManager.default.isExecutableFile(atPath: binary.path) else {
-            throw XCTSkip("MicropodAPI binary not built")
-        }
+        try requireFixtureExecutable(binary, name: "MicropodAPI")
+        try requireFixtureExecutable(MockContainerCLI.scriptURL, name: "mock container CLI")
 
         let port = UInt16.random(in: 45500...45999)
         baseURL = URL(string: "http://127.0.0.1:\(port)")!
@@ -58,16 +57,23 @@ final class MicropodAPITests: XCTestCase {
         server.standardError = FileHandle.nullDevice
         try server.run()
 
-        // Wait for /health.
-        for _ in 0..<40 {
-            if let data = try? await URLSession.shared.data(from: baseURL.appendingPathComponent("health")).0,
-                String(data: data, encoding: .utf8)?.contains("ok") == true
-            {
-                return
+        let healthConfiguration = URLSessionConfiguration.ephemeral
+        healthConfiguration.timeoutIntervalForRequest = 0.5
+        healthConfiguration.timeoutIntervalForResource = 0.5
+        let healthSession = URLSession(configuration: healthConfiguration)
+        defer { healthSession.invalidateAndCancel() }
+        do {
+            try await waitForMandatoryFixture(server, name: "MicropodAPI") {
+                let request = URLRequest(url: baseURL.appendingPathComponent("health"), timeoutInterval: 0.5)
+                guard let (data, response) = try? await healthSession.data(for: request),
+                    (response as? HTTPURLResponse)?.statusCode == 200
+                else { return false }
+                return String(data: data, encoding: .utf8)?.contains("ok") == true
             }
-            try await Task.sleep(for: .milliseconds(250))
+        } catch {
+            await server.stopBounded()
+            throw error
         }
-        throw XCTSkip("API server did not come up")
     }
 
     /// Replaces the running server with one whose mock CLI emulates a stopped
