@@ -9,6 +9,29 @@ import XCTest
 /// veto blinds hasEverStarted, must still produce exactly one die event
 /// (legacy API<1.30 clients hang on /events without it).
 final class EventsHubReconcileTests: XCTestCase {
+    func testCreatedToStartingCannotEmitExitOrDriveAutoRemove() async throws {
+        let id = "pending-native"
+        let serving = ScriptedContainers([[]])
+        let hub = EventsHub(containers: serving)
+        let state = ShimState()
+        let (subscription, stream) = await hub.subscribe(filters: [:], state: state)
+        await hub.reconcile([container(id, state: "created")], observedAt: Date(), state: state)
+        await hub.reconcile([container(id, state: "starting")], observedAt: Date(), state: state)
+        let pendingExit = await state.exitCode(for: id)
+        XCTAssertNil(pendingExit, "starting is not an exit and must not trigger exit bookkeeping")
+        await hub.reconcile([container(id, state: "running")], observedAt: Date(), state: state)
+        await hub.reconcile([container(id, state: "stopped")], observedAt: Date(), state: state)
+        var iterator = stream.makeAsyncIterator()
+        var actions: [String] = []
+        for _ in 0..<3 {
+            if let data = await iterator.next() {
+                actions.append(try JSONDecoder().decode(DockerEvent.self, from: data).Action)
+            }
+        }
+        XCTAssertEqual(actions, ["create", "start", "die"])
+        await hub.unsubscribe(subscription)
+    }
+
     /// Scripted ContainerServing: each list() returns the next script step
     /// (holding the last). Everything else is unimplemented.
     final actor ScriptedContainers: ContainerServing {

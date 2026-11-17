@@ -82,15 +82,44 @@ public struct NativeVolumeService: VolumeServing {
     }
 
     public func commitClone(containerID: String, volume: String) async throws -> UInt64 {
-        try await VolumeLocks.shared.withLock(volume) {
-            let entries = try await entries()
-            try VolumeClone.requireStopped(containerID: containerID, in: entries)
-            let clone = try VolumeClone.requireClone(containerID: containerID, volume: volume)
-            try VolumeClone.requireMounted(clone: clone, containerID: containerID, volume: volume, in: entries)
-            let golden = try VolumeClone.requireVolume(try await self.volume(named: volume), named: volume)
-            try VolumeClone.requireBackingImage(golden)
-            try VolumeClone.requireQuiescent(golden, attachments: VolumeAttachments(entries: entries))
-            return try VolumeClone.commit(clonePath: clone, goldenPath: golden.source)
+        await NativeLifecycleOperations.shared.reconcileKnownExit(containerID)
+        return try await Self.withCommitClaim(containerID: containerID) {
+            try await VolumeLocks.shared.withLock(volume) {
+                let entries = try await entries()
+                try VolumeClone.requireStopped(containerID: containerID, in: entries)
+                let clone = try VolumeClone.requireClone(containerID: containerID, volume: volume)
+                try VolumeClone.requireMounted(clone: clone, containerID: containerID, volume: volume, in: entries)
+                let golden = try VolumeClone.requireVolume(try await self.volume(named: volume), named: volume)
+                try VolumeClone.requireBackingImage(golden)
+                try VolumeClone.requireQuiescent(golden, attachments: VolumeAttachments(entries: entries))
+                return try VolumeClone.commit(clonePath: clone, goldenPath: golden.source)
+            }
+        }
+    }
+
+    /// Keep the stopped check and cache replacement under the same per-ID
+    /// ownership as native start/create/delete. Lock order is ID then volume.
+    static func withCommitClaim<T>(
+        containerID: String, claims: ContainerLifecycleClaims = .shared,
+        unstarted: @Sendable (String) async -> Bool = { await UnstartedCreates.shared.contains($0) },
+        body: () async throws -> T
+    ) async throws -> T {
+        guard let claim = await claims.claimIfIdle(containerID, kind: .cleanup) else {
+            throw MicropodError.message(
+                "failedPrecondition: container \(containerID) has unfinished lifecycle work; cannot commit its cache")
+        }
+        do {
+            try Task.checkCancellation()
+            guard await !unstarted(containerID) else {
+                throw MicropodError.message(
+                    "failedPrecondition: container \(containerID) has not started; cannot commit its cache")
+            }
+            let result = try await body()
+            await claims.finish(claim)
+            return result
+        } catch {
+            await claims.finish(claim)
+            throw error
         }
     }
 

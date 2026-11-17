@@ -16,7 +16,7 @@ import Foundation
 ///   wake waits), so their exit latency is unchanged.
 ///
 /// A registry code is authoritative (`known: true`) even if the state has
-/// not flipped to `stopped` yet. `running`/`stopping` are non-terminal; so
+/// not flipped to `stopped` yet. `running`/`stopping`/`starting` are non-terminal; so
 /// is `created` (never started — it may still be). Anything else
 /// (`stopped`, or `unknown` after the container vanished mid-wait) is
 /// `exited: true`, with `known: false` when no registry code can arrive. A
@@ -55,17 +55,32 @@ public enum ContainerExitWait {
         trackedPoll: Duration = defaultTrackedPoll,
         untrackedPoll: Duration = defaultUntrackedPoll,
         park: (@Sendable (_ id: String, _ timeout: Duration) async -> Bool)? = nil,
+        observationRevision: @Sendable () async -> UInt64 = { 0 },
+        acceptExitCode: @Sendable (_ id: String) async -> Bool = { _ in true },
         state: @Sendable (_ id: String, _ exitKnown: Bool) async throws -> String
     ) async throws -> Outcome {
         let clock = ContinuousClock()
         let deadline = clock.now + timeout
         while true {
-            var entry = await exitCodes?.entry(for: id)
-            let current = try await state(id, entry?.exitCode != nil)
-            // Reading runtime state suspends. An exit may have arrived while
-            // that read was in flight; never discard its authoritative code.
-            if entry == nil { entry = await exitCodes?.entry(for: id) }
-            if let code = entry?.exitCode {
+            let revision = await observationRevision()
+            let snapshot = await exitCodes?.snapshot(for: id)
+            let entry = snapshot?.entry
+            let eligibleBefore = await acceptExitCode(id)
+            let current = try await state(id, eligibleBefore && entry?.exitCode != nil)
+            let acceptsExit = await acceptExitCode(id)
+            let after = await exitCodes?.snapshot(for: id)
+            guard snapshot == after, eligibleBefore == acceptsExit, await observationRevision() == revision else {
+                // Reading runtime state suspends. An exit recorded while that
+                // read was in flight changes the snapshot and is read on the
+                // next pass, never discarded. Churn is not an exit. Preserve
+                // the original wait budget even when lifecycle transitions
+                // repeatedly invalidate reads.
+                guard clock.now < deadline, !Task.isCancelled else {
+                    return Outcome(exited: false, known: false, exitCode: nil, state: current)
+                }
+                continue
+            }
+            if acceptsExit, let code = entry?.exitCode {
                 return Outcome(exited: true, known: true, exitCode: code, state: current)
             }
             // A stopped snapshot can beat the XPC wait reply. Keep waiting
@@ -75,7 +90,7 @@ public enum ContainerExitWait {
             let tracked = await exitCodes?.isTracked(id: id) ?? false
             let pending = entry == nil && tracked
             switch current {
-            case "running", "stopping", "created":
+            case "running", "stopping", "starting", "created":
                 break
             default:
                 if !pending {
