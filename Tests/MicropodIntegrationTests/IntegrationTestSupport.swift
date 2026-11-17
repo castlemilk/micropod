@@ -2,6 +2,54 @@ import Foundation
 import MicropodCore
 import XCTest
 
+/// Required checked-in fixtures are test failures, never optional live skips.
+struct MandatoryFixtureError: Error, CustomStringConvertible {
+    let description: String
+}
+
+func requireFixtureExecutable(_ url: URL, name: String) throws {
+    var isDirectory: ObjCBool = false
+    guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
+        !isDirectory.boolValue,
+        FileManager.default.isExecutableFile(atPath: url.path)
+    else {
+        throw MandatoryFixtureError(description: "\(name) prerequisite missing or not executable: \(url.path)")
+    }
+}
+
+/// Probe only while the owned process is alive. Callers must bound each probe.
+func waitForMandatoryFixture(
+    _ process: Process,
+    name: String,
+    timeout: Duration = .seconds(10),
+    pollInterval: Duration = .milliseconds(250),
+    readiness: () async -> Bool
+) async throws {
+    let deadline = ContinuousClock.now + timeout
+    while ContinuousClock.now < deadline {
+        guard process.isRunning else {
+            throw MandatoryFixtureError(
+                description:
+                    "\(name) exited during readiness: status=\(process.terminationStatus), reason=\(process.terminationReason)"
+            )
+        }
+        let ready = await readiness()
+        // A response from another listener must not hide our child exiting.
+        guard process.isRunning else {
+            throw MandatoryFixtureError(
+                description:
+                    "\(name) exited during readiness: status=\(process.terminationStatus), reason=\(process.terminationReason)"
+            )
+        }
+        if ContinuousClock.now >= deadline { break }
+        if ready { return }
+        let remaining = ContinuousClock.now.duration(to: deadline)
+        if remaining > .zero { try await Task.sleep(for: min(pollInterval, remaining)) }
+    }
+    throw MandatoryFixtureError(
+        description: "\(name) readiness timed out after \(timeout); processRunning=\(process.isRunning)")
+}
+
 /// Harness for driving the Micropod services against the stateful mock
 /// `container` CLI (`Support/mock-container`).
 ///
@@ -18,19 +66,15 @@ enum MockContainerCLI {
 
     /// Creates a fresh state directory + a client whose executable is a
     /// wrapper that points the mock at that directory.
-    static func makeClient(file: StaticString = #filePath, line: UInt = #line) throws -> (
+    static func makeClient(
+        script: URL = MockContainerCLI.scriptURL, file: StaticString = #filePath, line: UInt = #line
+    ) throws -> (
         client: ContainerCLIClient, stateDir: URL
     ) {
+        try requireFixtureExecutable(script, name: "mock container CLI")
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("micropod-mock-state-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-
-        let script = scriptURL
-        guard FileManager.default.isExecutableFile(atPath: script.path) else {
-            throw XCTSkip(
-                "mock container CLI missing or not executable at \(script.path)",
-                file: file, line: line)
-        }
 
         let wrapper = dir.appendingPathComponent("mock-container")
         let contents =
