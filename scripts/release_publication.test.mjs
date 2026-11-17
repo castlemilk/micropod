@@ -229,50 +229,94 @@ function workflowStep(job, name) {
     return next < 0 ? job.slice(start) : job.slice(start, start + 1 + next);
 }
 
-test("qualification reserves vX and sdk/go/vX at master's head and returns unused reservations", () => {
+test("qualification reserves vX at master's head and returns unused reservations", () => {
     const workflow = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
     const release = workflowJob(workflow, "release");
-    const reserve = workflowStep(release, "Reserve the release and Go module tags");
+    const reserve = workflowStep(release, "Reserve the release tag");
     assert.match(reserve, /if: github\.event_name == 'workflow_dispatch' && github\.ref == 'refs\/heads\/master'/);
     assert.match(reserve, /-f ref="refs\/tags\/\$ref" -f sha="\$GITHUB_SHA"/);
     assert.match(reserve, /reserve "\$VERSION"\n/);
-    assert.match(reserve, /reserve "sdk\/go\/\$VERSION"\n/);
-    const cleanup = workflowStep(release, "Release unused qualification tags");
+    // An unpublished candidate never becomes a permanent Go module version.
+    assert.doesNotMatch(release, /sdk\/go/);
+    const cleanup = workflowStep(release, "Release an unused qualification tag");
     assert.match(cleanup, /if: \(failure\(\) \|\| cancelled\(\)\) && github\.event_name == 'workflow_dispatch' && github\.ref == 'refs\/heads\/master'/);
-    assert.match(cleanup, /for ref in "\$VERSION" "sdk\/go\/\$VERSION"; do/);
-    assert.match(cleanup, /\[ "\$reserved_sha" = "\$GITHUB_SHA" \] \|\| continue/);
+    assert.match(cleanup, /\[ "\$reserved_sha" = "\$GITHUB_SHA" \] \|\| exit 0\n\s+gh api --method DELETE "repos\/\$GITHUB_REPOSITORY\/git\/refs\/tags\/\$VERSION"/);
     // Any orphan at this source goes, whichever run reserved it.
     assert.doesNotMatch(workflow, /qualification-tag-reserved/);
-    // Tags are created only at qualification, at the dispatched master commit.
-    const creations = [...workflow.matchAll(/--method POST "repos\/\$GITHUB_REPOSITORY\/git\/refs"/g)];
-    assert.equal(creations.length, 1);
-    assert.ok(reserve.includes(creations[0][0]));
-    assert.doesNotMatch(workflowJob(workflow, "publish-qualified"), /git\/refs"|git tag|git push origin "?refs\/tags/);
+    // Refs are created in two places only: vX at qualification, sdk/go/vX at publication.
+    assert.equal([...workflow.matchAll(/--method POST "repos\/\$GITHUB_REPOSITORY\/git\/refs"/g)].length, 2);
+    assert.doesNotMatch(workflowJob(workflow, "publish-qualified"), /git tag|git push origin "?refs\/tags|-f ref="refs\/tags\/\$VERSION"/);
 });
 
-test("every release update checks workflow parity unless a protected workflows token is configured", () => {
+test("the Go module tag is created at the frozen source just before the release PATCH", () => {
     const workflow = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
     const publish = workflowJob(workflow, "publish-qualified");
+    const promote = workflowStep(publish, "Promote the exact existing assets without a tag build");
+    const create = promote.indexOf('-f ref="refs/tags/sdk/go/$VERSION" -f sha="$source"');
+    assert.ok(create > 0);
+    assert.ok(create < promote.indexOf("release_patch --field draft=false"));
+    assert.match(promote, /GH_TOKEN="\$patch_token" gh api --method POST "repos\/\$GITHUB_REPOSITORY\/git\/refs" \\\n\s+-f ref="refs\/tags\/sdk\/go\/\$VERSION"/);
+    assert.match(promote, /elif \[ "\$sdk_sha" != "\$source" \]; then\n\s+echo "::error::sdk\/go\/\$VERSION names/);
+    const verify = workflowStep(publish, "Verify publication source and frozen qualification");
+    assert.match(verify, /\[ "\$sdk_sha" != "\$source" \]; then\n\s+echo "::error::sdk\/go\/\$VERSION names/);
+    // sdk/go/* never matches the v* tag trigger, so creating it starts no build.
+    assert.match(workflow, /push:\n\s+tags: \["v\*"\]/);
+});
+
+test("the workflows token is an environment secret used only from master behind locked protection", () => {
+    const workflow = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+    const publish = workflowJob(workflow, "publish-qualified");
+    assert.match(publish, /\n    needs: publication-inputs\n/);
     assert.match(publish, /\n    environment: release-publication\n/);
+    // The canary runs in a job without the environment.
+    const inputs = workflowJob(workflow, "publication-inputs");
+    assert.doesNotMatch(inputs, /environment:/);
+    const canary = workflowStep(inputs, "Prove the workflows token exists only in its environment");
+    assert.match(canary, /VISIBLE_OUTSIDE_ENVIRONMENT: \$\{\{ secrets\.RELEASE_WORKFLOWS_TOKEN != '' \}\}/);
+    assert.match(canary, /if \[ "\$VISIBLE_OUTSIDE_ENVIRONMENT" != false \]; then\n\s+echo "::error::[^\n]*\n\s+exit 1/);
     const verify = workflowStep(publish, "Verify publication source and frozen qualification");
     const promote = workflowStep(publish, "Promote the exact existing assets without a tag build");
-    // The secret's value enters one step; elsewhere only its presence is read.
-    assert.equal([...workflow.matchAll(/secrets\.RELEASE_WORKFLOWS_TOKEN/g)].length, 2);
+    // The value enters one step; elsewhere only its presence is read.
+    assert.equal([...workflow.matchAll(/secrets\.RELEASE_WORKFLOWS_TOKEN/g)].length, 3);
     assert.match(verify, /WORKFLOWS_TOKEN_PRESENT: \$\{\{ secrets\.RELEASE_WORKFLOWS_TOKEN != '' \}\}/);
     assert.match(promote, /RELEASE_WORKFLOWS_TOKEN: \$\{\{ secrets\.RELEASE_WORKFLOWS_TOKEN \}\}/);
+    // The first line of the promote script, so no repository script ever sees it.
+    assert.match(promote, /run: \|\n\s+wt="\$\{RELEASE_WORKFLOWS_TOKEN:-\}"; unset RELEASE_WORKFLOWS_TOKEN\n/);
+    const afterUnset = promote.slice(promote.indexOf("unset RELEASE_WORKFLOWS_TOKEN") + "unset RELEASE_WORKFLOWS_TOKEN".length);
+    assert.doesNotMatch(afterUnset, /RELEASE_WORKFLOWS_TOKEN/);
     // Parity is decided for every pending update, tagged or not.
     assert.match(verify, /needs_update=\$draft/);
     assert.match(verify, /if \[ "\$needs_update" = true \]; then\n\s+parity=0\n\s+bash scripts\/release_workflow_parity\.sh "\$source"/);
-    assert.doesNotMatch(verify, /\[ ! -s "\$RUNNER_TEMP\/tag-before\.txt" \]; then\n\s+parity/);
     // Without the token the refusal stays readable; a tagless draft is never published with it.
     assert.match(verify, /if \[ "\$WORKFLOWS_TOKEN_PRESENT" != true \]; then\n\s+echo "::error::/);
     assert.ok(verify.indexOf("has no tag and its workflows differ") < verify.indexOf('"$WORKFLOWS_TOKEN_PRESENT" != true'));
-    assert.match(verify, /any\(\.type == "required_reviewers"\)\) and \.deployment_branch_policy != null/);
-    // Only the PATCH sees the token.
+    // Master only; reviewers that admins cannot bypass; one deployment branch policy, master.
+    assert.match(verify, /\[ "\$GITHUB_REF" = refs\/heads\/master \] \|\|\n\s+\{ echo "::error::RELEASE_WORKFLOWS_TOKEN is used only for publication from master"/);
+    assert.match(verify, /environments\/release-publication\/deployment-branch-policies/);
+    for (const rule of [/any\(\.type == "required_reviewers"\)/, /\.can_admins_bypass == false/,
+        /\.deployment_branch_policy\.custom_branch_policies == true/, /\.deployment_branch_policy\.protected_branches == false/,
+        /\(\.branch_policies \| length\) == 1 and \.branch_policies\[0\]\.name == "master"/]) {
+        assert.match(verify, rule);
+    }
+    assert.match(promote, /\[ -n "\$wt" \] && \[ "\$GITHUB_REF" = refs\/heads\/master \] \|\| exit 1/);
+    // Only the Go module tag and the PATCH see the token.
     assert.match(promote, /GH_TOKEN="\$patch_token" gh api --method PATCH/);
-    assert.match(promote, /unset RELEASE_WORKFLOWS_TOKEN/);
     assert.equal([...publish.matchAll(/--method PATCH/g)].length, 1);
     assert.equal([...publish.matchAll(/release_patch --/g)].length, 2);
+    assert.equal([...promote.matchAll(/GH_TOKEN="\$patch_token"/g)].length, 2);
+});
+
+test("workflow version checks use the parsers' canonical pattern", () => {
+    const workflow = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+    const canonical = String.raw`^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`;
+    const checks = [...workflow.matchAll(/=~ (\^v\S+) \]\]/g)].map(([, pattern]) => pattern);
+    assert.equal(checks.length, 3);
+    for (const pattern of checks) assert.equal(pattern, canonical);
+    const pattern = new RegExp(canonical);
+    for (const version of ["v0.13.6", "v1.0.0", "v0.0.0", "v10.20.30"]) assert.ok(pattern.test(version), version);
+    for (const version of ["v0.13.09", "v00.13.6", "v0.013.6", "0.13.6", "v0.13", "v0.13.6-rc.1"]) {
+        assert.equal(pattern.test(version), false, version);
+    }
 });
 
 test("a tag push for frozen qualified assets never rebuilds them, even on an unreadable listing", () => {

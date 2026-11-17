@@ -5,8 +5,10 @@ passes. The reviewed `docs/qualified-releases/vX.Y.Z.json` pins the qualificatio
 run, source, release ID, complete asset IDs/sizes/SHA-256 hashes and the DMG's
 Sparkle signature. Publication verifies those bytes before and after promoting
 the existing release. It does not rebuild, replace assets, or create or move
-any tag: qualification already reserved `vX.Y.Z` and `sdk/go/vX.Y.Z` at the
-frozen source.
+`vX.Y.Z`, which qualification reserved at the frozen source. Just before the
+release becomes public it creates `sdk/go/vX.Y.Z` at that source (refusing one
+that names another commit), so only published releases become Go module
+versions. `sdk/go/*` does not match the `v*` tag trigger, so it starts no build.
 
 The manifest chooses one policy:
 
@@ -51,13 +53,13 @@ authoritative exit codes 0 and 7, and passing fault tests. Changing those eviden
 bytes, omitting a path, substituting a build or recording an unknown result
 rejects publication. A candidate cannot enter the stable feed.
 
-Qualification reserves `vX.Y.Z` and `sdk/go/vX.Y.Z` at the dispatched master
-commit before building, only from master. GitHub refuses the repository bot
-token (`GITHUB_TOKEN`) a ref or release at a commit whose workflow files no
-existing ref carries; master's head always qualifies. A qualification that fails
-or is cancelled before creating a release deletes both tags whenever they still
-name its source and no release exists for the version, including reservations
-an interrupted earlier run left behind. A tag push that names frozen qualified
+Qualification reserves `vX.Y.Z` at the dispatched master commit before
+building, only from master. GitHub refuses the repository bot token
+(`GITHUB_TOKEN`) a ref or release at a commit whose workflow files no existing
+ref carries; master's head always qualifies. A qualification that fails or is
+cancelled before creating a release deletes the tag whenever it still names
+its source and no release exists for the version, including a reservation an
+interrupted earlier run left behind. A tag push that names frozen qualified
 assets skips the build rather than replacing them; an unreadable release
 listing stops that tag build instead of letting it run.
 
@@ -70,14 +72,17 @@ default branch, and `GITHUB_TOKEN` can never be given that; the endpoint answers
 with master (`scripts/release_workflow_parity.sh`, any difference counts) for
 every draft, tagged or not, and for a stable release that still needs Latest:
 
-- Same workflows: `GITHUB_TOKEN` publishes, as before.
+- Same workflows: `GITHUB_TOKEN` creates the Go module tag and publishes.
 - Different workflows and no `RELEASE_WORKFLOWS_TOKEN`: publication stops with
   a readable error naming the changed files. Qualify a fresh version from
   master.
-- Different workflows and `RELEASE_WORKFLOWS_TOKEN` configured: that token is
-  used for the release `PATCH` calls only, and only after the step confirms the
-  `release-publication` environment requires reviewers and restricts deployment
-  branches. Every other call uses `GITHUB_TOKEN`.
+- Different workflows and `RELEASE_WORKFLOWS_TOKEN` configured: that token
+  creates the Go module tag and makes the release `PATCH` calls, and nothing
+  else. It is chosen only for publication from master, and only after the job
+  confirms the `release-publication` environment requires reviewers, does not
+  let administrators bypass them, and deploys from exactly one branch policy,
+  `master`. Every other call uses `GITHUB_TOKEN`, and the promote step unsets
+  the token on its first line so no repository script sees it.
 
 A draft without a tag (qualified before tags were reserved) is published only
 with matching workflows and never with the workflows token: publishing it
@@ -87,13 +92,16 @@ guard and rebuilds and replaces the assets. Qualify a fresh version instead.
 
 ### Setting up `RELEASE_WORKFLOWS_TOKEN`
 
-The `publish-qualified` job runs in the `release-publication` environment.
-GitHub creates it, unprotected, on the first publication if it does not exist;
-the token is refused until it is protected. To enable it:
+The `publish-qualified` job runs in the `release-publication` environment, and
+publication runs from master only. GitHub creates the environment, unprotected,
+on the first publication if it does not exist; the token is refused until the
+environment is locked down as below. To enable it:
 
-1. In Settings → Environments → `release-publication`, add required reviewers
-   and a deployment branch rule that allows `master` (and any branch you
-   publish from).
+1. In Settings → Environments → `release-publication`:
+   - add required reviewers, and leave "Allow administrators to bypass
+     configured protection rules" off;
+   - under Deployment branches and tags choose "Selected branches and tags" and
+     add exactly one branch rule, `master`.
 2. Create a token that can modify workflows, limited to this repository:
    - a fine-grained personal access token with access to `castlemilk/micropod`
      only, repository permissions Contents: read and write and Workflows: read
@@ -102,11 +110,15 @@ the token is refused until it is protected. To enable it:
      with the same permissions. It expires after an hour, so store a fresh
      one immediately before dispatching.
 3. Add it as an environment secret named `RELEASE_WORKFLOWS_TOKEN` of
-   `release-publication`, not as a repository secret.
+   `release-publication`. Never add it as a repository or organization secret:
+   the `publication-inputs` job, which has no environment, fails every
+   dispatch if it can see a `RELEASE_WORKFLOWS_TOKEN`, and publication waits on
+   that job.
 
-The token is masked in logs and never reaches the verification or feed steps.
-Remove or let it expire when the publication is done. Branch publication can
-promote verified assets but cannot change a feed.
+Once the environment requires reviewers, every publication waits for a
+reviewer's approval, whether or not it needs the token. The token is masked in
+logs and never reaches the verification or feed steps. Remove it, or let it
+expire, when the publication is done.
 
 The v0.13.6–v0.13.8 drafts were built from 2922fcc1, before the pending-start,
 version manifest and drain-timeout fixes, and are superseded: new candidates are

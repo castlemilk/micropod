@@ -50,7 +50,7 @@ export function validateTag(listing, manifest, required = false) {
     if (!resolved || resolved[0] !== manifest.source) throw new Error("tag does not resolve to qualified source");
 }
 export function validateMetadata(release, manifest) {
-    if (!["informational", "workload-preserving-candidate", "workload-preserving-v1"].includes(manifest.policy) || !/^v\d+\.\d+\.\d+$/.test(manifest.tag) || !/^[0-9a-f]{40}$/.test(manifest.source)) {
+    if (!["informational", "workload-preserving-candidate", "workload-preserving-v1"].includes(manifest.policy) || !/^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(manifest.tag) || !/^[0-9a-f]{40}$/.test(manifest.source)) {
         throw new Error("invalid qualified publication policy");
     }
     if (release.id !== manifest.releaseID || release.tag_name !== manifest.tag || release.target_commitish !== manifest.source || release.prerelease !== false || typeof release.draft !== "boolean") {
@@ -69,7 +69,7 @@ export function validateMetadata(release, manifest) {
 }
 
 export function publicationOptions(manifest, channel, repository = process.cwd()) {
-    if (!/^v\d+\.\d+\.\d+$/.test(manifest.tag)) throw new Error("invalid publication version");
+    if (!/^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(manifest.tag)) throw new Error("invalid publication version");
     if (manifest.policy === "informational") {
         if (channel !== "stable") throw new Error("announcements use the stable feed");
         return { version: manifest.tag, url: `https://github.com/castlemilk/micropod/releases/tag/${manifest.tag}`, informational: true };
