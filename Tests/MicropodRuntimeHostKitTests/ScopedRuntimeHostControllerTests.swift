@@ -75,6 +75,7 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
         incarnation: UUID())
     var ready = false
     var busy = false
+    var holdDrain = false
     var loseCompletion = false
     var corruptBegin = false
     var nativeActions: [IsolatedRuntimeAction] = []
@@ -99,6 +100,7 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
         sessionGeneration += 1
     }
     func setBusy() { busy = true }
+    func setHoldDrain(_ value: Bool) { holdDrain = value }
     func loseOneCompletion() { loseCompletion = true }
     func corruptOneBegin() { corruptBegin = true }
     func simulateStoppedRuntime() { ready = false }
@@ -160,10 +162,13 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
         let proof = try proofs.sign(
             challenge: call.challenge, purpose: purpose, state: state,
             peer: coordinatorPeer, enrollment: policy, generation: sessionGeneration)
-        let phase = [
-            "drain": "drained", "prepare": "prepared", "begin": "begun", "verify": "verified",
-            "complete": "completed", "abort": "aborting", "abortComplete": "cancelled",
-        ][call.action]!
+        let phase =
+            call.action == "drain" && holdDrain
+            ? "draining"
+            : [
+                "drain": "drained", "prepare": "prepared", "begin": "begun", "verify": "verified",
+                "complete": "completed", "abort": "aborting", "abortComplete": "cancelled",
+            ][call.action]!
         return try JSONDecoder().decode(
             RuntimeCoordinationRigReply.self,
             from: JSONSerialization.data(withJSONObject: [
@@ -201,7 +206,7 @@ final class ScopedRuntimeHostControllerTests: XCTestCase {
         }
         throw CocoaError(.fileReadUnknown)
     }
-    private func fixture(peer: RuntimeProcessBirth? = nil) async throws -> (
+    private func fixture(peer: RuntimeProcessBirth? = nil, drainTimeout: Duration = .seconds(120)) async throws -> (
         IsolatedRuntimeHostController, ScopedHostDriverFixture, URL
     ) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -223,8 +228,47 @@ final class ScopedRuntimeHostControllerTests: XCTestCase {
         return (
             IsolatedRuntimeHostController(
                 driver: driver, journal: journal, admissionRoot: admissionRoot,
-                coordinator: coordinator, verifyCoordinatorAccount: { _ in }), driver, root
+                coordinator: coordinator, verifyCoordinatorAccount: { _ in }, drainTimeout: drainTimeout), driver, root
         )
+    }
+
+    func testDrainTimeoutAbandonsScopedHandoffAndLeavesRuntimeRunning() async throws {
+        let (controller, driver, root) = try await fixture(drainTimeout: .milliseconds(50))
+        let admission = RuntimeAdmission(root: root.appendingPathComponent("admission"))
+        _ = try await controller.submit(.init(action: .start), ownerUID: getuid())
+        let started = try await terminal(controller)
+        XCTAssertEqual(started.phase, "completed", started.error ?? "")
+        let (beforeNative, beforeHistory, _) = await driver.snapshot()
+
+        await driver.setHoldDrain(true)
+        _ = try await controller.submit(.init(action: .restart), ownerUID: getuid())
+        let abandoned = try await terminal(controller)
+        XCTAssertEqual(abandoned.phase, "cancelled", abandoned.error ?? "")
+        XCTAssertNotEqual(abandoned.phase, "recoveryRequired")
+        XCTAssertTrue(abandoned.error?.contains("did not drain") == true, abandoned.error ?? "")
+        XCTAssertEqual(abandoned.runtimeCancelledBeforeAction, true)
+        XCTAssertEqual(abandoned.runtimeActionStarted, false)
+        XCTAssertEqual(abandoned.runtimeRigAttempted, false, "The handoff must not stay held")
+        XCTAssertEqual(abandoned.nativeState, "nativeReady")
+        XCTAssertFalse(admission.isClosed)
+        try XCTUnwrap(admission.claim("work continues after the abandoned drain")).completed()
+        let (native, history, gates) = await driver.snapshot()
+        XCTAssertEqual(native, beforeNative, "No native action may run when the drain is abandoned")
+        let restart = Array(history.dropFirst(beforeHistory.count))
+        XCTAssertGreaterThanOrEqual(restart.filter { $0 == "drain" }.count, 2)
+        XCTAssertEqual(restart.filter { $0 != "drain" }, ["abort", "abortComplete"])
+        XCTAssertEqual(gates["abort"], false)
+        XCTAssertEqual(gates["abortComplete"], false)
+        let kind = await driver.kind
+        XCTAssertEqual(kind, "cancelled")
+
+        // Nothing is left to recover: the next restart proceeds directly.
+        await driver.setHoldDrain(false)
+        _ = try await controller.submit(.init(action: .restart), ownerUID: getuid())
+        let restarted = try await terminal(controller)
+        XCTAssertEqual(restarted.phase, "completed", restarted.error ?? "")
+        let (afterNative, _, _) = await driver.snapshot()
+        XCTAssertEqual(afterNative.filter { $0 == .stop }.count, beforeNative.filter { $0 == .stop }.count + 1)
     }
 
     func testSignedScopedHandoffRunsWithoutLegacyHostGrantAndReconcilesLostCompletion() async throws {
