@@ -1,5 +1,6 @@
 """Parse and preserve authoritative Sparkle policy before updating an appcast."""
 import json
+import pathlib
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -9,6 +10,28 @@ SPARKLE_URI = "http://www.andymatuschak.org/xml-namespaces/sparkle"
 SPARKLE = "{" + SPARKLE_URI + "}"
 ET.register_namespace("sparkle", SPARKLE_URI)
 ET.register_namespace("dc", "http://purl.org/dc/elements/1.1/")
+# The one updater compatibility policy (floor and workload protocol), shared
+# with the publication verifier, the packaged Info.plist and the app.
+POLICY_PATH = pathlib.Path(__file__).resolve().parent.parent / "release" / "updater-policy.json"
+
+# Canonical major.minor.patch with no leading zeros: older apps compare the
+# floor as an exact string, so "0.013.6" would not mean "0.13.6" to them.
+CANONICAL_VERSION = r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+
+def parse_version(text):
+    if not isinstance(text, str) or not re.fullmatch(CANONICAL_VERSION, text):
+        raise ValueError("invalid version " + repr(text))
+    return tuple(map(int, text.split(".")))
+
+def load_policy(path=POLICY_PATH):
+    policy = json.loads(pathlib.Path(path).read_text())
+    if not isinstance(policy, dict) or policy.get("schema") != 1:
+        raise ValueError("invalid updater policy")
+    workload = policy.get("workloadProtocol")
+    if type(workload) is not int or workload < 1:
+        raise ValueError("invalid updater policy")
+    parse_version(policy.get("minimumUpdateVersion"))
+    return policy
 
 def parse_feed(text):
     if len(text) > 1024 * 1024 or "<!DOCTYPE" in text or "<!ENTITY" in text:
@@ -38,7 +61,7 @@ def parse_feed(text):
 def update_feed(xml, options):
     root, channel, versions = parse_feed(xml)
     version = options["version"].removeprefix("v")
-    if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+    if not re.fullmatch(CANONICAL_VERSION, version):
         raise ValueError("invalid release version")
     url = options["url"]
     if urlparse(url).scheme != "https":
@@ -74,14 +97,28 @@ def update_feed(xml, options):
         if source is not None and not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("invalid source revision")
         minimum = options.get("minimum-update-version")
+        workload = options.get("workload-protocol")
+        if (minimum is None) != (workload is None):
+            raise ValueError("workload items need both a compatibility floor and a workload protocol")
         if minimum is not None:
-            if minimum != "0.13.6" or tuple(map(int, version.split("."))) < (0, 13, 6):
+            # A floor below the policy's would also admit updaters known not to
+            # retain workloads; a higher one (a later policy) stays valid.
+            policy = load_policy()
+            try:
+                floor = parse_version(minimum)
+            except ValueError:
+                raise ValueError("unsupported workload updater compatibility floor") from None
+            if floor < parse_version(policy["minimumUpdateVersion"]) or parse_version(version) < floor:
                 raise ValueError("unsupported workload updater compatibility floor")
+            if type(workload) is bool or str(workload) != str(policy["workloadProtocol"]):
+                raise ValueError("unsupported workload protocol")
             ET.SubElement(item, SPARKLE + "minimumUpdateVersion").text = minimum
         attributes = {"url": url, SPARKLE + "edSignature": options["signature"],
                       "length": str(options["length"]), "type": "application/octet-stream"}
         if source is not None:
             attributes["micropodSourceRevision"] = source
+        if workload is not None:
+            attributes["micropodWorkloadProtocol"] = str(workload)
         ET.SubElement(item, "enclosure", attributes)
     channel.insert(list(channel).index(languages[0]) + 1, item)
     ET.indent(root, space="  ")

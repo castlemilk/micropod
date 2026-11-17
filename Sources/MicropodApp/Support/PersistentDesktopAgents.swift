@@ -16,7 +16,7 @@ enum PersistentDesktopAgents {
         let environment: [String: String]
     }
     static var enabled: Bool {
-        Bundle.main.object(forInfoDictionaryKey: "MicropodWorkloadProtocol") as? Int == 1
+        UpdaterPolicy.bundleDeclaresImplementedWorkloadProtocol
             && (try? IsolatedRuntimeIdentity.readRootOwned())?.ownerUID == getuid()
             && ProcessInfo.processInfo.environment["MICROPOD_AGENT_RUN_DIR"] == nil
     }

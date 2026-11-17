@@ -35,7 +35,9 @@ https://github.com/castlemilk/micropod/releases/latest/download/Micropod.dmg
    ```
 
 5. Qualify the signed payload, review its frozen manifest and publish its
-   approved feed policy. Workload protocol 1 requires versions 0.13.0 or later.
+   approved feed policy. The updater floor and workload protocol live in
+   `release/updater-policy.json`; see the
+   [qualified publication policy](qualified-release-publication.md).
 
 ## What the workflow does
 
@@ -65,7 +67,10 @@ never overwrite a signed `Micropod.dmg` attached by a local run.
 The `sdk` job (proto drift check, Go/TypeScript/Swift SDK builds and the
 npm tarball) runs **in parallel** with the app build. `sdk-publish` then
 attaches the tarball and tags `sdk/go/vX.Y.Z` once the release exists, so a
-failed release never gets SDK artifacts.
+failed release never gets SDK artifacts. A qualified release gets
+`sdk/go/vX.Y.Z` at its frozen source when it is published, just before it
+becomes public, so an unpublished candidate never becomes a Go module version;
+its frozen asset set does not include the npm tarball.
 
 ### Where the time goes
 

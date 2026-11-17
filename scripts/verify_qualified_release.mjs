@@ -7,6 +7,36 @@ import { pathToFileURL } from "node:url";
 import { updateAppcast } from "./update_appcast.mjs";
 
 const publicKey = "nJEL+JijqhfC7zxPlqxifCqBM06A3DGki/JmBFTW/VM=";
+// The one updater compatibility policy, shared with appcast_policy.py,
+// package_app.sh (Info.plist) and the app's UpdaterPolicy.
+export function updaterPolicy(path = new URL("../release/updater-policy.json", import.meta.url)) {
+    const policy = JSON.parse(readFileSync(path, "utf8"));
+    if (policy?.schema !== 1 || !Number.isInteger(policy.workloadProtocol) || policy.workloadProtocol < 1) {
+        throw new Error("invalid updater policy");
+    }
+    releaseVersion(policy.minimumUpdateVersion);
+    return policy;
+}
+// Canonical major.minor.patch: no leading zeros, because released apps
+// (0.13.6-0.13.8) compare the floor as an exact string ("0.013.6" is not "0.13.6").
+function releaseVersion(text) {
+    if (typeof text !== "string" || !/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(text)) throw new Error(`invalid version ${text}`);
+    return text.split(".").map(Number);
+}
+function compareVersions(a, b) {
+    const [left, right] = [releaseVersion(a), releaseVersion(b)];
+    for (let i = 0; i < 3; i++) if (left[i] !== right[i]) return left[i] < right[i] ? -1 : 1;
+    return 0;
+}
+// A workload manifest's floor may be the policy's or a later, higher one, but
+// never lower: that would also admit updaters known not to retain workloads.
+export function admitsWorkloadManifest(manifest, policy = updaterPolicy()) {
+    if (manifest.workloadProtocol !== policy.workloadProtocol) return false;
+    try {
+        return compareVersions(manifest.minimumUpdaterVersion, policy.minimumUpdateVersion) >= 0 &&
+            compareVersions(manifest.minimumUpdaterVersion, manifest.tag.slice(1)) <= 0;
+    } catch { return false; }
+}
 export function releasePolicy(release) {
     return release.assets.some((asset) => asset.name.startsWith("qualification-")) ? "qualified" : "installable";
 }
@@ -20,7 +50,7 @@ export function validateTag(listing, manifest, required = false) {
     if (!resolved || resolved[0] !== manifest.source) throw new Error("tag does not resolve to qualified source");
 }
 export function validateMetadata(release, manifest) {
-    if (!["informational", "workload-preserving-candidate", "workload-preserving-v1"].includes(manifest.policy) || !/^v\d+\.\d+\.\d+$/.test(manifest.tag) || !/^[0-9a-f]{40}$/.test(manifest.source)) {
+    if (!["informational", "workload-preserving-candidate", "workload-preserving-v1"].includes(manifest.policy) || !/^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(manifest.tag) || !/^[0-9a-f]{40}$/.test(manifest.source)) {
         throw new Error("invalid qualified publication policy");
     }
     if (release.id !== manifest.releaseID || release.tag_name !== manifest.tag || release.target_commitish !== manifest.source || release.prerelease !== false || typeof release.draft !== "boolean") {
@@ -39,13 +69,13 @@ export function validateMetadata(release, manifest) {
 }
 
 export function publicationOptions(manifest, channel, repository = process.cwd()) {
-    if (!/^v\d+\.\d+\.\d+$/.test(manifest.tag)) throw new Error("invalid publication version");
+    if (!/^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(manifest.tag)) throw new Error("invalid publication version");
     if (manifest.policy === "informational") {
         if (channel !== "stable") throw new Error("announcements use the stable feed");
         return { version: manifest.tag, url: `https://github.com/castlemilk/micropod/releases/tag/${manifest.tag}`, informational: true };
     }
     if (!["workload-preserving-candidate", "workload-preserving-v1"].includes(manifest.policy) ||
-        manifest.workloadProtocol !== 1 || manifest.minimumUpdaterVersion !== "0.13.6") {
+        !admitsWorkloadManifest(manifest)) {
         throw new Error("unsupported workload publication policy");
     }
     if (manifest.policy === "workload-preserving-candidate" && channel !== "qualification") {
@@ -82,7 +112,8 @@ export function publicationOptions(manifest, channel, repository = process.cwd()
         if (proof.manual.automatic !== false || proof.automatic.automatic !== true) throw new Error("manual and automatic paths were not both accepted");
     }
     return { version: manifest.tag, url: `https://github.com/castlemilk/micropod/releases/download/${manifest.tag}/Micropod.dmg`,
-        signature: manifest.sparkleSignature, length: manifest.assets["Micropod.dmg"].size, "minimum-update-version": "0.13.6", source: manifest.source };
+        signature: manifest.sparkleSignature, length: manifest.assets["Micropod.dmg"].size,
+        "minimum-update-version": manifest.minimumUpdaterVersion, "workload-protocol": manifest.workloadProtocol, source: manifest.source };
 }
 export function verifyAssets(manifest, directory) {
     for (const [name, expected] of Object.entries(manifest.assets)) {

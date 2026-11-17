@@ -13,6 +13,12 @@ name: Release
 #   NOTARY_KEY_ID                the key's ID
 #   NOTARY_ISSUER                issuer UUID
 #   APPLE_TEAM_ID                for future verification
+#
+# Optional, as a secret of the protected release-publication environment:
+#   RELEASE_WORKFLOWS_TOKEN      token with Workflows: write, used only from
+#                                master for the Go module tag and release PATCH
+#                                when a frozen source's workflows differ from
+#                                master (docs/qualified-release-publication.md)
 
 on:
   push:
@@ -39,8 +45,42 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # A version tag can name frozen qualified assets (qualification reserves
+  # the tag before uploading them). A build for it would replace them, so a
+  # tag push for one skips the build.
+  frozen-qualification:
+    runs-on: ubuntu-latest
+    outputs:
+      frozen: ${{ steps.check.outputs.frozen }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          frozen=false
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
+            # jq -e: 0 found, 1 not found; anything else is an unreadable
+            # listing, which must not let a build replace frozen assets.
+            found=0
+            jq -es --arg tag "$TAG" 'add | any(.[]; .tag_name == $tag and any(.assets[]; .name | startswith("qualification-")))' \
+              "$RUNNER_TEMP/releases.json" >/dev/null || found=$?
+            case "$found" in
+              0)
+                frozen=true
+                echo "::notice::$TAG names frozen qualified assets: publish them with publication_version; nothing is rebuilt."
+                ;;
+              1) ;;
+              *) echo "::error::could not read the release listing (jq exit $found); refusing to build $TAG"; exit 1 ;;
+            esac
+          fi
+          echo "frozen=$frozen" >> "$GITHUB_OUTPUT"
+
   release:
-    if: github.event_name != 'workflow_dispatch' || (inputs.qualification_version != '' && inputs.publication_version == '')
+    needs: frozen-qualification
+    if: needs.frozen-qualification.outputs.frozen != 'true' && (github.event_name != 'workflow_dispatch' || (inputs.qualification_version != '' && inputs.publication_version == ''))
     runs-on: macos-26
     env:
       VERSION: ${{ inputs.qualification_version || github.ref_name }}
@@ -57,7 +97,8 @@ jobs:
         run: |
           set -euo pipefail
           [ "$(git rev-parse HEAD)" = "$GITHUB_SHA" ] || exit 1
-          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+          # Canonical vX.Y.Z only, as the policy parsers require (no leading zeros).
+          [[ "$VERSION" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || exit 1
           [ "$GITHUB_REF" = "refs/heads/master" ] || exit 1
           [ -n "$APPLE_SIGNING_IDENTITY" ] && [ -n "$MACOS_CERTIFICATE" ] && [ -n "$SPARKLE_ED25519_KEY" ] || exit 1
           gh run list --workflow ci.yml --commit "$GITHUB_SHA" --event push \
@@ -67,12 +108,37 @@ jobs:
           # Qualify once under a fresh version; never clobber an existing release.
           gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[].tag_name' > "$RUNNER_TEMP/release-tags.txt"
           if awk -v version="$VERSION" '$0 == version { found=1 } END { exit found ? 0 : 1 }' "$RUNNER_TEMP/release-tags.txt"; then exit 1; fi
-          if git ls-remote --exit-code origin "refs/tags/$VERSION" > "$RUNNER_TEMP/qualification-tag.txt"; then
-            exit 1
-          else
-            lookup_status=$?
-            [ "$lookup_status" = 2 ] || exit "$lookup_status"
-          fi
+
+      # Reserve the release tag now, while this commit is master's head.
+      # GitHub refuses GITHUB_TOKEN a ref or release at a commit whose workflow
+      # files no existing ref carries; master carries this one. A draft
+      # published without a tag would create it at the frozen source, which
+      # master has usually moved past. Tags made by GITHUB_TOKEN start no
+      # tag-push build. This does not make publication free: updating a release
+      # whose source changes workflows relative to master is refused as well
+      # (see publish-qualified). The Go module tag waits for publication, so an
+      # unpublished candidate never becomes a permanent module version.
+      - name: Reserve the release tag
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          reserve() {
+            local ref="$1" status=0 reserved_sha
+            git ls-remote --exit-code origin "refs/tags/$ref" "refs/tags/$ref^{}" > "$RUNNER_TEMP/reserved-tag.txt" || status=$?
+            if [ "$status" = 0 ]; then
+              # Only a re-run after a failure before any release was created.
+              reserved_sha=$(awk 'NR==1 { direct=$1 } /\^\{\}$/ { peeled=$1 } END { print peeled ? peeled : direct }' "$RUNNER_TEMP/reserved-tag.txt")
+              [ "$reserved_sha" = "$GITHUB_SHA" ] || { echo "::error::$ref is already tagged at $reserved_sha"; exit 1; }
+              return 0
+            fi
+            [ "$status" = 2 ] || exit "$status"
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f ref="refs/tags/$ref" -f sha="$GITHUB_SHA" > /dev/null ||
+              { echo "::error::could not reserve $ref at $GITHUB_SHA; dispatch again on current master"; exit 1; }
+          }
+          reserve "$VERSION"
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer || true
@@ -194,13 +260,10 @@ jobs:
               --title "$VERSION — qualification only" --notes "Signed candidate; no appcast publication or installation."
             gh release view "$VERSION" --json isDraft,targetCommitish > "$RUNNER_TEMP/candidate.json"
             jq -e --arg sha "$GITHUB_SHA" '.isDraft == true and .targetCommitish == $sha' "$RUNNER_TEMP/candidate.json" >/dev/null
-            if git ls-remote --exit-code origin "refs/tags/$VERSION" "refs/tags/$VERSION^{}" > "$RUNNER_TEMP/qualification-tag.txt"; then
-              candidate_tag_sha=$(awk 'NR==1 { direct=$1 } /\^\{\}$/ { peeled=$1 } END { print peeled ? peeled : direct }' "$RUNNER_TEMP/qualification-tag.txt")
-              [ "$candidate_tag_sha" = "$GITHUB_SHA" ] || exit 1
-            else
-              lookup_status=$?
-              [ "$lookup_status" = 2 ] || exit "$lookup_status"
-            fi
+            # The tag reserved at qualification must still name this source.
+            git ls-remote --exit-code origin "refs/tags/$VERSION" "refs/tags/$VERSION^{}" > "$RUNNER_TEMP/qualification-tag.txt"
+            candidate_tag_sha=$(awk 'NR==1 { direct=$1 } /\^\{\}$/ { peeled=$1 } END { print peeled ? peeled : direct }' "$RUNNER_TEMP/qualification-tag.txt")
+            [ "$candidate_tag_sha" = "$GITHUB_SHA" ] || exit 1
             exit 0
           fi
           # "Latest" (what the landing page downloads) only if no higher
@@ -228,8 +291,10 @@ jobs:
             echo "::warning::SPARKLE_ED25519_KEY not configured — appcast not updated"
             exit 0
           fi
-          curl -sL -o /tmp/sparkle.tar.xz \
-            https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-2.10.0.tar.xz
+          # Sign with the same Sparkle release the app links (Package.resolved).
+          sparkle=$(jq -er '.pins[] | select(.identity == "sparkle") | .state.version' Package.resolved)
+          curl -fsSL -o /tmp/sparkle.tar.xz \
+            "https://github.com/sparkle-project/Sparkle/releases/download/$sparkle/Sparkle-$sparkle.tar.xz"
           mkdir -p /tmp/sparkle && tar -xf /tmp/sparkle.tar.xz -C /tmp/sparkle
           echo "$SPARKLE_ED25519_KEY" | base64 -d > "$RUNNER_TEMP/ed.key"
           /tmp/sparkle/bin/sign_update --ed-key-file "$RUNNER_TEMP/ed.key" \
@@ -243,7 +308,9 @@ jobs:
           node scripts/update_appcast.mjs \
             --version "${VERSION#v}" \
             --url "https://github.com/castlemilk/micropod/releases/download/$VERSION/Micropod.dmg" \
-            --signature "$SIG" --length "$LEN" --minimum-update-version 0.13.6 --source "$GITHUB_SHA"
+            --signature "$SIG" --length "$LEN" --source "$GITHUB_SHA" \
+            --minimum-update-version "$(jq -er .minimumUpdateVersion release/updater-policy.json)" \
+            --workload-protocol "$(jq -er .workloadProtocol release/updater-policy.json)"
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             gh release view "$VERSION" --json isDraft,targetCommitish > "$RUNNER_TEMP/candidate.json"
             jq -e --arg sha "$GITHUB_SHA" '.isDraft == true and .targetCommitish == $sha' "$RUNNER_TEMP/candidate.json" >/dev/null
@@ -253,11 +320,33 @@ jobs:
             jq -e --arg sha "$GITHUB_SHA" '.isDraft == true and .targetCommitish == $sha' "$RUNNER_TEMP/candidate.json" >/dev/null
           fi
 
+      # A failed qualification that created no release returns its reserved
+      # tag, so the version can be qualified again from current master. This
+      # also clears a reservation an earlier, interrupted run left behind: vX
+      # at this source with no release for it. A draft keeps its tag; deleting
+      # the draft with --cleanup-tag removes it.
+      - name: Release an unused qualification tag
+        if: (failure() || cancelled()) && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[].tag_name' > "$RUNNER_TEMP/release-tags-after.txt"
+          if awk -v version="$VERSION" '$0 == version { found=1 } END { exit found ? 0 : 1 }' "$RUNNER_TEMP/release-tags-after.txt"; then exit 0; fi
+          status=0
+          git ls-remote --exit-code origin "refs/tags/$VERSION" "refs/tags/$VERSION^{}" > "$RUNNER_TEMP/unused-tag.txt" || status=$?
+          [ "$status" = 2 ] && exit 0
+          [ "$status" = 0 ] || exit "$status"
+          reserved_sha=$(awk 'NR==1 { direct=$1 } /\^\{\}$/ { peeled=$1 } END { print peeled ? peeled : direct }' "$RUNNER_TEMP/unused-tag.txt")
+          [ "$reserved_sha" = "$GITHUB_SHA" ] || exit 0
+          gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$VERSION"
+
       # Stable and qualification feeds are published only from a frozen,
       # reviewed manifest by publish-qualified. Tag builds never enable installs.
 
   sdk:
-    if: github.event_name != 'workflow_dispatch' || (inputs.qualification_version != '' && inputs.publication_version == '')
+    needs: frozen-qualification
+    if: needs.frozen-qualification.outputs.frozen != 'true' && (github.event_name != 'workflow_dispatch' || (inputs.qualification_version != '' && inputs.publication_version == ''))
     runs-on: macos-26
     env:
       VERSION: ${{ inputs.qualification_version || github.ref_name }}
@@ -347,6 +436,17 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
+      # This job has no environment. If it can see RELEASE_WORKFLOWS_TOKEN, the
+      # token is a repository or organization secret, available to every job,
+      # rather than an environment secret of release-publication.
+      - name: Prove the workflows token exists only in its environment
+        env:
+          VISIBLE_OUTSIDE_ENVIRONMENT: ${{ secrets.RELEASE_WORKFLOWS_TOKEN != '' }}
+        run: |
+          if [ "$VISIBLE_OUTSIDE_ENVIRONMENT" != false ]; then
+            echo "::error::RELEASE_WORKFLOWS_TOKEN is visible outside the release-publication environment; delete the repository or organization secret and store it only as an environment secret (docs/qualified-release-publication.md)"
+            exit 1
+          fi
       - name: Require exactly one release mode
         env:
           QUALIFICATION: ${{ inputs.qualification_version }}
@@ -357,11 +457,16 @@ jobs:
           elif [ -n "$PUBLICATION" ] && [ -z "$QUALIFICATION" ]; then version="$PUBLICATION"
           else echo "::error::choose exactly one qualification or publication version"; exit 1
           fi
-          [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$version" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || { echo "::error::$version is not a canonical vX.Y.Z (no leading zeros)"; exit 1; }
 
   publish-qualified:
     if: github.event_name == 'workflow_dispatch' && inputs.publication_version != '' && inputs.qualification_version == ''
+    needs: publication-inputs
     runs-on: ubuntu-latest
+    # The optional RELEASE_WORKFLOWS_TOKEN is an environment secret here, used
+    # only from master for the Go module tag and the release PATCH
+    # (docs/qualified-release-publication.md).
+    environment: release-publication
     env:
       VERSION: ${{ inputs.publication_version }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -372,9 +477,12 @@ jobs:
           fetch-depth: 0
 
       - name: Verify publication source and frozen qualification
+        env:
+          # Presence only: the token itself never enters this step.
+          WORKFLOWS_TOKEN_PRESENT: ${{ secrets.RELEASE_WORKFLOWS_TOKEN != '' }}
         run: |
           set -euo pipefail
-          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$VERSION" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
           [[ "$GITHUB_REF" = refs/heads/* ]]
           [ "$(git rev-parse HEAD)" = "$GITHUB_SHA" ]
           manifest="docs/qualified-releases/$VERSION.json"
@@ -400,12 +508,72 @@ jobs:
           node scripts/verify_qualified_release.mjs --verify "$RUNNER_TEMP/release-before.json" "$manifest" "$RUNNER_TEMP/qualified-assets"
           git ls-remote origin "refs/tags/$VERSION" "refs/tags/$VERSION^{}" > "$RUNNER_TEMP/tag-before.txt"
           node scripts/verify_qualified_release.mjs --tag "$RUNNER_TEMP/tag-before.txt" "$manifest"
-          if jq -e '.draft == true' "$RUNNER_TEMP/release-before.json" >/dev/null; then
-            # GitHub cannot authorize GITHUB_TOKEN to modify workflows. Promote
-            # from a reviewed branch before master diverges from frozen source.
-            git fetch origin master
-            git diff --quiet "$source" origin/master -- .github/workflows
+          # The Go module tag is created at the frozen source just before the
+          # release becomes public (promote step); one elsewhere is refused.
+          git ls-remote origin "refs/tags/sdk/go/$VERSION" "refs/tags/sdk/go/$VERSION^{}" > "$RUNNER_TEMP/sdk-tag.txt"
+          sdk_sha=$(awk 'NR==1 { direct=$1 } /\^\{\}$/ { peeled=$1 } END { print peeled ? peeled : direct }' "$RUNNER_TEMP/sdk-tag.txt")
+          if [ -n "$sdk_sha" ] && [ "$sdk_sha" != "$source" ]; then
+            echo "::error::sdk/go/$VERSION names $sdk_sha, not the qualified source $source"; exit 1
           fi
+          # GitHub refuses to create or update a release whose source adds or
+          # modifies .github/workflows relative to master unless the token may
+          # modify workflows, and GITHUB_TOKEN never can: the PATCH answers an
+          # opaque 404. Decide before any mutation, for every draft and for a
+          # stable release that still needs Latest.
+          draft=$(jq -r .draft "$RUNNER_TEMP/release-before.json")
+          needs_update=$draft
+          if [ "$policy" = workload-preserving-v1 ] && [ "$draft" = false ]; then
+            latest_id=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .id 2>/dev/null || echo unknown)
+            [ "$latest_id" = "$release_id" ] || needs_update=true
+          fi
+          if [ -z "$sdk_sha" ] && [ "$needs_update" != true ]; then
+            echo "::warning::sdk/go/$VERSION does not exist; it is created only when this workflow publishes the release"
+          fi
+          use_workflows_token=false
+          if [ "$needs_update" = true ]; then
+            parity=0
+            bash scripts/release_workflow_parity.sh "$source" > "$RUNNER_TEMP/workflow-parity.txt" || parity=$?
+            if [ "$parity" != 0 ]; then
+              [ "$parity" = 1 ] || { echo "::error::could not compare $source's workflows with master"; exit 1; }
+              if [ ! -s "$RUNNER_TEMP/tag-before.txt" ]; then
+                # Publishing a tagless draft creates its tag. With a workflows
+                # token that tag push would start the release workflow as it was
+                # at the frozen source, which rebuilds and replaces the assets.
+                echo "::error::$VERSION has no tag and its workflows differ from master ($(paste -sd, "$RUNNER_TEMP/workflow-parity.txt")). It cannot be published by this workflow; qualify a fresh version from master (docs/qualified-release-publication.md)."
+                exit 1
+              fi
+              if [ "$WORKFLOWS_TOKEN_PRESENT" != true ]; then
+                echo "::error::$VERSION's source changes workflows relative to master ($(paste -sd, "$RUNNER_TEMP/workflow-parity.txt")). GitHub refuses GITHUB_TOKEN this release update. Add RELEASE_WORKFLOWS_TOKEN to the protected release-publication environment, or qualify a fresh version from master (docs/qualified-release-publication.md)."
+                exit 1
+              fi
+              # The token is trusted only on master, behind required reviewers
+              # that admins cannot bypass, in an environment that deploys from
+              # master alone. publication-inputs already proved it is not a
+              # repository or organization secret.
+              [ "$GITHUB_REF" = refs/heads/master ] ||
+                { echo "::error::RELEASE_WORKFLOWS_TOKEN is used only for publication from master"; exit 1; }
+              gh api "repos/$GITHUB_REPOSITORY/environments/release-publication" > "$RUNNER_TEMP/publication-environment.json" ||
+                { echo "::error::could not read the release-publication environment"; exit 1; }
+              gh api "repos/$GITHUB_REPOSITORY/environments/release-publication/deployment-branch-policies" \
+                > "$RUNNER_TEMP/publication-branch-policies.json" ||
+                { echo "::error::could not read the release-publication deployment branch policies"; exit 1; }
+              if ! jq -e '((.protection_rules // []) | any(.type == "required_reviewers"))
+                  and .can_admins_bypass == false
+                  and .deployment_branch_policy.custom_branch_policies == true
+                  and .deployment_branch_policy.protected_branches == false' \
+                "$RUNNER_TEMP/publication-environment.json" >/dev/null ||
+                ! jq -e '(.branch_policies | length) == 1 and .branch_policies[0].name == "master"
+                  and ((.branch_policies[0].type // "branch") == "branch")' \
+                "$RUNNER_TEMP/publication-branch-policies.json" >/dev/null; then
+                echo "::error::release-publication must require reviewers, disallow admin bypass and deploy only from master (one branch policy, master) before RELEASE_WORKFLOWS_TOKEN is used"
+                exit 1
+              fi
+              use_workflows_token=true
+              echo "::notice::$VERSION's workflows differ from master; the release update uses RELEASE_WORKFLOWS_TOKEN"
+            fi
+          fi
+          echo "$needs_update" > "$RUNNER_TEMP/needs-release-update"
+          echo "$use_workflows_token" > "$RUNNER_TEMP/use-workflows-token"
           if [ "$policy" = workload-preserving-candidate ]; then channel=qualification; else channel=stable; fi
           feed=landing/appcast.xml
           if [ "$channel" = qualification ]; then feed=landing/qualification-appcast.xml; fi
@@ -413,29 +581,64 @@ jobs:
           git checkout -- "$feed"
 
       - name: Promote the exact existing assets without a tag build
+        env:
+          RELEASE_WORKFLOWS_TOKEN: ${{ secrets.RELEASE_WORKFLOWS_TOKEN }}
         run: |
+          wt="${RELEASE_WORKFLOWS_TOKEN:-}"; unset RELEASE_WORKFLOWS_TOKEN
           set -euo pipefail
           manifest="docs/qualified-releases/$VERSION.json"
           release_id=$(jq -r .releaseID "$manifest")
+          source=$(jq -r .source "$manifest")
           gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" > "$RUNNER_TEMP/release-before.json"
           node scripts/verify_qualified_release.mjs --verify "$RUNNER_TEMP/release-before.json" "$manifest" "$RUNNER_TEMP/qualified-assets"
           git ls-remote origin "refs/tags/$VERSION" "refs/tags/$VERSION^{}" > "$RUNNER_TEMP/tag-before.txt"
           node scripts/verify_qualified_release.mjs --tag "$RUNNER_TEMP/tag-before.txt" "$manifest"
-          # GITHUB_TOKEN promotion does not trigger release:published or tag-push
-          # workflows. Never push a tag or call the artifact build/upload path.
+          # Only the Go module tag and the release PATCH may use the workflows
+          # token, and only when the verification step chose it for a tagged
+          # release. Repository scripts never see it (unset above).
+          patch_token="$GH_TOKEN"
+          if [ "$(cat "$RUNNER_TEMP/use-workflows-token")" = true ]; then
+            [ -s "$RUNNER_TEMP/tag-before.txt" ] && [ -n "$wt" ] && [ "$GITHUB_REF" = refs/heads/master ] || exit 1
+            patch_token="$wt"
+          elif [ "$(cat "$RUNNER_TEMP/needs-release-update")" = true ]; then
+            # Master may have moved since verification: GITHUB_TOKEN still needs parity.
+            bash scripts/release_workflow_parity.sh "$source" > "$RUNNER_TEMP/workflow-parity.txt" || {
+              echo "::error::master's workflows changed after verification; dispatch publication again"; exit 1; }
+          fi
+          wt=""
+          if [ "$(cat "$RUNNER_TEMP/needs-release-update")" = true ]; then
+            # Go modules resolve by path-versioned tag. Created only now, at the
+            # frozen source, so an unpublished candidate never becomes a
+            # permanent module version. sdk/go/* is not a v* tag: no build runs.
+            git ls-remote origin "refs/tags/sdk/go/$VERSION" "refs/tags/sdk/go/$VERSION^{}" > "$RUNNER_TEMP/sdk-tag.txt"
+            sdk_sha=$(awk 'NR==1 { direct=$1 } /\^\{\}$/ { peeled=$1 } END { print peeled ? peeled : direct }' "$RUNNER_TEMP/sdk-tag.txt")
+            if [ -z "$sdk_sha" ]; then
+              GH_TOKEN="$patch_token" gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+                -f ref="refs/tags/sdk/go/$VERSION" -f sha="$source" > "$RUNNER_TEMP/sdk-tag.json" ||
+                { echo "::error::could not create sdk/go/$VERSION at $source; the release was not changed"; exit 1; }
+            elif [ "$sdk_sha" != "$source" ]; then
+              echo "::error::sdk/go/$VERSION names $sdk_sha, not the qualified source $source"; exit 1
+            fi
+          fi
+          release_patch() {
+            GH_TOKEN="$patch_token" gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" "$@" || {
+              echo "::error::GitHub refused the release update. A 404 means the token may not modify workflows; see docs/qualified-release-publication.md"
+              return 1
+            }
+          }
+          # Promotion never creates a v* tag or calls the artifact build/upload
+          # path. GITHUB_TOKEN promotion triggers no workflow; a workflows
+          # token's triggers only the read-only Update Feed Policy report.
           if jq -e '.draft == true' "$RUNNER_TEMP/release-before.json" >/dev/null; then
-            git fetch origin master
-            git diff --quiet "$(jq -r .source "$manifest")" origin/master -- .github/workflows
             policy=$(jq -r .policy "$manifest")
             if [ "$policy" = informational ]; then
               title="$VERSION — qualified release"
               body="These frozen signed and notarized assets are announced with a web link only. Automatic installation remains unavailable for this release. Source $(jq -r .source "$manifest")."
             else
               title="$VERSION — workload-preserving updater"
-              body="Frozen signed and notarized desktop assets; workload protocol 1. Runtime services and engines retain their existing ownership. Publication policy: $policy. Source $(jq -r .source "$manifest")."
+              body="Frozen signed and notarized desktop assets; workload protocol $(jq -r .workloadProtocol "$manifest"). Runtime services and engines retain their existing ownership. Publication policy: $policy. Source $(jq -r .source "$manifest")."
             fi
-            gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
-              --field draft=false --raw-field make_latest=false \
+            release_patch --field draft=false --raw-field make_latest=false \
               --raw-field name="$title" --raw-field body="$body" > "$RUNNER_TEMP/promotion-response.json"
           else
             echo "Exact qualified assets already public; do not repeat release mutation."
@@ -448,8 +651,7 @@ jobs:
           if [ "$(jq -r .policy "$manifest")" = workload-preserving-v1 ]; then
             latest_id=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .id)
             if [ "$latest_id" != "$release_id" ]; then
-              gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
-                --raw-field make_latest=true > "$RUNNER_TEMP/stable-promotion-response.json"
+              release_patch --raw-field make_latest=true > "$RUNNER_TEMP/stable-promotion-response.json"
             fi
             gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" > "$RUNNER_TEMP/release-after.json"
             node scripts/verify_qualified_release.mjs --verify "$RUNNER_TEMP/release-after.json" "$manifest" "$RUNNER_TEMP/qualified-assets"
@@ -494,4 +696,9 @@ jobs:
             ${{ runner.temp }}/tag-after.txt
             ${{ runner.temp }}/publication-manifest.json
             ${{ runner.temp }}/stable-promotion-response.json
+            ${{ runner.temp }}/sdk-tag.txt
+            ${{ runner.temp }}/sdk-tag.json
+            ${{ runner.temp }}/workflow-parity.txt
+            ${{ runner.temp }}/publication-environment.json
+            ${{ runner.temp }}/publication-branch-policies.json
           retention-days: 14

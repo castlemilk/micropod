@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 // Announcements use --informational --url <release-page>, with no enclosure.
+// Workload items take --minimum-update-version and --workload-protocol, which
+// appcast_policy.py checks against release/updater-policy.json.
 // Parse/update policy uses XML namespace identities, including alternate prefixes.
 import { readFileSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -21,7 +23,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         for (let i = 0; i < args.length; i++) {
             const name = args[i];
             if (name === "--informational") { options.informational = true; continue; }
-            if (!["--version", "--url", "--signature", "--length", "--appcast", "--minimum-update-version", "--source"].includes(name) || !args[i + 1] || args[i + 1].startsWith("--")) {
+            if (!["--version", "--url", "--signature", "--length", "--appcast", "--minimum-update-version", "--workload-protocol", "--source"].includes(name) || !args[i + 1] || args[i + 1].startsWith("--")) {
                 throw new Error(`invalid argument ${name}`);
             }
             options[name.slice(2)] = args[++i];
