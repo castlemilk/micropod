@@ -28,6 +28,12 @@ public actor RuntimeDefaultInitImage {
         return trimmed.isEmpty ? nil : trimmed
     }
 
+    /// The kept value while it is fresh, without reading the property.
+    public func peek() -> String? {
+        guard let cached, ContinuousClock.now - cached.at < ttl else { return nil }
+        return cached.value
+    }
+
     public func value() async -> String? {
         let now = ContinuousClock.now
         if let cached, now - cached.at < ttl { return cached.value }

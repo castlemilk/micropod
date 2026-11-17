@@ -496,6 +496,22 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
         return true
     }
 
+    /// The guarded download ended without staging and its receipt recorded
+    /// the rejection. A failure keeps the offer beside its error. A cycle
+    /// that found nothing installable withdraws the offer, so the status never
+    /// says up to date while still naming an available version; the next
+    /// information check finds it again if the feed still offers it.
+    func settleRejectedDownload(failure: String?) {
+        if let failure {
+            lastError = failure
+            status = .error
+            return
+        }
+        status = .upToDate
+        availableVersion = nil
+        admission?.candidate = nil
+    }
+
     func stageUpdate(version: String, handler: @escaping () -> Void) {
         immediateInstallHandler = handler
         readyToInstall = true
@@ -570,7 +586,7 @@ final class UpdateController: NSObject, SPUUpdaterDelegate {
                         operation: receipt.operation,
                         generation: receipt.generation, from: receipt.phase, to: .downloadRejected, detail: reason)
                     _ = await reconcileUpdateRecovery()
-                    status = error == nil || benign ? .upToDate : .error
+                    settleRejectedDownload(failure: error == nil || benign ? nil : reason)
                 } catch { status = .error }
             }
             if updateCheck == .updateInformation, error == nil { await installIfSafe() }

@@ -2,4 +2,6 @@
 /// it for the build and restores it after; local builds say "dev".
 public enum MicropodBuildInfo {
     public static let version = "dev"
+    /// Git revision the release was built from; stamped with `version`.
+    public static let sourceRevision = "unknown"
 }

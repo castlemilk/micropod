@@ -46,6 +46,9 @@ const (
 	// SystemServiceApplyUpdateProcedure is the fully-qualified name of the SystemService's ApplyUpdate
 	// RPC.
 	SystemServiceApplyUpdateProcedure = "/micropod.v1.SystemService/ApplyUpdate"
+	// SystemServiceGetUpdateStateProcedure is the fully-qualified name of the SystemService's
+	// GetUpdateState RPC.
+	SystemServiceGetUpdateStateProcedure = "/micropod.v1.SystemService/GetUpdateState"
 	// SystemServicePingProcedure is the fully-qualified name of the SystemService's Ping RPC.
 	SystemServicePingProcedure = "/micropod.v1.SystemService/Ping"
 	// SystemServiceListRuntimesProcedure is the fully-qualified name of the SystemService's
@@ -77,6 +80,12 @@ type SystemServiceClient interface {
 	// Quit the app so a downloaded update installs and relaunches. Fails
 	// with `failed_precondition` until `UpdateStatus.ready_to_install`.
 	ApplyUpdate(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error)
+	// Read-only: where this Micropod is in its update lifecycle, as one
+	// state (see UpdateState). Never starts a check, download or restart.
+	// Served by the dedicated runtime API as well as the desktop API: the
+	// desktop API combines the app's updater with runtime maintenance, the
+	// dedicated API reports runtime maintenance only (scope "runtime").
+	GetUpdateState(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateState], error)
 	// Millisecond liveness: runtime status and active backend without disk
 	// usage. Answers `status: stopped` (never an error) when the runtime is
 	// down but the API server is up.
@@ -143,6 +152,12 @@ func NewSystemServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(systemServiceMethods.ByName("ApplyUpdate")),
 			connect.WithClientOptions(opts...),
 		),
+		getUpdateState: connect.NewClient[v1.Empty, v1.UpdateState](
+			httpClient,
+			baseURL+SystemServiceGetUpdateStateProcedure,
+			connect.WithSchema(systemServiceMethods.ByName("GetUpdateState")),
+			connect.WithClientOptions(opts...),
+		),
 		ping: connect.NewClient[v1.Empty, v1.PingResponse](
 			httpClient,
 			baseURL+SystemServicePingProcedure,
@@ -183,6 +198,7 @@ type systemServiceClient struct {
 	checkForUpdates   *connect.Client[v1.Empty, v1.UpdateStatus]
 	getUpdateStatus   *connect.Client[v1.Empty, v1.UpdateStatus]
 	applyUpdate       *connect.Client[v1.Empty, v1.UpdateStatus]
+	getUpdateState    *connect.Client[v1.Empty, v1.UpdateState]
 	ping              *connect.Client[v1.Empty, v1.PingResponse]
 	listRuntimes      *connect.Client[v1.Empty, v1.ListRuntimesResponse]
 	setDefaultRuntime *connect.Client[v1.SetDefaultRuntimeRequest, v1.ListRuntimesResponse]
@@ -213,6 +229,11 @@ func (c *systemServiceClient) GetUpdateStatus(ctx context.Context, req *connect.
 // ApplyUpdate calls micropod.v1.SystemService.ApplyUpdate.
 func (c *systemServiceClient) ApplyUpdate(ctx context.Context, req *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error) {
 	return c.applyUpdate.CallUnary(ctx, req)
+}
+
+// GetUpdateState calls micropod.v1.SystemService.GetUpdateState.
+func (c *systemServiceClient) GetUpdateState(ctx context.Context, req *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateState], error) {
+	return c.getUpdateState.CallUnary(ctx, req)
 }
 
 // Ping calls micropod.v1.SystemService.Ping.
@@ -255,6 +276,12 @@ type SystemServiceHandler interface {
 	// Quit the app so a downloaded update installs and relaunches. Fails
 	// with `failed_precondition` until `UpdateStatus.ready_to_install`.
 	ApplyUpdate(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error)
+	// Read-only: where this Micropod is in its update lifecycle, as one
+	// state (see UpdateState). Never starts a check, download or restart.
+	// Served by the dedicated runtime API as well as the desktop API: the
+	// desktop API combines the app's updater with runtime maintenance, the
+	// dedicated API reports runtime maintenance only (scope "runtime").
+	GetUpdateState(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateState], error)
 	// Millisecond liveness: runtime status and active backend without disk
 	// usage. Answers `status: stopped` (never an error) when the runtime is
 	// down but the API server is up.
@@ -317,6 +344,12 @@ func NewSystemServiceHandler(svc SystemServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(systemServiceMethods.ByName("ApplyUpdate")),
 		connect.WithHandlerOptions(opts...),
 	)
+	systemServiceGetUpdateStateHandler := connect.NewUnaryHandler(
+		SystemServiceGetUpdateStateProcedure,
+		svc.GetUpdateState,
+		connect.WithSchema(systemServiceMethods.ByName("GetUpdateState")),
+		connect.WithHandlerOptions(opts...),
+	)
 	systemServicePingHandler := connect.NewUnaryHandler(
 		SystemServicePingProcedure,
 		svc.Ping,
@@ -359,6 +392,8 @@ func NewSystemServiceHandler(svc SystemServiceHandler, opts ...connect.HandlerOp
 			systemServiceGetUpdateStatusHandler.ServeHTTP(w, r)
 		case SystemServiceApplyUpdateProcedure:
 			systemServiceApplyUpdateHandler.ServeHTTP(w, r)
+		case SystemServiceGetUpdateStateProcedure:
+			systemServiceGetUpdateStateHandler.ServeHTTP(w, r)
 		case SystemServicePingProcedure:
 			systemServicePingHandler.ServeHTTP(w, r)
 		case SystemServiceListRuntimesProcedure:
@@ -396,6 +431,10 @@ func (UnimplementedSystemServiceHandler) GetUpdateStatus(context.Context, *conne
 
 func (UnimplementedSystemServiceHandler) ApplyUpdate(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateStatus], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.SystemService.ApplyUpdate is not implemented"))
+}
+
+func (UnimplementedSystemServiceHandler) GetUpdateState(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.UpdateState], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("micropod.v1.SystemService.GetUpdateState is not implemented"))
 }
 
 func (UnimplementedSystemServiceHandler) Ping(context.Context, *connect.Request[v1.Empty]) (*connect.Response[v1.PingResponse], error) {

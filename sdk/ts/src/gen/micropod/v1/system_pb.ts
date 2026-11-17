@@ -18,7 +18,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file micropod/v1/system.proto.
  */
 export const file_micropod_v1_system: GenFile = /*@__PURE__*/
-  fileDesc("ChhtaWNyb3BvZC92MS9zeXN0ZW0ucHJvdG8SC21pY3JvcG9kLnYxIqUBChhHZXRNZXRyaWNzSGlzdG9yeVJlcXVlc3QSQQoEa2luZBgBIAEoCUIzukcPOg0SCydjb250YWluZXInukgechxSBnN5c3RlbVIJY29udGFpbmVyUgdtYWNoaW5lEhgKAmlkGAIgASgJQgy6Rwk6BxIFJ3dlYicSLAoNcmFuZ2Vfc2Vjb25kcxgDIAEoDUIVukcIOgYSBDM2MDC6SAcqBRiAmp4BImIKDk1ldHJpY3NIaXN0b3J5EiUKEnJlc29sdXRpb25fc2Vjb25kcxgBIAEoDUIJukcGOgQSAjEwEikKBnBvaW50cxgCIAMoCzIZLm1pY3JvcG9kLnYxLk1ldHJpY3NQb2ludCLZAgoMTWV0cmljc1BvaW50EjAKCXRpbWVzdGFtcBgBIAEoCUIdukcaOhgSFicyMDI2LTA5LTMwVDEwOjAwOjAwWicSEwoLY3B1X3BlcmNlbnQYAiABKAESFwoPY3B1X3BlcmNlbnRfbWF4GAMgASgBEhkKEW1lbW9yeV91c2VkX2J5dGVzGAQgASgBEh0KFW1lbW9yeV91c2VkX2J5dGVzX21heBgFIAEoARIaChJtZW1vcnlfbGltaXRfYnl0ZXMYBiABKAESIwobbmV0d29ya19yeF9ieXRlc19wZXJfc2Vjb25kGAcgASgBEiMKG25ldHdvcmtfdHhfYnl0ZXNfcGVyX3NlY29uZBgIIAEoARIjChtibG9ja19yZWFkX2J5dGVzX3Blcl9zZWNvbmQYCSABKAESJAocYmxvY2tfd3JpdGVfYnl0ZXNfcGVyX3NlY29uZBgKIAEoASLrAgoLUnVudGltZUluZm8SHAoEbmFtZRgBIAEoCUIOukcLOgkSBydhcHBsZScSGQoEa2luZBgCIAEoCUILukcIOgYSBCd2bScSEwoLZGVzY3JpcHRpb24YAyABKAkSHgoJYXZhaWxhYmxlGAQgASgIQgu6Rwg6BhIEdHJ1ZRIwCgZyZWFzb24YBSABKAlCILpHHTobEhknRG9ja2VyIHNvY2tldCBub3QgZm91bmQnEh8KB3ZlcnNpb24YBiABKAlCDrpHCzoJEgcnMS4zLjEnEjYKCGVuZHBvaW50GAcgASgJQiS6RyE6HxIdJ3VuaXg6Ly8vdmFyL3J1bi9kb2NrZXIuc29jaycSDwoHZGVmYXVsdBgIIAEoCBI0CgxjYXBhYmlsaXRpZXMYCSADKAlCHrpHGzoZEhdbJ3J1bicsICdleGVjJywgJ2xvZ3MnXRIcCgdlbmFibGVkGAogASgIQgu6Rwg6BhIEdHJ1ZSJjChRMaXN0UnVudGltZXNSZXNwb25zZRIqCghydW50aW1lcxgBIAMoCzIYLm1pY3JvcG9kLnYxLlJ1bnRpbWVJbmZvEh8KB2RlZmF1bHQYAiABKAlCDrpHCzoJEgcnYXBwbGUnItgBChRVcGRhdGVSdW50aW1lUmVxdWVzdBI4CgRuYW1lGAEgASgJQiq6Rww6ChIIJ2RvY2tlcie6SBjIAQFyEzIRXlthLXpdW2EtejAtOS1dKiQSIQoHZW5hYmxlZBgCIAEoCEILukcIOgYSBHRydWVIAIgBARJKCghlbmRwb2ludBgDIAEoCUIzukcwOi4SLCd1bml4Oi8vL1VzZXJzL21lLy5vcmJzdGFjay9ydW4vZG9ja2VyLnNvY2snSAGIAQFCCgoIX2VuYWJsZWRCCwoJX2VuZHBvaW50IlUKGFNldERlZmF1bHRSdW50aW1lUmVxdWVzdBI5CgRuYW1lGAEgASgJQiu6Rw06CxIJJ3NhbmRib3gnukgYyAEBchMyEV5bYS16XVthLXowLTktXSokIp8CCgxQaW5nUmVzcG9uc2USIAoGc3RhdHVzGAEgASgJQhC6Rw06CxIJJ3J1bm5pbmcnEigKD3J1bnRpbWVfYmFja2VuZBgCIAEoCUIPukcMOgoSCCduYXRpdmUnEioKEmFwaV9zZXJ2ZXJfdmVyc2lvbhgDIAEoCUIOukcLOgkSBycwLjguMCcSIwoLY2xpX3ZlcnNpb24YBCABKAlCDrpHCzoJEgcnMC43LjAnEkkKCGZlYXR1cmVzGAUgAygJQje6RzQ6MhIwWydjYXBfYWRkJywgJ2NhcF9kcm9wJywgJ3Jvc2V0dGEnLCAncHJpdmlsZWdlZCddEicKD2RlZmF1bHRfcnVudGltZRgGIAEoCUIOukcLOgkSBydhcHBsZSciZwoOU3lzdGVtU25hcHNob3QSKQoGc3RhdHVzGAEgASgLMhkubWljcm9wb2QudjEuU3lzdGVtU3RhdHVzEioKCmRpc2tfdXNhZ2UYAiABKAsy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bWljcm9wb2QudjEuVm9sdW1lEh0KFXVzZWRfYnlfY29udGFpbmVyX2lkcxgCIAMoCRIOCgZpbl91c2UYAyABKAgixQQKDFVwZGF0ZVN0YXR1cxJPCgVzdGF0ZRgBIAEoDjIfLm1pY3JvcG9kLnYxLlVwZGF0ZVN0YXR1cy5TdGF0ZUIfukccOhoSGCdTVEFURV9VUERBVEVfQVZBSUxBQkxFJxIXCg9mZWVkX2NvbmZpZ3VyZWQYAiABKAgSJwoPY3VycmVudF92ZXJzaW9uGAMgASgJQg66Rws6CRIHJzAuOC4wJxIpChFhdmFpbGFibGVfdmVyc2lvbhgEIAEoCUIOukcLOgkSBycwLjkuMCcSEgoKZG93bmxvYWRlZBgFIAEoCBIqChJkb3dubG9hZGVkX3ZlcnNpb24YBiABKAlCDrpHCzoJEgcnMC45LjAnEhgKEHJlYWR5X3RvX2luc3RhbGwYByABKAgSDQoFZXJyb3IYCCABKAkSPQoKY2hlY2tlZF9hdBgJIAEoCUIpukcmOhgSFicyMDI2LTAxLTE1VDEwOjMwOjAwWieaAglkYXRlLXRpbWUizgEKBVN0YXRlEhUKEVNUQVRFX1VOU1BFQ0lGSUVEEAASFQoRU1RBVEVfVU5BVkFJTEFCTEUQARIOCgpTVEFURV9JRExFEAISEgoOU1RBVEVfQ0hFQ0tJTkcQAxIUChBTVEFURV9VUF9UT19EQVRFEAQSGgoWU1RBVEVfVVBEQVRFX0FWQUlMQUJMRRAFEhQKEFNUQVRFX0lOU1RBTExJTkcQBhIPCgtTVEFURV9FUlJPUhAHEhoKFlNUQVRFX1JFQURZX1RPX0lOU1RBTEwQCDLWBQoNU3lzdGVtU2VydmljZRI8CglHZXRTeXN0ZW0SEi5taWNyb3BvZC52MS5FbXB0eRobLm1pY3JvcG9kLnYxLlN5c3RlbVNuYXBzaG90EjgKCEdldFVzYWdlEhIubWljcm9wb2QudjEuRW1wdHkaGC5taWNyb3BvZC52MS5Vc2FnZVJlcG9ydBJACg9DaGVja0ZvclVwZGF0ZXMSEi5taWNyb3BvZC52MS5FbXB0eRoZLm1pY3JvcG9kLnYxLlVwZGF0ZVN0YXR1cxJACg9HZXRVcGRhdGVTdGF0dXMSEi5taWNyb3BvZC52MS5FbXB0eRoZLm1pY3JvcG9kLnYxLlVwZGF0ZVN0YXR1cxI8CgtBcHBseVVwZGF0ZRISLm1pY3JvcG9kLnYxLkVtcHR5GhkubWljcm9wb2QudjEuVXBkYXRlU3RhdHVzEjUKBFBpbmcSEi5taWNyb3BvZC52MS5FbXB0eRoZLm1pY3JvcG9kLnYxLlBpbmdSZXNwb25zZRJFCgxMaXN0UnVudGltZXMSEi5taWNyb3BvZC52MS5FbXB0eRohLm1pY3JvcG9kLnYxLkxpc3RSdW50aW1lc1Jlc3BvbnNlEl0KEVNldERlZmF1bHRSdW50aW1lEiUubWljcm9wb2QudjEuU2V0RGVmYXVsdFJ1bnRpbWVSZXF1ZXN0GiEubWljcm9wb2QudjEuTGlzdFJ1bnRpbWVzUmVzcG9uc2USVQoNVXBkYXRlUnVudGltZRIhLm1pY3JvcG9kLnYxLlVwZGF0ZVJ1bnRpbWVSZXF1ZXN0GiEubWljcm9wb2QudjEuTGlzdFJ1bnRpbWVzUmVzcG9uc2USVwoRR2V0TWV0cmljc0hpc3RvcnkSJS5taWNyb3BvZC52MS5HZXRNZXRyaWNzSGlzdG9yeVJlcXVlc3QaGy5taWNyb3BvZC52MS5NZXRyaWNzSGlzdG9yeUJCWkBnaXRodWIuY29tL2Nhc3RsZW1pbGsvbWljcm9wb2Qvc2RrL2dvL2dlbi9taWNyb3BvZC92MTttaWNyb3BvZHYxYgZwcm90bzM", [file_buf_validate_validate, file_gnostic_openapi_v3_annotations, file_micropod_v1_api, file_micropod_v1_image, file_micropod_v1_volume]);
+  fileDesc("ChhtaWNyb3BvZC92MS9zeXN0ZW0ucHJvdG8SC21pY3JvcG9kLnYxIqUBChhHZXRNZXRyaWNzSGlzdG9yeVJlcXVlc3QSQQoEa2luZBgBIAEoCUIzukcPOg0SCydjb250YWluZXInukgechxSBnN5c3RlbVIJY29udGFpbmVyUgdtYWNoaW5lEhgKAmlkGAIgASgJQgy6Rwk6BxIFJ3dlYicSLAoNcmFuZ2Vfc2Vjb25kcxgDIAEoDUIVukcIOgYSBDM2MDC6SAcqBRiAmp4BImIKDk1ldHJpY3NIaXN0b3J5EiUKEnJlc29sdXRpb25fc2Vjb25kcxgBIAEoDUIJukcGOgQSAjEwEikKBnBvaW50cxgCIAMoCzIZLm1pY3JvcG9kLnYxLk1ldHJpY3NQb2ludCLZAgoMTWV0cmljc1BvaW50EjAKCXRpbWVzdGFtcBgBIAEoCUIdukcaOhgSFicyMDI2LTA5LTMwVDEwOjAwOjAwWicSEwoLY3B1X3BlcmNlbnQYAiABKAESFwoPY3B1X3BlcmNlbnRfbWF4GAMgASgBEhkKEW1lbW9yeV91c2VkX2J5dGVzGAQgASgBEh0KFW1lbW9yeV91c2VkX2J5dGVzX21heBgFIAEoARIaChJtZW1vcnlfbGltaXRfYnl0ZXMYBiABKAESIwobbmV0d29ya19yeF9ieXRlc19wZXJfc2Vjb25kGAcgASgBEiMKG25ldHdvcmtfdHhfYnl0ZXNfcGVyX3NlY29uZBgIIAEoARIjChtibG9ja19yZWFkX2J5dGVzX3Blcl9zZWNvbmQYCSABKAESJAocYmxvY2tfd3JpdGVfYnl0ZXNfcGVyX3NlY29uZBgKIAEoASLrAgoLUnVudGltZUluZm8SHAoEbmFtZRgBIAEoCUIOukcLOgkSBydhcHBsZScSGQoEa2luZBgCIAEoCUILukcIOgYSBCd2bScSEwoLZGVzY3JpcHRpb24YAyABKAkSHgoJYXZhaWxhYmxlGAQgASgIQgu6Rwg6BhIEdHJ1ZRIwCgZyZWFzb24YBSABKAlCILpHHTobEhknRG9ja2VyIHNvY2tldCBub3QgZm91bmQnEh8KB3ZlcnNpb24YBiABKAlCDrpHCzoJEgcnMS4zLjEnEjYKCGVuZHBvaW50GAcgASgJQiS6RyE6HxIdJ3VuaXg6Ly8vdmFyL3J1bi9kb2NrZXIuc29jaycSDwoHZGVmYXVsdBgIIAEoCBI0CgxjYXBhYmlsaXRpZXMYCSADKAlCHrpHGzoZEhdbJ3J1bicsICdleGVjJywgJ2xvZ3MnXRIcCgdlbmFibGVkGAogASgIQgu6Rwg6BhIEdHJ1ZSJjChRMaXN0UnVudGltZXNSZXNwb25zZRIqCghydW50aW1lcxgBIAMoCzIYLm1pY3JvcG9kLnYxLlJ1bnRpbWVJbmZvEh8KB2RlZmF1bHQYAiABKAlCDrpHCzoJEgcnYXBwbGUnItgBChRVcGRhdGVSdW50aW1lUmVxdWVzdBI4CgRuYW1lGAEgASgJQiq6Rww6ChIIJ2RvY2tlcie6SBjIAQFyEzIRXlthLXpdW2EtejAtOS1dKiQSIQoHZW5hYmxlZBgCIAEoCEILukcIOgYSBHRydWVIAIgBARJKCghlbmRwb2ludBgDIAEoCUIzukcwOi4SLCd1bml4Oi8vL1VzZXJzL21lLy5vcmJzdGFjay9ydW4vZG9ja2VyLnNvY2snSAGIAQFCCgoIX2VuYWJsZWRCCwoJX2VuZHBvaW50IlUKGFNldERlZmF1bHRSdW50aW1lUmVxdWVzdBI5CgRuYW1lGAEgASgJQiu6Rw06CxIJJ3NhbmRib3gnukgYyAEBchMyEV5bYS16XVthLXowLTktXSokIoIFCgxQaW5nUmVzcG9uc2USIAoGc3RhdHVzGAEgASgJQhC6Rw06CxIJJ3J1bm5pbmcnEigKD3J1bnRpbWVfYmFja2VuZBgCIAEoCUIPukcMOgoSCCduYXRpdmUnEioKEmFwaV9zZXJ2ZXJfdmVyc2lvbhgDIAEoCUIOukcLOgkSBycxLjUuMCcSIwoLY2xpX3ZlcnNpb24YBCABKAlCDrpHCzoJEgcnMC43LjAnEkkKCGZlYXR1cmVzGAUgAygJQje6RzQ6MhIwWydjYXBfYWRkJywgJ2NhcF9kcm9wJywgJ3Jvc2V0dGEnLCAncHJpdmlsZWdlZCddEicKD2RlZmF1bHRfcnVudGltZRgGIAEoCUIOukcLOgkSBydhcHBsZScSKQoQbWljcm9wb2RfdmVyc2lvbhgHIAEoCUIPukcMOgoSCCcwLjE0LjAnEkoKD3NvdXJjZV9yZXZpc2lvbhgIIAEoCUIxukcuOiwSKiczM2VlYTY0OWExYjJjM2Q0ZTVmNjA3MTgyOTNhNGI1YzZkN2U4ZjkwJxIiChBwcm90b2NvbF92ZXJzaW9uGAkgASgNQgi6RwU6AxIBMRIxCg1wZWVyX3Byb3RvY29sGAogASgLMhoubWljcm9wb2QudjEuUHJvdG9jb2xSYW5nZRIxCgpjb21wb25lbnRzGAsgAygLMh0ubWljcm9wb2QudjEuQ29tcG9uZW50VmVyc2lvbhIuCgx1cGRhdGVfc3RhdGUYDCABKAsyGC5taWNyb3BvZC52MS5VcGRhdGVTdGF0ZRIwChhhcHBsZV9hcGlfc2VydmVyX3ZlcnNpb24YDSABKAlCDrpHCzoJEgcnMS41LjAnIoMBCg1Qcm90b2NvbFJhbmdlEjQKBG5hbWUYASABKAlCJrpHIzohEh8nbWljcm9wb2QtcnVudGltZS1jb29yZGluYXRpb24nEh0KC21pbl92ZXJzaW9uGAIgASgNQgi6RwU6AxIBMRIdCgttYXhfdmVyc2lvbhgDIAEoDUIIukcFOgMSATEi3gEKEENvbXBvbmVudFZlcnNpb24SIgoEbmFtZRgBIAEoCUIUukcROg8SDSdkb2NrZXItc2hpbScSIAoHdmVyc2lvbhgCIAEoCUIPukcMOgoSCCcwLjEzLjAnEkMKCHJldmlzaW9uGAMgASgJQjG6Ry46LBIqJzRiMWQ0OTA2Y2RhMjhjMDVhNDUyNjE5MTQ5YjQ5ZmQ2ZjMxYTcyYzEnEg4KBnNoYTI1NhgEIAEoCRIfCgVzdGF0ZRgFIAEoCUIQukcNOgsSCSdydW5uaW5nJxIOCgZkZXRhaWwYBiABKAki5QIKDlN5c3RlbVNuYXBzaG90EikKBnN0YXR1cxgBIAEoCzIZLm1pY3JvcG9kLnYxLlN5c3RlbVN0YXR1cxIqCgpkaXNrX3VzYWdlGAIgASgLMhYubWljcm9wb2QudjEuRGlza1VzYWdlEikKEG1pY3JvcG9kX3ZlcnNpb24YAyABKAlCD7pHDDoKEggnMC4xNC4wJxIXCg9zb3VyY2VfcmV2aXNpb24YBCABKAkSIgoQcHJvdG9jb2xfdmVyc2lvbhgFIAEoDUIIukcFOgMSATESMQoNcGVlcl9wcm90b2NvbBgGIAEoCzIaLm1pY3JvcG9kLnYxLlByb3RvY29sUmFuZ2USMQoKY29tcG9uZW50cxgHIAMoCzIdLm1pY3JvcG9kLnYxLkNvbXBvbmVudFZlcnNpb24SLgoMdXBkYXRlX3N0YXRlGAggASgLMhgubWljcm9wb2QudjEuVXBkYXRlU3RhdGUiwAIKDFN5c3RlbVN0YXR1cxIgCgZzdGF0dXMYASABKAlCELpHDToLEgkncnVubmluZycSNQoIYXBwX3Jvb3QYAiABKAlCI7pHIDoeEhwnL0FwcGxpY2F0aW9ucy9NaWNyb3BvZC5hcHAnEioKDGluc3RhbGxfcm9vdBgDIAEoCUIUukcROg8SDSd+Ly5taWNyb3BvZCcSKgoSYXBpX3NlcnZlcl92ZXJzaW9uGAQgASgJQg66Rws6CRIHJzEuNS4wJxIjCgtjbGlfdmVyc2lvbhgFIAEoCUIOukcLOgkSBycwLjcuMCcSKAoPcnVudGltZV9iYWNrZW5kGAYgASgJQg+6Rww6ChIIJ25hdGl2ZScSMAoYYXBwbGVfYXBpX3NlcnZlcl92ZXJzaW9uGAcgASgJQg66Rws6CRIHJzEuNS4wJyKyAQoJRGlza1VzYWdlEi0KCmNvbnRhaW5lcnMYASABKAsyGS5taWNyb3BvZC52MS5EaXNrQ2F0ZWdvcnkSKQoGaW1hZ2VzGAIgASgLMhkubWljcm9wb2QudjEuRGlza0NhdGVnb3J5EioKB3ZvbHVtZXMYAyABKAsyGS5taWNyb3BvZC52MS5EaXNrQ2F0ZWdvcnkSHwoXdG90YWxfcmVjbGFpbWFibGVfYnl0ZXMYBCABKAQilwEKDERpc2tDYXRlZ29yeRIYCgV0b3RhbBgBIAEoBEIJukcGOgQSAjEyEhgKBmFjdGl2ZRgCIAEoBEIIukcFOgMSATUSJQoKc2l6ZV9ieXRlcxgDIAEoBEIRukcOOgwSCjQyOTQ5NjcyOTYSLAoRcmVjbGFpbWFibGVfYnl0ZXMYBCABKARCEbpHDjoMEgoxMDczNzQxODI0In8KDVN0YXRzU25hcHNob3QSLwoKY29udGFpbmVycxgBIAMoCzIbLm1pY3JvcG9kLnYxLkNvbnRhaW5lclN0YXRzEj0KCnNhbXBsZWRfYXQYAiABKAlCKbpHJjoYEhYnMjAyNi0wMS0xNVQxMDozMDowMFonmgIJZGF0ZS10aW1lIoIECg5Db250YWluZXJTdGF0cxIYCgJpZBgBIAEoCUIMukcJOgcSBSd3ZWInEiAKC2NwdV9wZXJjZW50GAIgASgBQgu6Rwg6BhIEMTIuNRIrChFtZW1vcnlfdXNlZF9ieXRlcxgDIAEoBEIQukcNOgsSCTEzNDIxNzcyOBIsChJtZW1vcnlfbGltaXRfYnl0ZXMYBCABKARCELpHDToLEgk1MzY4NzA5MTISKAoQbmV0d29ya19yeF9ieXRlcxgFIAEoBEIOukcLOgkSBzEwNDg1NzYSJwoQbmV0d29ya190eF9ieXRlcxgGIAEoBEINukcKOggSBjUyNDI4OBIoChBibG9ja19yZWFkX2J5dGVzGAcgASgEQg66Rws6CRIHMjA5NzE1MhIpChFibG9ja193cml0ZV9ieXRlcxgIIAEoBEIOukcLOgkSBzEwNDg1NzYSFgoEcGlkcxgJIAEoBEIIukcFOgMSATcSKQoOY3B1X3VzYWdlX3VzZWMYCiABKARCEbpHDjoMEgo2NTc2Mzg5NzgxEiUKDm9vbV9raWxsX2NvdW50GAsgASgEQgi6RwU6AxIBMEgAiAEBEh4KEWJsb2NrX2lvX29ic2VydmVkGAwgASgISAGIAQFCEQoPX29vbV9raWxsX2NvdW50QhQKEl9ibG9ja19pb19vYnNlcnZlZCJ3Cg1SZWdpc3RyeUxvZ2luEiIKBnNlcnZlchgBIAEoCUISukcPOg0SCydkb2NrZXIuaW8nEiIKCHVzZXJuYW1lGAIgASgJQhC6Rw06CxIJJ29jdG9jYXQnEh4KBnNjaGVtZRgDIAEoCUIOukcLOgkSBydiYXNpYyci0AMKC1VzYWdlUmVwb3J0EjMKBmltYWdlcxgBIAMoCzIjLm1pY3JvcG9kLnYxLlVzYWdlUmVwb3J0LkltYWdlVXNhZ2USNQoHdm9sdW1lcxgCIAMoCzIkLm1pY3JvcG9kLnYxLlVzYWdlUmVwb3J0LlZvbHVtZVVzYWdlEjIKF3JlY2xhaW1hYmxlX2ltYWdlX2J5dGVzGAMgASgEQhG6Rw46DBIKMjE0NzQ4MzY0OBIzChhyZWNsYWltYWJsZV92b2x1bWVfYnl0ZXMYBCABKARCEbpHDjoMEgoxMDczNzQxODI0EikKF3N0b3BwZWRfY29udGFpbmVyX2NvdW50GAUgASgFQgi6RwU6AxIBMhpeCgpJbWFnZVVzYWdlEiEKBWltYWdlGAEgASgLMhIubWljcm9wb2QudjEuSW1hZ2USHQoVdXNlZF9ieV9jb250YWluZXJfaWRzGAIgAygJEg4KBmluX3VzZRgDIAEoCBphCgtWb2x1bWVVc2FnZRIjCgZ2b2x1bWUYASABKAsyEy5taWNyb3BvZC52MS5Wb2x1bWUSHQoVdXNlZF9ieV9jb250YWluZXJfaWRzGAIgAygJEg4KBmluX3VzZRgDIAEoCCLMBwoMVXBkYXRlU3RhdHVzEk8KBXN0YXRlGAEgASgOMh8ubWljcm9wb2QudjEuVXBkYXRlU3RhdHVzLlN0YXRlQh+6Rxw6GhIYJ1NUQVRFX1VQREFURV9BVkFJTEFCTEUnEhcKD2ZlZWRfY29uZmlndXJlZBgCIAEoCBInCg9jdXJyZW50X3ZlcnNpb24YAyABKAlCDrpHCzoJEgcnMC44LjAnEikKEWF2YWlsYWJsZV92ZXJzaW9uGAQgASgJQg66Rws6CRIHJzAuOS4wJxISCgpkb3dubG9hZGVkGAUgASgIEioKEmRvd25sb2FkZWRfdmVyc2lvbhgGIAEoCUIOukcLOgkSBycwLjkuMCcSGAoQcmVhZHlfdG9faW5zdGFsbBgHIAEoCBINCgVlcnJvchgIIAEoCRI9CgpjaGVja2VkX2F0GAkgASgJQim6RyY6GBIWJzIwMjYtMDEtMTVUMTA6MzA6MDBaJ5oCCWRhdGUtdGltZRIuCgx1cGRhdGVfc3RhdGUYCiABKAsyGC5taWNyb3BvZC52MS5VcGRhdGVTdGF0ZRIeChZyZXN0YXJ0X2Jsb2NrZWRfcmVhc29uGAsgASgJEiQKDXJlc3RhcnRfZ3VhcmQYDCABKAlCDbpHCjoIEgYnaWRsZScSIAoHY2hhbm5lbBgNIAEoCUIPukcMOgoSCCdzdGFibGUnEiMKEXdvcmtsb2FkX3Byb3RvY29sGA4gASgNQgi6RwU6AxIBMRIaChJwYXlsb2FkX2NvbXBhdGlibGUYDyABKAgSHwoXY3VycmVudF9zb3VyY2VfcmV2aXNpb24YECABKAkSMwoLdHJhbnNhY3Rpb24YESABKAsyHi5taWNyb3BvZC52MS5VcGRhdGVUcmFuc2FjdGlvbhIoChFkZXNrdG9wX2FkbWlzc2lvbhgSIAEoCUINukcKOggSBidvcGVuJxIUCgx1cGRhdGVfc2NvcGUYEyABKAkSFgoOcmVjb3ZlcnlfZXJyb3IYFCABKAkizgEKBVN0YXRlEhUKEVNUQVRFX1VOU1BFQ0lGSUVEEAASFQoRU1RBVEVfVU5BVkFJTEFCTEUQARIOCgpTVEFURV9JRExFEAISEgoOU1RBVEVfQ0hFQ0tJTkcQAxIUChBTVEFURV9VUF9UT19EQVRFEAQSGgoWU1RBVEVfVVBEQVRFX0FWQUlMQUJMRRAFEhQKEFNUQVRFX0lOU1RBTExJTkcQBhIPCgtTVEFURV9FUlJPUhAHEhoKFlNUQVRFX1JFQURZX1RPX0lOU1RBTEwQCCL1AQoRVXBkYXRlVHJhbnNhY3Rpb24SFAoMb3BlcmF0aW9uX2lkGAEgASgJEiMKBXBoYXNlGAIgASgJQhS6RxE6DxINJ2Rvd25sb2FkaW5nJxInCg5zb3VyY2VfdmVyc2lvbhgDIAEoCUIPukcMOgoSCCcwLjEzLjYnEicKDnRhcmdldF92ZXJzaW9uGAQgASgJQg+6Rww6ChIIJzAuMTMuNycSHgoWdGFyZ2V0X3NvdXJjZV9yZXZpc2lvbhgFIAEoCRIOCgZkZXRhaWwYBiABKAkSIwoKdXBkYXRlZF9hdBgHIAEoCUIPukcMmgIJZGF0ZS10aW1lIo0ECgtVcGRhdGVTdGF0ZRJCCgRraW5kGAEgASgOMh0ubWljcm9wb2QudjEuVXBkYXRlU3RhdGUuS2luZEIVukcSOhASDidLSU5EX0NVUlJFTlQnEh8KBXNjb3BlGAIgASgJQhC6Rw06CxIJJ2Rlc2t0b3AnEiMKBXBoYXNlGAMgASgJQhS6RxE6DxINJ2Rvd25sb2FkaW5nJxIOCgZyZWFzb24YBCABKAkSKAoPY3VycmVudF92ZXJzaW9uGAUgASgJQg+6Rww6ChIIJzAuMTMuNicSJwoOdGFyZ2V0X3ZlcnNpb24YBiABKAlCD7pHDDoKEggnMC4xMy43JxIqChFhdmFpbGFibGVfdmVyc2lvbhgHIAEoCUIPukcMOgoSCCcwLjEzLjcnEhQKDG9wZXJhdGlvbl9pZBgIIAEoCRIjCgp1cGRhdGVkX2F0GAkgASgJQg+6RwyaAglkYXRlLXRpbWUiqQEKBEtpbmQSFAoQS0lORF9VTlNQRUNJRklFRBAAEhAKDEtJTkRfQ1VSUkVOVBABEg8KC0tJTkRfU1RBR0VEEAISEgoOS0lORF9VUEdSQURJTkcQAxIUChBLSU5EX1JPTExFRF9CQUNLEAQSEAoMS0lORF9CTE9DS0VEEAUSGgoWS0lORF9SRUNPVkVSWV9SRVFVSVJFRBAGEhAKDEtJTkRfVU5LTk9XThAHMpYGCg1TeXN0ZW1TZXJ2aWNlEjwKCUdldFN5c3RlbRISLm1pY3JvcG9kLnYxLkVtcHR5GhsubWljcm9wb2QudjEuU3lzdGVtU25hcHNob3QSOAoIR2V0VXNhZ2USEi5taWNyb3BvZC52MS5FbXB0eRoYLm1pY3JvcG9kLnYxLlVzYWdlUmVwb3J0EkAKD0NoZWNrRm9yVXBkYXRlcxISLm1pY3JvcG9kLnYxLkVtcHR5GhkubWljcm9wb2QudjEuVXBkYXRlU3RhdHVzEkAKD0dldFVwZGF0ZVN0YXR1cxISLm1pY3JvcG9kLnYxLkVtcHR5GhkubWljcm9wb2QudjEuVXBkYXRlU3RhdHVzEjwKC0FwcGx5VXBkYXRlEhIubWljcm9wb2QudjEuRW1wdHkaGS5taWNyb3BvZC52MS5VcGRhdGVTdGF0dXMSPgoOR2V0VXBkYXRlU3RhdGUSEi5taWNyb3BvZC52MS5FbXB0eRoYLm1pY3JvcG9kLnYxLlVwZGF0ZVN0YXRlEjUKBFBpbmcSEi5taWNyb3BvZC52MS5FbXB0eRoZLm1pY3JvcG9kLnYxLlBpbmdSZXNwb25zZRJFCgxMaXN0UnVudGltZXMSEi5taWNyb3BvZC52MS5FbXB0eRohLm1pY3JvcG9kLnYxLkxpc3RSdW50aW1lc1Jlc3BvbnNlEl0KEVNldERlZmF1bHRSdW50aW1lEiUubWljcm9wb2QudjEuU2V0RGVmYXVsdFJ1bnRpbWVSZXF1ZXN0GiEubWljcm9wb2QudjEuTGlzdFJ1bnRpbWVzUmVzcG9uc2USVQoNVXBkYXRlUnVudGltZRIhLm1pY3JvcG9kLnYxLlVwZGF0ZVJ1bnRpbWVSZXF1ZXN0GiEubWljcm9wb2QudjEuTGlzdFJ1bnRpbWVzUmVzcG9uc2USVwoRR2V0TWV0cmljc0hpc3RvcnkSJS5taWNyb3BvZC52MS5HZXRNZXRyaWNzSGlzdG9yeVJlcXVlc3QaGy5taWNyb3BvZC52MS5NZXRyaWNzSGlzdG9yeUJCWkBnaXRodWIuY29tL2Nhc3RsZW1pbGsvbWljcm9wb2Qvc2RrL2dvL2dlbi9taWNyb3BvZC92MTttaWNyb3BvZHYxYgZwcm90bzM", [file_buf_validate_validate, file_gnostic_openapi_v3_annotations, file_micropod_v1_api, file_micropod_v1_image, file_micropod_v1_volume]);
 
 /**
  * @generated from message micropod.v1.GetMetricsHistoryRequest
@@ -343,7 +343,10 @@ export type PingResponse = Message<"micropod.v1.PingResponse"> & {
   runtimeBackend: string;
 
   /**
-   * Version of the embedded API server.
+   * Version of Apple's `container` apiserver (the runtime engine), as it
+   * reports it: a bare release ("1.5.0") or, through 1.3.x, its banner.
+   * Not Micropod's version — that is `micropod_version`. Kept under this
+   * name for existing clients; new clients read `apple_api_server_version`.
    *
    * @generated from field: string api_server_version = 3;
    */
@@ -375,6 +378,61 @@ export type PingResponse = Message<"micropod.v1.PingResponse"> & {
    * @generated from field: string default_runtime = 6;
    */
   defaultRuntime: string;
+
+  /**
+   * Micropod release of the API server that answered ("dev" for a local
+   * build). Empty on servers that predate the version manifest.
+   *
+   * @generated from field: string micropod_version = 7;
+   */
+  micropodVersion: string;
+
+  /**
+   * Git revision that release was built from, or "unknown".
+   *
+   * @generated from field: string source_revision = 8;
+   */
+  sourceRevision: string;
+
+  /**
+   * Revision of the Micropod API contract this server implements. It only
+   * changes when a peer must change behaviour to stay correct; additive
+   * fields do not change it. 0 on servers that predate it.
+   *
+   * @generated from field: uint32 protocol_version = 9;
+   */
+  protocolVersion: number;
+
+  /**
+   * Runtime coordination protocol versions this server can speak with a
+   * rig controller such as Cuttlefish.
+   *
+   * @generated from field: micropod.v1.ProtocolRange peer_protocol = 10;
+   */
+  peerProtocol?: ProtocolRange;
+
+  /**
+   * Every Micropod component this server can observe, with what it is
+   * running. Ping leaves `sha256` empty; GetSystem fills it.
+   *
+   * @generated from field: repeated micropod.v1.ComponentVersion components = 11;
+   */
+  components: ComponentVersion[];
+
+  /**
+   * Where this Micropod is in its update lifecycle (see GetUpdateState).
+   *
+   * @generated from field: micropod.v1.UpdateState update_state = 12;
+   */
+  updateState?: UpdateState;
+
+  /**
+   * Same value as `api_server_version`, under a name that says whose
+   * version it is.
+   *
+   * @generated from field: string apple_api_server_version = 13;
+   */
+  appleApiServerVersion: string;
 };
 
 /**
@@ -383,6 +441,101 @@ export type PingResponse = Message<"micropod.v1.PingResponse"> & {
  */
 export const PingResponseSchema: GenMessage<PingResponse> = /*@__PURE__*/
   messageDesc(file_micropod_v1_system, 7);
+
+/**
+ * A contiguous range of protocol versions, inclusive.
+ *
+ * @generated from message micropod.v1.ProtocolRange
+ */
+export type ProtocolRange = Message<"micropod.v1.ProtocolRange"> & {
+  /**
+   * Protocol family, e.g. "micropod-runtime-coordination".
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * Oldest version this server accepts.
+   *
+   * @generated from field: uint32 min_version = 2;
+   */
+  minVersion: number;
+
+  /**
+   * Newest version this server speaks.
+   *
+   * @generated from field: uint32 max_version = 3;
+   */
+  maxVersion: number;
+};
+
+/**
+ * Describes the message micropod.v1.ProtocolRange.
+ * Use `create(ProtocolRangeSchema)` to create a new message.
+ */
+export const ProtocolRangeSchema: GenMessage<ProtocolRange> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_system, 8);
+
+/**
+ * One installed or running piece of Micropod, as the answering server
+ * observed it. A value it could not read is "unknown", never a guess.
+ *
+ * @generated from message micropod.v1.ComponentVersion
+ */
+export type ComponentVersion = Message<"micropod.v1.ComponentVersion"> & {
+  /**
+   * "app", "connect-api", "dedicated-api", "setup-helper", "docker-shim",
+   * "shared-fs", "apple-runtime", "vminit", "guest" or "kernel".
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * Release the component reports, or "unknown".
+   *
+   * @generated from field: string version = 2;
+   */
+  version: string;
+
+  /**
+   * Source revision it was built from, or "unknown".
+   *
+   * @generated from field: string revision = 3;
+   */
+  revision: string;
+
+  /**
+   * SHA-256 of its executable or payload, hex. Empty when not computed
+   * (always on Ping) or not readable.
+   *
+   * @generated from field: string sha256 = 4;
+   */
+  sha256: string;
+
+  /**
+   * "running", "stopped", "installed", "missing", "not_configured" or
+   * "unknown".
+   *
+   * @generated from field: string state = 5;
+   */
+  state: string;
+
+  /**
+   * Where it was read from, or why it could not be.
+   *
+   * @generated from field: string detail = 6;
+   */
+  detail: string;
+};
+
+/**
+ * Describes the message micropod.v1.ComponentVersion.
+ * Use `create(ComponentVersionSchema)` to create a new message.
+ */
+export const ComponentVersionSchema: GenMessage<ComponentVersion> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_system, 9);
 
 /**
  * @generated from message micropod.v1.SystemSnapshot
@@ -401,6 +554,48 @@ export type SystemSnapshot = Message<"micropod.v1.SystemSnapshot"> & {
    * @generated from field: micropod.v1.DiskUsage disk_usage = 2;
    */
   diskUsage?: DiskUsage;
+
+  /**
+   * Micropod release of the API server that answered (see PingResponse).
+   *
+   * @generated from field: string micropod_version = 3;
+   */
+  micropodVersion: string;
+
+  /**
+   * Git revision that release was built from, or "unknown".
+   *
+   * @generated from field: string source_revision = 4;
+   */
+  sourceRevision: string;
+
+  /**
+   * Revision of the Micropod API contract (see PingResponse).
+   *
+   * @generated from field: uint32 protocol_version = 5;
+   */
+  protocolVersion: number;
+
+  /**
+   * Runtime coordination protocol versions this server can speak.
+   *
+   * @generated from field: micropod.v1.ProtocolRange peer_protocol = 6;
+   */
+  peerProtocol?: ProtocolRange;
+
+  /**
+   * Every component this server can observe, with `sha256` where cheap.
+   *
+   * @generated from field: repeated micropod.v1.ComponentVersion components = 7;
+   */
+  components: ComponentVersion[];
+
+  /**
+   * Where this Micropod is in its update lifecycle (see GetUpdateState).
+   *
+   * @generated from field: micropod.v1.UpdateState update_state = 8;
+   */
+  updateState?: UpdateState;
 };
 
 /**
@@ -408,7 +603,7 @@ export type SystemSnapshot = Message<"micropod.v1.SystemSnapshot"> & {
  * Use `create(SystemSnapshotSchema)` to create a new message.
  */
 export const SystemSnapshotSchema: GenMessage<SystemSnapshot> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 8);
+  messageDesc(file_micropod_v1_system, 10);
 
 /**
  * Runtime health, mapped from `container system status`.
@@ -438,7 +633,9 @@ export type SystemStatus = Message<"micropod.v1.SystemStatus"> & {
   installRoot: string;
 
   /**
-   * Version of the embedded API server.
+   * Version of Apple's `container` apiserver (the runtime engine), as it
+   * reports it. Not Micropod's version — see SystemSnapshot.micropod_version.
+   * New clients read `apple_api_server_version`.
    *
    * @generated from field: string api_server_version = 4;
    */
@@ -457,6 +654,14 @@ export type SystemStatus = Message<"micropod.v1.SystemStatus"> & {
    * @generated from field: string runtime_backend = 6;
    */
   runtimeBackend: string;
+
+  /**
+   * Same value as `api_server_version`, under a name that says whose
+   * version it is.
+   *
+   * @generated from field: string apple_api_server_version = 7;
+   */
+  appleApiServerVersion: string;
 };
 
 /**
@@ -464,7 +669,7 @@ export type SystemStatus = Message<"micropod.v1.SystemStatus"> & {
  * Use `create(SystemStatusSchema)` to create a new message.
  */
 export const SystemStatusSchema: GenMessage<SystemStatus> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 9);
+  messageDesc(file_micropod_v1_system, 11);
 
 /**
  * Disk usage, mapped from `container system df`.
@@ -506,7 +711,7 @@ export type DiskUsage = Message<"micropod.v1.DiskUsage"> & {
  * Use `create(DiskUsageSchema)` to create a new message.
  */
 export const DiskUsageSchema: GenMessage<DiskUsage> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 10);
+  messageDesc(file_micropod_v1_system, 12);
 
 /**
  * @generated from message micropod.v1.DiskCategory
@@ -546,7 +751,7 @@ export type DiskCategory = Message<"micropod.v1.DiskCategory"> & {
  * Use `create(DiskCategorySchema)` to create a new message.
  */
 export const DiskCategorySchema: GenMessage<DiskCategory> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 11);
+  messageDesc(file_micropod_v1_system, 13);
 
 /**
  * Single snapshot of runtime resource usage for all running containers,
@@ -575,7 +780,7 @@ export type StatsSnapshot = Message<"micropod.v1.StatsSnapshot"> & {
  * Use `create(StatsSnapshotSchema)` to create a new message.
  */
 export const StatsSnapshotSchema: GenMessage<StatsSnapshot> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 12);
+  messageDesc(file_micropod_v1_system, 14);
 
 /**
  * Per-container resource counters within a StatsSnapshot.
@@ -686,7 +891,7 @@ export type ContainerStats = Message<"micropod.v1.ContainerStats"> & {
  * Use `create(ContainerStatsSchema)` to create a new message.
  */
 export const ContainerStatsSchema: GenMessage<ContainerStats> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 13);
+  messageDesc(file_micropod_v1_system, 15);
 
 /**
  * A registry login, mapped from `container registry list`.
@@ -721,7 +926,7 @@ export type RegistryLogin = Message<"micropod.v1.RegistryLogin"> & {
  * Use `create(RegistryLoginSchema)` to create a new message.
  */
 export const RegistryLoginSchema: GenMessage<RegistryLogin> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 14);
+  messageDesc(file_micropod_v1_system, 16);
 
 /**
  * What a cleanup would reclaim: every image and volume annotated with the
@@ -771,7 +976,7 @@ export type UsageReport = Message<"micropod.v1.UsageReport"> & {
  * Use `create(UsageReportSchema)` to create a new message.
  */
 export const UsageReportSchema: GenMessage<UsageReport> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 15);
+  messageDesc(file_micropod_v1_system, 17);
 
 /**
  * An image plus the containers that reference it.
@@ -806,7 +1011,7 @@ export type UsageReport_ImageUsage = Message<"micropod.v1.UsageReport.ImageUsage
  * Use `create(UsageReport_ImageUsageSchema)` to create a new message.
  */
 export const UsageReport_ImageUsageSchema: GenMessage<UsageReport_ImageUsage> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 15, 0);
+  messageDesc(file_micropod_v1_system, 17, 0);
 
 /**
  * A volume plus the containers mounting it.
@@ -841,7 +1046,7 @@ export type UsageReport_VolumeUsage = Message<"micropod.v1.UsageReport.VolumeUsa
  * Use `create(UsageReport_VolumeUsageSchema)` to create a new message.
  */
 export const UsageReport_VolumeUsageSchema: GenMessage<UsageReport_VolumeUsage> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 15, 1);
+  messageDesc(file_micropod_v1_system, 17, 1);
 
 /**
  * Desktop-app updater status (Sparkle), proxied over the app control
@@ -912,6 +1117,88 @@ export type UpdateStatus = Message<"micropod.v1.UpdateStatus"> & {
    * @generated from field: string checked_at = 9;
    */
   checkedAt: string;
+
+  /**
+   * The same lifecycle as one state (see GetUpdateState).
+   *
+   * @generated from field: micropod.v1.UpdateState update_state = 10;
+   */
+  updateState?: UpdateState;
+
+  /**
+   * Why installation cannot proceed now, when it cannot. Older servers
+   * appended this to `error`.
+   *
+   * @generated from field: string restart_blocked_reason = 11;
+   */
+  restartBlockedReason: string;
+
+  /**
+   * The workload-owner admission guard: "unavailable", "idle", "preparing",
+   * "prepared", "installationStarted", "blocked" or "recoveryRequired".
+   *
+   * @generated from field: string restart_guard = 12;
+   */
+  restartGuard: string;
+
+  /**
+   * Update channel: "stable" or "qualification".
+   *
+   * @generated from field: string channel = 13;
+   */
+  channel: string;
+
+  /**
+   * Workload-continuity protocol the running app speaks with its retained
+   * services.
+   *
+   * @generated from field: uint32 workload_protocol = 14;
+   */
+  workloadProtocol: number;
+
+  /**
+   * Whether the offered release carries a payload this app can install
+   * without replacing its retained services.
+   *
+   * @generated from field: bool payload_compatible = 15;
+   */
+  payloadCompatible: boolean;
+
+  /**
+   * Source revision of the running app, or "unknown".
+   *
+   * @generated from field: string current_source_revision = 16;
+   */
+  currentSourceRevision: string;
+
+  /**
+   * The durable update transaction, when one was ever recorded.
+   *
+   * @generated from field: micropod.v1.UpdateTransaction transaction = 17;
+   */
+  transaction?: UpdateTransaction;
+
+  /**
+   * Desktop admission gate: "open" or "closed" (closed while an update
+   * holds the desktop).
+   *
+   * @generated from field: string desktop_admission = 18;
+   */
+  desktopAdmission: string;
+
+  /**
+   * What an update replaces and what it retains.
+   *
+   * @generated from field: string update_scope = 19;
+   */
+  updateScope: string;
+
+  /**
+   * Why the durable transaction could not be read, when it could not.
+   *
+   * @generated from field: string recovery_error = 20;
+   */
+  recoveryError: string;
 };
 
 /**
@@ -919,7 +1206,7 @@ export type UpdateStatus = Message<"micropod.v1.UpdateStatus"> & {
  * Use `create(UpdateStatusSchema)` to create a new message.
  */
 export const UpdateStatusSchema: GenMessage<UpdateStatus> = /*@__PURE__*/
-  messageDesc(file_micropod_v1_system, 16);
+  messageDesc(file_micropod_v1_system, 18);
 
 /**
  * Updater lifecycle state.
@@ -995,7 +1282,230 @@ export enum UpdateStatus_State {
  * Describes the enum micropod.v1.UpdateStatus.State.
  */
 export const UpdateStatus_StateSchema: GenEnum<UpdateStatus_State> = /*@__PURE__*/
-  enumDesc(file_micropod_v1_system, 16, 0);
+  enumDesc(file_micropod_v1_system, 18, 0);
+
+/**
+ * The app's durable update transaction (~/.micropod/updates).
+ *
+ * @generated from message micropod.v1.UpdateTransaction
+ */
+export type UpdateTransaction = Message<"micropod.v1.UpdateTransaction"> & {
+  /**
+   * Transaction identifier.
+   *
+   * @generated from field: string operation_id = 1;
+   */
+  operationId: string;
+
+  /**
+   * "prepared", "downloading", "extracting", "downloadRejected",
+   * "installing", "succeeded", "aborted" or "recoveryRequired".
+   *
+   * @generated from field: string phase = 2;
+   */
+  phase: string;
+
+  /**
+   * Version the transaction started from.
+   *
+   * @generated from field: string source_version = 3;
+   */
+  sourceVersion: string;
+
+  /**
+   * Version it installs.
+   *
+   * @generated from field: string target_version = 4;
+   */
+  targetVersion: string;
+
+  /**
+   * Source revision of the target release.
+   *
+   * @generated from field: string target_source_revision = 5;
+   */
+  targetSourceRevision: string;
+
+  /**
+   * Why it reached its phase, when recorded.
+   *
+   * @generated from field: string detail = 6;
+   */
+  detail: string;
+
+  /**
+   * ISO8601 time of the last phase change.
+   *
+   * @generated from field: string updated_at = 7;
+   */
+  updatedAt: string;
+};
+
+/**
+ * Describes the message micropod.v1.UpdateTransaction.
+ * Use `create(UpdateTransactionSchema)` to create a new message.
+ */
+export const UpdateTransactionSchema: GenMessage<UpdateTransaction> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_system, 19);
+
+/**
+ * One read-only answer to "what is this Micropod running, and where is
+ * its update?". Derived from the updater's durable transaction, its guard
+ * and the runtime admission gate; nothing here is inferred from timing.
+ *
+ * @generated from message micropod.v1.UpdateState
+ */
+export type UpdateState = Message<"micropod.v1.UpdateState"> & {
+  /**
+   * Lifecycle position.
+   *
+   * @generated from field: micropod.v1.UpdateState.Kind kind = 1;
+   */
+  kind: UpdateState_Kind;
+
+  /**
+   * Which updater this describes: "desktop" (the app and its linked tools)
+   * or "runtime" (maintenance of the dedicated runtime and its API).
+   *
+   * @generated from field: string scope = 2;
+   */
+  scope: string;
+
+  /**
+   * For KIND_UPGRADING: "preparing", "prepared", "downloading",
+   * "extracting", "installing", or "runtime-maintenance" (scope "runtime").
+   *
+   * @generated from field: string phase = 3;
+   */
+  phase: string;
+
+  /**
+   * Why, for KIND_ROLLED_BACK, KIND_BLOCKED, KIND_RECOVERY_REQUIRED and
+   * KIND_UNKNOWN; for KIND_CURRENT, the last updater error, if any.
+   *
+   * @generated from field: string reason = 4;
+   */
+  reason: string;
+
+  /**
+   * Release running now, or "unknown".
+   *
+   * @generated from field: string current_version = 5;
+   */
+  currentVersion: string;
+
+  /**
+   * Release being staged, installed, blocked or rolled back.
+   *
+   * @generated from field: string target_version = 6;
+   */
+  targetVersion: string;
+
+  /**
+   * Newer release the feed offers, when known.
+   *
+   * @generated from field: string available_version = 7;
+   */
+  availableVersion: string;
+
+  /**
+   * Transaction (scope "desktop") or maintenance operation (scope
+   * "runtime") this state belongs to.
+   *
+   * @generated from field: string operation_id = 8;
+   */
+  operationId: string;
+
+  /**
+   * ISO8601 time the transaction last changed, when known.
+   *
+   * @generated from field: string updated_at = 9;
+   */
+  updatedAt: string;
+};
+
+/**
+ * Describes the message micropod.v1.UpdateState.
+ * Use `create(UpdateStateSchema)` to create a new message.
+ */
+export const UpdateStateSchema: GenMessage<UpdateState> = /*@__PURE__*/
+  messageDesc(file_micropod_v1_system, 20);
+
+/**
+ * Lifecycle position.
+ *
+ * @generated from enum micropod.v1.UpdateState.Kind
+ */
+export enum UpdateState_Kind {
+  /**
+   * Not reported: the server predates UpdateState.
+   *
+   * @generated from enum value: KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Running its installed release with nothing staged or in flight.
+   * `available_version` is set when the feed offers a newer release.
+   *
+   * @generated from enum value: KIND_CURRENT = 1;
+   */
+  CURRENT = 1,
+
+  /**
+   * A verified update is downloaded and staged; a restart installs
+   * `target_version`.
+   *
+   * @generated from enum value: KIND_STAGED = 2;
+   */
+  STAGED = 2,
+
+  /**
+   * A transaction is in flight; `phase` says where.
+   *
+   * @generated from enum value: KIND_UPGRADING = 3;
+   */
+  UPGRADING = 3,
+
+  /**
+   * The last transaction was abandoned before it took effect, and
+   * `current_version` kept running; `reason` says why. Replaced by the
+   * next transaction's state.
+   *
+   * @generated from enum value: KIND_ROLLED_BACK = 4;
+   */
+  ROLLED_BACK = 4,
+
+  /**
+   * An update cannot proceed; `reason` says why. Nothing was changed.
+   *
+   * @generated from enum value: KIND_BLOCKED = 5;
+   */
+  BLOCKED = 5,
+
+  /**
+   * A transaction's outcome is unknown. It holds until a verified
+   * reconciliation (`micropod update recover`, or `micropod runtime
+   * recover` for scope "runtime"); `reason` says what is retained.
+   *
+   * @generated from enum value: KIND_RECOVERY_REQUIRED = 6;
+   */
+  RECOVERY_REQUIRED = 6,
+
+  /**
+   * The answering server cannot observe this updater (for example the
+   * desktop app is not running); `reason` says why.
+   *
+   * @generated from enum value: KIND_UNKNOWN = 7;
+   */
+  UNKNOWN = 7,
+}
+
+/**
+ * Describes the enum micropod.v1.UpdateState.Kind.
+ */
+export const UpdateState_KindSchema: GenEnum<UpdateState_Kind> = /*@__PURE__*/
+  enumDesc(file_micropod_v1_system, 20, 0);
 
 /**
  * Daemon-level operations: runtime snapshot, cleanup usage report, and the
@@ -1056,6 +1566,20 @@ export const SystemService: GenService<{
     methodKind: "unary";
     input: typeof EmptySchema;
     output: typeof UpdateStatusSchema;
+  },
+  /**
+   * Read-only: where this Micropod is in its update lifecycle, as one
+   * state (see UpdateState). Never starts a check, download or restart.
+   * Served by the dedicated runtime API as well as the desktop API: the
+   * desktop API combines the app's updater with runtime maintenance, the
+   * dedicated API reports runtime maintenance only (scope "runtime").
+   *
+   * @generated from rpc micropod.v1.SystemService.GetUpdateState
+   */
+  getUpdateState: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof UpdateStateSchema;
   },
   /**
    * Millisecond liveness: runtime status and active backend without disk
