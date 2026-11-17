@@ -13,6 +13,7 @@ import XCTest
 final class RealShimTests: XCTestCase {
     private static let ryukImage = "testcontainers/ryuk:0.14.0"
 
+    private let ownership = RealShimOwnership()
     private var shimProcess: Process?
     private var socketPath: String = ""
     private var tcpPort: UInt16 = 45990
@@ -25,18 +26,28 @@ final class RealShimTests: XCTestCase {
         }
         guard client.isAvailable() else { throw XCTSkip("`container` CLI not available") }
         try await withTimeout(seconds: 90) { try await Self.pullRyukIfNeeded() }
+        ownership.activate()
     }
 
     override func tearDown() async throws {
-        shimProcess?.terminate()
-        shimProcess?.waitUntilExit()
+        // XCTest runs teardown even when setup throws XCTSkip. An inactive
+        // fixture must not query or mutate any real runtime resources.
+        guard ownership.isActive else { return }
+        if let shimProcess { await shimProcess.stopBounded() }
         if !socketPath.isEmpty { try? FileManager.default.removeItem(atPath: socketPath) }
-        // Ryuk reaps labeled victims; clean the survivors ourselves.
-        if let survivors = try? await containerService.list() {
-            for container in survivors where container.id.hasPrefix("realshim-") {
-                try? await containerService.delete(container.id, force: true)
-            }
-        }
+        let failures = await ownership.cleanup(
+            inspect: { try await self.ownedSnapshot($0) },
+            delete: { try await self.containerService.delete($0, force: true) })
+        XCTAssertTrue(failures.isEmpty, failures.joined(separator: "\n"))
+    }
+
+    private func ownedSnapshot(_ id: String) async throws -> RealShimResourceSnapshot? {
+        let data = try await containerService.inspect(id)
+        return try RealShimOwnership.decodeSnapshot(data, expectedID: id)
+    }
+
+    private func recordCreated(status: Int, body: Data, requestedID: String) throws {
+        try ownership.recordCreation(status: status, requestedID: requestedID, returnedID: Self.field(body, "Id"))
     }
 
     private static func pullRyukIfNeeded() async throws {
@@ -92,9 +103,10 @@ final class RealShimTests: XCTestCase {
             "POST", "/containers/create?name=\(victim)",
             body: Self.json([
                 "Image": "alpine:3.20", "Cmd": ["sh", "-c", "echo boot; sleep 5"],
-                "Labels": ["org.testcontainers.session-id": session],
+                "Labels": ownership.labels.merging(["org.testcontainers.session-id": session]) { _, new in new },
             ]))
         XCTAssertEqual(create.status, 201, String(decoding: create.body, as: UTF8.self))
+        try recordCreated(status: create.status, body: create.body, requestedID: victim)
 
         XCTAssertEqual(try docker.request("POST", "/containers/\(victim)/start").status, 204)
 
@@ -116,22 +128,32 @@ final class RealShimTests: XCTestCase {
         let logs = try docker.request("GET", "/containers/\(victim)/logs?stdout=1&tail=5")
         XCTAssertTrue(Self.framePayload(logs.body).contains("boot"))
 
-        XCTAssertEqual(try docker.request("DELETE", "/containers/\(victim)?force=true").status, 204)
+        let victimSnapshot = try await ownedSnapshot(victim)
+        guard let victimSnapshot, ownership.owns(victimSnapshot) else {
+            throw RealShimOwnershipError(description: "Refusing lifecycle delete without verified ownership")
+        }
+        let deleted = try docker.request("DELETE", "/containers/\(victim)?force=true")
+        XCTAssertEqual(deleted.status, 204)
+        if deleted.status == 204 { ownership.forgetRemoved(victim) }
 
-        // Ryuk: bystander (no label) + victim2 (labeled) + reaper via shim.
+        // Ryuk: bystander (no reaper-session label) + victim2 (labeled) + reaper via shim.
         let bystander = "realshim-\(session)-bystander"
-        _ = try docker.request(
+        let bystanderCreate = try docker.request(
             "POST", "/containers/create?name=\(bystander)",
-            body: Self.json(["Image": "alpine:3.20", "Cmd": ["sleep", "600"]]))
+            body: Self.json(["Image": "alpine:3.20", "Cmd": ["sleep", "600"], "Labels": ownership.labels]))
+        XCTAssertEqual(bystanderCreate.status, 201)
+        try recordCreated(status: bystanderCreate.status, body: bystanderCreate.body, requestedID: bystander)
         XCTAssertEqual(try docker.request("POST", "/containers/\(bystander)/start").status, 204)
 
         let victim2 = "realshim-\(session)-victim2"
-        _ = try docker.request(
+        let victim2Create = try docker.request(
             "POST", "/containers/create?name=\(victim2)",
             body: Self.json([
                 "Image": "alpine:3.20", "Cmd": ["sleep", "600"],
-                "Labels": ["org.testcontainers.session-id": session],
+                "Labels": ownership.labels.merging(["org.testcontainers.session-id": session]) { _, new in new },
             ]))
+        XCTAssertEqual(victim2Create.status, 201)
+        try recordCreated(status: victim2Create.status, body: victim2Create.body, requestedID: victim2)
         XCTAssertEqual(try docker.request("POST", "/containers/\(victim2)/start").status, 204)
 
         let reaper = "realshim-\(session)-reaper"
@@ -139,7 +161,7 @@ final class RealShimTests: XCTestCase {
             "POST", "/containers/create?name=\(reaper)",
             body: Self.json([
                 "Image": Self.ryukImage,
-                "Labels": ["org.testcontainers": "true"],
+                "Labels": ownership.labels.merging(["org.testcontainers": "true"]) { _, new in new },
                 "Env": ["DOCKER_HOST=unix:///var/run/docker.sock"],
                 "HostConfig": [
                     "Binds": ["/var/run/docker.sock:/var/run/docker.sock"],
@@ -147,6 +169,7 @@ final class RealShimTests: XCTestCase {
                 ],
             ]))
         XCTAssertEqual(ryukCreate.status, 201, String(decoding: ryukCreate.body, as: UTF8.self))
+        try recordCreated(status: ryukCreate.status, body: ryukCreate.body, requestedID: reaper)
         XCTAssertEqual(try docker.request("POST", "/containers/\(reaper)/start").status, 204)
 
         // Inspect must show the intercepted env + stripped bind.
@@ -172,6 +195,7 @@ final class RealShimTests: XCTestCase {
             survivors.contains { $0.id.contains(victim2) }, "victim2 must be reaped")
         XCTAssertTrue(
             survivors.contains { $0.id == bystander }, "bystander must survive the reap")
+        if !survivors.contains(where: { $0.id == victim2 }) { ownership.forgetRemoved(victim2) }
     }
 
     // MARK: - Helpers
