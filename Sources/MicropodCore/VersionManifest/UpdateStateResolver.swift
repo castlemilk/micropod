@@ -127,6 +127,86 @@ public enum UpdateStateResolver {
         return desktop
     }
 
+    /// A disruptive rig upgrade's state from its journal and the newest staged
+    /// release, or nil when neither says anything. `installedVersion` is the
+    /// app on disk, which a staged release must be newer than.
+    public static func rig(
+        journal: RigUpgradeJournal?, staged: RigStagedRelease?, installedVersion: String?
+    ) -> Micropod_V1_UpdateState? {
+        func state(_ kind: Micropod_V1_UpdateState.Kind) -> Micropod_V1_UpdateState {
+            var state = Micropod_V1_UpdateState()
+            state.kind = kind
+            state.scope = desktopScope
+            state.currentVersion = installedVersion ?? ComponentProbe.unknown
+            return state
+        }
+        if let journal {
+            var result = state(.current)
+            result.operationID = journal.operation.uuidString
+            result.updatedAt = ISO8601DateFormatter().string(from: journal.updatedAt)
+            result.targetVersion = journal.target.version
+            let dedicated = journal.dedicatedRuntime ? " " + RigUpgradeEngine.dedicatedNote : ""
+            switch journal.phase {
+            case .prepared, .draining, .stopping, .swapping, .starting, .verifying, .completing:
+                result.kind = .upgrading
+                result.phase = "rig-" + journal.phase.rawValue
+                result.currentVersion = journal.source.version
+                result.reason =
+                    "Disruptive upgrade \(journal.source.version) → \(journal.target.version); jobs may be "
+                    + "interrupted." + dedicated
+                return result
+            case .rollingBack:
+                result.kind = .upgrading
+                result.phase = "rig-rolling-back"
+                result.currentVersion = journal.source.version
+                result.reason = "Restoring \(journal.source.version): \(journal.failure ?? "the upgrade failed")"
+                return result
+            case .recoveryRequired:
+                result.kind = .recoveryRequired
+                result.reason = journal.reason ?? "The rig upgrade could not finish its rollback"
+                return result
+            case .rolledBack, .refused:
+                // A release staged after the outcome replaces it.
+                if let staged, staged.stagedAt > journal.updatedAt, staged.isNewer(than: installedVersion ?? "") {
+                    break
+                }
+                result.kind = journal.phase == .refused ? .blocked : .rolledBack
+                result.reason = journal.reason ?? ""
+                return result
+            case .completed:
+                break
+            }
+        }
+        guard let staged, let installedVersion, staged.isNewer(than: installedVersion) else { return nil }
+        var result = state(.staged)
+        result.targetVersion = staged.identity.version
+        result.updatedAt = ISO8601DateFormatter().string(from: staged.stagedAt)
+        return result
+    }
+
+    /// The rig upgrade state this account's files describe.
+    public static func rig(layout: RigUpgradeLayout) -> Micropod_V1_UpdateState? {
+        let installed = (try? ComponentProbe.bundleStamp(layout.appPath))?.version
+        return rig(
+            journal: try? RigUpgradeStore(layout: layout).read(), staged: RigStagedRelease.newest(in: layout),
+            installedVersion: installed == ComponentProbe.unknown ? nil : installed)
+    }
+
+    /// Both updaters plus a disruptive rig upgrade. An upgrade in flight wins
+    /// (the app it replaces cannot report); its rollback, refusal or staged
+    /// release outranks a desktop that is merely current or unobservable.
+    public static func combined(
+        desktop: Micropod_V1_UpdateState, runtime: Micropod_V1_UpdateState, rig: Micropod_V1_UpdateState?
+    ) -> Micropod_V1_UpdateState {
+        let base = combined(desktop: desktop, runtime: runtime)
+        guard let rig else { return base }
+        if rig.kind == .upgrading || rig.kind == .recoveryRequired { return rig }
+        guard [.current, .unknown, .unspecified].contains(base.kind) else { return base }
+        var result = rig
+        if result.availableVersion.isEmpty { result.availableVersion = base.availableVersion }
+        return result
+    }
+
     private static func text(_ value: Any?) -> String? {
         guard let value = value as? String, !value.isEmpty else { return nil }
         return value

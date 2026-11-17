@@ -2,33 +2,23 @@ import Darwin
 import Foundation
 import MicropodCore
 
-/// launchd owns these fixed, signed payloads. A desktop release neither
-/// replaces their executable paths nor restarts them. Component upgrades are
-/// a separate runtime operation, with their own compatibility/idle checks.
+/// launchd owns these fixed, signed payloads. A desktop (Sparkle) release
+/// neither replaces their executable paths nor restarts them. A disruptive rig
+/// upgrade (RigUpgradeEngine) replaces records, payloads and launch agents
+/// while it holds the upgrade fence; this file leaves them alone meanwhile.
 enum PersistentDesktopAgents {
-    struct Record: Codable {
-        let schema: Int
-        let sourceVersion: String
-        let executable: String
-        let identifier: String
-        let sha256: String
-        let arguments: [String]
-        let environment: [String: String]
-    }
+    /// The record format is shared with the rig upgrade, which replaces it.
+    typealias Record = RetainedServiceRecord
     static var enabled: Bool {
         Bundle.main.object(forInfoDictionaryKey: "MicropodWorkloadProtocol") as? Int == 1
             && (try? IsolatedRuntimeIdentity.readRootOwned())?.ownerUID == getuid()
             && ProcessInfo.processInfo.environment["MICROPOD_AGENT_RUN_DIR"] == nil
     }
     static var root: URL { URL(fileURLWithPath: NSHomeDirectory() + "/.micropod/services") }
-    static func identifier(_ spec: AgentSpec) -> String {
-        switch spec.id {
-        case "api-server": "com.skunkworq.micropod.api"
-        case "docker-shim": "com.skunkworq.micropod.docker-shim"
-        default: "com.skunkworq.micropod.sharedfs"
-        }
+    static func identifier(_ spec: AgentSpec) -> String { RetainedServiceLaunchAgent.identifier(spec.id) }
+    static func recordURL(_ spec: AgentSpec) -> URL {
+        RetainedServiceLaunchAgent.recordURL(spec.id, servicesRoot: root)
     }
-    static func recordURL(_ spec: AgentSpec) -> URL { root.appendingPathComponent(spec.id + ".json") }
 
     static func ensure(_ spec: AgentSpec, owners: [Int32]?, healthy: Bool) throws -> Int32? {
         try FileManager.default.createDirectory(
@@ -41,11 +31,15 @@ enum PersistentDesktopAgents {
             throw MicropodError.message("Service setup is already in progress")
         }
         defer { flock(lock, LOCK_UN) }
+        // A disruptive rig upgrade is replacing these payloads and launch
+        // agents right now; setup resumes on a later tick once it finishes.
+        guard !RigUpgradeFence.isReplacingServices() else {
+            throw MicropodError.message(
+                "A rig upgrade is replacing Micropod's services; setup resumes when it finishes")
+        }
         guard let owners else { throw MicropodError.message("Cannot establish the \(spec.displayName) owner") }
         if FileManager.default.fileExists(atPath: recordURL(spec).path) {
-            let record = try JSONDecoder().decode(
-                Record.self,
-                from: RuntimeDurableFile.read(recordURL(spec), maximumBytes: 8192))
+            let record = try RetainedServiceLaunchAgent.readRecord(recordURL(spec))
             guard record.schema == 1, record.identifier == identifier(spec),
                 try UpdateServiceWitness.digest(URL(fileURLWithPath: record.executable)) == record.sha256
             else { throw MicropodError.message("The retained service payload changed") }
@@ -136,19 +130,10 @@ enum PersistentDesktopAgents {
 
     private static func register(_ spec: AgentSpec, record: Record) throws {
         try RuntimeCodeIdentity.verifyExecutable(URL(fileURLWithPath: record.executable), identifier: record.identifier)
-        let label = "com.skunkworq.micropod.service." + spec.id
         let agentDirectory = URL(fileURLWithPath: NSHomeDirectory() + "/Library/LaunchAgents")
         try FileManager.default.createDirectory(at: agentDirectory, withIntermediateDirectories: true)
-        let plist = agentDirectory.appendingPathComponent(label + ".plist")
-        let configuration: [String: Any] = [
-            "Label": label, "ProgramArguments": [record.executable] + record.arguments,
-            "RunAtLoad": true, "KeepAlive": true, "ThrottleInterval": 10,
-            "EnvironmentVariables": record.environment,
-            "StandardOutPath": root.appendingPathComponent(spec.id + ".log").path,
-            "StandardErrorPath": root.appendingPathComponent(spec.id + ".log").path,
-            "ProcessType": "Background", "Umask": 0o077,
-        ]
-        try PropertyListSerialization.data(fromPropertyList: configuration, format: .xml, options: 0).write(
+        let plist = RetainedServiceLaunchAgent.plistURL(spec.id, launchAgents: agentDirectory)
+        try RetainedServiceLaunchAgent.plistData(spec.id, record: record, servicesRoot: root).write(
             to: plist, options: .atomic)
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/launchctl")

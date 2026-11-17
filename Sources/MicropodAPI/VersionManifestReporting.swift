@@ -36,6 +36,8 @@ struct VersionEnvironment: Sendable {
     var desktopReachable: @Sendable () -> Bool
     /// One authenticated request to the dedicated runtime API.
     var dedicatedRequest: @Sendable (_ path: String, _ body: Data, _ timeout: Duration) async throws -> Data
+    /// A disruptive rig upgrade's state from this account's journal, if any.
+    var rigUpgrade: @Sendable () -> Micropod_V1_UpdateState? = { nil }
 
     static func live(client: ContainerCLIClient) -> VersionEnvironment {
         let environment = ProcessInfo.processInfo.environment
@@ -62,7 +64,8 @@ struct VersionEnvironment: Sendable {
             desktopReachable: { AppControlClient().isReachable },
             dedicatedRequest: { path, body, timeout in
                 try await IsolatedRuntimeTransport.shared.request(path: path, body: body, timeout: timeout)
-            })
+            },
+            rigUpgrade: { UpdateStateResolver.rig(layout: RigUpgradeLayout(home: home)) })
     }
 }
 
@@ -268,8 +271,9 @@ extension APIHandlers {
             micropodVersion: build.version, sourceRevision: build.revision,
             protocolVersion: MicropodProtocol.apiVersion, peerProtocol: MicropodProtocol.peerProtocol,
             components: MicropodComponent.allCases.compactMap { found[$0] },
-            updateState: desktopState.map { UpdateStateResolver.combined(desktop: $0, runtime: runtimeState) }
-                ?? runtimeState)
+            updateState: desktopState.map {
+                UpdateStateResolver.combined(desktop: $0, runtime: runtimeState, rig: environment.rigUpgrade())
+            } ?? runtimeState)
     }
 
     /// GetUpdateState: the desktop answers for both updaters; the dedicated
@@ -281,7 +285,8 @@ extension APIHandlers {
             currentVersion: environment.role == .dedicated ? environment.build.version : ComponentProbe.unknown)
         guard environment.role == .connect else { return runtimeState }
         let desktop = await desktopObserver.observe(environment, maxAge: .zero, timeout: 2)
-        return UpdateStateResolver.combined(desktop: desktop.updateState, runtime: runtimeState)
+        return UpdateStateResolver.combined(
+            desktop: desktop.updateState, runtime: runtimeState, rig: environment.rigUpgrade())
     }
 
     private func appleComponent(_ apple: AppleObservation, digest: Bool) -> Micropod_V1_ComponentVersion {
