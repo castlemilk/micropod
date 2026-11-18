@@ -179,6 +179,7 @@ public enum IsolatedRuntimeWorker {
         return .init(
             serviceUID: identity.serviceUID, bootstrapDomain: "user/\(identity.serviceUID)", state: "nativeReady",
             nativeVersion: health.semver, nativeAppRoot: path(health.appRoot),
-            nativeInstallRoot: path(health.installRoot), containerCount: entries.count)
+            nativeInstallRoot: path(health.installRoot), containerCount: entries.count,
+            containerIDs: entries.map(\.id))
     }
 }

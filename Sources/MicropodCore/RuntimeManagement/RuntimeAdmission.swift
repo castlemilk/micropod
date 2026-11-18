@@ -17,14 +17,14 @@ public struct RuntimeAdmission: Sendable {
         public let generation: UInt64
         public var actionStarted: Bool
     }
-    private struct Pending: Codable {
-        let operation: UUID
-        let route: String
-        let pid: Int32
-    }
     private var fenceURL: URL { root.appendingPathComponent("fence.json") }
     private var stateOwnerUID: uid_t { root == IsolatedRuntimePolicy.admissionRoot ? 0 : getuid() }
     public var isClosed: Bool { FileManager.default.fileExists(atPath: fenceURL.path) }
+    /// Whether any receipt, settled or not, is waiting in `pending/`.
+    public var hasPendingOperations: Bool {
+        let entries = try? FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("pending").path)
+        return !(entries ?? []).isEmpty
+    }
 
     public func nextGeneration() throws -> UInt64 {
         let url = root.appendingPathComponent("generation.json")
@@ -34,7 +34,11 @@ public struct RuntimeAdmission: Sendable {
         return value + 1
     }
 
-    public func claim(_ route: String) throws -> RuntimeAdmissionClaim? {
+    /// Admits one runtime operation and writes its durable receipt.
+    /// `container` names the container it acts on, when there is one: a
+    /// stale receipt for a container the runtime no longer lists can then
+    /// be proved dead (see ``StaleOperationEvidence``).
+    public func claim(_ route: String, container: String? = nil) throws -> RuntimeAdmissionClaim? {
         let fm = FileManager.default
         guard
             fm.fileExists(atPath: root.appendingPathComponent("enrolled").path)
@@ -52,25 +56,40 @@ public struct RuntimeAdmission: Sendable {
             guard !fm.fileExists(atPath: fenceURL.path) else { throw blocked() }
             let operation = UUID()
             let pending = root.appendingPathComponent("pending/" + operation.uuidString + ".json")
-            try RuntimeDurableFile.write(
-                Pending(operation: operation, route: String(route.prefix(80)), pid: getpid()), to: pending)
-            return RuntimeAdmissionClaim(fd: fd, pending: pending)
+            let record = PendingRuntimeOperation(
+                operation: operation, route: String(route.prefix(80)), pid: getpid(),
+                owner: PendingRuntimeOperation.currentOwner, createdAt: Date(),
+                container: container.map { String($0.prefix(128)) })
+            try RuntimeDurableFile.write(record, to: pending)
+            return RuntimeAdmissionClaim(fd: fd, pending: pending, record: record)
         } catch {
             close(fd)
             throw error
         }
     }
 
-    public func begin(operation: UUID, recovering: Bool = false) throws -> RuntimeMaintenanceFence {
+    /// Closes admission for one maintenance operation.
+    ///
+    /// Holding the gate exclusively proves no admission claim is live in
+    /// any process, so every receipt left in `pending/` belongs to an
+    /// operation whose caller has returned or whose process has exited.
+    /// Those that can be proved dead are retired first
+    /// (``reconcilePendingLocked(evidence:now:)``); any other receipt still
+    /// blocks maintenance. `evidence` is a container listing taken just
+    /// before this call, when the caller has one.
+    public func begin(operation: UUID, recovering: Bool = false, evidence: StaleOperationEvidence? = nil) throws
+        -> RuntimeMaintenanceFence
+    {
         try FileManager.default.createDirectory(
             at: root.appendingPathComponent("pending"), withIntermediateDirectories: true,
             attributes: [.posixPermissions: 0o700])
         let fd = try openLock(exclusive: true)
         do {
-            let pending = try FileManager.default.contentsOfDirectory(
-                at: root.appendingPathComponent("pending"), includingPropertiesForKeys: nil)
-            guard pending.isEmpty else {
-                throw MicropodError.message("Runtime has pending or uncertain operations; maintenance is blocked")
+            let blocking = try reconcilePendingLocked(evidence: evidence)
+            guard blocking.isEmpty else {
+                throw MicropodError.message(
+                    "Runtime has pending or uncertain operations; maintenance is blocked ("
+                        + PendingOperationReconciliation.describe(blocking) + ")")
             }
             let fence: Fence
             if FileManager.default.fileExists(atPath: fenceURL.path) {
@@ -115,11 +134,42 @@ public struct RuntimeAdmission: Sendable {
 public final class RuntimeAdmissionClaim: @unchecked Sendable {
     private let fd: Int32
     private let pending: URL
-    fileprivate init(fd: Int32, pending: URL) {
+    private let record: PendingRuntimeOperation
+    fileprivate init(fd: Int32, pending: URL, record: PendingRuntimeOperation) {
         self.fd = fd
         self.pending = pending
+        self.record = record
     }
+    /// The operation finished: its receipt is settled.
     public func completed() throws { try RuntimeDurableFile.remove(pending) }
+
+    /// The operation definitively failed — the runtime answered with an
+    /// error, or the call never reached it — so nothing of it is left in
+    /// flight and the receipt is settled like a completion.
+    public func failed() throws { try RuntimeDurableFile.remove(pending) }
+
+    /// The caller stopped waiting without an authoritative answer (a local
+    /// deadline, transport loss, cancellation after dispatch). The receipt
+    /// stays and keeps blocking maintenance until reconciliation proves the
+    /// operation dead; it now also says when the caller gave up.
+    public func uncertain() throws {
+        var record = record
+        record.outcome = .uncertain
+        record.endedAt = Date()
+        try RuntimeDurableFile.write(record, to: pending)
+    }
+
+    /// Settles a failed operation: definitive failures (``failed()``) when
+    /// it never reached the runtime or the runtime answered, uncertain
+    /// (``uncertain()``) for deadline, unavailable and cancelled outcomes
+    /// of a call that did reach it.
+    public func settle(after error: any Error, reachedRuntime: Bool = true) throws {
+        if reachedRuntime, ContainerLifecycleClaims.outcomeUncertain(error) {
+            try uncertain()
+        } else {
+            try failed()
+        }
+    }
     deinit { close(fd) }
 }
 

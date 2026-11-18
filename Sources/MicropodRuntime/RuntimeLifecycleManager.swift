@@ -201,7 +201,8 @@ public actor RuntimeLifecycleManager {
             // Existing rig jobs drain while their runtime calls still work.
             // Close Micropod entry points only after scheduler closure is held.
             try await verifyIdle(using: stagedOrCurrentClient())
-            fence = try gate.begin(operation: id)
+            fence = try gate.begin(
+                operation: id, evidence: await staleOperationEvidence(gate, client: stagedOrCurrentClient()))
             guard fence!.fence.generation == plannedGeneration else {
                 throw MicropodError.message("Runtime admission generation changed during preparation")
             }
@@ -411,6 +412,16 @@ public actor RuntimeLifecycleManager {
         }
     }
 
+    /// A container listing for ``RuntimeAdmission/begin`` when receipts are
+    /// waiting (see `IsolatedRuntimeHostController.staleOperationEvidence`).
+    private func staleOperationEvidence(_ gate: RuntimeAdmission, client: ContainerCLIClient) async
+        -> StaleOperationEvidence?
+    {
+        guard gate.hasPendingOperations else { return nil }
+        let requested = Date()
+        guard let ids = try? await driver.containerIDs(executable: client.executableURL) else { return nil }
+        return StaleOperationEvidence(observedAt: requested, liveContainers: ids)
+    }
     private func verifyIdle(using client: ContainerCLIClient) async throws {
         try await driver.assertIdle(executable: client.executableURL)
     }

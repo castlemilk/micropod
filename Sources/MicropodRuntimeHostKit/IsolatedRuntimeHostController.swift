@@ -252,10 +252,11 @@ public actor IsolatedRuntimeHostController {
                 }
             }
             try Task.checkCancellation()
+            let evidence = await staleOperationEvidence(identity: identity, digest: digest, selection: selection)
             let gateDeadline = ContinuousClock.now.advanced(by: .seconds(10))
             while fence == nil {
                 try Task.checkCancellation()
-                do { fence = try gate.begin(operation: request.operation) } catch {
+                do { fence = try gate.begin(operation: request.operation, evidence: evidence) } catch {
                     guard !gate.isClosed, ContinuousClock.now < gateDeadline else { throw error }
                     try await Task.sleep(for: .milliseconds(50))
                 }
@@ -336,6 +337,20 @@ public actor IsolatedRuntimeHostController {
         ) { birth in
             try await self.recordWorker(birth)
         }
+    }
+    /// A container listing for ``RuntimeAdmission/begin`` when receipts are
+    /// waiting, so stale ones for containers the runtime no longer lists
+    /// can be retired. Nil when none wait or the runtime cannot list; begin
+    /// then judges them without it.
+    private func staleOperationEvidence(
+        identity: IsolatedRuntimeIdentity, digest: String, selection: ManagedRuntimeLocation.Selection
+    ) async -> StaleOperationEvidence? {
+        guard gate.hasPendingOperations else { return nil }
+        let requested = Date()
+        guard let observed = try? await run(.verify, identity: identity, digest: digest, selection: selection),
+            observed.state == "nativeReady", let ids = observed.containerIDs
+        else { return nil }
+        return StaleOperationEvidence(observedAt: requested, liveContainers: Set(ids))
     }
     private func recordWorker(_ birth: RuntimeProcessBirth) throws {
         guard birth.uid == state.identity?.serviceUID else { throw MicropodError.message("Private worker uid changed") }

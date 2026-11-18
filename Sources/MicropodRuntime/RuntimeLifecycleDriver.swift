@@ -11,6 +11,14 @@ public protocol RuntimeLifecycleDriving: Sendable {
     func stop(executable: URL) async throws
     func start(executable: URL) async throws
     func verify(executable: URL, installRoot: URL, stopped: Bool) async throws
+    /// Every container id the runtime lists, or nil when it cannot list
+    /// (stopped). Lets maintenance retire stale admission receipts for
+    /// containers that no longer exist.
+    func containerIDs(executable: URL) async throws -> Set<String>?
+}
+
+extension RuntimeLifecycleDriving {
+    public func containerIDs(executable: URL) async throws -> Set<String>? { nil }
 }
 
 public struct NativeRuntimeLifecycleDriver: RuntimeLifecycleDriving {
@@ -34,6 +42,11 @@ public struct NativeRuntimeLifecycleDriver: RuntimeLifecycleDriving {
     }
     public func status(executable: URL) async throws -> String {
         try await SystemService(client: ContainerCLIClient(executableURL: executable)).status().status
+    }
+    public func containerIDs(executable: URL) async throws -> Set<String>? {
+        let client = ContainerCLIClient(executableURL: executable)
+        guard try await SystemService(client: client).status().status == "running" else { return nil }
+        return Set(try await ContainerService(client: client).entries().map(\.id))
     }
     public func stop(executable: URL) async throws {
         try await SystemService(client: ContainerCLIClient(executableURL: executable)).stop()

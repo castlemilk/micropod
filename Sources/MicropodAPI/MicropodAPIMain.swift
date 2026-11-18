@@ -446,7 +446,12 @@ final class HTTPServer: @unchecked Sendable {
                                 // Peer went away: stop pulling from the source
                                 // (dropping the iterator cancels the producer)
                                 // instead of pumping frames into a dead socket.
+                                // The stream ends here as it would at its last
+                                // frame: a vanished reader must not strand the
+                                // admission receipt.
                                 guard delivered else {
+                                    try? claim?.completed()
+                                    withExtendedLifetime(claim) {}
                                     connection.cancel()
                                     return
                                 }

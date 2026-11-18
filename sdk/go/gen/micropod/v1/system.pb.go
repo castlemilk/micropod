@@ -97,7 +97,7 @@ func (x UpdateStatus_State) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use UpdateStatus_State.Descriptor instead.
 func (UpdateStatus_State) EnumDescriptor() ([]byte, []int) {
-	return file_micropod_v1_system_proto_rawDescGZIP(), []int{18, 0}
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{19, 0}
 }
 
 // Lifecycle position.
@@ -177,7 +177,7 @@ func (x UpdateState_Kind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use UpdateState_Kind.Descriptor instead.
 func (UpdateState_Kind) EnumDescriptor() ([]byte, []int) {
-	return file_micropod_v1_system_proto_rawDescGZIP(), []int{20, 0}
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{21, 0}
 }
 
 type GetMetricsHistoryRequest struct {
@@ -760,8 +760,15 @@ type PingResponse struct {
 	// Same value as `api_server_version`, under a name that says whose
 	// version it is.
 	AppleApiServerVersion string `protobuf:"bytes,13,opt,name=apple_api_server_version,json=appleApiServerVersion,proto3" json:"apple_api_server_version,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// This server's container operations that Apple's runtime has not yet
+	// answered. Apple's apiserver runs container operations one at a time
+	// behind one FIFO lock, and its ping skips that lock, so `status:
+	// "running"` cannot tell a responsive runtime from one with minutes of
+	// container work queued; this can. Unset on servers that predate it, on
+	// the CLI backend (which cannot observe it) and during maintenance.
+	ContainerOperations *ContainerOperationQueue `protobuf:"bytes,14,opt,name=container_operations,json=containerOperations,proto3" json:"container_operations,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *PingResponse) Reset() {
@@ -885,6 +892,107 @@ func (x *PingResponse) GetAppleApiServerVersion() string {
 	return ""
 }
 
+func (x *PingResponse) GetContainerOperations() *ContainerOperationQueue {
+	if x != nil {
+		return x.ContainerOperations
+	}
+	return nil
+}
+
+// The container operations one Micropod API server has handed to Apple's
+// runtime and not yet seen answered (see PingResponse.container_operations).
+// It counts this server's own requests from send until the apiserver's
+// reply — including those whose caller gave up on a deadline, which the
+// apiserver still runs in order. Other clients of the same runtime are not
+// counted. Counted: container routes whose length is the runtime's
+// (create, bootstrap, start, stop, kill, delete, list, state, stats, …);
+// not counted: `containerWait`, copies and exports, and volume, network and
+// image operations, which do not take the containers lock.
+type ContainerOperationQueue struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// in_flight + waiting.
+	Depth uint32 `protobuf:"varint,1,opt,name=depth,proto3" json:"depth,omitempty"`
+	// Sent to the apiserver, no reply yet.
+	InFlight uint32 `protobuf:"varint,2,opt,name=in_flight,json=inFlight,proto3" json:"in_flight,omitempty"`
+	// Of in_flight, requests whose caller already stopped waiting (deadline
+	// or cancellation). A rising count means callers are giving up on work
+	// the runtime will still do.
+	Abandoned uint32 `protobuf:"varint,3,opt,name=abandoned,proto3" json:"abandoned,omitempty"`
+	// Container starts queued in this server for its start gate (one start
+	// at a time), not yet sent.
+	Waiting uint32 `protobuf:"varint,4,opt,name=waiting,proto3" json:"waiting,omitempty"`
+	// Age of the oldest operation counted in depth, in milliseconds; 0 when
+	// depth is 0.
+	OldestAgeMs   uint64 `protobuf:"varint,5,opt,name=oldest_age_ms,json=oldestAgeMs,proto3" json:"oldest_age_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ContainerOperationQueue) Reset() {
+	*x = ContainerOperationQueue{}
+	mi := &file_micropod_v1_system_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContainerOperationQueue) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContainerOperationQueue) ProtoMessage() {}
+
+func (x *ContainerOperationQueue) ProtoReflect() protoreflect.Message {
+	mi := &file_micropod_v1_system_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContainerOperationQueue.ProtoReflect.Descriptor instead.
+func (*ContainerOperationQueue) Descriptor() ([]byte, []int) {
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ContainerOperationQueue) GetDepth() uint32 {
+	if x != nil {
+		return x.Depth
+	}
+	return 0
+}
+
+func (x *ContainerOperationQueue) GetInFlight() uint32 {
+	if x != nil {
+		return x.InFlight
+	}
+	return 0
+}
+
+func (x *ContainerOperationQueue) GetAbandoned() uint32 {
+	if x != nil {
+		return x.Abandoned
+	}
+	return 0
+}
+
+func (x *ContainerOperationQueue) GetWaiting() uint32 {
+	if x != nil {
+		return x.Waiting
+	}
+	return 0
+}
+
+func (x *ContainerOperationQueue) GetOldestAgeMs() uint64 {
+	if x != nil {
+		return x.OldestAgeMs
+	}
+	return 0
+}
+
 // A contiguous range of protocol versions, inclusive.
 type ProtocolRange struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -900,7 +1008,7 @@ type ProtocolRange struct {
 
 func (x *ProtocolRange) Reset() {
 	*x = ProtocolRange{}
-	mi := &file_micropod_v1_system_proto_msgTypes[8]
+	mi := &file_micropod_v1_system_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -912,7 +1020,7 @@ func (x *ProtocolRange) String() string {
 func (*ProtocolRange) ProtoMessage() {}
 
 func (x *ProtocolRange) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_system_proto_msgTypes[8]
+	mi := &file_micropod_v1_system_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -925,7 +1033,7 @@ func (x *ProtocolRange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtocolRange.ProtoReflect.Descriptor instead.
 func (*ProtocolRange) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_system_proto_rawDescGZIP(), []int{8}
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ProtocolRange) GetName() string {
@@ -974,7 +1082,7 @@ type ComponentVersion struct {
 
 func (x *ComponentVersion) Reset() {
 	*x = ComponentVersion{}
-	mi := &file_micropod_v1_system_proto_msgTypes[9]
+	mi := &file_micropod_v1_system_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -986,7 +1094,7 @@ func (x *ComponentVersion) String() string {
 func (*ComponentVersion) ProtoMessage() {}
 
 func (x *ComponentVersion) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_system_proto_msgTypes[9]
+	mi := &file_micropod_v1_system_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -999,7 +1107,7 @@ func (x *ComponentVersion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ComponentVersion.ProtoReflect.Descriptor instead.
 func (*ComponentVersion) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_system_proto_rawDescGZIP(), []int{9}
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ComponentVersion) GetName() string {
@@ -1068,7 +1176,7 @@ type SystemSnapshot struct {
 
 func (x *SystemSnapshot) Reset() {
 	*x = SystemSnapshot{}
-	mi := &file_micropod_v1_system_proto_msgTypes[10]
+	mi := &file_micropod_v1_system_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1080,7 +1188,7 @@ func (x *SystemSnapshot) String() string {
 func (*SystemSnapshot) ProtoMessage() {}
 
 func (x *SystemSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_system_proto_msgTypes[10]
+	mi := &file_micropod_v1_system_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1093,7 +1201,7 @@ func (x *SystemSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SystemSnapshot.ProtoReflect.Descriptor instead.
 func (*SystemSnapshot) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_system_proto_rawDescGZIP(), []int{10}
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SystemSnapshot) GetStatus() *SystemStatus {
@@ -1178,7 +1286,7 @@ type SystemStatus struct {
 
 func (x *SystemStatus) Reset() {
 	*x = SystemStatus{}
-	mi := &file_micropod_v1_system_proto_msgTypes[11]
+	mi := &file_micropod_v1_system_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1190,7 +1298,7 @@ func (x *SystemStatus) String() string {
 func (*SystemStatus) ProtoMessage() {}
 
 func (x *SystemStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_system_proto_msgTypes[11]
+	mi := &file_micropod_v1_system_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1203,7 +1311,7 @@ func (x *SystemStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SystemStatus.ProtoReflect.Descriptor instead.
 func (*SystemStatus) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_system_proto_rawDescGZIP(), []int{11}
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SystemStatus) GetStatus() string {
@@ -1272,7 +1380,7 @@ type DiskUsage struct {
 
 func (x *DiskUsage) Reset() {
 	*x = DiskUsage{}
-	mi := &file_micropod_v1_system_proto_msgTypes[12]
+	mi := &file_micropod_v1_system_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1284,7 +1392,7 @@ func (x *DiskUsage) String() string {
 func (*DiskUsage) ProtoMessage() {}
 
 func (x *DiskUsage) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_system_proto_msgTypes[12]
+	mi := &file_micropod_v1_system_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1297,7 +1405,7 @@ func (x *DiskUsage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiskUsage.ProtoReflect.Descriptor instead.
 func (*DiskUsage) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_system_proto_rawDescGZIP(), []int{12}
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *DiskUsage) GetContainers() *DiskCategory {
@@ -1344,7 +1452,7 @@ type DiskCategory struct {
 
 func (x *DiskCategory) Reset() {
 	*x = DiskCategory{}
-	mi := &file_micropod_v1_system_proto_msgTypes[13]
+	mi := &file_micropod_v1_system_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1356,7 +1464,7 @@ func (x *DiskCategory) String() string {
 func (*DiskCategory) ProtoMessage() {}
 
 func (x *DiskCategory) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_system_proto_msgTypes[13]
+	mi := &file_micropod_v1_system_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1369,7 +1477,7 @@ func (x *DiskCategory) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiskCategory.ProtoReflect.Descriptor instead.
 func (*DiskCategory) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_system_proto_rawDescGZIP(), []int{13}
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *DiskCategory) GetTotal() uint64 {
@@ -1414,7 +1522,7 @@ type StatsSnapshot struct {
 
 func (x *StatsSnapshot) Reset() {
 	*x = StatsSnapshot{}
-	mi := &file_micropod_v1_system_proto_msgTypes[14]
+	mi := &file_micropod_v1_system_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1426,7 +1534,7 @@ func (x *StatsSnapshot) String() string {
 func (*StatsSnapshot) ProtoMessage() {}
 
 func (x *StatsSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_system_proto_msgTypes[14]
+	mi := &file_micropod_v1_system_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1439,7 +1547,7 @@ func (x *StatsSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatsSnapshot.ProtoReflect.Descriptor instead.
 func (*StatsSnapshot) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_system_proto_rawDescGZIP(), []int{14}
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *StatsSnapshot) GetContainers() []*ContainerStats {
@@ -1502,7 +1610,7 @@ type ContainerStats struct {
 
 func (x *ContainerStats) Reset() {
 	*x = ContainerStats{}
-	mi := &file_micropod_v1_system_proto_msgTypes[15]
+	mi := &file_micropod_v1_system_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1514,7 +1622,7 @@ func (x *ContainerStats) String() string {
 func (*ContainerStats) ProtoMessage() {}
 
 func (x *ContainerStats) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_system_proto_msgTypes[15]
+	mi := &file_micropod_v1_system_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1527,7 +1635,7 @@ func (x *ContainerStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContainerStats.ProtoReflect.Descriptor instead.
 func (*ContainerStats) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_system_proto_rawDescGZIP(), []int{15}
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ContainerStats) GetId() string {
@@ -1629,7 +1737,7 @@ type RegistryLogin struct {
 
 func (x *RegistryLogin) Reset() {
 	*x = RegistryLogin{}
-	mi := &file_micropod_v1_system_proto_msgTypes[16]
+	mi := &file_micropod_v1_system_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1641,7 +1749,7 @@ func (x *RegistryLogin) String() string {
 func (*RegistryLogin) ProtoMessage() {}
 
 func (x *RegistryLogin) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_system_proto_msgTypes[16]
+	mi := &file_micropod_v1_system_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1654,7 +1762,7 @@ func (x *RegistryLogin) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegistryLogin.ProtoReflect.Descriptor instead.
 func (*RegistryLogin) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_system_proto_rawDescGZIP(), []int{16}
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RegistryLogin) GetServer() string {
@@ -1698,7 +1806,7 @@ type UsageReport struct {
 
 func (x *UsageReport) Reset() {
 	*x = UsageReport{}
-	mi := &file_micropod_v1_system_proto_msgTypes[17]
+	mi := &file_micropod_v1_system_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1710,7 +1818,7 @@ func (x *UsageReport) String() string {
 func (*UsageReport) ProtoMessage() {}
 
 func (x *UsageReport) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_system_proto_msgTypes[17]
+	mi := &file_micropod_v1_system_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1723,7 +1831,7 @@ func (x *UsageReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UsageReport.ProtoReflect.Descriptor instead.
 func (*UsageReport) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_system_proto_rawDescGZIP(), []int{17}
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *UsageReport) GetImages() []*UsageReport_ImageUsage {
@@ -1816,7 +1924,7 @@ type UpdateStatus struct {
 
 func (x *UpdateStatus) Reset() {
 	*x = UpdateStatus{}
-	mi := &file_micropod_v1_system_proto_msgTypes[18]
+	mi := &file_micropod_v1_system_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1828,7 +1936,7 @@ func (x *UpdateStatus) String() string {
 func (*UpdateStatus) ProtoMessage() {}
 
 func (x *UpdateStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_system_proto_msgTypes[18]
+	mi := &file_micropod_v1_system_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1841,7 +1949,7 @@ func (x *UpdateStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateStatus.ProtoReflect.Descriptor instead.
 func (*UpdateStatus) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_system_proto_rawDescGZIP(), []int{18}
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *UpdateStatus) GetState() UpdateStatus_State {
@@ -2008,7 +2116,7 @@ type UpdateTransaction struct {
 
 func (x *UpdateTransaction) Reset() {
 	*x = UpdateTransaction{}
-	mi := &file_micropod_v1_system_proto_msgTypes[19]
+	mi := &file_micropod_v1_system_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2020,7 +2128,7 @@ func (x *UpdateTransaction) String() string {
 func (*UpdateTransaction) ProtoMessage() {}
 
 func (x *UpdateTransaction) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_system_proto_msgTypes[19]
+	mi := &file_micropod_v1_system_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2033,7 +2141,7 @@ func (x *UpdateTransaction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTransaction.ProtoReflect.Descriptor instead.
 func (*UpdateTransaction) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_system_proto_rawDescGZIP(), []int{19}
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *UpdateTransaction) GetOperationId() string {
@@ -2118,7 +2226,7 @@ type UpdateState struct {
 
 func (x *UpdateState) Reset() {
 	*x = UpdateState{}
-	mi := &file_micropod_v1_system_proto_msgTypes[20]
+	mi := &file_micropod_v1_system_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2130,7 +2238,7 @@ func (x *UpdateState) String() string {
 func (*UpdateState) ProtoMessage() {}
 
 func (x *UpdateState) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_system_proto_msgTypes[20]
+	mi := &file_micropod_v1_system_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2143,7 +2251,7 @@ func (x *UpdateState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateState.ProtoReflect.Descriptor instead.
 func (*UpdateState) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_system_proto_rawDescGZIP(), []int{20}
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *UpdateState) GetKind() UpdateState_Kind {
@@ -2224,7 +2332,7 @@ type UsageReport_ImageUsage struct {
 
 func (x *UsageReport_ImageUsage) Reset() {
 	*x = UsageReport_ImageUsage{}
-	mi := &file_micropod_v1_system_proto_msgTypes[21]
+	mi := &file_micropod_v1_system_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2236,7 +2344,7 @@ func (x *UsageReport_ImageUsage) String() string {
 func (*UsageReport_ImageUsage) ProtoMessage() {}
 
 func (x *UsageReport_ImageUsage) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_system_proto_msgTypes[21]
+	mi := &file_micropod_v1_system_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2249,7 +2357,7 @@ func (x *UsageReport_ImageUsage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UsageReport_ImageUsage.ProtoReflect.Descriptor instead.
 func (*UsageReport_ImageUsage) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_system_proto_rawDescGZIP(), []int{17, 0}
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{18, 0}
 }
 
 func (x *UsageReport_ImageUsage) GetImage() *Image {
@@ -2288,7 +2396,7 @@ type UsageReport_VolumeUsage struct {
 
 func (x *UsageReport_VolumeUsage) Reset() {
 	*x = UsageReport_VolumeUsage{}
-	mi := &file_micropod_v1_system_proto_msgTypes[22]
+	mi := &file_micropod_v1_system_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2300,7 +2408,7 @@ func (x *UsageReport_VolumeUsage) String() string {
 func (*UsageReport_VolumeUsage) ProtoMessage() {}
 
 func (x *UsageReport_VolumeUsage) ProtoReflect() protoreflect.Message {
-	mi := &file_micropod_v1_system_proto_msgTypes[22]
+	mi := &file_micropod_v1_system_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2313,7 +2421,7 @@ func (x *UsageReport_VolumeUsage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UsageReport_VolumeUsage.ProtoReflect.Descriptor instead.
 func (*UsageReport_VolumeUsage) Descriptor() ([]byte, []int) {
-	return file_micropod_v1_system_proto_rawDescGZIP(), []int{17, 1}
+	return file_micropod_v1_system_proto_rawDescGZIP(), []int{18, 1}
 }
 
 func (x *UsageReport_VolumeUsage) GetVolume() *Volume {
@@ -2386,7 +2494,7 @@ const file_micropod_v1_system_proto_rawDesc = "" +
 	"\b_enabledB\v\n" +
 	"\t_endpoint\"[\n" +
 	"\x18SetDefaultRuntimeRequest\x12?\n" +
-	"\x04name\x18\x01 \x01(\tB+\xbaG\r:\v\x12\t'sandbox'\xbaH\x18\xc8\x01\x01r\x132\x11^[a-z][a-z0-9-]*$R\x04name\"\xc2\x06\n" +
+	"\x04name\x18\x01 \x01(\tB+\xbaG\r:\v\x12\t'sandbox'\xbaH\x18\xc8\x01\x01r\x132\x11^[a-z][a-z0-9-]*$R\x04name\"\x9b\a\n" +
 	"\fPingResponse\x12(\n" +
 	"\x06status\x18\x01 \x01(\tB\x10\xbaG\r:\v\x12\t'running'R\x06status\x128\n" +
 	"\x0fruntime_backend\x18\x02 \x01(\tB\x0f\xbaG\f:\n" +
@@ -2406,7 +2514,14 @@ const file_micropod_v1_system_proto_rawDesc = "" +
 	"components\x18\v \x03(\v2\x1d.micropod.v1.ComponentVersionR\n" +
 	"components\x12;\n" +
 	"\fupdate_state\x18\f \x01(\v2\x18.micropod.v1.UpdateStateR\vupdateState\x12G\n" +
-	"\x18apple_api_server_version\x18\r \x01(\tB\x0e\xbaG\v:\t\x12\a'1.5.0'R\x15appleApiServerVersion\"\xa1\x01\n" +
+	"\x18apple_api_server_version\x18\r \x01(\tB\x0e\xbaG\v:\t\x12\a'1.5.0'R\x15appleApiServerVersion\x12W\n" +
+	"\x14container_operations\x18\x0e \x01(\v2$.micropod.v1.ContainerOperationQueueR\x13containerOperations\"\xde\x01\n" +
+	"\x17ContainerOperationQueue\x12\x1e\n" +
+	"\x05depth\x18\x01 \x01(\rB\b\xbaG\x05:\x03\x12\x014R\x05depth\x12%\n" +
+	"\tin_flight\x18\x02 \x01(\rB\b\xbaG\x05:\x03\x12\x013R\binFlight\x12&\n" +
+	"\tabandoned\x18\x03 \x01(\rB\b\xbaG\x05:\x03\x12\x011R\tabandoned\x12\"\n" +
+	"\awaiting\x18\x04 \x01(\rB\b\xbaG\x05:\x03\x12\x011R\awaiting\x120\n" +
+	"\roldest_age_ms\x18\x05 \x01(\x04B\f\xbaG\t:\a\x12\x0542000R\voldestAgeMs\"\xa1\x01\n" +
 	"\rProtocolRange\x12:\n" +
 	"\x04name\x18\x01 \x01(\tB&\xbaG#:!\x12\x1f'micropod-runtime-coordination'R\x04name\x12)\n" +
 	"\vmin_version\x18\x02 \x01(\rB\b\xbaG\x05:\x03\x12\x011R\n" +
@@ -2604,7 +2719,7 @@ func file_micropod_v1_system_proto_rawDescGZIP() []byte {
 }
 
 var file_micropod_v1_system_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_micropod_v1_system_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_micropod_v1_system_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_micropod_v1_system_proto_goTypes = []any{
 	(UpdateStatus_State)(0),          // 0: micropod.v1.UpdateStatus.State
 	(UpdateState_Kind)(0),            // 1: micropod.v1.UpdateState.Kind
@@ -2616,75 +2731,77 @@ var file_micropod_v1_system_proto_goTypes = []any{
 	(*UpdateRuntimeRequest)(nil),     // 7: micropod.v1.UpdateRuntimeRequest
 	(*SetDefaultRuntimeRequest)(nil), // 8: micropod.v1.SetDefaultRuntimeRequest
 	(*PingResponse)(nil),             // 9: micropod.v1.PingResponse
-	(*ProtocolRange)(nil),            // 10: micropod.v1.ProtocolRange
-	(*ComponentVersion)(nil),         // 11: micropod.v1.ComponentVersion
-	(*SystemSnapshot)(nil),           // 12: micropod.v1.SystemSnapshot
-	(*SystemStatus)(nil),             // 13: micropod.v1.SystemStatus
-	(*DiskUsage)(nil),                // 14: micropod.v1.DiskUsage
-	(*DiskCategory)(nil),             // 15: micropod.v1.DiskCategory
-	(*StatsSnapshot)(nil),            // 16: micropod.v1.StatsSnapshot
-	(*ContainerStats)(nil),           // 17: micropod.v1.ContainerStats
-	(*RegistryLogin)(nil),            // 18: micropod.v1.RegistryLogin
-	(*UsageReport)(nil),              // 19: micropod.v1.UsageReport
-	(*UpdateStatus)(nil),             // 20: micropod.v1.UpdateStatus
-	(*UpdateTransaction)(nil),        // 21: micropod.v1.UpdateTransaction
-	(*UpdateState)(nil),              // 22: micropod.v1.UpdateState
-	(*UsageReport_ImageUsage)(nil),   // 23: micropod.v1.UsageReport.ImageUsage
-	(*UsageReport_VolumeUsage)(nil),  // 24: micropod.v1.UsageReport.VolumeUsage
-	(*Image)(nil),                    // 25: micropod.v1.Image
-	(*Volume)(nil),                   // 26: micropod.v1.Volume
-	(*Empty)(nil),                    // 27: micropod.v1.Empty
+	(*ContainerOperationQueue)(nil),  // 10: micropod.v1.ContainerOperationQueue
+	(*ProtocolRange)(nil),            // 11: micropod.v1.ProtocolRange
+	(*ComponentVersion)(nil),         // 12: micropod.v1.ComponentVersion
+	(*SystemSnapshot)(nil),           // 13: micropod.v1.SystemSnapshot
+	(*SystemStatus)(nil),             // 14: micropod.v1.SystemStatus
+	(*DiskUsage)(nil),                // 15: micropod.v1.DiskUsage
+	(*DiskCategory)(nil),             // 16: micropod.v1.DiskCategory
+	(*StatsSnapshot)(nil),            // 17: micropod.v1.StatsSnapshot
+	(*ContainerStats)(nil),           // 18: micropod.v1.ContainerStats
+	(*RegistryLogin)(nil),            // 19: micropod.v1.RegistryLogin
+	(*UsageReport)(nil),              // 20: micropod.v1.UsageReport
+	(*UpdateStatus)(nil),             // 21: micropod.v1.UpdateStatus
+	(*UpdateTransaction)(nil),        // 22: micropod.v1.UpdateTransaction
+	(*UpdateState)(nil),              // 23: micropod.v1.UpdateState
+	(*UsageReport_ImageUsage)(nil),   // 24: micropod.v1.UsageReport.ImageUsage
+	(*UsageReport_VolumeUsage)(nil),  // 25: micropod.v1.UsageReport.VolumeUsage
+	(*Image)(nil),                    // 26: micropod.v1.Image
+	(*Volume)(nil),                   // 27: micropod.v1.Volume
+	(*Empty)(nil),                    // 28: micropod.v1.Empty
 }
 var file_micropod_v1_system_proto_depIdxs = []int32{
 	4,  // 0: micropod.v1.MetricsHistory.points:type_name -> micropod.v1.MetricsPoint
 	5,  // 1: micropod.v1.ListRuntimesResponse.runtimes:type_name -> micropod.v1.RuntimeInfo
-	10, // 2: micropod.v1.PingResponse.peer_protocol:type_name -> micropod.v1.ProtocolRange
-	11, // 3: micropod.v1.PingResponse.components:type_name -> micropod.v1.ComponentVersion
-	22, // 4: micropod.v1.PingResponse.update_state:type_name -> micropod.v1.UpdateState
-	13, // 5: micropod.v1.SystemSnapshot.status:type_name -> micropod.v1.SystemStatus
-	14, // 6: micropod.v1.SystemSnapshot.disk_usage:type_name -> micropod.v1.DiskUsage
-	10, // 7: micropod.v1.SystemSnapshot.peer_protocol:type_name -> micropod.v1.ProtocolRange
-	11, // 8: micropod.v1.SystemSnapshot.components:type_name -> micropod.v1.ComponentVersion
-	22, // 9: micropod.v1.SystemSnapshot.update_state:type_name -> micropod.v1.UpdateState
-	15, // 10: micropod.v1.DiskUsage.containers:type_name -> micropod.v1.DiskCategory
-	15, // 11: micropod.v1.DiskUsage.images:type_name -> micropod.v1.DiskCategory
-	15, // 12: micropod.v1.DiskUsage.volumes:type_name -> micropod.v1.DiskCategory
-	17, // 13: micropod.v1.StatsSnapshot.containers:type_name -> micropod.v1.ContainerStats
-	23, // 14: micropod.v1.UsageReport.images:type_name -> micropod.v1.UsageReport.ImageUsage
-	24, // 15: micropod.v1.UsageReport.volumes:type_name -> micropod.v1.UsageReport.VolumeUsage
-	0,  // 16: micropod.v1.UpdateStatus.state:type_name -> micropod.v1.UpdateStatus.State
-	22, // 17: micropod.v1.UpdateStatus.update_state:type_name -> micropod.v1.UpdateState
-	21, // 18: micropod.v1.UpdateStatus.transaction:type_name -> micropod.v1.UpdateTransaction
-	1,  // 19: micropod.v1.UpdateState.kind:type_name -> micropod.v1.UpdateState.Kind
-	25, // 20: micropod.v1.UsageReport.ImageUsage.image:type_name -> micropod.v1.Image
-	26, // 21: micropod.v1.UsageReport.VolumeUsage.volume:type_name -> micropod.v1.Volume
-	27, // 22: micropod.v1.SystemService.GetSystem:input_type -> micropod.v1.Empty
-	27, // 23: micropod.v1.SystemService.GetUsage:input_type -> micropod.v1.Empty
-	27, // 24: micropod.v1.SystemService.CheckForUpdates:input_type -> micropod.v1.Empty
-	27, // 25: micropod.v1.SystemService.GetUpdateStatus:input_type -> micropod.v1.Empty
-	27, // 26: micropod.v1.SystemService.ApplyUpdate:input_type -> micropod.v1.Empty
-	27, // 27: micropod.v1.SystemService.GetUpdateState:input_type -> micropod.v1.Empty
-	27, // 28: micropod.v1.SystemService.Ping:input_type -> micropod.v1.Empty
-	27, // 29: micropod.v1.SystemService.ListRuntimes:input_type -> micropod.v1.Empty
-	8,  // 30: micropod.v1.SystemService.SetDefaultRuntime:input_type -> micropod.v1.SetDefaultRuntimeRequest
-	7,  // 31: micropod.v1.SystemService.UpdateRuntime:input_type -> micropod.v1.UpdateRuntimeRequest
-	2,  // 32: micropod.v1.SystemService.GetMetricsHistory:input_type -> micropod.v1.GetMetricsHistoryRequest
-	12, // 33: micropod.v1.SystemService.GetSystem:output_type -> micropod.v1.SystemSnapshot
-	19, // 34: micropod.v1.SystemService.GetUsage:output_type -> micropod.v1.UsageReport
-	20, // 35: micropod.v1.SystemService.CheckForUpdates:output_type -> micropod.v1.UpdateStatus
-	20, // 36: micropod.v1.SystemService.GetUpdateStatus:output_type -> micropod.v1.UpdateStatus
-	20, // 37: micropod.v1.SystemService.ApplyUpdate:output_type -> micropod.v1.UpdateStatus
-	22, // 38: micropod.v1.SystemService.GetUpdateState:output_type -> micropod.v1.UpdateState
-	9,  // 39: micropod.v1.SystemService.Ping:output_type -> micropod.v1.PingResponse
-	6,  // 40: micropod.v1.SystemService.ListRuntimes:output_type -> micropod.v1.ListRuntimesResponse
-	6,  // 41: micropod.v1.SystemService.SetDefaultRuntime:output_type -> micropod.v1.ListRuntimesResponse
-	6,  // 42: micropod.v1.SystemService.UpdateRuntime:output_type -> micropod.v1.ListRuntimesResponse
-	3,  // 43: micropod.v1.SystemService.GetMetricsHistory:output_type -> micropod.v1.MetricsHistory
-	33, // [33:44] is the sub-list for method output_type
-	22, // [22:33] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	11, // 2: micropod.v1.PingResponse.peer_protocol:type_name -> micropod.v1.ProtocolRange
+	12, // 3: micropod.v1.PingResponse.components:type_name -> micropod.v1.ComponentVersion
+	23, // 4: micropod.v1.PingResponse.update_state:type_name -> micropod.v1.UpdateState
+	10, // 5: micropod.v1.PingResponse.container_operations:type_name -> micropod.v1.ContainerOperationQueue
+	14, // 6: micropod.v1.SystemSnapshot.status:type_name -> micropod.v1.SystemStatus
+	15, // 7: micropod.v1.SystemSnapshot.disk_usage:type_name -> micropod.v1.DiskUsage
+	11, // 8: micropod.v1.SystemSnapshot.peer_protocol:type_name -> micropod.v1.ProtocolRange
+	12, // 9: micropod.v1.SystemSnapshot.components:type_name -> micropod.v1.ComponentVersion
+	23, // 10: micropod.v1.SystemSnapshot.update_state:type_name -> micropod.v1.UpdateState
+	16, // 11: micropod.v1.DiskUsage.containers:type_name -> micropod.v1.DiskCategory
+	16, // 12: micropod.v1.DiskUsage.images:type_name -> micropod.v1.DiskCategory
+	16, // 13: micropod.v1.DiskUsage.volumes:type_name -> micropod.v1.DiskCategory
+	18, // 14: micropod.v1.StatsSnapshot.containers:type_name -> micropod.v1.ContainerStats
+	24, // 15: micropod.v1.UsageReport.images:type_name -> micropod.v1.UsageReport.ImageUsage
+	25, // 16: micropod.v1.UsageReport.volumes:type_name -> micropod.v1.UsageReport.VolumeUsage
+	0,  // 17: micropod.v1.UpdateStatus.state:type_name -> micropod.v1.UpdateStatus.State
+	23, // 18: micropod.v1.UpdateStatus.update_state:type_name -> micropod.v1.UpdateState
+	22, // 19: micropod.v1.UpdateStatus.transaction:type_name -> micropod.v1.UpdateTransaction
+	1,  // 20: micropod.v1.UpdateState.kind:type_name -> micropod.v1.UpdateState.Kind
+	26, // 21: micropod.v1.UsageReport.ImageUsage.image:type_name -> micropod.v1.Image
+	27, // 22: micropod.v1.UsageReport.VolumeUsage.volume:type_name -> micropod.v1.Volume
+	28, // 23: micropod.v1.SystemService.GetSystem:input_type -> micropod.v1.Empty
+	28, // 24: micropod.v1.SystemService.GetUsage:input_type -> micropod.v1.Empty
+	28, // 25: micropod.v1.SystemService.CheckForUpdates:input_type -> micropod.v1.Empty
+	28, // 26: micropod.v1.SystemService.GetUpdateStatus:input_type -> micropod.v1.Empty
+	28, // 27: micropod.v1.SystemService.ApplyUpdate:input_type -> micropod.v1.Empty
+	28, // 28: micropod.v1.SystemService.GetUpdateState:input_type -> micropod.v1.Empty
+	28, // 29: micropod.v1.SystemService.Ping:input_type -> micropod.v1.Empty
+	28, // 30: micropod.v1.SystemService.ListRuntimes:input_type -> micropod.v1.Empty
+	8,  // 31: micropod.v1.SystemService.SetDefaultRuntime:input_type -> micropod.v1.SetDefaultRuntimeRequest
+	7,  // 32: micropod.v1.SystemService.UpdateRuntime:input_type -> micropod.v1.UpdateRuntimeRequest
+	2,  // 33: micropod.v1.SystemService.GetMetricsHistory:input_type -> micropod.v1.GetMetricsHistoryRequest
+	13, // 34: micropod.v1.SystemService.GetSystem:output_type -> micropod.v1.SystemSnapshot
+	20, // 35: micropod.v1.SystemService.GetUsage:output_type -> micropod.v1.UsageReport
+	21, // 36: micropod.v1.SystemService.CheckForUpdates:output_type -> micropod.v1.UpdateStatus
+	21, // 37: micropod.v1.SystemService.GetUpdateStatus:output_type -> micropod.v1.UpdateStatus
+	21, // 38: micropod.v1.SystemService.ApplyUpdate:output_type -> micropod.v1.UpdateStatus
+	23, // 39: micropod.v1.SystemService.GetUpdateState:output_type -> micropod.v1.UpdateState
+	9,  // 40: micropod.v1.SystemService.Ping:output_type -> micropod.v1.PingResponse
+	6,  // 41: micropod.v1.SystemService.ListRuntimes:output_type -> micropod.v1.ListRuntimesResponse
+	6,  // 42: micropod.v1.SystemService.SetDefaultRuntime:output_type -> micropod.v1.ListRuntimesResponse
+	6,  // 43: micropod.v1.SystemService.UpdateRuntime:output_type -> micropod.v1.ListRuntimesResponse
+	3,  // 44: micropod.v1.SystemService.GetMetricsHistory:output_type -> micropod.v1.MetricsHistory
+	34, // [34:45] is the sub-list for method output_type
+	23, // [23:34] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_micropod_v1_system_proto_init() }
@@ -2696,14 +2813,14 @@ func file_micropod_v1_system_proto_init() {
 	file_micropod_v1_image_proto_init()
 	file_micropod_v1_volume_proto_init()
 	file_micropod_v1_system_proto_msgTypes[5].OneofWrappers = []any{}
-	file_micropod_v1_system_proto_msgTypes[15].OneofWrappers = []any{}
+	file_micropod_v1_system_proto_msgTypes[16].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_micropod_v1_system_proto_rawDesc), len(file_micropod_v1_system_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   23,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

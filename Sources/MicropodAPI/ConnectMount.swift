@@ -685,6 +685,11 @@ extension APIHandlers {
             response.features.append(RuntimeCoordinationEnrollment.dataCapability)
         }
         response.defaultRuntime = EngineRegistry.shared.defaultName
+        // Only the native backend sends the apiserver requests it counts;
+        // the CLI backend's `container` children are invisible to it.
+        if services.kind == .native {
+            response.containerOperations = Self.containerOperations(ContainerOperationQueue.shared.snapshot())
+        }
         var apple = AppleObservation(reported: "", state: .stopped)
         if let api = services.api {
             let health = try? await api.ping(timeout: .seconds(2))
@@ -722,6 +727,19 @@ extension APIHandlers {
         }
         await versionManifest(apple: apple, digests: false).apply(to: &response)
         return response
+    }
+
+    static func containerOperations(_ snapshot: ContainerOperationQueue.Snapshot)
+        -> Micropod_V1_ContainerOperationQueue
+    {
+        var queue = Micropod_V1_ContainerOperationQueue()
+        queue.depth = UInt32(clamping: snapshot.depth)
+        queue.inFlight = UInt32(clamping: snapshot.inFlight)
+        queue.abandoned = UInt32(clamping: snapshot.abandoned)
+        queue.waiting = UInt32(clamping: snapshot.waiting)
+        let age = snapshot.oldestAge.components
+        queue.oldestAgeMs = UInt64(clamping: max(0, age.seconds * 1000 + age.attoseconds / 1_000_000_000_000_000))
+        return queue
     }
 
     /// Ping in front of a dedicated runtime: its API reports the runtime and

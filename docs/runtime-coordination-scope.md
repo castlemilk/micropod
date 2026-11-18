@@ -106,7 +106,11 @@ For an approved runtime operation:
 
 Cancellation and restart recovery must use the same retained operation. They
 must not replay a start/stop, discard an unknown receipt, reopen admission from
-elapsed time or turn a runtime grant into a host grant. Manual stop must keep
+elapsed time or turn a runtime grant into a host grant. Retiring a receipt that
+maintenance proves dead (failed, written before this boot, owner exited, or
+container absent from a fresh listing — "Stale admission receipts" in
+`isolated-runtime-design.md`) is not discarding an unknown one: it is moved
+to `admission/reconciled/` with the proof. Manual stop must keep
 automatic runtime startup and participating rig intake paused as specified by
 the owner's policy.
 

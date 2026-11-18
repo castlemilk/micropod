@@ -60,7 +60,8 @@ Desktop CLI operations and terminals use the same gateway. Data requests
 cannot start/stop the runtime, restart plugins, retarget the runtime root or
 supply a host environment. Lifecycle changes use the root authority. Private
 API requests hold the durable admission gate; terminal claims remain until
-the shell has been reaped. Unknown mutation outcomes retain their receipts.
+the shell has been reaped. Unknown mutation outcomes retain their receipts
+until maintenance can prove them dead (see "Stale admission receipts").
 
 Fresh health probes use the private worker when the API is stopped. They do
 not replace the lifecycle operation ID or authorize a runtime action. A probe
@@ -98,6 +99,64 @@ verification. Recovery checks exact generations and worker incarnations;
 it does not blindly repeat start/stop. Cancellation before an action uses a
 two-stage abort; uncertain actions retain the fence. A manual stop keeps rig
 intake paused after release.
+
+### Stale admission receipts
+
+Every admitted runtime operation writes a receipt,
+`admission/pending/<operation>.json`: its route, the claiming process's
+birth (pid, start time, boot session), when it began, and the container it
+acts on when it names one. A completed operation removes it, and so does a
+definitive failure — one the runtime answered with an error, or one that
+never reached it. A caller that stops waiting without an authoritative
+answer (a local deadline, transport loss, cancellation after dispatch)
+leaves it, marked `uncertain`. Receipts from older builds carry only route
+and pid.
+
+Left alone, those receipts accumulated. A rig whose apiserver backlogged
+collected 153, mostly `native.start`, from creates and starts that missed
+their callers' deadlines; nothing settled them, and every `micropod runtime
+restart` or stop refused with "Runtime has pending or uncertain
+operations; maintenance is blocked".
+
+Maintenance now reconciles them when it closes admission
+(`RuntimeAdmission.begin`). Holding the gate exclusively proves that no
+claim is live in any process, so each remaining receipt belongs to an
+operation whose caller has returned or whose process has exited. A receipt
+is retired when one of these proves it dead
+(`PendingOperationReconciliation`):
+
+1. **Failed.** Its owner recorded a definitive failure.
+2. **Earlier boot.** It was written before the current boot (by its owner's
+   boot session, or for an old receipt its file time against
+   `kern.boottime`). The apiserver and every process that could act on it
+   have restarted since.
+3. **Owner exited.** The claiming process no longer exists — compared by
+   start time and boot session, so a reused pid cannot pass for it — and
+   either the route's work ran inside that process (`native.create`,
+   `native.start`, `managed-api:*`, whose runtime calls take receipts of
+   their own), or the receipt is older than
+   `staleOperationAge`, so a call it left queued in the apiserver has had
+   that long to run.
+4. **Container absent.** It names a container, was at least
+   `staleOperationAge` old when a fresh container listing (at most 2 min
+   old) was requested, and the listing does not contain that container.
+   Both lifecycle owners take that listing just before closing admission.
+
+`staleOperationAge` is 10 minutes. The longest container operations a rig
+sends are bounded far below it: a create or start that missed a 30–60 s
+client deadline in a backlogged apiserver landed 60–70 s late, and a
+backlog that filled for 15 minutes drained in 13 once intake paused.
+
+Elapsed time alone never retires a receipt; it is only the bound attached
+to a second proof (an exited owner, an absent container). Everything else
+still blocks: an owner that is running whose receipt names no container, an
+owner that cannot be read, an unreadable or unrecognised entry. The refusal
+now says what blocks, grouped by route, with the oldest age. Retired
+receipts are moved to `admission/reconciled/` with the rule that proved
+them dead — never deleted unseen — and the newest 256 are kept. The
+post-fence checks are unchanged: before stopping, the worker still refuses
+running containers and machines, managed-API workloads and lingering
+private-account processes.
 
 ## Qualification status
 
@@ -163,7 +222,9 @@ request decoding.
 The operator acknowledged the two uncertain, pre-fix test results and retained
 their receipts under `qualification-receipts/a4e7e658-17b0-44c6-83f8-93d9e33f17b4`.
 No command was replayed, service stopped or runtime data deleted by that
-recovery. Routine operations cannot discard uncertain receipts. Setup reports
+recovery. Routine operations cannot discard uncertain receipts; maintenance
+retires only those it can prove dead, and keeps them under
+`admission/reconciled/`. Setup reports
 bounded, redacted pending-request diagnostics.
 
 The updated runtime delivered delayed output and saved a marker in a named
