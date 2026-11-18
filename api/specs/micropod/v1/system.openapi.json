@@ -805,6 +805,58 @@
         "additionalProperties": false,
         "description": "One installed or running piece of Micropod, as the answering server\n observed it. A value it could not read is \"unknown\", never a guess."
       },
+      "micropod.v1.ContainerOperationQueue": {
+        "type": "object",
+        "properties": {
+          "depth": {
+            "type": "integer",
+            "examples": [
+              "4"
+            ],
+            "title": "depth",
+            "description": "in_flight + waiting."
+          },
+          "inFlight": {
+            "type": "integer",
+            "examples": [
+              "3"
+            ],
+            "title": "in_flight",
+            "description": "Sent to the apiserver, no reply yet."
+          },
+          "abandoned": {
+            "type": "integer",
+            "examples": [
+              "1"
+            ],
+            "title": "abandoned",
+            "description": "Of in_flight, requests whose caller already stopped waiting (deadline\n or cancellation). A rising count means callers are giving up on work\n the runtime will still do."
+          },
+          "waiting": {
+            "type": "integer",
+            "examples": [
+              "1"
+            ],
+            "title": "waiting",
+            "description": "Container starts queued in this server for its start gate (one start\n at a time), not yet sent."
+          },
+          "oldestAgeMs": {
+            "type": [
+              "integer",
+              "string"
+            ],
+            "examples": [
+              "42000"
+            ],
+            "title": "oldest_age_ms",
+            "format": "int64",
+            "description": "Age of the oldest operation counted in depth, in milliseconds; 0 when\n depth is 0."
+          }
+        },
+        "title": "ContainerOperationQueue",
+        "additionalProperties": false,
+        "description": "The container operations one Micropod API server has handed to Apple's\n runtime and not yet seen answered (see PingResponse.container_operations).\n It counts this server's own requests from send until the apiserver's\n reply \u2014 including those whose caller gave up on a deadline, which the\n apiserver still runs in order. Other clients of the same runtime are not\n counted. Counted: container routes whose length is the runtime's\n (create, bootstrap, start, stop, kill, delete, list, state, stats, \u2026);\n not counted: `containerWait`, copies and exports, and volume, network and\n image operations, which do not take the containers lock."
+      },
       "micropod.v1.ContainerStats": {
         "type": "object",
         "properties": {
@@ -1413,6 +1465,11 @@
             ],
             "title": "apple_api_server_version",
             "description": "Same value as `api_server_version`, under a name that says whose\n version it is."
+          },
+          "containerOperations": {
+            "title": "container_operations",
+            "description": "This server's container operations that Apple's runtime has not yet\n answered. Apple's apiserver runs container operations one at a time\n behind one FIFO lock, and its ping skips that lock, so `status:\n \"running\"` cannot tell a responsive runtime from one with minutes of\n container work queued; this can. Unset on servers that predate it, on\n the CLI backend (which cannot observe it) and during maintenance.",
+            "$ref": "#/components/schemas/micropod.v1.ContainerOperationQueue"
           }
         },
         "title": "PingResponse",

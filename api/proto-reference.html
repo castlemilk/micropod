@@ -643,6 +643,10 @@
                 </li>
               
                 <li>
+                  <a href="#micropod.v1.ContainerOperationQueue"><span class="badge">M</span>ContainerOperationQueue</a>
+                </li>
+              
+                <li>
                   <a href="#micropod.v1.ContainerStats"><span class="badge">M</span>ContainerStats</a>
                 </li>
               
@@ -4776,6 +4780,62 @@ backends that never create clones.</p></td>
 
         
       
+        <h3 id="micropod.v1.ContainerOperationQueue">ContainerOperationQueue</h3>
+        <p>The container operations one Micropod API server has handed to Apple's</p><p>runtime and not yet seen answered (see PingResponse.container_operations).</p><p>It counts this server's own requests from send until the apiserver's</p><p>reply — including those whose caller gave up on a deadline, which the</p><p>apiserver still runs in order. Other clients of the same runtime are not</p><p>counted. Counted: container routes whose length is the runtime's</p><p>(create, bootstrap, start, stop, kill, delete, list, state, stats, …);</p><p>not counted: `containerWait`, copies and exports, and volume, network and</p><p>image operations, which do not take the containers lock.</p>
+
+        
+          <table class="field-table">
+            <thead>
+              <tr><td>Field</td><td>Type</td><td>Label</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              
+                <tr>
+                  <td>depth</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>in_flight &#43; waiting. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>in_flight</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>Sent to the apiserver, no reply yet. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>abandoned</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>Of in_flight, requests whose caller already stopped waiting (deadline
+or cancellation). A rising count means callers are giving up on work
+the runtime will still do. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>waiting</td>
+                  <td><a href="#uint32">uint32</a></td>
+                  <td></td>
+                  <td><p>Container starts queued in this server for its start gate (one start
+at a time), not yet sent. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>oldest_age_ms</td>
+                  <td><a href="#uint64">uint64</a></td>
+                  <td></td>
+                  <td><p>Age of the oldest operation counted in depth, in milliseconds; 0 when
+depth is 0. </p></td>
+                </tr>
+              
+            </tbody>
+          </table>
+
+          
+
+        
+      
         <h3 id="micropod.v1.ContainerStats">ContainerStats</h3>
         <p>Per-container resource counters within a StatsSnapshot.</p>
 
@@ -5281,6 +5341,18 @@ running. Ping leaves `sha256` empty; GetSystem fills it. </p></td>
                   <td></td>
                   <td><p>Same value as `api_server_version`, under a name that says whose
 version it is. </p></td>
+                </tr>
+              
+                <tr>
+                  <td>container_operations</td>
+                  <td><a href="#micropod.v1.ContainerOperationQueue">ContainerOperationQueue</a></td>
+                  <td></td>
+                  <td><p>This server&#39;s container operations that Apple&#39;s runtime has not yet
+answered. Apple&#39;s apiserver runs container operations one at a time
+behind one FIFO lock, and its ping skips that lock, so `status:
+&#34;running&#34;` cannot tell a responsive runtime from one with minutes of
+container work queued; this can. Unset on servers that predate it, on
+the CLI backend (which cannot observe it) and during maintenance. </p></td>
                 </tr>
               
             </tbody>
