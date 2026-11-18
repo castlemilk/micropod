@@ -39,8 +39,10 @@ final class PendingOperationReconciliationTests: XCTestCase {
         XCTAssertEqual(pendingNames(), [])
     }
 
-    func testUncertainOutcomeIsRetainedAndBlocksWhileItsOwnerRuns() throws {
-        var claim = try XCTUnwrap(gate.claim("native.start", container: "c1")) as RuntimeAdmissionClaim?
+    func testUncertainRuntimeCallIsRetainedAndBlocksWhileItsOwnerRuns() throws {
+        // A runtime call — here an XPC route — may still be queued in Apple's
+        // apiserver after its caller gave up.
+        var claim = try XCTUnwrap(gate.claim("containerBootstrap", container: "c1")) as RuntimeAdmissionClaim?
         try claim?.settle(
             after: MicropodError.message("deadlineExceeded: XPC timeout for apiserver/containerBootstrap"))
         claim = nil
@@ -52,7 +54,7 @@ final class PendingOperationReconciliationTests: XCTestCase {
         XCTAssertThrowsError(try gate.begin(operation: UUID())) { error in
             let text = error.localizedDescription
             XCTAssertTrue(text.contains("Runtime has pending or uncertain operations; maintenance is blocked"), text)
-            XCTAssertTrue(text.contains("native.start: owner running"), text)
+            XCTAssertTrue(text.contains("containerBootstrap: owner running"), text)
         }
         XCTAssertEqual(pendingNames().count, 1, "an unproven receipt is never discarded")
     }
@@ -63,15 +65,77 @@ final class PendingOperationReconciliationTests: XCTestCase {
         try claim.completed()
     }
 
+    func testAnUncertainStartBlocksWhileItsClaimIsHeldAndIsRetiredOnceReleased() throws {
+        var claim = try XCTUnwrap(gate.claim("native.start", container: "c1")) as RuntimeAdmissionClaim?
+        try claim?.uncertain()
+        // In flight: the claim is held, so maintenance cannot close the gate.
+        XCTAssertThrowsError(try gate.begin(operation: UUID()))
+        XCTAssertEqual(pendingNames().count, 1)
+        claim = nil
+        try gate.begin(operation: UUID()).releaseAfterVerification()
+        XCTAssertEqual(pendingNames(), [])
+        XCTAssertEqual(try retiredRecords().first?.rule, .claimReleased)
+    }
+
+    // MARK: - Gamma-128, 2026-11-18
+
+    /// The rig's receipts came from an older build — operation, route and
+    /// pid only — and their owner, the long-lived dedicated API, was still
+    /// running when restart was refused. native.start and native.create
+    /// hold their claim for the whole operation, so once the gate is held
+    /// exclusively they are retired; any live claim still blocks first.
+    func testOldFormatStartReceiptsOfALiveAPIDoNotBlockMaintenance() throws {
+        for _ in 0..<5 { try writeLegacy(route: "native.start", pid: getpid()) }
+        try writeLegacy(route: "native.create", pid: getpid())
+        // Genuinely in flight: maintenance waits for it.
+        var inFlight = try XCTUnwrap(gate.claim("containerCreate")) as RuntimeAdmissionClaim?
+        XCTAssertThrowsError(try gate.begin(operation: UUID()))
+        XCTAssertEqual(pendingNames().count, 7, "nothing is judged while a claim is live")
+        try inFlight?.completed()
+        inFlight = nil
+        try gate.begin(operation: UUID()).releaseAfterVerification()
+        XCTAssertEqual(pendingNames(), [])
+        let retired = try retiredRecords()
+        XCTAssertEqual(retired.count, 6)
+        XCTAssertTrue(retired.allSatisfy { $0.rule == .claimReleased }, "\(retired.map(\.rule))")
+        XCTAssertTrue(retired.allSatisfy { $0.reason.contains("owner still running") })
+    }
+
+    /// A runtime call's old-format receipt with a live owner cannot be
+    /// proved dead: it still blocks, alone among the rig's receipts.
+    func testOldFormatRuntimeCallOfALiveOwnerStillBlocks() throws {
+        try writeLegacy(route: "native.start", pid: getpid())
+        try writeLegacy(route: "containerBootstrap", pid: getpid())
+        XCTAssertThrowsError(try gate.begin(operation: UUID())) { error in
+            XCTAssertTrue(error.localizedDescription.contains("1× containerBootstrap: owner running"), "\(error)")
+        }
+        XCTAssertEqual(try retiredRecords().map(\.record?.route), ["native.start"])
+        XCTAssertEqual(pendingNames().count, 1)
+    }
+
+    func testAPidThatStartedAfterAnOldReceiptIsAReusedPid() throws {
+        let current = try XCTUnwrap(PendingRuntimeOperation.currentOwner)
+        let started = Date(
+            timeIntervalSince1970: TimeInterval(current.seconds) + TimeInterval(current.microseconds) / 1_000_000)
+        let legacy = PendingRuntimeOperation(operation: UUID(), route: "containerCreate", pid: getpid())
+        func owner(writtenAt: Date) -> PendingOwnerState {
+            PendingOperationReconciliation.ownerState(legacy, writtenAt: writtenAt, bootSession: nil, bootTime: nil)
+        }
+        XCTAssertEqual(owner(writtenAt: started.addingTimeInterval(-60)), .exited)
+        XCTAssertEqual(owner(writtenAt: started.addingTimeInterval(-1)), .running, "within the clock tolerance")
+        XCTAssertEqual(owner(writtenAt: Date()), .running)
+    }
+
     // MARK: - Reconciliation in begin
 
-    func testRetiresAnInProcessReceiptWhoseOwnerExited() throws {
+    func testRetiresAStartReceiptWhoseOwnerExited() throws {
         try writeRecord(route: "native.start", owner: exitedOwner(), createdAt: Date())
         try gate.begin(operation: UUID()).releaseAfterVerification()
         XCTAssertEqual(pendingNames(), [])
         let retired = try retiredRecords()
         XCTAssertEqual(retired.count, 1)
-        XCTAssertTrue(retired[0].reason.contains("owner process exited"), retired[0].reason)
+        XCTAssertEqual(retired[0].rule, .claimReleased)
+        XCTAssertFalse(retired[0].reason.contains("owner still running"), retired[0].reason)
         XCTAssertEqual(retired[0].record?.route, "native.start")
     }
 
@@ -86,6 +150,14 @@ final class PendingOperationReconciliationTests: XCTestCase {
             route: "containerCreate", owner: exitedOwner(), createdAt: Date().addingTimeInterval(-stale - 1))
         try gate.begin(operation: UUID()).releaseAfterVerification()
         XCTAssertEqual(pendingNames(), [])
+        XCTAssertEqual(try retiredRecords().first?.rule, .ownerExited)
+    }
+
+    func testManagedAPIRequestsAreNotTreatedAsInProcessWork() throws {
+        // A crashed API can strand a `container` child a request started.
+        try writeRecord(route: "managed-api:/v1/k8s/start", owner: exitedOwner(), createdAt: Date())
+        XCTAssertThrowsError(try gate.begin(operation: UUID()))
+        XCTAssertEqual(pendingNames().count, 1)
     }
 
     func testRetiresAReceiptFromAnEarlierBoot() throws {
@@ -95,38 +167,40 @@ final class PendingOperationReconciliationTests: XCTestCase {
             bootSession: "an-earlier-boot")
         try writeRecord(route: "containerBootstrap", owner: owner, createdAt: Date())
         try gate.begin(operation: UUID()).releaseAfterVerification()
-        XCTAssertEqual(try retiredRecords().first?.reason, "written before the current boot")
+        let retired = try retiredRecords()
+        XCTAssertEqual(retired.first?.reason, "written before the current boot")
+        XCTAssertEqual(retired.first?.rule, .earlierBoot)
     }
 
     func testRetiresAStaleReceiptForAnAbsentContainer() throws {
         let old = Date().addingTimeInterval(-stale - 30)
         try writeRecord(
-            route: "native.start", owner: PendingRuntimeOperation.currentOwner, createdAt: old, container: "gone")
+            route: "containerCreate", owner: PendingRuntimeOperation.currentOwner, createdAt: old, container: "gone")
         let evidence = StaleOperationEvidence(observedAt: Date(), liveContainers: ["other"])
         try gate.begin(operation: UUID(), evidence: evidence).releaseAfterVerification()
         XCTAssertEqual(pendingNames(), [])
-        XCTAssertTrue(try retiredRecords()[0].reason.contains("container gone was absent"))
+        let retired = try retiredRecords()
+        XCTAssertEqual(retired.first?.rule, .containerAbsent)
+        XCTAssertTrue(retired.first?.reason.contains("container gone was absent") == true)
     }
 
     func testKeepsAStaleReceiptForAListedContainer() throws {
         let old = Date().addingTimeInterval(-stale - 30)
         try writeRecord(
-            route: "native.start", owner: PendingRuntimeOperation.currentOwner, createdAt: old, container: "here")
+            route: "containerDelete", owner: PendingRuntimeOperation.currentOwner, createdAt: old, container: "here")
         let evidence = StaleOperationEvidence(observedAt: Date(), liveContainers: ["here"])
         XCTAssertThrowsError(try gate.begin(operation: UUID(), evidence: evidence))
         XCTAssertEqual(pendingNames().count, 1)
     }
 
-    func testLegacyReceiptsAreJudgedByPidAndFileTime() throws {
-        // Older builds wrote {operation, route, pid} only.
-        let live = try writeLegacy(route: "native.start", pid: getpid())
+    func testOldFormatReceiptsFromBeforeThisBootAreRetired() throws {
+        let live = try writeLegacy(route: "containerBootstrap", pid: getpid())
         XCTAssertThrowsError(try gate.begin(operation: UUID()))
-        // Before this boot: retired whatever its pid.
         var times = [timeval(tv_sec: 1, tv_usec: 0), timeval(tv_sec: 1, tv_usec: 0)]
         XCTAssertEqual(utimes(live.path, &times), 0)
         try gate.begin(operation: UUID()).releaseAfterVerification()
         XCTAssertEqual(pendingNames(), [])
-        XCTAssertEqual(try retiredRecords().first?.reason, "written before the current boot")
+        XCTAssertEqual(try retiredRecords().first?.rule, .earlierBoot)
     }
 
     func testRetiresAnIncompleteReceiptWriteAndBlocksAnUnrecognisedEntry() throws {
@@ -159,81 +233,60 @@ final class PendingOperationReconciliationTests: XCTestCase {
         func record(_ route: String, container: String? = nil, outcome: PendingRuntimeOperation.Outcome? = nil)
             -> PendingRuntimeOperation
         {
-            PendingRuntimeOperation(
-                operation: UUID(), route: route, pid: 1, container: container, outcome: outcome)
+            PendingRuntimeOperation(operation: UUID(), route: route, pid: 1, container: container, outcome: outcome)
         }
         let fresh = StaleOperationEvidence(observedAt: now, liveContainers: ["listed"])
         let outdated = StaleOperationEvidence(
             observedAt: now.addingTimeInterval(-PendingOperationReconciliation.evidenceMaximumAge - 1),
             liveContainers: [])
-        typealias R = PendingOperationReconciliation
-        func dead(_ verdict: PendingOperationVerdict) -> Bool {
-            if case .dead = verdict { return true }
-            return false
+        func rule(
+            _ record: PendingRuntimeOperation, _ writtenAt: Date, _ owner: PendingOwnerState,
+            _ evidence: StaleOperationEvidence? = nil, now at: Date? = nil
+        ) -> PendingRetirement.Rule? {
+            let verdict = PendingOperationReconciliation.verdict(
+                record, writtenAt: writtenAt, owner: owner, evidence: evidence, now: at ?? now)
+            if case .dead(let retirement) = verdict { return retirement.rule }
+            return nil
         }
         // 1. definitive failure
-        XCTAssertTrue(
-            dead(R.verdict(record("x", outcome: .failed), writtenAt: young, owner: .running, evidence: nil, now: now)))
+        XCTAssertEqual(rule(record("containerCreate", outcome: .failed), young, .running), .failed)
         // 2. earlier boot, any route
-        XCTAssertTrue(
-            dead(R.verdict(record("containerCreate"), writtenAt: young, owner: .earlierBoot, evidence: nil, now: now)))
-        // 3. exited owner: in-process at once, runtime calls after the bound
-        XCTAssertTrue(
-            dead(
-                R.verdict(
-                    record("managed-api:/v1/containers"), writtenAt: young, owner: .exited, evidence: nil, now: now)))
-        XCTAssertFalse(dead(R.verdict(record("terminal"), writtenAt: young, owner: .exited, evidence: nil, now: now)))
-        XCTAssertFalse(
-            dead(R.verdict(record("containerDelete"), writtenAt: young, owner: .exited, evidence: nil, now: now)))
-        XCTAssertTrue(
-            dead(R.verdict(record("containerDelete"), writtenAt: old, owner: .exited, evidence: nil, now: now)))
-        XCTAssertFalse(
-            dead(R.verdict(record("native.start"), writtenAt: old, owner: .running, evidence: nil, now: now)))
-        XCTAssertFalse(
-            dead(R.verdict(record("native.start"), writtenAt: old, owner: .unknown, evidence: nil, now: now)))
-        // 4. absent container: old enough, fresh listing, not listed
-        XCTAssertTrue(
-            dead(
-                R.verdict(
-                    record("native.start", container: "gone"), writtenAt: old, owner: .running, evidence: fresh,
-                    now: now)))
-        XCTAssertFalse(
-            dead(
-                R.verdict(
-                    record("native.start", container: "listed"), writtenAt: old, owner: .running, evidence: fresh,
-                    now: now)))
-        XCTAssertFalse(
-            dead(
-                R.verdict(
-                    record("native.start", container: "gone"), writtenAt: young, owner: .running, evidence: fresh,
-                    now: now)))
-        XCTAssertFalse(
-            dead(
-                R.verdict(
-                    record("native.start", container: "gone"), writtenAt: old, owner: .running, evidence: outdated,
-                    now: now)))
-        XCTAssertFalse(
-            dead(R.verdict(record("native.start"), writtenAt: old, owner: .running, evidence: fresh, now: now)))
+        XCTAssertEqual(rule(record("containerCreate"), young, .earlierBoot), .earlierBoot)
+        // 3. claim released: in-process work, whatever its owner
+        for owner in [PendingOwnerState.running, .exited, .unknown] {
+            XCTAssertEqual(rule(record("native.start"), young, owner), .claimReleased)
+            XCTAssertEqual(rule(record("native.create"), young, owner), .claimReleased)
+        }
+        // 4. exited owner of work outside it: only after the bound
+        for route in ["containerDelete", "managed-api:/v1/containers", "terminal", "container.start"] {
+            XCTAssertNil(rule(record(route), young, .exited), route)
+            XCTAssertEqual(rule(record(route), old, .exited), .ownerExited, route)
+            XCTAssertNil(rule(record(route), old, .running), route)
+            XCTAssertNil(rule(record(route), old, .unknown), route)
+        }
+        // 5. absent container: old enough, fresh listing, not listed
+        let gone = record("containerDelete", container: "gone")
+        XCTAssertEqual(rule(gone, old, .running, fresh), .containerAbsent)
+        XCTAssertNil(rule(record("containerDelete", container: "listed"), old, .running, fresh))
+        XCTAssertNil(rule(gone, young, .running, fresh))
+        XCTAssertNil(rule(gone, old, .running, outdated))
+        XCTAssertNil(rule(record("containerDelete"), old, .running, fresh))
         // The listing must have been requested at least the bound after the
         // operation began, not merely be fresh now.
         let justAfter = StaleOperationEvidence(observedAt: young.addingTimeInterval(1), liveContainers: [])
-        XCTAssertFalse(
-            dead(
-                R.verdict(
-                    record("native.start", container: "gone"), writtenAt: young, owner: .running, evidence: justAfter,
-                    now: young.addingTimeInterval(2))))
+        XCTAssertNil(rule(gone, young, .running, justAfter, now: young.addingTimeInterval(2)))
     }
 
     func testRefusalGroupsWhatBlocks() {
         let text = PendingOperationReconciliation.describe([
-            .init(route: "native.start", age: 300, why: "owner running"),
-            .init(route: "native.start", age: 900, why: "owner running"),
+            .init(route: "containerBootstrap", age: 300, why: "owner running"),
+            .init(route: "containerBootstrap", age: 900, why: "owner running"),
             .init(route: "containerCreate", age: 5, why: "owner exited less than 10 min ago"),
         ])
         XCTAssertEqual(
             text,
-            "2× native.start: owner running, oldest 15m; 1× containerCreate: owner exited less than 10 min ago, oldest 5s"
-        )
+            "2× containerBootstrap: owner running, oldest 15m; "
+                + "1× containerCreate: owner exited less than 10 min ago, oldest 5s")
     }
 
     // MARK: - Helpers
@@ -278,6 +331,8 @@ final class PendingOperationReconciliationTests: XCTestCase {
             to: pending.appendingPathComponent(operation.uuidString + ".json"))
     }
 
+    /// A receipt as builds before this change wrote it: operation, route
+    /// and pid only.
     @discardableResult
     private func writeLegacy(route: String, pid: Int32) throws -> URL {
         struct Legacy: Encodable {

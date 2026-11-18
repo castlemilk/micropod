@@ -287,9 +287,9 @@ final class RuntimeLifecycleManagerTests: XCTestCase {
         XCTAssertFalse(calls.contains("stop") || calls.contains("start") || calls.contains("verify"))
     }
 
-    /// A receipt left by a start that timed out, for a container the
-    /// runtime no longer lists, is retired once old enough; one for a
-    /// container it still lists keeps blocking maintenance.
+    /// A runtime call's receipt left by a delete that timed out, for a
+    /// container the runtime no longer lists, is retired once old enough;
+    /// one for a container it still lists keeps blocking maintenance.
     func testStaleReceiptForAnAbsentContainerDoesNotBlockMaintenance() async throws {
         for listed in [false, true] {
             let root = temporaryRoot()
@@ -301,7 +301,7 @@ final class RuntimeLifecycleManagerTests: XCTestCase {
             let operation = UUID()
             try RuntimeDurableFile.write(
                 PendingRuntimeOperation(
-                    operation: operation, route: "native.start", pid: getpid(),
+                    operation: operation, route: "containerDelete", pid: getpid(),
                     owner: try RuntimeProcessBirth.read(getpid()),
                     createdAt: Date().addingTimeInterval(-PendingOperationReconciliation.staleOperationAge - 60),
                     container: "timed-out", outcome: .uncertain, endedAt: Date()),

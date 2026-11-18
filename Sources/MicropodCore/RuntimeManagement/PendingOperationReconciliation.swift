@@ -45,15 +45,21 @@ public struct PendingRuntimeOperation: Codable, Sendable, Equatable {
     /// This process's birth, read once.
     static let currentOwner: RuntimeProcessBirth? = try? RuntimeProcessBirth.read(getpid())
 
-    /// Whether the operation's own work runs inside the claiming process.
-    /// These routes wrap runtime calls that take their own receipts (XPC
-    /// routes, `container` CLI runs), so once their claim is released and
-    /// their owner has exited, nothing of theirs can still be running. Every
-    /// other route is work another process carries out — Apple's apiserver,
-    /// a `container` child, a terminal's `container exec` — which can
-    /// outlive its owner.
+    /// Whether the operation's own work runs inside the claiming process
+    /// and holds its claim until that work ends. `native.create` and
+    /// `native.start` (every build that writes them) keep the claim alive
+    /// across the whole create or start, dispatched worker included, and
+    /// every Apple runtime call they make takes its own XPC receipt, held
+    /// until the apiserver replies. So once the claim is released, nothing
+    /// of theirs is still running here, and anything still queued in the
+    /// apiserver has a receipt of its own.
+    ///
+    /// Every other route can leave work behind its claim: an XPC or
+    /// `container` CLI call runs in Apple's apiserver or a child process, a
+    /// terminal in its `container exec`, and a `managed-api:` request can
+    /// start any of them, so a crash of its process can strand that work.
     public var runsInOwner: Bool {
-        route == "native.create" || route == "native.start" || route.hasPrefix("managed-api:")
+        route == "native.create" || route == "native.start"
     }
 }
 
@@ -80,9 +86,22 @@ public enum PendingOwnerState: Equatable, Sendable {
     case unknown
 }
 
+/// Why a receipt was proved dead.
+public struct PendingRetirement: Codable, Equatable, Sendable {
+    public enum Rule: String, Codable, Sendable {
+        case failed
+        case earlierBoot = "earlier-boot"
+        case claimReleased = "claim-released"
+        case ownerExited = "owner-exited"
+        case containerAbsent = "container-absent"
+    }
+    public let rule: Rule
+    public let reason: String
+}
+
 public enum PendingOperationVerdict: Equatable, Sendable {
     /// Provably dead, with the rule that proved it.
-    case dead(String)
+    case dead(PendingRetirement)
     /// Still blocks maintenance, with why it could not be proved dead.
     case blocking(String)
 }
@@ -98,22 +117,31 @@ public enum PendingOperationVerdict: Equatable, Sendable {
 ///     is retired here.)
 ///  2. **Earlier boot** — it was written before this boot. Apple's runtime
 ///     and every process that could act on it have restarted since.
-///  3. **Owner exited** — the claiming process no longer exists and either
-///     the route's work ran inside it (``PendingRuntimeOperation/runsInOwner``),
-///     or the receipt is older than ``staleOperationAge``, so a runtime call
-///     it left queued in Apple's apiserver has had that long to finish.
-///  4. **Container absent** — the receipt names a container, was at least
+///  3. **Claim released** — the route's work runs inside the claiming
+///     process and holds its claim until it ends
+///     (``PendingRuntimeOperation/runsInOwner``: `native.create`,
+///     `native.start`). Holding the gate exclusively proves that claim was
+///     released, so its work is over, whether or not its owner still runs;
+///     the runtime calls it made are judged by their own receipts.
+///  4. **Owner exited** — the claiming process no longer exists and the
+///     receipt is older than ``staleOperationAge``, so a runtime call it
+///     left queued in Apple's apiserver has had that long to finish.
+///  5. **Container absent** — the receipt names a container, was at least
 ///     ``staleOperationAge`` old when a fresh listing was requested, and
-///     that listing does not contain the container.
+///     that listing does not contain the container. If the operation is in
+///     fact still queued in the apiserver (a create in a backlog), the
+///     maintenance that follows drops it: its caller has long since timed
+///     out and must treat that attempt as failed or retryable. Retiring one
+///     logs a warning naming the operation, the container and its age.
 ///
-/// Anything else still blocks — an owner that is running with a receipt
-/// younger than the bound or naming no container, an owner that cannot be
-/// read, an unreadable or unrecognised entry. Retired receipts are moved to
+/// Anything else still blocks — the receipt of a runtime call whose owner
+/// is running and that names no container listed as gone, an owner that
+/// cannot be read, an unreadable or unrecognised entry. Retired receipts are moved to
 /// `admission/reconciled/` with the rule that retired them, never deleted
 /// unseen; the newest ``retainedReconciledReceipts`` are kept.
 public enum PendingOperationReconciliation {
-    /// How old an uncertain receipt must be before rules 3 (for work that
-    /// ran outside its owner) and 4 may retire it: 10 minutes. The longest
+    /// How old an uncertain receipt must be before rules 4 and 5 may retire
+    /// it: 10 minutes. The longest
     /// container operations a rig sends are bounded far below it — a create
     /// or start that misses a 30–60 s client deadline in a backlogged
     /// apiserver has been seen to land 60–70 s late, and a backlog that
@@ -123,7 +151,7 @@ public enum PendingOperationReconciliation {
     /// session.
     public static let staleOperationAge: TimeInterval = 10 * 60
 
-    /// The oldest container listing rule 4 trusts.
+    /// The oldest container listing rule 5 trusts.
     public static let evidenceMaximumAge: TimeInterval = 2 * 60
 
     /// Retired receipts kept under `admission/reconciled/` for audit.
@@ -135,25 +163,40 @@ public enum PendingOperationReconciliation {
         public let why: String
     }
 
+    /// The tolerance on the pid-reuse test for receipts that carry only a
+    /// pid: a process that started more than this after the receipt was
+    /// written cannot have written it. It absorbs small wall-clock steps.
+    public static let pidReuseTolerance: TimeInterval = 2
+
+    /// Judges one receipt. Only sound while the caller holds the admission
+    /// gate exclusively (rule 3 depends on it).
     public static func verdict(
         _ record: PendingRuntimeOperation, writtenAt: Date, owner: PendingOwnerState,
         evidence: StaleOperationEvidence?, now: Date
     ) -> PendingOperationVerdict {
-        if record.outcome == .failed { return .dead("the operation definitively failed") }
-        if owner == .earlierBoot { return .dead("written before the current boot") }
+        func dead(_ rule: PendingRetirement.Rule, _ reason: String) -> PendingOperationVerdict {
+            .dead(PendingRetirement(rule: rule, reason: reason))
+        }
+        if record.outcome == .failed { return dead(.failed, "the operation definitively failed") }
+        if owner == .earlierBoot { return dead(.earlierBoot, "written before the current boot") }
+        if record.runsInOwner {
+            return dead(
+                .claimReleased,
+                "its claim was released, and its work runs in the claiming process for as long as the claim is held"
+                    + (owner == .running ? " (owner still running)" : ""))
+        }
         let age = now.timeIntervalSince(writtenAt)
-        if owner == .exited {
-            if record.runsInOwner { return .dead("its owner process exited and its work ran in that process") }
-            if age >= staleOperationAge {
-                return .dead("its owner process exited and it is older than \(minutes(staleOperationAge))")
-            }
+        if owner == .exited, age >= staleOperationAge {
+            return dead(.ownerExited, "its owner process exited and it is older than \(minutes(staleOperationAge))")
         }
         if let container = record.container, let evidence,
             now.timeIntervalSince(evidence.observedAt) <= evidenceMaximumAge,
             evidence.observedAt.timeIntervalSince(writtenAt) >= staleOperationAge,
             !evidence.liveContainers.contains(container)
         {
-            return .dead("container \(container) was absent \(minutes(staleOperationAge)) after the operation began")
+            return dead(
+                .containerAbsent,
+                "container \(container) was absent \(minutes(staleOperationAge)) after the operation began")
         }
         switch owner {
         case .running: return .blocking("owner running")
@@ -174,9 +217,12 @@ public enum PendingOperationReconciliation {
         }
         if let bootTime, writtenAt < bootTime { return .earlierBoot }
         do {
-            // A live pid may have been reused; without a recorded birth it
-            // still counts as the owner.
-            return try RuntimeProcessBirth.read(record.pid) == nil ? .exited : .running
+            guard let current = try RuntimeProcessBirth.read(record.pid) else { return .exited }
+            // A process that started after the receipt was written is a
+            // reused pid: the writer has exited.
+            let started = Date(
+                timeIntervalSince1970: TimeInterval(current.seconds) + TimeInterval(current.microseconds) / 1_000_000)
+            return started.timeIntervalSince(writtenAt) > pidReuseTolerance ? .exited : .running
         } catch {
             return .unknown
         }
@@ -220,6 +266,8 @@ public enum PendingOperationReconciliation {
 struct RetiredPendingOperation: Codable {
     let file: String
     let record: PendingRuntimeOperation?
+    /// The rule that proved it dead; nil for an incomplete receipt write.
+    let rule: PendingRetirement.Rule?
     let reason: String
     let retiredAt: Date
 }
@@ -243,7 +291,7 @@ extension RuntimeAdmission {
                 // RuntimeDurableFile.write's temporary. Every writer holds a
                 // claim, and none is live, so its writer is gone; a receipt
                 // that never got its name was never admitted.
-                try retire(url, record: nil, reason: "an incomplete receipt write", now: now)
+                try retire(url, record: nil, retirement: nil, reason: "an incomplete receipt write", now: now)
                 continue
             }
             guard name.hasSuffix(".json"), UUID(uuidString: String(name.dropLast(5))) != nil,
@@ -257,8 +305,11 @@ extension RuntimeAdmission {
             switch PendingOperationReconciliation.verdict(
                 record, writtenAt: writtenAt, owner: owner, evidence: evidence, now: now)
             {
-            case .dead(let reason):
-                try retire(url, record: record, reason: reason, now: now)
+            case .dead(let retirement):
+                try retire(url, record: record, retirement: retirement, reason: retirement.reason, now: now)
+                if retirement.rule == .containerAbsent {
+                    Self.warnDropped(record, age: now.timeIntervalSince(writtenAt))
+                }
             case .blocking(let why):
                 blocking.append(.init(route: record.route, age: now.timeIntervalSince(writtenAt), why: why))
             }
@@ -266,19 +317,36 @@ extension RuntimeAdmission {
         return blocking
     }
 
-    private func retire(_ url: URL, record: PendingRuntimeOperation?, reason: String, now: Date) throws {
+    private func retire(
+        _ url: URL, record: PendingRuntimeOperation?, retirement: PendingRetirement?, reason: String, now: Date
+    ) throws {
         let reconciled = root.appendingPathComponent("reconciled")
         let name =
             url.lastPathComponent.hasPrefix(".") ? "intent-" + UUID().uuidString + ".json" : url.lastPathComponent
         try RuntimeDurableFile.write(
-            RetiredPendingOperation(file: url.lastPathComponent, record: record, reason: reason, retiredAt: now),
+            RetiredPendingOperation(
+                file: url.lastPathComponent, record: record, rule: retirement?.rule, reason: reason, retiredAt: now),
             to: reconciled.appendingPathComponent(name))
         try RuntimeDurableFile.remove(url)
+        let rule = retirement.map { " [\($0.rule.rawValue)]" } ?? ""
         FileHandle.standardError.write(
             Data(
-                "micropod: retired runtime receipt \(url.lastPathComponent) (\(record?.route ?? "partial")): \(reason)\n"
-                    .utf8))
+                ("micropod: retired runtime receipt \(url.lastPathComponent) (\(record?.route ?? "partial"))\(rule): "
+                    + "\(reason)\n").utf8))
         Self.pruneReconciled(reconciled, keeping: PendingOperationReconciliation.retainedReconciledReceipts)
+    }
+
+    /// A receipt retired because its container is absent may belong to an
+    /// operation still queued in Apple's apiserver — a create in a backlog.
+    /// The maintenance that follows drops it, so say so where an operator
+    /// will look.
+    static func warnDropped(_ record: PendingRuntimeOperation, age: TimeInterval) {
+        FileHandle.standardError.write(
+            Data(
+                ("micropod: warning: retired \(record.route) operation \(record.operation.uuidString) for container "
+                    + "\(record.container ?? "?") after \(Int(age / 60)) min: the runtime does not list the container. "
+                    + "If the operation is still queued in Apple's apiserver, this maintenance drops it; its caller "
+                    + "must treat that attempt as failed or retryable.\n").utf8))
     }
 
     private static func pruneReconciled(_ directory: URL, keeping limit: Int) {

@@ -130,17 +130,34 @@ is retired when one of these proves it dead
    boot session, or for an old receipt its file time against
    `kern.boottime`). The apiserver and every process that could act on it
    have restarted since.
-3. **Owner exited.** The claiming process no longer exists — compared by
-   start time and boot session, so a reused pid cannot pass for it — and
-   either the route's work ran inside that process (`native.create`,
-   `native.start`, `managed-api:*`, whose runtime calls take receipts of
-   their own), or the receipt is older than
-   `staleOperationAge`, so a call it left queued in the apiserver has had
-   that long to run.
-4. **Container absent.** It names a container, was at least
+3. **Claim released.** Its route is `native.create` or `native.start`. Every
+   build that writes those keeps the claim for the whole create or start,
+   dispatched worker included, and each Apple runtime call they make takes
+   its own XPC receipt, held until the apiserver replies. Holding the gate
+   exclusively proves the claim was released, so that work is over, even if
+   its owner — usually the long-lived API — is still running. Any of its
+   runtime calls left unanswered is judged by its own receipt.
+4. **Owner exited.** The claiming process no longer exists and the receipt
+   is older than `staleOperationAge`, so a call it left queued in the
+   apiserver has had that long to run. A new receipt compares the owner's
+   start time and boot session, so a reused pid cannot pass for it. An old
+   receipt has only a pid: a process with that pid that started more than
+   2 s after the receipt file was written is a reused pid, so the owner has
+   exited.
+5. **Container absent.** It names a container, was at least
    `staleOperationAge` old when a fresh container listing (at most 2 min
    old) was requested, and the listing does not contain that container.
    Both lifecycle owners take that listing just before closing admission.
+   A create still queued in a backlogged apiserver is exactly such a
+   receipt: the restart that follows drops it. Its caller timed out long
+   ago and must treat that attempt as failed or retryable. Retiring one logs
+   `micropod: warning: retired <route> operation <id> for container <name>
+   after <n> min: …`.
+
+Every other route keeps the age bound because its work can outlive its
+claim's owner: an XPC or `container` CLI call runs in the apiserver or a
+child, a terminal in its `container exec`, and a `managed-api:` request can
+start any of them.
 
 `staleOperationAge` is 10 minutes. The longest container operations a rig
 sends are bounded far below it: a create or start that missed a 30–60 s
@@ -149,11 +166,20 @@ backlog that filled for 15 minutes drained in 13 once intake paused.
 
 Elapsed time alone never retires a receipt; it is only the bound attached
 to a second proof (an exited owner, an absent container). Everything else
-still blocks: an owner that is running whose receipt names no container, an
-owner that cannot be read, an unreadable or unrecognised entry. The refusal
-now says what blocks, grouped by route, with the oldest age. Retired
-receipts are moved to `admission/reconciled/` with the rule that proved
-them dead — never deleted unseen — and the newest 256 are kept. The
+still blocks: a live claim (maintenance cannot close the gate at all), the
+receipt of a runtime call whose owner is running and whose container is not
+listed as gone, an owner that cannot be read, an unreadable or unrecognised
+entry. The refusal now says what blocks, grouped by route, with the oldest
+age. Retired receipts are moved to `admission/reconciled/` with the rule
+that proved them dead (`rule`: `failed`, `earlier-boot`, `claim-released`,
+`owner-exited` or `container-absent`) — never deleted unseen — and the
+newest 256 are kept.
+
+On the rig above, the receipts (167 by the time restart and recover
+refused) were old-format — operation, route and pid — and mostly
+`native.start`, written by the dedicated API, which was still running.
+Rule 3 retires the `native.start` and `native.create` ones; an old-format
+runtime-call receipt whose owner still runs keeps blocking. The
 post-fence checks are unchanged: before stopping, the worker still refuses
 running containers and machines, managed-API workloads and lingering
 private-account processes.
