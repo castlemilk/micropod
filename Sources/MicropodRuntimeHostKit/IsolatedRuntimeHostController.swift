@@ -226,7 +226,7 @@ public actor IsolatedRuntimeHostController {
                         : "Dedicated runtime readiness checked")
                 return
             }
-            state.localGeneration = try gate.nextGeneration()
+            state.localGeneration = try gate.issueGeneration(operation: request.operation)
             try update("draining", "Waiting for rig work to finish before closing runtime admission")
             let scoped = try runtimeCoordinator.read(identity: identity)
             let legacy = try registration(identity)
@@ -235,9 +235,31 @@ public actor IsolatedRuntimeHostController {
                 state.rigAttempted = scoped == nil
                 try save()
                 let deadline = ContinuousClock.now.advanced(by: drainTimeout)
+                // Until the coordinator answers a drain, it may never have
+                // seen this operation; afterwards it has, so a later refusal
+                // keeps the handoff.
+                var accepted = false
                 while true {
                     try Task.checkCancellation()
-                    let phase = try await handoffPhase("drain")
+                    let firstDrain = !accepted && state.runtimeRigAttempted == true
+                    let phase: String
+                    do {
+                        phase = try await handoffPhase("drain")
+                    } catch let refusal as RuntimeCoordinatorNotRecorded where firstDrain {
+                        try settleUnrecordedHandoff(
+                            refusal, phase: "failed",
+                            message: "The rig coordinator did not take this maintenance; "
+                                + "the dedicated runtime is unchanged")
+                        return
+                    } catch let unsent as RuntimeRigAdmissionError where firstDrain {
+                        // Definitely never delivered: the coordinator cannot hold it.
+                        try settleUnrecordedHandoff(
+                            unsent, phase: "failed",
+                            message: "The rig coordinator was unavailable; nothing was drained "
+                                + "and the dedicated runtime is unchanged")
+                        return
+                    }
+                    accepted = true
                     if phase == "drained" { break }
                     guard phase == "draining" else {
                         throw MicropodError.message("Rig drain is incomplete; current work was left running")
@@ -386,7 +408,17 @@ public actor IsolatedRuntimeHostController {
                 guard state.runtimeActionStarted == false else {
                     throw MicropodError.message("The retained runtime action may have begun; cancellation is refused")
                 }
-                try await requireHandoff("abort", phase: "aborting")
+                do {
+                    try await requireHandoff("abort", phase: "aborting")
+                } catch let refusal as RuntimeCoordinatorNotRecorded where state.runtimeRigAttempted == true {
+                    // A first drain the coordinator refused before recording
+                    // left this handoff retained; it can never be aborted there.
+                    try settleUnrecordedHandoff(
+                        refusal, phase: "cancelled",
+                        message: "Maintenance settled before any runtime change; "
+                            + "the rig coordinator has no record of it")
+                    return
+                }
                 state.runtimeCancelledBeforeAction = true
                 state.actionVerified = true
                 try update("releasing", "Cancelling rig preparation before any private runtime change")
@@ -447,6 +479,22 @@ public actor IsolatedRuntimeHostController {
         state.workerBirth = nil
         state.error = "\(timedOut); the maintenance was abandoned and the dedicated runtime is unchanged"
         try update("cancelled", "Maintenance abandoned before any runtime change; the dedicated runtime is unchanged")
+    }
+    /// The coordinator holds no record of this operation
+    /// (``RuntimeCoordinatorNotRecorded``). With no local fence, no runtime
+    /// action begun and no worker alive, nothing anywhere remains to
+    /// coordinate, so the handoff settles here instead of waiting in recovery
+    /// for an abort the coordinator cannot give. Otherwise the refusal stands.
+    private func settleUnrecordedHandoff(_ why: Error, phase: String, message: String) throws {
+        guard !gate.isClosed, fence == nil, state.runtimeActionStarted != true,
+            try state.workerBirth?.hasExited() != false
+        else { throw why }
+        clearHandoff()
+        state.runtimeCancelledBeforeAction = true
+        state.actionVerified = true
+        state.workerBirth = nil
+        state.error = why.localizedDescription
+        try update(phase, message)
     }
     private func adopt(_ observation: IsolatedRuntimeObservation) {
         state.nativeState = observation.state
@@ -513,6 +561,9 @@ public actor IsolatedRuntimeHostController {
         guard reply.schemaVersion == RuntimeCoordinationEnrollment.capability,
             reply.scope == RuntimeCoordinationEnrollment.runtimeScope, reply.operation == operation.id
         else { throw MicropodError.message("The private runtime handoff changed identity") }
+        if reply.phase == RuntimeCoordinationRigReply.notRecordedPhase {
+            throw RuntimeCoordinatorNotRecorded(reason: reply.reason ?? "")
+        }
         if let reason = reply.reason, !reason.isEmpty, reply.phase != "draining" {
             throw MicropodError.message(reason)
         }

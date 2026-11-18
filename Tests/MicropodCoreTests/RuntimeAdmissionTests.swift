@@ -53,6 +53,39 @@ final class RuntimeAdmissionTests: XCTestCase {
         XCTAssertGreaterThan(generation, 0)
     }
 
+    // Gamma-128GB (2026-11-18): the generation advanced only when a fence
+    // was taken, so three unfenced restarts in a row were all issued 25, and
+    // the rig coordinator refused each one as not newer than the last.
+    func testEveryIssuedGenerationIsNewEvenWithoutAFence() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let gate = RuntimeAdmission(root: root)
+        let fenced = try gate.begin(operation: UUID())
+        try fenced.releaseAfterVerification()
+        XCTAssertEqual(fenced.fence.generation, 1)
+
+        let abandoned = try gate.issueGeneration(operation: UUID())
+        let refused = try gate.issueGeneration(operation: UUID())
+        XCTAssertEqual([abandoned, refused], [2, 3], "an operation that never fenced still used its generation")
+
+        let started = UUID()
+        let issued = try gate.issueGeneration(operation: started)
+        let fence = try gate.begin(operation: started)
+        XCTAssertEqual(fence.fence.generation, issued, "the fence keeps the generation the operation was issued")
+        try fence.releaseAfterVerification()
+        XCTAssertEqual(try gate.nextGeneration(), issued + 1)
+
+        // An operation fenced without being issued still gets a fresh one.
+        let unissued = try gate.begin(operation: UUID())
+        XCTAssertEqual(unissued.fence.generation, issued + 1)
+        try unissued.releaseAfterVerification()
+        // Once something newer moved the counter, the old issue cannot fence.
+        let stale = UUID()
+        _ = try gate.issueGeneration(operation: stale)
+        _ = try gate.begin(operation: UUID()).releaseAfterVerification()
+        XCTAssertThrowsError(try gate.begin(operation: stale))
+    }
+
     func testJournalReadsRejectLinksOversizeAndGenerationOverflow() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

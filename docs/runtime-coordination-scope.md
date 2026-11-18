@@ -115,6 +115,24 @@ to `admission/reconciled/` with the proof. Manual stop must keep
 automatic runtime startup and participating rig intake paused as specified by
 the owner's policy.
 
+A coordinator that refuses a call before it has recorded the operation answers
+with the phase `notRecorded`. Its reason starts with `Not recorded:`. The
+reply carries no state or proof. For any call except a drain, the coordinator
+answers this way only after confirming two things: this helper reports no
+fence, action or worker for the operation, and the scheduler names it nowhere.
+The helper may settle on that answer, and on no other refusal, while it holds
+no local fence, has begun no runtime action and has no live worker:
+
+- A first drain answered `notRecorded`, or never delivered at all, fails the
+  operation. Its handoff is not retained, because no coordinator holds it. A
+  drain answered after an earlier drain was accepted keeps the handoff.
+- A recovery abort answered `notRecorded` settles the operation as cancelled.
+  Without this, a restart whose first drain reached a stopping coordinator
+  waits in `recoveryRequired` for an abort the coordinator cannot give.
+
+This is not discarding an unknown receipt. No receipt was ever issued for the
+operation, and the runtime is left as it was.
+
 ## Qualification
 
 Source tests must reject host/runtime receipt substitution, stale grants,

@@ -169,7 +169,7 @@ public actor RuntimeLifecycleManager {
             }
             try Task.checkCancellation()
             let gate = RuntimeAdmission(root: root.appendingPathComponent("admission"))
-            let plannedGeneration = try gate.nextGeneration()
+            let plannedGeneration = try gate.issueGeneration(operation: id)
             operation?.localGeneration = plannedGeneration
             try update("draining", "Pausing new rig work and waiting for current work to finish")
             let selectedRoot = try targetRoot()
