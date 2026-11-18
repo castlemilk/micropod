@@ -79,7 +79,7 @@ public struct RuntimeAdmission: Sendable {
             } else {
                 guard !recovering else { throw blocked() }
                 let generationURL = root.appendingPathComponent("generation.json")
-                let generation = try nextGeneration()
+                let generation = try issuedGeneration(for: operation) ?? nextGeneration()
                 try RuntimeDurableFile.write(generation, to: generationURL)
                 fence = Fence(operation: operation, generation: generation, actionStarted: false)
                 try RuntimeDurableFile.write(fence, to: fenceURL)
@@ -97,6 +97,39 @@ public struct RuntimeAdmission: Sendable {
         return try JSONDecoder().decode(Fence.self, from: data)
     }
 
+    private struct Issued: Codable {
+        let operation: UUID
+        let generation: UInt64
+    }
+    private var issuedURL: URL { root.appendingPathComponent("issued.json") }
+
+    /// Issues the local generation for one maintenance operation and persists
+    /// it at once. Until now the generation advanced only when a fence was
+    /// taken, so every operation that ended before its fence (a refused or
+    /// abandoned drain) handed the same generation to the next one, and a rig
+    /// coordinator that had recorded that generation refused it. The
+    /// operation's ``begin(operation:recovering:)`` fences at this same
+    /// generation.
+    public func issueGeneration(operation: UUID) throws -> UInt64 {
+        let generation = try max(nextGeneration(), (readIssued()?.generation ?? 0) + 1)
+        // The issue record first: after a crash before the counter moves,
+        // the next issue still starts past it.
+        try RuntimeDurableFile.write(Issued(operation: operation, generation: generation), to: issuedURL)
+        try RuntimeDurableFile.write(generation, to: root.appendingPathComponent("generation.json"))
+        return generation
+    }
+    /// The generation issued to `operation`, when it is the latest issued.
+    /// A counter already past it means something newer moved on: refused.
+    private func issuedGeneration(for operation: UUID) throws -> UInt64? {
+        guard let issued = try readIssued(), issued.operation == operation else { return nil }
+        guard try nextGeneration() <= issued.generation + 1 else { throw blocked() }
+        return issued.generation
+    }
+    private func readIssued() throws -> Issued? {
+        guard FileManager.default.fileExists(atPath: issuedURL.path) else { return nil }
+        return try JSONDecoder().decode(
+            Issued.self, from: RuntimeDurableFile.read(issuedURL, maximumBytes: 4096, ownerUID: stateOwnerUID))
+    }
     private func openLock(exclusive: Bool) throws -> Int32 {
         try FileManager.default.createDirectory(
             at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])

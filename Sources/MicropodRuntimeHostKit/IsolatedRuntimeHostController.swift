@@ -226,7 +226,7 @@ public actor IsolatedRuntimeHostController {
                         : "Dedicated runtime readiness checked")
                 return
             }
-            state.localGeneration = try gate.nextGeneration()
+            state.localGeneration = try gate.issueGeneration(operation: request.operation)
             try update("draining", "Waiting for rig work to finish before closing runtime admission")
             let scoped = try runtimeCoordinator.read(identity: identity)
             let legacy = try registration(identity)

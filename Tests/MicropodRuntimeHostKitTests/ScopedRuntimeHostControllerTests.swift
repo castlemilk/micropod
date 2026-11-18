@@ -83,6 +83,11 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
     var refuseNextDrain: String?
     /// Calls the coordinator answers "not recorded".
     var unrecorded: Set<String> = []
+    /// The newest local generation the coordinator has recorded; like
+    /// Cuttlefish, it refuses a new operation that is not newer.
+    var recordedGeneration: Int64 = 0
+    /// Each operation's local generation, as its first drain carried it.
+    var drainGenerations: [Int64] = []
     var nativeActions: [IsolatedRuntimeAction] = []
     var history: [String] = []
     var gateAtPhase: [String: Bool] = [:]
@@ -149,7 +154,17 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
                 RuntimeCoordinationRigReply.notRecordedPhase,
                 "Not recorded: this rig never drained or fenced private runtime operation \(call.operation.id)")
         }
+        if call.action == "drain", current?.id != call.operation.id, released?.id != call.operation.id {
+            drainGenerations.append(call.operation.localGeneration)
+            if call.operation.localGeneration <= recordedGeneration {
+                return try refusal(
+                    RuntimeCoordinationRigReply.notRecordedPhase,
+                    "Not recorded: local generation \(call.operation.localGeneration) is not newer than the "
+                        + "retained operation's \(recordedGeneration)")
+            }
+        }
         if call.action == "drain", current == nil, released?.id != call.operation.id {
+            recordedGeneration = call.operation.localGeneration
             current = call.operation
             generation += 1
         }
@@ -372,6 +387,42 @@ final class ScopedRuntimeHostControllerTests: XCTestCase {
         let retained = try await terminal(controller)
         XCTAssertEqual(retained.phase, "recoveryRequired", retained.error ?? "")
         XCTAssertEqual(retained.runtimeRigAttempted, true, "An accepted drain keeps its handoff")
+    }
+
+    // Gamma-128GB again: the admission generation advanced only when a fence
+    // was taken. A restart whose drain the coordinator recorded, but which
+    // ended before its fence, left the next operation the same generation,
+    // and the coordinator refused it as not newer than the one it had
+    // recorded (E31BBEF7, then 31C5CA26, both at 25). Each operation now
+    // carries a generation of its own, fenced or not.
+    func testOperationsThatNeverFencedStillGetNewerGenerations() async throws {
+        let (controller, driver, _) = try await fixture(drainTimeout: .milliseconds(50))
+        _ = try await controller.submit(.init(action: .start), ownerUID: getuid())
+        let started = try await terminal(controller)
+        XCTAssertEqual(started.phase, "completed", started.error ?? "")
+
+        await driver.setHoldDrain(true)
+        _ = try await controller.submit(.init(action: .restart), ownerUID: getuid())
+        let abandoned = try await terminal(controller)
+        XCTAssertEqual(abandoned.phase, "cancelled", "recorded by the coordinator, never fenced")
+        await driver.setHoldDrain(false)
+
+        await driver.answerNotRecorded(["drain"])
+        _ = try await controller.submit(.init(action: .restart), ownerUID: getuid())
+        let refused = try await terminal(controller)
+        XCTAssertEqual(refused.phase, "failed", refused.error ?? "")
+        await driver.answerNotRecorded([])
+
+        _ = try await controller.submit(.init(action: .start), ownerUID: getuid())
+        let restarted = try await terminal(controller)
+        XCTAssertEqual(restarted.phase, "completed", restarted.error ?? "")
+        let issued = [started, abandoned, refused, restarted].compactMap(\.localGeneration)
+        XCTAssertEqual(issued.count, 4)
+        XCTAssertEqual(issued, issued.sorted())
+        XCTAssertEqual(Set(issued).count, 4, "a generation was reused: \(issued)")
+        let drained = await driver.drainGenerations
+        XCTAssertEqual(drained, drained.sorted())
+        XCTAssertEqual(Set(drained).count, drained.count, "the coordinator saw a generation twice: \(drained)")
     }
 
     func testSignedScopedHandoffRunsWithoutLegacyHostGrantAndReconcilesLostCompletion() async throws {
