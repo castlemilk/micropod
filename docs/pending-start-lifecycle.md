@@ -39,9 +39,13 @@ The app's update preflight (`UpdateWorkloadPreflight`, on master) already
 treats `starting`/`created` and unavailable reads as work in flight.
 
 A native start still takes master's `native.start` admission receipt before
-its lifecycle claim. The receipt is settled only by a completed start; the
-caller waits for the dispatched worker, so the receipt covers the whole runtime
-operation even after caller cancellation.
+its lifecycle claim. The caller waits for the dispatched worker, so the receipt
+covers the whole runtime operation even after caller cancellation. A completed
+start settles it, and so does a definitive failure: a start that never
+dispatched, or one the runtime answered with an error. A deadline, transport
+loss or cancellation after dispatch leaves it, marked `uncertain`; maintenance
+retires it only on proof (see "Stale admission receipts" in
+`isolated-runtime-design.md`).
 
 Clone sweeps capture a creation epoch before querying live containers. Cleanup
 is skipped if creation began/completed since that snapshot or the ID has an

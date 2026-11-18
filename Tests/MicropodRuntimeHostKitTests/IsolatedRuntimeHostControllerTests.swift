@@ -388,6 +388,53 @@ final class IsolatedRuntimeHostControllerTests: XCTestCase {
         XCTAssertEqual(restarted.phase, "completed", restarted.error ?? "")
     }
 
+    /// Gamma-128, 2026-11-18: `micropod runtime restart` refused with
+    /// "Runtime has pending or uncertain operations" while the dedicated API
+    /// that wrote 167 old-format start receipts (operation, route, pid) was
+    /// still running. Those receipts no longer block the restart.
+    func testRestartProceedsPastOldFormatStartReceiptsOfTheRunningAPI() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let admissionRoot = root.appendingPathComponent("admission")
+        let driver = HostDriverFixture()
+        let controller = IsolatedRuntimeHostController(
+            driver: driver, journal: root.appendingPathComponent("operation.json"), admissionRoot: admissionRoot)
+        _ = try await controller.submit(.init(action: .install), ownerUID: 501)
+        _ = try await terminal(controller)
+        _ = try await controller.submit(.init(action: .start), ownerUID: 501)
+        let started = try await terminal(controller)
+        XCTAssertEqual(started.phase, "completed", started.error ?? "")
+
+        struct OldReceipt: Encodable {
+            let operation: UUID
+            let route: String
+            let pid: Int32
+        }
+        let pending = admissionRoot.appendingPathComponent("pending")
+        for route in Array(repeating: "native.start", count: 4) + ["native.create"] {
+            let operation = UUID()
+            // This test process stands in for the still-running API.
+            try RuntimeDurableFile.write(
+                OldReceipt(operation: operation, route: route, pid: getpid()),
+                to: pending.appendingPathComponent(operation.uuidString + ".json"))
+        }
+        let status = try await controller.submit(.init(action: .status), ownerUID: 501)
+        XCTAssertEqual(status.pendingOperationCount, 5, "what `micropod runtime operation` showed")
+
+        _ = try await controller.submit(.init(action: .restart), ownerUID: 501)
+        let restarted = try await terminal(controller)
+        XCTAssertEqual(restarted.phase, "completed", restarted.error ?? "")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: pending.path), [])
+        let reconciled = try FileManager.default.contentsOfDirectory(
+            at: admissionRoot.appendingPathComponent("reconciled"), includingPropertiesForKeys: nil)
+        XCTAssertEqual(reconciled.count, 5)
+        for file in reconciled {
+            let text = try String(contentsOf: file, encoding: .utf8)
+            XCTAssertTrue(text.contains("\"rule\":\"claim-released\""), text)
+        }
+        XCTAssertFalse(RuntimeAdmission(root: admissionRoot).isClosed)
+    }
+
     func testFreshHealthProbeCannotOverlapAStartOrChangeItsOperationIdentity() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

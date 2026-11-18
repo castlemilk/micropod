@@ -312,11 +312,64 @@ public nonisolated struct Micropod_V1_PingResponse: @unchecked Sendable {
     set {_uniqueStorage()._appleApiServerVersion = newValue}
   }
 
+  /// This server's container operations that Apple's runtime has not yet
+  /// answered. Apple's apiserver runs container operations one at a time
+  /// behind one FIFO lock, and its ping skips that lock, so `status:
+  /// "running"` cannot tell a responsive runtime from one with minutes of
+  /// container work queued; this can. Unset on servers that predate it, on
+  /// the CLI backend (which cannot observe it) and during maintenance.
+  public var containerOperations: Micropod_V1_ContainerOperationQueue {
+    get {_storage._containerOperations ?? Micropod_V1_ContainerOperationQueue()}
+    set {_uniqueStorage()._containerOperations = newValue}
+  }
+  /// Returns true if `containerOperations` has been explicitly set.
+  public var hasContainerOperations: Bool {_storage._containerOperations != nil}
+  /// Clears the value of `containerOperations`. Subsequent reads from it will return its default value.
+  public mutating func clearContainerOperations() {_uniqueStorage()._containerOperations = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+/// The container operations one Micropod API server has handed to Apple's
+/// runtime and not yet seen answered (see PingResponse.container_operations).
+/// It counts this server's own requests from send until the apiserver's
+/// reply — including those whose caller gave up on a deadline, which the
+/// apiserver still runs in order. Other clients of the same runtime are not
+/// counted. Counted: container routes whose length is the runtime's
+/// (create, bootstrap, start, stop, kill, delete, list, state, stats, …);
+/// not counted: `containerWait`, copies and exports, and volume, network and
+/// image operations, which do not take the containers lock.
+public nonisolated struct Micropod_V1_ContainerOperationQueue: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// in_flight + waiting.
+  public var depth: UInt32 = 0
+
+  /// Sent to the apiserver, no reply yet.
+  public var inFlight: UInt32 = 0
+
+  /// Of in_flight, requests whose caller already stopped waiting (deadline
+  /// or cancellation). A rising count means callers are giving up on work
+  /// the runtime will still do.
+  public var abandoned: UInt32 = 0
+
+  /// Container starts queued in this server for its start gate (one start
+  /// at a time), not yet sent.
+  public var waiting: UInt32 = 0
+
+  /// Age of the oldest operation counted in depth, in milliseconds; 0 when
+  /// depth is 0.
+  public var oldestAgeMs: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
 }
 
 /// A contiguous range of protocol versions, inclusive.
@@ -1480,7 +1533,7 @@ nonisolated extension Micropod_V1_SetDefaultRuntimeRequest: SwiftProtobuf.Messag
 
 nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PingResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}runtime_backend\0\u{3}api_server_version\0\u{3}cli_version\0\u{1}features\0\u{3}default_runtime\0\u{3}micropod_version\0\u{3}source_revision\0\u{3}protocol_version\0\u{3}peer_protocol\0\u{1}components\0\u{3}update_state\0\u{3}apple_api_server_version\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}status\0\u{3}runtime_backend\0\u{3}api_server_version\0\u{3}cli_version\0\u{1}features\0\u{3}default_runtime\0\u{3}micropod_version\0\u{3}source_revision\0\u{3}protocol_version\0\u{3}peer_protocol\0\u{1}components\0\u{3}update_state\0\u{3}apple_api_server_version\0\u{3}container_operations\0")
 
   fileprivate class _StorageClass {
     var _status: String = String()
@@ -1496,6 +1549,7 @@ nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProt
     var _components: [Micropod_V1_ComponentVersion] = []
     var _updateState: Micropod_V1_UpdateState? = nil
     var _appleApiServerVersion: String = String()
+    var _containerOperations: Micropod_V1_ContainerOperationQueue? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1519,6 +1573,7 @@ nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProt
       _components = source._components
       _updateState = source._updateState
       _appleApiServerVersion = source._appleApiServerVersion
+      _containerOperations = source._containerOperations
     }
   }
 
@@ -1550,6 +1605,7 @@ nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProt
         case 11: try { try decoder.decodeRepeatedMessageField(value: &_storage._components) }()
         case 12: try { try decoder.decodeSingularMessageField(value: &_storage._updateState) }()
         case 13: try { try decoder.decodeSingularStringField(value: &_storage._appleApiServerVersion) }()
+        case 14: try { try decoder.decodeSingularMessageField(value: &_storage._containerOperations) }()
         default: break
         }
       }
@@ -1601,6 +1657,9 @@ nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProt
       if !_storage._appleApiServerVersion.isEmpty {
         try visitor.visitSingularStringField(value: _storage._appleApiServerVersion, fieldNumber: 13)
       }
+      try { if let v = _storage._containerOperations {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 14)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1623,10 +1682,61 @@ nonisolated extension Micropod_V1_PingResponse: SwiftProtobuf.Message, SwiftProt
         if _storage._components != rhs_storage._components {return false}
         if _storage._updateState != rhs_storage._updateState {return false}
         if _storage._appleApiServerVersion != rhs_storage._appleApiServerVersion {return false}
+        if _storage._containerOperations != rhs_storage._containerOperations {return false}
         return true
       }
       if !storagesAreEqual {return false}
     }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Micropod_V1_ContainerOperationQueue: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ContainerOperationQueue"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}depth\0\u{3}in_flight\0\u{1}abandoned\0\u{1}waiting\0\u{3}oldest_age_ms\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.depth) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.inFlight) }()
+      case 3: try { try decoder.decodeSingularUInt32Field(value: &self.abandoned) }()
+      case 4: try { try decoder.decodeSingularUInt32Field(value: &self.waiting) }()
+      case 5: try { try decoder.decodeSingularUInt64Field(value: &self.oldestAgeMs) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.depth != 0 {
+      try visitor.visitSingularUInt32Field(value: self.depth, fieldNumber: 1)
+    }
+    if self.inFlight != 0 {
+      try visitor.visitSingularUInt32Field(value: self.inFlight, fieldNumber: 2)
+    }
+    if self.abandoned != 0 {
+      try visitor.visitSingularUInt32Field(value: self.abandoned, fieldNumber: 3)
+    }
+    if self.waiting != 0 {
+      try visitor.visitSingularUInt32Field(value: self.waiting, fieldNumber: 4)
+    }
+    if self.oldestAgeMs != 0 {
+      try visitor.visitSingularUInt64Field(value: self.oldestAgeMs, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Micropod_V1_ContainerOperationQueue, rhs: Micropod_V1_ContainerOperationQueue) -> Bool {
+    if lhs.depth != rhs.depth {return false}
+    if lhs.inFlight != rhs.inFlight {return false}
+    if lhs.abandoned != rhs.abandoned {return false}
+    if lhs.waiting != rhs.waiting {return false}
+    if lhs.oldestAgeMs != rhs.oldestAgeMs {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

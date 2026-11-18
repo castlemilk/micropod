@@ -1,5 +1,6 @@
 import Foundation
 import MicropodCore
+import Synchronization
 
 /// `ContainerServing` backed by direct XPC calls to `container-apiserver`.
 ///
@@ -152,40 +153,50 @@ public struct NativeContainerService: ContainerServing {
     /// error say it was deleted. The three steps run as one attempt under the
     /// process-wide ``StartGate``, one start at a time.
     private func startTracked(_ id: String, createdHere: Bool) async throws {
-        let admission = try admissionGate.claim("native.start")
+        let admission = try admissionGate.claim("native.start", container: id)
         defer { withExtendedLifetime(admission) {} }
         let operations = NativeLifecycleOperations.shared
+        let dispatched = DispatchFlag()
         // `perform` returns only when its worker does, even when this caller
         // is cancelled after dispatch, so the admission receipt covers the
-        // whole runtime operation and is settled only by a completed start.
-        try await operations.perform(
-            id, kind: .starting, knownExit: { await exitCodes.entry(for: id)?.exitCode != nil },
-            operation: { claim in
-                await exitCodes.forget(id: id)
-                try await Self.startLookingIntoNotFound(
-                    id: id,
-                    createdHere: createdHere,
-                    gate: .shared,
-                    beforeDispatch: {
-                        try await operations.dispatch(claim)
-                        await UnstartedCreates.shared.remove(id)
-                    },
-                    bootstrap: { try await api.bootstrap(id: id) },
-                    startProcess: {
-                        await exitCodes.track(id: id) { [api] in
-                            try await api.waitProcess(containerId: id, processId: id)
-                        }
-                        do {
-                            try await api.startProcess(containerId: id, processId: id)
-                        } catch {
-                            if !ContainerLifecycleClaims.outcomeUncertain(error) {
-                                await exitCodes.forget(id: id)
+        // whole runtime operation. A completed start settles it; so does a
+        // definitive failure — one the runtime answered, or a start that
+        // never dispatched. A deadline, transport loss or cancellation after
+        // dispatch leaves it uncertain (``RuntimeAdmissionClaim/settle``).
+        do {
+            try await operations.perform(
+                id, kind: .starting, knownExit: { await exitCodes.entry(for: id)?.exitCode != nil },
+                operation: { claim in
+                    await exitCodes.forget(id: id)
+                    try await Self.startLookingIntoNotFound(
+                        id: id,
+                        createdHere: createdHere,
+                        gate: .shared,
+                        beforeDispatch: {
+                            try await operations.dispatch(claim)
+                            dispatched.set()
+                            await UnstartedCreates.shared.remove(id)
+                        },
+                        bootstrap: { try await api.bootstrap(id: id) },
+                        startProcess: {
+                            await exitCodes.track(id: id) { [api] in
+                                try await api.waitProcess(containerId: id, processId: id)
                             }
-                            throw error
-                        }
-                    },
-                    exists: { try await api.get(id: id) != nil })
-            })
+                            do {
+                                try await api.startProcess(containerId: id, processId: id)
+                            } catch {
+                                if !ContainerLifecycleClaims.outcomeUncertain(error) {
+                                    await exitCodes.forget(id: id)
+                                }
+                                throw error
+                            }
+                        },
+                        exists: { try await api.get(id: id) != nil })
+                })
+        } catch {
+            try? admission?.settle(after: error, reachedRuntime: dispatched.isSet)
+            throw error
+        }
         try admission?.completed()
     }
 
@@ -340,22 +351,30 @@ public struct NativeContainerService: ContainerServing {
         let request = await selectingInitImage(request, registryDomain: sysConfig.registryDomain)
         // Recheck admission after lookup, before any clone, volume or
         // container mutation. A fence acquired during lookup wins here.
-        let admission = try admissionGate.claim("native.create")
+        let admission = try admissionGate.claim("native.create", container: id)
         defer { withExtendedLifetime(admission) {} }
-        let result = try await InFlightCreates.shared.withExclusive(id) {
-            var placed: [String] = []
-            do {
-                let created = try await createNativeInner(
-                    request, id: id, placed: &placed, sysConfig: sysConfig, platform: platform, image: image,
-                    parsedMounts: parsedMounts)
-                // Publish never-started state before releasing the create
-                // claim, leaving no stopped/terminal observation window.
-                await UnstartedCreates.shared.record(created)
-                return created
-            } catch {
-                await VolumeClone.removeClones(containerID: id, volumes: placed)
-                throw error
+        let result: String
+        do {
+            result = try await InFlightCreates.shared.withExclusive(id) {
+                var placed: [String] = []
+                do {
+                    let created = try await createNativeInner(
+                        request, id: id, placed: &placed, sysConfig: sysConfig, platform: platform, image: image,
+                        parsedMounts: parsedMounts)
+                    // Publish never-started state before releasing the create
+                    // claim, leaving no stopped/terminal observation window.
+                    await UnstartedCreates.shared.record(created)
+                    return created
+                } catch {
+                    await VolumeClone.removeClones(containerID: id, volumes: placed)
+                    throw error
+                }
             }
+        } catch {
+            // An answered failure settles the receipt; a deadline, transport
+            // loss or cancellation leaves it uncertain.
+            try? admission?.settle(after: error)
+            throw error
         }
         try admission?.completed()
         return result
@@ -972,4 +991,12 @@ public struct NativeContainerService: ContainerServing {
             }
         }
     }
+}
+
+/// Set once a start has dispatched to the runtime: before that, any failure
+/// is definitive — nothing reached Apple's apiserver.
+private final class DispatchFlag: Sendable {
+    private let value = Mutex(false)
+    var isSet: Bool { value.withLock { $0 } }
+    func set() { value.withLock { $0 = true } }
 }

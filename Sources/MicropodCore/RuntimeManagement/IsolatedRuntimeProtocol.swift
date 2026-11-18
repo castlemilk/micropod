@@ -75,10 +75,13 @@ public struct IsolatedRuntimeObservation: Codable, Sendable {
     public let nativeInstallRoot: String?
     public let containerCount: Int
     public let workloadOutput: String?
+    /// Every container id the runtime listed, for proving stale admission
+    /// receipts dead. Nil from older workers and when the runtime is stopped.
+    public let containerIDs: [String]?
     public init(
         serviceUID: UInt32, bootstrapDomain: String, state: String, nativeVersion: String? = nil,
         nativeAppRoot: String? = nil, nativeInstallRoot: String? = nil, containerCount: Int = 0,
-        workloadOutput: String? = nil
+        workloadOutput: String? = nil, containerIDs: [String]? = nil
     ) {
         self.serviceUID = serviceUID
         self.bootstrapDomain = bootstrapDomain
@@ -88,5 +91,6 @@ public struct IsolatedRuntimeObservation: Codable, Sendable {
         self.nativeInstallRoot = nativeInstallRoot
         self.containerCount = containerCount
         self.workloadOutput = workloadOutput
+        self.containerIDs = containerIDs
     }
 }

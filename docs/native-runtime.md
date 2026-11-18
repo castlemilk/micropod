@@ -200,6 +200,39 @@ containers' exit waits and log follows cost at most four `containerList`s a
 second, not N times their poll rate. A container missing from that list is
 looked up directly: absence from a recent list is no proof that it is gone.
 
+### Seeing the container backlog: `Ping.container_operations`
+
+container-apiserver's own `ping` skips the containers lock, so `Ping`
+answering `status: "running"` in milliseconds says nothing about container
+work queued behind that lock. On a rig whose starts took 15 s and deletes
+over 10 s, callers' 30–60 s deadlines expired while their requests were
+still queued; the apiserver ran them anyway (containers landed 60–70 s
+late), the callers re-sent, and arrivals outran service while every Ping
+passed.
+
+`PingResponse.container_operations` (field 14, `ContainerOperationQueue`)
+reports this API server's share of that queue, counted in `XPCChannel`
+from send until the apiserver's reply:
+
+| Field | Meaning |
+|---|---|
+| `depth` | `in_flight + waiting` |
+| `in_flight` | container requests sent, no reply yet |
+| `abandoned` | of those, requests whose caller stopped waiting (deadline or cancellation); the apiserver still runs them, in order |
+| `waiting` | starts queued in-process for the `StartGate`, not yet sent |
+| `oldest_age_ms` | age of the oldest request counted in `depth` |
+
+Counted routes are container routes whose length is the runtime's (create,
+bootstrap, start/create process, stop, kill, delete, list, state, stats, …).
+`containerWait` (open until the process exits), copies and exports, and
+volume, network and image routes are not. Other clients of the same
+apiserver — another API process, a raw `container` CLI — are invisible to
+it. It is unset on servers that predate it, on the CLI backend and while
+maintenance holds admission; a dedicated runtime's answer passes through
+the desktop account's API unchanged. A client that sees `depth` or
+`oldest_age_ms` climbing, or `abandoned` above zero, should stop adding
+container work rather than retry: the runtime is up, but backlogged.
+
 Two reads avoid the apiserver's locks altogether:
 
 - **Volume configurations for mounts and clones** (`volumeConfig`,
@@ -1091,7 +1124,10 @@ against the shim. The pattern, for any Go job runner:
 1. **Detect.** `Ping` at `http://127.0.0.1:45454/api` (the Swift server's
    mount; the Go apiserver serves the same RPCs at the root). Use the
    Connect path only when `status == "running"` and `runtime_backend ==
-   "native"`: on `cli` there are no exit codes and no clones.
+   "native"`: on `cli` there are no exit codes and no clones. Read
+   `container_operations` for backpressure (see "Seeing the container
+   backlog" above): a running runtime can still have minutes of container
+   work queued.
 2. **Clients.** Build every client with
    `WithConnectOptions(connect.WithProtoJSON())`. Unary reads get
    `WithTimeout` then `WithRetry` with an `Idempotent` allow-list (`Ping`,

@@ -145,7 +145,16 @@ final class ImageEnsureTests: XCTestCase {
         try fence.releaseAfterVerification()
     }
 
-    func testNativeFailureAfterImageResolutionRetainsCreateIntent() async throws {
+    /// A create that fails without an authoritative answer after image
+    /// resolution leaves its receipt, marked uncertain, for `runtime
+    /// operation` to show. Once the create has returned, its claim is
+    /// released and its in-process work (clone placement and cleanup) is
+    /// over, so maintenance retires that receipt (claim released). The
+    /// runtime call itself — `containerCreate` over XPC — keeps a receipt of
+    /// its own while unanswered or answered only by the transport, and that
+    /// one still blocks. (This service's XPC client uses the shared gate,
+    /// so it is not seen here.)
+    func testNativeFailureAfterImageResolutionLeavesAnUncertainCreateReceipt() async throws {
         let store = try ScriptedImageStore(root: root, storedArchitectures: ["amd64"])
         let gate = try enrolledCreateGate()
         let service = nativeService(images: ImagesServiceClient(transport: store.transport), gate: gate)
@@ -157,7 +166,16 @@ final class ImageEnsureTests: XCTestCase {
         } catch {
             XCTAssertEqual(ConnectCodeMapping.code(for: error), "unavailable")
         }
-        XCTAssertThrowsError(try gate.begin(operation: UUID()), "a later failure must retain its create intent")
+        let pending = gate.root.appendingPathComponent("pending")
+        let receipts = try FileManager.default.contentsOfDirectory(at: pending, includingPropertiesForKeys: nil)
+        XCTAssertEqual(receipts.count, 1, "an uncertain create keeps its receipt")
+        let receipt = try JSONDecoder().decode(
+            PendingRuntimeOperation.self, from: Data(contentsOf: try XCTUnwrap(receipts.first)))
+        XCTAssertEqual(receipt.route, "native.create")
+        XCTAssertEqual(receipt.container, "unknown-create")
+        XCTAssertEqual(receipt.outcome, .uncertain)
+        try gate.begin(operation: UUID()).releaseAfterVerification()
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: pending.path), [])
     }
 
     func testRejectedMountsDoNotBlockMaintenance() async throws {

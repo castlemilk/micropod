@@ -10,10 +10,16 @@ private actor ManagedDriverFixture: RuntimeLifecycleDriving {
     var busy = false
     var startFails = false
     var verificationFails = false
+    var listed: Set<String>?
     func configure(busy: Bool = false, startFails: Bool = false, verificationFails: Bool = false) {
         self.busy = busy
         self.startFails = startFails
         self.verificationFails = verificationFails
+    }
+    func list(_ containers: Set<String>?) { listed = containers }
+    func containerIDs(executable: URL) -> Set<String>? {
+        calls.append("list")
+        return listed
     }
     func events() -> [String] { calls }
     func stage(root: URL) throws -> ManagedRuntimeReceipt {
@@ -279,5 +285,43 @@ final class RuntimeLifecycleManagerTests: XCTestCase {
         XCTAssertTrue(gate.isClosed)
         let calls = await driver.events()
         XCTAssertFalse(calls.contains("stop") || calls.contains("start") || calls.contains("verify"))
+    }
+
+    /// A runtime call's receipt left by a delete that timed out, for a
+    /// container the runtime no longer lists, is retired once old enough;
+    /// one for a container it still lists keeps blocking maintenance.
+    func testStaleReceiptForAnAbsentContainerDoesNotBlockMaintenance() async throws {
+        for listed in [false, true] {
+            let root = temporaryRoot()
+            defer { try? FileManager.default.removeItem(at: root) }
+            let driver = ManagedDriverFixture()
+            await driver.list(listed ? ["timed-out"] : ["other"])
+            let rig = ManagedRigFixture(root: root)
+            let admission = root.appendingPathComponent("admission")
+            let operation = UUID()
+            try RuntimeDurableFile.write(
+                PendingRuntimeOperation(
+                    operation: operation, route: "containerDelete", pid: getpid(),
+                    owner: try RuntimeProcessBirth.read(getpid()),
+                    createdAt: Date().addingTimeInterval(-PendingOperationReconciliation.staleOperationAge - 60),
+                    container: "timed-out", outcome: .uncertain, endedAt: Date()),
+                to: admission.appendingPathComponent("pending/\(operation.uuidString).json"))
+            let manager = RuntimeLifecycleManager(root: root, rig: rig, driver: driver)
+            _ = try await manager.begin(.install)
+            let result = try await terminal(manager)
+            let remaining = try FileManager.default.contentsOfDirectory(
+                atPath: admission.appendingPathComponent("pending").path)
+            if listed {
+                XCTAssertNotEqual(result.phase, "completed")
+                XCTAssertTrue(
+                    result.error?.contains("pending or uncertain operations") == true, result.error ?? result.message)
+                XCTAssertEqual(remaining.count, 1)
+            } else {
+                XCTAssertEqual(result.phase, "completed", result.error ?? "")
+                XCTAssertEqual(remaining, [])
+            }
+            let calls = await driver.events()
+            XCTAssertTrue(calls.contains("list"))
+        }
     }
 }

@@ -233,15 +233,26 @@ public final class XPCConnection: Sendable {
             "networkList", "volumeList", "volumeInspect", "volumeDiskUsage", "systemDiskUsage", "pluginGet",
             "pluginList",
         ]
-        let claim = reads.contains(route) ? nil : try RuntimeAdmission.shared.claim(route)
+        // Container routes carry the container's id under `id`; other
+        // routes use that key for other objects (networks).
+        let container = route.hasPrefix("container") ? message.string(key: XPCKeys.id.rawValue) : nil
+        let claim = reads.contains(route) ? nil : try RuntimeAdmission.shared.claim(route, container: container)
         let gate = ReplyGate()
+        let queue = ContainerOperationQueue.shared
+        let ticket = queue.sent(route)
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (cont: CheckedContinuation<XPCMessage, any Error>) in
                 gate.arm(cont)
                 xpc_connection_send_message_with_reply(connection, message.underlying, nil) { reply in
+                    queue.answered(ticket)
                     // A late ordinary reply is authoritative settlement even
-                    // after the caller's deadline. Transport errors are not.
-                    if !XPCMessage(object: reply).isErrorType { try? claim?.completed() }
+                    // after the caller's deadline. Transport errors are not:
+                    // the receipt stays, marked uncertain.
+                    if !XPCMessage(object: reply).isErrorType {
+                        try? claim?.completed()
+                    } else {
+                        try? claim?.uncertain()
+                    }
                     gate.finish { try self.parseReply(reply) }
                 }
                 if let responseTimeout {
@@ -250,6 +261,8 @@ public final class XPCConnection: Sendable {
                     let c = responseTimeout.components
                     let delay = Double(c.seconds) + Double(c.attoseconds) / 1e18
                     DispatchQueue.global().asyncAfter(deadline: .now() + delay) {
+                        // The apiserver still runs it; it stays counted.
+                        queue.abandoned(ticket)
                         gate.finish {
                             throw MicropodError.message("deadlineExceeded: XPC timeout for \(service)/\(route)")
                         }
@@ -257,6 +270,7 @@ public final class XPCConnection: Sendable {
                 }
             }
         } onCancel: {
+            queue.abandoned(ticket)
             gate.finish { throw CancellationError() }
         }
     }

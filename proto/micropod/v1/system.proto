@@ -202,6 +202,39 @@ message PingResponse {
   // Same value as `api_server_version`, under a name that says whose
   // version it is.
   string apple_api_server_version = 13 [(gnostic.openapi.v3.property).example = {yaml: "'1.5.0'"}];
+  // This server's container operations that Apple's runtime has not yet
+  // answered. Apple's apiserver runs container operations one at a time
+  // behind one FIFO lock, and its ping skips that lock, so `status:
+  // "running"` cannot tell a responsive runtime from one with minutes of
+  // container work queued; this can. Unset on servers that predate it, on
+  // the CLI backend (which cannot observe it) and during maintenance.
+  ContainerOperationQueue container_operations = 14;
+}
+
+// The container operations one Micropod API server has handed to Apple's
+// runtime and not yet seen answered (see PingResponse.container_operations).
+// It counts this server's own requests from send until the apiserver's
+// reply — including those whose caller gave up on a deadline, which the
+// apiserver still runs in order. Other clients of the same runtime are not
+// counted. Counted: container routes whose length is the runtime's
+// (create, bootstrap, start, stop, kill, delete, list, state, stats, …);
+// not counted: `containerWait`, copies and exports, and volume, network and
+// image operations, which do not take the containers lock.
+message ContainerOperationQueue {
+  // in_flight + waiting.
+  uint32 depth = 1 [(gnostic.openapi.v3.property).example = {yaml: "4"}];
+  // Sent to the apiserver, no reply yet.
+  uint32 in_flight = 2 [(gnostic.openapi.v3.property).example = {yaml: "3"}];
+  // Of in_flight, requests whose caller already stopped waiting (deadline
+  // or cancellation). A rising count means callers are giving up on work
+  // the runtime will still do.
+  uint32 abandoned = 3 [(gnostic.openapi.v3.property).example = {yaml: "1"}];
+  // Container starts queued in this server for its start gate (one start
+  // at a time), not yet sent.
+  uint32 waiting = 4 [(gnostic.openapi.v3.property).example = {yaml: "1"}];
+  // Age of the oldest operation counted in depth, in milliseconds; 0 when
+  // depth is 0.
+  uint64 oldest_age_ms = 5 [(gnostic.openapi.v3.property).example = {yaml: "42000"}];
 }
 
 // A contiguous range of protocol versions, inclusive.

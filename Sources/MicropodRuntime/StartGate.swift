@@ -35,6 +35,7 @@ public final class StartGate: Sendable {
     private struct Waiter {
         let ticket: UInt64
         let continuation: CheckedContinuation<Void, any Error>
+        let queuedAt: ContinuousClock.Instant
     }
 
     private struct State {
@@ -63,6 +64,12 @@ public final class StartGate: Sendable {
     /// Whether a start holds the gate (tests).
     var isHeld: Bool { state.withLock { $0.held } }
 
+    /// Starts waiting for the gate and when the longest of them queued
+    /// (``ContainerOperationQueue``).
+    public func waiting() -> (count: Int, oldest: ContinuousClock.Instant?) {
+        state.withLock { state in (state.waiters.count, state.waiters.first?.queuedAt) }
+    }
+
     private func acquire() async throws {
         let ticket = state.withLock { state in
             state.nextTicket &+= 1
@@ -79,7 +86,7 @@ public final class StartGate: Sendable {
                         state.held = true
                         return .success(())
                     }
-                    state.waiters.append(Waiter(ticket: ticket, continuation: continuation))
+                    state.waiters.append(Waiter(ticket: ticket, continuation: continuation, queuedAt: .now))
                     return nil
                 }
                 if let settled { continuation.resume(with: settled) }
