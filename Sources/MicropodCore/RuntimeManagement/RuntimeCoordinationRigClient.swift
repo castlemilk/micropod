@@ -26,6 +26,9 @@ public struct RuntimeCoordinationRigCall: Codable, Sendable {
 }
 
 public struct RuntimeCoordinationRigReply: Codable, Sendable {
+    /// The coordinator holds no record of the operation and changed nothing
+    /// for this call (``RuntimeCoordinatorNotRecorded``).
+    public static let notRecordedPhase = "notRecorded"
     public let schemaVersion: String
     public let scope: String
     public let operation: String
@@ -34,6 +37,18 @@ public struct RuntimeCoordinationRigReply: Codable, Sendable {
     public let maintenanceProof: String?
     public let releaseProof: String?
     public let reason: String?
+}
+
+/// The authenticated coordinator answered that it holds no record of this
+/// operation and changed nothing for the call. For any call but a drain it has
+/// also confirmed that this helper reports no fence or action for it and that
+/// the scheduler names it nowhere: the operation was never drained, fenced or
+/// released there. A helper that took no local fence and began no runtime
+/// action may settle its handoff on this answer; any other refusal keeps it.
+public struct RuntimeCoordinatorNotRecorded: LocalizedError, Sendable {
+    public let reason: String
+    public init(reason: String) { self.reason = reason }
+    public var errorDescription: String? { reason }
 }
 
 /// Root selects the recorded owner's home and the exact enrolled kernel peer.
@@ -83,8 +98,11 @@ public struct RuntimeCoordinationRigClient: Sendable {
             reply.scope == RuntimeCoordinationEnrollment.runtimeScope, reply.operation == operation.id,
             [
                 "draining", "drained", "prepared", "begun", "verified", "completed", "aborting", "cancelled", "blocked",
-                "recoveryRequired",
+                "recoveryRequired", RuntimeCoordinationRigReply.notRecordedPhase,
             ].contains(reply.phase),
+            reply.phase != RuntimeCoordinationRigReply.notRecordedPhase
+                || (reply.state == nil && reply.maintenanceProof == nil && reply.releaseProof == nil
+                    && !(reply.reason ?? "").isEmpty),
             (reply.maintenanceProof?.utf8.count ?? 0) <= 16384,
             (reply.releaseProof?.utf8.count ?? 0) <= 16384,
             (reply.reason?.utf8.count ?? 0) <= 1024,

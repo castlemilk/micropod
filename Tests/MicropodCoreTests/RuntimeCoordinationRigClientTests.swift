@@ -45,5 +45,22 @@ final class RuntimeCoordinationRigClientTests: XCTestCase {
         mixed["maintenanceProof"] = "opaque-active-proof"
         mixed["releaseProof"] = "opaque-released-proof"
         XCTAssertThrowsError(try decode(mixed))
+
+        // "Not recorded" carries its reason and nothing else: no state or proof
+        // can ride a refusal the helper may settle on.
+        var unrecorded = base
+        unrecorded["phase"] = RuntimeCoordinationRigReply.notRecordedPhase
+        unrecorded["reason"] = "Not recorded: this rig never drained or fenced it"
+        XCTAssertEqual(try decode(unrecorded).phase, RuntimeCoordinationRigReply.notRecordedPhase)
+        for (field, value) in [
+            ("maintenanceProof", "opaque-active-proof"), ("releaseProof", "opaque-released-proof"), ("reason", ""),
+        ] {
+            var fields = unrecorded
+            fields[field] = value
+            XCTAssertThrowsError(try decode(fields), field)
+        }
+        var stated = unrecorded
+        stated["state"] = ["scope": RuntimeCoordinationEnrollment.runtimeScope]
+        XCTAssertThrowsError(try decode(stated))
     }
 }

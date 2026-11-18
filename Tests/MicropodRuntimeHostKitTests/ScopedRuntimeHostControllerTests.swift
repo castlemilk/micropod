@@ -78,6 +78,11 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
     var holdDrain = false
     var loseCompletion = false
     var corruptBegin = false
+    /// The next drain is refused before the coordinator records it, as a
+    /// coordinator that is stopping or busy answers.
+    var refuseNextDrain: String?
+    /// Calls the coordinator answers "not recorded".
+    var unrecorded: Set<String> = []
     var nativeActions: [IsolatedRuntimeAction] = []
     var history: [String] = []
     var gateAtPhase: [String: Bool] = [:]
@@ -101,6 +106,8 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
     }
     func setBusy() { busy = true }
     func setHoldDrain(_ value: Bool) { holdDrain = value }
+    func refuseNextDrain(_ reason: String) { refuseNextDrain = reason }
+    func answerNotRecorded(_ actions: Set<String>) { unrecorded = actions }
     func loseOneCompletion() { loseCompletion = true }
     func corruptOneBegin() { corruptBegin = true }
     func simulateStoppedRuntime() { ready = false }
@@ -124,6 +131,24 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
         XCTAssertEqual(call.enrollment, proofs.enrollment)
         history.append(call.action)
         gateAtPhase[call.action] = gate.isClosed
+        func refusal(_ phase: String, _ reason: String) throws -> RuntimeCoordinationRigReply {
+            try JSONDecoder().decode(
+                RuntimeCoordinationRigReply.self,
+                from: JSONSerialization.data(withJSONObject: [
+                    "schemaVersion": RuntimeCoordinationEnrollment.capability,
+                    "scope": RuntimeCoordinationEnrollment.runtimeScope,
+                    "operation": call.operation.id, "phase": phase, "reason": reason,
+                ]))
+        }
+        if call.action == "drain", let reason = refuseNextDrain {
+            refuseNextDrain = nil
+            return try refusal("blocked", reason)
+        }
+        if unrecorded.contains(call.action) {
+            return try refusal(
+                RuntimeCoordinationRigReply.notRecordedPhase,
+                "Not recorded: this rig never drained or fenced private runtime operation \(call.operation.id)")
+        }
         if call.action == "drain", current == nil, released?.id != call.operation.id {
             current = call.operation
             generation += 1
@@ -269,6 +294,84 @@ final class ScopedRuntimeHostControllerTests: XCTestCase {
         XCTAssertEqual(restarted.phase, "completed", restarted.error ?? "")
         let (afterNative, _, _) = await driver.snapshot()
         XCTAssertEqual(afterNative.filter { $0 == .stop }.count, beforeNative.filter { $0 == .stop }.count + 1)
+    }
+
+    // The Gamma-128GB deadlock (2026-11-18), replayed. A restart's first
+    // drain reached a coordinator that was stopping. The coordinator refused it
+    // and recorded nothing, but the handoff was already marked attempted, so
+    // the restart waited in recoveryRequired. Every `recover` then asked to
+    // abort an operation the coordinator never had. Once the coordinator
+    // answers "not recorded", recovery settles the restart as cancelled, with
+    // no native action and no abortComplete, and the next restart runs.
+    func testRecoverySettlesARestartTheCoordinatorNeverRecorded() async throws {
+        let (controller, driver, root) = try await fixture()
+        let admission = RuntimeAdmission(root: root.appendingPathComponent("admission"))
+        _ = try await controller.submit(.init(action: .start), ownerUID: getuid())
+        let started = try await terminal(controller)
+        XCTAssertEqual(started.phase, "completed", started.error ?? "")
+        let (beforeNative, beforeHistory, _) = await driver.snapshot()
+
+        await driver.refuseNextDrain("The private runtime request is invalid")
+        _ = try await controller.submit(.init(action: .restart), ownerUID: getuid())
+        let retained = try await terminal(controller)
+        XCTAssertEqual(retained.phase, "recoveryRequired", "A plain refusal may have been recorded; it is kept")
+        XCTAssertEqual(retained.runtimeRigAttempted, true)
+        XCTAssertEqual(retained.runtimeActionStarted, false)
+        XCTAssertFalse(admission.isClosed)
+
+        await driver.answerNotRecorded(["abort"])
+        _ = try await controller.submit(.init(action: .verify), ownerUID: getuid())
+        let settled = try await terminal(controller)
+        XCTAssertEqual(settled.phase, "cancelled", settled.error ?? "")
+        XCTAssertEqual(settled.runtimeRigAttempted, false, "The handoff must not stay retained")
+        XCTAssertEqual(settled.runtimeCancelledBeforeAction, true)
+        XCTAssertEqual(settled.runtimeActionStarted, false)
+        XCTAssertEqual(settled.nativeState, "nativeReady")
+        XCTAssertTrue(settled.error?.hasPrefix("Not recorded:") == true, settled.error ?? "")
+        XCTAssertFalse(admission.isClosed)
+        let (native, history, _) = await driver.snapshot()
+        XCTAssertEqual(native, beforeNative, "No native action may run when settling")
+        XCTAssertEqual(Array(history.dropFirst(beforeHistory.count)), ["drain", "abort"])
+
+        await driver.answerNotRecorded([])
+        _ = try await controller.submit(.init(action: .restart), ownerUID: getuid())
+        let restarted = try await terminal(controller)
+        XCTAssertEqual(restarted.phase, "completed", restarted.error ?? "")
+    }
+
+    // A first drain the coordinator answers "not recorded" fails the
+    // operation outright instead of retaining a handoff nobody holds. Once a
+    // drain has been accepted, the same answer no longer settles anything.
+    func testUnrecordedFirstDrainFailsWithoutRetainingTheHandoff() async throws {
+        let (controller, driver, _) = try await fixture()
+        _ = try await controller.submit(.init(action: .start), ownerUID: getuid())
+        let started = try await terminal(controller)
+        XCTAssertEqual(started.phase, "completed", started.error ?? "")
+        let (beforeNative, _, _) = await driver.snapshot()
+
+        await driver.answerNotRecorded(["drain"])
+        _ = try await controller.submit(.init(action: .restart), ownerUID: getuid())
+        let failed = try await terminal(controller)
+        XCTAssertEqual(failed.phase, "failed", failed.error ?? "")
+        XCTAssertEqual(failed.runtimeRigAttempted, false)
+        XCTAssertEqual(failed.runtimeActionStarted, false)
+        XCTAssertTrue(failed.error?.hasPrefix("Not recorded:") == true, failed.error ?? "")
+        let (native, _, _) = await driver.snapshot()
+        XCTAssertEqual(native, beforeNative)
+
+        await driver.answerNotRecorded([])
+        await driver.setHoldDrain(true)
+        let (_, before, _) = await driver.snapshot()
+        _ = try await controller.submit(.init(action: .restart), ownerUID: getuid())
+        for _ in 0..<400 {
+            let (_, history, _) = await driver.snapshot()
+            if history.count > before.count { break }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        await driver.answerNotRecorded(["drain"])
+        let retained = try await terminal(controller)
+        XCTAssertEqual(retained.phase, "recoveryRequired", retained.error ?? "")
+        XCTAssertEqual(retained.runtimeRigAttempted, true, "An accepted drain keeps its handoff")
     }
 
     func testSignedScopedHandoffRunsWithoutLegacyHostGrantAndReconcilesLostCompletion() async throws {
