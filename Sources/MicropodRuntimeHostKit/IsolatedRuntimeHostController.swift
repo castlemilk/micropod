@@ -241,19 +241,22 @@ public actor IsolatedRuntimeHostController {
                 var accepted = false
                 while true {
                     try Task.checkCancellation()
+                    let firstDrain = !accepted && state.runtimeRigAttempted == true
                     let phase: String
                     do {
                         phase = try await handoffPhase("drain")
-                    } catch let refusal as RuntimeCoordinatorNotRecorded where !accepted && state.runtimeRigAttempted == true {
+                    } catch let refusal as RuntimeCoordinatorNotRecorded where firstDrain {
                         try settleUnrecordedHandoff(
                             refusal, phase: "failed",
-                            message: "The rig coordinator did not take this maintenance; the dedicated runtime is unchanged")
+                            message: "The rig coordinator did not take this maintenance; "
+                                + "the dedicated runtime is unchanged")
                         return
-                    } catch let unsent as RuntimeRigAdmissionError where !accepted && state.runtimeRigAttempted == true {
+                    } catch let unsent as RuntimeRigAdmissionError where firstDrain {
                         // Definitely never delivered: the coordinator cannot hold it.
                         try settleUnrecordedHandoff(
                             unsent, phase: "failed",
-                            message: "The rig coordinator was unavailable; nothing was drained and the dedicated runtime is unchanged")
+                            message: "The rig coordinator was unavailable; nothing was drained "
+                                + "and the dedicated runtime is unchanged")
                         return
                     }
                     accepted = true
@@ -397,7 +400,8 @@ public actor IsolatedRuntimeHostController {
                     // left this handoff retained; it can never be aborted there.
                     try settleUnrecordedHandoff(
                         refusal, phase: "cancelled",
-                        message: "Maintenance settled before any runtime change; the rig coordinator has no record of it")
+                        message: "Maintenance settled before any runtime change; "
+                            + "the rig coordinator has no record of it")
                     return
                 }
                 state.runtimeCancelledBeforeAction = true
