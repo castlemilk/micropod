@@ -664,6 +664,38 @@ host without the authority, the app upgrade still reports success and names
     previous helper could not manage. Doing it the other way round, previous
     helper first, would leave a runtime that helper cannot verify.
 
+## Install attestation for the coordinator
+
+The Cuttlefish agent reaches the root helper only through the coordination
+socket (`RuntimeCoordinationCall`), not the CLI's `status`. A
+`runtime-inspect` call with `"purpose": "attestation"` gets the reply's
+`attestation` object; without that purpose the reply is byte-for-byte what it
+was, because the agent decodes coordination replies strictly
+(`DisallowUnknownFields`) and an unasked-for field would make every deployed
+agent refuse `runtime-inspect`. A helper that predates this refuses the
+purpose (it requires none), so a new coordinator fails closed against it.
+
+The attestation is checked for each reply (`installFacts()`: the same
+protection check `status` reports, the installed plist compared with the
+compiled definition, the sealed walk of the running bundle, and the legacy
+job's `launchctl` state), stamped with `checkedAt`, and recorded as
+`status`'s `componentProtection`, so the two never disagree for longer than
+one check.
+
+| Field | JSON type | Bound | Meaning |
+| --- | --- | --- | --- |
+| `helperIdentifier` | string | 128 bytes | the helper's signing identifier |
+| `helperVersion` | string | 64 | its compiled-in release |
+| `componentProtocol` | integer | | the component protocol it implements; 0 if none |
+| `helperService` | string | 128 | the Mach service it serves: `com.skunkworq.micropod.runtime.authority` or the legacy `com.skunkworq.micropod.runtime.host` |
+| `componentProtection` | string | 512 | `protected` or `unprotected: <reason>`, either followed by `; release-gate fault armed` on a VM gate |
+| `authorityDefinitionSHA256` | string | 64 | lowercase hex of the LaunchDaemon definition it expects |
+| `spawnConstraint` | boolean | | it runs as the authority, from a plist that is exactly that definition (SpawnConstraint included) |
+| `installSealed` | boolean | | the bundle it runs from is a sealed root-owned copy |
+| `nativeState` | string, optional | 64 | the managed Apple runtime's last observed state; omitted when never observed |
+| `legacyJob` | string | | `retired`, `loaded`, `enabled` or `unknown` |
+| `checkedAt` | string | 40 | RFC 3339 UTC with fractional seconds, when these checks ran |
+
 ## Cuttlefish (skunkworq/cuttlefish#966)
 
 - **Qualified builds.** The agent checks a qualified set of Apple builds,

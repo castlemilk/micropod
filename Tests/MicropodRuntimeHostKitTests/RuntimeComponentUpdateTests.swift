@@ -44,6 +44,7 @@ final class ComponentEnvironmentFixture: RuntimeComponentEnvironment, @unchecked
     private var _swaps: [URL] = []
     private var _desktop: (String, String)?
     private var _protection = RuntimeAuthority.Protection.ok
+    private var _facts: RuntimeInstallFacts?
     var publicKey: String { key.publicKey.rawRepresentation.base64EncodedString() }
 
     static let source = bundle("0.13.9", "9", cdhash: "1", helper: "2", api: "3")
@@ -188,6 +189,16 @@ final class ComponentEnvironmentFixture: RuntimeComponentEnvironment, @unchecked
     func activeAPI(identity: IsolatedRuntimeIdentity) -> RuntimeComponentAPI? { api.active }
     func protection() -> RuntimeAuthority.Protection { lock.withLock { _protection } }
     func setProtection(_ value: RuntimeAuthority.Protection) { lock.withLock { _protection = value } }
+    /// An authority install by default; tests replace it (the legacy path).
+    func installFacts() -> RuntimeInstallFacts {
+        lock.withLock {
+            _facts
+                ?? .init(
+                    protection: _protection, authority: true, spawnConstraint: _protection.protected,
+                    installSealed: true, legacyJob: .retired)
+        }
+    }
+    func setInstallFacts(_ value: RuntimeInstallFacts?) { lock.withLock { _facts = value } }
     func checkpoint(_ name: String) throws {
         if lock.withLock({ _stopAt == name }) { throw RuntimeComponentInterruption(checkpoint: name) }
     }
