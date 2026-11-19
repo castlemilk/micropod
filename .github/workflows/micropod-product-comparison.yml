@@ -9,7 +9,7 @@ jobs:
   compare:
     if: github.event_name == 'workflow_dispatch' || github.head_ref == 'benchmarks/micropod-product-comparison-20261119'
     runs-on: macos-26-intel
-    timeout-minutes: 28
+    timeout-minutes: 40
     env:
       ORB_APP: /Applications/OrbStack.app
       ORB_RELEASE: '1.5.1'
@@ -87,21 +87,43 @@ jobs:
           if ! docker context inspect orbstack >/dev/null 2>&1; then
             docker context create orbstack --docker "host=unix://$HOME/.orbstack/run/docker.sock"
           fi
+      - name: Measure the production HTTP transport against real OrbStack guests
+        timeout-minutes: 8
+        env:
+          BENCH_BUILD: optimized production DockerClient source
+        run: |
+          sh scripts/bench_orb_transport/build.sh "$RUNNER_TEMP/transport"
+          python3 scripts/bench_orb_adapter.py --client micropod-transport --micropod "$RUNNER_TEMP/transport/transport" --socket "$HOME/.orbstack/run/docker.sock" --json "$RUNNER_TEMP/transport.json" --rounds 3 --clients 1 4 8
+      - name: Identify the Swift compiler and SDK
+        id: toolchain
+        run: |
+          { swift --version; xcrun --sdk macosx --show-sdk-build-version; } | shasum -a 256 | awk '{print "key=" $1}' >> "$GITHUB_OUTPUT"
+      - name: Restore the compiled benchmark CLI
+        id: compiled
+        uses: actions/cache@v4
+        with:
+          path: .bench-bin/micropod
+          key: product-cli-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('Package.swift', 'Package.resolved', 'Sources/**') }}
       - name: Build the production Micropod CLI
-        timeout-minutes: 18
+        if: steps.compiled.outputs.cache-hit != 'true'
+        timeout-minutes: 24
         run: |
           swift --version
           swift build --disable-automatic-resolution -c debug --product micropod -j 4 > "$RUNNER_TEMP/adapter-build.log" 2>&1 || { tail -80 "$RUNNER_TEMP/adapter-build.log"; exit 1; }
-          echo "BENCH_BUILD=swift debug" >> "$GITHUB_ENV"
+          mkdir -p .bench-bin
+          cp .build/debug/micropod .bench-bin/micropod
       - name: Run and verify both clients on one OrbStack engine
         timeout-minutes: 9
+        env:
+          BENCH_BUILD: production CLI, Swift debug
         run: |
-          python3 scripts/bench_orb_adapter.py --micropod "$PWD/.build/debug/micropod" --socket "$HOME/.orbstack/run/docker.sock" --json "$RUNNER_TEMP/adapter.json"
+          python3 scripts/bench_orb_adapter.py --micropod "$PWD/.bench-bin/micropod" --socket "$HOME/.orbstack/run/docker.sock" --json "$RUNNER_TEMP/adapter.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: micropod-orbstack-product-evidence
           path: |
             ${{ runner.temp }}/orb-start.json
+            ${{ runner.temp }}/transport.json
             ${{ runner.temp }}/adapter.json
             ${{ runner.temp }}/adapter-build.log

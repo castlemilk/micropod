@@ -4,9 +4,9 @@ import argparse
 import concurrent.futures
 import hashlib
 import json
-import math
 import os
 import platform
+import plistlib
 import random
 import re
 import shutil
@@ -69,12 +69,52 @@ def guest(engine, work, image, script, bind=None):
         if clean:
             call(clean, work, 15)
         raise
-    return result, time.perf_counter() - start
+    elapsed = time.perf_counter() - start
+    if clean and result.returncode not in (0, 23):
+        call(clean, work, 15)
+    return result, elapsed
 
 
 def error_text(result):
     detail = (result.stderr + "\n" + result.stdout).strip().replace(str(HOME), "~")
     return f"exit {result.returncode}: {detail[-700:]}"
+
+
+def server_identity(engine, work):
+    r = call(["docker", "--host", "unix://" + str(SOCKETS[engine]), "info", "--format", "{{json .}}"], work, 12)
+    if r.returncode:
+        raise ValueError(error_text(r))
+    info = json.loads(r.stdout)
+    keys = ("Name", "OperatingSystem", "ServerVersion", "Architecture", "NCPU", "MemTotal", "KernelVersion")
+    identity = {key: info.get(key) for key in keys}
+    labels = (str(identity["OperatingSystem"]) + " " + str(identity["Name"])).lower()
+    tokens = {"micropod-shim": ("micropod", "apple container"), "docker-desktop": ("docker desktop", "docker-desktop"),
+              "orbstack": ("orbstack",), "colima": ("colima",)}
+    if not any(t in labels for t in tokens[engine]):
+        raise ValueError(f"unexpected server for {engine}: {labels}")
+    return identity
+
+
+def host_metadata(work):
+    data = {}
+    for name, app in [("micropod", "Micropod"), ("docker-desktop", "Docker"), ("orbstack", "OrbStack")]:
+        path = Path("/Applications") / (app + ".app") / "Contents/Info.plist"
+        if path.is_file():
+            with path.open("rb") as f:
+                plist = plistlib.load(f)
+            data[name] = {"version": plist.get("CFBundleShortVersionString"), "build": plist.get("CFBundleVersion")}
+    for name, argv in [("apple-container", ["container", "--version"]), ("docker-client", ["docker", "--version"]),
+                       ("colima", ["colima", "version"])]:
+        if shutil.which(argv[0]):
+            r = call(argv, work, 10)
+            if r.returncode == 0 and r.stdout.strip():
+                data[name] = r.stdout.strip().splitlines()[0]
+    if platform.system() == "Darwin":
+        profile = call(["system_profiler", "SPHardwareDataType", "-json"], work, 15)
+        if profile.returncode == 0:
+            hw = json.loads(profile.stdout)["SPHardwareDataType"][0]
+            data["hardware"] = {k: hw.get(k) for k in ("machine_model", "chip_type", "physical_memory")}
+    return data
 
 
 def identify(engine, work, image):
@@ -145,18 +185,22 @@ def main():
                 arch=platform.machine(), cpus=os.cpu_count(), image=args.image, resource_request="1 vCPU, 256 MiB",
                 seed=args.seed, rounds=args.rounds, clients=args.clients, engines={}, warmups=[], blocks=[], summary=[])
     ready = {}
+    args.engines = list(dict.fromkeys(args.engines))
+    args.clients = list(dict.fromkeys(args.clients))
     with tempfile.TemporaryDirectory(prefix="mp-guest-matrix-") as tmp:
         work = Path(tmp).resolve()
+        data["software"] = host_metadata(work)
+        data["start_load"] = list(os.getloadavg())
+        data["network"] = "offline fixture; sandbox and Docker endpoints disable networking, Apple container uses its default"
+        data["guest_groups"] = {}
         for engine in args.engines:
             try:
                 if engine in SOCKETS and not SOCKETS[engine].is_socket():
                     raise FileNotFoundError(f"{engine} socket absent")
+                server = server_identity(engine, work) if engine in SOCKETS else None
                 identity = identify(engine, work, args.image)
-                data["engines"][engine] = {"guest": identity}
-                if engine in SOCKETS:
-                    info = call(["docker", "--host", "unix://" + str(SOCKETS[engine]), "info", "--format",
-                                 "{{.OperatingSystem}}/{{.ServerVersion}}/{{.Architecture}}/{{.NCPU}}/{{.MemTotal}}"], work, 10)
-                    data["engines"][engine]["server"] = info.stdout.strip()
+                data["engines"][engine] = {"guest": identity, "server": server}
+                data["guest_groups"].setdefault(identity, []).append(engine)
                 ready[engine] = []
             except (OSError, ValueError, subprocess.SubprocessError) as exc:
                 data["engines"][engine] = {"unavailable": clean_failure(exc)}
@@ -175,6 +219,7 @@ def main():
                     rng.shuffle(order)
                     for engine in order:
                         row = batch(engine, case, clients, work, args.image)
+                        row["load_after"] = list(os.getloadavg())
                         row["block"] = block
                         data["blocks"].append(row)
                         print(f'{engine} {case} x{clients} {block}/{args.rounds}: {row["passed"]}/{clients} in {row["wall_s"]:.3f}s', flush=True)
@@ -190,6 +235,7 @@ def main():
                     s.update(p50_wall_s=round(median, 6), min_wall_s=min(success), max_wall_s=max(success),
                              jobs_per_second=round(n / median, 3))
                 data["summary"].append(s)
+    data["comparability"] = "Compare rows within one guest_groups fingerprint; includes BusyBox digest, Alpine release and guest architecture."
     atomic_save(args.json, data)
     print(f"Receipt: {args.json.resolve()}")
     return 0 if ready and all(r["passed"] == r["clients"] for r in data["blocks"] + data["warmups"]) else 1

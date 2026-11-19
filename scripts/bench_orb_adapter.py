@@ -68,7 +68,14 @@ def job(client, docker, micropod, sock, env, image_id):
     common = ["--name", name, "--label", "micropod.bench=" + nonce, "--network", "none",
               "--cpus", "1", "--memory", "64m", IMAGE, "sh", "-c",
               f'echo out-{nonce}; echo err-{nonce} >&2; exit 23']
-    argv = [micropod, "run", "--runtime", "docker", *common] if client == "micropod" else [*docker, "run", "-d", *common]
+    if client == "micropod":
+        # The stock CLI's option parser requires an explicit boundary for guest flags.
+        common.insert(common.index(IMAGE), "--")
+        argv = [micropod, "run", "--runtime", "docker", *common]
+    elif client == "micropod-transport":
+        argv = [micropod, "unix://" + str(sock), "run", name, nonce, IMAGE]
+    else:
+        argv = [*docker, "run", "-d", *common]
     started = time.perf_counter()
     try:
         command(argv, env)
@@ -83,7 +90,12 @@ def job(client, docker, micropod, sock, env, image_id):
         logs = streams(api("GET", path + "/logs?stdout=1&stderr=1"))
         if logs != {1: f"out-{nonce}\n".encode(), 2: f"err-{nonce}\n".encode()}:
             raise ValueError("guest streams differ")
-        remove = [micropod, "rm", "--force", name] if client == "micropod" else [*docker, "rm", "--force", name]
+        if client == "micropod":
+            remove = [micropod, "rm", "--force", name]
+        elif client == "micropod-transport":
+            remove = [micropod, "unix://" + str(sock), "rm", name]
+        else:
+            remove = [*docker, "rm", "--force", name]
         removed_at = time.perf_counter()
         command(remove, env)
         removed = time.perf_counter() - removed_at
@@ -111,9 +123,11 @@ def block(client, n, docker, micropod, sock, env, image_id):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--micropod", required=True)
+    ap.add_argument("--micropod", required=True, help="production CLI or explicitly selected transport benchmark driver")
+    ap.add_argument("--client", choices=["micropod", "micropod-transport"], default="micropod")
     ap.add_argument("--socket", type=Path, required=True)
     ap.add_argument("--rounds", type=int, default=3)
+    ap.add_argument("--expect-os", default="orbstack", help="required substring of the Docker server OS")
     ap.add_argument("--clients", nargs="+", type=int, default=[1, 4, 8, 16])
     ap.add_argument("--json", type=Path, required=True)
     args = ap.parse_args()
@@ -122,7 +136,7 @@ def main():
     env = dict(os.environ)
     api = Endpoint(args.socket).request_bytes
     engine = json.loads(api("GET", "/info"))
-    if "orbstack" not in engine["OperatingSystem"].lower():
+    if not args.expect_os or args.expect_os.lower() not in engine["OperatingSystem"].lower():
         raise ValueError("wrong Docker endpoint")
     command([*docker, "pull", IMAGE], env, 180)
     image_id = command([*docker, "image", "inspect", "--format", "{{.Id}}", IMAGE], env)
@@ -140,7 +154,7 @@ def main():
                        "apple": {"enabled": False}, "sandbox": {"enabled": False}}}))
         env["MICROPOD_RUNTIMES_CONFIG"] = str(cfg)
         available = []
-        for client in ["docker", "micropod"]:
+        for client in ["docker", args.client]:
             r = block(client, 1, docker, args.micropod, args.socket, env, image_id)
             data["warmups"].append(r)
             if r["passed"] == 1:
@@ -165,6 +179,14 @@ def main():
                                                 min_s=min(times), max_s=max(times), blocks=len(times)))
         save()
         print("MP_RESULT " + json.dumps(data["summary"]), flush=True)
+        print("MP_BLOCKS " + json.dumps([{k: v for k, v in b.items() if k != "jobs"} for b in data["blocks"]]), flush=True)
+        for r in data["summary"]:
+            group = [b for b in data["blocks"] if (b["client"], b["clients"]) == (r["client"], r["clients"])]
+            passes = [j for b in group for j in b["jobs"] if "error" not in j]
+            r["per_job_launch_p50_s"] = statistics.median(j["launch_s"] for j in passes)
+            r["per_job_remove_p50_s"] = statistics.median(j["remove_s"] for j in passes)
+        save()
+        print("MP_PHASES " + json.dumps(data["summary"]), flush=True)
         return int(len(available) != 2 or any(r["passed"] != r["clients"] for r in data["blocks"]))
 
 
