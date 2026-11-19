@@ -1,33 +1,15 @@
 name: Qualify the persistent CI worker
 on:
-  pull_request:
-    paths:
-      - 'Sources/MicropodRuntime/CIWorker*.swift'
-      - 'Sources/MicropodRuntime/SandboxVM.swift'
-      - 'Sources/MicropodCLI/CICommands.swift'
-      - 'ci/worker-pipeline.sh'
-      - 'scripts/qualify_ci_worker.py'
-      - 'scripts/bench_live_kernel.py'
-      - '.github/workflows/qualify-ci-worker.yml'
-  workflow_dispatch:
-    inputs:
-      suite:
-        description: Select the guest fixture or the physical Apple comparison
-        type: choice
-        options: [ubuntu-guest, apple-pair]
-        default: ubuntu-guest
-      apple_runner:
-        description: Label for the physical Apple Silicon benchmark rig
-        type: string
-        default: macOS
+  push:
+    branches: [qualify/ci-worker-live-orbstack-20261120]
 concurrency:
-  group: micropod-worker-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: micropod-live-orbstack-retry
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
   guest:
-    if: github.event_name == 'pull_request' || inputs.suite == 'ubuntu-guest'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
@@ -49,8 +31,8 @@ jobs:
           path: ${{ runner.temp }}/guest.json
 
   apple:
-    if: inputs.suite == 'apple-pair'
-    runs-on: [self-hosted, ARM64, "${{ inputs.apple_runner || 'macOS' }}"]
+    if: github.event_name == 'push'
+    runs-on: [self-hosted, ARM64, macOS]
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
