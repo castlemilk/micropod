@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import MicropodCore
 
@@ -22,6 +23,11 @@ public struct NativeVolumeService: VolumeServing {
         try VolumeTransform.entries(try await api.volumeList(policy: .polling)).map(ModelMapper.volume(from:))
     }
 
+    /// A volume whose options a template reproduces (size and journal) is
+    /// created from one (``VolumeTemplates``): at the apiserver's minimum
+    /// size, then its image is replaced with a clone of the template, so the
+    /// apiserver's volumes actor never formats a full-size image for it.
+    /// Anything else, or any failure to use a template, formats as before.
     public func create(name: String, size: String?, labels: [String], options: [String]) async throws {
         var driverOpts = Self.keyValues(options)
         if let size, !size.isEmpty {
@@ -29,7 +35,68 @@ public struct NativeVolumeService: VolumeServing {
             // goes to the local driver as the `size` option.
             driverOpts["size"] = size
         }
-        _ = try await api.volumeCreate(name: name, driverOpts: driverOpts, labels: Self.keyValues(labels))
+        let labelMap = Self.keyValues(labels)
+        if VolumeTemplates.enabledByEnvironment, let key = VolumeTemplates.Key(driverOpts: driverOpts),
+            VolumeClone.isSafeVolumeName(name),
+            let template = try? await VolumeTemplates.shared.template(for: key, format: formatTemplate(key))
+        {
+            try await VolumeLocks.shared.withLock(name) {
+                try await createFromTemplate(name: name, key: key, template: template, labels: labelMap)
+            }
+            return
+        }
+        _ = try await api.volumeCreate(name: name, driverOpts: driverOpts, labels: labelMap)
+    }
+
+    /// The placeholder volume, then its image replaced with a clone of
+    /// `template`. If the clone cannot be placed the placeholder is deleted
+    /// and the volume is created the ordinary way, so a caller never gets a
+    /// volume of the placeholder's size.
+    private func createFromTemplate(name: String, key: VolumeTemplates.Key, template: String, labels: [String: String])
+        async throws
+    {
+        var labels = labels
+        labels[VolumeTemplates.templateLabel] = key.description
+        labels[VolumeTemplates.sizeLabel] = String(VolumeClone.fileLength(atPath: template))
+        let created = try await api.volumeCreate(
+            name: name, driverOpts: VolumeTemplates.placeholderOpts, labels: labels)
+        do {
+            guard let entry = try VolumeTransform.entry(created) else {
+                throw MicropodError.message("volumeCreate for '\(name)' returned an unexpected reply")
+            }
+            let volume = try VolumeClone.requireVolume(ModelMapper.volume(from: entry), named: name)
+            try VolumeClone.cloneImage(from: template, to: volume.source)
+        } catch {
+            await VolumeTemplates.shared.invalidate(key)
+            try? await api.volumeDelete(name: name)
+            labels[VolumeTemplates.templateLabel] = nil
+            labels[VolumeTemplates.sizeLabel] = nil
+            _ = try await api.volumeCreate(name: name, driverOpts: key.driverOpts, labels: labels)
+        }
+    }
+
+    /// Builds `key`'s template: the apiserver formats a scratch volume with
+    /// the template's options (exactly the image it would make for such a
+    /// volume), its image is cloned to `destination`, and the scratch volume
+    /// is deleted.
+    private func formatTemplate(_ key: VolumeTemplates.Key) -> @Sendable (String) async throws -> Void {
+        { [api] destination in
+            let scratch = "micropod-template-\(UUID().uuidString.prefix(8).lowercased())"
+            let created = try await api.volumeCreate(
+                name: scratch, driverOpts: key.driverOpts, labels: [VolumeTemplates.templateLabel: "scratch"])
+            let cloned = Result {
+                guard let entry = try VolumeTransform.entry(created) else {
+                    throw MicropodError.message("volumeCreate for template '\(scratch)' returned an unexpected reply")
+                }
+                let volume = try VolumeClone.requireVolume(ModelMapper.volume(from: entry), named: scratch)
+                guard copyfile(volume.source, destination, nil, copyfile_flags_t(COPYFILE_CLONE)) == 0 else {
+                    throw MicropodError.message(
+                        "could not clone template image \(volume.source): \(String(cString: strerror(errno)))")
+                }
+            }
+            try? await api.volumeDelete(name: scratch)
+            try cloned.get()
+        }
     }
 
     /// Under the volume's lock, so a delete never lands between a
@@ -65,13 +132,16 @@ public struct NativeVolumeService: VolumeServing {
             try VolumeClone.requireBackingImage(golden)
             try VolumeClone.requireQuiescent(golden, attachments: VolumeAttachments(entries: try await entries()))
             var driverOpts: [String: String] = [:]
-            if let sizeSpec = VolumeClone.cloneSize(requested: size, source: golden) {
+            var cloneLabels = Self.keyValues(VolumeClone.cloneLabels(labels, source: source))
+            if VolumeTemplates.enabledByEnvironment, size?.isEmpty ?? true {
+                // The image is replaced with the golden's clone below, so the
+                // apiserver need not format a full-size one first.
+                driverOpts = VolumeTemplates.placeholderOpts
+                cloneLabels[VolumeTemplates.sizeLabel] = String(VolumeClone.fileLength(atPath: golden.source))
+            } else if let sizeSpec = VolumeClone.cloneSize(requested: size, source: golden) {
                 driverOpts["size"] = sizeSpec
             }
-            let created = try await api.volumeCreate(
-                name: name,
-                driverOpts: driverOpts,
-                labels: Self.keyValues(VolumeClone.cloneLabels(labels, source: source)))
+            let created = try await api.volumeCreate(name: name, driverOpts: driverOpts, labels: cloneLabels)
             do {
                 guard let entry = try VolumeTransform.entry(created) else {
                     throw MicropodError.message("volumeCreate for '\(name)' returned an unexpected reply")

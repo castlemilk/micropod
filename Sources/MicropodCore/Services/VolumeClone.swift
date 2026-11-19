@@ -162,6 +162,14 @@ public enum VolumeClone {
         return UInt64(max(info.st_blocks, 0)) * 512
     }
 
+    /// The file's length (`st_size`): a sparse image's provisioned size.
+    /// 0 when absent.
+    public static func fileLength(atPath path: String) -> UInt64 {
+        var info = Darwin.stat()
+        guard stat(path, &info) == 0 else { return 0 }
+        return UInt64(max(info.st_size, 0))
+    }
+
     /// How ``cloneImage(from:to:placement:)`` lands the clone at its
     /// destination.
     public enum Placement: Sendable {
