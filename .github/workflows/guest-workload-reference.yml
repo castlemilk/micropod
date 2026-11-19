@@ -38,6 +38,11 @@ jobs:
           print("GUEST_BLOCKS", json.dumps([[r["engine"],r["case"],r["clients"],r["block"],r["passed"],r["wall_s"]] for r in d["blocks"]]))
           print("GUEST_STREAMS", json.dumps([sum(j.get("separate_streams") is True for r in d["blocks"] for j in r["jobs"]), sum(r["clients"] for r in d["blocks"])]))
           print("GUEST_SHA256", hashlib.sha256(p.read_bytes()).hexdigest())
+          for value in d["engines"].values():
+              contract = value["contracts"]
+              assert contract["readonly_bind"] and contract["writable_bind"] and contract["uid"] == "0"
+              assert contract["one_cpu_cgroup"] and contract["256_mib_cgroup"], contract
+          assert all(j["separate_streams"] for r in d["blocks"] for j in r["jobs"])
           if set(d["engines"]) != {"podman","docker-engine"} or len(d["guest_groups"]) != 1 or len(next(iter(d["guest_groups"].values()))) != 2 or len(d["blocks"]) != 120 or len(d["summary"]) != 24 or any("p50_wall_s" not in s for s in d["summary"]):
               raise SystemExit("unmatched or incomplete matrix")
           PYTHON

@@ -49,10 +49,12 @@ def atomic_save(path, data):
     staged.replace(path)
 
 
-def guest(engine, work, image, script, bind=None):
+def guest(engine, work, image, script, bind=None, readonly_peer=False):
     tag = "mp-bench-" + uuid.uuid4().hex
     micropod = os.environ.get("MICROPOD") or shutil.which("micropod") or "/Applications/Micropod.app/Contents/MacOS/micropod-cli"
     mounts = ["-v", str(bind) + ":/fixture"] if bind else []
+    if readonly_peer:
+        mounts += ["-v", str(bind) + ":/readonly:ro"]
     clean = None
     if engine == "micropod-sandbox":
         argv = [micropod, "sandbox", "run", "-c", "1", "-m", "256", "--timeout", "60", *mounts,
@@ -147,6 +149,29 @@ def identify(engine, work, image):
     return matches[0]
 
 
+def contracts(engine, work, image):
+    nonce = uuid.uuid4().hex
+    with tempfile.TemporaryDirectory(dir=work) as tmp:
+        folder = Path(tmp)
+        (folder / "protected").write_text(nonce)
+        script = (
+            f'test "$(cat /readonly/protected)" = {nonce}; printf {nonce} > /fixture/writable; '
+            'if (printf changed > /readonly/protected) 2>/dev/null; then exit 91; fi; '
+            'printf "UID=%s\\n" "$(id -u)"; '
+            'printf "CPU=%s\\n" "$(cat /sys/fs/cgroup/cpu.max 2>/dev/null || echo unavailable)"; '
+            'printf "MEM=%s\\n" "$(cat /sys/fs/cgroup/memory.max 2>/dev/null || echo unavailable)"')
+        result, _ = guest(engine, work, image, script, folder, readonly_peer=True)
+        if result.returncode or (folder / "protected").read_text() != nonce or (folder / "writable").read_text() != nonce:
+            raise ValueError(error_text(result) if result.returncode else "mount contents differ")
+        fields = dict(re.findall(r"^(UID|CPU|MEM)=([^\r\n]+)", result.stdout, re.M))
+        if set(fields) != {"UID", "CPU", "MEM"}:
+            raise ValueError("missing guest resource or user observations")
+        parts = fields["CPU"].split()
+        one_cpu = len(parts) == 2 and all(p.isdigit() for p in parts) and int(parts[0]) == int(parts[1]) > 0
+        return {"readonly_bind": True, "writable_bind": True, "uid": fields["UID"], "cpu_max": fields["CPU"],
+                "memory_max": fields["MEM"], "one_cpu_cgroup": one_cpu, "256_mib_cgroup": fields["MEM"] == str(256*MIB)}
+
+
 def trial(engine, case, work, image):
     tag = uuid.uuid4().hex
     with tempfile.TemporaryDirectory(dir=work) as tmp:
@@ -193,7 +218,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", required=True, type=Path)
     parser.add_argument("--engines", nargs="+", choices=MAC_ENGINES + LINUX_ENGINES,
-                        default=MAC_ENGINES if platform.system() == "Darwin" else LINUX_ENGINES)
+                        default=None)
     parser.add_argument("--scale-cases", nargs="+", choices=CASES, default=list(CASES),
                         help="cases to run at all client counts; other cases run at one client")
     parser.add_argument("--clients", type=int, nargs="+", default=[1, 4, 8, 16])
@@ -203,6 +228,9 @@ def main():
     args = parser.parse_args()
     if not (1 <= args.rounds <= 50 and all(1 <= n <= 64 for n in args.clients)):
         parser.error("rounds must be 1..50 and clients 1..64")
+    explicitly_selected = args.engines is not None
+    args.engines = list(dict.fromkeys(args.engines or (MAC_ENGINES if platform.system() == "Darwin" else LINUX_ENGINES)))
+    args.clients = list(dict.fromkeys(args.clients))
     args.json.parent.mkdir(parents=True, exist_ok=True)
     rng = random.Random(args.seed)
     data = dict(scale_cases=args.scale_cases, host_os=platform.system(), kernel=platform.release(),
@@ -210,8 +238,6 @@ def main():
                 arch=platform.machine(), cpus=os.cpu_count(), image=args.image, resource_request="1 vCPU, 256 MiB",
                 seed=args.seed, rounds=args.rounds, clients=args.clients, engines={}, warmups=[], blocks=[], summary=[])
     ready = {}
-    args.engines = list(dict.fromkeys(args.engines))
-    args.clients = list(dict.fromkeys(args.clients))
     with tempfile.TemporaryDirectory(prefix="mp-guest-matrix-") as tmp:
         work = Path(tmp).resolve()
         data["software"] = host_metadata(work)
@@ -227,6 +253,10 @@ def main():
                 data["engines"][engine] = {"guest": identity, "server": server}
                 data["guest_groups"].setdefault(identity, []).append(engine)
                 ready[engine] = []
+                try:
+                    data["engines"][engine]["contracts"] = contracts(engine, work, args.image)
+                except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                    data["engines"][engine]["contracts"] = {"error": clean_failure(exc)}
             except (OSError, ValueError, subprocess.SubprocessError) as exc:
                 data["engines"][engine] = {"unavailable": clean_failure(exc)}
             print(engine, data["engines"][engine], flush=True)
@@ -263,7 +293,10 @@ def main():
     data["comparability"] = "Compare rows within one guest_groups fingerprint; includes BusyBox digest, Alpine release and guest architecture."
     atomic_save(args.json, data)
     print(f"Receipt: {args.json.resolve()}")
-    return 0 if ready and all(r["passed"] == r["clients"] for r in data["blocks"] + data["warmups"]) else 1
+    all_selected = not explicitly_selected or len(ready) == len(args.engines)
+    contracts_ok = all("error" not in data["engines"][e]["contracts"] for e in ready)
+    batches_ok = all(r["passed"] == r["clients"] for r in data["blocks"] + data["warmups"])
+    return 0 if ready and all_selected and contracts_ok and batches_ok else 1
 
 
 if __name__ == "__main__":

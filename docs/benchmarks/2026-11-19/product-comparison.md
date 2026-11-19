@@ -54,6 +54,21 @@ Fresh measurements on an M5 Max, 18 cores and 128 GB, macOS 26.5.1, APFS. Each s
 
 Five shuffled blocks per measured cell produced 100 batches and 725 verified views. On master the filtered output included the excluded directory and sentinel, omitted the symlink and lost the test file's mtime and extended attribute. Its warm-up failed and the harness withheld timings for that case. PR #216 and rsync passed all measured batches. The 16-client filtered results varied widely across blocks. PR #216 ranged from 114 to 623 ms and rsync from 257 to 670 ms. The full receipt includes all samples and the exact source hashes. [Raw samples](snapshot-matrix.json) · [Benchmark](../../../scripts/bench_snapshot_matrix.py) · [Candidate implementation](https://github.com/castlemilk/micropod/pull/216) · [Filesystem backlog](https://github.com/castlemilk/micropod/issues/210)
 
+## Same-host Linux guest measurements
+
+A second GitHub allocation used AWS us-east-1, four vCPUs and Ubuntu 24.04.5. Docker Engine 28.0.4 and rootful Podman 4.9.3 (crun, cgroup v2) ran the same local Alpine 3.20.10 amd64 image. Every job requested one CPU, 256 MiB and disabled networking. Both engines reported the same BusyBox fingerprint. Each ran the same five measured blocks at each concurrency. The measurements include guest execution, validation and cleanup. The bind case includes preparing and checking the host fixture.
+
+| Workload | Engine | 1 client | 4 clients | 8 clients | 16 clients |
+|---|---|---:|---:|---:|---:|
+| Guest exit and cleanup | Docker | 0.088 s | 0.131 s | 0.246 s | 0.497 s |
+| Guest exit and cleanup | Podman | 0.072 s | 0.136 s | 0.257 s | 0.632 s |
+| 8 MiB gzip, restore and SHA-256 | Docker | 0.208 s | 0.304 s | 0.591 s | 1.137 s |
+| 8 MiB gzip, restore and SHA-256 | Podman | 0.191 s | 0.289 s | 0.560 s | 1.131 s |
+| 1 MiB bind read, SHA-256 and host-visible write | Docker | 0.087 s | 0.147 s | 0.268 s | 0.530 s |
+| 1 MiB bind read, SHA-256 and host-visible write | Podman | 0.077 s | 0.139 s | 0.282 s | 0.646 s |
+
+All 120 measured batches completed. All 870 jobs returned the expected exit 23 with the two nonce markers on the correct streams. At 16 clients Docker completed 32.2 verified lifecycles/s and Podman 25.3. Both delivered approximately 14 gzip jobs/s. The workload step took 54 s and the entire GitHub job took 67 s. The commit records the block times and the original artifact contains per-guest outcomes. [Block samples](linux-guest-batches.json) · [Original JSON artifact](https://github.com/castlemilk/micropod/actions/runs/44497992581/artifacts/14515762378) · [Job with region and timing](https://github.com/castlemilk/micropod/actions/runs/44497992581/job/135470000132)
+
 ## OrbStack and Linux engine baselines
 
 The standalone November 19 guest used a single CPU and 64 MiB, no external network, the same amd64 executable and image configuration, a known exit code and verified output on both streams. Each engine ran five measured batches per concurrency. The OrbStack guest ran on a virtualized Intel Mac with four host vCPUs. Docker and Podman shared a four-vCPU GitHub-hosted Ubuntu 24.04.5 runner in Azure Central US. Times are within-engine median wall seconds. The host and virtualization differences preclude a native Mac product speed ratio.
@@ -73,7 +88,7 @@ There were 145 verified guest executions per engine. OrbStack 2.2.5 rejected the
 | Guest start, exec, logs, stop, cleanup, compute, concurrent work | The Micropod and Docker Desktop September receipts cover these paths. The explicit first-attempt matrix allows retesting current native releases. |
 | Shared directory, exclusion, symlink, xattr, timestamp, isolated write | Measured on current master, the PR #216 candidate and system rsync above. OrbStack separately read and verified a Micropod view from inside the guest. |
 | Buildx multi-stage, cache invalidation, local export | Prior OrbStack runs verified output, solver execution or cache hits. A no-cache run took 16.485 s, warm 5.108 s, an edited source 7.578 s, a chmod 6.529 s and an ignored-only edit 4.754 s. One observation per build case. An equivalent native Micropod Buildx, Bake and multi-platform output series is still open. |
-| Compose, DNS, bind mounts, named volumes, signals | Earlier OrbStack E2E passed these workflows. The repository has individual Micropod checks. There is no complete paired current native result. |
+| Compose, DNS, bind mounts, named volumes, signals | Earlier OrbStack E2E passed these workflows. The repository has individual Micropod checks. This Linux run also verified bind writes and per-guest output on Docker and Podman. There is no complete paired current native result. |
 | Root filesystem import and network attachment after creation | OrbStack completed the validated scenarios. The tested native Micropod shim returned HTTP 501 for both operations. |
 | OCI/runc and Kubernetes conformance, Linux machine lifecycle, host ingress/TLS | No complete matched or upstream conformance run in this evidence. |
 | CPU, memory and disk | The tables give requested workload limits or host capacities. Current matched idle footprint, energy, disk allocation and post-burst reclamation remain unmeasured. |
