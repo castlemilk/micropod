@@ -156,6 +156,7 @@ public struct CIWorker: Sendable {
         set -eu
         umask 077
         mkdir -p /var/lib/micropod
+        if [ -S /var/lib/micropod/docker.sock ]; then rm /var/lib/micropod/docker.sock; fi
         ln -sf /var/lib/micropod/docker.sock /var/run/docker.sock
         exec /usr/local/bin/dockerd-entrypoint.sh dockerd \
           --host=unix:///var/lib/micropod/docker.sock --data-root=/var/lib/docker --exec-opt=native.cgroupdriver=cgroupfs \

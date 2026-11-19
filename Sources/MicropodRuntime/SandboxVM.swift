@@ -286,6 +286,10 @@ public enum SandboxVM {
                 cfg.cpuOverhead = 0
                 cfg.memoryOverhead = 0
                 cfg.process.capabilities = .allCapabilities
+                // Retain images and volumes on ext4. Recreate daemon PID and runtime files on every boot.
+                cfg.mounts.append(
+                    .any(
+                        type: "tmpfs", source: "tmpfs", destination: "/run", options: ["nosuid", "nodev", "mode=0755"]))
                 cfg.maskedPaths = []
                 cfg.readonlyPaths = []
                 cfg.sockets.append(

@@ -8,6 +8,10 @@ on:
       - 'ci/worker-pipeline.sh'
       - 'scripts/qualify_ci_worker.py'
       - 'scripts/bench_live_kernel.py'
+      - 'scripts/bench_ci_apple.sh'
+      - 'scripts/bench_package_caches.py'
+      - 'scripts/bench_cache_image/**'
+      - 'ci/samples/**'
       - '.github/workflows/qualify-ci-worker.yml'
   workflow_dispatch:
     inputs:
