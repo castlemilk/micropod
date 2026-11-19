@@ -73,6 +73,41 @@ client hangup, template-cloned workspace volumes) ship as the setup app's
 `Contents/MacOS/MicropodAPI`. They need no Apple build change. The restart
 activates them by switching the API configuration to the new tool directory.
 
+### Runtime data across updates and rollbacks
+
+An update writes only these paths:
+
+- the setup app, and `RuntimeHost/components/`;
+- new content-addressed directories under `RuntimeHost/tools/` and
+  `RuntimeHost/apple/versions/`;
+- the API configuration and its LaunchAgent definition;
+- `operation.json` and `component-update.json`.
+
+It never deletes, moves or migrates anything in the dedicated account's
+home. That home holds the Apple app root, images and volumes, and the
+dedicated API's own state under its Micropod directory: `reclaim/` (#135)
+and `volume-templates/` (#177). All of that survives an update and a
+rollback unchanged. Pruning touches only `RuntimeHost/components/`.
+
+A rollback can therefore start an older dedicated API over state a newer
+one wrote. That is safe only while every on-disk addition is one older
+builds ignore. `reclaim/` and `volume-templates/` qualify: older APIs ignore
+both, and a newer API sweeps leftover reclaim names at startup. A change
+that older builds cannot ignore must say so in its release: raise
+`componentProtocol`, and leave out of `appleRuntimes` any build that cannot
+run over the new state. That turns the rollback into a refusal instead of a
+corruption.
+
+Escape hatches such as `MICROPOD_CANCEL_ON_HANGUP=off` (#176) and
+`MICROPOD_VOLUME_TEMPLATES=off` (#177) cannot be set on a rig by editing the
+dedicated API's environment. Root generates that LaunchAgent with a fixed
+environment, and the next update rewrites it. They need a root-owned,
+allowlisted override that root merges into each staged API definition and
+that every update carries forward, for example
+`RuntimeHost/api-overrides.json` naming only known `MICROPOD_*` switches.
+That is a follow-up for those PRs; this update path neither adds nor drops
+such a file.
+
 ### Apple container builds, including a patched one
 
 The helper's compiled-in release table (`AppleRuntimeRelease`) is the only
