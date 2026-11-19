@@ -5,7 +5,7 @@ enum DevVolumeCommands {
     static let help = """
         micropod storage dev-volume plan|create --projects <dir> [--pnpm-store <dir>]
             [--container diskN] [--unencrypted] [--state-dir <dir>]
-        micropod storage dev-volume status|mount|remount|migrate|restore [--state-dir <dir>]
+        micropod storage dev-volume status|mount|remount|repair|migrate|restore [--state-dir <dir>]
 
         create provisions an encrypted APFS volume by default. macOS prompts for its passphrase.
         migrate checks for open files, verifies a copy, then swaps in a link at the original path.
@@ -113,7 +113,7 @@ enum DevVolumeCommands {
                 ])
             return
         }
-        guard ["create", "status", "migrate", "restore", "remount", "mount"].contains(opt.action) else {
+        guard ["create", "status", "migrate", "restore", "remount", "mount", "repair"].contains(opt.action) else {
             throw DevVolumeError(help)
         }
         guard getuid() != 0 else {
@@ -171,10 +171,9 @@ enum DevVolumeCommands {
             else {
                 throw DevVolumeError("The existing record describes a different development volume")
             }
-            if let store = requestedPath(opt.pnpm), !DevVolumeMigration.contains(first.source, store) {
-                guard volume.trees.contains(where: { $0.name == "pnpm-store" && $0.source == store }) else {
-                    throw DevVolumeError("The pnpm store differs from the existing record")
-                }
+            let store = requestedPath(opt.pnpm).flatMap { DevVolumeMigration.contains(first.source, $0) ? nil : $0 }
+            guard volume.trees.first(where: { $0.name == "pnpm-store" })?.source == store else {
+                throw DevVolumeError("The pnpm store differs from the existing record")
             }
             if let selected = opt.container {
                 guard let cid = try DevVolume.container(device: selected)["APFSContainerUUID"] as? String,
@@ -183,6 +182,8 @@ enum DevVolumeCommands {
             }
             try volume.provision()
             try save(volume)
+            fallthrough
+        case "repair":
             try volume.mountVolume()
             guard let exe = Bundle.main.executableURL?.resolvingSymlinksInPath().path, let uuid = volume.volumeID else {
                 throw DevVolumeError("Missing executable or volume identity")
@@ -198,22 +199,36 @@ enum DevVolumeCommands {
         case "migrate", "restore":
             guard volume.initialized else { throw DevVolumeError("Volume setup is incomplete. Repeat create.") }
             _ = try volume.diskInfo(requireMount: true)
+            let migrating = opt.action == "migrate"
+            let pending = volume.trees.filter {
+                let linked = DevVolumeMigration.link($0.source) == volume.destination($0)
+                return migrating != linked
+            }
+            guard !pending.isEmpty else { break }
+            try DevVolumeMigration.quiescent(pending.map { migrating ? $0.source : volume.destination($0) })
+            var links = DevVolumeMigration.HardLinks(enabled: volume.trees.count > 1)
             for index in volume.trees.indices {
                 var tree = volume.trees[index]
                 if opt.action == "migrate" {
                     if try DevVolumeMigration.kind(tree.source) == S_IFDIR,
-                        try DevVolumeMigration.kind(tree.backup) == S_IFDIR
+                        try DevVolumeMigration.kind(volume.destination(tree)) != nil
                     {
                         tree.generation = UUID()
                         volume.trees[index] = tree
                         try save(volume)
                     }
-                    try DevVolumeMigration.migrate(tree, volume: volume, state: state.path)
+                    try DevVolumeMigration.migrate(tree, volume: volume, state: state.path, links: &links)
                 } else {
-                    try DevVolumeMigration.restore(tree, volume: volume, state: state.path)
+                    try DevVolumeMigration.restore(tree, volume: volume, links: &links)
                 }
             }
         default: break
+        }
+        if volume.volumeID == nil {
+            try emit(
+                ["configured": true, "initialized": false, "phase": "creation-pending"],
+                ["Volume creation is pending. Repeat create with the same options."])
+            return
         }
         let info = try volume.diskInfo(requireMount: false)
         let mounted = info["MountPoint"] as? String == volume.mount

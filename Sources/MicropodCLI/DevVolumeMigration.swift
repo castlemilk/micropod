@@ -116,6 +116,70 @@ enum DevVolumeMigration {
         }
     }
 
+    // ditto preserves links within one tree. pnpm can also link an inode in an
+    // external store to several paths in the workspace. Rebuild those links in
+    // the unpublished copy, using a previously migrated tree as the anchor.
+    struct HardLinks {
+        struct Key: Hashable {
+            let device: dev_t
+            let inode: ino_t
+        }
+        var anchors: [Key: String] = [:]
+        let enabled: Bool
+
+        mutating func track(from source: String, published: String, staging: String? = nil) throws {
+            guard enabled else { return }
+            var root = stat()
+            guard lstat(source, &root) == 0 else { throw DevVolumeError("Cannot read \(source)") }
+            var pending = [""], next: [Key: String] = [:]
+            while let suffix = pending.popLast() {
+                let path = source + suffix
+                var original = stat()
+                guard lstat(path, &original) == 0, original.st_dev == root.st_dev else {
+                    throw DevVolumeError("Tree changed while checking hard links at \(path)")
+                }
+                switch original.st_mode & S_IFMT {
+                case S_IFDIR:
+                    let names = try fm.contentsOfDirectory(atPath: path)
+                    pending.append(contentsOf: names.map { suffix + "/" + $0 })
+                case S_IFREG where original.st_nlink > 1:
+                    let key = Key(device: original.st_dev, inode: original.st_ino)
+                    if let anchor = anchors[key], let staging {
+                        try Self.relink(anchor, staged: staging + suffix)
+                    } else if anchors[key] == nil && next[key] == nil {
+                        next[key] = published + suffix
+                    }
+                default: break
+                }
+            }
+            anchors.merge(next) { old, _ in old }
+        }
+
+        static func relink(_ anchor: String, staged: String) throws {
+            // A previous invocation may already have published the anchor. An
+            // edited or removed anchor must never replace the freshly copied file.
+            var a = stat(), b = stat()
+            guard lstat(staged, &b) == 0 else { throw DevVolumeError("Missing staged file \(staged)") }
+            guard lstat(anchor, &a) == 0, a.st_dev == b.st_dev, a.st_ino != b.st_ino,
+                a.st_mode == b.st_mode, a.st_uid == b.st_uid, a.st_gid == b.st_gid,
+                a.st_flags == b.st_flags, a.st_size == b.st_size,
+                a.st_mtimespec.tv_sec == b.st_mtimespec.tv_sec, a.st_mtimespec.tv_nsec == b.st_mtimespec.tv_nsec,
+                try xattrs(anchor) == xattrs(staged), try accessList(anchor) == accessList(staged),
+                fm.contentsEqual(atPath: anchor, andPath: staged)
+            else { return }
+            let parent = (staged as NSString).deletingLastPathComponent
+            let tmp = parent + "/.micropod-link-" + UUID().uuidString
+            var directory = stat()
+            guard lstat(parent, &directory) == 0, Darwin.link(anchor, tmp) == 0 else {
+                throw DevVolumeError("Cannot preserve hard link for \(staged): \(String(cString: strerror(errno)))")
+            }
+            defer { _ = unlink(tmp) }
+            guard rename(tmp, staged) == 0,
+                utimensat(AT_FDCWD, parent, [directory.st_atimespec, directory.st_mtimespec], AT_SYMLINK_NOFOLLOW) == 0
+            else { throw DevVolumeError("Cannot publish hard link for \(staged)") }
+        }
+    }
+
     static func copy(_ source: String, to target: String) throws {
         guard try kind(target) == nil else { throw DevVolumeError("Copy destination already exists: \(target)") }
         try DevTool.interact("/usr/bin/ditto", ["-X", "--rsrc", "--extattr", "--acl", source, target])
@@ -136,26 +200,29 @@ enum DevVolumeMigration {
         else { throw DevVolumeError("Expected a real directory on the recorded filesystem: \(path)") }
     }
 
-    static func migrate(_ tree: DevVolume.Tree, volume: DevVolume, state: String) throws {
+    static func migrate(_ tree: DevVolume.Tree, volume: DevVolume, state: String, links: inout HardLinks) throws {
         let target = volume.destination(tree)
         try sameDevice(volume.payload, volume.mount)
         if link(tree.source) == target {
             try sameDevice(target, volume.payload)
             guard try kind(tree.backup) == S_IFDIR else { throw DevVolumeError("Missing original at \(tree.backup)") }
+            try links.track(from: tree.backup, published: target)
             return
         }
         try validateSource(tree.source, state: state)
         try quiescent([tree.source])
         if try kind(target) == nil {
             let staging = volume.payload + "/.copy-" + UUID().uuidString
-            // Keep failed copies for inspection. Nothing on the source is changed before verification.
+            defer { if (try? kind(staging)) == S_IFDIR { try? fm.removeItem(atPath: staging) } }
             try copy(tree.source, to: staging)
+            try links.track(from: tree.source, published: target, staging: staging)
             guard renameatx_np(AT_FDCWD, staging, AT_FDCWD, target, UInt32(RENAME_EXCL)) == 0
             else { throw DevVolumeError("Could not publish \(staging)") }
         }
         try sameDevice(target, volume.payload)
         try quiescent([tree.source, target])
         try verify(tree.source, target)
+        try quiescent([tree.source, target])
         if try kind(tree.backup) == nil { try fm.createSymbolicLink(atPath: tree.backup, withDestinationPath: target) }
         guard link(tree.backup) == target else {
             throw DevVolumeError("Original backup name is occupied: \(tree.backup)")
@@ -163,16 +230,25 @@ enum DevVolumeMigration {
         try exchange(tree.source, tree.backup)
     }
 
-    static func restore(_ tree: DevVolume.Tree, volume: DevVolume, state: String) throws {
+    static func restore(_ tree: DevVolume.Tree, volume: DevVolume, links: inout HardLinks) throws {
         let target = volume.destination(tree)
-        if try kind(tree.source) == S_IFDIR { return }
+        if try kind(tree.source) == S_IFDIR {
+            if try kind(tree.backup) == S_IFDIR && kind(target) == S_IFDIR {
+                try links.track(from: target, published: tree.source)
+            }
+            return
+        }
         guard link(tree.source) == target, try kind(tree.backup) == S_IFDIR else {
             throw DevVolumeError("Source or backup no longer matches the recorded migration: \(tree.source)")
         }
         try sameDevice(target, volume.payload)
         try quiescent([target])
         let staging = tree.source + ".micropod-restore-" + UUID().uuidString
+        // After a successful swap staging is the old symlink. Only an
+        // unpublished directory allocated by this invocation is cleaned here.
+        defer { if (try? kind(staging)) == S_IFDIR { try? fm.removeItem(atPath: staging) } }
         try copy(target, to: staging)
+        try links.track(from: target, published: tree.source, staging: staging)
         try quiescent([target])
         try verify(target, staging)
         guard link(tree.source) == target else { throw DevVolumeError("Original link changed during restore") }

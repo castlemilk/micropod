@@ -8,8 +8,6 @@ import json
 import os
 from pathlib import Path
 import plistlib
-import shutil
-import statistics
 import subprocess
 import tempfile
 import time
@@ -66,6 +64,7 @@ def qualify(binary, result):
         (projects / ".git").mkdir()
         (projects / ".git" / "fixture").write_text("retained\n")
         (store / "package").write_text("package bytes\n")
+        os.link(store / "package", projects / "existing-link")
         tag = uuid.uuid4().hex[:12]
         image = work / "qualification.sparseimage"
         run("hdiutil", "create", "-size", "768m", "-type", "SPARSE", "-fs", "APFS", "-volname", "Seed-" + tag, image)
@@ -90,6 +89,7 @@ def qualify(binary, result):
             assert first["mounted"] and first["initialized"]
             assert plist("diskutil", "info", "-plist", mount)["APFSContainerReference"] == container
             assert json.loads(cli("create", *options).stdout)["volumeUUID"] == first["volumeUUID"]
+            assert json.loads(cli("repair").stdout)["initialized"]
             run("sudo", "test", "-f", mount / ".fseventsd/no_log")
             run("sudo", "test", "-f", mount / ".metadata_never_index")
             assert cli("migrate", cwd=projects, check=False).returncode
@@ -109,6 +109,7 @@ def qualify(binary, result):
             assert run("/usr/bin/xattr", "-p", "org.micropod.test", original).stdout.strip() == b"checked"
             assert os.readlink(projects / "dangling") == "missing"
             assert (projects / ".git/fixture").read_text() == "retained\n"
+            assert os.path.samefile(store / "package", projects / "existing-link")
             os.link(store / "package", projects / "linked-package")
             assert os.stat(store / "package").st_ino == os.stat(projects / "linked-package").st_ino
             (projects / "edited").write_text("after cutover\n")
@@ -120,6 +121,8 @@ def qualify(binary, result):
             restored = json.loads(cli("restore").stdout)
             assert not any(t["linked"] for t in restored["trees"]) and not projects.is_symlink()
             assert (projects / "edited").read_text() == "after cutover\n" and not (projects / ".git/fixture").exists()
+            assert os.path.samefile(store / "package", projects / "existing-link")
+            assert os.path.samefile(store / "package", projects / "linked-package")
             assert (Path(moved["trees"][0]["backup"]) / ".git/fixture").is_file()
             cli("restore")
             cli("migrate")
@@ -137,7 +140,7 @@ def qualify(binary, result):
             result.update(volume_uuid=first["volumeUUID"], checks=["plan", "own-apfs-volume", "idempotent-create",
                           "persistent-log-marker", "spotlight-marker", "working-directory-guard", "live-holder-guard",
                           "atomic-migration", "hardlinks", "xattr", "mode", "dangling-symlink", "git-directory",
-                          "pnpm-store-hardlink", "uuid-remount", "restore-latest", "repeat-migration"],
+                          "pnpm-store-hardlink", "existing-cross-tree-hardlinks", "restore-cross-tree-hardlinks", "repair", "uuid-remount", "restore-latest", "repeat-migration"],
                           spotlight_seed=run("mdutil", "-s", seed, check=False).stdout.decode().strip(),
                           spotlight_development=remounted["spotlight"], physical_host_claim=False,
                           samples=samples)
