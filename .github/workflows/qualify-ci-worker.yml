@@ -1,56 +1,14 @@
-name: Qualify the persistent CI worker
+name: Physical benchmark handoff
 on:
   push:
     branches: [qualify/ci-worker-live-orbstack-20261120]
 concurrency:
   group: micropod-live-orbstack-retry
   cancel-in-progress: true
-permissions:
-  contents: read
+permissions: {}
 jobs:
-  guest:
-    if: github.event_name == 'workflow_dispatch'
+  finish:
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - name: Exercise the pinned guest engine and retained storage
-        shell: bash
-        run: |
-          args=(--rounds 1 --clients 1 4)
-          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
-            args=(--packages --pipelines)
-          fi
-          python3 scripts/qualify_ci_worker.py linux-guest "${args[@]}" --json "$RUNNER_TEMP/guest.json"
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: arm64-ci-guest
-          path: ${{ runner.temp }}/guest.json
-
-  apple:
-    if: github.event_name == 'push'
-    runs-on: [self-hosted, ARM64, macOS]
-    timeout-minutes: 40
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - name: Check the physical Mac and peer engine
-        shell: bash
-        run: |
-          test -S "$HOME/.orbstack/run/docker.sock"
-          docker --host "unix://$HOME/.orbstack/run/docker.sock" info --format '{{.OperatingSystem}} {{.ID}}'
-      - name: Build and sign Micropod
-        run: |
-          swift build -c release --product micropod
-          codesign -f -s - --entitlements signing/micropod-cli.entitlements .build/release/micropod
-      - name: Verify lifecycle and compare warm jobs on this Mac
-        run: MICROPOD_BENCH_BIN="$PWD/.build/release/micropod" bash scripts/bench_ci_apple.sh "$RUNNER_TEMP/apple-bench"
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: apple-worker-orbstack
-          path: ${{ runner.temp }}/apple-bench/*.json
+      - name: Record the physical benchmark location
+        run: echo 'The matched physical benchmark is running on Gamma in PR 224.'
