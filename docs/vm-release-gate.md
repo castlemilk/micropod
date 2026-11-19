@@ -8,7 +8,9 @@ Ground rules:
 
 - Only the VM is changed. Don't run `cuttle`, `micropod`, `launchctl` or
   Docker commands on the host. The host's Cuttlefish agent stays paused and
-  idle for the whole run.
+  idle for the whole run. The one exception is `cuttle micropod gate`
+  ([With cuttle](#with-cuttle)), which runs this procedure itself. After its
+  preflight, it touches none of them until it puts them back at the end.
 - **No other virtual machine may run on the host**, and "the agent is
   paused" does not prove that: Micropod's dedicated runtime, Apple container
   and Docker Desktop each run VMs on their own. Check before you start (and
@@ -33,6 +35,68 @@ Ground rules:
 - Commands are one per line. Run them in Terminal on the host unless a step
   says "in the VM".
 
+## With cuttle
+
+`cuttle micropod gate` (skunkworq/cuttlefish#989) runs sections 1 to 8 as
+one resumable command on the gate host:
+
+```sh
+cuttle micropod gate run --candidate <A-tag> --floor-candidate <B-tag>
+```
+
+It follows the same rules as the manual run:
+
+- **Preflight.** cuttle checks that the host is Apple Silicon, that 60 GB is
+  free for `base`, and that `gh` has push access. It stops and explains if
+  the `pgrep` above shows any VM that is not the gate's own; it never stops
+  one. It asks before quitting Docker Desktop. It also asks before stopping
+  the Cuttlefish agent, which it pauses first and stops only once no attempt
+  runs. It records what was running.
+- **Scripts.** cuttle fetches the scripts at `REF` and refuses them unless
+  their SHA-256 matches a table compiled into cuttle. It checks them again
+  before every `gate-host.sh` run.
+- **Steps.** cuttle runs `gate-host.sh` for host setup, `clone`, `run`, `rm`
+  and `matrix`. Each step's output is shown escaped, as `cat -v` does.
+- **Where steps run.** You type `harden` and `prepare-legacy` in the VM's
+  Terminal, as below; cuttle prints the exact commands and clicks. It
+  detects `harden` by a gate-key login and the root-owned marker, and the
+  other steps by their line in `out/results.tsv`. Every other step runs over
+  ssh with the gate key, in the terminal running cuttle. cuttle passes your
+  keystrokes straight to ssh: sudo's password prompt and the runner's pauses
+  are answered there, and cuttle never reads what you type. `--in-vm <step>`
+  moves a step into the VM's Terminal instead. cuttle reboots the legacy
+  clones through the `harden matrix` sudo rule, as `matrix` does.
+- **`out/`.** cuttle never writes to `out/` and refuses it if it holds a
+  symbolic link. It parses `results.tsv` strictly and with bounds. A step's
+  verdict is recorded when that step ends, so a later VM cannot change it.
+  A test that reboots passes only if both of its lines pass.
+- **The end.** cuttle runs `cleanup`, removes `~/micropod-rc` and deletes
+  draft B; A is kept. It then starts Docker Desktop and the agent again. A
+  failure or Ctrl-C does the same restore. `--resume` continues the run,
+  starting the interrupted VM over from a fresh clone.
+- **The verdict.** It names A's exact asset digests.
+  `cuttle micropod release publish <A-tag>` dispatches publication only when
+  that verdict is all PASS and the reviewed manifest PR is merged.
+  INCOMPLETE is never a pass.
+
+G2's optional Apple Development input can be made on another Mac that has
+the identity, and handed to the gate host:
+
+```sh
+cuttle micropod gate prepare-g2-helper --candidate <A-tag> --out ~/g2-helper
+cuttle micropod gate run --candidate <A-tag> --floor-candidate <B-tag> \
+  --apple-development-helper ~/g2-helper
+```
+
+`prepare-g2-helper` signs A's helper as section 3 does. It removes the
+shipped signature first, so it does not need `codesign -f`. The gate refuses
+the file unless it is a Mach-O signed with an Apple Development certificate
+(not ad-hoc) under the authority's identifier and, without its signature, is
+byte for byte A's helper.
+
+`cuttle micropod gate status` shows where the run is and what to do next;
+`cuttle micropod gate results` shows the verdicts.
+
 ## Disk
 
 The image is about 24 GB to download and about 30 GB on disk. Clones are
@@ -52,7 +116,7 @@ them say so in the PR, with new digests.
 ```sh
 mkdir -p ~/micropod-rc
 cd ~/micropod-rc
-REF=01770f1253cc1cfec021bd35ee9a4f3142273bc6
+REF=9b85e9f392496d682f65d584af4331b8fe3e3179
 R=repos/castlemilk/micropod/contents/scripts/vm
 A='Accept: application/vnd.github.raw'
 gh api -H "$A" "$R/gate-host.sh?ref=$REF" > gate-host.sh
@@ -64,7 +128,7 @@ Both digests must match before going on:
 
 ```
 d43c0ebc1e1801b450acdcf9e353eecf14f32002308b144994a4e6afa964c35b  gate-host.sh
-ada396ea8e57937d1223d8085893a634c766b58428457fa791c711d2464e12d9  runtime-authority-gate.sh
+110e4b9e42c56e9ce55413804086a359eb5c433001f460812be52c5fb56e4e96  runtime-authority-gate.sh
 ```
 
 ## 2. tart and the image
@@ -226,7 +290,10 @@ bash "$G" g4-after-reboot
 ```
 
 `g9` pauses for the Retire the Old Background Item… click. Shut down, then
-`bash $H rm gate-t`.
+`bash $H rm gate-t`. A step that asks for a reboot (`g9`, `g4-after`,
+`g4-before`) first records the checks it made as its own line in
+`results.tsv`; the step after the reboot records the rest. G9 and G4 pass
+only if both of their lines are PASS.
 
 **G4 (before)**, the baseline, on its own clone:
 
@@ -256,7 +323,16 @@ bash $H results
 `~/micropod-gate-vm/out/results.tsv` has one line per step (PASS, FAIL,
 INCOMPLETE, BASELINE) and `out/logs/` the detail of every check, both written
 by the VMs; `logs/matrix.log` is the matrix, written by the host. INCOMPLETE
-means an input was missing; it is not a pass.
+means an input was missing, or an agent-spawned attacker never started (`g5`,
+`g4-after`, `g4-before`). It is not a pass. An attacker that started must
+have run as an agent child does: launchd as its parent, in the console's
+GUI session, to its end, with a counted run that exited 0. Otherwise the
+test fails, and so does any attempt that succeeded, whatever else happened.
+What launchd runs as that child (its plist and scripts) is written by root
+into the root-owned `/var/db/micropod-gate-child`, so no process of the
+admin user can swap it.
+`out/logs/<step>.log` has what launchd and the child recorded. A test that
+reboots has two lines, and both must pass.
 
 ## 8. Delete it
 
