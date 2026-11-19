@@ -3,7 +3,7 @@
 `micropod runtime update` replaces the dedicated runtime's privileged
 components on a rig host: the setup app, the root helper, the dedicated API
 and the pinned Apple container build. It is signed, needs no administrator
-prompt after the first install, and runs as a coordinated lifecycle operation
+prompt after a one-time re-registration, and runs as a coordinated lifecycle operation
 with the Cuttlefish drain. `micropod update apply --disruptive` chains it, so
 one command updates the app and the runtime.
 
@@ -43,9 +43,10 @@ Micropod.app/Contents/Resources/runtime-components.json.sig
 
 | Field | Meaning |
 | --- | --- |
-| `version`, `sourceRevision` | The release. Each must equal the setup app's `Info.plist`. |
+| `version`, `sourceRevision` | The release. Each must equal the setup app's `Info.plist` and the carrying desktop app's, so a manifest replayed into another release is refused. |
 | `componentProtocol` | The update protocol the release needs. A helper refuses a newer protocol before copying anything. |
 | `minimumHelperVersion` | The oldest installed helper allowed to install this release itself. |
+| `securityFloor` | Optional. Once a host installs this release, root refuses to install or roll back to anything older. |
 | `setup.cdhash` | The setup app's code directory hash. It covers every executable and sealed resource in the bundle. |
 | `setup.daemonPlistSHA256` | The LaunchDaemon definition inside the bundle. |
 | `helper.sha256`, `api.sha256`, `guestSHA256` | The root helper, dedicated API and guest tool executables. |
@@ -58,10 +59,13 @@ bytes. This is the Sparkle key: `SUPublicEDKey`, `SelfUpdate.publicKey` and
 `scripts/write_runtime_components.sh` writes both files. `make_dmg.sh` runs
 it after the setup app's final Developer ID signature and before the outer
 bundle is signed, so the outer seal covers them. The release workflow passes
-the Sparkle key to that step and fails a signed build that lacks `.sig`. The
-script reads `appleRuntime(s)` from the staged helper itself
-(`MicropodRuntimeHost --component-probe`), so the manifest cannot disagree
-with the binary it describes.
+the Sparkle key to that step and fails a signed build that lacks `.sig`.
+`sign_update` comes from a Sparkle archive whose SHA-256 is pinned
+(`scripts/verify_sparkle_tools.sh`), because it is handed the release key.
+The script reads `appleRuntime(s)` and the release from the staged helper
+itself (`MicropodRuntimeHost --component-probe` reports the compiled-in
+`MicropodBuildInfo`), so the manifest cannot disagree with the binary it
+describes.
 
 A local build signed with the team certificate has a valid Developer ID
 signature but no release signature, so no rig will self-update from it.
@@ -81,7 +85,7 @@ An update writes only these paths:
 - new content-addressed directories under `RuntimeHost/tools/` and
   `RuntimeHost/apple/versions/`;
 - the API configuration and its LaunchAgent definition;
-- `operation.json` and `component-update.json`.
+- `operation.json`, `component-update.json` and `component-state.json`.
 
 It never deletes, moves or migrates anything in the dedicated account's
 home. That home holds the Apple app root, images and volumes, and the
@@ -150,228 +154,344 @@ updates need no Cuttlefish change.
 
 ## Trust: what the root helper checks
 
-The helper trusts only what it holds in memory or has copied somewhere only
-root can write. It checks in this order:
+`/Applications` is `root:admin 0775`, so any admin-group process can rename
+an entry in it and put another in its place, whoever owns that entry. The
+installed setup app is therefore never trusted for what it contains. The
+helper trusts:
 
-1. **Source.** It reads the source from the fixed path
-   `/Applications/Micropod.app`. No request names a path, URL, bundle or
-   digest.
-2. **Manifest signature.** It reads the manifest and signature with bounded
-   no-follow reads and verifies the signature against the compiled-in
-   release key. It decodes and validates the manifest only after that.
-3. **Version.** The target must be newer than the installed helper, and the
-   installed helper must be at least `minimumHelperVersion`. The only way
-   back to older bytes is a rollback to bytes root itself retained.
+- what it holds in memory and has verified;
+- **sealed copies** in `RuntimeHost/components/<operation>/`, a root-only
+  directory.
+
+A sealed copy (`RuntimeSecureCopy`) is made like this:
+
+1. The source tree is first walked without following or opening anything.
+   Only directories and regular files are accepted (no FIFO, link or
+   device), and the tree is capped at 512 entries and 1 GiB.
+2. It is copied with `ditto --noacl --noextattr --norsrc --noqtn`.
+3. Every entry is stripped of file flags, ACLs, extended attributes and
+   setuid, setgid and sticky bits. It is set to `root:wheel`, with 0755 for
+   directories and executables and 0644 for everything else.
+4. The copy is walked again to prove it:
+   - every entry is root-owned with no group or world write;
+   - there are no flags, ACL entries or extended attributes, except the
+     system's `com.apple.provenance`;
+   - every regular file has a single link.
+
+Only a proven copy is verified, swapped into place, or used as a source for
+anything root installs. Removal clears flags first, so an immutable entry
+cannot leave a copy behind.
+
+The update checks in this order:
+
+1. **Source.** The fixed path `/Applications/Micropod.app`. No request names
+   a path, URL, bundle or digest. Files there are read with bounded,
+   non-blocking, no-follow reads that refuse anything but a regular file, so
+   a planted FIFO cannot wedge the helper.
+2. **Manifest signature.** The helper verifies the EdDSA signature over the
+   bytes it holds, against the compiled-in release key, then validates the
+   manifest. It must name the desktop app's own release.
+3. **Version.** The current release is the running helper's **compiled-in**
+   `MicropodBuildInfo`, never a plist in a writable bundle. A helper whose
+   release does not parse (a local `dev` build) refuses every update.
+   - The target must be newer than the running release, and at least
+     root's high-water mark (`component-state.json`, the highest release
+     this host ran).
+   - It must also be at least the highest signed `securityFloor` root has
+     installed.
 4. **n-1.** The target's `appleRuntimes` must include the selection in use.
-5. **Copy.** It copies the setup app with `ditto` into
-   `RuntimeHost/components/<operation>/new/` (mode 0700) and makes the copy
-   root-owned. Every later check runs on the copy, so nothing can change it
-   between the check and the swap.
-6. **Code signature.** The copy must be:
-   - Developer ID from team `WFTX6CN23F`;
-   - the identifier `com.skunkworq.micropod.runtime-setup`, with the helper
-     and API executables signed under their own identifiers;
-   - strictly valid with nested code (`kSecCSStrictValidate |
-     kSecCSCheckNestedCode`);
-   - **notarized** (`notarized` in the code requirement). The DMG's ticket
-     covers nested code; an unstapled copy is looked up online, and an
-     offline check refuses with nothing changed.
+5. **Sealed copy** of the offered setup app into `new/`.
+6. **Code signature** of the copy:
+   - Developer ID Application from team `WFTX6CN23F`: the Developer ID CA
+     and leaf certificate markers are required, so an Apple Development
+     certificate with the same team does not pass;
+   - the setup, helper (`com.skunkworq.micropod.runtime-authority`) and API
+     identifiers;
+   - strict validation with nested code;
+   - notarization (the `notarized` requirement; an offline check refuses
+     with nothing changed).
 7. **Digests.** The copy's CDHash, executable digests, daemon plist digest,
-   version and revision must all equal the manifest's.
-8. **Launchd definition.** The new daemon definition must equal the
-   installed one, compared by content. A release that changes it would need
-   a new administrator approval, so self-update refuses it and Runtime Setup
-   installs it instead.
-9. **Probe.** The installed helper runs the staged helper with
-   `--component-probe`. The probe must report the same version, component
-   protocol and runtime schema, and an Apple table that manages the build in
-   use. This proves the new binary loads and runs on this Mac before
-   anything is swapped.
+   version and revision must equal the manifest's.
+8. **Launchd definition.** The target's definition must equal the one root
+   last approved (`approvedDefinitionSHA256` in `component-state.json`), not
+   the plist in the installed bundle, which another process may have edited.
+   A release that changes the definition needs Runtime Setup and a new
+   approval.
+9. **Probe.** The installed helper runs the staged copy with
+   `--component-probe`. The copy must report the same compiled-in release,
+   component protocol and runtime schema, and an Apple table that manages
+   the build in use.
+10. **Verified copy.** A second sealed copy, `verified/`, is checked against
+    the target and kept in root's directory. The worker, dedicated API and
+    guest tool are installed **only from it**, each copied into a root-owned
+    temporary file. Only that copy is hashed and compared with the target's
+    digests. The bundle that is swapped into `/Applications` is never read
+    again.
+
+The same applies to `install` and `repair`: they stage from a sealed copy of
+the running helper's own bundle, never from `/Applications`.
+
+## What launchd and BTM verify when they spawn the helper
+
+The daemon is registered with `SMAppService.daemon` from
+`/Applications/Micropod Runtime Setup.app`. launchd execs
+`Contents/MacOS/MicropodRuntimeHost` from that path (`BundleProgram`).
+
+- **Without a SpawnConstraint**, which is how every release before this one
+  was built, launchd checks only that the executable passes the system's
+  code-signing policy at exec. It does **not** require it to come from the
+  registering team. Any process that can replace that file, or rename the
+  bundle and substitute its own, gets its code run as root at the next
+  relaunch or reboot. The setup app used to be copied in as the user, which
+  made that easy.
+- **With this release's definition**, launchd checks a launch constraint
+  at every spawn: `SpawnConstraint` = {`team-identifier`: `WFTX6CN23F`,
+  `signing-identifier`: `com.skunkworq.micropod.runtime-authority`}. It
+  refuses to spawn anything else, including an earlier helper build, because
+  the signing identifier was rotated from `com.skunkworq.micropod.runtime.host`
+  in this same release. A Micropod helper from this release or later still
+  satisfies the constraint. Against those, the update applies the
+  high-water mark and the signed security floor, and the helper re-seats a
+  sealed copy as soon as it runs (see below).
+- **BTM** (Background Task Management) records the item by the app's team
+  and bundle identifier, and an administrator approved it once in Login
+  Items.
+  - A swap of the bundle at the same path, same team and identifier, with an
+    unchanged definition, should keep that approval.
+  - A changed definition is applied only by a new registration (unregister,
+    then register), which asks for approval again.
+  - Both behaviours are on the VM test plan below. Neither is assumed.
+
+The helper also re-seats itself. At every start, if the installed setup app
+is not a sealed root-owned copy, the helper does the following without
+restarting the runtime:
+
+1. It plans an update against the installed desktop app's signed manifest,
+   which must name exactly the running helper.
+2. It makes a sealed copy of those verified bytes.
+3. It swaps the copy into place.
+
+This covers:
+
+- the first helper launched after a user-level install or after
+  `--bootstrap`;
+- a bundle another process replaced with the same helper bytes.
+
+The install is therefore root-owned from the helper's first launch. It
+cannot be root-owned earlier: before approval there is no root process to
+install it.
+
+### VM test plan
+
+Run on a macOS 26 VM with SIP on, the production team's Developer ID, and an
+admin-group user without sudo:
+
+1. **Baseline.** Install a release with the SpawnConstraint and approve it.
+   - `launchctl print system/com.skunkworq.micropod.runtime.host` shows the
+     constraint.
+   - `micropod runtime operation --json` reports `componentProtocol` 1.
+   - `ls -le@O` on the installed bundle shows root ownership, no ACL and no
+     flags after the first start.
+2. **Ad-hoc binary.**
+   - As the admin user, rename the bundle away and put back a copy whose
+     `MicropodRuntimeHost` is an ad-hoc-signed binary that writes a marker
+     file.
+   - Reboot, then also trigger an on-demand launch through the Mach
+     service.
+   - Expect a launch-constraint violation in the unified log and no marker.
+3. **Another team's binary.** As in step 2, with a binary signed by a
+   different Developer ID team. Expect the spawn to be refused.
+4. **Older helper.** As in step 2, with a genuine earlier helper (team
+   `WFTX6CN23F`, identifier `com.skunkworq.micropod.runtime.host`). Expect
+   the spawn to be refused because of the identifier.
+5. **Older protocol-1 helper.** A genuine earlier build of this generation
+   (same identifier) is spawned. Record that it runs, and that the next
+   `micropod runtime update` refuses to go below the high-water mark and
+   restores the newest release. That is the residual surface; a CDHash
+   allowlist constraint would close it.
+6. **Approval persistence.**
+   - A self-update swap with an unchanged definition shows no new approval
+     prompt, and the helper starts after a reboot.
+   - `--bootstrap` re-registration with a changed definition shows exactly
+     one prompt.
+   - Editing the plist inside the installed bundle (as root, in the VM) and
+     rebooting shows whether launchd re-reads it or BTM keeps the registered
+     definition. The result decides how far the root-held approved
+     definition must go.
+7. **Sealed copies.** Plant an ACL, an extended attribute, `uchg` and a
+   setuid bit in the offered bundle, and a FIFO next to the manifest. The
+   update refuses the FIFO without hanging. After removing the FIFO, the
+   installed bundle and `RuntimeHost/components/*` show none of the planted
+   attributes.
+8. **Crash loop and hang.**
+   - A test target that exits at once is swapped back after three launches.
+   - One that hangs before serving is exited by the 120 s watchdog three
+     times and then swapped back.
 
 ## Administrator approval: once
 
-The LaunchDaemon was registered through `SMAppService` from
-`/Applications/Micropod Runtime Setup.app`, and an administrator approved it
-once. That approval is bound to the team, the bundle identifier and the
-daemon definition.
+The self-update itself never asks for approval. The approved helper swaps
+its own bundle and exits with `EX_TEMPFAIL` (75); launchd's
+`KeepAlive {SuccessfulExit: false}` starts the bundle installed now. No
+`launchctl` or `sudo` is involved.
 
-A self-update keeps all three: same path, same team and identifier,
-byte-identical definition. The helper swaps the bundle and then exits with
-`EX_TEMPFAIL` (75). launchd's `KeepAlive {SuccessfulExit: false}` restarts the
-job after its 10 s throttle, from the bundle that is installed now. No
-`launchctl`, `sudo` or approval is involved: the already-approved root
-helper updates itself after verifying a signed payload.
+This release is the one exception: it adds the SpawnConstraint and rotates
+the helper's identifier, which changes the daemon's definition. A helper
+older than component protocol 1 cannot update itself either. So, once:
 
-The first update from a helper older than component protocol 1 is the one
-exception, because that helper cannot update itself:
+1. `micropod runtime update --bootstrap` checks, as the user:
+   - the release signature, notarization and CDHash;
+   - that the old helper holds nothing, both before and again immediately
+     before the bundle changes.
 
-1. `micropod runtime update --bootstrap` checks, as the user, what the root
-   helper later checks again: the release signature, notarization, CDHash
-   and an unchanged launchd definition. It also checks that the old helper
-   holds nothing (the "Pause Helper for Update" conditions). It then
-   exchanges the setup app in `/Applications` atomically and keeps the
-   previous bundle under `~/.micropod/runtime-setup/`. App Management lets a
-   process signed by Micropod's team update Micropod's app.
-2. The administrator runs one command:
-   `sudo launchctl kickstart -k system/com.skunkworq.micropod.runtime.host`.
-   launchd restarts the approved job from the new bundle.
-3. `micropod runtime update` finishes unattended, as below.
+   It then exchanges the setup app in `/Applications` and keeps the previous
+   bundle under `~/.micropod/runtime-setup/`.
+2. It opens Runtime Setup with `--reregister`. Runtime Setup checks the old
+   helper is idle again, unregisters the daemon and registers it with the
+   new definition. **macOS asks an administrator to approve it once, in
+   Login Items.** There is no `sudo`.
+3. The new helper starts, re-seats itself as a sealed root-owned copy
+   verified against the signed manifest, and serves.
+   `micropod runtime update` then restarts the runtime onto it.
+
+The Cuttlefish agent must accept the new identifier before step 2:
+skunkworq/cuttlefish#966. An older agent refuses the new helper's
+maintenance calls and its proofs.
 
 ## The operation
-
-A component update has two halves.
 
 ### 1. Helper swap: unfenced and undrained
 
 The dedicated API and the Apple apiserver are separate launchd jobs in
-`_micropod`'s domain. Replacing the helper does not touch them; earlier
-qualification showed a helper and app replacement preserving the API process
-and an active container. For about 10 s nothing can start or stop the
-runtime and session renewals fail and are retried. No job is drained or
-interrupted. The swap therefore takes no admission fence and asks Cuttlefish
-for nothing, and its journal has nothing to hand off.
-
-It is journaled in `RuntimeHost/component-update.json`
-(`RuntimeComponentUpdateRecord`), never in `operation.json`. Every helper,
-including one rolled back to, must always be able to read the runtime
-operation journal.
+`_micropod`'s domain; replacing the helper does not touch them. For about
+10 s nothing can start or stop the runtime, and session renewals fail and
+are retried. No job is drained or interrupted.
 
 | Phase | What happens | Changed so far |
 | --- | --- | --- |
-| `staging` | Copy, verify and probe, as above. | nothing |
-| `swapping` | Intent recorded, then `renamex_np(RENAME_SWAP)` exchanges the staged copy with the installed bundle. The displaced bundle becomes `components/<operation>/previous/`. | the setup app |
-| `relaunching` | The helper exits. Each launch of the target counts. | |
-| `helperReady` | The target serves (controller and both listeners started) and confirms itself. | |
+| `staging` | Sealed copy, verification, probe, verified copy | nothing |
+| `swapping` | Intent recorded, then `renamex_np(RENAME_SWAP)` exchanges the staged copy with the installed bundle. The displaced bundle is moved into `previous/`, **unread**. | the setup app |
+| `relaunching` | The helper exits. Each launch of the target is counted before anything that could fail, and a 120 s watchdog exits a helper that has not confirmed itself. | |
+| `helperReady` | The target serves and has confirmed itself. Root raises the high-water mark, the security floor and the approved definition. | |
+
+A **re-seat** (the running helper already is the release) swaps in a sealed
+copy of the same bytes and goes straight to `helperReady` with no relaunch.
 
 ### 2. Runtime follow-up: an ordinary coordinated restart
 
-The new helper starts a `restart` operation that first stages its own
-components. It is the existing operation with one step added before it, and
-it reuses the existing handshake, journal and recovery unchanged:
+The new helper starts a `restart`. Before draining, it:
 
-```
-stagingComponents   worker copy, pending API configuration, verified Apple payload
-                    (nothing running changes; data sessions keep renewing)
-draining            Cuttlefish drain (bounded, preemption after its grace)
-fence               RuntimeAdmission.begin, which retires dead receipts (#132)
-prepare, begin      signed scheduler fence; action intent recorded
-stop                apiserver and dedicated API stop
-activate            pending API configuration and Apple selection become current
-start, verify       exact native version, roots and install root
-complete            signed release; Cuttlefish reopens intake
-```
+1. **stages** its worker, pending API configuration and Apple payload from
+   the verified copy, and refuses any bytes other than the target's;
+2. **asks the coordinator whether it qualifies the build** (`qualify`). An
+   unqualified build ends the restart before anything is drained, and the
+   update becomes `helperUpdated`.
 
-On the wire this is a `restart` (`RuntimeCoordinationOperation.action`,
-`targetState` `running`). Its `version`, `packageSHA256` and `installRoot`
-are the target selection's. A Cuttlefish agent already accepts it and
-identifies the helper by its signing identity, not its path or CDHash. The
-generation is issued when the operation starts (#133). A first drain the
-coordinator never recorded settles as failed (#133, Cuttlefish #958).
+It then runs the existing handshake: drain, fence (retiring dead receipts,
+#132), prepare, begin, stop, activate, start, verify, complete. On the wire
+it is a `restart` of the target selection. `completed` stands only if the
+runtime then runs exactly the target's worker and API (by digest).
+Otherwise the update ends `recoveryRequired`.
 
-The update follows the restart's outcome. `completed` means the runtime
-restarted onto the new components. A restart that ended before its action
-(refused, timed out, or not recorded) ends the update `helperUpdated`: the
-helper is new, the runtime runs its previous API and Apple build (n-1
-guarantees the new helper manages them), and the next `micropod runtime
-update` restarts only the runtime. A restart in `recoveryRequired` keeps the
-update `restarting` until `micropod runtime recover` settles the restart, as
-it would any restart.
+Two cases change what happens:
+
+- **The operator stopped the runtime.** It stays stopped: the update ends
+  `helperUpdated` with that reason.
+- **The runtime was released as stopped (below).** Only an explicit `start`
+  resumes it.
 
 ## Crash and partial states
 
-Every step is idempotent by inspection: which bundle is installed (CDHash),
-which helper is running (its executable digest, proved to be the running
-image), and what the journals say. Remembered progress is never trusted.
-`RuntimeComponentUpdater.launch()` runs at every helper start, before the
-controller reads `operation.json`.
+The update judges every state by inspection: which helper executable is
+installed and which is running (both by digest), and the journals. It never
+relies on remembered progress.
 
 | What happened | What settles it | Ends |
 | --- | --- | --- |
-| The CLI lost the helper's reply | The CLI keeps the operation ID in `~/.micropod/runtime-component-update.json` and sends the same ID again. The helper answers a known ID with its status and refuses a replayed one once it is in history. | the same update, once |
-| Helper killed while staging | Next launch: `staging` | `refused`, nothing changed |
-| Killed after recording `swapping` but before `renamex_np` | The source is installed and running | `refused`, nothing changed |
-| Killed between `renamex_np` and moving the displaced bundle aside | `renamex_np` changes both names or neither. launchd starts the target; launch finds the source bytes at the staging path and keeps them as `previous`. | continues |
-| The new helper crashes before it serves (dyld, controller init, listener) | Each launch increments `targetLaunches` before anything that could crash. The fourth launch swaps the retained previous bytes back, verified by CDHash, and exits. The previous helper settles. | `rolledBack`, exact previous bytes |
+| The CLI lost the helper's reply | The same operation ID is resent; a replayed ID is refused once in history | the same update, once |
+| Killed while staging, or before `renamex_np` | The source is installed and running | `refused`, nothing changed |
+| Killed between `renamex_np` and moving the displaced bundle aside | launchd starts the target; launch moves the displaced bundle aside unread | continues |
+| The target crashes or hangs before it serves | Launch counter and watchdog. The fourth launch swaps back a sealed, verified copy of the previous bytes. | `rolledBack` |
 | Killed during that rollback swap | Inspection redoes or finishes it | `rolledBack` |
-| Killed while staging runtime components | `stagingComponents` precedes the generation, drain and fence, so the next launch settles the restart as cancelled instead of `recoveryRequired` | `helperUpdated` |
-| Stale admission receipts (Gamma-128's 167) | The restart's fence retires provably dead receipts (#132) | continues |
-| Coordinator refuses the first drain before recording it | The restart settles as failed with no handoff retained (#133) | `helperUpdated` |
-| Drain times out, or Cuttlefish refuses (`blocked`) | Two-stage abort, runtime unchanged | `helperUpdated` |
-| A pending admission blocks the scheduler close | Cuttlefish #960 skips admissions that never leased | continues |
-| The restart's completion reply is lost | The restart is `recoveryRequired` with admission open. `micropod runtime recover` verifies and completes it without replaying the start. | `completed` |
-| Action began and its outcome is unknown | Existing recovery: verify, never replay | `completed`, once verified |
+| Killed while staging runtime components | The restart is settled as cancelled at launch | `helperUpdated` |
+| Stale admission receipts | Retired by the restart's fence (#132) | continues |
+| The agent does not qualify the build | `qualify` → notRecorded; nothing drained | `helperUpdated` |
+| An older agent refuses the first drain (`refused`) | Treated as never recorded: the restart fails with nothing held | `helperUpdated` |
+| The coordinator refuses the first drain (`notRecorded`) | #133 | `helperUpdated` |
+| Drain timeout or `blocked` | Two-stage abort | `helperUpdated` |
+| The restart's completion reply is lost | `micropod runtime recover` completes it without replaying the start | `completed` |
+| The restart completed onto other bytes | Digest check | `recoveryRequired` |
+| An undecodable `component-update.json` | Read leniently: only `update` is refused; lifecycle and `recover` run | — |
 
-Every component update phase holds nothing that another party waits on. The
-helper swap holds no fence and no drain. The restart holds only what any
-restart holds, and the fixes above settle its recovery. The update record
-is terminal whenever its restart is terminal, and no outcome needs a
-journal edited by hand.
+**Remaining manual cases.** The table above settles every coordination
+fault. Two outcomes are deliberately left to an operator, because the rig
+must not take work while they hold:
 
-**A target that cannot come up.** Suppose a target Apple build or API does
-not start after the restart's `begin`. Before, verification positively
-observed the runtime `stopped`, but the coordinator could release an
-operation only as its target state or as cancelled before its action, so the
-rig waited in recovery for an outcome that would never come. Now `micropod
-runtime recover` releases that restart as **stopped** (skunkworq/cuttlefish#966):
-
-- The local fence is released.
-- Cuttlefish keeps rig intake paused, and the control plane keeps the
-  resource closed.
-- The restart ends `failed` with `runtimeReleasedStopped`, and the update
-  ends `helperUpdated`.
-- `micropod runtime update --rollback` restores the previous helper. That
-  helper resumes with an explicit `start` onto its own components, the only
-  operation a stopped release admits.
-
-A Cuttlefish agent without #966 refuses the stopped release as invalid. The
-restart then stays in recovery, which is today's behaviour, and nothing is
-replayed.
+- **A target that cannot come up after `begin`.** The runtime is verified
+  `stopped`. Releasing it as `stopped` keeps intake paused and lets
+  `--rollback` restart the previous runtime with an explicit start. That
+  needs the stopped release, which ships in two phases (below). Until
+  phase 2, the restart stays in `recoveryRequired` with intake held, as any
+  restart does today.
+- **A restart that completed onto other bytes, or a helper that is neither
+  release.** The update ends `recoveryRequired` and nothing more is run.
 
 ## Rig upgrades chain it
 
-`micropod update apply --disruptive` runs as before. When it completes on a
-host with the dedicated runtime, the CLI asks the root helper to follow the
-new app and follows that update to its end. This happens in both the
-launchd rig-upgrade helper (`--detach`) and a following `apply`, using the
-same pending operation, so it is never repeated. The command exits 0 only
-when both complete.
-
-The runtime update runs after the rig upgrade for two reasons:
-
-- Its source is the installed app.
-- Cuttlefish refuses a dedicated-runtime `prepare` while a rig-upgrade drain
-  holds the rig.
-
-The cost is a second drain: jobs leased in the seconds between the two are
-preempted with `maintenance_preempted` and keep their retry budget. Holding
-one drain across both would need a Cuttlefish change that lets the
-rig-upgrade drain cover a runtime handoff. That is a possible follow-up.
+`micropod update apply --disruptive` requests the runtime update after a
+completed app upgrade on a dedicated-runtime host, and follows it. It runs
+afterwards because its source is the installed app, and because Cuttlefish
+refuses a dedicated `prepare` while a rig-upgrade drain holds the rig. On a
+helper that cannot update itself, the app upgrade still reports success and
+names `--bootstrap`.
 
 ## Rollback
 
-- **Automatic.** A target helper that never serves is swapped back, as
-  described in the crash table.
-- **Explicit.** `micropod runtime update --rollback` runs the same
-  machinery. Its target is the root-retained `previous` bundle, copied and
-  checked by CDHash, with no version check. The previous helper starts, and
-  its own coordinated restart re-stages its worker, API and Apple build.
-  These are content-addressed under `tools/` and `apple/versions/`, so they
-  are the exact previous bytes.
+- **Automatic.** A target that never serves is swapped back, from a sealed,
+  verified copy of the retained bytes. The retained path is never verified
+  or run in place.
+- **Explicit:** `micropod runtime update --rollback`.
+  - It is refused below the signed security floor. Root never lowers the
+    high-water mark, so the newest release can always be reinstalled.
+  - If the update's restart moved the runtime, the **current** helper first
+    restarts the runtime onto the retained previous selection, worker and
+    API (`restoringRuntime`). Each is content-addressed and checked by
+    digest. Then the helper is swapped back.
+  - The previous helper then finds its own runtime and restarts nothing.
+  - This also covers a release that changed the Apple build, which the
+    previous helper could not manage. Doing it the other way round, previous
+    helper first, would leave a runtime that helper cannot verify.
 
-## Cuttlefish
+## Cuttlefish (skunkworq/cuttlefish#966)
 
-- **Wire contract.** Unchanged: the runtime half is a `restart`, and the
-  helper's identity is its signature.
-- **Qualified Apple builds** (skunkworq/cuttlefish#966). The agent compares
-  against a set instead of one digest, so adding the patched build is a
-  one-line change.
-- **Stopped release** (skunkworq/cuttlefish#966). A `start` or `restart`
-  whose action began and whose runtime is verified `stopped` may be released
-  with kind `stopped`. Intake stays closed, since a stopped release never
-  reopens it, and only a new explicit start takes the resource again.
-  Rollout order: control plane, then agent, then the Micropod release that
-  sends it. An older agent refuses the call as invalid, which leaves today's
-  behaviour.
+- **Qualified builds.** The agent checks a qualified set of Apple builds,
+  not one digest.
+  - A patched build is one entry, in an agent release that ships first.
+  - The coordinator judges the build itself:
+    - `qualify` answers whether it qualifies a build;
+    - a drain of an unqualified build is `notRecorded`, with nothing
+      recorded;
+    - a prepare of a no-longer-qualified build is blocked;
+    - abort, release and status are never refused for the build.
+  - This removes the deadlock in which every call, abort included, was
+    refused for the build.
+- **Helper identifiers.** It accepts both `com.skunkworq.micropod.runtime-authority`
+  and the legacy `com.skunkworq.micropod.runtime.host`.
+- **Stopped release, in two phases.** A control plane that does not know the
+  kind refuses every later transition of a resource that carries it.
+  - **Phase 1 (#966).** Every reader tolerates a stored stopped release of a
+    start; nothing produces one.
+  - **Phase 2.** Producing it is turned on once every control plane that
+    can serve the fleet is at phase 1.
+  - **No-rollback floor.** Once phase 2 is live, the control plane must not
+    roll back below phase 1.
+  - Micropod sends the release, and an agent before phase 2 refuses it as
+    invalid. That leaves today's behaviour.
+- **Rollout order.**
+  1. The control plane with #966.
+  2. Agents with #966, before any Micropod release with the rotated
+     identifier runs on a rig.
+  3. Micropod.
 
 ## Commands
 
@@ -379,39 +499,103 @@ rig-upgrade drain cover a runtime handoff. That is a possible follow-up.
 micropod runtime update              # follow the installed app's release
 micropod runtime update --detach     # request it and return
 micropod runtime update --rollback   # restore the retained previous components
-micropod runtime update --bootstrap  # once, for a helper older than protocol 1
+micropod runtime update --bootstrap  # once: re-register a helper older than protocol 1
 micropod runtime operation --json    # componentUpdate and the restart it runs
 ```
 
+## Security review (2026-11-19): fixed and deferred
+
+Fixed, each with a regression test:
+
+- **Pre-existing: a user-owned setup app could be replaced to get root.**
+  Fixed by the SpawnConstraint, the identifier rotation and the re-seat
+  from the first launch.
+- **H1: copies kept ACLs, flags and extended attributes.** Fixed by sealed
+  copies.
+- **H2: the runtime was staged from `/Applications`, and digests were not
+  enforced.** It is now staged only from the verified copy; digests are
+  enforced at staging and at completion; `helperReady` re-verifies.
+- **H3: the qualification deadlock.** Fixed in the agent and the helper.
+- **H4: the bootstrap ran an unchecked bundle as root.** The re-seat
+  verifies it, and the bootstrap re-checks status before it changes
+  anything.
+- **M1 through M9:**
+  - the version comes from the compiled-in release and a root-held
+    high-water mark;
+  - the signed security floor is enforced;
+  - reads are non-blocking and planning runs off the actor;
+  - rollback uses sealed copies;
+  - launches are counted first, with a watchdog;
+  - the journal is read leniently;
+  - rollback restores the runtime first;
+  - the stopped release ships in two phases;
+  - a deliberately stopped runtime stays stopped.
+- **Low-severity fixes:**
+  - L1: Developer ID markers in code requirements;
+  - L2: the manifest is bound to the carrying release, with the high-water
+    mark;
+  - L3: size caps, and flag clearing before removal;
+  - L4: the approved definition is root-held;
+  - L5: launch decides by the helper executable;
+  - L6: identity and enrollment files are not rewritten when unchanged;
+  - L7: `sign_update` is pinned;
+  - L8: legacy-helper rigs no longer fail `update apply`;
+  - L9: an unconfirmed helper is exited by the watchdog and counted;
+  - L10: no force unwrap;
+  - L11: the agent's qualified set is unexported.
+
+Deferred:
+
+- **L3:** pruning old `apple/versions/` incarnations. Each update stages a
+  new incarnation, about 500 MB. Pruning needs the runtime's own selection
+  and the rollback target retained, and belongs with the patched-build
+  table.
+- **A launch-time floor** for genuine protocol-1 helpers older than the
+  security floor (VM plan, step 5). A CDHash-pinned SpawnConstraint would
+  close it, at the cost of a re-registration per release.
+- **The VM test plan above.** It needs the production signing identity and
+  a VM; none of it was run here.
+
 ## Tests
 
-- `RuntimeComponentUpdateTests` (HostKit) use real directories and real
-  `renamex_np`. They replay:
-  - a kill before the swap and a kill mid-swap;
-  - a crash-looping target that rolls back to the exact previous bytes, and
-    an interrupted rollback;
-  - a manifest not signed by the release key;
-  - a bundle that does not match its manifest;
-  - a changed launchd definition;
-  - a downgrade, a lost reply, a replayed ID and an unmanageable Apple
-    build;
-  - an explicit rollback.
-- `ScopedRuntimeHostControllerTests` (signed coordinator fixture):
-  - the full update: swap, relaunch, then drain, prepare, begin, verify and
-    complete;
-  - a coordinator refusal (`notRecorded`) that settles `helperUpdated`,
-    followed by a runtime-only retry;
-  - a lost restart completion that `recover` settles;
-  - stale old-format receipts retired by the restart;
-  - a helper killed while staging;
-  - a target that cannot start: released as stopped by `recover`, then
-    `--rollback` restarts the previous runtime with an explicit start.
-- `RuntimeComponentManifestTests` cover signatures, tampering, protocol,
-  malformed manifests and a two-build table. `RuntimeComponentUpdateClientTests`
-  cover a lost reply resent under the same ID, a rerun resuming the pending
-  operation, a legacy helper and following through a relaunch.
+- **`RuntimeSecureCopyTests`:** a pre-planted ACL, extended attribute, flag
+  and setuid bit are stripped and proved gone; an ACL added after the copy
+  is caught; FIFOs, links and oversized trees are refused before copying;
+  immutable leftovers are removed.
+- **`RuntimeComponentUpdateTests`** (real directories, real `renamex_np`,
+  the real secure copy):
+  - kill before, mid and after the swap;
+  - a crash-looping target rolled back from a sealed copy, never in place;
+  - an interrupted rollback;
+  - a forged manifest, a replayed manifest, and a mismatched bundle;
+  - planted ACLs, attributes and flags;
+  - a definition edited in the installed plist, refused against root's
+    approved definition;
+  - the compiled-in version and high-water mark;
+  - the security floor;
+  - a re-seat without relaunch;
+  - verified-copy tampering;
+  - completion on other bytes;
+  - a FIFO;
+  - an unreadable journal;
+  - rollback, and the restore-first plan.
+- **`ScopedRuntimeHostControllerTests`** (signed coordinator fixture):
+  - the full update, with `qualify` before the drain;
+  - a `notRecorded` drain;
+  - a lost completion;
+  - stale receipts;
+  - a kill during staging;
+  - an unqualified build refused as `refused` at the drain (the deadlock,
+    replayed) and settled;
+  - an unqualified build never drained;
+  - tampered staging refused before the drain;
+  - rollback restoring the runtime, then the helper;
+  - a deliberately stopped runtime left stopped;
+  - an unreadable journal blocking only `update`;
+  - an unsealed bundle re-seated at launch;
+  - the stopped-release path, and the rollback after it.
+- **Cuttlefish (#966):** the unqualified drain is `notRecorded` and an abort
+  is never refused for the build; phase 1 tolerates a stored stopped
+  release and never produces one; the qualified set.
 
-These are source tests. A physical qualification is still required: a
-notarized release candidate updating a rig helper and its runtime under a
-live Cuttlefish drain, including the 10 s helper relaunch and a reboot
-during `relaunching`.
+These are source tests. A physical qualification is still required.

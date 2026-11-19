@@ -19,7 +19,14 @@ public struct IsolatedWorkerRunner: Sendable {
         guard try ManagedRuntimeInstaller.sha256(worker) == workerSHA256 else {
             throw MicropodError.message("The managed runtime worker changed")
         }
-        try RuntimeCodeIdentity.verifyExecutable(worker, identifier: IsolatedRuntimePolicy.helperIdentifier)
+        // Root installed it and its digest is pinned; a worker staged by a
+        // helper from before the identifier change keeps working until the
+        // next restart stages this helper's own.
+        if (try? RuntimeCodeIdentity.verifyExecutable(worker, identifier: IsolatedRuntimePolicy.helperIdentifier))
+            == nil
+        {
+            try RuntimeCodeIdentity.verifyExecutable(worker, identifier: IsolatedRuntimePolicy.legacyHelperIdentifier)
+        }
         let data = try JSONEncoder().encode(request)
         let child = WorkerExchange()
         let process = Process()

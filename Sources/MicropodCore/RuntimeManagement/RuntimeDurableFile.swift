@@ -5,12 +5,15 @@ import Foundation
 /// intent, not just preferences: failure must stop the action before it begins.
 public enum RuntimeDurableFile {
     public static func read(_ url: URL, maximumBytes: Int, ownerUID: uid_t = getuid()) throws -> Data {
-        let fd = open(url.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+        // O_NONBLOCK: opening a FIFO planted in place of a file must not
+        // wedge the caller; anything but a regular file is refused at fstat.
+        let fd = open(url.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK)
         guard fd >= 0 else { throw failure() }
         defer { close(fd) }
         var info = stat()
         guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG,
-            info.st_uid == ownerUID, info.st_size >= 0, info.st_size <= maximumBytes
+            info.st_uid == ownerUID, info.st_size >= 0, info.st_size <= maximumBytes,
+            fcntl(fd, F_SETFL, 0) == 0
         else { throw failure() }
         var result = Data()
         var buffer = [UInt8](repeating: 0, count: min(maximumBytes + 1, 8192))
@@ -61,5 +64,25 @@ public enum RuntimeDurableFile {
 
     private static func failure() -> Error {
         MicropodError.message("Could not persist runtime maintenance state (\(errno))")
+    }
+}
+
+/// Bounded reads of files another account may control. Never blocks on a
+/// FIFO, never follows a link, refuses anything but a regular file. The bytes
+/// are trusted only after a signature or a sealed root-owned copy verifies.
+public enum RuntimeNonblockingFile {
+    public static func read(_ url: URL, limit: Int) throws -> Data {
+        let fd = open(url.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK)
+        guard fd >= 0 else { throw MicropodError.message("\(url.lastPathComponent) is unavailable") }
+        let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
+        var info = stat()
+        guard fstat(fd, &info) == 0, info.st_mode & S_IFMT == S_IFREG, info.st_size <= limit,
+            fcntl(fd, F_SETFL, 0) == 0
+        else {
+            throw MicropodError.message("\(url.lastPathComponent) is not a bounded regular file")
+        }
+        let data = try handle.read(upToCount: limit + 1) ?? Data()
+        guard data.count <= limit else { throw MicropodError.message("\(url.lastPathComponent) is oversized") }
+        return data
     }
 }

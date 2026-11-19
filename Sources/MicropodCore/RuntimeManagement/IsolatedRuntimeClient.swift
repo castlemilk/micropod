@@ -12,7 +12,7 @@ public struct IsolatedRuntimeClient: Sendable {
             nonisolated(unsafe) let connection = xpc_connection_create_mach_service(
                 IsolatedRuntimePolicy.serviceName, nil, UInt64(XPC_CONNECTION_MACH_SERVICE_PRIVILEGED))
             do {
-                try RuntimeCodeIdentity.require(connection, identifiers: [IsolatedRuntimePolicy.helperIdentifier])
+                try RuntimeCodeIdentity.require(connection, identifiers: IsolatedRuntimePolicy.helperPeerIdentifiers)
             } catch {
                 xpc_connection_cancel(connection)
                 continuation.resume(throwing: error)

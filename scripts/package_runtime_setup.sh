@@ -52,9 +52,15 @@ version,revision=sys.argv[2],sys.argv[3]
  'NSSupportsAutomaticTermination':False,'NSSupportsSuddenTermination':False,
  'NSHumanReadableCopyright':'© 2026 skunkworq',
 }))
+# SpawnConstraint: launchd spawns the helper only when it is signed by
+# Micropod's team under the helper's current identifier, so replacing the
+# executable in this (admin-writable) location with anything else, including
+# an earlier helper build, cannot start as root. See
+# docs/runtime-component-update.md "What launchd and BTM verify".
 (root/'Contents/Library/LaunchDaemons/com.skunkworq.micropod.runtime.host.plist').write_bytes(plistlib.dumps({
  'Label':'com.skunkworq.micropod.runtime.host',
  'BundleProgram':'Contents/MacOS/MicropodRuntimeHost',
+ 'SpawnConstraint':{'team-identifier':'WFTX6CN23F','signing-identifier':'com.skunkworq.micropod.runtime-authority'},
  'MachServices':{'com.skunkworq.micropod.runtime.host':True},
  'RunAtLoad':True,'ProcessType':'Background','ThrottleInterval':10,
  'KeepAlive':{'SuccessfulExit':False},'Umask':0o077,
@@ -63,7 +69,7 @@ version,revision=sys.argv[2],sys.argv[3]
 PY
 runtime_signature_options=(--options runtime)
 if [[ "$runtime_identity" != - ]]; then runtime_signature_options+=(--timestamp); fi
-codesign --force --sign "$runtime_identity" "${runtime_signature_options[@]}" --entitlements "$runtime_stage_root/empty-entitlements.plist" --identifier com.skunkworq.micropod.runtime.host "$runtime_stage/Contents/MacOS/MicropodRuntimeHost"
+codesign --force --sign "$runtime_identity" "${runtime_signature_options[@]}" --entitlements "$runtime_stage_root/empty-entitlements.plist" --identifier com.skunkworq.micropod.runtime-authority "$runtime_stage/Contents/MacOS/MicropodRuntimeHost"
 codesign --force --sign "$runtime_identity" "${runtime_signature_options[@]}" --entitlements "$runtime_project/signing/micropod-cli.entitlements" --identifier com.skunkworq.micropod.api "$runtime_stage/Contents/MacOS/MicropodAPI"
 codesign --force --sign "$runtime_identity" "${runtime_signature_options[@]}" --entitlements "$runtime_stage_root/empty-entitlements.plist" --identifier com.skunkworq.micropod.runtime-setup "$runtime_stage/Contents/MacOS/MicropodRuntimeSetup"
 rm "$runtime_stage_root/empty-entitlements.plist"

@@ -3,6 +3,16 @@ import Foundation
 import Security
 
 public enum RuntimeCodeIdentity {
+    /// Developer ID Application, issued under Apple's Developer ID CA, for
+    /// `team`. Without the two certificate markers any Apple-anchored
+    /// certificate with that team's OU (an Apple Development certificate, for
+    /// one) would satisfy the requirement.
+    public static func developerID(_ team: String) -> String {
+        "anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] exists and "
+            + "certificate leaf[field.1.2.840.113635.100.6.1.13] exists and certificate leaf[subject.OU] = \""
+            + team + "\""
+    }
+
     /// Compare the running code directory with the payload on disk. A valid
     /// signature at the same path alone could name a replacement file while
     /// the process still executes an earlier build.
@@ -37,8 +47,7 @@ public enum RuntimeCodeIdentity {
     public static func require(_ connection: xpc_connection_t, identifiers: [String]) throws {
         let names = identifiers.map { "identifier \"" + $0 + "\"" }.joined(separator: " or ")
         let rule =
-            "anchor apple generic and certificate leaf[subject.OU] = \"" + IsolatedRuntimePolicy.teamIdentifier
-            + "\" and (" + names + ")"
+            developerID(IsolatedRuntimePolicy.teamIdentifier) + " and (" + names + ")"
         guard xpc_connection_set_peer_code_signing_requirement(connection, rule) == 0 else {
             throw MicropodError.message("Could not configure runtime helper peer authentication")
         }
@@ -51,8 +60,7 @@ public enum RuntimeCodeIdentity {
         var requirement: SecRequirement?
         let attributes = [kSecGuestAttributePid as String: NSNumber(value: pid)] as CFDictionary
         let rule =
-            "anchor apple generic and certificate leaf[subject.OU] = \"" + team
-            + "\" and identifier \"" + identifier + "\""
+            developerID(team) + " and identifier \"" + identifier + "\""
         guard SecCodeCopyGuestWithAttributes(nil, attributes, [], &code) == errSecSuccess, let code,
             SecRequirementCreateWithString(rule as CFString, [], &requirement) == errSecSuccess
         else { return false }
@@ -69,8 +77,7 @@ public enum RuntimeCodeIdentity {
         var code: SecStaticCode?
         var requirement: SecRequirement?
         let rule =
-            "anchor apple generic and certificate leaf[subject.OU] = \"" + team
-            + "\" and identifier \"" + identifier + "\"" + (notarized ? " and notarized" : "")
+            developerID(team) + " and identifier \"" + identifier + "\"" + (notarized ? " and notarized" : "")
         let flags = kSecCSStrictValidate | kSecCSCheckAllArchitectures | kSecCSCheckNestedCode
         guard SecStaticCodeCreateWithPath(url as CFURL, [], &code) == errSecSuccess, let code,
             SecRequirementCreateWithString(rule as CFString, [], &requirement) == errSecSuccess,
@@ -100,8 +107,7 @@ public enum RuntimeCodeIdentity {
         var code: SecStaticCode?
         var requirement: SecRequirement?
         let rule =
-            "anchor apple generic and certificate leaf[subject.OU] = \"" + team
-            + "\" and identifier \"" + identifier + "\""
+            developerID(team) + " and identifier \"" + identifier + "\""
         guard SecStaticCodeCreateWithPath(url as CFURL, [], &code) == errSecSuccess, let code,
             SecRequirementCreateWithString(rule as CFString, [], &requirement) == errSecSuccess,
             SecStaticCodeCheckValidity(

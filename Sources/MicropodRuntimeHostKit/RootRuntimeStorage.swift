@@ -94,8 +94,12 @@ public enum RootRuntimeStorage {
                 throw MicropodError.message("Could not assign the dedicated runtime home")
             }
         }
-        try RuntimeDurableFile.write(identity, to: IsolatedRuntimePolicy.identityURL)
-        try fm.setAttributes([.posixPermissions: 0o644], ofItemAtPath: IsolatedRuntimePolicy.identityURL.path)
+        // An unchanged identity is not rewritten: the rewrite passes through a
+        // 0600 file that workers and the API briefly cannot read.
+        if (try? IsolatedRuntimeIdentity.readRootOwned()) != identity {
+            try RuntimeDurableFile.write(identity, to: IsolatedRuntimePolicy.identityURL)
+            try fm.setAttributes([.posixPermissions: 0o644], ofItemAtPath: IsolatedRuntimePolicy.identityURL.path)
+        }
         let fd = open(IsolatedRuntimePolicy.identityURL.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
         guard fd >= 0 else { throw MicropodError.message("Could not publish runtime identity") }
         defer { close(fd) }
@@ -127,48 +131,97 @@ public enum RootRuntimeStorage {
         guard fchown(fd, 0, identity.serviceGID) == 0, fchmod(fd, 0o660) == 0, fsync(fd) == 0 else {
             throw MicropodError.message("Could not protect runtime admission lock")
         }
-        try RuntimeDurableFile.write(true, to: root.appendingPathComponent("enrolled"))
-        try fm.setAttributes([.posixPermissions: 0o644], ofItemAtPath: root.appendingPathComponent("enrolled").path)
+        let enrolled = root.appendingPathComponent("enrolled")
+        if (try? RuntimeDurableFile.read(enrolled, maximumBytes: 16, ownerUID: 0)) != Data("true".utf8) {
+            try RuntimeDurableFile.write(true, to: enrolled)
+            try fm.setAttributes([.posixPermissions: 0o644], ofItemAtPath: enrolled.path)
+        }
         try RuntimeDurableFile.syncDirectory(root)
     }
 
+    /// Installs the dedicated API and its guest tool from `source` and stages
+    /// its configuration. Each file is copied into a root-owned temporary file
+    /// first and only the copy is hashed, so the digests in the configuration
+    /// are the installed bytes; with `expected`, any other bytes are refused.
+    @discardableResult
     public static func installAPI(
-        from source: URL, identity: IsolatedRuntimeIdentity,
-        selection: ManagedRuntimeLocation.Selection
-    ) throws {
+        from source: URL, guest sourceGuest: URL? = nil, identity: IsolatedRuntimeIdentity,
+        selection: ManagedRuntimeLocation.Selection, expected: RuntimeComponentAPI? = nil
+    ) throws -> IsolatedRuntimeAPIConfiguration {
         let identifier = IsolatedRuntimeAPIConfiguration.executableIdentifier
-        try RuntimeCodeIdentity.verifyExecutable(source, identifier: identifier)
-        let digest = try ManagedRuntimeInstaller.sha256(source)
-        let sourceGuest = source.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(
-            "Resources/micropod-guest")
-        let guestDigest =
-            FileManager.default.fileExists(atPath: sourceGuest.path)
-            ? try ManagedRuntimeInstaller.sha256(sourceGuest) : nil
-        let configuration = IsolatedRuntimeAPIConfiguration(
-            instance: identity.instance, selection: selection,
-            executableSHA256: digest, guestSHA256: guestDigest)
-        let destination = IsolatedRuntimePolicy.root.appendingPathComponent(
-            "tools/" + configuration.toolDirectoryName + "/MicropodAPI")
-        try ensureRootDirectory(destination.deletingLastPathComponent())
         let fm = FileManager.default
+        let tools = IsolatedRuntimePolicy.root.appendingPathComponent("tools")
+        try ensureRootDirectory(tools)
+        let apiTemp = tools.appendingPathComponent(".api-" + UUID().uuidString)
+        let guestTemp = tools.appendingPathComponent(".guest-" + UUID().uuidString)
+        defer {
+            try? fm.removeItem(at: apiTemp)
+            try? fm.removeItem(at: guestTemp)
+        }
+        try copyProtected(source, to: apiTemp)
+        try RuntimeCodeIdentity.verifyExecutable(apiTemp, identifier: identifier)
+        let digest = try ManagedRuntimeInstaller.sha256(apiTemp)
+        var guestDigest: String?
+        if let sourceGuest, fm.fileExists(atPath: sourceGuest.path) {
+            try copyProtected(sourceGuest, to: guestTemp)
+            let file = try FileHandle(forReadingFrom: guestTemp)
+            let magic = try file.read(upToCount: 4)
+            try file.close()
+            guard magic == Data([0x7f, 0x45, 0x4c, 0x46]) else {
+                throw MicropodError.message("The guest helper is not the sealed Linux artifact")
+            }
+            guestDigest = try ManagedRuntimeInstaller.sha256(guestTemp)
+        }
+        if let expected {
+            guard digest == expected.executableSHA256, guestDigest == expected.guestSHA256 else {
+                throw MicropodError.message("The dedicated API or guest tool is not the verified release")
+            }
+        }
+        let configuration = IsolatedRuntimeAPIConfiguration(
+            instance: identity.instance, selection: selection, executableSHA256: digest, guestSHA256: guestDigest)
+        let directory = tools.appendingPathComponent(configuration.toolDirectoryName)
+        try ensureRootDirectory(directory)
+        let destination = directory.appendingPathComponent("MicropodAPI")
         if !fm.fileExists(atPath: destination.path) {
-            let temp = destination.deletingLastPathComponent().appendingPathComponent(".api-" + UUID().uuidString)
-            defer { try? fm.removeItem(at: temp) }
-            try copyProtected(source, to: temp)
-            try RuntimeCodeIdentity.verifyExecutable(temp, identifier: identifier)
-            try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: temp.path)
-            guard try ManagedRuntimeInstaller.sha256(temp) == digest, rename(temp.path, destination.path) == 0 else {
+            try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: apiTemp.path)
+            guard rename(apiTemp.path, destination.path) == 0 else {
                 throw MicropodError.message("Could not install the managed API")
             }
-            try RuntimeDurableFile.syncDirectory(destination.deletingLastPathComponent())
         }
-        guard try ManagedRuntimeInstaller.sha256(destination) == digest else {
+        if guestDigest != nil {
+            let guest = directory.appendingPathComponent("micropod-guest")
+            if !fm.fileExists(atPath: guest.path) {
+                try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: guestTemp.path)
+                guard rename(guestTemp.path, guest.path) == 0 else {
+                    throw MicropodError.message("Could not install the sealed guest helper")
+                }
+            }
+        }
+        try RuntimeDurableFile.syncDirectory(directory)
+        try stageAPI(configuration, identity: identity)
+        return configuration
+    }
+
+    /// Stages `configuration` (its tool directory must already hold exactly
+    /// those bytes) for the next activation: a component update installs a
+    /// new one, a rollback re-stages the one it replaced.
+    public static func stageAPI(_ configuration: IsolatedRuntimeAPIConfiguration, identity: IsolatedRuntimeIdentity)
+        throws
+    {
+        try configuration.validate(identity: identity)
+        let fm = FileManager.default
+        let directory = IsolatedRuntimePolicy.root.appendingPathComponent("tools/" + configuration.toolDirectoryName)
+        let destination = directory.appendingPathComponent("MicropodAPI")
+        guard try ManagedRuntimeInstaller.sha256(destination) == configuration.executableSHA256 else {
             throw MicropodError.message("The managed API executable changed")
         }
-        try RuntimeCodeIdentity.verifyExecutable(destination, identifier: identifier)
-        let guest = try installGuest(from: source, destination: destination.deletingLastPathComponent())
-        guard try guest.map({ try ManagedRuntimeInstaller.sha256($0) }) == guestDigest else {
-            throw MicropodError.message("The sealed guest artifact changed during installation")
+        try RuntimeCodeIdentity.verifyExecutable(
+            destination, identifier: IsolatedRuntimeAPIConfiguration.executableIdentifier)
+        let guest = directory.appendingPathComponent("micropod-guest")
+        if let expected = configuration.guestSHA256 {
+            guard try ManagedRuntimeInstaller.sha256(guest) == expected else {
+                throw MicropodError.message("The installed guest helper changed")
+            }
         }
         let gateway = IsolatedRuntimeAPIConfiguration.socketURL.deletingLastPathComponent()
         // Only socket creation is delegated to the private uid. The parent,
@@ -198,7 +251,7 @@ public enum RootRuntimeStorage {
             "MICROPOD_ENGINES": "apple",
             "CONTAINER_APP_ROOT": IsolatedRuntimePolicy.appRoot.path,
         ]
-        if let guest { environment["MICROPOD_GUEST_TOOL"] = guest.path }
+        if configuration.guestSHA256 != nil { environment["MICROPOD_GUEST_TOOL"] = guest.path }
         let plist: [String: Any] = [
             "Label": IsolatedRuntimeAPIConfiguration.serviceLabel,
             "ProgramArguments": [destination.path],
@@ -262,11 +315,12 @@ public enum RootRuntimeStorage {
     /// Copies from an unprivileged app through descriptors. No symlink from
     /// the source can become a root-owned destination or a chmod/chown target.
     private static func copyProtected(_ source: URL, to destination: URL) throws {
-        let input = open(source.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+        let input = open(source.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK)
         guard input >= 0 else { throw MicropodError.message("The signed runtime source is unavailable") }
         defer { close(input) }
         var info = stat()
-        guard fstat(input, &info) == 0, info.st_mode & S_IFMT == S_IFREG, info.st_size > 0, info.st_size <= 1 << 30
+        guard fstat(input, &info) == 0, info.st_mode & S_IFMT == S_IFREG, info.st_size > 0, info.st_size <= 1 << 30,
+            fcntl(input, F_SETFL, 0) == 0
         else {
             throw MicropodError.message("The runtime source is not a bounded regular file")
         }
@@ -298,47 +352,20 @@ public enum RootRuntimeStorage {
             throw MicropodError.message("The runtime tool copy is incomplete")
         }
     }
-    private static func installGuest(from api: URL, destination: URL) throws -> URL? {
-        let bundle = api.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let source = bundle.appendingPathComponent("Contents/Resources/micropod-guest")
-        guard FileManager.default.fileExists(atPath: source.path) else { return nil }
-        func verifyBundle() throws {
-            if (try? RuntimeCodeIdentity.verifyExecutable(bundle, identifier: "com.skunkworq.micropod")) != nil {
-                return
-            }
-            try RuntimeCodeIdentity.verifyExecutable(bundle, identifier: IsolatedRuntimePolicy.setupIdentifier)
-        }
-        try verifyBundle()
-        let digest = try ManagedRuntimeInstaller.sha256(source)
-        let guest = destination.appendingPathComponent("micropod-guest")
-        if FileManager.default.fileExists(atPath: guest.path) {
-            guard try ManagedRuntimeInstaller.sha256(guest) == digest else {
-                throw MicropodError.message("The installed guest helper changed")
-            }
-            return guest
-        }
-        let temp = destination.appendingPathComponent(".guest-" + UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: temp) }
-        try copyProtected(source, to: temp)
-        let file = try FileHandle(forReadingFrom: temp)
-        let magic = try file.read(upToCount: 4)
-        try file.close()
-        guard magic == Data([0x7f, 0x45, 0x4c, 0x46]), try ManagedRuntimeInstaller.sha256(temp) == digest else {
-            throw MicropodError.message("The guest helper is not the sealed Linux artifact")
-        }
-        try verifyBundle()
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: temp.path)
-        guard rename(temp.path, guest.path) == 0 else {
-            throw MicropodError.message("Could not install the sealed guest helper")
-        }
-        try RuntimeDurableFile.syncDirectory(destination)
-        return guest
-    }
-
-    public static func installWorker(from executable: URL) throws -> String {
-        try RuntimeCodeIdentity.verifyExecutable(executable, identifier: IsolatedRuntimePolicy.helperIdentifier)
+    /// Installs a worker copy of the helper. Only the root-owned copy is
+    /// hashed; with `expectedSHA256`, any other bytes are refused.
+    public static func installWorker(from executable: URL, expectedSHA256: String? = nil) throws -> String {
         let fm = FileManager.default
-        let digest = try ManagedRuntimeInstaller.sha256(executable)
+        let tools = IsolatedRuntimePolicy.root.appendingPathComponent("tools")
+        try ensureRootDirectory(tools)
+        let temp = tools.appendingPathComponent(".worker-" + UUID().uuidString)
+        defer { try? fm.removeItem(at: temp) }
+        try copyProtected(executable, to: temp)
+        try RuntimeCodeIdentity.verifyExecutable(temp, identifier: IsolatedRuntimePolicy.helperIdentifier)
+        let digest = try ManagedRuntimeInstaller.sha256(temp)
+        if let expectedSHA256, digest != expectedSHA256 {
+            throw MicropodError.message("The runtime worker is not the verified release")
+        }
         let destination = try worker(digest: digest)
         let dir = destination.deletingLastPathComponent()
         try ensureRootDirectory(dir)
@@ -348,13 +375,6 @@ public enum RootRuntimeStorage {
             }
             try RuntimeCodeIdentity.verifyExecutable(destination, identifier: IsolatedRuntimePolicy.helperIdentifier)
             return digest
-        }
-        let temp = dir.appendingPathComponent(".worker-" + UUID().uuidString)
-        defer { try? fm.removeItem(at: temp) }
-        try copyProtected(executable, to: temp)
-        try RuntimeCodeIdentity.verifyExecutable(temp, identifier: IsolatedRuntimePolicy.helperIdentifier)
-        guard try ManagedRuntimeInstaller.sha256(temp) == digest else {
-            throw MicropodError.message("The runtime worker changed during installation")
         }
         try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: temp.path)
         guard rename(temp.path, destination.path) == 0 else {

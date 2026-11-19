@@ -18,7 +18,7 @@ public struct RuntimeComponentUpdateClient: Sendable {
         public let version: String?
         public var errorDescription: String? {
             "The installed runtime helper cannot update itself. Run `micropod runtime update --bootstrap` "
-                + "once; it needs one administrator command"
+                + "once; macOS asks an administrator to approve the re-registered helper"
         }
     }
 

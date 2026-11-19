@@ -31,8 +31,8 @@ import json, plistlib, sys
 out, info, cdhash, daemon, helper, api, guest, probe, minimum = sys.argv[1:]
 info = plistlib.load(open(info, "rb"))
 probe = json.loads(probe)
-if probe["version"] != info["CFBundleShortVersionString"]:
-    raise SystemExit("the probed helper is not this setup app's release")
+if probe["version"] != info["CFBundleShortVersionString"] or probe["revision"] != info["MicropodSourceRevision"]:
+    raise SystemExit("the probed helper's compiled-in release is not this setup app's (stamp MicropodBuildInfo)")
 runtimes = probe["appleRuntimes"]
 manifest = {
     "schema": "micropod-runtime-components-v1",
@@ -42,11 +42,14 @@ manifest = {
     "minimumHelperVersion": minimum,
     "setup": {"bundleIdentifier": "com.skunkworq.micropod.runtime-setup", "cdhash": cdhash.lower(),
               "daemonPlistSHA256": daemon},
-    "helper": {"identifier": "com.skunkworq.micropod.runtime.host", "sha256": helper},
+    "helper": {"identifier": "com.skunkworq.micropod.runtime-authority", "sha256": helper},
     "api": {"identifier": "com.skunkworq.micropod.api", "sha256": api},
     "appleRuntime": runtimes[0],
     "appleRuntimes": runtimes,
 }
+floor = __import__("os").environ.get("MICROPOD_COMPONENTS_SECURITY_FLOOR")
+if floor:
+    manifest["securityFloor"] = floor
 if guest:
     manifest["guestSHA256"] = guest
 open(out, "w").write(json.dumps(manifest, sort_keys=True, separators=(",", ":")))

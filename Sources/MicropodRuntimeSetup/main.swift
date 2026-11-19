@@ -13,6 +13,7 @@ private final class RuntimeSetupModel {
     var approvalMessage = "Administrator approval has not been requested"
     var busy = false
     private var handledInstallRequest = false
+    private var handledReregistration = false
     private let service = SMAppService.daemon(plistName: "com.skunkworq.micropod.runtime.host.plist")
     private let client = IsolatedRuntimeClient()
     func installRequestedAtLaunch() async {
@@ -29,6 +30,37 @@ private final class RuntimeSetupModel {
             guard error == nil, status.isTerminal, status.phase != "recoveryRequired" else { return }
             if status.identity != nil, status.nativeState == "nativeReady" { return }
             await request(.install)
+        } catch { self.error = error.localizedDescription }
+    }
+    /// `--reregister` (micropod runtime update --bootstrap): this bundle
+    /// replaced an older setup app, and only a new registration applies its
+    /// daemon definition (the SpawnConstraint). The old helper is checked
+    /// idle right before it is unregistered; macOS then asks an administrator
+    /// to approve the registration once.
+    func reregisterRequestedAtLaunch() async {
+        guard !handledReregistration, ProcessInfo.processInfo.arguments.contains("--reregister") else { return }
+        handledReregistration = true
+        busy = true
+        defer { busy = false }
+        do {
+            if service.status == .enabled {
+                let current = try await client.call(.init(action: .status))
+                guard current.isTerminal, current.phase != "recoveryRequired", current.rigAttempted != true,
+                    current.runtimeRigAttempted != true,
+                    current.localGeneration == nil || current.actionVerified == true,
+                    try current.workerBirth?.hasExited() != false
+                else {
+                    throw MicropodError.message("Finish or verify runtime maintenance before re-registering the helper")
+                }
+                try await service.unregister()
+            }
+            try service.register()
+            awaitingApproval = service.status == .requiresApproval
+            if awaitingApproval {
+                approvalMessage = "Approve Micropod Runtime Setup in Login Items to start the updated helper"
+                SMAppService.openSystemSettingsLoginItems()
+            }
+            error = nil
         } catch { self.error = error.localizedDescription }
     }
     func approveHelper() {
@@ -173,6 +205,7 @@ struct MicropodRuntimeSetup: App {
                 }.padding(24)
             }.frame(width: 640, height: 540).task {
                 await model.refresh()
+                await model.reregisterRequestedAtLaunch()
                 await model.installRequestedAtLaunch()
             }
         }.windowResizability(.contentSize)

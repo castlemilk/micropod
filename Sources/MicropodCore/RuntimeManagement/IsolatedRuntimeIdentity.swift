@@ -7,7 +7,16 @@ public enum IsolatedRuntimePolicy {
     public static let schema = "micropod-isolated-runtime-v1"
     public static let accountName = "_micropod"
     public static let serviceName = "com.skunkworq.micropod.runtime.host"
-    public static let helperIdentifier = "com.skunkworq.micropod.runtime.host"
+    /// The root helper's signing identifier. It changed with runtime
+    /// component updates: the LaunchDaemon's SpawnConstraint pins this one, so
+    /// no earlier helper build (`legacyHelperIdentifier`) can be spawned from
+    /// a replaced bundle.
+    public static let helperIdentifier = "com.skunkworq.micropod.runtime-authority"
+    /// Helpers built before the SpawnConstraint. Clients still talk to one
+    /// until it is bootstrapped; nothing installs or runs one as root.
+    public static let legacyHelperIdentifier = "com.skunkworq.micropod.runtime.host"
+    /// What a client accepts as the root helper on the other end of XPC.
+    public static let helperPeerIdentifiers = [helperIdentifier, legacyHelperIdentifier]
     public static let setupIdentifier = "com.skunkworq.micropod.runtime-setup"
     public static let teamIdentifier = "WFTX6CN23F"
     public static let publicProviderIdentifiers = ["com.skunkworq.micropod.api", "com.skunkworq.micropod.docker-shim"]

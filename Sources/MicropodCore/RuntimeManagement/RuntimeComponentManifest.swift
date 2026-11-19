@@ -73,6 +73,9 @@ public struct RuntimeComponentManifest: Codable, Sendable, Equatable {
     public let sourceRevision: String
     /// The oldest installed helper allowed to install this release itself.
     public let minimumHelperVersion: String
+    /// Releases below this have a security defect: once a host installs this
+    /// release, root refuses to install or roll back to anything older.
+    public let securityFloor: String?
     public let setup: Setup
     public let helper: Code
     public let api: Code
@@ -86,8 +89,9 @@ public struct RuntimeComponentManifest: Codable, Sendable, Equatable {
     public init(
         version: String, sourceRevision: String, minimumHelperVersion: String, setup: Setup, helper: Code, api: Code,
         guestSHA256: String?, appleRuntime: AppleRuntime, appleRuntimes: [AppleRuntime],
-        componentProtocol: Int = Self.protocolVersion
+        componentProtocol: Int = Self.protocolVersion, securityFloor: String? = nil
     ) {
+        self.securityFloor = securityFloor
         schema = Self.schemaV1
         self.componentProtocol = componentProtocol
         self.version = version
@@ -141,7 +145,8 @@ public struct RuntimeComponentManifest: Codable, Sendable, Equatable {
                 "Micropod \(version) needs runtime component protocol \(componentProtocol); this helper "
                     + "implements \(Self.protocolVersion)")
         }
-        guard release(version), release(minimumHelperVersion), hex(sourceRevision, 40),
+        guard release(version), release(minimumHelperVersion), securityFloor.map(release) ?? true,
+            hex(sourceRevision, 40),
             setup.bundleIdentifier == IsolatedRuntimePolicy.setupIdentifier, hex(setup.cdhash, 40),
             hex(setup.daemonPlistSHA256, 64),
             helper.identifier == IsolatedRuntimePolicy.helperIdentifier, hex(helper.sha256, 64),
@@ -152,7 +157,7 @@ public struct RuntimeComponentManifest: Codable, Sendable, Equatable {
         else { throw MicropodError.message("The runtime component manifest is malformed") }
     }
 
-    public var releaseVersion: ReleaseVersion { ReleaseVersion(version)! }
+    public var releaseVersion: ReleaseVersion? { ReleaseVersion(version) }
 
     /// Whether this release's helper can manage the Apple build `selection`
     /// names. A release that cannot is never installed over it: its helper

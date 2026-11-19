@@ -1,6 +1,7 @@
 import Darwin
 import Foundation
 import MachO
+import MicropodBuildInfo
 import MicropodCore
 import MicropodRuntimeHostKit
 
@@ -44,13 +45,6 @@ struct MicropodRuntimeHost {
             exit(1)
         }
         do {
-            try RootRuntimeStorage.prepareRoot()
-            let fd = open(
-                IsolatedRuntimePolicy.root.appendingPathComponent("host.lock").path,
-                O_CREAT | O_RDWR | O_NOFOLLOW | O_CLOEXEC, 0o600)
-            guard fd >= 0, flock(fd, LOCK_EX | LOCK_NB) == 0 else {
-                throw MicropodError.message("Another runtime helper owns the state")
-            }
             var count: UInt32 = 4096
             var path = [CChar](repeating: 0, count: Int(count))
             guard _NSGetExecutablePath(&path, &count) == 0 else {
@@ -60,22 +54,43 @@ struct MicropodRuntimeHost {
                 fileURLWithPath: String(
                     decoding: path.prefix(while: { $0 != 0 }).map { UInt8(bitPattern: $0) }, as: UTF8.self)
             ).resolvingSymlinksInPath()
-            try RuntimeCodeIdentity.verifyExecutable(executable, identifier: IsolatedRuntimePolicy.helperIdentifier)
-            // Settle a component update the previous helper left, before
-            // anything reads the runtime journal (docs/runtime-component-update.md).
+            // First, before anything that could fail: settle a component
+            // update the previous helper left, and count this launch of a
+            // swapped-in helper, so a helper that fails anywhere after this
+            // is rolled back (docs/runtime-component-update.md).
             let components = RuntimeComponentUpdater(
-                environment: NativeRuntimeComponentEnvironment(executable: executable))
-            if components.launch() == .relaunch {
+                environment: NativeRuntimeComponentEnvironment(
+                    executable: executable, runningVersion: MicropodBuildInfo.version))
+            let launch = components.launch()
+            if launch == .relaunch {
                 fputs("Runtime helper restarts into the installed setup app\n", stderr)
                 exit(75)
             }
+            let confirmed = LaunchConfirmation()
+            if launch == .proceedUnconfirmed {
+                // A helper that hangs before it serves counts as a failed
+                // launch too: exit so launchd starts it, and the count, again.
+                DispatchQueue.global().asyncAfter(
+                    deadline: .now() + RuntimeComponentUpdater.confirmationDeadline
+                ) {
+                    if !confirmed.value { exit(75) }
+                }
+            }
+            try RootRuntimeStorage.prepareRoot()
+            let fd = open(
+                IsolatedRuntimePolicy.root.appendingPathComponent("host.lock").path,
+                O_CREAT | O_RDWR | O_NOFOLLOW | O_CLOEXEC, 0o600)
+            guard fd >= 0, flock(fd, LOCK_EX | LOCK_NB) == 0 else {
+                throw MicropodError.message("Another runtime helper owns the state")
+            }
+            try RuntimeCodeIdentity.verifyExecutable(executable, identifier: IsolatedRuntimePolicy.helperIdentifier)
             let controller = IsolatedRuntimeHostController(
                 driver: NativeIsolatedRuntimeHostDriver(executable: executable), components: components)
             let server = RuntimeHostServer(controller: controller)
             try server.start()
             let rig = IsolatedRuntimeRigServer(controller: controller)
             try rig.start()
-            await controller.continueComponentUpdate()
+            confirmed.value = await controller.continueComponentUpdate()
             await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
             withExtendedLifetime(rig) {}
         } catch {
@@ -85,22 +100,9 @@ struct MicropodRuntimeHost {
     }
 
     private static func probe() {
-        var count: UInt32 = 4096
-        var path = [CChar](repeating: 0, count: Int(count))
-        guard _NSGetExecutablePath(&path, &count) == 0 else { exit(1) }
-        let executable = URL(
-            fileURLWithPath: String(
-                decoding: path.prefix(while: { $0 != 0 }).map { UInt8(bitPattern: $0) }, as: UTF8.self)
-        ).resolvingSymlinksInPath()
-        let plist = executable.deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Info.plist")
-        let info =
-            FileManager.default.contents(atPath: plist.path).flatMap {
-                try? PropertyListSerialization.propertyList(from: $0, format: nil) as? [String: Any]
-            } ?? [:]
+        // The compiled-in release, not a plist in a writable bundle.
         let report = RuntimeComponentProbe.current(
-            version: info["CFBundleShortVersionString"] as? String ?? "0.0.0",
-            revision: info["MicropodSourceRevision"] as? String ?? "")
+            version: MicropodBuildInfo.version, revision: MicropodBuildInfo.sourceRevision)
         guard let data = try? JSONEncoder().encode(report) else { exit(1) }
         FileHandle.standardOutput.write(data + Data([10]))
     }
@@ -122,6 +124,16 @@ struct MicropodRuntimeHost {
             fputs("\(error.localizedDescription)\n", stderr)
             exit(1)
         }
+    }
+}
+
+/// Set once the helper serves and a swapped-in helper confirmed itself.
+private final class LaunchConfirmation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var confirmed = false
+    var value: Bool {
+        get { lock.withLock { confirmed } }
+        set { lock.withLock { confirmed = newValue } }
     }
 }
 

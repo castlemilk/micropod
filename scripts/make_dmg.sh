@@ -43,7 +43,7 @@ if [ -n "$IDENTITY" ]; then
         esac
         identifiers=()
         case "$(basename "$bin")" in
-            MicropodRuntimeHost) identifiers=(--identifier com.skunkworq.micropod.runtime.host) ;;
+            MicropodRuntimeHost) identifiers=(--identifier com.skunkworq.micropod.runtime-authority) ;;
             MicropodAPI) identifiers=(--identifier com.skunkworq.micropod.api) ;;
             micropod-cli) identifiers=(--identifier com.skunkworq.micropod.cli) ;;
             MicropodMCP) identifiers=(--identifier com.skunkworq.micropod.mcp) ;;

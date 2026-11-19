@@ -172,8 +172,12 @@ enum PersistentDesktopAgents {
             throw MicropodError.message("The dedicated API has no unique verified owner")
         }
         var witnesses = [
-            try UpdateServiceWitness.capture(
-                name: "runtime-setup-helper", pid: helper, identifier: IsolatedRuntimePolicy.helperIdentifier),
+            try
+                (try? UpdateServiceWitness.capture(
+                    name: "runtime-setup-helper", pid: helper, identifier: IsolatedRuntimePolicy.helperIdentifier))
+                ?? UpdateServiceWitness.capture(
+                    name: "runtime-setup-helper", pid: helper,
+                    identifier: IsolatedRuntimePolicy.legacyHelperIdentifier),
             try UpdateServiceWitness.capture(
                 name: "dedicated-api", pid: pid,
                 identifier: IsolatedRuntimeAPIConfiguration.executableIdentifier),

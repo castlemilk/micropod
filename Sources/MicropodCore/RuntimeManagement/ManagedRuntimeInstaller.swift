@@ -205,14 +205,15 @@ public actor ManagedRuntimeInstaller {
     }
 
     public nonisolated static func sha256(_ file: URL) throws -> String {
-        let fd = open(file.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+        // O_NONBLOCK: a FIFO in place of an artifact is refused, not waited on.
+        let fd = open(file.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK)
         guard fd >= 0 else { throw MicropodError.message("Runtime artifact is unavailable or is a symbolic link") }
         let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
         defer { try? handle.close() }
         var info = stat()
         guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG,
-            info.st_size >= 0, info.st_size <= 1 << 30
-        else { throw MicropodError.message("Runtime artifact exceeds its size limit") }
+            info.st_size >= 0, info.st_size <= 1 << 30, fcntl(fd, F_SETFL, 0) == 0
+        else { throw MicropodError.message("Runtime artifact is not a bounded regular file") }
         var hasher = SHA256()
         while let bytes = try handle.read(upToCount: 1 << 20), !bytes.isEmpty { hasher.update(data: bytes) }
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()

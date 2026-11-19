@@ -225,6 +225,8 @@ jobs:
             sparkle=$(jq -er '.pins[] | select(.identity == "sparkle") | .state.version' Package.resolved)
             curl -fsSL -o /tmp/sparkle-components.tar.xz \
               "https://github.com/sparkle-project/Sparkle/releases/download/$sparkle/Sparkle-$sparkle.tar.xz"
+            # sign_update is handed the release key: only pinned bytes run.
+            bash scripts/verify_sparkle_tools.sh "$sparkle" /tmp/sparkle-components.tar.xz
             mkdir -p /tmp/sparkle-components && tar -xf /tmp/sparkle-components.tar.xz -C /tmp/sparkle-components
             echo "$SPARKLE_ED25519_KEY" | base64 -d > "$RUNNER_TEMP/components-ed.key"
             trap 'rm -f "$RUNNER_TEMP/components-ed.key"' EXIT
@@ -309,6 +311,7 @@ jobs:
           sparkle=$(jq -er '.pins[] | select(.identity == "sparkle") | .state.version' Package.resolved)
           curl -fsSL -o /tmp/sparkle.tar.xz \
             "https://github.com/sparkle-project/Sparkle/releases/download/$sparkle/Sparkle-$sparkle.tar.xz"
+          bash scripts/verify_sparkle_tools.sh "$sparkle" /tmp/sparkle.tar.xz
           mkdir -p /tmp/sparkle && tar -xf /tmp/sparkle.tar.xz -C /tmp/sparkle
           echo "$SPARKLE_ED25519_KEY" | base64 -d > "$RUNNER_TEMP/ed.key"
           /tmp/sparkle/bin/sign_update --ed-key-file "$RUNNER_TEMP/ed.key" \
