@@ -358,6 +358,13 @@ def qualify(args, result, home):
             status = cli("status", check=False)
             if status.returncode == 0:
                 docker("rm", "-f", service, check=False)
+                if args.pipelines:
+                    # The Testcontainers reaper intentionally outlives the test process.
+                    # Let it finish on the private benchmark worker before its authoritative idle check.
+                    deadline = time.monotonic() + 60
+                    while (time.monotonic() < deadline and
+                           docker("ps", "-q", "--filter", "label=org.testcontainers.reaper=true").stdout.strip()):
+                        time.sleep(.5)
                 cli("stop")
         else:
             host("rm", "-f", outer, check=False)
