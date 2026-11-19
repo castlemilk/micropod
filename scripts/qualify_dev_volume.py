@@ -60,7 +60,7 @@ def qualify(binary, result):
         original = projects / "script"
         original.write_bytes(b"#!/bin/sh\nexit 0\n")
         original.chmod(0o751)
-        os.setxattr(original, "org.micropod.test", b"checked")
+        run("/usr/bin/xattr", "-w", "org.micropod.test", "checked", original)
         os.link(original, projects / "hardlink")
         (projects / "dangling").symlink_to("missing")
         (projects / ".git").mkdir()
@@ -79,6 +79,7 @@ def qualify(binary, result):
                 raise RuntimeError("Fixture unexpectedly resolved to the startup container")
 
             def cli(action, *args, cwd=work, check=True):
+                print("Volume fixture", action, flush=True)
                 return run(binary, "storage", "dev-volume", action, "--state-dir", state, *args, "--json", cwd=cwd, check=check)
 
             options = ["--projects", projects, "--pnpm-store", store, "--container", container, "--unencrypted"]
@@ -105,7 +106,7 @@ def qualify(binary, result):
             assert json.loads(cli("migrate").stdout)["trees"] == moved["trees"]
             assert os.stat(original).st_ino == os.stat(projects / "hardlink").st_ino
             assert os.stat(original).st_mode & 0o777 == 0o751
-            assert os.getxattr(original, "org.micropod.test") == b"checked"
+            assert run("/usr/bin/xattr", "-p", "org.micropod.test", original).stdout.strip() == b"checked"
             assert os.readlink(projects / "dangling") == "missing"
             assert (projects / ".git/fixture").read_text() == "retained\n"
             os.link(store / "package", projects / "linked-package")

@@ -33,3 +33,18 @@ jobs:
         with:
           name: development-volume
           path: ${{ runner.temp }}/volume.json
+
+  warm-linux:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+      - name: Pull native Alpine
+        run: docker pull alpine:3.20
+      - name: Verify the running kernel and measure 1, 4, 8 and 16 clients
+        run: python3 scripts/bench_live_kernel.py --engine linux-docker --socket /var/run/docker.sock --json "$RUNNER_TEMP/kernel.json"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: arm64-live-kernel
+          path: ${{ runner.temp }}/kernel.json
