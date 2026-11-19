@@ -795,6 +795,11 @@ micropod runtime operation --json    # componentUpdate, componentProtection, hel
   guest output treated as untrusted.
 - **F5–F6:** both gate hooks are root-owned files naming the exact code and
   expiring; an armed fault is reported.
+- **Follow-up:** `harden` writes the marker last (with a `hardened` line the
+  guard requires); the matrix's sudo rule names `/bin/bash` and the runner
+  pins `PATH`; publication fails closed on a missing (from v0.13.10),
+  misplaced or duplicated tarball manifest; the build refuses a floor above
+  the release.
 - **F7:** `runtime-authority` reports `unprotected` and `legacy_active` from
   the authority's published protection check (`RuntimeHost/protection.json`,
   refreshed at start, on updates and every five minutes);

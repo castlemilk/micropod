@@ -54,6 +54,12 @@ floor = __import__("os").environ.get("MICROPOD_COMPONENTS_SECURITY_FLOOR")
 if floor:
     if not __import__("re").fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", floor):
         raise SystemExit("MICROPOD_COMPONENTS_SECURITY_FLOOR must be X.Y.Z")
+    # Helpers refuse a manifest whose floor is above its own release; fail the
+    # build here instead of shipping one.
+    release = manifest["version"]
+    if not __import__("re").fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", release) or \
+            tuple(map(int, floor.split("."))) > tuple(map(int, release.split("."))):
+        raise SystemExit(f"MICROPOD_COMPONENTS_SECURITY_FLOOR {floor} is above the release {release}")
     manifest["securityFloor"] = floor
 if guest:
     manifest["guestSHA256"] = guest

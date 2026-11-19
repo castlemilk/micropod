@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Micropod runtime-authority release gate: runs INSIDE a throwaway macOS 26 VM
 # (docs/vm-release-gate.md). Never run it on a real rig: it replaces, kills and
 # attacks the runtime helper on purpose.
@@ -24,6 +24,10 @@
 # Exit codes: 0 every check passed, 1 a check failed, 75 the step needs a
 # reboot (reboot, log in, run the step it names).
 set -u -o pipefail
+# sudo on macOS keeps the caller's PATH; the root copy the matrix runs must
+# never resolve a command through it.
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+export PATH
 
 RC=${MICROPOD_GATE_RC:-"/Volumes/My Shared Files/rc"}
 GATE=/Users/Shared/micropod-gate
@@ -67,6 +71,8 @@ vm_guard() {
     [ -f "$MARKER" ] && [ ! -L "$MARKER" ] && [ "$(stat -f %u "$MARKER")" = 0 ] ||
       die "no root-owned $MARKER: run 'harden' in a fresh gate VM first"
     head -1 "$MARKER" | grep -q '^micropod-gate-vm ' || die "$MARKER is not a gate marker"
+    # Written only once every hardening check passed.
+    grep -q '^hardened ' "$MARKER" || die "$MARKER says the VM was not hardened: run 'harden' again"
   fi
   if pgrep -fil 'cuttle|cuttlefish' >/dev/null; then
     die "a Cuttlefish process runs here: $(pgrep -fil 'cuttle|cuttlefish' | head -3 | tr '\n' ' ')"
@@ -669,9 +675,6 @@ case "$STEP" in
     key="$RC/gate_key.pub"
     [ -f "$key" ] || die "no $key: run 'bash gate-host.sh key' on the host first"
     grep -Eq '^ssh-ed25519 [A-Za-z0-9+/=]+( .*)?$' "$key" || die "$key is not an ed25519 public key"
-    printf 'micropod-gate-vm %s\n' "$(uuidgen)" | sudo tee "$MARKER" >/dev/null
-    sudo chown root:wheel "$MARKER"
-    sudo chmod 0644 "$MARKER"
     say "Password: the vanilla image's is 'admin'."
     read -r -s -p "Current password: " old
     say ""
@@ -704,20 +707,34 @@ case "$STEP" in
       sudo install -d -o root -g wheel -m 0755 "$(dirname "$ROOT_COPY")"
       sudo install -o root -g wheel -m 0755 "$0" "$ROOT_COPY"
       rule=$(mktemp)
+      # The interpreter is named in the rule: nothing is looked up in PATH.
       {
-        printf '%s ALL=(root) NOPASSWD: %s g3-kill *, ' "$GATE_USER" "$ROOT_COPY"
-        printf '%s g3-check *, /sbin/shutdown -r now\n' "$ROOT_COPY"
+        printf '%s ALL=(root) NOPASSWD: /bin/bash %s g3-kill *, ' "$GATE_USER" "$ROOT_COPY"
+        printf '/bin/bash %s g3-check *, /sbin/shutdown -r now\n' "$ROOT_COPY"
       } >"$rule"
       check "the scoped matrix sudo rule is valid" sudo visudo -cf "$rule"
       sudo install -o root -g wheel -m 0440 "$rule" "$SUDOERS"
       rm -f "$rule"
       sudo -k
       check "sudo without a password runs the matrix steps" \
-        sudo -n -l "$ROOT_COPY" g3-check staged
+        sudo -n -l /bin/bash "$ROOT_COPY" g3-check staged
+      check "sudo without a password does not run the copy any other way" \
+        refuse sudo -n -l "$ROOT_COPY" g3-check staged
       check "sudo without a password runs nothing else" refuse sudo -n -l /usr/bin/true
     fi
     sudo -k
     check "sudo asks for the password again" refuse sudo -n true
+    # The marker goes last: only a VM where every check above passed is a
+    # gate VM (vm_guard requires the "hardened" line).
+    if [ "$FAILED" -eq 0 ]; then
+      marker=$(mktemp)
+      printf 'micropod-gate-vm %s\nhardened %s\n' "$(uuidgen)" "$(date -u +%FT%TZ)" >"$marker"
+      sudo install -o root -g wheel -m 0644 "$marker" "$MARKER"
+      rm -f "$marker"
+      check "the gate marker is written" grep -q '^hardened ' "$MARKER"
+    else
+      say "  harden failed: no marker was written; fix the failed check and run harden again"
+    fi
     result
     ;;
 

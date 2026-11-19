@@ -93,25 +93,32 @@ test("absent draft tag allowed; published and existing tags pin exact source", (
 });
 // A tarball shaped like the release's, optionally with a runtime component
 // manifest (castlemilk/micropod#178).
-function frozenTarball(directory, name, components) {
+// `dot` archives "./Micropod.app/..."; `at` puts the manifest elsewhere,
+// `copies` adds more of it and `twice` archives the app under both spellings.
+function frozenTarball(directory, name, components, { dot = false, at = "Micropod.app/Contents/Resources", copies = [], twice = false } = {}) {
     const root = join(directory, "tree");
     mkdirSync(join(root, "Micropod.app/Contents/Resources"), { recursive: true });
     writeFileSync(join(root, "micropod"), "cli");
-    if (components) writeFileSync(join(root, "Micropod.app/Contents/Resources/runtime-components.json"), JSON.stringify(components));
-    const made = spawnSync("tar", ["-czf", join(directory, name), "-C", root, "Micropod.app", "micropod"]);
+    for (const place of components ? [at, ...copies] : []) {
+        mkdirSync(join(root, place), { recursive: true });
+        writeFileSync(join(root, place, "runtime-components.json"), JSON.stringify(components));
+    }
+    const top = [...new Set(["Micropod.app", "micropod", ...[at, ...copies].map((place) => place.split("/")[0])])];
+    const made = spawnSync("tar", ["-czf", join(directory, name), "-C", root, ...top.map((entry) => (dot ? "./" : "") + entry),
+        ...(twice ? ["./Micropod.app"] : [])]);
     assert.equal(made.status, 0, String(made.stderr));
     rmSync(root, { recursive: true });
     return readFileSync(join(directory, name));
 }
 // Fixture assets for `record`, with the given tarball contents and source
 // file; returns the record with sizes and digests matching them.
-function stage(directory, record, { components = null, source = record.source + "\n" } = {}) {
+function stage(directory, record, { components = null, source = record.source + "\n", layout = {} } = {}) {
     const small = structuredClone(record);
     for (const [name, spec] of Object.entries(small.assets)) {
         let bytes = Buffer.from(name);
         if (name === "qualification-source.txt") bytes = Buffer.from(source);
         if (name === "Micropod.dmg.sha256") bytes = Buffer.from(small.assets["Micropod.dmg"].sha256 + "  Micropod.dmg\n");
-        if (name === `Micropod.${small.tag.slice(1)}.tgz`) bytes = frozenTarball(directory, name, components);
+        if (name === `Micropod.${small.tag.slice(1)}.tgz`) bytes = frozenTarball(directory, name, components, layout);
         spec.size = bytes.length; spec.sha256 = createHash("sha256").update(bytes).digest("hex");
         writeFileSync(join(directory, name), bytes);
     }
@@ -150,10 +157,28 @@ test("publication checks the frozen runtime security floor and refuses gate-floo
         staged = stage(directory, { ...record, runtimeComponentsSecurityFloor: "0.14.0" },
             { components: components("0.14.0"), source: `${record.source}\ngate-security-floor=0.14.0\n` });
         assert.throws(() => verifyAssets(staged, directory), /VM-gate security floor/);
-        // A release that predates the manifest reviews no floor.
-        staged = stage(directory, record);
+        // "./Micropod.app/..." is the same member.
+        staged = stage(directory, { ...record, runtimeComponentsSecurityFloor: "0.14.0" },
+            { components: components("0.14.0"), layout: { dot: true } });
         assert.throws(() => verifyAssets(staged, directory), /Sparkle signature/);
-        staged = stage(directory, { ...record, runtimeComponentsSecurityFloor: "0.14.0" });
+        // From #178 on, a missing, misplaced or duplicated manifest fails closed.
+        staged = stage(directory, { ...record, runtimeComponentsSecurityFloor: null });
+        assert.throws(() => verifyAssets(staged, directory), /must ship/);
+        staged = stage(directory, { ...record, runtimeComponentsSecurityFloor: null },
+            { components: components(null), layout: { at: "Micropod.app/Contents" } });
+        assert.throws(() => verifyAssets(staged, directory), /unexpected path/);
+        staged = stage(directory, { ...record, runtimeComponentsSecurityFloor: null },
+            { components: components(null), layout: { copies: ["extra/Micropod.app/Contents/Resources"] } });
+        assert.throws(() => verifyAssets(staged, directory), /unexpected path/);
+        staged = stage(directory, { ...record, runtimeComponentsSecurityFloor: null },
+            { components: components(null), layout: { twice: true } });
+        assert.throws(() => verifyAssets(staged, directory), /more than one/);
+        // A release that predates the manifest reviews no floor.
+        const older = { ...record, tag: "v0.13.9", assets: Object.fromEntries(Object.entries(record.assets).map(([name, spec]) =>
+            [name.replace(/^Micropod\.[0-9.]+\.tgz$/, "Micropod.0.13.9.tgz"), spec])) };
+        staged = stage(directory, older);
+        assert.throws(() => verifyAssets(staged, directory), /Sparkle signature/);
+        staged = stage(directory, { ...older, runtimeComponentsSecurityFloor: "0.13.9" });
         assert.throws(() => verifyAssets(staged, directory), /no runtime component manifest/);
     } finally { rmSync(directory, { recursive: true }); }
     // A floor above the release, or another release's manifest.

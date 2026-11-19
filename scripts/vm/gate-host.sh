@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Host side of the runtime-authority release gate (docs/vm-release-gate.md):
 # a pinned, signature-checked tart, a pinned macOS 26 image, and the
 # migration kill matrix on throwaway clones. Everything lives under
@@ -171,14 +171,14 @@ case "${1:-help}" in
         "$TART" clone gate-legacy-base "$vm" || die "clone failed"
         boot "$vm" --no-graphics
         wait_ssh "$vm" || die "$vm never answered ssh"
-        ssh_vm "$vm" sudo -n "$ROOT_GATE" g3-kill "$point" 2>&1 | cat -v | tee -a "$log"
+        ssh_vm "$vm" sudo -n /bin/bash "$ROOT_GATE" g3-kill "$point" 2>&1 | cat -v | tee -a "$log"
         if [ "$mode" = rebooted ]; then
           ssh_vm "$vm" sudo -n /sbin/shutdown -r now >/dev/null 2>&1
           sleep 30
           wait_ssh "$vm" || die "$vm did not come back"
-          ssh_vm "$vm" sudo -n "$ROOT_GATE" g3-check "$point" rebooted 2>&1 | cat -v | tee -a "$log"
+          ssh_vm "$vm" sudo -n /bin/bash "$ROOT_GATE" g3-check "$point" rebooted 2>&1 | cat -v | tee -a "$log"
         else
-          ssh_vm "$vm" sudo -n "$ROOT_GATE" g3-check "$point" 2>&1 | cat -v | tee -a "$log"
+          ssh_vm "$vm" sudo -n /bin/bash "$ROOT_GATE" g3-check "$point" 2>&1 | cat -v | tee -a "$log"
         fi
         "$TART" stop "$vm" >/dev/null 2>&1
         "$TART" delete "$vm"

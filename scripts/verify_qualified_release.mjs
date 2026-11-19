@@ -129,13 +129,28 @@ export function qualificationSource(text) {
     }
     return { source, gateSecurityFloor };
 }
-// The runtime component manifest inside the frozen tarball, or null for a
-// release that predates it (castlemilk/micropod#178).
-export function frozenRuntimeComponents(tgz) {
-    const member = "Micropod.app/Contents/Resources/runtime-components.json";
-    const listing = execFileSync("tar", ["-tzf", tgz], { maxBuffer: 64 << 20 }).toString("utf8").split("\n");
-    if (!listing.includes(member)) return null;
-    return JSON.parse(execFileSync("tar", ["-xzOf", tgz, member], { maxBuffer: 1 << 20 }).toString("utf8"));
+// The first release that must ship a runtime component manifest
+// (castlemilk/micropod#178; v0.13.9 is the newest release before it).
+export const runtimeComponentsSince = "0.13.10";
+const runtimeComponentsMember = "Micropod.app/Contents/Resources/runtime-components.json";
+// The runtime component manifest inside the frozen tarball (as
+// "Micropod.app/..." or "./Micropod.app/..."), or null for a release before
+// runtimeComponentsSince. Fails closed: a missing manifest from that release
+// on, a manifest anywhere else in the tarball, or more than one copy.
+export function frozenRuntimeComponents(tgz, tag) {
+    const listing = execFileSync("tar", ["-tzf", tgz], { maxBuffer: 64 << 20 }).toString("utf8").split("\n").filter(Boolean);
+    const normalize = (name) => name.replace(/^(\.\/)+/, "").replace(/\/{2,}/g, "/");
+    const named = listing.filter((name) => /(^|\/)runtime-components\.json$/.test(name));
+    const members = named.filter((name) => normalize(name) === runtimeComponentsMember);
+    if (named.length !== members.length) throw new Error(`runtime component manifest at an unexpected path: ${named.join(", ")}`);
+    if (members.length > 1) throw new Error("the frozen tarball holds more than one runtime component manifest");
+    if (members.length === 0) {
+        if (compareVersions(tag.replace(/^v/, ""), runtimeComponentsSince) >= 0) {
+            throw new Error(`${tag} must ship ${runtimeComponentsMember}`);
+        }
+        return null;
+    }
+    return JSON.parse(execFileSync("tar", ["-xzOf", tgz, members[0]], { maxBuffer: 1 << 20 }).toString("utf8"));
 }
 // The runtime security floor a release ships must be the one its reviewed
 // record names (runtimeComponentsSecurityFloor: "X.Y.Z" or null), at most the
@@ -166,7 +181,7 @@ export function verifyAssets(manifest, directory) {
     if (sidecar !== `${manifest.assets["Micropod.dmg"].sha256}  Micropod.dmg`) throw new Error("DMG sidecar mismatch");
     const tarballs = Object.keys(manifest.assets).filter((name) => name === `Micropod.${manifest.tag.slice(1)}.tgz`);
     if (tarballs.length !== 1) throw new Error("the frozen tarball is missing");
-    checkRuntimeComponentsFloor(manifest, frozenRuntimeComponents(join(directory, tarballs[0])));
+    checkRuntimeComponentsFloor(manifest, frozenRuntimeComponents(join(directory, tarballs[0]), manifest.tag));
     const key = createPublicKey({ key: Buffer.concat([Buffer.from("302a300506032b6570032100", "hex"), Buffer.from(publicKey, "base64")]), format: "der", type: "spki" });
     if (!verify(null, readFileSync(join(directory, "Micropod.dmg")), key, Buffer.from(manifest.sparkleSignature, "base64"))) {
         throw new Error("DMG Sparkle signature does not match the pinned release key");

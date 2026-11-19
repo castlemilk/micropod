@@ -138,18 +138,25 @@ bash "$G" harden
 It refuses unless it runs in a fresh VM (see the ground rules). It asks for
 the current password (`admin` on the vanilla image), then:
 
-- writes the root-owned marker the other steps require;
 - sets a random password and keeps automatic login working (the shared
   folder mounts at login). **It prints the password once**: write it down;
   sudo in this VM and its clones asks for it;
 - installs `gate_key.pub` and turns ssh into key-only;
 - removes every passwordless sudo rule (if `/etc/sudoers` itself has one,
-  the check fails: remove it with `sudo visudo`, then run `harden` in a fresh
-  clone).
+  that check fails: remove it with `sudo visudo`);
+- last, and only if every check passed, writes the root-owned marker
+  (`/var/db/micropod-gate-vm`, with a `hardened` line) that every other step
+  requires.
+
+If a check fails, no marker is written: fix it and run `harden` again in the
+same VM, giving the password it printed as the current one.
 
 In the legacy base only, run `bash "$G" harden matrix` instead. That also
 installs a root-owned copy of the runner and a sudo rule letting the host run
-exactly `g3-kill`, `g3-check` and a reboot without a password, nothing else.
+exactly `/bin/bash <copy> g3-kill *`, `/bin/bash <copy> g3-check *` and
+`/sbin/shutdown -r now` without a password, nothing else. The interpreter is
+named in the rule and the runner sets its own `PATH`, because macOS sudo
+keeps the caller's.
 
 Shut a VM down from inside with `sudo shutdown -h now`. To reboot when the
 runner asks: `sudo shutdown -r now`, then run the step it names.

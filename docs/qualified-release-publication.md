@@ -15,8 +15,13 @@ manifest (`Micropod.app/Contents/Resources/runtime-components.json`, castlemilk/
 must name its floor in the reviewed record: `"runtimeComponentsSecurityFloor":
 "X.Y.Z"` or `null`. Publication extracts the manifest from the frozen tarball
 and refuses unless its `securityFloor` is exactly that value, at most the
-release itself, and the manifest names this release. A release without the
-manifest must not name one. The floor is permanent on every rig that installs
+release itself, and the manifest names this release. The member may be
+`Micropod.app/...` or `./Micropod.app/...`; any other copy of
+`runtime-components.json` in the tarball, or more than one, is refused. From
+v0.13.10 on (`runtimeComponentsSince`, the first release after #178) the
+manifest is required; an older release without it must not name a floor.
+`scripts/write_runtime_components.sh` already refuses to build a floor above
+the release. The floor is permanent on every rig that installs
 the release (root refuses anything below it), so it is reviewed like the
 version itself.
 
