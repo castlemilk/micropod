@@ -69,8 +69,7 @@ It follows the same rules as the manual run:
 - **`out/`.** cuttle never writes to `out/` and refuses it if it holds a
   symbolic link. It parses `results.tsv` strictly and with bounds. A step's
   verdict is recorded when that step ends, so a later VM cannot change it.
-  A FAIL that `g9`, `g4-after` or `g4-before` prints before asking for a
-  reboot also fails its test.
+  A test that reboots passes only if both of its lines pass.
 - **The end.** cuttle runs `cleanup`, removes `~/micropod-rc` and deletes
   draft B; A is kept. It then starts Docker Desktop and the agent again. A
   failure or Ctrl-C does the same restore. `--resume` continues the run,
@@ -102,7 +101,7 @@ them say so in the PR, with new digests.
 ```sh
 mkdir -p ~/micropod-rc
 cd ~/micropod-rc
-REF=01770f1253cc1cfec021bd35ee9a4f3142273bc6
+REF=9403632962cbbec5b97fbf6179915530797bd2e1
 R=repos/castlemilk/micropod/contents/scripts/vm
 A='Accept: application/vnd.github.raw'
 gh api -H "$A" "$R/gate-host.sh?ref=$REF" > gate-host.sh
@@ -114,7 +113,7 @@ Both digests must match before going on:
 
 ```
 d43c0ebc1e1801b450acdcf9e353eecf14f32002308b144994a4e6afa964c35b  gate-host.sh
-ada396ea8e57937d1223d8085893a634c766b58428457fa791c711d2464e12d9  runtime-authority-gate.sh
+d59456068a18dfc291b341ba2e172a3710fade69bc7723c22b9cec883b390123  runtime-authority-gate.sh
 ```
 
 ## 2. tart and the image
@@ -276,7 +275,10 @@ bash "$G" g4-after-reboot
 ```
 
 `g9` pauses for the Retire the Old Background Item… click. Shut down, then
-`bash $H rm gate-t`.
+`bash $H rm gate-t`. A step that asks for a reboot (`g9`, `g4-after`,
+`g4-before`) first records the checks it made as its own line in
+`results.tsv`; the step after the reboot records the rest. G9 and G4 pass
+only if both of their lines are PASS.
 
 **G4 (before)**, the baseline, on its own clone:
 
@@ -306,7 +308,9 @@ bash $H results
 `~/micropod-gate-vm/out/results.tsv` has one line per step (PASS, FAIL,
 INCOMPLETE, BASELINE) and `out/logs/` the detail of every check, both written
 by the VMs; `logs/matrix.log` is the matrix, written by the host. INCOMPLETE
-means an input was missing; it is not a pass.
+means an input was missing, or an agent-spawned attacker never ran (`g5`,
+`g4-after`, `g4-before`; `out/logs/<step>.log` shows whether launchd started
+it). It is not a pass. A test that reboots has two lines, and both must pass.
 
 ## 8. Delete it
 
