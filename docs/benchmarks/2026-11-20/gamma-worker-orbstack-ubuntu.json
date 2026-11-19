@@ -1,0 +1,2523 @@
+{
+  "profile": "rig-pair",
+  "workload": "docker-run-rm-kernel-streams-v1",
+  "measured_at": "2026-11-19T23:03:39Z",
+  "system": "Darwin",
+  "arch": "arm64",
+  "clock": "client",
+  "image": "alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+  "rounds": 5,
+  "macos": "26.5.1",
+  "engines": [
+    "micropod-worker",
+    "orbstack"
+  ],
+  "hardware": {
+    "machine_model": "Mac17,6",
+    "chip_type": "Apple M5 Max",
+    "number_processors": "proc 18:6:0:12",
+    "physical_memory": "128 GB"
+  },
+  "blocks": [
+    {
+      "engine": "micropod-worker",
+      "block": 1,
+      "host_load_before": [
+        16.82080078125,
+        13.35791015625,
+        18.06298828125
+      ],
+      "started_at": "2026-11-19T23:03:39Z",
+      "micropod_worker": {
+        "worker": "F8E19F80-E852-4A23-8152-67B9CE16C1CD",
+        "instance": "E3D6F1AD-0813-4346-A70A-12D1EF9AD655",
+        "executable_sha256": "a0a669cf533cad3945b81df9ff58653d791d2aa669d81bde4567faa611b1f633"
+      },
+      "timed_client": "micropod ci run",
+      "server": {
+        "ID": "4d74a9d5-e220-4387-be4b-fd44af063c67",
+        "Name": "micropod-ci",
+        "OperatingSystem": "Alpine Linux v3.24 (containerized)",
+        "Architecture": "aarch64",
+        "ServerVersion": "29.9.3",
+        "KernelVersion": "6.18.35",
+        "NCPU": 4,
+        "MemTotal": 4118708224,
+        "SecurityOptions": [
+          "name=seccomp,profile=builtin",
+          "name=cgroupns"
+        ]
+      },
+      "image_id": "sha256:ab3fe4defd29ba6231229a4d41440ac8bde8218e85870e53876277faa24b35c4",
+      "architecture": "arm64",
+      "image_digests": [
+        "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+      ],
+      "local_image_id": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+      "boot_sha256": "1e93ea1d210b3b69a70ede5be2cab950831a27a92532808c5e24b88ef364438b",
+      "namespaces": [
+        [
+          "pid:[4026532198]",
+          "mnt:[4026532195]"
+        ],
+        [
+          "pid:[4026532270]",
+          "mnt:[4026532267]"
+        ]
+      ],
+      "resource_contract": "1 CPU / 256 MiB",
+      "ownership_check": "Linux parent and overlapping containers",
+      "batches": [
+        {
+          "round": 1,
+          "clients": 1,
+          "seconds": 0.125139,
+          "passed": 1,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 4,
+          "seconds": 0.190566,
+          "passed": 4,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 8,
+          "seconds": 0.298435,
+          "passed": 8,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 16,
+          "seconds": 0.892638,
+          "passed": 16,
+          "errors": []
+        }
+      ],
+      "p50_seconds": {
+        "1": 0.125139,
+        "4": 0.190566,
+        "8": 0.298435,
+        "16": 0.892638
+      },
+      "package_caches": {
+        "workload": "offline-npm-go-oci-v1",
+        "architecture": "arm64",
+        "image_id": "sha256:73e5c74172d3555c685f3c8aad44163b52893478974e4c9926ba16a8a2c3a350",
+        "script_sha256": "19140bce31f30539080b6f9315c6325a53effddc5f83871d9375664cafd7a003",
+        "resource_contract": "1 CPU / 1 GiB",
+        "clients": [
+          1,
+          4,
+          8,
+          16
+        ],
+        "blocks": [
+          {
+            "batches": [
+              {
+                "tool": "npm",
+                "clients": 1,
+                "seconds": 0.434451,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 1,
+                "seconds": 0.513241,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 4,
+                "seconds": 0.616868,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 4,
+                "seconds": 0.683969,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 8,
+                "seconds": 1.36747,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 8,
+                "seconds": 1.096411,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 16,
+                "seconds": 2.886507,
+                "passed": 16,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 16,
+                "seconds": 2.484665,
+                "passed": 16,
+                "errors": []
+              }
+            ],
+            "round": 1,
+            "cold": {
+              "npm_cache_add_seconds": 0.20749912500002665,
+              "go_download_seconds": 0.0056164169999419755,
+              "go_cold_build_seconds": 6.78215537799997,
+              "go_cold_compiler_or_assembler_invocations": 107
+            },
+            "versions": {
+              "go": "go version go1.26.11 linux/arm64",
+              "npm": "11.19.1",
+              "node": "v24.22.3"
+            },
+            "before": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "lock": {
+              "npm_integrity": "sha512-DK0sqm91yhbkfdTAQwbTy5tvpNugdn2ELPNxfTfbKeUfqETLjkulIpzMH+HqtYvZzeKHKJao9QEhyQiZVw51mQ==",
+              "go_sum": "example.test/shared v1.0.0 h1:SUh8FXQkzG2Eyft/tsgx9FthiQGaP1vUedbaTJLRWWY=\nexample.test/shared v1.0.0/go.mod h1:EazEgfmYsFYbznxLMACijtdxme13u0P8vqrI2V8H9oo=\n",
+              "go_zip_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3"
+            },
+            "after": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "same_payload_inodes": true,
+            "empty_offline_controls": true
+          }
+        ],
+        "median_seconds": {
+          "npm": {
+            "1": 0.434451,
+            "4": 0.683969,
+            "8": 1.36747,
+            "16": 2.484665
+          },
+          "go": {
+            "1": 0.513241,
+            "4": 0.616868,
+            "8": 1.096411,
+            "16": 2.886507
+          }
+        },
+        "passed": true,
+        "local_image_id": "sha256:ebc2079e1a616bf43ca219e21b53d9bac7043e71d3e2f68eebdaa8c26fed4ded"
+      },
+      "host_load_after": [
+        16.2568359375,
+        13.49072265625,
+        17.9736328125
+      ],
+      "passed": true
+    },
+    {
+      "engine": "orbstack",
+      "block": 1,
+      "host_load_before": [
+        16.2568359375,
+        13.49072265625,
+        17.9736328125
+      ],
+      "started_at": "2026-11-19T23:04:03Z",
+      "timed_client": "docker run --rm",
+      "server": {
+        "ID": "f62699f3-0ed1-4856-a30d-87361fd8e735",
+        "Name": "orbstack",
+        "OperatingSystem": "OrbStack",
+        "Architecture": "aarch64",
+        "ServerVersion": "29.8.2",
+        "KernelVersion": "7.2.12-orbstack-00394-gbecdd6130068",
+        "NCPU": 4,
+        "MemTotal": 4180480000,
+        "SecurityOptions": [
+          "name=seccomp,profile=builtin",
+          "name=cgroupns"
+        ]
+      },
+      "mac_app_bundle": {
+        "CFBundleShortVersionString": "2.2.5",
+        "CFBundleVersion": "21124"
+      },
+      "image_id": "sha256:ab3fe4defd29ba6231229a4d41440ac8bde8218e85870e53876277faa24b35c4",
+      "architecture": "arm64",
+      "image_digests": [
+        "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+      ],
+      "local_image_id": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+      "boot_sha256": "63811471643e9c68dbf49b0ce283baa31b51e044f2e63ffd94132d84fe8f7668",
+      "namespaces": [
+        [
+          "pid:[4026532397]",
+          "mnt:[4026532394]"
+        ],
+        [
+          "pid:[4026532501]",
+          "mnt:[4026532498]"
+        ]
+      ],
+      "resource_contract": "1 CPU / 256 MiB",
+      "ownership_check": "overlapping orbstack containers",
+      "batches": [
+        {
+          "round": 1,
+          "clients": 1,
+          "seconds": 0.194804,
+          "passed": 1,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 4,
+          "seconds": 0.393179,
+          "passed": 4,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 8,
+          "seconds": 3.400785,
+          "passed": 8,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 16,
+          "seconds": 2.74624,
+          "passed": 16,
+          "errors": []
+        }
+      ],
+      "p50_seconds": {
+        "1": 0.194804,
+        "4": 0.393179,
+        "8": 3.400785,
+        "16": 2.74624
+      },
+      "package_caches": {
+        "workload": "offline-npm-go-oci-v1",
+        "architecture": "arm64",
+        "image_id": "sha256:73e5c74172d3555c685f3c8aad44163b52893478974e4c9926ba16a8a2c3a350",
+        "script_sha256": "19140bce31f30539080b6f9315c6325a53effddc5f83871d9375664cafd7a003",
+        "resource_contract": "1 CPU / 1 GiB",
+        "clients": [
+          1,
+          4,
+          8,
+          16
+        ],
+        "blocks": [
+          {
+            "batches": [
+              {
+                "tool": "npm",
+                "clients": 1,
+                "seconds": 0.647768,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 1,
+                "seconds": 0.61236,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 4,
+                "seconds": 0.873493,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 4,
+                "seconds": 1.078246,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 8,
+                "seconds": 2.168456,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 8,
+                "seconds": 1.739353,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 16,
+                "seconds": 2.811995,
+                "passed": 16,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 16,
+                "seconds": 3.870073,
+                "passed": 16,
+                "errors": []
+              }
+            ],
+            "round": 1,
+            "cold": {
+              "npm_cache_add_seconds": 0.157490155999767,
+              "go_download_seconds": 0.009761087999777374,
+              "go_cold_build_seconds": 4.716966020999735,
+              "go_cold_compiler_or_assembler_invocations": 107
+            },
+            "versions": {
+              "go": "go version go1.26.11 linux/arm64",
+              "npm": "11.19.1",
+              "node": "v24.22.3"
+            },
+            "before": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "lock": {
+              "npm_integrity": "sha512-DK0sqm91yhbkfdTAQwbTy5tvpNugdn2ELPNxfTfbKeUfqETLjkulIpzMH+HqtYvZzeKHKJao9QEhyQiZVw51mQ==",
+              "go_sum": "example.test/shared v1.0.0 h1:SUh8FXQkzG2Eyft/tsgx9FthiQGaP1vUedbaTJLRWWY=\nexample.test/shared v1.0.0/go.mod h1:EazEgfmYsFYbznxLMACijtdxme13u0P8vqrI2V8H9oo=\n",
+              "go_zip_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3"
+            },
+            "after": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "same_payload_inodes": true,
+            "empty_offline_controls": true
+          }
+        ],
+        "median_seconds": {
+          "npm": {
+            "1": 0.647768,
+            "4": 1.078246,
+            "8": 2.168456,
+            "16": 3.870073
+          },
+          "go": {
+            "1": 0.61236,
+            "4": 0.873493,
+            "8": 1.739353,
+            "16": 2.811995
+          }
+        },
+        "passed": true,
+        "local_image_id": "sha256:ebc2079e1a616bf43ca219e21b53d9bac7043e71d3e2f68eebdaa8c26fed4ded"
+      },
+      "host_load_after": [
+        15.72119140625,
+        13.74560546875,
+        17.9169921875
+      ],
+      "passed": true
+    },
+    {
+      "engine": "orbstack",
+      "block": 2,
+      "host_load_before": [
+        15.72119140625,
+        13.74560546875,
+        17.9169921875
+      ],
+      "started_at": "2026-11-19T23:04:35Z",
+      "timed_client": "docker run --rm",
+      "server": {
+        "ID": "f62699f3-0ed1-4856-a30d-87361fd8e735",
+        "Name": "orbstack",
+        "OperatingSystem": "OrbStack",
+        "Architecture": "aarch64",
+        "ServerVersion": "29.8.2",
+        "KernelVersion": "7.2.12-orbstack-00394-gbecdd6130068",
+        "NCPU": 4,
+        "MemTotal": 4180480000,
+        "SecurityOptions": [
+          "name=seccomp,profile=builtin",
+          "name=cgroupns"
+        ]
+      },
+      "mac_app_bundle": {
+        "CFBundleShortVersionString": "2.2.5",
+        "CFBundleVersion": "21124"
+      },
+      "image_id": "sha256:ab3fe4defd29ba6231229a4d41440ac8bde8218e85870e53876277faa24b35c4",
+      "architecture": "arm64",
+      "image_digests": [
+        "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+      ],
+      "local_image_id": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+      "boot_sha256": "63811471643e9c68dbf49b0ce283baa31b51e044f2e63ffd94132d84fe8f7668",
+      "namespaces": [
+        [
+          "pid:[4026532397]",
+          "mnt:[4026532394]"
+        ],
+        [
+          "pid:[4026532501]",
+          "mnt:[4026532498]"
+        ]
+      ],
+      "resource_contract": "1 CPU / 256 MiB",
+      "ownership_check": "overlapping orbstack containers",
+      "batches": [
+        {
+          "round": 1,
+          "clients": 4,
+          "seconds": 3.606764,
+          "passed": 4,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 8,
+          "seconds": 2.325444,
+          "passed": 8,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 16,
+          "seconds": 3.165427,
+          "passed": 16,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 1,
+          "seconds": 0.236216,
+          "passed": 1,
+          "errors": []
+        }
+      ],
+      "p50_seconds": {
+        "4": 3.606764,
+        "8": 2.325444,
+        "16": 3.165427,
+        "1": 0.236216
+      },
+      "package_caches": {
+        "workload": "offline-npm-go-oci-v1",
+        "architecture": "arm64",
+        "image_id": "sha256:73e5c74172d3555c685f3c8aad44163b52893478974e4c9926ba16a8a2c3a350",
+        "script_sha256": "19140bce31f30539080b6f9315c6325a53effddc5f83871d9375664cafd7a003",
+        "resource_contract": "1 CPU / 1 GiB",
+        "clients": [
+          4,
+          8,
+          16,
+          1
+        ],
+        "blocks": [
+          {
+            "batches": [
+              {
+                "tool": "npm",
+                "clients": 4,
+                "seconds": 0.897342,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 4,
+                "seconds": 0.704801,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 8,
+                "seconds": 1.299538,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 8,
+                "seconds": 1.51378,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 16,
+                "seconds": 4.299226,
+                "passed": 16,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 16,
+                "seconds": 4.289744,
+                "passed": 16,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 1,
+                "seconds": 0.604849,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 1,
+                "seconds": 0.581015,
+                "passed": 1,
+                "errors": []
+              }
+            ],
+            "round": 1,
+            "cold": {
+              "npm_cache_add_seconds": 0.1755589190001956,
+              "go_download_seconds": 0.006920350000200415,
+              "go_cold_build_seconds": 4.728969803000382,
+              "go_cold_compiler_or_assembler_invocations": 107
+            },
+            "versions": {
+              "go": "go version go1.26.11 linux/arm64",
+              "npm": "11.19.1",
+              "node": "v24.22.3"
+            },
+            "before": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "lock": {
+              "npm_integrity": "sha512-DK0sqm91yhbkfdTAQwbTy5tvpNugdn2ELPNxfTfbKeUfqETLjkulIpzMH+HqtYvZzeKHKJao9QEhyQiZVw51mQ==",
+              "go_sum": "example.test/shared v1.0.0 h1:SUh8FXQkzG2Eyft/tsgx9FthiQGaP1vUedbaTJLRWWY=\nexample.test/shared v1.0.0/go.mod h1:EazEgfmYsFYbznxLMACijtdxme13u0P8vqrI2V8H9oo=\n",
+              "go_zip_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3"
+            },
+            "after": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "same_payload_inodes": true,
+            "empty_offline_controls": true
+          }
+        ],
+        "median_seconds": {
+          "npm": {
+            "4": 0.897342,
+            "8": 1.51378,
+            "16": 4.299226,
+            "1": 0.581015
+          },
+          "go": {
+            "4": 0.704801,
+            "8": 1.299538,
+            "16": 4.289744,
+            "1": 0.604849
+          }
+        },
+        "passed": true,
+        "local_image_id": "sha256:ebc2079e1a616bf43ca219e21b53d9bac7043e71d3e2f68eebdaa8c26fed4ded"
+      },
+      "host_load_after": [
+        13.17578125,
+        13.26611328125,
+        17.56884765625
+      ],
+      "passed": true
+    },
+    {
+      "engine": "micropod-worker",
+      "block": 2,
+      "host_load_before": [
+        13.17578125,
+        13.26611328125,
+        17.56884765625
+      ],
+      "started_at": "2026-11-19T23:05:08Z",
+      "micropod_worker": {
+        "worker": "F8E19F80-E852-4A23-8152-67B9CE16C1CD",
+        "instance": "E3D6F1AD-0813-4346-A70A-12D1EF9AD655",
+        "executable_sha256": "a0a669cf533cad3945b81df9ff58653d791d2aa669d81bde4567faa611b1f633"
+      },
+      "timed_client": "micropod ci run",
+      "server": {
+        "ID": "4d74a9d5-e220-4387-be4b-fd44af063c67",
+        "Name": "micropod-ci",
+        "OperatingSystem": "Alpine Linux v3.24 (containerized)",
+        "Architecture": "aarch64",
+        "ServerVersion": "29.9.3",
+        "KernelVersion": "6.18.35",
+        "NCPU": 4,
+        "MemTotal": 4118708224,
+        "SecurityOptions": [
+          "name=seccomp,profile=builtin",
+          "name=cgroupns"
+        ]
+      },
+      "image_id": "sha256:ab3fe4defd29ba6231229a4d41440ac8bde8218e85870e53876277faa24b35c4",
+      "architecture": "arm64",
+      "image_digests": [
+        "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+      ],
+      "local_image_id": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+      "boot_sha256": "1e93ea1d210b3b69a70ede5be2cab950831a27a92532808c5e24b88ef364438b",
+      "namespaces": [
+        [
+          "pid:[4026532198]",
+          "mnt:[4026532195]"
+        ],
+        [
+          "pid:[4026532270]",
+          "mnt:[4026532267]"
+        ]
+      ],
+      "resource_contract": "1 CPU / 256 MiB",
+      "ownership_check": "Linux parent and overlapping containers",
+      "batches": [
+        {
+          "round": 1,
+          "clients": 4,
+          "seconds": 0.123908,
+          "passed": 4,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 8,
+          "seconds": 0.192282,
+          "passed": 8,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 16,
+          "seconds": 0.322117,
+          "passed": 16,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 1,
+          "seconds": 0.067074,
+          "passed": 1,
+          "errors": []
+        }
+      ],
+      "p50_seconds": {
+        "4": 0.123908,
+        "8": 0.192282,
+        "16": 0.322117,
+        "1": 0.067074
+      },
+      "package_caches": {
+        "workload": "offline-npm-go-oci-v1",
+        "architecture": "arm64",
+        "image_id": "sha256:73e5c74172d3555c685f3c8aad44163b52893478974e4c9926ba16a8a2c3a350",
+        "script_sha256": "19140bce31f30539080b6f9315c6325a53effddc5f83871d9375664cafd7a003",
+        "resource_contract": "1 CPU / 1 GiB",
+        "clients": [
+          4,
+          8,
+          16,
+          1
+        ],
+        "blocks": [
+          {
+            "batches": [
+              {
+                "tool": "npm",
+                "clients": 4,
+                "seconds": 0.633267,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 4,
+                "seconds": 0.379571,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 8,
+                "seconds": 0.758711,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 8,
+                "seconds": 0.917477,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 16,
+                "seconds": 1.895907,
+                "passed": 16,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 16,
+                "seconds": 1.747991,
+                "passed": 16,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 1,
+                "seconds": 0.549675,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 1,
+                "seconds": 0.640221,
+                "passed": 1,
+                "errors": []
+              }
+            ],
+            "round": 1,
+            "cold": {
+              "npm_cache_add_seconds": 0.12607824999997774,
+              "go_download_seconds": 0.001873499999987871,
+              "go_cold_build_seconds": 4.453837710000016,
+              "go_cold_compiler_or_assembler_invocations": 107
+            },
+            "versions": {
+              "go": "go version go1.26.11 linux/arm64",
+              "npm": "11.19.1",
+              "node": "v24.22.3"
+            },
+            "before": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "lock": {
+              "npm_integrity": "sha512-DK0sqm91yhbkfdTAQwbTy5tvpNugdn2ELPNxfTfbKeUfqETLjkulIpzMH+HqtYvZzeKHKJao9QEhyQiZVw51mQ==",
+              "go_sum": "example.test/shared v1.0.0 h1:SUh8FXQkzG2Eyft/tsgx9FthiQGaP1vUedbaTJLRWWY=\nexample.test/shared v1.0.0/go.mod h1:EazEgfmYsFYbznxLMACijtdxme13u0P8vqrI2V8H9oo=\n",
+              "go_zip_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3"
+            },
+            "after": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "same_payload_inodes": true,
+            "empty_offline_controls": true
+          }
+        ],
+        "median_seconds": {
+          "npm": {
+            "4": 0.633267,
+            "8": 0.917477,
+            "16": 1.895907,
+            "1": 0.640221
+          },
+          "go": {
+            "4": 0.379571,
+            "8": 0.758711,
+            "16": 1.747991,
+            "1": 0.549675
+          }
+        },
+        "passed": true,
+        "local_image_id": "sha256:ebc2079e1a616bf43ca219e21b53d9bac7043e71d3e2f68eebdaa8c26fed4ded"
+      },
+      "host_load_after": [
+        13.57421875,
+        13.32373046875,
+        17.5126953125
+      ],
+      "passed": true
+    },
+    {
+      "engine": "micropod-worker",
+      "block": 3,
+      "host_load_before": [
+        13.57421875,
+        13.32373046875,
+        17.5126953125
+      ],
+      "started_at": "2026-11-19T23:05:24Z",
+      "micropod_worker": {
+        "worker": "F8E19F80-E852-4A23-8152-67B9CE16C1CD",
+        "instance": "E3D6F1AD-0813-4346-A70A-12D1EF9AD655",
+        "executable_sha256": "a0a669cf533cad3945b81df9ff58653d791d2aa669d81bde4567faa611b1f633"
+      },
+      "timed_client": "micropod ci run",
+      "server": {
+        "ID": "4d74a9d5-e220-4387-be4b-fd44af063c67",
+        "Name": "micropod-ci",
+        "OperatingSystem": "Alpine Linux v3.24 (containerized)",
+        "Architecture": "aarch64",
+        "ServerVersion": "29.9.3",
+        "KernelVersion": "6.18.35",
+        "NCPU": 4,
+        "MemTotal": 4118708224,
+        "SecurityOptions": [
+          "name=seccomp,profile=builtin",
+          "name=cgroupns"
+        ]
+      },
+      "image_id": "sha256:ab3fe4defd29ba6231229a4d41440ac8bde8218e85870e53876277faa24b35c4",
+      "architecture": "arm64",
+      "image_digests": [
+        "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+      ],
+      "local_image_id": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+      "boot_sha256": "1e93ea1d210b3b69a70ede5be2cab950831a27a92532808c5e24b88ef364438b",
+      "namespaces": [
+        [
+          "pid:[4026532198]",
+          "mnt:[4026532195]"
+        ],
+        [
+          "pid:[4026532270]",
+          "mnt:[4026532267]"
+        ]
+      ],
+      "resource_contract": "1 CPU / 256 MiB",
+      "ownership_check": "Linux parent and overlapping containers",
+      "batches": [
+        {
+          "round": 1,
+          "clients": 8,
+          "seconds": 0.157411,
+          "passed": 8,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 16,
+          "seconds": 0.30379,
+          "passed": 16,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 1,
+          "seconds": 0.06718,
+          "passed": 1,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 4,
+          "seconds": 0.113969,
+          "passed": 4,
+          "errors": []
+        }
+      ],
+      "p50_seconds": {
+        "8": 0.157411,
+        "16": 0.30379,
+        "1": 0.06718,
+        "4": 0.113969
+      },
+      "package_caches": {
+        "workload": "offline-npm-go-oci-v1",
+        "architecture": "arm64",
+        "image_id": "sha256:73e5c74172d3555c685f3c8aad44163b52893478974e4c9926ba16a8a2c3a350",
+        "script_sha256": "19140bce31f30539080b6f9315c6325a53effddc5f83871d9375664cafd7a003",
+        "resource_contract": "1 CPU / 1 GiB",
+        "clients": [
+          8,
+          16,
+          1,
+          4
+        ],
+        "blocks": [
+          {
+            "batches": [
+              {
+                "tool": "npm",
+                "clients": 8,
+                "seconds": 1.172042,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 8,
+                "seconds": 0.687614,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 16,
+                "seconds": 1.317594,
+                "passed": 16,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 16,
+                "seconds": 1.824389,
+                "passed": 16,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 1,
+                "seconds": 0.391284,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 1,
+                "seconds": 0.271197,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 4,
+                "seconds": 0.398597,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 4,
+                "seconds": 0.488068,
+                "passed": 4,
+                "errors": []
+              }
+            ],
+            "round": 1,
+            "cold": {
+              "npm_cache_add_seconds": 0.1683012510000026,
+              "go_download_seconds": 0.0022845830000051137,
+              "go_cold_build_seconds": 4.808282210000016,
+              "go_cold_compiler_or_assembler_invocations": 107
+            },
+            "versions": {
+              "go": "go version go1.26.11 linux/arm64",
+              "npm": "11.19.1",
+              "node": "v24.22.3"
+            },
+            "before": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "lock": {
+              "npm_integrity": "sha512-DK0sqm91yhbkfdTAQwbTy5tvpNugdn2ELPNxfTfbKeUfqETLjkulIpzMH+HqtYvZzeKHKJao9QEhyQiZVw51mQ==",
+              "go_sum": "example.test/shared v1.0.0 h1:SUh8FXQkzG2Eyft/tsgx9FthiQGaP1vUedbaTJLRWWY=\nexample.test/shared v1.0.0/go.mod h1:EazEgfmYsFYbznxLMACijtdxme13u0P8vqrI2V8H9oo=\n",
+              "go_zip_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3"
+            },
+            "after": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "same_payload_inodes": true,
+            "empty_offline_controls": true
+          }
+        ],
+        "median_seconds": {
+          "npm": {
+            "8": 1.172042,
+            "16": 1.824389,
+            "1": 0.391284,
+            "4": 0.488068
+          },
+          "go": {
+            "8": 0.687614,
+            "16": 1.317594,
+            "1": 0.271197,
+            "4": 0.398597
+          }
+        },
+        "passed": true,
+        "local_image_id": "sha256:ebc2079e1a616bf43ca219e21b53d9bac7043e71d3e2f68eebdaa8c26fed4ded"
+      },
+      "host_load_after": [
+        12.908203125,
+        13.19189453125,
+        17.39208984375
+      ],
+      "passed": true
+    },
+    {
+      "engine": "orbstack",
+      "block": 3,
+      "host_load_before": [
+        12.908203125,
+        13.19189453125,
+        17.39208984375
+      ],
+      "started_at": "2026-11-19T23:05:39Z",
+      "timed_client": "docker run --rm",
+      "server": {
+        "ID": "f62699f3-0ed1-4856-a30d-87361fd8e735",
+        "Name": "orbstack",
+        "OperatingSystem": "OrbStack",
+        "Architecture": "aarch64",
+        "ServerVersion": "29.8.2",
+        "KernelVersion": "7.2.12-orbstack-00394-gbecdd6130068",
+        "NCPU": 4,
+        "MemTotal": 4180480000,
+        "SecurityOptions": [
+          "name=seccomp,profile=builtin",
+          "name=cgroupns"
+        ]
+      },
+      "mac_app_bundle": {
+        "CFBundleShortVersionString": "2.2.5",
+        "CFBundleVersion": "21124"
+      },
+      "image_id": "sha256:ab3fe4defd29ba6231229a4d41440ac8bde8218e85870e53876277faa24b35c4",
+      "architecture": "arm64",
+      "image_digests": [
+        "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+      ],
+      "local_image_id": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+      "boot_sha256": "63811471643e9c68dbf49b0ce283baa31b51e044f2e63ffd94132d84fe8f7668",
+      "namespaces": [
+        [
+          "pid:[4026532397]",
+          "mnt:[4026532394]"
+        ],
+        [
+          "pid:[4026532501]",
+          "mnt:[4026532498]"
+        ]
+      ],
+      "resource_contract": "1 CPU / 256 MiB",
+      "ownership_check": "overlapping orbstack containers",
+      "batches": [
+        {
+          "round": 1,
+          "clients": 8,
+          "seconds": 1.218786,
+          "passed": 8,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 16,
+          "seconds": 17.078984,
+          "passed": 16,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 1,
+          "seconds": 0.246454,
+          "passed": 1,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 4,
+          "seconds": 0.659137,
+          "passed": 4,
+          "errors": []
+        }
+      ],
+      "p50_seconds": {
+        "8": 1.218786,
+        "16": 17.078984,
+        "1": 0.246454,
+        "4": 0.659137
+      },
+      "package_caches": {
+        "workload": "offline-npm-go-oci-v1",
+        "architecture": "arm64",
+        "image_id": "sha256:73e5c74172d3555c685f3c8aad44163b52893478974e4c9926ba16a8a2c3a350",
+        "script_sha256": "19140bce31f30539080b6f9315c6325a53effddc5f83871d9375664cafd7a003",
+        "resource_contract": "1 CPU / 1 GiB",
+        "clients": [
+          8,
+          16,
+          1,
+          4
+        ],
+        "blocks": [
+          {
+            "batches": [
+              {
+                "tool": "npm",
+                "clients": 8,
+                "seconds": 7.700953,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 8,
+                "seconds": 1.737643,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 16,
+                "seconds": 3.025392,
+                "passed": 16,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 16,
+                "seconds": 4.148931,
+                "passed": 16,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 1,
+                "seconds": 0.926623,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 1,
+                "seconds": 0.541076,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 4,
+                "seconds": 1.047507,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 4,
+                "seconds": 1.106437,
+                "passed": 4,
+                "errors": []
+              }
+            ],
+            "round": 1,
+            "cold": {
+              "npm_cache_add_seconds": 0.16899330800015377,
+              "go_download_seconds": 0.004764076000355999,
+              "go_cold_build_seconds": 3.9181787470001836,
+              "go_cold_compiler_or_assembler_invocations": 107
+            },
+            "versions": {
+              "go": "go version go1.26.11 linux/arm64",
+              "npm": "11.19.1",
+              "node": "v24.22.3"
+            },
+            "before": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "lock": {
+              "npm_integrity": "sha512-DK0sqm91yhbkfdTAQwbTy5tvpNugdn2ELPNxfTfbKeUfqETLjkulIpzMH+HqtYvZzeKHKJao9QEhyQiZVw51mQ==",
+              "go_sum": "example.test/shared v1.0.0 h1:SUh8FXQkzG2Eyft/tsgx9FthiQGaP1vUedbaTJLRWWY=\nexample.test/shared v1.0.0/go.mod h1:EazEgfmYsFYbznxLMACijtdxme13u0P8vqrI2V8H9oo=\n",
+              "go_zip_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3"
+            },
+            "after": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "same_payload_inodes": true,
+            "empty_offline_controls": true
+          }
+        ],
+        "median_seconds": {
+          "npm": {
+            "8": 7.700953,
+            "16": 4.148931,
+            "1": 0.926623,
+            "4": 1.106437
+          },
+          "go": {
+            "8": 1.737643,
+            "16": 3.025392,
+            "1": 0.541076,
+            "4": 1.047507
+          }
+        },
+        "passed": true,
+        "local_image_id": "sha256:ebc2079e1a616bf43ca219e21b53d9bac7043e71d3e2f68eebdaa8c26fed4ded"
+      },
+      "host_load_after": [
+        10.15771484375,
+        12.41845703125,
+        16.88916015625
+      ],
+      "passed": true
+    },
+    {
+      "engine": "orbstack",
+      "block": 4,
+      "host_load_before": [
+        10.15771484375,
+        12.41845703125,
+        16.88916015625
+      ],
+      "started_at": "2026-11-19T23:06:26Z",
+      "timed_client": "docker run --rm",
+      "server": {
+        "ID": "f62699f3-0ed1-4856-a30d-87361fd8e735",
+        "Name": "orbstack",
+        "OperatingSystem": "OrbStack",
+        "Architecture": "aarch64",
+        "ServerVersion": "29.8.2",
+        "KernelVersion": "7.2.12-orbstack-00394-gbecdd6130068",
+        "NCPU": 4,
+        "MemTotal": 4180480000,
+        "SecurityOptions": [
+          "name=seccomp,profile=builtin",
+          "name=cgroupns"
+        ]
+      },
+      "mac_app_bundle": {
+        "CFBundleShortVersionString": "2.2.5",
+        "CFBundleVersion": "21124"
+      },
+      "image_id": "sha256:ab3fe4defd29ba6231229a4d41440ac8bde8218e85870e53876277faa24b35c4",
+      "architecture": "arm64",
+      "image_digests": [
+        "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+      ],
+      "local_image_id": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+      "boot_sha256": "63811471643e9c68dbf49b0ce283baa31b51e044f2e63ffd94132d84fe8f7668",
+      "namespaces": [
+        [
+          "pid:[4026532399]",
+          "mnt:[4026532394]"
+        ],
+        [
+          "pid:[4026532401]",
+          "mnt:[4026532397]"
+        ]
+      ],
+      "resource_contract": "1 CPU / 256 MiB",
+      "ownership_check": "overlapping orbstack containers",
+      "batches": [
+        {
+          "round": 1,
+          "clients": 16,
+          "seconds": 2.399684,
+          "passed": 16,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 1,
+          "seconds": 0.396751,
+          "passed": 1,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 4,
+          "seconds": 0.756321,
+          "passed": 4,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 8,
+          "seconds": 1.878199,
+          "passed": 8,
+          "errors": []
+        }
+      ],
+      "p50_seconds": {
+        "16": 2.399684,
+        "1": 0.396751,
+        "4": 0.756321,
+        "8": 1.878199
+      },
+      "package_caches": {
+        "workload": "offline-npm-go-oci-v1",
+        "architecture": "arm64",
+        "image_id": "sha256:73e5c74172d3555c685f3c8aad44163b52893478974e4c9926ba16a8a2c3a350",
+        "script_sha256": "19140bce31f30539080b6f9315c6325a53effddc5f83871d9375664cafd7a003",
+        "resource_contract": "1 CPU / 1 GiB",
+        "clients": [
+          16,
+          1,
+          4,
+          8
+        ],
+        "blocks": [
+          {
+            "batches": [
+              {
+                "tool": "npm",
+                "clients": 16,
+                "seconds": 3.56687,
+                "passed": 16,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 16,
+                "seconds": 4.901623,
+                "passed": 16,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 1,
+                "seconds": 0.551778,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 1,
+                "seconds": 0.508957,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 4,
+                "seconds": 0.801187,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 4,
+                "seconds": 0.735665,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 8,
+                "seconds": 1.4628,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 8,
+                "seconds": 1.588955,
+                "passed": 8,
+                "errors": []
+              }
+            ],
+            "round": 1,
+            "cold": {
+              "npm_cache_add_seconds": 0.12983260200007862,
+              "go_download_seconds": 0.0065375269996366114,
+              "go_cold_build_seconds": 3.8462016459998267,
+              "go_cold_compiler_or_assembler_invocations": 107
+            },
+            "versions": {
+              "go": "go version go1.26.11 linux/arm64",
+              "npm": "11.19.1",
+              "node": "v24.22.3"
+            },
+            "before": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "lock": {
+              "npm_integrity": "sha512-DK0sqm91yhbkfdTAQwbTy5tvpNugdn2ELPNxfTfbKeUfqETLjkulIpzMH+HqtYvZzeKHKJao9QEhyQiZVw51mQ==",
+              "go_sum": "example.test/shared v1.0.0 h1:SUh8FXQkzG2Eyft/tsgx9FthiQGaP1vUedbaTJLRWWY=\nexample.test/shared v1.0.0/go.mod h1:EazEgfmYsFYbznxLMACijtdxme13u0P8vqrI2V8H9oo=\n",
+              "go_zip_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3"
+            },
+            "after": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "same_payload_inodes": true,
+            "empty_offline_controls": true
+          }
+        ],
+        "median_seconds": {
+          "npm": {
+            "16": 3.56687,
+            "1": 0.508957,
+            "4": 0.801187,
+            "8": 1.588955
+          },
+          "go": {
+            "16": 4.901623,
+            "1": 0.551778,
+            "4": 0.735665,
+            "8": 1.4628
+          }
+        },
+        "passed": true,
+        "local_image_id": "sha256:ebc2079e1a616bf43ca219e21b53d9bac7043e71d3e2f68eebdaa8c26fed4ded"
+      },
+      "host_load_after": [
+        9.0546875,
+        11.892578125,
+        16.54052734375
+      ],
+      "passed": true
+    },
+    {
+      "engine": "micropod-worker",
+      "block": 4,
+      "host_load_before": [
+        9.0546875,
+        11.892578125,
+        16.54052734375
+      ],
+      "started_at": "2026-11-19T23:06:52Z",
+      "micropod_worker": {
+        "worker": "F8E19F80-E852-4A23-8152-67B9CE16C1CD",
+        "instance": "E3D6F1AD-0813-4346-A70A-12D1EF9AD655",
+        "executable_sha256": "a0a669cf533cad3945b81df9ff58653d791d2aa669d81bde4567faa611b1f633"
+      },
+      "timed_client": "micropod ci run",
+      "server": {
+        "ID": "4d74a9d5-e220-4387-be4b-fd44af063c67",
+        "Name": "micropod-ci",
+        "OperatingSystem": "Alpine Linux v3.24 (containerized)",
+        "Architecture": "aarch64",
+        "ServerVersion": "29.9.3",
+        "KernelVersion": "6.18.35",
+        "NCPU": 4,
+        "MemTotal": 4118708224,
+        "SecurityOptions": [
+          "name=seccomp,profile=builtin",
+          "name=cgroupns"
+        ]
+      },
+      "image_id": "sha256:ab3fe4defd29ba6231229a4d41440ac8bde8218e85870e53876277faa24b35c4",
+      "architecture": "arm64",
+      "image_digests": [
+        "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+      ],
+      "local_image_id": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+      "boot_sha256": "1e93ea1d210b3b69a70ede5be2cab950831a27a92532808c5e24b88ef364438b",
+      "namespaces": [
+        [
+          "pid:[4026532198]",
+          "mnt:[4026532195]"
+        ],
+        [
+          "pid:[4026532270]",
+          "mnt:[4026532267]"
+        ]
+      ],
+      "resource_contract": "1 CPU / 256 MiB",
+      "ownership_check": "Linux parent and overlapping containers",
+      "batches": [
+        {
+          "round": 1,
+          "clients": 16,
+          "seconds": 0.380368,
+          "passed": 16,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 1,
+          "seconds": 0.07566,
+          "passed": 1,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 4,
+          "seconds": 0.108636,
+          "passed": 4,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 8,
+          "seconds": 0.159467,
+          "passed": 8,
+          "errors": []
+        }
+      ],
+      "p50_seconds": {
+        "16": 0.380368,
+        "1": 0.07566,
+        "4": 0.108636,
+        "8": 0.159467
+      },
+      "package_caches": {
+        "workload": "offline-npm-go-oci-v1",
+        "architecture": "arm64",
+        "image_id": "sha256:73e5c74172d3555c685f3c8aad44163b52893478974e4c9926ba16a8a2c3a350",
+        "script_sha256": "19140bce31f30539080b6f9315c6325a53effddc5f83871d9375664cafd7a003",
+        "resource_contract": "1 CPU / 1 GiB",
+        "clients": [
+          16,
+          1,
+          4,
+          8
+        ],
+        "blocks": [
+          {
+            "batches": [
+              {
+                "tool": "npm",
+                "clients": 16,
+                "seconds": 1.63277,
+                "passed": 16,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 16,
+                "seconds": 1.242409,
+                "passed": 16,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 1,
+                "seconds": 0.290672,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 1,
+                "seconds": 0.363183,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 4,
+                "seconds": 0.45484,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 4,
+                "seconds": 0.337776,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 8,
+                "seconds": 0.679445,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 8,
+                "seconds": 0.87629,
+                "passed": 8,
+                "errors": []
+              }
+            ],
+            "round": 1,
+            "cold": {
+              "npm_cache_add_seconds": 0.1572700840000607,
+              "go_download_seconds": 0.0019376249999822903,
+              "go_cold_build_seconds": 4.226188043999969,
+              "go_cold_compiler_or_assembler_invocations": 107
+            },
+            "versions": {
+              "go": "go version go1.26.11 linux/arm64",
+              "npm": "11.19.1",
+              "node": "v24.22.3"
+            },
+            "before": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "lock": {
+              "npm_integrity": "sha512-DK0sqm91yhbkfdTAQwbTy5tvpNugdn2ELPNxfTfbKeUfqETLjkulIpzMH+HqtYvZzeKHKJao9QEhyQiZVw51mQ==",
+              "go_sum": "example.test/shared v1.0.0 h1:SUh8FXQkzG2Eyft/tsgx9FthiQGaP1vUedbaTJLRWWY=\nexample.test/shared v1.0.0/go.mod h1:EazEgfmYsFYbznxLMACijtdxme13u0P8vqrI2V8H9oo=\n",
+              "go_zip_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3"
+            },
+            "after": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "same_payload_inodes": true,
+            "empty_offline_controls": true
+          }
+        ],
+        "median_seconds": {
+          "npm": {
+            "16": 1.63277,
+            "1": 0.363183,
+            "4": 0.45484,
+            "8": 0.87629
+          },
+          "go": {
+            "16": 1.242409,
+            "1": 0.290672,
+            "4": 0.337776,
+            "8": 0.679445
+          }
+        },
+        "passed": true,
+        "local_image_id": "sha256:ebc2079e1a616bf43ca219e21b53d9bac7043e71d3e2f68eebdaa8c26fed4ded"
+      },
+      "host_load_after": [
+        8.44384765625,
+        11.66552734375,
+        16.4052734375
+      ],
+      "passed": true
+    },
+    {
+      "engine": "micropod-worker",
+      "block": 5,
+      "host_load_before": [
+        8.44384765625,
+        11.66552734375,
+        16.4052734375
+      ],
+      "started_at": "2026-11-19T23:07:04Z",
+      "micropod_worker": {
+        "worker": "F8E19F80-E852-4A23-8152-67B9CE16C1CD",
+        "instance": "E3D6F1AD-0813-4346-A70A-12D1EF9AD655",
+        "executable_sha256": "a0a669cf533cad3945b81df9ff58653d791d2aa669d81bde4567faa611b1f633"
+      },
+      "timed_client": "micropod ci run",
+      "server": {
+        "ID": "4d74a9d5-e220-4387-be4b-fd44af063c67",
+        "Name": "micropod-ci",
+        "OperatingSystem": "Alpine Linux v3.24 (containerized)",
+        "Architecture": "aarch64",
+        "ServerVersion": "29.9.3",
+        "KernelVersion": "6.18.35",
+        "NCPU": 4,
+        "MemTotal": 4118708224,
+        "SecurityOptions": [
+          "name=seccomp,profile=builtin",
+          "name=cgroupns"
+        ]
+      },
+      "image_id": "sha256:ab3fe4defd29ba6231229a4d41440ac8bde8218e85870e53876277faa24b35c4",
+      "architecture": "arm64",
+      "image_digests": [
+        "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+      ],
+      "local_image_id": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+      "boot_sha256": "1e93ea1d210b3b69a70ede5be2cab950831a27a92532808c5e24b88ef364438b",
+      "namespaces": [
+        [
+          "pid:[4026532198]",
+          "mnt:[4026532195]"
+        ],
+        [
+          "pid:[4026532270]",
+          "mnt:[4026532267]"
+        ]
+      ],
+      "resource_contract": "1 CPU / 256 MiB",
+      "ownership_check": "Linux parent and overlapping containers",
+      "batches": [
+        {
+          "round": 1,
+          "clients": 1,
+          "seconds": 0.061242,
+          "passed": 1,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 4,
+          "seconds": 0.09887,
+          "passed": 4,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 8,
+          "seconds": 0.166568,
+          "passed": 8,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 16,
+          "seconds": 0.265033,
+          "passed": 16,
+          "errors": []
+        }
+      ],
+      "p50_seconds": {
+        "1": 0.061242,
+        "4": 0.09887,
+        "8": 0.166568,
+        "16": 0.265033
+      },
+      "package_caches": {
+        "workload": "offline-npm-go-oci-v1",
+        "architecture": "arm64",
+        "image_id": "sha256:73e5c74172d3555c685f3c8aad44163b52893478974e4c9926ba16a8a2c3a350",
+        "script_sha256": "19140bce31f30539080b6f9315c6325a53effddc5f83871d9375664cafd7a003",
+        "resource_contract": "1 CPU / 1 GiB",
+        "clients": [
+          1,
+          4,
+          8,
+          16
+        ],
+        "blocks": [
+          {
+            "batches": [
+              {
+                "tool": "npm",
+                "clients": 1,
+                "seconds": 0.38265,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 1,
+                "seconds": 0.288467,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 4,
+                "seconds": 0.378662,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 4,
+                "seconds": 0.444898,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 8,
+                "seconds": 0.904493,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 8,
+                "seconds": 0.686676,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 16,
+                "seconds": 1.44167,
+                "passed": 16,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 16,
+                "seconds": 2.245481,
+                "passed": 16,
+                "errors": []
+              }
+            ],
+            "round": 1,
+            "cold": {
+              "npm_cache_add_seconds": 0.11320620899994083,
+              "go_download_seconds": 0.0019838340000433163,
+              "go_cold_build_seconds": 4.112334960999988,
+              "go_cold_compiler_or_assembler_invocations": 107
+            },
+            "versions": {
+              "go": "go version go1.26.11 linux/arm64",
+              "npm": "11.19.1",
+              "node": "v24.22.3"
+            },
+            "before": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "lock": {
+              "npm_integrity": "sha512-DK0sqm91yhbkfdTAQwbTy5tvpNugdn2ELPNxfTfbKeUfqETLjkulIpzMH+HqtYvZzeKHKJao9QEhyQiZVw51mQ==",
+              "go_sum": "example.test/shared v1.0.0 h1:SUh8FXQkzG2Eyft/tsgx9FthiQGaP1vUedbaTJLRWWY=\nexample.test/shared v1.0.0/go.mod h1:EazEgfmYsFYbznxLMACijtdxme13u0P8vqrI2V8H9oo=\n",
+              "go_zip_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3"
+            },
+            "after": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "same_payload_inodes": true,
+            "empty_offline_controls": true
+          }
+        ],
+        "median_seconds": {
+          "npm": {
+            "1": 0.38265,
+            "4": 0.444898,
+            "8": 0.904493,
+            "16": 2.245481
+          },
+          "go": {
+            "1": 0.288467,
+            "4": 0.378662,
+            "8": 0.686676,
+            "16": 1.44167
+          }
+        },
+        "passed": true,
+        "local_image_id": "sha256:ebc2079e1a616bf43ca219e21b53d9bac7043e71d3e2f68eebdaa8c26fed4ded"
+      },
+      "host_load_after": [
+        8.19140625,
+        11.43896484375,
+        16.24072265625
+      ],
+      "passed": true
+    },
+    {
+      "engine": "orbstack",
+      "block": 5,
+      "host_load_before": [
+        8.19140625,
+        11.43896484375,
+        16.24072265625
+      ],
+      "started_at": "2026-11-19T23:07:17Z",
+      "timed_client": "docker run --rm",
+      "server": {
+        "ID": "f62699f3-0ed1-4856-a30d-87361fd8e735",
+        "Name": "orbstack",
+        "OperatingSystem": "OrbStack",
+        "Architecture": "aarch64",
+        "ServerVersion": "29.8.2",
+        "KernelVersion": "7.2.12-orbstack-00394-gbecdd6130068",
+        "NCPU": 4,
+        "MemTotal": 4180480000,
+        "SecurityOptions": [
+          "name=seccomp,profile=builtin",
+          "name=cgroupns"
+        ]
+      },
+      "mac_app_bundle": {
+        "CFBundleShortVersionString": "2.2.5",
+        "CFBundleVersion": "21124"
+      },
+      "image_id": "sha256:ab3fe4defd29ba6231229a4d41440ac8bde8218e85870e53876277faa24b35c4",
+      "architecture": "arm64",
+      "image_digests": [
+        "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+      ],
+      "local_image_id": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+      "boot_sha256": "63811471643e9c68dbf49b0ce283baa31b51e044f2e63ffd94132d84fe8f7668",
+      "namespaces": [
+        [
+          "pid:[4026532397]",
+          "mnt:[4026532394]"
+        ],
+        [
+          "pid:[4026532501]",
+          "mnt:[4026532498]"
+        ]
+      ],
+      "resource_contract": "1 CPU / 256 MiB",
+      "ownership_check": "overlapping orbstack containers",
+      "batches": [
+        {
+          "round": 1,
+          "clients": 1,
+          "seconds": 0.214232,
+          "passed": 1,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 4,
+          "seconds": 0.621883,
+          "passed": 4,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 8,
+          "seconds": 1.098029,
+          "passed": 8,
+          "errors": []
+        },
+        {
+          "round": 1,
+          "clients": 16,
+          "seconds": 1.963461,
+          "passed": 16,
+          "errors": []
+        }
+      ],
+      "p50_seconds": {
+        "1": 0.214232,
+        "4": 0.621883,
+        "8": 1.098029,
+        "16": 1.963461
+      },
+      "package_caches": {
+        "workload": "offline-npm-go-oci-v1",
+        "architecture": "arm64",
+        "image_id": "sha256:73e5c74172d3555c685f3c8aad44163b52893478974e4c9926ba16a8a2c3a350",
+        "script_sha256": "19140bce31f30539080b6f9315c6325a53effddc5f83871d9375664cafd7a003",
+        "resource_contract": "1 CPU / 1 GiB",
+        "clients": [
+          1,
+          4,
+          8,
+          16
+        ],
+        "blocks": [
+          {
+            "batches": [
+              {
+                "tool": "npm",
+                "clients": 1,
+                "seconds": 0.529957,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 1,
+                "seconds": 0.39426,
+                "passed": 1,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 4,
+                "seconds": 1.097812,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 4,
+                "seconds": 1.033619,
+                "passed": 4,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 8,
+                "seconds": 1.501223,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 8,
+                "seconds": 1.221313,
+                "passed": 8,
+                "errors": []
+              },
+              {
+                "tool": "go",
+                "clients": 16,
+                "seconds": 2.617978,
+                "passed": 16,
+                "errors": []
+              },
+              {
+                "tool": "npm",
+                "clients": 16,
+                "seconds": 3.3881,
+                "passed": 16,
+                "errors": []
+              }
+            ],
+            "round": 1,
+            "cold": {
+              "npm_cache_add_seconds": 0.22252877900018575,
+              "go_download_seconds": 0.007657287000256474,
+              "go_cold_build_seconds": 4.207892642999923,
+              "go_cold_compiler_or_assembler_invocations": 107
+            },
+            "versions": {
+              "go": "go version go1.26.11 linux/arm64",
+              "npm": "11.19.1",
+              "node": "v24.22.3"
+            },
+            "before": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "lock": {
+              "npm_integrity": "sha512-DK0sqm91yhbkfdTAQwbTy5tvpNugdn2ELPNxfTfbKeUfqETLjkulIpzMH+HqtYvZzeKHKJao9QEhyQiZVw51mQ==",
+              "go_sum": "example.test/shared v1.0.0 h1:SUh8FXQkzG2Eyft/tsgx9FthiQGaP1vUedbaTJLRWWY=\nexample.test/shared v1.0.0/go.mod h1:EazEgfmYsFYbznxLMACijtdxme13u0P8vqrI2V8H9oo=\n",
+              "go_zip_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3"
+            },
+            "after": {
+              "npm_content": {
+                "files": 1,
+                "logical_bytes": 221
+              },
+              "go_modules": {
+                "files": 9,
+                "logical_bytes": 626
+              },
+              "go_build": {
+                "files": 438,
+                "logical_bytes": 33085592
+              }
+            },
+            "same_payload_inodes": true,
+            "empty_offline_controls": true
+          }
+        ],
+        "median_seconds": {
+          "npm": {
+            "1": 0.529957,
+            "4": 1.033619,
+            "8": 1.501223,
+            "16": 3.3881
+          },
+          "go": {
+            "1": 0.39426,
+            "4": 1.097812,
+            "8": 1.221313,
+            "16": 2.617978
+          }
+        },
+        "passed": true,
+        "local_image_id": "sha256:ebc2079e1a616bf43ca219e21b53d9bac7043e71d3e2f68eebdaa8c26fed4ded"
+      },
+      "host_load_after": [
+        8.9951171875,
+        11.43603515625,
+        16.12890625
+      ],
+      "passed": true
+    }
+  ],
+  "p50_seconds": {
+    "micropod-worker": {
+      "1": 0.06718,
+      "4": 0.113969,
+      "8": 0.166568,
+      "16": 0.322117
+    },
+    "orbstack": {
+      "1": 0.236216,
+      "4": 0.659137,
+      "8": 1.878199,
+      "16": 2.74624
+    }
+  },
+  "engine_resources": {
+    "micropod-worker": {
+      "NCPU": 4,
+      "MemTotal": 4118708224
+    },
+    "orbstack": {
+      "NCPU": 4,
+      "MemTotal": 4180480000
+    }
+  },
+  "worker_over_orbstack": {
+    "1": 0.2844,
+    "4": 0.1729,
+    "8": 0.0887,
+    "16": 0.1173
+  },
+  "package_median_seconds": {
+    "micropod-worker": {
+      "npm": {
+        "1": 0.391284,
+        "4": 0.488068,
+        "8": 0.917477,
+        "16": 1.895907
+      },
+      "go": {
+        "1": 0.290672,
+        "4": 0.379571,
+        "8": 0.687614,
+        "16": 1.44167
+      }
+    },
+    "orbstack": {
+      "npm": {
+        "1": 0.581015,
+        "4": 1.033619,
+        "8": 1.588955,
+        "16": 3.870073
+      },
+      "go": {
+        "1": 0.551778,
+        "4": 0.873493,
+        "8": 1.4628,
+        "16": 3.025392
+      }
+    }
+  },
+  "ubuntu_references": [
+    {
+      "file": "ubuntu-arm64-worker-reference.json",
+      "boot_sha256": "72402191e8848433ef5877a8a0323e5312667ca420a9abd18bbfaaa8eb7dc365",
+      "daemon": "9ee1f823-cfe1-4d8d-96bc-e33b1fff3662",
+      "vcpus": 4,
+      "memory_bytes": 16715923456,
+      "median_seconds": {
+        "1": 0.111615,
+        "4": 0.163124,
+        "8": 0.289474,
+        "16": 0.561039
+      },
+      "same_reported_daemon_as": [],
+      "package_seconds": {
+        "npm": {
+          "1": 0.960433,
+          "4": 1.087523,
+          "8": 2.136986,
+          "16": 4.18316
+        },
+        "go": {
+          "1": 0.578558,
+          "4": 0.704007,
+          "8": 1.373079,
+          "16": 2.683686
+        }
+      }
+    }
+  ],
+  "package_ratio_vs_ubuntu": {
+    "micropod-worker": {
+      "npm": {
+        "1": {
+          "ubuntu-arm64-worker-reference.json": 0.4074
+        },
+        "4": {
+          "ubuntu-arm64-worker-reference.json": 0.4488
+        },
+        "8": {
+          "ubuntu-arm64-worker-reference.json": 0.4293
+        },
+        "16": {
+          "ubuntu-arm64-worker-reference.json": 0.4532
+        }
+      },
+      "go": {
+        "1": {
+          "ubuntu-arm64-worker-reference.json": 0.5024
+        },
+        "4": {
+          "ubuntu-arm64-worker-reference.json": 0.5392
+        },
+        "8": {
+          "ubuntu-arm64-worker-reference.json": 0.5008
+        },
+        "16": {
+          "ubuntu-arm64-worker-reference.json": 0.5372
+        }
+      }
+    },
+    "orbstack": {
+      "npm": {
+        "1": {
+          "ubuntu-arm64-worker-reference.json": 0.605
+        },
+        "4": {
+          "ubuntu-arm64-worker-reference.json": 0.9504
+        },
+        "8": {
+          "ubuntu-arm64-worker-reference.json": 0.7435
+        },
+        "16": {
+          "ubuntu-arm64-worker-reference.json": 0.9252
+        }
+      },
+      "go": {
+        "1": {
+          "ubuntu-arm64-worker-reference.json": 0.9537
+        },
+        "4": {
+          "ubuntu-arm64-worker-reference.json": 1.2407
+        },
+        "8": {
+          "ubuntu-arm64-worker-reference.json": 1.0653
+        },
+        "16": {
+          "ubuntu-arm64-worker-reference.json": 1.1273
+        }
+      }
+    }
+  },
+  "vs_ubuntu": {
+    "micropod-worker": {
+      "1": {
+        "ubuntu-arm64-worker-reference.json": {
+          "ratio": 0.6019,
+          "gap_ms": -44.435,
+          "same_daemon_vcpus": true
+        }
+      },
+      "4": {
+        "ubuntu-arm64-worker-reference.json": {
+          "ratio": 0.6987,
+          "gap_ms": -49.155,
+          "same_daemon_vcpus": true
+        }
+      },
+      "8": {
+        "ubuntu-arm64-worker-reference.json": {
+          "ratio": 0.5754,
+          "gap_ms": -122.906,
+          "same_daemon_vcpus": true
+        }
+      },
+      "16": {
+        "ubuntu-arm64-worker-reference.json": {
+          "ratio": 0.5741,
+          "gap_ms": -238.922,
+          "same_daemon_vcpus": true
+        }
+      }
+    },
+    "orbstack": {
+      "1": {
+        "ubuntu-arm64-worker-reference.json": {
+          "ratio": 2.1163,
+          "gap_ms": 124.601,
+          "same_daemon_vcpus": true
+        }
+      },
+      "4": {
+        "ubuntu-arm64-worker-reference.json": {
+          "ratio": 4.0407,
+          "gap_ms": 496.013,
+          "same_daemon_vcpus": true
+        }
+      },
+      "8": {
+        "ubuntu-arm64-worker-reference.json": {
+          "ratio": 6.4883,
+          "gap_ms": 1588.725,
+          "same_daemon_vcpus": true
+        }
+      },
+      "16": {
+        "ubuntu-arm64-worker-reference.json": {
+          "ratio": 4.8949,
+          "gap_ms": 2185.201,
+          "same_daemon_vcpus": true
+        }
+      }
+    }
+  },
+  "passed": true
+}
