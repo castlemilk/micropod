@@ -187,7 +187,7 @@ jobs:
       # linux/arm64 into the app's Resources by package_app.sh.
       - uses: actions/setup-go@v6
         with:
-          go-version-file: guest/go.mod
+          go-version: '1.27.4'
 
       # The release build was 11 of this job's 13 minutes, mostly
       # dependencies (BoringSSL, NIO, gRPC, Containerization) that rarely
@@ -395,7 +395,7 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version: stable
+          go-version: '1.27.4'
           cache-dependency-path: sdk/go/go.sum
 
       - name: Verify generated code is in sync
