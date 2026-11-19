@@ -427,7 +427,9 @@ enum RigUpgradeCommands {
             if RigUpgradeStore(layout: layout).engineIsRunning {
                 return try await follow(journal.operation, layout: layout, json: json)
             }
-            return report(try await engine.run(), json: json)
+            let result = try await engine.run()
+            let code = report(result, json: json)
+            return try await followRuntimeComponents(result, code: code, json: json)
         }
         do {
             try await RigUpgradeHelper.launch(
@@ -440,7 +442,23 @@ enum RigUpgradeCommands {
             throw error
         }
         if !json { print("The upgrade runs as \(RigUpgradeLayout.helperLabel); log: \(layout.helperLog.path)") }
-        return request.detach ? ExitCode.ok : try await follow(journal.operation, layout: layout, json: json)
+        guard !request.detach else { return ExitCode.ok }
+        let code = try await follow(journal.operation, layout: layout, json: json)
+        guard let result = try? RigUpgradeStore(layout: layout).read(), result.operation == journal.operation else {
+            return code
+        }
+        return try await followRuntimeComponents(result, code: code, json: json)
+    }
+
+    /// One command updates both: after a completed upgrade of a host with the
+    /// dedicated runtime, the runtime component update the helper requested
+    /// (or this process requests now; the same operation is resumed, never
+    /// repeated) is followed to its end.
+    static func followRuntimeComponents(_ journal: RigUpgradeJournal, code: Int32, json: Bool) async throws -> Int32 {
+        guard code == ExitCode.ok, journal.phase == .completed, journal.dedicatedRuntime else { return code }
+        if !json { print("Updating the dedicated runtime components…") }
+        let updated = await RuntimeUpdateCommands.chain(follow: true, log: { line in if !json { print(line) } })
+        return updated ? code : ExitCode.failure
     }
 
     /// Prints phase changes until the helper's journal is terminal. Losing
@@ -500,7 +518,8 @@ enum RigUpgradeCommands {
     /// resume.
     static func runHelper(
         layout: RigUpgradeLayout, operation: UUID?, engine: RigUpgradeEngine, launch: any RigLaunchControlling,
-        lockWait: Duration = RigUpgradeHelper.lockWait, now: Date = Date()
+        lockWait: Duration = RigUpgradeHelper.lockWait, now: Date = Date(),
+        chainRuntime: @Sendable () async -> Void = { _ = await RuntimeUpdateCommands.chain(follow: false, log: log) }
     ) async -> Int32 {
         guard let journal = try? RigUpgradeStore(layout: layout).read(), !journal.phase.isTerminal else {
             await RigUpgradeHelper.retire(layout: layout, launch: launch)
@@ -545,6 +564,11 @@ enum RigUpgradeCommands {
             let result = try await engine.run()
             log("rig upgrade \(result.operation.uuidString) \(result.phase.rawValue): \(result.reason ?? "")")
             guard result.phase.isTerminal else { return ExitCode.failure }
+            if result.phase == .completed, result.dedicatedRuntime {
+                // The new app is verified and the drain released: the root
+                // helper now follows it in its own coordinated operation.
+                await chainRuntime()
+            }
             await RigUpgradeHelper.retire(layout: layout, launch: launch)
             return ExitCode.ok
         } catch {

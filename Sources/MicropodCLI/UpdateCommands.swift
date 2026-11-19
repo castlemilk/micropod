@@ -48,7 +48,8 @@ enum UpdateCommands {
         A disruptive rig upgrade asks Cuttlefish to drain (bounded; it goes ahead
         when the wait ends), runs as a launchd helper outside the app it replaces,
         and resumes from its journal after a crash or reboot. The dedicated
-        runtime (setup helper, dedicated API, Apple engine) is left unchanged.
+        runtime (setup helper, dedicated API, Apple engine) then follows the new
+        app in its own coordinated update (`micropod runtime update`).
         """
 
     static func main(_ args: [String], json: Bool) async -> Int32 {
