@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   generated-sdk:
     runs-on: macos-26
@@ -87,10 +91,24 @@ jobs:
         run: swift build --build-tests
       - name: SharedFS CLI and daemon integration
         timeout-minutes: 2
-        run: python3 scripts/qualification/daemon.py --json "$RUNNER_TEMP/sharedfs.json"
+        env:
+          SCOPE: ${{ steps.coverage.outputs.scope }}
+        run: |
+          rounds=0
+          if [[ "$SCOPE" == storage-shim ]]; then rounds=3; fi
+          python3 scripts/qualification/daemon.py --scale-rounds "$rounds" --json "$RUNNER_TEMP/sharedfs.json"
       - name: Production Docker shim negotiation
         timeout-minutes: 2
         run: python3 scripts/qualification/shim.py --json "$RUNNER_TEMP/shim.json"
+      - name: Publish integration receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-integration-receipts
+          path: |
+            ${{ runner.temp }}/sharedfs.json
+            ${{ runner.temp }}/shim.json
+          if-no-files-found: warn
       - name: Test
         env:
           SCOPE: ${{ steps.coverage.outputs.scope }}

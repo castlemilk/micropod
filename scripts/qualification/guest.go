@@ -26,10 +26,18 @@ func main() {
 		host, err := os.Hostname()
 		check(err)
 		fmt.Printf("%d:%d|%s|%s|%s\n", os.Getuid(), os.Getgid(), dir, os.Getenv("QUALIFY"), host)
-	case "copy":
-		data, err := os.ReadFile(args[1])
+	case "build-result":
+		_, err := os.Stat("/src/ignored")
+		if !errors.Is(err, os.ErrNotExist) {
+			fmt.Fprintln(os.Stderr, "ignored input was visible")
+			os.Exit(1)
+		}
+		info, err := os.Stat("/src/input")
 		check(err)
-		check(os.WriteFile(args[2], data, 0644))
+		data, err := os.ReadFile("/src/input")
+		check(err)
+		result := fmt.Sprintf("%s|%o", data, info.Mode().Perm())
+		check(os.WriteFile("/result", []byte(result), 0644))
 	case "read":
 		data, err := os.ReadFile(args[1])
 		check(err)

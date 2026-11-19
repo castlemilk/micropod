@@ -19,9 +19,8 @@ import uuid
 from receipt import Receipt, digest, require, run
 
 DOCKERFILE = """FROM scratch AS process
-COPY probe /probe
-COPY input /input
-RUN ["/probe", "copy", "/input", "/result"]
+COPY . /src/
+RUN ["/src/probe", "build-result"]
 FROM scratch AS artifact
 COPY --from=process /result /result
 FROM artifact AS runnable
@@ -138,8 +137,14 @@ def main():
             (ctx / 'Dockerfile').write_text(DOCKERFILE)
             (ctx / '.dockerignore').write_text('ignored\n')
             (ctx / 'ignored').write_bytes(b'never in output')
-            for phase, value in [('solver-no-cache', 'alpha'), ('warm', 'alpha'), ('edited', 'bravo')]:
+            phases = [('solver-no-cache', 'alpha', 0o644), ('warm', 'alpha', 0o644),
+                      ('edited', 'bravo', 0o644), ('chmod-only', 'bravo', 0o755), ('ignored-only', 'bravo', 0o755)]
+            for phase, value, mode in phases:
                 (ctx / 'input').write_text(value)
+                (ctx / 'input').chmod(mode)
+                if phase == 'ignored-only':
+                    (ctx / 'ignored').write_bytes(b'ignored edit')
+                expected_output = f'{value}|{mode:o}'
                 def build():
                     opts = ['--no-cache'] if phase == 'solver-no-cache' else []
                     proc = docker('buildx', 'build', '--builder', builder, '--platform', 'linux/' + arch,
@@ -148,15 +153,15 @@ def main():
                     ids = {l.split()[0] for l in lines if l.startswith('#') and ' RUN ' in l and '/probe' in l}
                     require(len(ids) == 1, 'missing RUN vertex')
                     cached = any(l.strip() == next(iter(ids)) + ' CACHED' for l in lines)
-                    require(cached == (phase == 'warm'), f'wrong solver cache outcome: {cached}')
-                    require(owned_run(built, 'read', '/result').stdout == value, 'loaded image output')
-                    return {'run_vertex_cached': cached, 'output_sha256': hashlib.sha256(value.encode()).hexdigest()}
+                    require(cached == (phase in ('warm', 'ignored-only')), f'wrong solver cache outcome: {cached}')
+                    require(owned_run(built, 'read', '/result').stdout == expected_output, 'loaded image output')
+                    return {'run_vertex_cached': cached, 'output_sha256': hashlib.sha256(expected_output.encode()).hexdigest()}
                 rec.record('build-to-validated-output', build, solution=phase)
             def export():
                 dest = work / 'exported'
                 docker('buildx', 'build', '--builder', builder, '--platform', 'linux/' + arch, '--network=none',
                        '--target', 'artifact', '--output', f'type=local,dest={dest}', ctx, timeout=120)
-                require({p.name for p in dest.iterdir()} == {'result'} and (dest / 'result').read_bytes() == b'bravo',
+                require({p.name for p in dest.iterdir()} == {'result'} and (dest / 'result').read_bytes() == b'bravo|755',
                         'multi-stage local export contents')
             rec.record('buildx-local-export', export)
         cleanup.callback(lambda: rec.record('cleanup-build-image', lambda: cleanup_if_exists('image', built)))

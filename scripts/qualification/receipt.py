@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import platform
+import signal
 import statistics
 import subprocess
 import time
@@ -13,8 +14,20 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def run(argv, *, timeout=60, cwd=None, env=None, expected=0):
-    proc = subprocess.run([str(arg) for arg in argv], cwd=cwd, env=env, capture_output=True,
-                          text=True, timeout=timeout, stdin=subprocess.DEVNULL)
+    cmd = [str(arg) for arg in argv]
+    with subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          text=True, stdin=subprocess.DEVNULL, start_new_session=True) as child:
+        try:
+            stdout, stderr = child.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            # Local rsync and CLI plugins can have children holding the output pipes.
+            try:
+                os.killpg(child.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            child.communicate(timeout=5)
+            raise
+        proc = subprocess.CompletedProcess(cmd, child.returncode, stdout, stderr)
     if proc.returncode != expected:
         raise RuntimeError(f"{Path(argv[0]).name} returned {proc.returncode}, expected {expected}: "
                            f"{(proc.stderr or proc.stdout).strip()[-1200:]}")
@@ -49,6 +62,9 @@ class Receipt:
             result = fn()
             sample.update(result or {})
             sample['outcome'] = 'pass'
+        except subprocess.TimeoutExpired as error:
+            sample.update(outcome='timeout', deadline_seconds=error.timeout,
+                          error=f'{Path(error.cmd[0]).name} exceeded {error.timeout} seconds')
         except Exception as error:
             sample.update(outcome='fail', error=str(error))
         sample['validated_ms'] = round(1000 * (time.perf_counter() - start), 3)
