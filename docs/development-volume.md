@@ -1,6 +1,6 @@
 # Development volumes on macOS
 
-`micropod storage dev-volume` puts a projects directory and an optional pnpm store on a sibling APFS volume. The old paths continue to work through symlinks. The volume uses the projects filesystem's case sensitivity and defaults to encryption with a passphrase entered in macOS's prompt. A source inside the projects tree, including a workspace-specific pnpm store, travels with the projects. A separate store can share hard links with the workspace on the new volume.
+`micropod storage dev-volume` puts a projects directory and the selected npm, pnpm and Go stores on a sibling APFS volume. The old paths continue to work through symlinks. The volume uses the projects filesystem's case sensitivity and defaults to encryption with a passphrase entered in macOS's prompt. A source inside the projects tree, including a workspace-specific pnpm store, travels with the projects. A separate store can share hard links with the workspace on the new volume.
 
 ## Plan and migrate
 
@@ -16,11 +16,29 @@ micropod storage dev-volume migrate
 micropod storage dev-volume status --json
 ```
 
-Pass an existing store. Omit `--pnpm-store` to migrate only projects. If you maintain multiple pnpm store versions, select their common store directory to include them all. `plan` reads the source and writes nothing. `create` provisions the volume, records its UUID in a private journal under `~/.micropod/dev-volume`, applies the indexing policy and remounts it. An operator can explicitly choose `--container diskN` or `--unencrypted` at provisioning. After creation, commands verify both the volume UUID and its original APFS container.
+Pass an existing store. Omit the store options to migrate only projects. If you maintain multiple pnpm store versions, select their common store directory to include them all. `plan` reads the source and writes nothing. `create` provisions the volume, records its UUID in a private journal under `~/.micropod/dev-volume`, applies the indexing policy and remounts it. An operator can explicitly choose `--container diskN` or `--unencrypted` at provisioning. After creation, commands verify both the volume UUID and its original APFS container.
 
 Run migration outside the source directories and close editors, shells or rig jobs using them. The CLI reports open process IDs. Migration copies as the login user, verifies bytes, modes, hard links, symlinks, macOS extended attributes, flags and ACLs, then atomically switches each top-level path. A top-level path with its own mount, or an embedded filesystem detected during verification, stops the migration. Each tree has a separate commit point. Its journal and filesystem state allow the same command to continue after interruption.
 
 Budget space for the verified destination copy and the retained source. Transfers stage a verified copy before switching paths. Micropod groups eligible APFS clones by source device, clone family and content hash. It recreates byte-identical files as independent copy-on-write clones on the destination and preserves each file's metadata. Diverged contents remain independent. Files with special flags and destinations without clone support can retain full copies. Allow for the temporary full-copy space during migration. The CLI prints the original backup path for each tree in JSON status. A new migration after restore starts a new generation and retains previous copies.
+
+## Reuse npm and Go caches across checkouts
+
+Use the tool-reported paths from the checkout and toolchain you build with. On an existing development volume, the following enrolls the three active stores in its journal. Each path must already be an existing, user-owned directory. For a top-level symlink to an external store, supply its physical directory. An npm project with a project-specific cache configuration will continue using that setting.
+
+```sh
+npm_cache="$(npm config get cache)"
+go_modules="$(go env GOMODCACHE)"
+go_build="$(go env GOCACHE)"
+cd "$HOME"
+micropod storage dev-volume add-caches \
+  --npm-cache "$npm_cache" --go-mod-cache "$go_modules" --go-build-cache "$go_build"
+micropod storage dev-volume migrate
+```
+
+The same flags work with `plan` and `create`. Sources selected twice or nested inside a selected tree move once. The package managers keep using their established paths. Each checkout owns its installed `node_modules` and build outputs. Go keeps its normal module archive, extracted module and build artifacts in their respective stores. Micropod retains the original migration backups separately.
+
+For trusted jobs on a persistent Linux worker, mount the same guest-local volume at the tool's cache path in each fresh container. Reuse a volume per tool and trust boundary. On the Micropod Docker shim, bind-mounting a shared host directory at `/root/.npm`, `/go/pkg/mod` or `/root/.cache/go-build` acquires the live shared view for that source. The bind request returns its ID and path directly. Inspect and list continue to report the current size. The guest qualification exercises the named-volume path, and the macOS socket qualification exercises the shim's shared-filesystem bind protocol.
 
 ## Remount, repair and restore
 
@@ -71,3 +89,19 @@ python3 scripts/bench_live_kernel.py --engine linux-docker --socket /var/run/doc
 The benchmark compares two overlapping containers' Linux boot ID, requires distinct PID and mount namespaces, and verifies cgroup CPU and memory values. Each timed container has one CPU, 256 MiB and no network. It must return the expected status, stdout, stderr and boot ID. A Micropod result also requires the independent boot ID of the enclosing allocation and the same Micropod allocation before and after all batches. Linux uses the local engine host. OrbStack uses the Mac Docker client and its local Unix socket. The default Micropod clock runs on the requesting Mac and includes the Connect transport. The optional `--engine micropod --clock guest` uses Python 3.8+ inside the allocation to isolate the guest Docker latency. The paired command uses a single Mac clock, alternates both engines across blocks, verifies the same native image on distinct kernels and records each daemon's CPU and memory allocation.
 
 The default scales are 1, 4, 8 and 16 simultaneous clients, with five blocks per scale. Batch wall times include the Docker client, launch, guest execution, auto-removal and client return. VM provisioning and image pulls happen outside the measured interval. A physical comparison should use the same idle Mac, engine budgets, image architecture and digest, and record each allocation's cold-to-ready time separately. [Measured results](benchmarks/2026-11-19/warm-kernel-and-volumes.md).
+
+## Physical Apple Silicon comparison
+
+Run on the Mac that owns the Micropod allocation. Supply the installed peer sockets. Each block rotates engine order, uses the Mac's clock, checks native ARM64 images and distinct Linux boot/daemon identities, and records allocated CPU and memory. Match the guest CPU budgets for scaling comparisons. The two saved Ubuntu ARM64 references provide per-scale batch times for the warm container target.
+
+```sh
+refs=docs/benchmarks/2026-11-19
+python3 scripts/bench_live_kernel.py --engine rig-matrix --api "$MICROPOD_URL" \
+  --allocation "$ALLOCATION_ID" --socket /run/user/1000/docker.sock \
+  --desktop-socket "$HOME/.docker/run/docker.sock" --orbstack-socket "$HOME/.orbstack/run/docker.sock" \
+  --image 'alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc' \
+  --ubuntu-reference "$refs/live-kernel-arm64.json" --ubuntu-reference "$refs/live-kernel-arm64-repeat.json" \
+  --json apple-matrix.json
+```
+
+For full package jobs add `--package-image micropod-offline-cache:bench` and load the same ARM64 image archive into each selected daemon, including the inner Micropod Docker daemon. The optional `packages` workflow produces this archive and its Ubuntu receipt. A new job gets an isolated checkout and reuses three guest-local volumes inside the warm kernel. The benchmark removes the sources, checks empty caches fail offline, executes the installed Node module and Go binary, checks warm Go compiler traces, and verifies the original shared payloads remain in place. Each timed package batch includes container creation, work, validation, removal and client return. Package jobs request one CPU and 1 GiB. Add `--ubuntu-reference "$refs/package-containers-ubuntu-arm64.json"` with the matching toolchain to get per-engine package ratios as well as launch ratios. [Measurements and raw receipts](benchmarks/2026-11-19/apple-warm-caches.md).

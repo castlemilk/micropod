@@ -6,6 +6,7 @@ import concurrent.futures
 import hashlib
 import http.client
 import json
+import math
 import os
 from pathlib import Path
 import platform
@@ -20,6 +21,13 @@ from urllib.parse import urlsplit
 import uuid
 
 
+WORKLOAD = "docker-run-rm-kernel-streams-v1"
+MAC_PEERS = ("orbstack", "docker-desktop", "colima")
+# The original two ARM references precede the workload field. Accept only their published bytes.
+LEGACY_UBUNTU = {
+    "4633e3b775b54fd328ea6ff24bd1573f830bcf37291a9258341acf6b444d1fdd",
+    "6d042e5ecdc4bf5d52e090d26df16a688f9fd2285e1b060a6418db8a983cbc63",
+}
 BOOT = "/proc/sys/kernel/random/boot_id"
 CLASSES = {"aarch64": "arm64", "arm64": "arm64", "x86_64": "amd64", "amd64": "amd64"}
 
@@ -126,6 +134,10 @@ def measure(args, receipt, runner=None, read_parent=None):
     receipt["server"] = initial
     if args.engine in {"inner", "micropod"}:
         require("rootless" in str(initial["SecurityOptions"]).lower(), "Allocation engine did not report rootless Docker")
+    if args.engine == "docker-desktop":
+        require("docker desktop" in str(initial["OperatingSystem"]).lower(), "Expected the Docker Desktop daemon")
+    if args.engine == "colima":
+        require(re.fullmatch(r"colima(?:-[a-zA-Z0-9._-]+)?", str(initial["Name"])), "Expected a Colima VM hostname")
     if args.engine == "orbstack":
         bundle = Path("/Applications/OrbStack.app/Contents/Info.plist")
         if bundle.is_file():
@@ -137,7 +149,7 @@ def measure(args, receipt, runner=None, read_parent=None):
     image = info["Id"]
     require(CLASSES.get(initial["Architecture"]) == info["Architecture"], "Image architecture differs from daemon architecture")
     receipt.update(image_id=image, architecture=info["Architecture"], image_digests=info.get("RepoDigests", []))
-    if read_parent is None and args.engine != "orbstack":
+    if read_parent is None and args.engine not in MAC_PEERS:
         read_parent = lambda: fingerprint(Path(BOOT).read_text())
     host_boot = read_parent() if read_parent else None
     cohort = uuid.uuid4().hex
@@ -159,7 +171,7 @@ def measure(args, receipt, runner=None, read_parent=None):
         require(probes[1][0] == kernel and (host_boot is None or kernel == host_boot), "Kernel identity mismatch")
         require(probes[0][1] != probes[1][1] and probes[0][2] != probes[1][2], "Two live containers shared PID or mount namespaces")
         receipt.update(boot_sha256=kernel, namespaces=[p[1:] for p in probes], resource_contract="1 CPU / 256 MiB",
-                       ownership_check="overlapping OrbStack containers" if host_boot is None else "Linux parent and overlapping containers")
+                       ownership_check=f"overlapping {args.engine} containers" if host_boot is None else "Linux parent and overlapping containers")
     finally:
         for name in owned:
             cmd(["rm", "-f", name], check=False)
@@ -206,15 +218,72 @@ def measure(args, receipt, runner=None, read_parent=None):
         cmd(["rm", "-f", *remaining], check=False)
         receipt["containers_remaining_after_cleanup"] = len(cmd(["ps", "-aq", "--filter", "label=" + label]).stdout.split())
         raise ValueError("Benchmark containers remained after auto-removal")
+    if args.package_image:
+        from guest_cache_workload import measure_packages
+        receipt["package_caches"] = {}
+        measure_packages(cmd, args.package_image, info["Architecture"], kernel, fingerprint, args.clients, args.rounds,
+                         receipt["package_caches"])
     require(server()["ID"] == initial["ID"], "Docker daemon identity changed")
     if host_boot:
         require(read_parent() == kernel, "Parent Linux kernel rebooted")
     require(all(not s["errors"] for s in samples), "Some measured containers failed validation")
 
 
+def reference_times(files, sample, clients, rounds):
+    references = []
+    for path in files:
+        payload = path.read_bytes()
+        ref = json.loads(payload)
+        require(ref.get("workload") == WORKLOAD or hashlib.sha256(payload).hexdigest() in LEGACY_UBUNTU,
+                f"{path.name} has an unknown workload")
+        require(ref.get("profile") == "linux-docker" and ref.get("passed") is True and ref.get("system") == "Linux"
+                and "ubuntu" in ref["server"]["OperatingSystem"].lower() and ref.get("clock", "client") == "client",
+                f"{path.name} is not a completed Ubuntu client-clock reference")
+        require(ref["architecture"] == sample["architecture"] == "arm64" and ref["image_id"] == sample["image_id"]
+                and set(ref["image_digests"]).intersection(sample["image_digests"])
+                and ref["resource_contract"] == sample["resource_contract"] and ref["rounds"] == rounds,
+                f"{path.name} has different resources per container, image, architecture or repetitions")
+        medians = {}
+        for n in clients:
+            batches = [b for b in ref["batches"] if b["clients"] == n]
+            require(len(batches) == rounds and {b["round"] for b in batches} == set(range(1, rounds + 1))
+                    and all(not b["errors"] and b["passed"] == n and math.isfinite(b["seconds"]) and b["seconds"] > 0
+                            for b in batches), f"{path.name} lacks a complete series at {n} clients")
+            medians[str(n)] = statistics.median(b["seconds"] for b in batches)
+        require(all(r["boot_sha256"] != ref["boot_sha256"] for r in references),
+                "Supply independently booted Ubuntu references")
+        reference = dict(file=path.name, boot_sha256=ref["boot_sha256"], daemon=ref["server"]["ID"],
+                         vcpus=ref["server"]["NCPU"], memory_bytes=ref["server"]["MemTotal"], median_seconds=medians)
+        reference["same_reported_daemon_as"] = [r["file"] for r in references if r["daemon"] == reference["daemon"]]
+        packages = ref.get("package_caches")
+        if packages and "package_caches" in sample:
+            require(packages.get("passed") is True and len(packages["blocks"]) == rounds and
+                    all(packages[k] == sample["package_caches"][k] for k in
+                        ("workload", "image_id", "script_sha256", "architecture", "resource_contract")),
+                    f"{path.name} has a different package workload or toolchain")
+            values = {t: {} for t in ("npm", "go")}
+            for block in packages["blocks"]:
+                require(block.get("same_payload_inodes") and block.get("empty_offline_controls"),
+                        f"{path.name} did not validate offline cache reuse")
+                for t in values:
+                    for n in clients:
+                        batches = [b for b in block["batches"] if b["tool"] == t and b["clients"] == n]
+                        require(len(batches) == 1 and batches[0]["passed"] == n and not batches[0]["errors"]
+                                and math.isfinite(batches[0]["seconds"]) and batches[0]["seconds"] > 0,
+                                f"{path.name} has an incomplete {t} batch")
+                        values[t].setdefault(str(n), []).append(batches[0]["seconds"])
+            reference["package_seconds"] = {t: {n: statistics.median(times) for n, times in groups.items()}
+                                            for t, groups in values.items()}
+        references.append(reference)
+    return references
+
+
 def paired(args, receipt):
-    require(platform.system() == "Darwin" and platform.machine() == "arm64", "Run the paired test on an Apple Silicon Mac")
-    require(args.clock == "client", "Both engines in a pair use the Mac client's clock")
+    require(platform.system() == "Darwin" and platform.machine() == "arm64", "Run on an Apple Silicon Mac")
+    require(args.clock == "client", "All engines use the requesting Mac's clock")
+    sockets = {"orbstack": args.orbstack_socket, "docker-desktop": args.desktop_socket, "colima": args.colima_socket}
+    engines = ["micropod", *[name for name, path in sockets.items() if path]]
+    receipt.update(macos=platform.mac_ver()[0], engines=engines, workload=WORKLOAD)
     hardware = json.loads(subprocess.check_output(
         ["/usr/sbin/system_profiler", "SPHardwareDataType", "-json"], text=True, timeout=30))["SPHardwareDataType"][0]
     receipt["hardware"] = {key: hardware.get(key) for key in
@@ -224,9 +293,8 @@ def paired(args, receipt):
     receipt["blocks"] = rows
     identities = {}
     for block in range(args.rounds):
-        order = ["micropod", "orbstack"]
-        if block % 2:
-            order.reverse()
+        offset = block % len(engines)
+        order = engines[offset:] + engines[:offset]
         for engine in order:
             current = argparse.Namespace(**vars(args))
             current.engine, current.rounds = engine, 1
@@ -237,51 +305,84 @@ def paired(args, receipt):
             if engine == "micropod":
                 in_allocation(current, row)
             else:
-                current.socket = args.orbstack_socket
+                current.socket = sockets[engine]
                 measure(current, row)
             identity = (row["boot_sha256"], row["server"]["ID"], row["image_id"])
             require(identity == identities.setdefault(engine, identity), f"{engine} kernel, daemon or image changed")
             row["passed"] = True
-    left, right = rows[:2]
-    require(left["architecture"] == right["architecture"] == "arm64" and left["image_id"] == right["image_id"],
-            "The two engines did not use the same native ARM64 image")
-    require(left["boot_sha256"] != right["boot_sha256"] and left["server"]["ID"] != right["server"]["ID"],
-            "Both clients reached the same Linux kernel or daemon")
+    first = rows[:len(engines)]
+    require(all(row["architecture"] == "arm64" and row["image_id"] == first[0]["image_id"] for row in first),
+            "All engines must use the same native ARM64 image")
+    require(len({r["boot_sha256"] for r in first}) == len(engines)
+            and len({r["server"]["ID"] for r in first}) == len(engines),
+            "Two clients reached the same Linux kernel or Docker daemon")
     receipt["p50_seconds"] = {
         engine: {str(n): statistics.median(s["seconds"] for row in rows if row["engine"] == engine
                                           for s in row["batches"] if s["clients"] == n) for n in args.clients}
         for engine in identities
     }
     receipt["engine_resources"] = {r["engine"]: {key: r["server"][key] for key in ("NCPU", "MemTotal")}
-                                   for r in (left, right)}
+                                   for r in first}
+    if args.package_image:
+        package_ids = {(r["package_caches"]["image_id"], r["package_caches"]["script_sha256"]) for r in rows}
+        require(len(package_ids) == 1, "Package toolchain or workload differed between engines")
+        receipt["package_median_seconds"] = {
+            engine: {tool: {str(n): statistics.median(b["seconds"] for r in rows if r["engine"] == engine
+                           for block in r["package_caches"]["blocks"] for b in block["batches"]
+                           if b["clients"] == n and b["tool"] == tool) for n in args.clients} for tool in ("npm", "go")}
+            for engine in engines}
+    if args.ubuntu_reference:
+        refs = reference_times(args.ubuntu_reference, first[0], args.clients, args.rounds)
+        receipt["ubuntu_references"] = refs
+        if args.package_image:
+            receipt["package_ratio_vs_ubuntu"] = {
+                engine: {tool: {n: {r["file"]: round(seconds / r["package_seconds"][tool][n], 4)
+                                    for r in refs if "package_seconds" in r} for n, seconds in times.items()}
+                         for tool, times in products.items()} for engine, products in receipt["package_median_seconds"].items()}
+        receipt["vs_ubuntu"] = {engine: {
+            n: {r["file"]: {"ratio": round(seconds / r["median_seconds"][n], 4),
+                            "gap_ms": round((seconds - r["median_seconds"][n]) * 1000, 3),
+                            "same_daemon_vcpus": receipt["engine_resources"][engine]["NCPU"] == r["vcpus"]}
+                for r in refs} for n, seconds in medians.items()} for engine, medians in receipt["p50_seconds"].items()}
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--engine", choices=["rig-pair", "micropod", "linux-docker", "orbstack", "inner"], required=True)
+    p.add_argument("--engine", choices=["rig-matrix", "rig-pair", "micropod", "linux-docker", *MAC_PEERS, "inner"], required=True)
     p.add_argument("--socket", required=True, help="Docker Unix socket in the measured environment")
     p.add_argument("--clock", choices=["client", "guest"], default="client",
                    help="Time from the invoking client, or inside an owned Micropod allocation")
     p.add_argument("--orbstack-socket", help="Mac-local OrbStack socket for an interleaved physical rig comparison")
+    p.add_argument("--desktop-socket", help="Local Docker Desktop socket for the physical rig matrix")
+    p.add_argument("--colima-socket", help="Local Colima socket for the physical rig matrix")
+    p.add_argument("--ubuntu-reference", type=Path, action="append", default=[],
+                   help="Matched warm ARM64 Ubuntu receipt, repeat for independent allocations")
     p.add_argument("--api", help="Local Micropod Connect endpoint")
     p.add_argument("--allocation", help="ID of an existing Micropod rootless Docker sandbox")
     p.add_argument("--image", default="alpine:3.20", help="Already-pulled native Alpine image or digest")
+    p.add_argument("--package-image", help="Preloaded native OCI image with Go, npm, Node and Python for offline container jobs")
     p.add_argument("--clients", nargs="+", type=int, default=[1, 4, 8, 16])
     p.add_argument("--rounds", type=int, default=5)
     p.add_argument("--json", type=Path)
     args = p.parse_args()
     if not (1 <= args.rounds <= 50 and all(1 <= n <= 64 for n in args.clients) and len(set(args.clients)) == len(args.clients)):
         p.error("Rounds must be 1..50 and distinct client levels 1..64")
-    if args.engine in {"rig-pair", "micropod"} and not (args.api and args.allocation):
+    if args.engine in {"rig-pair", "rig-matrix", "micropod"} and not (args.api and args.allocation):
         p.error("Micropod requires --api and --allocation")
     if args.engine == "rig-pair" and not args.orbstack_socket:
         p.error("A physical pair requires --orbstack-socket")
+    if args.engine == "rig-matrix" and not any((args.orbstack_socket, args.desktop_socket, args.colima_socket)):
+        p.error("Supply at least one peer socket for the Apple Silicon matrix")
+    if args.ubuntu_reference and args.engine not in {"rig-pair", "rig-matrix"}:
+        p.error("Use Ubuntu references with the physical rig matrix")
+    if args.package_image and args.clock == "guest":
+        p.error("Package workspaces use the client clock")
     if args.clock == "guest" and args.engine != "micropod":
         p.error("The guest clock is available for an owned Micropod allocation")
-    record = dict(profile=args.engine, measured_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    record = dict(profile=args.engine, workload=WORKLOAD, measured_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                   system=platform.system(), arch=platform.machine(), clock=args.clock, image=args.image, rounds=args.rounds)
     try:
-        if args.engine == "rig-pair":
+        if args.engine in {"rig-pair", "rig-matrix"}:
             paired(args, record)
         elif args.engine == "micropod":
             in_allocation(args, record)

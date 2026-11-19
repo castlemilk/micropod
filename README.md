@@ -368,7 +368,7 @@ Storage Location**. The default paths become symlinks, so every
 [docs/storage-location.md](docs/storage-location.md).
 
 Use `micropod storage dev-volume plan --projects "$HOME/projects"` to plan a
-separate APFS workspace for repositories and an optional pnpm store. The CLI can
+separate APFS workspace for repositories and shared npm, pnpm and Go caches. The CLI can
 migrate and restore the trees, preserve hard links and reapply volume indexing
 settings. [Development volumes and live-rig benchmarks](docs/development-volume.md).
 

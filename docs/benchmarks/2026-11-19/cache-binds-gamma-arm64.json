@@ -1,0 +1,308 @@
+{
+  "system": "Darwin",
+  "machine": "arm64",
+  "release": "25.5.0",
+  "cpus": 18,
+  "load_before": [
+    10.46826171875,
+    13.59423828125,
+    17.9736328125
+  ],
+  "rounds": 5,
+  "profile": "micropod-shared-cache-bind",
+  "measured_at": "2026-11-19T12:46:13Z",
+  "versions": {
+    "go": "go version go1.27.2 darwin/arm64",
+    "npm": "11.19.1",
+    "node": "v24.22.2"
+  },
+  "seed": {
+    "npm_cache_add_seconds": 0.4960923340404406,
+    "go_download_seconds": 0.0690252500353381,
+    "go_cold_build_seconds": 3.8430955419898964,
+    "go_cold_compiler_or_assembler_invocations": 106
+  },
+  "cache_sizes": {
+    "npm_content": {
+      "files": 1,
+      "logical_bytes": 229
+    },
+    "go_modules": {
+      "files": 9,
+      "logical_bytes": 626
+    },
+    "go_build": {
+      "files": 410,
+      "logical_bytes": 36805525
+    }
+  },
+  "batches": [
+    {
+      "clients": 1,
+      "mode": "size-and-bind",
+      "round": 1,
+      "seconds": 0.025537417
+    },
+    {
+      "clients": 1,
+      "mode": "bind",
+      "round": 1,
+      "seconds": 7.6291e-05
+    },
+    {
+      "clients": 4,
+      "mode": "bind",
+      "round": 1,
+      "seconds": 0.000168208
+    },
+    {
+      "clients": 4,
+      "mode": "size-and-bind",
+      "round": 1,
+      "seconds": 0.023359666
+    },
+    {
+      "clients": 8,
+      "mode": "size-and-bind",
+      "round": 1,
+      "seconds": 0.029901167
+    },
+    {
+      "clients": 8,
+      "mode": "bind",
+      "round": 1,
+      "seconds": 0.000282542
+    },
+    {
+      "clients": 16,
+      "mode": "bind",
+      "round": 1,
+      "seconds": 0.000583917
+    },
+    {
+      "clients": 16,
+      "mode": "size-and-bind",
+      "round": 1,
+      "seconds": 0.071055375
+    },
+    {
+      "clients": 4,
+      "mode": "bind",
+      "round": 2,
+      "seconds": 0.000187417
+    },
+    {
+      "clients": 4,
+      "mode": "size-and-bind",
+      "round": 2,
+      "seconds": 0.0165585
+    },
+    {
+      "clients": 8,
+      "mode": "size-and-bind",
+      "round": 2,
+      "seconds": 0.030753875
+    },
+    {
+      "clients": 8,
+      "mode": "bind",
+      "round": 2,
+      "seconds": 0.000307458
+    },
+    {
+      "clients": 16,
+      "mode": "bind",
+      "round": 2,
+      "seconds": 0.00055025
+    },
+    {
+      "clients": 16,
+      "mode": "size-and-bind",
+      "round": 2,
+      "seconds": 0.069673208
+    },
+    {
+      "clients": 1,
+      "mode": "size-and-bind",
+      "round": 2,
+      "seconds": 0.003819791
+    },
+    {
+      "clients": 1,
+      "mode": "bind",
+      "round": 2,
+      "seconds": 5.7334e-05
+    },
+    {
+      "clients": 8,
+      "mode": "size-and-bind",
+      "round": 3,
+      "seconds": 0.030779708
+    },
+    {
+      "clients": 8,
+      "mode": "bind",
+      "round": 3,
+      "seconds": 0.000298667
+    },
+    {
+      "clients": 16,
+      "mode": "bind",
+      "round": 3,
+      "seconds": 0.000520542
+    },
+    {
+      "clients": 16,
+      "mode": "size-and-bind",
+      "round": 3,
+      "seconds": 0.059633667
+    },
+    {
+      "clients": 1,
+      "mode": "size-and-bind",
+      "round": 3,
+      "seconds": 0.006729458
+    },
+    {
+      "clients": 1,
+      "mode": "bind",
+      "round": 3,
+      "seconds": 6.4792e-05
+    },
+    {
+      "clients": 4,
+      "mode": "bind",
+      "round": 3,
+      "seconds": 0.000176083
+    },
+    {
+      "clients": 4,
+      "mode": "size-and-bind",
+      "round": 3,
+      "seconds": 0.01649125
+    },
+    {
+      "clients": 16,
+      "mode": "bind",
+      "round": 4,
+      "seconds": 0.000538167
+    },
+    {
+      "clients": 16,
+      "mode": "size-and-bind",
+      "round": 4,
+      "seconds": 0.060627209
+    },
+    {
+      "clients": 1,
+      "mode": "size-and-bind",
+      "round": 4,
+      "seconds": 0.004021416
+    },
+    {
+      "clients": 1,
+      "mode": "bind",
+      "round": 4,
+      "seconds": 5.8834e-05
+    },
+    {
+      "clients": 4,
+      "mode": "bind",
+      "round": 4,
+      "seconds": 0.000163958
+    },
+    {
+      "clients": 4,
+      "mode": "size-and-bind",
+      "round": 4,
+      "seconds": 0.014400958
+    },
+    {
+      "clients": 8,
+      "mode": "size-and-bind",
+      "round": 4,
+      "seconds": 0.027856333
+    },
+    {
+      "clients": 8,
+      "mode": "bind",
+      "round": 4,
+      "seconds": 0.000280333
+    },
+    {
+      "clients": 1,
+      "mode": "size-and-bind",
+      "round": 5,
+      "seconds": 0.006183292
+    },
+    {
+      "clients": 1,
+      "mode": "bind",
+      "round": 5,
+      "seconds": 6.7291e-05
+    },
+    {
+      "clients": 4,
+      "mode": "bind",
+      "round": 5,
+      "seconds": 0.00016
+    },
+    {
+      "clients": 4,
+      "mode": "size-and-bind",
+      "round": 5,
+      "seconds": 0.013762917
+    },
+    {
+      "clients": 8,
+      "mode": "size-and-bind",
+      "round": 5,
+      "seconds": 0.028053083
+    },
+    {
+      "clients": 8,
+      "mode": "bind",
+      "round": 5,
+      "seconds": 0.000307041
+    },
+    {
+      "clients": 16,
+      "mode": "bind",
+      "round": 5,
+      "seconds": 0.0005715
+    },
+    {
+      "clients": 16,
+      "mode": "size-and-bind",
+      "round": 5,
+      "seconds": 0.057200916
+    }
+  ],
+  "build": "optimized",
+  "passed": true,
+  "sources": [
+    "npm-cache",
+    "go-mod-cache",
+    "go-build-cache"
+  ],
+  "transport": "direct",
+  "median_seconds": {
+    "size-and-bind": {
+      "1": 0.006183292,
+      "4": 0.01649125,
+      "8": 0.029901167,
+      "16": 0.060627209
+    },
+    "bind": {
+      "1": 6.4792e-05,
+      "4": 0.000168208,
+      "8": 0.000298667,
+      "16": 0.00055025
+    }
+  },
+  "load_after": [
+    10.7509765625,
+    13.6005859375,
+    17.9501953125
+  ]
+}

@@ -1,0 +1,757 @@
+{
+  "profile": "linux-docker",
+  "workload": "docker-run-rm-kernel-streams-v1",
+  "measured_at": "2026-11-19T12:54:12Z",
+  "system": "Linux",
+  "arch": "aarch64",
+  "clock": "client",
+  "image": "alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+  "rounds": 5,
+  "server": {
+    "ID": "9ee1f823-cfe1-4d8d-96bc-e33b1fff3662",
+    "Name": "runnervmnfvap",
+    "OperatingSystem": "Ubuntu 24.04.5 LTS",
+    "Architecture": "aarch64",
+    "ServerVersion": "28.0.4",
+    "KernelVersion": "7.0.0-1017-azure",
+    "NCPU": 4,
+    "MemTotal": 16715923456,
+    "SecurityOptions": [
+      "name=apparmor",
+      "name=seccomp,profile=builtin",
+      "name=cgroupns"
+    ]
+  },
+  "image_id": "sha256:ab3fe4defd29ba6231229a4d41440ac8bde8218e85870e53876277faa24b35c4",
+  "architecture": "arm64",
+  "image_digests": [
+    "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+  ],
+  "boot_sha256": "f055c38515f33c74278d92969b436d04fe5493f66185189b7ad5c7a52e773902",
+  "namespaces": [
+    [
+      "pid:[4026532266]",
+      "mnt:[4026532263]"
+    ],
+    [
+      "pid:[4026532331]",
+      "mnt:[4026532328]"
+    ]
+  ],
+  "resource_contract": "1 CPU / 256 MiB",
+  "ownership_check": "Linux parent and overlapping containers",
+  "batches": [
+    {
+      "round": 1,
+      "clients": 1,
+      "seconds": 0.124488,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 1,
+      "clients": 4,
+      "seconds": 0.210538,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 1,
+      "clients": 8,
+      "seconds": 0.341328,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 1,
+      "clients": 16,
+      "seconds": 0.646073,
+      "passed": 16,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 4,
+      "seconds": 0.180361,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 8,
+      "seconds": 0.313868,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 16,
+      "seconds": 0.642077,
+      "passed": 16,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 1,
+      "seconds": 0.122389,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 8,
+      "seconds": 0.330547,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 16,
+      "seconds": 0.616576,
+      "passed": 16,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 1,
+      "seconds": 0.119931,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 4,
+      "seconds": 0.184038,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 4,
+      "clients": 16,
+      "seconds": 0.64143,
+      "passed": 16,
+      "errors": []
+    },
+    {
+      "round": 4,
+      "clients": 1,
+      "seconds": 0.119886,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 4,
+      "clients": 4,
+      "seconds": 0.185757,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 4,
+      "clients": 8,
+      "seconds": 0.31596,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 5,
+      "clients": 1,
+      "seconds": 0.141151,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 5,
+      "clients": 4,
+      "seconds": 0.188377,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 5,
+      "clients": 8,
+      "seconds": 0.310054,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 5,
+      "clients": 16,
+      "seconds": 0.630439,
+      "passed": 16,
+      "errors": []
+    }
+  ],
+  "p50_seconds": {
+    "1": 0.122389,
+    "4": 0.185757,
+    "8": 0.31596,
+    "16": 0.64143
+  },
+  "package_caches": {
+    "workload": "offline-npm-go-oci-v1",
+    "architecture": "arm64",
+    "image_id": "sha256:286de5cc30fe9fe1c93f68695f99bc7c51733c48f9e8dfa8c4cf6499aad5101b",
+    "script_sha256": "19140bce31f30539080b6f9315c6325a53effddc5f83871d9375664cafd7a003",
+    "resource_contract": "1 CPU / 1 GiB",
+    "clients": [
+      1,
+      4,
+      8,
+      16
+    ],
+    "blocks": [
+      {
+        "batches": [
+          {
+            "tool": "npm",
+            "clients": 1,
+            "seconds": 0.964736,
+            "passed": 1,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 1,
+            "seconds": 0.605879,
+            "passed": 1,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 4,
+            "seconds": 0.762786,
+            "passed": 4,
+            "errors": []
+          },
+          {
+            "tool": "npm",
+            "clients": 4,
+            "seconds": 1.256556,
+            "passed": 4,
+            "errors": []
+          },
+          {
+            "tool": "npm",
+            "clients": 8,
+            "seconds": 2.095907,
+            "passed": 8,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 8,
+            "seconds": 1.398162,
+            "passed": 8,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 16,
+            "seconds": 2.762836,
+            "passed": 16,
+            "errors": []
+          },
+          {
+            "tool": "npm",
+            "clients": 16,
+            "seconds": 4.338,
+            "passed": 16,
+            "errors": []
+          }
+        ],
+        "round": 1,
+        "cold": {
+          "npm_cache_add_seconds": 0.4050290380000092,
+          "go_download_seconds": 0.005743278000011287,
+          "go_cold_build_seconds": 9.599967022999977,
+          "go_cold_compiler_or_assembler_invocations": 107
+        },
+        "versions": {
+          "go": "go version go1.26.11 linux/arm64",
+          "npm": "11.19.1",
+          "node": "v24.22.3"
+        },
+        "before": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 221
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 438,
+            "logical_bytes": 33085592
+          }
+        },
+        "lock": {
+          "npm_integrity": "sha512-DK0sqm91yhbkfdTAQwbTy5tvpNugdn2ELPNxfTfbKeUfqETLjkulIpzMH+HqtYvZzeKHKJao9QEhyQiZVw51mQ==",
+          "go_sum": "example.test/shared v1.0.0 h1:SUh8FXQkzG2Eyft/tsgx9FthiQGaP1vUedbaTJLRWWY=\nexample.test/shared v1.0.0/go.mod h1:EazEgfmYsFYbznxLMACijtdxme13u0P8vqrI2V8H9oo=\n",
+          "go_zip_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3"
+        },
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 221
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 438,
+            "logical_bytes": 33085592
+          }
+        },
+        "same_payload_inodes": true,
+        "empty_offline_controls": true
+      },
+      {
+        "batches": [
+          {
+            "tool": "go",
+            "clients": 4,
+            "seconds": 0.719331,
+            "passed": 4,
+            "errors": []
+          },
+          {
+            "tool": "npm",
+            "clients": 4,
+            "seconds": 1.157237,
+            "passed": 4,
+            "errors": []
+          },
+          {
+            "tool": "npm",
+            "clients": 8,
+            "seconds": 2.15148,
+            "passed": 8,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 8,
+            "seconds": 1.334861,
+            "passed": 8,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 16,
+            "seconds": 2.63539,
+            "passed": 16,
+            "errors": []
+          },
+          {
+            "tool": "npm",
+            "clients": 16,
+            "seconds": 4.314897,
+            "passed": 16,
+            "errors": []
+          },
+          {
+            "tool": "npm",
+            "clients": 1,
+            "seconds": 0.93959,
+            "passed": 1,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 1,
+            "seconds": 0.586135,
+            "passed": 1,
+            "errors": []
+          }
+        ],
+        "round": 2,
+        "cold": {
+          "npm_cache_add_seconds": 0.44337790000002997,
+          "go_download_seconds": 0.005312847999960013,
+          "go_cold_build_seconds": 9.299597973999994,
+          "go_cold_compiler_or_assembler_invocations": 107
+        },
+        "versions": {
+          "go": "go version go1.26.11 linux/arm64",
+          "npm": "11.19.1",
+          "node": "v24.22.3"
+        },
+        "before": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 221
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 438,
+            "logical_bytes": 33085592
+          }
+        },
+        "lock": {
+          "npm_integrity": "sha512-DK0sqm91yhbkfdTAQwbTy5tvpNugdn2ELPNxfTfbKeUfqETLjkulIpzMH+HqtYvZzeKHKJao9QEhyQiZVw51mQ==",
+          "go_sum": "example.test/shared v1.0.0 h1:SUh8FXQkzG2Eyft/tsgx9FthiQGaP1vUedbaTJLRWWY=\nexample.test/shared v1.0.0/go.mod h1:EazEgfmYsFYbznxLMACijtdxme13u0P8vqrI2V8H9oo=\n",
+          "go_zip_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3"
+        },
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 221
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 438,
+            "logical_bytes": 33085592
+          }
+        },
+        "same_payload_inodes": true,
+        "empty_offline_controls": true
+      },
+      {
+        "batches": [
+          {
+            "tool": "npm",
+            "clients": 8,
+            "seconds": 2.20793,
+            "passed": 8,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 8,
+            "seconds": 1.411818,
+            "passed": 8,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 16,
+            "seconds": 2.802241,
+            "passed": 16,
+            "errors": []
+          },
+          {
+            "tool": "npm",
+            "clients": 16,
+            "seconds": 4.416871,
+            "passed": 16,
+            "errors": []
+          },
+          {
+            "tool": "npm",
+            "clients": 1,
+            "seconds": 0.967971,
+            "passed": 1,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 1,
+            "seconds": 0.58107,
+            "passed": 1,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 4,
+            "seconds": 0.721571,
+            "passed": 4,
+            "errors": []
+          },
+          {
+            "tool": "npm",
+            "clients": 4,
+            "seconds": 1.100695,
+            "passed": 4,
+            "errors": []
+          }
+        ],
+        "round": 3,
+        "cold": {
+          "npm_cache_add_seconds": 0.3731838850000031,
+          "go_download_seconds": 0.04949006700002201,
+          "go_cold_build_seconds": 9.624620677999985,
+          "go_cold_compiler_or_assembler_invocations": 107
+        },
+        "versions": {
+          "go": "go version go1.26.11 linux/arm64",
+          "npm": "11.19.1",
+          "node": "v24.22.3"
+        },
+        "before": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 221
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 438,
+            "logical_bytes": 33085592
+          }
+        },
+        "lock": {
+          "npm_integrity": "sha512-DK0sqm91yhbkfdTAQwbTy5tvpNugdn2ELPNxfTfbKeUfqETLjkulIpzMH+HqtYvZzeKHKJao9QEhyQiZVw51mQ==",
+          "go_sum": "example.test/shared v1.0.0 h1:SUh8FXQkzG2Eyft/tsgx9FthiQGaP1vUedbaTJLRWWY=\nexample.test/shared v1.0.0/go.mod h1:EazEgfmYsFYbznxLMACijtdxme13u0P8vqrI2V8H9oo=\n",
+          "go_zip_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3"
+        },
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 221
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 438,
+            "logical_bytes": 33085592
+          }
+        },
+        "same_payload_inodes": true,
+        "empty_offline_controls": true
+      },
+      {
+        "batches": [
+          {
+            "tool": "go",
+            "clients": 16,
+            "seconds": 2.794814,
+            "passed": 16,
+            "errors": []
+          },
+          {
+            "tool": "npm",
+            "clients": 16,
+            "seconds": 4.218226,
+            "passed": 16,
+            "errors": []
+          },
+          {
+            "tool": "npm",
+            "clients": 1,
+            "seconds": 0.939007,
+            "passed": 1,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 1,
+            "seconds": 0.597242,
+            "passed": 1,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 4,
+            "seconds": 0.691439,
+            "passed": 4,
+            "errors": []
+          },
+          {
+            "tool": "npm",
+            "clients": 4,
+            "seconds": 1.095069,
+            "passed": 4,
+            "errors": []
+          },
+          {
+            "tool": "npm",
+            "clients": 8,
+            "seconds": 2.273162,
+            "passed": 8,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 8,
+            "seconds": 1.48116,
+            "passed": 8,
+            "errors": []
+          }
+        ],
+        "round": 4,
+        "cold": {
+          "npm_cache_add_seconds": 0.40345220699998663,
+          "go_download_seconds": 0.005731645999958346,
+          "go_cold_build_seconds": 9.687301121000019,
+          "go_cold_compiler_or_assembler_invocations": 107
+        },
+        "versions": {
+          "go": "go version go1.26.11 linux/arm64",
+          "npm": "11.19.1",
+          "node": "v24.22.3"
+        },
+        "before": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 221
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 438,
+            "logical_bytes": 33085592
+          }
+        },
+        "lock": {
+          "npm_integrity": "sha512-DK0sqm91yhbkfdTAQwbTy5tvpNugdn2ELPNxfTfbKeUfqETLjkulIpzMH+HqtYvZzeKHKJao9QEhyQiZVw51mQ==",
+          "go_sum": "example.test/shared v1.0.0 h1:SUh8FXQkzG2Eyft/tsgx9FthiQGaP1vUedbaTJLRWWY=\nexample.test/shared v1.0.0/go.mod h1:EazEgfmYsFYbznxLMACijtdxme13u0P8vqrI2V8H9oo=\n",
+          "go_zip_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3"
+        },
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 221
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 438,
+            "logical_bytes": 33085592
+          }
+        },
+        "same_payload_inodes": true,
+        "empty_offline_controls": true
+      },
+      {
+        "batches": [
+          {
+            "tool": "npm",
+            "clients": 1,
+            "seconds": 0.961057,
+            "passed": 1,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 1,
+            "seconds": 0.610662,
+            "passed": 1,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 4,
+            "seconds": 0.735822,
+            "passed": 4,
+            "errors": []
+          },
+          {
+            "tool": "npm",
+            "clients": 4,
+            "seconds": 1.113445,
+            "passed": 4,
+            "errors": []
+          },
+          {
+            "tool": "npm",
+            "clients": 8,
+            "seconds": 2.206045,
+            "passed": 8,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 8,
+            "seconds": 1.429683,
+            "passed": 8,
+            "errors": []
+          },
+          {
+            "tool": "go",
+            "clients": 16,
+            "seconds": 2.904129,
+            "passed": 16,
+            "errors": []
+          },
+          {
+            "tool": "npm",
+            "clients": 16,
+            "seconds": 4.421317,
+            "passed": 16,
+            "errors": []
+          }
+        ],
+        "round": 5,
+        "cold": {
+          "npm_cache_add_seconds": 0.42455857399994557,
+          "go_download_seconds": 0.005517595000014808,
+          "go_cold_build_seconds": 9.493236217999993,
+          "go_cold_compiler_or_assembler_invocations": 107
+        },
+        "versions": {
+          "go": "go version go1.26.11 linux/arm64",
+          "npm": "11.19.1",
+          "node": "v24.22.3"
+        },
+        "before": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 221
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 438,
+            "logical_bytes": 33085592
+          }
+        },
+        "lock": {
+          "npm_integrity": "sha512-DK0sqm91yhbkfdTAQwbTy5tvpNugdn2ELPNxfTfbKeUfqETLjkulIpzMH+HqtYvZzeKHKJao9QEhyQiZVw51mQ==",
+          "go_sum": "example.test/shared v1.0.0 h1:SUh8FXQkzG2Eyft/tsgx9FthiQGaP1vUedbaTJLRWWY=\nexample.test/shared v1.0.0/go.mod h1:EazEgfmYsFYbznxLMACijtdxme13u0P8vqrI2V8H9oo=\n",
+          "go_zip_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3"
+        },
+        "after": {
+          "npm_content": {
+            "files": 1,
+            "logical_bytes": 221
+          },
+          "go_modules": {
+            "files": 9,
+            "logical_bytes": 626
+          },
+          "go_build": {
+            "files": 438,
+            "logical_bytes": 33085592
+          }
+        },
+        "same_payload_inodes": true,
+        "empty_offline_controls": true
+      }
+    ],
+    "median_seconds": {
+      "npm": {
+        "1": 0.961057,
+        "4": 1.113445,
+        "8": 2.206045,
+        "16": 4.338
+      },
+      "go": {
+        "1": 0.597242,
+        "4": 0.721571,
+        "8": 1.411818,
+        "16": 2.794814
+      }
+    },
+    "passed": true
+  },
+  "passed": true
+}

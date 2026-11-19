@@ -12,7 +12,7 @@ enum StorageCommands {
         Usage:
           micropod storage [show]                 where the data is, per tree, and its volume
           micropod storage volumes                drives it could move to (kind, format, free space)
-          micropod storage dev-volume help        provision a low-indexing APFS workspace for projects and pnpm
+          micropod storage dev-volume help        provision a low-indexing APFS workspace for projects and package caches
           micropod storage set <target> [--migrate]
                                                   move the data to <target>: a folder
                                                   (/Volumes/Ext/micropod), or a drive's name or

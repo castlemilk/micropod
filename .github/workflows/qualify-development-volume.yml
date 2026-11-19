@@ -5,7 +5,7 @@ on:
       suite:
         description: Qualification to run
         type: choice
-        options: [storage, linux, orbstack, all]
+        options: [storage, linux, packages, orbstack, all]
         default: storage
       orbstack_release:
         description: OrbStack installer for the hosted Intel Mac
@@ -51,13 +51,27 @@ jobs:
         with:
           path: .qualification-bin/micropod
           key: ${{ steps.cli.outputs.cache-primary-key }}
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: .go-version
+          cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify concurrent package cache binds over the production Unix socket
+        run: |
+          swiftc -O -parse-as-library Sources/MicropodSharedFS/*.swift scripts/bench_cache_bind.swift -o "$RUNNER_TEMP/bind-bench"
+          python3 scripts/bench_package_caches.py --rounds 3 --bind-binary "$RUNNER_TEMP/bind-bench" --transport unix --parent /tmp --json "$RUNNER_TEMP/binds.json"
+          jq -c . "$RUNNER_TEMP/binds.json" | sed 's/^/CACHE_BIND_RECEIPT /'
       - name: Migrate and remount a disposable APFS volume
         run: python3 scripts/qualify_dev_volume.py --binary .qualification-bin/micropod --json "$RUNNER_TEMP/volume.json"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: development-volume
-          path: ${{ runner.temp }}/volume.json
+          path: |
+            ${{ runner.temp }}/volume.json
+            ${{ runner.temp }}/binds.json
 
   warm-linux:
     if: inputs.suite == 'linux' || inputs.suite == 'all'
@@ -80,6 +94,34 @@ jobs:
         with:
           name: live-kernel-${{ matrix.runner }}
           path: ${{ runner.temp }}/kernel.json
+
+  package-reference:
+    if: inputs.suite == 'packages' || inputs.suite == 'all'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 16
+    env:
+      IMAGE: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+      TOOLCHAIN: micropod-offline-cache:bench
+    steps:
+      - uses: actions/checkout@v7
+      - name: Prepare the package toolchain and kernel fixture
+        run: |
+          docker pull "$IMAGE"
+          docker build --build-arg SOURCE_DATE_EPOCH=0 -t "$TOOLCHAIN" scripts/bench_cache_image
+      - name: Verify offline installs in fresh containers on the warm kernel
+        run: |
+          python3 scripts/bench_live_kernel.py --engine linux-docker --image "$IMAGE" --socket /var/run/docker.sock --package-image "$TOOLCHAIN" --json "$RUNNER_TEMP/packages.json"
+      - name: Export the exact ARM64 comparison image
+        run: docker save "$TOOLCHAIN" | gzip -1 > "$RUNNER_TEMP/package-fixture.tar.gz"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: arm64-offline-package-reference
+          path: |
+            ${{ runner.temp }}/packages.json
+            ${{ runner.temp }}/package-fixture.tar.gz
+          retention-days: 7
+          compression-level: 0
 
   warm-orbstack:
     if: inputs.suite == 'orbstack' || inputs.suite == 'all'

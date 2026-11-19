@@ -3,20 +3,24 @@ import Foundation
 
 enum DevVolumeCommands {
     static let help = """
-        micropod storage dev-volume plan|create --projects <dir> [--pnpm-store <dir>]
+        micropod storage dev-volume plan|create --projects <dir> [cache options]
             [--container diskN] [--unencrypted] [--state-dir <dir>]
+        micropod storage dev-volume add-caches [cache options] [--state-dir <dir>]
+        Cache options: --npm-cache <dir> --go-mod-cache <dir> --go-build-cache <dir> --pnpm-store <dir>
         micropod storage dev-volume status|mount|remount|repair|migrate|restore [--state-dir <dir>]
 
         create provisions an encrypted APFS volume by default. macOS prompts for its passphrase.
         migrate checks for open files, verifies a copy, then swaps in a link at the original path.
         restore brings the current volume contents back, including edits made after migration.
+        add-caches enrolls existing shared stores. Run migrate to move new entries.
         Each migrated directory retains an original backup next to its old path.
         """
 
     struct Arguments {
         let action: String
         let projects: String?
-        let pnpm: String?
+        static let cacheOptions = ["pnpm-store", "npm-cache", "go-mod-cache", "go-build-cache"]
+        let cachePaths: [String: String]
         let container: String?
         let unencrypted: Bool
         let state: String
@@ -27,45 +31,77 @@ enum DevVolumeCommands {
             var flags = Set<String>()
             var cursor = args.dropFirst().makeIterator()
             let provisioning = ["plan", "create"].contains(action)
+            var allowed = ["--state-dir"]
+            if provisioning { allowed += ["--projects", "--container"] }
+            if provisioning || action == "add-caches" { allowed += Self.cacheOptions.map { "--" + $0 } }
             while let key = cursor.next() {
                 if key == "--unencrypted", provisioning, flags.insert(key).inserted { continue }
-                let allowed =
-                    provisioning ? ["--state-dir", "--projects", "--pnpm-store", "--container"] : ["--state-dir"]
                 guard allowed.contains(key), values[key] == nil, let value = cursor.next(), !value.hasPrefix("-"),
                     !value.isEmpty
                 else { throw DevVolumeError("Invalid option \(key)\n\(help)") }
                 values[key] = value
             }
             projects = values["--projects"]
-            pnpm = values["--pnpm-store"]
+            cachePaths = Dictionary(
+                uniqueKeysWithValues: Self.cacheOptions.compactMap { name in
+                    values["--" + name].map { (name, $0) }
+                })
+            if action == "add-caches" && cachePaths.isEmpty { throw DevVolumeError("Supply at least one cache option") }
             container = values["--container"]
             unencrypted = flags.contains("--unencrypted")
             state = DevVolumeMigration.physical(values["--state-dir"] ?? NSHomeDirectory() + "/.micropod/dev-volume")
             if provisioning && projects == nil { throw DevVolumeError("Supply --projects <directory>\n\(help)") }
         }
 
+        func requestedPath(_ value: String) -> String {
+            let url = URL(fileURLWithPath: (value as NSString).expandingTildeInPath).standardizedFileURL
+            // Resolve parent aliases such as /tmp, retaining the identity of a migrated leaf.
+            return (DevVolumeMigration.physical(url.deletingLastPathComponent().path) as NSString)
+                .appendingPathComponent(url.lastPathComponent)
+        }
+
         func selectedTrees() throws -> [DevVolume.Tree] {
             guard let projects else { throw DevVolumeError("Missing projects directory") }
-            func source(_ path: String) throws -> String {
-                let url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath).standardizedFileURL
-                // Resolve parent aliases such as /tmp; never follow an existing leaf symlink.
-                let resolved = (DevVolumeMigration.physical(url.deletingLastPathComponent().path) as NSString)
-                    .appendingPathComponent(url.lastPathComponent)
-                try DevVolumeMigration.validateSource(resolved, state: state)
-                return resolved
-            }
-            let first = try source(projects)
-            var trees = [DevVolume.Tree(name: "projects", source: first)]
-            if let pnpm {
-                let store = try source(pnpm)
-                if !DevVolumeMigration.contains(first, store) {
-                    guard !DevVolumeMigration.contains(store, first) else {
-                        throw DevVolumeError("The pnpm store contains the projects directory")
+            let first = DevVolume.Tree(name: "projects", source: requestedPath(projects))
+            try DevVolumeMigration.validateSource(first.source, state: state)
+            return [first] + (try newCacheTrees(existing: [first], volume: nil))
+        }
+
+        func newCacheTrees(existing: [DevVolume.Tree], volume: DevVolume?) throws -> [DevVolume.Tree] {
+            let contains = DevVolumeMigration.contains
+            var candidates: [DevVolume.Tree] = []
+            for name in Self.cacheOptions {
+                guard let value = cachePaths[name] else { continue }
+                let path = requestedPath(value)
+                var source = path
+                if let volume {
+                    for tree in existing {
+                        let destination = volume.destination(tree)
+                        if contains(destination, path) {
+                            source = tree.source + String(path.dropFirst(destination.count))
+                        }
                     }
-                    trees.append(DevVolume.Tree(name: "pnpm-store", source: store))
+                    guard !contains(volume.mount, source),
+                        !existing.contains(where: { contains($0.backup, source) || contains(source, $0.backup) })
+                    else { throw DevVolumeError("Select the original cache path outside the volume and backups") }
+                }
+                if let prior = existing.first(where: { $0.name == name }), prior.source != source {
+                    throw DevVolumeError("The requested \(name) differs from its recorded directory \(prior.source)")
+                }
+                if existing.contains(where: { $0.source == source }) { continue }
+                try DevVolumeMigration.validateSource(path, state: state)
+                if existing.contains(where: { contains($0.source, source) }) { continue }
+                guard !existing.contains(where: { contains(source, $0.source) }) else {
+                    throw DevVolumeError("The cache \(source) would enclose an already selected directory")
+                }
+                if !candidates.contains(where: { $0.source == source }) {
+                    candidates.append(DevVolume.Tree(name: name, source: source))
                 }
             }
-            return trees
+            // Each physical directory is migrated once, including a store nested below another selected store.
+            return candidates.filter { child in
+                !candidates.contains { $0.source != child.source && contains($0.source, child.source) }
+            }
         }
     }
 
@@ -113,7 +149,9 @@ enum DevVolumeCommands {
                 ])
             return
         }
-        guard ["create", "status", "migrate", "restore", "remount", "mount", "repair"].contains(opt.action) else {
+        guard
+            ["create", "add-caches", "status", "migrate", "restore", "remount", "mount", "repair"].contains(opt.action)
+        else {
             throw DevVolumeError(help)
         }
         guard getuid() != 0 else {
@@ -160,27 +198,13 @@ enum DevVolumeCommands {
         switch opt.action {
         case "create":
             // Validate repeat invocations even after the recorded paths became links.
-            func requestedPath(_ value: String?) -> String? {
-                guard let value else { return nil }
-                let url = URL(fileURLWithPath: (value as NSString).expandingTildeInPath).standardizedFileURL
-                return (DevVolumeMigration.physical(url.deletingLastPathComponent().path) as NSString)
-                    .appendingPathComponent(url.lastPathComponent)
-            }
-            guard let first = volume.trees.first, requestedPath(opt.projects) == first.source,
+            guard let projects = opt.projects, opt.requestedPath(projects) == volume.trees.first?.source,
                 volume.encrypted == !opt.unencrypted
             else {
                 throw DevVolumeError("The existing record describes a different development volume")
             }
-            let store = requestedPath(opt.pnpm).flatMap { path -> String? in
-                if DevVolumeMigration.contains(first.source, path)
-                    || DevVolumeMigration.contains(volume.destination(first), path)
-                {
-                    return nil
-                }
-                return path
-            }
-            guard volume.trees.first(where: { $0.name == "pnpm-store" })?.source == store else {
-                throw DevVolumeError("The pnpm store differs from the existing record")
+            guard try opt.newCacheTrees(existing: volume.trees, volume: volume).isEmpty else {
+                throw DevVolumeError("Use add-caches to enroll additional stores on the existing volume")
             }
             if let selected = opt.container {
                 guard let cid = try DevVolume.container(device: selected)["APFSContainerUUID"] as? String,
@@ -200,6 +224,12 @@ enum DevVolumeCommands {
             if !volume.initialized {
                 try volume.mountVolume(remount: true)
                 volume.initialized = true
+                try save(volume)
+            }
+        case "add-caches":
+            let additions = try opt.newCacheTrees(existing: volume.trees, volume: volume)
+            if !additions.isEmpty {
+                volume.trees += additions
                 try save(volume)
             }
         case "mount", "remount": try volume.mountVolume(remount: opt.action == "remount")
