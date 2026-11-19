@@ -149,6 +149,12 @@ public enum ModelMapper {
         volume.driver = entry.configuration.driver ?? ""
         volume.format = entry.configuration.format ?? ""
         volume.sizeBytes = UInt64(entry.configuration.sizeInBytes ?? 0)
+        // A volume made from a template (VolumeTemplates) is created at the
+        // runtime's minimum size and given the template's image: its
+        // configuration records the placeholder, the label what was asked.
+        if let provisioned = entry.configuration.labels?[VolumeTemplates.sizeLabel].flatMap(UInt64.init) {
+            volume.sizeBytes = provisioned
+        }
         volume.source = entry.configuration.source ?? ""
         volume.createdAt = entry.configuration.creationDate ?? ""
         if let labels = entry.configuration.labels {
