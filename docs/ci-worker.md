@@ -16,11 +16,13 @@ docker info
 task ci
 ```
 
+On a self-hosted runner, install the signed binary at a stable path and run `micropod ci install-service` as the runner account before it accepts jobs. The macOS user launch agent owns the VM across GitHub job cleanup and starts it on login. `micropod ci uninstall-service` retires the idle service and retains its disk. Rigs using their own service manager can run `micropod ci serve` as its foreground process.
+
 `ci endpoint` and `ci run` start the worker on demand. Concurrent callers share the supervisor's disk lock. Readiness checks match the engine to both the durable worker ID and the current supervisor instance. The host connects to a private Unix socket relayed over virtio-vsock. Job creation, build context uploads, attached streams and exits use the upstream Docker protocol.
 
 `task ci-go` runs vet, race tests, Testcontainers with PostgreSQL and the built HTTP service. `task ci-npm` builds, tests, runs and changes a staged copy of the Node app. `task ci` runs both pipelines concurrently. `task ci-shim` runs the existing Apple shim integration.
 
-For the Micropod CLI, SDK or API, start the worker under the account serving the request and enable the `ci` runtime. Use `micropod runtime enable ci` and `micropod run --runtime ci nginx`. A rig can select `MICROPOD_DEFAULT_RUNTIME=ci` for its Micropod service. Stock Docker clients can reuse `DOCKER_HOST` throughout a pipeline.
+For the Micropod CLI, SDK or API, start the worker under the account serving the request and enable the `ci` runtime. Use `micropod runtime enable ci` and `micropod run --runtime ci nginx`. A rig can select `MICROPOD_DEFAULT_RUNTIME=ci` for its Micropod service. The Micropod runtime selector routes container operations. Use the Docker endpoint for builds, image management, networks, volumes and Compose. Stock clients can reuse `DOCKER_HOST` throughout a pipeline.
 
 ## Storage and trust
 
@@ -44,19 +46,32 @@ The trust boundary is the runner account and its dedicated VM. Docker clients ca
 
 ## Qualification
 
-PRs touching the worker run one short Linux guest integration alongside the existing checks. The manual qualification runs five rounds at 1, 4, 8 and 16 clients. It verifies guest-versus-container boot IDs, distinct PID and mount namespaces, actual CPU and memory quotas, both streams and exit codes, bridge DNS, package payload inodes, and image, volume and offline BuildKit cache reuse after restart. The independent native Ubuntu run uses the same GitHub allocation and the same exported package image.
+PRs touching the worker run one short Linux guest integration alongside the existing checks. The manual qualification runs five rounds at 1, 4, 8 and 16 clients. It verifies guest-versus-container boot IDs, distinct PID and mount namespaces, actual CPU and memory quotas, both streams and exit codes, bridge DNS, package payload inodes, and image, volume and offline BuildKit cache reuse after restart. The native Ubuntu Docker run uses the same GitHub allocation and exported package image. Manual qualifications also copy those Go, Node and npm binaries out of the image and run the offline workspaces as ordinary Ubuntu processes. The raw process clock omits container startup and teardown. The full pipeline records per-stage wall times and alternates engine order across three warm passes.
 
-On 20 November 2026, the guest fixture used upstream Docker 29.9.3 on a GitHub-hosted four-vCPU ARM64 Ubuntu 24.04.5 runner. Its native Docker 28.0.4 daemon was the control. Times below are median wall times for a whole batch. An npm or Go job creates a fresh workspace and runs offline using the warm package cache.
+On 20 November 2026, the Micropod guest fixture ran Docker 29.9.3 on a GitHub-hosted four-vCPU ARM64 Ubuntu 24.04.5 VM with the Azure kernel. The same allocation ran native Docker 28.0.4 and bare npm and Go. Each value is the median elapsed time for a whole batch over five rounds. Every package job created a fresh workspace and used its engine's warm offline cache. All three paths used Node 24.22.3, npm 11.19.1 and Go 1.26.11 from the same ARM64 image.
 
 | Workload | 1 job | 4 jobs | 8 jobs | 16 jobs |
 | --- | ---: | ---: | ---: | ---: |
-| Guest launch, ms | 124 | 183 | 316 | 624 |
-| Native Ubuntu launch, ms | 116 | 176 | 314 | 601 |
-| Guest npm, s | 0.958 | 1.146 | 2.175 | 4.376 |
-| Native Ubuntu npm, s | 0.947 | 1.080 | 2.093 | 4.243 |
-| Guest Go, s | 0.586 | 0.697 | 1.340 | 2.722 |
-| Native Ubuntu Go, s | 0.580 | 0.705 | 1.332 | 2.746 |
+| Guest fixture launch, ms | 123 | 178 | 310 | 582 |
+| Ubuntu Docker launch, ms | 116 | 179 | 309 | 613 |
+| Guest fixture npm, s | 0.946 | 1.139 | 2.125 | 4.281 |
+| Ubuntu Docker npm, s | 0.957 | 1.087 | 2.120 | 4.210 |
+| Bare Ubuntu npm, s | 0.275 | 0.360 | 0.730 | 1.458 |
+| Guest fixture Go, s | 0.559 | 0.680 | 1.320 | 2.658 |
+| Ubuntu Docker Go, s | 0.580 | 0.695 | 1.347 | 2.721 |
+| Bare Ubuntu Go, s | 0.118 | 0.176 | 0.345 | 0.707 |
 
-The Linux fixture ran 145 timed launches per engine and 145 fresh workspaces per package manager per engine. Both engines used the same Linux kernel. The Mac hypervisor and vsock path require separate qualification. [Raw samples](benchmarks/2026-11-20/arm64-ci-worker-guest.json) · [Executed guest job](https://github.com/castlemilk/micropod/actions/runs/44625115597/job/135916752783)
+Each engine completed 145 timed launches and 145 fresh workspaces per package manager. Both Docker engines used the allocation's Linux kernel. The bare process timing excludes container creation, teardown and per-container resource limits. The Mac hypervisor and vsock path require the physical Mac comparison. [Raw samples and runner details](benchmarks/2026-11-20/arm64-worker-native-processes.json) · [Executed job](https://github.com/castlemilk/micropod/actions/runs/44629760090/job/135932952673) · [Independent earlier run](benchmarks/2026-11-20/arm64-ci-worker-guest.json)
 
-The `apple-pair` workflow builds the checked-out CLI on a physical Apple Silicon runner with Apple Container and OrbStack already provisioned. It starts an independent Micropod worker in a temporary directory, matches the peer's CPU and RAM, and sends both clients the same native images. Blocks alternate engine order. The report records app versions, worker identity, per-engine p50s, resource budgets and matched Ubuntu references. The short PR qualification runs on hosted ARM64 Linux.
+The full Go, npm and PostgreSQL workflow initially took 17.02 s warm in the guest fixture and 11.99 s on the native daemon. After overlapping the service build with PostgreSQL and retaining four exported image tags, a separate allocation measured 12.44 s and 11.90 s. The latest run alternated engine order and repeated the warm workload three times. Both engines ran the same application checks. [Before and after stage receipts](benchmarks/2026-11-20/ci-pipelines-arm64.json)
+
+| Full pipeline | First pass | Warm 1 | Warm 2 | Warm 3 | Warm median |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Micropod guest fixture | 73.474 s | 12.272 s | 11.978 s | 12.208 s | 12.208 s |
+| Ubuntu Docker | 65.164 s | 11.972 s | 12.220 s | 11.854 s | 11.972 s |
+
+PostgreSQL accounted for a median 11.350 s of the guest run. All three warm passes included a real PostgreSQL container and readiness query, Go race tests, npm tests, source modification, rebuild and output checks. [Pipeline stages and raw process timings](benchmarks/2026-11-20/arm64-worker-native-processes.json)
+
+A signed probe on the standard hosted Apple Silicon runner identified an Apple M1 VirtualMac and reported `VZVirtualMachine.isSupported=false`. The native worker and OrbStack require a provisioned physical rig for comparison. [Hosted Apple capability result](https://github.com/castlemilk/micropod/actions/runs/44628671876/job/135929181800)
+
+Run `task bench-ci-apple` locally, or pass a results directory with `task bench-ci-apple -- /tmp/micropod-apple`. The script saves a standalone OrbStack receipt before starting the paired run. If the worker build or boot fails, it also saves OrbStack’s standalone package and full-pipeline timings to `orbstack-workloads.json`. The `apple-pair` workflow builds the checked-out CLI on a physical Apple Silicon runner with Apple Container and OrbStack already provisioned. It starts an independent Micropod worker in a temporary directory, matches the peer's CPU and RAM, and sends both clients the same native images. Blocks alternate engine order. Each engine also runs the complete Go, npm and PostgreSQL pipeline once and then three more times warm. The fixture removes its own sample image tags from OrbStack after the comparison. The underlying `scripts/bench_live_kernel.py --engine rig-matrix --worker-cli /path/to/micropod` also accepts `--desktop-socket` and `--colima-socket` for provisioned local peers. The report records app versions, worker identity, per-engine p50s, resource budgets and matched Ubuntu references. The short PR qualification finished in 21 seconds on hosted ARM64 Linux. A separate run executed the production Go and Node pipelines, including PostgreSQL and the source-change rebuild. [PR integration](https://github.com/castlemilk/micropod/actions/runs/44626891771/job/135922978226) · [Full pipeline integration](https://github.com/castlemilk/micropod/actions/runs/44626999645/job/135923365952)

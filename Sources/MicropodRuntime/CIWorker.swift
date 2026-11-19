@@ -10,6 +10,7 @@ public struct CIWorker: Sendable {
         "docker.io/library/docker:29.9.3-dind@sha256:7bf70dcb85c822e3fa6f2d332143e474b99147b9d7b39102b0cfe8b04a7dd61b"
     static let guestSocket = "/var/lib/micropod/docker.sock"
     public let directory: URL
+    let resourceEnvironment: [String: String]
     public var socket: URL { directory.appendingPathComponent("docker.sock") }
     public var endpoint: String { "unix://" + socket.path }
     var disk: URL { directory.appendingPathComponent("worker.ext4") }
@@ -18,6 +19,8 @@ public struct CIWorker: Sendable {
     private var session: URL { directory.appendingPathComponent("session.json") }
 
     public init(environment: [String: String] = ProcessInfo.processInfo.environment) {
+        let resourceKeys = ["MICROPOD_CI_CPUS", "MICROPOD_CI_MEMORY_MIB", "MICROPOD_CI_DISK_GIB"]
+        resourceEnvironment = environment.filter { resourceKeys.contains($0.key) }
         directory =
             environment["MICROPOD_CI_HOME"].map { URL(fileURLWithPath: $0).standardizedFileURL }
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".micropod/ci")
@@ -85,7 +88,7 @@ public struct CIWorker: Sendable {
             existing = nil
         }
         func resource(_ key: String, _ fallback: Int, _ range: ClosedRange<Int>) throws -> Int {
-            let raw = ProcessInfo.processInfo.environment["MICROPOD_CI_" + key]
+            let raw = resourceEnvironment["MICROPOD_CI_" + key]
             guard let value = Int(raw ?? String(fallback)), range.contains(value) else {
                 throw MicropodError.message("MICROPOD_CI_\(key) must be in \(range)")
             }
@@ -134,6 +137,7 @@ public struct CIWorker: Sendable {
         set -eu
         umask 077
         mkdir -p /var/lib/micropod
+        if [ -S /var/lib/micropod/docker.sock ]; then rm /var/lib/micropod/docker.sock; fi
         ln -sf /var/lib/micropod/docker.sock /var/run/docker.sock
         exec /usr/local/bin/dockerd-entrypoint.sh dockerd \
           --host=unix:///var/lib/micropod/docker.sock --data-root=/var/lib/docker --exec-opt=native.cgroupdriver=cgroupfs \
@@ -192,8 +196,14 @@ public struct CIWorker: Sendable {
         if FileManager.default.fileExists(atPath: manifest.path) { _ = try configuration() }
         if let current = try? await status() { return current }
         let process = Process()
-        process.executableURL = executable
-        process.arguments = ["ci", "serve"]
+        let service = try serviceTarget()
+        if let service {
+            process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+            process.arguments = ["kickstart", service]
+        } else {
+            process.executableURL = executable
+            process.arguments = ["ci", "serve"]
+        }
         let fd = open(log.path, O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW | O_CLOEXEC, 0o600)
         guard fd >= 0 else { throw POSIXError(.init(rawValue: errno) ?? .EIO) }
         let output = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
@@ -201,14 +211,16 @@ public struct CIWorker: Sendable {
         process.standardError = output
         process.standardInput = FileHandle.nullDevice
         try process.run()
+        let launchedBy = ContinuousClock.now + .seconds(15)
         let deadline = ContinuousClock.now + .seconds(180)
         while ContinuousClock.now < deadline {
             if let current = try? await status() { return current }
             // A concurrent supervisor can win the lock. All starters wait for its actual API.
             if !process.isRunning {
-                if process.terminationStatus != Self.alreadyOwned || (try? liveSession()) == nil && !isOwned() {
-                    throw MicropodError.message("CI worker startup failed; see \(log.path)")
-                }
+                let delivered =
+                    service != nil && process.terminationStatus == 0 && (ContinuousClock.now < launchedBy || isOwned())
+                let joined = process.terminationStatus == Self.alreadyOwned && isOwned()
+                if !delivered && !joined { throw MicropodError.message("CI worker startup failed; see \(log.path)") }
             }
             try await Task.sleep(for: .milliseconds(125))
         }
@@ -230,7 +242,7 @@ public struct CIWorker: Sendable {
         throw POSIXError(.init(rawValue: reason) ?? .EIO)
     }
 
-    private func isOwned() -> Bool {
+    func isOwned() -> Bool {
         do {
             guard let handle = try acquire() else { return true }
             try handle.close()

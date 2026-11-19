@@ -278,6 +278,10 @@ public enum SandboxVM {
                 // The upstream engine administers its own dedicated Linux VM. Its only integration
                 // with macOS is this outbound socket. No host files or devices are shared.
                 cfg.process.capabilities = .allCapabilities
+                // Retain images and volumes on ext4. Recreate daemon PID and runtime files on every boot.
+                cfg.mounts.append(
+                    .any(
+                        type: "tmpfs", source: "tmpfs", destination: "/run", options: ["nosuid", "nodev", "mode=0755"]))
                 cfg.maskedPaths = []
                 cfg.readonlyPaths = []
                 cfg.sockets.append(
