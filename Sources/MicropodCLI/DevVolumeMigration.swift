@@ -251,6 +251,7 @@ enum DevVolumeMigration {
         try links.track(from: target, published: tree.source, staging: staging)
         try quiescent([target])
         try verify(target, staging)
+        try quiescent([target])
         guard link(tree.source) == target else { throw DevVolumeError("Original link changed during restore") }
         try exchange(tree.source, staging)
         if link(staging) == target { _ = unlink(staging) }

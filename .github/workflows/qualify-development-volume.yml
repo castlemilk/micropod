@@ -1,13 +1,24 @@
 name: Qualify development volume and warm runtimes
 on:
   workflow_dispatch:
+    inputs:
+      suite:
+        description: Qualification to run
+        type: choice
+        options: [storage, linux, orbstack, all]
+        default: storage
+      orbstack_version:
+        description: OrbStack release for the Intel comparison
+        type: choice
+        options: ['2.2.5', '1.5.1']
+        default: '2.2.5'
   push:
     branches: [feat/dev-volume-and-live-kernel-bench]
 permissions:
   contents: read
 jobs:
   apfs:
-    if: github.event_name == 'workflow_dispatch'
+    if: inputs.suite == 'storage' || inputs.suite == 'all'
     runs-on: macos-26
     timeout-minutes: 20
     steps:
@@ -31,8 +42,12 @@ jobs:
           path: ${{ runner.temp }}/volume.json
 
   warm-linux:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04
+    if: inputs.suite == 'linux' || inputs.suite == 'all'
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04-arm, ubuntu-24.04]
+    runs-on: ${{ matrix.runner }}
     env:
       IMAGE: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
     timeout-minutes: 8
@@ -45,14 +60,16 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: amd64-live-kernel
+          name: live-kernel-${{ matrix.runner }}
           path: ${{ runner.temp }}/kernel.json
 
   warm-orbstack:
+    if: github.event_name == 'push' || inputs.suite == 'orbstack' || inputs.suite == 'all'
     runs-on: macos-26-intel
     timeout-minutes: 22
     env:
       ORB_APP: /Applications/OrbStack.app
+      ORB_VERSION: ${{ inputs.orbstack_version || '2.2.5' }}
       IMAGE: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
     steps:
       - uses: actions/checkout@v7
@@ -67,7 +84,8 @@ jobs:
           test "$(sysctl -n kern.hv_support)" = 1
       - name: Install and verify the selected Intel version
         run: |
-          fixture=scripts/bench_orb_transport/installer.json
+          fixture=scripts/orbstack-benchmark-installer.json
+          if [[ "$ORB_VERSION" == "1.5.1" ]]; then fixture=scripts/bench_orb_transport/installer.json; fi
           url=$(jq -er '.url' "$fixture")
           sha=$(jq -er '.sha256' "$fixture")
           dmg="$RUNNER_TEMP/OrbStack.dmg"
@@ -125,7 +143,7 @@ jobs:
       - name: Pull matching native Alpine
         run: docker --host "unix://$HOME/.orbstack/run/docker.sock" pull "$IMAGE"
       - name: Verify the running kernel and measure 1, 4, 8 and 16 clients
-        run: python3 scripts/bench_live_kernel.py --engine orbstack --rounds 3 --image "$IMAGE" --socket "$HOME/.orbstack/run/docker.sock" --json "$RUNNER_TEMP/kernel.json"
+        run: python3 scripts/bench_live_kernel.py --engine orbstack --image "$IMAGE" --socket "$HOME/.orbstack/run/docker.sock" --json "$RUNNER_TEMP/kernel.json"
       - uses: actions/upload-artifact@v7
         if: always()
         with:

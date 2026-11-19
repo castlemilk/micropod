@@ -177,8 +177,9 @@ def measure(args, receipt, runner=None, read_parent=None):
                 errors = [str(exc) for f in futures if (exc := f.exception()) is not None]
             samples.append(dict(round=block+1, clients=n, seconds=round(time.perf_counter()-start, 6),
                                 passed=n-len(errors), errors=errors))
-            print(f"{args.engine} block {block+1} clients {n}: {n-len(errors)}/{n} "
-                  f"in {samples[-1]['seconds']:.3f}s", file=sys.stderr, flush=True)
+            if args.engine != "inner":
+                print(f"{args.engine} block {block+1} clients {n}: {n-len(errors)}/{n} "
+                      f"in {samples[-1]['seconds']:.3f}s", file=sys.stderr, flush=True)
     require(not cmd(["ps", "-aq", "--filter", "label=" + label]).stdout.strip(), "Benchmark containers remain")
     require(server()["ID"] == initial["ID"], "Docker daemon identity changed")
     if host_boot:
