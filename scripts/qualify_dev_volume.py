@@ -11,6 +11,7 @@ import pty
 import re
 import select
 import signal
+import shutil
 from pathlib import Path
 import plistlib
 import subprocess
@@ -19,6 +20,7 @@ import time
 import uuid
 
 from bench_pnpm_storage import APFSAllocation
+from bench_package_caches import Fixture, stores
 
 
 def run(*args, cwd=None, check=True):
@@ -194,13 +196,40 @@ def qualify(binary, result):
             assert os.stat(store / "package").st_ino == os.stat(projects / "linked-package").st_ino
             (projects / "edited").write_text("after cutover\n")
             (projects / ".git/fixture").unlink()
+            fixture_root = work / "package-fixture"
+            fixture_root.mkdir()
+            fixture = Fixture(fixture_root)
+            package_caches = stores(fixture_root / "stores")
+            result["package_seed"] = fixture.prime(package_caches, "before-migration")
+            shutil.rmtree(fixture.origin)
+            fixture.controls(stores(fixture_root / "empty"))
+            cache_options = [value for name, path in package_caches.items() for value in ("--" + name, path)]
+            assert cli("add-caches", "--npm-cache", work, check=False).returncode
+            nested = projects / "nested-cache"
+            nested.mkdir()
+            covered = json.loads(cli("add-caches", "--npm-cache", nested).stdout)
+            assert len(covered["trees"]) == 2
+            added = json.loads(cli("add-caches", *cache_options).stdout)
+            assert len(added["trees"]) == 5 and sum(t["linked"] for t in added["trees"]) == 2
+            assert json.loads(cli("add-caches", *cache_options).stdout)["trees"] == added["trees"]
+            cached = json.loads(cli("migrate").stdout)
+            assert all(t["linked"] for t in cached["trees"]) and all(p.is_symlink() for p in package_caches.values())
+            assert json.loads(cli("create", *options, *cache_options).stdout)["trees"] == cached["trees"]
+            assert json.loads(cli("add-caches", *cache_options).stdout)["trees"] == cached["trees"]
             print("Volume fixture encrypted remount", flush=True)
             interact([*command, "remount", *state_opts], secret)
             remounted = json.loads(cli("status").stdout)
             assert remounted["mounted"] and remounted["volumeUUID"] == first["volumeUUID"]
             assert (projects / "edited").read_text() == "after cutover\n"
             assert os.path.ismount(mount) and os.stat(projects).st_dev == os.stat(mount).st_dev
+            def verify_packages(phase):
+                fixture.payloads(package_caches)
+                for tool in ("npm", "go"):
+                    fixture.batch(package_caches, tool, [fixture.workspace(f"{phase}-{tool}-{i}") for i in range(2)])
+            verify_packages("remounted")
             restored = json.loads(cli("restore").stdout)
+            assert all(p.is_dir() and not p.is_symlink() for p in package_caches.values())
+            verify_packages("restored")
             assert not any(t["linked"] for t in restored["trees"]) and not projects.is_symlink()
             assert (projects / "edited").read_text() == "after cutover\n" and not (projects / ".git/fixture").exists()
             assert os.path.samefile(store / "package", projects / "existing-link")
@@ -230,7 +259,7 @@ def qualify(binary, result):
             result.update(volume_uuid=first["volumeUUID"], checks=["plan", "own-apfs-volume", "idempotent-create",
                           "persistent-log-marker", "spotlight-marker", "working-directory-guard", "live-holder-guard",
                           "atomic-migration", "hardlinks", "xattr", "mode", "dangling-symlink", "git-directory",
-                          "pnpm-store-hardlink", "existing-cross-tree-hardlinks", "restore-cross-tree-hardlinks", "preserve-identical-apfs-clones", "clone-specific-metadata", "diverged-clones", "restore-copy-on-write", "repair", "encrypted-create-lock-unlock", "uuid-remount", "restore-latest", "repeat-migration"],
+                          "pnpm-store-hardlink", "existing-cross-tree-hardlinks", "restore-cross-tree-hardlinks", "preserve-identical-apfs-clones", "clone-specific-metadata", "diverged-clones", "restore-copy-on-write", "repair", "encrypted-create-lock-unlock", "uuid-remount", "restore-latest", "repeat-migration", "enroll-existing-volume", "coalesce-nested-cache", "retry-cache-enrollment", "npm-offline-after-remount-and-restore", "go-offline-after-remount-and-restore", "go-zero-warm-compiles"],
                           spotlight_seed=run("mdutil", "-s", seed, check=False).stdout.decode().strip(),
                           spotlight_development=remounted["spotlight"], physical_host_claim=False,
                           samples=samples)

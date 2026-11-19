@@ -1,5 +1,7 @@
 name: Qualify development volume and warm runtimes
 on:
+  push:
+    branches: [ci/qualify-warm-package-caches-20261119]
   workflow_dispatch:
     inputs:
       suite:
@@ -16,7 +18,7 @@ permissions:
   contents: read
 jobs:
   apfs:
-    if: inputs.suite == 'storage' || inputs.suite == 'all'
+    if: github.event_name == 'push' || inputs.suite == 'storage' || inputs.suite == 'all'
     runs-on: macos-26
     timeout-minutes: 20
     steps:
@@ -51,13 +53,20 @@ jobs:
         with:
           path: .qualification-bin/micropod
           key: ${{ steps.cli.outputs.cache-primary-key }}
+      - name: Verify concurrent package cache binds over the production Unix socket
+        run: |
+          swiftc -O -parse-as-library Sources/MicropodSharedFS/*.swift scripts/bench_cache_bind.swift -o "$RUNNER_TEMP/bind-bench"
+          python3 scripts/bench_package_caches.py --rounds 3 --bind-binary "$RUNNER_TEMP/bind-bench" --transport unix --parent /tmp --json "$RUNNER_TEMP/binds.json"
+          jq -c . "$RUNNER_TEMP/binds.json" | sed 's/^/CACHE_BIND_RECEIPT /'
       - name: Migrate and remount a disposable APFS volume
         run: python3 scripts/qualify_dev_volume.py --binary .qualification-bin/micropod --json "$RUNNER_TEMP/volume.json"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: development-volume
-          path: ${{ runner.temp }}/volume.json
+          path: |
+            ${{ runner.temp }}/volume.json
+            ${{ runner.temp }}/binds.json
 
   warm-linux:
     if: inputs.suite == 'linux' || inputs.suite == 'all'
