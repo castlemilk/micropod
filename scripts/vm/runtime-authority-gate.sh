@@ -47,6 +47,10 @@ REQ="$REQ and certificate leaf[field.1.2.840.113635.100.6.1.13] exists"
 CHECKPOINTS="staged neutralized plistWritten bootstrapped retired started"
 MARKER=/var/db/micropod-gate-vm
 ROOT_COPY=/var/root/micropod-gate/runtime-authority-gate.sh
+# What launchd runs as the agent child (its plist and scripts, and the
+# residual program), root-owned in a root-owned folder: no process of the
+# admin user can swap them. The child's own outputs stay in $GATE.
+CHILD_BIN=/var/db/micropod-gate-child
 SUDOERS=/etc/sudoers.d/micropod-gate
 STEP=${1:-help}
 
@@ -367,6 +371,27 @@ gate_fault() {
   sudo chmod 0600 "$file"
 }
 
+# install_child_file <name> <mode>: stdin, written by root straight into the
+# root-owned CHILD_BIN (no file the admin user could change on the way).
+# Prints its path.
+install_child_file() {
+  local dst="$CHILD_BIN/$1"
+  sudo install -d -o root -g wheel -m 0755 "$CHILD_BIN" || return 1
+  sudo rm -f "$dst"
+  sudo tee "$dst" >/dev/null || return 1
+  sudo chown root:wheel "$dst" && sudo chmod "$2" "$dst" || return 1
+  printf '%s\n' "$dst"
+}
+
+# child_output <path>: what the child wrote: a regular file, not a link,
+# owned by the admin user. Nothing else is read as the child's output.
+child_output() {
+  [ -f "$1" ] && [ ! -L "$1" ] && [ "$(stat -f %u "$1")" = "$(id -u "$GATE_USER")" ]
+}
+
+# present <path>: anything at all is there, a dangling link included.
+present() { [ -e "$1" ] || [ -L "$1" ]; }
+
 # child_prologue: the first line of every agent-child script. The child
 # records that it ran, its parent (launchd starts a LaunchAgent: pid 1) and its
 # session, before it does anything else.
@@ -384,21 +409,26 @@ child_prologue() {
 # agent child does, to its end.
 as_agent_child() {
   [ "$(id -u)" != 0 ] || die "agent-child attacks run as the admin user"
-  local plist="$HOME/Library/LaunchAgents/dev.micropod.gate.child.plist"
+  local plist="$CHILD_BIN/dev.micropod.gate.child.plist"
   local target print="" i
   target="gui/$(id -u)/dev.micropod.gate.child"
-  mkdir -p "$HOME/Library/LaunchAgents"
   rm -f "$GATE/child.done" "$GATE/child.started"
   CHILD_PPID="" CHILD_SESSION="" CHILD_RUNS="" CHILD_EXIT=""
-  plutil -create xml1 "$plist"
-  plutil -insert Label -string dev.micropod.gate.child "$plist"
-  plutil -insert ProgramArguments -array "$plist"
-  plutil -insert ProgramArguments -string /bin/bash -append "$plist"
-  plutil -insert ProgramArguments -string "$1" -append "$plist"
-  plutil -insert RunAtLoad -bool true "$plist"
+  # The plist too is root's, like /Library/LaunchAgents: the user cannot
+  # change what launchd runs between this and the bootstrap.
+  sudo install -d -o root -g wheel -m 0755 "$CHILD_BIN"
+  sudo rm -f "$plist"
+  sudo plutil -create xml1 "$plist"
+  sudo plutil -insert Label -string dev.micropod.gate.child "$plist"
+  sudo plutil -insert ProgramArguments -array "$plist"
+  sudo plutil -insert ProgramArguments -string /bin/bash -append "$plist"
+  sudo plutil -insert ProgramArguments -string "$1" -append "$plist"
+  sudo plutil -insert RunAtLoad -bool true "$plist"
+  sudo chown root:wheel "$plist"
+  sudo chmod 0644 "$plist"
   launchctl bootstrap "gui/$(id -u)" "$plist"
   for ((i = 0; i < 60; i++)); do
-    [ -f "$GATE/child.done" ] && break
+    present "$GATE/child.done" && break
     sleep 1
   done
   # launchd records the run once the child has exited.
@@ -411,12 +441,16 @@ as_agent_child() {
   CHILD_RUNS=$(printf '%s\n' "$print" | sed -n 's/^[[:space:]]*runs = \([0-9][0-9]*\)$/\1/p' | head -1)
   CHILD_EXIT=$(printf '%s\n' "$print" | sed -n 's/^[[:space:]]*last exit code = //p' | head -1)
   launchctl bootout "$target" 2>/dev/null
-  rm -f "$plist"
-  if [ ! -f "$GATE/child.started" ]; then
+  sudo rm -f "$plist"
+  if ! present "$GATE/child.started"; then
     say "  (the agent-spawned child never started: launchctl bootstrap gui/$(id -u) did not run it)"
     return 2
   fi
-  read -r CHILD_PPID CHILD_SESSION <"$GATE/child.started"
+  # Something is there: only a plain file of the admin user's is read, and
+  # anything else fails child_checks.
+  if child_output "$GATE/child.started"; then
+    read -r CHILD_PPID CHILD_SESSION <"$GATE/child.started"
+  fi
   printf 'agent child: parent pid %s, session %s, launchd runs %s, last exit code %s\n' \
     "$CHILD_PPID" "$CHILD_SESSION" "${CHILD_RUNS:-?}" "${CHILD_EXIT:-?}" >>"$OUT/logs/$STEP.log"
   return 0
@@ -426,7 +460,7 @@ launchd_ran_it() { [ "${CHILD_RUNS:-0}" -ge 1 ] && [ "${CHILD_EXIT:-}" = 0 ]; }
 
 # child_checks: the agent child that started ran as one, to its end.
 child_checks() {
-  check "the agent child ran to its end" test -f "$GATE/child.done"
+  check "the agent child ran to its end" child_output "$GATE/child.done"
   check "launchd started it (parent pid 1)" test "${CHILD_PPID:-}" = 1
   check "it ran in the console user's GUI session (Aqua)" test "${CHILD_SESSION:-}" = Aqua
   check "launchd counted its run (runs >= 1, last exit code 0)" launchd_ran_it
@@ -435,7 +469,6 @@ child_checks() {
 attacker_script() {
   # Each attempt appends "<name> ok" if it succeeded (it must not). The child
   # creates attack.out itself, so a stale one cannot stand in for it.
-  local s="$GATE/attack.sh"
   rm -f "$GATE/attack.out"
   {
     printf '%s\n' '#!/bin/bash'
@@ -458,8 +491,15 @@ attacker_script() {
       "echo x >>'$LEGACY_APP/Contents/MacOS/MicropodRuntimeHost'"
     printf 'try legacy-flags chflags -R noschg %q\n' "$LEGACY_APP"
     printf 'touch %q\n' "$GATE/child.done"
-  } >"$s"
-  printf '%s\n' "$s"
+  } | install_child_file attack.sh 0755
+}
+
+# attack_clean: the child's attack.out is a plain file of its own and empty
+# (absent: nothing was attempted, which child_checks and the attempts check
+# catch). Anything else there counts as a successful attempt.
+attack_clean() {
+  present "$GATE/attack.out" || return 0
+  child_output "$GATE/attack.out" && [ ! -s "$GATE/attack.out" ]
 }
 
 # plant_residual: the reviewer's residual as an admin-group process: move the
@@ -467,12 +507,10 @@ attacker_script() {
 # was planted (whatever the child's markers say), 2 when the child never
 # started (nothing was tried), and 1 otherwise.
 plant_residual() {
-  local s="$GATE/plant.sh" evil="$GATE/evil.sh"
-  {
-    printf '#!/bin/sh\nid -u >%q\nexec sleep 600\n' "$GATE/residual"
-  } >"$evil"
-  chmod 0755 "$evil"
-  {
+  local s evil
+  # Nothing installed is nothing tried (2), never "planting failed" (1).
+  evil=$(printf '#!/bin/sh\nid -u >%q\nexec sleep 600\n' "$GATE/residual" | install_child_file evil.sh 0755) || return 2
+  s=$({
     printf '%s\n' '#!/bin/bash'
     child_prologue
     printf 'app=%q\n' "$LEGACY_APP"
@@ -480,11 +518,12 @@ plant_residual() {
     printf '  cp %q "$app/Contents/MacOS/MicropodRuntimeHost" &&\n' "$evil"
     printf '  echo planted >%q\n' "$GATE/planted"
     printf 'touch %q\n' "$GATE/child.done"
-  } >"$s"
+  } | install_child_file plant.sh 0755) || return 2
   rm -f "$GATE/planted" "$GATE/residual"
   as_agent_child "$s"
   local ran=$?
-  [ -f "$GATE/planted" ] && return 0
+  # Anything at all where the planter reports success counts as planted.
+  present "$GATE/planted" && return 0
   [ "$ran" -eq 2 ] && return 2
   return 1
 }
@@ -614,7 +653,7 @@ case "$STEP" in
     needs_reboot g4-before-after
     ;;
   g4-before-after)
-    if [ "$(cat "$GATE/residual" 2>/dev/null)" = 0 ]; then
+    if [ -f "$GATE/residual" ] && [ ! -L "$GATE/residual" ] && [ "$(head -c 16 "$GATE/residual")" = 0 ]; then
       say "  INFO  baseline reproduced: the planted program ran as root"
     else
       say "  INFO  baseline not reproduced: nothing ran as root"
@@ -630,13 +669,12 @@ case "$STEP" in
     as_agent_child "$(attacker_script)"
     ran=$?
     # A successful attempt fails the test whatever else happened.
-    check "no attempt by the agent-spawned process succeeded" \
-      test ! -s "$GATE/attack.out"
+    check "no attempt by the agent-spawned process succeeded" attack_clean
     if [ "$ran" -eq 2 ]; then
       incomplete "the agent-spawned attacker never started: nothing was attempted"
     else
       child_checks
-      check "the attacker made its attempts (it created attack.out)" test -f "$GATE/attack.out"
+      check "the attacker made its attempts (it created attack.out)" child_output "$GATE/attack.out"
     fi
     plant_residual
     planted=$?
@@ -652,7 +690,7 @@ case "$STEP" in
     needs_reboot g4-after-reboot
     ;;
   g4-after-reboot)
-    check "nothing planted ran as root" test ! -e "$GATE/residual"
+    check "nothing planted ran as root" refuse present "$GATE/residual"
     finished A
     check "the legacy bundle is still immutable" legacy_immutable
     result
@@ -664,12 +702,12 @@ case "$STEP" in
     as_agent_child "$(attacker_script)"
     ran=$?
     # A successful attempt fails the test whatever else happened.
-    check "no attempt succeeded" test ! -s "$GATE/attack.out"
+    check "no attempt succeeded" attack_clean
     if [ "$ran" -eq 2 ]; then
       incomplete "the agent-spawned attacker never started: nothing was attempted"
     else
       child_checks
-      check "the attacker made its attempts (it created attack.out)" test -f "$GATE/attack.out"
+      check "the attacker made its attempts (it created attack.out)" child_output "$GATE/attack.out"
     fi
     check "plist and program bytes are unchanged" \
       test "$(sudo shasum -a 256 "$PLIST" "$PROGRAM")" = "$before"
