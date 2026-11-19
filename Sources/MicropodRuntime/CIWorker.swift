@@ -227,7 +227,6 @@ public struct CIWorker: Sendable {
     public func start(executable: URL) async throws -> Status {
         try prepareDirectory()
         if FileManager.default.fileExists(atPath: manifest.path) { _ = try configuration() }
-        if let current = try? await status() { return current }
         let deadline = ContinuousClock.now + .seconds(180)
         var election: FileHandle?
         var child: Process?
@@ -235,8 +234,14 @@ public struct CIWorker: Sendable {
         var sawSupervisor = false
         defer { try? election?.close() }
         repeat {
-            if (try? liveSession()) != nil {
+            if let active = try? liveSession() {
+                guard !FileManager.default.fileExists(atPath: stopFile(active).path) else {
+                    throw MicropodError.message("CI worker is stopping")
+                }
                 sawSupervisor = true
+                if active.started, let current = try? await inspectEngine(active, config: configuration()) {
+                    return current
+                }
             } else if sawSupervisor {
                 throw MicropodError.message("CI worker startup failed; see \(log.path)")
             } else if let child, !child.isRunning {
@@ -254,7 +259,6 @@ public struct CIWorker: Sendable {
                 }
             }
             try await Task.sleep(for: .milliseconds(50))
-            if let current = try? await status() { return current }
         } while ContinuousClock.now < deadline
         throw MicropodError.message("Timed out waiting for the CI engine; see \(log.path)")
     }
