@@ -1,0 +1,56 @@
+name: Qualify hosted Apple Virtualization
+on:
+  push:
+    branches: [qualify/ci-worker-hosted-apple-20261120]
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: macos-26
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Probe the signed Apple Virtualization API
+        id: capability
+        shell: bash
+        run: |
+          set -ue
+          system_profiler SPHardwareDataType -json | python3 -c 'import sys,json; d=json.load(sys.stdin)["SPHardwareDataType"][0]; print({k:d.get(k) for k in ("machine_model","chip_type","number_processors","physical_memory")})'
+          echo 'import Virtualization; print(VZVirtualMachine.isSupported ? "true" : "false")' > "$RUNNER_TEMP/probe.swift"
+          swiftc "$RUNNER_TEMP/probe.swift" -o "$RUNNER_TEMP/probe"
+          codesign -f -s - --entitlements signing/micropod-cli.entitlements "$RUNNER_TEMP/probe"
+          supported="$("$RUNNER_TEMP/probe")"
+          echo "VZVirtualMachine.isSupported=$supported"
+          echo "supported=$supported" >> "$GITHUB_OUTPUT"
+      - name: Prepare Apple Container on the disposable runner
+        if: steps.capability.outputs.supported == 'true'
+        shell: bash
+        run: |
+          set -ue
+          if ! command -v container >/dev/null; then
+            python3 - <<'PY'
+          import hashlib,json,os,urllib.request
+          meta=json.load(urllib.request.urlopen("https://api.github.com/repos/apple/container/releases/tags/1.3.1"))
+          pkg=next(a for a in meta["assets"] if a["name"].endswith(".pkg") and "signed" in a["name"])
+          path=os.path.join(os.environ["RUNNER_TEMP"],"apple-container.pkg")
+          urllib.request.urlretrieve(pkg["browser_download_url"],path)
+          with open(path,"rb") as f: assert "sha256:"+hashlib.file_digest(f,"sha256").hexdigest()==pkg["digest"]
+          PY
+            sudo installer -pkg "$RUNNER_TEMP/apple-container.pkg" -target /
+          fi
+          container system kernel set --recommended
+          container system start
+          brew install docker docker-buildx
+      - name: Run the native supervisor and real containers
+        if: steps.capability.outputs.supported == 'true'
+        run: |
+          swift build --product micropod
+          codesign -f -s - --entitlements signing/micropod-cli.entitlements .build/debug/micropod
+          python3 scripts/qualify_ci_worker.py apple-worker --micropod "$PWD/.build/debug/micropod" --rounds 1 --clients 1 4 --json "$RUNNER_TEMP/native.json"
+      - uses: actions/upload-artifact@v7
+        if: always() && steps.capability.outputs.supported == 'true'
+        with:
+          name: macos-native-ci-worker
+          path: ${{ runner.temp }}/native.json
