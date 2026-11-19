@@ -143,8 +143,13 @@ def image_config_digest(socket_path, image_id, architecture):
 def measure(args, receipt, runner=None, read_parent=None):
     require(args.socket.startswith("/"), "The Docker socket must be an absolute path")
     docker = ["docker", "--host", "unix://" + args.socket]
+    worker_cli = args.worker_cli if args.engine == "micropod-worker" else None
+    receipt["timed_client"] = "micropod ci run" if worker_cli else "docker run --rm"
     def cmd(argv, check=True):
-        command = [*docker, *argv]
+        if worker_cli and argv[:2] == ["run", "--rm"]:
+            command = [worker_cli, "ci", "run", *argv[2:]]
+        else:
+            command = [*docker, *argv]
         r = runner(command) if runner else subprocess.run(command, capture_output=True, text=True, timeout=90)
         if check and r.returncode:
             raise ValueError(f"docker {argv[0]} exited {r.returncode}: {r.stderr[-350:]}")

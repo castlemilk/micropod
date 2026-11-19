@@ -8,7 +8,8 @@ enum CICommands {
         micropod ci start                 start or join this account's Linux worker
         micropod ci endpoint              ensure readiness and print the Docker socket URI
         micropod ci status                print worker, kernel boot and daemon identities as JSON
-        micropod ci run [--cache npm|go] [options] IMAGE   run a fresh container on the worker (docker run --rm)
+        micropod ci run [--cache npm|go] [--cache-scope NAME] [docker options] IMAGE [command...]
+                                          run a container with persistent package caches
         micropod ci stop                  stop the idle worker and retain its disk and caches
         micropod ci serve                 supervise the worker in the foreground
         micropod ci install-service       run the worker under launchd across CI job lifetimes
@@ -49,52 +50,71 @@ enum CICommands {
                 guard let executable = Bundle.main.executableURL else {
                     throw MicropodError.message("Cannot locate micropod executable")
                 }
-                guard command != "run" || args.count > 1 else {
-                    print(help)
-                    return 2
-                }
-                var job = args.dropFirst()
-                var mounts: [String] = []
-                var caches: Set<String> = []
-                while command == "run", job.first == "--cache" {
-                    guard let cache = job.dropFirst().first, ["npm", "go"].contains(cache) else {
-                        throw MicropodError.message("--cache accepts npm or go")
-                    }
-                    job = job.dropFirst(2)
-                    if !caches.insert(cache).inserted { continue }
-                    if cache == "npm" {
-                        mounts += ["-v", "micropod-ci-npm:/cache/npm", "-e", "npm_config_cache=/cache/npm"]
-                    } else {
-                        mounts += [
-                            "-v", "micropod-ci-gomod:/cache/gomod", "-e", "GOMODCACHE=/cache/gomod",
-                            "-v", "micropod-ci-gobuild:/cache/gobuild", "-e", "GOCACHE=/cache/gobuild",
-                        ]
-                    }
-                }
-                guard command != "run" || !job.isEmpty else {
-                    print(help)
-                    return 2
-                }
-                let current = try await worker.start(executable: executable)
                 if command == "run" {
+                    let options = try runArguments(args.dropFirst())
+                    let endpoint = try await worker.runEndpoint(executable: executable)
                     // Replace the CLI so job streams, signals and exit status belong to Docker.
-                    let arguments = ["docker", "--host", current.endpoint, "run", "--rm"] + mounts + job
+                    let arguments = ["docker", "--host", endpoint, "run", "--rm"] + options
                     for key in ["DOCKER_CONTEXT", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH"] { unsetenv(key) }
                     let argv = arguments.map { strdup($0) } + [nil]
                     defer { argv.forEach { free($0) } }
                     _ = execvp("docker", argv)
                     throw MicropodError.message("Cannot execute docker: \(String(cString: strerror(errno)))")
                 }
+                let current = try await worker.start(executable: executable)
                 if command == "endpoint" { print(current.endpoint) } else { try printStatus(current) }
             default:
                 print(help)
                 return 2
             }
             return 0
+        } catch let error as UsageError {
+            FileHandle.standardError.write(Data(("micropod ci: " + error.message + "\n").utf8))
+            return ExitCode.usage
         } catch {
             FileHandle.standardError.write(Data(("micropod ci: " + error.localizedDescription + "\n").utf8))
             return 1
         }
+    }
+
+    // Consume only the Micropod prefix. Leave Docker options and the image's argv intact.
+    static func runArguments(_ arguments: ArraySlice<String>) throws -> [String] {
+        var job = arguments
+        var caches = Set<String>()
+        var scope: String?
+        while let option = job.first, option == "--cache" || option == "--cache-scope" {
+            let value = job.dropFirst().first
+            if option == "--cache" {
+                guard let value, ["npm", "go"].contains(value) else {
+                    throw UsageError(message: "--cache accepts npm or go")
+                }
+                caches.insert(value)
+            } else {
+                guard scope == nil, let value, value.wholeMatch(of: #/[a-z0-9][a-z0-9_-]{0,62}/#) != nil else {
+                    throw UsageError(message: "--cache-scope needs one 1–63 character name using a-z, 0-9, _ or -")
+                }
+                scope = value
+            }
+            job = job.dropFirst(2)
+        }
+        guard !job.isEmpty else { throw UsageError(message: "ci run requires an image") }
+        guard scope == nil || !caches.isEmpty else { throw UsageError(message: "--cache-scope requires --cache") }
+
+        let prefix = scope.map { "micropod-ci-scoped-" + $0 } ?? "micropod-ci"
+        func mount(_ store: String, _ variable: String) -> [String] {
+            let path = "/cache/" + store
+            // Existing worker-wide volumes preserve Docker's image copy-up on first attach.
+            let copyOption = scope == nil ? "" : ",volume-nocopy"
+            return [
+                "--mount", "type=volume,src=\(prefix)-\(store),dst=\(path)\(copyOption)", "-e", "\(variable)=\(path)",
+            ]
+        }
+        var options: [String] = []
+        if caches.contains("npm") { options += mount("npm", "npm_config_cache") }
+        if caches.contains("go") {
+            options += mount("gomod", "GOMODCACHE") + mount("gobuild", "GOCACHE")
+        }
+        return options + job
     }
 
     private static func printStatus(_ status: CIWorker.Status) throws {

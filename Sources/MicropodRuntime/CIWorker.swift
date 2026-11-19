@@ -37,6 +37,23 @@ public struct CIWorker: Sendable {
         let instance: UUID
         var guestAddress: String?
         var started = false
+        var readySocket: ReadySocket?
+    }
+
+    struct ReadySocket: Codable, Equatable {
+        let worker: UUID
+        let device: dev_t
+        let inode: ino_t
+
+        init?(at url: URL, worker: UUID) {
+            var st = stat()
+            guard lstat(url.path, &st) == 0, st.st_mode & S_IFMT == S_IFSOCK, st.st_uid == getuid() else {
+                return nil
+            }
+            self.worker = worker
+            device = st.st_dev
+            inode = st.st_ino
+        }
     }
 
     public struct Status: Codable, Sendable {
@@ -118,7 +135,9 @@ public struct CIWorker: Sendable {
             if fm.fileExists(atPath: partial.path) { try fm.removeItem(at: partial) }
             defer { try? fm.removeItem(at: partial) }
             progress("Preparing the CI disk at \(disk.path)")
-            _ = try await EXT4Unpacker(capacityInBytes: bytes).unpack(image, for: .current, at: partial)
+            // This disk outlives its supervisor. Replay the ext4 journal after an abrupt host or VM exit.
+            _ = try await EXT4Unpacker(capacityInBytes: bytes, journal: .init(defaultMode: .ordered))
+                .unpack(image, for: .current, at: partial)
             try fm.moveItem(at: partial, to: disk)
         }
         var attributes = stat()
@@ -168,7 +187,10 @@ public struct CIWorker: Sendable {
         try prepareDirectory()
         guard let active = try liveSession() else { throw MicropodError.message("CI worker is stopped") }
         guard active.started else { throw MicropodError.message("CI worker is booting") }
-        let config = try configuration()
+        return try await inspectEngine(active, config: configuration())
+    }
+
+    private func inspectEngine(_ active: Session, config: Configuration) async throws -> Status {
         let response = try await client.request("GET", "/info", timeout: .seconds(2))
         guard response.status == 200 else { throw MicropodError.message("CI engine: \(response.message)") }
         let info = try JSONDecoder().decode(Info.self, from: response.body)
@@ -187,12 +209,55 @@ public struct CIWorker: Sendable {
             cgroupDriver: info.CgroupDriver)
     }
 
+    /// Docker checks liveness when it submits the job. Its endpoint is attested once per boot.
+    public func runEndpoint(executable: URL) async throws -> String {
+        try prepareDirectory()
+        if let active = try? liveSession(), active.started, let verified = active.readySocket,
+            !FileManager.default.fileExists(atPath: stopFile(active).path),
+            ReadySocket(at: socket, worker: try configuration().worker) == verified
+        {
+            return endpoint
+        }
+        return try await start(executable: executable).endpoint
+    }
+
     public func start(executable: URL) async throws -> Status {
         try prepareDirectory()
         if FileManager.default.fileExists(atPath: manifest.path) { _ = try configuration() }
         if let current = try? await status() { return current }
+        let deadline = ContinuousClock.now + .seconds(180)
+        var election: FileHandle?
+        var child: Process?
+        var launchdDeadline: ContinuousClock.Instant?
+        var sawSupervisor = false
+        defer { try? election?.close() }
+        repeat {
+            if (try? liveSession()) != nil {
+                sawSupervisor = true
+            } else if sawSupervisor {
+                throw MicropodError.message("CI worker startup failed; see \(log.path)")
+            } else if let child, !child.isRunning {
+                let delivered = child.terminationStatus == 0 && launchdDeadline.map { .now < $0 || isOwned() } == true
+                let joined = child.terminationStatus == Self.alreadyOwned && isOwned()
+                guard delivered || joined else {
+                    throw MicropodError.message("CI worker startup failed; see \(log.path)")
+                }
+            } else if election == nil, let lock = try acquire("start.lock") {
+                election = lock
+                if (try? liveSession()) == nil {
+                    let service = try serviceTarget()
+                    child = try launchSupervisor(executable: executable, service: service)
+                    if service != nil { launchdDeadline = .now + .seconds(15) }
+                }
+            }
+            try await Task.sleep(for: .milliseconds(50))
+            if let current = try? await status() { return current }
+        } while ContinuousClock.now < deadline
+        throw MicropodError.message("Timed out waiting for the CI engine; see \(log.path)")
+    }
+
+    private func launchSupervisor(executable: URL, service: String?) throws -> Process {
         let process = Process()
-        let service = try serviceTarget()
         if let service {
             process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
             process.arguments = ["kickstart", service]
@@ -207,28 +272,15 @@ public struct CIWorker: Sendable {
         process.standardError = output
         process.standardInput = FileHandle.nullDevice
         try process.run()
-        let launchedBy = ContinuousClock.now + .seconds(15)
-        let deadline = ContinuousClock.now + .seconds(180)
-        while ContinuousClock.now < deadline {
-            if let current = try? await status() { return current }
-            // A concurrent supervisor can win the lock. All starters wait for its actual API.
-            if !process.isRunning {
-                let delivered =
-                    service != nil && process.terminationStatus == 0 && (ContinuousClock.now < launchedBy || isOwned())
-                let joined = process.terminationStatus == Self.alreadyOwned && isOwned()
-                if !delivered && !joined { throw MicropodError.message("CI worker startup failed; see \(log.path)") }
-            }
-            try await Task.sleep(for: .milliseconds(125))
-        }
-        throw MicropodError.message("Timed out waiting for the CI engine; see \(log.path)")
+        return process
     }
 
     public static let alreadyOwned: Int32 = 75
 
     // An open-file-description lock survives request cancellation, but releases on supervisor death.
-    private func acquire() throws -> FileHandle? {
+    private func acquire(_ name: String = "worker.lock") throws -> FileHandle? {
         let fd = open(
-            directory.appendingPathComponent("worker.lock").path, O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0o600)
+            directory.appendingPathComponent(name).path, O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0o600)
         guard fd >= 0 else { throw POSIXError(.init(rawValue: errno) ?? .EIO) }
         let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
         if flock(fd, LOCK_EX | LOCK_NB) == 0 { return handle }
@@ -318,6 +370,9 @@ public struct CIWorker: Sendable {
         try prepareDirectory()
         guard let lock = try acquire() else { return Self.alreadyOwned }
         defer { try? lock.close() }
+        // A client may close an attached stream while the vsock relay still has bytes to send.
+        // Deliver EPIPE to that connection; the worker must keep serving the other jobs.
+        signal(SIGPIPE, SIG_IGN)
         guard VZVirtualMachine.isSupported else {
             throw MicropodError.message("Apple Virtualization is unavailable on this Mac")
         }
@@ -373,15 +428,16 @@ public struct CIWorker: Sendable {
             guard chmod(socket.path, 0o600) == 0 else { throw POSIXError(.init(rawValue: errno) ?? .EIO) }
             try await prepared.container.start()
             active.guestAddress = prepared.guestIP
-            active.started = true
-            try JSONEncoder().encode(active).write(to: session, options: .atomic)
             let readyBy = ContinuousClock.now + .seconds(40)
-            while (try? await status()) == nil {
+            while (try? await inspectEngine(active, config: config)) == nil {
                 guard ContinuousClock.now < readyBy else {
                     throw MicropodError.message("Guest Docker API did not become ready after boot")
                 }
                 try await Task.sleep(for: .milliseconds(150))
             }
+            active.readySocket = ReadySocket(at: socket, worker: config.worker)
+            active.started = true
+            try JSONEncoder().encode(active).write(to: session, options: .atomic)
             let wait = Task {
                 do {
                     let status = try await prepared.container.wait()

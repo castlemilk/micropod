@@ -42,6 +42,40 @@ def bootstrap():
     return image, textwrap.dedent(script)
 
 
+def cached_package(cli, image, scope, op, lock=None):
+    # Map the production cache locations into the existing offline fixture's layout.
+    fixture = (ROOT / "scripts/bench_package_caches.py").read_text()
+    job = """mkdir /caches
+ln -s "$npm_config_cache" /caches/npm-cache
+ln -s "$GOMODCACHE" /caches/go-mod-cache
+ln -s "$GOCACHE" /caches/go-build-cache
+exec python3 -c "$1" container "$2" "$3" """
+    row = json.loads(cli("run", "--cache", "npm", "--cache", "go", "--cache-scope", scope,
+                         "--pull=never", "--network", "none", "--cpus", "1", "--memory", "1g",
+                         image, "sh", "-ec", job, "sh", fixture, op, json.dumps(lock)).stdout)
+    require(row["verified"] == op, f"CLI package-cache check failed: {op}")
+    return row
+
+
+def warm_cli_caches(cli, image, scope, clients, boot):
+    seed = cached_package(cli, image, scope, "seed")
+    lock = seed["lock"]
+    require(fingerprint(seed["boot"]) == fingerprint(boot), "Cache seed ran on another kernel")
+    cached_package(cli, image, scope + "-empty", "empty", lock)
+    elapsed = {}
+    for tool in ("npm", "go"):
+        start = time.perf_counter()
+        with ThreadPoolExecutor(max_workers=clients) as pool:
+            jobs = [pool.submit(cached_package, cli, image, scope, tool, lock) for _ in range(clients)]
+            require(all(fingerprint(job.result()["boot"]) == fingerprint(boot) for job in jobs),
+                    "An offline job used another kernel")
+        elapsed[tool] = round(time.perf_counter() - start, 6)
+    audit = cached_package(cli, image, scope, "audit", lock)
+    require(audit["payload_inodes"] == seed["payload_inodes"], "Scoped caches duplicated the package payloads")
+    return dict(clients=clients, seed=seed, warm_seconds=elapsed, after=audit["cache_sizes"],
+                empty_scope_verified=True)
+
+
 def qualify(args, result, home):
     token = "mp-ci-" + uuid.uuid4().hex
     outer = token + "-guest"
@@ -171,12 +205,14 @@ def qualify(args, result, home):
             finally:
                 command("docker", "--host", peer_uri, "image", "rm", package, env=env, check=False)
         else:
-            if args.packages and not apple:
+            if args.packages:
                 package = token + ":packages"
-                archive = str(home / "toolchain.tar")
-                host("build", "--build-arg", "SOURCE_DATE_EPOCH=0", "-t", package, str(ROOT / "scripts/bench_cache_image"))
-                host("save", "-o", archive, package)
-                docker("load", "-i", archive)
+                builder = docker if apple else host
+                builder("build", "--build-arg", "SOURCE_DATE_EPOCH=0", "-t", package, str(ROOT / "scripts/bench_cache_image"))
+                if not apple:
+                    archive = str(home / "toolchain.tar")
+                    host("save", "-o", archive, package)
+                    docker("load", "-i", archive)
                 opts.package_image = package
             measure(opts, result.setdefault("warm", {}), read_parent=parent)
             if not apple:
@@ -186,6 +222,8 @@ def qualify(args, result, home):
                 raw.socket, raw.engine = host_docker.removeprefix("unix://"), "linux-docker"
                 measure(raw, result.setdefault("native_ubuntu", {}))
 
+        if apple and opts.package_image:
+            result["cli_caches"] = warm_cli_caches(cli, opts.package_image, token, max(args.clients), first["boot"])
         require(identity()["instance"] == first["instance"], "The supervisor restarted during the warm batches")
 
         # A user-defined bridge and a fresh container resolving the service name exercise guest DNS.
@@ -222,6 +260,12 @@ def qualify(args, result, home):
                 and second["instance"] != first["instance"], "Disk ownership failed across supervisor restart")
         require((first["boot"] != second["boot"]) == apple, "Unexpected kernel identity across restart")
         result["restarted"] = second
+        if "cli_caches" in result:
+            cache = result["cli_caches"]
+            audit = cached_package(cli, opts.package_image, token, "audit", cache["seed"]["lock"])
+            require(fingerprint(audit["boot"]) == fingerprint(second["boot"])
+                    and audit["payload_inodes"] == cache["seed"]["payload_inodes"], "Restart lost scoped package data")
+            cache["restart_reused_payloads"] = True
         require(docker("run", "--rm", "--pull=never", "-v", volume + ":/cache:ro", ALPINE, "cat", "/cache/proof").stdout.strip() == token,
                 "Image or named volume did not survive restart")
         build("changed")

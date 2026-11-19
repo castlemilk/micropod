@@ -176,7 +176,12 @@ public enum SandboxVM {
         if let ciWorker {
             imageRef = try normalize(CIWorker.image)
             diskBytes = options.diskBytes
-            image = try await store.get(reference: imageRef, pull: true)
+            do {
+                image = try await store.get(reference: imageRef)
+            } catch let error as ContainerizationError where error.code == .notFound {
+                progress("Pulling the Linux ARM64 CI worker image")
+                image = try await store.pull(reference: imageRef, platform: .current)
+            }
             rootfsPath = try await ciWorker.openDisk(image: image, bytes: diskBytes, progress: progress)
         } else {
             let baseDisk: URL
@@ -277,6 +282,9 @@ public enum SandboxVM {
             if let ciWorker {
                 // The upstream engine administers its own dedicated Linux VM. Its only integration
                 // with macOS is this outbound socket. No host files or devices are shared.
+                // The configured resources are the whole VM's budget, including the guest agent.
+                cfg.cpuOverhead = 0
+                cfg.memoryOverhead = 0
                 cfg.process.capabilities = .allCapabilities
                 cfg.maskedPaths = []
                 cfg.readonlyPaths = []
