@@ -192,6 +192,10 @@ struct DevVolume: Codable {
                 throw DevVolumeError("Refusing to initialize an unverified volume")
             }
         }
+        let ownership = try DevTool.plist(["info", "-plist", volume.uuidString])
+        if ownership["GlobalPermissionsEnabled"] as? Bool != true {
+            try DevTool.interact(DevTool.diskutil, ["enableOwnership", volume.uuidString])
+        }
         let fd = open(mount, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
         guard fd >= 0 else { throw POSIXError(.EACCES) }
         defer { close(fd) }
@@ -223,9 +227,18 @@ struct DevVolume: Codable {
         let payload = try directory("data-" + token.uuidString, 0o700)
         defer { close(payload) }
         var info = stat()
-        guard fstat(payload, &info) == 0, [0, uid].contains(info.st_uid), fchown(payload, uid, gid) == 0,
-            fchmod(payload, 0o700) == 0
-        else { throw DevVolumeError("Cannot initialize the private payload directory") }
+        guard fstat(payload, &info) == 0 else {
+            throw DevVolumeError("Cannot stat payload directory: \(String(cString: strerror(errno)))")
+        }
+        guard [0, uid].contains(info.st_uid) else {
+            throw DevVolumeError("Unexpected payload owner \(info.st_uid), expected root or \(uid)")
+        }
+        guard fchown(payload, uid, gid) == 0 else {
+            throw DevVolumeError("Cannot set payload owner to \(uid):\(gid): \(String(cString: strerror(errno)))")
+        }
+        guard fchmod(payload, 0o700) == 0 else {
+            throw DevVolumeError("Cannot set payload permissions: \(String(cString: strerror(errno)))")
+        }
         let indexing = try DevTool.capture(DevTool.mdutil, ["-i", "off", mount])
         if indexing.code != 0 {
             let status = try DevTool.capture(DevTool.mdutil, ["-s", mount])

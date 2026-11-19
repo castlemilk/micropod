@@ -35,6 +35,7 @@ jobs:
           path: ${{ runner.temp }}/volume.json
 
   warm-linux:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 8
     steps:
