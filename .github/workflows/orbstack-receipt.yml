@@ -1,4 +1,4 @@
-name: Read OrbStack filesystem receipt
+name: OrbStack benchmark references
 on:
   workflow_dispatch:
     inputs:
@@ -35,3 +35,40 @@ jobs:
           assert receipt["lane"] == "orbstack-sharedfs-consumer"
           print("FILESYSTEM_RECEIPT", json.dumps(receipt, separators=(",", ":")))
           PY
+
+  scale-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.1'
+          cache: false
+      - name: Run measured Docker and Podman bursts on one host
+        run: |
+          python3 scripts/qualification/engine.py --context default --podman-reference --bursts-only \
+            --clients 1 4 8 16 --rounds 5 --json "$RUNNER_TEMP/scale-linux.json"
+      - name: Record all timed attempts and host allocation
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, platform
+          result = json.loads((pathlib.Path(os.environ["RUNNER_TEMP"]) / "scale-linux.json").read_text())
+          rows = result.pop("samples")
+          print("LINUX_META", json.dumps(result, separators=(",", ":")))
+          print("LINUX_HOST", json.dumps({"kernel": platform.release(), "logical_cpus": os.cpu_count(),
+                "memory_bytes": os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")}))
+          for sample in rows:
+              print("LINUX_SAMPLE", json.dumps(sample, separators=(",", ":")))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-engine-scale-receipt
+          path: ${{ runner.temp }}/scale-linux.json
+          if-no-files-found: error
