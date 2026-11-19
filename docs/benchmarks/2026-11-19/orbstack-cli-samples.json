@@ -1,0 +1,390 @@
+{
+  "source_commit": "f06a5343747356a9155f2a5b0f7448dad8a9903d",
+  "run_id": 44475818424,
+  "job_id": 135395970379,
+  "full_receipt_artifact": 14506674807,
+  "host": {
+    "ProductVersion": "15.7.9",
+    "BuildVersion": "24G830",
+    "machdep.cpu.brand_string": "Intel(R) Core(TM) i7-8700B CPU @ 3.20GHz",
+    "machdep.cpu.family": "6",
+    "machdep.cpu.model": "58",
+    "machdep.cpu.stepping": "10",
+    "hw.ncpu": "4",
+    "hw.memsize": "15032385536",
+    "kern.hv_support": "1"
+  },
+  "boot": [
+    {
+      "first_cli_to_docker_info_ms": 43948.5,
+      "identity": {
+        "OperatingSystem": "OrbStack",
+        "Name": "orbstack",
+        "KernelVersion": "6.7.11-orbstack-00143-ge6b82e26cd22",
+        "Architecture": "x86_64",
+        "ServerVersion": "25.0.5",
+        "NCPU": 4,
+        "MemTotal": 4800724992
+      },
+      "endpoint": "~/.orbstack/run/docker.sock"
+    }
+  ],
+  "engine": [
+    "{'arch': 'x86_64', 'cpus': 4, 'kernel': '6.7.11-orbstack-00143-ge6b82e26cd22', 'memory': 4800724992, 'os': 'OrbStack', 'storage': 'overlay2'} 25.0.5"
+  ],
+  "fixture": [
+    "a3225dbeb9c3e4b4d4bea692ee3f734ea6fc84c065f8a9b66e7f3ac41030d3c0 737d7a31b5a3e02968c239cd0132c938a8f95c5514d94744793643daeddcfd5d"
+  ],
+  "samples": [
+    {
+      "case": "engine-identity",
+      "outcome": "pass",
+      "validated_ms": 3567.009
+    },
+    {
+      "case": "guest-compile",
+      "outcome": "pass",
+      "validated_ms": 12854.147
+    },
+    {
+      "case": "image-load-inspect",
+      "outcome": "pass",
+      "validated_ms": 1845.946
+    },
+    {
+      "case": "build-to-validated-output",
+      "solution": "solver-no-cache",
+      "outcome": "pass",
+      "validated_ms": 16484.88
+    },
+    {
+      "case": "build-to-validated-output",
+      "solution": "warm",
+      "outcome": "pass",
+      "validated_ms": 5108.41
+    },
+    {
+      "case": "build-to-validated-output",
+      "solution": "edited",
+      "outcome": "pass",
+      "validated_ms": 7578.037
+    },
+    {
+      "case": "build-to-validated-output",
+      "solution": "chmod-only",
+      "outcome": "pass",
+      "validated_ms": 6529.401
+    },
+    {
+      "case": "build-to-validated-output",
+      "solution": "ignored-only",
+      "outcome": "pass",
+      "validated_ms": 4753.672
+    },
+    {
+      "case": "buildx-local-export",
+      "outcome": "pass",
+      "validated_ms": 2492.664
+    },
+    {
+      "case": "buildx-workflow",
+      "outcome": "pass",
+      "validated_ms": 45326.702
+    },
+    {
+      "case": "process-identity",
+      "outcome": "pass",
+      "validated_ms": 1542.443
+    },
+    {
+      "case": "readonly-bind-and-volume-reuse",
+      "outcome": "pass",
+      "validated_ms": 8760.902
+    },
+    {
+      "case": "network-dns-exec-signal-wait-logs",
+      "outcome": "pass",
+      "validated_ms": 5975.967
+    },
+    {
+      "case": "compose-up-exit-down",
+      "outcome": "pass",
+      "validated_ms": 2980.924
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 1,
+      "warmup": true,
+      "block": 0,
+      "outcome": "pass",
+      "validated_ms": 1955.661,
+      "known_exits": 1
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 1,
+      "warmup": false,
+      "block": 1,
+      "outcome": "pass",
+      "validated_ms": 1604.723,
+      "known_exits": 1
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 1,
+      "warmup": false,
+      "block": 2,
+      "outcome": "pass",
+      "validated_ms": 1598.124,
+      "known_exits": 1
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 1,
+      "warmup": false,
+      "block": 3,
+      "outcome": "pass",
+      "validated_ms": 2771.836,
+      "known_exits": 1
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 1,
+      "warmup": false,
+      "block": 4,
+      "outcome": "pass",
+      "validated_ms": 2147.323,
+      "known_exits": 1
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 1,
+      "warmup": false,
+      "block": 5,
+      "outcome": "pass",
+      "validated_ms": 1740.175,
+      "known_exits": 1
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 4,
+      "warmup": true,
+      "block": 0,
+      "outcome": "pass",
+      "validated_ms": 3725.496,
+      "known_exits": 4
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 4,
+      "warmup": false,
+      "block": 1,
+      "outcome": "pass",
+      "validated_ms": 4357.286,
+      "known_exits": 4
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 4,
+      "warmup": false,
+      "block": 2,
+      "outcome": "pass",
+      "validated_ms": 3348.239,
+      "known_exits": 4
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 4,
+      "warmup": false,
+      "block": 3,
+      "outcome": "pass",
+      "validated_ms": 3486.047,
+      "known_exits": 4
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 4,
+      "warmup": false,
+      "block": 4,
+      "outcome": "pass",
+      "validated_ms": 3959.201,
+      "known_exits": 4
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 4,
+      "warmup": false,
+      "block": 5,
+      "outcome": "pass",
+      "validated_ms": 3234.145,
+      "known_exits": 4
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 8,
+      "warmup": true,
+      "block": 0,
+      "outcome": "pass",
+      "validated_ms": 6867.234,
+      "known_exits": 8
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 8,
+      "warmup": false,
+      "block": 1,
+      "outcome": "pass",
+      "validated_ms": 6545.151,
+      "known_exits": 8
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 8,
+      "warmup": false,
+      "block": 2,
+      "outcome": "pass",
+      "validated_ms": 7117.229,
+      "known_exits": 8
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 8,
+      "warmup": false,
+      "block": 3,
+      "outcome": "pass",
+      "validated_ms": 6465.414,
+      "known_exits": 8
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 8,
+      "warmup": false,
+      "block": 4,
+      "outcome": "pass",
+      "validated_ms": 7381.795,
+      "known_exits": 8
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 8,
+      "warmup": false,
+      "block": 5,
+      "outcome": "pass",
+      "validated_ms": 7436.039,
+      "known_exits": 8
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 16,
+      "warmup": true,
+      "block": 0,
+      "outcome": "pass",
+      "validated_ms": 16493.465,
+      "known_exits": 16
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 16,
+      "warmup": false,
+      "block": 1,
+      "outcome": "pass",
+      "validated_ms": 17174.346,
+      "known_exits": 16
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 16,
+      "warmup": false,
+      "block": 2,
+      "outcome": "pass",
+      "validated_ms": 16732.471,
+      "known_exits": 16
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 16,
+      "warmup": false,
+      "block": 3,
+      "outcome": "pass",
+      "validated_ms": 14630.978,
+      "known_exits": 16
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 16,
+      "warmup": false,
+      "block": 4,
+      "outcome": "pass",
+      "validated_ms": 15775.064,
+      "known_exits": 16
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "orbstack",
+      "clients": 16,
+      "warmup": false,
+      "block": 5,
+      "outcome": "pass",
+      "validated_ms": 13211.522,
+      "known_exits": 16
+    },
+    {
+      "case": "cleanup-compose--p",
+      "outcome": "pass",
+      "validated_ms": 787.187
+    },
+    {
+      "case": "cleanup-service",
+      "outcome": "pass",
+      "validated_ms": 247.303
+    },
+    {
+      "case": "cleanup-network",
+      "outcome": "pass",
+      "validated_ms": 605.865
+    },
+    {
+      "case": "cleanup-volume",
+      "outcome": "pass",
+      "validated_ms": 174.3
+    },
+    {
+      "case": "cleanup-build-image",
+      "outcome": "pass",
+      "validated_ms": 178.87
+    },
+    {
+      "case": "cleanup-image-rm",
+      "outcome": "pass",
+      "validated_ms": 145.154
+    }
+  ],
+  "peer": {
+    "name": "Colima",
+    "outcome": "unavailable",
+    "reason": "Lima VZ did not signal running. No measured Colima samples."
+  }
+}
