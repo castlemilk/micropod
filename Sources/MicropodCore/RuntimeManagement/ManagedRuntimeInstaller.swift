@@ -100,7 +100,7 @@ public actor ManagedRuntimeInstaller {
         else { throw MicropodError.message("Apple runtime package layout is unsupported") }
         let payload = expanded.appendingPathComponent("Payload")
         let files = try await inspectPayload(payload)
-        guard files == AppleRuntimeRelease.payloadSHA256 else {
+        guard let expected = release.payload, files == expected else {
             throw MicropodError.message("Apple runtime package is incomplete")
         }
         let selection = ManagedRuntimeLocation.Selection(
@@ -121,14 +121,14 @@ public actor ManagedRuntimeInstaller {
     }
 
     public func verify(_ receipt: ManagedRuntimeReceipt) throws {
-        guard receipt.selection.isSupported, receipt.files == AppleRuntimeRelease.payloadSHA256 else {
+        guard receipt.selection.isSupported, receipt.files == AppleRuntimeRelease.payload(for: receipt.selection) else {
             throw MicropodError.message("Unqualified runtime receipt")
         }
         try verify(receipt, at: root.appendingPathComponent("versions/" + receipt.selection.directoryName))
     }
 
     private func verify(_ receipt: ManagedRuntimeReceipt, at directory: URL) throws {
-        guard receipt.files == AppleRuntimeRelease.payloadSHA256 else {
+        guard receipt.files == AppleRuntimeRelease.payload(for: receipt.selection) else {
             throw MicropodError.message("Unqualified runtime file inventory")
         }
         guard try directory.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink != true,

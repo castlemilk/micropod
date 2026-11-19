@@ -24,7 +24,8 @@ public enum IsolatedRuntimeWorker {
                 "macOS did not provide an isolated user service namespace; the shared runtime was left unchanged")
         }
         let root = RootRuntimeStorage.apple.appendingPathComponent("versions/" + request.selection.directoryName)
-        let receipt = ManagedRuntimeReceipt(selection: request.selection, files: AppleRuntimeRelease.payloadSHA256)
+        let receipt = ManagedRuntimeReceipt(
+            selection: request.selection, files: AppleRuntimeRelease.payload(for: request.selection) ?? [:])
         try await ManagedRuntimeInstaller(root: RootRuntimeStorage.apple).verify(receipt)
         let client = ContainerCLIClient(executableURL: root.appendingPathComponent("bin/container"))
         return try await RuntimeAdmission.$maintenanceOwner.withValue(request.maintenanceOwner) {
@@ -32,7 +33,8 @@ public enum IsolatedRuntimeWorker {
             case .start:
                 let status = try await SystemService(client: client).status()
                 if status.status == "running" {
-                    let observed = try await observe(client: client, root: root, identity: identity)
+                    let observed = try await observe(
+                        client: client, root: root, identity: identity, selection: request.selection)
                     try await startGateway(identity: identity)
                     return observed
                 }
@@ -44,11 +46,13 @@ public enum IsolatedRuntimeWorker {
                         "system", "start", "--app-root", IsolatedRuntimePolicy.appRoot.path, "--install-root",
                         root.path, "--enable-kernel-install", "--timeout", "180",
                     ]), timeout: .seconds(240))
-                let observed = try await observe(client: client, root: root, identity: identity)
+                let observed = try await observe(
+                    client: client, root: root, identity: identity, selection: request.selection)
                 try await startGateway(identity: identity)
                 return observed
             case .stop:
-                let observation = try await observe(client: client, root: root, identity: identity)
+                let observation = try await observe(
+                    client: client, root: root, identity: identity, selection: request.selection)
                 if observation.state == "stopped" {
                     try await stopGateway(identity: identity)
                     return observation
@@ -62,14 +66,15 @@ public enum IsolatedRuntimeWorker {
                 return .init(
                     serviceUID: identity.serviceUID, bootstrapDomain: "user/\(identity.serviceUID)", state: "stopped")
             case .status, .verify:
-                let observed = try await observe(client: client, root: root, identity: identity)
+                let observed = try await observe(
+                    client: client, root: root, identity: identity, selection: request.selection)
                 if request.requiresIdle {
                     if observed.state != "stopped" { try await assertNativeIdle(client: client) }
                     try await assertGatewayIdle(identity: identity)
                 }
                 return observed
             case .workload:
-                _ = try await observe(client: client, root: root, identity: identity)
+                _ = try await observe(client: client, root: root, identity: identity, selection: request.selection)
                 let id = "mp-owned-" + UUID().uuidString.lowercased()
                 let output = try await client.run(
                     .init(arguments: [
@@ -79,7 +84,8 @@ public enum IsolatedRuntimeWorker {
                 guard output.contains("micropod-isolated-runtime-ok"),
                     try await !ContainerService(client: client).list().contains(where: { $0.id == id })
                 else { throw MicropodError.message("Isolated workload acceptance is unconfirmed") }
-                let observed = try await observe(client: client, root: root, identity: identity)
+                let observed = try await observe(
+                    client: client, root: root, identity: identity, selection: request.selection)
                 return .init(
                     serviceUID: observed.serviceUID, bootstrapDomain: observed.bootstrapDomain, state: observed.state,
                     nativeVersion: observed.nativeVersion, nativeAppRoot: observed.nativeAppRoot,
@@ -155,7 +161,10 @@ public enum IsolatedRuntimeWorker {
         }
     }
 
-    private static func observe(client: ContainerCLIClient, root: URL, identity: IsolatedRuntimeIdentity) async throws
+    private static func observe(
+        client: ContainerCLIClient, root: URL, identity: IsolatedRuntimeIdentity,
+        selection: ManagedRuntimeLocation.Selection
+    ) async throws
         -> IsolatedRuntimeObservation
     {
         let system = try await SystemService(client: client).status()
@@ -170,7 +179,7 @@ public enum IsolatedRuntimeWorker {
             guard let text else { return nil }
             return URL(string: text).flatMap { $0.isFileURL ? $0.path : nil } ?? text
         }
-        guard health.semver == AppleRuntimeRelease.supported.version,
+        guard health.semver == AppleRuntimeRelease.release(for: selection)?.version,
             path(health.appRoot) == IsolatedRuntimePolicy.appRoot.path,
             path(health.installRoot) == root.path
         else { throw MicropodError.message("The native service did not adopt the dedicated runtime identity") }

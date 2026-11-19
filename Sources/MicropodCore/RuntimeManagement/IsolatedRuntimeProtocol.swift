@@ -55,6 +55,10 @@ public struct IsolatedRuntimeStatus: Codable, Sendable {
     /// The current or last runtime component update. Status replies only;
     /// `operation.json` never carries it.
     public var componentUpdate: RuntimeComponentUpdateSummary?
+    /// `protected`, or `unprotected: <reason>`: whether this helper runs as
+    /// the root-owned authority (docs/runtime-component-update.md). Status
+    /// replies only.
+    public var componentProtection: String?
     public var isTerminal: Bool {
         ["idle", "completed", "cancelled", "blocked", "failed", "recoveryRequired"].contains(phase)
     }

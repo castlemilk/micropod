@@ -9,91 +9,25 @@ import SwiftUI
 private final class RuntimeSetupModel {
     var status = IsolatedRuntimeStatus()
     var error: String?
-    var awaitingApproval = false
-    var approvalMessage = "Administrator approval has not been requested"
     var busy = false
-    private var handledInstallRequest = false
-    private var handledReregistration = false
-    private let service = SMAppService.daemon(plistName: "com.skunkworq.micropod.runtime.host.plist")
+    /// The legacy SMAppService background item (runtime helpers before the
+    /// root-owned authority). This app never registers it; it only retires
+    /// it, on an explicit confirmation, once the authority serves.
+    var legacyRegistered = false
+    var confirmingRetirement = false
+    private let legacyService = SMAppService.daemon(plistName: "com.skunkworq.micropod.runtime.host.plist")
     private let client = IsolatedRuntimeClient()
-    func installRequestedAtLaunch() async {
-        guard !handledInstallRequest, ProcessInfo.processInfo.arguments.contains("--install") else { return }
-        handledInstallRequest = true
-        approveHelper()
-        do {
-            while service.status != .enabled {
-                try Task.checkCancellation()
-                try await Task.sleep(for: .seconds(1))
-                await refresh()
-            }
-            await refresh()
-            guard error == nil, status.isTerminal, status.phase != "recoveryRequired" else { return }
-            if status.identity != nil, status.nativeState == "nativeReady" { return }
-            await request(.install)
-        } catch { self.error = error.localizedDescription }
-    }
-    /// `--reregister` (micropod runtime update --bootstrap): this bundle
-    /// replaced an older setup app, and only a new registration applies its
-    /// daemon definition (the SpawnConstraint). The old helper is checked
-    /// idle right before it is unregistered; macOS then asks an administrator
-    /// to approve the registration once.
-    func reregisterRequestedAtLaunch() async {
-        guard !handledReregistration, ProcessInfo.processInfo.arguments.contains("--reregister") else { return }
-        handledReregistration = true
-        busy = true
-        defer { busy = false }
-        do {
-            if service.status == .enabled {
-                let current = try await client.call(.init(action: .status))
-                guard current.isTerminal, current.phase != "recoveryRequired", current.rigAttempted != true,
-                    current.runtimeRigAttempted != true,
-                    current.localGeneration == nil || current.actionVerified == true,
-                    try current.workerBirth?.hasExited() != false
-                else {
-                    throw MicropodError.message("Finish or verify runtime maintenance before re-registering the helper")
-                }
-                try await service.unregister()
-            }
-            try service.register()
-            awaitingApproval = service.status == .requiresApproval
-            if awaitingApproval {
-                approvalMessage = "Approve Micropod Runtime Setup in Login Items to start the updated helper"
-                SMAppService.openSystemSettingsLoginItems()
-            }
-            error = nil
-        } catch { self.error = error.localizedDescription }
-    }
-    func approveHelper() {
-        do {
-            if service.status != .enabled && service.status != .requiresApproval { try service.register() }
-            awaitingApproval = service.status == .requiresApproval
-            if awaitingApproval { SMAppService.openSystemSettingsLoginItems() } else { Task { await refresh() } }
-        } catch {
-            let failure = error as NSError
-            if failure.domain == "SMAppServiceErrorDomain", failure.code == Int(kSMErrorLaunchDeniedByUser) {
-                awaitingApproval = true
-                approvalMessage = "macOS is waiting for administrator approval"
-                SMAppService.openSystemSettingsLoginItems()
-            } else {
-                self.error = error.localizedDescription
-            }
-        }
-    }
+
+    var protected: Bool { status.componentProtection == "protected" }
+
     func refresh() async {
-        awaitingApproval = service.status == .requiresApproval
-        switch service.status {
-        case .notRegistered: approvalMessage = "Administrator approval has not been requested"
-        case .enabled: approvalMessage = "The runtime helper is approved"
-        case .requiresApproval: approvalMessage = "macOS is waiting for administrator approval"
-        case .notFound: approvalMessage = "macOS has not registered this runtime helper yet"
-        @unknown default: approvalMessage = "The helper approval state is unavailable"
-        }
-        guard service.status == .enabled else { return }
+        legacyRegistered = [.enabled, .requiresApproval].contains(legacyService.status)
         do {
             status = try await client.call(.init(action: .status))
             error = nil
         } catch { self.error = error.localizedDescription }
     }
+
     func request(_ action: IsolatedRuntimeAction) async {
         guard !busy else { return }
         busy = true
@@ -108,24 +42,25 @@ private final class RuntimeSetupModel {
         } catch { self.error = error.localizedDescription }
     }
 
-    func pauseHelperForUpdate() async {
+    /// Retires the legacy background item. Only offered while the
+    /// root-owned authority serves and reports itself protected, so it can
+    /// never take the runtime offline, and only after the confirmation in
+    /// this window (no launch argument triggers it).
+    func retireLegacy() async {
         guard !busy else { return }
         busy = true
-        defer { busy = false }
+        defer {
+            busy = false
+            confirmingRetirement = false
+        }
         do {
             let current = try await client.call(.init(action: .status))
-            guard current.isTerminal, current.phase != "recoveryRequired",
-                current.rigAttempted != true,
-                current.localGeneration == nil || current.actionVerified == true,
-                try current.workerBirth?.hasExited() != false
-            else {
-                throw MicropodError.message("Finish or verify runtime maintenance before updating the helper")
+            guard current.componentProtection == "protected" else {
+                throw MicropodError.message(
+                    "The root-owned runtime authority is not serving; the old background item was left in place")
             }
-            // Service Management owns termination. The durable runtime journal
-            // and admission fence survive replacement of this app bundle.
-            try await service.unregister()
-            approvalMessage = "The helper is paused for an app update"
-            error = nil
+            try await legacyService.unregister()
+            await refresh()
         } catch { self.error = error.localizedDescription }
     }
 }
@@ -143,19 +78,17 @@ struct MicropodRuntimeSetup: App {
                     )
                     .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     Text(
-                        "Setup needs administrator approval for Micropod’s signed helper. It creates the hidden _micropod service account, verifies Apple’s 1.5.0 package, and stores runtime data separately on this Mac."
+                        "An administrator installs the runtime helper once, as a root-owned LaunchDaemon: sudo micropod runtime install-authority. Later releases update it without another approval."
                     )
                     .font(.callout).fixedSize(horizontal: false, vertical: true)
-                    Button("Approve Runtime Helper…") { model.approveHelper() }
-                        .buttonStyle(.borderedProminent).disabled(model.busy)
-                    Text(model.approvalMessage).font(.callout).foregroundStyle(.secondary)
-                    if model.awaitingApproval {
-                        Text(
-                            "Approve Micropod Runtime Setup in System Settings → General → Login Items & Extensions, then check again."
-                        ).font(.callout)
-                    }
+                    Text(
+                        model.status.componentProtection.map { "Runtime helper: \($0)" }
+                            ?? "Runtime helper: not installed"
+                    )
+                    .font(.callout).foregroundStyle(model.protected ? Color.secondary : Color.red)
+                    .textSelection(.enabled)
                     HStack {
-                        Button("Check Approval") { Task { await model.refresh() } }
+                        Button("Check Again") { Task { await model.refresh() } }
                         Button("Install Dedicated Runtime") { Task { await model.request(.install) } }
                         Button("Start") { Task { await model.request(.start) } }
                         Button("Stop") { Task { await model.request(.stop) } }
@@ -164,8 +97,19 @@ struct MicropodRuntimeSetup: App {
                         Button("Verify Runtime") { Task { await model.request(.verify) } }
                         Button("Run Isolated Test") { Task { await model.request(.workload) } }
                     }.disabled(model.busy)
-                    Button("Pause Helper for Update") { Task { await model.pauseHelperForUpdate() } }
-                        .disabled(model.busy)
+                    if model.legacyRegistered && model.protected {
+                        Button("Retire the Old Background Item…") { model.confirmingRetirement = true }
+                            .disabled(model.busy)
+                            .confirmationDialog(
+                                "Retire the old background item?", isPresented: $model.confirmingRetirement
+                            ) {
+                                Button("Retire", role: .destructive) { Task { await model.retireLegacy() } }
+                            } message: {
+                                Text(
+                                    "The root-owned runtime authority serves now. The old item only runs a helper from /Applications, which yields to it."
+                                )
+                            }
+                    }
                     if model.busy {
                         HStack {
                             ProgressView().controlSize(.small)
@@ -205,8 +149,6 @@ struct MicropodRuntimeSetup: App {
                 }.padding(24)
             }.frame(width: 640, height: 540).task {
                 await model.refresh()
-                await model.reregisterRequestedAtLaunch()
-                await model.installRequestedAtLaunch()
             }
         }.windowResizability(.contentSize)
     }

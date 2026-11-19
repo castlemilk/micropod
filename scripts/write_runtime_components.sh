@@ -47,6 +47,9 @@ manifest = {
     "appleRuntime": runtimes[0],
     "appleRuntimes": runtimes,
 }
+if not probe.get("authorityDefinitionSHA256"):
+    raise SystemExit("the probed helper reports no authority definition")
+manifest["authorityDefinitionSHA256"] = probe["authorityDefinitionSHA256"]
 floor = __import__("os").environ.get("MICROPOD_COMPONENTS_SECURITY_FLOOR")
 if floor:
     manifest["securityFloor"] = floor

@@ -301,8 +301,7 @@ extension RuntimeCoordinationOperation {
             id == identifier.uuidString.lowercased(), runtimeInstance == identity.instance.uuidString,
             localGeneration > 0, ["start", "stop", "restart", "install"].contains(action),
             targetState == (action == "stop" ? "stopped" : "running"),
-            version == AppleRuntimeRelease.supported.version,
-            packageSHA256 == AppleRuntimeRelease.supported.packageSHA256
+            AppleRuntimeRelease.releases.contains(where: { $0.version == version && $0.packageSHA256 == packageSHA256 })
         else { throw RuntimeCoordinationProofVerifier.refused() }
         if installRoot != prefix {
             guard installRoot.hasPrefix(prefix + "-"),

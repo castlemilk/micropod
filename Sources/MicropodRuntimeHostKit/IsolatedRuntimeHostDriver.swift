@@ -140,7 +140,10 @@ public struct NativeIsolatedRuntimeHostDriver: IsolatedRuntimeHostDriving {
         guard try ManagedRuntimeInstaller.sha256(worker) == runtime.workerSHA256 else {
             throw MicropodError.message("The retained runtime worker changed")
         }
-        let receipt = ManagedRuntimeReceipt(selection: runtime.selection, files: AppleRuntimeRelease.payloadSHA256)
+        guard let files = AppleRuntimeRelease.payload(for: runtime.selection) else {
+            throw MicropodError.message("This helper's release table does not name the retained Apple runtime")
+        }
+        let receipt = ManagedRuntimeReceipt(selection: runtime.selection, files: files)
         try await ManagedRuntimeInstaller(root: RootRuntimeStorage.apple).verify(receipt)
         try RootRuntimeStorage.stageAPI(
             .init(

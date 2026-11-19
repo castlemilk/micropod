@@ -16,6 +16,8 @@ public actor IsolatedRuntimeHostController {
     private var workerRunning = false
     /// A component update is being planned off the actor.
     private var componentPlanning = false
+    /// The authority's last live check, for status.
+    private var protection: String?
     private var fence: RuntimeMaintenanceFence?
     private var runtimeCoordinator: RuntimeCoordinatorAuthority
     private let verifyCoordinatorAccount: @Sendable (IsolatedRuntimeIdentity) throws -> Void
@@ -128,6 +130,7 @@ public actor IsolatedRuntimeHostController {
             var snapshot = state
             snapshot.componentProtocol = components == nil ? nil : RuntimeComponentManifest.protocolVersion
             snapshot.componentUpdate = components?.summary()
+            snapshot.componentProtection = components == nil ? nil : protection
             if let identity = state.identity {
                 let pending = gate.root.appendingPathComponent("pending")
                 if let files = try? FileManager.default.contentsOfDirectory(
@@ -1024,10 +1027,12 @@ public actor IsolatedRuntimeHostController {
         guard let components else {
             throw MicropodError.message("This runtime helper cannot update its own components")
         }
+        refreshProtection()
         func snapshot() -> IsolatedRuntimeStatus {
             var current = state
             current.componentProtocol = RuntimeComponentManifest.protocolVersion
             current.componentUpdate = components.summary()
+            current.componentProtection = protection
             return current
         }
         if let record = components.readLeniently(), record.operation == request.operation {
@@ -1092,13 +1097,14 @@ public actor IsolatedRuntimeHostController {
         if let swapped, swapped.phase == .helperReady { try? continueRuntime(swapped) }
     }
 
-    /// Called once the helper serves. Confirms a swapped-in helper, re-seats
-    /// an installed setup app that is not a sealed root-owned copy, then lets
-    /// the runtime follow. Returns false while a swapped-in helper is still
-    /// unconfirmed, so the launch watchdog can count it.
+    /// Called once the helper serves: records this helper's protection,
+    /// confirms a swapped-in helper, then lets the runtime follow. Returns
+    /// false while a swapped-in helper is still unconfirmed, so the launch
+    /// watchdog can count it.
     @discardableResult
     public func continueComponentUpdate() async -> Bool {
         guard let components else { return true }
+        refreshProtection()
         var confirmed = true
         do {
             if components.readLeniently()?.phase == .relaunching { confirmed = try components.confirmTarget() }
@@ -1108,35 +1114,19 @@ public actor IsolatedRuntimeHostController {
                 } else {
                     try start(record)
                 }
-            } else if !components.environment.isSealed(components.environment.installedBundle) {
-                try await reseat()
             }
         } catch {
+            confirmed = false
             fputs("Runtime component update could not continue: \(error.localizedDescription)\n", stderr)
         }
         return confirmed
     }
 
-    /// The installed setup app is not a sealed root-owned copy: the first
-    /// helper with component updates, or one started from a bundle installed
-    /// by the user. When the installed desktop app's signed manifest names
-    /// exactly this helper, a sealed copy of the verified bytes replaces the
-    /// bundle in place. The runtime is not restarted.
-    private func reseat() async throws {
-        guard let components, state.identity != nil, let selection = state.selection ?? state.pendingSelection,
-            try componentsIdle
-        else { return }
-        componentPlanning = true
-        let ownerUID = state.ownerUID ?? state.identity!.ownerUID
-        let runtime = componentRuntime
-        let planned = try? await Task.detached {
-            try components.plan(
-                operation: UUID(), ownerUID: ownerUID, installedSelection: selection, runtime: runtime,
-                rollback: false, restartRuntime: false, reseatOnly: true)
-        }.value
-        componentPlanning = false
-        guard let planned, planned.reseat else { return }
-        task = Task { await swapComponents(planned, selection: selection) }
+    /// Re-reads the live authority job (``RuntimeAuthority/protection``).
+    private func refreshProtection() {
+        guard let components else { return }
+        let protection = components.environment.protection()
+        self.protection = protection.protected ? "protected" : "unprotected: " + (protection.reason ?? "unknown")
     }
 
     /// Starts the coordinated restart that activates this helper's worker,

@@ -73,16 +73,14 @@ public struct RuntimeComponentRuntime: Codable, Sendable, Equatable {
 }
 
 /// Root-held state that outlives every record: the highest release this host
-/// ran, the highest signed security floor, and the launchd definition root
-/// last approved. None of it is read from the user-writable setup app.
+/// ran and the highest signed security floor. None of it is read from a
+/// bundle another account can change.
 public struct RuntimeComponentState: Codable, Sendable, Equatable {
     public var highestVersion: String?
     public var securityFloor: String?
-    public var approvedDefinitionSHA256: String?
-    public init(highestVersion: String? = nil, securityFloor: String? = nil, approvedDefinitionSHA256: String? = nil) {
+    public init(highestVersion: String? = nil, securityFloor: String? = nil) {
         self.highestVersion = highestVersion
         self.securityFloor = securityFloor
-        self.approvedDefinitionSHA256 = approvedDefinitionSHA256
     }
 }
 
@@ -100,8 +98,13 @@ public protocol RuntimeComponentEnvironment: Sendable {
     func offered() throws -> RuntimeComponentOffer
     /// ``RuntimeSecureCopy``: a copy no unprivileged process can change.
     func secureCopy(_ source: URL, to destination: URL) throws
-    /// Whether `bundle` is already root-owned and sealed in place.
+    /// Whether `bundle` is already root-owned and sealed in place (an lstat
+    /// walk; nothing in it is opened or handed to Security.framework).
     func isSealed(_ bundle: URL) -> Bool
+    /// The live check of the authority job (``RuntimeAuthority/protection``).
+    func protection() -> RuntimeAuthority.Protection
+    /// The authority definition the running helper expects.
+    var authorityDefinitionSHA256: String { get }
     func inspect(_ bundle: URL) throws -> RuntimeComponentBundle
     /// Developer ID from Micropod's team, the setup, helper and API
     /// identifiers and a strict seal over nested code; notarization too
@@ -122,6 +125,7 @@ public protocol RuntimeComponentEnvironment: Sendable {
 }
 
 extension RuntimeComponentEnvironment {
+    public var authorityDefinitionSHA256: String { RuntimeAuthority.definitionSHA256 }
     public func checkpoint(_ name: String) throws {}
     public func now() -> Date { Date() }
     public var publicKey: String { MicropodReleaseSigning.publicKey }
@@ -166,8 +170,8 @@ public struct RuntimeComponentUpdateRecord: Codable, Sendable, Equatable {
     public let ownerUID: UInt32
     /// Returns to the bytes an earlier update replaced.
     public let rollback: Bool
-    /// Replaces the installed bundle with a sealed root-owned copy of the
-    /// same verified bytes: no relaunch, the running helper is the target.
+    /// The running helper already is the target: nothing is swapped. The
+    /// runtime is staged from a sealed copy of the installed authority bundle.
     public var reseat: Bool
     /// Follow the helper with a coordinated restart of the runtime.
     public var restartRuntime: Bool
@@ -247,16 +251,39 @@ public struct RuntimeComponentUpdater: Sendable {
         }
     }
 
-    public func state() -> RuntimeComponentState {
-        guard let data = try? RuntimeDurableFile.read(stateURL, maximumBytes: 4096, ownerUID: geteuid()) else {
-            return .init()
+    /// Root's high-water marks. Missing means this host never installed a
+    /// component release; present but unreadable fails closed.
+    public func state() throws -> RuntimeComponentState {
+        guard FileManager.default.fileExists(atPath: stateURL.path) else { return .init() }
+        do {
+            return try JSONDecoder().decode(
+                RuntimeComponentState.self,
+                from: RuntimeDurableFile.read(stateURL, maximumBytes: 4096, ownerUID: geteuid()))
+        } catch {
+            throw MicropodError.message(
+                "Root's runtime component state is unreadable; updates and rollbacks are refused until it is repaired")
         }
-        return (try? JSONDecoder().decode(RuntimeComponentState.self, from: data)) ?? .init()
+    }
+
+    /// A helper below the highest signed security floor this host installed
+    /// must not run (a legitimate rollback never goes below the floor). Nil
+    /// when it may run; unreadable state does not stop the helper.
+    public func launchBelowFloor() -> String? {
+        guard let marks = try? state(), let floor = marks.securityFloor.flatMap(ReleaseVersion.init) else {
+            return nil
+        }
+        guard let running = ReleaseVersion(environment.runningVersion), running >= floor else {
+            return "Runtime helper \(environment.runningVersion) is below the signed security floor \(floor)"
+        }
+        return nil
     }
 
     /// Raises the high-water marks; never lowers them.
-    func raise(version: String?, floor: String?, definition: String?) throws {
-        var current = state()
+    /// Raises root's marks after `install-authority` installed a release.
+    public func recordInstalled(version: String, floor: String?) throws { try raise(version: version, floor: floor) }
+
+    func raise(version: String?, floor: String?) throws {
+        var current = try state()
         func higher(_ a: String?, _ b: String?) -> String? {
             guard let b, let next = ReleaseVersion(b) else { return a }
             guard let a, let old = ReleaseVersion(a) else { return b }
@@ -264,7 +291,6 @@ public struct RuntimeComponentUpdater: Sendable {
         }
         current.highestVersion = higher(current.highestVersion, version)
         current.securityFloor = higher(current.securityFloor, floor)
-        if let definition { current.approvedDefinitionSHA256 = definition }
         try RuntimeDurableFile.write(current, to: stateURL)
     }
 
@@ -288,7 +314,7 @@ public struct RuntimeComponentUpdater: Sendable {
     ///   when the runtime moved, then stages the retained previous bundle.
     public func plan(
         operation: UUID, ownerUID: UInt32, installedSelection: ManagedRuntimeLocation.Selection,
-        runtime: RuntimeComponentRuntime?, rollback: Bool, restartRuntime: Bool = true, reseatOnly: Bool = false
+        runtime: RuntimeComponentRuntime?, rollback: Bool, restartRuntime: Bool = true
     ) throws -> RuntimeComponentUpdateRecord {
         if let current = try read() {
             if current.operation == operation {
@@ -315,6 +341,16 @@ public struct RuntimeComponentUpdater: Sendable {
                 "This runtime helper's release (\(environment.runningVersion)) is unknown, so it cannot judge a "
                     + "downgrade; nothing was changed")
         }
+        let protection = environment.protection()
+        guard protection.protected else {
+            throw MicropodError.message(
+                "The runtime helper is unprotected (\(protection.reason ?? "unknown")); updates and rollbacks are "
+                    + "refused. `sudo micropod runtime install-authority` repairs it")
+        }
+        // Checked by lstat before Security.framework ever opens it.
+        guard environment.isSealed(environment.installedBundle) else {
+            throw MicropodError.message("The installed authority bundle is not a sealed root-owned copy")
+        }
         let installed = try environment.inspect(environment.installedBundle)
         let runningSHA256 = try environment.runningHelperSHA256()
         guard runningSHA256 == installed.helperSHA256 else {
@@ -322,7 +358,7 @@ public struct RuntimeComponentUpdater: Sendable {
                 "The installed setup app is not the helper that is running; nothing was changed. Restart the "
                     + "runtime helper before updating it")
         }
-        let marks = state()
+        let marks = try state()
         let floor = marks.securityFloor.flatMap(ReleaseVersion.init)
         let now = environment.now()
         if rollback {
@@ -355,13 +391,8 @@ public struct RuntimeComponentUpdater: Sendable {
         let offer = try environment.offered()
         let manifest = try RuntimeComponentManifest.verified(
             offer.manifest, signature: offer.signature, publicKey: environment.publicKey)
-        // A manifest belongs to the app that carries it: an older release's
-        // manifest replayed into another app is refused.
-        guard manifest.version == offer.desktopVersion, manifest.sourceRevision == offer.desktopRevision else {
-            throw MicropodError.message(
-                "The runtime component manifest (\(manifest.version)) is not the installed app's own "
-                    + "(\(offer.desktopVersion)); nothing was changed")
-        }
+        // Replay of an older signed manifest is refused by the version check
+        // and root's high-water mark below, not by the app's own Info.plist.
         guard let target = manifest.releaseVersion else {
             throw MicropodError.message("The runtime component manifest's release is malformed")
         }
@@ -379,17 +410,14 @@ public struct RuntimeComponentUpdater: Sendable {
             rollback: false, reseat: false, restartRuntime: restartRuntime, phase: .staging, source: installed,
             target: nil, manifest: manifest, targetVersion: manifest.version, restoring: nil, previousRuntime: nil,
             targetLaunches: 0, runtimeOperation: nil, reason: nil, createdAt: now, updatedAt: now)
-        guard !reseatOnly || manifest.helper.sha256 == runningSHA256 else {
-            throw MicropodError.message("The installed app's release is not the running helper's")
-        }
         if manifest.helper.sha256 == runningSHA256 {
-            // The running helper is this release. Re-seat it: whatever the
-            // installed bundle is, a sealed root-owned copy of the verified
-            // bytes replaces it before anything is installed from it.
+            // The running helper is this release: nothing is swapped. The
+            // runtime follows from a sealed copy of the installed authority.
             guard target == running else {
                 throw MicropodError.message("The running helper does not report the manifest's release")
             }
             record.reseat = true
+            record.target = installed
             try save(&record)
             return record
         }
@@ -434,6 +462,20 @@ public struct RuntimeComponentUpdater: Sendable {
             for kind in ["new", "verified", "previous", "restore"] {
                 try? RuntimeSecureCopy.remove(path(record.operation, kind))
             }
+            if record.reseat {
+                // The running helper is the target: verify a sealed copy of
+                // the installed authority bundle and stage the runtime from it.
+                guard let target = record.target else { throw MicropodError.message("The target is unknown") }
+                try environment.secureCopy(environment.installedBundle, to: verified(record.operation))
+                try environment.verifyCode(verified(record.operation), notarized: false)
+                guard try environment.inspect(verified(record.operation)) == target,
+                    try environment.runningHelperSHA256() == target.helperSHA256
+                else { throw MicropodError.message("The installed authority is not the running helper") }
+                record.phase = record.restartRuntime ? .helperReady : .completed
+                record.reason = record.restartRuntime ? nil : "The runtime helper is current"
+                try save(&record)
+                return record
+            }
             if !record.rollback {
                 guard let manifest = record.manifest else {
                     throw MicropodError.message("The runtime component manifest is missing")
@@ -463,14 +505,16 @@ public struct RuntimeComponentUpdater: Sendable {
                 }
             }
             guard let target = record.target else { throw MicropodError.message("The target is unknown") }
-            // The approved definition is root's record, not the writable plist.
-            let approved = state().approvedDefinitionSHA256 ?? record.source.daemonDefinitionSHA256
-            guard target.daemonDefinitionSHA256 == approved else {
-                throw MicropodError.message(
-                    "Micropod \(target.version) changes the runtime helper's launchd definition, which needs "
-                        + "administrator approval again: `micropod runtime update --bootstrap` installs it")
-            }
             let probe = try environment.probe(staged)
+            // The root-owned LaunchDaemon definition is compiled into each
+            // helper; a release that changes it needs the administrator.
+            guard probe.authorityDefinitionSHA256 == environment.authorityDefinitionSHA256,
+                record.rollback || record.manifest?.authorityDefinitionSHA256 == probe.authorityDefinitionSHA256
+            else {
+                throw MicropodError.message(
+                    "Micropod \(target.version) runs under another LaunchDaemon definition; "
+                        + "`sudo micropod runtime install-authority` installs it")
+            }
             guard probe.componentProtocol >= 1, probe.version == target.version,
                 probe.runtimeSchema == IsolatedRuntimePolicy.schema,
                 probe.appleRuntimes.contains(
@@ -507,15 +551,7 @@ public struct RuntimeComponentUpdater: Sendable {
         try environment.checkpoint("swapped")
         // The commit point has passed: from here the next launch decides.
         try? retainDisplaced(record)
-        if record.reseat {
-            try? raise(
-                version: record.target?.version, floor: record.manifest?.securityFloor,
-                definition: record.target?.daemonDefinitionSHA256)
-            record.phase = record.restartRuntime ? .helperReady : .completed
-            record.reason = record.restartRuntime ? nil : "The runtime helper was re-seated as a root-owned copy"
-        } else {
-            record.phase = .relaunching
-        }
+        record.phase = .relaunching
         try? save(&record)
         try environment.checkpoint("relaunching")
         return record
@@ -539,6 +575,12 @@ public struct RuntimeComponentUpdater: Sendable {
     public func launch() -> Launch {
         guard var record = readLeniently(), !record.phase.isTerminal else { return .proceed }
         do {
+            // lstat first: an unsealed installed bundle is never handed to
+            // Security.framework (a FIFO there would hang it).
+            guard environment.isSealed(environment.installedBundle) else {
+                try settle(&record, .recoveryRequired, "The installed authority bundle is not a sealed root-owned copy")
+                return .proceed
+            }
             let running = try environment.runningHelperSHA256()
             let installed = try environment.inspect(environment.installedBundle).helperSHA256
             switch record.phase {
@@ -558,12 +600,6 @@ public struct RuntimeComponentUpdater: Sendable {
                         return .proceed
                     }
                     try retainDisplaced(record)
-                    if record.reseat {
-                        try settle(
-                            &record, record.restartRuntime ? .helperReady : .completed,
-                            "The runtime helper was re-seated as a root-owned copy")
-                        return .proceed
-                    }
                     if record.targetLaunches >= Self.maximumTargetLaunches {
                         return try rollBack(
                             &record,
@@ -637,9 +673,7 @@ public struct RuntimeComponentUpdater: Sendable {
         guard var record = try read(), record.phase == .relaunching, let target = record.target,
             try environment.runningHelperSHA256() == target.helperSHA256
         else { return false }
-        try raise(
-            version: record.rollback ? nil : target.version, floor: record.manifest?.securityFloor,
-            definition: target.daemonDefinitionSHA256)
+        try raise(version: record.rollback ? nil : target.version, floor: record.manifest?.securityFloor)
         record.phase = .helperReady
         record.reason = nil
         try save(&record)
@@ -768,10 +802,6 @@ public struct RuntimeComponentUpdater: Sendable {
         let displaced = staged(record.operation)
         var info = stat()
         guard lstat(displaced.path, &info) == 0 else { return }
-        if record.reseat {
-            try RuntimeSecureCopy.remove(displaced)
-            return
-        }
         try rename(displaced, previous(record.operation))
     }
 
@@ -847,7 +877,12 @@ public struct NativeRuntimeComponentEnvironment: RuntimeComponentEnvironment {
     }
 
     public var root: URL { IsolatedRuntimePolicy.root }
-    public var installedBundle: URL { RuntimeSetupInstallation.installedURL }
+    /// The root-only sealed authority bundle the LaunchDaemon runs.
+    public var installedBundle: URL { IsolatedRuntimePolicy.authorityBundle }
+
+    public func protection() -> RuntimeAuthority.Protection {
+        RuntimeAuthority.protection(executable: executable, launchctlPrint: { RuntimeAuthority.launchctlPrint() })
+    }
 
     public func offered() throws -> RuntimeComponentOffer {
         let resources = Self.desktopApp.appendingPathComponent("Contents/Resources")

@@ -87,14 +87,65 @@ public enum RuntimeSecureCopy {
         }
     }
 
-    /// Clears flags first, so an immutable entry cannot leave a copy behind.
+    /// Removes a tree without ever following a link: every directory is
+    /// opened with O_NOFOLLOW | O_DIRECTORY relative to its parent's
+    /// descriptor and checked against the lstat it was found with (dev and
+    /// inode), entries are unlinked relative to that descriptor, and flags are
+    /// cleared through descriptors, so a concurrent rename or symlink swap
+    /// cannot redirect it outside the tree.
     public static func remove(_ url: URL) throws {
         var info = stat()
         guard lstat(url.path, &info) == 0 else { return }
-        if let paths = try? walk(url, limits: .init(entries: 1 << 20, bytes: .max), visit: { _, _ in }) {
-            for path in paths { _ = lchflags(path, 0) }
+        let parent = open(url.deletingLastPathComponent().path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+        guard parent >= 0 else { throw failure("open the parent of", url.path) }
+        defer { close(parent) }
+        try removeEntry(url.lastPathComponent, in: parent, expected: info, path: url.path)
+    }
+
+    private static func removeEntry(_ name: String, in parent: Int32, expected: stat, path: String) throws {
+        if expected.st_mode & S_IFMT == S_IFDIR {
+            let fd = openat(parent, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+            guard fd >= 0 else { throw failure("open", path) }
+            var opened = stat()
+            guard fstat(fd, &opened) == 0, opened.st_dev == expected.st_dev, opened.st_ino == expected.st_ino else {
+                close(fd)
+                throw refused(path, "changed while it was removed")
+            }
+            _ = fchflags(fd, 0)
+            guard let directory = fdopendir(dup(fd)) else {
+                close(fd)
+                throw failure("list", path)
+            }
+            var names: [String] = []
+            while let entry = readdir(directory) {
+                let name = withUnsafeBytes(of: entry.pointee.d_name) { raw in
+                    String(decoding: raw.prefix(Int(entry.pointee.d_namlen)), as: UTF8.self)
+                }
+                if name != "." && name != ".." { names.append(name) }
+            }
+            closedir(directory)
+            defer { close(fd) }
+            for child in names {
+                var info = stat()
+                guard fstatat(fd, child, &info, AT_SYMLINK_NOFOLLOW) == 0 else { continue }
+                try removeEntry(child, in: fd, expected: info, path: path + "/" + child)
+            }
+            guard unlinkat(parent, name, AT_REMOVEDIR) == 0 else { throw failure("remove", path) }
+            return
         }
-        try FileManager.default.removeItem(at: url)
+        if expected.st_mode & S_IFMT == S_IFREG {
+            // Flags are cleared through a descriptor of this very file.
+            let fd = openat(parent, name, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)
+            if fd >= 0 {
+                var opened = stat()
+                if fstat(fd, &opened) == 0, opened.st_dev == expected.st_dev, opened.st_ino == expected.st_ino {
+                    _ = fchflags(fd, 0)
+                }
+                close(fd)
+            }
+        }
+        // A link, FIFO or anything else is unlinked as itself, never followed.
+        guard unlinkat(parent, name, 0) == 0 else { throw failure("remove", path) }
     }
 
     /// lstat-only walk (never follows or opens an entry). Refuses symbolic

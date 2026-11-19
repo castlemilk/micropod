@@ -116,7 +116,7 @@ let package = Package(
         .executableTarget(
             name: "MicropodCLI",
             dependencies: [
-                "MicropodCore", "MicropodSharedFS", "MicropodRuntime", "MicropodBuildInfo",
+                "MicropodCore", "MicropodSharedFS", "MicropodRuntime", "MicropodBuildInfo", "MicropodRuntimeHostKit",
                 .product(name: "Crypto", package: "swift-crypto"),
             ],
             swiftSettings: [

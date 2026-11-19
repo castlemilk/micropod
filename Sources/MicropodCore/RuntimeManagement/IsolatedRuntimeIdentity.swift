@@ -16,7 +16,30 @@ public enum IsolatedRuntimePolicy {
     /// until it is bootstrapped; nothing installs or runs one as root.
     public static let legacyHelperIdentifier = "com.skunkworq.micropod.runtime.host"
     /// What a client accepts as the root helper on the other end of XPC.
-    public static let helperPeerIdentifiers = [helperIdentifier, legacyHelperIdentifier]
+    /// The legacy identifier is accepted only until
+    /// ``legacyHelperSunset``: a helper still unmigrated by then is refused.
+    public static var helperPeerIdentifiers: [String] {
+        legacyHelperAccepted() ? [helperIdentifier, legacyHelperIdentifier] : [helperIdentifier]
+    }
+    /// After this date no client talks to, and no helper runs a worker of, a
+    /// helper signed with ``legacyHelperIdentifier``.
+    public static let legacyHelperSunset = Date(timeIntervalSince1970: 1_806_537_600)  // 2027-04-01T00:00:00Z
+    public static func legacyHelperAccepted(at now: Date = Date()) -> Bool { now < legacyHelperSunset }
+    /// The root-owned LaunchDaemon (`RuntimeAuthority`). Its Mach service is
+    /// new so it never collides with the legacy SMAppService job's.
+    public static let authorityLabel = "com.skunkworq.micropod.runtime.authority"
+    public static let authorityServiceName = "com.skunkworq.micropod.runtime.authority"
+    /// The Mach services a client tries, authority first.
+    public static var clientServiceNames: [String] { [authorityServiceName, serviceName] }
+    /// The root-only sealed setup app the authority runs from.
+    public static var authorityBundle: URL {
+        root.appendingPathComponent("authority/current/Micropod Runtime Setup.app")
+    }
+    public static var authorityProgram: URL {
+        authorityBundle.appendingPathComponent("Contents/MacOS/MicropodRuntimeHost")
+    }
+    public static let authorityPlist = URL(
+        fileURLWithPath: "/Library/LaunchDaemons/com.skunkworq.micropod.runtime.authority.plist")
     public static let setupIdentifier = "com.skunkworq.micropod.runtime-setup"
     public static let teamIdentifier = "WFTX6CN23F"
     public static let publicProviderIdentifiers = ["com.skunkworq.micropod.api", "com.skunkworq.micropod.docker-shim"]

@@ -828,7 +828,7 @@ extension ScopedRuntimeHostControllerTests {
         let finished = try await componentOutcome(new, retry)
         XCTAssertEqual(finished.phase, "completed", finished.reason ?? "")
         XCTAssertEqual(finished.sourceVersion, "0.13.10", "Only the runtime followed; the helper was not swapped again")
-        XCTAssertEqual(rig.environment.copies, 4, "The retry re-seated the running release, then restarted")
+        XCTAssertEqual(rig.environment.copies, 3, "The retry copied only the installed authority, to stage from")
     }
 
     // The restart's completion reply is lost: the restart waits for
@@ -1010,30 +1010,22 @@ extension ScopedRuntimeHostControllerTests {
         } catch {}
     }
 
-    // H4 and the root-owned install: a helper started from a bundle that is
-    // not a sealed root-owned copy (installed by the user, or by the
-    // bootstrap) re-seats itself at launch from the signed release, without
-    // restarting the runtime.
-    func testAHelperStartedFromAnUnsealedBundleReseatsItselfAtLaunch() async throws {
+    // N1(b): a helper that is not the exact root-owned authority reports it
+    // in status and refuses every update.
+    func testAnUnprotectedHelperReportsItAndRefusesUpdates() async throws {
         let rig = try await componentRig()
-        try ComponentEnvironmentFixture.makeBundle(rig.environment.installedBundle, ComponentEnvironmentFixture.target)
-        try RuntimeSecureCopyTests.plant(rig.environment.installedBundle.appendingPathComponent("identity.json"))
-        try rig.environment.launchInstalled()
-        XCTAssertFalse(rig.environment.isSealed(rig.environment.installedBundle))
-        let (beforeNative, beforeHistory, _) = await rig.driver.snapshot()
+        rig.environment.setProtection(.unprotected("the helper runs from /Applications"))
         let helper = rig.make(nil)
         _ = await helper.continueComponentUpdate()
-        var summary: RuntimeComponentUpdateSummary?
-        for _ in 0..<400 {
-            summary = rig.updater.summary()
-            if summary?.isTerminal == true { break }
-            try await Task.sleep(for: .milliseconds(5))
+        let status = try await helper.submit(.init(action: .status), ownerUID: getuid())
+        XCTAssertEqual(status.componentProtection, "unprotected: the helper runs from /Applications")
+        do {
+            _ = try await helper.submit(.init(action: .update), ownerUID: getuid())
+            XCTFail("An unprotected helper updated itself")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("unprotected"), error.localizedDescription)
         }
-        XCTAssertEqual(summary?.phase, "completed", summary?.reason ?? "")
-        XCTAssertTrue(rig.environment.isSealed(rig.environment.installedBundle))
-        let (native, history, _) = await rig.driver.snapshot()
-        XCTAssertEqual(native, beforeNative, "The runtime is not touched")
-        XCTAssertEqual(history, beforeHistory)
+        XCTAssertEqual(rig.environment.copies, 0)
     }
 
     // Gamma-128's 167 old-format receipts from the still-running API: the

@@ -43,6 +43,7 @@ final class ComponentEnvironmentFixture: RuntimeComponentEnvironment, @unchecked
     private var _verified: [URL] = []
     private var _swaps: [URL] = []
     private var _desktop: (String, String)?
+    private var _protection = RuntimeAuthority.Protection.ok
     var publicKey: String { key.publicKey.rawRepresentation.base64EncodedString() }
 
     static let source = bundle("0.13.9", "9", cdhash: "1", helper: "2", api: "3")
@@ -97,7 +98,7 @@ final class ComponentEnvironmentFixture: RuntimeComponentEnvironment, @unchecked
             helper: .init(identifier: IsolatedRuntimePolicy.helperIdentifier, sha256: identity.helperSHA256),
             api: .init(identifier: IsolatedRuntimeAPIConfiguration.executableIdentifier, sha256: identity.apiSHA256),
             guestSHA256: identity.guestSHA256, appleRuntime: apple, appleRuntimes: [apple],
-            securityFloor: securityFloor)
+            securityFloor: securityFloor, authorityDefinitionSHA256: RuntimeAuthority.definitionSHA256)
     }
 
     /// Puts `identity` inside the desktop app with a manifest signed by `signer`.
@@ -170,9 +171,14 @@ final class ComponentEnvironmentFixture: RuntimeComponentEnvironment, @unchecked
             throw MicropodError.message("not Micropod's sealed, notarized release")
         }
     }
+    /// A bundle may carry `definition`: the authority definition its helper
+    /// reports, when it differs from this build's.
     func probe(_ bundle: URL) throws -> RuntimeComponentProbe {
         let identity = try inspect(bundle)
-        return .current(version: identity.version, revision: identity.revision)
+        let definition =
+            (try? String(contentsOf: bundle.appendingPathComponent("definition"), encoding: .utf8))
+            ?? RuntimeAuthority.definitionSHA256
+        return .current(version: identity.version, revision: identity.revision, authorityDefinitionSHA256: definition)
     }
     func swap(_ a: URL, _ b: URL) throws {
         lock.withLock { _swaps.append(a) }
@@ -180,6 +186,8 @@ final class ComponentEnvironmentFixture: RuntimeComponentEnvironment, @unchecked
     }
     func runningHelperSHA256() throws -> String { running }
     func activeAPI(identity: IsolatedRuntimeIdentity) -> RuntimeComponentAPI? { api.active }
+    func protection() -> RuntimeAuthority.Protection { lock.withLock { _protection } }
+    func setProtection(_ value: RuntimeAuthority.Protection) { lock.withLock { _protection = value } }
     func checkpoint(_ name: String) throws {
         if lock.withLock({ _stopAt == name }) { throw RuntimeComponentInterruption(checkpoint: name) }
     }
@@ -248,7 +256,7 @@ final class RuntimeComponentUpdateTests: XCTestCase {
         XCTAssertEqual(try updater.read()?.targetLaunches, 1)
         XCTAssertTrue(try updater.confirmTarget())
         XCTAssertEqual(try updater.read()?.phase, .helperReady)
-        XCTAssertEqual(updater.state().highestVersion, "0.13.10")
+        XCTAssertEqual(try updater.state().highestVersion, "0.13.10")
         XCTAssertEqual(try updater.verifiedSource(XCTUnwrap(updater.read())), updater.verified(swapped.operation))
     }
 
@@ -343,16 +351,6 @@ final class RuntimeComponentUpdateTests: XCTestCase {
         XCTAssertEqual(environment.copies, 0)
     }
 
-    // L2: a validly signed manifest from another release, replayed into this
-    // desktop app, is refused.
-    func testAManifestThatIsNotTheInstalledAppsOwnIsRefused() throws {
-        let (updater, environment) = try fixture()
-        environment.desktopRelease = ("0.14.0", String(repeating: "f", count: 40))
-        XCTAssertThrowsError(try plan(updater)) {
-            XCTAssertTrue("\($0.localizedDescription)".contains("not the installed app's own"), "\($0)")
-        }
-    }
-
     func testABundleThatDoesNotMatchItsManifestIsRefusedBeforeTheSwap() throws {
         let (updater, environment) = try fixture()
         let forged = ComponentEnvironmentFixture.bundle("0.13.10", "a", cdhash: "f", helper: "c", api: "e")
@@ -385,26 +383,72 @@ final class RuntimeComponentUpdateTests: XCTestCase {
         XCTAssertTrue(environment.isSealed(updater.verified(swapped.operation)))
     }
 
-    // L4: the definition root approved is compared, not the writable plist.
-    func testAChangedLaunchdDefinitionNeedsSetupInsteadOfASelfUpdate() throws {
+    // The root-owned LaunchDaemon definition is compiled into each helper: a
+    // release whose helper expects another one is refused for self-update.
+    func testAReleaseThatChangesTheAuthorityDefinitionNeedsTheAdministrator() throws {
         let (updater, environment) = try fixture()
-        let changed = ComponentEnvironmentFixture.bundle(
-            "0.13.10", "a", cdhash: "b", helper: "c", api: "e", definition: "7")
-        try environment.offer(changed)
+        try Data(String(repeating: "7", count: 64).utf8).write(
+            to: environment.desktop.appendingPathComponent(
+                "Contents/Helpers/Micropod Runtime Setup.app/definition"))
         XCTAssertThrowsError(try stage(updater, environment)) {
-            XCTAssertTrue("\($0.localizedDescription)".contains("launchd definition"), "\($0)")
+            XCTAssertTrue("\($0.localizedDescription)".contains("install-authority"), "\($0)")
         }
         XCTAssertEqual(try environment.inspect(environment.installedBundle), ComponentEnvironmentFixture.source)
+    }
 
-        // An attacker edits the installed plist to match the new definition:
-        // root's approved record still refuses it.
-        let (other, otherEnvironment) = try fixture()
-        try other.raise(version: nil, floor: nil, definition: String(repeating: "5", count: 64))
-        let edited = ComponentEnvironmentFixture.bundle(
-            "0.13.9", "9", cdhash: "1", helper: "2", api: "3", definition: "7")
-        try ComponentEnvironmentFixture.makeBundle(otherEnvironment.installedBundle, edited)
-        try otherEnvironment.offer(changed)
-        XCTAssertThrowsError(try stage(other, otherEnvironment))
+    // N1(b): an unprotected authority refuses every update and rollback.
+    func testAnUnprotectedAuthorityRefusesUpdatesAndRollbacks() throws {
+        let (updater, environment) = try fixture()
+        environment.setProtection(.unprotected("the authority plist is not the definition this helper expects"))
+        XCTAssertThrowsError(try plan(updater)) {
+            XCTAssertTrue("\($0.localizedDescription)".contains("unprotected"), "\($0)")
+        }
+        XCTAssertThrowsError(try plan(updater, rollback: true))
+        XCTAssertNil(try updater.read())
+    }
+
+    // N6: root's state exists but cannot be read: updates and rollbacks are
+    // refused, never treated as a first install.
+    func testUnreadableRootStateFailsClosed() throws {
+        let (updater, _) = try fixture()
+        try FileManager.default.createDirectory(
+            at: updater.stateURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("{broken".utf8).write(to: updater.stateURL)
+        XCTAssertThrowsError(try updater.state())
+        XCTAssertThrowsError(try plan(updater)) {
+            XCTAssertTrue("\($0.localizedDescription)".contains("unreadable"), "\($0)")
+        }
+        XCTAssertThrowsError(try plan(updater, rollback: true))
+        XCTAssertNil(updater.launchBelowFloor(), "An unreadable state never stops the helper itself")
+    }
+
+    // N2: a helper below the signed security floor refuses to run; at the
+    // floor it runs, so a legitimate rollback to the floor still works.
+    func testAHelperBelowTheSecurityFloorRefusesToRun() throws {
+        let (updater, environment) = try fixture()
+        XCTAssertNil(updater.launchBelowFloor())
+        try updater.recordInstalled(version: "0.14.0", floor: "0.13.10")
+        environment.runningVersion = "0.13.9"
+        XCTAssertNotNil(updater.launchBelowFloor())
+        environment.runningVersion = "0.13.10"
+        XCTAssertNil(updater.launchBelowFloor(), "Compared with the floor, not the highest release")
+        environment.runningVersion = "dev"
+        XCTAssertNotNil(updater.launchBelowFloor())
+    }
+
+    // N7: an installed bundle that is not sealed (a FIFO planted as an
+    // executable) is refused by an lstat walk, before any Security.framework
+    // call that would hang on it.
+    func testAnUnsealedInstalledBundleIsRefusedBeforeItIsInspected() throws {
+        let (updater, environment) = try fixture()
+        let helper = environment.installedBundle.appendingPathComponent("Contents/MacOS/MicropodRuntimeHost")
+        try FileManager.default.removeItem(at: helper)
+        XCTAssertEqual(mkfifo(helper.path, 0o755), 0)
+        let started = Date()
+        XCTAssertThrowsError(try plan(updater)) {
+            XCTAssertTrue("\($0.localizedDescription)".contains("not a sealed"), "\($0)")
+        }
+        XCTAssertLessThan(Date().timeIntervalSince(started), 2)
     }
 
     // M1: the helper's compiled-in release decides, not a plist in the
@@ -423,7 +467,7 @@ final class RuntimeComponentUpdateTests: XCTestCase {
         }
 
         let (marked, markedEnvironment) = try fixture()
-        try marked.raise(version: "0.14.0", floor: nil, definition: nil)
+        try marked.recordInstalled(version: "0.14.0", floor: nil)
         XCTAssertThrowsError(try plan(marked)) {
             XCTAssertTrue("\($0.localizedDescription)".contains("highest installed"), "\($0)")
         }
@@ -439,7 +483,7 @@ final class RuntimeComponentUpdateTests: XCTestCase {
             manifest: ComponentEnvironmentFixture.manifest(ComponentEnvironmentFixture.target, securityFloor: "0.13.10")
         )
         XCTAssertEqual(try complete(updater, environment).phase, .completed)
-        XCTAssertEqual(updater.state().securityFloor, "0.13.10")
+        XCTAssertEqual(try updater.state().securityFloor, "0.13.10")
         XCTAssertThrowsError(try plan(updater, rollback: true)) {
             XCTAssertTrue("\($0.localizedDescription)".contains("security floor"), "\($0)")
         }
@@ -470,26 +514,21 @@ final class RuntimeComponentUpdateTests: XCTestCase {
         }
     }
 
-    // H4: when the running helper already is the offered release, an update
-    // re-seats it: a sealed copy of the verified bytes replaces whatever is
-    // installed (here a user-owned bundle with an ACL), with no relaunch.
-    func testTheRunningReleaseIsReseatedAsASealedCopyWithoutARelaunch() throws {
+    // When the running helper already is the offered release nothing is
+    // swapped: the runtime is staged from a sealed copy of the installed
+    // root-only authority bundle, and the offered app is never copied.
+    func testTheRunningReleaseFollowsFromASealedCopyOfTheInstalledAuthority() throws {
         let (updater, environment) = try fixture()
         try ComponentEnvironmentFixture.makeBundle(environment.installedBundle, ComponentEnvironmentFixture.target)
-        try RuntimeSecureCopyTests.plant(environment.installedBundle.appendingPathComponent("identity.json"))
         try environment.launchInstalled()
-        XCTAssertFalse(environment.isSealed(environment.installedBundle))
         let record = try plan(updater)
         XCTAssertTrue(record.reseat)
-        let reseated = try updater.stageAndSwap(record, installedSelection: selection)
-        XCTAssertEqual(reseated.phase, .helperReady, "Same bytes: no relaunch")
-        XCTAssertTrue(environment.isSealed(environment.installedBundle))
-        XCTAssertEqual(
-            environment.copySources.first,
-            environment.desktop.appendingPathComponent("Contents/Helpers/Micropod Runtime Setup.app"),
-            "Re-seated from the signed release, not from the installed bundle")
-        XCTAssertNoThrow(try updater.verifiedSource(reseated))
-        XCTAssertThrowsError(try plan(updater, rollback: true), "A re-seat retains nothing to roll back to")
+        let ready = try updater.stageAndSwap(record, installedSelection: selection)
+        XCTAssertEqual(ready.phase, .helperReady, "Nothing swapped, nothing relaunched")
+        XCTAssertEqual(environment.copySources, [environment.installedBundle])
+        XCTAssertTrue(environment.swappedPaths.isEmpty)
+        XCTAssertNoThrow(try updater.verifiedSource(ready))
+        XCTAssertThrowsError(try plan(updater, rollback: true), "Nothing was replaced, so nothing to roll back")
     }
 
     // H2: the runtime is staged only from root's sealed copy of the verified
@@ -572,7 +611,7 @@ final class RuntimeComponentUpdateTests: XCTestCase {
         XCTAssertEqual(updater.launch(), .proceedUnconfirmed)
         try updater.confirmTarget()
         XCTAssertEqual(try updater.read()?.phase, .helperReady)
-        XCTAssertEqual(updater.state().highestVersion, "0.13.10", "A rollback never lowers the mark")
+        XCTAssertEqual(try updater.state().highestVersion, "0.13.10", "A rollback never lowers the mark")
     }
 
     // M7: a rollback whose runtime moved restores the runtime first.

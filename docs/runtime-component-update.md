@@ -3,7 +3,7 @@
 `micropod runtime update` replaces the dedicated runtime's privileged
 components on a rig host: the setup app, the root helper, the dedicated API
 and the pinned Apple container build. It is signed, needs no administrator
-prompt after a one-time re-registration, and runs as a coordinated lifecycle operation
+prompt after a one-time `sudo micropod runtime install-authority`, and runs as a coordinated lifecycle operation
 with the Cuttlefish drain. `micropod update apply --disruptive` chains it, so
 one command updates the app and the runtime.
 
@@ -18,8 +18,9 @@ rig, and neither could a patched Apple build.
 
 | Component | Where it runs from | Replaced by | Disruptive |
 | --- | --- | --- | --- |
-| Setup app | `/Applications/Micropod Runtime Setup.app` | the helper swap | no |
-| Root helper | `BundleProgram` of the setup app's LaunchDaemon `com.skunkworq.micropod.runtime.host` | the helper swap and a launchd relaunch | no (lifecycle control is down for about 10 s) |
+| Authority bundle | `RuntimeHost/authority/current/Micropod Runtime Setup.app`, a sealed root-owned copy | the helper swap | no |
+| Root helper | `Program` of the root-owned LaunchDaemon `/Library/LaunchDaemons/com.skunkworq.micropod.runtime.authority.plist` | the helper swap and a launchd relaunch | no (lifecycle control is down for about 10 s) |
+| Runtime Setup app | `/Applications/Micropod Runtime Setup.app`: unprivileged UI. Nothing in it runs as root once the authority is installed | the desktop app | no |
 | Worker | `RuntimeHost/tools/<sha256>/MicropodRuntimeHost`, a copy of the helper | staging, then the restart | yes |
 | Dedicated API and guest tool | `RuntimeHost/tools/<config>/MicropodAPI`, LaunchAgent in `_micropod`'s Background session | staging (pending configuration), then the restart | yes |
 | Apple container build | `RuntimeHost/apple/versions/<version>-<package sha>-<incarnation>` | staging (verified payload), then the restart | yes |
@@ -152,211 +153,300 @@ executor. A Cuttlefish release whose qualified-build set lists the patched
 digest must ship before a Micropod release installs that build. API-only
 updates need no Cuttlefish change.
 
+## The authority: where the root helper runs
+
+The root helper is a classic LaunchDaemon. Its plist and its program sit
+where only root can write:
+
+```
+/Library/LaunchDaemons/com.skunkworq.micropod.runtime.authority.plist   root:wheel 0644
+  Program = /Library/Application Support/Micropod/RuntimeHost/authority/current/
+            Micropod Runtime Setup.app/Contents/MacOS/MicropodRuntimeHost
+  MachServices = com.skunkworq.micropod.runtime.authority
+  SpawnConstraint = { team-identifier WFTX6CN23F,
+                      signing-identifier com.skunkworq.micropod.runtime-authority,
+                      validation-category 6 (Developer ID) }
+```
+
+- Every ancestor of both the plist and the program is root-owned, with no
+  group or other write, no ACL and no symbolic link. On a stock Mac this holds
+  for `/Library` (root:wheel 0755) and for `/Library/LaunchDaemons`,
+  `/Library/Application Support` and `RuntimeHost` (root 0755).
+- The program's bundle is a sealed copy (below).
+- The definition is compiled into the helper (`RuntimeAuthority.definition`),
+  so it is never read back from a bundle another account can change.
+- The SpawnConstraint is defence in depth. The protection rests on file
+  ownership, not on launchd behaviour that can't be proven.
+- `/Applications/Micropod Runtime Setup.app` is no longer on the root path. It
+  is the unprivileged Runtime Setup UI.
+
+The earlier SMAppService design ran the helper from the bundle in
+`/Applications`. That directory is `root:admin 0775`, so any admin-group
+process could rename the bundle and put another one in its place, including
+an older genuine one, or one whose plist had its constraint stripped. Whether
+launchd re-reads that plist, or keeps the definition it took at registration,
+was never proven. This design does not depend on either.
+
+### Checked at every start
+
+The helper checks itself before it serves, and again on every update and
+rollback (`RuntimeAuthority.protection`). All of these must hold:
+
+1. Its own executable is exactly the authority program.
+2. The plist, the program, and every ancestor of each, are root-owned, with
+   no group or other write, no ACL and no symbolic link (lstat only).
+3. The program's bundle is a sealed copy.
+4. The plist on disk is exactly the definition this helper was built with,
+   compared canonically. A plist with its constraint removed fails.
+5. `launchctl print system/com.skunkworq.micropod.runtime.authority`, run
+   as root and read-only, reports that program, loaded from that plist. If
+   the output can't be read, the check fails.
+
+Status reports `componentProtection`: either `protected` or
+`unprotected: <reason>`. An unprotected helper still serves the runtime, but
+refuses every component update and rollback until
+`sudo micropod runtime install-authority` repairs it.
+
+### Installing the authority (one administrator step)
+
+The trust anchor is the binary the administrator runs under `sudo`. A
+`micropod` the user can write could be swapped before sudo runs it, so the
+procedure runs **the release's own CLI from the downloaded tarball**, after
+checking it:
+
+```sh
+tar -xzf Micropod.<version>.tgz && cd <dir>
+codesign --verify --strict -R='anchor apple generic and certificate leaf[subject.OU] = "WFTX6CN23F" and certificate 1[field.1.2.840.113635.100.6.2.6] exists and certificate leaf[field.1.2.840.113635.100.6.1.13] exists' ./micropod
+sudo ./micropod runtime install-authority --app ./Micropod.app
+```
+
+Running as root, `install-authority` checks itself and the release before it
+changes anything:
+
+1. **Its own path.** It refuses unless its executable (realpath), and every
+   ancestor of it, is owned by root or the invoking user, is not writable by
+   group or others, and is not a symbolic link.
+2. **Its own signature.** Its executable must be Micropod's Developer ID CLI
+   (`com.skunkworq.micropod.cli`, team `WFTX6CN23F`, with the Developer ID
+   certificate markers).
+3. **The release.** The release's manifest signature is verified. A sealed
+   root-only copy of the release's setup app is checked for a strict,
+   notarized signature and the manifest's digests. The release's helper must
+   report the same authority definition this CLI writes.
+4. **Version.** It refuses anything below root's high-water mark or below
+   the signed security floor.
+5. **Confirmation.** It prints exactly what it will install (version,
+   revision, setup CDHash, helper, API and guest digests, the definition
+   digest, the program and plist paths, and the steps left to do), then asks
+   for the first 12 characters of the CDHash. `--confirm` gives them
+   non-interactively.
+
+Then, from that sealed copy, it runs `RuntimeAuthorityInstaller`. Each step
+is chosen by inspection, so a kill anywhere is finished by running it again.
+The order keeps **exactly one helper able to serve, now and after a reboot,
+at every point**:
+
+1. **Stage.** Install the sealed authority bundle into
+   `RuntimeHost/authority/current`, keeping any previous one. The legacy
+   SMAppService job keeps serving.
+2. **Neutralize the legacy job,** once the runtime is idle. Its
+   `/Applications` bundle is replaced by a sealed copy of the authority
+   bundle, so that job can only ever start the new helper:
+   - while no authority is installed, the new helper serves (and reports
+     itself unprotected);
+   - once an authority plist is installed and protected, it exits 0 at once,
+     and launchd does not respawn it.
+3. **Write the authority plist.** It is written root:wheel 0644 by an atomic
+   rename. After a reboot the authority serves and the legacy job yields.
+4. **Bootstrap the authority.** Until the old helper releases `host.lock`,
+   the authority's helper exits and launchd retries it.
+5. **Stop the legacy job's old process,** once the runtime is idle. It
+   restarts as the new helper and yields, and the authority takes the lock.
+
+The legacy item stays registered in Login Items after this. It can only
+start a helper that yields. Runtime Setup offers **Retire the Old Background
+Item…** only while the authority serves and reports `protected`, and only
+behind an in-window confirmation; no launch argument triggers it. Until it
+is retired, an admin-group process could still put a pre-authority bundle
+back for that item. Retiring it removes that last root path through
+`/Applications`.
+
 ## Trust: what the root helper checks
 
-`/Applications` is `root:admin 0775`, so any admin-group process can rename
-an entry in it and put another in its place, whoever owns that entry. The
-installed setup app is therefore never trusted for what it contains. The
-helper trusts:
+The installed bundle (`authority/current`) and every copy root makes live
+in root-only directories. **Sealed copies** (`RuntimeSecureCopy`) are made
+like this:
 
-- what it holds in memory and has verified;
-- **sealed copies** in `RuntimeHost/components/<operation>/`, a root-only
-  directory.
-
-A sealed copy (`RuntimeSecureCopy`) is made like this:
-
-1. The source tree is first walked without following or opening anything.
-   Only directories and regular files are accepted (no FIFO, link or
-   device), and the tree is capped at 512 entries and 1 GiB.
+1. The source tree is walked first with lstat, never following or opening
+   anything. Only directories and regular files are accepted, and the tree
+   is capped at 512 entries and 1 GiB.
 2. It is copied with `ditto --noacl --noextattr --norsrc --noqtn`.
 3. Every entry is stripped of file flags, ACLs, extended attributes and
-   setuid, setgid and sticky bits. It is set to `root:wheel`, with 0755 for
-   directories and executables and 0644 for everything else.
-4. The copy is walked again to prove it:
-   - every entry is root-owned with no group or world write;
-   - there are no flags, ACL entries or extended attributes, except the
-     system's `com.apple.provenance`;
-   - every regular file has a single link.
+   setuid, setgid and sticky bits. It is set to root:wheel, with 0755 for
+   directories and executables and 0644 otherwise.
+4. The copy is walked again to prove all of that held.
 
-Only a proven copy is verified, swapped into place, or used as a source for
-anything root installs. Removal clears flags first, so an immutable entry
-cannot leave a copy behind.
+Removal is descriptor-relative: `openat` and `unlinkat` with `O_NOFOLLOW`,
+a device and inode check on every directory, and flags cleared through
+descriptors. A symbolic-link swap therefore cannot redirect it outside the
+tree. Root never removes or changes a tree that another account can still
+modify. A displaced legacy bundle is only renamed into root's directory, and
+never read.
 
-The update checks in this order:
+A forward update checks, in order:
 
-1. **Source.** The fixed path `/Applications/Micropod.app`. No request names
-   a path, URL, bundle or digest. Files there are read with bounded,
-   non-blocking, no-follow reads that refuse anything but a regular file, so
-   a planted FIFO cannot wedge the helper.
-2. **Manifest signature.** The helper verifies the EdDSA signature over the
-   bytes it holds, against the compiled-in release key, then validates the
-   manifest. It must name the desktop app's own release.
-3. **Version.** The current release is the running helper's **compiled-in**
-   `MicropodBuildInfo`, never a plist in a writable bundle. A helper whose
-   release does not parse (a local `dev` build) refuses every update.
-   - The target must be newer than the running release, and at least
-     root's high-water mark (`component-state.json`, the highest release
-     this host ran).
-   - It must also be at least the highest signed `securityFloor` root has
-     installed.
-4. **n-1.** The target's `appleRuntimes` must include the selection in use.
-5. **Sealed copy** of the offered setup app into `new/`.
-6. **Code signature** of the copy:
-   - Developer ID Application from team `WFTX6CN23F`: the Developer ID CA
-     and leaf certificate markers are required, so an Apple Development
-     certificate with the same team does not pass;
-   - the setup, helper (`com.skunkworq.micropod.runtime-authority`) and API
-     identifiers;
-   - strict validation with nested code;
-   - notarization (the `notarized` requirement; an offline check refuses
-     with nothing changed).
-7. **Digests.** The copy's CDHash, executable digests, daemon plist digest,
-   version and revision must equal the manifest's.
-8. **Launchd definition.** The target's definition must equal the one root
-   last approved (`approvedDefinitionSHA256` in `component-state.json`), not
-   the plist in the installed bundle, which another process may have edited.
-   A release that changes the definition needs Runtime Setup and a new
-   approval.
-9. **Probe.** The installed helper runs the staged copy with
-   `--component-probe`. The copy must report the same compiled-in release,
-   component protocol and runtime schema, and an Apple table that manages
-   the build in use.
-10. **Verified copy.** A second sealed copy, `verified/`, is checked against
-    the target and kept in root's directory. The worker, dedicated API and
-    guest tool are installed **only from it**, each copied into a root-owned
-    temporary file. Only that copy is hashed and compared with the target's
-    digests. The bundle that is swapped into `/Applications` is never read
-    again.
+1. **Source.** `/Applications/Micropod.app`. The manifest and its signature
+   are read with bounded, non-blocking, no-follow reads.
+2. **Manifest signature.** EdDSA, verified against the compiled-in release
+   key. The manifest is not bound to the app's own `Info.plist`, which
+   nobody validates. Replaying an older signed manifest is refused by the
+   next two checks.
+3. **Version.** The current release is the running helper's compiled-in
+   `MicropodBuildInfo`; a release that doesn't parse fails closed. The
+   target must be:
+   - newer than that;
+   - at least root's high-water mark;
+   - at least the highest signed security floor.
 
-The same applies to `install` and `repair`: they stage from a sealed copy of
-the running helper's own bundle, never from `/Applications`.
+   `component-state.json` is read fail-closed: if it is present but
+   unreadable, updates and rollbacks are refused.
+4. **Protection.** The live check above.
+5. **n-1.** The target's `appleRuntimes` must include the selection in use.
+6. **Sealed copy** of the offered setup app.
+7. **Code signature:**
+   - Developer ID Application from `WFTX6CN23F`, with the Developer ID
+     markers;
+   - the setup, helper and API identifiers;
+   - strict validation, including nested code;
+   - notarized.
+8. **Digests.** CDHash, executables, version and revision must equal the
+   manifest's.
+9. **Probe.** The staged helper must report:
+   - the same compiled-in release, component protocol and runtime schema;
+   - an Apple table that manages the build in use;
+   - the **same authority definition** as the running helper and the
+     manifest.
 
-## What launchd and BTM verify when they spawn the helper
+   A release that changes the LaunchDaemon definition needs
+   `install-authority` again; self-update refuses it.
+10. **Verified copy.** A second sealed copy is checked against the target.
+    The worker, API and guest are installed only from it, and only root's
+    copy of each file is hashed.
 
-The daemon is registered with `SMAppService.daemon` from
-`/Applications/Micropod Runtime Setup.app`. launchd execs
-`Contents/MacOS/MicropodRuntimeHost` from that path (`BundleProgram`).
+The swap (`renamex_np`) exchanges two root-only paths inside `RuntimeHost`.
+Nothing in `/Applications` is touched.
 
-- **Without a SpawnConstraint**, which is how every release before this one
-  was built, launchd checks only that the executable passes the system's
-  code-signing policy at exec. It does **not** require it to come from the
-  registering team. Any process that can replace that file, or rename the
-  bundle and substitute its own, gets its code run as root at the next
-  relaunch or reboot. The setup app used to be copied in as the user, which
-  made that easy.
-- **With this release's definition**, launchd checks a launch constraint
-  at every spawn: `SpawnConstraint` = {`team-identifier`: `WFTX6CN23F`,
-  `signing-identifier`: `com.skunkworq.micropod.runtime-authority`}. It
-  refuses to spawn anything else, including an earlier helper build, because
-  the signing identifier was rotated from `com.skunkworq.micropod.runtime.host`
-  in this same release. A Micropod helper from this release or later still
-  satisfies the constraint. Against those, the update applies the
-  high-water mark and the signed security floor, and the helper re-seats a
-  sealed copy as soon as it runs (see below).
-- **BTM** (Background Task Management) records the item by the app's team
-  and bundle identifier, and an administrator approved it once in Login
-  Items.
-  - A swap of the bundle at the same path, same team and identifier, with an
-    unchanged definition, should keep that approval.
-  - A changed definition is applied only by a new registration (unregister,
-    then register), which asks for approval again.
-  - Both behaviours are on the VM test plan below. Neither is assumed.
+When the running helper already is the offered release, nothing is swapped.
+The runtime follows from a sealed copy of the installed authority bundle,
+checked with a strict signature check. No manifest is needed for that, and
+nothing from `/Applications` is copied.
 
-The helper also re-seats itself. At every start, if the installed setup app
-is not a sealed root-owned copy, the helper does the following without
-restarting the runtime:
+Before any Security.framework call on a bundle, an lstat walk proves it
+sealed, because a FIFO main executable hangs `SecStaticCodeCreateWithPath`.
+A watchdog is armed first thing at every start: a helper that does not
+serve within 120 s exits 75, which counts as a failed launch.
 
-1. It plans an update against the installed desktop app's signed manifest,
-   which must name exactly the running helper.
-2. It makes a sealed copy of those verified bytes.
-3. It swaps the copy into place.
+### The launch floor
 
-This covers:
+A helper below the highest signed `securityFloor` root has installed refuses
+to run. It exits 0, so launchd does not respawn it; `install-authority` with
+a release at or above the floor repairs it. The comparison is against the
+floor, not the high-water mark, so a legitimate `--rollback` to a release at
+or above the floor still runs.
 
-- the first helper launched after a user-level install or after
-  `--bootstrap`;
-- a bundle another process replaced with the same helper bytes.
+### The legacy identifier's sunset
 
-The install is therefore root-owned from the helper's first launch. It
-cannot be root-owned earlier: before approval there is no root process to
-install it.
+Until 2027-04-01 (`IsolatedRuntimePolicy.legacyHelperSunset`), clients
+accept a helper signed with the legacy identifier
+`com.skunkworq.micropod.runtime.host`, and the helper runs a worker staged by
+a legacy helper. That worker is root-installed and digest-pinned. It is
+started as root by `launchctl asuser` and drops to `_micropod` in
+`--enter-worker`, so until the next restart stages this helper's own worker,
+legacy code still runs briefly as root. After the sunset, both are refused.
+
+## What launchd and BTM verify
+
+What the design relies on:
+
+- launchd loads `/Library/LaunchDaemons/*.plist` as written, and only root
+  can write there or to the program. The protection rests on ownership, which
+  every start re-checks (including launchd's live job).
+- launchd's documented `launchctl print` output names the loaded job's
+  program and plist path. That is used only to detect a mismatch.
+
+What it does **not** rely on:
+
+- whether launchd re-reads a plist inside a bundle;
+- whether BTM keeps the definition it took at registration;
+- whether a swap keeps a BTM approval.
+
+The legacy job's bundle is neutralized, and the authority never runs from
+`/Applications`.
+
+The SpawnConstraint (team, identifier, `validation-category` 6) should make
+launchd refuse anything else at spawn, even if a root-only file were
+somehow replaced. This is on the VM plan.
 
 ### VM test plan
 
-Run on a macOS 26 VM with SIP on, the production team's Developer ID, and an
+Run on a macOS 26 VM with SIP on, the production Developer ID, and an
 admin-group user without sudo:
 
-1. **Baseline.** Install a release with the SpawnConstraint and approve it.
-   - `launchctl print system/com.skunkworq.micropod.runtime.host` shows the
-     constraint.
-   - `micropod runtime operation --json` reports `componentProtocol` 1.
-   - `ls -le@O` on the installed bundle shows root ownership, no ACL and no
-     flags after the first start.
-2. **Ad-hoc binary.**
-   - As the admin user, rename the bundle away and put back a copy whose
-     `MicropodRuntimeHost` is an ad-hoc-signed binary that writes a marker
-     file.
-   - Reboot, then also trigger an on-demand launch through the Mach
-     service.
-   - Expect a launch-constraint violation in the unified log and no marker.
-3. **Another team's binary.** As in step 2, with a binary signed by a
-   different Developer ID team. Expect the spawn to be refused.
-4. **Older helper.** As in step 2, with a genuine earlier helper (team
-   `WFTX6CN23F`, identifier `com.skunkworq.micropod.runtime.host`). Expect
-   the spawn to be refused because of the identifier.
-5. **Older protocol-1 helper.** A genuine earlier build of this generation
-   (same identifier) is spawned. Record that it runs, and that the next
-   `micropod runtime update` refuses to go below the high-water mark and
-   restores the newest release. That is the residual surface; a CDHash
-   allowlist constraint would close it.
-6. **Approval persistence.**
-   - A self-update swap with an unchanged definition shows no new approval
-     prompt, and the helper starts after a reboot.
-   - `--bootstrap` re-registration with a changed definition shows exactly
-     one prompt.
-   - Editing the plist inside the installed bundle (as root, in the VM) and
-     rebooting shows whether launchd re-reads it or BTM keeps the registered
-     definition. The result decides how far the root-held approved
-     definition must go.
+1. **Fresh install.** `install-authority` from the tarball CLI. Check:
+   - `launchctl print system/com.skunkworq.micropod.runtime.authority` shows
+     the program and the constraint;
+   - `micropod runtime operation --json` reports `componentProtection:
+     protected`;
+   - `ls -le@O` on the plist, the program and every ancestor shows root
+     ownership, no ACL and no flags.
+2. **Migration from SMAppService.** Install a pre-authority release and
+   approve it. Then run `install-authority` and kill it after each step
+   (staged, neutralized, plist written, bootstrapped). Each time, check
+   `launchctl print` for both labels and the serving helper, now and after a
+   reboot. The re-run finishes.
+3. **Whole-bundle replacement of the legacy item.** As the admin user, rename
+   `/Applications/Micropod Runtime Setup.app` away and put back:
+   - **(a)** an older genuine Runtime Setup (pre-constraint plist,
+     legacy-identifier helper);
+   - **(b)** a bundle whose plist has the constraint removed;
+   - **(c)** a bundle with an ad-hoc helper that writes a marker file.
+
+   Reboot, then trigger an on-demand launch of the legacy Mach service. Record
+   what runs. The expectation is that (a) runs the legacy helper as root.
+   This residual is why the legacy item must be retired. Retire it and repeat:
+   nothing runs.
+4. **The authority under attack.** As the admin user, try to replace the
+   plist, the program, or any ancestor, or to add an ACL. Every attempt is
+   refused by permissions. As root in the VM, strip the constraint from the
+   plist, reboot and launch on demand. Check that the helper starts
+   `unprotected` and refuses updates.
+5. **Constraint enforcement.** As root, replace the program with an ad-hoc
+   binary, then with a binary from another team, then with a legacy-identifier
+   helper. Reboot and launch on demand. Expect a launch-constraint violation
+   each time.
+6. **Approvals and notifications.** Record any BTM notice for the legacy
+   daemon on `install-authority` and on a self-update, and check that the
+   helper starts after a reboot each time.
 7. **Sealed copies.** Plant an ACL, an extended attribute, `uchg` and a
-   setuid bit in the offered bundle, and a FIFO next to the manifest. The
-   update refuses the FIFO without hanging. After removing the FIFO, the
-   installed bundle and `RuntimeHost/components/*` show none of the planted
-   attributes.
-8. **Crash loop and hang.**
-   - A test target that exits at once is swapped back after three launches.
-   - One that hangs before serving is exited by the 120 s watchdog three
-     times and then swapped back.
+   setuid bit in the offered bundle, and a FIFO as its main executable.
+   The FIFO is refused without hanging. After removing it, the installed
+   copies show none of the planted attributes.
+8. **Crash loop, hang and floor.**
+   - A target that exits at once is swapped back after three launches.
+   - A target that hangs before it serves is exited by the 120 s watchdog
+     and swapped back.
+   - A helper below the security floor exits 0 and stays down.
 
 ## Administrator approval: once
 
-The self-update itself never asks for approval. The approved helper swaps
-its own bundle and exits with `EX_TEMPFAIL` (75); launchd's
-`KeepAlive {SuccessfulExit: false}` starts the bundle installed now. No
-`launchctl` or `sudo` is involved.
+`sudo ./micropod runtime install-authority` (above) is the only
+administrator step. Self-updates swap root-only files and need no approval:
+the helper exits 75 and launchd's `KeepAlive {SuccessfulExit: false}` starts
+the new bytes. A release that changes the authority definition needs
+`install-authority` again.
 
-This release is the one exception: it adds the SpawnConstraint and rotates
-the helper's identifier, which changes the daemon's definition. A helper
-older than component protocol 1 cannot update itself either. So, once:
-
-1. `micropod runtime update --bootstrap` checks, as the user:
-   - the release signature, notarization and CDHash;
-   - that the old helper holds nothing, both before and again immediately
-     before the bundle changes.
-
-   It then exchanges the setup app in `/Applications` and keeps the previous
-   bundle under `~/.micropod/runtime-setup/`.
-2. It opens Runtime Setup with `--reregister`. Runtime Setup checks the old
-   helper is idle again, unregisters the daemon and registers it with the
-   new definition. **macOS asks an administrator to approve it once, in
-   Login Items.** There is no `sudo`.
-3. The new helper starts, re-seats itself as a sealed root-owned copy
-   verified against the signed manifest, and serves.
-   `micropod runtime update` then restarts the runtime onto it.
-
-The Cuttlefish agent must accept the new identifier before step 2:
-skunkworq/cuttlefish#966. An older agent refuses the new helper's
-maintenance calls and its proofs.
+The Cuttlefish agent must accept the authority's helper identifier first
+(skunkworq/cuttlefish#966).
 
 ## The operation
 
@@ -370,12 +460,13 @@ are retried. No job is drained or interrupted.
 | Phase | What happens | Changed so far |
 | --- | --- | --- |
 | `staging` | Sealed copy, verification, probe, verified copy | nothing |
-| `swapping` | Intent recorded, then `renamex_np(RENAME_SWAP)` exchanges the staged copy with the installed bundle. The displaced bundle is moved into `previous/`, **unread**. | the setup app |
+| `swapping` | Intent recorded, then `renamex_np(RENAME_SWAP)` exchanges the staged copy with `authority/current`; both paths are root-only. The displaced bundle (root's own) is moved into `previous/`. | the authority bundle |
 | `relaunching` | The helper exits. Each launch of the target is counted before anything that could fail, and a 120 s watchdog exits a helper that has not confirmed itself. | |
-| `helperReady` | The target serves and has confirmed itself. Root raises the high-water mark, the security floor and the approved definition. | |
+| `helperReady` | The target serves and has confirmed itself. Root raises the high-water mark and the security floor. | |
 
-A **re-seat** (the running helper already is the release) swaps in a sealed
-copy of the same bytes and goes straight to `helperReady` with no relaunch.
+When the running helper already is the release, nothing is swapped. The
+record goes straight to `helperReady`, with a sealed copy of the installed
+authority as the staging source.
 
 ### 2. Runtime follow-up: an ordinary coordinated restart
 
@@ -422,6 +513,8 @@ relies on remembered progress.
 | The restart's completion reply is lost | `micropod runtime recover` completes it without replaying the start | `completed` |
 | The restart completed onto other bytes | Digest check | `recoveryRequired` |
 | An undecodable `component-update.json` | Read leniently: only `update` is refused; lifecycle and `recover` run | — |
+| `component-state.json` exists but is unreadable | Updates and rollbacks are refused; the helper still runs | — |
+| A kill at any step of `install-authority` | Every step is decided by inspection; exactly one helper serves throughout (see "Installing the authority") | re-run finishes |
 
 **Remaining manual cases.** The table above settles every coordination
 fault. Two outcomes are deliberately left to an operator, because the rig
@@ -442,8 +535,8 @@ must not take work while they hold:
 completed app upgrade on a dedicated-runtime host, and follows it. It runs
 afterwards because its source is the installed app, and because Cuttlefish
 refuses a dedicated `prepare` while a rig-upgrade drain holds the rig. On a
-helper that cannot update itself, the app upgrade still reports success and
-names `--bootstrap`.
+host without the authority, the app upgrade still reports success and names
+`install-authority`.
 
 ## Rollback
 
@@ -499,64 +592,98 @@ names `--bootstrap`.
 micropod runtime update              # follow the installed app's release
 micropod runtime update --detach     # request it and return
 micropod runtime update --rollback   # restore the retained previous components
-micropod runtime update --bootstrap  # once: re-register a helper older than protocol 1
+micropod runtime update --bootstrap  # how to install the root-owned authority
+sudo ./micropod runtime install-authority --app ./Micropod.app   # once, from the release tarball
 micropod runtime operation --json    # componentUpdate and the restart it runs
 ```
 
-## Security review (2026-11-19): fixed and deferred
+## Security reviews (2026-11-19)
 
-Fixed, each with a regression test:
+### First review: fixed, each with a regression test
 
-- **Pre-existing: a user-owned setup app could be replaced to get root.**
-  Fixed by the SpawnConstraint, the identifier rotation and the re-seat
-  from the first launch.
-- **H1: copies kept ACLs, flags and extended attributes.** Fixed by sealed
-  copies.
-- **H2: the runtime was staged from `/Applications`, and digests were not
-  enforced.** It is now staged only from the verified copy; digests are
-  enforced at staging and at completion; `helperReady` re-verifies.
-- **H3: the qualification deadlock.** Fixed in the agent and the helper.
-- **H4: the bootstrap ran an unchecked bundle as root.** The re-seat
-  verifies it, and the bootstrap re-checks status before it changes
-  anything.
-- **M1 through M9:**
-  - the version comes from the compiled-in release and a root-held
-    high-water mark;
-  - the signed security floor is enforced;
-  - reads are non-blocking and planning runs off the actor;
-  - rollback uses sealed copies;
-  - launches are counted first, with a watchdog;
-  - the journal is read leniently;
+- **The setup app as a root path.** The SpawnConstraint plus identifier
+  rotation were superseded by the root-owned authority (second review, N1).
+- **H1:** sealed copies.
+- **H2:** staging only from the verified copy; digests enforced at staging
+  and at completion.
+- **H3:** the qualification deadlock (`qualify`, settling on `refused`).
+- **H4:** the bootstrap is superseded by `install-authority`.
+- **M1–M9:**
+  - the compiled-in release and a high-water mark;
+  - the signed floor;
+  - non-blocking reads, with planning off the actor;
+  - rollback from sealed copies;
+  - launches counted, with a watchdog;
+  - the journal read leniently;
   - rollback restores the runtime first;
-  - the stopped release ships in two phases;
+  - the stopped release in two phases;
   - a deliberately stopped runtime stays stopped.
-- **Low-severity fixes:**
-  - L1: Developer ID markers in code requirements;
-  - L2: the manifest is bound to the carrying release, with the high-water
-    mark;
-  - L3: size caps, and flag clearing before removal;
-  - L4: the approved definition is root-held;
-  - L5: launch decides by the helper executable;
-  - L6: identity and enrollment files are not rewritten when unchanged;
-  - L7: `sign_update` is pinned;
-  - L8: legacy-helper rigs no longer fail `update apply`;
-  - L9: an unconfirmed helper is exited by the watchdog and counted;
-  - L10: no force unwrap;
-  - L11: the agent's qualified set is unexported.
+- **Low-severity items:** L1, L3 (caps and removal of immutable entries),
+  L4 (superseded), L5–L11.
 
-Deferred:
+### Second review
 
-- **L3:** pruning old `apple/versions/` incarnations. Each update stages a
-  new incarnation, about 500 MB. Pruning needs the runtime's own selection
-  and the rollback target retained, and belongs with the patched-build
-  table.
-- **A launch-time floor** for genuine protocol-1 helpers older than the
-  security floor (VM plan, step 5). A CDHash-pinned SpawnConstraint would
-  close it, at the cost of a re-registration per release.
-- **The VM test plan above.** It needs the production signing identity and
-  a VM; none of it was run here.
+- **N1:** the root-owned authority, the live check at every start,
+  `validation-category` 6, and the VM plan items for whole-bundle
+  replacement. Requirements:
+  - **1:** the tarball CLI, its own path and signature, and printed
+    confirmation;
+  - **2:** ancestors checked at install and at every start;
+  - **3:** crash-safe, idempotent migration with exactly one serving helper,
+    tested step by step.
+- **N2:** the launch-time floor.
+- **N3:** descriptor-relative removal; root never deletes another account's
+  trees.
+- **N4:** no `--reregister`. Retiring the legacy item needs a protected
+  authority and an in-window confirmation.
+- **N5:** no re-seat from `/Applications`. The runtime-only path stages from
+  the installed root-only authority, with no manifest needed.
+- **N6:** `component-state.json` is read fail-closed.
+- **N7:** lstat-sealed checks before Security.framework, and the watchdog
+  armed first.
+- **N8:** verification, restore, the worker and the probe follow
+  `AppleRuntimeRelease.releases`.
+- **N9:**
+  - `host.lock` is taken before `launch()`;
+  - the binding to the app's `Info.plist` is removed (replay is refused by the
+    version and the high-water mark);
+  - the legacy-identifier sunset and its corrected description.
+
+### Deferred
+
+- **Pruning old `apple/versions/` incarnations** (L3). It needs the selection
+  in use and the rollback target kept.
+- **A CDHash-pinned SpawnConstraint.** The authority's files are root-only,
+  so this would only add to the constraint, at the cost of an
+  `install-authority` per release.
+- **The VM test plan above.** None of it has been run.
 
 ## Tests
+
+- **`RuntimeAuthorityTests`:**
+  - the definition, with `validation-category` 6;
+  - protection holds only for the exact root-only authority. It is lost when
+    the helper runs from elsewhere, when launchd runs another program, when
+    the live job is unreadable, or when the plist has had its constraint
+    stripped;
+  - every ancestor is checked for group write, ACLs and symbolic links;
+  - `launchctl print` parsing;
+  - the legacy job yields only to a protected plist;
+  - the release table;
+  - the legacy-identifier sunset;
+  - removal never follows a link.
+- **`RuntimeAuthorityMigrationTests`:** a kill after each migration step
+  leaves exactly one serving helper, now and after a reboot in either start
+  order; a re-run finishes; retiring the legacy item changes nothing that
+  serves; a fresh host needs no neutralizing.
+- **Earlier tests, updated:**
+  - an authority definition change refused;
+  - unprotected refusal;
+  - fail-closed state;
+  - the launch floor;
+  - a FIFO in the installed bundle refused by lstat;
+  - the runtime-only path from the installed authority;
+  - `install-authority` refusing without root or from an unprotected path.
 
 - **`RuntimeSecureCopyTests`:** a pre-planted ACL, extended attribute, flag
   and setuid bit are stripped and proved gone; an ACL added after the copy
@@ -569,11 +696,10 @@ Deferred:
   - an interrupted rollback;
   - a forged manifest, a replayed manifest, and a mismatched bundle;
   - planted ACLs, attributes and flags;
-  - a definition edited in the installed plist, refused against root's
-    approved definition;
+  - an authority definition change refused (it needs `install-authority`);
   - the compiled-in version and high-water mark;
   - the security floor;
-  - a re-seat without relaunch;
+  - the runtime-only path, with nothing swapped;
   - verified-copy tampering;
   - completion on other bytes;
   - a FIFO;
@@ -592,7 +718,7 @@ Deferred:
   - rollback restoring the runtime, then the helper;
   - a deliberately stopped runtime left stopped;
   - an unreadable journal blocking only `update`;
-  - an unsealed bundle re-seated at launch;
+  - an unprotected helper reports it and refuses updates;
   - the stopped-release path, and the rollback after it.
 - **Cuttlefish (#966):** the unqualified drain is `notRecorded` and an abort
   is never refused for the build; phase 1 tolerates a stored stopped

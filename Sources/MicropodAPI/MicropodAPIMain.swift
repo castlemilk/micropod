@@ -62,7 +62,9 @@ struct MicropodAPI {
                     "apple/versions/" + configuration.selection.directoryName)
                 try await ManagedRuntimeInstaller(root: IsolatedRuntimePolicy.root.appendingPathComponent("apple"))
                     .verify(
-                        .init(selection: configuration.selection, files: AppleRuntimeRelease.payloadSHA256))
+                        .init(
+                            selection: configuration.selection,
+                            files: AppleRuntimeRelease.payload(for: configuration.selection) ?? [:]))
                 identity = account
                 client = ContainerCLIClient(executableURL: root.appendingPathComponent("bin/container"))
             } else {

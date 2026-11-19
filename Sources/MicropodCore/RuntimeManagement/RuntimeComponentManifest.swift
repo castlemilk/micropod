@@ -74,8 +74,12 @@ public struct RuntimeComponentManifest: Codable, Sendable, Equatable {
     /// The oldest installed helper allowed to install this release itself.
     public let minimumHelperVersion: String
     /// Releases below this have a security defect: once a host installs this
-    /// release, root refuses to install or roll back to anything older.
+    /// release, root refuses to install or roll back to anything older, and a
+    /// helper below it refuses to run.
     public let securityFloor: String?
+    /// The root-owned LaunchDaemon definition this release's helper runs
+    /// under (its `--component-probe`). Self-update requires it unchanged.
+    public let authorityDefinitionSHA256: String?
     public let setup: Setup
     public let helper: Code
     public let api: Code
@@ -89,9 +93,11 @@ public struct RuntimeComponentManifest: Codable, Sendable, Equatable {
     public init(
         version: String, sourceRevision: String, minimumHelperVersion: String, setup: Setup, helper: Code, api: Code,
         guestSHA256: String?, appleRuntime: AppleRuntime, appleRuntimes: [AppleRuntime],
-        componentProtocol: Int = Self.protocolVersion, securityFloor: String? = nil
+        componentProtocol: Int = Self.protocolVersion, securityFloor: String? = nil,
+        authorityDefinitionSHA256: String? = nil
     ) {
         self.securityFloor = securityFloor
+        self.authorityDefinitionSHA256 = authorityDefinitionSHA256
         schema = Self.schemaV1
         self.componentProtocol = componentProtocol
         self.version = version
@@ -146,6 +152,7 @@ public struct RuntimeComponentManifest: Codable, Sendable, Equatable {
                     + "implements \(Self.protocolVersion)")
         }
         guard release(version), release(minimumHelperVersion), securityFloor.map(release) ?? true,
+            authorityDefinitionSHA256.map({ hex($0, 64) }) ?? true,
             hex(sourceRevision, 40),
             setup.bundleIdentifier == IsolatedRuntimePolicy.setupIdentifier, hex(setup.cdhash, 40),
             hex(setup.daemonPlistSHA256, 64),
@@ -179,12 +186,17 @@ public struct RuntimeComponentProbe: Codable, Sendable, Equatable {
     /// `IsolatedRuntimePolicy.schema`: the operation journal and identity
     /// formats it reads.
     public let runtimeSchema: String
+    /// The root-owned LaunchDaemon definition this helper runs under
+    /// (canonical SHA-256). A release that changes it needs
+    /// `sudo micropod runtime install-authority`, not a self-update.
+    public let authorityDefinitionSHA256: String?
 
     public init(
         version: String, revision: String, appleRuntimes: [RuntimeComponentManifest.AppleRuntime],
         componentProtocol: Int = RuntimeComponentManifest.protocolVersion,
-        runtimeSchema: String = IsolatedRuntimePolicy.schema
+        runtimeSchema: String = IsolatedRuntimePolicy.schema, authorityDefinitionSHA256: String? = nil
     ) {
+        self.authorityDefinitionSHA256 = authorityDefinitionSHA256
         self.componentProtocol = componentProtocol
         self.version = version
         self.revision = revision
@@ -192,15 +204,15 @@ public struct RuntimeComponentProbe: Codable, Sendable, Equatable {
         self.runtimeSchema = runtimeSchema
     }
 
-    /// This build. A table with more than one Apple build lists each here.
-    public static func current(version: String, revision: String) -> Self {
+    /// This build: its release table, the build it installs first.
+    public static func current(version: String, revision: String, authorityDefinitionSHA256: String? = nil) -> Self {
         .init(
             version: version, revision: revision,
-            appleRuntimes: [
-                .init(
-                    version: AppleRuntimeRelease.supported.version,
-                    packageSHA256: AppleRuntimeRelease.supported.packageSHA256)
-            ])
+            appleRuntimes: ([AppleRuntimeRelease.supported]
+                + AppleRuntimeRelease.releases.filter { $0 != AppleRuntimeRelease.supported }).map {
+                    .init(version: $0.version, packageSHA256: $0.packageSHA256)
+                },
+            authorityDefinitionSHA256: authorityDefinitionSHA256)
     }
 }
 
