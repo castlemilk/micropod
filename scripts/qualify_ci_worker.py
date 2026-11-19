@@ -155,13 +155,28 @@ def qualify(args, result, home):
             finally:
                 command("docker", "--host", peer_uri, "image", "rm", package, env=env, check=False)
         else:
+            if args.packages and not apple:
+                package = token + ":packages"
+                archive = str(home / "toolchain.tar")
+                host("build", "--build-arg", "SOURCE_DATE_EPOCH=0", "-t", package, str(ROOT / "scripts/bench_cache_image"))
+                host("save", "-o", archive, package)
+                docker("load", "-i", archive)
+                opts.package_image = package
             measure(opts, result.setdefault("warm", {}), read_parent=parent)
+            if not apple:
+                # Fresh native reference on this exact CPU, kernel, toolchain and job allocation.
+                host("pull", ALPINE)
+                raw = argparse.Namespace(**vars(opts))
+                raw.socket, raw.engine = host_docker.removeprefix("unix://"), "linux-docker"
+                measure(raw, result.setdefault("native_ubuntu", {}))
+
         require(identity()["instance"] == first["instance"], "The supervisor restarted during the warm batches")
 
         # A user-defined bridge and a fresh container resolving the service name exercise guest DNS.
         docker("network", "create", net)
-        docker("run", "-d", "--name", service, "--network", net, ALPINE, "httpd", "-f", "-p", "8080", "-h", "/etc")
-        require(docker("run", "--rm", "--network", net, ALPINE, "wget", "-qO-", "http://" + service + ":8080/hostname").stdout.strip(),
+        docker("run", "-d", "--name", service, "--network", net, ALPINE, "sh", "-ec",
+               r"""while :; do printf 'HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nready' | nc -l -p 8080; done""")
+        require(docker("run", "--rm", "--network", net, ALPINE, "wget", "-qO-", "http://" + service + ":8080/").stdout.strip() == "ready",
                 "The service was unreachable")
         if apple:
             require(cli("stop", check=False).returncode != 0, "Stopped a worker with an active service")
@@ -214,6 +229,7 @@ def main():
     p.add_argument("--clients", type=int, nargs="+", default=[1, 4, 8, 16])
     p.add_argument("--rounds", type=int, default=5)
     p.add_argument("--package-image")
+    p.add_argument("--packages", action="store_true", help="Build one shared offline toolchain for guest and native Ubuntu")
     p.add_argument("--orbstack-socket")
     p.add_argument("--json", required=True, type=Path)
     args = p.parse_args()

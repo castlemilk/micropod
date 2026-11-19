@@ -24,7 +24,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Exercise the pinned guest engine and retained storage
-        run: python3 scripts/qualify_ci_worker.py linux-guest --json "$RUNNER_TEMP/guest.json"
+        run: python3 scripts/qualify_ci_worker.py linux-guest --packages --json "$RUNNER_TEMP/guest.json"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
