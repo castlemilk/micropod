@@ -1,8 +1,5 @@
 name: OrbStack live benchmark
 on:
-  push:
-    branches: [benchmarks/orbstack-live-20261119]
-    paths: [.github/workflows/orbstack-live.yml]
   workflow_dispatch:
     inputs:
       runner:
@@ -27,10 +24,10 @@ permissions:
 jobs:
   orbstack:
     runs-on: ${{ inputs.runner || 'macos-15-intel' }}
-    timeout-minutes: 45
+    timeout-minutes: ${{ inputs.profile == 'paired' && 20 || 15 }}
     env:
       ORB_APP: /Applications/OrbStack.app
-      BENCH_PROFILE: ${{ inputs.profile || 'paired' }}
+      BENCH_PROFILE: ${{ inputs.profile }}
       ORB_RELEASE: ${{ inputs.release || '1.5.1' }}
     steps:
       - uses: actions/checkout@v7
@@ -107,11 +104,12 @@ jobs:
             docker context create orbstack --docker "host=unix://$HOME/.orbstack/run/docker.sock"
           fi
       - uses: actions/setup-go@v6
+        if: env.BENCH_PROFILE != 'storage'
         with:
           go-version: '1.26.1'
           cache: false
       - name: Compare bind and volume reads of the same SharedFS view
-        if: steps.orbready.outcome == 'success' && env.BENCH_PROFILE != 'api'
+        if: steps.orbready.outcome == 'success' && env.BENCH_PROFILE == 'storage'
         id: filesystem
         timeout-minutes: 16
         env:
