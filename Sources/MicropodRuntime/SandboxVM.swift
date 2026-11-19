@@ -604,19 +604,10 @@ public enum SandboxVM {
             let size =
                 options.diskBytes % (1 << 30) == 0 ? "\(options.diskBytes >> 30)g" : "\(options.diskBytes >> 20)m"
             let base = imagesDir.appendingPathComponent("\(key)-\(size).ext4")
-            if !FileManager.default.fileExists(atPath: base.path) {
+            try await SandboxDiskCache(root: root).materialize(at: base) { tmp in
                 progress("unpacking \(ref) (first run for this digest)")
-                try FileManager.default.createDirectory(
-                    at: imagesDir, withIntermediateDirectories: true)
-                // Unpack beside the target then rename: concurrent first
-                // runs each unpack, last rename wins, nobody sees a partial.
-                let tmp = imagesDir.appendingPathComponent(".\(key)-\(UUID().uuidString).ext4")
-                defer { try? FileManager.default.removeItem(at: tmp) }
                 _ = try await EXT4Unpacker(capacityInBytes: options.diskBytes)
                     .unpack(image, for: .current, at: tmp)
-                guard rename(tmp.path, base.path) == 0 else {
-                    throw MicropodError.message("caching rootfs: \(String(cString: strerror(errno)))")
-                }
             }
             return (base, ref, options.diskBytes)
         }
@@ -651,15 +642,9 @@ public enum SandboxVM {
         }
         let tag = vminit.digest.replacingOccurrences(of: ":", with: "-")
         let path = root.appendingPathComponent("initfs-\(tag).ext4")
-        if !FileManager.default.fileExists(atPath: path.path) {
+        try await SandboxDiskCache(root: root).materialize(at: path) { tmp in
             progress("preparing initfs from \(vminit.reference)")
-            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-            let tmp = root.appendingPathComponent(".initfs-\(UUID().uuidString).ext4")
-            defer { try? FileManager.default.removeItem(at: tmp) }
             _ = try await InitImage(image: vminit).initBlock(at: tmp, for: .linuxArm)
-            guard rename(tmp.path, path.path) == 0 else {
-                throw MicropodError.message("caching initfs: \(String(cString: strerror(errno)))")
-            }
         }
         return .block(format: "ext4", source: path.path, destination: "/", options: ["ro"])
     }
