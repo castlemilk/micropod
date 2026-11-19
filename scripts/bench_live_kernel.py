@@ -412,7 +412,7 @@ def paired(args, receipt):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--engine", choices=["rig-matrix", "rig-pair", "micropod", "linux-docker", *MAC_PEERS, "inner"], required=True)
+    p.add_argument("--engine", choices=["rig-matrix", "rig-pair", "micropod-worker", "micropod", "linux-docker", *MAC_PEERS, "inner"], required=True)
     p.add_argument("--socket", required=True, help="Docker Unix socket in the measured environment")
     p.add_argument("--clock", choices=["client", "guest"], default="client",
                    help="Time from the invoking client, or inside an owned Micropod allocation")
@@ -436,7 +436,9 @@ def main():
     if args.expected_revision and (args.engine not in {"rig-pair", "rig-matrix", "micropod"}
                                    or not re.fullmatch(r"[0-9a-fA-F]{40}", args.expected_revision)):
         p.error("Use --expected-revision with a Micropod profile and a full commit SHA")
-    if args.worker_cli and (args.engine not in {"rig-pair", "rig-matrix"} or args.api or args.allocation or args.expected_revision):
+    if args.engine == "micropod-worker" and (not args.worker_cli or any((args.orbstack_socket, args.desktop_socket, args.colima_socket))):
+        p.error("A standalone worker requires --worker-cli and its own socket")
+    if args.worker_cli and (args.engine not in {"rig-pair", "rig-matrix", "micropod-worker"} or args.api or args.allocation or args.expected_revision):
         p.error("Select a worker CLI or a qualified allocation for a rig comparison")
     if args.engine in {"rig-pair", "rig-matrix", "micropod"} and not args.worker_cli and not (args.api and args.allocation):
         p.error("Micropod requires --api and --allocation")
@@ -444,7 +446,7 @@ def main():
         p.error("A physical pair requires --orbstack-socket")
     if args.engine == "rig-matrix" and not any((args.orbstack_socket, args.desktop_socket, args.colima_socket)):
         p.error("Supply at least one peer socket for the Apple Silicon matrix")
-    if args.ubuntu_reference and args.engine not in {"rig-pair", "rig-matrix"}:
+    if args.ubuntu_reference and args.engine not in {"rig-pair", "rig-matrix", "micropod-worker"}:
         p.error("Use Ubuntu references with the physical rig matrix")
     if args.package_image and args.clock == "guest":
         p.error("Package workspaces use the client clock")
@@ -453,7 +455,7 @@ def main():
     record = dict(profile=args.engine, workload=WORKLOAD, measured_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                   system=platform.system(), arch=platform.machine(), clock=args.clock, image=args.image, rounds=args.rounds)
     try:
-        if args.engine in {"rig-pair", "rig-matrix"}:
+        if args.engine in {"rig-pair", "rig-matrix", "micropod-worker"}:
             paired(args, record)
         elif args.engine == "micropod":
             in_allocation(args, record)
