@@ -11,6 +11,9 @@ enum CICommands {
         micropod ci run [--cache npm|go] [options] IMAGE   run a fresh container on the worker (docker run --rm)
         micropod ci stop                  stop the idle worker and retain its disk and caches
         micropod ci serve                 supervise the worker in the foreground
+        micropod ci install-service       run the worker under launchd across CI job lifetimes
+        micropod ci uninstall-service     retire the idle service and retain its disk
+        micropod ci launch-agent          print the launchd configuration for inspection
         """
 
     static func main(_ args: [String]) async -> Int32 {
@@ -30,6 +33,16 @@ enum CICommands {
         do {
             switch command {
             case "serve": return try await worker.serve()
+            case "uninstall-service": try await worker.uninstallService()
+            case "install-service", "launch-agent":
+                guard let executable = Bundle.main.executableURL else {
+                    throw MicropodError.message("Cannot locate micropod executable")
+                }
+                if command == "launch-agent" {
+                    FileHandle.standardOutput.write(try worker.launchAgent(executable: executable))
+                } else {
+                    try printStatus(await worker.installService(executable: executable))
+                }
             case "stop": try await worker.stop()
             case "status": try printStatus(await worker.status())
             case "start", "endpoint", "run":

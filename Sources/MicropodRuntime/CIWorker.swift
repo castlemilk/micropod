@@ -192,8 +192,14 @@ public struct CIWorker: Sendable {
         if FileManager.default.fileExists(atPath: manifest.path) { _ = try configuration() }
         if let current = try? await status() { return current }
         let process = Process()
-        process.executableURL = executable
-        process.arguments = ["ci", "serve"]
+        let service = try serviceTarget()
+        if let service {
+            process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+            process.arguments = ["kickstart", service]
+        } else {
+            process.executableURL = executable
+            process.arguments = ["ci", "serve"]
+        }
         let fd = open(log.path, O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW | O_CLOEXEC, 0o600)
         guard fd >= 0 else { throw POSIXError(.init(rawValue: errno) ?? .EIO) }
         let output = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
@@ -201,14 +207,16 @@ public struct CIWorker: Sendable {
         process.standardError = output
         process.standardInput = FileHandle.nullDevice
         try process.run()
+        let launchedBy = ContinuousClock.now + .seconds(15)
         let deadline = ContinuousClock.now + .seconds(180)
         while ContinuousClock.now < deadline {
             if let current = try? await status() { return current }
             // A concurrent supervisor can win the lock. All starters wait for its actual API.
             if !process.isRunning {
-                if process.terminationStatus != Self.alreadyOwned || (try? liveSession()) == nil && !isOwned() {
-                    throw MicropodError.message("CI worker startup failed; see \(log.path)")
-                }
+                let delivered =
+                    service != nil && process.terminationStatus == 0 && (ContinuousClock.now < launchedBy || isOwned())
+                let joined = process.terminationStatus == Self.alreadyOwned && isOwned()
+                if !delivered && !joined { throw MicropodError.message("CI worker startup failed; see \(log.path)") }
             }
             try await Task.sleep(for: .milliseconds(125))
         }
@@ -230,7 +238,7 @@ public struct CIWorker: Sendable {
         throw POSIXError(.init(rawValue: reason) ?? .EIO)
     }
 
-    private func isOwned() -> Bool {
+    func isOwned() -> Bool {
         do {
             guard let handle = try acquire() else { return true }
             try handle.close()

@@ -150,9 +150,11 @@ def qualify(args, result, home):
                 docker("save", "-o", archive, package)
                 command("docker", "--host", peer_uri, "load", "-i", archive, env=env)
                 opts.package_image = package
-                opts.worker_cli = str(Path(args.micropod).resolve())
+                opts.worker_cli = shutil.which(args.micropod) or str(Path(args.micropod).resolve())
                 opts.orbstack_socket, opts.desktop_socket, opts.colima_socket = args.orbstack_socket, None, None
-                opts.ubuntu_reference = list((ROOT / "docs/benchmarks/2026-11-19").glob("live-kernel-arm64*.json"))
+                matched_series = args.rounds == 5 and set(args.clients) <= {1, 4, 8, 16}
+                opts.ubuntu_reference = (sorted((ROOT / "docs/benchmarks/2026-11-19").glob("live-kernel-arm64*.json"))
+                                         if matched_series else [])
                 # The shared harness runs stock clients as children of this process.
                 os.environ["MICROPOD_CI_HOME"] = str(home)
                 pair = result.setdefault("paired", {})
@@ -160,7 +162,7 @@ def qualify(args, result, home):
                 saved = ROOT / "docs/benchmarks/2026-11-19/package-containers-ubuntu-arm64.json"
                 ref = json.loads(saved.read_text())
                 actual = pair["blocks"][0]["package_caches"]["image_id"]
-                if actual == ref["package_caches"]["image_id"]:
+                if matched_series and actual == ref["package_caches"]["image_id"]:
                     from bench_live_kernel import reference_times
                     pair["ubuntu_package_reference"] = reference_times([saved], pair["blocks"][0], args.clients, args.rounds)[0]
                 else:

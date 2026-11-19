@@ -2,7 +2,7 @@ name: Qualify the persistent CI worker
 on:
   pull_request:
     paths:
-      - 'Sources/MicropodRuntime/CIWorker.swift'
+      - 'Sources/MicropodRuntime/CIWorker*.swift'
       - 'Sources/MicropodRuntime/SandboxVM.swift'
       - 'Sources/MicropodCLI/CICommands.swift'
       - 'ci/worker-pipeline.sh'

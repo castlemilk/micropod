@@ -77,6 +77,7 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
     }
 
     public func owns(_ id: String) async -> Bool {
+        if let ciWorker, (try? await ciWorker.status()) == nil { return false }
         guard let client, client.reachable,
             let response = try? await client.request("GET", "/containers/\(Self.escape(id))/json", timeout: .seconds(3))
         else { return false }
@@ -90,6 +91,7 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
     // MARK: ContainerServing
 
     public func list() async throws -> [Micropod_V1_Container] {
+        if let ciWorker { _ = try await ciWorker.status() }
         let response = try api().check(
             try await api().request("GET", "/containers/json", query: ["all": "1"]))
         let entries = try response.json() as? [[String: Any]] ?? []
