@@ -376,15 +376,20 @@ child_prologue() {
 }
 
 # as_agent_child <script>: run <script> as this user from a user LaunchAgent,
-# the context a job the Cuttlefish agent spawns runs in. It succeeds only if
-# the child provably ran there: it wrote child.started (its first line, with
-# launchd as its parent) and child.done (its last). A child that never ran
-# attempted nothing, so its attacks prove nothing.
+# the context a job the Cuttlefish agent spawns runs in. Returns 2 when the
+# child never started (it wrote no child.started), and 0 otherwise, with
+# what the child and launchd recorded in CHILD_PPID, CHILD_SESSION,
+# CHILD_RUNS and CHILD_EXIT. Only a child that never started may make a test
+# INCOMPLETE: child_checks fails one that started but did not run as an
+# agent child does, to its end.
 as_agent_child() {
   [ "$(id -u)" != 0 ] || die "agent-child attacks run as the admin user"
   local plist="$HOME/Library/LaunchAgents/dev.micropod.gate.child.plist"
+  local target print="" i
+  target="gui/$(id -u)/dev.micropod.gate.child"
   mkdir -p "$HOME/Library/LaunchAgents"
   rm -f "$GATE/child.done" "$GATE/child.started"
+  CHILD_PPID="" CHILD_SESSION="" CHILD_RUNS="" CHILD_EXIT=""
   plutil -create xml1 "$plist"
   plutil -insert Label -string dev.micropod.gate.child "$plist"
   plutil -insert ProgramArguments -array "$plist"
@@ -392,26 +397,46 @@ as_agent_child() {
   plutil -insert ProgramArguments -string "$1" -append "$plist"
   plutil -insert RunAtLoad -bool true "$plist"
   launchctl bootstrap "gui/$(id -u)" "$plist"
-  local i
   for ((i = 0; i < 60; i++)); do
     [ -f "$GATE/child.done" ] && break
     sleep 1
   done
-  launchctl print "gui/$(id -u)/dev.micropod.gate.child" 2>&1 |
-    grep -E 'state =|runs =|last exit code' >>"$OUT/logs/$STEP.log"
-  launchctl bootout "gui/$(id -u)/dev.micropod.gate.child" 2>/dev/null
+  # launchd records the run once the child has exited.
+  for ((i = 0; i < 10; i++)); do
+    print=$(launchctl print "$target" 2>&1)
+    printf '%s\n' "$print" | grep -q 'state = running' || break
+    sleep 1
+  done
+  printf '%s\n' "$print" | grep -E 'state =|runs =|last exit code' >>"$OUT/logs/$STEP.log"
+  CHILD_RUNS=$(printf '%s\n' "$print" | sed -n 's/^[[:space:]]*runs = \([0-9][0-9]*\)$/\1/p' | head -1)
+  CHILD_EXIT=$(printf '%s\n' "$print" | sed -n 's/^[[:space:]]*last exit code = //p' | head -1)
+  launchctl bootout "$target" 2>/dev/null
   rm -f "$plist"
-  [ -f "$GATE/child.started" ] && [ -f "$GATE/child.done" ] || {
-    say "  (the agent-spawned child never ran: launchctl bootstrap gui/$(id -u) did not start it)"
-    return 1
-  }
-  printf 'agent child: parent pid, session: %s\n' "$(cat "$GATE/child.started")" >>"$OUT/logs/$STEP.log"
-  [ "$(cut -d' ' -f1 "$GATE/child.started")" = 1 ]
+  if [ ! -f "$GATE/child.started" ]; then
+    say "  (the agent-spawned child never started: launchctl bootstrap gui/$(id -u) did not run it)"
+    return 2
+  fi
+  read -r CHILD_PPID CHILD_SESSION <"$GATE/child.started"
+  printf 'agent child: parent pid %s, session %s, launchd runs %s, last exit code %s\n' \
+    "$CHILD_PPID" "$CHILD_SESSION" "${CHILD_RUNS:-?}" "${CHILD_EXIT:-?}" >>"$OUT/logs/$STEP.log"
+  return 0
+}
+
+launchd_ran_it() { [ "${CHILD_RUNS:-0}" -ge 1 ] && [ "${CHILD_EXIT:-}" = 0 ]; }
+
+# child_checks: the agent child that started ran as one, to its end.
+child_checks() {
+  check "the agent child ran to its end" test -f "$GATE/child.done"
+  check "launchd started it (parent pid 1)" test "${CHILD_PPID:-}" = 1
+  check "it ran in the console user's GUI session (Aqua)" test "${CHILD_SESSION:-}" = Aqua
+  check "launchd counted its run (runs >= 1, last exit code 0)" launchd_ran_it
 }
 
 attacker_script() {
-  # Each attempt appends "<name> ok" if it succeeded (it must not).
+  # Each attempt appends "<name> ok" if it succeeded (it must not). The child
+  # creates attack.out itself, so a stale one cannot stand in for it.
   local s="$GATE/attack.sh"
+  rm -f "$GATE/attack.out"
   {
     printf '%s\n' '#!/bin/bash'
     child_prologue
@@ -439,8 +464,8 @@ attacker_script() {
 
 # plant_residual: the reviewer's residual as an admin-group process: move the
 # legacy bundle aside and put an ad-hoc helper in its place. Returns 0 when it
-# was planted, 1 when the child ran and planting failed, 2 when the child
-# never ran (nothing was tried).
+# was planted (whatever the child's markers say), 2 when the child never
+# started (nothing was tried), and 1 otherwise.
 plant_residual() {
   local s="$GATE/plant.sh" evil="$GATE/evil.sh"
   {
@@ -457,8 +482,11 @@ plant_residual() {
     printf 'touch %q\n' "$GATE/child.done"
   } >"$s"
   rm -f "$GATE/planted" "$GATE/residual"
-  as_agent_child "$s" || return 2
-  [ -f "$GATE/planted" ]
+  as_agent_child "$s"
+  local ran=$?
+  [ -f "$GATE/planted" ] && return 0
+  [ "$ran" -eq 2 ] && return 2
+  return 1
 }
 
 # variant <name> <binary>: launchd must refuse to spawn the authority job
@@ -578,9 +606,10 @@ case "$STEP" in
     plant_residual
     planted=$?
     if [ "$planted" -eq 2 ]; then
-      incomplete "the agent-spawned planter never ran: no baseline"
+      incomplete "the agent-spawned planter never started: no baseline"
     else
       check "the residual was planted by an agent-spawned process" test "$planted" -eq 0
+      child_checks
     fi
     needs_reboot g4-before-after
     ;;
@@ -598,18 +627,24 @@ case "$STEP" in
     # On a migrated VM (after g9): the same attack and a legacy Mach lookup
     # from an agent-spawned process must all fail, before and after a reboot.
     check "the legacy bundle is immutable (schg)" legacy_immutable
-    if as_agent_child "$(attacker_script)"; then
-      check "no attempt by the agent-spawned process succeeded" \
-        test ! -s "$GATE/attack.out"
+    as_agent_child "$(attacker_script)"
+    ran=$?
+    # A successful attempt fails the test whatever else happened.
+    check "no attempt by the agent-spawned process succeeded" \
+      test ! -s "$GATE/attack.out"
+    if [ "$ran" -eq 2 ]; then
+      incomplete "the agent-spawned attacker never started: nothing was attempted"
     else
-      incomplete "the agent-spawned attacker never ran: nothing was attempted"
+      child_checks
+      check "the attacker made its attempts (it created attack.out)" test -f "$GATE/attack.out"
     fi
     plant_residual
     planted=$?
+    check "planting the residual fails" test "$planted" -ne 0
     if [ "$planted" -eq 2 ]; then
-      incomplete "the agent-spawned planter never ran: nothing was attempted"
-    else
-      check "planting the residual fails" test "$planted" -ne 0
+      incomplete "the agent-spawned planter never started: nothing was attempted"
+    elif [ "$planted" -eq 1 ]; then
+      child_checks
     fi
     user_cli legacy --json runtime operation >/dev/null 2>&1
     sleep 5
@@ -626,10 +661,15 @@ case "$STEP" in
   g5)
     # Authority files under admin-group attack, from an agent-spawned process.
     before=$(sudo shasum -a 256 "$PLIST" "$PROGRAM")
-    if as_agent_child "$(attacker_script)"; then
-      check "no attempt succeeded" test ! -s "$GATE/attack.out"
+    as_agent_child "$(attacker_script)"
+    ran=$?
+    # A successful attempt fails the test whatever else happened.
+    check "no attempt succeeded" test ! -s "$GATE/attack.out"
+    if [ "$ran" -eq 2 ]; then
+      incomplete "the agent-spawned attacker never started: nothing was attempted"
     else
-      incomplete "the agent-spawned attacker never ran: nothing was attempted"
+      child_checks
+      check "the attacker made its attempts (it created attack.out)" test -f "$GATE/attack.out"
     fi
     check "plist and program bytes are unchanged" \
       test "$(sudo shasum -a 256 "$PLIST" "$PROGRAM")" = "$before"
