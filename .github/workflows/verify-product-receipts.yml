@@ -1,0 +1,53 @@
+name: Verify Micropod benchmark receipts
+on:
+  push:
+    branches: ['benchmarks/micropod-verified-receipts-20261119']
+    paths: ['.github/workflows/verify-product-receipts.yml']
+permissions:
+  actions: read
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Verify the archives and report every completed block
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import collections, hashlib, io, json, os, subprocess, zipfile
+          slug = os.environ["GITHUB_REPOSITORY"]
+          for run in (44494549893, 44497227398):
+              api = f"repos/{slug}/actions"
+              def get(path):
+                  return subprocess.check_output(["gh", "api", path], timeout=50)
+              artifacts = json.loads(get(f"{api}/runs/{run}/artifacts"))["artifacts"]
+              a, = [a for a in artifacts if a["name"] == "micropod-orbstack-product-evidence"]
+              raw = get(f"{api}/artifacts/{a['id']}/zip")
+              digest = "sha256:" + hashlib.sha256(raw).hexdigest()
+              assert digest == a["digest"], (run, digest, a["digest"])
+              print("AUDIT_ARCHIVE", json.dumps(dict(run=run, artifact=a["id"], digest=digest)))
+              with zipfile.ZipFile(io.BytesIO(raw)) as z:
+                  for path in z.namelist():
+                      filename = path.rsplit("/",1)[-1]
+                      if filename not in ("transport.json","adapter.json","orb-start.json"):
+                          continue
+                      payload = z.read(path)
+                      doc = json.loads(payload)
+                      sha = hashlib.sha256(payload).hexdigest()
+                      if filename == "orb-start.json":
+                          print("AUDIT_HOST", json.dumps(dict(run=run, filename=filename, sha256=sha, record=doc)))
+                          continue
+                      print("AUDIT_FILE", json.dumps(dict(run=run, filename=filename, sha256=sha,
+                          engine=doc.get("engine"), image_id=doc.get("image_id"), image=doc.get("image"),
+                          commit=doc.get("commit"), build=doc.get("build"))))
+                      for phase in ("warmups","blocks"):
+                          for index,row in enumerate(doc.get(phase,[])):
+                              assert row["clients"] == len(row["jobs"])
+                              assert row["passed"] == sum("error" not in j for j in row["jobs"])
+                              print("AUDIT_BLOCK", json.dumps(dict(run=run, filename=filename, phase=phase, index=index, row=row),
+                                    separators=(",",":")))
+                      print("AUDIT_END", json.dumps(dict(run=run, filename=filename,
+                            warmups=len(doc.get("warmups",[])), blocks=len(doc.get("blocks",[])))))
+          PY
