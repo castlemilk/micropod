@@ -112,7 +112,8 @@ No command replays an uncertain installation or discards its records.
 contract revision; additive fields never change it), `peer_protocol` (the
 runtime coordination versions the build speaks) and `components[]`. Each
 component — `app`, `connect-api`, `dedicated-api`, `setup-helper`,
-`docker-shim`, `shared-fs`, `apple-runtime`, `vminit`, `guest`, `kernel` — has
+`runtime-authority`, `docker-shim`, `shared-fs`, `apple-runtime`, `vminit`,
+`guest`, `kernel` — has
 a version, revision, state and, on `GetSystem`, the SHA-256 of its executable.
 Values are read from Info.plists, retained-service records, the runtime's
 kernel link and the app's own report; anything unreadable is `unknown` with the
@@ -120,6 +121,13 @@ reason in `detail`. A retained service reports its payload's release, which can
 be older than the desktop's. Setup apps packaged before version stamping
 declared a placeholder 0.1.0; they report `unknown`. `api_server_version` is
 Apple's apiserver version, now also sent as `apple_api_server_version`.
+`runtime-authority` is the root-owned LaunchDaemon helper
+(docs/runtime-component-update.md): `running` or `stopped` once its plist is
+installed, and `missing` while a dedicated runtime still depends on the legacy
+SMAppService helper, so fleet views (Cuttlefish's `cuttle runners show` and
+`cuttle agent doctor`) list the rigs an administrator must migrate with
+`sudo micropod runtime install-authority` before the legacy signing
+identifier's sunset on 2027-04-01.
 
 In front of a dedicated runtime, the desktop's Connect API asks the dedicated
 API for `Ping`/`GetSystem` and keeps its own observations of the app, its

@@ -1061,8 +1061,9 @@ func (x *ProtocolRange) GetMaxVersion() uint32 {
 // observed it. A value it could not read is "unknown", never a guess.
 type ComponentVersion struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// "app", "connect-api", "dedicated-api", "setup-helper", "docker-shim",
-	// "shared-fs", "apple-runtime", "vminit", "guest" or "kernel".
+	// "app", "connect-api", "dedicated-api", "setup-helper",
+	// "runtime-authority", "docker-shim", "shared-fs", "apple-runtime",
+	// "vminit", "guest" or "kernel".
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Release the component reports, or "unknown".
 	Version string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`

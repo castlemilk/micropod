@@ -66,8 +66,9 @@ struct MicropodRuntimeHost {
                     decoding: path.prefix(while: { $0 != 0 }).map { UInt8(bitPattern: $0) }, as: UTF8.self)
             ).resolvingSymlinksInPath()
             // Started by the legacy SMAppService job from /Applications: yield
-            // to an installed root-owned authority, so exactly one helper
+            // to an installed root-owned authority, so at most one helper
             // serves. Exit 0 keeps launchd from respawning it.
+            // install-authority boots out and disables that job as well.
             let authority = executable.path == IsolatedRuntimePolicy.authorityProgram.path
             if !authority, RuntimeAuthority.legacyJobShouldYield() {
                 fputs("The root-owned runtime authority is installed; the legacy helper job yields\n", stderr)
@@ -89,6 +90,8 @@ struct MicropodRuntimeHost {
                 fputs("Runtime helper restarts into the installed authority\n", stderr)
                 exit(75)
             }
+            // The VM release gate's crash and hang faults (root-only file).
+            RuntimeGateHooks.applyFault(version: MicropodBuildInfo.version)
             if let reason = components.launchBelowFloor() {
                 // Below the signed security floor: refuse to run at all. Exit
                 // 0 so launchd does not respawn it; install-authority repairs.
@@ -104,6 +107,10 @@ struct MicropodRuntimeHost {
             try server.start()
             let rig = IsolatedRuntimeRigServer(controller: controller)
             try rig.start()
+            // install-authority's proof that the authority serves.
+            try RuntimeAuthority.recordServing(
+                serviceName: authority ? IsolatedRuntimePolicy.authorityServiceName : IsolatedRuntimePolicy.serviceName,
+                version: MicropodBuildInfo.version, executable: executable)
             confirmed.value = await controller.continueComponentUpdate()
             await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
             withExtendedLifetime(rig) {}
@@ -185,7 +192,7 @@ private final class RuntimeHostServer: @unchecked Sendable {
                 let data = Data(bytes: bytes, count: size)
                 let uid = xpc_connection_get_euid(peer)
                 Task {
-                    let status: IsolatedRuntimeStatus
+                    var status: IsolatedRuntimeStatus
                     do {
                         guard let body = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                             Set(body.keys) == ["operation", "action"]
@@ -217,6 +224,7 @@ private final class RuntimeHostServer: @unchecked Sendable {
                         refused.error = error.localizedDescription
                         status = refused
                     }
+                    status.helperService = serviceName
                     guard let reply = xpc_dictionary_create_reply(message),
                         let output = try? JSONEncoder().encode(status)
                     else { return }

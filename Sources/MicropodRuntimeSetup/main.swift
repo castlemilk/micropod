@@ -11,14 +11,17 @@ private final class RuntimeSetupModel {
     var error: String?
     var busy = false
     /// The legacy SMAppService background item (runtime helpers before the
-    /// root-owned authority). This app never registers it; it only retires
-    /// it, on an explicit confirmation, once the authority serves.
+    /// root-owned authority). This app never registers it. install-authority
+    /// boots out and disables its job; this app only removes the Login Items
+    /// entry, on an explicit confirmation, once the authority serves.
     var legacyRegistered = false
     var confirmingRetirement = false
     private let legacyService = SMAppService.daemon(plistName: "com.skunkworq.micropod.runtime.host.plist")
     private let client = IsolatedRuntimeClient()
 
     var protected: Bool { status.componentProtection == "protected" }
+    /// The reply came from the root-owned authority's own service.
+    var authorityServing: Bool { status.helperService == IsolatedRuntimePolicy.authorityServiceName }
 
     func refresh() async {
         legacyRegistered = [.enabled, .requiresApproval].contains(legacyService.status)
@@ -42,10 +45,11 @@ private final class RuntimeSetupModel {
         } catch { self.error = error.localizedDescription }
     }
 
-    /// Retires the legacy background item. Only offered while the
-    /// root-owned authority serves and reports itself protected, so it can
-    /// never take the runtime offline, and only after the confirmation in
-    /// this window (no launch argument triggers it).
+    /// Removes the legacy background item. Only offered while the root-owned
+    /// authority itself answers (whether or not it reports itself protected:
+    /// a still-loaded legacy job is one reason it would not), so it can never
+    /// take the runtime offline, and only after the confirmation in this
+    /// window (no launch argument triggers it).
     func retireLegacy() async {
         guard !busy else { return }
         busy = true
@@ -55,7 +59,7 @@ private final class RuntimeSetupModel {
         }
         do {
             let current = try await client.call(.init(action: .status))
-            guard current.componentProtection == "protected" else {
+            guard current.helperService == IsolatedRuntimePolicy.authorityServiceName else {
                 throw MicropodError.message(
                     "The root-owned runtime authority is not serving; the old background item was left in place")
             }
@@ -97,7 +101,7 @@ struct MicropodRuntimeSetup: App {
                         Button("Verify Runtime") { Task { await model.request(.verify) } }
                         Button("Run Isolated Test") { Task { await model.request(.workload) } }
                     }.disabled(model.busy)
-                    if model.legacyRegistered && model.protected {
+                    if model.legacyRegistered && model.authorityServing {
                         Button("Retire the Old Background Item…") { model.confirmingRetirement = true }
                             .disabled(model.busy)
                             .confirmationDialog(
@@ -106,7 +110,7 @@ struct MicropodRuntimeSetup: App {
                                 Button("Retire", role: .destructive) { Task { await model.retireLegacy() } }
                             } message: {
                                 Text(
-                                    "The root-owned runtime authority serves now. The old item only runs a helper from /Applications, which yields to it."
+                                    "The root-owned runtime authority serves now. install-authority already stopped and disabled the old item; this removes it from Login Items."
                                 )
                             }
                     }

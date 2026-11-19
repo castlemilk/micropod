@@ -250,8 +250,9 @@ message ProtocolRange {
 // One installed or running piece of Micropod, as the answering server
 // observed it. A value it could not read is "unknown", never a guess.
 message ComponentVersion {
-  // "app", "connect-api", "dedicated-api", "setup-helper", "docker-shim",
-  // "shared-fs", "apple-runtime", "vminit", "guest" or "kernel".
+  // "app", "connect-api", "dedicated-api", "setup-helper",
+  // "runtime-authority", "docker-shim", "shared-fs", "apple-runtime",
+  // "vminit", "guest" or "kernel".
   string name = 1 [(gnostic.openapi.v3.property).example = {yaml: "'docker-shim'"}];
   // Release the component reports, or "unknown".
   string version = 2 [(gnostic.openapi.v3.property).example = {yaml: "'0.13.0'"}];

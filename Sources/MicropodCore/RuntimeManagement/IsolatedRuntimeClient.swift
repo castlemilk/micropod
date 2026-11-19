@@ -5,9 +5,9 @@ import Foundation
 /// package URL or administrator credential in the client protocol.
 public struct IsolatedRuntimeClient: Sendable {
     public init() {}
-    /// The root-owned authority first; the legacy SMAppService job only when
-    /// the authority's service cannot be reached at all (not installed, or
-    /// still waiting for the legacy helper to release the runtime).
+    /// The root-owned authority first; the legacy SMAppService job only while
+    /// no authority plist is installed and the authority's service cannot be
+    /// reached at all (``IsolatedRuntimePolicy/clientServiceNames``).
     public func call(_ request: IsolatedRuntimeRequest) async throws -> IsolatedRuntimeStatus {
         var unreachable: Error?
         for service in IsolatedRuntimePolicy.clientServiceNames {

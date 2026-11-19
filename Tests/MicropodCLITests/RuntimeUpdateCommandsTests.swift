@@ -36,10 +36,23 @@ final class RuntimeUpdateCommandsTests: XCTestCase {
         try Data("cli".utf8).write(to: cli)
         let owners: Set<uid_t> = [0, getuid()]
         // The temporary directory's own ancestors belong to root or this user.
-        XCTAssertNil(RuntimeAuthorityCommands.launchPathProblem(cli, allowedOwners: owners))
+        XCTAssertNil(RuntimeAuthorityCommands.launchPathProblem(cli, owners: owners))
         XCTAssertEqual(chmod(bin.path, 0o777), 0)
-        XCTAssertNotNil(RuntimeAuthorityCommands.launchPathProblem(cli, allowedOwners: owners))
+        XCTAssertNotNil(RuntimeAuthorityCommands.launchPathProblem(cli, owners: owners))
         XCTAssertEqual(chmod(bin.path, 0o755), 0)
-        XCTAssertNotNil(RuntimeAuthorityCommands.launchPathProblem(cli, allowedOwners: [0]), "another account's path")
+        // R2: the production rule is root-owned only, so a path the invoking
+        // administrator owns (an unpacked download) is refused.
+        let refused = RuntimeAuthorityCommands.launchPathProblem(cli)
+        XCTAssertEqual(refused, "\(cli.path) is not owned by root")
+        // An ACL granting write is refused like a mode bit.
+        let acl = Process()
+        acl.executableURL = URL(fileURLWithPath: "/bin/chmod")
+        acl.arguments = ["+a", "everyone allow write", bin.path]
+        try acl.run()
+        acl.waitUntilExit()
+        XCTAssertEqual(acl.terminationStatus, 0)
+        XCTAssertEqual(
+            RuntimeAuthorityCommands.launchPathProblem(cli, owners: owners), "\(bin.path) carries an ACL")
+        XCTAssertTrue(RuntimeAuthorityCommands.instructions.contains("/var/root/micropod-install"))
     }
 }

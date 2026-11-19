@@ -93,17 +93,24 @@ public enum RuntimeSecureCopy {
     /// inode), entries are unlinked relative to that descriptor, and flags are
     /// cleared through descriptors, so a concurrent rename or symlink swap
     /// cannot redirect it outside the tree.
-    public static func remove(_ url: URL) throws {
+    /// How deep removal descends (each level holds one descriptor). A setup
+    /// app is under 16 levels deep; a deeper tree is refused, not followed.
+    public static let maximumRemovalDepth = 64
+
+    public static func remove(_ url: URL, maximumDepth: Int = maximumRemovalDepth) throws {
         var info = stat()
         guard lstat(url.path, &info) == 0 else { return }
         let parent = open(url.deletingLastPathComponent().path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
         guard parent >= 0 else { throw failure("open the parent of", url.path) }
         defer { close(parent) }
-        try removeEntry(url.lastPathComponent, in: parent, expected: info, path: url.path)
+        try removeEntry(url.lastPathComponent, in: parent, expected: info, path: url.path, depth: maximumDepth)
     }
 
-    private static func removeEntry(_ name: String, in parent: Int32, expected: stat, path: String) throws {
+    private static func removeEntry(_ name: String, in parent: Int32, expected: stat, path: String, depth: Int)
+        throws
+    {
         if expected.st_mode & S_IFMT == S_IFDIR {
+            guard depth > 0 else { throw refused(path, "is nested deeper than removal descends") }
             let fd = openat(parent, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
             guard fd >= 0 else { throw failure("open", path) }
             var opened = stat()
@@ -128,7 +135,7 @@ public enum RuntimeSecureCopy {
             for child in names {
                 var info = stat()
                 guard fstatat(fd, child, &info, AT_SYMLINK_NOFOLLOW) == 0 else { continue }
-                try removeEntry(child, in: fd, expected: info, path: path + "/" + child)
+                try removeEntry(child, in: fd, expected: info, path: path + "/" + child, depth: depth - 1)
             }
             guard unlinkat(parent, name, AT_REMOVEDIR) == 0 else { throw failure("remove", path) }
             return

@@ -29,8 +29,16 @@ public enum IsolatedRuntimePolicy {
     /// new so it never collides with the legacy SMAppService job's.
     public static let authorityLabel = "com.skunkworq.micropod.runtime.authority"
     public static let authorityServiceName = "com.skunkworq.micropod.runtime.authority"
-    /// The Mach services a client tries, authority first.
-    public static var clientServiceNames: [String] { [authorityServiceName, serviceName] }
+    /// The Mach services a client tries. Once the authority's plist exists
+    /// only the authority is trusted: the legacy SMAppService job has no
+    /// SpawnConstraint, so a client never falls back to it after
+    /// install-authority wrote the plist (it retires that job as well).
+    public static var clientServiceNames: [String] {
+        clientServiceNames(authorityInstalled: FileManager.default.fileExists(atPath: authorityPlist.path))
+    }
+    public static func clientServiceNames(authorityInstalled: Bool) -> [String] {
+        authorityInstalled ? [authorityServiceName] : [authorityServiceName, serviceName]
+    }
     /// The root-only sealed setup app the authority runs from.
     public static var authorityBundle: URL {
         root.appendingPathComponent("authority/current/Micropod Runtime Setup.app")

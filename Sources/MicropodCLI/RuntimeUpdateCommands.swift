@@ -89,8 +89,9 @@ enum RuntimeUpdateCommands {
         print(
             """
 
-            install-authority waits for the current helper to be idle, keeps it serving until the authority is
-            loaded, and can be run again after any interruption. Afterwards, as yourself:
+            install-authority waits for the current helper to be idle, retires the legacy helper job itself
+            (bootout, disable, an immutable bundle), finishes only once the authority serves, and can be run
+            again after any interruption. Afterwards, as yourself:
               micropod runtime update        restart the dedicated runtime onto the new helper and API
             """)
     }

@@ -7,6 +7,7 @@ public enum MicropodComponent: String, CaseIterable, Sendable {
     case connectAPI = "connect-api"
     case dedicatedAPI = "dedicated-api"
     case setupHelper = "setup-helper"
+    case runtimeAuthority = "runtime-authority"
     case dockerShim = "docker-shim"
     case sharedFS = "shared-fs"
     case appleRuntime = "apple-runtime"
@@ -305,6 +306,43 @@ public enum ComponentProbe {
         return component(
             .setupHelper, version: version, revision: stamp.revision,
             sha256: digest ? (sha256(helper) ?? "") : "", state: state, detail: notes.joined(separator: "; "))
+    }
+
+    /// The root-owned runtime authority (docs/runtime-component-update.md),
+    /// from world-readable facts only: its plist, its bundle's Info.plist and
+    /// the paths of root `MicropodRuntimeHost` processes (`helpers`).
+    /// `missing` while a dedicated runtime still depends on the legacy
+    /// SMAppService helper, so fleet views list the rigs to migrate before
+    /// the legacy identifier's sunset.
+    public static func runtimeAuthority(
+        helpers: [String], dedicated: Bool, plist: URL = IsolatedRuntimePolicy.authorityPlist,
+        bundle: URL = IsolatedRuntimePolicy.authorityBundle,
+        legacyBundle: URL = RuntimeSetupInstallation.installedURL
+    ) -> Micropod_V1_ComponentVersion {
+        let program = bundle.appendingPathComponent("Contents/MacOS/MicropodRuntimeHost").path
+        let legacyProgram = legacyBundle.appendingPathComponent("Contents/MacOS/MicropodRuntimeHost").path
+        let legacyRuns = helpers.contains(legacyProgram)
+        let sunset = ISO8601DateFormatter.string(
+            from: IsolatedRuntimePolicy.legacyHelperSunset, timeZone: TimeZone(identifier: "UTC")!,
+            formatOptions: [.withFullDate])
+        guard FileManager.default.fileExists(atPath: plist.path) else {
+            guard dedicated || legacyRuns else {
+                return component(.runtimeAuthority, state: .notConfigured, detail: "No runtime authority is installed")
+            }
+            return component(
+                .runtimeAuthority, state: .missing,
+                detail: "The dedicated runtime's root helper runs from the legacy SMAppService job; an "
+                    + "administrator runs `sudo micropod runtime install-authority` before \(sunset), when releases "
+                    + "stop accepting its signing identifier")
+        }
+        let stamp = try? bundleStamp(bundle)
+        var notes = [plist.path]
+        if legacyRuns {
+            notes.append("the legacy SMAppService helper still runs: run install-authority again to retire it")
+        }
+        return component(
+            .runtimeAuthority, version: stamp?.version ?? unknown, revision: stamp?.revision ?? unknown,
+            state: helpers.contains(program) ? .running : .stopped, detail: notes.joined(separator: "; "))
     }
 
     /// `micropod-guest` beside the answering server's executable or in its

@@ -52,6 +52,8 @@ if not probe.get("authorityDefinitionSHA256"):
 manifest["authorityDefinitionSHA256"] = probe["authorityDefinitionSHA256"]
 floor = __import__("os").environ.get("MICROPOD_COMPONENTS_SECURITY_FLOOR")
 if floor:
+    if not __import__("re").fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", floor):
+        raise SystemExit("MICROPOD_COMPONENTS_SECURITY_FLOOR must be X.Y.Z")
     manifest["securityFloor"] = floor
 if guest:
     manifest["guestSHA256"] = guest

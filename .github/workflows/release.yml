@@ -33,6 +33,10 @@ on:
         description: "Publish frozen qualified assets using their reviewed channel policy (vX.Y.Z); no rebuild"
         required: false
         type: string
+      qualification_security_floor:
+        description: "Draft-only: signed runtime security floor (X.Y.Z) for the VM gate's floor test; tag releases ignore it"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -217,6 +221,8 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           SPARKLE_ED25519_KEY: ${{ secrets.SPARKLE_ED25519_KEY }}
+          # Only a draft qualification build may carry a gate floor.
+          MICROPOD_COMPONENTS_SECURITY_FLOOR: ${{ github.event_name == 'workflow_dispatch' && inputs.qualification_version != '' && inputs.qualification_security_floor || '' }}
         run: |
           if [ -n "$APPLE_SIGNING_IDENTITY" ] && [ -n "$MACOS_CERTIFICATE" ]; then
             # make_dmg.sh signs the runtime component manifest with the release

@@ -881,7 +881,9 @@ public struct NativeRuntimeComponentEnvironment: RuntimeComponentEnvironment {
     public var installedBundle: URL { IsolatedRuntimePolicy.authorityBundle }
 
     public func protection() -> RuntimeAuthority.Protection {
-        RuntimeAuthority.protection(executable: executable, launchctlPrint: { RuntimeAuthority.launchctlPrint() })
+        RuntimeAuthority.protection(
+            executable: executable, launchctlPrint: { RuntimeAuthority.launchctlPrint() },
+            legacy: { RuntimeAuthority.legacyJob() })
     }
 
     public func offered() throws -> RuntimeComponentOffer {

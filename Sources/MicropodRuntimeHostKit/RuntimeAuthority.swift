@@ -83,10 +83,12 @@ public enum RuntimeAuthority {
     /// and launchd's live job runs that program from that plist.
     /// - Parameters:
     ///   - launchctlPrint: `launchctl print system/<label>` output, or nil.
+    ///   - legacy: the legacy SMAppService job's state, or nil if unreadable.
+    ///     It must be unloaded and persistently disabled.
     public static func protection(
         executable: URL, program: URL = IsolatedRuntimePolicy.authorityProgram,
         plist: URL = IsolatedRuntimePolicy.authorityPlist, owner: uid_t = 0, group: gid_t = 0, boundary: String = "/",
-        launchctlPrint: () -> String?
+        launchctlPrint: () -> String?, legacy: () -> LegacyJob?
     ) -> Protection {
         guard executable.resolvingSymlinksInPath().path == program.path else {
             return .unprotected("the helper runs from \(executable.path), not the root-only authority program")
@@ -112,27 +114,129 @@ public enum RuntimeAuthority {
         guard job.program == program.path, job.path == plist.path else {
             return .unprotected("launchd runs \(job.program ?? "?") from \(job.path ?? "?"), not the authority")
         }
+        // The legacy SMAppService job has no SpawnConstraint and runs a
+        // program in /Applications: while it can load, a root path through
+        // an admin-writable folder remains.
+        guard let legacy = legacy() else { return .unprotected("the legacy helper job's state could not be read") }
+        guard !legacy.loaded else { return .unprotected("the legacy SMAppService helper job is still loaded") }
+        guard legacy.disabled else { return .unprotected("the legacy SMAppService helper job is not disabled") }
         return .ok
+    }
+
+    /// The legacy SMAppService job (`com.skunkworq.micropod.runtime.host`).
+    public struct LegacyJob: Equatable, Sendable {
+        public let loaded: Bool
+        public let disabled: Bool
+        public init(loaded: Bool, disabled: Bool) {
+            self.loaded = loaded
+            self.disabled = disabled
+        }
+
+        /// From `launchctl print system/<label>` (nil when not loaded) and
+        /// `launchctl print-disabled system`.
+        public init?(printed: String?, printDisabled: String?, label: String = IsolatedRuntimePolicy.serviceName) {
+            guard let printDisabled else { return nil }
+            loaded = printed.flatMap { LiveJob($0) } != nil
+            disabled = printDisabled.split(separator: "\n").contains { line in
+                let text = line.trimmingCharacters(in: .whitespaces)
+                return text.hasPrefix("\"" + label + "\" =>")
+                    && (text.hasSuffix("=> disabled") || text.hasSuffix("=> true"))
+            }
+        }
+    }
+
+    public static func legacyJob() -> LegacyJob? {
+        let disabled = try? NativeRuntimeComponentEnvironment.run(
+            "/bin/launchctl", ["print-disabled", "system"], timeout: 10)
+        return LegacyJob(
+            printed: launchctlPrint(label: IsolatedRuntimePolicy.serviceName),
+            printDisabled: disabled.map { String(decoding: $0, as: UTF8.self) })
     }
 
     /// The top-level `path` and `program` lines of `launchctl print`.
     public struct LiveJob: Equatable, Sendable {
         public let path: String?
         public let program: String?
+        /// `running`, `not running`, ...
+        public let state: String?
+        public let pid: Int32?
         public init?(_ output: String) {
             var path: String?
             var program: String?
+            var state: String?
+            var pid: Int32?
             for line in output.split(separator: "\n") {
                 // Top-level properties are indented by exactly one tab.
                 guard line.hasPrefix("\t"), !line.hasPrefix("\t\t") else { continue }
                 let trimmed = line.dropFirst()
                 if trimmed.hasPrefix("path = ") { path = path ?? String(trimmed.dropFirst(7)) }
                 if trimmed.hasPrefix("program = ") { program = program ?? String(trimmed.dropFirst(10)) }
+                if trimmed.hasPrefix("state = ") { state = state ?? String(trimmed.dropFirst(8)) }
+                if trimmed.hasPrefix("pid = ") { pid = pid ?? Int32(trimmed.dropFirst(6)) }
             }
             guard path != nil || program != nil else { return nil }
             self.path = path
             self.program = program
+            self.state = state
+            self.pid = pid
         }
+    }
+
+    /// What a helper records once its XPC and rig servers listen
+    /// (`RuntimeHost/serving.json`, root-only). install-authority reads it to
+    /// prove the authority serves: the record's process must be the one
+    /// launchd runs for the authority job now, born when the record says.
+    public struct Serving: Codable, Equatable, Sendable {
+        public let pid: Int32
+        public let birthSeconds: Int64
+        public let birthMicroseconds: Int64
+        public let serviceName: String
+        public let version: String
+        public let helperSHA256: String
+        public init(
+            pid: Int32, birthSeconds: Int64, birthMicroseconds: Int64, serviceName: String, version: String,
+            helperSHA256: String
+        ) {
+            self.pid = pid
+            self.birthSeconds = birthSeconds
+            self.birthMicroseconds = birthMicroseconds
+            self.serviceName = serviceName
+            self.version = version
+            self.helperSHA256 = helperSHA256
+        }
+
+        /// This record describes `job`'s live authority process, whose
+        /// birth is `birth` (nil: it is gone).
+        public func describes(_ job: LiveJob?, birth: RuntimeProcessBirth?) -> Bool {
+            guard let job, job.state == "running", job.pid == pid, let birth, birth.pid == pid else { return false }
+            return serviceName == IsolatedRuntimePolicy.authorityServiceName && birth.seconds == birthSeconds
+                && birth.microseconds == birthMicroseconds
+        }
+    }
+
+    public static var servingRecord: URL { IsolatedRuntimePolicy.root.appendingPathComponent("serving.json") }
+
+    /// Called by the helper once it serves.
+    public static func recordServing(serviceName: String, version: String, executable: URL) throws {
+        guard let birth = try RuntimeProcessBirth.read(getpid()) else {
+            throw MicropodError.message("This helper's process birth is unavailable")
+        }
+        try RuntimeDurableFile.write(
+            Serving(
+                pid: getpid(), birthSeconds: birth.seconds, birthMicroseconds: birth.microseconds,
+                serviceName: serviceName, version: version,
+                helperSHA256: ManagedRuntimeInstaller.sha256(executable)),
+            to: servingRecord)
+    }
+
+    /// The authority job's live helper, if it serves now.
+    public static func authorityServing() -> Serving? {
+        guard let data = try? RuntimeDurableFile.read(servingRecord, maximumBytes: 4096, ownerUID: 0),
+            let record = try? JSONDecoder().decode(Serving.self, from: data)
+        else { return nil }
+        let job = launchctlPrint().flatMap { LiveJob($0) }
+        let birth = job?.pid.flatMap { try? RuntimeProcessBirth.read($0) } ?? nil
+        return record.describes(job, birth: birth) ? record : nil
     }
 
     /// `launchctl print system/<label>` (read-only).
@@ -145,8 +249,12 @@ public enum RuntimeAuthority {
     }
 
     /// A helper started by the legacy SMAppService job (from `/Applications`)
-    /// yields to an installed authority: it exits at once, so exactly one
-    /// helper serves. The authority plist must itself be protected and exact.
+    /// yields once a protected authority plist exists: from then on only the
+    /// authority may serve, and clients only call the authority's service
+    /// (``IsolatedRuntimePolicy/clientServiceNames``). So at most one helper
+    /// serves; the cases where none does are in docs/runtime-component-update.md
+    /// ("When no helper serves"), and running install-authority again recovers
+    /// each of them.
     public static func legacyJobShouldYield(
         plist: URL = IsolatedRuntimePolicy.authorityPlist, owner: uid_t = 0, boundary: String = "/"
     ) -> Bool {
@@ -168,19 +276,28 @@ public protocol RuntimeAuthorityInstallHost: Sendable {
     /// Seals, verifies and installs `source` as the authority bundle (the
     /// previous one is kept). Returns what it installed.
     func stageAuthority(from source: URL, manifest: RuntimeComponentManifest) throws -> RuntimeComponentBundle
-    /// The setup app the legacy SMAppService job runs, if one is installed:
-    /// its helper executable's digest.
-    func legacyBundleHelper() -> String?
-    /// Replaces that setup app with a sealed copy of the authority bundle, so
-    /// the legacy job can only ever start a helper that yields.
+    /// The legacy SMAppService job's bundle in /Applications, if any: its
+    /// helper digest, and whether it is a sealed root-owned copy.
+    func legacyBundle() -> (helperSHA256: String, sealed: Bool)?
+    /// Replaces that bundle with a sealed root-owned copy of the authority
+    /// bundle, so the legacy job can only ever start a helper that yields.
     func neutralizeLegacy() throws
     func authorityPlistInstalled() -> Bool
     func writeAuthorityPlist() throws
     func authorityLoaded() -> Bool
     func bootstrapAuthority() throws
-    /// A legacy-job process still running pre-authority code.
-    func legacyRunsOldCode() -> Bool
-    func stopLegacy() throws
+    /// The legacy job is unloaded, persistently disabled, and its bundle (if
+    /// any) is a sealed copy marked system-immutable.
+    func legacyRetired() -> Bool
+    /// `launchctl bootout` and `launchctl disable` the legacy job, then
+    /// `chflags -R schg` its sealed bundle.
+    func retireLegacy() throws
+    /// The helper SHA-256 of the authority's live, serving helper, or nil.
+    /// `wait` polls for a helper that is starting (launchd throttles a
+    /// respawn by up to `ThrottleInterval` seconds).
+    func authorityServing(wait: Bool) -> String?
+    /// `launchctl kickstart` the authority; `kill` restarts a live one.
+    func startAuthority(kill: Bool) throws
     /// No runtime operation, fence or worker is in flight.
     func runtimeIdle() throws -> Bool
     func checkpoint(_ name: String) throws
@@ -190,34 +307,47 @@ extension RuntimeAuthorityInstallHost {
     public func checkpoint(_ name: String) throws {}
 }
 
-/// `sudo micropod runtime install-authority`. Every step is decided by
-/// inspection, so a kill anywhere is finished by running it again, and the
-/// order keeps exactly one helper able to serve at every point:
+/// `install-authority`. Every step is decided by inspection, so a kill
+/// anywhere is finished by running it again, and at most one helper serves
+/// at any point. The order:
 ///
 /// 1. stage the sealed authority bundle (the legacy job keeps serving);
-/// 2. neutralize the legacy job: its bundle becomes the new helper, which
-///    serves while no authority is installed and yields once one is;
-/// 3. write the authority plist (at boot the authority serves and the legacy
-///    job yields);
+/// 2. neutralize the legacy job: its bundle becomes a sealed copy of the new
+///    helper, which yields once a protected authority plist exists;
+/// 3. write the authority plist (after a reboot the authority serves and
+///    the legacy job yields);
 /// 4. bootstrap the authority (it waits on `host.lock` while the old helper
-///    still holds it);
-/// 5. stop the legacy job's old process; it restarts as the new helper and
-///    yields, and the authority takes the lock.
+///    holds it);
+/// 5. retire the legacy job: bootout (the old process ends and the authority
+///    takes the lock), persistent disable, and `schg` on its bundle;
+/// 6. start (or restart) the authority until its live helper is the target.
+///
+/// It finishes only when the legacy job is retired and the authority serves
+/// the target build. Between steps 3 and 6 clients reach no helper (they no
+/// longer call the legacy service); a kill there, a refused spawn, or a
+/// release below the security floor leaves none serving until
+/// install-authority runs again (docs/runtime-component-update.md).
 public struct RuntimeAuthorityInstaller: Sendable {
     public enum Step: String, Sendable, CaseIterable {
-        case stage, neutralize, plist, bootstrap, stopLegacy
+        case stage, neutralize, plist, bootstrap, retireLegacy, start
     }
     public let host: any RuntimeAuthorityInstallHost
     public init(host: any RuntimeAuthorityInstallHost) { self.host = host }
+
+    func needsNeutralizing(_ target: RuntimeComponentBundle) -> Bool {
+        guard let legacy = host.legacyBundle() else { return false }
+        return legacy.helperSHA256 != target.helperSHA256 || !legacy.sealed
+    }
 
     /// The steps still to do, by inspection.
     public func pending(target: RuntimeComponentBundle) -> [Step] {
         var steps: [Step] = []
         if host.authorityIdentity() != target { steps.append(.stage) }
-        if let legacy = host.legacyBundleHelper(), legacy != target.helperSHA256 { steps.append(.neutralize) }
+        if needsNeutralizing(target) { steps.append(.neutralize) }
         if !host.authorityPlistInstalled() { steps.append(.plist) }
         if !host.authorityLoaded() { steps.append(.bootstrap) }
-        if host.legacyRunsOldCode() { steps.append(.stopLegacy) }
+        if !host.legacyRetired() { steps.append(.retireLegacy) }
+        if host.authorityServing(wait: false) != target.helperSHA256 { steps.append(.start) }
         return steps
     }
 
@@ -225,19 +355,24 @@ public struct RuntimeAuthorityInstaller: Sendable {
     public func run(source: URL, manifest: RuntimeComponentManifest, target: RuntimeComponentBundle) throws
         -> [Step]
     {
+        func requireIdle() throws {
+            guard try host.runtimeIdle() else {
+                throw MicropodError.message(
+                    "Runtime maintenance is in flight; finish or recover it, then run install-authority again")
+            }
+        }
         var done: [Step] = []
         if host.authorityIdentity() != target {
+            // Replacing the bundle of a live authority: it restarts below.
+            if host.authorityLoaded() { try requireIdle() }
             guard try host.stageAuthority(from: source, manifest: manifest) == target else {
                 throw MicropodError.message("The staged authority is not the verified release")
             }
             done.append(.stage)
             try host.checkpoint("staged")
         }
-        if let legacy = host.legacyBundleHelper(), legacy != target.helperSHA256 {
-            guard try host.runtimeIdle() else {
-                throw MicropodError.message(
-                    "Runtime maintenance is in flight; finish or recover it, then run install-authority again")
-            }
+        if needsNeutralizing(target) {
+            try requireIdle()
             try host.neutralizeLegacy()
             done.append(.neutralize)
             try host.checkpoint("neutralized")
@@ -252,13 +387,31 @@ public struct RuntimeAuthorityInstaller: Sendable {
             done.append(.bootstrap)
             try host.checkpoint("bootstrapped")
         }
-        if host.legacyRunsOldCode() {
-            guard try host.runtimeIdle() else {
-                throw MicropodError.message(
-                    "Runtime maintenance is in flight; finish or recover it, then run install-authority again")
-            }
-            try host.stopLegacy()
-            done.append(.stopLegacy)
+        if !host.legacyRetired() {
+            try requireIdle()
+            try host.retireLegacy()
+            done.append(.retireLegacy)
+            try host.checkpoint("retired")
+        }
+        guard host.legacyRetired() else {
+            throw MicropodError.message(
+                "The legacy helper job is still loaded or enabled; install-authority did not finish. Run it again")
+        }
+        // The authority started at bootstrap gives up while the legacy helper
+        // holds the state lock and is respawned after the throttle; a live
+        // authority running another build (or none) is restarted.
+        let serving = host.authorityServing(wait: false)
+        if serving != target.helperSHA256 {
+            if serving != nil { try requireIdle() }
+            try host.startAuthority(kill: serving != nil || done.contains(.stage))
+            done.append(.start)
+            try host.checkpoint("started")
+        }
+        guard host.authorityServing(wait: true) == target.helperSHA256 else {
+            throw MicropodError.message(
+                "The authority is installed but does not serve: see `sudo launchctl print system/"
+                    + IsolatedRuntimePolicy.authorityLabel + "` (a refused spawn, or a release below the security "
+                    + "floor) and run install-authority again with a good release")
         }
         return done
     }
@@ -324,15 +477,29 @@ public struct NativeRuntimeAuthorityInstallHost: RuntimeAuthorityInstallHost {
         return target
     }
 
-    public func legacyBundleHelper() -> String? {
-        let helper = Self.legacyBundle.appendingPathComponent("Contents/MacOS/MicropodRuntimeHost")
+    public func legacyBundle() -> (helperSHA256: String, sealed: Bool)? {
+        let bundle = Self.legacyBundle
+        let helper = bundle.appendingPathComponent("Contents/MacOS/MicropodRuntimeHost")
         var info = stat()
-        guard lstat(helper.path, &info) == 0, info.st_mode & S_IFMT == S_IFREG else { return nil }
-        return try? ManagedRuntimeInstaller.sha256(helper)
+        guard lstat(helper.path, &info) == 0, info.st_mode & S_IFMT == S_IFREG,
+            let digest = try? ManagedRuntimeInstaller.sha256(helper)
+        else { return nil }
+        return (digest, Self.sealedIgnoringImmutable(bundle))
+    }
+
+    /// Sealed root-owned, except that `schg` (set by retirement) is allowed.
+    static func sealedIgnoringImmutable(_ bundle: URL) -> Bool {
+        (try? RuntimeSecureCopy.walk(bundle, limits: .init()) { path, info in
+            guard info.st_uid == 0, info.st_gid == 0, info.st_mode & 0o7022 == 0,
+                info.st_flags & ~UInt32(SF_IMMUTABLE) == 0
+            else { throw MicropodError.message("\(path) is not sealed") }
+        }) != nil
     }
 
     public func neutralizeLegacy() throws {
         let installed = Self.legacyBundle
+        // A bundle retirement marked immutable is root's own sealed copy.
+        try NativeRuntimeComponentEnvironment.run("/usr/bin/chflags", ["-R", "noschg", installed.path], timeout: 30)
         let staging = installed.deletingLastPathComponent().appendingPathComponent(
             ".micropod-runtime-setup-" + UUID().uuidString + ".app")
         defer { try? RuntimeSecureCopy.remove(staging) }
@@ -384,19 +551,44 @@ public struct NativeRuntimeAuthorityInstallHost: RuntimeAuthorityInstallHost {
             "/bin/launchctl", ["bootstrap", "system", IsolatedRuntimePolicy.authorityPlist.path], timeout: 30)
     }
 
-    public func legacyRunsOldCode() -> Bool {
-        guard let output = RuntimeAuthority.launchctlPrint(label: IsolatedRuntimePolicy.serviceName),
-            output.contains("state = running"),
-            let pid = output.split(separator: "\n").first(where: { $0.hasPrefix("\tpid = ") })
-                .flatMap({ Int32($0.dropFirst(7)) })
-        else { return false }
-        return !RuntimeCodeIdentity.verifyProcess(pid, identifier: IsolatedRuntimePolicy.helperIdentifier)
+    public func legacyRetired() -> Bool {
+        guard let job = RuntimeAuthority.legacyJob(), !job.loaded, job.disabled else { return false }
+        guard let legacy = legacyBundle() else { return true }
+        var info = stat()
+        return legacy.sealed && lstat(Self.legacyBundle.path, &info) == 0 && info.st_flags & UInt32(SF_IMMUTABLE) != 0
     }
 
-    public func stopLegacy() throws {
-        try NativeRuntimeComponentEnvironment.run(
-            "/bin/launchctl", ["kill", "SIGTERM", "system/" + IsolatedRuntimePolicy.serviceName], timeout: 10)
+    public func retireLegacy() throws {
+        let service = "system/" + IsolatedRuntimePolicy.serviceName
+        if RuntimeAuthority.launchctlPrint(label: IsolatedRuntimePolicy.serviceName) != nil {
+            try NativeRuntimeComponentEnvironment.run("/bin/launchctl", ["bootout", service], timeout: 30)
+        }
+        try NativeRuntimeComponentEnvironment.run("/bin/launchctl", ["disable", service], timeout: 10)
+        if legacyBundle()?.sealed == true {
+            // Belt and braces: no rename, replacement or write of the
+            // neutralized bundle, even by an admin-group process. Undo with
+            // `sudo chflags -R noschg "/Applications/Micropod Runtime Setup.app"`.
+            try NativeRuntimeComponentEnvironment.run(
+                "/usr/bin/chflags", ["-R", "schg", Self.legacyBundle.path], timeout: 30)
+        }
     }
+
+    public func authorityServing(wait: Bool) -> String? {
+        let deadline = Date().addingTimeInterval(wait ? 45 : 0)
+        while true {
+            if let serving = RuntimeAuthority.authorityServing() { return serving.helperSHA256 }
+            guard Date() < deadline else { return nil }
+            Thread.sleep(forTimeInterval: 1)
+        }
+    }
+
+    public func startAuthority(kill: Bool) throws {
+        try NativeRuntimeComponentEnvironment.run(
+            "/bin/launchctl", ["kickstart"] + (kill ? ["-k"] : []) + ["system/" + IsolatedRuntimePolicy.authorityLabel],
+            timeout: 30)
+    }
+
+    public func checkpoint(_ name: String) throws { RuntimeGateHooks.killIfRequested(at: name) }
 
     public func runtimeIdle() throws -> Bool {
         guard FileManager.default.fileExists(atPath: RootRuntimeStorage.operation.path) else { return true }

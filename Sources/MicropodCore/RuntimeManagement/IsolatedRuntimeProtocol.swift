@@ -59,6 +59,9 @@ public struct IsolatedRuntimeStatus: Codable, Sendable {
     /// the root-owned authority (docs/runtime-component-update.md). Status
     /// replies only.
     public var componentProtection: String?
+    /// The Mach service the answering helper listens on: the authority's,
+    /// or the legacy SMAppService job's. Status replies only.
+    public var helperService: String?
     public var isTerminal: Bool {
         ["idle", "completed", "cancelled", "blocked", "failed", "recoveryRequired"].contains(phase)
     }
