@@ -1,0 +1,635 @@
+{
+  "source_repository": "zot24/macos-container-benchmarks",
+  "source_commit": "f67e6fc78dd9a2e61d7f9544b2afb41d6a4e20fc",
+  "hardware": "Apple M3, macOS 26.4.1, 16 GB",
+  "unit": "seconds",
+  "method": "Untrimmed wall-time medians from four source files per runtime, three trials per file. ttfb is curl time_starttransfer for the local port mapped to nginx.",
+  "files": [
+    {
+      "path": "results/tahoe/orbstack-run1.txt",
+      "git_blob": "abf934c196f195d945cca5c27247b2b387988ac0",
+      "engine": "orbstack",
+      "run": 1,
+      "samples_s": {
+        "start": [
+          0.372,
+          0.359,
+          0.366
+        ],
+        "write": [
+          0.607,
+          0.538,
+          0.5
+        ],
+        "read": [
+          0.456,
+          0.362,
+          0.415
+        ],
+        "small": [
+          0.592,
+          0.625,
+          0.603
+        ],
+        "ttfb": [
+          0.003535,
+          0.00158,
+          0.001805
+        ],
+        "build": [
+          4.869,
+          5.523,
+          4.754
+        ]
+      }
+    },
+    {
+      "path": "results/tahoe/orbstack-run2.txt",
+      "git_blob": "3084ac07f5b7b52fa74bdaecf19d210b63ad8b1c",
+      "engine": "orbstack",
+      "run": 2,
+      "samples_s": {
+        "start": [
+          0.379,
+          0.374,
+          0.372
+        ],
+        "write": [
+          0.54,
+          0.464,
+          0.462
+        ],
+        "read": [
+          0.468,
+          0.416,
+          0.37
+        ],
+        "small": [
+          0.628,
+          0.655,
+          0.619
+        ],
+        "ttfb": [
+          0.002958,
+          0.002407,
+          0.001699
+        ],
+        "build": [
+          4.82,
+          5.033,
+          4.751
+        ]
+      }
+    },
+    {
+      "path": "results/tahoe/orbstack-run3.txt",
+      "git_blob": "c7e7d14d73e333d0e6578fe7a6723c82f6c17ce5",
+      "engine": "orbstack",
+      "run": 3,
+      "samples_s": {
+        "start": [
+          0.387,
+          0.371,
+          0.379
+        ],
+        "write": [
+          0.527,
+          0.573,
+          0.475
+        ],
+        "read": [
+          0.457,
+          0.377,
+          0.385
+        ],
+        "small": [
+          0.589,
+          0.618,
+          0.642
+        ],
+        "ttfb": [
+          0.002419,
+          0.00178,
+          0.001637
+        ],
+        "build": [
+          5.427,
+          7.872,
+          4.676
+        ]
+      }
+    },
+    {
+      "path": "results/tahoe/orbstack-run4.txt",
+      "git_blob": "e9a5f42cb38de8a26990353ff7e25ffdf3e44dbc",
+      "engine": "orbstack",
+      "run": 4,
+      "samples_s": {
+        "start": [
+          0.353,
+          0.369,
+          0.372
+        ],
+        "write": [
+          0.525,
+          0.551,
+          1.093
+        ],
+        "read": [
+          0.468,
+          0.371,
+          0.375
+        ],
+        "small": [
+          0.613,
+          0.628,
+          0.625
+        ],
+        "ttfb": [
+          0.003064,
+          0.001582,
+          0.001727
+        ],
+        "build": [
+          4.655,
+          5.596,
+          5.429
+        ]
+      }
+    },
+    {
+      "path": "results/tahoe/docker-desktop-run1.txt",
+      "git_blob": "1fc1309a58f95ad86f7cd29f36cd6ad4f701b60d",
+      "engine": "docker-desktop",
+      "run": 1,
+      "samples_s": {
+        "start": [
+          0.385,
+          0.318,
+          0.314
+        ],
+        "write": [
+          0.51,
+          0.551,
+          0.465
+        ],
+        "read": [
+          0.398,
+          0.376,
+          0.418
+        ],
+        "small": [
+          0.747,
+          0.674,
+          0.713
+        ],
+        "ttfb": [
+          0.003784,
+          0.001766,
+          0.002124
+        ],
+        "build": [
+          4.58,
+          7.077,
+          4.405
+        ]
+      }
+    },
+    {
+      "path": "results/tahoe/docker-desktop-run2.txt",
+      "git_blob": "2b1c6ad5e4b0baa03007bfe89e21d545dee207f2",
+      "engine": "docker-desktop",
+      "run": 2,
+      "samples_s": {
+        "start": [
+          0.348,
+          0.324,
+          0.306
+        ],
+        "write": [
+          0.644,
+          0.562,
+          0.506
+        ],
+        "read": [
+          0.401,
+          0.404,
+          0.433
+        ],
+        "small": [
+          0.68,
+          0.675,
+          0.743
+        ],
+        "ttfb": [
+          0.003309,
+          0.002402,
+          0.001491
+        ],
+        "build": [
+          5.161,
+          4.36,
+          4.275
+        ]
+      }
+    },
+    {
+      "path": "results/tahoe/docker-desktop-run3.txt",
+      "git_blob": "b0497619655e0e808819a6abd8685c37ecb1980c",
+      "engine": "docker-desktop",
+      "run": 3,
+      "samples_s": {
+        "start": [
+          0.324,
+          0.345,
+          0.311
+        ],
+        "write": [
+          0.641,
+          0.562,
+          0.482
+        ],
+        "read": [
+          0.417,
+          0.48,
+          0.411
+        ],
+        "small": [
+          0.667,
+          0.762,
+          0.719
+        ],
+        "ttfb": [
+          0.003217,
+          0.002892,
+          0.002458
+        ],
+        "build": [
+          5.589,
+          4.412,
+          5.406
+        ]
+      }
+    },
+    {
+      "path": "results/tahoe/docker-desktop-run4.txt",
+      "git_blob": "7aecf28a06d4812c93c2c6e2c542065b9b1a3eba",
+      "engine": "docker-desktop",
+      "run": 4,
+      "samples_s": {
+        "start": [
+          0.341,
+          0.315,
+          0.321
+        ],
+        "write": [
+          0.701,
+          0.483,
+          0.472
+        ],
+        "read": [
+          0.404,
+          0.411,
+          0.41
+        ],
+        "small": [
+          0.687,
+          0.739,
+          0.729
+        ],
+        "ttfb": [
+          0.003457,
+          0.002645,
+          0.002731
+        ],
+        "build": [
+          4.883,
+          4.885,
+          4.721
+        ]
+      }
+    },
+    {
+      "path": "results/tahoe/colima-run1.txt",
+      "git_blob": "c1bf8d780aee27245c3737b54cea22331ff3a829",
+      "engine": "colima",
+      "run": 1,
+      "samples_s": {
+        "start": [
+          0.4,
+          0.253,
+          0.282
+        ],
+        "write": [
+          0.461,
+          0.427,
+          0.44
+        ],
+        "read": [
+          0.385,
+          0.373,
+          0.352
+        ],
+        "small": [
+          0.757,
+          0.774,
+          0.683
+        ],
+        "ttfb": [
+          0.002523,
+          0.001129,
+          0.000911
+        ],
+        "build": [
+          7.424,
+          6.149,
+          6.984
+        ]
+      }
+    },
+    {
+      "path": "results/tahoe/colima-run2.txt",
+      "git_blob": "26ae5842818ac3952216031956b538458703929a",
+      "engine": "colima",
+      "run": 2,
+      "samples_s": {
+        "start": [
+          0.275,
+          0.262,
+          0.275
+        ],
+        "write": [
+          0.488,
+          0.464,
+          0.459
+        ],
+        "read": [
+          0.358,
+          0.321,
+          0.327
+        ],
+        "small": [
+          0.767,
+          0.784,
+          0.814
+        ],
+        "ttfb": [
+          0.002835,
+          0.001068,
+          0.001034
+        ],
+        "build": [
+          6.837,
+          7.456,
+          8.029
+        ]
+      }
+    },
+    {
+      "path": "results/tahoe/colima-run3.txt",
+      "git_blob": "611514210b37992a03ebdc93343beb53996d229a",
+      "engine": "colima",
+      "run": 3,
+      "samples_s": {
+        "start": [
+          0.324,
+          0.286,
+          0.276
+        ],
+        "write": [
+          0.64,
+          0.492,
+          0.47
+        ],
+        "read": [
+          0.398,
+          0.324,
+          0.359
+        ],
+        "small": [
+          0.76,
+          0.792,
+          0.775
+        ],
+        "ttfb": [
+          0.001714,
+          0.001202,
+          0.001109
+        ],
+        "build": [
+          6.644,
+          6.862,
+          6.191
+        ]
+      }
+    },
+    {
+      "path": "results/tahoe/colima-run4.txt",
+      "git_blob": "f03124110d3edba6a0e8a2c789644c92685208f1",
+      "engine": "colima",
+      "run": 4,
+      "samples_s": {
+        "start": [
+          0.3,
+          0.274,
+          0.283
+        ],
+        "write": [
+          0.651,
+          0.434,
+          0.463
+        ],
+        "read": [
+          0.397,
+          0.338,
+          0.343
+        ],
+        "small": [
+          0.802,
+          0.697,
+          0.732
+        ],
+        "ttfb": [
+          0.002817,
+          0.001268,
+          0.001076
+        ],
+        "build": [
+          6.265,
+          6.753,
+          6.065
+        ]
+      }
+    },
+    {
+      "path": "results/tahoe/apple-container-run1.txt",
+      "git_blob": "0fb6a59df47ac4e93df09302b4d84e774d9d6668",
+      "engine": "apple-container",
+      "run": 1,
+      "samples_s": {
+        "start": [
+          0.836,
+          0.814,
+          0.794
+        ],
+        "write": [
+          1.125,
+          1.085,
+          1.081
+        ],
+        "read": [
+          0.942,
+          0.932,
+          0.942
+        ],
+        "small": [
+          1.204,
+          1.194,
+          1.201
+        ],
+        "ttfb": [
+          3.012242,
+          0.002678,
+          0.002578
+        ]
+      }
+    },
+    {
+      "path": "results/tahoe/apple-container-run2.txt",
+      "git_blob": "2741010dcf08671889a7706a1c7f20478fa5885a",
+      "engine": "apple-container",
+      "run": 2,
+      "samples_s": {
+        "start": [
+          1.03,
+          0.845,
+          0.895
+        ],
+        "write": [
+          1.105,
+          1.097,
+          1.107
+        ],
+        "read": [
+          1.011,
+          0.998,
+          1.073
+        ],
+        "small": [
+          1.223,
+          1.384,
+          1.25
+        ],
+        "ttfb": [
+          3.007606,
+          0.002121,
+          0.003478
+        ]
+      }
+    },
+    {
+      "path": "results/tahoe/apple-container-run3.txt",
+      "git_blob": "4258d499486d3cc593c116e1ba3e07ec344ea0a0",
+      "engine": "apple-container",
+      "run": 3,
+      "samples_s": {
+        "start": [
+          1.118,
+          0.854,
+          0.858
+        ],
+        "write": [
+          1.29,
+          1.139,
+          1.122
+        ],
+        "read": [
+          1.209,
+          0.995,
+          1.009
+        ],
+        "small": [
+          1.299,
+          1.28,
+          1.261
+        ],
+        "ttfb": [
+          0.008684,
+          0.002283,
+          0.002053
+        ]
+      }
+    },
+    {
+      "path": "results/tahoe/apple-container-run4.txt",
+      "git_blob": "22d241b61c7a81cb8251bd991f915ef1c8d306a5",
+      "engine": "apple-container",
+      "run": 4,
+      "samples_s": {
+        "start": [
+          1.114,
+          1.06,
+          1.001
+        ],
+        "write": [
+          1.155,
+          1.178,
+          1.115
+        ],
+        "read": [
+          1.041,
+          1.082,
+          1.092
+        ],
+        "small": [
+          1.274,
+          1.25,
+          1.265
+        ],
+        "ttfb": [
+          3.01153,
+          0.003003,
+          0.002297
+        ]
+      }
+    }
+  ],
+  "medians_s": {
+    "start": {
+      "orbstack": 0.372,
+      "docker-desktop": 0.3225,
+      "colima": 0.279,
+      "apple-container": 0.8765
+    },
+    "write": {
+      "orbstack": 0.5325,
+      "docker-desktop": 0.5305,
+      "colima": 0.4635,
+      "apple-container": 1.1185
+    },
+    "read": {
+      "orbstack": 0.4,
+      "docker-desktop": 0.4105,
+      "colima": 0.355,
+      "apple-container": 1.01
+    },
+    "small": {
+      "orbstack": 0.622,
+      "docker-desktop": 0.716,
+      "colima": 0.7705,
+      "apple-container": 1.2555
+    },
+    "ttfb": {
+      "orbstack": 0.0017925,
+      "docker-desktop": 0.002688,
+      "colima": 0.0011655,
+      "apple-container": 0.0028405
+    },
+    "build": {
+      "orbstack": 4.951,
+      "docker-desktop": 4.802,
+      "colima": 6.795,
+      "apple-container": null
+    }
+  }
+}
