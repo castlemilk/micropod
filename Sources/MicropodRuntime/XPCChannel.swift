@@ -226,6 +226,10 @@ public final class XPCConnection: Sendable {
         if isInvalidated {
             throw MicropodError.transport("\(service): connection invalidated")
         }
+        // A caller already gone sends nothing: the request would run in the
+        // runtime for nobody (its reply is dropped) and leave a receipt. The
+        // cancellation handler below cannot stop a send once it is armed.
+        try Task.checkCancellation()
         let route = message.string(key: XPCMessage.routeKey) ?? "unknown"
         let reads: Set<String> = [
             "ping", "containerList", "containerWait", "containerState", "containerLogs", "containerEvent",

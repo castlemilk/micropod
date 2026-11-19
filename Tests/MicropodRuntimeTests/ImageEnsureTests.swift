@@ -145,16 +145,15 @@ final class ImageEnsureTests: XCTestCase {
         try fence.releaseAfterVerification()
     }
 
-    /// A create that fails without an authoritative answer after image
-    /// resolution leaves its receipt, marked uncertain, for `runtime
-    /// operation` to show. Once the create has returned, its claim is
-    /// released and its in-process work (clone placement and cleanup) is
-    /// over, so maintenance retires that receipt (claim released). The
-    /// runtime call itself — `containerCreate` over XPC — keeps a receipt of
-    /// its own while unanswered or answered only by the transport, and that
-    /// one still blocks. (This service's XPC client uses the shared gate,
-    /// so it is not seen here.)
-    func testNativeFailureAfterImageResolutionLeavesAnUncertainCreateReceipt() async throws {
+    /// A create that fails after image resolution but before
+    /// `containerCreate` was sent settles its receipt as a definitive
+    /// failure: the runtime cannot hold a container it was never asked for.
+    /// Here the container service is unreachable, so the first runtime read
+    /// (the network list) fails `unavailable` — which used to leave an
+    /// uncertain `native.create` receipt, the kind Gamma-128's drain watcher
+    /// waited on for an hour. A create that did send `containerCreate`
+    /// still keeps an uncertain receipt when it gets no authoritative answer.
+    func testNativeFailureBeforeContainerCreateSettlesItsReceipt() async throws {
         let store = try ScriptedImageStore(root: root, storedArchitectures: ["amd64"])
         let gate = try enrolledCreateGate()
         let service = nativeService(images: ImagesServiceClient(transport: store.transport), gate: gate)
@@ -167,15 +166,35 @@ final class ImageEnsureTests: XCTestCase {
             XCTAssertEqual(ConnectCodeMapping.code(for: error), "unavailable")
         }
         let pending = gate.root.appendingPathComponent("pending")
-        let receipts = try FileManager.default.contentsOfDirectory(at: pending, includingPropertiesForKeys: nil)
-        XCTAssertEqual(receipts.count, 1, "an uncertain create keeps its receipt")
-        let receipt = try JSONDecoder().decode(
-            PendingRuntimeOperation.self, from: Data(contentsOf: try XCTUnwrap(receipts.first)))
-        XCTAssertEqual(receipt.route, "native.create")
-        XCTAssertEqual(receipt.container, "unknown-create")
-        XCTAssertEqual(receipt.outcome, .uncertain)
+        XCTAssertEqual(
+            try FileManager.default.contentsOfDirectory(atPath: pending.path), [],
+            "nothing was sent, so nothing is uncertain")
         try gate.begin(operation: UUID()).releaseAfterVerification()
+    }
+
+    /// A caller that gives up (the API cancels the handler when its client
+    /// hangs up or its Connect deadline passes) before the create is sent:
+    /// the create stops, sends nothing, and leaves no receipt.
+    func testCancelledCreateSendsNothingAndLeavesNoReceipt() async throws {
+        let store = try ScriptedImageStore(root: root, storedArchitectures: ["amd64"])
+        let gate = try enrolledCreateGate()
+        let service = nativeService(images: ImagesServiceClient(transport: store.transport), gate: gate)
+        let create = Task {
+            try await service.create(
+                ContainerRunRequest(image: "alpine:3.20", name: "abandoned", platform: "linux/amd64", noPull: true))
+        }
+        create.cancel()
+        do {
+            _ = try await create.value
+            XCTFail("a cancelled create must not succeed")
+        } catch {
+            XCTAssertTrue(
+                error is CancellationError || ConnectCodeMapping.code(for: error) == "canceled",
+                "stopped by the cancellation, not by the runtime: \(error)")
+        }
+        let pending = gate.root.appendingPathComponent("pending")
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: pending.path), [])
+        try gate.begin(operation: UUID()).releaseAfterVerification()
     }
 
     func testRejectedMountsDoNotBlockMaintenance() async throws {
