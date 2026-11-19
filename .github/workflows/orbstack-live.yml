@@ -15,10 +15,11 @@ on:
         type: choice
         default: '1.5.1'
         options: ['2.2.5', '1.5.1']
-      colima:
-        description: Rotate OrbStack and Colima container bursts on one host
-        type: boolean
-        default: true
+      profile:
+        description: Measured workflow
+        type: choice
+        options: [api, standalone, paired]
+        default: api
 
 permissions:
   contents: read
@@ -29,7 +30,7 @@ jobs:
     timeout-minutes: 30
     env:
       ORB_APP: /Applications/OrbStack.app
-      COMPARE_COLIMA: ${{ github.event_name == 'push' || inputs.colima }}
+      BENCH_PROFILE: ${{ inputs.profile || 'api' }}
       ORB_RELEASE: ${{ inputs.release || '1.5.1' }}
     steps:
       - uses: actions/checkout@v7
@@ -110,7 +111,7 @@ jobs:
           go-version: '1.26.1'
           cache: false
       - name: Start the Colima peer on the same Mac
-        if: env.COMPARE_COLIMA == 'true'
+        if: env.BENCH_PROFILE == 'paired'
         id: peer
         env:
           HOMEBREW_NO_AUTO_UPDATE: '1'
@@ -122,8 +123,13 @@ jobs:
           for context in orbstack colima; do
             docker --context "$context" info --format '{{.OperatingSystem}}|{{.Name}}|{{.KernelVersion}}|{{.Architecture}}|{{.ServerVersion}}|{{.NCPU}}|{{.MemTotal}}'
           done
+      - name: Measure Engine API lifecycle and compatibility
+        if: steps.orbready.outcome == 'success' && env.BENCH_PROFILE == 'api'
+        timeout-minutes: 15
+        run: python3 scripts/qualification/orbstack_api.py --clients 1 4 8 --rounds 3 --json "$RUNNER_TEMP/orb-api.json"
       - name: Build, run and scale validated containers
-        if: always() && steps.orbready.outcome == 'success'
+        if: always() && steps.orbready.outcome == 'success' && env.BENCH_PROFILE != 'api'
+        timeout-minutes: 18
         env:
           TMPDIR: ${{ runner.temp }}
           PEER_READY: ${{ steps.peer.outcome }}
@@ -135,7 +141,7 @@ jobs:
           python3 scripts/qualification/engine.py --context orbstack "${peer[@]}" --clients 1 4 8 16 --rounds 5 \
             --json "$RUNNER_TEMP/orb-engine.json"
       - name: Compare bind and volume reads of the same SharedFS view
-        if: always() && steps.orbready.outcome == 'success' && env.COMPARE_COLIMA != 'true'
+        if: always() && steps.orbready.outcome == 'success' && env.BENCH_PROFILE == 'standalone'
         env:
           TMPDIR: ${{ runner.temp }}
         run: python3 scripts/qualification/orbstack_files.py --json "$RUNNER_TEMP/orb-files.json"
@@ -147,6 +153,9 @@ jobs:
           for file in sorted(pathlib.Path(os.environ["RUNNER_TEMP"]).glob("orb-*.json")):
               result = json.loads(file.read_text())
               print("LANE", result.get("lane", file.name))
+              if result.get("lane") == "orbstack-engine-api":
+                  print("API_META", json.dumps({k: result.get(k) for k in ["server", "kernel", "guest_arch", "cpu",
+                                                                          "memory", "sha256", "rootfs_sha256"]}))
               for r in result.get("samples", []):
                   if r["case"] == "engine-identity":
                       print("SERVER", r.get("engine"), r.get("version", {}).get("Server", {}).get("Version"))
@@ -174,4 +183,5 @@ jobs:
             ${{ runner.temp }}/orb-start.json
             ${{ runner.temp }}/orb-engine.json
             ${{ runner.temp }}/orb-files.json
+            ${{ runner.temp }}/orb-api.json
           if-no-files-found: warn
