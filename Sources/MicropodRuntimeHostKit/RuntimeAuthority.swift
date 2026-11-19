@@ -144,6 +144,23 @@ public enum RuntimeAuthority {
         return .ok
     }
 
+    /// `runtime-inspect`'s word for the legacy job's state.
+    public static func legacyJobState(_ job: LegacyJob?) -> RuntimeHelperAttestation.LegacyJob {
+        guard let job else { return .unknown }
+        if job.loaded { return .loaded }
+        return job.disabled ? .retired : .enabled
+    }
+
+    /// The installed authority plist is protected and exactly this build's
+    /// definition (which carries the SpawnConstraint).
+    public static func installedPlistIsDefinition(plist: URL = IsolatedRuntimePolicy.authorityPlist) -> Bool {
+        guard unprotectedReason(plist) == nil,
+            let bytes = try? RuntimeNonblockingFile.read(plist, limit: 65536),
+            let loaded = try? PropertyListSerialization.propertyList(from: bytes, format: nil) as? [String: Any]
+        else { return false }
+        return (try? digest(loaded)) == definitionSHA256
+    }
+
     /// The legacy SMAppService job (`com.skunkworq.micropod.runtime.host`).
     public struct LegacyJob: Equatable, Sendable {
         public let loaded: Bool
@@ -541,14 +558,7 @@ public struct NativeRuntimeAuthorityInstallHost: RuntimeAuthorityInstallHost {
         }
     }
 
-    public func authorityPlistInstalled() -> Bool {
-        let plist = IsolatedRuntimePolicy.authorityPlist
-        guard RuntimeAuthority.unprotectedReason(plist) == nil,
-            let bytes = try? RuntimeNonblockingFile.read(plist, limit: 65536),
-            let loaded = try? PropertyListSerialization.propertyList(from: bytes, format: nil) as? [String: Any]
-        else { return false }
-        return (try? RuntimeAuthority.digest(loaded)) == RuntimeAuthority.definitionSHA256
-    }
+    public func authorityPlistInstalled() -> Bool { RuntimeAuthority.installedPlistIsDefinition() }
 
     public func writeAuthorityPlist() throws {
         let plist = IsolatedRuntimePolicy.authorityPlist

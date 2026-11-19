@@ -105,6 +105,9 @@ public protocol RuntimeComponentEnvironment: Sendable {
     func protection() -> RuntimeAuthority.Protection
     /// Records the last check where the version manifest reads it.
     func publishProtection(_ protection: RuntimeAuthority.Protection)
+    /// How this helper is installed, checked now (`runtime-inspect`'s
+    /// attestation).
+    func installFacts() -> RuntimeInstallFacts
     /// The authority definition the running helper expects.
     var authorityDefinitionSHA256: String { get }
     func inspect(_ bundle: URL) throws -> RuntimeComponentBundle
@@ -130,8 +133,35 @@ extension RuntimeComponentEnvironment {
     public var authorityDefinitionSHA256: String { RuntimeAuthority.definitionSHA256 }
     public func checkpoint(_ name: String) throws {}
     public func publishProtection(_ protection: RuntimeAuthority.Protection) {}
+    public func installFacts() -> RuntimeInstallFacts {
+        let protection = protection()
+        return .init(
+            protection: protection, authority: protection.protected, spawnConstraint: protection.protected,
+            installSealed: isSealed(installedBundle), legacyJob: .unknown)
+    }
     public func now() -> Date { Date() }
     public var publicKey: String { MicropodReleaseSigning.publicKey }
+}
+
+/// What `runtime-inspect` attests about the answering helper's install,
+/// from checks made for that reply.
+public struct RuntimeInstallFacts: Sendable, Equatable {
+    public var protection: RuntimeAuthority.Protection
+    /// It runs as the root-owned authority program (and serves its service).
+    public var authority: Bool
+    public var spawnConstraint: Bool
+    public var installSealed: Bool
+    public var legacyJob: RuntimeHelperAttestation.LegacyJob
+    public init(
+        protection: RuntimeAuthority.Protection, authority: Bool, spawnConstraint: Bool, installSealed: Bool,
+        legacyJob: RuntimeHelperAttestation.LegacyJob
+    ) {
+        self.protection = protection
+        self.authority = authority
+        self.spawnConstraint = spawnConstraint
+        self.installSealed = installSealed
+        self.legacyJob = legacyJob
+    }
 }
 
 /// `component-update.json`. The update journals here, never in
@@ -895,6 +925,19 @@ public struct NativeRuntimeComponentEnvironment: RuntimeComponentEnvironment {
         RuntimeAuthority.protection(
             executable: executable, launchctlPrint: { RuntimeAuthority.launchctlPrint() },
             legacy: { RuntimeAuthority.legacyJob() })
+    }
+
+    public func installFacts() -> RuntimeInstallFacts {
+        let protection = protection()
+        let authority = executable.path == IsolatedRuntimePolicy.authorityProgram.path
+        // The bundle this helper runs from: …/X.app/Contents/MacOS/helper.
+        let bundle = executable.deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+        return .init(
+            protection: protection, authority: authority,
+            spawnConstraint: authority && RuntimeAuthority.installedPlistIsDefinition(),
+            installSealed: NativeRuntimeAuthorityInstallHost.sealedIgnoringImmutable(bundle),
+            legacyJob: RuntimeAuthority.legacyJobState(RuntimeAuthority.legacyJob()))
     }
 
     /// Only the authority publishes: a helper the legacy job started must

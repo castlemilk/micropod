@@ -67,6 +67,15 @@ final class RuntimeAuthorityTests: XCTestCase {
         XCTAssertFalse(protection(layout, legacy: nil).protected, "unreadable state fails closed")
     }
 
+    // runtime-inspect's legacyJob: loaded beats disabled; unreadable is unknown.
+    func testTheAttestedLegacyJobStateFollowsLaunchd() {
+        XCTAssertEqual(RuntimeAuthority.legacyJobState(nil), .unknown)
+        XCTAssertEqual(RuntimeAuthority.legacyJobState(.init(loaded: true, disabled: true)), .loaded)
+        XCTAssertEqual(RuntimeAuthority.legacyJobState(.init(loaded: true, disabled: false)), .loaded)
+        XCTAssertEqual(RuntimeAuthority.legacyJobState(.init(loaded: false, disabled: false)), .enabled)
+        XCTAssertEqual(RuntimeAuthority.legacyJobState(.init(loaded: false, disabled: true)), .retired)
+    }
+
     func testTheLegacyJobStateIsReadFromLaunchctl() throws {
         let label = IsolatedRuntimePolicy.serviceName
         let printed = "system/\(label) = {\n\tpath = /Applications/x.plist\n\tstate = running\n\tpid = 41\n}\n"

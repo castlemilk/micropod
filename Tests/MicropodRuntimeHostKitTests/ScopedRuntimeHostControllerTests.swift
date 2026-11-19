@@ -778,6 +778,67 @@ extension ScopedRuntimeHostControllerTests {
         return try await relaunchInstalled(rig)
     }
 
+    // runtime-inspect carries the install attestation only when asked; it
+    // describes an authority install, reports the legacy path as
+    // unprotected with its reason, and is checked for every reply.
+    func testRuntimeInspectAttestsTheInstallWhenAskedAndNeverFromACache() async throws {
+        let rig = try await componentRig()
+        let controller = rig.make(nil)
+        let proofs = rig.driver.proofs
+        let ask = RuntimeCoordinationCall(action: "runtime-inspect", purpose: RuntimeHelperAttestation.purpose)
+
+        let plain = try await controller.coordinateRuntime(
+            .init(action: "runtime-inspect"), identity: proofs.identity, peer: proofs.peer)
+        XCTAssertNil(plain.attestation)
+        let plainJSON = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(plain)) as? [String: Any])
+        XCTAssertNil(plainJSON["attestation"], "absent, not null, for a strict decoder")
+
+        let authorityReply = try await controller.coordinateRuntime(ask, identity: proofs.identity, peer: proofs.peer)
+        let authority = try XCTUnwrap(authorityReply.attestation)
+        XCTAssertEqual(authority.helperIdentifier, IsolatedRuntimePolicy.helperIdentifier)
+        XCTAssertEqual(authority.helperVersion, rig.environment.runningVersion)
+        XCTAssertEqual(authority.componentProtocol, RuntimeComponentManifest.protocolVersion)
+        XCTAssertEqual(authority.helperService, IsolatedRuntimePolicy.authorityServiceName)
+        XCTAssertEqual(authority.componentProtection, "protected")
+        XCTAssertEqual(authority.authorityDefinitionSHA256, RuntimeAuthority.definitionSHA256)
+        XCTAssertTrue(authority.spawnConstraint)
+        XCTAssertTrue(authority.installSealed)
+        XCTAssertEqual(authority.legacyJob, .retired)
+        XCTAssertNotNil(authority.nativeState)
+        let first = try XCTUnwrap(ISO8601DateFormatter.fractional.date(from: authority.checkedAt))
+        XCTAssertLessThan(abs(first.timeIntervalSinceNow), 60)
+
+        // The legacy path: checked again for this reply, never a cached answer.
+        let reason =
+            "the helper runs from /Applications/Micropod Runtime Setup.app, not the root-only authority program"
+        rig.environment.setInstallFacts(
+            .init(
+                protection: .unprotected(reason), authority: false, spawnConstraint: false, installSealed: false,
+                legacyJob: .loaded))
+        try await Task.sleep(for: .milliseconds(5))
+        let legacyReply = try await controller.coordinateRuntime(ask, identity: proofs.identity, peer: proofs.peer)
+        let legacy = try XCTUnwrap(legacyReply.attestation)
+        XCTAssertEqual(legacy.componentProtection, "unprotected: " + reason)
+        XCTAssertEqual(legacy.helperService, IsolatedRuntimePolicy.serviceName)
+        XCTAssertFalse(legacy.spawnConstraint)
+        XCTAssertFalse(legacy.installSealed)
+        XCTAssertEqual(legacy.legacyJob, .loaded)
+        let second = try XCTUnwrap(ISO8601DateFormatter.fractional.date(from: legacy.checkedAt))
+        XCTAssertGreaterThan(second, first)
+        // Status follows the newest check.
+        let status = try await controller.submit(.init(action: .status), ownerUID: getuid())
+        XCTAssertEqual(status.componentProtection, "unprotected: " + reason)
+
+        for purpose in ["session", "attestations", ""] {
+            do {
+                _ = try await controller.coordinateRuntime(
+                    .init(action: "runtime-inspect", purpose: purpose), identity: proofs.identity, peer: proofs.peer)
+                XCTFail("purpose \(purpose) was accepted")
+            } catch {}
+        }
+    }
+
     // One update: the helper swap takes no fence and drains nothing; the new
     // helper then restarts the runtime through the ordinary signed handoff.
     func testComponentUpdateSwapsTheHelperThenRestartsTheRuntimeUnderTheDrain() async throws {
@@ -1080,5 +1141,14 @@ extension ScopedRuntimeHostControllerTests {
         XCTAssertEqual(settled.phase, "cancelled", settled.error ?? "")
         XCTAssertEqual(settled.componentUpdate?.phase, "helperUpdated")
         XCTAssertFalse(RuntimeAdmission(root: rig.root.appendingPathComponent("admission")).isClosed)
+    }
+}
+
+extension ISO8601DateFormatter {
+    /// RFC 3339 with fractional seconds, as the attestation's `checkedAt`.
+    static var fractional: ISO8601DateFormatter {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
     }
 }

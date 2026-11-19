@@ -854,12 +854,18 @@ public actor IsolatedRuntimeHostController {
         else { throw MicropodError.message("The dedicated runtime coordinator identity is unconfirmed") }
         try verifyCoordinatorAccount(identity)
         if call.action == "runtime-inspect" {
-            guard call.purpose == nil, call.proof == nil, call.challenge == nil else {
+            guard call.purpose == nil || call.purpose == RuntimeHelperAttestation.purpose, call.proof == nil,
+                call.challenge == nil
+            else {
                 throw MicropodError.message("The runtime inspection request is invalid")
             }
             // Public identity facts only: no nonce, session, registration,
             // admission transition or lifecycle permission is issued here.
-            return .init(identity: identity, peer: peer)
+            // The install attestation is added only when asked for, so a
+            // coordinator that decodes replies strictly is unaffected.
+            return .init(
+                identity: identity, peer: peer,
+                attestation: call.purpose == nil ? nil : helperAttestation())
         }
         if call.action == "runtime-recovery-challenge" || call.action == "runtime-reconcile-peer" {
             guard call.purpose == nil, task == nil, probe == nil, !workerRunning, !gate.isClosed,
@@ -1142,6 +1148,26 @@ public actor IsolatedRuntimeHostController {
     public func recordProtection(_ protection: RuntimeAuthority.Protection) {
         guard components != nil else { return }
         self.protection = protection.protected ? "protected" : "unprotected: " + (protection.reason ?? "unknown")
+    }
+
+    /// `runtime-inspect`'s attestation, checked for this reply (and recorded
+    /// as status's protection, so the two never disagree for long).
+    func helperAttestation(now: Date = Date()) -> RuntimeHelperAttestation {
+        let facts = components?.environment.installFacts()
+        let protection = facts?.protection ?? .unprotected("this helper cannot update its own components")
+        if let facts { recordProtection(facts.protection) }
+        let described = protection.protected ? "protected" : "unprotected: " + (protection.reason ?? "unknown")
+        return RuntimeHelperAttestation(
+            helperIdentifier: IsolatedRuntimePolicy.helperIdentifier,
+            helperVersion: components?.environment.runningVersion ?? "",
+            componentProtocol: components == nil ? 0 : RuntimeComponentManifest.protocolVersion,
+            helperService: facts?.authority == true
+                ? IsolatedRuntimePolicy.authorityServiceName : IsolatedRuntimePolicy.serviceName,
+            componentProtection: Self.describeProtection(described, gateFaultArmed: RuntimeGateHooks.faultArmed())
+                ?? described,
+            authorityDefinitionSHA256: RuntimeAuthority.definitionSHA256,
+            spawnConstraint: facts?.spawnConstraint ?? false, installSealed: facts?.installSealed ?? false,
+            nativeState: state.nativeState, legacyJob: facts?.legacyJob ?? .unknown, checkedAt: now)
     }
 
     /// `componentProtection` as status reports it: an armed release-gate
