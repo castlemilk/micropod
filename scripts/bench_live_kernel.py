@@ -52,12 +52,17 @@ def rpc(endpoint, method, payload, service="ContainerService"):
         conn = http.client.HTTPConnection(url.hostname, url.port or 80, timeout=600)
     else:
         raise ValueError("Use an explicit local Micropod Connect HTTP or Unix endpoint")
+    headers = {"Content-Type": "application/json", "Connect-Protocol-Version": "1"}
+    authorization = os.environ.get("MICROPOD_BENCH_AUTHORIZATION")
+    if authorization:
+        require("\r" not in authorization and "\n" not in authorization, "Invalid Micropod authorization header")
+        headers["Authorization"] = authorization
     try:
-        conn.request("POST", f"/micropod.v1.{service}/{method}", json.dumps(payload),
-                     {"Content-Type": "application/json", "Connect-Protocol-Version": "1"})
+        conn.request("POST", f"/micropod.v1.{service}/{method}", json.dumps(payload), headers)
         response = conn.getresponse()
         body = response.read()
-        require(response.status == 200, f"Micropod {method} returned HTTP {response.status}: {body[:250]!r}")
+        if response.status != 200:
+            raise ValueError(f"Micropod {method} returned HTTP {response.status}")
         return json.loads(body)
     finally:
         conn.close()

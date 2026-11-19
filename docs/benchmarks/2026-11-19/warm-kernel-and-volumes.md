@@ -12,13 +12,15 @@ Median batch wall time in seconds. Five blocks per client level and 145 attempte
 | GitHub Ubuntu x86-64, Docker 28.0.4 | 0.131 | 0.231 | 0.458 | 0.900 | 145/145 |
 | OrbStack 1.5.1, hosted Intel macOS, Docker 25.0.5 | 6.810 | 19.406 | 36.772 | 65.049 | 143/145 |
 
-The Ubuntu runners used four vCPUs and the Azure Linux kernel. The ARM64 control completed 26.72 jobs/s at 16 clients and the x86-64 control completed 17.78 jobs/s. The OrbStack daemon reported four vCPUs and 4.47 GiB. Its client ran on a hosted Intel Mac with nested virtualization. Its 16-client throughput was 0.246 jobs/s. Image architecture, host virtualization, kernel, daemon versions, memory and client paths differ across these environments. The numbers do not isolate a product overhead or predict Gamma's performance.
+Both original Ubuntu runners used four vCPUs and an Azure Linux kernel. The ARM64 control completed 26.72 jobs/s at 16 clients and the x86-64 control completed 17.78 jobs/s. The OrbStack daemon reported four vCPUs and 4.47 GiB. Its client ran on a hosted Intel Mac with nested virtualization. Its 16-client throughput was 0.246 jobs/s. Image architecture, host virtualization, kernel, daemon versions, memory and client paths differ across these environments. The numbers do not isolate a product overhead or predict Gamma's performance.
 
-Two OrbStack attempts failed the exit/stream check in the first four-client block. Four complete four-client blocks contribute to that median. The first receipt preserves both failures. A separate three-block run includes detailed failure diagnostics and independently verifies the engine. [OrbStack primary](https://github.com/castlemilk/micropod/actions/runs/44514975826/job/135528514782) · [Independent OrbStack run](https://github.com/castlemilk/micropod/actions/runs/44517057176) · [ARM64 job](https://github.com/castlemilk/micropod/actions/runs/44513262129/job/135522615276) · [x86-64 job](https://github.com/castlemilk/micropod/actions/runs/44514975826/job/135528515091).
+Two fresh, four-vCPU Ubuntu runners repeated all 145 attempts on each architecture with zero failures. Replicated ARM64 medians were 0.127, 0.201, 0.340 and 0.590 s. Replicated x86-64 medians were 0.083, 0.132, 0.243 and 0.483 s. That x86-64 allocation reported an AWS kernel, while both ARM64 runs reported Azure kernels. A hosted runner label can span different machines. [Linux replication jobs](https://github.com/castlemilk/micropod/actions/runs/44518987247) · [ARM64 raw](live-kernel-arm64-repeat.json) · [x86-64 raw](live-kernel-amd64-repeat.json).
+
+Two OrbStack attempts failed the exit/stream check in the first four-client block. Four complete four-client blocks contribute to that median. The first receipt preserves both failures. An independent three-block run passed 83 of 87 container executions. Three failed during the OCI initialization hook with Docker exit 125. A fourth timed out during cleanup and the final check found benchmark containers remaining. That run has a failed qualification and its receipt is retained. [OrbStack primary](https://github.com/castlemilk/micropod/actions/runs/44514975826/job/135528514782) · [Independent OrbStack run](https://github.com/castlemilk/micropod/actions/runs/44517057176) · [ARM64 job](https://github.com/castlemilk/micropod/actions/runs/44513262129/job/135522615276) · [x86-64 job](https://github.com/castlemilk/micropod/actions/runs/44514975826/job/135528515091).
 
 OrbStack 2.2.5 build 21124 was also checksum- and code-signature-verified on the hosted Intel Mac. At startup OrbStack rejected the hypervisor's CPU model (family 6, model 58). It emitted no container timings. The physical Apple Silicon mode uses the installed OrbStack release. [2.2.5 startup log](https://github.com/castlemilk/micropod/actions/runs/44518109438/job/135539319835).
 
-[Raw ARM64 JSON](live-kernel-arm64.json) · [Raw x86-64 JSON](live-kernel-amd64.json) · [Raw OrbStack JSON](live-kernel-orbstack-intel.json).
+[Raw ARM64 JSON](live-kernel-arm64.json) · [Raw x86-64 JSON](live-kernel-amd64.json) · [Raw OrbStack JSON](live-kernel-orbstack-intel.json) · [Raw OrbStack replication](live-kernel-orbstack-replication.json).
 
 ## Cache sharing on the physical Gamma Mac
 
@@ -46,7 +48,9 @@ Four alternating blocks ran 64 verified 4 KiB file create, rename, read and dele
 | 8 | 0.173 | 0.227 |
 | 16 | 0.409 | 0.358 |
 
-Spotlight already reported indexing disabled on the control volume. The development volume reported indexing and searching disabled. This setup verifies the volume policy and file operations but cannot establish a speedup from turning indexing off. [APFS job](https://github.com/castlemilk/micropod/actions/runs/44514662054/job/135527418983) · [APFS samples and checks](development-volume-macos.json) · [Provisioning, cold unlock and restore qualification](https://github.com/castlemilk/micropod/actions/runs/44518355340).
+Spotlight already reported indexing disabled on the control volume. The development volume reported indexing and searching disabled. This setup verifies the volume policy and file operations but cannot establish a speedup from turning indexing off. [APFS job](https://github.com/castlemilk/micropod/actions/runs/44514662054/job/135527418983) · [APFS samples and checks](development-volume-macos.json) · [Provisioning, cold unlock and restore qualification](https://github.com/castlemilk/micropod/actions/runs/44518987247).
+
+A second production CLI run used encryption throughout. It passed all 21 checks, including encrypted provisioning, interactive remount, explicit cold lock and unlock, and restore. With the compiled CLI cache hit, the real end-to-end step took 50 seconds and the entire job took 70 seconds. This workflow is manually dispatched. [Encrypted run](https://github.com/castlemilk/micropod/actions/runs/44518987247/job/135542379607) · [Raw encrypted receipt](development-volume-encrypted-macos.json).
 
 ## Physical Micropod and OrbStack comparison
 

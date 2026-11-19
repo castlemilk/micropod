@@ -12,13 +12,11 @@ on:
         type: choice
         options: ['1.5.1', '2.2.5']
         default: '1.5.1'
-  push:
-    branches: [feat/dev-volume-and-live-kernel-bench]
 permissions:
   contents: read
 jobs:
   apfs:
-    if: github.event_name == 'push' || inputs.suite == 'storage' || inputs.suite == 'all'
+    if: inputs.suite == 'storage' || inputs.suite == 'all'
     runs-on: macos-26
     timeout-minutes: 20
     steps:
@@ -62,7 +60,7 @@ jobs:
           path: ${{ runner.temp }}/volume.json
 
   warm-linux:
-    if: github.event_name == 'push' || inputs.suite == 'linux' || inputs.suite == 'all'
+    if: inputs.suite == 'linux' || inputs.suite == 'all'
     strategy:
       fail-fast: false
       matrix:
