@@ -66,7 +66,7 @@ All 18 measured scans passed. The host reported 516, 4,100 and 68 per-file APFS 
 
 ## Same-host comparison and incomplete attempts
 
-Colima 0.10.3 using Apple Virtualization.framework reached SSH on the first allocation, then Lima failed to report a running VM. That setup step took 13 min 50 s. A second attempt with QEMU on the filesystem runner reached its 12-minute setup budget without publishing a verified Docker endpoint or a paired batch. Neither attempt yielded a same-host OrbStack–Colima timing. [VZ attempt](https://github.com/castlemilk/micropod/actions/runs/44475818424) · [QEMU attempt](https://github.com/castlemilk/micropod/actions/runs/44478828113)
+Colima 0.10.3 using Apple Virtualization.framework reached SSH on the first allocation, then Lima failed to report a running VM. That setup step took 13 min 50 s. GitHub marked the second allocation cancelled after 55 min. Colima QEMU setup was its last active step, past the configured 12-minute step budget. The paired workload never started. The previously uploaded OrbStack filesystem receipt survived. Neither attempt produced a same-host OrbStack–Colima timing. [VZ attempt](https://github.com/castlemilk/micropod/actions/runs/44475818424) · [QEMU attempt](https://github.com/castlemilk/micropod/actions/runs/44478828113)
 
 A separate seven-block OrbStack run exceeded its 30-minute job limit during the CLI workload. GitHub marked it cancelled and uploaded no sample artifact. The timing distributions above use the independent five-block CLI run and three-block API run. [Timed-out run](https://github.com/castlemilk/micropod/actions/runs/44475267828)
 
@@ -82,7 +82,9 @@ The following medians were recalculated from all 12 timings per case in a separa
 | Read 256 MiB | 0.4 | 0.4105 | 0.355 | 1.01 |
 | Build Dockerfile without solver cache | 4.951 | 4.802 | 6.795 | unmeasured |
 
-[Original raw samples](https://github.com/zot24/macos-container-benchmarks/tree/f67e6fc78dd9a2e61d7f9544b2afb41d6a4e20fc/results/tahoe) · [Upstream methodology](https://github.com/zot24/macos-container-benchmarks/blob/f67e6fc78dd9a2e61d7f9544b2afb41d6a4e20fc/README.md)
+For a localhost request to nginx on a published port, median time to first byte was 1.79 ms on OrbStack, 2.69 ms on Docker Desktop, 1.17 ms on Colima and 2.84 ms on Apple Container. All 12 timings per runtime were included.
+
+[Selected source values, blob IDs and medians](apple-m3-published-samples.json) · [Original raw samples](https://github.com/zot24/macos-container-benchmarks/tree/f67e6fc78dd9a2e61d7f9544b2afb41d6a4e20fc/results/tahoe) · [Upstream methodology](https://github.com/zot24/macos-container-benchmarks/blob/f67e6fc78dd9a2e61d7f9544b2afb41d6a4e20fc/README.md)
 
 ## Version and comparison limits
 
@@ -94,7 +96,7 @@ The Micropod repository listed no self-hosted runners, the local Apple Silicon M
 
 ## Running these workloads
 
-The full CLI qualification took 4 min 17 s, the direct API checks took 2 min 1 s, and the filesystem comparison took 3 min 11 s. These are measured workflow step durations. Installation and VM startup are additional. The final workflow only runs when dispatched. Its API, CLI and storage profiles each have a 15-minute job limit. The optional paired-engine profile has a 20-minute job limit. Pull requests add zero OrbStack benchmark jobs.
+The full CLI qualification took 4 min 17 s, the direct API checks took 2 min 1 s, and the filesystem comparison took 3 min 11 s. These are measured workflow step durations. Installation and VM startup are additional. The final workflow only runs when dispatched. Its API, CLI and storage profiles each have a 15-minute job limit. The optional paired-engine profile has a 20-minute job limit. Pull requests add zero OrbStack benchmark jobs. The scripts are usable from the evidence branch. GitHub exposes manual dispatch once the workflow file is present on the default branch. [GitHub Actions documentation](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)
 
 Run these commands from this revision on a Mac with a running `orbstack` Docker context, Go, Xcode command-line tools, Docker Buildx and Compose.
 
@@ -105,4 +107,4 @@ python3 scripts/qualification/orbstack_api.py --clients 1 4 8 --rounds 3 --json 
 python3 scripts/qualification/orbstack_files.py --rounds 3 --json "$output/files.json"
 ```
 
-The CLI and API compile a native Linux executable locally. The filesystem lane pulls its digest-pinned BusyBox verifier once before measurement. The workloads exercise the features listed above. Kubernetes, Linux VM lifecycle, multi-platform builds and formal OCI conformance have no result in these runs.
+The CLI and API compile a native Linux executable locally. The filesystem lane pulls its digest-pinned BusyBox verifier once before measurement. The workloads exercise the features listed above. Kubernetes, Linux VM lifecycle, multi-platform builds and formal OCI conformance have no result in these runs. The remaining Docker API and matched product benchmark requirements are tracked in [#147](https://github.com/castlemilk/micropod/issues/147) and [#182](https://github.com/castlemilk/micropod/issues/182).
