@@ -1,0 +1,35 @@
+name: Qualify development volume
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/dev-volume-and-live-kernel-bench]
+permissions:
+  contents: read
+jobs:
+  apfs:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build the volume command for a disposable disk
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/Driver.swift" <<'SWIFT'
+          import Foundation
+          @main struct Driver {
+              static func main() {
+                  let args = Array(CommandLine.arguments.dropFirst())
+                  guard args.starts(with: ["storage", "dev-volume"]) else { exit(2) }
+                  do { try DevVolumeCommands.run(Array(args.dropFirst(2)).filter { $0 != "--json" }, json: args.contains("--json")) }
+                  catch { FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8)); exit(1) }
+              }
+          }
+          SWIFT
+          swiftc -O -swift-version 6 -parse-as-library Sources/MicropodCLI/DevVolume*.swift "$RUNNER_TEMP/Driver.swift" -o "$RUNNER_TEMP/dev-volume"
+      - name: Migrate and remount a disposable APFS volume
+        run: python3 scripts/qualify_dev_volume.py --binary "$RUNNER_TEMP/dev-volume" --json "$RUNNER_TEMP/volume.json"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: development-volume
+          path: ${{ runner.temp }}/volume.json

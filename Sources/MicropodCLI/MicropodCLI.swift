@@ -216,6 +216,7 @@ struct MicropodCLI {
           system start|stop|logs             daemon control + log access
           update [status|check|apply|cli]    keep the app and this CLI current
           storage [show|volumes|set <dir>]  where runtime data lives; move it to another volume
+          storage dev-volume                create and manage a development APFS volume
           metrics [id] [--range 1h] [--machine]  recorded resource history (peak/avg/now + sparkline)
           status / version                   runtime + version info
 
