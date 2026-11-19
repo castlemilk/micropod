@@ -104,7 +104,7 @@ tasks:
     desc: Run micropod-guest's Go tests on a Linux kernel — inside a micropod sandbox
     cmds:
       - task: cli
-      - .build/debug/micropod sandbox run -v "$PWD/guest:/src" -w /src -e GOFLAGS=-buildvcs=false -e GOTOOLCHAIN=local golang:1.27.4 -- sh -c 'go vet ./... && go test -count=1 ./...'
+      - .build/debug/micropod sandbox run -v "$PWD/guest:/src" -w /src -e GOFLAGS=-buildvcs=false -e GOTOOLCHAIN=local golang:"$(cat .go-version)" -- sh -c 'go vet ./... && go test -count=1 ./...'
 
   mcp-live:
     desc: The MCP server against this machine's real runtime, API daemon, app updater and metrics (MCP=~/.local/bin/micropod-mcp for the installed one)

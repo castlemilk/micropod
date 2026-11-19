@@ -18,7 +18,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.27.4'
+          go-version-file: .go-version
           cache-dependency-path: sdk/go/go.sum
       - name: Verify generated SDKs
         run: scripts/gen-sdk.sh --check
@@ -45,7 +45,7 @@ jobs:
         run: swift format lint --strict --recursive Sources Tests Package.swift
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.27.4'
+          go-version-file: .go-version
       # The sandbox guest helper is linux-only: vet and cross-build it here
       # (its tests need a Linux kernel — they run in a sandbox locally).
       - name: Guest helper (linux/arm64)
