@@ -764,7 +764,7 @@
               "docker-shim"
             ],
             "title": "name",
-            "description": "\"app\", \"connect-api\", \"dedicated-api\", \"setup-helper\", \"docker-shim\",\n \"shared-fs\", \"apple-runtime\", \"vminit\", \"guest\" or \"kernel\"."
+            "description": "\"app\", \"connect-api\", \"dedicated-api\", \"setup-helper\",\n \"runtime-authority\", \"docker-shim\", \"shared-fs\", \"apple-runtime\",\n \"vminit\", \"guest\" or \"kernel\"."
           },
           "version": {
             "type": "string",
