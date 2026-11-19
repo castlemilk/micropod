@@ -192,16 +192,29 @@ final class RigUpgradeEngineTests: XCTestCase {
     }
 
     func testHeartbeatContinuesAfterAnUnreachableCoordinator() async throws {
-        let fixture = try RigFixture(drain: FakeDrain(drainAfter: nil, waiting: .unavailable))
+        let drain = FakeDrain(drainAfter: nil, waiting: .unavailable)
+        let fixture = try RigFixture(drain: drain)
         fixture.heartbeat = .milliseconds(5)
-        fixture.app.stopDelay.update { $0 = .milliseconds(150) }
+        fixture.app.beforeStopCompletes.update { hook in
+            hook = {
+                // The initial drain polling has finished once stop begins. Keep the
+                // app stop suspended until two further calls return unavailable.
+                let callsAtStop = drain.drains.get()
+                let clock = ContinuousClock()
+                let deadline = clock.now.advanced(by: .seconds(3))
+                while drain.drains.get() < callsAtStop + 2 {
+                    guard clock.now < deadline else {
+                        throw MicropodError.message("drain heartbeat did not repeat while the app was stopping")
+                    }
+                    try await Task.sleep(for: .milliseconds(5))
+                }
+            }
+        }
         var options = fixture.options
         options.forceUndrained = true
         try await fixture.engine.prepare(fixture.staged, options: options)
         let journal = try await fixture.engine.run()
         try fixture.assertUpgraded(journal)
-        // Polls in draining: one per 2 s of the 10 s grace; the rest are heartbeats.
-        XCTAssertGreaterThan(fixture.drain.drains.get(), 10)
         XCTAssertEqual(fixture.drain.specs.get(), [journal.drainSpec], "every call names the pinned drain")
     }
 

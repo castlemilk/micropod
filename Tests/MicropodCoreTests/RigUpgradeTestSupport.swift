@@ -86,11 +86,18 @@ final class FakeApp: RigAppControlling, @unchecked Sendable {
     let failStops = Locked(0)
     /// Runs as the app goes, before it is reported stopped (a Sparkle install on quit).
     let onStop = Locked<(@Sendable () -> Void)?>(nil)
+    /// One-shot suspension point before a fake stop can complete.
+    let beforeStopCompletes = Locked<(@Sendable () async throws -> Void)?>(nil)
     /// Real time each stop takes.
     let stopDelay = Locked<Duration>(.zero)
     func isRunning(_ app: URL) async -> Bool { running.get() != nil }
     func stop(_ app: URL, timeout: Duration) async throws {
         calls.update { $0.append("stop") }
+        let beforeCompletion = beforeStopCompletes.update { hook in
+            defer { hook = nil }
+            return hook
+        }
+        try await beforeCompletion?()
         let delay = stopDelay.get()
         if delay > .zero { try await Task.sleep(for: delay) }
         let fail = failStops.update { value -> Bool in
