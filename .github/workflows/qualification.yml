@@ -1,0 +1,59 @@
+name: Engine qualification
+on:
+  pull_request:
+    paths:
+      - .github/workflows/qualification.yml
+      - scripts/qualification/engine.py
+      - scripts/qualification/guest.go
+      - scripts/qualification/receipt.py
+  workflow_dispatch:
+    inputs:
+      scale:
+        description: Run repeated engine bursts and the larger macOS storage matrix
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qualification-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-reference:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate Buildx, Docker, Compose and native runc
+        env:
+          SCALE: ${{ github.event_name == 'workflow_dispatch' && inputs.scale }}
+        run: |
+          rounds=1
+          if [[ "$SCALE" == true ]]; then rounds=5; fi
+          python3 scripts/qualification/engine.py --context default --oci \
+            --clients 1 4 8 --rounds "$rounds" --json "$RUNNER_TEMP/engine.json"
+      - name: Publish first-attempt receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-engine-receipt
+          path: ${{ runner.temp }}/engine.json
+          if-no-files-found: error
+
+  storage-scale:
+    if: github.event_name == 'workflow_dispatch' && inputs.scale
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compare APFS clones, copy fallback, rsync and chunk encodings
+        run: python3 scripts/qualification/storage.py --json "$RUNNER_TEMP/storage.json"
+      - name: Publish first-attempt receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-storage-receipt
+          path: ${{ runner.temp }}/storage.json
+          if-no-files-found: error

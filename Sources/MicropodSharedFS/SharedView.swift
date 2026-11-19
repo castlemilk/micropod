@@ -10,12 +10,14 @@ public final class SharedView: @unchecked Sendable {
     public let id: ViewID
     public let source: URL
     public let root: URL
+    public let readonly: Bool
     public let createdAt: Date
 
-    public init(id: ViewID, source: URL, root: URL, createdAt: Date = Date()) {
+    public init(id: ViewID, source: URL, root: URL, createdAt: Date = Date(), readonly: Bool = false) {
         self.id = id
         self.source = source
         self.root = root
+        self.readonly = readonly
         self.createdAt = createdAt
     }
 
