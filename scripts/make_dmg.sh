@@ -72,6 +72,9 @@ if [ -n "$IDENTITY" ]; then
         done
         codesign --force --options runtime --timestamp --sign "$IDENTITY" "$FW"
     fi
+    # The setup app's signature is final now: pin it in the signed runtime
+    # component manifest before the outer seal covers the manifest.
+    bash "$ROOT/scripts/write_runtime_components.sh" "$APP"
     codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
     codesign --verify --deep --strict --verbose=2 "$APP"
 fi

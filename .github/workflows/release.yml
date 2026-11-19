@@ -216,10 +216,24 @@ jobs:
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          SPARKLE_ED25519_KEY: ${{ secrets.SPARKLE_ED25519_KEY }}
         run: |
           if [ -n "$APPLE_SIGNING_IDENTITY" ] && [ -n "$MACOS_CERTIFICATE" ]; then
-            bash scripts/make_dmg.sh --sign "$APPLE_SIGNING_IDENTITY" \
+            # make_dmg.sh signs the runtime component manifest with the release
+            # key (scripts/write_runtime_components.sh): rigs self-update only
+            # from a manifest that key signed.
+            sparkle=$(jq -er '.pins[] | select(.identity == "sparkle") | .state.version' Package.resolved)
+            curl -fsSL -o /tmp/sparkle-components.tar.xz \
+              "https://github.com/sparkle-project/Sparkle/releases/download/$sparkle/Sparkle-$sparkle.tar.xz"
+            mkdir -p /tmp/sparkle-components && tar -xf /tmp/sparkle-components.tar.xz -C /tmp/sparkle-components
+            echo "$SPARKLE_ED25519_KEY" | base64 -d > "$RUNNER_TEMP/components-ed.key"
+            trap 'rm -f "$RUNNER_TEMP/components-ed.key"' EXIT
+            SPARKLE_SIGN_UPDATE=/tmp/sparkle-components/bin/sign_update \
+              SPARKLE_ED_KEY_FILE="$RUNNER_TEMP/components-ed.key" \
+              bash scripts/make_dmg.sh --sign "$APPLE_SIGNING_IDENTITY" \
               --notarize --key-profile micropod-notary
+            rm -f "$RUNNER_TEMP/components-ed.key"
+            test -s dist/Micropod.app/Contents/Resources/runtime-components.json.sig
             echo "DMG_ASSET=Micropod.dmg" >> "$GITHUB_ENV"
           else
             # Name it differently so an unsigned CI build can never clobber a
