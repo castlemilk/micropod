@@ -17,48 +17,106 @@ final class SharedViewBuildTests: XCTestCase {
     func testFilteredCloneAndCopyPreserveMetadataAndUseOnePathPerFile() throws {
         for forceCopy in [false, true] {
             let (_, source, view) = try fixture()
-            try Data("ignored\n".utf8).write(to: source.appendingPathComponent(".syncignore"))
-            let ignored = source.appendingPathComponent("ignored")
-            try FileManager.default.createDirectory(at: ignored, withIntermediateDirectories: false)
-            try Data("excluded".utf8).write(to: ignored.appendingPathComponent("nested"))
-            let command = source.appendingPathComponent("command")
-            let bytes = Data("#!/bin/sh\nexit 0\n".utf8)
-            try bytes.write(to: command)
-            let attribute = "com.micropod.test"
-            let mtime = Date(timeIntervalSince1970: 1_600_000_001)
-            XCTAssertEqual(setxattr(command.path, attribute, "value", 5, 0, 0), 0)
-            try FileManager.default.setAttributes(
-                [.posixPermissions: 0o751, .modificationDate: mtime], ofItemAtPath: command.path)
-            try FileManager.default.createSymbolicLink(
-                atPath: source.appendingPathComponent("link").path, withDestinationPath: "command")
-            let calls = Mutex((attempts: 0, copies: 0))
-            let files = SharedFileOperations(
-                clone: { src, dst in
-                    calls.withLock { $0.attempts += 1 }
-                    return !forceCopy && SharedFileOperations.native.clone(src, dst)
-                },
-                copy: { src, dst in
-                    calls.withLock { $0.copies += 1 }
-                    try SharedFileOperations.native.copy(src, dst)
-                })
-            try SharedView.build(source: source, root: view, files: files)
-            let counts = calls.withLock { $0 }
-            XCTAssertEqual(counts.attempts, 3)
-            XCTAssertEqual(counts.copies, forceCopy ? 3 : 0)
-            let output = view.appendingPathComponent("command")
-            XCTAssertEqual(try Data(contentsOf: output), bytes)
-            let attrs = try FileManager.default.attributesOfItem(atPath: output.path)
-            XCTAssertEqual(attrs[.posixPermissions] as? Int, 0o751)
-            XCTAssertEqual(attrs[.modificationDate] as? Date, mtime)
-            var xattr = [UInt8](repeating: 0, count: 5)
-            XCTAssertEqual(getxattr(output.path, attribute, &xattr, xattr.count, 0, 0), 5)
-            XCTAssertEqual(String(decoding: xattr, as: UTF8.self), "value")
-            XCTAssertEqual(
-                try FileManager.default.destinationOfSymbolicLink(atPath: view.appendingPathComponent("link").path),
-                "command")
-            XCTAssertFalse(FileManager.default.fileExists(atPath: view.appendingPathComponent("ignored").path))
-            try Data("modified".utf8).write(to: output)
-            XCTAssertEqual(try Data(contentsOf: command), bytes)
+            try verifyFilteredView(source: source, view: view, forceCopy: forceCopy, expectedCopies: forceCopy ? 3 : 0)
+        }
+    }
+
+    private func verifyFilteredView(source: URL, view: URL, forceCopy: Bool, expectedCopies: Int) throws {
+        try Data("ignored\n".utf8).write(to: source.appendingPathComponent(".syncignore"))
+        let ignored = source.appendingPathComponent("ignored")
+        try FileManager.default.createDirectory(at: ignored, withIntermediateDirectories: false)
+        try Data("excluded".utf8).write(to: ignored.appendingPathComponent("nested"))
+        let command = source.appendingPathComponent("command")
+        let bytes = Data("#!/bin/sh\nexit 0\n".utf8)
+        try bytes.write(to: command)
+        let attribute = "com.micropod.test"
+        let mtime = Date(timeIntervalSince1970: 1_600_000_001)
+        XCTAssertEqual(setxattr(command.path, attribute, "value", 5, 0, 0), 0)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o751, .modificationDate: mtime], ofItemAtPath: command.path)
+        try FileManager.default.createSymbolicLink(
+            atPath: source.appendingPathComponent("link").path, withDestinationPath: "command")
+        let calls = Mutex((attempts: 0, copies: 0))
+        let files = SharedFileOperations(
+            clone: { src, dst in
+                calls.withLock { $0.attempts += 1 }
+                return !forceCopy && SharedFileOperations.native.clone(src, dst)
+            },
+            copy: { src, dst in
+                calls.withLock { $0.copies += 1 }
+                try SharedFileOperations.native.copy(src, dst)
+            })
+        try SharedView.build(source: source, root: view, files: files)
+        let counts = calls.withLock { $0 }
+        XCTAssertEqual(counts.attempts, 3)
+        XCTAssertEqual(counts.copies, expectedCopies)
+        let output = view.appendingPathComponent("command")
+        XCTAssertEqual(try Data(contentsOf: output), bytes)
+        let attrs = try FileManager.default.attributesOfItem(atPath: output.path)
+        XCTAssertEqual(attrs[.posixPermissions] as? Int, 0o751)
+        XCTAssertEqual(attrs[.modificationDate] as? Date, mtime)
+        var xattr = [UInt8](repeating: 0, count: 5)
+        XCTAssertEqual(getxattr(output.path, attribute, &xattr, xattr.count, 0, 0), 5)
+        XCTAssertEqual(String(decoding: xattr, as: UTF8.self), "value")
+        XCTAssertEqual(
+            try FileManager.default.destinationOfSymbolicLink(atPath: view.appendingPathComponent("link").path),
+            "command")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: view.appendingPathComponent("ignored").path))
+        try Data("modified".utf8).write(to: output)
+        XCTAssertEqual(try Data(contentsOf: command), bytes)
+    }
+
+    func testNativeHFSPlusVolumePreservesFilteredViewMetadata() throws {
+        let env = ProcessInfo.processInfo.environment
+        try XCTSkipUnless(
+            env["GITHUB_ACTIONS"] == "true" || env["MICROPOD_TEST_DISK_IMAGES"] == "1",
+            "Enable MICROPOD_TEST_DISK_IMAGES=1 to exercise a disposable HFS+ volume on a native Mac.")
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent("micropod-volume-" + UUID().uuidString)
+        try fm.createDirectory(at: root, withIntermediateDirectories: false)
+        var attached = false
+        defer { if !attached { try? fm.removeItem(at: root) } }
+        let image = root.appendingPathComponent("fixture.dmg")
+        let mount = root.appendingPathComponent("mounted")
+        try fm.createDirectory(at: mount, withIntermediateDirectories: false)
+        try diskImage(["create", "-size", "32m", "-fs", "HFS+", "-volname", "MicropodFixture", image.path])
+        try diskImage(["attach", image.path, "-mountpoint", mount.path, "-nobrowse", "-noautoopen", "-owners", "on"])
+        attached = true
+        defer {
+            do {
+                try diskImage(["detach", mount.path])
+                attached = false
+            } catch { XCTFail("Could not detach the test image at \(mount.path): \(error)") }
+        }
+        var info = statfs()
+        guard statfs(mount.path, &info) == 0 else { throw POSIXError(.EIO) }
+        let filesystem = withUnsafeBytes(of: info.f_fstypename) {
+            String(decoding: $0.prefix(while: { $0 != 0 }), as: UTF8.self)
+        }
+        XCTAssertEqual(filesystem, "hfs")
+        for (src, dst) in [
+            (root.appendingPathComponent("local-source"), mount.appendingPathComponent("from-apfs")),
+            (mount.appendingPathComponent("external-source"), root.appendingPathComponent("from-hfs")),
+            (mount.appendingPathComponent("hfs-source"), mount.appendingPathComponent("hfs-view")),
+        ] {
+            try fm.createDirectory(at: src, withIntermediateDirectories: false)
+            try verifyFilteredView(source: src, view: dst, forceCopy: false, expectedCopies: 3)
+        }
+    }
+
+    private func diskImage(_ arguments: [String]) throws {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+        task.arguments = arguments
+        let output = Pipe()
+        task.standardOutput = output
+        task.standardError = output
+        try task.run()
+        let data = try output.fileHandleForReading.readToEnd() ?? Data()
+        task.waitUntilExit()
+        if task.terminationStatus != 0 {
+            throw SharedFSError.invalidResponse(
+                "hdiutil \(arguments[0]) failed. \(String(decoding: data, as: UTF8.self))")
         }
     }
 
