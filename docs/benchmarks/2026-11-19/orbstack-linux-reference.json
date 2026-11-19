@@ -1,0 +1,900 @@
+{
+  "run_id": 44483464854,
+  "job_id": 135421064684,
+  "source_commit": "977e315a9ff308a8b424fbcd44843f6796c6d300",
+  "step_seconds": 28,
+  "job_seconds": 44,
+  "artifact": {
+    "id": 14509820469,
+    "sha256": "sha256:8aecee20952d82a274fdf53e0886e12239a3e67188979737352c094d623750a7",
+    "url": "https://github.com/castlemilk/micropod/actions/runs/44483464854/artifacts/14509820469"
+  },
+  "host": {
+    "kernel": "7.0.0-1017-azure",
+    "logical_cpus": 4,
+    "memory_bytes": 16760344576
+  },
+  "metadata": {
+    "cache_state": "warm engine, locally imported rootfs",
+    "checkout": "977e315a9ff308a8b424fbcd44843f6796c6d300",
+    "go": "go version go1.26.1 linux/amd64",
+    "guest_arch": "amd64",
+    "guest_sha256": "a3225dbeb9c3e4b4d4bea692ee3f734ea6fc84c065f8a9b66e7f3ac41030d3c0",
+    "guest_source_sha256": "26a78cd65801853694eea09e583d13302b984954057f9b19e91e217a9e767a84",
+    "host_arch": "x86_64",
+    "host_os": "Linux",
+    "host_release": "7.0.0-1017-azure",
+    "image_config_sha256": "737d7a31b5a3e02968c239cd0132c938a8f95c5514d94744793643daeddcfd5d",
+    "lane": "engine-workflows",
+    "podman": {
+      "cgroup": "v2",
+      "oci_runtime": "crun",
+      "version": "podman version 4.9.3"
+    },
+    "rootfs_tar_sha256": "8654a38502136d8e54d2e7bfc50549ee52b365d32a2a09f525265b17ec00c53d",
+    "schema": 1,
+    "selector": "default",
+    "started_at": "2026-11-19T07:56:32.336397+00:00"
+  },
+  "samples": [
+    {
+      "case": "engine-identity",
+      "engine": {
+        "arch": "x86_64",
+        "cpus": 4,
+        "kernel": "7.0.0-1017-azure",
+        "memory": 16760344576,
+        "os": "Ubuntu 24.04.5 LTS",
+        "storage": "overlay2"
+      },
+      "load_start": [
+        0.2841796875,
+        0.0654296875,
+        0.021484375
+      ],
+      "outcome": "pass",
+      "validated_ms": 232.059,
+      "version": {
+        "Client": {
+          "ApiVersion": "1.48",
+          "Arch": "amd64",
+          "BuildTime": "Tue Mar 25 15:07:16 2025",
+          "Context": "default",
+          "DefaultAPIVersion": "1.48",
+          "GitCommit": "b8034c0",
+          "GoVersion": "go1.23.7",
+          "Os": "linux",
+          "Platform": {
+            "Name": "Docker Engine - Community"
+          },
+          "Version": "28.0.4"
+        },
+        "Server": {
+          "ApiVersion": "1.48",
+          "Arch": "amd64",
+          "BuildTime": "2025-03-25T15:07:16.000000000+00:00",
+          "Components": [
+            {
+              "Details": {
+                "ApiVersion": "1.48",
+                "Arch": "amd64",
+                "BuildTime": "Tue Mar 25 15:07:16 2025",
+                "Experimental": "false",
+                "GitCommit": "6430e49",
+                "GoVersion": "go1.23.7",
+                "KernelVersion": "7.0.0-1017-azure",
+                "MinAPIVersion": "1.24",
+                "Os": "linux"
+              },
+              "Name": "Engine",
+              "Version": "28.0.4"
+            },
+            {
+              "Details": {
+                "GitCommit": "b7a25261e029d68978bbf290df0a62fc819b3c51"
+              },
+              "Name": "containerd",
+              "Version": "v2.4.2"
+            },
+            {
+              "Details": {
+                "GitCommit": "v1.5.2-0-g29dd3dc2"
+              },
+              "Name": "runc",
+              "Version": "1.5.2"
+            },
+            {
+              "Details": {
+                "GitCommit": "de40ad0"
+              },
+              "Name": "docker-init",
+              "Version": "0.19.0"
+            }
+          ],
+          "GitCommit": "6430e49",
+          "GoVersion": "go1.23.7",
+          "KernelVersion": "7.0.0-1017-azure",
+          "MinAPIVersion": "1.24",
+          "Os": "linux",
+          "Platform": {
+            "Name": "Docker Engine - Community"
+          },
+          "Version": "28.0.4"
+        }
+      }
+    },
+    {
+      "arch": "amd64",
+      "case": "guest-compile",
+      "load_start": [
+        0.2841796875,
+        0.0654296875,
+        0.021484375
+      ],
+      "outcome": "pass",
+      "sha256": "a3225dbeb9c3e4b4d4bea692ee3f734ea6fc84c065f8a9b66e7f3ac41030d3c0",
+      "validated_ms": 3792.57
+    },
+    {
+      "case": "image-load-inspect",
+      "image_id": "sha256:737d7a31b5a3e02968c239cd0132c938a8f95c5514d94744793643daeddcfd5d",
+      "load_start": [
+        1.142578125,
+        0.2470703125,
+        0.08056640625
+      ],
+      "outcome": "pass",
+      "validated_ms": 119.487
+    },
+    {
+      "case": "podman-load",
+      "load_start": [
+        1.142578125,
+        0.2470703125,
+        0.08056640625
+      ],
+      "outcome": "pass",
+      "validated_ms": 5259.599
+    },
+    {
+      "block": 0,
+      "case": "run-to-known-exit",
+      "clients": 1,
+      "known_exits": 1,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 218.282,
+      "warmup": true
+    },
+    {
+      "block": 0,
+      "case": "run-to-known-exit",
+      "clients": 1,
+      "known_exits": 1,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 141.697,
+      "warmup": true
+    },
+    {
+      "block": 1,
+      "case": "run-to-known-exit",
+      "clients": 1,
+      "known_exits": 1,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 105.079,
+      "warmup": false
+    },
+    {
+      "block": 1,
+      "case": "run-to-known-exit",
+      "clients": 1,
+      "known_exits": 1,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 128.765,
+      "warmup": false
+    },
+    {
+      "block": 2,
+      "case": "run-to-known-exit",
+      "clients": 1,
+      "known_exits": 1,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 120.341,
+      "warmup": false
+    },
+    {
+      "block": 2,
+      "case": "run-to-known-exit",
+      "clients": 1,
+      "known_exits": 1,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 98.566,
+      "warmup": false
+    },
+    {
+      "block": 3,
+      "case": "run-to-known-exit",
+      "clients": 1,
+      "known_exits": 1,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 104.243,
+      "warmup": false
+    },
+    {
+      "block": 3,
+      "case": "run-to-known-exit",
+      "clients": 1,
+      "known_exits": 1,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 139.346,
+      "warmup": false
+    },
+    {
+      "block": 4,
+      "case": "run-to-known-exit",
+      "clients": 1,
+      "known_exits": 1,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 115.496,
+      "warmup": false
+    },
+    {
+      "block": 4,
+      "case": "run-to-known-exit",
+      "clients": 1,
+      "known_exits": 1,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 99.169,
+      "warmup": false
+    },
+    {
+      "block": 5,
+      "case": "run-to-known-exit",
+      "clients": 1,
+      "known_exits": 1,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 104.068,
+      "warmup": false
+    },
+    {
+      "block": 5,
+      "case": "run-to-known-exit",
+      "clients": 1,
+      "known_exits": 1,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 123.907,
+      "warmup": false
+    },
+    {
+      "block": 0,
+      "case": "run-to-known-exit",
+      "clients": 4,
+      "known_exits": 4,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 182.664,
+      "warmup": true
+    },
+    {
+      "block": 0,
+      "case": "run-to-known-exit",
+      "clients": 4,
+      "known_exits": 4,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 183.268,
+      "warmup": true
+    },
+    {
+      "block": 1,
+      "case": "run-to-known-exit",
+      "clients": 4,
+      "known_exits": 4,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 200.164,
+      "warmup": false
+    },
+    {
+      "block": 1,
+      "case": "run-to-known-exit",
+      "clients": 4,
+      "known_exits": 4,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 225.554,
+      "warmup": false
+    },
+    {
+      "block": 2,
+      "case": "run-to-known-exit",
+      "clients": 4,
+      "known_exits": 4,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 179.621,
+      "warmup": false
+    },
+    {
+      "block": 2,
+      "case": "run-to-known-exit",
+      "clients": 4,
+      "known_exits": 4,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 215.041,
+      "warmup": false
+    },
+    {
+      "block": 3,
+      "case": "run-to-known-exit",
+      "clients": 4,
+      "known_exits": 4,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 207.637,
+      "warmup": false
+    },
+    {
+      "block": 3,
+      "case": "run-to-known-exit",
+      "clients": 4,
+      "known_exits": 4,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 213.027,
+      "warmup": false
+    },
+    {
+      "block": 4,
+      "case": "run-to-known-exit",
+      "clients": 4,
+      "known_exits": 4,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 168.08,
+      "warmup": false
+    },
+    {
+      "block": 4,
+      "case": "run-to-known-exit",
+      "clients": 4,
+      "known_exits": 4,
+      "load_start": [
+        1.21142578125,
+        0.2763671875,
+        0.09130859375
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 217.854,
+      "warmup": false
+    },
+    {
+      "block": 5,
+      "case": "run-to-known-exit",
+      "clients": 4,
+      "known_exits": 4,
+      "load_start": [
+        1.1943359375,
+        0.28857421875,
+        0.09619140625
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 188.418,
+      "warmup": false
+    },
+    {
+      "block": 5,
+      "case": "run-to-known-exit",
+      "clients": 4,
+      "known_exits": 4,
+      "load_start": [
+        1.1943359375,
+        0.28857421875,
+        0.09619140625
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 242.275,
+      "warmup": false
+    },
+    {
+      "block": 0,
+      "case": "run-to-known-exit",
+      "clients": 8,
+      "known_exits": 8,
+      "load_start": [
+        1.1943359375,
+        0.28857421875,
+        0.09619140625
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 348.535,
+      "warmup": true
+    },
+    {
+      "block": 0,
+      "case": "run-to-known-exit",
+      "clients": 8,
+      "known_exits": 8,
+      "load_start": [
+        1.1943359375,
+        0.28857421875,
+        0.09619140625
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 404.396,
+      "warmup": true
+    },
+    {
+      "block": 1,
+      "case": "run-to-known-exit",
+      "clients": 8,
+      "known_exits": 8,
+      "load_start": [
+        1.1943359375,
+        0.28857421875,
+        0.09619140625
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 402.732,
+      "warmup": false
+    },
+    {
+      "block": 1,
+      "case": "run-to-known-exit",
+      "clients": 8,
+      "known_exits": 8,
+      "load_start": [
+        1.1943359375,
+        0.28857421875,
+        0.09619140625
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 374.432,
+      "warmup": false
+    },
+    {
+      "block": 2,
+      "case": "run-to-known-exit",
+      "clients": 8,
+      "known_exits": 8,
+      "load_start": [
+        1.1943359375,
+        0.28857421875,
+        0.09619140625
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 318.143,
+      "warmup": false
+    },
+    {
+      "block": 2,
+      "case": "run-to-known-exit",
+      "clients": 8,
+      "known_exits": 8,
+      "load_start": [
+        1.1943359375,
+        0.28857421875,
+        0.09619140625
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 400.608,
+      "warmup": false
+    },
+    {
+      "block": 3,
+      "case": "run-to-known-exit",
+      "clients": 8,
+      "known_exits": 8,
+      "load_start": [
+        1.1943359375,
+        0.28857421875,
+        0.09619140625
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 366.064,
+      "warmup": false
+    },
+    {
+      "block": 3,
+      "case": "run-to-known-exit",
+      "clients": 8,
+      "known_exits": 8,
+      "load_start": [
+        1.1943359375,
+        0.28857421875,
+        0.09619140625
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 402.591,
+      "warmup": false
+    },
+    {
+      "block": 4,
+      "case": "run-to-known-exit",
+      "clients": 8,
+      "known_exits": 8,
+      "load_start": [
+        1.1943359375,
+        0.28857421875,
+        0.09619140625
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 318.436,
+      "warmup": false
+    },
+    {
+      "block": 4,
+      "case": "run-to-known-exit",
+      "clients": 8,
+      "known_exits": 8,
+      "load_start": [
+        1.1943359375,
+        0.28857421875,
+        0.09619140625
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 449.803,
+      "warmup": false
+    },
+    {
+      "block": 5,
+      "case": "run-to-known-exit",
+      "clients": 8,
+      "known_exits": 8,
+      "load_start": [
+        1.1943359375,
+        0.28857421875,
+        0.09619140625
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 380.416,
+      "warmup": false
+    },
+    {
+      "block": 5,
+      "case": "run-to-known-exit",
+      "clients": 8,
+      "known_exits": 8,
+      "load_start": [
+        1.1943359375,
+        0.28857421875,
+        0.09619140625
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 390.059,
+      "warmup": false
+    },
+    {
+      "block": 0,
+      "case": "run-to-known-exit",
+      "clients": 16,
+      "known_exits": 16,
+      "load_start": [
+        1.57958984375,
+        0.3837890625,
+        0.1279296875
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 647.998,
+      "warmup": true
+    },
+    {
+      "block": 0,
+      "case": "run-to-known-exit",
+      "clients": 16,
+      "known_exits": 16,
+      "load_start": [
+        1.57958984375,
+        0.3837890625,
+        0.1279296875
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 1344.021,
+      "warmup": true
+    },
+    {
+      "block": 1,
+      "case": "run-to-known-exit",
+      "clients": 16,
+      "known_exits": 16,
+      "load_start": [
+        1.57958984375,
+        0.3837890625,
+        0.1279296875
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 947.741,
+      "warmup": false
+    },
+    {
+      "block": 1,
+      "case": "run-to-known-exit",
+      "clients": 16,
+      "known_exits": 16,
+      "load_start": [
+        1.57958984375,
+        0.3837890625,
+        0.1279296875
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 659.835,
+      "warmup": false
+    },
+    {
+      "block": 2,
+      "case": "run-to-known-exit",
+      "clients": 16,
+      "known_exits": 16,
+      "load_start": [
+        1.57958984375,
+        0.3837890625,
+        0.1279296875
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 603.766,
+      "warmup": false
+    },
+    {
+      "block": 2,
+      "case": "run-to-known-exit",
+      "clients": 16,
+      "known_exits": 16,
+      "load_start": [
+        1.57958984375,
+        0.3837890625,
+        0.1279296875
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 1015.256,
+      "warmup": false
+    },
+    {
+      "block": 3,
+      "case": "run-to-known-exit",
+      "clients": 16,
+      "known_exits": 16,
+      "load_start": [
+        1.61328125,
+        0.41064453125,
+        0.13818359375
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 1043.823,
+      "warmup": false
+    },
+    {
+      "block": 3,
+      "case": "run-to-known-exit",
+      "clients": 16,
+      "known_exits": 16,
+      "load_start": [
+        1.61328125,
+        0.41064453125,
+        0.13818359375
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 692.009,
+      "warmup": false
+    },
+    {
+      "block": 4,
+      "case": "run-to-known-exit",
+      "clients": 16,
+      "known_exits": 16,
+      "load_start": [
+        1.61328125,
+        0.41064453125,
+        0.13818359375
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 651.596,
+      "warmup": false
+    },
+    {
+      "block": 4,
+      "case": "run-to-known-exit",
+      "clients": 16,
+      "known_exits": 16,
+      "load_start": [
+        1.61328125,
+        0.41064453125,
+        0.13818359375
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 1189.478,
+      "warmup": false
+    },
+    {
+      "block": 5,
+      "case": "run-to-known-exit",
+      "clients": 16,
+      "known_exits": 16,
+      "load_start": [
+        1.61328125,
+        0.41064453125,
+        0.13818359375
+      ],
+      "outcome": "pass",
+      "solution": "podman",
+      "validated_ms": 986.93,
+      "warmup": false
+    },
+    {
+      "block": 5,
+      "case": "run-to-known-exit",
+      "clients": 16,
+      "known_exits": 16,
+      "load_start": [
+        1.61328125,
+        0.41064453125,
+        0.13818359375
+      ],
+      "outcome": "pass",
+      "solution": "docker",
+      "validated_ms": 724.613,
+      "warmup": false
+    },
+    {
+      "case": "cleanup-podman-image",
+      "load_start": [
+        2.92578125,
+        0.703125,
+        0.234375
+      ],
+      "outcome": "pass",
+      "validated_ms": 29.467
+    },
+    {
+      "case": "cleanup-image-rm",
+      "load_start": [
+        2.92578125,
+        0.703125,
+        0.234375
+      ],
+      "outcome": "pass",
+      "validated_ms": 15.931
+    }
+  ]
+}
