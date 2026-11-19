@@ -36,6 +36,12 @@ For a cache bind, the Docker shim consumes a view ID and filesystem path. Previo
 
 [Raw bind measurements](cache-binds-gamma-arm64.json). For a fresh run, compile `scripts/bench_cache_bind.swift` with the production shared-filesystem sources and pass the executable to `scripts/bench_package_caches.py --bind-binary`. The default transport is the production Unix socket. The direct transport can measure the daemon in isolation.
 
+### Unix socket and encrypted volume
+
+On a hosted ARM64 Mac the same three binds went through the production Unix socket and daemon. In the latest three-block run the median 16-client batch fell from 121.7 ms to 16.4 ms. An earlier three-block run measured 160.9 ms and 21.4 ms respectively. This includes socket transport. The allocation is separate from physical Gamma. [Latest socket receipt](cache-binds-socket-macos-arm64.json) · [Earlier independent run](https://github.com/castlemilk/micropod/actions/runs/44528469440/job/135575199209).
+
+The production CLI passed 32 integration checks in 46 seconds on a disposable encrypted APFS volume, including adding caches to a volume that already held projects, remounting, restoring and building offline from another project's lockfile and Go module. The real socket, optimized driver compilation and fixture seeding took another 27 seconds. The full filesystem metadata sweep remains available in the manual `storage-scale` suite. [Volume receipt](development-volume-package-caches-macos.json) · [Qualified job](https://github.com/castlemilk/micropod/actions/runs/44530126713/job/135580899694).
+
 ## Raw warm Ubuntu target
 
 The GitHub-hosted Ubuntu ARM64 runners had four vCPUs, Docker 28.0.4, a live kernel and an already-pulled native Alpine image. Each timed command was a full `docker run --rm` with one CPU, 256 MiB and networking disabled. The guest checked its kernel boot ID, emitted distinct stdout and stderr tokens and exited 23. Separate overlapping containers verified PID and mount isolation and the cgroup limits. The measurements exclude VM startup, image pulls and builds.

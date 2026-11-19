@@ -5,8 +5,12 @@ on:
       suite:
         description: Qualification to run
         type: choice
-        options: [storage, linux, packages, orbstack, all]
+        options: [storage, storage-scale, apple-rig, linux, packages, orbstack, all]
         default: storage
+      apple_runner:
+        description: Registered Apple Silicon runner label for the apple-rig suite
+        type: string
+        default: micropod-benchmark
       orbstack_release:
         description: OrbStack installer for the hosted Intel Mac
         type: choice
@@ -16,7 +20,7 @@ permissions:
   contents: read
 jobs:
   apfs:
-    if: inputs.suite == 'storage' || inputs.suite == 'all'
+    if: inputs.suite == 'storage' || inputs.suite == 'storage-scale' || inputs.suite == 'all'
     runs-on: macos-26
     timeout-minutes: 20
     steps:
@@ -64,7 +68,9 @@ jobs:
           python3 scripts/bench_package_caches.py --rounds 3 --bind-binary "$RUNNER_TEMP/bind-bench" --transport unix --parent /tmp --json "$RUNNER_TEMP/binds.json"
           jq -c . "$RUNNER_TEMP/binds.json" | sed 's/^/CACHE_BIND_RECEIPT /'
       - name: Migrate and remount a disposable APFS volume
-        run: python3 scripts/qualify_dev_volume.py --binary .qualification-bin/micropod --json "$RUNNER_TEMP/volume.json"
+        env:
+          METADATA_ROUNDS: ${{ (inputs.suite == 'storage-scale' || inputs.suite == 'all') && '4' || '0' }}
+        run: python3 scripts/qualify_dev_volume.py --binary .qualification-bin/micropod --metadata-rounds "$METADATA_ROUNDS" --json "$RUNNER_TEMP/volume.json"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -72,6 +78,39 @@ jobs:
           path: |
             ${{ runner.temp }}/volume.json
             ${{ runner.temp }}/binds.json
+
+  apple-rig:
+    if: github.event_name == 'workflow_dispatch' && inputs.suite == 'apple-rig'
+    runs-on: [self-hosted, macOS, ARM64, "${{ inputs.apple_runner }}"]
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Compare physical Apple runtimes and the matched warm Ubuntu workload
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(--engine rig-matrix --api "${MICROPOD_BENCH_API:?Expected local Micropod endpoint}"
+            --allocation "${MICROPOD_BENCH_ALLOCATION:?Expected running rootless allocation}"
+            --socket "${MICROPOD_BENCH_SOCKET:?Expected inner Docker socket}"
+            --package-image "${MICROPOD_BENCH_PACKAGE_IMAGE:-micropod-offline-cache:bench}"
+            --image alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+            --json "$RUNNER_TEMP/apple-rig.json")
+          if [[ -n "${MICROPOD_BENCH_ORBSTACK_SOCKET:-}" ]]; then args+=(--orbstack-socket "$MICROPOD_BENCH_ORBSTACK_SOCKET"); fi
+          if [[ -n "${MICROPOD_BENCH_DESKTOP_SOCKET:-}" ]]; then args+=(--desktop-socket "$MICROPOD_BENCH_DESKTOP_SOCKET"); fi
+          if [[ -n "${MICROPOD_BENCH_COLIMA_SOCKET:-}" ]]; then args+=(--colima-socket "$MICROPOD_BENCH_COLIMA_SOCKET"); fi
+          if [[ -n "${MICROPOD_BENCH_REVISION:-}" ]]; then args+=(--expected-revision "$MICROPOD_BENCH_REVISION"); fi
+          refs=docs/benchmarks/2026-11-19
+          for ref in live-kernel-arm64 live-kernel-arm64-repeat package-containers-ubuntu-arm64; do
+            args+=(--ubuntu-reference "$refs/$ref.json")
+          done
+          python3 scripts/bench_live_kernel.py "${args[@]}"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: physical-apple-warm-matrix
+          path: ${{ runner.temp }}/apple-rig.json
 
   warm-linux:
     if: inputs.suite == 'linux' || inputs.suite == 'all'

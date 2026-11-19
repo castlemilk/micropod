@@ -125,7 +125,7 @@ def other_project(fixture, cache):
     return {"offline": True, "compiled_packages": ["main"], "same_dependency_inodes": True}
 
 
-def qualify(binary, result):
+def qualify(binary, result, metadata_rounds=4):
     with tempfile.TemporaryDirectory(prefix="micropod-apfs-") as tmp:
         work = Path(tmp).resolve()
         projects, store, state = (work / x for x in ("projects", "store", "state"))
@@ -273,7 +273,7 @@ def qualify(binary, result):
             unlocked = json.loads(cli("status").stdout)
             assert os.path.ismount(mount) and unlocked["volumeUUID"] == first["volumeUUID"] and unlocked["mounted"]
             samples = []
-            for block in range(4):
+            for block in range(metadata_rounds):
                 for i, n in enumerate((1, 4, 8, 16)):
                     roots = [("seed", seed), ("development", payload)]
                     if (block + i) % 2:
@@ -288,7 +288,7 @@ def qualify(binary, result):
                           "pnpm-store-hardlink", "existing-cross-tree-hardlinks", "restore-cross-tree-hardlinks", "preserve-identical-apfs-clones", "clone-specific-metadata", "diverged-clones", "restore-copy-on-write", "repair", "encrypted-create-lock-unlock", "uuid-remount", "restore-latest", "repeat-migration", "enroll-existing-volume", "coalesce-nested-cache", "retry-cache-enrollment", "npm-offline-after-remount-and-restore", "go-offline-after-remount-and-restore", "go-zero-warm-compiles", "changed-project-reuses-dependencies"],
                           spotlight_seed=run("mdutil", "-s", seed, check=False).stdout.decode().strip(),
                           spotlight_development=remounted["spotlight"], physical_host_claim=False,
-                          samples=samples)
+                          metadata_rounds=metadata_rounds, samples=samples)
         finally:
             run("hdiutil", "detach", whole)
 
@@ -297,10 +297,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", required=True, type=Path)
     parser.add_argument("--json", required=True, type=Path)
+    parser.add_argument("--metadata-rounds", type=int, choices=range(0, 21), default=4,
+                        help="Optional full filesystem scaling sweep; zero runs only the integration checks")
     args = parser.parse_args()
     result = {}
     try:
-        qualify(args.binary.resolve(), result)
+        qualify(args.binary.resolve(), result, args.metadata_rounds)
         result["passed"] = True
     except Exception as exc:
         result.update(passed=False, error=str(exc))

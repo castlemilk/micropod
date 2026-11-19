@@ -89,7 +89,11 @@ def in_allocation(args, receipt):
         return result.get("output", "").strip()
 
     status = rpc(args.api, "Ping", {}, service="SystemService")
-    receipt["micropod_server"] = {k: status.get(k) for k in ("apiServerVersion", "runtimeBackend", "defaultRuntime")}
+    receipt["micropod_server"] = {k: status.get(k) for k in ("micropodVersion", "sourceRevision", "protocolVersion",
+                                                               "apiServerVersion", "runtimeBackend", "defaultRuntime")}
+    if args.expected_revision:
+        require(status.get("sourceRevision", "").lower() == args.expected_revision.lower(),
+                "The live Micropod server does not report the requested source revision")
     owner = inspect()
     parent = fingerprint(execute(["cat", BOOT]))
     receipt["allocation"] = owner
@@ -138,12 +142,14 @@ def measure(args, receipt, runner=None, read_parent=None):
         require("docker desktop" in str(initial["OperatingSystem"]).lower(), "Expected the Docker Desktop daemon")
     if args.engine == "colima":
         require(re.fullmatch(r"colima(?:-[a-zA-Z0-9._-]+)?", str(initial["Name"])), "Expected a Colima VM hostname")
-    if args.engine == "orbstack":
-        bundle = Path("/Applications/OrbStack.app/Contents/Info.plist")
+    if args.engine in {"orbstack", "docker-desktop"}:
+        app_name = "OrbStack" if args.engine == "orbstack" else "Docker"
+        bundle = Path(f"/Applications/{app_name}.app/Contents/Info.plist")
         if bundle.is_file():
             with bundle.open("rb") as file:
                 app = plistlib.load(file)
             receipt["mac_app_bundle"] = {k: app.get(k) for k in ("CFBundleShortVersionString", "CFBundleVersion")}
+    if args.engine == "orbstack":
         require("orbstack" in (str(initial["Name"]) + str(initial["OperatingSystem"])).lower(), "Expected an OrbStack daemon")
     info = json.loads(cmd(["image", "inspect", args.image]).stdout)[0]
     image = info["Id"]
@@ -307,8 +313,9 @@ def paired(args, receipt):
             else:
                 current.socket = sockets[engine]
                 measure(current, row)
-            identity = (row["boot_sha256"], row["server"]["ID"], row["image_id"])
-            require(identity == identities.setdefault(engine, identity), f"{engine} kernel, daemon or image changed")
+            identity = (row["boot_sha256"], row["server"]["ID"], row["image_id"], row["server"]["NCPU"],
+                        row.get("micropod_server", {}).get("sourceRevision"))
+            require(identity == identities.setdefault(engine, identity), f"{engine} kernel, daemon, build, CPU count or image changed")
             row["passed"] = True
     first = rows[:len(engines)]
     require(all(row["architecture"] == "arm64" and row["image_id"] == first[0]["image_id"] for row in first),
@@ -357,6 +364,7 @@ def main():
     p.add_argument("--colima-socket", help="Local Colima socket for the physical rig matrix")
     p.add_argument("--ubuntu-reference", type=Path, action="append", default=[],
                    help="Matched warm ARM64 Ubuntu receipt, repeat for independent allocations")
+    p.add_argument("--expected-revision", help="Require the selected Micropod API server to report this full commit SHA")
     p.add_argument("--api", help="Local Micropod Connect endpoint")
     p.add_argument("--allocation", help="ID of an existing Micropod rootless Docker sandbox")
     p.add_argument("--image", default="alpine:3.20", help="Already-pulled native Alpine image or digest")
@@ -367,6 +375,9 @@ def main():
     args = p.parse_args()
     if not (1 <= args.rounds <= 50 and all(1 <= n <= 64 for n in args.clients) and len(set(args.clients)) == len(args.clients)):
         p.error("Rounds must be 1..50 and distinct client levels 1..64")
+    if args.expected_revision and (args.engine not in {"rig-pair", "rig-matrix", "micropod"}
+                                   or not re.fullmatch(r"[0-9a-fA-F]{40}", args.expected_revision)):
+        p.error("Use --expected-revision with a Micropod profile and a full commit SHA")
     if args.engine in {"rig-pair", "rig-matrix", "micropod"} and not (args.api and args.allocation):
         p.error("Micropod requires --api and --allocation")
     if args.engine == "rig-pair" and not args.orbstack_socket:
