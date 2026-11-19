@@ -7,12 +7,16 @@ import Foundation
 struct SharedViewSync {
     let source: URL
     let view: URL
+    private let sourceEventRoot: String
+    private let viewEventRoot: String
     private let ignores: [String]
     private var exchanged: [String: ChunkHash]
 
     init(source: URL, view: URL) throws {
         self.source = source.resolvingSymlinksInPath().standardizedFileURL
         self.view = view.resolvingSymlinksInPath().standardizedFileURL
+        sourceEventRoot = try Self.physicalPath(of: source)
+        viewEventRoot = try Self.physicalPath(of: view)
         ignores = try SharedView.loadIgnorePatterns(from: self.source)
         exchanged = [:]
         // The view is the snapshot just cloned. The source can already have
@@ -25,10 +29,14 @@ struct SharedViewSync {
     mutating func synchronize(changedPath: String, fromView: Bool) throws -> [String] {
         let origin = fromView ? view : source
         let destination = fromView ? source : view
-        let changed = URL(fileURLWithPath: changedPath).resolvingSymlinksInPath().standardizedFileURL.path
-        guard changed == origin.path || changed.hasPrefix(origin.path + "/") else { return [] }
-        let relative = String(changed.dropFirst(origin.path.count)).trimmingCharacters(
-            in: CharacterSet(charactersIn: "/"))
+        // FSEvents can spell /tmp as /private/tmp. Foundation only folds the
+        // alias while the leaf exists. Match the watched directory before
+        // examining its child so a removed file or subtree still reaches us.
+        let changed = URL(fileURLWithPath: changedPath).standardizedFileURL.path
+        let eventRoot = fromView ? viewEventRoot : sourceEventRoot
+        guard let root = [origin.path, eventRoot].first(where: { changed == $0 || changed.hasPrefix($0 + "/") })
+        else { return [] }
+        let relative = String(changed.dropFirst(root.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         // A file event can name a child directly, without an event for its
         // ignored parent. Apply the same directory pruning as the initial view.
         var prefix = ""
@@ -72,6 +80,12 @@ struct SharedViewSync {
             propagated.append(name)
         }
         return propagated
+    }
+
+    private static func physicalPath(of root: URL) throws -> String {
+        guard let path = realpath(root.path, nil) else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        defer { free(path) }
+        return String(cString: path)
     }
 
     private static func hashIfPresent(_ file: URL) throws -> ChunkHash? {

@@ -16,7 +16,8 @@ from receipt import ROOT, Receipt, digest, require, run
 
 MIB = 1 << 20
 XATTR = 'com.micropod.qualification'
-SHAPES = {'small': (32, 1), 'mixed': (512, 16), 'many-files': (4096, 16), 'large-file': (64, 256)}
+SHAPES = {'small': (32, 1), 'mixed': (512, 16), 'many-files': (4096, 16), 'large-file': (64, 256),
+          'tree-50k': (50000, 16), 'gib': (64, 1024)}
 
 
 def fixture(source, count, mib):
@@ -114,8 +115,10 @@ def chunk_case(tool, encoding, source, dest, expected_hash, size):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--json', required=True)
-    ap.add_argument('--profile', choices=['smoke', 'scale'], default='scale')
+    ap.add_argument('--profile', choices=['smoke', 'scale', 'extended'], default='scale')
     ap.add_argument('--rounds', type=int, default=5)
+    ap.add_argument('--shapes', nargs='+', choices=SHAPES, help='override the profile fixture list')
+    ap.add_argument('--serial-only', action='store_true', help='run single-client views for longer paired series')
     args = ap.parse_args()
     if args.rounds < 1:
         ap.error('rounds must be positive')
@@ -130,19 +133,22 @@ def main():
                         shapes={}, sources={name: digest(ROOT / 'Sources' / 'MicropodSharedFS' / name) for name in
                         ['SharedView.swift', 'ChunkHash.swift', 'ChunkStore.swift', 'ChunkRepresentation.swift',
                          'SharedFSStaging.swift', 'ChunkFileManifest.swift']})
+    profiles = {'smoke': ['small'], 'scale': ['small', 'mixed', 'many-files', 'large-file'],
+                'extended': ['tree-50k', 'gib']}
+    shapes = args.shapes or profiles[args.profile]
     solutions = ['native', 'copy', 'rsync']
     with tempfile.TemporaryDirectory(prefix='mp-storage-') as temporary:
         work = Path(temporary)
         compile_tools(work)
         for shape, (count, mib) in SHAPES.items():
-            if args.profile == 'smoke' and shape != 'small':
+            if shape not in shapes:
                 continue
             source = work / shape
             hashes, total = fixture(source, count, mib)
             receipt.data['shapes'][shape] = dict(small_files=count, ignored_files=count, payload_mib=mib,
                 regular_files=len(hashes), logical_bytes=total, symlinks=1,
                 content_manifest_sha256=hashlib.sha256(json.dumps(hashes, sort_keys=True).encode()).hexdigest())
-            for clients in ([1, 4, 8] if shape == 'mixed' else [1]):
+            for clients in ([1, 4, 8] if shape == 'mixed' and not args.serial_only else [1]):
                 for turn in range(args.rounds + 1):
                     shift = turn % len(solutions)
                     for solution in solutions[shift:] + solutions[:shift]:
@@ -150,7 +156,7 @@ def main():
                             receipt.record('filtered-view', lambda: view_batch(work / 'view', solution, source,
                                 Path(dest), hashes, clients), solution=solution, shape=shape, clients=clients,
                                 warmup=turn == 0, block=turn)
-            if shape != 'many-files':
+            if shape not in ('many-files', 'tree-50k'):
                 for turn in range(args.rounds + 1):
                     for encoding in (['raw', 'lz4'] if turn % 2 == 0 else ['lz4', 'raw']):
                         with tempfile.TemporaryDirectory(dir=work) as dest:

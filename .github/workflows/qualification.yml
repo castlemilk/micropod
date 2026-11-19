@@ -30,9 +30,9 @@ jobs:
         env:
           SCALE: ${{ github.event_name == 'workflow_dispatch' && inputs.scale }}
         run: |
-          rounds=1
-          if [[ "$SCALE" == true ]]; then rounds=5; fi
-          python3 scripts/qualification/engine.py --context default --oci \
+          rounds=3
+          if [[ "$SCALE" == true ]]; then rounds=10; fi
+          python3 scripts/qualification/engine.py --context default --oci --podman-reference \
             --clients 1 4 8 --rounds "$rounds" --json "$RUNNER_TEMP/engine.json"
       - name: Publish first-attempt receipt
         if: always()

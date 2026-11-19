@@ -22,7 +22,7 @@ def until(check, description):
 
 
 @contextmanager
-def daemon(binary, env, work):
+def daemon(binary, env, work, socket_key='MICROPOD_SHAREDFS_SOCKET'):
     with (work / 'daemon.log').open('a') as log:
         p = subprocess.Popen([str(binary)], env=env, stdout=log, stderr=log, stdin=subprocess.DEVNULL)
         try:
@@ -31,7 +31,7 @@ def daemon(binary, env, work):
                     raise RuntimeError(f'daemon exited {p.returncode}')
                 with socket.socket(socket.AF_UNIX) as sock:
                     sock.settimeout(.25)
-                    return sock.connect_ex(env['MICROPOD_SHAREDFS_SOCKET']) == 0
+                    return sock.connect_ex(env[socket_key]) == 0
             until(ready, 'daemon did not bind its private socket')
             yield
         finally:
@@ -122,7 +122,11 @@ def main():
     receipt = Receipt(args.json, 'standalone-daemon')
     # Short, private path for the Unix sockaddr on both CI and developer Macs.
     with tempfile.TemporaryDirectory(prefix='mpq-', dir='/tmp') as temporary:
-        receipt.record('mount-live-sync-refcount-restart-gc', lambda: qualify(args.bin.resolve(), Path(temporary)))
+        work = Path(temporary)
+        row = receipt.record('mount-live-sync-refcount-restart-gc', lambda: qualify(args.bin.resolve(), work))
+        if row['outcome'] == 'fail' and (work / 'daemon.log').exists():
+            row['daemon_tail'] = (work / 'daemon.log').read_text()[-2000:].replace(temporary, '<fixture>')
+            print(row['daemon_tail'])
     return receipt.finish()
 
 

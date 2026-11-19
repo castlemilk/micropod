@@ -57,6 +57,23 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - name: Select native coverage
+        id: coverage
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          scope=full
+          if [[ "$EVENT_NAME" == pull_request ]] && git diff --quiet HEAD^1 HEAD -- . \
+            ':(exclude)Sources/MicropodSharedFS/**' ':(exclude)Tests/MicropodSharedFSTests/**' ':(exclude)Sources/MicropodDockerShim/Handlers.swift' \
+            ':(exclude)scripts/qualification/**' ':(exclude)scripts/bench_runtimes.py' \
+            ':(exclude)scripts/bench_sharedfs_view.swift' ':(exclude)docs/benchmarks/**' \
+            ':(exclude)README.md' ':(exclude).github/workflows/qualification.yml' ':(exclude).github/workflows/ci.yml'; then
+            scope=storage-shim
+          fi
+          echo "scope=$scope" >> "$GITHUB_OUTPUT"
+          echo "Native coverage: $scope"
       - name: Toolchain fingerprint
         run: echo "SWIFT_FINGERPRINT=$(swift --version 2>&1 | shasum | cut -c1-12)" >> "$GITHUB_ENV"
       - name: Restore Swift debug build
@@ -66,13 +83,23 @@ jobs:
           key: swiftpm-debug-${{ runner.os }}-${{ runner.arch }}-${{ env.SWIFT_FINGERPRINT }}-${{ hashFiles('Package.resolved') }}-${{ github.sha }}
           restore-keys: |
             swiftpm-debug-${{ runner.os }}-${{ runner.arch }}-${{ env.SWIFT_FINGERPRINT }}-${{ hashFiles('Package.resolved') }}-
-      - name: Build
-        run: swift build
+      - name: Build binaries and test bundle together
+        run: swift build --build-tests
       - name: SharedFS CLI and daemon integration
         timeout-minutes: 2
         run: python3 scripts/qualification/daemon.py --json "$RUNNER_TEMP/sharedfs.json"
+      - name: Production Docker shim negotiation
+        timeout-minutes: 2
+        run: python3 scripts/qualification/shim.py --json "$RUNNER_TEMP/shim.json"
       - name: Test
-        run: swift test
+        env:
+          SCOPE: ${{ steps.coverage.outputs.scope }}
+        run: |
+          if [[ "$SCOPE" == storage-shim ]]; then
+            swift test --skip-build --filter 'MicropodSharedFSTests|MicropodDockerShimTests|MicropodIntegrationTests|CacheStoreTests|ForcedCacheRefreshTests|CICacheInventorySnapshotTests|MenuBarCacheTests|MenuBarPanelSnapshotTests|WorkspaceSnapshotTests'
+          else
+            swift test --skip-build
+          fi
 
   # Keeps a warm release build for the Release workflow: a tag run can
   # only restore caches from its own tag or master, so master pushes save

@@ -4,6 +4,7 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 import hashlib
+import io
 import ipaddress
 import json
 import os
@@ -37,6 +38,7 @@ def main():
     ap.add_argument('--json', required=True)
     ap.add_argument('--rounds', type=int, default=1)
     ap.add_argument('--clients', type=int, nargs='+', default=[1, 4])
+    ap.add_argument('--podman-reference', action='store_true', help='compare rootful Podman on this Linux host')
     ap.add_argument('--oci', action='store_true', help='also run the Linux reference OCI lifecycle with sudo -n runc')
     args = ap.parse_args()
     if not 1 <= args.rounds <= 200 or not all(1 <= n <= 64 for n in args.clients):
@@ -72,7 +74,7 @@ def main():
         if not probe.exists():
             return rec.finish()
         rec.data['guest_sha256'] = digest(probe)
-        tag, built = prefix + ':import', prefix + ':build'
+        tag, built = prefix + ':fixture', prefix + ':build'
         def remove(*cmd):
             rec.record('cleanup-' + '-'.join(cmd[:2]), lambda: (docker(*cmd), {})[1])
         # Keep the runtime cases independent of solver and exporter support.
@@ -82,13 +84,32 @@ def main():
             with probe.open('rb') as f:
                 archive.addfile(info, f)
         rec.data['rootfs_tar_sha256'] = digest(work / 'rootfs.tar')
+        # Load the same offline docker-archive, including its executable config,
+        # into both engines. The Micropod shim supports load, but not image import.
+        config = json.dumps({'architecture': arch, 'os': 'linux', 'config': {'Entrypoint': ['/probe']},
+                             'rootfs': {'type': 'layers', 'diff_ids': ['sha256:' + rec.data['rootfs_tar_sha256']]},
+                             'history': [{'created_by': 'micropod qualification'}]}, sort_keys=True).encode()
+        config_path = hashlib.sha256(config).hexdigest() + '.json'
+        manifest = json.dumps([{'Config': config_path, 'RepoTags': [tag], 'Layers': ['layer.tar']}]).encode()
+        image_tar = work / 'image.tar'
+        with tarfile.open(image_tar, 'w', format=tarfile.USTAR_FORMAT) as archive:
+            for path, data in [(config_path, config), ('manifest.json', manifest)]:
+                info = tarfile.TarInfo(path)
+                info.size = len(data)
+                archive.addfile(info, io.BytesIO(data))
+            layer = tarfile.TarInfo('layer.tar')
+            layer.size = (work / 'rootfs.tar').stat().st_size
+            with (work / 'rootfs.tar').open('rb') as f:
+                archive.addfile(layer, f)
+        rec.data['image_config_sha256'] = hashlib.sha256(config).hexdigest()
         def load():
-            image = docker('image', 'import', '--change', 'ENTRYPOINT ["/probe"]', work / 'rootfs.tar', tag)
+            docker('image', 'load', '--input', image_tar)
             cleanup.callback(remove, 'image', 'rm', tag)
-            require(docker('image', 'inspect', '--format', '{{.Id}}', tag).stdout.strip() == image.stdout.strip(),
-                    'imported image identity')
-            return {'image_id': image.stdout.strip()}
-        imported = rec.record('rootfs-import-inspect', load)
+            image = json.loads(docker('image', 'inspect', tag).stdout)[0]
+            require(image['Architecture'] == arch and image['Config']['Entrypoint'] == ['/probe']
+                    and image['RootFS']['Layers'] == ['sha256:' + rec.data['rootfs_tar_sha256']], 'loaded config/layers')
+            return {'image_id': image['Id']}
+        imported = rec.record('image-load-inspect', load)
         # On a timeout, reconcile only this run's UUID-named objects.
         def owned_run(image, *command, flags=(), expected=0):
             name = prefix + '-' + uuid.uuid4().hex[:12]
@@ -188,18 +209,46 @@ def main():
                 p = docker(*cli, 'up', '--exit-code-from', 'check', '--abort-on-container-exit', '--no-build')
                 require('0:0|/work|compose|compose' in p.stdout, 'Compose result')
             rec.record('compose-up-exit-down', compose)
+            runners = {'docker': lambda name, flags: owned_run(tag, 'exit23', flags=flags, expected=23)}
+            if args.podman_reference:
+                require(platform.system() == 'Linux', 'rootful Podman reference needs Linux')
+                def podman(*cmd, expected=0):
+                    return run(['sudo', '-n', 'podman', *cmd], env=env, expected=expected, timeout=60)
+                def import_podman():
+                    info = json.loads(podman('info', '--format', 'json').stdout)
+                    rec.data['podman'] = {'version': podman('--version').stdout.strip(),
+                                          'oci_runtime': info['host']['ociRuntime']['name'],
+                                          'cgroup': info['host']['cgroupVersion']}
+                    podman('load', '--input', image_tar)
+                    cleanup.callback(lambda: rec.record('cleanup-podman-image', lambda: (podman('rmi', tag), {})[1]))
+                    def podman_run(name, flags):
+                        try:
+                            return podman('run', '--name', name, '--rm', '--pull=never', *flags,
+                                          tag, 'exit23', expected=23)
+                        except Exception:
+                            if subprocess.run(['sudo', '-n', 'podman', 'container', 'exists', name],
+                                              timeout=8).returncode == 0:
+                                podman('rm', '-f', name)
+                            raise
+                    runners['podman'] = podman_run
+                rec.record('podman-load', import_podman)
             for clients in args.clients:
-                for block in range(args.rounds):
-                    def batch():
-                        def task(_):
-                            p = owned_run(tag, 'exit23', flags=['--network', 'none', '--cpus', '1', '--memory', '64m'],
-                                          expected=23)
-                            require(p.stdout.strip() == 'guest-out' and p.stderr.strip() == 'guest-err',
-                                    'wrong exit streams')
-                        with ThreadPoolExecutor(clients) as pool:
-                            list(pool.map(task, range(clients)))
-                        return {'known_exits': clients}
-                    rec.record('run-to-known-exit', batch, clients=clients, block=block)
+                for block in range(args.rounds + 1):
+                    order = list(runners)
+                    if block % 2:
+                        order.reverse()
+                    for solution in order:
+                        def batch():
+                            def task(_):
+                                flags = ['--network', 'none', '--cpus', '1', '--memory', '64m']
+                                p = runners[solution](prefix + '-' + uuid.uuid4().hex[:12], flags)
+                                require(p.stdout.strip() == 'guest-out' and p.stderr.strip() == 'guest-err',
+                                        'wrong exit streams')
+                            with ThreadPoolExecutor(clients) as pool:
+                                list(pool.map(task, range(clients)))
+                            return {'known_exits': clients}
+                        rec.record('run-to-known-exit', batch, solution=solution, clients=clients,
+                                   warmup=block == 0, block=block)
         if args.oci:
             rec.record('native-runc-lifecycle', lambda: native_oci(probe, work, prefix))
     return rec.finish()
