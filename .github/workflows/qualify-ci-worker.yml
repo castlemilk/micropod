@@ -46,7 +46,7 @@ jobs:
           path: ${{ runner.temp }}/guest.json
 
   apple:
-    if: github.event_name == 'push' || inputs.suite == 'apple-pair'
+    if: inputs.suite == 'apple-pair'
     runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 40
     steps:

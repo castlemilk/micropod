@@ -5,7 +5,7 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 profile="${1:-all}"
 case "$profile" in go|npm|all) ;; *) echo "expected go, npm, or all" >&2; exit 2 ;; esac
 if [[ $# -eq 2 ]]; then
-    # The disposable Linux qualification passes its explicitly owned guest socket.
+    # Qualification passes the selected guest or native engine's explicit socket.
     endpoint="$2"
 else
     micropod="${MICROPOD_BIN:-micropod}"
@@ -27,8 +27,8 @@ go_job() {
     local app="$root/ci/samples/go-app"
     docker build -f "$app/Dockerfile.checks" -t "$id:checks" "$app"
     docker run --rm --network host \
-        -v /var/lib/micropod/docker.sock:/var/run/docker.sock \
-        -e TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/lib/micropod/docker.sock \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -e TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock \
         -e TESTCONTAINERS_HOST_OVERRIDE=127.0.0.1 \
         --entrypoint /out/postgres-test "$id:checks" -test.v
     docker build -t "$id:go" "$app"
