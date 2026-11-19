@@ -1,0 +1,169 @@
+{
+  "source_commit": "2bae456031b7ce271ea4aab718020a5346a056fa",
+  "run_id": 44477775270,
+  "job_id": 135402378054,
+  "full_receipt_artifact": 14506858762,
+  "host": {
+    "ProductVersion": "15.7.9",
+    "BuildVersion": "24G830",
+    "machdep.cpu.brand_string": "Intel(R) Core(TM) i7-8700B CPU @ 3.20GHz",
+    "machdep.cpu.family": "6",
+    "machdep.cpu.model": "58",
+    "machdep.cpu.stepping": "10",
+    "hw.ncpu": "4",
+    "hw.memsize": "15032385536",
+    "kern.hv_support": "1"
+  },
+  "boot": [
+    {
+      "first_cli_to_docker_info_ms": 62982.67,
+      "identity": {
+        "OperatingSystem": "OrbStack",
+        "Name": "orbstack",
+        "KernelVersion": "6.7.11-orbstack-00143-ge6b82e26cd22",
+        "Architecture": "x86_64",
+        "ServerVersion": "25.0.5",
+        "NCPU": 4,
+        "MemTotal": 4800720896
+      },
+      "endpoint": "~/.orbstack/run/docker.sock"
+    }
+  ],
+  "samples": [
+    {
+      "case": "rootfs-import-inspect",
+      "outcome": "pass",
+      "validated_ms": 787.438
+    },
+    {
+      "case": "post-create-network-connect-inspect-remove",
+      "outcome": "pass",
+      "validated_ms": 9443.532
+    },
+    {
+      "case": "api-create-start-wait-logs-remove",
+      "solution": "orbstack",
+      "clients": 1,
+      "warmup": true,
+      "block": 0,
+      "outcome": "pass",
+      "validated_ms": 3589.614,
+      "known_exits": 1
+    },
+    {
+      "case": "api-create-start-wait-logs-remove",
+      "solution": "orbstack",
+      "clients": 1,
+      "warmup": false,
+      "block": 1,
+      "outcome": "pass",
+      "validated_ms": 3092.75,
+      "known_exits": 1
+    },
+    {
+      "case": "api-create-start-wait-logs-remove",
+      "solution": "orbstack",
+      "clients": 1,
+      "warmup": false,
+      "block": 2,
+      "outcome": "pass",
+      "validated_ms": 3604.621,
+      "known_exits": 1
+    },
+    {
+      "case": "api-create-start-wait-logs-remove",
+      "solution": "orbstack",
+      "clients": 1,
+      "warmup": false,
+      "block": 3,
+      "outcome": "pass",
+      "validated_ms": 3047.66,
+      "known_exits": 1
+    },
+    {
+      "case": "api-create-start-wait-logs-remove",
+      "solution": "orbstack",
+      "clients": 4,
+      "warmup": true,
+      "block": 0,
+      "outcome": "pass",
+      "validated_ms": 8285.431,
+      "known_exits": 4
+    },
+    {
+      "case": "api-create-start-wait-logs-remove",
+      "solution": "orbstack",
+      "clients": 4,
+      "warmup": false,
+      "block": 1,
+      "outcome": "pass",
+      "validated_ms": 8588.045,
+      "known_exits": 4
+    },
+    {
+      "case": "api-create-start-wait-logs-remove",
+      "solution": "orbstack",
+      "clients": 4,
+      "warmup": false,
+      "block": 2,
+      "outcome": "pass",
+      "validated_ms": 6898.809,
+      "known_exits": 4
+    },
+    {
+      "case": "api-create-start-wait-logs-remove",
+      "solution": "orbstack",
+      "clients": 4,
+      "warmup": false,
+      "block": 3,
+      "outcome": "pass",
+      "validated_ms": 5397.409,
+      "known_exits": 4
+    },
+    {
+      "case": "api-create-start-wait-logs-remove",
+      "solution": "orbstack",
+      "clients": 8,
+      "warmup": true,
+      "block": 0,
+      "outcome": "pass",
+      "validated_ms": 13214.491,
+      "known_exits": 8
+    },
+    {
+      "case": "api-create-start-wait-logs-remove",
+      "solution": "orbstack",
+      "clients": 8,
+      "warmup": false,
+      "block": 1,
+      "outcome": "pass",
+      "validated_ms": 13028.615,
+      "known_exits": 8
+    },
+    {
+      "case": "api-create-start-wait-logs-remove",
+      "solution": "orbstack",
+      "clients": 8,
+      "warmup": false,
+      "block": 2,
+      "outcome": "pass",
+      "validated_ms": 10795.075,
+      "known_exits": 8
+    },
+    {
+      "case": "api-create-start-wait-logs-remove",
+      "solution": "orbstack",
+      "clients": 8,
+      "warmup": false,
+      "block": 3,
+      "outcome": "pass",
+      "validated_ms": 11532.058,
+      "known_exits": 8
+    },
+    {
+      "case": "release-image",
+      "outcome": "pass",
+      "validated_ms": 230.482
+    }
+  ]
+}
