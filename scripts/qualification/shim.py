@@ -37,7 +37,8 @@ def probe(binaries, work):
         for method in ['HEAD', 'GET']:
             status, headers, body = request(method, '/_ping')
             require(status == 200 and headers['API-Version'] == api and headers['OSType'] == 'linux', 'ping negotiation')
-            require(body.strip() == (b'OK' if method == 'GET' else b''), 'ping response')
+            require(headers['Content-Length'] == '3' and body.strip() == (b'OK' if method == 'GET' else b''),
+                    'HEAD/GET representation length or body')
         require(request('GET', f'/v{api}/_ping')[0] == 200, 'negotiated API prefix')
         result = {'api': api, 'minimum_api': version['MinAPIVersion'], 'docker_client': None,
                   'image_import_probe_http': request('POST', '/images/create?fromSrc=-', b'')[0],

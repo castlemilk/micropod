@@ -226,7 +226,7 @@ final class Router: @unchecked Sendable {
         // MARK: System
         case ("GET", "_ping"), ("HEAD", "_ping"):
             let headers = [("Content-Type", "text/plain"), ("API-Version", config.apiVersion), ("OSType", "linux")]
-            return .raw(200, headers, request.method == "HEAD" ? Data() : Data("OK\n".utf8))
+            return .raw(200, headers, Data("OK\n".utf8))
         case ("GET", "version"):
             return try await version()
         case ("GET", "info"):

@@ -34,6 +34,8 @@ def main():
     endpoint = ap.add_mutually_exclusive_group(required=True)
     endpoint.add_argument('--context')
     endpoint.add_argument('--host')
+    ap.add_argument('--name', help='reported primary engine label for a socket selector')
+    ap.add_argument('--peer-context', action='append', default=[], help='also measure bursts on this local Docker context')
     ap.add_argument('--json', required=True)
     ap.add_argument('--rounds', type=int, default=1)
     ap.add_argument('--clients', type=int, nargs='+', default=[1, 4])
@@ -110,24 +112,24 @@ def main():
             return {'image_id': image['Id']}
         imported = rec.record('image-load-inspect', load)
         # On a timeout, reconcile only this run's UUID-named objects.
-        def owned_run(image, *command, flags=(), expected=0):
-            name = prefix + '-' + uuid.uuid4().hex[:12]
+        def owned_run(image, *command, flags=(), expected=0, engine=docker, name=None):
+            name = name or prefix + '-' + uuid.uuid4().hex[:12]
             try:
-                return docker('run', '--name', name, '--rm', '--pull=never', *flags, image, *command, expected=expected)
+                return engine('run', '--name', name, '--rm', '--pull=never', *flags, image, *command, expected=expected)
             except Exception:
-                cleanup_if_exists('container', name)
+                cleanup_if_exists('container', name, engine)
                 raise
-        def cleanup_if_exists(kind, name):
+        def cleanup_if_exists(kind, name, engine=docker):
             try:
-                docker(kind, 'inspect', name, timeout=8)
+                engine(kind, 'inspect', name, timeout=8)
             except RuntimeError as e:
                 if 'no such' in str(e).lower() or 'not found' in str(e).lower():
                     return
                 raise
             if kind == 'container':
-                docker(kind, 'rm', '-f', name)
+                engine(kind, 'rm', '-f', name)
             else:
-                docker(kind, 'rm', name)
+                engine(kind, 'rm', name)
         def check_builds():
             ident = docker('buildx', 'inspect', builder, timeout=20).stdout
             require('Driver:' in ident, 'Buildx builder identity missing')
@@ -214,7 +216,37 @@ def main():
                 p = docker(*cli, 'up', '--exit-code-from', 'check', '--abort-on-container-exit', '--no-build')
                 require('0:0|/work|compose|compose' in p.stdout, 'Compose result')
             rec.record('compose-up-exit-down', compose)
-            runners = {'docker': lambda name, flags: owned_run(tag, 'exit23', flags=flags, expected=23)}
+            primary = args.name or ('docker' if args.podman_reference else args.context or 'selected-engine')
+            runners = {primary: lambda name, flags: owned_run(tag, 'exit23', name=name, flags=flags, expected=23)}
+            for ctx_name in args.peer_context:
+                def load_peer(ctx_name=ctx_name):
+                    require(ctx_name not in runners, 'duplicate contender name')
+                    def peer(*cmd, expected=0, timeout=60):
+                        return run(['docker', '--context', ctx_name, *cmd], env=env, expected=expected, timeout=timeout)
+                    server = json.loads(peer('version', '--format', '{{json .Server}}', timeout=10).stdout)
+                    require(server['Arch'] == arch and server['Os'] == 'linux', 'unmatched guest architecture')
+                    endpoint = run(['docker', 'context', 'inspect', ctx_name, '--format',
+                                    '{{.Endpoints.docker.Host}}'], env=env, timeout=5).stdout.strip()
+                    require(endpoint.startswith('unix://'), 'peer context must use a local Unix socket')
+                    # The run tag is random. Seeing it before loading detects a second name for an already timed engine.
+                    try:
+                        peer('image', 'inspect', tag)
+                    except RuntimeError as error:
+                        if 'no such' not in str(error).lower() and 'not found' not in str(error).lower():
+                            raise
+                    else:
+                        raise ValueError('peer shares the image store of an earlier contender')
+                    cleanup.callback(lambda: rec.record('cleanup-peer-load', lambda: cleanup_if_exists('image', tag, peer),
+                                                        solution=ctx_name))
+                    peer('image', 'load', '--input', image_tar)
+                    peers_image = json.loads(peer('image', 'inspect', tag).stdout)[0]
+                    require(peers_image['Config']['Entrypoint'] == ['/probe'] and
+                            peers_image['RootFS']['Layers'] == ['sha256:' + rec.data['rootfs_tar_sha256']],
+                            'peer loaded different content')
+                    runners[ctx_name] = lambda name, flags: owned_run(tag, 'exit23', name=name, flags=flags,
+                                                                     expected=23, engine=peer)
+                    return {'server': server}
+                rec.record('peer-image-load', load_peer, solution=ctx_name)
             if args.podman_reference:
                 require(platform.system() == 'Linux', 'rootful Podman reference needs Linux')
                 def podman(*cmd, expected=0):
@@ -240,8 +272,8 @@ def main():
             for clients in args.clients:
                 for block in range(args.rounds + 1):
                     order = list(runners)
-                    if block % 2:
-                        order.reverse()
+                    shift = block % len(order)
+                    order = order[shift:] + order[:shift]
                     for solution in order:
                         def batch():
                             def task(_):

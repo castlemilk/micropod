@@ -113,9 +113,13 @@ jobs:
         timeout-minutes: 2
         env:
           SCOPE: ${{ steps.coverage.outputs.scope }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           rounds=0
-          if [[ "$SCOPE" == storage-shim ]]; then rounds=3; fi
+          if [[ "$SCOPE" == storage-shim ]] || { [[ "$EVENT_NAME" == pull_request ]] &&
+            ! git diff --quiet HEAD^1 HEAD -- scripts/qualification/daemon.py; }; then
+            rounds=3
+          fi
           python3 scripts/qualification/daemon.py --scale-rounds "$rounds" --json "$RUNNER_TEMP/sharedfs.json"
       - name: Production Docker shim negotiation
         timeout-minutes: 2

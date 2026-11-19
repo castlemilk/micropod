@@ -24,12 +24,12 @@ The versioned JSON includes raw first attempts and excluded warm-ups. A failed a
 ## Engine coverage
 
 ```sh
-python3 scripts/qualification/engine.py --host "unix://$HOME/.micropod/docker.sock" --rounds 5 --clients 1 4 8 --json /tmp/micropod.json
+python3 scripts/qualification/engine.py --name micropod --host "unix://$HOME/.micropod/docker.sock" --peer-context orbstack --peer-context desktop-linux --rounds 5 --clients 1 4 8 --json /tmp/micropod.json
 python3 scripts/qualification/engine.py --context orbstack --rounds 5 --clients 1 4 8 --json /tmp/orbstack.json
 python3 scripts/qualification/engine.py --context desktop-linux --rounds 5 --clients 1 4 8 --json /tmp/desktop.json
 ```
 
-The product workflow expects a dedicated runner with the `micropod-qualification` label, the three local engines, Docker CLI, Buildx, Compose, Python and Go. Engines must already be running with their normal host-directory integration. The install and version of each engine are independent of the source checkout. A missing endpoint fails its lane. Compare product timings only when the receipts match native architecture, executable/config/layer digests, CPU/memory budgets, engine settings and host. Multiple eligible runners may be different machines. Running the commands on one dedicated Mac removes that ambiguity.
+The product workflow expects a dedicated runner with the `micropod-qualification` label, the three local engines, Docker CLI, Buildx, Compose, Python and Go. Engines must already be running with their normal host-directory integration. The install and version of each engine are independent of the source checkout. A missing endpoint fails its lane. Compare product timings only when the receipts match native architecture, executable/config/layer digests, CPU/memory budgets, engine settings and host. The workflow runs all three suites on one Mac. Peer contexts share the primary fixture and alternate their position in each timed burst.
 
 | Surface | Workflow validated | Remaining coverage for a general replacement claim |
 |---|---|---|

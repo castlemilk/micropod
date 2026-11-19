@@ -73,25 +73,28 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.product_mac
     runs-on: [self-hosted, macOS, ARM64, micropod-qualification]
     timeout-minutes: 30
-    strategy:
-      max-parallel: 1
-      fail-fast: false
-      matrix:
-        product: [micropod, orbstack, desktop-linux]
     steps:
       - uses: actions/checkout@v7
-      - name: Exercise the selected installed engine
-        env:
-          PRODUCT: ${{ matrix.product }}
+      - name: Exercise installed engines on this Mac
         run: |
-          endpoint=(--context "$PRODUCT")
-          if [[ "$PRODUCT" == micropod ]]; then endpoint=(--host "unix://$HOME/.micropod/docker.sock"); fi
-          python3 scripts/qualification/engine.py "${endpoint[@]}" --clients 1 4 8 --rounds 5 \
-            --json "$RUNNER_TEMP/$PRODUCT.json"
-      - name: Publish first-attempt receipt
+          failed=0
+          for product in micropod orbstack desktop-linux; do
+            endpoint=(--context "$product")
+            if [[ "$product" == micropod ]]; then
+              endpoint=(--name micropod --host "unix://$HOME/.micropod/docker.sock"
+                        --peer-context orbstack --peer-context desktop-linux)
+            fi
+            python3 scripts/qualification/engine.py "${endpoint[@]}" --clients 1 4 8 --rounds 5 \
+              --json "$RUNNER_TEMP/$product.json" || failed=1
+          done
+          exit "$failed"
+      - name: Publish first-attempt receipts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: product-${{ matrix.product }}-receipt
-          path: ${{ runner.temp }}/${{ matrix.product }}.json
+          name: installed-product-receipts
+          path: |
+            ${{ runner.temp }}/micropod.json
+            ${{ runner.temp }}/orbstack.json
+            ${{ runner.temp }}/desktop-linux.json
           if-no-files-found: error
