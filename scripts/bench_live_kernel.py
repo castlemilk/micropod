@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import platform
 import plistlib
+import re
 import socket
 import statistics
 import subprocess
@@ -170,8 +171,11 @@ def measure(args, receipt, runner=None, read_parent=None):
                     f"expected exit 23 and one token per stream, got exit {r.returncode}, "
                     f"stdout={r.stdout[:220]!r}, stderr={r.stderr[:430]!r}")
             require(fingerprint(lines[0]) == kernel, "container used a different kernel")
-        except Exception:
-            cmd(["rm", "-f", name], check=False)
+        except Exception as cause:
+            try:
+                cmd(["rm", "-f", name], check=False)
+            except (OSError, subprocess.TimeoutExpired) as cleanup:
+                raise RuntimeError(f"{cause}; cleanup of {name} also failed: {cleanup}") from cause
             raise
 
     samples = []
@@ -188,12 +192,18 @@ def measure(args, receipt, runner=None, read_parent=None):
             if args.engine != "inner":
                 print(f"{args.engine} block {block+1} clients {n}: {n-len(errors)}/{n} "
                       f"in {samples[-1]['seconds']:.3f}s", file=sys.stderr, flush=True)
-    require(not cmd(["ps", "-aq", "--filter", "label=" + label]).stdout.strip(), "Benchmark containers remain")
+    receipt["p50_seconds"] = {str(n): statistics.median(complete) for n in args.clients
+                              if (complete := [s["seconds"] for s in samples if s["clients"] == n and not s["errors"]])}
+    remaining = cmd(["ps", "-aq", "--no-trunc", "--filter", "label=" + label]).stdout.split()
+    if remaining:
+        receipt["containers_remaining_at_verification"] = len(remaining)
+        require(all(re.fullmatch(r"[0-9a-f]{64}", cid) for cid in remaining), "Unexpected Docker container ID")
+        cmd(["rm", "-f", *remaining], check=False)
+        receipt["containers_remaining_after_cleanup"] = len(cmd(["ps", "-aq", "--filter", "label=" + label]).stdout.split())
+        raise ValueError("Benchmark containers remained after auto-removal")
     require(server()["ID"] == initial["ID"], "Docker daemon identity changed")
     if host_boot:
         require(read_parent() == kernel, "Parent Linux kernel rebooted")
-    receipt["p50_seconds"] = {str(n): statistics.median(complete) for n in args.clients
-                              if (complete := [s["seconds"] for s in samples if s["clients"] == n and not s["errors"]])}
     require(all(not s["errors"] for s in samples), "Some measured containers failed validation")
 
 

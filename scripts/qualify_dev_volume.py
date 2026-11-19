@@ -169,7 +169,9 @@ def qualify(binary, result):
             assert os.stat(store / "package").st_ino == os.stat(projects / "linked-package").st_ino
             (projects / "edited").write_text("after cutover\n")
             (projects / ".git/fixture").unlink()
-            remounted = json.loads(cli("remount").stdout)
+            print("Volume fixture encrypted remount", flush=True)
+            interact([*command, "remount", *state_opts], secret)
+            remounted = json.loads(cli("status").stdout)
             assert remounted["mounted"] and remounted["volumeUUID"] == first["volumeUUID"]
             assert (projects / "edited").read_text() == "after cutover\n"
             assert os.path.ismount(mount) and os.stat(projects).st_dev == os.stat(mount).st_dev
