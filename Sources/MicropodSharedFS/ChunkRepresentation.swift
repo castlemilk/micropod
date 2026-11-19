@@ -7,7 +7,9 @@ import Foundation
 enum ChunkRepresentation {
     static let maxBlockSize = 16 << 20
     private static let headerSize = 8
-    static let maxStoredSize = maxBlockSize + headerSize + 12  // literal block header and end marker
+    // Apple's streaming decoder accepts at most 64 KiB per LZ4 literal.
+    private static let literalSize = 64 << 10
+    static let maxStoredSize = maxBlockSize + headerSize + (maxBlockSize / literalSize) * 8 + 4
     private static let magic = Data("MCZ1".utf8)
 
     static func hasMagic(_ bytes: Data) -> Bool { bytes.starts(with: magic) }
@@ -30,9 +32,14 @@ enum ChunkRepresentation {
         // compression.h defines bv4- + little-endian length + literal bytes
         // and bv4$ (end). Even a reader predating digest checks decodes this.
         var result = header(for: bytes.count)
-        result.append(contentsOf: "bv4-".utf8)
-        withUnsafeBytes(of: UInt32(bytes.count).littleEndian) { result.append(contentsOf: $0) }
-        result.append(bytes)
+        let literals = (bytes.count + literalSize - 1) / literalSize
+        result.reserveCapacity(headerSize + 8 * literals + bytes.count + 4)
+        for start in stride(from: bytes.startIndex, to: bytes.endIndex, by: literalSize) {
+            let count = min(literalSize, bytes.endIndex - start)
+            result.append(contentsOf: "bv4-".utf8)
+            withUnsafeBytes(of: UInt32(count).littleEndian) { result.append(contentsOf: $0) }
+            result.append(bytes[start..<(start + count)])
+        }
         result.append(contentsOf: "bv4$".utf8)
         return result
     }

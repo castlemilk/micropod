@@ -145,21 +145,41 @@ final class ChunkIntegrityTests: XCTestCase {
             XCTAssertEqual(try reopened.ingest(raw), [hash])
             let wire = try Data(contentsOf: reopened.chunkPath(hash))
             XCTAssertEqual(wire.prefix(4), Data("MCZ1".utf8))
-            // This is the previous release's decoding API and header layout.
-            var restored = Data(count: raw.count)
-            let count = restored.withUnsafeMutableBytes { dst in
-                wire.withUnsafeBytes { src in
-                    compression_decode_buffer(
-                        dst.bindMemory(to: UInt8.self).baseAddress!, dst.count,
-                        src.bindMemory(to: UInt8.self).baseAddress!.advanced(by: 8), src.count - 8,
-                        nil, COMPRESSION_LZ4)
-                }
-            }
-            XCTAssertEqual(count, raw.count)
-            XCTAssertEqual(restored, raw)
+            assertPreviousReaderDecodes(wire, as: raw)
         }
         let migrated = try ChunkStore(root: cache)
         for raw in rawFixtures { XCTAssertEqual(try migrated.readBlock(ChunkHash.compute(raw)), raw) }
+    }
+
+    private func assertPreviousReaderDecodes(_ wire: Data, as identity: Data) {
+        // This is the previous release's decoding API and header layout.
+        var restored = Data(count: identity.count)
+        let count = restored.withUnsafeMutableBytes { dst in
+            wire.withUnsafeBytes { src in
+                compression_decode_buffer(
+                    dst.bindMemory(to: UInt8.self).baseAddress!, dst.count,
+                    src.bindMemory(to: UInt8.self).baseAddress!.advanced(by: 8), src.count - 8,
+                    nil, COMPRESSION_LZ4)
+            }
+        }
+        XCTAssertEqual(count, identity.count)
+        XCTAssertEqual(restored, identity)
+    }
+
+    func testMagicPrefixedBlocksCrossLiteralBoundariesUpToTheFormatLimit() throws {
+        let dir = try fixture()
+        let store = try ChunkStore(root: dir, blockSize: ChunkRepresentation.maxBlockSize, transcodeEnabled: false)
+        for size in [65536, 65537, 256 << 10, ChunkRepresentation.maxBlockSize] {
+            var raw = Data(repeating: 65, count: size)
+            raw.replaceSubrange(0..<4, with: "MCZ1".utf8)
+            let hashes = try store.ingest(raw)
+            XCTAssertEqual(hashes.count, 1)
+            let hash = try XCTUnwrap(hashes.first)
+            XCTAssertEqual(try ChunkStore(root: dir).readBlock(hash), raw)
+            let wire = try Data(contentsOf: store.chunkPath(hash))
+            XCTAssertLessThanOrEqual(wire.count, ChunkRepresentation.maxStoredSize)
+            assertPreviousReaderDecodes(wire, as: raw)
+        }
     }
 
     func testOversizedStoredFileRejectedAndRestoreRetainsPermissions() throws {
