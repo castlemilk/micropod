@@ -17,7 +17,7 @@ import textwrap
 import time
 import uuid
 
-from bench_live_kernel import fingerprint, measure, paired
+from bench_live_kernel import WORKLOAD, fingerprint, measure, paired
 
 ROOT = Path(__file__).resolve().parents[1]
 ALPINE = "alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
@@ -73,6 +73,7 @@ def warm_cli_caches(cli, image, scope, clients, boot):
         elapsed[tool] = round(time.perf_counter() - start, 6)
     audit = cached_package(cli, image, scope, "audit", lock)
     require(audit["payload_inodes"] == seed["payload_inodes"], "Scoped caches duplicated the package payloads")
+    require(audit["cache_sizes"] == seed["cache_sizes"], "Fresh jobs grew the shared fixture caches")
     return dict(clients=clients, seed=seed, warm_seconds=elapsed, after=audit["cache_sizes"],
                 empty_scope_verified=True)
 
@@ -148,8 +149,9 @@ def qualify(args, result, home):
 
     def start():
         if apple:
-            with ThreadPoolExecutor(max_workers=4) as pool:
-                starts = list(pool.map(lambda _: json.loads(cli("start").stdout), range(4)))
+            clients = max(args.clients)
+            with ThreadPoolExecutor(max_workers=clients) as pool:
+                starts = list(pool.map(lambda _: json.loads(cli("start").stdout), range(clients)))
             require(len({(s["boot"], s["daemon"], s["instance"]) for s in starts}) == 1,
                     "Concurrent starters reached different workers")
             require(starts[0]["endpoint"] == uri, "The CLI selected another socket")
@@ -176,6 +178,7 @@ def qualify(args, result, home):
             host("stop", "-t", "25", outer)
             host("rm", outer)
 
+    bundle = args.ubuntu_bundle
     peer_uri = "unix://" + args.orbstack_socket if args.orbstack_socket else None
     if peer_uri:
         require(apple, "The OrbStack comparison requires a physical Mac")
@@ -206,7 +209,14 @@ def qualify(args, result, home):
             command("docker", "--host", peer_uri, "pull", ALPINE, env=env)
             package = token + ":packages"
             try:
-                docker("build", "--build-arg", "SOURCE_DATE_EPOCH=0", "-t", package, str(ROOT / "scripts/bench_cache_image"))
+                if bundle:
+                    reference = bundle / "native.json"
+                    source_tag = json.loads(reference.read_text())["package_image_tag"]
+                    require(re.fullmatch(r"mp-ci-[a-f0-9]{32}:packages", source_tag), "Unexpected Ubuntu fixture tag")
+                    docker("load", "-i", str(bundle / "packages.tar"))
+                    docker("tag", source_tag, package)
+                else:
+                    docker("build", "--build-arg", "SOURCE_DATE_EPOCH=0", "-t", package, str(ROOT / "scripts/bench_cache_image"))
                 archive = str(home / "package.tar")
                 docker("save", "-o", archive, package)
                 command("docker", "--host", peer_uri, "load", "-i", archive, env=env)
@@ -216,6 +226,8 @@ def qualify(args, result, home):
                 matched_series = args.rounds == 5 and set(args.clients) <= {1, 4, 8, 16}
                 opts.ubuntu_reference = (sorted((ROOT / "docs/benchmarks/2026-11-19").glob("live-kernel-arm64*.json"))
                                          if matched_series else [])
+                if bundle:
+                    opts.ubuntu_reference.append(reference)
                 # The shared harness runs stock clients as children of this process.
                 os.environ["MICROPOD_CI_HOME"] = str(home)
                 pair = result.setdefault("paired", {})
@@ -223,7 +235,9 @@ def qualify(args, result, home):
                 saved = ROOT / "docs/benchmarks/2026-11-19/package-containers-ubuntu-arm64.json"
                 ref = json.loads(saved.read_text())
                 actual = pair["blocks"][0]["package_caches"]["image_id"]
-                if matched_series and actual == ref["package_caches"]["image_id"]:
+                if bundle:
+                    pair["ubuntu_package_reference"] = pair["ubuntu_references"][-1]
+                elif matched_series and actual == ref["package_caches"]["image_id"]:
                     from bench_live_kernel import reference_times
                     pair["ubuntu_package_reference"] = reference_times([saved], pair["blocks"][0], args.clients, args.rounds)[0]
                 else:
@@ -237,7 +251,9 @@ def qualify(args, result, home):
                 builder = docker if apple else host
                 builder("build", "--build-arg", "SOURCE_DATE_EPOCH=0", "-t", package, str(ROOT / "scripts/bench_cache_image"))
                 if not apple:
-                    archive = str(home / "toolchain.tar")
+                    if bundle:
+                        bundle.mkdir(parents=True, exist_ok=True)
+                    archive = str(bundle / "packages.tar" if bundle else home / "toolchain.tar")
                     host("save", "-o", archive, package)
                     docker("load", "-i", archive)
                 opts.package_image = package
@@ -248,6 +264,10 @@ def qualify(args, result, home):
                 raw = argparse.Namespace(**vars(opts))
                 raw.socket, raw.engine = host_docker.removeprefix("unix://"), "linux-docker"
                 measure(raw, result.setdefault("native_ubuntu", {}))
+                if bundle:
+                    native = dict(result["native_ubuntu"], profile="linux-docker", system="Linux", clock="client",
+                                  rounds=args.rounds, workload=WORKLOAD, package_image_tag=package, passed=True)
+                    (bundle / "native.json").write_text(json.dumps(native, indent=2) + "\n")
                 if args.packages:
                     expected = result["warm"]["package_caches"]["blocks"][0]["versions"]
                     result["bare_ubuntu_packages"] = bare_packages(host, package, home, env, args, expected)
@@ -343,11 +363,17 @@ def main():
     p.add_argument("--package-image")
     p.add_argument("--packages", action="store_true", help="Build one shared offline toolchain for guest and native Ubuntu")
     p.add_argument("--orbstack-socket")
+    p.add_argument("--ubuntu-bundle", type=Path,
+                   help="Write the native reference and package image on Ubuntu, or use them for an Apple pair")
     p.add_argument("--pipelines", action="store_true", help="Run the normal Go and npm CI entry points")
     p.add_argument("--pipeline-rounds", type=int, choices=range(1, 11), default=3, metavar="1..10",
                    help="Warm passes of the full application pipelines per engine")
     p.add_argument("--json", required=True, type=Path)
     args = p.parse_args()
+    if args.ubuntu_bundle and not (args.packages if args.profile == "linux-guest" else args.orbstack_socket):
+        p.error("--ubuntu-bundle requires --packages on Ubuntu or --orbstack-socket on the Mac")
+    if not 1 <= args.rounds <= 50 or not all(1 <= n <= 64 for n in args.clients) or len(set(args.clients)) != len(args.clients):
+        p.error("Supply 1..50 rounds and unique concurrency levels from 1..64")
     record = dict(profile=args.profile, rounds=args.rounds, clients=args.clients)
     try:
         home = Path(tempfile.mkdtemp(prefix="mpci-", dir="/tmp"))

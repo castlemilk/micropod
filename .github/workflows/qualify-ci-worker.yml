@@ -27,7 +27,6 @@ permissions:
   contents: read
 jobs:
   guest:
-    if: github.event_name == 'pull_request' || inputs.suite == 'ubuntu-guest'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
@@ -39,7 +38,7 @@ jobs:
         run: |
           args=(--rounds 1 --clients 1 4)
           if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
-            args=(--packages --pipelines)
+            args=(--packages --pipelines --ubuntu-bundle "$RUNNER_TEMP/ubuntu-bundle")
           fi
           python3 scripts/qualify_ci_worker.py linux-guest "${args[@]}" --json "$RUNNER_TEMP/guest.json"
       - uses: actions/upload-artifact@v7
@@ -47,8 +46,16 @@ jobs:
         with:
           name: arm64-ci-guest
           path: ${{ runner.temp }}/guest.json
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'workflow_dispatch' && success()
+        with:
+          name: arm64-warm-ubuntu
+          path: ${{ runner.temp }}/ubuntu-bundle/
+          compression-level: 0
+          retention-days: 3
 
   apple:
+    needs: guest
     if: inputs.suite == 'apple-pair'
     runs-on: [self-hosted, ARM64, "${{ inputs.apple_runner || 'macOS' }}"]
     timeout-minutes: 40
@@ -65,8 +72,12 @@ jobs:
         run: |
           swift build -c release --product micropod
           codesign -f -s - --entitlements signing/micropod-cli.entitlements .build/release/micropod
+      - uses: actions/download-artifact@v8
+        with:
+          name: arm64-warm-ubuntu
+          path: ${{ runner.temp }}/ubuntu-bundle
       - name: Verify lifecycle and compare warm jobs on this Mac
-        run: MICROPOD_BENCH_BIN="$PWD/.build/release/micropod" bash scripts/bench_ci_apple.sh "$RUNNER_TEMP/apple-bench"
+        run: MICROPOD_BENCH_BIN="$PWD/.build/release/micropod" bash scripts/bench_ci_apple.sh "$RUNNER_TEMP/apple-bench" --ubuntu-bundle "$RUNNER_TEMP/ubuntu-bundle"
       - uses: actions/upload-artifact@v7
         if: always()
         with:

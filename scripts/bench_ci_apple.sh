@@ -3,6 +3,7 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 out="${1:-$root/.build/benchmarks/apple}"
+if [[ $# -gt 0 ]]; then shift; fi
 mkdir -p "$out"
 out="$(cd "$out" && pwd)"
 cd "$root"
@@ -24,5 +25,5 @@ else
     codesign -f -s - --entitlements signing/micropod-cli.entitlements "$bin"
     codesign --verify --strict "$bin"
 fi
-python3 scripts/qualify_ci_worker.py apple-worker --micropod "$bin" --orbstack-socket "$peer" --json "$out/apple-pair.json"
+python3 scripts/qualify_ci_worker.py apple-worker --micropod "$bin" --orbstack-socket "$peer" --json "$out/apple-pair.json" "$@"
 echo "Paired receipt: $out/apple-pair.json"
