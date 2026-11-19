@@ -18,7 +18,7 @@ permissions:
   contents: read
 jobs:
   apfs:
-    if: inputs.suite == 'storage' || inputs.suite == 'all'
+    if: github.event_name == 'push' || inputs.suite == 'storage' || inputs.suite == 'all'
     runs-on: macos-26
     timeout-minutes: 20
     steps:
@@ -53,6 +53,13 @@ jobs:
         with:
           path: .qualification-bin/micropod
           key: ${{ steps.cli.outputs.cache-primary-key }}
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: .go-version
+          cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - name: Verify concurrent package cache binds over the production Unix socket
         run: |
           swiftc -O -parse-as-library Sources/MicropodSharedFS/*.swift scripts/bench_cache_bind.swift -o "$RUNNER_TEMP/bind-bench"
@@ -91,7 +98,7 @@ jobs:
           path: ${{ runner.temp }}/kernel.json
 
   package-reference:
-    if: github.event_name == 'push' || inputs.suite == 'packages' || inputs.suite == 'all'
+    if: inputs.suite == 'packages' || inputs.suite == 'all'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 16
     env:

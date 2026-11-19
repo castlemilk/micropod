@@ -252,8 +252,28 @@ def reference_times(files, sample, clients, rounds):
             medians[str(n)] = statistics.median(b["seconds"] for b in batches)
         require(all(r["boot_sha256"] != ref["boot_sha256"] and r["daemon"] != ref["server"]["ID"] for r in references),
                 "Supply independent Ubuntu allocations")
-        references.append(dict(file=path.name, boot_sha256=ref["boot_sha256"], daemon=ref["server"]["ID"],
-                               vcpus=ref["server"]["NCPU"], memory_bytes=ref["server"]["MemTotal"], median_seconds=medians))
+        reference = dict(file=path.name, boot_sha256=ref["boot_sha256"], daemon=ref["server"]["ID"],
+                         vcpus=ref["server"]["NCPU"], memory_bytes=ref["server"]["MemTotal"], median_seconds=medians)
+        packages = ref.get("package_caches")
+        if packages and "package_caches" in sample:
+            require(packages.get("passed") is True and len(packages["blocks"]) == rounds and
+                    all(packages[k] == sample["package_caches"][k] for k in
+                        ("workload", "image_id", "script_sha256", "architecture", "resource_contract")),
+                    f"{path.name} has a different package workload or toolchain")
+            values = {t: {} for t in ("npm", "go")}
+            for block in packages["blocks"]:
+                require(block.get("same_payload_inodes") and block.get("empty_offline_controls"),
+                        f"{path.name} did not validate offline cache reuse")
+                for t in values:
+                    for n in clients:
+                        batches = [b for b in block["batches"] if b["tool"] == t and b["clients"] == n]
+                        require(len(batches) == 1 and batches[0]["passed"] == n and not batches[0]["errors"]
+                                and math.isfinite(batches[0]["seconds"]) and batches[0]["seconds"] > 0,
+                                f"{path.name} has an incomplete {t} batch")
+                        values[t].setdefault(str(n), []).append(batches[0]["seconds"])
+            reference["package_seconds"] = {t: {n: statistics.median(times) for n, times in groups.items()}
+                                            for t, groups in values.items()}
+        references.append(reference)
     return references
 
 
@@ -313,6 +333,11 @@ def paired(args, receipt):
     if args.ubuntu_reference:
         refs = reference_times(args.ubuntu_reference, first[0], args.clients, args.rounds)
         receipt["ubuntu_references"] = refs
+        if args.package_image:
+            receipt["package_ratio_vs_ubuntu"] = {
+                engine: {tool: {n: {r["file"]: round(seconds / r["package_seconds"][tool][n], 4)
+                                    for r in refs if "package_seconds" in r} for n, seconds in times.items()}
+                         for tool, times in products.items()} for engine, products in receipt["package_median_seconds"].items()}
         receipt["vs_ubuntu"] = {engine: {
             n: {r["file"]: {"ratio": round(seconds / r["median_seconds"][n], 4),
                             "gap_ms": round((seconds - r["median_seconds"][n]) * 1000, 3),
