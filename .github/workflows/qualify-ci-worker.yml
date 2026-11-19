@@ -7,6 +7,7 @@ on:
       - 'Sources/MicropodCLI/CICommands.swift'
       - 'ci/worker-pipeline.sh'
       - 'scripts/qualify_ci_worker.py'
+      - 'scripts/bench_live_kernel.py'
       - '.github/workflows/qualify-ci-worker.yml'
   workflow_dispatch:
     inputs:
@@ -15,6 +16,13 @@ on:
         type: choice
         options: [ubuntu-guest, apple-pair]
         default: ubuntu-guest
+      apple_runner:
+        description: Label for the physical Apple Silicon benchmark rig
+        type: string
+        default: macOS
+concurrency:
+  group: micropod-worker-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:
@@ -42,7 +50,7 @@ jobs:
 
   apple:
     if: inputs.suite == 'apple-pair'
-    runs-on: [self-hosted, macOS, ARM64]
+    runs-on: [self-hosted, ARM64, "${{ inputs.apple_runner || 'macOS' }}"]
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
