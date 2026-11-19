@@ -158,7 +158,9 @@ def measure(args, receipt, runner=None, read_parent=None):
             r = cmd(["run", "--rm", "--name", name, *options, image, "sh", "-c", script, "sh", BOOT, token], check=False)
             lines = r.stdout.splitlines()
             require(r.returncode == 23 and len(lines) == 2 and lines[1] == "OUT-" + token
-                    and r.stderr.splitlines() == ["ERR-" + token], "exit code or output streams differed")
+                    and r.stderr.splitlines() == ["ERR-" + token],
+                    f"expected exit 23 and one token per stream, got exit {r.returncode}, "
+                    f"stdout={r.stdout[:220]!r}, stderr={r.stderr[:430]!r}")
             require(fingerprint(lines[0]) == kernel, "container used a different kernel")
         except Exception:
             cmd(["rm", "-f", name], check=False)
@@ -175,6 +177,8 @@ def measure(args, receipt, runner=None, read_parent=None):
                 errors = [str(exc) for f in futures if (exc := f.exception()) is not None]
             samples.append(dict(round=block+1, clients=n, seconds=round(time.perf_counter()-start, 6),
                                 passed=n-len(errors), errors=errors))
+            print(f"{args.engine} block {block+1} clients {n}: {n-len(errors)}/{n} "
+                  f"in {samples[-1]['seconds']:.3f}s", file=sys.stderr, flush=True)
     require(not cmd(["ps", "-aq", "--filter", "label=" + label]).stdout.strip(), "Benchmark containers remain")
     require(server()["ID"] == initial["ID"], "Docker daemon identity changed")
     if host_boot:

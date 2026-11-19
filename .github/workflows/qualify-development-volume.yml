@@ -7,6 +7,7 @@ permissions:
   contents: read
 jobs:
   apfs:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: macos-26
     timeout-minutes: 20
     steps:
@@ -48,7 +49,6 @@ jobs:
           path: ${{ runner.temp }}/kernel.json
 
   warm-orbstack:
-    if: github.event_name == 'workflow_dispatch'
     runs-on: macos-26-intel
     timeout-minutes: 22
     env:
@@ -125,7 +125,7 @@ jobs:
       - name: Pull matching native Alpine
         run: docker --host "unix://$HOME/.orbstack/run/docker.sock" pull "$IMAGE"
       - name: Verify the running kernel and measure 1, 4, 8 and 16 clients
-        run: python3 scripts/bench_live_kernel.py --engine orbstack --image "$IMAGE" --socket "$HOME/.orbstack/run/docker.sock" --json "$RUNNER_TEMP/kernel.json"
+        run: python3 scripts/bench_live_kernel.py --engine orbstack --rounds 3 --image "$IMAGE" --socket "$HOME/.orbstack/run/docker.sock" --json "$RUNNER_TEMP/kernel.json"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
