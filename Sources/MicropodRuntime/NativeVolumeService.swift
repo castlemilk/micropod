@@ -34,8 +34,16 @@ public struct NativeVolumeService: VolumeServing {
 
     /// Under the volume's lock, so a delete never lands between a
     /// `CommitVolumeClone`'s checks and its rename into this volume's dir.
+    ///
+    /// The apiserver removes the volume's directory while it holds both its
+    /// volumes lock and its containers lock; a second name for the backing
+    /// image makes that removal O(1), and the reclaimer frees the image
+    /// afterwards. A refused delete (the volume is attached) keeps the image
+    /// under its own name, so the second name is just dropped.
     public func delete(_ name: String) async throws {
         try await VolumeLocks.shared.withLock(name) {
+            let image = api.volumeImagePath(name: name).flatMap { PayloadReclaimer.shared.stage($0) }
+            defer { if let image { PayloadReclaimer.shared.settle(image) } }
             try await api.volumeDelete(name: name)
         }
     }
@@ -81,15 +89,24 @@ public struct NativeVolumeService: VolumeServing {
         }
     }
 
+    /// Every create that clones this golden waits for its lock, so the slow
+    /// parts stay outside it: the clone's dirty pages are flushed first (the
+    /// commit's own fsync under the lock then has little left to write), and
+    /// the golden's configuration comes from ``APIServerClient/volumeConfig(name:)``
+    /// rather than a `volumeInspect` that queues behind the apiserver's
+    /// volume formats and deletes.
     public func commitClone(containerID: String, volume: String) async throws -> UInt64 {
         await NativeLifecycleOperations.shared.reconcileKnownExit(containerID)
         return try await Self.withCommitClaim(containerID: containerID) {
-            try await VolumeLocks.shared.withLock(volume) {
+            if let clone = try? VolumeClone.clonePath(containerID: containerID, volume: volume) {
+                VolumeClone.flush(clone.path)
+            }
+            return try await VolumeLocks.shared.withLock(volume) {
                 let entries = try await entries()
                 try VolumeClone.requireStopped(containerID: containerID, in: entries)
                 let clone = try VolumeClone.requireClone(containerID: containerID, volume: volume)
                 try VolumeClone.requireMounted(clone: clone, containerID: containerID, volume: volume, in: entries)
-                let golden = try VolumeClone.requireVolume(try await self.volume(named: volume), named: volume)
+                let golden = try VolumeClone.requireVolume(try await self.golden(named: volume), named: volume)
                 try VolumeClone.requireBackingImage(golden)
                 try VolumeClone.requireQuiescent(golden, attachments: VolumeAttachments(entries: entries))
                 return try VolumeClone.commit(clonePath: clone, goldenPath: golden.source)
@@ -129,6 +146,15 @@ public struct NativeVolumeService: VolumeServing {
     private func volume(named name: String) async throws -> Micropod_V1_Volume? {
         guard let raw = try await api.volumeInspect(name: name, policy: .patient),
             let entry = try VolumeTransform.entry(raw)
+        else { return nil }
+        return ModelMapper.volume(from: entry)
+    }
+
+    /// A golden's configuration for a commit: remembered while its backing
+    /// image exists (``APIServerClient/volumeConfig(name:)``), inspected
+    /// otherwise; nil when the volume is absent.
+    private func golden(named name: String) async throws -> Micropod_V1_Volume? {
+        guard let raw = try await api.volumeConfig(name: name), let entry = try VolumeTransform.entry(raw)
         else { return nil }
         return ModelMapper.volume(from: entry)
     }

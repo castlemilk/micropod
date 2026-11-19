@@ -195,7 +195,12 @@ public enum VolumeClone {
         }
         let placed: Int32
         switch placement {
-        case .replace: placed = rename(temp, destination)
+        case .replace:
+            // Whatever the rename replaces (the image the runtime just
+            // formatted for a `CloneVolume`) is freed by the reclaimer.
+            let replaced = PayloadReclaimer.shared.stage(destination)
+            defer { if let replaced { PayloadReclaimer.shared.settle(replaced) } }
+            placed = rename(temp, destination)
         case .exclusive: placed = renamex_np(temp, destination, UInt32(RENAME_EXCL))
         }
         guard placed == 0 else {
@@ -247,8 +252,13 @@ public enum VolumeClone {
         for volume in Array(Set(volumes)).sorted() {
             // A name that is not a safe path component never names a clone.
             guard let clone = try? clonePath(containerID: containerID, volume: volume) else { continue }
+            // Renamed out from under the lock in O(1) and freed by the
+            // reclaimer: a dirtied multi-GiB clone takes seconds to unlink,
+            // and every create cloning this golden waits for this lock.
             await VolumeLocks.shared.withLock(volume) {
-                _ = unlink(clone.path)
+                if !PayloadReclaimer.shared.retire(clone.path) {
+                    _ = unlink(clone.path)
+                }
             }
         }
     }
@@ -311,6 +321,18 @@ public enum VolumeClone {
                 await removeClones(containerID: id)
             }
         }
+    }
+
+    /// Writes `path`'s dirty pages to disk, best effort. A commit calls it
+    /// before taking the volume's lock, so the fsync that ``commit(clonePath:goldenPath:)``
+    /// still does under the lock — the durability guarantee — finds little
+    /// left to write: a stopped container's clone can hold gigabytes of
+    /// pages its VM wrote through the host cache.
+    public static func flush(_ path: String) {
+        let fd = open(path, O_RDONLY)
+        guard fd >= 0 else { return }
+        _ = fsync(fd)
+        close(fd)
     }
 
     /// Promotes a container's clone to be the golden image.
@@ -376,6 +398,11 @@ public enum VolumeClone {
             guard fsync(tempFD) == 0 else {
                 throw MicropodError.message("fsync of staged image \(temp) failed: \(describe(errno))")
             }
+            // The rename drops the previous golden's last name, which would
+            // free its extents inside the rename, under this volume's lock.
+            // A second name moves that free to the reclaimer.
+            let previous = PayloadReclaimer.shared.stage(goldenPath)
+            defer { if let previous { PayloadReclaimer.shared.settle(previous) } }
             guard rename(temp, goldenPath) == 0 else {
                 throw MicropodError.message("failed to replace \(goldenPath): \(describe(errno))")
             }

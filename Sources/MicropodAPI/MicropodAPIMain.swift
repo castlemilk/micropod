@@ -73,6 +73,9 @@ struct MicropodAPI {
             fputs("Managed API identity verification failed: \(error.localizedDescription)\n", stderr)
             exit(1)
         }
+        // Images a previous process staged or retired but did not live to
+        // free (see PayloadReclaimer).
+        PayloadReclaimer.shared.sweep()
         let runtime = await RuntimeBackendResolver.resolve(client: client)
         // Started before the runtime (or against an unverified apiserver):
         // re-resolve lazily and swap to native once it answers. The request

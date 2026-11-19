@@ -145,9 +145,10 @@ final class APIHandlers: Sendable {
 
     private func handleInner(_ request: HTTPRequest) async -> HTTPResponse {
         // /metrics — Prometheus text format, always 200: this API's routes,
-        // then the apiserver XPC traffic behind them.
+        // then the apiserver XPC traffic behind them, then the image frees
+        // moved off the runtime's locks.
         if request.path == "/metrics" {
-            return .text(200, metrics.render() + APIServerMetrics.render())
+            return .text(200, metrics.render() + APIServerMetrics.render() + PayloadReclaimer.shared.renderMetrics())
         }
 
         let path = request.path

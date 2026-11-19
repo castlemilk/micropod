@@ -59,7 +59,7 @@ public final class APIServerClient: Sendable {
         else {
             throw MicropodError.message("container-apiserver ping reply was missing version fields")
         }
-        if let root = reply.string(key: .appRoot) {
+        if let root = reply.string(key: .appRoot).flatMap(Self.filesystemPath) {
             appRoot.withLock { $0 = root }
         }
         return APIServerHealth(
@@ -484,6 +484,31 @@ public final class APIServerClient: Sendable {
         request.set(key: .id, value: id)
         let reply = try await send(request, timeout: .seconds(30))
         return reply.uint64(key: .containerSize)
+    }
+
+    /// The apiserver reports its roots as file URLs
+    /// (`file:///Users/x/Library/Application%20Support/com.apple.container/`,
+    /// `URL.absoluteString`); paths are built from the decoded path. A plain
+    /// path is taken as it is.
+    static func filesystemPath(_ reported: String) -> String? {
+        guard !reported.isEmpty else { return nil }
+        if let url = URL(string: reported), url.isFileURL { return url.path }
+        return reported
+    }
+
+    /// Where container `id`'s root filesystem image lives
+    /// (`<appRoot>/containers/<id>/rootfs.ext4`), or nil when the app root
+    /// is not known yet or `id` is not a plain path component.
+    public func rootfsImagePath(id: String) -> String? {
+        guard VolumeClone.isSafeComponent(id), let root = appRoot.withLock({ $0 }) else { return nil }
+        return URL(fileURLWithPath: root).appendingPathComponent("containers/\(id)/rootfs.ext4").path
+    }
+
+    /// Where volume `name`'s backing image lives
+    /// (`<appRoot>/volumes/<name>/volume.img`), or nil as above.
+    public func volumeImagePath(name: String) -> String? {
+        guard VolumeClone.isSafeVolumeName(name), let root = appRoot.withLock({ $0 }) else { return nil }
+        return URL(fileURLWithPath: root).appendingPathComponent("volumes/\(name)/volume.img").path
     }
 
     /// The apiserver's measure (`FileManager.allocatedSize(of:)`: the
