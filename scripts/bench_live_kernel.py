@@ -215,9 +215,11 @@ def measure(args, receipt, runner=None, read_parent=None):
 def paired(args, receipt):
     require(platform.system() == "Darwin" and platform.machine() == "arm64", "Run the paired test on an Apple Silicon Mac")
     require(args.clock == "client", "Both engines in a pair use the Mac client's clock")
-    receipt["hardware"] = {key: subprocess.check_output(["/usr/sbin/sysctl", "-n", key], text=True).strip()
-                           for key in ("hw.model", "hw.ncpu", "hw.memsize")}
-    require(not receipt["hardware"]["hw.model"].startswith("VirtualMac"), "Use a physical Mac for this pairing")
+    hardware = json.loads(subprocess.check_output(
+        ["/usr/sbin/system_profiler", "SPHardwareDataType", "-json"], text=True, timeout=30))["SPHardwareDataType"][0]
+    receipt["hardware"] = {key: hardware.get(key) for key in
+                           ("machine_model", "chip_type", "number_processors", "physical_memory")}
+    require(re.match(r"^(?:Mac|iMac)", hardware.get("machine_model", "")), "Use a physical Mac for this pairing")
     rows = []
     receipt["blocks"] = rows
     identities = {}

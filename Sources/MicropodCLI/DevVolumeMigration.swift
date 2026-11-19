@@ -119,19 +119,18 @@ enum DevVolumeMigration {
     // ditto preserves links within one tree. pnpm can also link an inode in an
     // external store to several paths in the workspace. Rebuild those links in
     // the unpublished copy, using a previously migrated tree as the anchor.
-    struct HardLinks {
+    struct FileLinks {
         struct Key: Hashable {
             let device: dev_t
             let inode: ino_t
         }
         var anchors: [Key: String] = [:]
-        let enabled: Bool
+        var cloneAnchors: [DevVolumeClones.Key: String] = [:]
 
         mutating func track(from source: String, published: String, staging: String? = nil) throws {
-            guard enabled else { return }
             var root = stat()
             guard lstat(source, &root) == 0 else { throw DevVolumeError("Cannot read \(source)") }
-            var pending = [""], next: [Key: String] = [:]
+            var pending = [""], next: [Key: String] = [:], localClones: [DevVolumeClones.Key: String] = [:]
             while let suffix = pending.popLast() {
                 let path = source + suffix
                 var original = stat()
@@ -149,9 +148,17 @@ enum DevVolumeMigration {
                     } else if anchors[key] == nil && next[key] == nil {
                         next[key] = published + suffix
                     }
+                case S_IFREG where original.st_size > 0:
+                    if let key = try DevVolumeClones.key(path, device: original.st_dev) {
+                        if let staging, let anchor = localClones[key].map({ staging + $0 }) ?? cloneAnchors[key] {
+                            try DevVolumeClones.share(anchor, with: staging + suffix)
+                        }
+                        if localClones[key] == nil { localClones[key] = suffix }
+                    }
                 default: break
                 }
             }
+            cloneAnchors.merge(localClones.mapValues { published + $0 }) { old, _ in old }
             anchors.merge(next) { old, _ in old }
         }
 
@@ -200,7 +207,7 @@ enum DevVolumeMigration {
         else { throw DevVolumeError("Expected a real directory on the recorded filesystem: \(path)") }
     }
 
-    static func migrate(_ tree: DevVolume.Tree, volume: DevVolume, state: String, links: inout HardLinks) throws {
+    static func migrate(_ tree: DevVolume.Tree, volume: DevVolume, state: String, links: inout FileLinks) throws {
         let target = volume.destination(tree)
         try sameDevice(volume.payload, volume.mount)
         if link(tree.source) == target {
@@ -230,7 +237,7 @@ enum DevVolumeMigration {
         try exchange(tree.source, tree.backup)
     }
 
-    static func restore(_ tree: DevVolume.Tree, volume: DevVolume, links: inout HardLinks) throws {
+    static func restore(_ tree: DevVolume.Tree, volume: DevVolume, links: inout FileLinks) throws {
         let target = volume.destination(tree)
         if try kind(tree.source) == S_IFDIR {
             if try kind(tree.backup) == S_IFDIR && kind(target) == S_IFDIR {

@@ -18,6 +18,8 @@ import tempfile
 import time
 import uuid
 
+from bench_pnpm_storage import APFSAllocation
+
 
 def run(*args, cwd=None, check=True):
     p = subprocess.run(list(map(str, args)), capture_output=True, cwd=cwd, timeout=240)
@@ -114,6 +116,22 @@ def qualify(binary, result):
         (projects / ".git" / "fixture").write_text("retained\n")
         (store / "package").write_text("package bytes\n")
         os.link(store / "package", projects / "existing-link")
+        package = store / "clone-payload"
+        payload_bytes = bytes(range(256)) * 1024
+        package.write_bytes(payload_bytes)
+        imported, untouched, edited = (projects / name for name in ("imported", "untouched", "different"))
+        for child in (imported, untouched, edited):
+            run("/bin/cp", "-c", package, child)
+        imported.chmod(0o640)
+        run("/usr/bin/xattr", "-w", "org.micropod.import", "workspace", imported)
+        with edited.open("r+b") as f:
+            f.write(b"modified")
+        expected_edit = edited.read_bytes()
+        allocation = APFSAllocation()
+
+        def shared(a, b):
+            return not os.path.samefile(a, b) and allocation.read(a)[1] == allocation.read(b)[1]
+        assert shared(package, imported)
         tag = uuid.uuid4().hex[:12]
         image = work / "qualification.sparseimage"
         run("hdiutil", "create", "-size", "4g", "-type", "SPARSE", "-fs", "APFS", "-volname", "Seed-" + tag, image)
@@ -165,6 +183,13 @@ def qualify(binary, result):
             assert os.readlink(projects / "dangling") == "missing"
             assert (projects / ".git/fixture").read_text() == "retained\n"
             assert os.path.samefile(store / "package", projects / "existing-link")
+            assert shared(package, imported) and shared(package, untouched)
+            assert imported.stat().st_mode & 0o777 == 0o640
+            assert run("/usr/bin/xattr", "-p", "org.micropod.import", imported).stdout.strip() == b"workspace"
+            assert edited.read_bytes() == expected_edit and package.read_bytes() == payload_bytes
+            with imported.open("r+b") as f:
+                f.write(b"post-cutover")
+            assert package.read_bytes() == payload_bytes and untouched.read_bytes() == payload_bytes
             os.link(store / "package", projects / "linked-package")
             assert os.stat(store / "package").st_ino == os.stat(projects / "linked-package").st_ino
             (projects / "edited").write_text("after cutover\n")
@@ -180,6 +205,8 @@ def qualify(binary, result):
             assert (projects / "edited").read_text() == "after cutover\n" and not (projects / ".git/fixture").exists()
             assert os.path.samefile(store / "package", projects / "existing-link")
             assert os.path.samefile(store / "package", projects / "linked-package")
+            assert shared(package, untouched) and imported.read_bytes().startswith(b"post-cutover")
+            assert edited.read_bytes() == expected_edit and package.read_bytes() == payload_bytes
             assert (Path(moved["trees"][0]["backup"]) / ".git/fixture").is_file()
             cli("restore")
             cli("migrate")
@@ -203,7 +230,7 @@ def qualify(binary, result):
             result.update(volume_uuid=first["volumeUUID"], checks=["plan", "own-apfs-volume", "idempotent-create",
                           "persistent-log-marker", "spotlight-marker", "working-directory-guard", "live-holder-guard",
                           "atomic-migration", "hardlinks", "xattr", "mode", "dangling-symlink", "git-directory",
-                          "pnpm-store-hardlink", "existing-cross-tree-hardlinks", "restore-cross-tree-hardlinks", "repair", "encrypted-create-lock-unlock", "uuid-remount", "restore-latest", "repeat-migration"],
+                          "pnpm-store-hardlink", "existing-cross-tree-hardlinks", "restore-cross-tree-hardlinks", "preserve-identical-apfs-clones", "clone-specific-metadata", "diverged-clones", "restore-copy-on-write", "repair", "encrypted-create-lock-unlock", "uuid-remount", "restore-latest", "repeat-migration"],
                           spotlight_seed=run("mdutil", "-s", seed, check=False).stdout.decode().strip(),
                           spotlight_development=remounted["spotlight"], physical_host_claim=False,
                           samples=samples)

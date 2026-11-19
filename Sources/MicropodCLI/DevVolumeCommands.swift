@@ -229,7 +229,7 @@ enum DevVolumeCommands {
                     let target = volume.destination($0)
                     return DevVolumeMigration.link($0.source) == target ? target : $0.source
                 })
-            var links = DevVolumeMigration.HardLinks(enabled: volume.trees.count > 1)
+            var links = DevVolumeMigration.FileLinks()
             for index in volume.trees.indices {
                 var tree = volume.trees[index]
                 if opt.action == "migrate" {

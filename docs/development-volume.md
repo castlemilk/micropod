@@ -20,7 +20,7 @@ Pass an existing store. Omit `--pnpm-store` to migrate only projects. If you mai
 
 Run migration outside the source directories and close editors, shells or rig jobs using them. The CLI reports open process IDs. Migration copies as the login user, verifies bytes, modes, hard links, symlinks, macOS extended attributes, flags and ACLs, then atomically switches each top-level path. A top-level path with its own mount, or an embedded filesystem detected during verification, stops the migration. Each tree has a separate commit point. Its journal and filesystem state allow the same command to continue after interruption.
 
-Budget space for the verified destination copy and the retained source. A cross-volume copy can materialize bytes previously shared by APFS clones. The CLI prints the original backup path for each tree in JSON status. A new migration after restore starts a new generation and retains previous copies.
+Budget space for the verified destination copy and the retained source. Transfers stage a verified copy before switching paths. Micropod groups eligible APFS clones by source device, clone family and content hash. It recreates byte-identical files as independent copy-on-write clones on the destination and preserves each file's metadata. Diverged contents remain independent. Files with special flags and destinations without clone support can retain full copies. Allow for the temporary full-copy space during migration. The CLI prints the original backup path for each tree in JSON status. A new migration after restore starts a new generation and retains previous copies.
 
 ## Remount, repair and restore
 
@@ -37,6 +37,8 @@ micropod storage dev-volume restore
 Micropod requests Spotlight indexing off with `mdutil -i off` on this volume and creates `.metadata_never_index` and `.fseventsd/no_log` there. The latter opts the volume out of the persistent filesystem event history. Tools that rely on that history can need a rescan. Live file notifications and other volumes are outside the policy. The source ideas are [repos-volume.sh](https://github.com/elithrar/dotfiles/blob/main/repos-volume.sh), [disable-apple-tracking](https://github.com/rayhanadev/disable-apple-tracking) and [Apple's FSEvents guide](https://developer.apple.com/library/archive/documentation/Darwin/Conceptual/FSEvents_ProgGuide/FileSystemEventSecurity/FileSystemEventSecurity.html).
 
 ## Micropod runtime data and disk caches
+
+pnpm's automatic import mode can clone package files on APFS when the workspaces and store share a volume. On Gamma, 16 installs of the same package shared 32 APFS clone families. The migration keeps the existing pnpm configuration. Run `python3 scripts/bench_pnpm_storage.py --apfs` on the target filesystem to verify automatic import, hard links and copying with the installed pnpm version.
 
 Projects, pnpm's store and Micropod's VM disk store have separate owners. To move VM data as well, schedule an idle rig window and use the existing runtime storage command. Keep prepared disk images and their writable clones on the same APFS volume.
 

@@ -35,6 +35,18 @@ On Gamma-128GB, macOS 26.5.1 ARM64 and pnpm 11.23.0, real offline pnpm installs 
 
 Across the 16 timed installs, median elapsed time was 0.722 s with explicit copy and 0.716 s with explicit hard links. The demonstrated benefit is reuse of the same inodes. APFS can share physical extents across distinct inodes through cloning. These logical sizes cannot establish physical bytes reclaimed by the migration, or the performance of pnpm's automatic import policy. The rig's projects, package-manager configuration and existing stores were outside the fixture. [Raw times and file counts](pnpm-gamma.json) · [Reproduce the offline installs](../../../scripts/bench_pnpm_storage.py).
 
+### APFS clone accounting on Gamma
+
+A second matched run on the physical M5 Max compared pnpm's automatic, hard-link and copy modes. After warming each store, it removed the warm-up workspaces, imported the same 8 MiB payload into 16 fresh workspaces per method and checked every file's SHA-256 digest. Darwin's `getattrlist` supplied clone IDs and private allocated bytes for each distinct file inode, including the store. Times are medians of 16 offline installs per method.
+
+| pnpm import | Median install | Distinct inodes | APFS clone families | Private payload MiB |
+|---|---:|---:|---:|---:|
+| Automatic | 0.487 s | 544 | 32 | 0 |
+| Hard link | 0.538 s | 32 | 32 | 8 |
+| Copy | 0.552 s | 544 | 544 | 136 |
+
+With automatic import, APFS accounted for the file data through shared extents. Zero private bytes still requires storage for those shared extents and filesystem metadata. Micropod preserves eligible equal-content clone families across the selected trees. Each clone retains an independent inode and subsequent writes remain private. The native Gamma probe checked both identical and diverged source clones and different workspace metadata. [APFS receipt](pnpm-gamma-apfs.json) · [Encrypted cross-volume clone qualification](https://github.com/castlemilk/micropod/actions/runs/44521344408).
+
 ## APFS migration and metadata workload
 
 The production Micropod CLI created a sibling APFS volume inside a disposable macOS disk image. It verified source copies before switching paths, preserved a pnpm hard link spanning both source trees, created a new link after migration, remounted by volume UUID and restored post-migration edits and deletions. Open-file and working-directory checks stopped a busy migration. The qualification also reran migrate and restore.
