@@ -66,9 +66,9 @@ jobs:
           swift build -c release --product micropod
           codesign -f -s - --entitlements signing/micropod-cli.entitlements .build/release/micropod
       - name: Verify lifecycle and compare warm jobs on this Mac
-        run: python3 scripts/qualify_ci_worker.py apple-worker --micropod "$PWD/.build/release/micropod" --orbstack-socket "$HOME/.orbstack/run/docker.sock" --json "$RUNNER_TEMP/apple.json"
+        run: MICROPOD_BENCH_BIN="$PWD/.build/release/micropod" bash scripts/bench_ci_apple.sh "$RUNNER_TEMP/apple-bench"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: apple-worker-orbstack
-          path: ${{ runner.temp }}/apple.json
+          path: ${{ runner.temp }}/apple-bench/*.json
