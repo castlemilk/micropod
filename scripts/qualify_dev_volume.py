@@ -20,7 +20,7 @@ import time
 import uuid
 
 from bench_pnpm_storage import APFSAllocation
-from bench_package_caches import Fixture, stores
+from bench_package_caches import COMPILER, Fixture, command as package_command, stores
 
 
 def run(*args, cwd=None, check=True):
@@ -102,7 +102,30 @@ def metadata_batch(directory, clients):
     return round(time.perf_counter() - start, 6)
 
 
-def qualify(binary, result):
+def other_project(fixture, cache):
+    # A different package, lockfile root, Go module and binary share only the dependency inputs.
+    w = fixture.workspace("unrelated-project")
+    for filename in ("package.json", "package-lock.json"):
+        p = w / filename
+        p.write_text(p.read_text().replace("micropod-cache-client", "second-service"))
+    p = w / "go.mod"
+    p.write_text(p.read_text().replace("example.test/client", "example.test/another-service"))
+    p = w / "main.go"
+    p.write_text(p.read_text().replace("shared.Message)", 'shared.Message + "-second")'))
+    before = [p.stat().st_ino for p in fixture.payloads(cache)]
+    env = fixture.environment(cache)
+    fixture.batch(cache, "npm", [w])
+    built, _ = package_command(fixture.argv("go"), w, env)
+    commands = [line for line in built.stderr.splitlines() if COMPILER.match(line)]
+    if len(commands) != 1 or not re.search(r" -p main(?: |$)", commands[0]):
+        raise ValueError("The second project should compile only its own main package")
+    app, _ = package_command([str(w / "app")], w, env)
+    if app.stdout.strip() != "micropod-cache-ok-second" or before != [p.stat().st_ino for p in fixture.payloads(cache)]:
+        raise ValueError("The second project returned stale code or replaced a shared dependency")
+    return {"offline": True, "compiled_packages": ["main"], "same_dependency_inodes": True}
+
+
+def qualify(binary, result, metadata_rounds=4):
     with tempfile.TemporaryDirectory(prefix="micropod-apfs-") as tmp:
         work = Path(tmp).resolve()
         projects, store, state = (work / x for x in ("projects", "store", "state"))
@@ -179,6 +202,10 @@ def qualify(binary, result):
             moved = json.loads(cli("migrate").stdout)
             assert all(t["linked"] for t in moved["trees"]) and projects.is_symlink() and store.is_symlink()
             assert json.loads(cli("migrate").stdout)["trees"] == moved["trees"]
+            # Check a second generation before enrolling the larger package stores.
+            cli("restore")
+            moved = json.loads(cli("migrate").stdout)
+            assert all(t["linked"] for t in moved["trees"])
             assert os.stat(original).st_ino == os.stat(projects / "hardlink").st_ino
             assert os.stat(original).st_mode & 0o777 == 0o751
             assert run("/usr/bin/xattr", "-p", "org.micropod.test", original).stdout.strip() == b"checked"
@@ -230,6 +257,7 @@ def qualify(binary, result):
             restored = json.loads(cli("restore").stdout)
             assert all(p.is_dir() and not p.is_symlink() for p in package_caches.values())
             verify_packages("restored")
+            result["different_project"] = other_project(fixture, package_caches)
             assert not any(t["linked"] for t in restored["trees"]) and not projects.is_symlink()
             assert (projects / "edited").read_text() == "after cutover\n" and not (projects / ".git/fixture").exists()
             assert os.path.samefile(store / "package", projects / "existing-link")
@@ -238,8 +266,6 @@ def qualify(binary, result):
             assert edited.read_bytes() == expected_edit and package.read_bytes() == payload_bytes
             assert (Path(moved["trees"][0]["backup"]) / ".git/fixture").is_file()
             cli("restore")
-            cli("migrate")
-            cli("restore")
             print("Volume fixture encrypted lock and unlock", flush=True)
             run("sudo", "/usr/sbin/diskutil", "apfs", "lockVolume", first["volumeUUID"])
             assert not json.loads(cli("status").stdout)["mounted"]
@@ -247,7 +273,7 @@ def qualify(binary, result):
             unlocked = json.loads(cli("status").stdout)
             assert os.path.ismount(mount) and unlocked["volumeUUID"] == first["volumeUUID"] and unlocked["mounted"]
             samples = []
-            for block in range(4):
+            for block in range(metadata_rounds):
                 for i, n in enumerate((1, 4, 8, 16)):
                     roots = [("seed", seed), ("development", payload)]
                     if (block + i) % 2:
@@ -259,10 +285,10 @@ def qualify(binary, result):
             result.update(volume_uuid=first["volumeUUID"], checks=["plan", "own-apfs-volume", "idempotent-create",
                           "persistent-log-marker", "spotlight-marker", "working-directory-guard", "live-holder-guard",
                           "atomic-migration", "hardlinks", "xattr", "mode", "dangling-symlink", "git-directory",
-                          "pnpm-store-hardlink", "existing-cross-tree-hardlinks", "restore-cross-tree-hardlinks", "preserve-identical-apfs-clones", "clone-specific-metadata", "diverged-clones", "restore-copy-on-write", "repair", "encrypted-create-lock-unlock", "uuid-remount", "restore-latest", "repeat-migration", "enroll-existing-volume", "coalesce-nested-cache", "retry-cache-enrollment", "npm-offline-after-remount-and-restore", "go-offline-after-remount-and-restore", "go-zero-warm-compiles"],
+                          "pnpm-store-hardlink", "existing-cross-tree-hardlinks", "restore-cross-tree-hardlinks", "preserve-identical-apfs-clones", "clone-specific-metadata", "diverged-clones", "restore-copy-on-write", "repair", "encrypted-create-lock-unlock", "uuid-remount", "restore-latest", "repeat-migration", "enroll-existing-volume", "coalesce-nested-cache", "retry-cache-enrollment", "npm-offline-after-remount-and-restore", "go-offline-after-remount-and-restore", "go-zero-warm-compiles", "changed-project-reuses-dependencies"],
                           spotlight_seed=run("mdutil", "-s", seed, check=False).stdout.decode().strip(),
                           spotlight_development=remounted["spotlight"], physical_host_claim=False,
-                          samples=samples)
+                          metadata_rounds=metadata_rounds, samples=samples)
         finally:
             run("hdiutil", "detach", whole)
 
@@ -271,10 +297,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", required=True, type=Path)
     parser.add_argument("--json", required=True, type=Path)
+    parser.add_argument("--metadata-rounds", type=int, choices=range(0, 21), default=4,
+                        help="Optional full filesystem scaling sweep; zero runs only the integration checks")
     args = parser.parse_args()
     result = {}
     try:
-        qualify(args.binary.resolve(), result)
+        qualify(args.binary.resolve(), result, args.metadata_rounds)
         result["passed"] = True
     except Exception as exc:
         result.update(passed=False, error=str(exc))

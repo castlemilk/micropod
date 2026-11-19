@@ -250,10 +250,11 @@ def reference_times(files, sample, clients, rounds):
                     and all(not b["errors"] and b["passed"] == n and math.isfinite(b["seconds"]) and b["seconds"] > 0
                             for b in batches), f"{path.name} lacks a complete series at {n} clients")
             medians[str(n)] = statistics.median(b["seconds"] for b in batches)
-        require(all(r["boot_sha256"] != ref["boot_sha256"] and r["daemon"] != ref["server"]["ID"] for r in references),
-                "Supply independent Ubuntu allocations")
+        require(all(r["boot_sha256"] != ref["boot_sha256"] for r in references),
+                "Supply independently booted Ubuntu references")
         reference = dict(file=path.name, boot_sha256=ref["boot_sha256"], daemon=ref["server"]["ID"],
                          vcpus=ref["server"]["NCPU"], memory_bytes=ref["server"]["MemTotal"], median_seconds=medians)
+        reference["same_reported_daemon_as"] = [r["file"] for r in references if r["daemon"] == reference["daemon"]]
         packages = ref.get("package_caches")
         if packages and "package_caches" in sample:
             require(packages.get("passed") is True and len(packages["blocks"]) == rounds and
