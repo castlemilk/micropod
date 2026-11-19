@@ -1,13 +1,10 @@
 name: Micropod and OrbStack product comparison
 on:
   workflow_dispatch:
-  pull_request:
-    paths: ['.github/workflows/micropod-product-comparison.yml']
 permissions:
   contents: read
 jobs:
   compare:
-    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'benchmarks/micropod-product-comparison-20261119'
     runs-on: macos-26-intel
     timeout-minutes: 40
     env:

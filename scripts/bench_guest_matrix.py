@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure and validate short-lived guests on the engines running on this Mac."""
+"""Measure and validate short-lived guests on the engines running on one host."""
 import argparse
 import concurrent.futures
 import hashlib
@@ -22,11 +22,14 @@ MIB = 1 << 20
 IMAGE = "alpine:3.20"
 HOME = Path.home()
 SOCKETS = {
+    "docker-engine": Path("/var/run/docker.sock"),
     "micropod-shim": HOME / ".micropod/docker.sock",
     "docker-desktop": HOME / ".docker/run/docker.sock",
     "orbstack": HOME / ".orbstack/run/docker.sock",
     "colima": HOME / ".colima/default/docker.sock",
 }
+MAC_ENGINES = ["micropod-sandbox", "apple-container", "micropod-shim", "docker-desktop", "orbstack", "colima"]
+LINUX_ENGINES = ["docker-engine", "podman"]
 CASES = ("lifecycle", "gzip-8m", "bind-read-write")
 ZERO_HASH = hashlib.sha256(bytes(8 * MIB)).hexdigest()
 BIND_DATA = hashlib.shake_256(b"micropod guest matrix").digest(MIB)
@@ -58,7 +61,7 @@ def guest(engine, work, image, script, bind=None):
         argv = ["container", "run", "--rm", "--name", tag, "-c", "1", "-m", "256M", *mounts, image]
         clean = ["container", "delete", "--force", tag]
     else:
-        docker = ["docker", "--host", "unix://" + str(SOCKETS[engine])]
+        docker = ["podman"] if engine == "podman" else ["docker", "--host", "unix://" + str(SOCKETS[engine])]
         argv = [*docker, "run", "--rm", "--name", tag, "--cpus", "1", "--memory", "256m",
                 "--network", "none", *mounts, image]
         clean = [*docker, "rm", "--force", tag]
@@ -81,13 +84,32 @@ def error_text(result):
 
 
 def server_identity(engine, work):
-    r = call(["docker", "--host", "unix://" + str(SOCKETS[engine]), "info", "--format", "{{json .}}"], work, 12)
+    if engine == "podman":
+        r = call(["podman", "info", "--format", "json"], work, 15)
+        if r.returncode:
+            raise ValueError(error_text(r))
+        info = json.loads(r.stdout)
+        host = info["host"]
+        return {"engine": "podman", "version": info["version"].get("Version"), "arch": host.get("arch"),
+                "runtime": host.get("ociRuntime", {}).get("name"), "cgroup": host.get("cgroupVersion"),
+                "rootless": host.get("security", {}).get("rootless")}
+    docker = ["docker", "--host", "unix://" + str(SOCKETS[engine])]
+    r = call([*docker, "info", "--format", "{{json .}}"], work, 12)
     if r.returncode:
         raise ValueError(error_text(r))
     info = json.loads(r.stdout)
     keys = ("Name", "OperatingSystem", "ServerVersion", "Architecture", "NCPU", "MemTotal", "KernelVersion")
     identity = {key: info.get(key) for key in keys}
     labels = (str(identity["OperatingSystem"]) + " " + str(identity["Name"])).lower()
+    if engine == "docker-engine":
+        ver = call([*docker, "version", "--format", "{{json .Server}}"], work, 12)
+        if ver.returncode:
+            raise ValueError(error_text(ver))
+        vendor = json.loads(ver.stdout).get("Platform", {}).get("Name", "")
+        if "docker engine" not in vendor.lower():
+            raise ValueError(f"unexpected Docker Engine server: {vendor}")
+        identity["platform"] = vendor
+        return identity
     tokens = {"micropod-shim": ("micropod", "apple container"), "docker-desktop": ("docker desktop", "docker-desktop"),
               "orbstack": ("orbstack",), "colima": ("colima",)}
     if not any(t in labels for t in tokens[engine]):
@@ -170,8 +192,10 @@ def batch(engine, case, clients, work, image):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", required=True, type=Path)
-    parser.add_argument("--engines", nargs="+", choices=["micropod-sandbox", "apple-container", *SOCKETS],
-                        default=["micropod-sandbox", "apple-container", *SOCKETS])
+    parser.add_argument("--engines", nargs="+", choices=MAC_ENGINES + LINUX_ENGINES,
+                        default=MAC_ENGINES if platform.system() == "Darwin" else LINUX_ENGINES)
+    parser.add_argument("--scale-cases", nargs="+", choices=CASES, default=list(CASES),
+                        help="cases to run at all client counts; other cases run at one client")
     parser.add_argument("--clients", type=int, nargs="+", default=[1, 4, 8, 16])
     parser.add_argument("--rounds", type=int, default=5)
     parser.add_argument("--image", default=IMAGE, help="Alpine tag or digest, identical for all engines")
@@ -181,7 +205,8 @@ def main():
         parser.error("rounds must be 1..50 and clients 1..64")
     args.json.parent.mkdir(parents=True, exist_ok=True)
     rng = random.Random(args.seed)
-    data = dict(started_utc=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), macos=platform.mac_ver()[0],
+    data = dict(scale_cases=args.scale_cases, host_os=platform.system(), kernel=platform.release(),
+                started_utc=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), macos=platform.mac_ver()[0],
                 arch=platform.machine(), cpus=os.cpu_count(), image=args.image, resource_request="1 vCPU, 256 MiB",
                 seed=args.seed, rounds=args.rounds, clients=args.clients, engines={}, warmups=[], blocks=[], summary=[])
     ready = {}
@@ -191,13 +216,13 @@ def main():
         work = Path(tmp).resolve()
         data["software"] = host_metadata(work)
         data["start_load"] = list(os.getloadavg())
-        data["network"] = "offline fixture; sandbox and Docker endpoints disable networking, Apple container uses its default"
+        data["network"] = "offline fixture; sandbox, Docker and Podman disable networking, Apple container uses its default"
         data["guest_groups"] = {}
         for engine in args.engines:
             try:
                 if engine in SOCKETS and not SOCKETS[engine].is_socket():
                     raise FileNotFoundError(f"{engine} socket absent")
-                server = server_identity(engine, work) if engine in SOCKETS else None
+                server = server_identity(engine, work) if engine in SOCKETS or engine == "podman" else None
                 identity = identify(engine, work, args.image)
                 data["engines"][engine] = {"guest": identity, "server": server}
                 data["guest_groups"].setdefault(identity, []).append(engine)
@@ -213,7 +238,7 @@ def main():
                 if row["passed"] == 1:
                     ready[engine].append(case)
                 atomic_save(args.json, data)
-            for clients in (args.clients if case == "lifecycle" else [1]):
+            for clients in (args.clients if case in args.scale_cases else [1]):
                 for block in range(1, args.rounds + 1):
                     order = [e for e in ready if case in ready[e]]
                     rng.shuffle(order)
@@ -226,7 +251,7 @@ def main():
                         atomic_save(args.json, data)
     for engine, cases in ready.items():
         for case in cases:
-            for n in (args.clients if case == "lifecycle" else [1]):
+            for n in (args.clients if case in args.scale_cases else [1]):
                 rows = [r for r in data["blocks"] if (r["engine"], r["case"], r["clients"]) == (engine, case, n)]
                 success = [r["wall_s"] for r in rows if r["passed"] == n]
                 s = dict(engine=engine, case=case, clients=n, passed_blocks=len(success), total_blocks=len(rows))
