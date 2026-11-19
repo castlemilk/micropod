@@ -7,7 +7,7 @@ on:
       suite:
         description: Qualification to run
         type: choice
-        options: [storage, linux, orbstack, all]
+        options: [storage, linux, packages, orbstack, all]
         default: storage
       orbstack_release:
         description: OrbStack installer for the hosted Intel Mac
@@ -18,7 +18,7 @@ permissions:
   contents: read
 jobs:
   apfs:
-    if: github.event_name == 'push' || inputs.suite == 'storage' || inputs.suite == 'all'
+    if: inputs.suite == 'storage' || inputs.suite == 'all'
     runs-on: macos-26
     timeout-minutes: 20
     steps:
@@ -89,6 +89,34 @@ jobs:
         with:
           name: live-kernel-${{ matrix.runner }}
           path: ${{ runner.temp }}/kernel.json
+
+  package-reference:
+    if: github.event_name == 'push' || inputs.suite == 'packages' || inputs.suite == 'all'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 16
+    env:
+      IMAGE: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+      TOOLCHAIN: micropod-offline-cache:bench
+    steps:
+      - uses: actions/checkout@v7
+      - name: Prepare the package toolchain and kernel fixture
+        run: |
+          docker pull "$IMAGE"
+          docker build --build-arg SOURCE_DATE_EPOCH=0 -t "$TOOLCHAIN" scripts/bench_cache_image
+      - name: Verify offline installs in fresh containers on the warm kernel
+        run: |
+          python3 scripts/bench_live_kernel.py --engine linux-docker --image "$IMAGE" --socket /var/run/docker.sock --package-image "$TOOLCHAIN" --json "$RUNNER_TEMP/packages.json"
+      - name: Export the exact ARM64 comparison image
+        run: docker save "$TOOLCHAIN" | gzip -1 > "$RUNNER_TEMP/package-fixture.tar.gz"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: arm64-offline-package-reference
+          path: |
+            ${{ runner.temp }}/packages.json
+            ${{ runner.temp }}/package-fixture.tar.gz
+          retention-days: 7
+          compression-level: 0
 
   warm-orbstack:
     if: inputs.suite == 'orbstack' || inputs.suite == 'all'

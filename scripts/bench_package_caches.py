@@ -52,9 +52,15 @@ def jsonfile(path, obj):
 
 
 class Fixture:
-    def __init__(self, root):
+    def __init__(self, root, lock=None):
         self.root = root
         self.origin = root / "origin"
+        if lock is not None:
+            self.sri = lock["npm_integrity"]
+            self.npm_key = base64.b64decode(self.sri.removeprefix("sha512-"), validate=True).hex()
+            self.go_sum = lock["go_sum"].encode()
+            self.zip_digest = lock["go_zip_sha256"]
+            return
         self.origin.mkdir()
         self.source = self.origin / "package.tgz"
         payload = io.BytesIO()
@@ -206,6 +212,32 @@ def run(root, clients, rounds, record):
                                                                and i["clients"] == n), 6) for n in clients} for t in ("npm", "go")}
 
 
+def container_job(op, lock):
+    """Entry point inside a fresh offline OCI container with the cohort's named cache volumes."""
+    cache = stores(Path("/caches"))
+    with tempfile.TemporaryDirectory(prefix="checkout-") as directory:
+        root = Path(directory)
+        fixture = Fixture(root, lock)
+        report = {"boot": Path("/proc/sys/kernel/random/boot_id").read_text().strip()}
+        if op == "seed":
+            report["cold"] = fixture.prime(cache, "seed")
+            report["lock"] = dict(npm_integrity=fixture.sri, go_sum=fixture.go_sum.decode(), go_zip_sha256=fixture.zip_digest)
+            env = fixture.environment(cache)
+            report["versions"] = {t: command([t, f], root, env)[0].stdout.strip() for t, f in
+                                  (("go", "version"), ("npm", "--version"), ("node", "--version"))}
+        elif op == "empty":
+            fixture.controls(cache)
+        elif op in {"go", "npm"}:
+            fixture.batch(cache, op, [fixture.workspace("job")])
+        elif op != "audit":
+            raise ValueError("Unknown package workload")
+        if op in {"seed", "audit"}:
+            report["payload_inodes"] = [p.stat().st_ino for p in fixture.payloads(cache)]
+            report["cache_sizes"] = snapshot(cache)
+        report["verified"] = op
+        print(json.dumps(report, separators=(",", ":")))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--clients", type=int, nargs="+", default=[1, 4, 8, 16])
@@ -255,4 +287,7 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    if len(sys.argv) == 4 and sys.argv[1] == "container":
+        container_job(sys.argv[2], json.loads(sys.argv[3]))
+    else:
+        sys.exit(main())
