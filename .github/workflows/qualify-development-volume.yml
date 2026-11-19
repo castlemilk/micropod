@@ -7,11 +7,11 @@ on:
         type: choice
         options: [storage, linux, orbstack, all]
         default: storage
-      orbstack_version:
-        description: OrbStack release (hosted Intel supports 1.5.1)
+      orbstack_release:
+        description: OrbStack installer for the hosted Intel Mac
         type: choice
-        options: ['1.5.1', '2.2.5']
-        default: '1.5.1'
+        options: [runner-compatible, current]
+        default: runner-compatible
 permissions:
   contents: read
 jobs:
@@ -87,7 +87,7 @@ jobs:
     timeout-minutes: 22
     env:
       ORB_APP: /Applications/OrbStack.app
-      ORB_VERSION: ${{ inputs.orbstack_version || '1.5.1' }}
+      ORB_RELEASE: ${{ inputs.orbstack_release || 'runner-compatible' }}
       IMAGE: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
     steps:
       - uses: actions/checkout@v7
@@ -103,7 +103,7 @@ jobs:
       - name: Install and verify the selected Intel version
         run: |
           fixture=scripts/orbstack-benchmark-installer.json
-          if [[ "$ORB_VERSION" == "1.5.1" ]]; then fixture=scripts/bench_orb_transport/installer.json; fi
+          if [[ "$ORB_RELEASE" == "runner-compatible" ]]; then fixture=scripts/bench_orb_transport/installer.json; fi
           url=$(jq -er '.url' "$fixture")
           sha=$(jq -er '.sha256' "$fixture")
           dmg="$RUNNER_TEMP/OrbStack.dmg"
