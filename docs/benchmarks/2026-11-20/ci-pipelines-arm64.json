@@ -1,0 +1,82 @@
+{
+  "workload": "Go and Node CI pipelines in parallel, including Testcontainers PostgreSQL and a changed-source rebuild",
+  "unit": "seconds, client wall clock; first run followed by one warm repeat; separate Ubuntu allocations for each revision",
+  "before": {
+    "revision": "19e5d9628bb754d5cd35a6b241270d0ce5aa5d21",
+    "job": "https://github.com/castlemilk/micropod/actions/runs/44628166382/job/135927410682",
+    "worker_docker": "29.9.3",
+    "native_docker": "28.0.4",
+    "kernel": "7.0.0-1017-azure",
+    "vcpu": 4,
+    "validated": [
+      "Go vet, race and Testcontainers PostgreSQL",
+      "npm tests, source edit and rebuild"
+    ],
+    "seconds": {
+      "worker": {
+        "first": 71.358,
+        "warm": 17.018
+      },
+      "native_ubuntu": {
+        "first": 63.88,
+        "warm": 11.993
+      }
+    }
+  },
+  "after": {
+    "revision": "082bf072bc1b8aba0e126e0b6e0fff6379171f99",
+    "job": "https://github.com/castlemilk/micropod/actions/runs/44629059396/job/135930550664",
+    "worker_docker": "29.9.3",
+    "native_docker": "28.0.4",
+    "kernel": "7.0.0-1017-azure",
+    "vcpu": 4,
+    "validated": [
+      "Go vet, race and Testcontainers PostgreSQL",
+      "npm tests, source edit and rebuild"
+    ],
+    "seconds": {
+      "worker": {
+        "first": 69.082,
+        "warm": 12.443
+      },
+      "native_ubuntu": {
+        "first": 66.067,
+        "warm": 11.902
+      }
+    },
+    "stage_seconds": {
+      "worker": {
+        "first": {
+          "node-image": 6.371,
+          "node-edit": 1.924,
+          "go-checks": 49.578,
+          "go-image": 7.136,
+          "postgres": 19.351
+        },
+        "warm": {
+          "node-image": 0.43,
+          "go-checks": 0.802,
+          "node-edit": 0.322,
+          "go-image": 0.732,
+          "postgres": 11.487
+        }
+      },
+      "native_ubuntu": {
+        "first": {
+          "node-image": 5.812,
+          "node-edit": 1.581,
+          "go-checks": 44.245,
+          "go-image": 5.535,
+          "postgres": 21.665
+        },
+        "warm": {
+          "node-image": 0.392,
+          "go-checks": 0.468,
+          "node-edit": 0.261,
+          "go-image": 0.558,
+          "postgres": 11.276
+        }
+      }
+    }
+  }
+}

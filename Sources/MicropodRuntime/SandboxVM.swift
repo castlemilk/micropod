@@ -164,18 +164,29 @@ public enum SandboxVM {
         terminal: Terminal? = nil,
         trace: Trace = Trace(),
         progress: @Sendable (String) -> Void,
-        didOwnNetwork: @Sendable (any SandboxNetworkCleanup) async -> Void = { _ in }
+        didOwnNetwork: @Sendable (any SandboxNetworkCleanup) async -> Void = { _ in },
+        ciWorker: CIWorker? = nil
     ) async throws -> Prepared {
         try validateRootlessDocker(options)
         let store = try imageStore()
-        let (baseDisk, imageRef, diskBytes) = try await resolveBase(
-            options, store: store, progress: progress)
-        let image = try await store.get(reference: imageRef)
+        let imageRef: String
+        let diskBytes: UInt64
+        let image: Containerization.Image
+        let rootfsPath: URL
+        if let ciWorker {
+            imageRef = try normalize(CIWorker.image)
+            diskBytes = options.diskBytes
+            image = try await store.get(reference: imageRef, pull: true)
+            rootfsPath = try await ciWorker.openDisk(image: image, bytes: diskBytes, progress: progress)
+        } else {
+            let baseDisk: URL
+            (baseDisk, imageRef, diskBytes) = try await resolveBase(options, store: store, progress: progress)
+            image = try await store.get(reference: imageRef)
+            trace.mark("resolve")
+            rootfsPath = runDir.appendingPathComponent("rootfs.ext4")
+            try clone(baseDisk, to: rootfsPath)
+        }
         let imageConfig = try await image.config(for: .current).config
-        trace.mark("resolve")
-
-        let rootfsPath = runDir.appendingPathComponent("rootfs.ext4")
-        try clone(baseDisk, to: rootfsPath)
         let rootfs = Containerization.Mount.block(format: "ext4", source: rootfsPath.path, destination: "/")
         trace.mark("clone")
 
@@ -193,7 +204,7 @@ public enum SandboxVM {
         // exposed host ports without --allow-net) reaches the host and
         // nothing else.
         let vmnet = try options.networkMode.map {
-            try SandboxNetwork(mode: $0, pinBridge: options.rootlessDocker)
+            try SandboxNetwork(mode: $0, pinBridge: options.rootlessDocker || ciWorker != nil)
         }
         if let vmnet {
             await didOwnNetwork(vmnet)
@@ -262,6 +273,21 @@ public enum SandboxVM {
                 // permitted, and no extra process capability is granted.
                 cfg.readonlyPaths = []
                 cfg.maskedPaths = []
+            }
+            if let ciWorker {
+                // The upstream engine administers its own dedicated Linux VM. Its only integration
+                // with macOS is this outbound socket. No host files or devices are shared.
+                cfg.process.capabilities = .allCapabilities
+                // Retain images and volumes on ext4. Recreate daemon PID and runtime files on every boot.
+                cfg.mounts.append(
+                    .any(
+                        type: "tmpfs", source: "tmpfs", destination: "/run", options: ["nosuid", "nodev", "mode=0755"]))
+                cfg.maskedPaths = []
+                cfg.readonlyPaths = []
+                cfg.sockets.append(
+                    UnixSocketConfiguration(
+                        source: URL(fileURLWithPath: CIWorker.guestSocket), destination: ciWorker.socket,
+                        permissions: [.ownerRead, .ownerWrite], direction: .outOf))
             }
             if let path = ProcessInfo.processInfo.environment["MICROPOD_SANDBOX_BOOTLOG"] {
                 cfg.bootLog = .file(path: URL(fileURLWithPath: path), append: false)

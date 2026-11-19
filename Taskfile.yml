@@ -195,21 +195,31 @@ tasks:
     cmds:
       - ./scripts/install.sh --uninstall
 
+  bench-ci-apple:
+    desc: Measure live OrbStack and the persistent Micropod worker on this Mac
+    cmds:
+      - bash scripts/bench_ci_apple.sh {{.CLI_ARGS}}
+
   ci-go:
     desc: Go CI pipeline on micropod (image build, vet, unit, race, testcontainers postgres, run)
     cmds:
-      - ./ci/pipeline-go.sh
+      - ./ci/worker-pipeline.sh go
 
   ci-npm:
     desc: Node CI pipeline on micropod (image build, install+test, run, change-rebuild)
     cmds:
-      - ./ci/pipeline-npm.sh
+      - ./ci/worker-pipeline.sh npm
 
   ci:
-    desc: All CI pipelines on micropod (go + npm)
+    desc: Go and npm in parallel on one persistent Micropod Linux worker
     cmds:
-      - task: ci-go
-      - task: ci-npm
+      - ./ci/worker-pipeline.sh all
+
+  ci-shim:
+    desc: Qualify the isolated Apple Docker shim against the Go and npm pipelines
+    cmds:
+      - ./ci/pipeline-go.sh
+      - ./ci/pipeline-npm.sh
 
   ci-matrix:
     desc: Build-cache re-use matrix (related Go/Node builds sharing deps, bases, mounts)

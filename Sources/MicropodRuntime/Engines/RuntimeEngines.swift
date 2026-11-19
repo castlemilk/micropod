@@ -113,6 +113,7 @@ public final class EngineRegistry: Sendable {
     /// `MICROPOD_DEFAULT_RUNTIME` overrides the persisted default (CI jobs).
     private let envDefault: String?
     public let sandbox: SandboxEngine
+    private let ci: DockerEngine
 
     public init(
         environment: [String: String] = ProcessInfo.processInfo.environment,
@@ -122,13 +123,14 @@ public final class EngineRegistry: Sendable {
         let config = EngineConfig.load(from: configURL)
         envDefault = environment["MICROPOD_DEFAULT_RUNTIME"]
         self.sandbox = sandbox
+        ci = DockerEngine(worker: CIWorker(environment: environment))
         state = Mutex(
             State(
                 config: config,
                 docker: DockerEngine(endpoint: config.engines["docker"]?.endpoint, environment: environment)))
     }
 
-    public static let engineNames = ["apple", "docker", "sandbox"]
+    public static let engineNames = ["apple", "docker", "sandbox", "ci"]
 
     public var config: EngineConfig { state.withLock { $0.config } }
 
@@ -145,6 +147,7 @@ public final class EngineRegistry: Sendable {
     public func engine(_ name: String) -> (any RuntimeEngine)? {
         switch name {
         case "docker": return state.withLock { $0.docker }
+        case "ci": return ci
         case "sandbox": return sandbox
         default: return nil
         }
@@ -153,7 +156,7 @@ public final class EngineRegistry: Sendable {
     /// Enabled non-apple engines, in routing order (cheapest ownership
     /// check first: sandbox is in-memory, docker is one socket round trip).
     public func extraEngines() -> [any RuntimeEngine] {
-        ["sandbox", "docker"].filter(isEnabled).compactMap(engine)
+        ["sandbox", "ci", "docker"].filter(isEnabled).compactMap(engine)
     }
 
     public func setDefault(_ name: String, apple: any RuntimeEngine) async throws {
@@ -216,7 +219,7 @@ public final class EngineRegistry: Sendable {
     /// `ListRuntimes` payload; `apple` is the live apple engine.
     public func describe(apple: any RuntimeEngine) async -> Micropod_V1_ListRuntimesResponse {
         let defaultName = self.defaultName
-        let engines: [any RuntimeEngine] = [apple] + ["docker", "sandbox"].compactMap(engine)
+        let engines: [any RuntimeEngine] = [apple] + ["docker", "sandbox", "ci"].compactMap(engine)
         var infos: [Micropod_V1_RuntimeInfo] = []
         for engine in engines {
             let probe = await engine.probe()

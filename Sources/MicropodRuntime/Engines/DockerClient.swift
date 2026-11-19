@@ -51,7 +51,12 @@ public struct DockerClient: Sendable {
     public let endpoint: Endpoint
     static let apiVersion = "v1.43"
 
-    public init(endpoint: Endpoint) { self.endpoint = endpoint }
+    private let version: String
+
+    public init(endpoint: Endpoint, version: String = "v1.43") {
+        self.endpoint = endpoint
+        self.version = version
+    }
 
     /// `DOCKER_HOST`, else the stock socket.
     public static func defaultEndpoint(environment: [String: String]) -> String {
@@ -73,7 +78,7 @@ public struct DockerClient: Sendable {
     ) async throws -> Response {
         let payload = try body.map { try JSONSerialization.data(withJSONObject: $0) }
         let endpoint = self.endpoint
-        let head = Self.head(method, path, query: query, bodyLength: payload?.count)
+        let head = Self.head(method, path, query: query, bodyLength: payload?.count, version: version)
         return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global().async {
                 do {
@@ -97,7 +102,7 @@ public struct DockerClient: Sendable {
         -> AsyncThrowingStream<Data, Error>
     {
         let endpoint = self.endpoint
-        let head = Self.head(method, path, query: query, bodyLength: nil)
+        let head = Self.head(method, path, query: query, bodyLength: nil, version: version)
         return AsyncThrowingStream { continuation in
             let box = SocketBox()
             DispatchQueue.global().async {
@@ -122,8 +127,10 @@ public struct DockerClient: Sendable {
         }
     }
 
-    static func head(_ method: String, _ path: String, query: [String: String], bodyLength: Int?) -> String {
-        var target = "/\(apiVersion)\(path)"
+    static func head(
+        _ method: String, _ path: String, query: [String: String], bodyLength: Int?, version: String = apiVersion
+    ) -> String {
+        var target = "/\(version)\(path)"
         if !query.isEmpty {
             var comps = URLComponents()
             comps.queryItems = query.sorted { $0.key < $1.key }.map { URLQueryItem(name: $0.key, value: $0.value) }

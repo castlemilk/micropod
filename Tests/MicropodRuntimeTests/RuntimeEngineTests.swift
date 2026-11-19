@@ -101,7 +101,7 @@ final class RuntimeEngineTests: XCTestCase {
 
     func testDescribeReportsEveryEngine() async {
         let response = await registry().describe(apple: apple())
-        XCTAssertEqual(response.runtimes.map(\.name), ["apple", "docker", "sandbox"])
+        XCTAssertEqual(response.runtimes.map(\.name), ["apple", "docker", "sandbox", "ci"])
         XCTAssertEqual(response.default, "apple")
         let docker = response.runtimes[1]
         XCTAssertFalse(docker.available)

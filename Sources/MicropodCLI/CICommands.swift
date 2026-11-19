@@ -1,0 +1,105 @@
+import Darwin
+import Foundation
+import MicropodCore
+import MicropodRuntime
+
+enum CICommands {
+    static let help = """
+        micropod ci start                 start or join this account's Linux worker
+        micropod ci endpoint              ensure readiness and print the Docker socket URI
+        micropod ci status                print worker, kernel boot and daemon identities as JSON
+        micropod ci run [--cache npm|go] [options] IMAGE   run a fresh container on the worker (docker run --rm)
+        micropod ci stop                  stop the idle worker and retain its disk and caches
+        micropod ci serve                 supervise the worker in the foreground
+        micropod ci install-service       run the worker under launchd across CI job lifetimes
+        micropod ci uninstall-service     retire the idle service and retain its disk
+        micropod ci launch-agent          print the launchd configuration for inspection
+        """
+
+    static func main(_ args: [String]) async -> Int32 {
+        let worker = CIWorker()
+        guard let command = args.first else {
+            print(help)
+            return 2
+        }
+        if ["--help", "-h", "help"].contains(command) {
+            print(help)
+            return 0
+        }
+        guard command == "run" || args.count == 1 else {
+            print(help)
+            return 2
+        }
+        do {
+            switch command {
+            case "serve": return try await worker.serve()
+            case "uninstall-service": try await worker.uninstallService()
+            case "install-service", "launch-agent":
+                guard let executable = Bundle.main.executableURL else {
+                    throw MicropodError.message("Cannot locate micropod executable")
+                }
+                if command == "launch-agent" {
+                    FileHandle.standardOutput.write(try worker.launchAgent(executable: executable))
+                } else {
+                    try printStatus(await worker.installService(executable: executable))
+                }
+            case "stop": try await worker.stop()
+            case "status": try printStatus(await worker.status())
+            case "start", "endpoint", "run":
+                guard let executable = Bundle.main.executableURL else {
+                    throw MicropodError.message("Cannot locate micropod executable")
+                }
+                guard command != "run" || args.count > 1 else {
+                    print(help)
+                    return 2
+                }
+                var job = args.dropFirst()
+                var mounts: [String] = []
+                var caches: Set<String> = []
+                while command == "run", job.first == "--cache" {
+                    guard let cache = job.dropFirst().first, ["npm", "go"].contains(cache) else {
+                        throw MicropodError.message("--cache accepts npm or go")
+                    }
+                    job = job.dropFirst(2)
+                    if !caches.insert(cache).inserted { continue }
+                    if cache == "npm" {
+                        mounts += ["-v", "micropod-ci-npm:/cache/npm", "-e", "npm_config_cache=/cache/npm"]
+                    } else {
+                        mounts += [
+                            "-v", "micropod-ci-gomod:/cache/gomod", "-e", "GOMODCACHE=/cache/gomod",
+                            "-v", "micropod-ci-gobuild:/cache/gobuild", "-e", "GOCACHE=/cache/gobuild",
+                        ]
+                    }
+                }
+                guard command != "run" || !job.isEmpty else {
+                    print(help)
+                    return 2
+                }
+                let current = try await worker.start(executable: executable)
+                if command == "run" {
+                    // Replace the CLI so job streams, signals and exit status belong to Docker.
+                    let arguments = ["docker", "--host", current.endpoint, "run", "--rm"] + mounts + job
+                    for key in ["DOCKER_CONTEXT", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH"] { unsetenv(key) }
+                    let argv = arguments.map { strdup($0) } + [nil]
+                    defer { argv.forEach { free($0) } }
+                    _ = execvp("docker", argv)
+                    throw MicropodError.message("Cannot execute docker: \(String(cString: strerror(errno)))")
+                }
+                if command == "endpoint" { print(current.endpoint) } else { try printStatus(current) }
+            default:
+                print(help)
+                return 2
+            }
+            return 0
+        } catch {
+            FileHandle.standardError.write(Data(("micropod ci: " + error.localizedDescription + "\n").utf8))
+            return 1
+        }
+    }
+
+    private static func printStatus(_ status: CIWorker.Status) throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        print(String(decoding: try encoder.encode(status), as: UTF8.self))
+    }
+}
