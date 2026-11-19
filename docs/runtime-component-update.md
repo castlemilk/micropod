@@ -525,9 +525,10 @@ script does the kill matrix's reboots itself). Inputs the gate cannot make:
 candidate B (a second draft qualification build newer than A), B built with
 a floor for `g7-floor`, another team's Developer ID binary and an Apple
 Development build for `g2`. A missing input makes its test `INCOMPLETE`,
-never `PASS`. So does an agent-spawned attacker that never ran (`g4`,
-`g5`): the child proves it ran by recording, as its first line, that
-launchd started it. A step that asks for a reboot records the checks it made
+never `PASS`. So does an agent-spawned attacker that never started (`g4`,
+`g5`). One that started must prove it ran as an agent child: launchd as its
+parent, the console's GUI session, to its end, and a counted run that
+exited 0. A successful attempt fails the test whatever else happened. A step that asks for a reboot records the checks it made
 first as its own line; its test passes only if that line and the one after
 the reboot both pass.
 

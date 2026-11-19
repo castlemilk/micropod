@@ -116,7 +116,7 @@ them say so in the PR, with new digests.
 ```sh
 mkdir -p ~/micropod-rc
 cd ~/micropod-rc
-REF=9403632962cbbec5b97fbf6179915530797bd2e1
+REF=22596325bc98190ca0f909e8f4085f82c935544d
 R=repos/castlemilk/micropod/contents/scripts/vm
 A='Accept: application/vnd.github.raw'
 gh api -H "$A" "$R/gate-host.sh?ref=$REF" > gate-host.sh
@@ -128,7 +128,7 @@ Both digests must match before going on:
 
 ```
 d43c0ebc1e1801b450acdcf9e353eecf14f32002308b144994a4e6afa964c35b  gate-host.sh
-d59456068a18dfc291b341ba2e172a3710fade69bc7723c22b9cec883b390123  runtime-authority-gate.sh
+592487e5a55ce3b9378eac34c932f08b9891ec00096a9bfc574d2823283f1505  runtime-authority-gate.sh
 ```
 
 ## 2. tart and the image
@@ -323,9 +323,13 @@ bash $H results
 `~/micropod-gate-vm/out/results.tsv` has one line per step (PASS, FAIL,
 INCOMPLETE, BASELINE) and `out/logs/` the detail of every check, both written
 by the VMs; `logs/matrix.log` is the matrix, written by the host. INCOMPLETE
-means an input was missing, or an agent-spawned attacker never ran (`g5`,
-`g4-after`, `g4-before`; `out/logs/<step>.log` shows whether launchd started
-it). It is not a pass. A test that reboots has two lines, and both must pass.
+means an input was missing, or an agent-spawned attacker never started (`g5`,
+`g4-after`, `g4-before`). It is not a pass. An attacker that started must
+have run as an agent child does: launchd as its parent, in the console's
+GUI session, to its end, with a counted run that exited 0. Otherwise the
+test fails, and so does any attempt that succeeded, whatever else happened.
+`out/logs/<step>.log` has what launchd and the child recorded. A test that
+reboots has two lines, and both must pass.
 
 ## 8. Delete it
 
