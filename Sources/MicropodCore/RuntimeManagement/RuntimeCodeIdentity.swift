@@ -60,6 +60,40 @@ public enum RuntimeCodeIdentity {
             == errSecSuccess
     }
 
+    /// A whole bundle: Micropod's Developer ID, `identifier`, every nested
+    /// executable and sealed resource (strict), and, when `notarized`, Apple's
+    /// notarization ticket (stapled, or looked up online for nested code).
+    public static func verifyBundle(
+        _ url: URL, identifier: String, notarized: Bool, team: String = IsolatedRuntimePolicy.teamIdentifier
+    ) throws {
+        var code: SecStaticCode?
+        var requirement: SecRequirement?
+        let rule =
+            "anchor apple generic and certificate leaf[subject.OU] = \"" + team
+            + "\" and identifier \"" + identifier + "\"" + (notarized ? " and notarized" : "")
+        let flags = kSecCSStrictValidate | kSecCSCheckAllArchitectures | kSecCSCheckNestedCode
+        guard SecStaticCodeCreateWithPath(url as CFURL, [], &code) == errSecSuccess, let code,
+            SecRequirementCreateWithString(rule as CFString, [], &requirement) == errSecSuccess,
+            SecStaticCodeCheckValidity(code, SecCSFlags(rawValue: UInt32(flags)), requirement) == errSecSuccess
+        else {
+            throw MicropodError.message(
+                "\(url.lastPathComponent) is not Micropod's sealed\(notarized ? ", notarized" : "") release")
+        }
+    }
+
+    /// The code directory hash (`codesign -dvvv` CDHash) of a bundle or
+    /// executable, as lowercase hex.
+    public static func cdhash(_ url: URL) -> String? {
+        var code: SecStaticCode?
+        var information: CFDictionary?
+        guard SecStaticCodeCreateWithPath(url as CFURL, [], &code) == errSecSuccess, let code,
+            SecCodeCopySigningInformation(code, SecCSFlags(rawValue: kSecCSSigningInformation), &information)
+                == errSecSuccess,
+            let hash = (information as? [String: Any])?[kSecCodeInfoUnique as String] as? Data
+        else { return nil }
+        return hash.map { String(format: "%02x", $0) }.joined()
+    }
+
     public static func verifyExecutable(
         _ url: URL, identifier: String, team: String = IsolatedRuntimePolicy.teamIdentifier
     ) throws {

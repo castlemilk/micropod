@@ -2,6 +2,11 @@ import Foundation
 
 public enum IsolatedRuntimeAction: String, Codable, Sendable {
     case status, install, start, stop, restart, verify, workload, session, cancel, probe
+    /// Replace the setup app, root helper, dedicated API and Apple build with
+    /// the ones the installed desktop app carries (docs/runtime-component-update.md).
+    case update
+    /// Return to the exact setup app bytes the last component update replaced.
+    case rollback
 }
 
 public struct IsolatedRuntimeRequest: Codable, Sendable {
@@ -41,6 +46,12 @@ public struct IsolatedRuntimeStatus: Codable, Sendable {
     public var pendingOperationRoutes: [String]?
     /// Ephemeral capability, returned only over authenticated IPC. Never journaled.
     public var session: IsolatedRuntimeAPISession?
+    /// The component update protocol this helper implements; absent from
+    /// helpers that cannot update themselves. Status replies only.
+    public var componentProtocol: Int?
+    /// The current or last runtime component update. Status replies only;
+    /// `operation.json` never carries it.
+    public var componentUpdate: RuntimeComponentUpdateSummary?
     public var isTerminal: Bool {
         ["idle", "completed", "cancelled", "blocked", "failed", "recoveryRequired"].contains(phase)
     }

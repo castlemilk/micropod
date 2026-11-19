@@ -33,6 +33,12 @@ struct MicropodRuntimeHost {
             await worker()
             return
         }
+        if CommandLine.arguments.dropFirst().elementsEqual(["--component-probe"]) {
+            // Compiled-in facts only, no privilege used: the installed helper
+            // runs a staged copy this way before swapping it in.
+            probe()
+            return
+        }
         guard geteuid() == 0, CommandLine.arguments.count == 1 else {
             fputs("Micropod's runtime helper must be started by macOS Service Management.\n", stderr)
             exit(1)
@@ -55,18 +61,48 @@ struct MicropodRuntimeHost {
                     decoding: path.prefix(while: { $0 != 0 }).map { UInt8(bitPattern: $0) }, as: UTF8.self)
             ).resolvingSymlinksInPath()
             try RuntimeCodeIdentity.verifyExecutable(executable, identifier: IsolatedRuntimePolicy.helperIdentifier)
+            // Settle a component update the previous helper left, before
+            // anything reads the runtime journal (docs/runtime-component-update.md).
+            let components = RuntimeComponentUpdater(
+                environment: NativeRuntimeComponentEnvironment(executable: executable))
+            if components.launch() == .relaunch {
+                fputs("Runtime helper restarts into the installed setup app\n", stderr)
+                exit(75)
+            }
             let controller = IsolatedRuntimeHostController(
-                driver: NativeIsolatedRuntimeHostDriver(executable: executable))
+                driver: NativeIsolatedRuntimeHostDriver(executable: executable), components: components)
             let server = RuntimeHostServer(controller: controller)
             try server.start()
             let rig = IsolatedRuntimeRigServer(controller: controller)
             try rig.start()
+            await controller.continueComponentUpdate()
             await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
             withExtendedLifetime(rig) {}
         } catch {
             fputs("Runtime helper could not start: \(error.localizedDescription)\n", stderr)
             exit(1)
         }
+    }
+
+    private static func probe() {
+        var count: UInt32 = 4096
+        var path = [CChar](repeating: 0, count: Int(count))
+        guard _NSGetExecutablePath(&path, &count) == 0 else { exit(1) }
+        let executable = URL(
+            fileURLWithPath: String(
+                decoding: path.prefix(while: { $0 != 0 }).map { UInt8(bitPattern: $0) }, as: UTF8.self)
+        ).resolvingSymlinksInPath()
+        let plist = executable.deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Info.plist")
+        let info =
+            FileManager.default.contents(atPath: plist.path).flatMap {
+                try? PropertyListSerialization.propertyList(from: $0, format: nil) as? [String: Any]
+            } ?? [:]
+        let report = RuntimeComponentProbe.current(
+            version: info["CFBundleShortVersionString"] as? String ?? "0.0.0",
+            revision: info["MicropodSourceRevision"] as? String ?? "")
+        guard let data = try? JSONEncoder().encode(report) else { exit(1) }
+        FileHandle.standardOutput.write(data + Data([10]))
     }
 
     private static func worker() async {

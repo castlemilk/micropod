@@ -85,7 +85,7 @@ public enum IsolatedRuntimeWorker {
                     nativeVersion: observed.nativeVersion, nativeAppRoot: observed.nativeAppRoot,
                     nativeInstallRoot: observed.nativeInstallRoot, containerCount: observed.containerCount,
                     workloadOutput: output.trimmingCharacters(in: .whitespacesAndNewlines))
-            case .install, .restart, .session, .cancel, .probe:
+            case .install, .restart, .session, .cancel, .probe, .update, .rollback:
                 throw MicropodError.message("This operation belongs to the root lifecycle owner")
             }
         }
