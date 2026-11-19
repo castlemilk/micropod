@@ -1,0 +1,93 @@
+{
+  "run_id": 44478828113,
+  "job_id": 135405805392,
+  "revision": "d8e2e9cdfb7d018c4e76624d8f4e6dc0d0ef273a",
+  "step": "Compare bind and volume reads of the same SharedFS view",
+  "step_conclusion": "success",
+  "step_duration_s": 191,
+  "engine": "OrbStack 1.5.1 / Docker 25.0.5",
+  "original_artifact": {
+    "id": 14508335167,
+    "sha256": "7c48e09d0210d8101bdeea055dfa14d96ab7d70a77e3848786890a9d012dfb6e",
+    "url": "https://github.com/castlemilk/micropod/actions/runs/44478828113/artifacts/14508335167"
+  },
+  "boundary": "Launch, scan and verify file count, symlink, excluded directory and all SHA-256 hashes, then remove the container.",
+  "case": "launch-scan-hash-remove",
+  "warmups_per_group": 1,
+  "measured_per_group": 3,
+  "precision": "Values displayed in the job's Receipt.finish() group summaries in milliseconds, rounded to 0.1 ms.",
+  "groups": [
+    {
+      "shape": "mixed",
+      "regular_files": 515,
+      "logical_bytes": 18874376,
+      "solution": "host-bind",
+      "passed": 3,
+      "elapsed_ms": {
+        "min": 2200.7,
+        "median": 2359.9,
+        "max": 2711.4
+      }
+    },
+    {
+      "shape": "mixed",
+      "regular_files": 515,
+      "logical_bytes": 18874376,
+      "solution": "named-volume",
+      "passed": 3,
+      "elapsed_ms": {
+        "min": 1702.3,
+        "median": 2067.7,
+        "max": 2881.1
+      }
+    },
+    {
+      "shape": "many-files",
+      "regular_files": 4099,
+      "logical_bytes": 33554440,
+      "solution": "host-bind",
+      "passed": 3,
+      "elapsed_ms": {
+        "min": 4737,
+        "median": 5030.4,
+        "max": 6309.8
+      }
+    },
+    {
+      "shape": "many-files",
+      "regular_files": 4099,
+      "logical_bytes": 33554440,
+      "solution": "named-volume",
+      "passed": 3,
+      "elapsed_ms": {
+        "min": 2005.1,
+        "median": 2175.2,
+        "max": 2228.7
+      }
+    },
+    {
+      "shape": "large-file",
+      "regular_files": 67,
+      "logical_bytes": 268697608,
+      "solution": "host-bind",
+      "passed": 3,
+      "elapsed_ms": {
+        "min": 4938,
+        "median": 7128.3,
+        "max": 7580.3
+      }
+    },
+    {
+      "shape": "large-file",
+      "regular_files": 67,
+      "logical_bytes": 268697608,
+      "solution": "named-volume",
+      "passed": 3,
+      "elapsed_ms": {
+        "min": 5891.5,
+        "median": 7085.2,
+        "max": 7408.6
+      }
+    }
+  ]
+}
