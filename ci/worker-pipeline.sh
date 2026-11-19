@@ -59,7 +59,7 @@ parallel_jobs() {
 
 # Unique job tags keep concurrent revisions usable. These four shared tags keep
 # the most recent exports unpacked across jobs, with one copy of each layer.
-cache_image="micropod-internal/ci-samples"
+cache_image="${MICROPOD_CI_SAMPLE_IMAGE:-micropod-internal/ci-samples}"
 go_postgres() {
     stage postgres docker run --rm --network host \
         -v /var/run/docker.sock:/var/run/docker.sock \

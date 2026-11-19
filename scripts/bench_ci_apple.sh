@@ -16,6 +16,15 @@ if ! python3 scripts/bench_live_kernel.py --engine orbstack --socket "$peer" --i
     echo "OrbStack qualification recorded a failure; continuing to the worker check" >&2
 fi
 echo "OrbStack receipt: $out/orbstack.json"
+# Keep the peer's application and offline cache baseline if the worker build or VM fails.
+orb_on_error() {
+    local original=$?
+    trap - ERR
+    echo "The paired run failed. Measuring OrbStack independently." >&2
+    python3 scripts/qualify_ci_worker.py orbstack-only --pipelines --orbstack-socket "$peer" --json "$out/orbstack-workloads.json" || true
+    exit "$original"
+}
+trap orb_on_error ERR
 if [[ -n "${MICROPOD_BENCH_BIN:-}" ]]; then
     bin="$MICROPOD_BENCH_BIN"
 else
@@ -24,5 +33,5 @@ else
     codesign -f -s - --entitlements signing/micropod-cli.entitlements "$bin"
     codesign --verify --strict "$bin"
 fi
-python3 scripts/qualify_ci_worker.py apple-worker --micropod "$bin" --orbstack-socket "$peer" --json "$out/apple-pair.json"
+python3 scripts/qualify_ci_worker.py apple-worker --pipelines --micropod "$bin" --orbstack-socket "$peer" --json "$out/apple-pair.json"
 echo "Paired receipt: $out/apple-pair.json"

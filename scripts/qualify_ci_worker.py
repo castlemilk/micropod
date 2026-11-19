@@ -69,6 +69,28 @@ def bare_packages(host, package, home, env, args, expected):
     return record
 
 
+def run_pipelines(engines, rounds, result, home, env, token):
+    timings = result["pipeline_seconds"] = {name: {} for name, _ in engines}
+    for index in range(rounds + 1):
+        phase = "first" if index == 0 else f"warm_{index}"
+        order = engines if index % 2 == 0 else reversed(engines)
+        for name, endpoint in order:
+            started = time.perf_counter()
+            phase_log = home / (name + "-" + phase + ".jsonl")
+            command("bash", str(ROOT / "ci/worker-pipeline.sh"), "all", endpoint,
+                    env=dict(env, MICROPOD_CI_STAGE_TIMINGS=str(phase_log),
+                             MICROPOD_CI_SAMPLE_IMAGE=token + "-samples"), timeout=600)
+            stages = [json.loads(line) for line in phase_log.read_text().splitlines()]
+            require(len(stages) == 5 and all(code == 0 for _, _, code in stages), "Incomplete pipeline stages")
+            result.setdefault("pipeline_stages_seconds", {}).setdefault(name, {})[phase] = {
+                stage: seconds for stage, seconds, _ in stages}
+            timings[name][phase] = round(time.perf_counter() - started, 3)
+            print(f"{name} {phase} Go and npm pipelines: {timings[name][phase]:.3f}s", file=sys.stderr, flush=True)
+    for series in timings.values():
+        series["warm"] = statistics.median(series[f"warm_{n}"] for n in range(1, rounds + 1))
+    result["pipelines"] = ["Go vet, race and Testcontainers PostgreSQL", "npm tests, source edit and rebuild"]
+
+
 def qualify(args, result, home):
     token = "mp-ci-" + uuid.uuid4().hex
     outer = token + "-guest"
@@ -120,7 +142,7 @@ def qualify(args, result, home):
                     "Concurrent starters reached different workers")
             require(starts[0]["endpoint"] == uri, "The CLI selected another socket")
         else:
-            host("run", "-d", "--name", outer, "--privileged", "--cgroupns=private",
+            host("run", "-d", "--name", outer, "--privileged", "--cgroupns=private", "--tmpfs", "/run:nosuid,nodev,mode=0755",
                  "--mount", "type=volume,src=" + disk + ",dst=/var/lib/docker",
                  "--mount", "type=bind,src=" + str(home) + ",dst=/var/lib/micropod",
                  "-e", "MICROPOD_CI_WORKER_ID=" + worker_id, "-e", "MICROPOD_CI_INSTANCE=" + str(uuid.uuid4()).upper(),
@@ -257,29 +279,17 @@ def qualify(args, result, home):
         build("changed")
         if args.pipelines:
             engines = [("worker", uri)]
-            if not apple:
+            if peer_uri:
+                engines.append(("orbstack", peer_uri))
+            elif not apple:
                 engines.append(("native_ubuntu", host_docker))
-            timings = result["pipeline_seconds"] = {name: {} for name, _ in engines}
-            for index in range(args.pipeline_rounds + 1):
-                phase = "first" if index == 0 else f"warm_{index}"
-                order = engines if index % 2 == 0 else reversed(engines)
-                for name, endpoint in order:
-                    started = time.perf_counter()
-                    phase_log = home / (name + "-" + phase + ".jsonl")
-                    command("bash", str(ROOT / "ci/worker-pipeline.sh"), "all", endpoint,
-                            env=dict(env, MICROPOD_CI_STAGE_TIMINGS=str(phase_log)), timeout=600)
-                    stages = [json.loads(line) for line in phase_log.read_text().splitlines()]
-                    require(len(stages) == 5 and all(code == 0 for _, _, code in stages), "Incomplete pipeline stages")
-                    result.setdefault("pipeline_stages_seconds", {}).setdefault(name, {})[phase] = {
-                        stage: seconds for stage, seconds, _ in stages}
-                    timings[name][phase] = round(time.perf_counter() - started, 3)
-                    print(f"{name} {phase} Go and npm pipelines: {timings[name][phase]:.3f}s", file=sys.stderr, flush=True)
-            for series in timings.values():
-                series["warm"] = statistics.median(series[f"warm_{n}"] for n in range(1, args.pipeline_rounds + 1))
-            result["pipelines"] = ["Go vet, race and Testcontainers PostgreSQL", "npm tests, source edit and rebuild"]
+            run_pipelines(engines, args.pipeline_rounds, result, home, env, token)
         result["verified"] = ["container streams and exit", "PID and mount namespaces", "CPU and memory quotas",
                               "bridge DNS and HTTP", "image and volume reuse", "offline BuildKit cache after restart"]
     finally:
+        if peer_uri and args.pipelines:
+            refs = [token + "-samples:" + kind for kind in ("go", "checks", "node", "node-edited")]
+            command("docker", "--host", peer_uri, "image", "rm", *refs, env=env, check=False)
         if apple:
             status = cli("status", check=False)
             if status.returncode == 0:
@@ -290,9 +300,39 @@ def qualify(args, result, home):
             host("volume", "rm", disk)
 
 
+def qualify_orbstack(args, record, home):
+    require(platform.system() == "Darwin" and platform.machine() == "arm64", "Expected Apple Silicon")
+    require(args.orbstack_socket, "Pass the live OrbStack socket")
+    token = "mp-ci-" + uuid.uuid4().hex
+    uri = "unix://" + args.orbstack_socket
+    env = dict(os.environ)
+    for key in ("DOCKER_CONTEXT", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH", "BUILDX_BUILDER"):
+        env.pop(key, None)
+
+    def peer(*argv, **kwargs):
+        return command("docker", "--host", uri, *argv, env=env, **kwargs)
+
+    info = json.loads(peer("info", "--format", "{{json .}}").stdout)
+    require("orbstack" in (info["Name"] + info["OperatingSystem"]).lower(), "Expected the live OrbStack engine")
+    tag = token + ":packages"
+    samples = [token + "-samples:" + kind for kind in ("go", "checks", "node", "node-edited")]
+    record.update(host_platform=platform.platform(), system=platform.machine(),
+                  revision=command("git", "-C", str(ROOT), "rev-parse", "HEAD").stdout.strip())
+    try:
+        peer("pull", ALPINE)
+        peer("build", "--build-arg", "SOURCE_DATE_EPOCH=0", "-t", tag, str(ROOT / "scripts/bench_cache_image"), timeout=600)
+        opts = argparse.Namespace(engine="orbstack", socket=args.orbstack_socket, image=ALPINE, clients=args.clients,
+                                  rounds=args.rounds, package_image=tag, clock="client", canonical_images=True)
+        measure(opts, record.setdefault("warm", {}))
+        if args.pipelines:
+            run_pipelines([("orbstack", uri)], args.pipeline_rounds, record, home, env, token)
+    finally:
+        peer("image", "rm", tag, *samples, check=False)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("profile", choices=["linux-guest", "apple-worker"])
+    p.add_argument("profile", choices=["linux-guest", "apple-worker", "orbstack-only"])
     p.add_argument("--micropod", default="micropod")
     p.add_argument("--clients", type=int, nargs="+", default=[1, 4, 8, 16])
     p.add_argument("--rounds", type=int, default=5)
@@ -308,7 +348,10 @@ def main():
     try:
         home = Path(tempfile.mkdtemp(prefix="mpci-", dir="/tmp"))
         try:
-            qualify(args, record, home)
+            if args.profile == "orbstack-only":
+                qualify_orbstack(args, record, home)
+            else:
+                qualify(args, record, home)
         except Exception:
             if (home / "worker.log").is_file():
                 print((home / "worker.log").read_text(errors="replace")[-1600:], file=sys.stderr)
