@@ -10,9 +10,9 @@ final class RuntimeComponentManifestTests: XCTestCase {
     private let apple = RuntimeComponentManifest.AppleRuntime(
         version: AppleRuntimeRelease.supported.version, packageSHA256: AppleRuntimeRelease.supported.packageSHA256)
 
-    private func manifest(protocolVersion: Int = RuntimeComponentManifest.protocolVersion, cdhash: String? = nil)
-        -> RuntimeComponentManifest
-    {
+    private func manifest(
+        protocolVersion: Int = RuntimeComponentManifest.protocolVersion, cdhash: String? = nil, floor: String? = nil
+    ) -> RuntimeComponentManifest {
         .init(
             version: "0.13.10", sourceRevision: String(repeating: "a", count: 40), minimumHelperVersion: "0.13.10",
             setup: .init(
@@ -25,7 +25,24 @@ final class RuntimeComponentManifestTests: XCTestCase {
                 identifier: IsolatedRuntimeAPIConfiguration.executableIdentifier,
                 sha256: String(repeating: "e", count: 64)),
             guestSHA256: String(repeating: "f", count: 64), appleRuntime: apple, appleRuntimes: [apple],
-            componentProtocol: protocolVersion)
+            componentProtocol: protocolVersion, securityFloor: floor)
+    }
+
+    // F1: a release's floor is at most its own version, and well formed.
+    func testASecurityFloorAboveTheReleaseOrMistypedIsRefused() throws {
+        for floor in ["0.13.10", "0.13.9", "0.1.0"] {
+            let (bytes, signature) = try signed(manifest(floor: floor))
+            XCTAssertNoThrow(try RuntimeComponentManifest.verified(bytes, signature: signature, publicKey: publicKey))
+        }
+        let (above, aboveSignature) = try signed(manifest(floor: "0.13.11"))
+        XCTAssertThrowsError(
+            try RuntimeComponentManifest.verified(above, signature: aboveSignature, publicKey: publicKey)
+        ) { XCTAssertTrue("\($0.localizedDescription)".contains("above its own release"), "\($0)") }
+        for typo in ["0.13.1O", "0.13", "v0.13.10", "0.13.10 ", "1e3.0.0", ""] {
+            let (bytes, signature) = try signed(manifest(floor: typo))
+            XCTAssertThrowsError(
+                try RuntimeComponentManifest.verified(bytes, signature: signature, publicKey: publicKey), typo)
+        }
     }
 
     private func signed(_ manifest: RuntimeComponentManifest) throws -> (Data, Data) {

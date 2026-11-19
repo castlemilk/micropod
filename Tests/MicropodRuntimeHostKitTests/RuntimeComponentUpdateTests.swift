@@ -474,6 +474,21 @@ final class RuntimeComponentUpdateTests: XCTestCase {
         XCTAssertEqual(markedEnvironment.copies, 0)
     }
 
+    // F1: root never raises the floor above the release that carries it,
+    // whatever reached recordInstalled or a confirmed update.
+    func testTheFloorIsCappedAtTheCarryingRelease() throws {
+        let (updater, environment) = try fixture()
+        try updater.recordInstalled(version: "0.13.10", floor: "9.0.0")
+        XCTAssertEqual(try updater.state().securityFloor, "0.13.10")
+        environment.runningVersion = "0.13.10"
+        XCTAssertNil(updater.launchBelowFloor(), "The release that set it still runs")
+        environment.runningVersion = "dev"
+        try updater.raise(version: nil, floor: "0.14.0")
+        XCTAssertEqual(try updater.state().securityFloor, "0.13.10", "An unknown release raises nothing")
+        XCTAssertNil(RuntimeComponentUpdater.capped("0.13.1O", at: "0.13.10"))
+        XCTAssertEqual(RuntimeComponentUpdater.capped("0.13.9", at: "0.13.10"), "0.13.9")
+    }
+
     // M2: a signed security floor, once installed, is enforced by root on
     // every later update and rollback.
     func testASignedSecurityFloorRefusesARollbackBelowIt() throws {

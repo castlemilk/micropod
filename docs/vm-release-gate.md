@@ -9,9 +9,27 @@ Ground rules:
 - Only the VM is changed. Don't run `cuttle`, `micropod`, `launchctl` or
   Docker commands on the host. The host's Cuttlefish agent stays paused and
   idle for the whole run.
+- **No other virtual machine may run on the host**, and "the agent is
+  paused" does not prove that: Micropod's dedicated runtime, Apple container
+  and Docker Desktop each run VMs on their own. Check before you start (and
+  `gate-host.sh` checks again before every boot):
+
+  ```sh
+  pgrep -fl 'com.apple.Virtualization.VirtualMachine|container-runtime-linux'
+  ```
+
+  It must print nothing. If it prints anything, stop and ask the coordinator;
+  don't stop those VMs yourself.
 - Everything lives in `~/micropod-gate-vm` (tart, its image, VMs, results)
   and `~/micropod-rc` (inputs). Deleting both removes it all.
-- macOS runs at most two macOS VMs at once. The gate runs one at a time.
+- The VMs write only `~/micropod-gate-vm/out`. Treat it as untrusted: the
+  host script never writes there, refuses it if it holds a symbolic link, and
+  shows guest text with `cat -v`. Read the logs there with `cat -v` too. The
+  host's own logs are in `~/micropod-gate-vm/logs`.
+- The gate runner refuses to run anywhere but a hardened gate VM: it needs
+  `kern.hv_vmm_present = 1`, the root-owned marker `/var/db/micropod-gate-vm`
+  that `harden` writes, no Cuttlefish process, `.cuttlefish` folder or
+  install, and no Micropod runtime the gate did not create itself.
 - Commands are one per line. Run them in Terminal on the host unless a step
   says "in the VM".
 
@@ -52,9 +70,14 @@ by digest (`macos-tahoe-vanilla` 26.6.2: SIP on, user `admin`, password
 `admin`).
 
 ```sh
+bash ~/micropod-rc/gate-host.sh preflight
 bash ~/micropod-rc/gate-host.sh tart
 bash ~/micropod-rc/gate-host.sh base
+bash ~/micropod-rc/gate-host.sh key
 ```
+
+`key` makes the ssh key the VMs accept and puts its public half in
+`~/micropod-rc/gate_key.pub`, where `harden` picks it up.
 
 `base` refuses to start with less than 60 GB free.
 
@@ -66,6 +89,10 @@ nothing is published. After #178 is on master, dispatch Release twice:
 - **A**: `qualification_version` = the version under test.
 - **B**: a newer `qualification_version`, with
   `qualification_security_floor` set to B's own version (G6, G7, G8).
+
+Both are throwaway drafts. B's floor is recorded in its
+`qualification-source.txt`, so publication refuses it whatever happens. Delete
+both drafts and their tags when the gate is done (section 8).
 
 Download them, 0.13.3 and the optional inputs:
 
@@ -97,25 +124,34 @@ codesign -f -s "Apple Development" -i "$I" helper
 The VM sees `~/micropod-rc` read-only at `/Volumes/My Shared Files/rc`, and
 writes results to `~/micropod-gate-vm/out`.
 
-## 4. In every VM
+## 4. Harden each base VM first
 
-The VM logs in as `admin` by itself. Open Terminal in the VM and set:
+Every base VM (`gate-fresh` and `gate-legacy-base` below) runs `harden`
+before anything else. The VM logs in as `admin` by itself. Open Terminal in
+the VM and run:
 
 ```sh
 G="/Volumes/My Shared Files/rc/runtime-authority-gate.sh"
-sudo -n true && echo ok
+bash "$G" harden
 ```
 
-If `sudo -n true` asks for a password, the password is `admin`; the matrix
-in step 6 needs sudo without one, so in the legacy base VM run:
+It refuses unless it runs in a fresh VM (see the ground rules). It asks for
+the current password (`admin` on the vanilla image), then:
 
-```sh
-L='admin ALL=(ALL) NOPASSWD: ALL'
-echo "$L" | sudo tee /etc/sudoers.d/gate
-sudo visudo -cf /etc/sudoers.d/gate
-```
+- writes the root-owned marker the other steps require;
+- sets a random password and keeps automatic login working (the shared
+  folder mounts at login). **It prints the password once**: write it down;
+  sudo in this VM and its clones asks for it;
+- installs `gate_key.pub` and turns ssh into key-only;
+- removes every passwordless sudo rule (if `/etc/sudoers` itself has one,
+  the check fails: remove it with `sudo visudo`, then run `harden` in a fresh
+  clone).
 
-To shut a VM down from inside: `sudo shutdown -h now`. To reboot when the
+In the legacy base only, run `bash "$G" harden matrix` instead. That also
+installs a root-owned copy of the runner and a sudo rule letting the host run
+exactly `g3-kill`, `g3-check` and a reboot without a password, nothing else.
+
+Shut a VM down from inside with `sudo shutdown -h now`. To reboot when the
 runner asks: `sudo shutdown -r now`, then run the step it names.
 
 ## 5. Fresh track: G1, G2, G5, G6, G7, G8
@@ -126,7 +162,7 @@ bash $H clone gate-base gate-fresh
 bash $H run gate-fresh
 ```
 
-In the VM: `bash "$G" g1`. It pauses once (note any "Background Items
+In the VM: `bash "$G" harden`, then `bash "$G" g1`. It pauses once (note any "Background Items
 Added" notice), then shut the VM down. `gate-fresh` is now the base with A
 installed. Each further test runs on its own clone:
 
@@ -155,17 +191,11 @@ bash $H clone gate-base gate-legacy-base
 bash $H run gate-legacy-base
 ```
 
-In the VM: `bash "$G" prepare-legacy`. It pauses for the human steps:
-open Micropod Runtime Setup, click Install Dedicated Runtime, approve
-"Micropod Runtime Setup" in System Settings → General → Login Items &
-Extensions, and wait for the runtime. Before shutting it down, on the host:
-
-```sh
-bash $H key gate-legacy-base
-```
-
-(password `admin`). Then, in the VM, set up sudo without a password (step 4)
-and shut down.
+In the VM: `bash "$G" harden matrix`, then `bash "$G" prepare-legacy`. It
+pauses for the human steps: open Micropod Runtime Setup, click Install
+Dedicated Runtime, approve "Micropod Runtime Setup" in System Settings →
+General → Login Items & Extensions, and wait for the runtime. Then shut it
+down.
 
 **G9 then G4 (after)**, on one clone:
 
@@ -198,7 +228,8 @@ down and `bash $H rm gate-t`. It reports BASELINE (whether the residual
 reproduced), not PASS.
 
 **G3, the kill matrix**: twelve headless clones, about an hour, no human
-steps:
+steps. The kill is armed by a root-owned `RuntimeHost/gate-kill.json` naming
+the checkpoint and the CLI's CDHash, used once and expiring after 30 minutes:
 
 ```sh
 bash $H matrix
@@ -211,15 +242,23 @@ bash $H results
 ```
 
 `~/micropod-gate-vm/out/results.tsv` has one line per step (PASS, FAIL,
-INCOMPLETE, BASELINE), `out/logs/` the detail of every check and
-`out/matrix.log` the matrix. INCOMPLETE means an input was missing; it is not
-a pass.
+INCOMPLETE, BASELINE) and `out/logs/` the detail of every check, both written
+by the VMs; `logs/matrix.log` is the matrix, written by the host. INCOMPLETE
+means an input was missing; it is not a pass.
 
 ## 8. Delete it
 
 ```sh
 bash ~/micropod-rc/gate-host.sh cleanup
 rm -rf ~/micropod-rc
+```
+
+Then delete the two gate drafts and their tags (B's floor makes it
+unpublishable anyway; A was built only for the gate):
+
+```sh
+gh release delete <A-tag> -R castlemilk/micropod --cleanup-tag --yes
+gh release delete <B-tag> -R castlemilk/micropod --cleanup-tag --yes
 ```
 
 `cleanup` stops every gate VM and removes `~/micropod-gate-vm`: tart, the

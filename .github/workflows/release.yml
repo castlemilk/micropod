@@ -272,10 +272,16 @@ jobs:
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GATE_SECURITY_FLOOR: ${{ github.event_name == 'workflow_dispatch' && inputs.qualification_version != '' && inputs.qualification_security_floor || '' }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             [ "$DMG_ASSET" = "Micropod.dmg" ] || exit 1
             printf '%s\n' "$GITHUB_SHA" > dist/qualification-source.txt
+            # A VM-gate floor marks the draft: publication refuses it
+            # (scripts/verify_qualified_release.mjs).
+            if [ -n "$GATE_SECURITY_FLOOR" ]; then
+              printf 'gate-security-floor=%s\n' "$GATE_SECURITY_FLOOR" >> dist/qualification-source.txt
+            fi
             gh release create "$VERSION" \
               "dist/$DMG_ASSET" "dist/$DMG_ASSET.sha256" "dist/Micropod.${VERSION#v}.tgz" \
               dist/qualification-source.txt --target "$GITHUB_SHA" --draft --latest=false \

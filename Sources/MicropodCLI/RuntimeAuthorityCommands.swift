@@ -89,7 +89,7 @@ enum RuntimeAuthorityCommands {
         {
             throw MicropodError.message("Micropod \(manifest.version) is below the signed security floor \(floor)")
         }
-        let installer = RuntimeAuthorityInstaller(host: NativeRuntimeAuthorityInstallHost())
+        let installer = RuntimeAuthorityInstaller(host: NativeRuntimeAuthorityInstallHost(cli: executable))
         let pending = installer.pending(target: target)
 
         print("Micropod runtime authority \(target.version) (\(target.revision.prefix(12)))")

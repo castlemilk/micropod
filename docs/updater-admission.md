@@ -122,12 +122,14 @@ be older than the desktop's. Setup apps packaged before version stamping
 declared a placeholder 0.1.0; they report `unknown`. `api_server_version` is
 Apple's apiserver version, now also sent as `apple_api_server_version`.
 `runtime-authority` is the root-owned LaunchDaemon helper
-(docs/runtime-component-update.md): `running` or `stopped` once its plist is
-installed, and `missing` while a dedicated runtime still depends on the legacy
-SMAppService helper, so fleet views (Cuttlefish's `cuttle runners show` and
-`cuttle agent doctor`) list the rigs an administrator must migrate with
-`sudo micropod runtime install-authority` before the legacy signing
-identifier's sunset on 2027-04-01.
+(docs/runtime-component-update.md): `missing` while a dedicated runtime still
+depends on the legacy SMAppService helper; once its plist is installed,
+`running`, `stopped`, `legacy_active` (the legacy job is not retired) or
+`unprotected` (any other failed protection check), from the check the
+authority publishes. Fleet views (Cuttlefish's `cuttle runners list
+--needs-install-authority`, `cuttle runners show` and `cuttle agent doctor`)
+list the rigs an administrator must still run `install-authority` on, before
+the legacy signing identifier's sunset on 2027-04-01.
 
 In front of a dedicated runtime, the desktop's Connect API asks the dedicated
 API for `Ping`/`GetSystem` and keeps its own observations of the app, its

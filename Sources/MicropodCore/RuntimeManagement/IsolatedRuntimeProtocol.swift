@@ -62,6 +62,9 @@ public struct IsolatedRuntimeStatus: Codable, Sendable {
     /// The Mach service the answering helper listens on: the authority's,
     /// or the legacy SMAppService job's. Status replies only.
     public var helperService: String?
+    /// A VM release-gate fault file is present in `RuntimeHost`
+    /// (docs/vm-release-gate.md). Status replies only.
+    public var gateFaultArmed: Bool?
     public var isTerminal: Bool {
         ["idle", "completed", "cancelled", "blocked", "failed", "recoveryRequired"].contains(phase)
     }

@@ -91,7 +91,7 @@ struct MicropodRuntimeHost {
                 exit(75)
             }
             // The VM release gate's crash and hang faults (root-only file).
-            RuntimeGateHooks.applyFault(version: MicropodBuildInfo.version)
+            RuntimeGateHooks.applyFault(version: MicropodBuildInfo.version, executable: executable)
             if let reason = components.launchBelowFloor() {
                 // Below the signed security floor: refuse to run at all. Exit
                 // 0 so launchd does not respawn it; install-authority repairs.
@@ -112,6 +112,16 @@ struct MicropodRuntimeHost {
                 serviceName: authority ? IsolatedRuntimePolicy.authorityServiceName : IsolatedRuntimePolicy.serviceName,
                 version: MicropodBuildInfo.version, executable: executable)
             confirmed.value = await controller.continueComponentUpdate()
+            // Keeps the published protection current (a re-enabled legacy
+            // job shows up in the version manifest within five minutes).
+            Task.detached {
+                while true {
+                    try? await Task.sleep(for: .seconds(300))
+                    let protection = components.environment.protection()
+                    components.environment.publishProtection(protection)
+                    await controller.recordProtection(protection)
+                }
+            }
             await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
             withExtendedLifetime(rig) {}
         } catch {

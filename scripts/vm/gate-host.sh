@@ -3,28 +3,40 @@
 # a pinned, signature-checked tart, a pinned macOS 26 image, and the
 # migration kill matrix on throwaway clones. Everything lives under
 # ~/micropod-gate-vm, so deleting that folder removes it all. It never runs
-# cuttle or touches the host's Cuttlefish agent.
+# cuttle or touches the host's Cuttlefish agent, and it refuses to boot a VM
+# while any other virtual machine (Apple container, Micropod, Docker
+# Desktop, another tart VM) runs on this Mac.
 #
+#   bash gate-host.sh preflight            what would stop a VM from booting
 #   bash gate-host.sh tart                 install and verify tart
 #   bash gate-host.sh base                 pull the image as gate-base
+#   bash gate-host.sh key                  the ssh key the VMs will accept
 #   bash gate-host.sh clone <from> <to>    copy-on-write clone (VM stopped)
 #   bash gate-host.sh run <vm>             boot with ~/micropod-rc shared
-#   bash gate-host.sh key <vm>             let the host ssh in (VM running)
 #   bash gate-host.sh stop <vm>
 #   bash gate-host.sh rm <vm>
 #   bash gate-host.sh matrix               G3 on clones of gate-legacy-base
 #   bash gate-host.sh space                disk left, gate VMs
 #   bash gate-host.sh results              the guests' PASS/FAIL table
 #   bash gate-host.sh cleanup              stop and delete everything
+#
+# Trust: the guest writes only ~/micropod-gate-vm/out. This script never
+# writes there, refuses it if it holds a symbolic link, and prints guest text
+# through `cat -v`. Its own logs are in ~/micropod-gate-vm/logs.
 set -u -o pipefail
 
 HOME_DIR=$HOME/micropod-gate-vm
 export TART_HOME=$HOME_DIR/tart
 TART=$HOME_DIR/tart.app/Contents/MacOS/tart
 RC_DIR=${MICROPOD_GATE_RC_DIR:-$HOME/micropod-rc}
+OUT=$HOME_DIR/out
+LOGS=$HOME_DIR/logs
 KEY=$HOME_DIR/ssh_key
 GUEST_RC="/Volumes/My Shared Files/rc"
-GUEST_GATE="$GUEST_RC/runtime-authority-gate.sh"
+ROOT_GATE=/var/root/micropod-gate/runtime-authority-gate.sh
+# Any virtual machine: Virtualization.framework's per-VM process (tart,
+# Apple container, Micropod, Docker Desktop) and Apple container's runtime.
+VM_PROCESSES='com.apple.Virtualization.VirtualMachine|container-runtime-linux'
 
 # tart 2.41.1 (2026-10-15), Developer ID Cirrus Labs, Inc. (9M2P8L4D89).
 TART_VERSION=2.41.1
@@ -37,11 +49,26 @@ IMAGE=$IMAGE@sha256:eeec54bfe1f076e27786c5d92b89187a05b1d109b5071eb2dcdf02d596e3
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 need_tart() { [ -x "$TART" ] || die "run: bash $0 tart"; }
 
+# preflight [wait]: no virtual machine runs on this Mac. With "wait", gives
+# a VM this script just stopped up to a minute to exit.
+preflight() {
+  local i running
+  for ((i = 0; i < 12; i++)); do
+    running=$(pgrep -fl "$VM_PROCESSES")
+    [ -z "$running" ] && return 0
+    [ "${1:-}" = wait ] || break
+    sleep 5
+  done
+  printf 'A virtual machine is running on this Mac:\n%s\n' "$running" | cat -v >&2
+  die "stop it first (Micropod, Apple container, Docker Desktop or a tart VM); the gate runs alone"
+}
+
 ssh_vm() {
   local ip
   ip=$("$TART" ip "$1" --wait 300) || die "no IP for $1"
   shift
-  ssh -t -i "$KEY" -o StrictHostKeyChecking=no \
+  ssh -t -i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes \
+    -o PasswordAuthentication=no -o StrictHostKeyChecking=no \
     -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "admin@$ip" "$@"
 }
 
@@ -50,7 +77,7 @@ ssh_vm() {
 wait_ssh() {
   local i
   for ((i = 0; i < 60; i++)); do
-    ssh_vm "$1" test -f "'$GUEST_GATE'" >/dev/null 2>&1 && return 0
+    ssh_vm "$1" test -d "'$GUEST_RC'" >/dev/null 2>&1 && return 0
     sleep 10
   done
   return 1
@@ -58,15 +85,27 @@ wait_ssh() {
 
 boot() {
   local vm=$1 mode=${2:-}
-  mkdir -p "$HOME_DIR/logs"
+  preflight wait
+  mkdir -p "$LOGS" "$OUT"
   # shellcheck disable=SC2086
-  mkdir -p "$HOME_DIR/out"
   nohup "$TART" run "$vm" $mode --dir="rc:$RC_DIR:ro" \
-    --dir="out:$HOME_DIR/out" >"$HOME_DIR/logs/$vm.log" 2>&1 &
-  printf 'booting %s (log: %s)\n' "$vm" "$HOME_DIR/logs/$vm.log"
+    --dir="out:$OUT" >"$LOGS/$vm.log" 2>&1 &
+  printf 'booting %s (log: %s)\n' "$vm" "$LOGS/$vm.log"
+}
+
+# out_safe: the guest-written folder holds no symbolic link.
+out_safe() {
+  [ -d "$OUT" ] || return 0
+  [ ! -L "$OUT" ] || die "$OUT is a symbolic link"
+  [ -z "$(find -P "$OUT" -type l -print -quit)" ] ||
+    die "$OUT holds a symbolic link; not reading it"
 }
 
 case "${1:-help}" in
+  preflight)
+    preflight
+    printf 'no virtual machine runs on this Mac\n'
+    ;;
   tart)
     mkdir -p "$HOME_DIR/download"
     cd "$HOME_DIR/download" || exit 1
@@ -91,6 +130,14 @@ case "${1:-help}" in
     "$TART" set gate-base --cpu 4 --memory 8192
     "$TART" list
     ;;
+  key)
+    # The VM's `harden` step installs this public key from the read-only
+    # rc share; password ssh is then turned off.
+    mkdir -p "$HOME_DIR"
+    [ -f "$KEY" ] || ssh-keygen -q -t ed25519 -N '' -C micropod-gate -f "$KEY"
+    cp "$KEY.pub" "$RC_DIR/gate_key.pub"
+    printf 'public key: %s\n' "$RC_DIR/gate_key.pub"
+    ;;
   clone)
     need_tart
     "$TART" clone "${2:?from}" "${3:?to}"
@@ -98,14 +145,6 @@ case "${1:-help}" in
   run)
     need_tart
     boot "${2:?vm}"
-    ;;
-  key)
-    need_tart
-    [ -f "$KEY" ] || ssh-keygen -q -t ed25519 -N '' -f "$KEY"
-    ip=$("$TART" ip "${2:?vm}" --wait 300) || die "no IP"
-    printf 'password is: admin\n'
-    ssh-copy-id -i "$KEY.pub" -o StrictHostKeyChecking=no \
-      -o UserKnownHostsFile=/dev/null "admin@$ip"
     ;;
   stop)
     need_tart
@@ -118,11 +157,12 @@ case "${1:-help}" in
     ;;
   matrix)
     # G3: every checkpoint, without and with a reboot, each on its own clone
-    # of the approved 0.13.3 VM. Results: ~/micropod-gate-vm/out/matrix.log
+    # of the approved, hardened ("harden matrix") 0.13.3 VM. The host runs
+    # only the root-owned gate copy the VM's sudo rule allows.
     need_tart
-    [ -f "$KEY" ] || die "run 'key' on gate-legacy-base first"
-    log=$HOME_DIR/out/matrix.log
-    mkdir -p "$HOME_DIR/out"
+    [ -f "$KEY" ] || die "run 'key' first"
+    mkdir -p "$LOGS"
+    log=$LOGS/matrix.log
     : >"$log"
     for point in staged neutralized plistWritten bootstrapped retired started; do
       for mode in plain rebooted; do
@@ -131,14 +171,14 @@ case "${1:-help}" in
         "$TART" clone gate-legacy-base "$vm" || die "clone failed"
         boot "$vm" --no-graphics
         wait_ssh "$vm" || die "$vm never answered ssh"
-        ssh_vm "$vm" bash "'$GUEST_GATE'" g3-kill "$point" 2>&1 | tee -a "$log"
+        ssh_vm "$vm" sudo -n "$ROOT_GATE" g3-kill "$point" 2>&1 | cat -v | tee -a "$log"
         if [ "$mode" = rebooted ]; then
-          ssh_vm "$vm" sudo shutdown -r now >/dev/null 2>&1
+          ssh_vm "$vm" sudo -n /sbin/shutdown -r now >/dev/null 2>&1
           sleep 30
           wait_ssh "$vm" || die "$vm did not come back"
-          ssh_vm "$vm" bash "'$GUEST_GATE'" g3-check "$point" rebooted 2>&1 | tee -a "$log"
+          ssh_vm "$vm" sudo -n "$ROOT_GATE" g3-check "$point" rebooted 2>&1 | cat -v | tee -a "$log"
         else
-          ssh_vm "$vm" bash "'$GUEST_GATE'" g3-check "$point" 2>&1 | tee -a "$log"
+          ssh_vm "$vm" sudo -n "$ROOT_GATE" g3-check "$point" 2>&1 | cat -v | tee -a "$log"
         fi
         "$TART" stop "$vm" >/dev/null 2>&1
         "$TART" delete "$vm"
@@ -154,8 +194,9 @@ case "${1:-help}" in
     [ -x "$TART" ] && "$TART" list
     ;;
   results)
-    column -t -s $'\t' "$HOME_DIR/out/results.tsv" 2>/dev/null
-    [ -f "$HOME_DIR/out/matrix.log" ] && grep -cE '  (PASS|FAIL) ' "$HOME_DIR/out/matrix.log"
+    out_safe
+    [ -f "$OUT/results.tsv" ] && cat -v "$OUT/results.tsv"
+    [ -f "$LOGS/matrix.log" ] && grep -E '^=== |== g3' "$LOGS/matrix.log" | cat -v
     ;;
   cleanup)
     if [ -x "$TART" ]; then
@@ -164,9 +205,10 @@ case "${1:-help}" in
       done
     fi
     rm -rf "$HOME_DIR"
+    rm -f "$RC_DIR/gate_key.pub"
     printf 'removed %s\n' "$HOME_DIR"
     ;;
   *)
-    sed -n '2,18p' "$0"
+    sed -n '2,25p' "$0"
     ;;
 esac

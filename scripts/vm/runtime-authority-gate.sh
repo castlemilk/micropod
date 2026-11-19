@@ -3,8 +3,15 @@
 # (docs/vm-release-gate.md). Never run it on a real rig: it replaces, kills and
 # attacks the runtime helper on purpose.
 #
-#   bash runtime-authority-gate.sh <step>      one step; prints PASS/FAIL lines
-#   bash runtime-authority-gate.sh report      every result so far
+#   bash runtime-authority-gate.sh harden          first, once per base VM
+#   bash runtime-authority-gate.sh <step>          one step; PASS/FAIL lines
+#   bash runtime-authority-gate.sh report          every result so far
+#
+# Every step first proves it runs in a gate VM (vm_guard): a hypervisor guest
+# (kern.hv_vmm_present = 1) carrying the root-owned marker `harden` wrote,
+# with no Cuttlefish agent or state and no RuntimeHost identity the gate did
+# not create. `harden` itself needs a fresh guest: it sets a random password,
+# key-only ssh, and (with "matrix") a sudo rule scoped to the matrix steps.
 #
 # Release candidates come from the shared folder (tart --dir=rc:<host dir>):
 #   $RC/A/Micropod.<A>.tgz        candidate A (the release under test)
@@ -32,16 +39,74 @@ REQ="anchor apple generic and certificate leaf[subject.OU] = \"$TEAM\""
 REQ="$REQ and certificate 1[field.1.2.840.113635.100.6.2.6] exists"
 REQ="$REQ and certificate leaf[field.1.2.840.113635.100.6.1.13] exists"
 CHECKPOINTS="staged neutralized plistWritten bootstrapped retired started"
+MARKER=/var/db/micropod-gate-vm
+ROOT_COPY=/var/root/micropod-gate/runtime-authority-gate.sh
+SUDOERS=/etc/sudoers.d/micropod-gate
+STEP=${1:-help}
+
+say() { printf '%s\n' "$*"; }
+die() { printf 'refused: %s\n' "$*" >&2; exit 2; }
+
+# The user the gate acts for: this user, or the one sudo ran the matrix
+# steps for.
+if [ "$(id -u)" = 0 ]; then
+  GATE_USER=${SUDO_USER:-}
+  [ -n "$GATE_USER" ] && [ "$GATE_USER" != root ] || die "run as the VM's admin user, not root"
+else
+  GATE_USER=$(id -un)
+fi
+
+# vm_guard [fresh]: this is a gate VM and nothing real is on it. "fresh"
+# (harden) requires that no gate has marked it yet and no runtime exists.
+vm_guard() {
+  [ "$(sysctl -n kern.hv_vmm_present 2>/dev/null)" = 1 ] ||
+    die "not a virtual machine (kern.hv_vmm_present != 1): never run the gate on a real Mac"
+  if [ "${1:-}" = fresh ]; then
+    [ ! -e "$MARKER" ] || die "$MARKER exists: this VM is already hardened"
+  else
+    [ -f "$MARKER" ] && [ ! -L "$MARKER" ] && [ "$(stat -f %u "$MARKER")" = 0 ] ||
+      die "no root-owned $MARKER: run 'harden' in a fresh gate VM first"
+    head -1 "$MARKER" | grep -q '^micropod-gate-vm ' || die "$MARKER is not a gate marker"
+  fi
+  if pgrep -fil 'cuttle|cuttlefish' >/dev/null; then
+    die "a Cuttlefish process runs here: $(pgrep -fil 'cuttle|cuttlefish' | head -3 | tr '\n' ' ')"
+  fi
+  local found
+  found=$(sudo find /Users /var/root -maxdepth 2 -name .cuttlefish 2>/dev/null | head -1)
+  [ -z "$found" ] || die "Cuttlefish state exists: $found"
+  found=$(sudo find /Applications /Library/LaunchAgents /Library/LaunchDaemons /Users/*/Library/LaunchAgents \
+    -maxdepth 1 -iname '*cuttlefish*' 2>/dev/null | head -1)
+  [ -z "$found" ] || die "a Cuttlefish install exists: $found"
+  if sudo test -e "$RH/identity.json"; then
+    [ "${1:-}" != fresh ] || die "a RuntimeHost identity exists: not a fresh VM"
+    local instance
+    instance=$(sudo plutil -extract instance raw -o - "$RH/identity.json" 2>/dev/null)
+    [ -n "$instance" ] && grep -qx "identity $instance" "$MARKER" ||
+      die "RuntimeHost identity ${instance:-unreadable} was not created by the gate"
+  fi
+}
+
+# allow_identity: the runtime the gate just installed may exist from now on.
+allow_identity() {
+  local instance
+  instance=$(sudo plutil -extract instance raw -o - "$RH/identity.json" 2>/dev/null) || return 1
+  [ -n "$instance" ] || return 1
+  grep -qx "identity $instance" "$MARKER" ||
+    printf 'identity %s\n' "$instance" | sudo tee -a "$MARKER" >/dev/null
+}
+
+case "$STEP" in
+  help | report) ;;
+  harden) vm_guard fresh ;;
+  *) vm_guard ;;
+esac
 
 # Results and logs go to the host's writable share when there is one, so
 # they outlive a deleted clone.
 OUT=${MICROPOD_GATE_OUT:-"/Volumes/My Shared Files/out"}
 [ -d "$OUT" ] && [ -w "$OUT" ] || OUT=$GATE
 mkdir -p "$GATE/unpack" "$OUT/logs"
-STEP=${1:-help}
 FAILED=0
-
-say() { printf '%s\n' "$*"; }
 
 # check <description> <command...>: one PASS/FAIL line.
 check() {
@@ -118,17 +183,30 @@ cdhash12() {
   codesign -dvvv "$setup" 2>&1 | sed -n 's/^CDHash=//p' | cut -c1-12
 }
 
-# install_authority <name> [VAR=value...]: the administrator procedure.
+# install_authority <name> [checkpoint]: the administrator procedure. With
+# a checkpoint, a root-owned gate-kill.json (that checkpoint, this CLI's
+# CDHash, a 30-minute expiry) makes the CLI die there like a SIGKILL, once.
 install_authority() {
-  local name=$1 cli app
-  shift
+  local name=$1 point=${2:-} cli app cdhash
   cli=$(root_cli "$name") || return 1
   app="$(unpack "$name")/Micropod.app"
-  sudo env "$@" "$cli" runtime install-authority --app "$app" \
-    --confirm "$(cdhash12 "$app")"
+  sudo rm -f "$RH/gate-kill.json"
+  if [ -n "$point" ]; then
+    cdhash=$(sudo codesign -dvvv "$cli" 2>&1 | sed -n 's/^CDHash=//p')
+    printf '{"checkpoint":"%s","cdhash":"%s","expiresAt":%s}' \
+      "$point" "$cdhash" "$(($(date +%s) + 1800))" | sudo tee "$RH/gate-kill.json" >/dev/null
+    sudo chown root:wheel "$RH/gate-kill.json"
+    sudo chmod 0600 "$RH/gate-kill.json"
+  fi
+  sudo "$cli" runtime install-authority --app "$app" --confirm "$(cdhash12 "$app")"
 }
 
-user_cli() { "$(unpack "$1")/micropod" "${@:2}"; }
+# as_user <command...>: as the admin user, also when sudo runs this script
+# as root (the helper serves only accounts with uid >= 500).
+as_user() {
+  if [ "$(id -u)" = 0 ]; then sudo -u "$GATE_USER" -H "$@"; else "$@"; fi
+}
+user_cli() { as_user "$(unpack "$1")/micropod" "${@:2}"; }
 
 # status_field <name> <key>: a field of the helper's status reply.
 status_field() {
@@ -240,11 +318,16 @@ desktop() {
   sudo ditto "$(unpack "$1")/Micropod.app" /Applications/Micropod.app
 }
 
+# gate_fault <name> <crash|hang> | gate_fault off: arm a fault for exactly
+# that release's helper (version and SHA-256), expiring in an hour.
 gate_fault() {
-  local file="$RH/gate-fault.json"
-  if [ -z "$2" ]; then sudo rm -f "$file"; return; fi
-  printf '{"version":"%s","fault":"%s"}' "$1" "$2" |
-    sudo tee "$file" >/dev/null
+  local file="$RH/gate-fault.json" app helper
+  if [ "$1" = off ]; then sudo rm -f "$file"; return; fi
+  app="$(unpack "$1")/Micropod.app"
+  helper="$app/Contents/Helpers/Micropod Runtime Setup.app/Contents/MacOS/MicropodRuntimeHost"
+  printf '{"version":"%s","helperSHA256":"%s","fault":"%s","expiresAt":%s}' \
+    "$(version_of "$app")" "$(shasum -a 256 "$helper" | cut -d' ' -f1)" "$2" \
+    "$(($(date +%s) + 3600))" | sudo tee "$file" >/dev/null
   sudo chown root:wheel "$file"
   sudo chmod 0600 "$file"
 }
@@ -252,6 +335,7 @@ gate_fault() {
 # as_agent_child <script>: run <script> as this user from a user LaunchAgent,
 # the context a job the Cuttlefish agent spawns runs in.
 as_agent_child() {
+  [ "$(id -u)" != 0 ] || die "agent-child attacks run as the admin user"
   local plist="$HOME/Library/LaunchAgents/dev.micropod.gate.child.plist"
   mkdir -p "$HOME/Library/LaunchAgents"
   rm -f "$GATE/child.done"
@@ -370,7 +454,8 @@ case "$STEP" in
     desktop A
     check "the dedicated runtime installs" user_cli A runtime install
     check "the install settles" poll_operation A
-    human "Note whether a 'Background Items Added' notice appeared (expected once, for the new LaunchDaemon). Then shut the VM down and clone it as gate-fresh-a on the host (docs/vm-release-gate.md)."
+    check "the gate records the runtime it created" allow_identity
+    human "Note whether a 'Background Items Added' notice appeared (expected once, for the new LaunchDaemon). Then shut the VM down: it is the fresh-track base each later test clones (docs/vm-release-gate.md)."
     result
     ;;
 
@@ -400,8 +485,9 @@ case "$STEP" in
     # One case of the migration kill matrix (gate-host.sh runs them all on
     # clones of the legacy VM): install-authority dies at $2.
     point=${2:?checkpoint: $CHECKPOINTS}
-    install_authority A MICROPOD_GATE_KILL_AT="$point"
+    install_authority A "$point"
     status=$?
+    sudo rm -f "$RH/gate-kill.json"
     if [ "$status" -eq 0 ] && [ "$point" = started ]; then
       # The authority already served when the legacy job was retired.
       say "  INFO  started not reached: nothing was left to start"
@@ -416,6 +502,7 @@ case "$STEP" in
     # After a kill ($2) and, with "rebooted" ($3), a reboot: the invariants,
     # then a re-run finishes the migration.
     point=${2:?checkpoint}
+    sudo rm -f "$RH/gate-kill.json"
     check "at most one helper process" at_most_one_helper
     if [ "${3:-}" = rebooted ] && [ "$point" != staged ]; then
       # Neutralized before the reboot: no launch runs 0.13.3 code again.
@@ -500,13 +587,15 @@ case "$STEP" in
     fault=${STEP#g7-}
     va=$(version_of "$(unpack A)/Micropod.app")
     vb=$(version_of "$(unpack B)/Micropod.app")
-    gate_fault "$vb" "$fault"
+    gate_fault B "$fault"
+    check "status reports the armed fault" \
+      test "$(status_field A gateFaultArmed)" = true
     desktop B
     check "micropod runtime update starts" user_cli B runtime update --detach
     limit=600
     [ "$fault" = hang ] && limit=1500
     check "the update rolls back" poll_component B rolledBack "$limit"
-    gate_fault "" ""
+    gate_fault off
     check "the authority serves $va again" wait_serving "$va" 180
     finished A
     result
@@ -567,7 +656,68 @@ case "$STEP" in
     human "In Micropod, open Micropod Runtime Setup and click Install Dedicated Runtime. Approve 'Micropod Runtime Setup' in System Settings > General > Login Items & Extensions when asked, and wait until Setup says the runtime is installed."
     check "the legacy helper serves" legacy_loaded
     check "no authority plist yet" test ! -e "$PLIST"
+    check "the gate records the runtime it created" allow_identity
     human "Shut the VM down and clone it as gate-legacy-base on the host (docs/vm-release-gate.md)."
+    result
+    ;;
+
+  harden)
+    # First step in a fresh base VM (vm_guard fresh ran): the marker, a
+    # random password, key-only ssh, and with "matrix" a sudo rule that lets
+    # the host run exactly the matrix steps.
+    [ "$(id -u)" != 0 ] || die "run as the VM's admin user"
+    key="$RC/gate_key.pub"
+    [ -f "$key" ] || die "no $key: run 'bash gate-host.sh key' on the host first"
+    grep -Eq '^ssh-ed25519 [A-Za-z0-9+/=]+( .*)?$' "$key" || die "$key is not an ed25519 public key"
+    printf 'micropod-gate-vm %s\n' "$(uuidgen)" | sudo tee "$MARKER" >/dev/null
+    sudo chown root:wheel "$MARKER"
+    sudo chmod 0644 "$MARKER"
+    say "Password: the vanilla image's is 'admin'."
+    read -r -s -p "Current password: " old
+    say ""
+    pw=$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | cut -c1-20)
+    dscl . -passwd "/Users/$GATE_USER" "$old" "$pw" || die "the password was not changed (wrong current password?)"
+    say "  PASS  random login password set"
+    security set-keychain-password -o "$old" -p "$pw" >/dev/null 2>&1
+    check "automatic login keeps working (the shared folder mounts at login)" \
+      sudo sysadminctl -autologin set -userName "$GATE_USER" -password "$pw"
+    say ""
+    say ">>> The VM's password is now: $pw"
+    say ">>> Write it down; sudo in this VM and its clones asks for it."
+    mkdir -p "$HOME/.ssh" && chmod 0700 "$HOME/.ssh"
+    cp "$key" "$HOME/.ssh/authorized_keys" && chmod 0600 "$HOME/.ssh/authorized_keys"
+    conf=$(mktemp)
+    printf '%s\n' "PasswordAuthentication no" "KbdInteractiveAuthentication no" \
+      "PermitRootLogin no" "AuthenticationMethods publickey" >"$conf"
+    sudo install -o root -g wheel -m 0644 "$conf" /etc/ssh/sshd_config.d/100-micropod-gate.conf
+    rm -f "$conf"
+    sudo launchctl kickstart -k system/com.openssh.sshd 2>/dev/null
+    check "sshd accepts keys only" sh -c \
+      "sudo sshd -T 2>/dev/null | grep -qx 'passwordauthentication no'"
+    # Remove every passwordless sudo rule; the matrix gets its own, scoped.
+    for f in /etc/sudoers.d/*; do
+      [ -f "$f" ] && sudo grep -q NOPASSWD "$f" && sudo rm -f "$f"
+    done
+    check "no passwordless sudo rule is left in /etc/sudoers" \
+      refuse sudo grep -q '^[^#]*NOPASSWD' /etc/sudoers
+    if [ "${2:-}" = matrix ]; then
+      sudo install -d -o root -g wheel -m 0755 "$(dirname "$ROOT_COPY")"
+      sudo install -o root -g wheel -m 0755 "$0" "$ROOT_COPY"
+      rule=$(mktemp)
+      {
+        printf '%s ALL=(root) NOPASSWD: %s g3-kill *, ' "$GATE_USER" "$ROOT_COPY"
+        printf '%s g3-check *, /sbin/shutdown -r now\n' "$ROOT_COPY"
+      } >"$rule"
+      check "the scoped matrix sudo rule is valid" sudo visudo -cf "$rule"
+      sudo install -o root -g wheel -m 0440 "$rule" "$SUDOERS"
+      rm -f "$rule"
+      sudo -k
+      check "sudo without a password runs the matrix steps" \
+        sudo -n -l "$ROOT_COPY" g3-check staged
+      check "sudo without a password runs nothing else" refuse sudo -n -l /usr/bin/true
+    fi
+    sudo -k
+    check "sudo asks for the password again" refuse sudo -n true
     result
     ;;
 
@@ -600,8 +750,9 @@ case "$STEP" in
     ;;
 
   *)
-    say "steps: prepare-legacy g1 g2 g3-kill <checkpoint> g3-check g4-before"
-    say "       g4-after g5 g6 g7-crash g7-hang g7-floor g8 g9 report"
+    say "steps: harden [matrix], prepare-legacy, g1, g2, g3-kill <checkpoint>,"
+    say "       g3-check <checkpoint> [rebooted], g4-before, g4-after, g5, g6,"
+    say "       g7-crash, g7-hang, g7-floor, g8, g9, report"
     say "checkpoints: $CHECKPOINTS"
     ;;
 esac

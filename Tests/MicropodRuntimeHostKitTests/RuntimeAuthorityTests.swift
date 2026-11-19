@@ -260,17 +260,57 @@ final class RuntimeAuthorityTests: XCTestCase {
         XCTAssertEqual(info.st_flags, UInt32(UF_NODUMP), "Flags outside the tree are untouched")
     }
 
-    // The VM gate's faults apply only to the exact release they name.
-    func testGateFaultsNameOneReleaseAndOneKnownFault() {
-        let crash = Data(#"{"version":"0.13.11","fault":"crash"}"#.utf8)
-        XCTAssertEqual(RuntimeGateHooks.fault(in: crash, version: "0.13.11"), "crash")
-        XCTAssertNil(RuntimeGateHooks.fault(in: crash, version: "0.13.10"))
+    // F6: a gate fault applies only to the exact release and helper digest
+    // it names, and only until it expires (never for longer than six hours).
+    func testGateFaultsNameOneHelperAndExpire() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        func data(_ fault: String = "crash", digest: String = "c", expires: Double = 1_800_003_600) -> Data {
+            Data(#"{"version":"0.13.11","helperSHA256":"\#(digest)","fault":"\#(fault)","expiresAt":\#(expires)}"#.utf8)
+        }
+        func fault(_ data: Data?, version: String = "0.13.11", digest: String = "c") -> String? {
+            RuntimeGateHooks.fault(in: data, version: version, helperSHA256: { digest }, now: now)
+        }
+        XCTAssertEqual(fault(data()), "crash")
+        XCTAssertEqual(fault(data("hang")), "hang")
+        XCTAssertNil(fault(data(), version: "0.13.10"), "another release")
+        XCTAssertNil(fault(data(), digest: "d"), "another helper build of the same release")
+        XCTAssertNil(fault(data(expires: 1_799_999_999)), "expired")
+        XCTAssertNil(fault(data(expires: 1_800_000_000 + 7 * 3600)), "armed for longer than allowed")
+        XCTAssertNil(fault(data("rm")))
+        XCTAssertNil(fault(Data(#"{"version":"0.13.11","fault":"crash"}"#.utf8)), "no digest or expiry")
+        XCTAssertNil(fault(nil))
+        XCTAssertNil(fault(Data("{".utf8)))
         XCTAssertEqual(
-            RuntimeGateHooks.fault(in: Data(#"{"version":"0.13.11","fault":"hang"}"#.utf8), version: "0.13.11"), "hang")
-        XCTAssertNil(
-            RuntimeGateHooks.fault(in: Data(#"{"version":"0.13.11","fault":"rm"}"#.utf8), version: "0.13.11"))
-        XCTAssertNil(RuntimeGateHooks.fault(in: nil, version: "0.13.11"))
-        XCTAssertNil(RuntimeGateHooks.fault(in: Data("{".utf8), version: "0.13.11"))
+            IsolatedRuntimeHostController.describeProtection("protected", gateFaultArmed: true),
+            "protected; release-gate fault armed")
+        XCTAssertEqual(
+            IsolatedRuntimeHostController.describeProtection("protected", gateFaultArmed: false), "protected")
+    }
+
+    // F5: the install-authority kill is armed by a root-owned file naming the
+    // checkpoint and the CLI's CDHash, and expires.
+    func testGateKillsNameOneCheckpointAndOneCLI() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let armed = Data(#"{"checkpoint":"bootstrapped","cdhash":"ab","expiresAt":1800000600}"#.utf8)
+        func kill(_ data: Data?, at checkpoint: String = "bootstrapped", cdhash: String? = "ab") -> Bool {
+            RuntimeGateHooks.kill(in: data, checkpoint: checkpoint, cdhash: { cdhash }, now: now)
+        }
+        XCTAssertTrue(kill(armed))
+        XCTAssertFalse(kill(armed, at: "staged"))
+        XCTAssertFalse(kill(armed, cdhash: "cd"), "another CLI build")
+        XCTAssertFalse(kill(armed, cdhash: nil), "an unsigned CLI")
+        XCTAssertFalse(kill(Data(#"{"checkpoint":"bootstrapped","cdhash":"ab","expiresAt":1799999999}"#.utf8)))
+        XCTAssertFalse(kill(nil))
+    }
+
+    // F7: protection names the legacy job as the reason when it is.
+    func testProtectionFlagsTheLegacyJobAsItsOwnReason() throws {
+        let layout = try layout()
+        XCTAssertFalse(protection(layout).legacyActive)
+        XCTAssertTrue(protection(layout, legacy: .init(loaded: true, disabled: true)).legacyActive)
+        XCTAssertTrue(protection(layout, legacy: .init(loaded: false, disabled: false)).legacyActive)
+        XCTAssertFalse(protection(layout, legacy: nil).legacyActive, "unreadable is unprotected, not legacy")
+        XCTAssertFalse(protection(layout, printed: .some(nil)).legacyActive)
     }
 
     // R4: removal descends a bounded depth and refuses a deeper tree.

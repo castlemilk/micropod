@@ -103,6 +103,8 @@ public protocol RuntimeComponentEnvironment: Sendable {
     func isSealed(_ bundle: URL) -> Bool
     /// The live check of the authority job (``RuntimeAuthority/protection``).
     func protection() -> RuntimeAuthority.Protection
+    /// Records the last check where the version manifest reads it.
+    func publishProtection(_ protection: RuntimeAuthority.Protection)
     /// The authority definition the running helper expects.
     var authorityDefinitionSHA256: String { get }
     func inspect(_ bundle: URL) throws -> RuntimeComponentBundle
@@ -127,6 +129,7 @@ public protocol RuntimeComponentEnvironment: Sendable {
 extension RuntimeComponentEnvironment {
     public var authorityDefinitionSHA256: String { RuntimeAuthority.definitionSHA256 }
     public func checkpoint(_ name: String) throws {}
+    public func publishProtection(_ protection: RuntimeAuthority.Protection) {}
     public func now() -> Date { Date() }
     public var publicKey: String { MicropodReleaseSigning.publicKey }
 }
@@ -282,6 +285,13 @@ public struct RuntimeComponentUpdater: Sendable {
     /// Raises root's marks after `install-authority` installed a release.
     public func recordInstalled(version: String, floor: String?) throws { try raise(version: version, floor: floor) }
 
+    /// A floor is never raised above the release that carries it (its own
+    /// helper's version); with that release unknown it is not raised at all.
+    static func capped(_ floor: String?, at release: String) -> String? {
+        guard let floor, let value = ReleaseVersion(floor), let ceiling = ReleaseVersion(release) else { return nil }
+        return value <= ceiling ? floor : release
+    }
+
     func raise(version: String?, floor: String?) throws {
         var current = try state()
         func higher(_ a: String?, _ b: String?) -> String? {
@@ -290,7 +300,8 @@ public struct RuntimeComponentUpdater: Sendable {
             return next > old ? b : a
         }
         current.highestVersion = higher(current.highestVersion, version)
-        current.securityFloor = higher(current.securityFloor, floor)
+        current.securityFloor = higher(
+            current.securityFloor, Self.capped(floor, at: version ?? environment.runningVersion))
         try RuntimeDurableFile.write(current, to: stateURL)
     }
 
@@ -884,6 +895,18 @@ public struct NativeRuntimeComponentEnvironment: RuntimeComponentEnvironment {
         RuntimeAuthority.protection(
             executable: executable, launchctlPrint: { RuntimeAuthority.launchctlPrint() },
             legacy: { RuntimeAuthority.legacyJob() })
+    }
+
+    /// Only the authority publishes: a helper the legacy job started must
+    /// not describe the authority.
+    public func publishProtection(_ protection: RuntimeAuthority.Protection) {
+        guard executable.path == IsolatedRuntimePolicy.authorityProgram.path else { return }
+        let url = RuntimeAuthority.publishedProtection
+        guard
+            (try? RuntimeDurableFile.write(RuntimeAuthority.PublishedProtection(protection, checkedAt: Date()), to: url))
+                != nil
+        else { return }
+        _ = chmod(url.path, 0o644)
     }
 
     public func offered() throws -> RuntimeComponentOffer {

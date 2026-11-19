@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Verification only: never creates, rebuilds, replaces or uploads release assets.
+import { execFileSync } from "node:child_process";
 import { createHash, createPublicKey, verify } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -115,6 +116,42 @@ export function publicationOptions(manifest, channel, repository = process.cwd()
         signature: manifest.sparkleSignature, length: manifest.assets["Micropod.dmg"].size,
         "minimum-update-version": manifest.minimumUpdaterVersion, "workload-protocol": manifest.workloadProtocol, source: manifest.source };
 }
+// qualification-source.txt: the qualified commit, then (only for a draft
+// built for the VM release gate) "gate-security-floor=X.Y.Z". Nothing else.
+export function qualificationSource(text) {
+    const [source, ...fields] = text.trim().split("\n").map((line) => line.trim());
+    if (!/^[0-9a-f]{40}$/.test(source ?? "")) throw new Error("qualification source mismatch");
+    let gateSecurityFloor = null;
+    for (const field of fields) {
+        const match = /^gate-security-floor=(.*)$/.exec(field);
+        if (!match || gateSecurityFloor !== null) throw new Error(`unknown qualification source field: ${field}`);
+        gateSecurityFloor = match[1];
+    }
+    return { source, gateSecurityFloor };
+}
+// The runtime component manifest inside the frozen tarball, or null for a
+// release that predates it (castlemilk/micropod#178).
+export function frozenRuntimeComponents(tgz) {
+    const member = "Micropod.app/Contents/Resources/runtime-components.json";
+    const listing = execFileSync("tar", ["-tzf", tgz], { maxBuffer: 64 << 20 }).toString("utf8").split("\n");
+    if (!listing.includes(member)) return null;
+    return JSON.parse(execFileSync("tar", ["-xzOf", tgz, member], { maxBuffer: 1 << 20 }).toString("utf8"));
+}
+// The runtime security floor a release ships must be the one its reviewed
+// record names (runtimeComponentsSecurityFloor: "X.Y.Z" or null), at most the
+// release itself; a release without the component manifest names none.
+export function checkRuntimeComponentsFloor(manifest, components) {
+    const reviewed = manifest.runtimeComponentsSecurityFloor;
+    if (components === null) {
+        if (reviewed !== undefined && reviewed !== null) throw new Error("reviewed security floor but no runtime component manifest");
+        return;
+    }
+    if (reviewed === undefined) throw new Error("runtimeComponentsSecurityFloor was not reviewed for this release");
+    if (components.version !== manifest.tag.slice(1)) throw new Error("runtime component manifest names another release");
+    const shipped = components.securityFloor ?? null;
+    if (shipped !== reviewed) throw new Error(`runtime security floor ${shipped} is not the reviewed ${reviewed}`);
+    if (shipped !== null && compareVersions(shipped, components.version) > 0) throw new Error("runtime security floor is above its release");
+}
 export function verifyAssets(manifest, directory) {
     for (const [name, expected] of Object.entries(manifest.assets)) {
         const bytes = readFileSync(join(directory, name));
@@ -122,10 +159,14 @@ export function verifyAssets(manifest, directory) {
             throw new Error(`qualified bytes changed: ${name}`);
         }
     }
-    const source = readFileSync(join(directory, "qualification-source.txt"), "utf8").trim();
+    const { source, gateSecurityFloor } = qualificationSource(readFileSync(join(directory, "qualification-source.txt"), "utf8"));
     if (source !== manifest.source) throw new Error("qualification source mismatch");
+    if (gateSecurityFloor !== null) throw new Error("a draft built with a VM-gate security floor is never published");
     const sidecar = readFileSync(join(directory, "Micropod.dmg.sha256"), "utf8").trim();
     if (sidecar !== `${manifest.assets["Micropod.dmg"].sha256}  Micropod.dmg`) throw new Error("DMG sidecar mismatch");
+    const tarballs = Object.keys(manifest.assets).filter((name) => name === `Micropod.${manifest.tag.slice(1)}.tgz`);
+    if (tarballs.length !== 1) throw new Error("the frozen tarball is missing");
+    checkRuntimeComponentsFloor(manifest, frozenRuntimeComponents(join(directory, tarballs[0])));
     const key = createPublicKey({ key: Buffer.concat([Buffer.from("302a300506032b6570032100", "hex"), Buffer.from(publicKey, "base64")]), format: "der", type: "spki" });
     if (!verify(null, readFileSync(join(directory, "Micropod.dmg")), key, Buffer.from(manifest.sparkleSignature, "base64"))) {
         throw new Error("DMG Sparkle signature does not match the pinned release key");

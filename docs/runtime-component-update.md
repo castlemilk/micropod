@@ -466,6 +466,12 @@ inside the VM and prints PASS/FAIL per check; `scripts/vm/gate-host.sh`
 creates the VM with tart and runs the kill matrix on clones;
 docs/vm-release-gate.md has the exact commands.
 
+0. **Harden** (`harden`, `harden matrix`). Every step refuses outside a
+   hypervisor guest carrying the gate's root-owned marker, or next to any
+   Cuttlefish process, state or install, or a Micropod runtime the gate did
+   not create. `harden` sets a random password, key-only ssh, and no
+   passwordless sudo except the matrix's scoped rule. The host script
+   refuses to boot while any other VM runs on the host.
 1. **Fresh install** (`g1`). The root-only-copy procedure; a user-owned CLI
    refused as root; plist root:wheel 0644 naming the program; the authority
    serving (live pid matches `serving.json`); legacy job unloaded and
@@ -501,7 +507,8 @@ docs/vm-release-gate.md has the exact commands.
    the root-only gate fault file, B crashes (or hangs until the 120 s
    watchdog) after its launch is counted: the update rolls back to A. With
    B built with `qualification_security_floor` = B: a rollback and an
-   `install-authority` of A are refused, and B keeps serving.
+   `install-authority` of A are refused, and B keeps serving. Status reports
+   the armed fault.
 8. **Sealed copies** (`g8`). An ACL, an extended attribute and a setuid bit
    planted in the offered app: the installed authority carries none, nor any
    flag, group/other write or other owner, and verifies strictly.
@@ -520,9 +527,24 @@ a floor for `g7-floor`, another team's Developer ID binary and an Apple
 Development build for `g2`. A missing input makes its test `INCOMPLETE`,
 never `PASS`.
 
-The gate's two hooks (`RuntimeGateHooks`) are inert outside it: the fault
-file must be root-owned in `RuntimeHost`, and `MICROPOD_GATE_KILL_AT` only
-affects an `install-authority` already running as root.
+The gate's two hooks (`RuntimeGateHooks`) are armed only by root-owned
+files in `RuntimeHost`, name the exact code they affect, and expire (at most
+six hours):
+
+- `gate-fault.json` (version, helper SHA-256, `crash` or `hang`, expiry): only
+  that exact helper crashes or hangs, after its launch is counted. While the
+  file exists, status reports `gateFaultArmed: true` and
+  `componentProtection` ends in "; release-gate fault armed".
+- `gate-kill.json` (checkpoint, the install-authority CLI's CDHash, expiry):
+  that CLI removes the file and dies at that checkpoint, once.
+
+**Gate drafts never ship.** `qualification_security_floor` is recorded as
+`gate-security-floor=` in the draft's `qualification-source.txt`, and
+publication refuses such a draft (docs/qualified-release-publication.md).
+Every release's runtime floor must also be at most its own version
+(`RuntimeComponentManifest.validate`), equal the reviewed
+`runtimeComponentsSecurityFloor` at publication, and is capped at the
+carrying release when root records it.
 
 ## Administrator approval: once
 
@@ -759,6 +781,24 @@ micropod runtime operation --json    # componentUpdate, componentProtection, hel
   `cuttle runners show` and warns about in `cuttle agent doctor`, so the
   rigs to migrate before 2027-04-01 are visible fleet-wide.
 - The reviewer's nine VM tests are the release gate, with a harness.
+
+### Fourth review
+
+- **F1 (high):** a manifest's `securityFloor` must be at most its own
+  version; root caps a recorded floor at the carrying release; publication
+  extracts the frozen tarball's manifest and requires its floor to equal the
+  reviewed `runtimeComponentsSecurityFloor`; a draft built with the gate's
+  floor records it in `qualification-source.txt` and is never published.
+- **F2–F4 (harness):** `harden` (random password, key-only ssh, no
+  passwordless sudo but the matrix's scoped rule), a VM guard in front of
+  every step, a host preflight refusing to boot beside any other VM, and
+  guest output treated as untrusted.
+- **F5–F6:** both gate hooks are root-owned files naming the exact code and
+  expiring; an armed fault is reported.
+- **F7:** `runtime-authority` reports `unprotected` and `legacy_active` from
+  the authority's published protection check (`RuntimeHost/protection.json`,
+  refreshed at start, on updates and every five minutes);
+  `cuttle runners list --needs-install-authority` lists every rig to fix.
 
 ### Deferred
 

@@ -73,8 +73,29 @@ public enum RuntimeAuthority {
     public struct Protection: Codable, Sendable, Equatable {
         public let protected: Bool
         public let reason: String?
+        /// Unprotected because the legacy SMAppService job is not retired.
+        public var legacyActive: Bool = false
         public static let ok = Protection(protected: true, reason: nil)
         public static func unprotected(_ reason: String) -> Protection { .init(protected: false, reason: reason) }
+        static func legacy(_ reason: String) -> Protection {
+            .init(protected: false, reason: reason, legacyActive: true)
+        }
+    }
+
+    /// `RuntimeHost/protection.json` (root-owned, world-readable): the last
+    /// protection check, which the version manifest reports as the
+    /// `runtime-authority` component's state.
+    public struct PublishedProtection: Codable, Sendable, Equatable {
+        public let protected: Bool
+        public let legacyActive: Bool
+        public let reason: String?
+        public let checkedAt: Date
+        public init(_ protection: Protection, checkedAt: Date) {
+            protected = protection.protected
+            legacyActive = protection.legacyActive
+            reason = protection.reason
+            self.checkedAt = checkedAt
+        }
     }
 
     /// The live check every start makes, and every update repeats: this
@@ -118,8 +139,8 @@ public enum RuntimeAuthority {
         // program in /Applications: while it can load, a root path through
         // an admin-writable folder remains.
         guard let legacy = legacy() else { return .unprotected("the legacy helper job's state could not be read") }
-        guard !legacy.loaded else { return .unprotected("the legacy SMAppService helper job is still loaded") }
-        guard legacy.disabled else { return .unprotected("the legacy SMAppService helper job is not disabled") }
+        guard !legacy.loaded else { return .legacy("the legacy SMAppService helper job is still loaded") }
+        guard legacy.disabled else { return .legacy("the legacy SMAppService helper job is not disabled") }
         return .ok
     }
 
@@ -215,6 +236,7 @@ public enum RuntimeAuthority {
     }
 
     public static var servingRecord: URL { IsolatedRuntimePolicy.root.appendingPathComponent("serving.json") }
+    public static var publishedProtection: URL { IsolatedRuntimePolicy.root.appendingPathComponent("protection.json") }
 
     /// Called by the helper once it serves.
     public static func recordServing(serviceName: String, version: String, executable: URL) throws {
@@ -421,10 +443,13 @@ public struct RuntimeAuthorityInstaller: Sendable {
 public struct NativeRuntimeAuthorityInstallHost: RuntimeAuthorityInstallHost {
     public static let legacyBundle = RuntimeSetupInstallation.installedURL
     let environment: NativeRuntimeComponentEnvironment
+    /// The install-authority CLI running this, for the VM gate's kill hook.
+    let cli: URL?
 
-    public init() {
+    public init(cli: URL? = nil) {
         environment = NativeRuntimeComponentEnvironment(
             executable: IsolatedRuntimePolicy.authorityProgram, runningVersion: "")
+        self.cli = cli
     }
 
     public func authorityIdentity() -> RuntimeComponentBundle? {
@@ -588,7 +613,9 @@ public struct NativeRuntimeAuthorityInstallHost: RuntimeAuthorityInstallHost {
             timeout: 30)
     }
 
-    public func checkpoint(_ name: String) throws { RuntimeGateHooks.killIfRequested(at: name) }
+    public func checkpoint(_ name: String) throws {
+        if let cli { RuntimeGateHooks.killIfRequested(at: name, cli: cli) }
+    }
 
     public func runtimeIdle() throws -> Bool {
         guard FileManager.default.fileExists(atPath: RootRuntimeStorage.operation.path) else { return true }

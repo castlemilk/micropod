@@ -130,7 +130,11 @@ public actor IsolatedRuntimeHostController {
             var snapshot = state
             snapshot.componentProtocol = components == nil ? nil : RuntimeComponentManifest.protocolVersion
             snapshot.componentUpdate = components?.summary()
-            snapshot.componentProtection = components == nil ? nil : protection
+            if components != nil {
+                let armed = RuntimeGateHooks.faultArmed()
+                snapshot.gateFaultArmed = armed
+                snapshot.componentProtection = Self.describeProtection(protection, gateFaultArmed: armed)
+            }
             if let identity = state.identity {
                 let pending = gate.root.appendingPathComponent("pending")
                 if let files = try? FileManager.default.contentsOfDirectory(
@@ -1032,7 +1036,9 @@ public actor IsolatedRuntimeHostController {
             var current = state
             current.componentProtocol = RuntimeComponentManifest.protocolVersion
             current.componentUpdate = components.summary()
-            current.componentProtection = protection
+            let armed = RuntimeGateHooks.faultArmed()
+            current.gateFaultArmed = armed
+            current.componentProtection = Self.describeProtection(protection, gateFaultArmed: armed)
             return current
         }
         if let record = components.readLeniently(), record.operation == request.operation {
@@ -1126,7 +1132,23 @@ public actor IsolatedRuntimeHostController {
     private func refreshProtection() {
         guard let components else { return }
         let protection = components.environment.protection()
+        recordProtection(protection)
+        components.environment.publishProtection(protection)
+    }
+
+    /// A protection check made off the actor (the helper repeats one every
+    /// few minutes, so status and the manifest's `runtime-authority` state
+    /// follow a re-enabled legacy job).
+    public func recordProtection(_ protection: RuntimeAuthority.Protection) {
+        guard components != nil else { return }
         self.protection = protection.protected ? "protected" : "unprotected: " + (protection.reason ?? "unknown")
+    }
+
+    /// `componentProtection` as status reports it: an armed release-gate
+    /// fault is always visible.
+    static func describeProtection(_ protection: String?, gateFaultArmed: Bool) -> String? {
+        guard let protection else { return nil }
+        return gateFaultArmed ? protection + "; release-gate fault armed" : protection
     }
 
     /// Starts the coordinated restart that activates this helper's worker,

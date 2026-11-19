@@ -162,6 +162,16 @@ public struct RuntimeComponentManifest: Codable, Sendable, Equatable {
             apple(appleRuntime), appleRuntimes.allSatisfy(apple), appleRuntimes.contains(appleRuntime),
             appleRuntimes.count <= 8
         else { throw MicropodError.message("The runtime component manifest is malformed") }
+        // A release can only promise that nothing older than itself runs: a
+        // floor above its own version would refuse every rollback, every
+        // reinstall of this release and, at the next start, the helper itself.
+        if let floor = securityFloor {
+            guard let floorVersion = ReleaseVersion(floor), let own = ReleaseVersion(version), floorVersion <= own
+            else {
+                throw MicropodError.message(
+                    "Micropod \(version)'s security floor \(floor) is above its own release; the manifest is refused")
+            }
+        }
     }
 
     public var releaseVersion: ReleaseVersion? { ReleaseVersion(version) }
