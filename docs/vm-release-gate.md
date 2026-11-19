@@ -79,6 +79,21 @@ It follows the same rules as the manual run:
   that verdict is all PASS and the reviewed manifest PR is merged.
   INCOMPLETE is never a pass.
 
+G2's optional Apple Development input can be made on another Mac that has
+the identity, and handed to the gate host:
+
+```sh
+cuttle micropod gate prepare-g2-helper --candidate <A-tag> --out ~/g2-helper
+cuttle micropod gate run --candidate <A-tag> --floor-candidate <B-tag> \
+  --apple-development-helper ~/g2-helper
+```
+
+`prepare-g2-helper` signs A's helper as section 3 does. It removes the
+shipped signature first, so it does not need `codesign -f`. The gate refuses
+the file unless it is a Mach-O signed with an Apple Development certificate
+(not ad-hoc) under the authority's identifier and, without its signature, is
+byte for byte A's helper.
+
 `cuttle micropod gate status` shows where the run is and what to do next;
 `cuttle micropod gate results` shows the verdicts.
 
