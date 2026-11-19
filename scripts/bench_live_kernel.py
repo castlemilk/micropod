@@ -243,7 +243,7 @@ def measure(args, receipt, runner=None, read_parent=None):
             samples.append(dict(round=block+1, clients=n, seconds=round(time.perf_counter()-start, 6),
                                 passed=n-len(errors), errors=errors))
             if args.engine != "inner":
-                print(f"{args.engine} block {block+1} clients {n}: {n-len(errors)}/{n} "
+                print(f"{args.engine} block {receipt.get('block', block + 1)} clients {n}: {n-len(errors)}/{n} "
                       f"in {samples[-1]['seconds']:.3f}s", file=sys.stderr, flush=True)
     receipt["p50_seconds"] = {str(n): statistics.median(complete) for n in args.clients
                               if (complete := [s["seconds"] for s in samples if s["clients"] == n and not s["errors"]])}
@@ -355,7 +355,8 @@ def paired(args, receipt):
             current.engine, current.rounds = engine, 1
             offset = block % len(args.clients)
             current.clients = args.clients[offset:] + args.clients[:offset]
-            row = dict(engine=engine, block=block + 1)
+            row = dict(engine=engine, block=block + 1, host_load_before=os.getloadavg(),
+                       started_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
             rows.append(row)
             if engine == "micropod-worker":
                 on_worker(current, row)
@@ -367,6 +368,7 @@ def paired(args, receipt):
             identity = (row["boot_sha256"], row["server"]["ID"], row["image_id"], row["server"]["NCPU"],
                         row.get("micropod_server", {}).get("sourceRevision"))
             require(identity == identities.setdefault(engine, identity), f"{engine} kernel, daemon, build, CPU count or image changed")
+            row["host_load_after"] = os.getloadavg()
             row["passed"] = True
     first = rows[:len(engines)]
     require(all(row["architecture"] == "arm64" and row["image_id"] == first[0]["image_id"] for row in first),
