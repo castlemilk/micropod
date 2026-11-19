@@ -1,0 +1,16 @@
+# syntax=docker/dockerfile:1.6
+FROM golang:1.25-alpine AS source
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+COPY . .
+
+FROM source AS checks
+RUN apk add --no-cache build-base
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go vet ./... && go test -race -count=1 ./... && \
+    mkdir -p /out && go test -c -tags=integration -o /out/postgres-test ./integration

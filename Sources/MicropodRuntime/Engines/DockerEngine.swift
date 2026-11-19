@@ -9,9 +9,14 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
     let configError: String?
     let endpointString: String
 
-    public var name: String { "docker" }
+    private let ciWorker: CIWorker?
+    public var name: String { ciWorker == nil ? "docker" : "ci" }
     public var kind: String { "container" }
-    public var summary: String { "Docker Engine — shared-kernel containers in one VM" }
+    public var summary: String {
+        ciWorker == nil
+            ? "Docker Engine — shared-kernel containers in one VM"
+            : "Micropod CI — one persistent Linux worker for trusted jobs"
+    }
     public var capabilities: [String] {
         ["run", "create", "start", "stop", "restart", "kill", "delete", "exec", "logs", "stats", "ports", "volumes"]
     }
@@ -20,6 +25,7 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
     public var stats: (any StatsSampling)? { self }
 
     public init(endpoint: String?, environment: [String: String] = ProcessInfo.processInfo.environment) {
+        ciWorker = nil
         let raw = endpoint ?? DockerClient.defaultEndpoint(environment: environment)
         endpointString = raw
         do {
@@ -31,6 +37,13 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
         }
     }
 
+    init(worker: CIWorker) {
+        ciWorker = worker
+        endpointString = worker.endpoint
+        configError = nil
+        client = DockerClient(endpoint: .unix(worker.socket.path), version: "v1.47")
+    }
+
     func api() throws -> DockerClient {
         guard let client else {
             throw MicropodError.message("failedPrecondition: docker endpoint: \(configError ?? endpointString)")
@@ -39,6 +52,14 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
     }
 
     public func probe() async -> EngineProbe {
+        if let ciWorker {
+            do {
+                let status = try await ciWorker.status()
+                return EngineProbe(available: true, version: status.engineVersion, endpoint: ciWorker.endpoint)
+            } catch {
+                return EngineProbe(available: false, reason: error.localizedDescription, endpoint: ciWorker.endpoint)
+            }
+        }
         guard let client else {
             return EngineProbe(available: false, reason: configError ?? "bad endpoint", endpoint: endpointString)
         }
@@ -72,7 +93,11 @@ public struct DockerEngine: RuntimeEngine, ContainerServing, LogStreaming, Stats
         let response = try api().check(
             try await api().request("GET", "/containers/json", query: ["all": "1"]))
         let entries = try response.json() as? [[String: Any]] ?? []
-        return entries.map(Self.container(from:))
+        return entries.map { entry in
+            var result = Self.container(from: entry)
+            result.runtime = name
+            return result
+        }
     }
 
     static func container(from entry: [String: Any]) -> Micropod_V1_Container {

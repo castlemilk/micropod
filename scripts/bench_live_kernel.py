@@ -4,6 +4,7 @@
 import argparse
 import concurrent.futures
 import hashlib
+from functools import lru_cache
 import http.client
 import json
 import math
@@ -16,6 +17,8 @@ import socket
 import statistics
 import subprocess
 import sys
+import tarfile
+import tempfile
 import time
 from urllib.parse import urlsplit
 import uuid
@@ -118,6 +121,25 @@ def in_allocation(args, receipt):
             "Micropod allocation or kernel changed during measurement")
 
 
+@lru_cache(maxsize=32)
+def image_config_digest(socket_path, image_id, architecture):
+    # Classic dockerd returns the config digest as Id. The containerd store can return an
+    # index digest there instead. Hash the actual native config from each local image once.
+    with tempfile.TemporaryDirectory(prefix="micropod-image-") as temp:
+        archive = str(Path(temp) / "image.tar")
+        subprocess.run(["docker", "--host", "unix://" + socket_path, "image", "save", "-o", archive, image_id],
+                       capture_output=True, check=True, timeout=180)
+        with tarfile.open(archive) as tar:
+            candidates = set()
+            for entry in json.load(tar.extractfile("manifest.json")):
+                data = tar.extractfile(entry["Config"]).read()
+                config = json.loads(data)
+                if config.get("architecture") == architecture and config.get("os") == "linux":
+                    candidates.add("sha256:" + hashlib.sha256(data).hexdigest())
+            require(len(candidates) == 1, "Expected one native OCI image config")
+            return candidates.pop()
+
+
 def measure(args, receipt, runner=None, read_parent=None):
     require(args.socket.startswith("/"), "The Docker socket must be an absolute path")
     docker = ["docker", "--host", "unix://" + args.socket]
@@ -155,6 +177,9 @@ def measure(args, receipt, runner=None, read_parent=None):
     image = info["Id"]
     require(CLASSES.get(initial["Architecture"]) == info["Architecture"], "Image architecture differs from daemon architecture")
     receipt.update(image_id=image, architecture=info["Architecture"], image_digests=info.get("RepoDigests", []))
+    canonical = getattr(args, "worker_cli", None) or getattr(args, "canonical_images", False)
+    if canonical:
+        receipt.update(local_image_id=image, image_id=image_config_digest(args.socket, image, info["Architecture"]))
     if read_parent is None and args.engine not in MAC_PEERS:
         read_parent = lambda: fingerprint(Path(BOOT).read_text())
     host_boot = read_parent() if read_parent else None
@@ -229,6 +254,10 @@ def measure(args, receipt, runner=None, read_parent=None):
         receipt["package_caches"] = {}
         measure_packages(cmd, args.package_image, info["Architecture"], kernel, fingerprint, args.clients, args.rounds,
                          receipt["package_caches"])
+        if canonical:
+            packages = receipt["package_caches"]
+            local_id = packages["image_id"]
+            packages.update(local_image_id=local_id, image_id=image_config_digest(args.socket, local_id, info["Architecture"]))
     require(server()["ID"] == initial["ID"], "Docker daemon identity changed")
     if host_boot:
         require(read_parent() == kernel, "Parent Linux kernel rebooted")

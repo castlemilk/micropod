@@ -35,6 +35,8 @@ public struct CIWorker: Sendable {
     struct Session: Codable, Equatable {
         let owner: RuntimeProcessBirth
         let instance: UUID
+        var guestAddress: String?
+        var started = false
     }
 
     public struct Status: Codable, Sendable {
@@ -43,6 +45,8 @@ public struct CIWorker: Sendable {
         public let boot: UUID
         public let instance: UUID
         public let daemon: String
+        public let engineVersion: String
+        public let guestAddress: String?
         public let cpus: Int
         public let memoryBytes: UInt64
         public let storageDriver: String
@@ -117,6 +121,12 @@ public struct CIWorker: Sendable {
             _ = try await EXT4Unpacker(capacityInBytes: bytes).unpack(image, for: .current, at: partial)
             try fm.moveItem(at: partial, to: disk)
         }
+        var attributes = stat()
+        guard lstat(disk.path, &attributes) == 0, attributes.st_mode & S_IFMT == S_IFREG,
+            attributes.st_uid == getuid(), attributes.st_nlink == 1
+        else {
+            throw MicropodError.message("CI worker disk must be an owned regular file with a single link")
+        }
         return disk
     }
 
@@ -140,6 +150,7 @@ public struct CIWorker: Sendable {
 
     private struct Info: Decodable {
         let ID: String
+        let ServerVersion: String
         let Labels: [String]
         let CgroupVersion: String
         let NCPU: Int
@@ -151,8 +162,12 @@ public struct CIWorker: Sendable {
     private var client: DockerClient { DockerClient(endpoint: .unix(socket.path), version: "v1.47") }
 
     public func status() async throws -> Status {
+        guard FileManager.default.fileExists(atPath: session.path) else {
+            throw MicropodError.message("CI worker is stopped")
+        }
         try prepareDirectory()
         guard let active = try liveSession() else { throw MicropodError.message("CI worker is stopped") }
+        guard active.started else { throw MicropodError.message("CI worker is booting") }
         let config = try configuration()
         let response = try await client.request("GET", "/info", timeout: .seconds(2))
         guard response.status == 200 else { throw MicropodError.message("CI engine: \(response.message)") }
@@ -167,12 +182,14 @@ public struct CIWorker: Sendable {
         else { throw MicropodError.message("Docker endpoint did not identify the active Micropod CI worker") }
         return Status(
             endpoint: endpoint, worker: config.worker, boot: boots[0], instance: active.instance,
-            daemon: info.ID, cpus: info.NCPU, memoryBytes: info.MemTotal, storageDriver: info.Driver,
+            daemon: info.ID, engineVersion: info.ServerVersion, guestAddress: active.guestAddress, cpus: info.NCPU,
+            memoryBytes: info.MemTotal, storageDriver: info.Driver,
             cgroupDriver: info.CgroupDriver)
     }
 
     public func start(executable: URL) async throws -> Status {
         try prepareDirectory()
+        if FileManager.default.fileExists(atPath: manifest.path) { _ = try configuration() }
         if let current = try? await status() { return current }
         let process = Process()
         process.executableURL = executable
@@ -225,32 +242,67 @@ public struct CIWorker: Sendable {
         directory.appendingPathComponent("stop-" + value.instance.uuidString)
     }
 
+    private func checkIdle(using endpoint: URL) async throws {
+        let api = DockerClient(endpoint: .unix(endpoint.path), version: "v1.47")
+        let response = try await api.request("GET", "/containers/json", timeout: .seconds(3))
+        guard response.status == 200, let jobs = try response.json() as? [[String: Any]], jobs.isEmpty else {
+            throw MicropodError.message("Leave the worker running until its active containers finish")
+        }
+    }
+
     public func stop() async throws {
         try prepareDirectory()
         guard let active = try liveSession() else {
             if isOwned() { throw MicropodError.message("CI supervisor is starting; retry after it becomes ready") }
             return
         }
-        let current = try await status()
-        guard current.instance == active.instance else {
-            throw MicropodError.message("CI supervisor changed during stop")
+        if active.started {
+            let current = try await status()
+            guard current.instance == active.instance else {
+                throw MicropodError.message("CI supervisor changed during stop")
+            }
+            try await checkIdle(using: socket)
         }
-        // Stop is a maintenance operation after rig intake has been paused.
-        let response = try await client.request("GET", "/containers/json", timeout: .seconds(3))
-        guard response.status == 200, let jobs = try response.json() as? [[String: Any]], jobs.isEmpty else {
-            throw MicropodError.message("Leave the worker running until its active containers finish")
-        }
-        try Data().write(to: stopFile(active), options: .atomic)
+        let request = stopFile(active)
+        try Data().write(to: request, options: .atomic)
+        defer { try? FileManager.default.removeItem(at: request) }
         let deadline = ContinuousClock.now + .seconds(45)
         while ContinuousClock.now < deadline {
-            if try active.owner.hasExited() { return }
+            if try active.owner.hasExited() {
+                guard
+                    (try? Data(contentsOf: directory.appendingPathComponent("stopped")))
+                        == Data(active.instance.uuidString.utf8)
+                else {
+                    throw MicropodError.message("CI supervisor exited without confirming a clean shutdown")
+                }
+                return
+            }
+            if !FileManager.default.fileExists(atPath: request.path), (try? liveSession()) != nil {
+                throw MicropodError.message("The CI worker received more work while draining")
+            }
             try await Task.sleep(for: .milliseconds(100))
         }
         throw MicropodError.message("CI supervisor has not acknowledged shutdown; see \(log.path)")
     }
 
+    // Move the listening socket before checking the active set. Existing connected clients can
+    // finish. The scheduler pauses job intake before requesting maintenance, including builds.
+    private func drain(_ active: Session) async throws -> Bool {
+        let paused = directory.appendingPathComponent("idle.sock")
+        guard rename(socket.path, paused.path) == 0 else { throw POSIXError(.init(rawValue: errno) ?? .EIO) }
+        do {
+            try await checkIdle(using: paused)
+        } catch {
+            guard rename(paused.path, socket.path) == 0 else { throw POSIXError(.init(rawValue: errno) ?? .EIO) }
+            try FileManager.default.removeItem(at: stopFile(active))
+            return false
+        }
+        try FileManager.default.removeItem(at: paused)
+        return true
+    }
+
     private enum Event: Sendable {
-        case maintenance, terminate
+        case maintenance, terminate, timedOut
         case exited(String)
     }
 
@@ -265,7 +317,7 @@ public struct CIWorker: Sendable {
         guard let owner = try RuntimeProcessBirth.read(getpid()) else {
             throw MicropodError.message("Missing supervisor identity")
         }
-        let active = Session(owner: owner, instance: UUID())
+        var active = Session(owner: owner, instance: UUID())
         try JSONEncoder().encode(active).write(to: session, options: .atomic)
         defer {
             try? FileManager.default.removeItem(at: session)
@@ -312,29 +364,53 @@ public struct CIWorker: Sendable {
             try await prepared.container.create()
             guard chmod(socket.path, 0o600) == 0 else { throw POSIXError(.init(rawValue: errno) ?? .EIO) }
             try await prepared.container.start()
+            active.guestAddress = prepared.guestIP
+            active.started = true
+            try JSONEncoder().encode(active).write(to: session, options: .atomic)
+            let readyBy = ContinuousClock.now + .seconds(40)
+            while (try? await status()) == nil {
+                guard ContinuousClock.now < readyBy else {
+                    throw MicropodError.message("Guest Docker API did not become ready after boot")
+                }
+                try await Task.sleep(for: .milliseconds(150))
+            }
             let wait = Task {
                 do {
                     let status = try await prepared.container.wait()
                     stream.yield(.exited("exit \(status.exitCode)"))
                 } catch { stream.yield(.exited(error.localizedDescription)) }
             }
-            defer { wait.cancel() }
-            for await event in events {
+            var shutdownTimer: Task<Void, Never>?
+            defer {
+                wait.cancel()
+                shutdownTimer?.cancel()
+            }
+            lifecycle: for await event in events {
                 switch event {
-                case .exited(let reason): throw MicropodError.message("CI engine stopped: \(reason)")
+                case .exited(let reason):
+                    guard shutdownTimer != nil else { throw MicropodError.message("CI engine stopped: \(reason)") }
+                    break lifecycle
+                case .timedOut: throw MicropodError.message("Guest Docker shutdown timed out")
                 case .maintenance:
-                    if !FileManager.default.fileExists(atPath: stopFile(active).path) { continue }
-                case .terminate: break
+                    guard shutdownTimer == nil, FileManager.default.fileExists(atPath: stopFile(active).path),
+                        try await drain(active)
+                    else { continue }
+                case .terminate:
+                    if shutdownTimer != nil { continue }
                 }
                 try await prepared.container.kill(.term)
-                _ = try await prepared.container.wait(timeoutInSeconds: 25)
-                break
+                shutdownTimer = Task {
+                    do { try await Task.sleep(for: .seconds(25)) } catch { return }
+                    stream.yield(.timedOut)
+                }
             }
         } catch {
             try? await prepared.stop()
             throw error
         }
         try await prepared.stop()
+        try Data(active.instance.uuidString.utf8).write(
+            to: directory.appendingPathComponent("stopped"), options: .atomic)
         return 0
     }
 }

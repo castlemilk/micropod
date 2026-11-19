@@ -8,7 +8,7 @@ enum CICommands {
         micropod ci start                 start or join this account's Linux worker
         micropod ci endpoint              ensure readiness and print the Docker socket URI
         micropod ci status                print worker, kernel boot and daemon identities as JSON
-        micropod ci run [options] IMAGE   run a fresh container on the worker (docker run --rm)
+        micropod ci run [--cache npm|go] [options] IMAGE   run a fresh container on the worker (docker run --rm)
         micropod ci stop                  stop the idle worker and retain its disk and caches
         micropod ci serve                 supervise the worker in the foreground
         """
@@ -40,10 +40,33 @@ enum CICommands {
                     print(help)
                     return 2
                 }
+                var job = args.dropFirst()
+                var mounts: [String] = []
+                var caches: Set<String> = []
+                while command == "run", job.first == "--cache" {
+                    guard let cache = job.dropFirst().first, ["npm", "go"].contains(cache) else {
+                        throw MicropodError.message("--cache accepts npm or go")
+                    }
+                    job = job.dropFirst(2)
+                    if !caches.insert(cache).inserted { continue }
+                    if cache == "npm" {
+                        mounts += ["-v", "micropod-ci-npm:/cache/npm", "-e", "npm_config_cache=/cache/npm"]
+                    } else {
+                        mounts += [
+                            "-v", "micropod-ci-gomod:/cache/gomod", "-e", "GOMODCACHE=/cache/gomod",
+                            "-v", "micropod-ci-gobuild:/cache/gobuild", "-e", "GOCACHE=/cache/gobuild",
+                        ]
+                    }
+                }
+                guard command != "run" || !job.isEmpty else {
+                    print(help)
+                    return 2
+                }
                 let current = try await worker.start(executable: executable)
                 if command == "run" {
                     // Replace the CLI so job streams, signals and exit status belong to Docker.
-                    let arguments = ["docker", "--host", current.endpoint, "run", "--rm"] + args.dropFirst()
+                    let arguments = ["docker", "--host", current.endpoint, "run", "--rm"] + mounts + job
+                    for key in ["DOCKER_CONTEXT", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH"] { unsetenv(key) }
                     let argv = arguments.map { strdup($0) } + [nil]
                     defer { argv.forEach { free($0) } }
                     _ = execvp("docker", argv)

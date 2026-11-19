@@ -23,7 +23,7 @@ ALPINE = "alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163
 
 
 def command(*args, check=True, **kwargs):
-    result = subprocess.run(args, capture_output=True, text=True, timeout=240, **kwargs)
+    result = subprocess.run(args, capture_output=True, text=True, timeout=kwargs.pop("timeout", 240), **kwargs)
     if check and result.returncode:
         raise ValueError(f"{args[0]} {args[1]} exited {result.returncode}: {(result.stderr or result.stdout)[-1000:]}")
     return result
@@ -131,11 +131,16 @@ def qualify(args, result, home):
         result["worker"] = first
         require(first["cgroupDriver"] == "cgroupfs", "Missing Linux cgroup driver")
         docker("pull", ALPINE)
+        if apple:
+            cli("run", "--cache", "npm", "--cache", "go", ALPINE, "sh", "-ec",
+                'for cache in "$npm_config_cache" "$GOMODCACHE" "$GOCACHE"; do echo "$1" > "$cache/proof"; done', "_", token)
+            cli("run", "--cache", "npm", "--cache", "go", ALPINE, "sh", "-ec",
+                'for cache in "$npm_config_cache" "$GOMODCACHE" "$GOCACHE"; do test "$(cat "$cache/proof")" = "$1"; done', "_", token)
         docker("volume", "create", volume)
         docker("run", "--rm", "-v", volume + ":/cache", ALPINE, "sh", "-ec", 'echo "$1" >/cache/proof', "_", token)
         parent = lambda: fingerprint(identity()["boot"])
         opts = argparse.Namespace(engine=args.profile, socket=str(socket), image=ALPINE, clients=args.clients,
-                                  rounds=args.rounds, package_image=args.package_image, clock="client")
+                                  rounds=args.rounds, package_image=args.package_image, clock="client", canonical_images=True)
         if peer_uri:
             command("docker", "--host", peer_uri, "pull", ALPINE, env=env)
             package = token + ":packages"
@@ -148,10 +153,19 @@ def qualify(args, result, home):
                 opts.worker_cli = str(Path(args.micropod).resolve())
                 opts.orbstack_socket, opts.desktop_socket, opts.colima_socket = args.orbstack_socket, None, None
                 opts.ubuntu_reference = list((ROOT / "docs/benchmarks/2026-11-19").glob("live-kernel-arm64*.json"))
-                opts.ubuntu_reference += [ROOT / "docs/benchmarks/2026-11-19/package-containers-ubuntu-arm64.json"]
                 # The shared harness runs stock clients as children of this process.
                 os.environ["MICROPOD_CI_HOME"] = str(home)
-                paired(opts, result.setdefault("paired", {}))
+                pair = result.setdefault("paired", {})
+                paired(opts, pair)
+                saved = ROOT / "docs/benchmarks/2026-11-19/package-containers-ubuntu-arm64.json"
+                ref = json.loads(saved.read_text())
+                actual = pair["blocks"][0]["package_caches"]["image_id"]
+                if actual == ref["package_caches"]["image_id"]:
+                    from bench_live_kernel import reference_times
+                    pair["ubuntu_package_reference"] = reference_times([saved], pair["blocks"][0], args.clients, args.rounds)[0]
+                else:
+                    pair["ubuntu_package_reference"] = dict(available=False, measured_config=actual,
+                                                             archived_config=ref["package_caches"]["image_id"])
             finally:
                 command("docker", "--host", peer_uri, "image", "rm", package, env=env, check=False)
         else:
@@ -209,6 +223,9 @@ def qualify(args, result, home):
         require(docker("run", "--rm", "--pull=never", "-v", volume + ":/cache:ro", ALPINE, "cat", "/cache/proof").stdout.strip() == token,
                 "Image or named volume did not survive restart")
         build("changed")
+        if args.pipelines:
+            command("bash", str(ROOT / "ci/worker-pipeline.sh"), "all", uri, env=env, timeout=600)
+            result["pipelines"] = ["Go vet, race and Testcontainers PostgreSQL", "npm tests, source edit and rebuild"]
         result["verified"] = ["container streams and exit", "PID and mount namespaces", "CPU and memory quotas",
                               "bridge DNS and HTTP", "image and volume reuse", "offline BuildKit cache after restart"]
     finally:
@@ -231,6 +248,7 @@ def main():
     p.add_argument("--package-image")
     p.add_argument("--packages", action="store_true", help="Build one shared offline toolchain for guest and native Ubuntu")
     p.add_argument("--orbstack-socket")
+    p.add_argument("--pipelines", action="store_true", help="Run the normal Go and npm CI entry points")
     p.add_argument("--json", required=True, type=Path)
     args = p.parse_args()
     record = dict(profile=args.profile, rounds=args.rounds, clients=args.clients)

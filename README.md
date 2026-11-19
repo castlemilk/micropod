@@ -242,6 +242,7 @@ container's `runtime`, and id-based calls route to the engine that owns it.
 | `apple` | vm | Apple container runtime — one micro-VM per container | default; volumes, networks, ports |
 | `docker` | container | any Docker Engine socket (Docker Desktop, OrbStack, colima, `tcp://`) | **opt-in** so an existing Docker Desktop's containers don't appear until asked |
 | `sandbox` | microvm | ephemeral in-process micro-VM booted from a clonefile of a cached rootfs | fastest boot; tcp ports, bind mounts; no named volumes; can't restart — run a new one |
+| `ci` | container | one Micropod-owned Linux VM per trusted runner account | `micropod ci start` keeps the kernel, Docker engine, BuildKit and named volumes warm |
 
 ```bash
 micropod runtime ls                        # availability, enabled, default
@@ -250,6 +251,9 @@ micropod runtime enable docker
 micropod runtime endpoint docker unix://$HOME/.orbstack/run/docker.sock
 micropod run --runtime docker nginx
 ```
+
+For trusted CI, `micropod ci endpoint` starts or joins the account's worker and prints its Docker URI.
+`task ci` runs the Go and npm pipelines concurrently on that kernel. [CI worker operation and benchmarks](docs/ci-worker.md)
 
 Same over the API (Connect `SystemService.ListRuntimes / SetDefaultRuntime /
 UpdateRuntime`, REST `GET /v1/runtimes`, `PUT /v1/runtimes/default`,
