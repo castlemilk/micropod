@@ -1,0 +1,26 @@
+[
+  {
+    "product": "micropod",
+    "endpoint": "unix://~/.micropod/docker.sock",
+    "check": "engine-identity",
+    "outcome": "fail",
+    "diagnostic": "docker returned 1, expected 0: permission denied while trying to connect to the docker API at unix://~/.micropod/docker.sock",
+    "duration_ms": 212.592
+  },
+  {
+    "product": "orbstack",
+    "endpoint": "orbstack",
+    "check": "engine-identity",
+    "outcome": "fail",
+    "diagnostic": "docker returned 1, expected 0: Failed to initialize: unable to resolve docker endpoint: context \"orbstack\": context not found: open ~/.docker/contexts/meta/2d89b732b01a00a2d1675ed3cee9fd0f965daadf90603c989dd3afd4569c6896/meta.json: no such file or directory",
+    "duration_ms": 216.369
+  },
+  {
+    "product": "docker-desktop",
+    "endpoint": "desktop-linux",
+    "check": "engine-identity",
+    "outcome": "fail",
+    "diagnostic": "docker returned 1, expected 0: permission denied while trying to connect to the docker API at unix://~/.docker/run/docker.sock",
+    "duration_ms": 238.774
+  }
+]

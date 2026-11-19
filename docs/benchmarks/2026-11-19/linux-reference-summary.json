@@ -1,0 +1,299 @@
+{
+  "source": "https://github.com/castlemilk/micropod/actions/runs/44469387546/job/135374868084",
+  "head": "86fbdb535cd12baa473d34d6c1b7e61cbe8beda6",
+  "raw_artifact": "https://github.com/castlemilk/micropod/actions/runs/44469387546/artifacts/14504071299",
+  "artifact_sha256": "sha256:fe08f186bd35d79eaa31facc8c3d5ff537e29ad780f2375f30c61a798e629b95",
+  "operation_window_seconds": 31.71,
+  "summary": [
+    {
+      "case": "engine-identity",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 7530.2,
+      "min_ms": 7530.2,
+      "max_ms": 7530.2
+    },
+    {
+      "case": "guest-compile",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 6043.2,
+      "min_ms": 6043.2,
+      "max_ms": 6043.2
+    },
+    {
+      "case": "image-load-inspect",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 41,
+      "min_ms": 41,
+      "max_ms": 41
+    },
+    {
+      "case": "build-to-validated-output",
+      "solution": "solver-no-cache",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 1072.1,
+      "min_ms": 1072.1,
+      "max_ms": 1072.1
+    },
+    {
+      "case": "build-to-validated-output",
+      "solution": "warm",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 190.4,
+      "min_ms": 190.4,
+      "max_ms": 190.4
+    },
+    {
+      "case": "build-to-validated-output",
+      "solution": "edited",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 241.1,
+      "min_ms": 241.1,
+      "max_ms": 241.1
+    },
+    {
+      "case": "build-to-validated-output",
+      "solution": "chmod-only",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 251,
+      "min_ms": 251,
+      "max_ms": 251
+    },
+    {
+      "case": "build-to-validated-output",
+      "solution": "ignored-only",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 188.9,
+      "min_ms": 188.9,
+      "max_ms": 188.9
+    },
+    {
+      "case": "buildx-local-export",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 68.5,
+      "min_ms": 68.5,
+      "max_ms": 68.5
+    },
+    {
+      "case": "buildx-workflow",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 2138.5,
+      "min_ms": 2138.5,
+      "max_ms": 2138.5
+    },
+    {
+      "case": "process-identity",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 85.9,
+      "min_ms": 85.9,
+      "max_ms": 85.9
+    },
+    {
+      "case": "readonly-bind-and-volume-reuse",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 451.1,
+      "min_ms": 451.1,
+      "max_ms": 451.1
+    },
+    {
+      "case": "network-dns-exec-signal-wait-logs",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 369.7,
+      "min_ms": 369.7,
+      "max_ms": 369.7
+    },
+    {
+      "case": "compose-up-exit-down",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 265,
+      "min_ms": 265,
+      "max_ms": 265
+    },
+    {
+      "case": "podman-load",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 9445.7,
+      "min_ms": 9445.7,
+      "max_ms": 9445.7
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "podman",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 3,
+      "median_ms": 74.7,
+      "min_ms": 74.3,
+      "max_ms": 75
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "docker",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 3,
+      "median_ms": 85.9,
+      "min_ms": 85.8,
+      "max_ms": 88.5
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "podman",
+      "shape": "",
+      "clients": 4,
+      "measured_blocks": 3,
+      "median_ms": 135.2,
+      "min_ms": 130.3,
+      "max_ms": 135.4
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "docker",
+      "shape": "",
+      "clients": 4,
+      "measured_blocks": 3,
+      "median_ms": 132.7,
+      "min_ms": 128.9,
+      "max_ms": 136.3
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "podman",
+      "shape": "",
+      "clients": 8,
+      "measured_blocks": 3,
+      "median_ms": 263.3,
+      "min_ms": 259.5,
+      "max_ms": 303
+    },
+    {
+      "case": "run-to-known-exit",
+      "solution": "docker",
+      "shape": "",
+      "clients": 8,
+      "measured_blocks": 3,
+      "median_ms": 251.9,
+      "min_ms": 245.9,
+      "max_ms": 271.3
+    },
+    {
+      "case": "native-runc-lifecycle",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 200.8,
+      "min_ms": 200.8,
+      "max_ms": 200.8
+    },
+    {
+      "case": "cleanup-podman-image",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 22.6,
+      "min_ms": 22.6,
+      "max_ms": 22.6
+    },
+    {
+      "case": "cleanup-compose--p",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 168.3,
+      "min_ms": 168.3,
+      "max_ms": 168.3
+    },
+    {
+      "case": "cleanup-service",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 21.9,
+      "min_ms": 21.9,
+      "max_ms": 21.9
+    },
+    {
+      "case": "cleanup-network",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 105.6,
+      "min_ms": 105.6,
+      "max_ms": 105.6
+    },
+    {
+      "case": "cleanup-volume",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 18.7,
+      "min_ms": 18.7,
+      "max_ms": 18.7
+    },
+    {
+      "case": "cleanup-build-image",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 20.2,
+      "min_ms": 20.2,
+      "max_ms": 20.2
+    },
+    {
+      "case": "cleanup-image-rm",
+      "solution": "",
+      "shape": "",
+      "clients": 1,
+      "measured_blocks": 1,
+      "median_ms": 10.3,
+      "min_ms": 10.3,
+      "max_ms": 10.3
+    }
+  ]
+}

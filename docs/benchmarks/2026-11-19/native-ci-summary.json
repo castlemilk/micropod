@@ -1,0 +1,98 @@
+{
+  "head": "86fbdb535cd12baa473d34d6c1b7e61cbe8beda6",
+  "ci_run": "https://github.com/castlemilk/micropod/actions/runs/44469387549",
+  "linux_run": "https://github.com/castlemilk/micropod/actions/runs/44469387546",
+  "job": "https://github.com/castlemilk/micropod/actions/runs/44469387549/job/135374995042",
+  "fast_storage_step_seconds": 22.44,
+  "linux_reference_step_seconds": 31.71,
+  "native_ci_job_seconds": 836.82,
+  "swift_build_seconds": 380.3,
+  "xctest_seconds": 331.762,
+  "xctest_total": 1721,
+  "xctest_skipped": 88,
+  "xctest_failures": 0,
+  "daemon_lifecycle_ms": 1867.2,
+  "shim_negotiation_ms": 185.8,
+  "protocol_observations": {
+    "api": "1.44",
+    "docker_client": null,
+    "image_import_probe_http": 501,
+    "minimum_api": "1.24",
+    "network_connect_probe_http": 501
+  },
+  "batches": [
+    {
+      "case": "cli-share-batch",
+      "solution": "",
+      "shape": "32-files",
+      "clients": 1,
+      "measured_blocks": 3,
+      "median_ms": 186.7,
+      "min_ms": 177.9,
+      "max_ms": 239.8
+    },
+    {
+      "case": "cli-share-batch",
+      "solution": "",
+      "shape": "32-files",
+      "clients": 4,
+      "measured_blocks": 3,
+      "median_ms": 225.2,
+      "min_ms": 198,
+      "max_ms": 263.6
+    },
+    {
+      "case": "cli-share-batch",
+      "solution": "",
+      "shape": "32-files",
+      "clients": 8,
+      "measured_blocks": 3,
+      "median_ms": 289.7,
+      "min_ms": 288.3,
+      "max_ms": 364
+    },
+    {
+      "case": "cli-share-batch",
+      "solution": "",
+      "shape": "512-files",
+      "clients": 1,
+      "measured_blocks": 3,
+      "median_ms": 558,
+      "min_ms": 527.4,
+      "max_ms": 585
+    },
+    {
+      "case": "cli-share-batch",
+      "solution": "",
+      "shape": "512-files",
+      "clients": 4,
+      "measured_blocks": 3,
+      "median_ms": 696.9,
+      "min_ms": 518.3,
+      "max_ms": 1087.6
+    },
+    {
+      "case": "cli-share-batch",
+      "solution": "",
+      "shape": "512-files",
+      "clients": 8,
+      "measured_blocks": 3,
+      "median_ms": 567.2,
+      "min_ms": 556.8,
+      "max_ms": 652.7
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "macos-integration-receipts",
+      "sha256": "sha256:b3bfbb394ec60aeb9d1c79be4f23623f2d3a173e4e0f5632cc83cf27ef534b53",
+      "url": "https://github.com/castlemilk/micropod/actions/runs/44469387549/artifacts/14503843113"
+    },
+    {
+      "name": "macos-storage-smoke",
+      "sha256": "sha256:2b095a139bbed5a32e671b9e9ae998d8b3c153da7c52dac3b8644de7d4848c47",
+      "url": "https://github.com/castlemilk/micropod/actions/runs/44469387549/artifacts/14503771499"
+    }
+  ],
+  "summary_text": "The native storage smoke took 22.4 seconds including compilation. The standalone Micropod daemon lifecycle took 1.87 seconds after the shipping binaries were available. The full native CI job took 13 min 57 s excluding queue time, including 380 s for the Swift build and 332 s for XCTest. XCTest reported 1,721 tests, 88 skipped and zero failures. The disposable HFS+ cross-volume workflow passed. The Linux reference took 31.7 seconds including the offline guest build and cleanup. [Native CI](https://github.com/castlemilk/micropod/actions/runs/44469387549) · [Native raw receipts](https://github.com/castlemilk/micropod/actions/runs/44469387549/artifacts/14503843113) · [Native storage smoke](https://github.com/castlemilk/micropod/actions/runs/44469387549/artifacts/14503771499)"
+}
