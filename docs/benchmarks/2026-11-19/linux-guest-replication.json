@@ -1,0 +1,1278 @@
+{
+  "run_id": 44499374781,
+  "job_id": 135474767597,
+  "region": "Azure westus3",
+  "image": "sha256:bf8527eb54c3680e728d5b4b383a8ba730d72dae7236fbc8dff97ed6b224a731",
+  "engines": {
+    "docker-engine": {
+      "guest": "x86_64/3.20.10/b7de36c48f4c8b08a256200f3d6ccf20b9aade3219e356563a5ec3f12db78d7b",
+      "contracts": {
+        "readonly_bind": true,
+        "writable_bind": true,
+        "uid": "0",
+        "cpu_max": "100000 100000",
+        "memory_max": "268435456",
+        "one_cpu_cgroup": true,
+        "256_mib_cgroup": true
+      }
+    },
+    "podman": {
+      "guest": "x86_64/3.20.10/b7de36c48f4c8b08a256200f3d6ccf20b9aade3219e356563a5ec3f12db78d7b",
+      "contracts": {
+        "readonly_bind": true,
+        "writable_bind": true,
+        "uid": "0",
+        "cpu_max": "100000 100000",
+        "memory_max": "268435456",
+        "one_cpu_cgroup": true,
+        "256_mib_cgroup": true
+      }
+    }
+  },
+  "passed": 870,
+  "streams": [
+    870,
+    870
+  ],
+  "summary": [
+    {
+      "engine": "docker-engine",
+      "case": "lifecycle",
+      "clients": 1,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.147782,
+      "min_wall_s": 0.140827,
+      "max_wall_s": 0.149044,
+      "jobs_per_second": 6.767
+    },
+    {
+      "engine": "docker-engine",
+      "case": "lifecycle",
+      "clients": 4,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.248292,
+      "min_wall_s": 0.243489,
+      "max_wall_s": 0.270585,
+      "jobs_per_second": 16.11
+    },
+    {
+      "engine": "docker-engine",
+      "case": "lifecycle",
+      "clients": 8,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.480078,
+      "min_wall_s": 0.456041,
+      "max_wall_s": 0.486703,
+      "jobs_per_second": 16.664
+    },
+    {
+      "engine": "docker-engine",
+      "case": "lifecycle",
+      "clients": 16,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.962342,
+      "min_wall_s": 0.928096,
+      "max_wall_s": 0.972934,
+      "jobs_per_second": 16.626
+    },
+    {
+      "engine": "docker-engine",
+      "case": "gzip-8m",
+      "clients": 1,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.303898,
+      "min_wall_s": 0.298453,
+      "max_wall_s": 0.30874,
+      "jobs_per_second": 3.291
+    },
+    {
+      "engine": "docker-engine",
+      "case": "gzip-8m",
+      "clients": 4,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.465746,
+      "min_wall_s": 0.46463,
+      "max_wall_s": 0.474114,
+      "jobs_per_second": 8.588
+    },
+    {
+      "engine": "docker-engine",
+      "case": "gzip-8m",
+      "clients": 8,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.884653,
+      "min_wall_s": 0.873758,
+      "max_wall_s": 0.890907,
+      "jobs_per_second": 9.043
+    },
+    {
+      "engine": "docker-engine",
+      "case": "gzip-8m",
+      "clients": 16,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 1.759185,
+      "min_wall_s": 1.741551,
+      "max_wall_s": 1.808954,
+      "jobs_per_second": 9.095
+    },
+    {
+      "engine": "docker-engine",
+      "case": "bind-read-write",
+      "clients": 1,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.149219,
+      "min_wall_s": 0.144532,
+      "max_wall_s": 0.151264,
+      "jobs_per_second": 6.702
+    },
+    {
+      "engine": "docker-engine",
+      "case": "bind-read-write",
+      "clients": 4,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.261737,
+      "min_wall_s": 0.255617,
+      "max_wall_s": 0.272072,
+      "jobs_per_second": 15.283
+    },
+    {
+      "engine": "docker-engine",
+      "case": "bind-read-write",
+      "clients": 8,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.495494,
+      "min_wall_s": 0.484662,
+      "max_wall_s": 0.511305,
+      "jobs_per_second": 16.146
+    },
+    {
+      "engine": "docker-engine",
+      "case": "bind-read-write",
+      "clients": 16,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.993139,
+      "min_wall_s": 0.981935,
+      "max_wall_s": 1.031389,
+      "jobs_per_second": 16.111
+    },
+    {
+      "engine": "podman",
+      "case": "lifecycle",
+      "clients": 1,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.124821,
+      "min_wall_s": 0.120838,
+      "max_wall_s": 0.128371,
+      "jobs_per_second": 8.011
+    },
+    {
+      "engine": "podman",
+      "case": "lifecycle",
+      "clients": 4,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.254396,
+      "min_wall_s": 0.241738,
+      "max_wall_s": 0.26946,
+      "jobs_per_second": 15.724
+    },
+    {
+      "engine": "podman",
+      "case": "lifecycle",
+      "clients": 8,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.490716,
+      "min_wall_s": 0.449451,
+      "max_wall_s": 0.764055,
+      "jobs_per_second": 16.303
+    },
+    {
+      "engine": "podman",
+      "case": "lifecycle",
+      "clients": 16,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 1.184231,
+      "min_wall_s": 1.094549,
+      "max_wall_s": 1.263548,
+      "jobs_per_second": 13.511
+    },
+    {
+      "engine": "podman",
+      "case": "gzip-8m",
+      "clients": 1,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.280689,
+      "min_wall_s": 0.277662,
+      "max_wall_s": 0.282929,
+      "jobs_per_second": 3.563
+    },
+    {
+      "engine": "podman",
+      "case": "gzip-8m",
+      "clients": 4,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.46282,
+      "min_wall_s": 0.452281,
+      "max_wall_s": 0.498667,
+      "jobs_per_second": 8.643
+    },
+    {
+      "engine": "podman",
+      "case": "gzip-8m",
+      "clients": 8,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.867806,
+      "min_wall_s": 0.854574,
+      "max_wall_s": 0.889457,
+      "jobs_per_second": 9.219
+    },
+    {
+      "engine": "podman",
+      "case": "gzip-8m",
+      "clients": 16,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 1.774683,
+      "min_wall_s": 1.74288,
+      "max_wall_s": 1.807303,
+      "jobs_per_second": 9.016
+    },
+    {
+      "engine": "podman",
+      "case": "bind-read-write",
+      "clients": 1,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.128794,
+      "min_wall_s": 0.122739,
+      "max_wall_s": 0.137326,
+      "jobs_per_second": 7.764
+    },
+    {
+      "engine": "podman",
+      "case": "bind-read-write",
+      "clients": 4,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.268408,
+      "min_wall_s": 0.258201,
+      "max_wall_s": 0.295677,
+      "jobs_per_second": 14.903
+    },
+    {
+      "engine": "podman",
+      "case": "bind-read-write",
+      "clients": 8,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 0.504616,
+      "min_wall_s": 0.490934,
+      "max_wall_s": 0.592512,
+      "jobs_per_second": 15.854
+    },
+    {
+      "engine": "podman",
+      "case": "bind-read-write",
+      "clients": 16,
+      "passed_blocks": 5,
+      "total_blocks": 5,
+      "p50_wall_s": 1.190602,
+      "min_wall_s": 1.042312,
+      "max_wall_s": 1.264777,
+      "jobs_per_second": 13.439
+    }
+  ],
+  "columns": [
+    "engine",
+    "case",
+    "clients",
+    "block",
+    "passed",
+    "wall_s"
+  ],
+  "blocks": [
+    [
+      "docker-engine",
+      "lifecycle",
+      1,
+      1,
+      1,
+      0.140827
+    ],
+    [
+      "podman",
+      "lifecycle",
+      1,
+      1,
+      1,
+      0.120838
+    ],
+    [
+      "podman",
+      "lifecycle",
+      1,
+      2,
+      1,
+      0.124612
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      1,
+      2,
+      1,
+      0.147782
+    ],
+    [
+      "podman",
+      "lifecycle",
+      1,
+      3,
+      1,
+      0.124821
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      1,
+      3,
+      1,
+      0.149044
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      1,
+      4,
+      1,
+      0.148192
+    ],
+    [
+      "podman",
+      "lifecycle",
+      1,
+      4,
+      1,
+      0.128371
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      1,
+      5,
+      1,
+      0.144815
+    ],
+    [
+      "podman",
+      "lifecycle",
+      1,
+      5,
+      1,
+      0.126728
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      4,
+      1,
+      4,
+      0.270585
+    ],
+    [
+      "podman",
+      "lifecycle",
+      4,
+      1,
+      4,
+      0.26946
+    ],
+    [
+      "podman",
+      "lifecycle",
+      4,
+      2,
+      4,
+      0.241738
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      4,
+      2,
+      4,
+      0.267647
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      4,
+      3,
+      4,
+      0.243489
+    ],
+    [
+      "podman",
+      "lifecycle",
+      4,
+      3,
+      4,
+      0.249465
+    ],
+    [
+      "podman",
+      "lifecycle",
+      4,
+      4,
+      4,
+      0.258774
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      4,
+      4,
+      4,
+      0.248292
+    ],
+    [
+      "podman",
+      "lifecycle",
+      4,
+      5,
+      4,
+      0.254396
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      4,
+      5,
+      4,
+      0.246615
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      8,
+      1,
+      8,
+      0.480567
+    ],
+    [
+      "podman",
+      "lifecycle",
+      8,
+      1,
+      8,
+      0.455559
+    ],
+    [
+      "podman",
+      "lifecycle",
+      8,
+      2,
+      8,
+      0.764055
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      8,
+      2,
+      8,
+      0.456041
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      8,
+      3,
+      8,
+      0.472682
+    ],
+    [
+      "podman",
+      "lifecycle",
+      8,
+      3,
+      8,
+      0.449451
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      8,
+      4,
+      8,
+      0.480078
+    ],
+    [
+      "podman",
+      "lifecycle",
+      8,
+      4,
+      8,
+      0.500747
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      8,
+      5,
+      8,
+      0.486703
+    ],
+    [
+      "podman",
+      "lifecycle",
+      8,
+      5,
+      8,
+      0.490716
+    ],
+    [
+      "podman",
+      "lifecycle",
+      16,
+      1,
+      16,
+      1.117056
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      16,
+      1,
+      16,
+      0.962342
+    ],
+    [
+      "podman",
+      "lifecycle",
+      16,
+      2,
+      16,
+      1.184231
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      16,
+      2,
+      16,
+      0.928096
+    ],
+    [
+      "podman",
+      "lifecycle",
+      16,
+      3,
+      16,
+      1.259297
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      16,
+      3,
+      16,
+      0.941405
+    ],
+    [
+      "podman",
+      "lifecycle",
+      16,
+      4,
+      16,
+      1.094549
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      16,
+      4,
+      16,
+      0.964949
+    ],
+    [
+      "podman",
+      "lifecycle",
+      16,
+      5,
+      16,
+      1.263548
+    ],
+    [
+      "docker-engine",
+      "lifecycle",
+      16,
+      5,
+      16,
+      0.972934
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      1,
+      1,
+      1,
+      0.30874
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      1,
+      1,
+      1,
+      0.280689
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      1,
+      2,
+      1,
+      0.282929
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      1,
+      2,
+      1,
+      0.303609
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      1,
+      3,
+      1,
+      0.278683
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      1,
+      3,
+      1,
+      0.303898
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      1,
+      4,
+      1,
+      0.298453
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      1,
+      4,
+      1,
+      0.277662
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      1,
+      5,
+      1,
+      0.308624
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      1,
+      5,
+      1,
+      0.282668
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      4,
+      1,
+      4,
+      0.462195
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      4,
+      1,
+      4,
+      0.474114
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      4,
+      2,
+      4,
+      0.46282
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      4,
+      2,
+      4,
+      0.46463
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      4,
+      3,
+      4,
+      0.498667
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      4,
+      3,
+      4,
+      0.465147
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      4,
+      4,
+      4,
+      0.465746
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      4,
+      4,
+      4,
+      0.452281
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      4,
+      5,
+      4,
+      0.487921
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      4,
+      5,
+      4,
+      0.468893
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      8,
+      1,
+      8,
+      0.873491
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      8,
+      1,
+      8,
+      0.88718
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      8,
+      2,
+      8,
+      0.890907
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      8,
+      2,
+      8,
+      0.863979
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      8,
+      3,
+      8,
+      0.854574
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      8,
+      3,
+      8,
+      0.874268
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      8,
+      4,
+      8,
+      0.873758
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      8,
+      4,
+      8,
+      0.867806
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      8,
+      5,
+      8,
+      0.884653
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      8,
+      5,
+      8,
+      0.889457
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      16,
+      1,
+      16,
+      1.759222
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      16,
+      1,
+      16,
+      1.752739
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      16,
+      2,
+      16,
+      1.741551
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      16,
+      2,
+      16,
+      1.807303
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      16,
+      3,
+      16,
+      1.774683
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      16,
+      3,
+      16,
+      1.759185
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      16,
+      4,
+      16,
+      1.784413
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      16,
+      4,
+      16,
+      1.808954
+    ],
+    [
+      "docker-engine",
+      "gzip-8m",
+      16,
+      5,
+      16,
+      1.776313
+    ],
+    [
+      "podman",
+      "gzip-8m",
+      16,
+      5,
+      16,
+      1.74288
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      1,
+      1,
+      1,
+      0.124009
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      1,
+      1,
+      1,
+      0.146596
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      1,
+      2,
+      1,
+      0.137326
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      1,
+      2,
+      1,
+      0.149219
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      1,
+      3,
+      1,
+      0.131637
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      1,
+      3,
+      1,
+      0.151136
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      1,
+      4,
+      1,
+      0.144532
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      1,
+      4,
+      1,
+      0.128794
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      1,
+      5,
+      1,
+      0.122739
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      1,
+      5,
+      1,
+      0.151264
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      4,
+      1,
+      4,
+      0.272072
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      4,
+      1,
+      4,
+      0.295677
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      4,
+      2,
+      4,
+      0.255617
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      4,
+      2,
+      4,
+      0.258201
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      4,
+      3,
+      4,
+      0.268408
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      4,
+      3,
+      4,
+      0.261737
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      4,
+      4,
+      4,
+      0.258229
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      4,
+      4,
+      4,
+      0.282482
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      4,
+      5,
+      4,
+      0.26791
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      4,
+      5,
+      4,
+      0.259669
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      8,
+      1,
+      8,
+      0.490934
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      8,
+      1,
+      8,
+      0.511305
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      8,
+      2,
+      8,
+      0.504616
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      8,
+      2,
+      8,
+      0.495494
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      8,
+      3,
+      8,
+      0.528478
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      8,
+      3,
+      8,
+      0.484662
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      8,
+      4,
+      8,
+      0.485653
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      8,
+      4,
+      8,
+      0.503954
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      8,
+      5,
+      8,
+      0.500258
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      8,
+      5,
+      8,
+      0.592512
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      16,
+      1,
+      16,
+      1.010085
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      16,
+      1,
+      16,
+      1.203982
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      16,
+      2,
+      16,
+      1.264777
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      16,
+      2,
+      16,
+      1.031389
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      16,
+      3,
+      16,
+      0.991434
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      16,
+      3,
+      16,
+      1.086908
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      16,
+      4,
+      16,
+      0.981935
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      16,
+      4,
+      16,
+      1.042312
+    ],
+    [
+      "podman",
+      "bind-read-write",
+      16,
+      5,
+      16,
+      1.190602
+    ],
+    [
+      "docker-engine",
+      "bind-read-write",
+      16,
+      5,
+      16,
+      0.993139
+    ]
+  ],
+  "receipt_sha256": "12c2f4260e5c64f69d22bc9fc0b768a03904f021611ebc4f93de640f7d542a06",
+  "artifact_id": 14515899596,
+  "archive_sha256": "sha256:ff61b5e89ffcaee5afd4ba4e8c2bd749774c5f6af223307df30af901e0213641",
+  "workload_step_seconds": 79,
+  "total_job_seconds": 89
+}

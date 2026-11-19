@@ -69,6 +69,16 @@ A second GitHub allocation used AWS us-east-1, four vCPUs and Ubuntu 24.04.5. Do
 
 All 120 measured batches completed. All 870 jobs returned the expected exit 23 with the two nonce markers on the correct streams. At 16 clients Docker completed 32.2 verified lifecycles/s and Podman 25.3. Both delivered approximately 14 gzip jobs/s. The workload step took 54 s and the entire GitHub job took 67 s. The commit records the block times and the original artifact contains per-guest outcomes. [Block samples](linux-guest-batches.json) · [Original JSON artifact](https://github.com/castlemilk/micropod/actions/runs/44497992581/artifacts/14515762378) · [Job with region and timing](https://github.com/castlemilk/micropod/actions/runs/44497992581/job/135470000132)
 
+A repeat on an independent four-vCPU GitHub runner in Azure West US 3 also passed 870/870. The same guest observed `cpu.max = 100000 100000` and `memory.max = 268435456` on both engines. It wrote successfully through a writable bind and confirmed the same host file could only be read through a read-only bind. The workload step took 79 s, the job 89 s. Both runs used the same image ID and guest fingerprint. Host allocation affected the absolute times.
+
+| 16-client batch | AWS Docker | Azure Docker | AWS Podman | Azure Podman |
+|---|---:|---:|---:|---:|
+| Lifecycle | 0.497 s | 0.962 s | 0.632 s | 1.184 s |
+| 8 MiB gzip and restore | 1.137 s | 1.759 s | 1.131 s | 1.775 s |
+| Bind read/write | 0.530 s | 0.993 s | 0.646 s | 1.191 s |
+
+[Azure block samples and guest-observed limits](linux-guest-replication.json) · [Azure job](https://github.com/castlemilk/micropod/actions/runs/44499374781/job/135474767597) · [Full Azure receipt](https://github.com/castlemilk/micropod/actions/runs/44499374781/artifacts/14515899596)
+
 ## OrbStack and Linux engine baselines
 
 The standalone November 19 guest used a single CPU and 64 MiB, no external network, the same amd64 executable and image configuration, a known exit code and verified output on both streams. Each engine ran five measured batches per concurrency. The OrbStack guest ran on a virtualized Intel Mac with four host vCPUs. Docker and Podman shared a four-vCPU GitHub-hosted Ubuntu 24.04.5 runner in Azure Central US. Times are within-engine median wall seconds. The host and virtualization differences preclude a native Mac product speed ratio.
@@ -91,6 +101,6 @@ There were 145 verified guest executions per engine. OrbStack 2.2.5 rejected the
 | Compose, DNS, bind mounts, named volumes, signals | Earlier OrbStack E2E passed these workflows. The repository has individual Micropod checks. This Linux run also verified bind writes and per-guest output on Docker and Podman. There is no complete paired current native result. |
 | Root filesystem import and network attachment after creation | OrbStack completed the validated scenarios. The tested native Micropod shim returned HTTP 501 for both operations. |
 | OCI/runc and Kubernetes conformance, Linux machine lifecycle, host ingress/TLS | No complete matched or upstream conformance run in this evidence. |
-| CPU, memory and disk | The tables give requested workload limits or host capacities. Current matched idle footprint, energy, disk allocation and post-burst reclamation remain unmeasured. |
+| CPU, memory and disk | The Linux guests verified their CPU and memory cgroup limits. Other tables give requested workload limits or host capacities. Current matched idle footprint, energy, disk allocation and post-burst reclamation remain unmeasured. |
 
-[OrbStack evidence](https://github.com/castlemilk/micropod/blob/17059a4ccde92c4de30cc0fbe545705ec9229652/docs/benchmarks/2026-11-19/orbstack.md) · [Micropod native shim receipt](https://github.com/castlemilk/micropod/blob/d0d0009e2c6f2f7c049a9d10a8ca0c7047007678/docs/benchmarks/2026-11-19/native-ci-summary.json) · [Core qualification gates](https://github.com/castlemilk/micropod/issues/182) · [Runtime compatibility backlog](https://github.com/castlemilk/micropod/issues/207)
+[OrbStack evidence and separate Apple M3/Colima reference](https://github.com/castlemilk/micropod/blob/17059a4ccde92c4de30cc0fbe545705ec9229652/docs/benchmarks/2026-11-19/orbstack.md) · [Micropod native shim receipt](https://github.com/castlemilk/micropod/blob/d0d0009e2c6f2f7c049a9d10a8ca0c7047007678/docs/benchmarks/2026-11-19/native-ci-summary.json) · [Core qualification gates](https://github.com/castlemilk/micropod/issues/182) · [Runtime compatibility backlog](https://github.com/castlemilk/micropod/issues/207)

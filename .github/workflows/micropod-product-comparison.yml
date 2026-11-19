@@ -9,7 +9,6 @@ jobs:
     timeout-minutes: 40
     env:
       ORB_APP: /Applications/OrbStack.app
-      ORB_RELEASE: '1.5.1'
     steps:
       - uses: actions/checkout@v7
         with:
@@ -23,29 +22,23 @@ jobs:
           test "$(sysctl -n kern.hv_support)" = 1
       - name: Install and verify the selected Intel version
         run: |
-          case "$ORB_RELEASE" in
-            2.2.5)
-              build=21124
-              sha=48f66df42357ba0294ea9c625dda84ac72e10f0d23710d5afcf079bcb6ae865b
-              ;;
-            1.5.1)
-              build=16857
-              sha=fb95108ded54a27603b68184a13f7e666e0e758167652c0b65cd4dc5eff94617
-              ;;
-            *) exit 2 ;;
-          esac
+          fixture=scripts/bench_orb_transport/installer.json
+          url=$(jq -er '.url' "$fixture")
+          sha=$(jq -er '.sha256' "$fixture")
           dmg="$RUNNER_TEMP/OrbStack.dmg"
           mount="$RUNNER_TEMP/orb-installer"
           mkdir "$mount"
-          curl --fail --location --retry 2 --max-time 120 --output "$dmg" \
-            "https://cdn-updates.orbstack.dev/amd64/OrbStack_v${ORB_RELEASE}_${build}_amd64.dmg"
+          curl --fail --location --retry 2 --max-time 120 --output "$dmg" "$url"
           echo "$sha  $dmg" | shasum -a 256 --check
           hdiutil attach -readonly -nobrowse -mountpoint "$mount" "$dmg"
           ditto "$mount/OrbStack.app" "$ORB_APP"
           hdiutil detach "$mount"
           codesign --verify --strict "$ORB_APP"
-          /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$ORB_APP/Contents/Info.plist"
-          /usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$ORB_APP/Contents/Info.plist"
+          version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$ORB_APP/Contents/Info.plist")
+          build=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$ORB_APP/Contents/Info.plist")
+          test "$version" = "$(jq -er '.version' "$fixture")"
+          test "$build" = "$(jq -er '.build' "$fixture")"
+          echo "OrbStack $version (build $build)"
           printf '%s\n' "$ORB_APP/Contents/MacOS/bin" "$ORB_APP/Contents/MacOS/xbin" "$HOME/.orbstack/bin" >> "$GITHUB_PATH"
       - name: Start OrbStack and verify its local Docker endpoint
         id: orbready

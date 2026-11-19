@@ -1,9 +1,6 @@
 name: Linux guest workload comparison
 on:
   workflow_dispatch:
-  push:
-    branches: ['benchmarks/micropod-product-comparison-20261119']
-    paths: ['.github/workflows/guest-workload-reference.yml']
 permissions:
   contents: read
 jobs:
