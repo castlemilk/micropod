@@ -230,6 +230,7 @@ public actor IsolatedRuntimeHostController {
         state.runtimeRigAttempted = false
         state.runtimeCancelledBeforeAction = false
         state.runtimeActionStarted = false
+        state.runtimeReleasedStopped = nil
         state.actionVerified = false
         state.localGeneration = nil
         state.phase = "preparing"
@@ -451,6 +452,15 @@ public actor IsolatedRuntimeHostController {
                 throw MicropodError.message("The prior runtime worker remains active; wait for its outcome")
             }
             if !gate.isClosed, state.actionVerified == true {
+                if state.runtimeReleasedStopped == true {
+                    // The stopped release's reply was lost: confirm it again.
+                    let observed = try await run(.verify, identity: identity, digest: digest, selection: selection)
+                    guard observed.state == "stopped" else {
+                        throw MicropodError.message("The stopped runtime changed; no runtime command was replayed")
+                    }
+                    try await releaseStopped(observed)
+                    return
+                }
                 if state.runtimeCancelledBeforeAction == true {
                     if handoffAttempted { try await requireHandoff("abortComplete", phase: "cancelled") }
                     clearHandoff()
@@ -514,6 +524,12 @@ public actor IsolatedRuntimeHostController {
             let observed = try await run(.verify, identity: identity, digest: digest, selection: selection)
             let expected = state.action == .stop ? "stopped" : "nativeReady"
             guard observed.state == expected else {
+                if observed.state == "stopped", state.runtimeRigAttempted == true {
+                    // The action began and the runtime is positively stopped:
+                    // the new build did not come up. Settle with the rig held.
+                    try await releaseStopped(observed)
+                    return
+                }
                 throw MicropodError.message(
                     "The retained runtime outcome is unconfirmed; no stop or start was replayed")
             }
@@ -582,6 +598,33 @@ public actor IsolatedRuntimeHostController {
     }
     private var handoffAttempted: Bool { state.rigAttempted == true || state.runtimeRigAttempted == true }
 
+    /// The release kind a completed action reports.
+    private var completedKind: RuntimeCoordinationReleaseKind {
+        state.action == .stop || state.runtimeReleasedStopped == true ? .stopped : .running
+    }
+
+    /// A start or restart whose action began and left the runtime verified
+    /// stopped. Before, only its target state could release it, so the rig
+    /// waited in recovery for an outcome that would never come. It is
+    /// released as stopped: Cuttlefish keeps intake paused, and only a new
+    /// explicit start (or `micropod runtime update --rollback`) resumes work.
+    /// An older coordinator refuses this, and the operation stays in recovery.
+    private func releaseStopped(_ observed: IsolatedRuntimeObservation) async throws {
+        adopt(observed)
+        state.runtimeReleasedStopped = true
+        state.actionVerified = true
+        try update("releasing", "The dedicated runtime did not come up and is stopped; releasing the rig paused")
+        try fence?.releaseAfterVerification()
+        fence = nil
+        try await requireHandoff("complete", phase: "completed")
+        clearHandoff()
+        state.workerBirth = nil
+        state.error =
+            "The dedicated runtime did not start after its change and is stopped. Rig intake stays paused until "
+            + "`micropod runtime start` or `micropod runtime update --rollback`"
+        try update("failed", "Dedicated runtime is stopped; rig intake stays paused")
+    }
+
     private func clearHandoff() {
         state.rigAttempted = false
         state.runtimeRigAttempted = false
@@ -610,7 +653,7 @@ public actor IsolatedRuntimeHostController {
         let operation = try coordinatedOperation()
         let releaseKind: RuntimeCoordinationReleaseKind? =
             action == "abortComplete"
-            ? .cancelled : (action == "complete" ? (state.action == .stop ? .stopped : .running) : nil)
+            ? .cancelled : (action == "complete" ? completedKind : nil)
         let challenge = try runtimeCoordinator.issueOperationChallenge(
             identity: identity, peer: record.peer, operation: operation,
             purpose: releaseKind == nil ? "maintenance" : "release-observation")
@@ -782,8 +825,7 @@ public actor IsolatedRuntimeHostController {
                 throw MicropodError.message("The release recovery proof is incomplete")
             }
             let kind: RuntimeCoordinationReleaseKind =
-                state.runtimeCancelledBeforeAction == true
-                ? .cancelled : (state.action == .stop ? .stopped : .running)
+                state.runtimeCancelledBeforeAction == true ? .cancelled : completedKind
             let enrollment = try runtimeCoordinator.rebindReleasedPeer(
                 proof, challenge: challenge, identity: identity, peer: peer, retained: retained, kind: kind)
             return .init(identity: identity, peer: peer, enrollment: enrollment)
@@ -1001,8 +1043,12 @@ public actor IsolatedRuntimeHostController {
         try components.beginRuntime(&record, operation: operation)
         do {
             try requireCoordinatorIdentity()
+            // A runtime left stopped (and its rig paused) resumes only by an
+            // explicit start; otherwise the runtime restarts onto the target.
+            let action: IsolatedRuntimeAction =
+                state.nativeState == "stopped" || state.runtimeReleasedStopped == true ? .start : .restart
             _ = try startOperation(
-                .init(operation: operation, action: .restart), ownerUID: record.ownerUID, stageComponents: true)
+                .init(operation: operation, action: action), ownerUID: record.ownerUID, stageComponents: true)
         } catch {
             try components.deferRuntime(&record, error.localizedDescription)
         }

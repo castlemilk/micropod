@@ -525,6 +525,12 @@ public struct RuntimeComponentUpdater: Sendable {
             try settle(
                 &record, record.rollback ? .rolledBack : .completed,
                 "Runtime components \(record.targetVersion) are installed and the dedicated runtime is verified")
+        case "failed" where status.runtimeReleasedStopped == true:
+            try settle(
+                &record, .helperUpdated,
+                "The dedicated runtime did not start on \(record.targetVersion) and is stopped with rig intake "
+                    + "paused: `micropod runtime update --rollback` restores the previous components, "
+                    + "`micropod runtime update` retries")
         case "recoveryRequired":
             record.reason =
                 "The coordinated restart needs verification: `micropod runtime recover`"

@@ -77,6 +77,7 @@ public struct RuntimeCoordinationRigClient: Sendable {
             (call.action == "complete" || call.action == "abortComplete") == (call.releaseKind != nil),
             call.action != "abortComplete" || call.releaseKind == .cancelled,
             call.action != "complete" || call.releaseKind?.rawValue == call.operation.targetState
+                || call.releaseKind == .stopped
         else { throw MicropodError.message("The private runtime handoff request is invalid") }
         let data = try JSONEncoder().encode(call) + Data([10])
         let bytes = try await RuntimePeerSocket.exchange(
