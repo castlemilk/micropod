@@ -21,12 +21,16 @@ final class CIWorkerTests: XCTestCase {
 
     func testLaunchAgentRunsTheStableBinaryInTheSpecifiedWorkerDirectory() throws {
         let root = URL(fileURLWithPath: "/Volumes/CI/Worker directory")
-        let worker = CIWorker(environment: ["MICROPOD_CI_HOME": root.path])
+        let worker = CIWorker(environment: [
+            "MICROPOD_CI_HOME": root.path, "MICROPOD_CI_CPUS": "6", "CI_JOB_ID": "example",
+        ])
         let binary = URL(fileURLWithPath: "/Applications/Micropod.app/Contents/MacOS/micropod")
         let data = try worker.launchAgent(executable: binary)
         let plist = try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
         XCTAssertEqual(plist["ProgramArguments"] as? [String], [binary.path, "ci", "serve"])
-        XCTAssertEqual((plist["EnvironmentVariables"] as? [String: String])?["MICROPOD_CI_HOME"], root.path)
+        XCTAssertEqual(
+            plist["EnvironmentVariables"] as? [String: String],
+            ["MICROPOD_CI_HOME": root.path, "MICROPOD_CI_CPUS": "6"])
         XCTAssertEqual(plist["RunAtLoad"] as? Bool, true)
         XCTAssertEqual(plist["KeepAlive"] as? [String: Bool], ["Crashed": true])
     }

@@ -12,10 +12,8 @@ extension CIWorker {
 
     /// Used by launchd before the runner begins accepting individual jobs.
     public func launchAgent(executable: URL) throws -> Data {
-        var environment = ["MICROPOD_CI_HOME": directory.path]
-        for key in ["MICROPOD_CI_CPUS", "MICROPOD_CI_MEMORY_MIB", "MICROPOD_CI_DISK_GIB"] {
-            environment[key] = ProcessInfo.processInfo.environment[key]
-        }
+        var environment = resourceEnvironment
+        environment["MICROPOD_CI_HOME"] = directory.path
         let plist: [String: Any] = [
             "Label": Self.agentLabel, "ProgramArguments": [executable.path, "ci", "serve"],
             "EnvironmentVariables": environment, "RunAtLoad": true, "KeepAlive": ["Crashed": true],

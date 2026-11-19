@@ -230,9 +230,9 @@ sections are load-aware — the runtime degrades under heavy VM churn, so
 benchmarks run against a quiet runtime and self-clean every container they
 create.
 
-## Runtimes: apple VMs, Docker, sandbox micro-VMs
+## Container runtimes
 
-micropod drives three execution engines behind one API. Pick one per
+Micropod exposes four execution engines through one API. Pick one per
 container (`RunContainerRequest.runtime`, `micropod run --runtime`) or set a
 default; `ListContainers` merges every enabled engine and stamps each
 container's `runtime`, and id-based calls route to the engine that owns it.
@@ -889,23 +889,9 @@ containers. See [`docs/agent/micropod-skill.md`](docs/agent/micropod-skill.md).
 
 ## CI pipelines on micropod
 
-`task ci` (`ci/`, `task ci-go` / `task ci-npm` individually) runs two
-self-contained CI pipelines against an isolated temp shim (own socket +
-state; your launchd shim is untouched) using the stock `docker` CLI with
-`DOCKER_BUILDKIT=0`, exactly like cuttlefish's `dev-up-micropod` target:
+The default `task ci` runs the Go and npm pipelines concurrently on a persistent Micropod Linux worker. The Go job runs vet, race tests, Testcontainers PostgreSQL and the built HTTP service. The npm job tests the package, runs the built image and verifies a source edit in a fresh build context. Each job cleans up its own containers and tags. The engine keeps downloaded layers and BuildKit package caches ready for the next job. [CI worker setup and measurements](docs/ci-worker.md)
 
-- **Go** (`ci/samples/go-app`): deps-first image build with Go cache mounts
-  → `go vet` + unit tests in parallel → `-race` leg → **testcontainers-go
-  (v0.40.0, same as cuttlefish) Postgres integration** — Ryuk reaper,
-  port wait, exec `pg_isready` — → run the built image + exec health check.
-- **Node** (`ci/samples/node-app`): deps-first image build with npm cache
-  mount concurrent with host `npm ci` + `node --test` → run the image and
-  assert its output → source-change rebuild proving layer re-use.
-
-Warm steady state on this box: Go **~13 s**, Node **~3.5 s** end to end.
-The Go integration is also the live proof for the compat shims above
-(DinD redirect, name aliasing, label normalization, 127 mapping, 404
-pull-flow): it fails without any one of them.
+`task ci-shim` exercises both pipelines against the isolated temporary Apple Docker shim, including its Ryuk redirection and legacy builder integration. The historical shim measurements were about 13 seconds for Go and 3.5 seconds for Node.
 
 `task ci-matrix` (`ci/cache-matrix.sh`) validates the intelligent
 build cache across a family of related builds — three Go services (two

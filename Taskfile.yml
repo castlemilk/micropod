@@ -195,6 +195,11 @@ tasks:
     cmds:
       - ./scripts/install.sh --uninstall
 
+  bench-ci-apple:
+    desc: Measure live OrbStack and the persistent Micropod worker on this Mac
+    cmds:
+      - bash scripts/bench_ci_apple.sh {{.CLI_ARGS}}
+
   ci-go:
     desc: Go CI pipeline on micropod (image build, vet, unit, race, testcontainers postgres, run)
     cmds:

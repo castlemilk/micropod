@@ -9,6 +9,7 @@ from pathlib import Path
 import platform
 import re
 import shutil
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -74,6 +75,32 @@ def warm_cli_caches(cli, image, scope, clients, boot):
     require(audit["payload_inodes"] == seed["payload_inodes"], "Scoped caches duplicated the package payloads")
     return dict(clients=clients, seed=seed, warm_seconds=elapsed, after=audit["cache_sizes"],
                 empty_scope_verified=True)
+
+
+def bare_packages(host, package, home, env, args, expected):
+    # Use the same binaries outside Docker to measure the raw process floor on this Ubuntu allocation.
+    prefix = home / "host-tools"
+    binary = prefix / "bin"
+    binary.mkdir(parents=True)
+    container = host("create", package).stdout.strip()
+    try:
+        for source, dest in [("/usr/local/go", prefix / "go"), ("/usr/local/bin/node", binary / "node"),
+                             ("/usr/local/lib/node_modules/npm", prefix / "npm")]:
+            host("cp", container + ":" + source, str(dest))
+    finally:
+        host("rm", container)
+    (binary / "npm").symlink_to(prefix / "npm/bin/npm-cli.js")
+    env = dict(env, GOROOT=str(prefix / "go"), PATH=os.pathsep.join([str(binary), str(prefix / "go/bin"), env["PATH"]]))
+    versions = {tool: command(tool, flag, env=env).stdout.strip()
+                for tool, flag in [("node", "--version"), ("npm", "--version"), ("go", "version")]}
+    require(versions == expected, "The native Ubuntu processes used different toolchain versions")
+    path = home / "bare.json"
+    command(sys.executable, str(ROOT / "scripts/bench_package_caches.py"), "--parent", str(home),
+            "--clients", *map(str, args.clients), "--rounds", str(args.rounds), "--json", str(path), env=env, timeout=420)
+    record = json.loads(path.read_text())
+    require(record["passed"], "Native Ubuntu process cache validation failed")
+    record.update(versions=versions, isolation="host processes, no per-container CPU or memory limit")
+    return record
 
 
 def qualify(args, result, home):
@@ -221,6 +248,9 @@ def qualify(args, result, home):
                 raw = argparse.Namespace(**vars(opts))
                 raw.socket, raw.engine = host_docker.removeprefix("unix://"), "linux-docker"
                 measure(raw, result.setdefault("native_ubuntu", {}))
+                if args.packages:
+                    expected = result["warm"]["package_caches"]["blocks"][0]["versions"]
+                    result["bare_ubuntu_packages"] = bare_packages(host, package, home, env, args, expected)
 
         if apple and opts.package_image:
             result["cli_caches"] = warm_cli_caches(cli, opts.package_image, token, max(args.clients), first["boot"])
@@ -270,7 +300,26 @@ def qualify(args, result, home):
                 "Image or named volume did not survive restart")
         build("changed")
         if args.pipelines:
-            command("bash", str(ROOT / "ci/worker-pipeline.sh"), "all", uri, env=env, timeout=600)
+            engines = [("worker", uri)]
+            if not apple:
+                engines.append(("native_ubuntu", host_docker))
+            timings = result["pipeline_seconds"] = {name: {} for name, _ in engines}
+            for index in range(args.pipeline_rounds + 1):
+                phase = "first" if index == 0 else f"warm_{index}"
+                order = engines if index % 2 == 0 else reversed(engines)
+                for name, endpoint in order:
+                    started = time.perf_counter()
+                    phase_log = home / (name + "-" + phase + ".jsonl")
+                    command("bash", str(ROOT / "ci/worker-pipeline.sh"), "all", endpoint,
+                            env=dict(env, MICROPOD_CI_STAGE_TIMINGS=str(phase_log)), timeout=600)
+                    stages = [json.loads(line) for line in phase_log.read_text().splitlines()]
+                    require(len(stages) == 5 and all(code == 0 for _, _, code in stages), "Incomplete pipeline stages")
+                    result.setdefault("pipeline_stages_seconds", {}).setdefault(name, {})[phase] = {
+                        stage: seconds for stage, seconds, _ in stages}
+                    timings[name][phase] = round(time.perf_counter() - started, 3)
+                    print(f"{name} {phase} Go and npm pipelines: {timings[name][phase]:.3f}s", file=sys.stderr, flush=True)
+            for series in timings.values():
+                series["warm"] = statistics.median(series[f"warm_{n}"] for n in range(1, args.pipeline_rounds + 1))
             result["pipelines"] = ["Go vet, race and Testcontainers PostgreSQL", "npm tests, source edit and rebuild"]
         result["verified"] = ["container streams and exit", "PID and mount namespaces", "CPU and memory quotas",
                               "bridge DNS and HTTP", "image and volume reuse", "offline BuildKit cache after restart"]
@@ -295,6 +344,8 @@ def main():
     p.add_argument("--packages", action="store_true", help="Build one shared offline toolchain for guest and native Ubuntu")
     p.add_argument("--orbstack-socket")
     p.add_argument("--pipelines", action="store_true", help="Run the normal Go and npm CI entry points")
+    p.add_argument("--pipeline-rounds", type=int, choices=range(1, 11), default=3, metavar="1..10",
+                   help="Warm passes of the full application pipelines per engine")
     p.add_argument("--json", required=True, type=Path)
     args = p.parse_args()
     record = dict(profile=args.profile, rounds=args.rounds, clients=args.clients)

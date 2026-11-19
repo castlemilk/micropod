@@ -10,6 +10,7 @@ public struct CIWorker: Sendable {
         "docker.io/library/docker:29.9.3-dind@sha256:7bf70dcb85c822e3fa6f2d332143e474b99147b9d7b39102b0cfe8b04a7dd61b"
     static let guestSocket = "/var/lib/micropod/docker.sock"
     public let directory: URL
+    let resourceEnvironment: [String: String]
     public var socket: URL { directory.appendingPathComponent("docker.sock") }
     public var endpoint: String { "unix://" + socket.path }
     var disk: URL { directory.appendingPathComponent("worker.ext4") }
@@ -18,6 +19,8 @@ public struct CIWorker: Sendable {
     private var session: URL { directory.appendingPathComponent("session.json") }
 
     public init(environment: [String: String] = ProcessInfo.processInfo.environment) {
+        let resourceKeys = ["MICROPOD_CI_CPUS", "MICROPOD_CI_MEMORY_MIB", "MICROPOD_CI_DISK_GIB"]
+        resourceEnvironment = environment.filter { resourceKeys.contains($0.key) }
         directory =
             environment["MICROPOD_CI_HOME"].map { URL(fileURLWithPath: $0).standardizedFileURL }
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".micropod/ci")
@@ -102,7 +105,7 @@ public struct CIWorker: Sendable {
             existing = nil
         }
         func resource(_ key: String, _ fallback: Int, _ range: ClosedRange<Int>) throws -> Int {
-            let raw = ProcessInfo.processInfo.environment["MICROPOD_CI_" + key]
+            let raw = resourceEnvironment["MICROPOD_CI_" + key]
             guard let value = Int(raw ?? String(fallback)), range.contains(value) else {
                 throw MicropodError.message("MICROPOD_CI_\(key) must be in \(range)")
             }
