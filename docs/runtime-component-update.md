@@ -307,15 +307,25 @@ restart holds, and the fixes above settle its recovery. The update record
 is terminal whenever its restart is terminal, and no outcome needs a
 journal edited by hand.
 
-**One gap remains.** Suppose a target Apple build cannot start after the
-restart's `begin`, and verification positively observes the runtime
-`stopped`. The restart then stays `recoveryRequired` with rig intake held.
-The coordinator contract releases an operation only as its target state or
-as cancelled before its action. Holding intake is correct, because the
-runtime is not serving. Settling it needs the "stopped release" contract
-addition (below), after which the helper releases the restart as `stopped`
-and rolls back with a new coordinated start onto the retained build.
-API-only updates do not hit this gap.
+**A target that cannot come up.** Suppose a target Apple build or API does
+not start after the restart's `begin`. Before, verification positively
+observed the runtime `stopped`, but the coordinator could release an
+operation only as its target state or as cancelled before its action, so the
+rig waited in recovery for an outcome that would never come. Now `micropod
+runtime recover` releases that restart as **stopped** (skunkworq/cuttlefish#966):
+
+- The local fence is released.
+- Cuttlefish keeps rig intake paused, and the control plane keeps the
+  resource closed.
+- The restart ends `failed` with `runtimeReleasedStopped`, and the update
+  ends `helperUpdated`.
+- `micropod runtime update --rollback` restores the previous helper. That
+  helper resumes with an explicit `start` onto its own components, the only
+  operation a stopped release admits.
+
+A Cuttlefish agent without #966 refuses the stopped release as invalid. The
+restart then stays in recovery, which is today's behaviour, and nothing is
+replayed.
 
 ## Rig upgrades chain it
 
@@ -352,16 +362,16 @@ rig-upgrade drain cover a runtime handoff. That is a possible follow-up.
 
 - **Wire contract.** Unchanged: the runtime half is a `restart`, and the
   helper's identity is its signature.
-- **Qualified Apple builds.** The agent compares against a set instead of
-  one digest, so adding the patched build is a one-line change. This is in
-  the Cuttlefish PR paired with this one.
-- **Stopped release.** Contract addition, proposed and in the paired
-  Cuttlefish PR. A `start` or `restart` whose action began and whose runtime
-  is verified `stopped` may be released with kind `stopped`. Intake stays
-  closed, since a stopped release never reopens it, and the next operation
-  starts from a clean resource. Rollout order: control plane, then agent,
-  then a Micropod release that sends it. An older agent refuses the call as
-  invalid, which leaves today's behaviour.
+- **Qualified Apple builds** (skunkworq/cuttlefish#966). The agent compares
+  against a set instead of one digest, so adding the patched build is a
+  one-line change.
+- **Stopped release** (skunkworq/cuttlefish#966). A `start` or `restart`
+  whose action began and whose runtime is verified `stopped` may be released
+  with kind `stopped`. Intake stays closed, since a stopped release never
+  reopens it, and only a new explicit start takes the resource again.
+  Rollout order: control plane, then agent, then the Micropod release that
+  sends it. An older agent refuses the call as invalid, which leaves today's
+  behaviour.
 
 ## Commands
 
@@ -393,7 +403,9 @@ micropod runtime operation --json    # componentUpdate and the restart it runs
     followed by a runtime-only retry;
   - a lost restart completion that `recover` settles;
   - stale old-format receipts retired by the restart;
-  - a helper killed while staging.
+  - a helper killed while staging;
+  - a target that cannot start: released as stopped by `recover`, then
+    `--rollback` restarts the previous runtime with an explicit start.
 - `RuntimeComponentManifestTests` cover signatures, tampering, protocol,
   malformed manifests and a two-build table. `RuntimeComponentUpdateClientTests`
   cover a lost reply resent under the same ID, a rerun resuming the pending

@@ -36,6 +36,9 @@ public struct IsolatedRuntimeStatus: Codable, Sendable {
     public var runtimeRigAttempted: Bool?
     public var runtimeCancelledBeforeAction: Bool?
     public var runtimeActionStarted: Bool?
+    /// A start whose action left the runtime verified stopped, released to
+    /// the coordinator as stopped: rig intake stays paused until a start.
+    public var runtimeReleasedStopped: Bool?
     public var selection: ManagedRuntimeLocation.Selection?
     public var nativeVersion: String?
     public var nativeState: String?

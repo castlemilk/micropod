@@ -206,7 +206,9 @@ public struct RuntimeCoordinationProofVerifier: Sendable {
             state.lastReleasedOwner == operation.id, state.lastReleasedOperation == operation,
             state.lastReleasedGeneration == resourceGeneration,
             state.lastReleasedRevision == originalEnrollment.revision, state.lastReleasedKind == kind.rawValue,
-            kind == .cancelled || kind.rawValue == operation.targetState,
+            // A start that left the runtime positively stopped is released
+            // as stopped (Cuttlefish keeps the resource closed).
+            kind == .cancelled || kind == .stopped || kind.rawValue == operation.targetState,
             state.closed || (current.enabled && kind == .running)
         else { throw Self.refused() }
         return RuntimeCoordinationReleaseObservation(

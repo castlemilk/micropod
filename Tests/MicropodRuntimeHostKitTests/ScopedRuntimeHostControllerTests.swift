@@ -78,6 +78,8 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
     var holdDrain = false
     var loseCompletion = false
     var corruptBegin = false
+    /// The next native start fails and leaves the runtime stopped.
+    var failStart = false
     /// The next drain is refused before the coordinator records it, as a
     /// coordinator that is stopping or busy answers.
     var refuseNextDrain: String?
@@ -114,6 +116,7 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
     func refuseNextDrain(_ reason: String) { refuseNextDrain = reason }
     func answerNotRecorded(_ actions: Set<String>) { unrecorded = actions }
     func loseOneCompletion() { loseCompletion = true }
+    func failNextStart() { failStart = true }
     func corruptOneBegin() { corruptBegin = true }
     func simulateStoppedRuntime() { ready = false }
     func snapshot() -> ([IsolatedRuntimeAction], [String], [String: Bool]) { (nativeActions, history, gateAtPhase) }
@@ -226,7 +229,14 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
         nativeActions.append(request.action)
         if request.requiresIdle && busy { throw CocoaError(.fileWriteNoPermission) }
         if request.action == .stop { ready = false }
-        if request.action == .start { ready = true }
+        if request.action == .start {
+            if failStart {
+                failStart = false
+                ready = false
+                throw CocoaError(.executableLoad)
+            }
+            ready = true
+        }
         let root = IsolatedRuntimePolicy.root.appendingPathComponent("apple/versions/" + selection.directoryName)
         return .init(
             serviceUID: identity.serviceUID, bootstrapDomain: "user/\(identity.serviceUID)",
@@ -777,6 +787,47 @@ extension ScopedRuntimeHostControllerTests {
         XCTAssertEqual(summary.phase, "completed", summary.reason ?? "")
         let (native, _, _) = await rig.driver.snapshot()
         XCTAssertEqual(native.filter { $0 == .start }.count, 2, "The start was never replayed")
+    }
+
+    // A target that cannot come up after `begin`: before, no release fit it and
+    // the rig waited in recovery forever. `recover` now releases the restart
+    // as stopped with intake paused, the update settles, and `--rollback`
+    // brings back the previous helper, whose explicit start resumes the rig.
+    func testATargetThatCannotStartIsReleasedStoppedAndARollbackStartsThePreviousRuntime() async throws {
+        let rig = try await componentRig()
+        await rig.driver.failNextStart()
+        let operation = UUID()
+        let new = try await swapAndRelaunch(rig, operation: operation)
+        var status = try await terminal(new)
+        XCTAssertEqual(status.phase, "recoveryRequired", status.error ?? "")
+        _ = try await new.submit(.init(action: .verify), ownerUID: getuid())
+        status = try await terminal(new)
+        XCTAssertEqual(status.phase, "failed", status.error ?? "")
+        XCTAssertEqual(status.runtimeReleasedStopped, true)
+        XCTAssertEqual(status.nativeState, "stopped")
+        XCTAssertEqual(status.runtimeRigAttempted, false, "Nothing is left held")
+        let kind = await rig.driver.kind
+        XCTAssertEqual(kind, "stopped", "Released as stopped: Cuttlefish keeps intake paused")
+        XCTAssertFalse(RuntimeAdmission(root: rig.root.appendingPathComponent("admission")).isClosed)
+        let settled = try await componentOutcome(new, operation)
+        XCTAssertEqual(settled.phase, "helperUpdated", settled.reason ?? "")
+
+        let recorder = RelaunchRecorder()
+        let current = rig.make(recorder)
+        let back = UUID()
+        _ = try await current.submit(.init(operation: back, action: .rollback), ownerUID: getuid())
+        for _ in 0..<400 where recorder.relaunches == 0 { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertEqual(try rig.environment.inspect(rig.environment.installedBundle), ComponentEnvironmentFixture.source)
+        try rig.environment.launchInstalled()
+        XCTAssertEqual(rig.updater.launch(), .proceed)
+        let previous = rig.make(nil)
+        await previous.continueComponentUpdate()
+        let rolled = try await componentOutcome(previous, back)
+        XCTAssertEqual(rolled.phase, "rolledBack", rolled.reason ?? "")
+        status = try await previous.submit(.init(action: .status), ownerUID: getuid())
+        XCTAssertEqual(status.action, .start, "Only an explicit start resumes a stopped release")
+        XCTAssertEqual(status.nativeState, "nativeReady")
+        XCTAssertEqual(status.runtimeReleasedStopped, nil)
     }
 
     // Gamma-128's 167 old-format receipts from the still-running API: the
