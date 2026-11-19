@@ -8,7 +8,9 @@ Ground rules:
 
 - Only the VM is changed. Don't run `cuttle`, `micropod`, `launchctl` or
   Docker commands on the host. The host's Cuttlefish agent stays paused and
-  idle for the whole run.
+  idle for the whole run. The one exception is `cuttle micropod gate`
+  ([With cuttle](#with-cuttle)), which runs this procedure itself. After its
+  preflight, it touches none of them until it puts them back at the end.
 - **No other virtual machine may run on the host**, and "the agent is
   paused" does not prove that: Micropod's dedicated runtime, Apple container
   and Docker Desktop each run VMs on their own. Check before you start (and
@@ -32,6 +34,54 @@ Ground rules:
   install, and no Micropod runtime the gate did not create itself.
 - Commands are one per line. Run them in Terminal on the host unless a step
   says "in the VM".
+
+## With cuttle
+
+`cuttle micropod gate` (skunkworq/cuttlefish#989) runs sections 1 to 8 as
+one resumable command on the gate host:
+
+```sh
+cuttle micropod gate run --candidate <A-tag> --floor-candidate <B-tag>
+```
+
+It follows the same rules as the manual run:
+
+- **Preflight.** cuttle checks that the host is Apple Silicon, that 60 GB is
+  free for `base`, and that `gh` has push access. It stops and explains if
+  the `pgrep` above shows any VM that is not the gate's own; it never stops
+  one. It asks before quitting Docker Desktop. It also asks before stopping
+  the Cuttlefish agent, which it pauses first and stops only once no attempt
+  runs. It records what was running.
+- **Scripts.** cuttle fetches the scripts at `REF` and refuses them unless
+  their SHA-256 matches a table compiled into cuttle. It checks them again
+  before every `gate-host.sh` run.
+- **Steps.** cuttle runs `gate-host.sh` for host setup, `clone`, `run`, `rm`
+  and `matrix`. Each step's output is shown escaped, as `cat -v` does.
+- **Where steps run.** You type `harden` and `prepare-legacy` in the VM's
+  Terminal, as below; cuttle prints the exact commands and clicks. It
+  detects `harden` by a gate-key login and the root-owned marker, and the
+  other steps by their line in `out/results.tsv`. Every other step runs over
+  ssh with the gate key, in the terminal running cuttle. cuttle passes your
+  keystrokes straight to ssh: sudo's password prompt and the runner's pauses
+  are answered there, and cuttle never reads what you type. `--in-vm <step>`
+  moves a step into the VM's Terminal instead. cuttle reboots the legacy
+  clones through the `harden matrix` sudo rule, as `matrix` does.
+- **`out/`.** cuttle never writes to `out/` and refuses it if it holds a
+  symbolic link. It parses `results.tsv` strictly and with bounds. A step's
+  verdict is recorded when that step ends, so a later VM cannot change it.
+  A FAIL that `g9`, `g4-after` or `g4-before` prints before asking for a
+  reboot also fails its test.
+- **The end.** cuttle runs `cleanup`, removes `~/micropod-rc` and deletes
+  draft B; A is kept. It then starts Docker Desktop and the agent again. A
+  failure or Ctrl-C does the same restore. `--resume` continues the run,
+  starting the interrupted VM over from a fresh clone.
+- **The verdict.** It names A's exact asset digests.
+  `cuttle micropod release publish <A-tag>` dispatches publication only when
+  that verdict is all PASS and the reviewed manifest PR is merged.
+  INCOMPLETE is never a pass.
+
+`cuttle micropod gate status` shows where the run is and what to do next;
+`cuttle micropod gate results` shows the verdicts.
 
 ## Disk
 
