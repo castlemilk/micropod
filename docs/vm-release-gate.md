@@ -46,13 +46,13 @@ bash ~/micropod-rc/gate-host.sh space
 
 ## 1. The gate scripts
 
-`REF` is the commit named in the PR comment, which also lists both files'
-SHA-256.
+`REF` is the commit the scripts were reviewed at; later commits that change
+them say so in the PR, with new digests.
 
 ```sh
 mkdir -p ~/micropod-rc
 cd ~/micropod-rc
-REF=<commit>
+REF=01770f1253cc1cfec021bd35ee9a4f3142273bc6
 R=repos/castlemilk/micropod/contents/scripts/vm
 A='Accept: application/vnd.github.raw'
 gh api -H "$A" "$R/gate-host.sh?ref=$REF" > gate-host.sh
@@ -60,7 +60,12 @@ gh api -H "$A" "$R/runtime-authority-gate.sh?ref=$REF" > runtime-authority-gate.
 shasum -a 256 gate-host.sh runtime-authority-gate.sh
 ```
 
-Compare the two digests with the PR comment before going on.
+Both digests must match before going on:
+
+```
+d43c0ebc1e1801b450acdcf9e353eecf14f32002308b144994a4e6afa964c35b  gate-host.sh
+ada396ea8e57937d1223d8085893a634c766b58428457fa791c711d2464e12d9  runtime-authority-gate.sh
+```
 
 ## 2. tart and the image
 
