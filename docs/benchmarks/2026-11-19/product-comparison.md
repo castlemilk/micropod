@@ -1,5 +1,24 @@
 # Micropod product measurements, 19 November 2026
 
+## Micropod CLI and Docker CLI on the same OrbStack engine
+
+Both clients ran real guests on the same four-vCPU Intel Mac allocation, macOS 26.6.1. OrbStack 1.5.1 supplied Docker Engine 25.0.5. Micropod's full CLI was built from production sources in Swift debug configuration. Its `--runtime docker` adapter and the Docker CLI targeted the same Unix socket. The server, digest-pinned BusyBox image, one CPU, 64 MiB, disabled guest network and verification sequence were identical. Both clients created and started a detached guest. A common independent observer waited for exit 23, checked the image ID, label and declared limits, checked stdout and stderr separately, then verified removal after the selected CLI cleaned up. Median and range are batch wall seconds for three interleaved blocks per cell.
+
+| Clients | Micropod CLI median | Micropod range | Docker CLI median | Docker range |
+|---:|---:|---:|---:|---:|
+| 1 | 2.695 | 2.016–3.032 | 1.945 | 1.523–2.261 |
+| 4 | 9.629 | 9.214–11.757 | 10.397 | 10.105–10.961 |
+| 8 | 15.988 | 14.312–19.396 | 15.308 | 14.463–27.342 |
+| 16 | 55.260 | 42.600–71.911 | 62.886 | 40.720–65.797 |
+
+All 174 measured guests passed, 87 per CLI. At one client median per-job launch was 1.237 s through Micropod and 1.017 s through Docker. At 16 clients the verified throughput was 0.290 and 0.254 jobs/s respectively. The ranges overlap, and both clients lost throughput at 16 relative to 8. These figures measure client choice with a shared OrbStack backend. A comparison between Micropod's own VM and OrbStack on a physical Apple Silicon Mac remains open.
+
+A separate optimized driver compiled Micropod's production `DockerClient.swift` and exercised its HTTP transport without CLI option parsing or engine selection. It passed 78/78 measured guest executions including both clients. At one, four and eight clients its median batch times were 2.590, 8.494 and 16.613 s, compared with 2.638, 8.589 and 15.340 s for its separately interleaved Docker controls. The transport and full CLI stages ran sequentially. Their independently timed controls are included with each stage.
+
+A preliminary run on a separate Intel allocation exposed a real CLI compatibility problem. With the ordinary Docker argument form `micropod run … IMAGE sh -c …`, Micropod rejected `-c` before launching a guest. The installed 0.13.3 CLI reproduced the error on Gamma. The measured CLI run passed an explicit `--` before the image. On the preliminary allocation the Docker control also had three failed guest starts out of 87 measured attempts. Those attempts are retained in the raw data. The 174 passing results above come from the subsequent paired run.
+
+[Raw per-guest samples from both allocations](orb-adapter-samples.json) · [Paired run](https://github.com/castlemilk/micropod/actions/runs/44497227398/job/135467408787) · [Verified original archives](https://github.com/castlemilk/micropod/actions/runs/44500509192) · [Preliminary run](https://github.com/castlemilk/micropod/actions/runs/44494549893/job/135458300059) · [Gamma CLI argument receipt](cli-argv.json)
+
 ## Native guest workloads
 
 The existing matched Apple Silicon run used Mac17,6, 18 cores, 128 GB, macOS 26.5.1, Apple Container 1.3.1 and Docker Desktop Engine 29.8. The September 30 run assigned each guest workload 2 CPUs and 2 GiB. Boot includes the guest command returning and teardown. Each Go job used a cold build cache and a warm module cache. Medians are seconds. The four-job column measures whole-batch wall time.
@@ -15,7 +34,7 @@ The existing matched Apple Silicon run used Mac17,6, 18 cores, 128 GB, macOS 26.
 
 The four-job Micropod sandbox batch took 20.7% less wall time than Docker Desktop on this host. A second series with much higher host load measured 30.89 s for Micropod, 31.18 s for Docker Desktop, 30.84 s for shuru and 22.06 s for Apple Container. The historical harness retried failed commands and allowed unknown outcomes in its Connect lane. These results establish a historical baseline. [Original methodology and both series](https://github.com/castlemilk/micropod/blob/438706f8c2918e90cf15bdba4aab09c0b7c0ed0d/docs/performance.md)
 
-The native guest matrix in this PR uses one CPU and 256 MiB, a warm Alpine image, fresh guests, shuffled engine order, an untimed guest fingerprint and 5 measured blocks at 1, 4, 8 and 16 concurrent clients. It records every attempted batch, exit 23, per-run output tokens and whether stdout and stderr arrive on the correct channels. The gzip case restores and hashes 8 MiB. The bind case verifies a 1 MiB host input and reads the guest's unique output back on the host. These workload times have different boundaries from the September Go series. Only engines sharing the same guest fingerprint may be paired. Native sandbox and Docker-compatible runs disable guest networking. Apple Container uses its default network for these offline commands. [Guest harness](../../../scripts/bench_guest_matrix.py)
+The guest matrix uses one CPU and 256 MiB, a warm Alpine image, fresh guests, shuffled engine order, an untimed guest fingerprint and 5 measured blocks at 1, 4, 8 and 16 concurrent clients. It records every attempted batch, exit 23, per-run output tokens and whether stdout and stderr arrive on the correct channels. The gzip case restores and hashes 8 MiB. The bind case verifies a 1 MiB host input and reads the guest's unique output back on the host. These workload times have different boundaries from the September Go series. Only engines sharing the same guest fingerprint may be paired. Native sandbox and Docker-compatible runs disable guest networking. Apple Container uses its default network for these offline commands. [Guest harness](../../../scripts/bench_guest_matrix.py)
 
 On Gamma, the installed Micropod app is 0.13.3, Apple Container is 1.5.0 and Docker Desktop is 4.99.0. The work session received macOS permission errors before native guest execution. Its Micropod and Docker Desktop sockets also rejected connections. OrbStack and Colima had no live local endpoints. An admission failure supplies no guest timing. Run from a normal Terminal on a physical Mac with the selected engines running.
 
@@ -104,3 +123,14 @@ There were 145 verified guest executions per engine. OrbStack 2.2.5 rejected the
 | CPU, memory and disk | The Linux guests verified their CPU and memory cgroup limits. Other tables give requested workload limits or host capacities. Current matched idle footprint, energy, disk allocation and post-burst reclamation remain unmeasured. |
 
 [OrbStack evidence and separate Apple M3/Colima reference](https://github.com/castlemilk/micropod/blob/17059a4ccde92c4de30cc0fbe545705ec9229652/docs/benchmarks/2026-11-19/orbstack.md) · [Micropod native shim receipt](https://github.com/castlemilk/micropod/blob/d0d0009e2c6f2f7c049a9d10a8ca0c7047007678/docs/benchmarks/2026-11-19/native-ci-summary.json) · [Core qualification gates](https://github.com/castlemilk/micropod/issues/182) · [Runtime compatibility backlog](https://github.com/castlemilk/micropod/issues/207)
+
+## CI cost
+
+The two Linux comparison jobs took 67 s and 89 s including checkout, image seeding, workload verification and upload. The paired Intel Mac job took 20 min 30 s including installation, a 7 min 8 s debug CLI build, a 3 min 27 s transport comparison and an 8 min 48 s full CLI comparison. The workflow caches the CLI by production source and compiler/SDK identity. Both benchmark workflows are manual in the proposed version, adding zero benchmark jobs to ordinary pull requests. [Linux workflow](../../../.github/workflows/guest-workload-reference.yml) · [macOS workflow](../../../.github/workflows/micropod-product-comparison.yml)
+
+To repeat the adapter comparison on a physical Mac with OrbStack already running, use the installed CLI and the selected socket. To repeat the filesystem comparison, pass the two local checkouts containing the production and candidate implementations.
+
+```sh
+python3 scripts/bench_orb_adapter.py --micropod "$(command -v micropod)" --socket "$HOME/.orbstack/run/docker.sock" --json /tmp/orbstack-adapter.json
+python3 scripts/bench_snapshot_matrix.py --tree "$PWD" --candidate-tree /path/to/pr-216 --json /tmp/micropod-views.json
+```
