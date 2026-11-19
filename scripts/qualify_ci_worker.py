@@ -104,6 +104,27 @@ def bare_packages(host, package, home, env, args, expected):
     return record
 
 
+def measure_pipelines(engines, rounds, result, home, env):
+    timings = result["pipeline_seconds"] = {name: {} for name, _ in engines}
+    for index in range(rounds + 1):
+        phase = "first" if index == 0 else f"warm_{index}"
+        order = engines if index % 2 == 0 else reversed(engines)
+        for name, endpoint in order:
+            started = time.perf_counter()
+            phase_log = home / (name + "-" + phase + ".jsonl")
+            command("bash", str(ROOT / "ci/worker-pipeline.sh"), "all", endpoint,
+                    env=dict(env, MICROPOD_CI_STAGE_TIMINGS=str(phase_log)), timeout=600)
+            stages = [json.loads(line) for line in phase_log.read_text().splitlines()]
+            require(len(stages) == 5 and all(code == 0 for _, _, code in stages), "Incomplete pipeline stages")
+            result.setdefault("pipeline_stages_seconds", {}).setdefault(name, {})[phase] = {
+                stage: seconds for stage, seconds, _ in stages}
+            timings[name][phase] = round(time.perf_counter() - started, 3)
+            print(f"{name} {phase} Go and npm pipelines: {timings[name][phase]:.3f}s", file=sys.stderr, flush=True)
+    for series in timings.values():
+        series["warm"] = statistics.median(series[f"warm_{n}"] for n in range(1, rounds + 1))
+    result["pipelines"] = ["Go vet, race and Testcontainers PostgreSQL", "npm tests, source edit and rebuild"]
+
+
 def qualify(args, result, home):
     token = "mp-ci-" + uuid.uuid4().hex
     outer = token + "-guest"
@@ -321,26 +342,11 @@ def qualify(args, result, home):
         build("changed")
         if args.pipelines:
             engines = [("worker", uri)]
-            if not apple:
+            if peer_uri:
+                engines.append(("orbstack", peer_uri))
+            elif not apple:
                 engines.append(("native_ubuntu", host_docker))
-            timings = result["pipeline_seconds"] = {name: {} for name, _ in engines}
-            for index in range(args.pipeline_rounds + 1):
-                phase = "first" if index == 0 else f"warm_{index}"
-                order = engines if index % 2 == 0 else reversed(engines)
-                for name, endpoint in order:
-                    started = time.perf_counter()
-                    phase_log = home / (name + "-" + phase + ".jsonl")
-                    command("bash", str(ROOT / "ci/worker-pipeline.sh"), "all", endpoint,
-                            env=dict(env, MICROPOD_CI_STAGE_TIMINGS=str(phase_log)), timeout=600)
-                    stages = [json.loads(line) for line in phase_log.read_text().splitlines()]
-                    require(len(stages) == 5 and all(code == 0 for _, _, code in stages), "Incomplete pipeline stages")
-                    result.setdefault("pipeline_stages_seconds", {}).setdefault(name, {})[phase] = {
-                        stage: seconds for stage, seconds, _ in stages}
-                    timings[name][phase] = round(time.perf_counter() - started, 3)
-                    print(f"{name} {phase} Go and npm pipelines: {timings[name][phase]:.3f}s", file=sys.stderr, flush=True)
-            for series in timings.values():
-                series["warm"] = statistics.median(series[f"warm_{n}"] for n in range(1, args.pipeline_rounds + 1))
-            result["pipelines"] = ["Go vet, race and Testcontainers PostgreSQL", "npm tests, source edit and rebuild"]
+            measure_pipelines(engines, args.pipeline_rounds, result, home, env)
         result["verified"] = ["container streams and exit", "PID and mount namespaces", "CPU and memory quotas",
                               "bridge DNS and HTTP", "image and volume reuse", "offline BuildKit cache after restart"]
     finally:

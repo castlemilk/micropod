@@ -58,7 +58,7 @@ jobs:
     needs: guest
     if: inputs.suite == 'apple-pair'
     runs-on: [self-hosted, ARM64, "${{ inputs.apple_runner || 'macOS' }}"]
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:

@@ -25,5 +25,5 @@ else
     codesign -f -s - --entitlements signing/micropod-cli.entitlements "$bin"
     codesign --verify --strict "$bin"
 fi
-python3 scripts/qualify_ci_worker.py apple-worker --micropod "$bin" --orbstack-socket "$peer" --json "$out/apple-pair.json" "$@"
+python3 scripts/qualify_ci_worker.py apple-worker --pipelines --micropod "$bin" --orbstack-socket "$peer" --json "$out/apple-pair.json" "$@"
 echo "Paired receipt: $out/apple-pair.json"
