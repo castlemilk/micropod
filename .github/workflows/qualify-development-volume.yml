@@ -12,13 +12,11 @@ on:
         type: choice
         options: [runner-compatible, current]
         default: runner-compatible
-  push:
-    branches: [ci/qualify-apfs-clone-migration-20261119]
 permissions:
   contents: read
 jobs:
   apfs:
-    if: github.event_name == 'push' || inputs.suite == 'storage' || inputs.suite == 'all'
+    if: inputs.suite == 'storage' || inputs.suite == 'all'
     runs-on: macos-26
     timeout-minutes: 20
     steps:
