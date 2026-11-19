@@ -6,6 +6,11 @@ import concurrent.futures
 import hashlib
 import json
 import os
+import errno
+import pty
+import re
+import select
+import signal
 from pathlib import Path
 import plistlib
 import subprocess
@@ -23,6 +28,71 @@ def run(*args, cwd=None, check=True):
 
 def plist(*args):
     return plistlib.loads(run(*args).stdout)
+
+
+def interact(argv, secret):
+    """Answer diskutil's prompts on a disposable volume without logging the secret."""
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.execv(str(argv[0]), list(map(str, argv)))
+    transcript, pending = bytearray(), bytearray()
+    prompts = 0
+    end = time.monotonic() + 90
+    try:
+        while time.monotonic() < end:
+            if not select.select([fd], [], [], min(2, max(0, end - time.monotonic())))[0]:
+                continue
+            try:
+                data = os.read(fd, 8192)
+            except OSError as exc:
+                if exc.errno != errno.EIO:
+                    raise
+                break
+            if not data:
+                break
+            transcript.extend(data)
+            pending.extend(data.lower())
+            if re.search(rb"(?:passphrase|password|repeat|verify|confirm)[^:\r\n]{0,100}: *$", pending):
+                prompts += 1
+                if prompts > 3:
+                    raise RuntimeError("Unexpected number of APFS passphrase prompts")
+                os.write(fd, secret + b"\n")
+                pending.clear()
+        else:
+            raise RuntimeError("APFS passphrase prompt timed out")
+    finally:
+        os.close(fd)
+        if time.monotonic() >= end or prompts > 3:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        _, status = os.waitpid(pid, 0)
+    if os.waitstatus_to_exitcode(status) != 0 or prompts < 1:
+        report = bytes(transcript).replace(secret, b"<redacted>").decode(errors="replace")
+        raise RuntimeError("Interactive APFS operation failed: " + report[-1600:])
+
+
+def encrypted_lifecycle(binary, work, container):
+    # Only called after the fixture has excluded the startup container.
+    scratch = work / "encrypted-projects"
+    state = work / "encrypted-state"
+    scratch.mkdir()
+    command = [binary, "storage", "dev-volume"]
+    opts = ["--state-dir", state]
+    secret = uuid.uuid4().hex.encode()
+    run("sudo", "-n", "true")
+    interact([*command, "create", *opts, "--projects", scratch, "--container", container], secret)
+    def status():
+        return json.loads(run(*command, "status", *opts, "--json").stdout)
+    before = status()
+    child = before["volumeUUID"]
+    assert before["initialized"] and before["mounted"]
+    run("sudo", "/usr/sbin/diskutil", "apfs", "lockVolume", child)
+    assert not status()["mounted"]
+    interact([*command, "mount", *opts], secret)
+    after = status()
+    assert after["volumeUUID"] == child and after["mounted"] and os.path.ismount(after["mount"])
 
 
 def metadata_batch(directory, clients):
@@ -127,6 +197,8 @@ def qualify(binary, result):
             cli("restore")
             cli("migrate")
             cli("restore")
+            print("Volume fixture encrypted create, lock and unlock", flush=True)
+            encrypted_lifecycle(binary, work, container)
             samples = []
             for block in range(4):
                 for i, n in enumerate((1, 4, 8, 16)):
@@ -140,7 +212,7 @@ def qualify(binary, result):
             result.update(volume_uuid=first["volumeUUID"], checks=["plan", "own-apfs-volume", "idempotent-create",
                           "persistent-log-marker", "spotlight-marker", "working-directory-guard", "live-holder-guard",
                           "atomic-migration", "hardlinks", "xattr", "mode", "dangling-symlink", "git-directory",
-                          "pnpm-store-hardlink", "existing-cross-tree-hardlinks", "restore-cross-tree-hardlinks", "repair", "uuid-remount", "restore-latest", "repeat-migration"],
+                          "pnpm-store-hardlink", "existing-cross-tree-hardlinks", "restore-cross-tree-hardlinks", "repair", "encrypted-create-lock-unlock", "uuid-remount", "restore-latest", "repeat-migration"],
                           spotlight_seed=run("mdutil", "-s", seed, check=False).stdout.decode().strip(),
                           spotlight_development=remounted["spotlight"], physical_host_claim=False,
                           samples=samples)

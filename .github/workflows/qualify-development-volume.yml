@@ -7,11 +7,18 @@ permissions:
   contents: read
 jobs:
   apfs:
-    if: github.event_name == 'workflow_dispatch'
     runs-on: macos-26
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+      - name: Read the Swift toolchain fingerprint
+        run: echo "SWIFT_FINGERPRINT=$(swift --version 2>&1 | shasum | cut -c1-12)" >> "$GITHUB_ENV"
+      - uses: actions/cache/restore@v4
+        with:
+          path: .build
+          key: swiftpm-debug-${{ runner.os }}-${{ runner.arch }}-${{ env.SWIFT_FINGERPRINT }}-${{ hashFiles('Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            swiftpm-debug-${{ runner.os }}-${{ runner.arch }}-${{ env.SWIFT_FINGERPRINT }}-${{ hashFiles('Package.resolved') }}-
       - name: Build Micropod CLI
         run: swift build --product micropod
       - name: Migrate and remount a disposable APFS volume
@@ -23,6 +30,7 @@ jobs:
           path: ${{ runner.temp }}/volume.json
 
   warm-linux:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     env:
       IMAGE: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
@@ -40,6 +48,7 @@ jobs:
           path: ${{ runner.temp }}/kernel.json
 
   warm-orbstack:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: macos-26-intel
     timeout-minutes: 22
     env:

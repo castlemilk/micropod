@@ -171,7 +171,14 @@ enum DevVolumeCommands {
             else {
                 throw DevVolumeError("The existing record describes a different development volume")
             }
-            let store = requestedPath(opt.pnpm).flatMap { DevVolumeMigration.contains(first.source, $0) ? nil : $0 }
+            let store = requestedPath(opt.pnpm).flatMap { path -> String? in
+                if DevVolumeMigration.contains(first.source, path)
+                    || DevVolumeMigration.contains(volume.destination(first), path)
+                {
+                    return nil
+                }
+                return path
+            }
             guard volume.trees.first(where: { $0.name == "pnpm-store" })?.source == store else {
                 throw DevVolumeError("The pnpm store differs from the existing record")
             }

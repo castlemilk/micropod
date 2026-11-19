@@ -118,11 +118,24 @@ struct DevVolume: Codable {
         guard let volumeID else {
             throw DevVolumeError("Volume creation is incomplete. Repeat create with the same options.")
         }
-        let info = try DevTool.plist(["info", "-plist", volumeID.uuidString])
         let container = try Self.container(id: containerID)
-        guard Self.matches(info, volumeID, label),
-            let device = container["ContainerReference"] as? String, info["APFSContainerReference"] as? String == device
+        let volumes = container["Volumes"] as? [[String: Any]] ?? []
+        guard
+            let row = volumes.first(where: {
+                ($0["APFSVolumeUUID"] as? String).flatMap(UUID.init(uuidString:)) == volumeID
+            }), row["Name"] as? String == label, let device = row["DeviceIdentifier"] as? String
+        else {
+            throw DevVolumeError("The recorded APFS volume is absent from its original container")
+        }
+        var info = try DevTool.plist(["info", "-plist", device])
+        let locked =
+            row["Locked"] as? Bool == true || info["Locked"] as? Bool == true
+            || info["APFSVolumeLocked"] as? Bool == true
+        guard info["DeviceIdentifier"] as? String == device,
+            info["APFSContainerReference"] as? String == container["ContainerReference"] as? String,
+            locked || Self.matches(info, volumeID, label)
         else { throw DevVolumeError("The recorded volume identity or container changed") }
+        info["Locked"] = locked
         if let at = info["MountPoint"] as? String, !at.isEmpty {
             guard at == mount else { throw DevVolumeError("The recorded volume mounted at \(at); expected \(mount)") }
             let mounted = try DevTool.plist(["info", "-plist", at])
@@ -164,16 +177,16 @@ struct DevVolume: Codable {
 
     func mountVolume(remount: Bool = false) throws {
         let info = try diskInfo(requireMount: false)
-        guard let volumeID else { throw DevVolumeError("Missing volume UUID") }
+        guard let device = info["DeviceIdentifier"] as? String else { throw DevVolumeError("Missing volume device") }
         if let path = info["MountPoint"] as? String, !path.isEmpty {
             if !remount { return }
-            try DevTool.interact(DevTool.diskutil, ["unmount", volumeID.uuidString])
+            try DevTool.interact(DevTool.diskutil, ["unmount", device])
         }
         let current = try diskInfo(requireMount: false)
         if current["Locked"] as? Bool == true || current["APFSVolumeLocked"] as? Bool == true {
-            try DevTool.interact(DevTool.diskutil, ["apfs", "unlockVolume", volumeID.uuidString])
+            try DevTool.interact(DevTool.diskutil, ["apfs", "unlockVolume", device, "-user", "disk"])
         } else {
-            try DevTool.interact(DevTool.diskutil, ["mount", volumeID.uuidString])
+            try DevTool.interact(DevTool.diskutil, ["mount", device])
         }
         _ = try diskInfo(requireMount: true)
     }
