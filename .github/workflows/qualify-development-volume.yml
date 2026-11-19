@@ -8,17 +8,15 @@ on:
         options: [storage, linux, orbstack, all]
         default: storage
       orbstack_version:
-        description: OrbStack release for the Intel comparison
+        description: OrbStack release (hosted Intel supports 1.5.1)
         type: choice
-        options: ['2.2.5', '1.5.1']
-        default: '2.2.5'
-  push:
-    branches: [feat/dev-volume-and-live-kernel-bench]
+        options: ['1.5.1', '2.2.5']
+        default: '1.5.1'
 permissions:
   contents: read
 jobs:
   apfs:
-    if: github.event_name == 'push' || inputs.suite == 'storage' || inputs.suite == 'all'
+    if: inputs.suite == 'storage' || inputs.suite == 'all'
     runs-on: macos-26
     timeout-minutes: 20
     steps:
@@ -89,7 +87,7 @@ jobs:
     timeout-minutes: 22
     env:
       ORB_APP: /Applications/OrbStack.app
-      ORB_VERSION: ${{ inputs.orbstack_version || '2.2.5' }}
+      ORB_VERSION: ${{ inputs.orbstack_version || '1.5.1' }}
       IMAGE: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
     steps:
       - uses: actions/checkout@v7

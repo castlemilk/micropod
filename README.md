@@ -367,6 +367,11 @@ Storage Location**. The default paths become symlinks, so every
 `container system start` follows them. Keep the drive connected. See
 [docs/storage-location.md](docs/storage-location.md).
 
+Use `micropod storage dev-volume plan --projects "$HOME/projects"` to plan a
+separate APFS workspace for repositories and an optional pnpm store. The CLI can
+migrate and restore the trees, preserve hard links and reapply volume indexing
+settings. [Development volumes and live-rig benchmarks](docs/development-volume.md).
+
 ## Metrics history
 
 The app records resource usage for every container, machine and the

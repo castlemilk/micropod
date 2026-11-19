@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import plistlib
 import socket
 import statistics
 import subprocess
@@ -42,7 +43,7 @@ class LocalConnection(http.client.HTTPConnection):
         self.sock.connect(self.path)
 
 
-def rpc(endpoint, method, payload):
+def rpc(endpoint, method, payload, service="ContainerService"):
     url = urlsplit(endpoint)
     if url.scheme == "unix" and not url.netloc and url.path.startswith("/"):
         conn = LocalConnection(url.path)
@@ -51,7 +52,7 @@ def rpc(endpoint, method, payload):
     else:
         raise ValueError("Use an explicit local Micropod Connect HTTP or Unix endpoint")
     try:
-        conn.request("POST", "/micropod.v1.ContainerService/" + method, json.dumps(payload),
+        conn.request("POST", f"/micropod.v1.{service}/{method}", json.dumps(payload),
                      {"Content-Type": "application/json", "Connect-Protocol-Version": "1"})
         response = conn.getresponse()
         body = response.read()
@@ -73,6 +74,8 @@ def in_allocation(args, receipt):
         require(int(result.get("exitCode", 0)) == 0, f"allocation exec failed: {result.get('error', '')[-400:]}")
         return result.get("output", "").strip()
 
+    status = rpc(args.api, "Ping", {}, service="SystemService")
+    receipt["micropod_server"] = {k: status.get(k) for k in ("apiServerVersion", "runtimeBackend", "defaultRuntime")}
     owner = inspect()
     parent = fingerprint(execute(["cat", BOOT]))
     receipt["allocation"] = owner
@@ -118,6 +121,11 @@ def measure(args, receipt, runner=None, read_parent=None):
     if args.engine in {"inner", "micropod"}:
         require("rootless" in str(initial["SecurityOptions"]).lower(), "Allocation engine did not report rootless Docker")
     if args.engine == "orbstack":
+        bundle = Path("/Applications/OrbStack.app/Contents/Info.plist")
+        if bundle.is_file():
+            with bundle.open("rb") as file:
+                app = plistlib.load(file)
+            receipt["mac_app_bundle"] = {k: app.get(k) for k in ("CFBundleShortVersionString", "CFBundleVersion")}
         require("orbstack" in (str(initial["Name"]) + str(initial["OperatingSystem"])).lower(), "Expected an OrbStack daemon")
     info = json.loads(cmd(["image", "inspect", args.image]).stdout)[0]
     image = info["Id"]
