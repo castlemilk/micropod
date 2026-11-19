@@ -525,7 +525,11 @@ script does the kill matrix's reboots itself). Inputs the gate cannot make:
 candidate B (a second draft qualification build newer than A), B built with
 a floor for `g7-floor`, another team's Developer ID binary and an Apple
 Development build for `g2`. A missing input makes its test `INCOMPLETE`,
-never `PASS`.
+never `PASS`. So does an agent-spawned attacker that never ran (`g4`,
+`g5`): the child proves it ran by recording, as its first line, that
+launchd started it. A step that asks for a reboot records the checks it made
+first as its own line; its test passes only if that line and the one after
+the reboot both pass.
 
 The gate's two hooks (`RuntimeGateHooks`) are armed only by root-owned
 files in `RuntimeHost`, name the exact code they affect, and expire (at most
