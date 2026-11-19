@@ -4,16 +4,28 @@ on:
     branches: [benchmarks/orbstack-live-20261119]
     paths: [.github/workflows/orbstack-live.yml]
   workflow_dispatch:
+    inputs:
+      runner:
+        description: Intel macOS host image
+        type: choice
+        default: macos-26-intel
+        options: [macos-26-intel, macos-15-intel]
+      release:
+        description: Signed OrbStack installer
+        type: choice
+        default: '2.2.5'
+        options: ['2.2.5', '1.5.1']
 
 permissions:
   contents: read
 
 jobs:
   orbstack:
-    runs-on: macos-15-intel
+    runs-on: ${{ inputs.runner || 'macos-26-intel' }}
     timeout-minutes: 30
     env:
       ORB_APP: /Applications/OrbStack.app
+      ORB_RELEASE: ${{ inputs.release || '2.2.5' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -25,18 +37,25 @@ jobs:
           sysctl machdep.cpu.brand_string machdep.cpu.family machdep.cpu.model machdep.cpu.stepping hw.ncpu hw.memsize kern.hv_support
           test "$(uname -m)" = x86_64
           test "$(sysctl -n kern.hv_support)" = 1
-      - uses: actions/setup-go@v6
-        with:
-          go-version: '1.26.1'
-          cache: false
-      - name: Install OrbStack 1.5.1 for virtual Intel CPUs on this disposable runner
+      - name: Install and verify the selected Intel version
         run: |
+          case "$ORB_RELEASE" in
+            2.2.5)
+              build=21124
+              sha=48f66df42357ba0294ea9c625dda84ac72e10f0d23710d5afcf079bcb6ae865b
+              ;;
+            1.5.1)
+              build=16857
+              sha=fb95108ded54a27603b68184a13f7e666e0e758167652c0b65cd4dc5eff94617
+              ;;
+            *) exit 2 ;;
+          esac
           dmg="$RUNNER_TEMP/OrbStack.dmg"
           mount="$RUNNER_TEMP/orb-installer"
           mkdir "$mount"
           curl --fail --location --retry 2 --max-time 120 --output "$dmg" \
-            https://cdn-updates.orbstack.dev/amd64/OrbStack_v1.5.1_16857_amd64.dmg
-          echo "fb95108ded54a27603b68184a13f7e666e0e758167652c0b65cd4dc5eff94617  $dmg" | shasum -a 256 --check
+            "https://cdn-updates.orbstack.dev/amd64/OrbStack_v${ORB_RELEASE}_${build}_amd64.dmg"
+          echo "$sha  $dmg" | shasum -a 256 --check
           hdiutil attach -readonly -nobrowse -mountpoint "$mount" "$dmg"
           ditto "$mount/OrbStack.app" "$ORB_APP"
           hdiutil detach "$mount"
@@ -81,6 +100,10 @@ jobs:
           if ! docker context inspect orbstack >/dev/null 2>&1; then
             docker context create orbstack --docker "host=unix://$HOME/.orbstack/run/docker.sock"
           fi
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.1'
+          cache: false
       - name: Build, run and scale validated containers
         env:
           TMPDIR: ${{ runner.temp }}
