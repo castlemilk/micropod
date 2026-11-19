@@ -1,6 +1,7 @@
 import Darwin
 import Foundation
 import MicropodCore
+import Security
 
 /// Durable lifecycle authority for the isolated instance only. The existing
 /// desktop account's Apple service and resources are never lifecycle targets.
@@ -13,30 +14,50 @@ public actor IsolatedRuntimeHostController {
     private var task: Task<Void, Never>?
     private var probe: Task<IsolatedRuntimeObservation, Error>?
     private var workerRunning = false
+    /// A component update is being planned off the actor.
+    private var componentPlanning = false
+    /// The authority's last live check, for status.
+    private var protection: String?
     private var fence: RuntimeMaintenanceFence?
     private var runtimeCoordinator: RuntimeCoordinatorAuthority
     private let verifyCoordinatorAccount: @Sendable (IsolatedRuntimeIdentity) throws -> Void
     /// How long a lifecycle action waits for rig work to drain before it
     /// abandons the maintenance and leaves the runtime as it was.
     private let drainTimeout: Duration
+    /// Runtime component updates (docs/runtime-component-update.md); nil in
+    /// a helper built without them.
+    private let components: RuntimeComponentUpdater?
+    /// Ends this process once a swapped-in helper must take over; launchd
+    /// (KeepAlive on failure) starts the bundle installed now.
+    private let relaunch: @Sendable () -> Void
+
+    /// Exits with EX_TEMPFAIL shortly after the reply that reported the swap.
+    public static let exitForRelaunch: @Sendable () -> Void = {
+        DispatchQueue.global().asyncAfter(deadline: .now() + 1) { exit(75) }
+    }
 
     public init(
         driver: any IsolatedRuntimeHostDriving, journal: URL = RootRuntimeStorage.operation,
         admissionRoot: URL = IsolatedRuntimePolicy.admissionRoot,
         registration: @escaping @Sendable (IsolatedRuntimeIdentity) throws -> IsolatedRuntimeRigRegistration? = {
             try IsolatedRuntimeRigRegistration.read(identity: $0)
-        }
+        },
+        components: RuntimeComponentUpdater? = nil,
+        relaunch: @escaping @Sendable () -> Void = IsolatedRuntimeHostController.exitForRelaunch
     ) {
         self.init(
             driver: driver, journal: journal, admissionRoot: admissionRoot, registration: registration,
-            drainTimeout: .seconds(120))
+            drainTimeout: .seconds(120), components: components, relaunch: relaunch)
     }
 
     init(
         driver: any IsolatedRuntimeHostDriving, journal: URL, admissionRoot: URL,
         registration: @escaping @Sendable (IsolatedRuntimeIdentity) throws -> IsolatedRuntimeRigRegistration?,
-        drainTimeout: Duration
+        drainTimeout: Duration, components: RuntimeComponentUpdater? = nil,
+        relaunch: @escaping @Sendable () -> Void = IsolatedRuntimeHostController.exitForRelaunch
     ) {
+        self.components = components
+        self.relaunch = relaunch
         self.driver = driver
         self.registration = registration
         self.journal = journal
@@ -55,8 +76,11 @@ public actor IsolatedRuntimeHostController {
         verifyCoordinatorAccount: @escaping @Sendable (IsolatedRuntimeIdentity) throws -> Void = {
             try ServiceAccountProvisioner.verifyExisting(identity: $0)
         },
-        drainTimeout: Duration = .seconds(120)
+        drainTimeout: Duration = .seconds(120), components: RuntimeComponentUpdater? = nil,
+        relaunch: @escaping @Sendable () -> Void = IsolatedRuntimeHostController.exitForRelaunch
     ) {
+        self.components = components
+        self.relaunch = relaunch
         self.driver = driver
         self.registration = { _ in nil }
         self.journal = journal
@@ -73,7 +97,18 @@ public actor IsolatedRuntimeHostController {
             let status = try? JSONDecoder().decode(IsolatedRuntimeStatus.self, from: data)
         {
             state = status
-            if !status.isTerminal {
+            if status.phase == "stagingComponents", status.localGeneration == nil, status.rigAttempted != true,
+                status.runtimeRigAttempted != true, status.runtimeActionStarted != true
+            {
+                // Staging precedes the generation, the drain and the fence:
+                // an interruption there changed nothing that needs a verify.
+                state.phase = "cancelled"
+                state.message = "Component staging was interrupted before any drain or runtime change"
+                state.error = "The helper stopped while staging; the dedicated runtime is unchanged"
+                state.runtimeCancelledBeforeAction = true
+                state.actionVerified = true
+                state.workerBirth = nil
+            } else if !status.isTerminal {
                 state.phase = "recoveryRequired"
                 state.message = "An interrupted managed runtime operation needs verification"
             }
@@ -91,7 +126,15 @@ public actor IsolatedRuntimeHostController {
             throw MicropodError.message("This runtime belongs to another macOS account")
         }
         if request.action == .status {
+            followComponentRuntime()
             var snapshot = state
+            snapshot.componentProtocol = components == nil ? nil : RuntimeComponentManifest.protocolVersion
+            snapshot.componentUpdate = components?.summary()
+            if components != nil {
+                let armed = RuntimeGateHooks.faultArmed()
+                snapshot.gateFaultArmed = armed
+                snapshot.componentProtection = Self.describeProtection(protection, gateFaultArmed: armed)
+            }
             if let identity = state.identity {
                 let pending = gate.root.appendingPathComponent("pending")
                 if let files = try? FileManager.default.contentsOfDirectory(
@@ -137,13 +180,10 @@ public actor IsolatedRuntimeHostController {
             task?.cancel()
             return state
         }
-        if runtimeCoordinator.hasRecord {
-            guard let identity = state.identity, try registration(identity) == nil,
-                try runtimeCoordinator.read(identity: identity) != nil
-            else {
-                throw MicropodError.message("The private runtime coordinator identity is incomplete or conflicting")
-            }
+        if request.action == .update || request.action == .rollback {
+            return try await submitComponentUpdate(request, ownerUID: ownerUID)
         }
+        try requireCoordinatorIdentity()
         if state.operation == request.operation {
             guard state.action == request.action else {
                 throw MicropodError.message("An operation ID cannot be reused for another action")
@@ -153,6 +193,18 @@ public actor IsolatedRuntimeHostController {
         guard task == nil, probe == nil else {
             throw MicropodError.message("A managed runtime operation is already running")
         }
+        guard !componentPlanning else {
+            throw MicropodError.message("A runtime component update is being planned")
+        }
+        // Lenient: an unreadable component journal blocks only updates. A
+        // component restart in recovery can always be verified.
+        if let record = components?.readLeniently(), !record.phase.isTerminal,
+            ![.restarting, .restoringRuntime].contains(record.phase), request.action != .verify
+        {
+            throw MicropodError.message(
+                "Runtime component update \(record.operation.uuidString) is \(record.phase.rawValue); "
+                    + "it must finish before another runtime operation")
+        }
         if request.action == .verify, gate.isClosed || handoffAttempted {
             state.phase = "recovering"
             state.message = "Verifying the retained private runtime operation"
@@ -160,6 +212,15 @@ public actor IsolatedRuntimeHostController {
             task = Task { await reconcile() }
             return state
         }
+        return try startOperation(request, ownerUID: ownerUID)
+    }
+
+    /// Records and starts a runtime operation. `stageComponents` first stages
+    /// this helper's worker, dedicated API and Apple build, as install does,
+    /// so the restart activates them under the usual drain and fence.
+    private func startOperation(
+        _ request: IsolatedRuntimeRequest, ownerUID: UInt32, staging: ComponentStaging? = nil
+    ) throws -> IsolatedRuntimeStatus {
         guard !gate.isClosed, state.phase != "recoveryRequired" else {
             throw MicropodError.message("Verify the retained runtime operation before starting another")
         }
@@ -186,17 +247,21 @@ public actor IsolatedRuntimeHostController {
         state.runtimeRigAttempted = false
         state.runtimeCancelledBeforeAction = false
         state.runtimeActionStarted = false
+        state.runtimeReleasedStopped = nil
         state.actionVerified = false
         state.localGeneration = nil
         state.phase = "preparing"
         state.message = "Preparing the dedicated runtime"
         try save()
-        task = Task { await execute(request, ownerUID: ownerUID) }
+        task = Task { await execute(request, ownerUID: ownerUID, staging: staging) }
         return state
     }
 
-    private func execute(_ request: IsolatedRuntimeRequest, ownerUID: UInt32) async {
-        defer { task = nil }
+    private func execute(_ request: IsolatedRuntimeRequest, ownerUID: UInt32, staging: ComponentStaging? = nil) async {
+        defer {
+            task = nil
+            followComponentRuntime()
+        }
         do {
             if request.action == .install {
                 try update("installing", "Verifying Apple's runtime and creating the locked service account")
@@ -209,6 +274,47 @@ public actor IsolatedRuntimeHostController {
                 state.workerSHA256 = prepared.workerSHA256
                 try update("completed", "Apple container is installed for the dedicated account; start it when ready")
                 return
+            }
+            if let staging {
+                // Nothing running changes here; data sessions continue.
+                try update(
+                    "stagingComponents", "Staging the updated runtime helper, dedicated API and Apple runtime")
+                let prepared: PreparedIsolatedRuntime
+                switch staging {
+                case .install(let source):
+                    prepared = try await driver.prepare(ownerUID: ownerUID, components: source)
+                    guard prepared.workerSHA256 == source.helperSHA256, prepared.api == source.api else {
+                        throw MicropodError.message("The staged runtime components are not the verified release")
+                    }
+                case .restore(let runtime):
+                    guard let identity = state.identity else {
+                        throw MicropodError.message("The dedicated runtime is not installed")
+                    }
+                    prepared = try await driver.restore(identity: identity, runtime: runtime)
+                    guard prepared.workerSHA256 == runtime.workerSHA256, prepared.api == runtime.api,
+                        prepared.receipt.selection == runtime.selection
+                    else { throw MicropodError.message("The restored runtime is not the retained one") }
+                }
+                guard state.identity == prepared.identity else {
+                    throw MicropodError.message("Runtime staging changed the private account")
+                }
+                state.pendingSelection = prepared.receipt.selection
+                state.workerSHA256 = prepared.workerSHA256
+                try save()
+                // A coordinator that will not schedule onto this build is told
+                // nothing to drain: the restart settles before any handoff.
+                if try runtimeCoordinator.read(identity: prepared.identity) != nil,
+                    await coordinatorQualifies() == false
+                {
+                    state.runtimeCancelledBeforeAction = true
+                    state.actionVerified = true
+                    state.error =
+                        "The rig coordinator does not qualify Apple runtime \(prepared.receipt.selection.version) "
+                        + "(\(prepared.receipt.selection.packageSHA256.prefix(12))); nothing was drained and the "
+                        + "dedicated runtime is unchanged"
+                    try update("failed", "The rig coordinator does not schedule onto this runtime build")
+                    return
+                }
             }
             guard let identity = state.identity, let digest = state.workerSHA256,
                 let selection = state.selection ?? state.pendingSelection
@@ -249,6 +355,14 @@ public actor IsolatedRuntimeHostController {
                         try settleUnrecordedHandoff(
                             refusal, phase: "failed",
                             message: "The rig coordinator did not take this maintenance; "
+                                + "the dedicated runtime is unchanged")
+                        return
+                    } catch let unprocessed as RuntimeCoordinatorRefusedUnprocessed where firstDrain {
+                        // Refused before the coordinator saw it (an Apple build
+                        // the agent does not qualify, for one): nothing holds it.
+                        try settleUnrecordedHandoff(
+                            unprocessed, phase: "failed",
+                            message: "The rig refused this maintenance before recording it; "
                                 + "the dedicated runtime is unchanged")
                         return
                     } catch let unsent as RuntimeRigAdmissionError where firstDrain {
@@ -380,7 +494,10 @@ public actor IsolatedRuntimeHostController {
         try save()
     }
     private func reconcile() async {
-        defer { task = nil }
+        defer {
+            task = nil
+            followComponentRuntime()
+        }
         do {
             guard let id = state.operation, let identity = state.identity, let digest = state.workerSHA256,
                 let selection = state.selection ?? state.pendingSelection
@@ -389,6 +506,15 @@ public actor IsolatedRuntimeHostController {
                 throw MicropodError.message("The prior runtime worker remains active; wait for its outcome")
             }
             if !gate.isClosed, state.actionVerified == true {
+                if state.runtimeReleasedStopped == true {
+                    // The stopped release's reply was lost: confirm it again.
+                    let observed = try await run(.verify, identity: identity, digest: digest, selection: selection)
+                    guard observed.state == "stopped" else {
+                        throw MicropodError.message("The stopped runtime changed; no runtime command was replayed")
+                    }
+                    try await releaseStopped(observed)
+                    return
+                }
                 if state.runtimeCancelledBeforeAction == true {
                     if handoffAttempted { try await requireHandoff("abortComplete", phase: "cancelled") }
                     clearHandoff()
@@ -452,6 +578,12 @@ public actor IsolatedRuntimeHostController {
             let observed = try await run(.verify, identity: identity, digest: digest, selection: selection)
             let expected = state.action == .stop ? "stopped" : "nativeReady"
             guard observed.state == expected else {
+                if observed.state == "stopped", state.runtimeRigAttempted == true {
+                    // The action began and the runtime is positively stopped:
+                    // the new build did not come up. Settle with the rig held.
+                    try await releaseStopped(observed)
+                    return
+                }
                 throw MicropodError.message(
                     "The retained runtime outcome is unconfirmed; no stop or start was replayed")
             }
@@ -520,6 +652,33 @@ public actor IsolatedRuntimeHostController {
     }
     private var handoffAttempted: Bool { state.rigAttempted == true || state.runtimeRigAttempted == true }
 
+    /// The release kind a completed action reports.
+    private var completedKind: RuntimeCoordinationReleaseKind {
+        state.action == .stop || state.runtimeReleasedStopped == true ? .stopped : .running
+    }
+
+    /// A start or restart whose action began and left the runtime verified
+    /// stopped. Before, only its target state could release it, so the rig
+    /// waited in recovery for an outcome that would never come. It is
+    /// released as stopped: Cuttlefish keeps intake paused, and only a new
+    /// explicit start (or `micropod runtime update --rollback`) resumes work.
+    /// An older coordinator refuses this, and the operation stays in recovery.
+    private func releaseStopped(_ observed: IsolatedRuntimeObservation) async throws {
+        adopt(observed)
+        state.runtimeReleasedStopped = true
+        state.actionVerified = true
+        try update("releasing", "The dedicated runtime did not come up and is stopped; releasing the rig paused")
+        try fence?.releaseAfterVerification()
+        fence = nil
+        try await requireHandoff("complete", phase: "completed")
+        clearHandoff()
+        state.workerBirth = nil
+        state.error =
+            "The dedicated runtime did not start after its change and is stopped. Rig intake stays paused until "
+            + "`micropod runtime start` or `micropod runtime update --rollback`"
+        try update("failed", "Dedicated runtime is stopped; rig intake stays paused")
+    }
+
     private func clearHandoff() {
         state.rigAttempted = false
         state.runtimeRigAttempted = false
@@ -548,7 +707,7 @@ public actor IsolatedRuntimeHostController {
         let operation = try coordinatedOperation()
         let releaseKind: RuntimeCoordinationReleaseKind? =
             action == "abortComplete"
-            ? .cancelled : (action == "complete" ? (state.action == .stop ? .stopped : .running) : nil)
+            ? .cancelled : (action == "complete" ? completedKind : nil)
         let challenge = try runtimeCoordinator.issueOperationChallenge(
             identity: identity, peer: record.peer, operation: operation,
             purpose: releaseKind == nil ? "maintenance" : "release-observation")
@@ -563,6 +722,10 @@ public actor IsolatedRuntimeHostController {
         else { throw MicropodError.message("The private runtime handoff changed identity") }
         if reply.phase == RuntimeCoordinationRigReply.notRecordedPhase {
             throw RuntimeCoordinatorNotRecorded(reason: reply.reason ?? "")
+        }
+        if reply.phase == RuntimeCoordinationRigReply.refusedPhase {
+            // The agent refused the call before its coordinator saw it.
+            throw RuntimeCoordinatorRefusedUnprocessed(reason: reply.reason ?? "")
         }
         if let reason = reply.reason, !reason.isEmpty, reply.phase != "draining" {
             throw MicropodError.message(reason)
@@ -720,8 +883,7 @@ public actor IsolatedRuntimeHostController {
                 throw MicropodError.message("The release recovery proof is incomplete")
             }
             let kind: RuntimeCoordinationReleaseKind =
-                state.runtimeCancelledBeforeAction == true
-                ? .cancelled : (state.action == .stop ? .stopped : .running)
+                state.runtimeCancelledBeforeAction == true ? .cancelled : completedKind
             let enrollment = try runtimeCoordinator.rebindReleasedPeer(
                 proof, challenge: challenge, identity: identity, peer: peer, retained: retained, kind: kind)
             return .init(identity: identity, peer: peer, enrollment: enrollment)
@@ -821,6 +983,8 @@ public actor IsolatedRuntimeHostController {
         guard state.runtimeActionStarted == false else { return false }
         return (state.phase == "draining" && state.runtimeRigAttempted == true)
             || (state.action == .install && ["preparing", "installing"].contains(state.phase))
+            // A component update stages before it drains: nothing changed yet.
+            || (state.phase == "stagingComponents" && state.localGeneration == nil && !retained)
     }
 
     private func coordinatedOperation() throws -> RuntimeCoordinationOperation {
@@ -831,6 +995,282 @@ public actor IsolatedRuntimeHostController {
         return try .init(
             operation: operation, identity: identity, action: action.rawValue,
             localGeneration: Int64(generation), selection: selection)
+    }
+
+    // MARK: Runtime component updates
+
+    /// What a component restart stages before it drains.
+    enum ComponentStaging: Sendable {
+        /// The verified target, from root's sealed copy.
+        case install(RuntimeComponentSource)
+        /// The runtime a rollback returns to.
+        case restore(RuntimeComponentRuntime)
+    }
+
+    private var componentRuntime: RuntimeComponentRuntime? {
+        guard let identity = state.identity, let selection = state.selection, let worker = state.workerSHA256,
+            let api = components?.environment.activeAPI(identity: identity)
+        else { return nil }
+        return .init(selection: selection, workerSHA256: worker, api: api)
+    }
+
+    private var componentsIdle: Bool {
+        get throws {
+            try task == nil && probe == nil && !workerRunning && !componentPlanning && !gate.isClosed
+                && state.isTerminal && state.phase != "recoveryRequired" && !handoffAttempted
+                && state.workerBirth?.hasExited() != false
+        }
+    }
+
+    /// `update` and `rollback`. The helper swap runs unfenced and undrained:
+    /// the dedicated API and Apple runtime keep serving. The runtime follows
+    /// in an ordinary coordinated restart (``continueComponentUpdate()``).
+    private func submitComponentUpdate(_ request: IsolatedRuntimeRequest, ownerUID: UInt32) async throws
+        -> IsolatedRuntimeStatus
+    {
+        guard let components else {
+            throw MicropodError.message("This runtime helper cannot update its own components")
+        }
+        refreshProtection()
+        func snapshot() -> IsolatedRuntimeStatus {
+            var current = state
+            current.componentProtocol = RuntimeComponentManifest.protocolVersion
+            current.componentUpdate = components.summary()
+            let armed = RuntimeGateHooks.faultArmed()
+            current.gateFaultArmed = armed
+            current.componentProtection = Self.describeProtection(protection, gateFaultArmed: armed)
+            return current
+        }
+        if let record = components.readLeniently(), record.operation == request.operation {
+            guard record.rollback == (request.action == .rollback) else {
+                throw MicropodError.message("An operation ID cannot be reused for another action")
+            }
+            return snapshot()
+        }
+        guard state.identity != nil, let selection = state.selection ?? state.pendingSelection else {
+            throw MicropodError.message("Install the dedicated runtime before updating its components")
+        }
+        guard try componentsIdle else {
+            throw MicropodError.message(
+                "Finish or verify the current runtime operation (`micropod runtime recover`) before updating "
+                    + "components")
+        }
+        // Planning reads and hashes another account's files: never on the
+        // actor, and nothing else starts meanwhile.
+        componentPlanning = true
+        let runtime = componentRuntime
+        let rollback = request.action == .rollback
+        let planned = await Task.detached {
+            Result {
+                try components.plan(
+                    operation: request.operation, ownerUID: ownerUID, installedSelection: selection,
+                    runtime: runtime, rollback: rollback)
+            }
+        }.value
+        componentPlanning = false
+        try start(try planned.get())
+        return snapshot()
+    }
+
+    /// Starts whatever a planned or resumed record needs next.
+    private func start(_ record: RuntimeComponentUpdateRecord) throws {
+        switch record.phase {
+        case .staging:
+            let selection = state.selection ?? state.pendingSelection
+            guard let selection else { return }
+            task = Task { await swapComponents(record, selection: selection) }
+        case .helperReady:
+            try continueRuntime(record)
+        case .restoringRuntime where record.runtimeOperation == nil:
+            try restoreRuntime(record)
+        default:
+            break
+        }
+    }
+
+    private func swapComponents(_ record: RuntimeComponentUpdateRecord, selection: ManagedRuntimeLocation.Selection)
+        async
+    {
+        guard let components else { return }
+        let swapped = await Task.detached { try? components.stageAndSwap(record, installedSelection: selection) }
+            .value
+        if let swapped, [.swapping, .relaunching].contains(swapped.phase) {
+            // Keep `task` set: no other operation may start in this process.
+            relaunch()
+            return
+        }
+        task = nil
+        if let swapped, swapped.phase == .helperReady { try? continueRuntime(swapped) }
+    }
+
+    /// Called once the helper serves: records this helper's protection,
+    /// confirms a swapped-in helper, then lets the runtime follow. Returns
+    /// false while a swapped-in helper is still unconfirmed, so the launch
+    /// watchdog can count it.
+    @discardableResult
+    public func continueComponentUpdate() async -> Bool {
+        guard let components else { return true }
+        refreshProtection()
+        var confirmed = true
+        do {
+            if components.readLeniently()?.phase == .relaunching { confirmed = try components.confirmTarget() }
+            if let record = components.readLeniently(), !record.phase.isTerminal {
+                if [.restarting, .restoringRuntime].contains(record.phase), record.runtimeOperation != nil {
+                    followComponentRuntime()
+                } else {
+                    try start(record)
+                }
+            }
+        } catch {
+            confirmed = false
+            fputs("Runtime component update could not continue: \(error.localizedDescription)\n", stderr)
+        }
+        return confirmed
+    }
+
+    /// Re-reads the live authority job (``RuntimeAuthority/protection``).
+    private func refreshProtection() {
+        guard let components else { return }
+        let protection = components.environment.protection()
+        recordProtection(protection)
+        components.environment.publishProtection(protection)
+    }
+
+    /// A protection check made off the actor (the helper repeats one every
+    /// few minutes, so status and the manifest's `runtime-authority` state
+    /// follow a re-enabled legacy job).
+    public func recordProtection(_ protection: RuntimeAuthority.Protection) {
+        guard components != nil else { return }
+        self.protection = protection.protected ? "protected" : "unprotected: " + (protection.reason ?? "unknown")
+    }
+
+    /// `componentProtection` as status reports it: an armed release-gate
+    /// fault is always visible.
+    static func describeProtection(_ protection: String?, gateFaultArmed: Bool) -> String? {
+        guard let protection else { return nil }
+        return gateFaultArmed ? protection + "; release-gate fault armed" : protection
+    }
+
+    /// Starts the coordinated restart that activates this helper's worker,
+    /// API and Apple build, from root's sealed verified copy, or settles the
+    /// update when nothing is left to do or the runtime cannot be restarted
+    /// now. It never waits on anything.
+    private func continueRuntime(_ start: RuntimeComponentUpdateRecord) throws {
+        guard let components else { return }
+        var record = start
+        guard record.phase == .helperReady, let target = record.target else { return }
+        let source: URL
+        do { source = try components.verifiedSource(record) } catch {
+            try components.settle(&record, .recoveryRequired, error.localizedDescription)
+            return
+        }
+        let targetAPI = RuntimeComponentAPI(executableSHA256: target.apiSHA256, guestSHA256: target.guestSHA256)
+        if !record.restartRuntime
+            || (state.workerSHA256 == target.helperSHA256 && state.pendingSelection == nil
+                && state.identity.flatMap({ components.environment.activeAPI(identity: $0) }) == targetAPI)
+        {
+            try components.finishWithoutRestart(&record)
+            return
+        }
+        // A runtime the operator stopped stays stopped: only a runtime this
+        // helper released as stopped is started again.
+        if state.action == .stop || (state.nativeState == "stopped" && state.runtimeReleasedStopped != true) {
+            try components.deferRuntime(&record, "it was stopped deliberately and stays stopped")
+            return
+        }
+        guard try componentsIdle else {
+            try components.deferRuntime(&record, "another runtime operation needs verification first")
+            return
+        }
+        let operation = UUID()
+        try components.beginRuntime(&record, operation: operation, previous: componentRuntime)
+        do {
+            try requireCoordinatorIdentity()
+            // A runtime released as stopped (its rig paused) resumes only by
+            // an explicit start; otherwise the runtime restarts onto the target.
+            let action: IsolatedRuntimeAction = state.runtimeReleasedStopped == true ? .start : .restart
+            _ = try startOperation(
+                .init(operation: operation, action: action), ownerUID: record.ownerUID,
+                staging: .install(.init(bundle: source, helperSHA256: target.helperSHA256, api: targetAPI)))
+        } catch {
+            try components.deferRuntime(&record, error.localizedDescription)
+        }
+    }
+
+    /// A rollback whose runtime moved: the current helper, which manages both
+    /// builds, restarts the runtime onto the retained previous one first.
+    private func restoreRuntime(_ start: RuntimeComponentUpdateRecord) throws {
+        guard let components else { return }
+        var record = start
+        guard let previous = record.previousRuntime else {
+            try components.runtimeRestored(&record)
+            try self.start(record)
+            return
+        }
+        guard try componentsIdle else {
+            try components.deferRuntime(&record, "another runtime operation needs verification first")
+            return
+        }
+        let operation = UUID()
+        try components.beginRuntime(&record, operation: operation, previous: nil)
+        do {
+            try requireCoordinatorIdentity()
+            let action: IsolatedRuntimeAction = state.runtimeReleasedStopped == true ? .start : .restart
+            _ = try startOperation(
+                .init(operation: operation, action: action), ownerUID: record.ownerUID,
+                staging: .restore(previous))
+        } catch {
+            try components.deferRuntime(&record, error.localizedDescription)
+        }
+    }
+
+    private func requireCoordinatorIdentity() throws {
+        if runtimeCoordinator.hasRecord {
+            guard let identity = state.identity, try registration(identity) == nil,
+                try runtimeCoordinator.read(identity: identity) != nil
+            else {
+                throw MicropodError.message("The private runtime coordinator identity is incomplete or conflicting")
+            }
+        }
+    }
+
+    /// Lets a component update follow its restart's outcome; a rollback
+    /// whose runtime is restored goes on to the helper swap.
+    private func followComponentRuntime() {
+        guard let components else { return }
+        let api = state.identity.flatMap { components.environment.activeAPI(identity: $0) }
+        guard (try? components.followRuntime(state, activeAPI: api)) == true,
+            let record = components.readLeniently(), task == nil
+        else { return }
+        try? start(record)
+    }
+
+    /// Asks the coordinator, before anything is drained, whether it schedules
+    /// onto this build. True or false is its answer; nil means it cannot say
+    /// (an older agent), and the drain decides as before.
+    private func coordinatorQualifies() async -> Bool? {
+        guard let identity = state.identity, let record = try? runtimeCoordinator.read(identity: identity),
+            let id = state.operation, let action = state.action,
+            let selection = state.pendingSelection ?? state.selection,
+            let generation = try? gate.nextGeneration(), generation <= UInt64(Int64.max),
+            let operation = try? RuntimeCoordinationOperation(
+                operation: id, identity: identity, action: action.rawValue, localGeneration: Int64(generation),
+                selection: selection)
+        else { return nil }
+        var bytes = [UInt8](repeating: 0, count: 32)
+        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else { return nil }
+        let challenge = bytes.map { String(format: "%02x", $0) }.joined()
+        guard
+            let reply = try? await driver.coordinateRuntime(
+                identity: identity, peer: record.peer,
+                call: .init(
+                    action: "qualify", operation: operation, enrollment: record.enrollment, challenge: challenge))
+        else { return nil }
+        switch reply.phase {
+        case RuntimeCoordinationRigReply.qualifiedPhase: return true
+        case RuntimeCoordinationRigReply.notRecordedPhase: return false
+        default: return nil
+        }
     }
 
     private func publishFence() throws {

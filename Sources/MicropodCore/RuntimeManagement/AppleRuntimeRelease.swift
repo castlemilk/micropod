@@ -16,6 +16,25 @@ public struct AppleRuntimeRelease: Codable, Sendable, Equatable {
         packageSHA256: "a24808cb202318fa1c3bbee0c6c6887fe1225fe899d7b687a0ddd939bd6573f8",
         packageBytes: 118_045_087,
         teamIdentifier: "UPBK2H6LZM")
+
+    /// Every build this helper can verify and manage. `supported` is the one
+    /// it installs; a patched build, or the build a rollback returns to, is
+    /// one more entry with its own payload inventory. Verification, restore
+    /// and the component probe all follow this table.
+    public static let releases: [AppleRuntimeRelease] = [supported]
+    static let payloads: [String: [String: String]] = [supported.packageSHA256: payloadSHA256]
+
+    public static func release(for selection: ManagedRuntimeLocation.Selection) -> AppleRuntimeRelease? {
+        releases.first { $0.version == selection.version && $0.packageSHA256 == selection.packageSHA256 }
+    }
+
+    /// The SHA-256 of every payload file of the build `selection` names.
+    public static func payload(for selection: ManagedRuntimeLocation.Selection) -> [String: String]? {
+        guard release(for: selection) != nil else { return nil }
+        return payloads[selection.packageSHA256]
+    }
+
+    public var payload: [String: String]? { Self.payloads[packageSHA256] }
 }
 
 public enum ManagedRuntimeLocation {
@@ -36,10 +55,7 @@ public enum ManagedRuntimeLocation {
         public var directoryName: String {
             version + "-" + packageSHA256 + (incarnation.map { "-" + $0.uuidString } ?? "")
         }
-        public var isSupported: Bool {
-            version == AppleRuntimeRelease.supported.version
-                && packageSHA256 == AppleRuntimeRelease.supported.packageSHA256
-        }
+        public var isSupported: Bool { AppleRuntimeRelease.release(for: self) != nil }
     }
 
     public static func selection(at root: URL = root) throws -> Selection? {

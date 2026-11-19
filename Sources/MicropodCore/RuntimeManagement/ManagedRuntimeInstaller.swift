@@ -100,7 +100,7 @@ public actor ManagedRuntimeInstaller {
         else { throw MicropodError.message("Apple runtime package layout is unsupported") }
         let payload = expanded.appendingPathComponent("Payload")
         let files = try await inspectPayload(payload)
-        guard files == AppleRuntimeRelease.payloadSHA256 else {
+        guard let expected = release.payload, files == expected else {
             throw MicropodError.message("Apple runtime package is incomplete")
         }
         let selection = ManagedRuntimeLocation.Selection(
@@ -121,14 +121,14 @@ public actor ManagedRuntimeInstaller {
     }
 
     public func verify(_ receipt: ManagedRuntimeReceipt) throws {
-        guard receipt.selection.isSupported, receipt.files == AppleRuntimeRelease.payloadSHA256 else {
+        guard receipt.selection.isSupported, receipt.files == AppleRuntimeRelease.payload(for: receipt.selection) else {
             throw MicropodError.message("Unqualified runtime receipt")
         }
         try verify(receipt, at: root.appendingPathComponent("versions/" + receipt.selection.directoryName))
     }
 
     private func verify(_ receipt: ManagedRuntimeReceipt, at directory: URL) throws {
-        guard receipt.files == AppleRuntimeRelease.payloadSHA256 else {
+        guard receipt.files == AppleRuntimeRelease.payload(for: receipt.selection) else {
             throw MicropodError.message("Unqualified runtime file inventory")
         }
         guard try directory.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink != true,
@@ -205,14 +205,15 @@ public actor ManagedRuntimeInstaller {
     }
 
     public nonisolated static func sha256(_ file: URL) throws -> String {
-        let fd = open(file.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+        // O_NONBLOCK: a FIFO in place of an artifact is refused, not waited on.
+        let fd = open(file.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK)
         guard fd >= 0 else { throw MicropodError.message("Runtime artifact is unavailable or is a symbolic link") }
         let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
         defer { try? handle.close() }
         var info = stat()
         guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG,
-            info.st_size >= 0, info.st_size <= 1 << 30
-        else { throw MicropodError.message("Runtime artifact exceeds its size limit") }
+            info.st_size >= 0, info.st_size <= 1 << 30, fcntl(fd, F_SETFL, 0) == 0
+        else { throw MicropodError.message("Runtime artifact is not a bounded regular file") }
         var hasher = SHA256()
         while let bytes = try handle.read(upToCount: 1 << 20), !bytes.isEmpty { hasher.update(data: bytes) }
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()

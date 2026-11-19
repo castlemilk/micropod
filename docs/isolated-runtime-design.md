@@ -40,6 +40,11 @@ anything. It announces its kernel incarnation and waits until the root helper
 has synchronized that witness before receiving its typed action. No IPC
 request chooses a uid, executable, package URL, shell command or store.
 
+Later releases replace the setup app, helper, dedicated API and Apple build
+without a new approval: the approved helper verifies a release-signed
+manifest, swaps its own bundle and restarts the runtime under the drain
+([runtime-component-update.md](runtime-component-update.md)).
+
 ## Data plane and health
 
 A root-owned LaunchAgent runs MicropodAPI independently of the GUI and helper.

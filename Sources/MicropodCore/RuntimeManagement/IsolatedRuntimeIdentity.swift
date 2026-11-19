@@ -7,7 +7,47 @@ public enum IsolatedRuntimePolicy {
     public static let schema = "micropod-isolated-runtime-v1"
     public static let accountName = "_micropod"
     public static let serviceName = "com.skunkworq.micropod.runtime.host"
-    public static let helperIdentifier = "com.skunkworq.micropod.runtime.host"
+    /// The root helper's signing identifier. It changed with runtime
+    /// component updates: the LaunchDaemon's SpawnConstraint pins this one, so
+    /// no earlier helper build (`legacyHelperIdentifier`) can be spawned from
+    /// a replaced bundle.
+    public static let helperIdentifier = "com.skunkworq.micropod.runtime-authority"
+    /// Helpers built before the SpawnConstraint. Clients still talk to one
+    /// until it is bootstrapped; nothing installs or runs one as root.
+    public static let legacyHelperIdentifier = "com.skunkworq.micropod.runtime.host"
+    /// What a client accepts as the root helper on the other end of XPC.
+    /// The legacy identifier is accepted only until
+    /// ``legacyHelperSunset``: a helper still unmigrated by then is refused.
+    public static var helperPeerIdentifiers: [String] {
+        legacyHelperAccepted() ? [helperIdentifier, legacyHelperIdentifier] : [helperIdentifier]
+    }
+    /// After this date no client talks to, and no helper runs a worker of, a
+    /// helper signed with ``legacyHelperIdentifier``.
+    public static let legacyHelperSunset = Date(timeIntervalSince1970: 1_806_537_600)  // 2027-04-01T00:00:00Z
+    public static func legacyHelperAccepted(at now: Date = Date()) -> Bool { now < legacyHelperSunset }
+    /// The root-owned LaunchDaemon (`RuntimeAuthority`). Its Mach service is
+    /// new so it never collides with the legacy SMAppService job's.
+    public static let authorityLabel = "com.skunkworq.micropod.runtime.authority"
+    public static let authorityServiceName = "com.skunkworq.micropod.runtime.authority"
+    /// The Mach services a client tries. Once the authority's plist exists
+    /// only the authority is trusted: the legacy SMAppService job has no
+    /// SpawnConstraint, so a client never falls back to it after
+    /// install-authority wrote the plist (it retires that job as well).
+    public static var clientServiceNames: [String] {
+        clientServiceNames(authorityInstalled: FileManager.default.fileExists(atPath: authorityPlist.path))
+    }
+    public static func clientServiceNames(authorityInstalled: Bool) -> [String] {
+        authorityInstalled ? [authorityServiceName] : [authorityServiceName, serviceName]
+    }
+    /// The root-only sealed setup app the authority runs from.
+    public static var authorityBundle: URL {
+        root.appendingPathComponent("authority/current/Micropod Runtime Setup.app")
+    }
+    public static var authorityProgram: URL {
+        authorityBundle.appendingPathComponent("Contents/MacOS/MicropodRuntimeHost")
+    }
+    public static let authorityPlist = URL(
+        fileURLWithPath: "/Library/LaunchDaemons/com.skunkworq.micropod.runtime.authority.plist")
     public static let setupIdentifier = "com.skunkworq.micropod.runtime-setup"
     public static let teamIdentifier = "WFTX6CN23F"
     public static let publicProviderIdentifiers = ["com.skunkworq.micropod.api", "com.skunkworq.micropod.docker-shim"]

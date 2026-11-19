@@ -5,14 +5,27 @@ import Foundation
 /// package URL or administrator credential in the client protocol.
 public struct IsolatedRuntimeClient: Sendable {
     public init() {}
+    /// The root-owned authority first; the legacy SMAppService job only while
+    /// no authority plist is installed and the authority's service cannot be
+    /// reached at all (``IsolatedRuntimePolicy/clientServiceNames``).
     public func call(_ request: IsolatedRuntimeRequest) async throws -> IsolatedRuntimeStatus {
+        var unreachable: Error?
+        for service in IsolatedRuntimePolicy.clientServiceNames {
+            do { return try await call(request, service: service) } catch let error as RuntimeHelperUnreachable {
+                unreachable = error
+            }
+        }
+        throw unreachable ?? RuntimeHelperUnreachable()
+    }
+
+    func call(_ request: IsolatedRuntimeRequest, service: String) async throws -> IsolatedRuntimeStatus {
         try Task.checkCancellation()
         let payload = try JSONEncoder().encode(request)
         return try await withCheckedThrowingContinuation { continuation in
             nonisolated(unsafe) let connection = xpc_connection_create_mach_service(
-                IsolatedRuntimePolicy.serviceName, nil, UInt64(XPC_CONNECTION_MACH_SERVICE_PRIVILEGED))
+                service, nil, UInt64(XPC_CONNECTION_MACH_SERVICE_PRIVILEGED))
             do {
-                try RuntimeCodeIdentity.require(connection, identifiers: [IsolatedRuntimePolicy.helperIdentifier])
+                try RuntimeCodeIdentity.require(connection, identifiers: IsolatedRuntimePolicy.helperPeerIdentifiers)
             } catch {
                 xpc_connection_cancel(connection)
                 continuation.resume(throwing: error)
@@ -29,10 +42,9 @@ public struct IsolatedRuntimeClient: Sendable {
                 gate.finish {
                     defer { xpc_connection_cancel(connection) }
                     do {
-                        guard xpc_get_type(reply) == XPC_TYPE_DICTIONARY, xpc_connection_get_euid(connection) == 0
-                        else {
-                            throw MicropodError.message(
-                                "Approve Micropod's runtime helper in macOS Settings to continue")
+                        guard xpc_get_type(reply) == XPC_TYPE_DICTIONARY else { throw RuntimeHelperUnreachable() }
+                        guard xpc_connection_get_euid(connection) == 0 else {
+                            throw MicropodError.message("The runtime helper is not running as root")
                         }
                         var count = 0
                         guard let bytes = xpc_dictionary_get_data(reply, "response", &count), count <= 65536 else {
@@ -66,5 +78,14 @@ private final class RuntimeReplyOnce: @unchecked Sendable {
             return true
         }
         if first { body() }
+    }
+}
+
+/// No root helper answered on a service: it is not installed, not loaded, or
+/// exited before replying.
+public struct RuntimeHelperUnreachable: LocalizedError, Sendable {
+    public init() {}
+    public var errorDescription: String? {
+        "Micropod's runtime helper is not installed or not running; `sudo micropod runtime install-authority` installs it"
     }
 }

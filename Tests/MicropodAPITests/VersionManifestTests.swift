@@ -341,6 +341,56 @@ final class VersionManifestTests: XCTestCase {
             try UpdateServiceWitness.digest(stamped.appendingPathComponent("Contents/MacOS/MicropodRuntimeHost")))
     }
 
+    // R4: the fleet sees which rigs still depend on the legacy helper.
+    func testTheRuntimeAuthorityIsMissingWhileTheDedicatedRuntimeUsesTheLegacyHelper() throws {
+        let plist = root.appendingPathComponent("LaunchDaemons/authority.plist")
+        let bundle = root.appendingPathComponent("authority/current/Micropod Runtime Setup.app")
+        let legacy = root.appendingPathComponent("Applications/Micropod Runtime Setup.app")
+        let program = bundle.appendingPathComponent("Contents/MacOS/MicropodRuntimeHost").path
+        let legacyProgram = legacy.appendingPathComponent("Contents/MacOS/MicropodRuntimeHost").path
+        let published = root.appendingPathComponent("protection.json")
+        func probe(_ helpers: [String], dedicated: Bool) -> Micropod_V1_ComponentVersion {
+            ComponentProbe.runtimeAuthority(
+                helpers: helpers, dedicated: dedicated, plist: plist, bundle: bundle, legacyBundle: legacy,
+                protection: published, protectionOwner: getuid())
+        }
+        func publish(protected: Bool, legacyActive: Bool) throws {
+            try JSONSerialization.data(withJSONObject: [
+                "protected": protected, "legacyActive": legacyActive, "reason": protected ? NSNull() : "why",
+                "checkedAt": 0,
+            ]).write(to: published)
+        }
+        XCTAssertEqual(probe([], dedicated: false).state, "not_configured")
+        let migrate = probe([legacyProgram], dedicated: true)
+        XCTAssertEqual(migrate.name, "runtime-authority")
+        XCTAssertEqual(migrate.state, "missing")
+        XCTAssertTrue(migrate.detail.contains("install-authority` before 2027-04-01"), migrate.detail)
+        XCTAssertEqual(probe([legacyProgram], dedicated: false).state, "missing", "a legacy helper alone")
+
+        try FileManager.default.createDirectory(
+            at: plist.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("plist".utf8).write(to: plist)
+        try writeBundle(
+            bundle, ["CFBundleShortVersionString": "0.14.0", "MicropodSourceRevision": Self.revision],
+            executable: "MicropodRuntimeHost")
+        XCTAssertEqual(probe([program], dedicated: true).state, "unknown", "no published protection check")
+        try publish(protected: true, legacyActive: false)
+        let serving = probe([program], dedicated: true)
+        XCTAssertEqual(serving.state, "running")
+        XCTAssertEqual(serving.version, "0.14.0")
+        // F7: a failed protection check is its own state, and a legacy job
+        // that is not retired is distinguished from any other failure.
+        try publish(protected: false, legacyActive: true)
+        let legacyActive = probe([program], dedicated: true)
+        XCTAssertEqual(legacyActive.state, "legacy_active")
+        XCTAssertTrue(legacyActive.detail.contains("not retired"), legacyActive.detail)
+        try publish(protected: false, legacyActive: false)
+        XCTAssertEqual(probe([program], dedicated: true).state, "unprotected")
+        let blocked = probe([legacyProgram], dedicated: true)
+        XCTAssertEqual(blocked.state, "stopped")
+        XCTAssertTrue(blocked.detail.contains("run install-authority again"), blocked.detail)
+    }
+
     func testRetainedServiceReportsItsPayloadReleaseNotTheDesktops() throws {
         let payload = root.appendingPathComponent("payloads/0.13.0-abc/Micropod.app")
         try writeBundle(

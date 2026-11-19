@@ -52,6 +52,11 @@ version,revision=sys.argv[2],sys.argv[3]
  'NSSupportsAutomaticTermination':False,'NSSupportsSuddenTermination':False,
  'NSHumanReadableCopyright':'© 2026 skunkworq',
 }))
+# The legacy SMAppService definition, byte-identical to earlier releases.
+# Nothing registers it any more: a rig that still has the legacy job keeps
+# it pointing at this bundle, whose helper yields to the root-owned runtime
+# authority (a classic LaunchDaemon compiled into the helper, see
+# docs/runtime-component-update.md), and Runtime Setup unregisters it.
 (root/'Contents/Library/LaunchDaemons/com.skunkworq.micropod.runtime.host.plist').write_bytes(plistlib.dumps({
  'Label':'com.skunkworq.micropod.runtime.host',
  'BundleProgram':'Contents/MacOS/MicropodRuntimeHost',
@@ -63,7 +68,7 @@ version,revision=sys.argv[2],sys.argv[3]
 PY
 runtime_signature_options=(--options runtime)
 if [[ "$runtime_identity" != - ]]; then runtime_signature_options+=(--timestamp); fi
-codesign --force --sign "$runtime_identity" "${runtime_signature_options[@]}" --entitlements "$runtime_stage_root/empty-entitlements.plist" --identifier com.skunkworq.micropod.runtime.host "$runtime_stage/Contents/MacOS/MicropodRuntimeHost"
+codesign --force --sign "$runtime_identity" "${runtime_signature_options[@]}" --entitlements "$runtime_stage_root/empty-entitlements.plist" --identifier com.skunkworq.micropod.runtime-authority "$runtime_stage/Contents/MacOS/MicropodRuntimeHost"
 codesign --force --sign "$runtime_identity" "${runtime_signature_options[@]}" --entitlements "$runtime_project/signing/micropod-cli.entitlements" --identifier com.skunkworq.micropod.api "$runtime_stage/Contents/MacOS/MicropodAPI"
 codesign --force --sign "$runtime_identity" "${runtime_signature_options[@]}" --entitlements "$runtime_stage_root/empty-entitlements.plist" --identifier com.skunkworq.micropod.runtime-setup "$runtime_stage/Contents/MacOS/MicropodRuntimeSetup"
 rm "$runtime_stage_root/empty-entitlements.plist"

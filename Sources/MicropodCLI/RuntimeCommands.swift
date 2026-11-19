@@ -11,6 +11,8 @@ enum RuntimeCommands {
         runtime ls                            engines, availability, default
         runtime install|repair|start|stop|restart  managed runtime operations (approved helper required)
         runtime operation|cancel|recover        progress, cancellation and verified recovery
+        runtime update [--rollback]           move the dedicated runtime to the installed app's release
+        runtime install-authority             (sudo, once) install the root-owned runtime helper
         runtime status                        Apple dependency readiness and next action (--json supported)
         runtime use <name>                    make <name> the default for new containers
         runtime enable|disable <name>         include/exclude an engine from ps and run
@@ -21,6 +23,10 @@ enum RuntimeCommands {
         let registry = EngineRegistry.shared
         let apple = services.runtime.router?.apple ?? AppleEngine(services: services.runtime)
         switch args.first ?? "ls" {
+        case "update":
+            try await RuntimeUpdateCommands.run(Array(args.dropFirst()))
+        case "install-authority":
+            try await RuntimeAuthorityCommands.run(Array(args.dropFirst()))
         case "install", "repair", "start", "stop", "restart", "cancel", "recover", "operation":
             let parsed = try parseArgs(
                 Array(args.dropFirst()), boolFlags: [], valueFlags: [], commandName: "runtime " + args[0])
@@ -114,15 +120,10 @@ enum RuntimeCommands {
         guard case .appManaged(let app) = CLIInstall.kind(of: CLIInstall.currentExecutable()) else {
             throw MicropodError.message("Initial administrator setup needs the signed Micropod app installation")
         }
-        let setup = try RuntimeSetupInstallation.prepare(from: app)
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.arguments = ["--install"]
-        _ = try await NSWorkspace.shared.openApplication(at: setup, configuration: configuration)
-        if !MicropodCLI.jsonOutput {
-            print(
-                "Micropod Runtime Setup is open. Complete macOS administrator approval; this command will continue automatically."
-            )
-        }
+        _ = app
+        // The privileged helper is installed once by an administrator as a
+        // root-owned LaunchDaemon; then this command continues on its own.
+        if !MicropodCLI.jsonOutput { print(RuntimeAuthorityCommands.instructions) }
         let deadline = ContinuousClock.now.advanced(by: .seconds(300))
         while ContinuousClock.now < deadline {
             try Task.checkCancellation()

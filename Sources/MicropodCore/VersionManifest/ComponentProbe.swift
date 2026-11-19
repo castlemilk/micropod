@@ -7,6 +7,7 @@ public enum MicropodComponent: String, CaseIterable, Sendable {
     case connectAPI = "connect-api"
     case dedicatedAPI = "dedicated-api"
     case setupHelper = "setup-helper"
+    case runtimeAuthority = "runtime-authority"
     case dockerShim = "docker-shim"
     case sharedFS = "shared-fs"
     case appleRuntime = "apple-runtime"
@@ -19,6 +20,10 @@ public enum ComponentState: String, Sendable {
     case running, stopped, installed, missing
     case notConfigured = "not_configured"
     case unknown
+    /// `runtime-authority` only: serving, but its last protection check
+    /// failed; `legacy_active` when the legacy SMAppService job is the reason.
+    case unprotected
+    case legacyActive = "legacy_active"
 }
 
 /// Read-only observations of installed Micropod components. Probes read
@@ -305,6 +310,69 @@ public enum ComponentProbe {
         return component(
             .setupHelper, version: version, revision: stamp.revision,
             sha256: digest ? (sha256(helper) ?? "") : "", state: state, detail: notes.joined(separator: "; "))
+    }
+
+    /// The root-owned runtime authority (docs/runtime-component-update.md),
+    /// from world-readable facts only: its plist, its bundle's Info.plist,
+    /// the paths of root `MicropodRuntimeHost` processes (`helpers`) and the
+    /// protection check the authority publishes (`RuntimeHost/protection.json`,
+    /// root-owned). States: `missing` while a dedicated runtime still depends
+    /// on the legacy SMAppService helper; `legacy_active` while the authority
+    /// serves but the legacy job is not retired; `unprotected` for any other
+    /// failed check; `running`; `stopped`. Fleet views list the rigs that
+    /// need `install-authority` before the legacy identifier's sunset.
+    public static func runtimeAuthority(
+        helpers: [String], dedicated: Bool, plist: URL = IsolatedRuntimePolicy.authorityPlist,
+        bundle: URL = IsolatedRuntimePolicy.authorityBundle,
+        legacyBundle: URL = RuntimeSetupInstallation.installedURL,
+        protection: URL = IsolatedRuntimePolicy.root.appendingPathComponent("protection.json"),
+        protectionOwner: uid_t = 0
+    ) -> Micropod_V1_ComponentVersion {
+        let program = bundle.appendingPathComponent("Contents/MacOS/MicropodRuntimeHost").path
+        let legacyProgram = legacyBundle.appendingPathComponent("Contents/MacOS/MicropodRuntimeHost").path
+        let legacyRuns = helpers.contains(legacyProgram)
+        let sunset = ISO8601DateFormatter.string(
+            from: IsolatedRuntimePolicy.legacyHelperSunset, timeZone: TimeZone(identifier: "UTC")!,
+            formatOptions: [.withFullDate])
+        guard FileManager.default.fileExists(atPath: plist.path) else {
+            guard dedicated || legacyRuns else {
+                return component(.runtimeAuthority, state: .notConfigured, detail: "No runtime authority is installed")
+            }
+            return component(
+                .runtimeAuthority, state: .missing,
+                detail: "The dedicated runtime's root helper runs from the legacy SMAppService job; an "
+                    + "administrator runs `sudo micropod runtime install-authority` before \(sunset), when releases "
+                    + "stop accepting its signing identifier")
+        }
+        let stamp = try? bundleStamp(bundle)
+        var notes = [plist.path]
+        if legacyRuns {
+            notes.append("the legacy SMAppService helper still runs: run install-authority again to retire it")
+        }
+        func report(_ state: ComponentState) -> Micropod_V1_ComponentVersion {
+            component(
+                .runtimeAuthority, version: stamp?.version ?? unknown, revision: stamp?.revision ?? unknown,
+                state: state, detail: notes.joined(separator: "; "))
+        }
+        guard helpers.contains(program) else { return report(.stopped) }
+        struct Published: Decodable {
+            let protected: Bool
+            let legacyActive: Bool
+            let reason: String?
+        }
+        guard let data = try? RuntimeDurableFile.read(protection, maximumBytes: 4096, ownerUID: protectionOwner),
+            let published = try? JSONDecoder().decode(Published.self, from: data)
+        else {
+            notes.append("its protection check is not published")
+            return report(.unknown)
+        }
+        if published.protected { return report(.running) }
+        notes.append("unprotected: " + (published.reason ?? "unknown"))
+        if published.legacyActive {
+            notes.append("the legacy SMAppService job is not retired: run install-authority again")
+            return report(.legacyActive)
+        }
+        return report(.unprotected)
     }
 
     /// `micropod-guest` beside the answering server's executable or in its

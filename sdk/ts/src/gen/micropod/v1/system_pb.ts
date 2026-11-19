@@ -558,8 +558,9 @@ export const ProtocolRangeSchema: GenMessage<ProtocolRange> = /*@__PURE__*/
  */
 export type ComponentVersion = Message<"micropod.v1.ComponentVersion"> & {
   /**
-   * "app", "connect-api", "dedicated-api", "setup-helper", "docker-shim",
-   * "shared-fs", "apple-runtime", "vminit", "guest" or "kernel".
+   * "app", "connect-api", "dedicated-api", "setup-helper",
+   * "runtime-authority", "docker-shim", "shared-fs", "apple-runtime",
+   * "vminit", "guest" or "kernel".
    *
    * @generated from field: string name = 1;
    */

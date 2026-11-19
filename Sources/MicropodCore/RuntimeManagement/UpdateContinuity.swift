@@ -176,7 +176,11 @@ public struct UpdateContinuityReceipt: Codable, Equatable, Sendable {
             required.isSubset(of: Set(services.map(\.name))), services.count <= roles.count
         else { throw MicropodError.message("The update service witness is incomplete") }
         for service in services {
-            guard let role = roles[service.name], service.identifier == role.0, service.team == role.1,
+            let identified =
+                service.name == "runtime-setup-helper"
+                ? IsolatedRuntimePolicy.helperPeerIdentifiers.contains(service.identifier)
+                : service.identifier == roles[service.name]?.0
+            guard let role = roles[service.name], identified, service.team == role.1,
                 service.birth.uid == role.2, service.birth.bootSession == owner.bootSession,
                 !service.executable.hasPrefix(sourceAppPath + "/"),
                 required.contains(service.name) == (service.endpoint == nil)

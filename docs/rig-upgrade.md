@@ -6,10 +6,13 @@ shared-fs services, and the Connect API (`dev.micropod.api`). Jobs on the host
 may be interrupted. The guarded Sparkle path ([updater-admission.md](updater-admission.md))
 stays the default for desktops; nothing about it changes unless a host opts in.
 
-The root runtime helper, the dedicated API and the Apple runtime are out of
-scope and never touched. When the dedicated runtime is in use, the upgrade
-still replaces the user-level components and says so in its result and in
-`UpdateState.reason`.
+The upgrade itself never touches the root runtime helper, the dedicated API
+or the Apple runtime. When the dedicated runtime is in use, the upgrade still
+replaces the user-level components and says so in its result and in
+`UpdateState.reason`. Once the upgrade completes, the root helper updates the
+dedicated runtime to the new app's release in its own coordinated operation
+([runtime-component-update.md](runtime-component-update.md)). `apply` follows
+it, and exits 0 only when both complete.
 
 ## Policy per host
 

@@ -399,8 +399,9 @@ public nonisolated struct Micropod_V1_ComponentVersion: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// "app", "connect-api", "dedicated-api", "setup-helper", "docker-shim",
-  /// "shared-fs", "apple-runtime", "vminit", "guest" or "kernel".
+  /// "app", "connect-api", "dedicated-api", "setup-helper",
+  /// "runtime-authority", "docker-shim", "shared-fs", "apple-runtime",
+  /// "vminit", "guest" or "kernel".
   public var name: String = String()
 
   /// Release the component reports, or "unknown".

@@ -166,7 +166,8 @@ public struct RigUpgradeEngine: Sendable {
     /// Heartbeat while the rig is held: Cuttlefish lets go after two minutes.
     public static let heartbeatInterval: Duration = .seconds(20)
     public static let dedicatedNote =
-        "The dedicated runtime (setup helper, dedicated API and Apple engine) is left unchanged."
+        "The dedicated runtime (setup helper, dedicated API and Apple engine) is not replaced by this upgrade; "
+        + "it follows in its own coordinated runtime component update once the app is verified."
 
     public let layout: RigUpgradeLayout
     public let environment: RigUpgradeEnvironment

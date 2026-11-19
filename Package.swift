@@ -108,14 +108,15 @@ let package = Package(
         // stamping it at release time recompiles one file.
         .target(name: "MicropodBuildInfo"),
         .target(name: "MicropodRuntimeHostKit", dependencies: ["MicropodCore", "MicropodRuntime"]),
-        .executableTarget(name: "MicropodRuntimeHost", dependencies: ["MicropodRuntimeHostKit", "MicropodCore"]),
+        .executableTarget(
+            name: "MicropodRuntimeHost", dependencies: ["MicropodRuntimeHostKit", "MicropodCore", "MicropodBuildInfo"]),
         .executableTarget(name: "MicropodRuntimeSetup", dependencies: ["MicropodCore"]),
         .testTarget(name: "MicropodAPITests", dependencies: ["MicropodAPI", "MicropodCore"]),
         .testTarget(name: "MicropodRuntimeHostKitTests", dependencies: ["MicropodRuntimeHostKit", "MicropodCore"]),
         .executableTarget(
             name: "MicropodCLI",
             dependencies: [
-                "MicropodCore", "MicropodSharedFS", "MicropodRuntime", "MicropodBuildInfo",
+                "MicropodCore", "MicropodSharedFS", "MicropodRuntime", "MicropodBuildInfo", "MicropodRuntimeHostKit",
                 .product(name: "Crypto", package: "swift-crypto"),
             ],
             swiftSettings: [

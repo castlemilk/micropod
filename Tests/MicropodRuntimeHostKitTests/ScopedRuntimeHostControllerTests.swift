@@ -78,6 +78,20 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
     var holdDrain = false
     var loseCompletion = false
     var corruptBegin = false
+    /// The next native start fails and leaves the runtime stopped.
+    var failStart = false
+    /// The dedicated API the fixture "activates", shared with the component
+    /// environment fixture.
+    nonisolated let box = ActiveAPIBox()
+    /// Component staging installs other bytes than it was given.
+    var tamperStaging = false
+    /// The coordinator does not schedule onto this build: `qualify` is
+    /// answered notRecorded.
+    var unqualified = false
+    /// The next drain is refused before the coordinator saw it (phase
+    /// `refused`), as an agent refuses an unqualified build.
+    var refuseNextDrainUnprocessed: String?
+    var restored: [RuntimeComponentRuntime] = []
     /// The next drain is refused before the coordinator records it, as a
     /// coordinator that is stopping or busy answers.
     var refuseNextDrain: String?
@@ -114,6 +128,34 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
     func refuseNextDrain(_ reason: String) { refuseNextDrain = reason }
     func answerNotRecorded(_ actions: Set<String>) { unrecorded = actions }
     func loseOneCompletion() { loseCompletion = true }
+    func failNextStart() { failStart = true }
+    func setTamperStaging() { tamperStaging = true }
+    func setUnqualified(_ value: Bool) { unqualified = value }
+    func refuseNextDrainUnprocessed(_ reason: String) { refuseNextDrainUnprocessed = reason }
+    func restoredRuntimes() -> [RuntimeComponentRuntime] { restored }
+    func prepare(ownerUID: UInt32, components: RuntimeComponentSource) throws -> PreparedIsolatedRuntime {
+        let api =
+            tamperStaging
+            ? RuntimeComponentAPI(executableSHA256: String(repeating: "f", count: 64), guestSHA256: nil)
+            : components.api
+        box.staged = api
+        return .init(
+            identity: proofs.identity, receipt: .init(selection: selection, files: AppleRuntimeRelease.payloadSHA256),
+            workerSHA256: components.helperSHA256, api: api)
+    }
+    func restore(identity: IsolatedRuntimeIdentity, runtime: RuntimeComponentRuntime) throws
+        -> PreparedIsolatedRuntime
+    {
+        restored.append(runtime)
+        box.staged = runtime.api
+        return .init(
+            identity: identity, receipt: .init(selection: runtime.selection, files: AppleRuntimeRelease.payloadSHA256),
+            workerSHA256: runtime.workerSHA256, api: runtime.api)
+    }
+    nonisolated func activateAPI(identity: IsolatedRuntimeIdentity, selection: ManagedRuntimeLocation.Selection) throws
+    {
+        box.activate()
+    }
     func corruptOneBegin() { corruptBegin = true }
     func simulateStoppedRuntime() { ready = false }
     func snapshot() -> ([IsolatedRuntimeAction], [String], [String: Bool]) { (nativeActions, history, gateAtPhase) }
@@ -121,7 +163,7 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
         .init(
             identity: proofs.identity,
             receipt: .init(selection: selection, files: AppleRuntimeRelease.payloadSHA256),
-            workerSHA256: String(repeating: "d", count: 64))
+            workerSHA256: String(repeating: "2", count: 64))
     }
     func rigTransition(
         identity: IsolatedRuntimeIdentity, operation: UUID, action: String, installRoot: URL,
@@ -144,6 +186,20 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
                     "scope": RuntimeCoordinationEnrollment.runtimeScope,
                     "operation": call.operation.id, "phase": phase, "reason": reason,
                 ]))
+        }
+        if call.action == "qualify" {
+            return try JSONDecoder().decode(
+                RuntimeCoordinationRigReply.self,
+                from: JSONSerialization.data(withJSONObject: [
+                    "schemaVersion": RuntimeCoordinationEnrollment.capability,
+                    "scope": RuntimeCoordinationEnrollment.runtimeScope, "operation": call.operation.id,
+                    "phase": unqualified ? RuntimeCoordinationRigReply.notRecordedPhase : "qualified",
+                    "reason": unqualified ? "Not recorded: this agent does not qualify the runtime build" : "",
+                ]))
+        }
+        if call.action == "drain", let reason = refuseNextDrainUnprocessed {
+            refuseNextDrainUnprocessed = nil
+            return try refusal(RuntimeCoordinationRigReply.refusedPhase, reason)
         }
         if call.action == "drain", let reason = refuseNextDrain {
             refuseNextDrain = nil
@@ -226,7 +282,14 @@ private actor ScopedHostDriverFixture: IsolatedRuntimeHostDriving {
         nativeActions.append(request.action)
         if request.requiresIdle && busy { throw CocoaError(.fileWriteNoPermission) }
         if request.action == .stop { ready = false }
-        if request.action == .start { ready = true }
+        if request.action == .start {
+            if failStart {
+                failStart = false
+                ready = false
+                throw CocoaError(.executableLoad)
+            }
+            ready = true
+        }
         let root = IsolatedRuntimePolicy.root.appendingPathComponent("apple/versions/" + selection.directoryName)
         return .init(
             serviceUID: identity.serviceUID, bootstrapDomain: "user/\(identity.serviceUID)",
@@ -610,5 +673,412 @@ final class ScopedRuntimeHostControllerTests: XCTestCase {
         let (native, history, _) = await driver.snapshot()
         XCTAssertEqual(native.filter { $0 == .start }.count, 1)
         XCTAssertEqual(history.filter { $0 == "complete" }.count, 1)
+    }
+}
+
+// MARK: - Runtime component updates (docs/runtime-component-update.md)
+
+private final class RelaunchRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    func mark() { lock.withLock { count += 1 } }
+    var relaunches: Int { lock.withLock { count } }
+}
+
+private struct ComponentRig {
+    let driver: ScopedHostDriverFixture
+    let root: URL
+    let environment: ComponentEnvironmentFixture
+    let updater: RuntimeComponentUpdater
+    let make: (RelaunchRecorder?) -> IsolatedRuntimeHostController
+}
+
+extension ScopedRuntimeHostControllerTests {
+    /// A running dedicated runtime enrolled with a signed coordinator, and a
+    /// way to construct the helper again as launchd would after a relaunch.
+    fileprivate func componentRig() async throws -> ComponentRig {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        let proofs = try ScopedProofFixture()
+        let journal = root.appendingPathComponent("operation.json")
+        let admissionRoot = root.appendingPathComponent("admission")
+        let driver = ScopedHostDriverFixture(proofs: proofs, admissionRoot: admissionRoot)
+        let installer = IsolatedRuntimeHostController(driver: driver, journal: journal, admissionRoot: admissionRoot)
+        _ = try await installer.submit(.init(action: .install), ownerUID: getuid())
+        _ = try await terminal(installer)
+        var coordinator = RuntimeCoordinatorAuthority(
+            fileURL: root.appendingPathComponent("runtime-coordinator.json"), ownerUID: getuid(),
+            verifier: proofs.verifier)
+        let nonce = try coordinator.issueChallenge(identity: proofs.identity, peer: proofs.peer, purpose: "enrollment")
+        _ = try coordinator.enroll(
+            proofs.sign(challenge: nonce, purpose: "enrollment"), challenge: nonce,
+            identity: proofs.identity, peer: proofs.peer)
+        let environment = try ComponentEnvironmentFixture(root: root.appendingPathComponent("host"), api: driver.box)
+        environment.api.active = .init(executableSHA256: ComponentEnvironmentFixture.source.apiSHA256, guestSHA256: nil)
+        let updater = RuntimeComponentUpdater(environment: environment)
+        let coordinatorURL = root.appendingPathComponent("runtime-coordinator.json")
+        let verifier = proofs.verifier
+        let make: (RelaunchRecorder?) -> IsolatedRuntimeHostController = { recorder in
+            // A relaunched helper reads its enrollment from disk.
+            IsolatedRuntimeHostController(
+                driver: driver, journal: journal, admissionRoot: admissionRoot,
+                coordinator: RuntimeCoordinatorAuthority(
+                    fileURL: coordinatorURL, ownerUID: getuid(), verifier: verifier),
+                verifyCoordinatorAccount: { _ in }, components: updater,
+                relaunch: { recorder?.mark() })
+        }
+        let first = make(nil)
+        _ = try await first.submit(.init(action: .start), ownerUID: getuid())
+        let started = try await terminal(first)
+        XCTAssertEqual(started.phase, "completed", started.error ?? "")
+        return .init(driver: driver, root: root, environment: environment, updater: updater, make: make)
+    }
+
+    private func componentOutcome(_ controller: IsolatedRuntimeHostController, _ operation: UUID) async throws
+        -> RuntimeComponentUpdateSummary
+    {
+        for _ in 0..<400 {
+            let status = try await controller.submit(.init(action: .status), ownerUID: getuid())
+            if let summary = status.componentUpdate, summary.operation == operation, summary.isTerminal,
+                status.isTerminal
+            {
+                return summary
+            }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        throw CocoaError(.fileReadUnknown)
+    }
+
+    /// launchd starts whatever is installed; it settles at launch and serves.
+    fileprivate func relaunchInstalled(_ rig: ComponentRig) async throws -> IsolatedRuntimeHostController {
+        try rig.environment.launchInstalled()
+        XCTAssertEqual(rig.updater.launch(), .proceedUnconfirmed)
+        let helper = rig.make(nil)
+        let confirmed = await helper.continueComponentUpdate()
+        XCTAssertTrue(confirmed)
+        return helper
+    }
+
+    /// The old helper swaps in the new one and lets launchd relaunch it; the
+    /// new one settles the swap at launch and starts serving.
+    private func swapAndRelaunch(_ rig: ComponentRig, operation: UUID) async throws -> IsolatedRuntimeHostController {
+        let recorder = RelaunchRecorder()
+        let old = rig.make(recorder)
+        let accepted = try await old.submit(.init(operation: operation, action: .update), ownerUID: getuid())
+        XCTAssertEqual(accepted.componentProtocol, RuntimeComponentManifest.protocolVersion)
+        XCTAssertEqual(accepted.componentUpdate?.operation, operation)
+        // A lost reply: the same request again is answered, never repeated.
+        let repeated = try await old.submit(.init(operation: operation, action: .update), ownerUID: getuid())
+        XCTAssertEqual(repeated.componentUpdate?.operation, operation)
+        for _ in 0..<400 where recorder.relaunches == 0 { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertEqual(recorder.relaunches, 1)
+        XCTAssertEqual(rig.environment.copies, 2, "One request stages once: the swapped and the verified copy")
+        XCTAssertEqual(try rig.environment.inspect(rig.environment.installedBundle), ComponentEnvironmentFixture.target)
+        try rig.environment.launchInstalled()
+        return try await relaunchInstalled(rig)
+    }
+
+    // One update: the helper swap takes no fence and drains nothing; the new
+    // helper then restarts the runtime through the ordinary signed handoff.
+    func testComponentUpdateSwapsTheHelperThenRestartsTheRuntimeUnderTheDrain() async throws {
+        let rig = try await componentRig()
+        let (beforeNative, beforeHistory, _) = await rig.driver.snapshot()
+        let operation = UUID()
+        let new = try await swapAndRelaunch(rig, operation: operation)
+        let summary = try await componentOutcome(new, operation)
+        XCTAssertEqual(summary.phase, "completed", summary.reason ?? "")
+        XCTAssertEqual(summary.targetVersion, "0.13.10")
+        let (native, history, gates) = await rig.driver.snapshot()
+        XCTAssertEqual(
+            Array(history.dropFirst(beforeHistory.count)),
+            ["qualify", "drain", "prepare", "begin", "verify", "complete"])
+        XCTAssertEqual(gates["begin"], true)
+        XCTAssertEqual(native.filter { $0 == .stop }.count, beforeNative.filter { $0 == .stop }.count + 1)
+        XCTAssertEqual(native.filter { $0 == .start }.count, beforeNative.filter { $0 == .start }.count + 1)
+        let status = try await new.submit(.init(action: .status), ownerUID: getuid())
+        XCTAssertEqual(status.operation, summary.runtimeOperation)
+        XCTAssertEqual(status.action, .restart, "On the wire it is an ordinary restart")
+        XCTAssertFalse(RuntimeAdmission(root: rig.root.appendingPathComponent("admission")).isClosed)
+        let persisted = try String(contentsOf: rig.root.appendingPathComponent("operation.json"), encoding: .utf8)
+        XCTAssertFalse(persisted.contains("componentUpdate"), "operation.json stays readable by older helpers")
+    }
+
+    // A coordinator that refuses the restart's first drain before recording
+    // it (the 2026-11-18 deadlock) settles the update: the helper stays
+    // updated, the runtime is unchanged, nothing waits in recovery, and the
+    // next request restarts only the runtime.
+    func testCoordinatorRefusalSettlesTheUpdateAndARetryFinishesIt() async throws {
+        let rig = try await componentRig()
+        await rig.driver.answerNotRecorded(["drain"])
+        let (beforeNative, _, _) = await rig.driver.snapshot()
+        let operation = UUID()
+        let new = try await swapAndRelaunch(rig, operation: operation)
+        let summary = try await componentOutcome(new, operation)
+        XCTAssertEqual(summary.phase, "helperUpdated", summary.reason ?? "")
+        let status = try await new.submit(.init(action: .status), ownerUID: getuid())
+        XCTAssertNotEqual(status.phase, "recoveryRequired")
+        XCTAssertEqual(status.runtimeRigAttempted, false)
+        XCTAssertFalse(RuntimeAdmission(root: rig.root.appendingPathComponent("admission")).isClosed)
+        let (native, _, _) = await rig.driver.snapshot()
+        XCTAssertEqual(native.filter { $0 == .stop }, beforeNative.filter { $0 == .stop }, "Nothing was stopped")
+
+        await rig.driver.answerNotRecorded([])
+        let retry = UUID()
+        _ = try await new.submit(.init(operation: retry, action: .update), ownerUID: getuid())
+        let finished = try await componentOutcome(new, retry)
+        XCTAssertEqual(finished.phase, "completed", finished.reason ?? "")
+        XCTAssertEqual(finished.sourceVersion, "0.13.10", "Only the runtime followed; the helper was not swapped again")
+        XCTAssertEqual(rig.environment.copies, 3, "The retry copied only the installed authority, to stage from")
+    }
+
+    // The restart's completion reply is lost: the restart waits for
+    // verification as any restart does, and the update follows its recovery
+    // instead of being replayed.
+    func testLostRestartCompletionIsRecoveredAndTheUpdateFollows() async throws {
+        let rig = try await componentRig()
+        await rig.driver.loseOneCompletion()
+        let operation = UUID()
+        let new = try await swapAndRelaunch(rig, operation: operation)
+        var status = try await terminal(new)
+        XCTAssertEqual(status.phase, "recoveryRequired", status.error ?? "")
+        XCTAssertEqual(status.componentUpdate?.phase, "restarting")
+        _ = try await new.submit(.init(action: .verify), ownerUID: getuid())
+        status = try await terminal(new)
+        XCTAssertEqual(status.phase, "completed", status.error ?? "")
+        let summary = try await componentOutcome(new, operation)
+        XCTAssertEqual(summary.phase, "completed", summary.reason ?? "")
+        let (native, _, _) = await rig.driver.snapshot()
+        XCTAssertEqual(native.filter { $0 == .start }.count, 2, "The start was never replayed")
+    }
+
+    // A target that cannot come up after `begin`: before, no release fit it and
+    // the rig waited in recovery forever. `recover` now releases the restart
+    // as stopped with intake paused, the update settles, and `--rollback`
+    // brings back the previous helper, whose explicit start resumes the rig.
+    func testATargetThatCannotStartIsReleasedStoppedAndARollbackStartsThePreviousRuntime() async throws {
+        let rig = try await componentRig()
+        await rig.driver.failNextStart()
+        let operation = UUID()
+        let new = try await swapAndRelaunch(rig, operation: operation)
+        var status = try await terminal(new)
+        XCTAssertEqual(status.phase, "recoveryRequired", status.error ?? "")
+        _ = try await new.submit(.init(action: .verify), ownerUID: getuid())
+        status = try await terminal(new)
+        XCTAssertEqual(status.phase, "failed", status.error ?? "")
+        XCTAssertEqual(status.runtimeReleasedStopped, true)
+        XCTAssertEqual(status.nativeState, "stopped")
+        XCTAssertEqual(status.runtimeRigAttempted, false, "Nothing is left held")
+        let kind = await rig.driver.kind
+        XCTAssertEqual(kind, "stopped", "Released as stopped: Cuttlefish keeps intake paused")
+        XCTAssertFalse(RuntimeAdmission(root: rig.root.appendingPathComponent("admission")).isClosed)
+        let settled = try await componentOutcome(new, operation)
+        XCTAssertEqual(settled.phase, "helperUpdated", settled.reason ?? "")
+
+        let recorder = RelaunchRecorder()
+        let current = rig.make(recorder)
+        let back = UUID()
+        _ = try await current.submit(.init(operation: back, action: .rollback), ownerUID: getuid())
+        for _ in 0..<400 where recorder.relaunches == 0 { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertEqual(try rig.environment.inspect(rig.environment.installedBundle), ComponentEnvironmentFixture.source)
+        let previous = try await relaunchInstalled(rig)
+        let rolled = try await componentOutcome(previous, back)
+        XCTAssertEqual(rolled.phase, "rolledBack", rolled.reason ?? "")
+        status = try await previous.submit(.init(action: .status), ownerUID: getuid())
+        XCTAssertEqual(status.action, .start, "Only an explicit start resumes a stopped release")
+        XCTAssertEqual(status.nativeState, "nativeReady")
+        XCTAssertEqual(status.runtimeReleasedStopped, nil)
+    }
+
+    // H3, the deadlock replayed: an agent that does not qualify the build
+    // refuses the first drain with phase "refused" before its coordinator
+    // records it. That settles the restart as failed with nothing held,
+    // instead of recoveryRequired and an abort the agent also refuses.
+    func testAnUnqualifiedBuildRefusedAtTheDrainSettlesInsteadOfDeadlocking() async throws {
+        let rig = try await componentRig()
+        await rig.driver.refuseNextDrainUnprocessed(
+            "Runtime version or package digest differs from the version this agent pins")
+        let (beforeNative, beforeHistory, _) = await rig.driver.snapshot()
+        let operation = UUID()
+        let new = try await swapAndRelaunch(rig, operation: operation)
+        let summary = try await componentOutcome(new, operation)
+        XCTAssertEqual(summary.phase, "helperUpdated", summary.reason ?? "")
+        let status = try await new.submit(.init(action: .status), ownerUID: getuid())
+        XCTAssertEqual(status.phase, "failed", status.error ?? "")
+        XCTAssertEqual(status.runtimeRigAttempted, false, "No handoff is retained")
+        XCTAssertFalse(RuntimeAdmission(root: rig.root.appendingPathComponent("admission")).isClosed)
+        let (native, history, _) = await rig.driver.snapshot()
+        XCTAssertEqual(native.filter { $0 == .stop }, beforeNative.filter { $0 == .stop })
+        XCTAssertFalse(history.dropFirst(beforeHistory.count).contains("abort"), "No abort is needed")
+    }
+
+    // H3: with the pre-drain check, a coordinator that does not qualify the
+    // build is never asked to drain at all.
+    func testAnUnqualifiedBuildIsNeverDrained() async throws {
+        let rig = try await componentRig()
+        await rig.driver.setUnqualified(true)
+        let (_, beforeHistory, _) = await rig.driver.snapshot()
+        let operation = UUID()
+        let new = try await swapAndRelaunch(rig, operation: operation)
+        let summary = try await componentOutcome(new, operation)
+        XCTAssertEqual(summary.phase, "helperUpdated", summary.reason ?? "")
+        let (_, history, _) = await rig.driver.snapshot()
+        XCTAssertEqual(Array(history.dropFirst(beforeHistory.count)), ["qualify"])
+        let status = try await new.submit(.init(action: .status), ownerUID: getuid())
+        XCTAssertTrue(status.error?.contains("does not qualify") == true, status.error ?? "")
+    }
+
+    // H2: staging that installs other bytes than the verified target is
+    // refused before anything is drained.
+    func testStagingOtherBytesThanTheVerifiedTargetIsRefusedBeforeTheDrain() async throws {
+        let rig = try await componentRig()
+        await rig.driver.setTamperStaging()
+        let (_, beforeHistory, _) = await rig.driver.snapshot()
+        let operation = UUID()
+        let new = try await swapAndRelaunch(rig, operation: operation)
+        let summary = try await componentOutcome(new, operation)
+        XCTAssertEqual(summary.phase, "helperUpdated", summary.reason ?? "")
+        let (_, history, _) = await rig.driver.snapshot()
+        XCTAssertFalse(history.dropFirst(beforeHistory.count).contains("drain"))
+    }
+
+    // M7: a rollback after the runtime moved restores the previous runtime
+    // first, with the current helper, under the drain; then swaps the helper
+    // back. The previous helper finds its own runtime and restarts nothing.
+    func testARollbackRestoresThePreviousRuntimeThenThePreviousHelper() async throws {
+        let rig = try await componentRig()
+        let operation = UUID()
+        let new = try await swapAndRelaunch(rig, operation: operation)
+        let outcome = try await componentOutcome(new, operation)
+        XCTAssertEqual(outcome.phase, "completed")
+        let (beforeNative, beforeHistory, _) = await rig.driver.snapshot()
+
+        let recorder = RelaunchRecorder()
+        let current = rig.make(recorder)
+        let back = UUID()
+        _ = try await current.submit(.init(operation: back, action: .rollback), ownerUID: getuid())
+        for _ in 0..<400 where recorder.relaunches == 0 { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertEqual(recorder.relaunches, 1)
+        let restored = await rig.driver.restoredRuntimes()
+        XCTAssertEqual(restored.map(\.workerSHA256), [ComponentEnvironmentFixture.source.helperSHA256])
+        let (_, history, _) = await rig.driver.snapshot()
+        XCTAssertEqual(
+            Array(history.dropFirst(beforeHistory.count)),
+            ["qualify", "drain", "prepare", "begin", "verify", "complete"])
+        XCTAssertEqual(try rig.environment.inspect(rig.environment.installedBundle), ComponentEnvironmentFixture.source)
+        XCTAssertEqual(rig.environment.api.active?.executableSHA256, ComponentEnvironmentFixture.source.apiSHA256)
+
+        let previous = try await relaunchInstalled(rig)
+        let rolled = try await componentOutcome(previous, back)
+        XCTAssertEqual(rolled.phase, "rolledBack", rolled.reason ?? "")
+        let (native, _, _) = await rig.driver.snapshot()
+        XCTAssertEqual(
+            native.filter { $0 == .start }.count, beforeNative.filter { $0 == .start }.count + 1,
+            "One restart: the restore. The previous helper restarted nothing")
+    }
+
+    // M9: a runtime the operator stopped stays stopped across an update.
+    func testAnUpdateDoesNotStartARuntimeTheOperatorStopped() async throws {
+        let rig = try await componentRig()
+        let first = rig.make(nil)
+        _ = try await first.submit(.init(action: .stop), ownerUID: getuid())
+        let settledfirst = try await terminal(first)
+        XCTAssertEqual(settledfirst.phase, "completed")
+        let (beforeNative, _, _) = await rig.driver.snapshot()
+        let operation = UUID()
+        let new = try await swapAndRelaunch(rig, operation: operation)
+        let summary = try await componentOutcome(new, operation)
+        XCTAssertEqual(summary.phase, "helperUpdated", summary.reason ?? "")
+        XCTAssertTrue(summary.reason?.contains("stopped deliberately") == true, summary.reason ?? "")
+        let (native, _, _) = await rig.driver.snapshot()
+        XCTAssertEqual(native.filter { $0 == .start }.count, beforeNative.filter { $0 == .start }.count)
+    }
+
+    // M6: an undecodable component journal blocks only an update; every
+    // lifecycle action, recovery included, still runs.
+    func testAnUnreadableComponentJournalBlocksOnlyUpdates() async throws {
+        let rig = try await componentRig()
+        try FileManager.default.createDirectory(
+            at: rig.updater.journal.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("{not json".utf8).write(to: rig.updater.journal)
+        let controller = rig.make(nil)
+        _ = try await controller.submit(.init(action: .restart), ownerUID: getuid())
+        let settledcontroller = try await terminal(controller)
+        XCTAssertEqual(settledcontroller.phase, "completed")
+        do {
+            _ = try await controller.submit(.init(action: .update), ownerUID: getuid())
+            XCTFail("An update ran over an unreadable journal")
+        } catch {}
+    }
+
+    // N1(b): a helper that is not the exact root-owned authority reports it
+    // in status and refuses every update.
+    func testAnUnprotectedHelperReportsItAndRefusesUpdates() async throws {
+        let rig = try await componentRig()
+        rig.environment.setProtection(.unprotected("the helper runs from /Applications"))
+        let helper = rig.make(nil)
+        _ = await helper.continueComponentUpdate()
+        let status = try await helper.submit(.init(action: .status), ownerUID: getuid())
+        XCTAssertEqual(status.componentProtection, "unprotected: the helper runs from /Applications")
+        do {
+            _ = try await helper.submit(.init(action: .update), ownerUID: getuid())
+            XCTFail("An unprotected helper updated itself")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("unprotected"), error.localizedDescription)
+        }
+        XCTAssertEqual(rig.environment.copies, 0)
+    }
+
+    // Gamma-128's 167 old-format receipts from the still-running API: the
+    // update's restart retires them as any restart does, instead of refusing.
+    func testStaleAdmissionReceiptsDoNotBlockTheComponentRestart() async throws {
+        let rig = try await componentRig()
+        struct OldReceipt: Encodable {
+            let operation: UUID
+            let route: String
+            let pid: Int32
+        }
+        let pending = rig.root.appendingPathComponent("admission/pending")
+        for route in ["native.start", "native.start", "native.create"] {
+            let id = UUID()
+            try RuntimeDurableFile.write(
+                OldReceipt(operation: id, route: route, pid: getpid()),
+                to: pending.appendingPathComponent(id.uuidString + ".json"))
+        }
+        let operation = UUID()
+        let new = try await swapAndRelaunch(rig, operation: operation)
+        let summary = try await componentOutcome(new, operation)
+        XCTAssertEqual(summary.phase, "completed", summary.reason ?? "")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: pending.path), [])
+    }
+
+    // The new helper was killed while staging its runtime components, before
+    // any generation, drain or fence: the next launch settles that restart as
+    // cancelled instead of waiting in recovery, and the update follows it.
+    func testHelperKilledWhileStagingTheRuntimeSettles() async throws {
+        let rig = try await componentRig()
+        let operation = UUID()
+        let first = try await swapAndRelaunch(rig, operation: operation)
+        _ = try await componentOutcome(first, operation)
+        // Rewrite what a kill during `stagingComponents` leaves behind.
+        var record = try XCTUnwrap(rig.updater.read())
+        let runtime = UUID()
+        if record.phase != .restarting { try rig.updater.beginRuntime(&record, operation: runtime, previous: nil) }
+        let journal = rig.root.appendingPathComponent("operation.json")
+        var state = try JSONDecoder().decode(
+            IsolatedRuntimeStatus.self, from: RuntimeDurableFile.read(journal, maximumBytes: 65536))
+        state.operation = record.runtimeOperation
+        state.action = .restart
+        state.phase = "stagingComponents"
+        state.localGeneration = nil
+        state.runtimeRigAttempted = false
+        state.runtimeActionStarted = false
+        state.actionVerified = false
+        try RuntimeDurableFile.write(state, to: journal)
+
+        let relaunched = rig.make(nil)
+        let settled = try await relaunched.submit(.init(action: .status), ownerUID: getuid())
+        XCTAssertEqual(settled.phase, "cancelled", settled.error ?? "")
+        XCTAssertEqual(settled.componentUpdate?.phase, "helperUpdated")
+        XCTAssertFalse(RuntimeAdmission(root: rig.root.appendingPathComponent("admission")).isClosed)
     }
 }

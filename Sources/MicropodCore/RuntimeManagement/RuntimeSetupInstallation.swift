@@ -4,6 +4,14 @@ import Foundation
 /// Existing setup installations are retained, including their exact version.
 public enum RuntimeSetupInstallation {
     public static let installedURL = URL(fileURLWithPath: "/Applications/Micropod Runtime Setup.app")
+    /// The executables of root `MicropodRuntimeHost` processes.
+    public static func helperPrograms() -> [String] {
+        UpdateServiceWitness.processIDs(executableName: "MicropodRuntimeHost").compactMap { pid in
+            guard (try? RuntimeProcessBirth.read(pid))?.uid == 0 else { return nil }
+            return UpdateServiceWitness.processPath(pid)
+        }
+    }
+
     public static func helperIsRunning() throws -> Bool {
         try UpdateServiceWitness.processIDs(executableName: "MicropodRuntimeHost").contains {
             try RuntimeProcessBirth.read($0)?.uid == 0

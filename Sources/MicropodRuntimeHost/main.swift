@@ -1,6 +1,7 @@
 import Darwin
 import Foundation
 import MachO
+import MicropodBuildInfo
 import MicropodCore
 import MicropodRuntimeHostKit
 
@@ -33,18 +34,28 @@ struct MicropodRuntimeHost {
             await worker()
             return
         }
+        if CommandLine.arguments.dropFirst().elementsEqual(["--component-probe"]) {
+            // Compiled-in facts only, no privilege used: the installed helper
+            // runs a staged copy this way before swapping it in.
+            probe()
+            return
+        }
         guard geteuid() == 0, CommandLine.arguments.count == 1 else {
             fputs("Micropod's runtime helper must be started by macOS Service Management.\n", stderr)
             exit(1)
         }
-        do {
-            try RootRuntimeStorage.prepareRoot()
-            let fd = open(
-                IsolatedRuntimePolicy.root.appendingPathComponent("host.lock").path,
-                O_CREAT | O_RDWR | O_NOFOLLOW | O_CLOEXEC, 0o600)
-            guard fd >= 0, flock(fd, LOCK_EX | LOCK_NB) == 0 else {
-                throw MicropodError.message("Another runtime helper owns the state")
+        // Armed before anything else: a helper that hangs anywhere before it
+        // serves (a Security.framework call, a lock, a probe) exits, so its
+        // launch is counted and a swapped-in helper that never serves is
+        // rolled back (docs/runtime-component-update.md).
+        let confirmed = LaunchConfirmation()
+        DispatchQueue.global().asyncAfter(deadline: .now() + RuntimeComponentUpdater.confirmationDeadline) {
+            if !confirmed.value {
+                fputs("Runtime helper did not start serving in time\n", stderr)
+                exit(75)
             }
+        }
+        do {
             var count: UInt32 = 4096
             var path = [CChar](repeating: 0, count: Int(count))
             guard _NSGetExecutablePath(&path, &count) == 0 else {
@@ -54,19 +65,78 @@ struct MicropodRuntimeHost {
                 fileURLWithPath: String(
                     decoding: path.prefix(while: { $0 != 0 }).map { UInt8(bitPattern: $0) }, as: UTF8.self)
             ).resolvingSymlinksInPath()
+            // Started by the legacy SMAppService job from /Applications: yield
+            // to an installed root-owned authority, so at most one helper
+            // serves. Exit 0 keeps launchd from respawning it.
+            // install-authority boots out and disables that job as well.
+            let authority = executable.path == IsolatedRuntimePolicy.authorityProgram.path
+            if !authority, RuntimeAuthority.legacyJobShouldYield() {
+                fputs("The root-owned runtime authority is installed; the legacy helper job yields\n", stderr)
+                exit(0)
+            }
+            try RootRuntimeStorage.prepareRoot()
+            let fd = open(
+                IsolatedRuntimePolicy.root.appendingPathComponent("host.lock").path,
+                O_CREAT | O_RDWR | O_NOFOLLOW | O_CLOEXEC, 0o600)
+            guard fd >= 0, flock(fd, LOCK_EX | LOCK_NB) == 0 else {
+                throw MicropodError.message("Another runtime helper owns the state")
+            }
+            // Under the lock: settle a component update the previous helper
+            // left, and count this launch of a swapped-in helper.
+            let components = RuntimeComponentUpdater(
+                environment: NativeRuntimeComponentEnvironment(
+                    executable: executable, runningVersion: MicropodBuildInfo.version))
+            if components.launch() == .relaunch {
+                fputs("Runtime helper restarts into the installed authority\n", stderr)
+                exit(75)
+            }
+            // The VM release gate's crash and hang faults (root-only file).
+            RuntimeGateHooks.applyFault(version: MicropodBuildInfo.version, executable: executable)
+            if let reason = components.launchBelowFloor() {
+                // Below the signed security floor: refuse to run at all. Exit
+                // 0 so launchd does not respawn it; install-authority repairs.
+                fputs(reason + "; it refuses to run\n", stderr)
+                exit(0)
+            }
             try RuntimeCodeIdentity.verifyExecutable(executable, identifier: IsolatedRuntimePolicy.helperIdentifier)
             let controller = IsolatedRuntimeHostController(
-                driver: NativeIsolatedRuntimeHostDriver(executable: executable))
-            let server = RuntimeHostServer(controller: controller)
+                driver: NativeIsolatedRuntimeHostDriver(executable: executable), components: components)
+            let server = RuntimeHostServer(
+                controller: controller,
+                serviceName: authority ? IsolatedRuntimePolicy.authorityServiceName : IsolatedRuntimePolicy.serviceName)
             try server.start()
             let rig = IsolatedRuntimeRigServer(controller: controller)
             try rig.start()
+            // install-authority's proof that the authority serves.
+            try RuntimeAuthority.recordServing(
+                serviceName: authority ? IsolatedRuntimePolicy.authorityServiceName : IsolatedRuntimePolicy.serviceName,
+                version: MicropodBuildInfo.version, executable: executable)
+            confirmed.value = await controller.continueComponentUpdate()
+            // Keeps the published protection current (a re-enabled legacy
+            // job shows up in the version manifest within five minutes).
+            Task.detached {
+                while true {
+                    try? await Task.sleep(for: .seconds(300))
+                    let protection = components.environment.protection()
+                    components.environment.publishProtection(protection)
+                    await controller.recordProtection(protection)
+                }
+            }
             await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
             withExtendedLifetime(rig) {}
         } catch {
             fputs("Runtime helper could not start: \(error.localizedDescription)\n", stderr)
             exit(1)
         }
+    }
+
+    private static func probe() {
+        // The compiled-in release, not a plist in a writable bundle.
+        let report = RuntimeComponentProbe.current(
+            version: MicropodBuildInfo.version, revision: MicropodBuildInfo.sourceRevision,
+            authorityDefinitionSHA256: RuntimeAuthority.definitionSHA256)
+        guard let data = try? JSONEncoder().encode(report) else { exit(1) }
+        FileHandle.standardOutput.write(data + Data([10]))
     }
 
     private static func worker() async {
@@ -89,13 +159,27 @@ struct MicropodRuntimeHost {
     }
 }
 
+/// Set once the helper serves and a swapped-in helper confirmed itself.
+private final class LaunchConfirmation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var confirmed = false
+    var value: Bool {
+        get { lock.withLock { confirmed } }
+        set { lock.withLock { confirmed = newValue } }
+    }
+}
+
 private final class RuntimeHostServer: @unchecked Sendable {
     private let controller: IsolatedRuntimeHostController
+    private let serviceName: String
     private nonisolated(unsafe) var listener: xpc_connection_t?
-    init(controller: IsolatedRuntimeHostController) { self.controller = controller }
+    init(controller: IsolatedRuntimeHostController, serviceName: String) {
+        self.controller = controller
+        self.serviceName = serviceName
+    }
     func start() throws {
         let listener = xpc_connection_create_mach_service(
-            IsolatedRuntimePolicy.serviceName, nil, UInt64(XPC_CONNECTION_MACH_SERVICE_LISTENER))
+            serviceName, nil, UInt64(XPC_CONNECTION_MACH_SERVICE_LISTENER))
         self.listener = listener
         xpc_connection_set_event_handler(listener) { [self] peer in
             guard xpc_get_type(peer) == XPC_TYPE_CONNECTION else { return }
@@ -118,7 +202,7 @@ private final class RuntimeHostServer: @unchecked Sendable {
                 let data = Data(bytes: bytes, count: size)
                 let uid = xpc_connection_get_euid(peer)
                 Task {
-                    let status: IsolatedRuntimeStatus
+                    var status: IsolatedRuntimeStatus
                     do {
                         guard let body = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                             Set(body.keys) == ["operation", "action"]
@@ -150,6 +234,7 @@ private final class RuntimeHostServer: @unchecked Sendable {
                         refused.error = error.localizedDescription
                         status = refused
                     }
+                    status.helperService = serviceName
                     guard let reply = xpc_dictionary_create_reply(message),
                         let output = try? JSONEncoder().encode(status)
                     else { return }

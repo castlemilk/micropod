@@ -206,7 +206,9 @@ public struct RuntimeCoordinationProofVerifier: Sendable {
             state.lastReleasedOwner == operation.id, state.lastReleasedOperation == operation,
             state.lastReleasedGeneration == resourceGeneration,
             state.lastReleasedRevision == originalEnrollment.revision, state.lastReleasedKind == kind.rawValue,
-            kind == .cancelled || kind.rawValue == operation.targetState,
+            // A start that left the runtime positively stopped is released
+            // as stopped (Cuttlefish keeps the resource closed).
+            kind == .cancelled || kind == .stopped || kind.rawValue == operation.targetState,
             state.closed || (current.enabled && kind == .running)
         else { throw Self.refused() }
         return RuntimeCoordinationReleaseObservation(
@@ -299,8 +301,7 @@ extension RuntimeCoordinationOperation {
             id == identifier.uuidString.lowercased(), runtimeInstance == identity.instance.uuidString,
             localGeneration > 0, ["start", "stop", "restart", "install"].contains(action),
             targetState == (action == "stop" ? "stopped" : "running"),
-            version == AppleRuntimeRelease.supported.version,
-            packageSHA256 == AppleRuntimeRelease.supported.packageSHA256
+            AppleRuntimeRelease.releases.contains(where: { $0.version == version && $0.packageSHA256 == packageSHA256 })
         else { throw RuntimeCoordinationProofVerifier.refused() }
         if installRoot != prefix {
             guard installRoot.hasPrefix(prefix + "-"),

@@ -2,6 +2,11 @@ import Foundation
 
 public enum IsolatedRuntimeAction: String, Codable, Sendable {
     case status, install, start, stop, restart, verify, workload, session, cancel, probe
+    /// Replace the setup app, root helper, dedicated API and Apple build with
+    /// the ones the installed desktop app carries (docs/runtime-component-update.md).
+    case update
+    /// Return to the exact setup app bytes the last component update replaced.
+    case rollback
 }
 
 public struct IsolatedRuntimeRequest: Codable, Sendable {
@@ -31,6 +36,9 @@ public struct IsolatedRuntimeStatus: Codable, Sendable {
     public var runtimeRigAttempted: Bool?
     public var runtimeCancelledBeforeAction: Bool?
     public var runtimeActionStarted: Bool?
+    /// A start whose action left the runtime verified stopped, released to
+    /// the coordinator as stopped: rig intake stays paused until a start.
+    public var runtimeReleasedStopped: Bool?
     public var selection: ManagedRuntimeLocation.Selection?
     public var nativeVersion: String?
     public var nativeState: String?
@@ -41,6 +49,22 @@ public struct IsolatedRuntimeStatus: Codable, Sendable {
     public var pendingOperationRoutes: [String]?
     /// Ephemeral capability, returned only over authenticated IPC. Never journaled.
     public var session: IsolatedRuntimeAPISession?
+    /// The component update protocol this helper implements; absent from
+    /// helpers that cannot update themselves. Status replies only.
+    public var componentProtocol: Int?
+    /// The current or last runtime component update. Status replies only;
+    /// `operation.json` never carries it.
+    public var componentUpdate: RuntimeComponentUpdateSummary?
+    /// `protected`, or `unprotected: <reason>`: whether this helper runs as
+    /// the root-owned authority (docs/runtime-component-update.md). Status
+    /// replies only.
+    public var componentProtection: String?
+    /// The Mach service the answering helper listens on: the authority's,
+    /// or the legacy SMAppService job's. Status replies only.
+    public var helperService: String?
+    /// A VM release-gate fault file is present in `RuntimeHost`
+    /// (docs/vm-release-gate.md). Status replies only.
+    public var gateFaultArmed: Bool?
     public var isTerminal: Bool {
         ["idle", "completed", "cancelled", "blocked", "failed", "recoveryRequired"].contains(phase)
     }

@@ -33,6 +33,10 @@ on:
         description: "Publish frozen qualified assets using their reviewed channel policy (vX.Y.Z); no rebuild"
         required: false
         type: string
+      qualification_security_floor:
+        description: "Draft-only: signed runtime security floor (X.Y.Z) for the VM gate's floor test; tag releases ignore it"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -216,10 +220,28 @@ jobs:
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          SPARKLE_ED25519_KEY: ${{ secrets.SPARKLE_ED25519_KEY }}
+          # Only a draft qualification build may carry a gate floor.
+          MICROPOD_COMPONENTS_SECURITY_FLOOR: ${{ github.event_name == 'workflow_dispatch' && inputs.qualification_version != '' && inputs.qualification_security_floor || '' }}
         run: |
           if [ -n "$APPLE_SIGNING_IDENTITY" ] && [ -n "$MACOS_CERTIFICATE" ]; then
-            bash scripts/make_dmg.sh --sign "$APPLE_SIGNING_IDENTITY" \
+            # make_dmg.sh signs the runtime component manifest with the release
+            # key (scripts/write_runtime_components.sh): rigs self-update only
+            # from a manifest that key signed.
+            sparkle=$(jq -er '.pins[] | select(.identity == "sparkle") | .state.version' Package.resolved)
+            curl -fsSL -o /tmp/sparkle-components.tar.xz \
+              "https://github.com/sparkle-project/Sparkle/releases/download/$sparkle/Sparkle-$sparkle.tar.xz"
+            # sign_update is handed the release key: only pinned bytes run.
+            bash scripts/verify_sparkle_tools.sh "$sparkle" /tmp/sparkle-components.tar.xz
+            mkdir -p /tmp/sparkle-components && tar -xf /tmp/sparkle-components.tar.xz -C /tmp/sparkle-components
+            echo "$SPARKLE_ED25519_KEY" | base64 -d > "$RUNNER_TEMP/components-ed.key"
+            trap 'rm -f "$RUNNER_TEMP/components-ed.key"' EXIT
+            SPARKLE_SIGN_UPDATE=/tmp/sparkle-components/bin/sign_update \
+              SPARKLE_ED_KEY_FILE="$RUNNER_TEMP/components-ed.key" \
+              bash scripts/make_dmg.sh --sign "$APPLE_SIGNING_IDENTITY" \
               --notarize --key-profile micropod-notary
+            rm -f "$RUNNER_TEMP/components-ed.key"
+            test -s dist/Micropod.app/Contents/Resources/runtime-components.json.sig
             echo "DMG_ASSET=Micropod.dmg" >> "$GITHUB_ENV"
           else
             # Name it differently so an unsigned CI build can never clobber a
@@ -250,10 +272,16 @@ jobs:
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GATE_SECURITY_FLOOR: ${{ github.event_name == 'workflow_dispatch' && inputs.qualification_version != '' && inputs.qualification_security_floor || '' }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             [ "$DMG_ASSET" = "Micropod.dmg" ] || exit 1
             printf '%s\n' "$GITHUB_SHA" > dist/qualification-source.txt
+            # A VM-gate floor marks the draft: publication refuses it
+            # (scripts/verify_qualified_release.mjs).
+            if [ -n "$GATE_SECURITY_FLOOR" ]; then
+              printf 'gate-security-floor=%s\n' "$GATE_SECURITY_FLOOR" >> dist/qualification-source.txt
+            fi
             gh release create "$VERSION" \
               "dist/$DMG_ASSET" "dist/$DMG_ASSET.sha256" "dist/Micropod.${VERSION#v}.tgz" \
               dist/qualification-source.txt --target "$GITHUB_SHA" --draft --latest=false \
@@ -295,6 +323,7 @@ jobs:
           sparkle=$(jq -er '.pins[] | select(.identity == "sparkle") | .state.version' Package.resolved)
           curl -fsSL -o /tmp/sparkle.tar.xz \
             "https://github.com/sparkle-project/Sparkle/releases/download/$sparkle/Sparkle-$sparkle.tar.xz"
+          bash scripts/verify_sparkle_tools.sh "$sparkle" /tmp/sparkle.tar.xz
           mkdir -p /tmp/sparkle && tar -xf /tmp/sparkle.tar.xz -C /tmp/sparkle
           echo "$SPARKLE_ED25519_KEY" | base64 -d > "$RUNNER_TEMP/ed.key"
           /tmp/sparkle/bin/sign_update --ed-key-file "$RUNNER_TEMP/ed.key" \

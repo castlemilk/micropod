@@ -10,6 +10,27 @@ release becomes public it creates `sdk/go/vX.Y.Z` at that source (refusing one
 that names another commit), so only published releases become Go module
 versions. `sdk/go/*` does not match the `v*` tag trigger, so it starts no build.
 
+**The runtime security floor.** A release that ships a runtime component
+manifest (`Micropod.app/Contents/Resources/runtime-components.json`, castlemilk/micropod#178)
+must name its floor in the reviewed record: `"runtimeComponentsSecurityFloor":
+"X.Y.Z"` or `null`. Publication extracts the manifest from the frozen tarball
+and refuses unless its `securityFloor` is exactly that value, at most the
+release itself, and the manifest names this release. The member may be
+`Micropod.app/...` or `./Micropod.app/...`; any other copy of
+`runtime-components.json` in the tarball, or more than one, is refused. From
+v0.13.10 on (`runtimeComponentsSince`, the first release after #178) the
+manifest is required; an older release without it must not name a floor.
+`scripts/write_runtime_components.sh` already refuses to build a floor above
+the release. The floor is permanent on every rig that installs
+the release (root refuses anything below it), so it is reviewed like the
+version itself.
+
+**VM-gate drafts are never published.** A qualification dispatched with
+`qualification_security_floor` (docs/vm-release-gate.md) records
+`gate-security-floor=X.Y.Z` in `qualification-source.txt`, and publication
+refuses that draft whatever its record says. Delete such drafts and their tags
+when the gate is done: `gh release delete vX.Y.Z -R castlemilk/micropod --cleanup-tag --yes`.
+
 The manifest chooses one policy:
 
 | Policy | Feed | Installation |

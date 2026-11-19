@@ -38,6 +38,8 @@ struct VersionEnvironment: Sendable {
     var dedicatedRequest: @Sendable (_ path: String, _ body: Data, _ timeout: Duration) async throws -> Data
     /// A disruptive rig upgrade's state from this account's journal, if any.
     var rigUpgrade: @Sendable () -> Micropod_V1_UpdateState? = { nil }
+    /// The executables of root runtime helper processes.
+    var helperPrograms: @Sendable () -> [String] = { [] }
 
     static func live(client: ContainerCLIClient) -> VersionEnvironment {
         let environment = ProcessInfo.processInfo.environment
@@ -65,7 +67,8 @@ struct VersionEnvironment: Sendable {
             dedicatedRequest: { path, body, timeout in
                 try await IsolatedRuntimeTransport.shared.request(path: path, body: body, timeout: timeout)
             },
-            rigUpgrade: { UpdateStateResolver.rig(layout: RigUpgradeLayout(home: home)) })
+            rigUpgrade: { UpdateStateResolver.rig(layout: RigUpgradeLayout(home: home)) },
+            helperPrograms: { RuntimeSetupInstallation.helperPrograms() })
     }
 }
 
@@ -247,6 +250,9 @@ extension APIHandlers {
         let helperRunning = digests ? (try? RuntimeSetupInstallation.helperIsRunning()) : nil
         found[.setupHelper] = ComponentProbe.setupHelper(
             at: environment.setupApp, running: helperRunning, digest: digests)
+        found[.runtimeAuthority] = ComponentProbe.runtimeAuthority(
+            helpers: environment.helperPrograms(),
+            dedicated: environment.role == .dedicated || environment.usesDedicatedRuntime())
         if environment.role == .connect, environment.usesDedicatedRuntime() {
             // The dedicated runtime reports these itself (VersionManifest.merging);
             // this account's legacy runtime files say nothing about it.
