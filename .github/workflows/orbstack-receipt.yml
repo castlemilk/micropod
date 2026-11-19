@@ -1,0 +1,37 @@
+name: Read OrbStack filesystem receipt
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: OrbStack benchmark run with a published filesystem receipt
+        required: true
+        type: string
+  push:
+    branches: [benchmarks/orbstack-live-20261119]
+    paths: [.github/workflows/orbstack-receipt.yml]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  read-receipt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: orbstack-filesystem-receipt
+          path: receipt
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.run_id || '44478828113' }}
+      - name: Read the published measurements
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          receipt = json.loads(Path("receipt/orb-files.json").read_bytes())
+          assert receipt["lane"] == "orbstack-sharedfs-consumer"
+          print("FILESYSTEM_RECEIPT", json.dumps(receipt, separators=(",", ":")))
+          PY
