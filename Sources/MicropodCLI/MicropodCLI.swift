@@ -58,6 +58,9 @@ struct MicropodCLI {
             let json = args.contains("--json")
             exit(await StorageCommands.main(Array(args.dropFirst()).filter { $0 != "--json" }, json: json))
         }
+        if args.first == "ci" {
+            exit(await CICommands.main(Array(args.dropFirst())))
+        }
         if args.first == "sandbox" {
             exit(await SandboxCommands.main(Array(args.dropFirst())))
         }
@@ -168,6 +171,9 @@ struct MicropodCLI {
 
         Usage: micropod <command> [flags] [args]
 
+        CI worker:
+          ci start|endpoint|status|run|stop  one Linux kernel for this account’s trusted Docker jobs
+
         Containers:
           ps [-a] [-s] [--json]              list containers (add -a for stopped, -s for stats)
           run <image> [args…]                create+start a container (default detached; -a to attach)
@@ -209,7 +215,7 @@ struct MicropodCLI {
           build-cache stats|inspect        content-addressed build contexts
           machines [--json]                  runtime VMs (create/run/stop/rm for keep-alive CI)
           sandbox run|checkpoint             ephemeral micro-VM per command (CI fast path)
-          runtime ls|use|enable|disable      execution engines: apple VMs, docker, sandbox micro-VMs
+          runtime ls|use|enable|disable      execution engines: apple, docker, sandbox, ci
           machines stats [name]|logs <name>  VM metrics / stdio+boot logs (-f, -n N, --boot)
           k8s enable|up|down|status          lightweight Kubernetes (opt-in; k3s micro-VM + MetalLB)
           k8s load <ref|file.tar>|images     push images into the cluster via the host puller
