@@ -116,7 +116,7 @@ them say so in the PR, with new digests.
 ```sh
 mkdir -p ~/micropod-rc
 cd ~/micropod-rc
-REF=22596325bc98190ca0f909e8f4085f82c935544d
+REF=9b85e9f392496d682f65d584af4331b8fe3e3179
 R=repos/castlemilk/micropod/contents/scripts/vm
 A='Accept: application/vnd.github.raw'
 gh api -H "$A" "$R/gate-host.sh?ref=$REF" > gate-host.sh
@@ -128,7 +128,7 @@ Both digests must match before going on:
 
 ```
 d43c0ebc1e1801b450acdcf9e353eecf14f32002308b144994a4e6afa964c35b  gate-host.sh
-592487e5a55ce3b9378eac34c932f08b9891ec00096a9bfc574d2823283f1505  runtime-authority-gate.sh
+110e4b9e42c56e9ce55413804086a359eb5c433001f460812be52c5fb56e4e96  runtime-authority-gate.sh
 ```
 
 ## 2. tart and the image
@@ -328,6 +328,9 @@ means an input was missing, or an agent-spawned attacker never started (`g5`,
 have run as an agent child does: launchd as its parent, in the console's
 GUI session, to its end, with a counted run that exited 0. Otherwise the
 test fails, and so does any attempt that succeeded, whatever else happened.
+What launchd runs as that child (its plist and scripts) is written by root
+into the root-owned `/var/db/micropod-gate-child`, so no process of the
+admin user can swap it.
 `out/logs/<step>.log` has what launchd and the child recorded. A test that
 reboots has two lines, and both must pass.
 
