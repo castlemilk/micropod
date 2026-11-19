@@ -19,6 +19,21 @@ The CLI used `docker run --rm` against a selected local context. The direct API 
 
 [CLI samples](orbstack-cli-samples.json) · [Direct API samples](orbstack-api-samples.json) · [CLI run](https://github.com/castlemilk/micropod/actions/runs/44475818424) · [Direct API run](https://github.com/castlemilk/micropod/actions/runs/44477775270)
 
+## The same container workload on an Ubuntu runner
+
+Docker 28.0.4 and rootful Podman 4.9.3 ran on the same four-vCPU Ubuntu 24.04.5 runner with 15.61 GiB of RAM. Podman used crun and cgroup v2. Both loaded the same offline amd64 image used for OrbStack. The executable and image configuration SHA-256 values matched across the Mac and Linux runs. Each engine ran one excluded warm-up and five measured batches per concurrency, with engine order rotated each block. All 40 measured batches passed, comprising 145 container executions per engine.
+
+| Simultaneous containers | Docker median (min–max), s | Podman median (min–max), s |
+|---:|---:|---:|
+| 1 | 0.124 (0.115–0.139) | 0.104 (0.099–0.105) |
+| 4 | 0.213 (0.168–0.242) | 0.208 (0.188–0.218) |
+| 8 | 0.374 (0.318–0.403) | 0.401 (0.366–0.450) |
+| 16 | 0.660 (0.604–0.725) | 1.015 (0.948–1.189) |
+
+The Linux workload step took 28 s. The full job took 44 s including checkout, Go setup and artifact upload. Docker and Podman share one Linux host in this table. OrbStack ran a nested guest under macOS on another host with a different kernel and engine version. A Linux-to-Mac ratio would include those differences.
+
+[Raw Linux samples, versions and fixture hashes](orbstack-linux-reference.json) · [Linux measurement run](https://github.com/castlemilk/micropod/actions/runs/44483464854)
+
 ## Builds and compatibility
 
 One observation per build case in the five-block CLI run. Timings include the Buildx invocation, image load, execution, cleanup of the verification container and inspection of the output. The fixture uses a static executable, a multi-stage Dockerfile and no registry pull.
