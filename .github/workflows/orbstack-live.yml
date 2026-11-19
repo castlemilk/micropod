@@ -1,0 +1,102 @@
+name: OrbStack live benchmark
+on:
+  push:
+    branches: [benchmarks/orbstack-live-20261119]
+    paths: [.github/workflows/orbstack-live.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  orbstack:
+    runs-on: macos-15-intel
+    timeout-minutes: 15
+    env:
+      ORB_APP: /Applications/OrbStack.app
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Record host and check virtualization
+        run: |
+          sw_vers
+          uname -m
+          sysctl machdep.cpu.brand_string hw.ncpu hw.memsize kern.hv_support
+          test "$(uname -m)" = x86_64
+          test "$(sysctl -n kern.hv_support)" = 1
+      - name: Install the pinned Intel build on this disposable runner
+        run: |
+          dmg="$RUNNER_TEMP/OrbStack.dmg"
+          mount="$RUNNER_TEMP/orb-installer"
+          mkdir "$mount"
+          curl --fail --location --retry 2 --max-time 120 --output "$dmg" \
+            https://cdn-updates.orbstack.dev/amd64/OrbStack_v2.2.5_21124_amd64.dmg
+          echo "48f66df42357ba0294ea9c625dda84ac72e10f0d23710d5afcf079bcb6ae865b  $dmg" | shasum -a 256 --check
+          hdiutil attach -readonly -nobrowse -mountpoint "$mount" "$dmg"
+          ditto "$mount/OrbStack.app" "$ORB_APP"
+          hdiutil detach "$mount"
+          codesign --verify --strict "$ORB_APP"
+          /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$ORB_APP/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$ORB_APP/Contents/Info.plist"
+          printf '%s\n' "$ORB_APP/Contents/MacOS/bin" "$ORB_APP/Contents/MacOS/xbin" "$HOME/.orbstack/bin" >> "$GITHUB_PATH"
+      - name: Start OrbStack and verify its local Docker endpoint
+        run: |
+          mkdir -p "$HOME/.docker/cli-plugins"
+          orb config set setup.use_admin false
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess, time
+          path = pathlib.Path(os.environ["RUNNER_TEMP"]) / "orb-start.json"
+          started = time.monotonic()
+          subprocess.run(["orb", "start"], check=True, timeout=120)
+          detail = ""
+          while time.monotonic() - started < 150:
+              reply = subprocess.run(["docker", "--context", "orbstack", "info", "--format",
+                                      "{{.OperatingSystem}}|{{.Name}}|{{.KernelVersion}}|{{.Architecture}}"],
+                                     capture_output=True, text=True, timeout=10)
+              detail = (reply.stdout or reply.stderr).strip()
+              if reply.returncode == 0:
+                  break
+              time.sleep(0.5)
+          else:
+              raise SystemExit("OrbStack endpoint unavailable: " + detail[-1200:])
+          ready_ms = round((time.monotonic() - started) * 1000, 2)
+          endpoint = subprocess.check_output(["docker", "context", "inspect", "orbstack", "--format",
+                                               "{{.Endpoints.docker.Host}}"], text=True).strip()
+          if not endpoint.startswith("unix://") or ".orbstack/" not in endpoint or "orbstack" not in detail.lower():
+              raise SystemExit(f"Unverified OrbStack endpoint {endpoint} / {detail}")
+          record = {"first_start_to_docker_info_ms": ready_ms, "identity": detail,
+                    "endpoint": endpoint.replace(str(pathlib.Path.home()), "~")}
+          path.write_text(json.dumps(record, indent=2) + "\n")
+          print(json.dumps(record))
+          PY
+          docker --context orbstack buildx version
+          docker --context orbstack compose version
+      - name: Build, run and scale validated containers
+        run: |
+          python3 scripts/qualification/engine.py --context orbstack --clients 1 4 8 16 --rounds 7 \
+            --json "$RUNNER_TEMP/orb-engine.json"
+      - name: Publish sample timings and outcomes
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib
+          file = pathlib.Path(os.environ["RUNNER_TEMP"]) / "orb-engine.json"
+          if file.is_file():
+              result = json.loads(file.read_text())
+              for r in result["samples"]:
+                  if r["case"] == "engine-identity":
+                      print("SERVER", r.get("engine"), r.get("version", {}).get("Server", {}).get("Version"))
+                  record = {k: r[k] for k in ["case", "solution", "clients", "warmup", "block", "outcome",
+                                                "error", "validated_ms", "known_exits"] if k in r}
+                  print("SAMPLE", json.dumps(record, separators=(",", ":")))
+              print("FIXTURE", result.get("guest_sha256"), result.get("image_config_sha256"))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: orbstack-intel-receipts
+          path: |
+            ${{ runner.temp }}/orb-start.json
+            ${{ runner.temp }}/orb-engine.json
+          if-no-files-found: warn
