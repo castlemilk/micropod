@@ -207,12 +207,28 @@ enum DevVolumeCommands {
             guard volume.initialized else { throw DevVolumeError("Volume setup is incomplete. Repeat create.") }
             _ = try volume.diskInfo(requireMount: true)
             let migrating = opt.action == "migrate"
+            try DevVolumeMigration.sameDevice(volume.payload, volume.mount)
+            for tree in volume.trees {
+                let target = volume.destination(tree)
+                if DevVolumeMigration.link(tree.source) == target {
+                    try DevVolumeMigration.sameDevice(target, volume.payload)
+                    guard try DevVolumeMigration.kind(tree.backup) == S_IFDIR else {
+                        throw DevVolumeError("The original backup is missing at \(tree.backup)")
+                    }
+                } else {
+                    try DevVolumeMigration.validateSource(tree.source, state: state.path)
+                }
+            }
             let pending = volume.trees.filter {
                 let linked = DevVolumeMigration.link($0.source) == volume.destination($0)
                 return migrating != linked
             }
             guard !pending.isEmpty else { break }
-            try DevVolumeMigration.quiescent(pending.map { migrating ? $0.source : volume.destination($0) })
+            try DevVolumeMigration.quiescent(
+                volume.trees.map {
+                    let target = volume.destination($0)
+                    return DevVolumeMigration.link($0.source) == target ? target : $0.source
+                })
             var links = DevVolumeMigration.HardLinks(enabled: volume.trees.count > 1)
             for index in volume.trees.indices {
                 var tree = volume.trees[index]

@@ -1,0 +1,111 @@
+{
+  "pnpm": "11.23.0",
+  "system": "Darwin",
+  "arch": "arm64",
+  "fixture_mib": 8,
+  "rows": [
+    {
+      "method": "copy",
+      "workspaces": 1,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 64,
+      "unique_inode_payload_mib": 16.0,
+      "median_install_seconds": 0.700236
+    },
+    {
+      "method": "hardlink",
+      "workspaces": 1,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 32,
+      "unique_inode_payload_mib": 8.0,
+      "median_install_seconds": 0.686364
+    },
+    {
+      "method": "hardlink",
+      "workspaces": 4,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 32,
+      "unique_inode_payload_mib": 8.0,
+      "median_install_seconds": 0.765429
+    },
+    {
+      "method": "copy",
+      "workspaces": 4,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 160,
+      "unique_inode_payload_mib": 40.0,
+      "median_install_seconds": 0.759891
+    },
+    {
+      "method": "hardlink",
+      "workspaces": 8,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 32,
+      "unique_inode_payload_mib": 8.0,
+      "median_install_seconds": 0.800364
+    },
+    {
+      "method": "copy",
+      "workspaces": 8,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 288,
+      "unique_inode_payload_mib": 72.0,
+      "median_install_seconds": 0.748463
+    },
+    {
+      "method": "hardlink",
+      "workspaces": 16,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 32,
+      "unique_inode_payload_mib": 8.0,
+      "median_install_seconds": 0.716411
+    },
+    {
+      "method": "copy",
+      "workspaces": 16,
+      "files_per_project": 32,
+      "store_and_project_payload_inodes": 544,
+      "unique_inode_payload_mib": 136.0,
+      "median_install_seconds": 0.72219
+    }
+  ],
+  "warm_install_seconds": {
+    "copy": [
+      0.700236,
+      0.688873,
+      1.153055,
+      0.819547,
+      0.783583,
+      0.683616,
+      0.713342,
+      0.931598,
+      0.715259,
+      0.753601,
+      0.797887,
+      0.794751,
+      0.647255,
+      0.729122,
+      0.645415,
+      0.712326
+    ],
+    "hardlink": [
+      0.686364,
+      0.585096,
+      1.251116,
+      0.844494,
+      0.785087,
+      0.821669,
+      0.81564,
+      0.711173,
+      0.847795,
+      0.682685,
+      0.796482,
+      0.696242,
+      0.671342,
+      0.622271,
+      0.655183,
+      0.721648
+    ]
+  },
+  "passed": true
+}

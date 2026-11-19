@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Time containers on an already-running Docker kernel. Micropod executes the clock inside its live allocation."""
+"""Time containers on a verified running kernel, including paired runs from one physical Mac."""
 
 import argparse
 import concurrent.futures
@@ -77,6 +77,15 @@ def in_allocation(args, receipt):
     parent = fingerprint(execute(["cat", BOOT]))
     receipt["allocation"] = owner
     receipt["owner_boot_sha256"] = parent
+    if args.clock == "client":
+        def runner(argv):
+            response = rpc(args.api, "Exec", {"id": args.allocation, "arguments": argv})
+            return subprocess.CompletedProcess(argv, int(response.get("exitCode", 0)),
+                                               response.get("output", ""), response.get("error", ""))
+        measure(args, receipt, runner=runner, read_parent=lambda: fingerprint(execute(["cat", BOOT])))
+        require(receipt["boot_sha256"] == parent and inspect() == owner, "Micropod allocation changed")
+        return
+
     # A single RPC encloses setup, timed work and teardown. Container launch times
     # use the allocation's monotonic clock and exclude transport back to the Mac.
     inner = ["python3", "-c", Path(__file__).read_text(), "--engine", "inner", "--socket", args.socket,
@@ -88,11 +97,12 @@ def in_allocation(args, receipt):
             "Micropod allocation or kernel changed during measurement")
 
 
-def measure(args, receipt):
+def measure(args, receipt, runner=None, read_parent=None):
     require(args.socket.startswith("/"), "The Docker socket must be an absolute path")
     docker = ["docker", "--host", "unix://" + args.socket]
     def cmd(argv, check=True):
-        r = subprocess.run([*docker, *argv], capture_output=True, text=True, timeout=90)
+        command = [*docker, *argv]
+        r = runner(command) if runner else subprocess.run(command, capture_output=True, text=True, timeout=90)
         if check and r.returncode:
             raise ValueError(f"docker {argv[0]} exited {r.returncode}: {r.stderr[-350:]}")
         return r
@@ -105,7 +115,7 @@ def measure(args, receipt):
 
     initial = server()
     receipt["server"] = initial
-    if args.engine == "inner":
+    if args.engine in {"inner", "micropod"}:
         require("rootless" in str(initial["SecurityOptions"]).lower(), "Allocation engine did not report rootless Docker")
     if args.engine == "orbstack":
         require("orbstack" in (str(initial["Name"]) + str(initial["OperatingSystem"])).lower(), "Expected an OrbStack daemon")
@@ -113,7 +123,9 @@ def measure(args, receipt):
     image = info["Id"]
     require(CLASSES.get(initial["Architecture"]) == info["Architecture"], "Image architecture differs from daemon architecture")
     receipt.update(image_id=image, architecture=info["Architecture"], image_digests=info.get("RepoDigests", []))
-    host_boot = None if args.engine == "orbstack" else fingerprint(Path(BOOT).read_text())
+    if read_parent is None and args.engine != "orbstack":
+        read_parent = lambda: fingerprint(Path(BOOT).read_text())
+    host_boot = read_parent() if read_parent else None
     cohort = uuid.uuid4().hex
     label = "io.micropod.kernel-bench=" + cohort
     options = ["--pull=never", "--label", label, "--cpus", "1", "--memory", "256m", "--network", "none"]
@@ -166,16 +178,61 @@ def measure(args, receipt):
     require(not cmd(["ps", "-aq", "--filter", "label=" + label]).stdout.strip(), "Benchmark containers remain")
     require(server()["ID"] == initial["ID"], "Docker daemon identity changed")
     if host_boot:
-        require(fingerprint(Path(BOOT).read_text()) == kernel, "Parent Linux kernel rebooted")
+        require(read_parent() == kernel, "Parent Linux kernel rebooted")
     receipt["p50_seconds"] = {str(n): statistics.median(complete) for n in args.clients
                               if (complete := [s["seconds"] for s in samples if s["clients"] == n and not s["errors"]])}
     require(all(not s["errors"] for s in samples), "Some measured containers failed validation")
 
 
+def paired(args, receipt):
+    require(platform.system() == "Darwin" and platform.machine() == "arm64", "Run the paired test on an Apple Silicon Mac")
+    require(args.clock == "client", "Both engines in a pair use the Mac client's clock")
+    receipt["hardware"] = {key: subprocess.check_output(["/usr/sbin/sysctl", "-n", key], text=True).strip()
+                           for key in ("hw.model", "hw.ncpu", "hw.memsize")}
+    require(not receipt["hardware"]["hw.model"].startswith("VirtualMac"), "Use a physical Mac for this pairing")
+    rows = []
+    receipt["blocks"] = rows
+    identities = {}
+    for block in range(args.rounds):
+        order = ["micropod", "orbstack"]
+        if block % 2:
+            order.reverse()
+        for engine in order:
+            current = argparse.Namespace(**vars(args))
+            current.engine, current.rounds = engine, 1
+            offset = block % len(args.clients)
+            current.clients = args.clients[offset:] + args.clients[:offset]
+            row = dict(engine=engine, block=block + 1)
+            rows.append(row)
+            if engine == "micropod":
+                in_allocation(current, row)
+            else:
+                current.socket = args.orbstack_socket
+                measure(current, row)
+            identity = (row["boot_sha256"], row["server"]["ID"], row["image_id"])
+            require(identity == identities.setdefault(engine, identity), f"{engine} kernel, daemon or image changed")
+            row["passed"] = True
+    left, right = rows[:2]
+    require(left["architecture"] == right["architecture"] == "arm64" and left["image_id"] == right["image_id"],
+            "The two engines did not use the same native ARM64 image")
+    require(left["boot_sha256"] != right["boot_sha256"] and left["server"]["ID"] != right["server"]["ID"],
+            "Both clients reached the same Linux kernel or daemon")
+    receipt["p50_seconds"] = {
+        engine: {str(n): statistics.median(s["seconds"] for row in rows if row["engine"] == engine
+                                          for s in row["batches"] if s["clients"] == n) for n in args.clients}
+        for engine in identities
+    }
+    receipt["engine_resources"] = {r["engine"]: {key: r["server"][key] for key in ("NCPU", "MemTotal")}
+                                   for r in (left, right)}
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--engine", choices=["micropod", "linux-docker", "orbstack", "inner"], required=True)
+    p.add_argument("--engine", choices=["rig-pair", "micropod", "linux-docker", "orbstack", "inner"], required=True)
     p.add_argument("--socket", required=True, help="Docker Unix socket in the measured environment")
+    p.add_argument("--clock", choices=["client", "guest"], default="client",
+                   help="Time from the invoking client, or inside an owned Micropod allocation")
+    p.add_argument("--orbstack-socket", help="Mac-local OrbStack socket for an interleaved physical rig comparison")
     p.add_argument("--api", help="Local Micropod Connect endpoint")
     p.add_argument("--allocation", help="ID of an existing Micropod rootless Docker sandbox")
     p.add_argument("--image", default="alpine:3.20", help="Already-pulled native Alpine image or digest")
@@ -185,12 +242,18 @@ def main():
     args = p.parse_args()
     if not (1 <= args.rounds <= 50 and all(1 <= n <= 64 for n in args.clients) and len(set(args.clients)) == len(args.clients)):
         p.error("Rounds must be 1..50 and distinct client levels 1..64")
-    if args.engine == "micropod" and not (args.api and args.allocation):
+    if args.engine in {"rig-pair", "micropod"} and not (args.api and args.allocation):
         p.error("Micropod requires --api and --allocation")
+    if args.engine == "rig-pair" and not args.orbstack_socket:
+        p.error("A physical pair requires --orbstack-socket")
+    if args.clock == "guest" and args.engine != "micropod":
+        p.error("The guest clock is available for an owned Micropod allocation")
     record = dict(profile=args.engine, measured_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                  system=platform.system(), arch=platform.machine(), image=args.image, rounds=args.rounds)
+                  system=platform.system(), arch=platform.machine(), clock=args.clock, image=args.image, rounds=args.rounds)
     try:
-        if args.engine == "micropod":
+        if args.engine == "rig-pair":
+            paired(args, record)
+        elif args.engine == "micropod":
             in_allocation(args, record)
         else:
             measure(args, record)

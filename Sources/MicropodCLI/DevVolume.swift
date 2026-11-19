@@ -49,16 +49,30 @@ enum DevTool {
     }
 
     static func interact(_ tool: String, _ args: [String]) throws {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: tool)
-        process.arguments = args
-        process.standardInput = FileHandle.standardInput
-        process.standardOutput = FileHandle.standardError
-        process.standardError = FileHandle.standardError
-        try process.run()
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else {
-            throw DevVolumeError("\(tool) exited \(process.terminationStatus)")
+        // diskutil and sudo read their passphrases from the foreground terminal.
+        // Spawn in our process group and reserve stdout for the CLI's JSON.
+        var actions: posix_spawn_file_actions_t?
+        guard posix_spawn_file_actions_init(&actions) == 0 else { throw DevVolumeError("Cannot spawn \(tool)") }
+        defer { posix_spawn_file_actions_destroy(&actions) }
+        guard posix_spawn_file_actions_adddup2(&actions, STDERR_FILENO, STDOUT_FILENO) == 0 else {
+            throw DevVolumeError("Cannot connect terminal output for \(tool)")
+        }
+        var argv = ([tool] + args).map { strdup($0) }
+        defer { for arg in argv { free(arg) } }
+        guard argv.allSatisfy({ $0 != nil }) else { throw POSIXError(.ENOMEM) }
+        argv.append(nil)
+        var pid: pid_t = 0
+        let rc = argv.withUnsafeMutableBufferPointer {
+            posix_spawn(&pid, tool, &actions, nil, $0.baseAddress!, environ)
+        }
+        guard rc == 0 else { throw DevVolumeError("Cannot start \(tool): \(String(cString: strerror(rc)))") }
+        var status: Int32 = 0
+        while waitpid(pid, &status, 0) == -1 {
+            if errno != EINTR { throw DevVolumeError("Cannot wait for \(tool)") }
+        }
+        guard status == 0 else {
+            let code = status & 127 == 0 ? status >> 8 : 128 + (status & 127)
+            throw DevVolumeError("\(tool) exited \(code)")
         }
     }
 

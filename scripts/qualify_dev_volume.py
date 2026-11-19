@@ -37,7 +37,7 @@ def interact(argv, secret):
         os.execv(str(argv[0]), list(map(str, argv)))
     transcript, pending = bytearray(), bytearray()
     prompts = 0
-    end = time.monotonic() + 90
+    end = time.monotonic() + 75
     try:
         while time.monotonic() < end:
             if not select.select([fd], [], [], min(2, max(0, end - time.monotonic())))[0]:
@@ -59,7 +59,8 @@ def interact(argv, secret):
                 os.write(fd, secret + b"\n")
                 pending.clear()
         else:
-            raise RuntimeError("APFS passphrase prompt timed out")
+            detail = bytes(transcript).replace(secret, b"<redacted>").decode(errors="replace")
+            raise RuntimeError(f"APFS prompt timed out after {prompts} replies: {detail[-1000:]}")
     finally:
         os.close(fd)
         if time.monotonic() >= end or prompts > 3:
