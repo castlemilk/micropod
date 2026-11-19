@@ -267,7 +267,12 @@ public actor SharedFSDaemon: SharedFSClient {
         let viewRoot = viewsRoot.appendingPathComponent(id.value, isDirectory: true)
         try SharedView.build(source: normalized, root: viewRoot)
         let view = SharedView(id: id, source: normalized, root: viewRoot)
-        liveSync[id] = try SharedViewSync(source: normalized, view: viewRoot)
+        do {
+            liveSync[id] = try SharedViewSync(source: normalized, view: viewRoot)
+        } catch {
+            try? view.destroy()
+            throw error
+        }
         views[id] = view
         viewsBySrc[normalized.path, default: []].insert(id)
         ensureWatchers(for: normalized, view: view)
@@ -292,15 +297,23 @@ public actor SharedFSDaemon: SharedFSClient {
         }
         // Deterministic ID for shared view (so restarts can re-derive).
         let hash = (try? ChunkHash.compute(Data(key.utf8)))?.value.prefix(12) ?? Substring(UUID().uuidString.prefix(12))
-        let id = ViewID(String(hash))
-        let viewRoot = viewsRoot.appendingPathComponent("shared-\(id.value)", isDirectory: true)
-        // Clean stale view dir if any.
-        if FileManager.default.fileExists(atPath: viewRoot.path) {
-            try? FileManager.default.removeItem(at: viewRoot)
+        var id = ViewID(String(hash))
+        var viewRoot = viewsRoot.appendingPathComponent("shared-\(id.value)", isDirectory: true)
+        do {
+            try SharedView.build(source: normalized, root: viewRoot)
+        } catch let error as POSIXError where error.code == .EEXIST {
+            // A retained directory may still be mounted by an earlier daemon.
+            id = ViewID.generate()
+            viewRoot = viewsRoot.appendingPathComponent("shared-\(id.value)", isDirectory: true)
+            try SharedView.build(source: normalized, root: viewRoot)
         }
-        try SharedView.build(source: normalized, root: viewRoot)
         let view = SharedView(id: id, source: normalized, root: viewRoot)
-        liveSync[id] = try SharedViewSync(source: normalized, view: viewRoot)
+        do {
+            liveSync[id] = try SharedViewSync(source: normalized, view: viewRoot)
+        } catch {
+            try? view.destroy()
+            throw error
+        }
         sharedViews[key] = view
         sharedRefCounts[key] = 1
         // Also register in views for list/inspect visibility.
@@ -319,7 +332,7 @@ public actor SharedFSDaemon: SharedFSClient {
         guard let view = views[id] else {
             throw SharedFSError.daemonUnavailable
         }
-        try SharedView.build(source: view.source, root: view.root)
+        try SharedView.build(source: view.source, root: view.root, files: .native, replacing: true)
         liveSync[id] = try SharedViewSync(source: view.source, view: view.root)
         return MountInfo(
             id: id, src: view.source.path, viewPath: view.root.path,

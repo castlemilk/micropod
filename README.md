@@ -694,8 +694,8 @@ micropod run -v ~/myproj:/app alpine ls /app   # shim auto-routes through shared
 Live writes in user space: every view and its source are watched with
 `FSEvents` (file-level, 0.1s latency). Host edits are copied to all live
 views sharing that source, and container writes are copied to the host and
-then to sibling views — all per-file, hash-checked to avoid loops, and
-backed by the chunk store for efficient block-level dedup. No root overlay
+then to sibling views. The daemon hashes each exchanged file and uses
+that digest to recognize an echoed write. No root overlay
 mount required; cross-container live sharing works through the host as a hub.
 `--shared` mounts (`micropod share mount --shared` or `MICROPOD_SHAREDFS_LIVE=1`)
 use a single shared view for the same source (all containers see the same
@@ -711,28 +711,38 @@ Host src  ──FSEvents──►  Daemon  ──clonefile/ chunk──►  View
    └────────────── FSEvents ─┘◄── container writes ─────────┘
 ```
 
-- **Chunk store** (`~/micropod/share-cache/chunks`, SHA256 / 256 KiB) dedups
-  across all views. `gc` reclaims unreferenced blocks. Opt-in LZ4
-  transcoding (`MICROPOD_SHAREDFS_TRANSCODE=1`) stores eligible blocks as
-  self-describing frames under the same identity hashes: 2.7–5.9× density
-  measured on Go build cache at full ingest speed, legacy files read
-  through untouched.
-- **Mount** tries APFS directory `clonefile` first (one syscall, CoW whole
-  tree, respects `.dockerignore`/`.syncignore`), falling back to per-file
-  `clonefile` with ignore filtering.
-- **Live sync** is per-file, not full-tree re-clone. Each `FSEvents` file
-  event copies only that file via `clonefile` (same volume) or chunk
-  materialisation, hash-checked to avoid loops (temp files `.sb-*` ignored).
-  Shared mounts are ref-counted — last `unmount` destroys the view.
+- **Chunk store** (`~/micropod/share-cache/chunks`) uses SHA-256 addresses and
+  256 KiB chunks by default. A file manifest records the ordered chunks, total
+  length and digest from a single read. Restoration verifies each chunk and the
+  full manifest before replacing the destination. Empty files and deletions are
+  distinct entries. The older list API keeps its empty-list deletion behavior.
+- **Cache format** supports raw objects and MCZ1 LZ4 streams, including older raw
+  objects whose contents happen to start with MCZ1. New writes escape that prefix
+  using a literal LZ4 block that older releases can also read. Optional compression
+  uses `MICROPOD_SHAREDFS_TRANSCODE=1`. The maximum accepted chunk is 16 MiB.
+- **Mount** clones an unfiltered tree on APFS when possible. Filtered or
+  cross-volume mounts walk the tree, prune ignored directories, and clone
+  individual files or stream a metadata-preserving copy. A filtered view
+  preserves regular files, directory metadata and symbolic links. A special
+  entry that the copy path cannot represent causes mount to fail before publication.
+- **Live sync** copies changed regular files through private staging and checks
+  their contents to suppress echoed events. Shared mounts are reference-counted
+  until their last user unmounts them. A restarted daemon preserves earlier
+  view directories that may still be mounted.
 
 #### Benchmarking
 
-`task bench` covers the core runtime; `task bench-shim` covers the Docker
-shim. For shared-fs:
+`task bench` covers the core runtime and `task bench-shim` covers the Docker shim.
+The native view benchmark reports successful clone calls, fallback payload
+bytes, elapsed time and process peak RSS. Pass a source containing a
+`.syncignore` to exercise per-file cloning. Each destination must be new.
 
 ```sh
-task share-daemon &                     # start daemon
-python3 /tmp/bench_sharedfs.py          # mount + live sync micro-benchmarks
+xcrun swiftc -O -o /tmp/bench-sharedfs-view \
+  Sources/MicropodSharedFS/{SharedView,SharedFSStaging,ChunkHash}.swift \
+  scripts/bench_sharedfs_view.swift
+/tmp/bench-sharedfs-view native "$source_dir" "$work_dir/native-view"
+/tmp/bench-sharedfs-view copy "$source_dir" "$work_dir/copy-view"
 ```
 
 Measured on M-series, APFS, daemon at `~/micropod/share-cache`

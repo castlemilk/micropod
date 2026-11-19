@@ -30,22 +30,27 @@ public struct ChunkHash: Hashable, Codable, Sendable {
         return data
     }
 
+    var isValidAddress: Bool {
+        value.utf8.count == 64 && value.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) }
+    }
+
+    init(digest: SHA256.Digest) {
+        self.init(digest.map { String(format: "%02x", $0) }.joined())
+    }
+
     public static func compute(_ data: Data) throws -> ChunkHash {
-        let digest = SHA256.hash(data: data)
-        return ChunkHash(digest.map { String(format: "%02x", $0) }.joined())
+        ChunkHash(digest: SHA256.hash(data: data))
     }
 
     public static func computeFile(_ url: URL) throws -> ChunkHash {
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }
         var hasher = SHA256()
-        while autoreleasepool(invoking: {
-            let block = handle.readData(ofLength: 256 * 1024)
-            if block.isEmpty { return false }
+        while try autoreleasepool(invoking: {
+            guard let block = try handle.read(upToCount: 256 * 1024), !block.isEmpty else { return false }
             hasher.update(data: block)
             return true
         }) {}
-        let digest = hasher.finalize()
-        return ChunkHash(digest.map { String(format: "%02x", $0) }.joined())
+        return ChunkHash(digest: hasher.finalize())
     }
 }
