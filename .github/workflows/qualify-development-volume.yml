@@ -1,4 +1,4 @@
-name: Qualify development volume
+name: Qualify development volume and warm runtimes
 on:
   workflow_dispatch:
   push:
@@ -7,6 +7,7 @@ permissions:
   contents: read
 jobs:
   apfs:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: macos-26
     timeout-minutes: 20
     steps:
@@ -22,17 +23,104 @@ jobs:
           path: ${{ runner.temp }}/volume.json
 
   warm-linux:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04
+    env:
+      IMAGE: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v7
       - name: Pull native Alpine
-        run: docker pull alpine:3.20
+        run: docker pull "$IMAGE"
       - name: Verify the running kernel and measure 1, 4, 8 and 16 clients
-        run: python3 scripts/bench_live_kernel.py --engine linux-docker --socket /var/run/docker.sock --json "$RUNNER_TEMP/kernel.json"
+        run: python3 scripts/bench_live_kernel.py --engine linux-docker --image "$IMAGE" --socket /var/run/docker.sock --json "$RUNNER_TEMP/kernel.json"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: arm64-live-kernel
+          name: amd64-live-kernel
           path: ${{ runner.temp }}/kernel.json
+
+  warm-orbstack:
+    runs-on: macos-26-intel
+    timeout-minutes: 22
+    env:
+      ORB_APP: /Applications/OrbStack.app
+      IMAGE: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Record host and check virtualization
+        run: |
+          sw_vers
+          uname -m
+          sysctl machdep.cpu.brand_string machdep.cpu.family machdep.cpu.model machdep.cpu.stepping hw.ncpu hw.memsize kern.hv_support
+          test "$(uname -m)" = x86_64
+          test "$(sysctl -n kern.hv_support)" = 1
+      - name: Install and verify the selected Intel version
+        run: |
+          fixture=scripts/bench_orb_transport/installer.json
+          url=$(jq -er '.url' "$fixture")
+          sha=$(jq -er '.sha256' "$fixture")
+          dmg="$RUNNER_TEMP/OrbStack.dmg"
+          mount="$RUNNER_TEMP/orb-installer"
+          mkdir "$mount"
+          curl --fail --location --retry 2 --max-time 120 --output "$dmg" "$url"
+          echo "$sha  $dmg" | shasum -a 256 --check
+          hdiutil attach -readonly -nobrowse -mountpoint "$mount" "$dmg"
+          ditto "$mount/OrbStack.app" "$ORB_APP"
+          hdiutil detach "$mount"
+          codesign --verify --strict "$ORB_APP"
+          version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$ORB_APP/Contents/Info.plist")
+          build=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$ORB_APP/Contents/Info.plist")
+          test "$version" = "$(jq -er '.version' "$fixture")"
+          test "$build" = "$(jq -er '.build' "$fixture")"
+          echo "OrbStack $version (build $build)"
+          printf '%s\n' "$ORB_APP/Contents/MacOS/bin" "$ORB_APP/Contents/MacOS/xbin" "$HOME/.orbstack/bin" >> "$GITHUB_PATH"
+      - name: Start OrbStack and verify its local Docker endpoint
+        id: orbready
+        run: |
+          mkdir -p "$HOME/.docker/cli-plugins"
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess, time
+          path = pathlib.Path(os.environ["RUNNER_TEMP"]) / "orb-start.json"
+          started = time.monotonic()
+          subprocess.run(["orb", "config", "set", "setup.use_admin", "false"], check=True, timeout=120)
+          subprocess.run(["orb", "start"], check=True, timeout=120)
+          socket = pathlib.Path.home() / ".orbstack/run/docker.sock"
+          last = ""
+          while time.monotonic() - started < 200:
+              health = subprocess.run(["curl", "--silent", "--show-error", "--fail", "--max-time", "4",
+                                       "--unix-socket", str(socket), "http://localhost/info"],
+                                      capture_output=True, text=True)
+              if health.returncode == 0:
+                  engine = json.loads(health.stdout)
+                  break
+              last = health.stderr.strip()
+              if int(time.monotonic() - started) % 12 < 5:
+                  print(f"Waiting for Docker API ({time.monotonic()-started:.0f}s): {last}", flush=True)
+              time.sleep(1)
+          else:
+              raise SystemExit("OrbStack API readiness deadline: " + last)
+          ready_ms = round((time.monotonic() - started) * 1000, 2)
+          detail = {key: engine.get(key) for key in
+                    ["OperatingSystem", "Name", "KernelVersion", "Architecture", "ServerVersion", "NCPU", "MemTotal"]}
+          if "orbstack" not in str(detail).lower():
+              raise SystemExit(f"Unverified OrbStack engine {detail}")
+          record = {"first_cli_to_docker_info_ms": ready_ms, "identity": detail, "endpoint": "~/.orbstack/run/docker.sock"}
+          path.write_text(json.dumps(record, indent=2) + "\n")
+          print(json.dumps(record))
+          PY
+          if ! docker context inspect orbstack >/dev/null 2>&1; then
+            docker context create orbstack --docker "host=unix://$HOME/.orbstack/run/docker.sock"
+          fi
+      - name: Pull matching native Alpine
+        run: docker --host "unix://$HOME/.orbstack/run/docker.sock" pull "$IMAGE"
+      - name: Verify the running kernel and measure 1, 4, 8 and 16 clients
+        run: python3 scripts/bench_live_kernel.py --engine orbstack --image "$IMAGE" --socket "$HOME/.orbstack/run/docker.sock" --json "$RUNNER_TEMP/kernel.json"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: orbstack-amd64-live-kernel
+          path: |
+            ${{ runner.temp }}/kernel.json
+            ${{ runner.temp }}/orb-start.json
