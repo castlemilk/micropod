@@ -40,6 +40,7 @@ def main():
     ap.add_argument('--rounds', type=int, default=1)
     ap.add_argument('--clients', type=int, nargs='+', default=[1, 4])
     ap.add_argument('--podman-reference', action='store_true', help='compare rootful Podman on this Linux host')
+    ap.add_argument('--bursts-only', action='store_true', help='load the offline fixture and measure only validated container bursts')
     ap.add_argument('--oci', action='store_true', help='also run the Linux reference OCI lifecycle with sudo -n runc')
     args = ap.parse_args()
     if not 1 <= args.rounds <= 200 or not all(1 <= n <= 64 for n in args.clients):
@@ -166,14 +167,14 @@ def main():
                 require({p.name for p in dest.iterdir()} == {'result'} and (dest / 'result').read_bytes() == b'bravo|755',
                         'multi-stage local export contents')
             rec.record('buildx-local-export', export)
-        cleanup.callback(lambda: rec.record('cleanup-build-image', lambda: cleanup_if_exists('image', built)))
-        rec.record('buildx-workflow', check_builds)
+        if not args.bursts_only:
+            cleanup.callback(lambda: rec.record('cleanup-build-image', lambda: cleanup_if_exists('image', built)))
+            rec.record('buildx-workflow', check_builds)
         if imported['outcome'] == 'pass':
             def identity():
                 p = owned_run(tag, 'identity', flags=['--user', '123:456', '--hostname', 'qualify', '--network', 'none',
                                                      '--workdir', '/work', '--env', 'QUALIFY=ok'])
                 require(p.stdout.strip() == '123:456|/work|ok|qualify', 'identity, cwd, argv, hostname or env')
-            rec.record('process-identity', identity)
             def mounts():
                 (work / 'bind').mkdir()
                 (work / 'bind' / 'file').write_text('host')
@@ -187,7 +188,6 @@ def main():
                 flags = ['--mount', f'type=volume,src={volume},dst=/mnt']
                 owned_run(tag, 'write', '/mnt/out', 'persist', flags=flags)
                 require(owned_run(tag, 'read', '/mnt/out', flags=flags).stdout == 'persist', 'named volume persistence')
-            rec.record('readonly-bind-and-volume-reuse', mounts)
             def lifecycle():
                 name, network = prefix + '-service', prefix + '-network'
                 cleanup.callback(lambda: rec.record('cleanup-network', lambda: cleanup_if_exists('network', network)))
@@ -204,7 +204,6 @@ def main():
                 require(docker('inspect', '--format', '{{.State.Status}}:{{.State.ExitCode}}', name).stdout.strip()
                         == 'exited:0', 'state after SIGTERM')
                 require(docker('logs', name).stdout.splitlines() == ['ready', 'stopped'], 'signal or logs')
-            rec.record('network-dns-exec-signal-wait-logs', lifecycle)
             def compose():
                 spec = work / 'compose.yaml'
                 spec.write_text(f'services:\n  check:\n    image: {tag}\n    pull_policy: never\n    '
@@ -215,7 +214,11 @@ def main():
                 cleanup.callback(remove, *cli, 'down', '--timeout', '2')
                 p = docker(*cli, 'up', '--exit-code-from', 'check', '--abort-on-container-exit', '--no-build')
                 require('0:0|/work|compose|compose' in p.stdout, 'Compose result')
-            rec.record('compose-up-exit-down', compose)
+            if not args.bursts_only:
+                rec.record('process-identity', identity)
+                rec.record('readonly-bind-and-volume-reuse', mounts)
+                rec.record('network-dns-exec-signal-wait-logs', lifecycle)
+                rec.record('compose-up-exit-down', compose)
             primary = args.name or ('docker' if args.podman_reference else args.context or 'selected-engine')
             runners = {primary: lambda name, flags: owned_run(tag, 'exit23', name=name, flags=flags, expected=23)}
             for ctx_name in args.peer_context:
@@ -284,8 +287,9 @@ def main():
                             with ThreadPoolExecutor(clients) as pool:
                                 list(pool.map(task, range(clients)))
                             return {'known_exits': clients}
-                        rec.record('run-to-known-exit', batch, solution=solution, clients=clients,
-                                   warmup=block == 0, block=block)
+                        row = rec.record('run-to-known-exit', batch, solution=solution, clients=clients,
+                                         warmup=block == 0, block=block)
+                        print('BURST', json.dumps({k: v for k, v in row.items() if k != 'load_start'}), flush=True)
         if args.oci:
             rec.record('native-runc-lifecycle', lambda: native_oci(probe, work, prefix))
     return rec.finish()
