@@ -5,5 +5,13 @@
     <link>https://castlemilk.github.io/micropod/</link>
     <description>Explicitly selected signed updater candidates. These do not enter the stable feed until workload continuity is accepted.</description>
     <language>en</language>
+    <item>
+      <title>Version 0.13.9</title>
+      <pubDate>Thu, 19 Nov 2026 00:00:06 GMT</pubDate>
+      <sparkle:version>0.13.9</sparkle:version>
+      <sparkle:shortVersionString>0.13.9</sparkle:shortVersionString>
+      <sparkle:minimumUpdateVersion>0.13.6</sparkle:minimumUpdateVersion>
+      <enclosure url="https://github.com/castlemilk/micropod/releases/download/v0.13.9/Micropod.dmg" sparkle:edSignature="GkbIqWr7UDyhJalel6oYzx1U6qUCpFc6W427qM/z1lzoOkczBpvkdFXXvavSNZqw/78wj13MEcMio4T5rJ8LAQ==" length="158837024" type="application/octet-stream" micropodSourceRevision="262b8f96f3dd1629a76181c2e97965cc5a6c1dde" micropodWorkloadProtocol="1" />
+    </item>
   </channel>
 </rss>
