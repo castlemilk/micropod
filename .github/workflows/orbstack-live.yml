@@ -18,7 +18,7 @@ on:
       profile:
         description: Measured workflow
         type: choice
-        options: [api, standalone, paired]
+        options: [api, storage, standalone, paired]
         default: api
 
 permissions:
@@ -27,10 +27,10 @@ permissions:
 jobs:
   orbstack:
     runs-on: ${{ inputs.runner || 'macos-15-intel' }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       ORB_APP: /Applications/OrbStack.app
-      BENCH_PROFILE: ${{ inputs.profile || 'api' }}
+      BENCH_PROFILE: ${{ inputs.profile || 'paired' }}
       ORB_RELEASE: ${{ inputs.release || '1.5.1' }}
     steps:
       - uses: actions/checkout@v7
@@ -110,16 +110,49 @@ jobs:
         with:
           go-version: '1.26.1'
           cache: false
+      - name: Compare bind and volume reads of the same SharedFS view
+        if: steps.orbready.outcome == 'success' && env.BENCH_PROFILE != 'api'
+        id: filesystem
+        timeout-minutes: 16
+        env:
+          TMPDIR: ${{ runner.temp }}
+        run: python3 scripts/qualification/orbstack_files.py --json "$RUNNER_TEMP/orb-files.json"
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.filesystem.outcome != 'skipped'
+        with:
+          name: orbstack-filesystem-receipt
+          path: ${{ runner.temp }}/orb-files.json
+          if-no-files-found: warn
       - name: Start the Colima peer on the same Mac
-        if: env.BENCH_PROFILE == 'paired'
+        if: always() && steps.orbready.outcome == 'success' && env.BENCH_PROFILE == 'paired'
         id: peer
+        timeout-minutes: 12
         env:
           HOMEBREW_NO_AUTO_UPDATE: '1'
           HOMEBREW_NO_INSTALL_CLEANUP: '1'
         run: |
-          brew install colima
+          brew install colima qemu
           colima version
-          colima start --runtime docker --vm-type vz --mount-type virtiofs --cpu 4 --memory 5 --disk 10
+          logfile="$RUNNER_TEMP/colima-start.log"
+          colima start --runtime docker --vm-type qemu --mount-type 9p --cpu 4 --memory 5 --disk 15 >"$logfile" 2>&1 &
+          starter=$!
+          socket="$HOME/.colima/default/docker.sock"
+          online=false
+          for ((i=0; i<100; i++)); do
+            if curl --silent --fail --max-time 3 --unix-socket "$socket" http://localhost/info >"$RUNNER_TEMP/colima-info.json"; then
+              online=true
+              break
+            fi
+            if ! kill -0 "$starter" 2>/dev/null; then break; fi
+            sleep 3
+          done
+          if [[ "$online" != true ]]; then
+            tail -n 35 "$logfile"
+            exit 1
+          fi
+          if ! docker context inspect colima >/dev/null 2>&1; then
+            docker context create colima --docker "host=unix://$socket"
+          fi
           for context in orbstack colima; do
             docker --context "$context" info --format '{{.OperatingSystem}}|{{.Name}}|{{.KernelVersion}}|{{.Architecture}}|{{.ServerVersion}}|{{.NCPU}}|{{.MemTotal}}'
           done
@@ -128,23 +161,20 @@ jobs:
         timeout-minutes: 15
         run: python3 scripts/qualification/orbstack_api.py --clients 1 4 8 --rounds 3 --json "$RUNNER_TEMP/orb-api.json"
       - name: Build, run and scale validated containers
-        if: always() && steps.orbready.outcome == 'success' && env.BENCH_PROFILE != 'api'
-        timeout-minutes: 18
+        if: always() && steps.orbready.outcome == 'success' && (env.BENCH_PROFILE == 'standalone' || steps.peer.outcome == 'success')
+        timeout-minutes: 16
         env:
           TMPDIR: ${{ runner.temp }}
           PEER_READY: ${{ steps.peer.outcome }}
         run: |
-          peer=()
+          flags=()
+          rounds=5
           if [[ "$PEER_READY" == success ]]; then
-            peer=(--peer-context colima)
+            flags=(--bursts-only --peer-context colima)
+            rounds=3
           fi
-          python3 scripts/qualification/engine.py --context orbstack "${peer[@]}" --clients 1 4 8 16 --rounds 5 \
+          python3 scripts/qualification/engine.py --context orbstack "${flags[@]}" --clients 1 4 8 16 --rounds "$rounds" \
             --json "$RUNNER_TEMP/orb-engine.json"
-      - name: Compare bind and volume reads of the same SharedFS view
-        if: always() && steps.orbready.outcome == 'success' && env.BENCH_PROFILE == 'standalone'
-        env:
-          TMPDIR: ${{ runner.temp }}
-        run: python3 scripts/qualification/orbstack_files.py --json "$RUNNER_TEMP/orb-files.json"
       - name: Publish sample timings and outcomes
         if: always()
         run: |
