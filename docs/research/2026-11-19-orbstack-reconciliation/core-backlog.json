@@ -1,0 +1,982 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-11-19",
+  "source_commit": "54980012eb47b458a7f7e1def616d3fa95c970a2",
+  "tracker_issue": 180,
+  "documentation_pr": 194,
+  "issue_count": 21,
+  "evidence_status": "Source inspection and implementation plan; no runtime qualification or measured performance result",
+  "tickets": [
+    {
+      "key": "BUILD_SERVICE",
+      "title": "Build platform: own native build jobs and reuse or migrate the installed BuildKit builder",
+      "problem": "Micropod needs a complete build service that owns state, resources and results across native clients and Docker/Buildx compatibility. Adding flags around a subprocess does not provide durable ownership, structured progress, restart recovery or bounded concurrent execution. Starting another builder without inspecting Apple's existing BuildKit-backed builder would also duplicate idle cost and fragment caches.",
+      "current": "At Micropod 54980012eb47b458a7f7e1def616d3fa95c970a2, ImageService.build delegates to ContainerCommandFactory.build and a text progress stream. ContainerBuildRequest models a subset of build options. The inspected image.proto has list/pull/delete but no BuildService. Apple container build is already backed by a builder utility VM running BuildKit; the installed CLI, builder-shim and BuildKit versions/endpoints were not inventoried during this source-only investigation.",
+      "scope": [
+        "P0: inventory the installed Apple container CLI, builder-shim image, embedded BuildKit, supported endpoint/session contract, runtime-account ownership, cache locations, image-store handoff and fixed security versions. Prefer a supported integration into that builder; document any capability requiring a separately managed pinned builder and its migration/removal plan.",
+        "Define a versioned native BuildService request shared by CLI/API/UI/MCP and compatibility adapters: immutable sources, frontend, target/platforms, args/labels, cache/import/export descriptors, output descriptors, limits, session grants and entitlements. Keep secret values outside persistent request/history data.",
+        "Own job/request IDs, selected worker, source identity, live references, timestamps and durable results. Specify queued/resolving/running/exporting/completed/failed/cancelling/cancelled/outcome-unknown transitions and idempotent reconnect/reconciliation behavior.",
+        "Consume structured BuildKit status/vertex/warning/result events, with bounded logs and subscriber buffers. Implement fair admission and limits for concurrent jobs; share immutable acquisition where safe without accidentally sharing mutable execution state.",
+        "Propagate cancellation through source transfer, solve, execution and export, with deliberate cancel-versus-detach behavior on caller disconnect. Reconcile jobs and release resources after host-service or builder restart, including partial or uncertain exports.",
+        "Use upstream BuildKit solver/frontend/session contracts first. Keep replacement of individual backend components and a complete independent BuildKit implementation as separate architectural decisions. Record component/version ownership and operational diagnostics."
+      ],
+      "acceptance": [
+        "An inventory artifact proves the selected installed or managed builder identity and supported interface, with one intentional builder owner and no accidental duplicate builder started by Micropod clients.",
+        "The same simple build submitted by the native API and Buildx adapter produces equivalent immutable output descriptors, structured progress and a runnable locally loaded result.",
+        "Concurrent builds obey configured admission/memory/CPU policy; a stalled progress subscriber cannot cause unbounded memory growth or deadlock unrelated builds.",
+        "Cancellation during source transfer, RUN and export terminates or detaches exactly according to documented policy, and leaves no unowned process/VM/session or held cache reference.",
+        "Restart tests preserve terminal history and reconcile running/unknown jobs without blindly repeating publication; a nonzero executor or exporter result cannot be reported as success.",
+        "Record cold-start, repeated-build, cancellation cleanup and post-burst idle baselines under #182 with actual version/source identities; these are measurements to collect, not claimed improvements."
+      ],
+      "depends": [
+        149
+      ],
+      "sources": [
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodCore/Services/ImageService.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodCore/CLI/ContainerCommand.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/proto/micropod/v1/image.proto",
+        "https://github.com/apple/container/blob/main/docs/command-reference.md",
+        "https://github.com/apple/container/blob/main/docs/resource-usage.md",
+        "https://github.com/moby/buildkit/blob/c64bdcd1e0946854757ebb9580518ddf38490011/api/services/control/control.proto"
+      ],
+      "category": "build",
+      "priority": "P0",
+      "related_note": "An upstream-backed BuildService can ship without waiting for BUILD_WORKER. Its selected backend still must pass the relevant runtime resource, isolation, process and lifecycle fixtures.",
+      "number": 195,
+      "url": "https://github.com/castlemilk/micropod/issues/195",
+      "dependency_planning_keys": [],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "BUILD_PROTOCOL",
+      "title": "Build platform: qualify Buildx transports, builder selection, Bake and Compose compatibility",
+      "problem": "The current legacy Docker /build adapter is not the complete protocol expected by modern Docker and Buildx clients. A working remote BuildKit endpoint alone does not make default docker build or Compose choose it. The replacement must preserve existing commands and expose truthful worker capabilities without requiring DOCKER_BUILDKIT=0.",
+      "current": "Handlers.imageBuild receives a tar, invokes container build and emits NDJSON. At pinned Buildx f4edce01b6e6677f5e832e92029c7c61fca28859, the Docker driver uses an HTTP /grpc hijack with h2c and a separate /session hijack; it inspects worker metadata for capabilities. Existing Micropod ComposeService has its own build parsing and cancellation behavior, which should be reconciled with real-client compatibility rather than described as absent.",
+      "scope": [
+        "P0: declare a supported Docker CLI/Buildx/Compose/BuildKit/frontend version window and a compatibility matrix, including default Docker context behavior and explicitly selected remote builders.",
+        "Provide the supported remote-driver endpoint with authenticated/scoped access, reversible builder registration and stable discovery. Add the promised Docker endpoint route with /grpc h2c and /session HTTP hijack support, including headers/metadata, bidirectional framing, flow control, cancellation and disconnect handling.",
+        "Route Solve, Status, Session, Info, ListWorkers, DiskUsage, Prune and required build-history operations to the owned service/backend; negotiate unsupported capabilities honestly rather than fabricating worker labels or silently ignoring fields.",
+        "Exercise docker build, docker buildx build, builder inspect/bootstrap lifecycle, Bake and docker compose build using real clients. Cover tags, repeated options, targets, args, progress modes, metadata files, platform/output selection and native service selection.",
+        "Cover Bake HCL/JSON/Compose inputs, target inheritance, overrides, shared contexts and parallel targets; map all targets to distinct owned jobs with coherent aggregate failure/cancellation.",
+        "Publish the matrix and remaining gaps as release evidence. Distinguish client image-tools or ancillary commands from build service responsibilities, and specify which full Buildx command families the replacement release promises."
+      ],
+      "acceptance": [
+        "Unmodified supported Docker/Buildx/Compose clients complete the declared matrix without a legacy-builder environment override or undocumented wrapper.",
+        "Both explicit remote-driver and promised default Docker-context routes select the intended Micropod builder; switching/removing a builder restores prior selection safely.",
+        "Transport fixtures verify /grpc and /session upgrade negotiation, concurrent sessions, large bidirectional transfers, slow readers and cancellation without leaks or unbounded queues.",
+        "Bake parallel targets and Compose multi-service builds reuse safe immutable inputs, preserve independent progress/results, and propagate a failing/cancelled target correctly.",
+        "Capability discovery agrees with implemented exporters, platforms, cache backends and entitlements; unsupported requested behavior fails visibly and remains an open compatibility gap.",
+        "A versioned conformance report ties each promised client workflow to a test and backend identity; protocol support does not rely on parsing human-readable progress text."
+      ],
+      "depends": [
+        149,
+        195
+      ],
+      "sources": [
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodDockerShim/Handlers.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodCore/Services/ComposeService.swift",
+        "https://github.com/docker/buildx/blob/f4edce01b6e6677f5e832e92029c7c61fca28859/driver/docker/driver.go",
+        "https://github.com/moby/buildkit/blob/c64bdcd1e0946854757ebb9580518ddf38490011/api/services/control/control.proto",
+        "https://docs.docker.com/build/builders/drivers/remote/",
+        "https://docs.docker.com/build/bake/"
+      ],
+      "category": "build",
+      "priority": "P0",
+      "number": 196,
+      "url": "https://github.com/castlemilk/micropod/issues/196",
+      "dependency_planning_keys": [
+        "BUILD_SERVICE"
+      ],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "BUILD_CONTEXT",
+      "title": "Build platform: make context identity semantically correct and source ingestion bounded",
+      "problem": "A warm context must represent exactly the source tree that the selected frontend would receive. The current key can collide for executable-mode changes and can disagree with archive extraction for effective PAX paths and duplicate entries. Source filtering and containment also differ across legacy tar, BuildKit sessions, local directories and remote contexts; treating all inputs as already filtered breaks correctness.",
+      "current": "BuildContextHasher v1 hashes sorted kind/path/content-or-link records, omits mode/ownership, skips PAX x/g entries and loses duplicate-entry ordering. imageBuild buffers the entire tar, bypasses the hash gate for gzip, falls back to raw extraction after hash errors, removes .dockerignore unconditionally and permits an absolute Dockerfile value. These are source-derived correctness/boundary risks; this review did not execute or prove a filesystem escape.",
+      "scope": [
+        "P0: specify a versioned canonical identity for the effective normalized build source, including frontend-relevant modes, ownership normalization, links, extended metadata, directory entries and effective PAX/GNU path semantics. Preserve intentional frontend normalization such as ignored mtimes rather than hashing incidental archive bytes.",
+        "Make hashing and materialization use one semantic interpretation. Define duplicate-member overwrite/rejection policy, hardlink resolution, symlink handling, non-UTF8/Unicode names and unsupported special entries. Reject or consistently handle unknown semantic extensions; invalidate/migrate v1 entries.",
+        "Stream tar/gzip and session transfer under compressed/expanded-byte, entry-count, depth and queue budgets. Bound cancellation latency and temporary storage; avoid full-request buffering and decompression-amplification surprises.",
+        "Implement granted-root containment for archive members, link targets, Dockerfile selection and session file requests, including path traversal and symlink races. Distinguish legitimate alternate Dockerfiles from an unrestricted host pathname.",
+        "Model local, stdin/remote tar, Git pinned revisions, empty and named contexts explicitly. Match .dockerignore and Dockerfile-specific ignore precedence, negation and source-specific filtering; do not delete ignore metadata blindly.",
+        "Freeze or otherwise validate a coherent source snapshot during transfer, with a mutation policy and transport-efficient reuse. Share content only after semantic identity is established; coordinate underlying references with the cache/filesystem owner."
+      ],
+      "acceptance": [
+        "Regression fixtures show mode-only executable changes invalidate when the reference frontend changes behavior, while irrelevant normalized metadata does not cause false misses; resulting images match uncached reference builds.",
+        "PAX path/link extensions, GNU long names, duplicate paths, hardlinks, symlinks, nested directories and reordered semantically equivalent archives yield the specified identical or distinct effective source and key.",
+        "Local, gzip/stdin tar, Git, named/empty contexts and alternate Dockerfiles pass differential tests against pinned upstream BuildKit, including ignore precedence/negation and excluded secrets.",
+        "Traversal, absolute member paths, symlink races, oversized expansions and unsupported archive types are rejected or safely contained under explicit policy, with no retained partial context published as valid.",
+        "A large context with a slow consumer stays within the documented memory/temporary-space budget, cancels promptly and leaves no abandoned temporary tree.",
+        "Concurrent source edits cannot silently produce a mixed snapshot; old cache-schema entries cannot be reused as authoritative new-schema contexts."
+      ],
+      "depends": [
+        149
+      ],
+      "sources": [
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodDockerShim/BuildContextCache.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodDockerShim/Handlers.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Tests/MicropodDockerShimTests/BuildContextCacheTests.swift",
+        "https://docs.docker.com/build/concepts/context/",
+        "https://github.com/apple/container/security/advisories/GHSA-2v2q-4q35-h585"
+      ],
+      "category": "build",
+      "priority": "P0",
+      "number": 197,
+      "url": "https://github.com/castlemilk/micropod/issues/197",
+      "dependency_planning_keys": [],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "BUILD_SESSION",
+      "title": "Build platform: scope file, credential, secret and SSH sessions to owned jobs",
+      "problem": "Modern builds depend on private image pulls/pushes, private Git, secret mounts and SSH agent access. These are session capabilities, not persistent Dockerfile args. Buildx wire compatibility without correct session ownership can either fail normal workflows or expose credentials and host files across builds, users or the dedicated runtime account.",
+      "current": "The inspected ContainerBuildRequest is a simple subprocess argument model and the legacy imageBuild path has no complete job-scoped BuildKit session model. Existing registry/Keychain work is tracked by #151 and should remain the credential owner. This ticket adds the build-specific consumer contract rather than another credential store.",
+      "scope": [
+        "P0: bind session IDs and participants to an authenticated owner, build job, selected builder and explicit grants. Define attach/expiry/reconnect/revoke rules and fail closed for stale or cross-job reuse.",
+        "Implement BuildKit file sync, registry auth, secret and SSH provider paths through the compatibility endpoint and native service. Restrict file requests to granted immutable source roots; coordinate source semantics with BUILD_CONTEXT.",
+        "Use #151 registry/Keychain broker for private pulls, pushes and cache refs, with deliberate host-user versus dedicated runtime-account access. Handle locked/denied providers and expiry without logging credential material or silently downgrading authentication.",
+        "Support required/optional secrets, file/env inputs and SSH agent forwarding with correct lifetime and permissions. The provider must not automatically persist secret bytes in request/history data, source snapshots, layers or cache exports. Document that build commands can deliberately copy secrets into ordinary outputs or cache paths, or print them; provider isolation and redaction cannot make those commands harmless.",
+        "Define host-network, insecure execution and device entitlement policy, trust scopes and worker capability negotiation. Deny ungranted entitlements visibly and avoid accidental fallback to a less isolated mode.",
+        "Revoke sessions and close forwarded channels on completion/cancellation or owner loss, with explicit detach behavior for intentionally persistent jobs. Surface actionable provider/auth/session errors in structured progress."
+      ],
+      "acceptance": [
+        "Private base-image pull, private registry/cache push, private Git over HTTPS and SSH, required/optional secrets and SSH mounts succeed through both native and supported Buildx clients.",
+        "Concurrent jobs cannot reuse each other's session IDs, secrets, agent channels or file grants; a guessed/stale session identifier is insufficient authorization.",
+        "Locked Keychain, denied credentials, token expiry and unavailable SSH agents produce attributable failures and no fallback to public or uncredentialed execution.",
+        "Normal provider plumbing leaves no secret values in persisted job records, retained source trees, exported cache metadata or automatically generated logs; tests distinguish provider leakage from a Dockerfile intentionally printing a secret.",
+        "Cancel/disconnect/restart tests revoke owned channels and credentials according to documented job policy without breaking other builds.",
+        "Entitlement-denial tests prove ungranted host-network/insecure/device requests fail honestly, and granted requests run only on a qualified worker."
+      ],
+      "depends": [
+        149,
+        151,
+        195,
+        196,
+        197
+      ],
+      "sources": [
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodCore/CLI/ContainerCommand.swift",
+        "https://github.com/moby/buildkit/blob/c64bdcd1e0946854757ebb9580518ddf38490011/api/services/control/control.proto",
+        "https://docs.docker.com/build/building/secrets/",
+        "https://docs.docker.com/build/concepts/context/",
+        "https://github.com/docker/buildx/blob/f4edce01b6e6677f5e832e92029c7c61fca28859/driver/docker/driver.go"
+      ],
+      "category": "build",
+      "priority": "P0",
+      "number": 198,
+      "url": "https://github.com/castlemilk/micropod/issues/198",
+      "dependency_planning_keys": [
+        "BUILD_SERVICE",
+        "BUILD_PROTOCOL",
+        "BUILD_CONTEXT"
+      ],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "BUILD_OUTPUT",
+      "title": "Build platform: preserve multi-platform outputs, image loading and attestations",
+      "problem": "A successful solve is not sufficient if an image cannot be loaded, pushed, selected by platform or run. Output identity, OCI/index structure, SBOM/provenance and partial-export failures must survive the bridge between BuildKit, Micropod's image store and registries. A tag string cannot stand in for an immutable result digest.",
+      "current": "ContainerBuildRequest exposes one platform string and a narrow output model; the shim's final aux.ID is the first tag rather than an authoritative image digest. #150 owns image lifecycle/store compatibility. Current code does not by itself demonstrate complete multi-platform export/load or attestation round trips.",
+      "scope": [
+        "P0: define authoritative output descriptors and exporter metadata in BuildService, including image/config/index digests, platforms, tags and artifact locations. Represent solve and requested-export completion separately.",
+        "Implement registry push, local image load, OCI/image archives, local filesystem output and supported combinations through upstream exporters. Coordinate atomic content/manifest publication and import with #150; repeated tags and output options must preserve client intent.",
+        "Qualify native ARM64, amd64 translation/native workers, cross-compilation and multi-node scheduling separately. Preserve BUILDPLATFORM/TARGETPLATFORM frontend behavior, OCI index platform descriptors and deterministic platform selection when loading/running.",
+        "Preserve provenance, SBOM and other promised attestations through registry and local-store round trips; document and close any local-store representation limitation before claiming the corresponding compatibility row complete.",
+        "Handle compression/media-type options, filesystem exporter permissions, partial multi-platform failure, disk-full/export failure and uncertain registry publication. Reconcile by immutable descriptors instead of blindly retrying a tag mutation.",
+        "Validate reproducibility only for pinned inputs and controlled timestamps/metadata; record the boundary between deterministic content and intentionally varying provenance/runtime data."
+      ],
+      "acceptance": [
+        "A built image loads into Micropod and runs with expected config, permissions and entrypoint; a pushed image pulls/runs by digest in an independent reference engine.",
+        "A multi-platform fixture produces a valid index and each qualified target runs on its intended native/translated worker, with correct platform metadata and no false advertising of unsupported combinations.",
+        "OCI archive export/import and local filesystem export round trips preserve the promised content and metadata; reported immutable digests match stored/exported descriptors rather than a tag alias.",
+        "SBOM/provenance survive each promised registry and local-store path and are inspectable with supported clients; unsupported storage behavior is tracked as an explicit uncompleted gate.",
+        "Exporter failure or one-platform failure cannot be reported as complete success; partial/unknown publication records allow safe reconciliation without duplicate or misleading results.",
+        "Pinned-input reproducibility fixtures explain allowed metadata differences and validate content digests without claiming arbitrary networked builds are reproducible."
+      ],
+      "depends": [
+        149,
+        150,
+        195,
+        196,
+        198
+      ],
+      "sources": [
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodDockerShim/Handlers.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodCore/CLI/ContainerCommand.swift",
+        "https://docs.docker.com/build/building/multi-platform/",
+        "https://docs.docker.com/build/metadata/attestations/",
+        "https://github.com/moby/buildkit/blob/c64bdcd1e0946854757ebb9580518ddf38490011/api/services/control/control.proto"
+      ],
+      "category": "build",
+      "priority": "P0",
+      "number": 199,
+      "url": "https://github.com/castlemilk/micropod/issues/199",
+      "dependency_planning_keys": [
+        "BUILD_SERVICE",
+        "BUILD_PROTOCOL",
+        "BUILD_SESSION"
+      ],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "BUILD_CACHE_PROTOCOL",
+      "title": "Build platform: implement solver-cache interoperability and truthful usage/prune APIs",
+      "problem": "Retaining a tar extraction is only a source-context optimization. Buildx replacement also requires graph/layer cache import/export, mutable cache-mount semantics and actual cache administration. A successful no-op prune or a content-overlap statistic presented as physical savings makes the developer experience and performance evidence misleading.",
+      "current": "BuildContextCache and BuildCacheStore retain source trees and content-overlap metadata. Handlers.buildPrune ignores its request and returns empty ImagesDeleted with SpaceReclaimed=0. The current ContainerBuildRequest lacks complete --cache-from/--cache-to descriptors. BuildCacheStore.sharedBytes reflects digest overlap, not measured APFS shared extents or BuildKit solver-cache hits.",
+      "scope": [
+        "P0: model source snapshots, solver/layer records, mutable package cache mounts, image blobs/unpacks and filesystem caches separately in build status and diagnostics. Delegate durable cross-owner leases, trust scopes, physical accounting and storage reclamation to the cache/filesystem workstream.",
+        "Support pinned BuildKit inline/local/registry cache import/export with min/max modes, multiple imports/exports, refs, compression and OCI media options. Qualify optional GHA/S3/Azure backends separately with their version/auth contracts.",
+        "Define concurrent remote-cache writer/publication policy, per-project/trust namespaces, import miss/error visibility and export failure policy. Do not imply a single mutable cache ref transactionally merges concurrent histories.",
+        "Preserve RUN --mount=type=cache shared/private/locked behavior and ownership across concurrent builds. Its contents are builder-local and are not included automatically in --cache-to/from; any package-cache transfer feature needs an explicit independent design.",
+        "Connect BuildKit DiskUsage/Prune and Docker-facing prune to the actual backend owner, with supported filters, keep-duration/space budgets, dry-run or inspection where offered, useful diagnostics and live-reference protection.",
+        "Report logical cache-record size, content overlap, exported cache bytes and actual host-exclusive reclaimed space as distinct measures. Supply job/live-reference information to durable lease/GC owners and ensure cancellation/restart reconciles it."
+      ],
+      "acceptance": [
+        "Cold build, unchanged rebuild, one-source edit, dependency edit and independent-stage fixtures show correct hits/misses and outputs against pinned upstream BuildKit.",
+        "A fresh qualified builder restores solver cache from inline/local/registry exports produced by Micropod and vice versa; unsupported optional backends are declared and remain open if part of the promised profile.",
+        "Concurrent cache-mount tests exercise shared/private/locked semantics; remote solver-cache restoration does not falsely report package-cache contents restored.",
+        "DiskUsage and prune return truthful backend records/results, respect selected filters and budgets, and do not delete live build/output references under concurrent builds or restarts.",
+        "Cache import corruption/auth failures and export failures are observable with documented fail-versus-miss behavior; no silent successful cache operation is fabricated.",
+        "Benchmark reports separate source-transfer reuse, solver reuse, package-cache hits, bytes written/transferred and host storage reclamation, preventing double counting of digest overlap as physical savings."
+      ],
+      "depends": [
+        149,
+        195,
+        196,
+        197,
+        198
+      ],
+      "sources": [
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodDockerShim/Handlers.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodSharedFS/BuildCache.swift",
+        "https://docs.docker.com/build/cache/backends/",
+        "https://docs.docker.com/build/cache/garbage-collection/",
+        "https://docs.docker.com/reference/dockerfile/#run---mounttypecache",
+        "https://github.com/moby/buildkit/blob/c64bdcd1e0946854757ebb9580518ddf38490011/api/services/control/control.proto"
+      ],
+      "category": "build",
+      "priority": "P0",
+      "number": 200,
+      "url": "https://github.com/castlemilk/micropod/issues/200",
+      "dependency_planning_keys": [
+        "BUILD_SERVICE",
+        "BUILD_PROTOCOL",
+        "BUILD_CONTEXT",
+        "BUILD_SESSION"
+      ],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "RT_CONTRACT",
+      "title": "[Runtime parity] Preserve known Docker/OCI semantics through every request adapter",
+      "problem": "A typed API subset can accept requests whose standard resource or security fields are silently dropped. Full workload replacement needs a versioned requested/effective contract, not a successful response alone.",
+      "current": "DockerTypes identifies API v1.44 subset; HostConfig omits many standard controls. Handlers decodes the subset and returns empty create warnings. Native process/config handling exists and should be extended.",
+      "scope": [
+        "Define advertised API/spec versions, execution profiles and a machine-readable capability/required-feature matrix.",
+        "Inventory every standard Docker field and OCI field used by the target profile; carry recognized semantics through proto/model/guest transport/backend or refuse before mutation.",
+        "Preserve documented Docker handling of truly unknown extension properties; do not introduce blanket unknown-key rejection.",
+        "Fix image/request entrypoint, command and environment precedence, including empty-entrypoint reset and Docker bare-env behavior; add requested/effective reporting."
+      ],
+      "acceptance": [
+        "Every required matrix row has an implementation and guest-observed fixture; unsupported required fields block profile completion.",
+        "Known security/resource controls never silently vanish between Docker/API and guest configuration.",
+        "Differential fixtures cover absent/null/empty/invalid fields, entrypoint reset, env removal, duplicates and malformed values.",
+        "A refused create executes no workload and leaves no published object, mounted resource or leaked owned path.",
+        "Public compatibility/version responses match implemented behavior and required client suites."
+      ],
+      "depends": [
+        136,
+        147
+      ],
+      "sources": [
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodDockerShim/DockerTypes.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodDockerShim/Handlers.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodRuntime/NativeConfigBuilder.swift",
+        "https://github.com/opencontainers/runtime-spec/blob/20f948a4a944629335518533250dd719fedd73f2/config.md",
+        "https://docs.docker.com/reference/api/engine/version/v1.44/"
+      ],
+      "category": "runtime",
+      "priority": "P0",
+      "number": 201,
+      "url": "https://github.com/castlemilk/micropod/issues/201",
+      "dependency_planning_keys": [],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "RT_GUEST",
+      "title": "[Runtime parity] Integrate a complete Linux runc/containerd execution profile",
+      "problem": "The native microVM API is not itself an OCI bundle runtime or a containerd task shim. Full Linux workload semantics need an explicit execution domain and complete runtime integration.",
+      "current": "Micropod already owns VM lifecycle, guest transport and multiple engines. Rootless Docker and privileged guest modes exist, but no complete runc/containerd task-service profile was established in the reviewed paths.",
+      "scope": [
+        "Pin supported guest kernel/init/containerd/runc artifacts, provenance and feature manifests; retain the current isolated engine.",
+        "Implement OCI bundle/config submission and task lifecycle inside a selected per-job/per-project/trusted-development VM domain.",
+        "Integrate the selected containerd Runtime v2 bootstrap/task protocol, rootfs/stdio ownership, task namespace and reconnect behavior where Micropod exposes a runtime shim.",
+        "Define Linux-host namespace/hook/device semantics explicitly; never interpret Linux host as macOS or silently pool unrelated jobs.",
+        "Use maintained upstream execution first; independently implementing runc requires a separate justified investment."
+      ],
+      "acceptance": [
+        "Unmodified selected OCI bundles create/start/exec/kill/delete with expected state and errors under rootful and declared rootless profiles.",
+        "create does not run the workload; unsuccessful configuration is rejected and cleaned consistently.",
+        "Task service survives shim/control-plane reconnection without orphaning or duplicating workloads; pinned protocol compatibility is proven.",
+        "BuildKit executor and representative Docker/containerd workloads run without needing Kubernetes.",
+        "Required Linux namespace/security/resource fixtures pass; isolated CI placement and explicit trust-domain selection are preserved."
+      ],
+      "depends": [
+        146,
+        141,
+        145,
+        183,
+        201
+      ],
+      "sources": [
+        "https://github.com/opencontainers/runtime-spec/blob/20f948a4a944629335518533250dd719fedd73f2/runtime.md",
+        "https://github.com/containerd/containerd/blob/8abc4c7d223bf3da36f0d1c43ea39bc2aa1e2eca/docs/runtime-v2.md",
+        "https://github.com/opencontainers/runc/blob/b7dc1304ed9e18f14e626dc06374043b12cf355f/README.md",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/proto/micropod/v1/container.proto",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodRuntime/SandboxVM.swift"
+      ],
+      "category": "runtime",
+      "priority": "P0",
+      "number": 202,
+      "url": "https://github.com/castlemilk/micropod/issues/202",
+      "dependency_planning_keys": [
+        "RT_CONTRACT"
+      ],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "RT_PROCESS",
+      "title": "[Runtime parity] Complete exec, interactive attach, terminal and signal behavior",
+      "problem": "Interactive and process-control gaps prevent full Docker/runc-equivalent workflows even when noninteractive commands start.",
+      "current": "HijackedAttach explicitly drops stdin; DockerExecCreate decodes User as an object rather than Docker string; kill handlers hardcode KILL. Native exec and real guest wait/signal APIs exist; interactive exec currently falls back to CLI.",
+      "scope": [
+        "Implement duplex attach/exec with stdin EOF, half-close, stdout/stderr framing, PTY allocation, initial size/resize and detach behavior.",
+        "Decode and apply Docker exec User string, working directory, environment and requested privilege policy with strict malformed-known-field handling.",
+        "Forward named/numeric kill and configured stop signals with grace/escalation; preserve process-group and PID1 semantics.",
+        "Define cancellation/disconnect ownership for host session and guest process separately; bound buffers and ensure all owned endpoints settle."
+      ],
+      "acceptance": [
+        "Guest UID/GID and output prove the requested exec identity; standard string payloads pass and malformed values fail visibly.",
+        "Interactive cat/shell fixtures round-trip stdin bytes; EOF and client detach have the specified process effect.",
+        "TTY resize, binary output, simultaneous stdout/stderr and slow readers pass without unbounded memory or deadlock.",
+        "TERM/USR1/INT and numeric signals reach appropriate guest processes; stop honors custom signal/grace and known terminal status.",
+        "No pause/update/resize operation is advertised merely because a route token is recognized; implemented endpoints pass real client fixtures."
+      ],
+      "depends": [
+        147,
+        141,
+        201
+      ],
+      "sources": [
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodDockerShim/HijackedExec.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodDockerShim/HijackedAttach.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodDockerShim/Handlers.swift#L1837-L1873",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodRuntime/NativeContainerService.swift#L644-L750",
+        "https://github.com/opencontainers/runc/blob/b7dc1304ed9e18f14e626dc06374043b12cf355f/docs/terminals.md",
+        "https://docs.docker.com/reference/api/engine/version/v1.44/"
+      ],
+      "category": "runtime",
+      "priority": "P0",
+      "number": 203,
+      "url": "https://github.com/castlemilk/micropod/issues/203",
+      "dependency_planning_keys": [
+        "RT_CONTRACT"
+      ],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "RT_LIFECYCLE",
+      "title": "[Runtime parity] Persist authoritative task outcomes and ordered lifecycle events",
+      "problem": "Polling snapshots and process-local exit state cannot establish complete task/event semantics across rapid exits, restarts and uncertain operations. A missing exit code must never become success.",
+      "current": "Native start registers wait before process start and ExitCodeRegistry distinguishes unknown. EventsHub.handleExit still defaults missing code to zero; create metadata persists while the shown persisted schema omits exit/exec history. Existing #66 and PR #176 retain their owners.",
+      "scope": [
+        "Extend existing generation/ownership logic with durable task and exec identities, terminal receipts, event sequence/cursor and restart reconciliation.",
+        "Propagate authoritative exit/signal/OOM/unknown categories through wait, inspect, restart policy and Docker events; consolidate exact fallback repair with #66.",
+        "Produce ordered events from authoritative lifecycle transitions, with snapshot reconciliation for recovery; avoid requiring polling to observe every short state.",
+        "Handle cancellation before dispatch separately from lost acknowledgement after mutation; retain fences and reconcile uncertain operations.",
+        "Preserve create/start/delete failure atomicity and foreign-resource protection across helper/API/shim/guest crash."
+      ],
+      "acceptance": [
+        "Immediate nonzero exit, known zero, signal exit, OOM and unknown are distinguishable through all public APIs.",
+        "Start precedes exit in task event order; exec added/started/exited identities remain stable across observers and reconnects.",
+        "After shim/API restart, previously running and completed tasks reconcile without duplicate execution or guessed exit status.",
+        "Concurrent start/delete, ID reuse, lost replies and cancelled create retain one owner and release only proven owned resources.",
+        "Full target-profile tests pass without treating an unknown exit, timeout or missing event as success."
+      ],
+      "depends": [
+        66,
+        141,
+        176,
+        90,
+        201
+      ],
+      "sources": [
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodRuntime/NativeContainerService.swift#L146-L194",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodRuntime/ExitCodeRegistry.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodDockerShim/EventsHub.swift#L484-L500",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodDockerShim/ShimState.swift#L591-L716",
+        "https://github.com/containerd/containerd/blob/8abc4c7d223bf3da36f0d1c43ea39bc2aa1e2eca/docs/runtime-v2.md"
+      ],
+      "category": "runtime",
+      "priority": "P0",
+      "number": 204,
+      "url": "https://github.com/castlemilk/micropod/issues/204",
+      "dependency_planning_keys": [
+        "RT_CONTRACT"
+      ],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "RT_RESOURCES",
+      "title": "[Runtime parity] Enforce cgroup v2 resources and preserve fractional CPU limits",
+      "problem": "VM allocation and Linux process quotas are different controls. Current fractional API CPUs are converted to Int on native create, while several Linux resource controls are not represented.",
+      "current": "The proto explicitly allows 0.5 CPU. Handlers translates NanoCpus to Double; NativeContainerService applies Int conversion and emits CPU/memory VM settings. Tmpfs options and unlimited ulimits are dropped in the Docker translator.",
+      "scope": [
+        "Separate VM vCPU/RAM provisioning from workload cgroup quota/period/weight/cpuset, memory high/max/swap, pids and supported IO controllers.",
+        "Implement validated resource schemas and capability checks across API/CLI/Docker and guest; preserve numeric ranges, unlimited sentinels and units.",
+        "Implement live update and pause/resume/freeze semantics with effective-state reads and failure rollback.",
+        "Report enforcement/accounting scope and OOM state accurately, without double-counting guest and host memory."
+      ],
+      "acceptance": [
+        "0.25/0.5/1.5 CPU fixtures preserve quota and never generate zero or silently rounded effective controls.",
+        "Competing workloads demonstrate CPU/memory/pids limits; guest cgroup files corroborate enforcement and supervisor responsiveness.",
+        "Unlimited/soft/hard ulimits, swap policy and IO limits either match the required profile or block its release explicitly.",
+        "Live updates/freeze/resume have concurrency, restart, unsupported-controller and invalid-input tests with no partially applied silent success.",
+        "Benchmarks record workload quota and total VM allocation separately so comparisons are resource matched."
+      ],
+      "depends": [
+        136,
+        201,
+        202
+      ],
+      "sources": [
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/proto/micropod/v1/container.proto#L154-L158",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodRuntime/NativeContainerService.swift#L571-L610",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodDockerShim/Handlers.swift#L1540-L1580",
+        "https://github.com/opencontainers/runtime-spec/blob/20f948a4a944629335518533250dd719fedd73f2/config-linux.md"
+      ],
+      "category": "runtime",
+      "priority": "P0",
+      "related_note": "Coordinate reusable cgroup interfaces with #158, but shared-distro quota work is not a prerequisite for Linux task resource enforcement.",
+      "number": 205,
+      "url": "https://github.com/castlemilk/micropod/issues/205",
+      "dependency_planning_keys": [
+        "RT_CONTRACT",
+        "RT_GUEST"
+      ],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "RT_ISOLATION",
+      "title": "[Runtime parity] Complete mount, namespace, privilege and rootless contracts",
+      "problem": "runc-equivalent Linux workloads rely on mount propagation, namespace sharing, cgroup delegation and enforceable privilege policy. Per-VM protection alone does not make ignored guest controls equivalent.",
+      "current": "Micropod has VirtioFS/volume mounts, cap add/drop, readonly/masked-path handling and constrained rootless Docker. Host/none network modes and network mutation require deeper qualification; host devices are deliberately not implied by privileged.",
+      "scope": [
+        "Implement required bind/rbind/propagation/readonly/tmpfs options, rootfs paths, device policy and UID/GID/idmapped mount behavior at the correct guest boundary.",
+        "Implement or route required PID/IPC/UTS/mount/net/user/cgroup/time namespace behavior into a selected Linux domain; preserve #74 network API ownership.",
+        "Enforce no_new_privs, seccomp, supported LSM policies, capabilities, sysctls and hook stages; explicitly scope hook paths and authority.",
+        "Qualify rootless subordinate IDs, delegated cgroups, mount/network support and no implicit host resource grants.",
+        "Keep checkpoint/restore as an explicit runc-extension matrix, distinct from disk checkpoints; coordinate #172 for storage/VM semantics."
+      ],
+      "acceptance": [
+        "Required mount/security controls are observed in guest state and tested by positive/negative operations; none silently downgrades.",
+        "Host/none/container namespace modes have documented Linux-domain meaning and proven reachability/isolation behavior.",
+        "Two independent VM jobs cannot accidentally share namespaces, writable host roots or privileged devices.",
+        "Rootless tests run under a nonprivileged Linux identity with subordinate mapping/delegation and demonstrate bounded cleanup.",
+        "Unsupported required controls remain release blockers; optional kernel/LSM/CRIU features have explicit capability and compatibility results."
+      ],
+      "depends": [
+        145,
+        160,
+        165,
+        74,
+        172,
+        201,
+        202
+      ],
+      "sources": [
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodRuntime/NativeConfigBuilder.swift#L285-L336",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodDockerShim/DockerTypes.swift#L69-L130",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/proto/micropod/v1/container.proto#L214-L296",
+        "https://github.com/opencontainers/runtime-spec/blob/20f948a4a944629335518533250dd719fedd73f2/config-linux.md",
+        "https://github.com/opencontainers/runtime-spec/blob/20f948a4a944629335518533250dd719fedd73f2/config.md"
+      ],
+      "category": "runtime",
+      "priority": "P0",
+      "related_note": "Coordinate namespace/supervisor interfaces with #154 where useful; a multi-distro shared-kernel engine is not a prerequisite for complete semantics inside an isolated Linux execution domain. #172 owns checkpoint decisions; baseline normative OCI tests can proceed independently.",
+      "number": 206,
+      "url": "https://github.com/castlemilk/micropod/issues/206",
+      "dependency_planning_keys": [
+        "RT_CONTRACT",
+        "RT_GUEST"
+      ],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "RT_CONFORMANCE",
+      "title": "[Runtime parity] Add differential runc and Docker workload conformance gates",
+      "problem": "A narrow smoke suite cannot justify claiming a replacement runtime. The project needs pinned, reproducible semantic tests and real workload evidence across every promised profile.",
+      "current": "Micropod already has native/sandbox/shim tests and benchmark infrastructure. The source audit identified concrete uncovered semantics; no complete current OCI/runc comparison was established.",
+      "scope": [
+        "Build versioned bundle/config, Docker API and process-behavior corpora against pinned runc/kernel/rootfs and each Micropod profile.",
+        "Adapt applicable upstream runtime-tools and runc integration cases with explicit CLI/API mapping and coverage review; do not present a stale partial suite as certification.",
+        "Add separate real Mac lanes, Linux enforcement lanes and end-to-end BuildKit/Compose/Testcontainers suites.",
+        "Retain input/effective-config digests, raw events/stdout, authoritative outcomes and exact cleanup/installed-version receipts.",
+        "Only measure performance after required semantics pass; report errors, retries and unknown outcomes alongside latency/resource distributions."
+      ],
+      "acceptance": [
+        "A generated matrix enumerates all required domains and demonstrates pass/fail/blocked status with linked receipts; unsupported required cases fail the replacement gate.",
+        "Known initial regressions\u2014exec User, stdin attach, kill signal, fractional CPU, tmpfs/ulimits, entrypoint/env reset and unknown exits\u2014have differential tests.",
+        "Control-plane crash, transport loss, cancellation, early exit, ID reuse and cleanup interruption are represented without retrying unknown mutations blindly.",
+        "Reference/candidate images, kernels, resources and timing boundaries are matched or differences explicitly disclosed.",
+        "Actual Docker build/Compose/devcontainer/Testcontainers and rootful/rootless workloads complete correctly before a full compatibility claim."
+      ],
+      "depends": [
+        182,
+        147,
+        66,
+        201,
+        202,
+        203,
+        204,
+        205,
+        206
+      ],
+      "sources": [
+        "https://github.com/opencontainers/runtime-tools/blob/bd3b0bd00f44e15f0f1ff4130c61dbea1b1c56cc/README.md",
+        "https://github.com/opencontainers/runc/blob/b7dc1304ed9e18f14e626dc06374043b12cf355f/README.md",
+        "https://github.com/opencontainers/runtime-spec/blob/20f948a4a944629335518533250dd719fedd73f2/runtime.md",
+        "https://github.com/containerd/containerd/blob/8abc4c7d223bf3da36f0d1c43ea39bc2aa1e2eca/docs/runtime-v2.md",
+        "https://docs.docker.com/reference/api/engine/version/v1.44/"
+      ],
+      "category": "runtime",
+      "priority": "P0",
+      "related_note": "Start the harness and failing reference fixtures alongside the implementation. The listed implementation issues are completion gates for a full pass, not prerequisites for beginning test work.",
+      "number": 207,
+      "url": "https://github.com/castlemilk/micropod/issues/207",
+      "dependency_planning_keys": [
+        "RT_CONTRACT",
+        "RT_GUEST",
+        "RT_PROCESS",
+        "RT_LIFECYCLE",
+        "RT_RESOURCES",
+        "RT_ISOLATION"
+      ],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "BUILD_WORKER",
+      "title": "Build platform: qualify a measured native worker/executor against upstream BuildKit",
+      "problem": "Micropod-specific execution and filesystem integration may improve build costs, but replacing the executor alone does not implement a BuildKit worker. Incorrect snapshot/reference lifecycle, mount semantics or cancellation can produce false cache hits, leaked VMs or invalid exports. A Rust rewrite without a measured bottleneck would add compatibility work without demonstrated benefit.",
+      "current": "Micropod currently reaches the Apple BuildKit builder through container build. The inspected upstream worker interface owns source resolution, snapshots/cache refs, exporters, leases, GC and executor selection; the executor interface owns RUN/Exec, IO/signals/resize, mounts and resource/security metadata. No executed performance evidence from this audit establishes that a custom worker beats the inherited builder.",
+      "scope": [
+        "P1 after the upstream-backed vertical slice: profile context transport, snapshot preparation, guest startup, execution, commit/diff, export and idle overhead on the same representative build corpus under #182.",
+        "Write an ADR selecting the smallest measured replacement boundary: retain upstream worker, integrate a snapshotter/executor, or implement a full Micropod worker. Pin supported Go interfaces/BuildKit revisions and define upgrade conformance obligations.",
+        "Map immutable/mutable references, source resolution, content stores, leases, snapshot commit/diff, remote cache refs and exporters to Micropod owners. Avoid a second unsynchronized cache/reference database.",
+        "Implement exact executor behavior for process user/cwd/env, mounts/read-only state, network/hosts, limits/cgroups, capabilities/seccomp, IO/TTY/resize/signals and authoritative exit results. Reuse the runtime-equivalence workstream's fixtures and failure semantics.",
+        "Compare a reused trusted builder, appropriately isolated worker pools and any VM-per-job/step design using total cost and isolation contract; preserve useful warm state without cross-trust mutable-state leakage.",
+        "If Rust adds measured value, place it behind a small versioned service/library boundary with bounded async queues, explicit ownership and error types. rust-anything can support implementation workflow but does not supply the worker, solver or OCI semantics. Maintain a qualified upstream fallback while the adapter matures."
+      ],
+      "acceptance": [
+        "An ADR and measured profile identify the targeted cost and expected mechanism; an absent benefit results in retaining upstream execution rather than inventing a replacement requirement.",
+        "The custom boundary, if implemented, passes the same source/build/output/cache matrix as the qualified upstream backend, including snapshot mutation, commit/diff and cache import/export fixtures.",
+        "Runtime-equivalence fixtures cover mounts, users, env/cwd, IO/signals/TTY, networking, resource/security limits and exact exit status for BuildKit RUN and Exec.",
+        "Cancel, guest crash, host-service restart and disk-full injections leave no dangling mutable ref, process, VM or network/lease resource; incomplete snapshots never publish as reusable results.",
+        "Controlled comparisons report cold, no-change, incremental, concurrent and post-burst-idle costs with confidence intervals and version identities, without sacrificing correctness or the declared isolation contract.",
+        "Fallback and component upgrade behavior are tested against the pinned compatibility window; unsupported worker capabilities are neither advertised nor silently approximated."
+      ],
+      "depends": [
+        149,
+        150,
+        182,
+        195,
+        196,
+        197,
+        199,
+        200,
+        207
+      ],
+      "sources": [
+        "https://github.com/moby/buildkit/blob/c64bdcd1e0946854757ebb9580518ddf38490011/worker/worker.go",
+        "https://github.com/moby/buildkit/blob/c64bdcd1e0946854757ebb9580518ddf38490011/executor/executor.go",
+        "https://github.com/moby/buildkit/blob/c64bdcd1e0946854757ebb9580518ddf38490011/api/services/control/control.proto",
+        "https://github.com/apple/container/blob/main/docs/resource-usage.md",
+        "https://github.com/erkamyaman/rust-anything"
+      ],
+      "category": "build",
+      "priority": "P1",
+      "number": 208,
+      "url": "https://github.com/castlemilk/micropod/issues/208",
+      "dependency_planning_keys": [
+        "BUILD_SERVICE",
+        "BUILD_PROTOCOL",
+        "BUILD_CONTEXT",
+        "BUILD_OUTPUT",
+        "BUILD_CACHE_PROTOCOL",
+        "RT_CONFORMANCE"
+      ],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "CACHE_INTEGRITY",
+      "title": "[Cache] Make chunk ingestion and materialization complete, verified and atomic",
+      "problem": "A content-addressed filename is not sufficient integrity proof. The current file-ingestion loop can suppress a block-write error and return a partial manifest.",
+      "current": "ChunkStore.ingestFile catches a block-write failure, exits its loop, then returns accumulated hashes plus a separately computed whole-file digest. readBlock decodes without verifying the requested digest. Raw payloads of at least eight bytes beginning MCZ1 are ambiguous with compressed framing. Empty materialization intentionally deletes the target in existing tests.",
+      "scope": [
+        "Produce ordered chunks, whole-file digest and length from one stable snapshot/input; propagate all read/write errors and bound retries for concurrent source mutation.",
+        "Stage and validate an entire file manifest before atomic promotion; retain failed-attempt blocks under an operation lease for later owned cleanup.",
+        "Version raw/compressed framing with unambiguous representation and bounded decode allocation; verify decoded digest and lengths before use or trusted promotion.",
+        "Represent zero-byte file, deletion and entry type explicitly; preserve or migrate legacy empty-list callers through a versioned API.",
+        "The immediate integrity fix can use the current owner boundary; integrate the durable lease contract when CACHE_LEASES lands rather than blocking error propagation on a new coordinator."
+      ],
+      "acceptance": [
+        "Inject failure on every chunk boundary and prove no successful partial manifest or partial replacement is returned.",
+        "Corrupt plain and compressed bytes, substitute a different valid compressed payload, truncate frames and exercise oversized declared lengths; all fail without unbounded allocation.",
+        "Legitimate raw files beginning with MCZ1 round-trip correctly through restart and representation migration; exercise both sub-eight-byte payloads and payloads at or above the current eight-byte framing threshold.",
+        "Concurrent source edit is detected or captured as a stable snapshot; returned full digest and chunk sequence describe the same bytes.",
+        "Existing target survives failed materialization; empty files remain distinct from tombstones; legacy behavior has explicit compatibility tests."
+      ],
+      "depends": [
+        161
+      ],
+      "sources": [
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodSharedFS/ChunkStore.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Tests/MicropodSharedFSTests/ChunkStoreTests.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Tests/MicropodSharedFSTests/TranscodeTests.swift"
+      ],
+      "priority": "P0",
+      "category": "cache",
+      "number": 209,
+      "url": "https://github.com/castlemilk/micropod/issues/209",
+      "dependency_planning_keys": [],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "CACHE_CLONES",
+      "title": "[Filesystem] Preserve the successful clone fast path and fallback metadata",
+      "problem": "Per-file SharedView cloning currently falls through into a full Data read and atomic rewrite after clonefile success, defeating its intended IO and memory savings.",
+      "current": "The success return in SharedView.cloneOrCopy exits an inner closure only. The whole-directory clone path returns success correctly; ignore-filtered or fallback per-file builds use the affected helper.",
+      "scope": [
+        "Return clone success to the outer helper and stop before fallback IO.",
+        "Use bounded streaming/copy APIs for actual clone failures and preserve the declared file metadata; handle symlink and special-entry policy through the filesystem matrix.",
+        "Make clone/copy operations observable at a narrow injectable seam for deterministic tests; propagate failure rather than publish incomplete view state.",
+        "Qualify APFS same-volume, cross-volume and non-APFS paths under identical content and metadata requirements."
+      ],
+      "acceptance": [
+        "A successful per-file clone invokes no fallback data read or rewrite; forced failure invokes exactly one bounded fallback.",
+        "Executable bits, supported xattrs/timestamps and contents match the declared mode in clone and fallback cases.",
+        "Source and unrelated destination files remain unchanged on errors, interrupted staging and concurrent view creation.",
+        "Native receipt reports copied bytes, clone count, peak RSS and elapsed time on large files and ignored/many-file trees; no speed claim from source alone."
+      ],
+      "depends": [
+        160,
+        161,
+        166
+      ],
+      "sources": [
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodSharedFS/SharedView.swift"
+      ],
+      "priority": "P0",
+      "category": "cache",
+      "number": 210,
+      "url": "https://github.com/castlemilk/micropod/issues/210",
+      "dependency_planning_keys": [],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "CACHE_ACCOUNTING",
+      "title": "[Cache] Unify byte accounting across insertion, eviction and restart",
+      "problem": "The retained-context cap adds path-logical bytes but subtracts digest-deduplicated content bytes, and can decrement after failed deletion. These different bases make budgets and reclaim reports unreliable.",
+      "current": "BuildContextCache.store uses directoryBytes; entryBytes prefers manifest.contentBytes; startup scans sidecars. BuildManifest.sharedBytes reports matching digests, not proof of physical APFS sharing. SharedCacheSnapshot correctly states stored bytes are payload size, a distinction to preserve.",
+      "scope": [
+        "Define separate path-logical, distinct-content, representation-stored, filesystem-allocated and measured-reclaimed fields, with unknown values explicit.",
+        "Use one chosen cap basis for insert/re-store/evict/restart, persist enough metadata to reconcile and adjust only after successful owner operations.",
+        "Add generation-consistent producer snapshots for CLI/API/UI/metrics; expose stale/partial inventories and legacy entry limitations.",
+        "Keep APFS clone/shared extents nonadditive and report actual free-space recovery separately from unlink and retained-content metrics."
+      ],
+      "acceptance": [
+        "Duplicate-content two-path fixtures produce consistent accounting before/after re-store, eviction and restart; sidecars follow the documented cap policy.",
+        "Injected delete failure does not report successful removal or decrement the authoritative retained budget.",
+        "Concurrent same-hash insertion cannot double-count stored objects; index rebuild agrees with an independently enumerated fixture.",
+        "UI/API/CLI label byte scopes consistently and never equate matching digests, logical capacity or summed clone allocations with uniquely reclaimed disk bytes."
+      ],
+      "depends": [
+        168,
+        170,
+        191
+      ],
+      "sources": [
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodDockerShim/BuildContextCache.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodSharedFS/BuildCache.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodSharedFS/CacheManagement.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodApp/Support/CICacheRetention.swift"
+      ],
+      "priority": "P0",
+      "category": "cache",
+      "number": 211,
+      "url": "https://github.com/castlemilk/micropod/issues/211",
+      "dependency_planning_keys": [],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "CACHE_LEASES",
+      "title": "[Cache] Persist ownership and coordinate safe garbage collection across stores",
+      "problem": "In-process pins cannot by themselves reconcile an in-flight build or mounted view after owner restart. A unified retention policy must preserve each storage service\u2019s authority.",
+      "current": "BuildContextCache has inUse pins. SharedFS has refcounts, persistent retention, reviewed cleanup and conservative protection of untracked view directories. These safeguards already exist and must be retained. BuildKit and containerd have their own GC/reference models.",
+      "scope": [
+        "Define versioned owner/operation generations, object references and durable leases around existing stores; acquire before creation/import and transfer at authoritative publication.",
+        "Recover staged/committed/leased/retired/quarantined states; verify active work before releasing unknown owners or allowing eviction.",
+        "Implement per-tier/trust-namespace budgets plus host free-space admission; route retirement through each owner and bound deletion work outside lifecycle locks.",
+        "Build one eviction plan per stable generation; avoid repeated full candidate sorting and expensive live-tree hashing where durable references suffice."
+      ],
+      "acceptance": [
+        "Crash/restart with a build, cache mount, image unpack or container active never authorizes removal of its data from an empty process-local registry.",
+        "Cancelled/lost-reply operations reconcile one owner and do not double-release leases or publish duplicate mutable generations.",
+        "Lease expiry is insufficient while actual work may remain; incomplete ownership keeps data protected and exposes a reason.",
+        "Concurrent GC/import/unpack/clone fixtures preserve data and leave bounded recoverable staging; pressure cannot cause silent live-data eviction.",
+        "Integrate existing retention and reviewed cleanup semantics; validate p95 operation latency under GC and count physical reclamation separately."
+      ],
+      "depends": [
+        149,
+        150,
+        168,
+        211
+      ],
+      "sources": [
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodDockerShim/BuildContextCache.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodSharedFS/SharedFSDaemon.swift",
+        "https://github.com/containerd/containerd/blob/main/docs/garbage-collection.md",
+        "https://docs.docker.com/build/cache/garbage-collection/"
+      ],
+      "priority": "P1",
+      "category": "cache",
+      "number": 212,
+      "url": "https://github.com/castlemilk/micropod/issues/212",
+      "dependency_planning_keys": [
+        "CACHE_ACCOUNTING"
+      ],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "CACHE_SNAPSHOTS",
+      "title": "[Images] Reuse verified content and immutable root realizations across build and run",
+      "problem": "Build output, downloaded image content and unpacked roots need a consistent dependency graph and reuse contract; duplicating cache directories will retain unnecessary work and complicate GC.",
+      "current": "ImagesServiceClient already resolves platform manifests/configs and recognizes missing local blobs. SandboxVM uses staged ext4 unpack/rename, but concurrent first requests can each unpack. Its capacity key uses integer GiB for exact-GiB requests and truncated MiB otherwise, so distinct byte requests within one MiB can share a key. Existing APFS roots and volume templates are useful implementation components.",
+      "scope": [
+        "Inventory Apple, BuildKit and prospective containerd content/snapshot owners and define adapters instead of assuming one new CAS can replace all of them.",
+        "Record exact platform manifest, compressed digest, DiffID/chain identity, realization format/unpacker/version, exact-byte capacity and parent references distinctly; version and migrate the existing rounded-capacity key.",
+        "Coalesce same-realization preparation with a single-flight operation and lease; atomically publish verified roots and clone private writable instances.",
+        "Qualify build-export to run without unintended pull/repack, image removal while referenced, mixed platforms and cross-engine transfer with clear copy costs.",
+        "Benchmark lazy/remote snapshotters only after standard local realization works and the host/backend can support the selected implementation."
+      ],
+      "acceptance": [
+        "Many concurrent first starts perform one authoritative realization per exact key and no partial root is visible after interruption.",
+        "Two accepted disk-byte requests that differ within one MiB have distinct realization identities; exact-GiB and non-GiB requests preserve requested capacity through lookup, validation and migration.",
+        "A cached index with missing selected-platform content is not counted as a runnable local image.",
+        "OCI whiteout/opaque directory, link, mode, ownership and xattr fixtures produce the same filesystem as the pinned reference realization.",
+        "Deleting a tag does not delete blobs/snapshots still leased by builds, images or running tasks; unavailable owner APIs remain explicit.",
+        "First pull, first unpack, warm run and build-to-run reuse have separate timings/bytes; retain PR135/177 owners rather than duplicate their implementation."
+      ],
+      "depends": [
+        150,
+        149,
+        212
+      ],
+      "sources": [
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodRuntime/ImagesServiceClient.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodRuntime/SandboxVM.swift",
+        "https://github.com/containerd/containerd/blob/main/docs/content-flow.md",
+        "https://github.com/containerd/containerd/blob/main/docs/snapshotters/README.md",
+        "https://github.com/opencontainers/image-spec/blob/main/layer.md"
+      ],
+      "priority": "P1",
+      "category": "cache",
+      "number": 213,
+      "url": "https://github.com/castlemilk/micropod/issues/213",
+      "dependency_planning_keys": [
+        "CACHE_LEASES"
+      ],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "CACHE_MOUNTS",
+      "title": "[Build cache] Define mutable package-cache sharing, promotion and transfer semantics",
+      "problem": "BuildKit solver-cache export does not export mutable cache mounts. Disposable CI needs a separate reproducible and isolated strategy for package/compiler cache continuity.",
+      "current": "Micropod already has named-volume cloning, stopped-workload guards and golden promotion. These primitives do not yet establish BuildKit shared/private/locked cache semantics or safe remote transfer of an actively written directory.",
+      "scope": [
+        "Define cache ID, trust/project namespace, platform/toolchain compatibility, creator UID/mode and shared/private/locked behavior.",
+        "Adapt existing named volumes or guest-native storage to build cache mounts while preserving upstream sharing semantics, including writes that may persist after failed or cancelled builds; no blanket rollback.",
+        "Keep package-cache export/restore separate from BuildKit result cache protocol and mutable writes; publish only a coherent verified export/golden generation and validate content before restore.",
+        "Prevent untrusted jobs from replacing trusted mutable mappings; enforce namespace authorization even when immutable payloads deduplicate.",
+        "Exclude secret, SSH and transient session mounts from automatic engine snapshots/exports; do not promise secret-free artifacts if a Dockerfile explicitly copies secret material into ordinary output or cache paths."
+      ],
+      "acceptance": [
+        "Concurrent locked writers serialize; private writers isolate; shared behavior matches documented package-manager requirements and never silently becomes a global writable directory.",
+        "A failed or cancelled build may leave mutable cache-mount writes as the pinned reference permits. An incomplete export/golden generation is never published, and the last verified published reference remains addressable.",
+        "Fresh builder restores only the selected compatible package-cache generation; --cache-from success alone is not reported as package-cache restoration.",
+        "UID/mode, offline rebuild, cache miss, corrupt remote data, quota and owner restart cases pass. Automatic snapshots/exports exclude secret/SSH/session mounts; an explicit Dockerfile copy into ordinary cache/output is separately documented as workload-controlled content.",
+        "Measure cold, local warm, fresh-builder remote restore and lockfile/toolchain invalidation separately."
+      ],
+      "depends": [
+        149,
+        151,
+        171,
+        212,
+        200
+      ],
+      "sources": [
+        "https://docs.docker.com/reference/dockerfile/",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodRuntime/NativeVolumeService.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodCore/Services/VolumeClone.swift",
+        "https://docs.docker.com/build/cache/backends/"
+      ],
+      "priority": "P1",
+      "category": "cache",
+      "number": 214,
+      "url": "https://github.com/castlemilk/micropod/issues/214",
+      "dependency_planning_keys": [
+        "CACHE_LEASES",
+        "BUILD_CACHE_PROTOCOL"
+      ],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    },
+    {
+      "key": "FS_INDEX",
+      "title": "[Filesystem] Add a versioned metadata index and bounded invalidation for shared views",
+      "problem": "Content-only hashes and recurring full-tree scans cannot provide efficient complete filesystem semantics for large developer trees. The existing live-event repair must feed an explicit metadata/coherence model.",
+      "current": "SharedViewSync has delayed-echo protections but scans regular non-symlink files and excludes dot basenames in its rescan path. FSEvents IDs/flags are discarded. The simple ignore parser is not proof of full Dockerignore behavior. Apple\u2019s documented VirtioFS API exposes shares/tags rather than generic virtiofsd tuning knobs.",
+      "scope": [
+        "Define explicit direct-bind, immutable-build-input and guest-native-writable modes with supported visibility, metadata and durability guarantees.",
+        "Maintain typed path/entry metadata, content digests, root identities and dirty generations; process qualified event streams incrementally with bounded coalescing and subtree invalidation.",
+        "Handle rename, links, empty directories, metadata-only edits, overflow/root replacement and simultaneous writers; preserve full rescan as recovery when incremental knowledge is invalid.",
+        "Profile metadata calls, crossing count, hashing, copies and dirty writes independently; add batching/streaming only in controlled layers and capability-gate unsupported DAX/cache controls."
+      ],
+      "acceptance": [
+        "50k-file and larger fixtures with dotfiles, symlinks/hardlinks, executable bits/xattrs, empty directories and atomic saves have correct results under direct and controlled shared modes.",
+        "A one-file or metadata-only edit does not require hashing unrelated file contents after index warmup; evidence counts IO and events rather than elapsed time alone.",
+        "Dropped events and watcher restart trigger bounded rescan without accepting stale generation results; #93 remains the event defect owner.",
+        "Host-visible and guest-visible notifications, mmap/locking/open-unlink and fsync behavior have explicit supported outcomes; unsupported semantics block a parity claim.",
+        "Report cold traversal, indexed traversal, write/flush latency, idle wakeups, memory pressure and post-burst reclaim under matched correctness/durability."
+      ],
+      "depends": [
+        93,
+        160,
+        161,
+        163,
+        166,
+        167,
+        210
+      ],
+      "sources": [
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodSharedFS/SharedViewSync.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodSharedFS/FSEventsWatcher.swift",
+        "https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodSharedFS/SharedView.swift",
+        "https://developer.apple.com/documentation/virtualization/vzvirtiofilesystemdeviceconfiguration/",
+        "https://docs.kernel.org/filesystems/virtiofs.html",
+        "https://docs.kernel.org/filesystems/dax.html"
+      ],
+      "priority": "P1",
+      "category": "cache",
+      "number": 215,
+      "url": "https://github.com/castlemilk/micropod/issues/215",
+      "dependency_planning_keys": [
+        "CACHE_CLONES"
+      ],
+      "dependency_meaning": "Existing issue numbers coordinate parent/owner contracts; child implementation dependencies are completion gates. Interfaces and test harnesses can begin in parallel."
+    }
+  ],
+  "parent_update_count": 18,
+  "parent_issue_updates": [
+    {
+      "number": 149,
+      "title": "[Build platform] Deliver native build ownership and full Buildx workflow compatibility",
+      "url": "https://github.com/castlemilk/micropod/issues/149"
+    },
+    {
+      "number": 150,
+      "title": "[Images] Complete build-to-run OCI content and image-store interoperability",
+      "url": "https://github.com/castlemilk/micropod/issues/150"
+    },
+    {
+      "number": 181,
+      "title": "[Research] Investigate build, runtime and filesystem behavior with Craft Anything",
+      "url": "https://github.com/castlemilk/micropod/issues/181"
+    },
+    {
+      "number": 182,
+      "title": "[Performance] Qualify build, OCI/runtime and cache behavior before matched product benchmarks",
+      "url": "https://github.com/castlemilk/micropod/issues/182"
+    },
+    {
+      "number": 184,
+      "title": "[Performance] Repair core paths, then evaluate a profiled Rust component with rust-anything",
+      "url": "https://github.com/castlemilk/micropod/issues/184"
+    },
+    {
+      "number": 146,
+      "title": "[RUN-001] Complete a qualified Linux containerd/runc execution profile",
+      "url": "https://github.com/castlemilk/micropod/issues/146"
+    },
+    {
+      "number": 147,
+      "title": "[RUN-002] Complete Docker API semantics and client compatibility",
+      "url": "https://github.com/castlemilk/micropod/issues/147"
+    },
+    {
+      "number": 183,
+      "title": "[Architecture] Select execution domains and workers for core compatibility",
+      "url": "https://github.com/castlemilk/micropod/issues/183"
+    },
+    {
+      "number": 160,
+      "title": "[FS-001] Deliver correct and fast host\u2013guest filesystem paths",
+      "url": "https://github.com/castlemilk/micropod/issues/160"
+    },
+    {
+      "number": 161,
+      "title": "[FS-002] Qualify shared filesystem semantics, integrity and recovery",
+      "url": "https://github.com/castlemilk/micropod/issues/161"
+    },
+    {
+      "number": 163,
+      "title": "[FS-004] Implement typed metadata indexing and bounded invalidation",
+      "url": "https://github.com/castlemilk/micropod/issues/163"
+    },
+    {
+      "number": 166,
+      "title": "[FS-007] Eliminate redundant copying and optimize durable write paths",
+      "url": "https://github.com/castlemilk/micropod/issues/166"
+    },
+    {
+      "number": 167,
+      "title": "[FS-008] Expose coherent, capability-checked per-share cache policies",
+      "url": "https://github.com/castlemilk/micropod/issues/167"
+    },
+    {
+      "number": 168,
+      "title": "[STOR-001] Reconcile storage ownership, exact capacity and truthful allocation",
+      "url": "https://github.com/castlemilk/micropod/issues/168"
+    },
+    {
+      "number": 180,
+      "title": "[Roadmap] Deliver the core build, runtime and filesystem platform",
+      "url": "https://github.com/castlemilk/micropod/issues/180"
+    },
+    {
+      "number": 179,
+      "title": "[Kubernetes] Parse node conditions instead of matching Ready inside NotReady",
+      "url": "https://github.com/castlemilk/micropod/issues/179"
+    },
+    {
+      "number": 187,
+      "title": "[Kubernetes] Separate stop from reset and preserve cluster data across lifecycle changes",
+      "url": "https://github.com/castlemilk/micropod/issues/187"
+    },
+    {
+      "number": 188,
+      "title": "[Kubernetes] Qualify existing networking, ingress, image and storage integration",
+      "url": "https://github.com/castlemilk/micropod/issues/188"
+    }
+  ]
+}

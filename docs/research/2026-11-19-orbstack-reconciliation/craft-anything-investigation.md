@@ -4,11 +4,15 @@
 
 Related documents: [overview](README.md), [existing implementation](existing-state.md), [reconciled roadmap](roadmap.md), [benchmark protocol](benchmark-plan.md), [Rust build workflow](rust-anything-buildout.md), and [proposed evidence template](EVIDENCE-TEMPLATE.json).
 
+Core investigation targets: [container platform priorities](core-container-platform.md), [native build platform and Buildx](build-platform.md), [OCI/runc equivalence](runtime-compatibility.md), and [cache/VirtioFS contracts](cache-and-filesystem.md).
+
 ## Recommendation
 
 Use Craft Anything as the investigation ledger and controlled observation tool for OrbStack's user-facing behavior. Keep Micropod's implementation and performance harness in Micropod's repository. Craft Anything can organize reproducible evidence and generate reports; it is not a virtual-machine runtime, a proven reconstruction of OrbStack, or a substitute for native benchmark instrumentation.
 
 The repository is an actual Rust application with a desktop GUI, CLI, and MCP server. It contains no `SKILL.md` in the inspected tree. Do not describe it as an installed agent skill. The useful implementation is the explicit distinction between observations, deterministic derivations, hypotheses, unknowns, and evidence-backed findings. A clean-room specification can then be passed to the build owner without copying proprietary implementation details or product assets.
+
+Prioritize observable **build, runtime and filesystem contracts**: full Buildx/native-build workflows, Linux OCI/runc semantics and cache/VirtioFS correctness. Kubernetes enablement and build-to-deploy behavior are downstream journeys. Craft's ledger should link each required compatibility row to its evidence and implementation owner; a UI walkthrough, vendor claim or narrow successful workload does not establish complete replacement capability.
 
 ## Pinned repository and inspected implementation
 
@@ -67,7 +71,11 @@ Create one investigation project per OrbStack version/OS/hardware lane. Record e
 
 Start with bounded questions, for example:
 
-- Which lifecycle transitions are visible when Docker, Kubernetes and a Linux distro run concurrently?
+- Which actual Docker/Buildx/Bake/Compose commands select the intended builder, and how do source transfer, secrets/SSH, progress, cancellation, cache imports and requested outputs behave?
+- Can a built result be loaded and run, pushed/pulled by digest, selected by platform and inspected for promised provenance/SBOM? Which behavior changes after builder restart?
+- Which OCI/runc process, terminal, signal, resource, namespace and rootless behaviors are required, and which guest observations establish enforcement rather than merely API acceptance?
+- How do metadata-only edits, ignore rules, atomic saves, links, watcher overflow, concurrent writers and busy prune affect correctness across source, solver, package and filesystem caches?
+- Which lifecycle transitions are visible when builds, containers and a Linux distro run concurrently, then when downstream Kubernetes workloads are added?
 - What behavior do published TCP/UDP ports, local DNS, SSH and host filesystem integration expose?
 - How are conflicting ports, denied shares, low disk space, translated programs and host sleep handled?
 - Which resource curves differ between trusted shared-kernel development and isolated CI execution?
@@ -89,7 +97,7 @@ Example `brief.json` uses the actual `BriefParams` fields:
 
 ```json
 {
-  "question": "Which observable OrbStack behaviors should Micropod match, and which current Micropod components already satisfy them?",
+  "question": "Which observable build, OCI/runc and cache/filesystem behaviors must Micropod match, and which current components already satisfy them?",
   "purpose": "Interoperability, performance evaluation, and an independent implementation plan",
   "targets": ["https://docs.orbstack.dev/architecture", "versioned OrbStack test instance", "pinned Micropod source"],
   "constraints": ["Use public documentation and user-visible behavior", "Label vendor claims separately from measured outcomes", "No production runtime lifecycle actions", "Keep all raw measurement identities"],
@@ -112,7 +120,9 @@ Within that session, use `web_site_open`, then `web_site_capture` with an absolu
 
 For the native app, use the app/MCP's normal consent flow on the dedicated macOS test instance. Call `runtime_ui_read` with its known PID, `screenshot: true`, `accessibility: true` and a bounded `max_nodes`. Do not guess element identifiers: inspect the resulting tree before defining a walkthrough. `runtime_ui_walkthrough_record` records exact steps and their actual outcomes; a missing element or denied permission is an incomplete observation.
 
-Capture the supported journeys: fresh app → runtime readiness; image pull/run/logs/exec/exit; Compose services; mount edits and notification delivery; named volume browsing; machine create/exec/SSH/stop; Kubernetes enable/readiness/ingress; resource limit changes; failure and recovery screens. Save screenshots and step outcomes as evidence, while omitting credentials, unrelated projects and private logs.
+Capture core journeys first: fresh app → runtime/builder readiness; source-to-build-to-load/run; private build sessions and cancellation; cache inspection/prune; image pull/run/logs/interactive exec/exit; Compose builds/services; mount edits and notification delivery; named volume browsing; resource limit changes; failure and recovery screens. Follow with machine create/exec/SSH/stop and downstream Kubernetes enable/readiness/ingress. Save screenshots and step outcomes as evidence, while omitting credentials, unrelated projects and private logs. Use actual client and guest fixtures for semantics that a GUI cannot demonstrate.
+
+For Micropod's side of the comparison, record the installed Apple builder's identity and contract before proposing another builder: the inspected `container build` path already reaches BuildKit. A native Micropod BuildService can own jobs/sessions/results while reusing that upstream implementation. Observe whether an optimization changes the backend, source semantics, resource budget or warm state; do not attribute those changes to a language or GUI. [Micropod build source at the audit pin](https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodCore/Services/ImageService.swift), [build-platform investigation](build-platform.md), [Apple builder reference](https://github.com/apple/container/blob/main/docs/command-reference.md).
 
 ### 4. Use a separate harness for quantitative measurements
 
@@ -124,13 +134,16 @@ Suggested experiment families:
 
 | Experiment | What it resolves |
 |---|---|
+| Cold, unchanged, source-edit, dependency-edit and concurrent related Buildx/Bake builds | Context transfer versus solver/package-cache reuse, exporter costs, actual digest/output correctness and cancellation ownership. |
+| OCI/runc process, signal/terminal, resource/security and restart fixtures | Whether accepted requests produce required guest behavior; required unsupported cases remain release blockers. |
+| Metadata/link/ignore edits, cache corruption, cache-mount contention and prune during active builds | Semantic cache identity, integrity, locking and lease correctness; a retained source directory is not a solver cache. |
 | 0, 1, 10, 25 short-lived containers and distro processes | Fixed/per-workload overhead and the point where shared-kernel density becomes beneficial. |
 | Allocate, touch, release memory; repeat after idle and host pressure | Guest free memory versus host physical reclaim, reclaim delay, swap/compression side effects. |
 | File create/stat/readdir/rename/delete storms and atomic save | Metadata performance and notification correctness; re-evaluate missed events separately from throughput. |
 | `fsync`/database durability and failure recovery | Whether apparent gains are caused by weaker persistence semantics. |
 | Cold boot, warm boot, API activation, first container and first useful response | Actual user wait boundaries rather than process-exists timing. |
 | TCP, UDP, DNS, local domains, VPN/split DNS, sleep/wake | Fast paths plus ordinary development connectivity and recovery. |
-| Container exit/attach/wait, Compose and Kubernetes readiness | End-to-end compatibility; a speedup cannot compensate for wrong status or API results. |
+| Container exit/attach/wait and Compose, followed by downstream Kubernetes readiness | End-to-end compatibility; a speedup cannot compensate for wrong status or API results, and a cluster result cannot replace core coverage. |
 
 ### 5. Convert evidence into findings and a build specification
 
@@ -186,6 +199,10 @@ Retain the `.cany` project alongside the export and check `not_loaded`. Source l
 | [README.md](README.md) | Scope, audit date, pinned inputs, evidence status and navigation. |
 | [existing-state.md](existing-state.md) | Current Micropod source, tests and native evidence; distinguish a declared interface from working behavior. |
 | [roadmap.md](roadmap.md) | Requirement and issue reconciliation, canonical work owners, remaining gaps, dependencies and architecture decisions. Preserve the isolated backend while evaluating whether a trusted shared-kernel backend is justified. |
+| [core-container-platform.md](core-container-platform.md) | Core delivery order, full replacement gates and ownership across build, runtime, storage and sharing. |
+| [build-platform.md](build-platform.md) | Native BuildService, existing builder reuse, Buildx sessions/transports, source semantics, outputs and cache interoperability. |
+| [runtime-compatibility.md](runtime-compatibility.md) | Complete required OCI/runc and Docker behavior with guest-observed evidence, plus explicitly separate specialized profiles. |
+| [cache-and-filesystem.md](cache-and-filesystem.md) | Source/solver/package/image/filesystem cache boundaries, concrete repairs, trust/leases, VirtioFS coherence and measured reclaim. |
 | This document | Craft Anything qualification, public-source investigation, command contracts and the proposed handoff. A later populated investigation should add inputs, outputs, state transitions, error conditions and observable security boundaries. |
 | [EVIDENCE-TEMPLATE.json](EVIDENCE-TEMPLATE.json) | Proposed sidecar provenance and experiment fields. It is an unpopulated template, not a native Craft Anything evidence bundle or a completed observation. |
 | [benchmark-plan.md](benchmark-plan.md) | Workload fixtures, compared lanes, raw-result index, correctness gates, uncertainty and reproduction commands. |
@@ -197,6 +214,9 @@ Archive each future native investigation's `.cany` project, source manifest, cap
 
 Apply these dispositions through the canonical items in the [reconciled roadmap](roadmap.md), using the source and test status in [existing-state.md](existing-state.md).
 
+- Make complete build and runtime compatibility, cache integrity and filesystem semantics the primary investigation backlog; move Kubernetes qualification downstream.
+- Preserve the existing BuildKit-backed builder as an integration candidate. Specify native Micropod job/session/result ownership without assuming that replacing the user workflow requires rewriting the solver or frontend.
+- Keep the full general replacement matrix explicit. A specialized profile's success and an honest unsupported response do not close required Buildx or OCI/runc gaps.
 - Replace “prototype vfkit AND implement a native VZ backend” as unconditional sequential work with one comparative backend spike, unless repository gaps independently justify both.
 - Preserve independent-kernel isolation as a first-class existing or retained capability. A trusted shared VM can be an additional profile, not a silent replacement for Cuttlefish workload isolation.
 - Define machine and runtime semantics before choosing a home-grown PID 1 or system-container supervisor. The public product behavior does not require duplicating an undocumented custom init.

@@ -2,14 +2,19 @@
 
 **19 November 2026 · Source audit and implementation plan.** Tracker: [#180](https://github.com/castlemilk/micropod/issues/180).
 
-Micropod already has much of the infrastructure proposed by the original roadmap. The practical path is to extend and qualify those components, repair concrete correctness gaps, then use measured workload evidence to decide whether a shared-kernel engine or selected Rust component is worth adding. Preserve independent-VM isolation as a distinct product capability.
+**The primary roadmap is now the build platform, full Linux OCI/runc compatibility, and cache/VirtioFS correctness and performance.** Kubernetes is a downstream integration. The follow-up audit found substantial gaps behind existing interfaces, so code presence is not treated as completed compatibility. Extend the useful Micropod foundations, fix concrete defects, and qualify upstream-backed execution before selecting measured custom worker or Rust optimizations. Preserve independent-VM isolation as a distinct capability.
 
-This package reconciles **86 original research items**, **40 existing roadmap issues** and **14 focused new issues**. It includes source-pinned runbooks for using Craft Anything to investigate OrbStack and rust-anything to evaluate bounded implementation changes. It contains **no newly measured performance results**, native OrbStack captures, installed tool integration or runtime changes.
+This package reconciles **86 original research items**, **40 existing roadmap issues** and **14 focused initial issues**, followed by **21 detailed core-platform issues (#195–215)**. It includes source-pinned runbooks for using Craft Anything to investigate OrbStack and rust-anything to evaluate bounded implementation changes. It contains **no newly measured performance results**, native OrbStack captures, installed tool integration or runtime changes.
 
 ## Read in this order
 
 | Document | Purpose |
 |---|---|
+| [Core container platform](core-container-platform.md) | Authoritative revised priorities, architecture, delivery sequence and 21 implementation tickets |
+| [Build platform](build-platform.md) | Native BuildService, Buildx/Compose/Bake, sessions, sources, exporters and BuildKit integration |
+| [Runtime equivalence](runtime-compatibility.md) | Full Linux target, Docker/OCI/runc/containerd contracts, concrete gaps and conformance |
+| [Cache and filesystem](cache-and-filesystem.md) | Context/solver/package/image caches, integrity, leases, APFS clones and VirtioFS coherence |
+| [Core backlog JSON](core-backlog.json) | Detailed implementation scopes, acceptance criteria and actual dependency issue numbers |
 | [Existing state](existing-state.md) | 24 pinned implementation references, the 40 issue dispositions, current ownership and concrete gaps |
 | [Roadmap](roadmap.md) | All 86 original rows, correct issue mapping, phase dependencies and acceptance boundaries |
 | [Craft Anything investigation](craft-anything-investigation.md) | Reviewed capabilities, exact staged commands, evidence capture, hypotheses and independent build specification |
@@ -31,12 +36,13 @@ The audit environment is Linux. The two tools were not installed or executed; na
 
 ## Findings that change the implementation plan
 
-1. **Existing foundation:** RuntimeEngine/EngineRegistry, native Apple transport, direct sandbox VZ, Docker socket/shim, machine commands, Rosetta selection, VirtioFS/SharedFS, APFS clones/checkpoints, networking and k3s are already present. Recreating these would duplicate work. See [source inventory](existing-state.md).
-2. **New architecture:** A multi-distro shared Linux kernel is a new trust profile. OrbStack documents that even its isolated machines share that kernel. Add such a mode only through [#183](https://github.com/castlemilk/micropod/issues/183) and preserve Micropod's independent VMs. [Vendor architecture](https://docs.orbstack.dev/architecture), [isolated machines](https://docs.orbstack.dev/machines/isolated).
-3. **Concrete current gaps:** Buildx gRPC/session support [#149](https://github.com/castlemilk/micropod/issues/149); live filesystem correctness [#93](https://github.com/castlemilk/micropod/issues/93)/[#161](https://github.com/castlemilk/micropod/issues/161); sandbox UDP/IPv6 forwarding [#174](https://github.com/castlemilk/micropod/issues/174); automatic domains/HTTPS [#185](https://github.com/castlemilk/micropod/issues/185)/[#186](https://github.com/castlemilk/micropod/issues/186); mounted reverse filesystem [#164](https://github.com/castlemilk/micropod/issues/164); persistent Kubernetes lifecycle [#187](https://github.com/castlemilk/micropod/issues/187).
-4. **Deterministic source bug:** K8sService.status uses a substring match that accepts `NotReady` as `Ready`. [#179](https://github.com/castlemilk/micropod/issues/179) defines structured-condition parsing and negative cases. This is static proof of the code defect, not a claimed live reproduction.
-5. **Existing owners:** #89 is completed, #90 remains the workload-continuity owner, #93 retains notification work, and #162 is its duplicate. Open #135/#176/#177/#178/#193 are not merged or installed capabilities. Do not recreate their storage/cancellation/update changes.
-6. **Performance evidence:** Existing scripts hide some first failures, mix readiness/memory scopes and contain destructive fixed-name cleanup. Repair the measurement contract in [#182](https://github.com/castlemilk/micropod/issues/182) before claiming an improvement. Historical repository medians and OrbStack's August 2023 vendor benchmark are not contemporary comparative results.
+1. **The build product is larger than a gRPC route.** #149 now owns a complete native BuildService and compatible Docker/Buildx/Compose/Bake workflows. The current code delegates through Apple's BuildKit-backed builder; inspect and reuse its supported contract before adding another owner. Sources, sessions, progress, cancellation, multi-platform outputs and cache administration all need explicit implementation. [Build audit](build-platform.md).
+2. **A Docker socket does not establish runtime equivalence.** The source has concrete exec-user, attach-stdin, requested-signal, resource-translation and exit-outcome gaps. #147 and #201–207 define the complete Linux compatibility target and differential gates. A required unsupported feature blocks replacement completion. [Runtime audit](runtime-compatibility.md).
+3. **Caching has correctness defects and separate layers.** Context keys omit relevant semantic metadata; a per-file clone success falls through into copying; chunk ingestion can return partial results; context byte accounting changes basis. #197 and #209–215 cover fixes, ownership, image reuse, mutable caches and metadata indexing. [Cache audit](cache-and-filesystem.md).
+4. **VirtioFS optimization needs a supported control surface.** Direct Apple VZ shares, synchronized SharedFS views, immutable build sources and guest-native writable volumes have different semantics. #93/#160–168 remain their existing owners; measure metadata, copies, notifications, durability and actual storage effects before claiming custom caching or zero-copy behavior. [Filesystem design](cache-and-filesystem.md).
+5. **Execution topology serves the compatibility contract.** #146/#183 cover Linux containerd/runc inside explicit trusted builder, project or isolated-job domains. A global shared-distro VM is not a prerequisite. Optional sharing must preserve the separately qualified isolated profile. [Core architecture](core-container-platform.md).
+6. **Performance evidence is still missing.** #182 repairs the comparison harness and puts complete build, runtime and filesystem workloads first. Historical repository figures and vendor benchmarks are not contemporary comparative results. [Benchmark plan](benchmark-plan.md).
+7. **Current owners remain authoritative.** #89 is completed; #90 owns workload continuity, #66 exit status, and #93 notifications. Open #135/#176/#177/#178 are not merged capabilities. #193 is closed without merge and folded into #178. Kubernetes readiness #179 can land independently; #187/#188 are downstream integrations. [Source and ownership inventory](existing-state.md).
 
 ## How the two requested tools fit
 
@@ -48,4 +54,6 @@ Neither tool supplies a VMM, Docker runtime or turnkey OrbStack implementation. 
 
 ## Recommended first implementation slice
 
-Land the small structured-readiness repair; finish the existing cancellation/volume/update work under its current owners; qualify live notifications; repair benchmark validity and collect a versioned baseline. Then prioritize Buildx and the file/network/Kubernetes user journeys. Use those results to decide shared-kernel density and the first Rust experiment. Every performance experiment has a predeclared semantic gate, matched baseline, resource budget and rollback.
+Start installed-builder inventory and the compatibility/benchmark harness alongside the concrete context, process-control, clone, chunk-integrity and accounting repairs. Deliver one complete build-to-run flow through the native API and real Buildx clients, including private dependencies, cancellation, a runnable loaded result and correct warm-cache reuse. Expand that path to the full runtime/export/cache matrix, then optimize the measured filesystem, snapshot and worker costs. Kubernetes consumes the qualified platform later.
+
+The 86 original research identities remain traceable. The [core program](core-container-platform.md) supersedes the initial ordering; it does not assert that any of the new implementation issues are already complete.

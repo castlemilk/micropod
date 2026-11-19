@@ -8,24 +8,63 @@ This roadmap replaces the assumption that Micropod is a new runtime project. It 
 
 The original research IDs are retained for traceability. They are not a one-to-one key into the filed issues. For example, original **MACH-004** means Fedora/RHEL support, while filed **#157 / MACH-004** means machine CLI. Original **FS-004** means guest filesystem RPC, while **#163 / FS-004** means metadata caching. Original **NET-003** means port-event discovery, while **#175 / NET-003** means host gateway. The crosswalk below resolves these explicitly.
 
-The 40 existing issues receive source-backed replacement scopes and concrete acceptance criteria, with their original descriptions retained as historical context. Dispositions are **25 extend/qualify, 14 gated experiments/designs, and one duplicate (#162 → #93)**. “Gate” remains open: it does not mean implemented or approved to deploy. Source-unaware estimates in the original descriptions are superseded; re-estimate after architecture and baseline evidence resolve the actual delta.
+The 40 existing issues received source-backed replacement scopes and concrete acceptance criteria, with their original descriptions retained as historical context. Initial dispositions were **25 extend/qualify, 14 gated experiments/designs, and one duplicate (#162 → #93)**. The core follow-up below supersedes affected scopes, including the former optional-only runtime/image gates. “Gate” remains open: it does not mean implemented or approved to deploy. Source-unaware estimates in the original descriptions are superseded; re-estimate after architecture and baseline evidence resolve the actual delta.
 
 Fourteen focused issues cover the audit tracker, the two tool workflows, measurement, architectural choice and uncovered product gaps. Related original rows are consolidated when they share one implementation and acceptance boundary; all remain individually traceable below. This avoids refiling already implemented CLI/UI/runtime foundations or assigning another owner to active update work.
 
-## Phases and exit criteria
+## Core-platform follow-up and revised ordering
 
-| Phase | Work | Exit evidence |
+The initial reconciliation under-scoped Buildx replacement, runtime equivalence and caching. **The [core container platform program](core-container-platform.md) now governs implementation order.** Twenty-one detailed child issues add the missing contracts while retaining the original 40 owners and all 86 research identities. The 14 initial new issues below remain historical filing scope; these 21 are the follow-up, for 35 newly scoped issues across the reconciliation.
+
+| Stage | Work | Exit evidence |
 |---|---|---|
-| 0. Correctness and current ownership | #179 readiness; #93 notifications; #66 exits; active #135/#176/#177/#178; docs and source identity | Correct outcomes, exact source/installed receipts, no duplicate owner or false completion |
-| 1. Evidence and benchmark validity | #181 Craft investigation, #182 harness repairs, #191 diagnostics identity | Versioned behavior matrix, raw samples, equivalent semantics, reliable failure accounting |
-| 2. Improve current developer workflows | #147–149 shim/context/Buildx, #160–167 files, #173–175 networking, #185–190 integrations | End-to-end Docker/Compose/files/ports/k3s/SSH journeys pass on supported Mac configurations |
-| 3. Decide shared-kernel development | #183, then gated #136–146 and #154–159 as justified | ADR with measured density/resource benefit, explicit trust domain and retained isolated profile |
-| 4. Selective optimization | #184 Rust candidate, #142 reclaim, #163/#166 FS, profile-driven network changes | Matched end-to-end improvement with no correctness/latency/resource regression; reversible adoption |
-| 5. Persistent product qualification | #168–172 storage, #187 cluster data, #89/#90/#178 release path, #192 migration | Interrupted operation recovery, data integrity, compatibility, signed installed receipts and repeatable comparison |
+| A. Semantic foundations | Builder inventory #195; runtime contract #201; source identity #197; process #203; chunks/clones/accounting #209–211; harness #182/#207 | Deterministic fixtures, correct ownership and exact versions; current gaps recorded honestly |
+| B. Build to run | Native BuildService #195, protocol #196, sessions #198, outputs #199, Linux execution #202 and image/lease owners #150/#212/#213 | Native and real-client builds load/run/exit correctly, cancel/recover safely and reuse the right cache |
+| C. Full replacement matrix | Buildx/Compose/Bake, OCI/Docker semantics #201–207, remote solver cache #200 and package caches #214 | Every required compatibility row passes; unsupported required behavior remains a release blocker |
+| D. Measured performance | SharedFS/VirtioFS #93/#160–167/#215, safe storage #168–172/#209–214, optional worker #208 and Rust #184 | Reproducible end-to-end gains at equal semantics, resources and durability; resource and recovery budgets pass |
+| E. Downstream integrations | Kubernetes #179/#187/#188, broader distro/UI/domains/HTTPS/migration | Consume the qualified platform without blocking core build/runtime/filesystem work on cluster features |
 
-Phases express dependencies, not a calendar or a requirement to hold independent small fixes. #179 can proceed immediately. A shared-kernel architecture or Rust experiment may end with a documented no-go; that is a valid result.
+Harness construction and independent correctness fixes run in parallel. A selected Linux runtime can run in an isolated job/project VM: neither a global shared-kernel engine nor Kubernetes is a prerequisite. Existing #66/#74/#90/#93 and PR #135/#176/#177/#178 retain their ownership. Optional optimization experiments can conclude with a documented no-go; required compatibility cannot be closed merely by marking it unsupported.
 
-## Newly scoped issues
+## Detailed core-platform issues
+
+### Build platform
+
+| Issue | Work package | Priority |
+|---|---|---|
+| [#195](https://github.com/castlemilk/micropod/issues/195) | Build platform: own native build jobs and reuse or migrate the installed BuildKit builder | P0 |
+| [#196](https://github.com/castlemilk/micropod/issues/196) | Build platform: qualify Buildx transports, builder selection, Bake and Compose compatibility | P0 |
+| [#197](https://github.com/castlemilk/micropod/issues/197) | Build platform: make context identity semantically correct and source ingestion bounded | P0 |
+| [#198](https://github.com/castlemilk/micropod/issues/198) | Build platform: scope file, credential, secret and SSH sessions to owned jobs | P0 |
+| [#199](https://github.com/castlemilk/micropod/issues/199) | Build platform: preserve multi-platform outputs, image loading and attestations | P0 |
+| [#200](https://github.com/castlemilk/micropod/issues/200) | Build platform: implement solver-cache interoperability and truthful usage/prune APIs | P0 |
+| [#208](https://github.com/castlemilk/micropod/issues/208) | Build platform: qualify a measured native worker/executor against upstream BuildKit | P1 |
+
+### Runtime equivalence
+
+| Issue | Work package | Priority |
+|---|---|---|
+| [#201](https://github.com/castlemilk/micropod/issues/201) | [Runtime parity] Preserve known Docker/OCI semantics through every request adapter | P0 |
+| [#202](https://github.com/castlemilk/micropod/issues/202) | [Runtime parity] Integrate a complete Linux runc/containerd execution profile | P0 |
+| [#203](https://github.com/castlemilk/micropod/issues/203) | [Runtime parity] Complete exec, interactive attach, terminal and signal behavior | P0 |
+| [#204](https://github.com/castlemilk/micropod/issues/204) | [Runtime parity] Persist authoritative task outcomes and ordered lifecycle events | P0 |
+| [#205](https://github.com/castlemilk/micropod/issues/205) | [Runtime parity] Enforce cgroup v2 resources and preserve fractional CPU limits | P0 |
+| [#206](https://github.com/castlemilk/micropod/issues/206) | [Runtime parity] Complete mount, namespace, privilege and rootless contracts | P0 |
+| [#207](https://github.com/castlemilk/micropod/issues/207) | [Runtime parity] Add differential runc and Docker workload conformance gates | P0 |
+
+### Cache and filesystem
+
+| Issue | Work package | Priority |
+|---|---|---|
+| [#209](https://github.com/castlemilk/micropod/issues/209) | [Cache] Make chunk ingestion and materialization complete, verified and atomic | P0 |
+| [#210](https://github.com/castlemilk/micropod/issues/210) | [Filesystem] Preserve the successful clone fast path and fallback metadata | P0 |
+| [#211](https://github.com/castlemilk/micropod/issues/211) | [Cache] Unify byte accounting across insertion, eviction and restart | P0 |
+| [#212](https://github.com/castlemilk/micropod/issues/212) | [Cache] Persist ownership and coordinate safe garbage collection across stores | P1 |
+| [#213](https://github.com/castlemilk/micropod/issues/213) | [Images] Reuse verified content and immutable root realizations across build and run | P1 |
+| [#214](https://github.com/castlemilk/micropod/issues/214) | [Build cache] Define mutable package-cache sharing, promotion and transfer semantics | P1 |
+| [#215](https://github.com/castlemilk/micropod/issues/215) | [Filesystem] Add a versioned metadata index and bounded invalidation for shared views | P1 |
+
+## Initial reconciliation issues
 
 | Issue | Scope | Priority |
 |---|---|---|
@@ -34,9 +73,9 @@ Phases express dependencies, not a calendar or a requirement to hold independent
 | [#181](https://github.com/castlemilk/micropod/issues/181) | [Research] Capture versioned OrbStack behavior with Craft Anything | P0 |
 | [#182](https://github.com/castlemilk/micropod/issues/182) | [Performance] Extend existing harness for fair OrbStack comparisons and regression gates | P0 |
 | [#184](https://github.com/castlemilk/micropod/issues/184) | [Performance] Evaluate one profiled Go unit with rust-anything before adopting Rust | P1 |
-| [#179](https://github.com/castlemilk/micropod/issues/179) | [Kubernetes] Parse node conditions instead of matching Ready inside NotReady | P0 |
-| [#187](https://github.com/castlemilk/micropod/issues/187) | [Kubernetes] Separate stop from reset and preserve cluster data across lifecycle changes | P1 |
-| [#188](https://github.com/castlemilk/micropod/issues/188) | [Kubernetes] Qualify existing networking, ingress, image and storage integration | P1 |
+| [#179](https://github.com/castlemilk/micropod/issues/179) | [Kubernetes] Parse node conditions instead of matching Ready inside NotReady | P1 (independent fix) |
+| [#187](https://github.com/castlemilk/micropod/issues/187) | [Kubernetes] Separate stop from reset and preserve cluster data across lifecycle changes | P2 (downstream) |
+| [#188](https://github.com/castlemilk/micropod/issues/188) | [Kubernetes] Qualify existing networking, ingress, image and storage integration | P2 (downstream) |
 | [#185](https://github.com/castlemilk/micropod/issues/185) | [Networking] Add lifecycle local domains and qualify macOS resolver/proxy integration | P1 |
 | [#186](https://github.com/castlemilk/micropod/issues/186) | [Networking] Provide opt-in local HTTPS with owned certificates and service routing | P1 |
 | [#189](https://github.com/castlemilk/micropod/issues/189) | [Machines] Add versioned SSH access and opt-in agent forwarding to selected machines | P1 |
@@ -66,11 +105,11 @@ Phases express dependencies, not a calendar or a requirement to hold independent
 
 | Original ID and scope | Current owner(s) | Source disposition and remaining work |
 |---|---|---|
-| **RUN-001** — Bundle/version Moby, containerd and runc | [#146](https://github.com/castlemilk/micropod/issues/146) | **New daemon stack only relevant to selected shared engine.** Keep the default Apple and sandbox engines independent of a new Moby/containerd/runc bundle. Scope guest Docker integration to an explicitly selected optional shared-kernel engine. |
-| **RUN-002** — Forward Docker Unix socket to macOS | [#147](https://github.com/castlemilk/micropod/issues/147) | **Docker Unix socket and shim implemented.** Harden the existing shim and Unix socket instead of creating them again. Maintain deliberate Apple-engine routing to prevent loops through the external Docker adapter. |
+| **RUN-001** — Bundle/version Moby, containerd and runc | [#146](https://github.com/castlemilk/micropod/issues/146) | **Linux OCI stack is core to full runtime equivalence.** Integrate qualified upstream containerd/runc inside explicit trusted builder, project or isolated-job Linux domains under #146/#202. A global shared-distro engine is not a prerequisite; preserve Apple and isolated adapters with explicit capability matrices. |
+| **RUN-002** — Forward Docker Unix socket to macOS | [#147](https://github.com/castlemilk/micropod/issues/147) | **Socket exists; Docker semantics remain incomplete.** Extend #147 through #201–207 to cover known API fields, process control, lifecycle, resources, mounts/security and real-client conformance. Retain deliberate engine routing and prevent forwarding loops. |
 | **RUN-003** — Docker context installer | [#148](https://github.com/castlemilk/micropod/issues/148) | **DOCKER_HOST documented; reversible installer absent in reviewed paths.** Install and select an opt-in Docker context for the existing shim socket without taking over other runtime contexts. |
-| **RUN-004** — BuildKit integration | [#149](https://github.com/castlemilk/micropod/issues/149) | **Legacy build delegation exists; Buildx session gap.** Preserve current POST /build and context caching while choosing and implementing a complete builder/session strategy. Current shim requires the legacy Docker build path and does not proxy Buildx gRPC sessions. |
-| **RUN-005** — containerd image store mode | [#150](https://github.com/castlemilk/micropod/issues/150) | **Apple image store exists; optional containerd mode absent.** Scope containerd storage to an optional selected engine and explicit interoperability requirements rather than replacing the existing Apple image store by default. |
+| **RUN-004** — BuildKit integration | [#149](https://github.com/castlemilk/micropod/issues/149) | **BuildKit-backed CLI exists; complete build service and compatibility missing.** Extend #149 through #195–200 and #208: native jobs, supported builder integration, Buildx/Compose/Bake protocols, source identity, sessions, exporters, cache lifecycle and measured worker optimization. |
+| **RUN-005** — containerd image store mode | [#150](https://github.com/castlemilk/micropod/issues/150) | **Build-to-run image interoperability is core.** Extend #150 with #199/#212/#213 to preserve OCI content/index/config/attestations, verified unpacked snapshots and live references across build/load/run. Inventory existing stores and adapt owners instead of requiring a global store replacement. |
 | **RUN-006** — registry credential bridge | [#151](https://github.com/castlemilk/micropod/issues/151) | **Registry operations exist; helper interoperability unqualified.** Extend existing registry list/login/logout ownership and investigate Apple and Docker helper APIs before introducing another credential store. |
 | **RUN-007** — lazy service activation | [#152](https://github.com/castlemilk/micropod/issues/152) | **Durable lifecycle and manual-stop state exist.** Integrate demand-driven startup with existing lifecycle, maintenance and admission state. A read such as docker ps must not override an explicit user stop. |
 | **RUN-008** — direct containerd/nerdctl profile | [#153](https://github.com/castlemilk/micropod/issues/153) | **Existing engines independent of Docker; nerdctl profile absent.** Document current Apple/sandbox Docker independence and add a nerdctl profile only if it solves a concrete selected-engine need. |
@@ -216,6 +255,6 @@ Phases express dependencies, not a calendar or a requirement to hold independent
 
 An issue closes with the specified implementation and qualification evidence, or an explicit documented no-go/unsupported decision where the issue is a capability experiment. No issue is marked implemented from this audit alone. Record source SHA, installed component identity, test environment, first-attempt outcomes and limitations. Benchmark gates are detailed in [benchmark-plan.md](benchmark-plan.md); tool-specific limits and staged commands are in the two runbooks.
 
-Existing owners remain authoritative: [#89 completed installation](https://github.com/castlemilk/micropod/issues/89), [#90 workload continuity](https://github.com/castlemilk/micropod/issues/90), [#93 live notifications](https://github.com/castlemilk/micropod/issues/93), [#66 exit status](https://github.com/castlemilk/micropod/issues/66), [#74 network selection](https://github.com/castlemilk/micropod/issues/74), and open PRs [#193](https://github.com/castlemilk/micropod/pull/193), [#131](https://github.com/castlemilk/micropod/pull/131), [#135](https://github.com/castlemilk/micropod/pull/135), [#176](https://github.com/castlemilk/micropod/pull/176), [#177](https://github.com/castlemilk/micropod/pull/177), [#178](https://github.com/castlemilk/micropod/pull/178). PR author-reported tests and measurements are attributed, not rerun here.
+Existing owners remain authoritative: [#89 completed installation](https://github.com/castlemilk/micropod/issues/89), [#90 workload continuity](https://github.com/castlemilk/micropod/issues/90), [#93 live notifications](https://github.com/castlemilk/micropod/issues/93), [#66 exit status](https://github.com/castlemilk/micropod/issues/66), [#74 network selection](https://github.com/castlemilk/micropod/issues/74), and open PRs [#131](https://github.com/castlemilk/micropod/pull/131), [#135](https://github.com/castlemilk/micropod/pull/135), [#176](https://github.com/castlemilk/micropod/pull/176), [#177](https://github.com/castlemilk/micropod/pull/177), [#178](https://github.com/castlemilk/micropod/pull/178). PR author-reported tests and measurements are attributed, not rerun here.
 
-Final refresh: [PR #193](https://github.com/castlemilk/micropod/pull/193) is stacked on #178 and proposes the stopped-runtime recovery contract. Treat it as active unmerged work; retain its paired rollout and physical qualification gates.
+Follow-up refresh: [PR #193](https://github.com/castlemilk/micropod/pull/193) is closed without merge; its stopped-runtime recovery work was folded into open [#178](https://github.com/castlemilk/micropod/pull/178), whose reviewed head is `9888b3fd1346ccc86f1fca4fafa8e6154ef5b7ec`. Treat the combined update path as unmerged work and retain installed qualification gates.

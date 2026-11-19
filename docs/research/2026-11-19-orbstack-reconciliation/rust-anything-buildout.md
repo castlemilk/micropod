@@ -4,11 +4,15 @@ Status: **documentation and proposed evaluation only**. Research date: 19 Novemb
 
 [Research index](README.md) · [Existing state](existing-state.md) · [Reconciled roadmap](roadmap.md) · [OrbStack investigation](craft-anything-investigation.md) · [Benchmark plan](benchmark-plan.md)
 
+Core implementation contracts: [container platform priorities](core-container-platform.md), [native build platform and Buildx](build-platform.md), [OCI/runc equivalence](runtime-compatibility.md), and [cache/VirtioFS behavior](cache-and-filesystem.md).
+
 ## Recommendation
 
 Use rust-anything as a bounded **characterization and port-validation workflow** for one profiled, importable Go unit, or use its methodology with an explicitly maintained Swift-to-C test adapter. Keep SwiftUI, Apple framework integration, XPC, runtime ownership and the existing public contracts in their present implementation until measurements justify a particular replacement. The tool does not provide a hypervisor, Linux kernel, container engine, VirtioFS backend or automatic code translator.
 
 The strongest near-term deliverable is a source-pinned evaluation with a declared go/no-go result. A Rust rewrite is not itself an optimization. In particular, this repository's example speedups are upstream results for search/string workloads, not measurements of Micropod, OrbStack, filesystem sharing or virtualization.
+
+The product work comes first: complete native build ownership and Buildx interoperability, OCI/runc execution, and correct cache/VirtioFS behavior. Micropod can provide a native BuildService while reusing its current Apple BuildKit-backed builder or a qualified upstream service; upstream runc/containerd can provide the complete Linux execution path. Neither requires a Rust rewrite. Kubernetes qualification follows these contracts and is not a prerequisite for a useful build/runtime implementation slice.
 
 ## Source identity and verified tool capabilities
 
@@ -39,18 +43,37 @@ The workflow skill was read in full: [skills/rust-anything/SKILL.md](https://git
 
 5. **Benchmarks already exist.** `MicropodBench`, `bench-runtimes`, `bench-compose`, `bench-shim` and API contention tasks are present. Extend these with machine-readable source/toolchain/environment metadata and a controlled OrbStack adapter instead of replacing them. The Taskfile also still contains two `cli` entries; resolve the existing catalog issue before trusting task enumeration. Source presence does not prove recent real-device results. [Taskfile](https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Taskfile.yml)
 
+6. **The build backend already exists indirectly.** `ImageService.build` invokes `container build`, whose upstream implementation uses a BuildKit builder utility VM. Inventory the installed CLI/builder-shim/BuildKit and supported interfaces before adding another daemon. Native job ownership, structured progress, session grants, cancellation and outputs belong in Micropod even when upstream performs the solve. BuildKit's worker and executor integration contracts are version-tied Go interfaces; rust-anything does not generate a compatible worker. [Current build service](https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodCore/Services/ImageService.swift), [Apple builder commands](https://github.com/apple/container/blob/main/docs/command-reference.md), [pinned worker interface](https://github.com/moby/buildkit/blob/c64bdcd1e0946854757ebb9580518ddf38490011/worker/worker.go).
+
+## Fix the concrete source defects before choosing a port
+
+These repairs have direct source evidence and belong to their existing build/runtime/cache owners. They are not reasons to begin a broad language migration:
+
+| Existing path | Repair and qualification before performance comparison |
+|---|---|
+| Build-context hashing and extraction | Preserve the effective source semantics: executable modes, normalized ownership, PAX paths/links, duplicate-member ordering and source-specific ignore behavior. Version old keys and make hashing/materialization agree. [BuildContextCache](https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodDockerShim/BuildContextCache.swift) |
+| SharedView per-file clone fallback | Propagate clone success out of the nested closure so it does not fall through into reading and rewriting the entire file; measure avoided I/O before replacing the planner or hash implementation. [SharedView](https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodSharedFS/SharedView.swift) |
+| Chunk ingestion and reads | Fail incomplete ingestion, produce digest/chunks/length from one coherent input, verify decoded bytes against the requested digest and distinguish zero-byte files from deletion. Preserve an explicit compatibility plan for existing representations. [ChunkStore](https://github.com/castlemilk/micropod/blob/54980012eb47b458a7f7e1def616d3fa95c970a2/Sources/MicropodSharedFS/ChunkStore.swift) |
+| Docker and runtime translation | Repair exec user decoding, lost stdin, requested signals, fractional CPU and dropped tmpfs/ulimit/entrypoint semantics; prove effective guest behavior. Replaying a silently dropped field is not a correct characterization target. [Runtime reconciliation](runtime-compatibility.md) |
+| Build result and cache administration | Return actual output descriptors, implement owned cancellation and real backend prune, and separate source overlap from solver hits or physical storage savings. [Build-platform reconciliation](build-platform.md), [cache reconciliation](cache-and-filesystem.md) |
+
+After those contracts are corrected and covered, profile complete build and runtime operations. Source snapshots, solver/layer cache, mutable package/compiler mounts, image/unpacked roots and host/guest filesystem caches need separate warm-state receipts. A recorder must not bless an old context-key collision, clone fallthrough or partial chunk publication as behavior to preserve.
+
 ## Suggested Rust boundaries
 
 These are design recommendations, not claims about missing or slow code.
 
 | Boundary | First decision | How rust-anything helps | Extra proof required |
 |---|---|---|---|
+| Build-source canonicalization or content-verification unit | Correct the contract in the existing implementation first; consider Rust only if profiling identifies a material remaining cost | The host path is Swift, so a bespoke differential adapter is needed; the tool supplies a methodology rather than a native Swift bridge | Archive/metadata semantics, bounded decoding, digest verification, mutation races, publication and compatibility with the selected frontend |
 | Pure guest event decoder/normalization planner | Candidate only if profiling shows material CPU/allocations | Extract an importable Go package with exported pure functions; record inputs and outputs; generate a Rust comparison bridge | Inotify binary layout, truncated buffers, overflow, lifecycle, Linux architectures, safe decoding and real watch end-to-end tests |
 | Pure host sync planner or manifest reconciliation | Candidate if Swift profiler attributes material time to its algorithm | No native Swift support; build a small bespoke differential adapter using the same record/diff methodology | Foundation/Unicode/path semantics, file IDs, case behavior, ordering and lost-event recovery; do not claim native tool gate covers Swift |
 | Guest filesystem copy/read/write service | Keep initially | CLI recordings can inform fixtures, but full OS side effects need a dedicated test harness | Permissions, symlinks, non-UTF8 names, quotas, ENOSPC, interruption, durability and distroless packaging |
 | Host network/port-forward data plane | Consider only after packet-path profiling | New Rust code needs contract tests; it is not a supported direct Swift port | UDP/TCP half-close, backpressure, cancellation, IP families, DNS/VPN, host sleep and existing forwarding behavior |
 | UI, Apple Virtualization/Rosetta, XPC, updater ownership | Keep in Swift | Not supported by the tool and not an established bottleneck | Existing integration and release qualification remain the authoritative gates |
-| Kubernetes, Moby, containerd, BuildKit | Integrate upstream components | No value in using rust-anything to reimplement these | Pin versions, lifecycle compatibility, licenses, image/volume interoperability |
+| BuildKit worker/executor integration | Reuse upstream first; replace only a measured or required boundary | Tool replay can assist a pure extracted unit, but cannot supply solver/worker/session compatibility | Snapshot/content/lease integration, exact RUN/Exec semantics, complete build/runtime gates and version-pinned Go interfaces |
+| BuildKit, runc/containerd and optional Moby | Integrate maintained upstream components | This tool is not a reason to reimplement their contracts | Pin versions, lifecycle/security/resource compatibility, licenses and image/cache interoperability |
+| Downstream Kubernetes | Qualify after core build/runtime/storage behavior | No prerequisite for the first Rust experiment or core replacement milestone | Preserve the established component contracts in real cluster workflows |
 
 ## IPC and FFI choices
 
@@ -93,6 +116,8 @@ First verify the toolchain requirement from the pinned manifest. Prefer an expli
 The upstream documentation explicitly limits equivalence to recorded observations. It does not prove absence of races, correctness under load, timing, memory use, network/database side effects or signal behavior. Its handling of nondeterminism can introduce wildcards or unordered comparisons. Review those allowances and disallow wildcards for file contents, protocol sequence, ownership, exit codes, persistence checks and security decisions. Do not run record or shadow against a live mutation path: both invoke code repeatedly, and shadow can execute two implementations. Use pure decisions or isolated disposable resources. [Limits](https://github.com/erkamyaman/rust-anything/blob/98adbe29003a69783c727146d0c3fe637b174102/docs/how-it-works.md#what-it-cant-catch)
 
 Do not mechanically preserve an existing bug merely because a recorder captured it. Specify intended fixes independently and distinguish known differences from accidental divergences. Do not treat a C undefined-behavior case accepted by an upstream comparator as evidence of safe behavior for a new parser.
+
+The general Buildx and OCI/runc replacement gates require every required semantic row to pass. A pure-function diff, an explicit unsupported response or a successful specialized isolated-CI profile cannot substitute for that coverage. Guest-observed resource/security enforcement, BuildKit sessions, actual outputs, cache leases and restart/cancellation behavior remain independent acceptance obligations.
 
 ## Measurable first experiment
 
