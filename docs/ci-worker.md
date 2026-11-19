@@ -57,6 +57,8 @@ The trust boundary is the runner account and its dedicated VM. Docker clients ca
 
 ## Qualification
 
+On a physical M5 Max with four vCPUs and 4 GiB per engine, the complete warm Go, Node and PostgreSQL pipeline took a median 13.02 s on Micropod and 21.66 s on OrbStack. The same-Mac measurements include validated 1-, 4-, 8- and 16-job batches, cache persistence across a forced exit, and an ARM Ubuntu reference. [Physical Apple Silicon comparison](benchmarks/2026-11-20/gamma-ci-worker.md)
+
 PRs touching the worker run one short Linux guest integration alongside the existing checks. The manual qualification runs five rounds at 1, 4, 8 and 16 clients. It verifies guest-versus-container boot IDs, distinct PID and mount namespaces, actual CPU and memory quotas, both streams and exit codes, bridge DNS, package payload inodes, and image, volume and offline BuildKit cache reuse after restart. The native Ubuntu Docker run uses the same GitHub allocation and exported package image. Manual qualifications also copy those Go, Node and npm binaries out of the image and run the offline workspaces as ordinary Ubuntu processes. The raw process clock omits container startup and teardown. The full pipeline records per-stage wall times and alternates engine order across three warm passes.
 
 On 20 November 2026, the Micropod guest fixture ran Docker 29.9.3 on a GitHub-hosted four-vCPU ARM64 Ubuntu 24.04.5 VM with the Azure kernel. The same allocation ran native Docker 28.0.4 and bare npm and Go. Each value is the median elapsed time for a whole batch over five rounds. Every package job created a fresh workspace and used its engine's warm offline cache. All three paths used Node 24.22.3, npm 11.19.1 and Go 1.26.11 from the same ARM64 image.

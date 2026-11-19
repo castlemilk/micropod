@@ -55,7 +55,7 @@ jobs:
         with:
           name: arm64-warm-ubuntu
           path: ${{ runner.temp }}/ubuntu-bundle/
-          compression-level: 0
+          compression-level: 1
           retention-days: 3
 
   apple:
