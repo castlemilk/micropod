@@ -18,23 +18,43 @@ permissions:
   contents: read
 jobs:
   apfs:
-    if: inputs.suite == 'storage' || inputs.suite == 'all'
+    if: github.event_name == 'push' || inputs.suite == 'storage' || inputs.suite == 'all'
     runs-on: macos-26
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - name: Read the Swift toolchain fingerprint
         run: echo "SWIFT_FINGERPRINT=$(swift --version 2>&1 | shasum | cut -c1-12)" >> "$GITHUB_ENV"
+      - name: Identify SDK build
+        id: sdk
+        run: echo "build=$(xcrun --sdk macosx --show-sdk-build-version)" >> "$GITHUB_OUTPUT"
+      - name: Restore the production CLI
+        id: cli
+        uses: actions/cache/restore@v4
+        with:
+          path: .qualification-bin/micropod
+          key: volume-cli-${{ runner.arch }}-${{ env.SWIFT_FINGERPRINT }}-${{ steps.sdk.outputs.build }}-${{ hashFiles('Package.swift', 'Package.resolved', 'Sources/**') }}
       - uses: actions/cache/restore@v4
+        if: steps.cli.outputs.cache-hit != 'true'
         with:
           path: .build
           key: swiftpm-debug-${{ runner.os }}-${{ runner.arch }}-${{ env.SWIFT_FINGERPRINT }}-${{ hashFiles('Package.resolved') }}-${{ github.sha }}
           restore-keys: |
             swiftpm-debug-${{ runner.os }}-${{ runner.arch }}-${{ env.SWIFT_FINGERPRINT }}-${{ hashFiles('Package.resolved') }}-
       - name: Build Micropod CLI
-        run: swift build --product micropod
+        if: steps.cli.outputs.cache-hit != 'true'
+        run: |
+          swift build --product micropod
+          mkdir -p .qualification-bin
+          cp .build/debug/micropod .qualification-bin/micropod
+      - name: Cache the built CLI
+        if: steps.cli.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .qualification-bin/micropod
+          key: ${{ steps.cli.outputs.cache-primary-key }}
       - name: Migrate and remount a disposable APFS volume
-        run: python3 scripts/qualify_dev_volume.py --binary .build/debug/micropod --json "$RUNNER_TEMP/volume.json"
+        run: python3 scripts/qualify_dev_volume.py --binary .qualification-bin/micropod --json "$RUNNER_TEMP/volume.json"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -64,7 +84,7 @@ jobs:
           path: ${{ runner.temp }}/kernel.json
 
   warm-orbstack:
-    if: github.event_name == 'push' || inputs.suite == 'orbstack' || inputs.suite == 'all'
+    if: inputs.suite == 'orbstack' || inputs.suite == 'all'
     runs-on: macos-26-intel
     timeout-minutes: 22
     env:

@@ -74,28 +74,6 @@ def interact(argv, secret):
         raise RuntimeError("Interactive APFS operation failed: " + report[-1600:])
 
 
-def encrypted_lifecycle(binary, work, container):
-    # Only called after the fixture has excluded the startup container.
-    scratch = work / "encrypted-projects"
-    state = work / "encrypted-state"
-    scratch.mkdir()
-    command = [binary, "storage", "dev-volume"]
-    opts = ["--state-dir", state]
-    secret = uuid.uuid4().hex.encode()
-    run("sudo", "-n", "true")
-    interact([*command, "create", *opts, "--projects", scratch, "--container", container], secret)
-    def status():
-        return json.loads(run(*command, "status", *opts, "--json").stdout)
-    before = status()
-    child = before["volumeUUID"]
-    assert before["initialized"] and before["mounted"]
-    run("sudo", "/usr/sbin/diskutil", "apfs", "lockVolume", child)
-    assert not status()["mounted"]
-    interact([*command, "mount", *opts], secret)
-    after = status()
-    assert after["volumeUUID"] == child and after["mounted"] and os.path.ismount(after["mount"])
-
-
 def metadata_batch(directory, clients):
     payload = bytes(range(256)) * 16
     digest = hashlib.sha256(payload).digest()
@@ -138,7 +116,7 @@ def qualify(binary, result):
         os.link(store / "package", projects / "existing-link")
         tag = uuid.uuid4().hex[:12]
         image = work / "qualification.sparseimage"
-        run("hdiutil", "create", "-size", "768m", "-type", "SPARSE", "-fs", "APFS", "-volname", "Seed-" + tag, image)
+        run("hdiutil", "create", "-size", "4g", "-type", "SPARSE", "-fs", "APFS", "-volname", "Seed-" + tag, image)
         devices = plist("hdiutil", "attach", "-nobrowse", "-owners", "on", "-plist", image)["system-entities"]
         whole = devices[0]["dev-entry"]
         seed = next(Path(row["mount-point"]) for row in devices if row.get("mount-point", "").endswith("Seed-" + tag))
@@ -152,10 +130,16 @@ def qualify(binary, result):
                 print("Volume fixture", action, flush=True)
                 return run(binary, "storage", "dev-volume", action, "--state-dir", state, *args, "--json", cwd=cwd, check=check)
 
-            options = ["--projects", projects, "--pnpm-store", store, "--container", container, "--unencrypted"]
+            options = ["--projects", projects, "--pnpm-store", store, "--container", container]
             planned = json.loads(cli("plan", *options).stdout)
-            assert len(planned["sources"]) == 2 and not state.exists()
-            first = json.loads(cli("create", *options).stdout)
+            assert planned["encrypted"] and len(planned["sources"]) == 2 and not state.exists()
+            secret = uuid.uuid4().hex.encode()
+            command = [binary, "storage", "dev-volume"]
+            state_opts = ["--state-dir", state]
+            run("sudo", "-n", "true")
+            print("Volume fixture encrypted create", flush=True)
+            interact([*command, "create", *state_opts, *options], secret)
+            first = json.loads(cli("status").stdout)
             mount, payload = Path(first["mount"]), Path(first["payload"])
             assert first["mounted"] and first["initialized"]
             assert plist("diskutil", "info", "-plist", mount)["APFSContainerReference"] == container
@@ -198,8 +182,12 @@ def qualify(binary, result):
             cli("restore")
             cli("migrate")
             cli("restore")
-            print("Volume fixture encrypted create, lock and unlock", flush=True)
-            encrypted_lifecycle(binary, work, container)
+            print("Volume fixture encrypted lock and unlock", flush=True)
+            run("sudo", "/usr/sbin/diskutil", "apfs", "lockVolume", first["volumeUUID"])
+            assert not json.loads(cli("status").stdout)["mounted"]
+            interact([*command, "mount", *state_opts], secret)
+            unlocked = json.loads(cli("status").stdout)
+            assert os.path.ismount(mount) and unlocked["volumeUUID"] == first["volumeUUID"] and unlocked["mounted"]
             samples = []
             for block in range(4):
                 for i, n in enumerate((1, 4, 8, 16)):
