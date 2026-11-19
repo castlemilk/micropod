@@ -1,0 +1,84 @@
+{
+  "schema_version": "micropod-investigation-sidecar/v1-draft",
+  "template_only": true,
+  "_instructions": "Project-owned proposed schema; not a native Craft Anything import. Copy per source or experiment, fill only actual evidence, retain null for unknowns, and set execution_status after collection. record_type: source_documentation, runtime_observation, measurement, or hypothesis.",
+  "record_id": null,
+  "record_type": null,
+  "execution_status": "planned",
+  "question": null,
+  "statement": null,
+  "claim_authority": null,
+  "confidence": null,
+  "collection": {
+    "started_at_utc": null,
+    "completed_at_utc": null,
+    "collector": null,
+    "actual_method": null,
+    "command_or_tool": null,
+    "arguments": null,
+    "exit_status": null,
+    "permission_or_capture_failures": []
+  },
+  "source": {
+    "url": null,
+    "revision_or_version": null,
+    "retrieved_at_utc": null,
+    "version_applicability": null,
+    "capture_path": null,
+    "capture_sha256": null
+  },
+  "planned_tool": {
+    "repository": "https://github.com/storytold/craft-anything",
+    "source_commit": "bbfd5177f0501fbef384fee69937cbef91329a2e",
+    "mode": "clean-room",
+    "installed_binary_version": null,
+    "installed_binary_sha256": null
+  },
+  "target": {
+    "product": null,
+    "version_and_build": null,
+    "micropod_commit": null,
+    "hardware_model_cpu_ram": null,
+    "host_os_build": null,
+    "guest_kernel": null,
+    "runtime_settings": null,
+    "architecture_lane": null,
+    "filesystem_and_power_mode": null
+  },
+  "experiment": {
+    "hypothesis": null,
+    "predicted_observation": null,
+    "falsification_condition": null,
+    "fixture_commit_and_image_digests": null,
+    "comparison_lane": null,
+    "instrument_and_version": null,
+    "start_and_end_definitions": null,
+    "measurement_units": null,
+    "cache_policy": null,
+    "warmup_policy": null,
+    "trial_index_and_randomized_block": null,
+    "correctness_and_durability_checks": [],
+    "raw_artifacts": [],
+    "observations": [],
+    "results": null,
+    "uncertainty": null
+  },
+  "craft_link": {
+    "project_path": null,
+    "evidence_ids": [],
+    "export_path": null,
+    "unloaded_evidence_count": null
+  },
+  "reconciliation": {
+    "capability": null,
+    "source_paths_and_commits": [],
+    "canonical_issues_or_prs": [],
+    "current_status": null,
+    "remaining_gap": null,
+    "acceptance_fixture": null,
+    "follow_up": null
+  },
+  "limitations": [],
+  "independent_runtime_verification": "not_performed",
+  "reviewer_and_review_time": null
+}

@@ -77,11 +77,14 @@ task bench     # performance benchmark (real runtime)
 task ci        # Go + Node CI pipelines on micropod (below)
 ```
 
-Released Micropod 0.12.6 uses an externally installed Apple `container` CLI and
-service. This branch adds an administrator-approved installer and dedicated
-runtime account, with rig coordination. Physical qualification is pending under
-[#89](https://github.com/castlemilk/micropod/issues/89). The app builds and runs
-without the CLI. See [dependency management](docs/runtime-dependencies.md).
+Micropod includes an administrator-approved installer and dedicated runtime
+account with rig coordination. Managed installation and lifecycle qualification
+were completed under [#89](https://github.com/castlemilk/micropod/issues/89) on
+16 November 2026. Workload-preserving self-update remains tracked separately in
+[#90](https://github.com/castlemilk/micropod/issues/90); a source or release receipt
+does not establish the runtime version installed on a particular host. The app
+builds and runs without the CLI. See [dependency management](docs/runtime-dependencies.md)
+and the [source-backed OrbStack reconciliation](docs/research/2026-11-19-orbstack-reconciliation/README.md).
 
 ## Validation
 
@@ -955,3 +958,4 @@ Global flags: `--json` (machine-readable), `--cli <path>` / `MICROPOD_CONTAINER_
 (runtime override), `--no-color`. Exit codes: `0` ok, `1` failure (doctor exits non-zero
 on failed checks), `2` usage error. Install via `task install` (ships to
 `~/.local/bin/micropod` alongside `micropod-mcp`).
+
