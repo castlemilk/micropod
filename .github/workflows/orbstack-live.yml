@@ -49,29 +49,33 @@ jobs:
           started = time.monotonic()
           subprocess.run(["orb", "config", "set", "setup.use_admin", "false"], check=True, timeout=120)
           subprocess.run(["orb", "start"], check=True, timeout=120)
-          detail = ""
-          while time.monotonic() - started < 150:
-              reply = subprocess.run(["docker", "--context", "orbstack", "info", "--format",
-                                      "{{.OperatingSystem}}|{{.Name}}|{{.KernelVersion}}|{{.Architecture}}"],
-                                     capture_output=True, text=True, timeout=10)
-              detail = (reply.stdout or reply.stderr).strip()
-              if reply.returncode == 0:
+          socket = pathlib.Path.home() / ".orbstack/run/docker.sock"
+          last = ""
+          while time.monotonic() - started < 200:
+              health = subprocess.run(["curl", "--silent", "--show-error", "--fail", "--max-time", "4",
+                                       "--unix-socket", str(socket), "http://localhost/info"],
+                                      capture_output=True, text=True)
+              if health.returncode == 0:
+                  engine = json.loads(health.stdout)
                   break
-              time.sleep(0.5)
+              last = health.stderr.strip()
+              if int(time.monotonic() - started) % 12 < 5:
+                  print(f"Waiting for Docker API ({time.monotonic()-started:.0f}s): {last}", flush=True)
+              time.sleep(1)
           else:
-              raise SystemExit("OrbStack endpoint unavailable: " + detail[-1200:])
+              raise SystemExit("OrbStack API readiness deadline: " + last)
           ready_ms = round((time.monotonic() - started) * 1000, 2)
-          endpoint = subprocess.check_output(["docker", "context", "inspect", "orbstack", "--format",
-                                               "{{.Endpoints.docker.Host}}"], text=True).strip()
-          if not endpoint.startswith("unix://") or ".orbstack/" not in endpoint or "orbstack" not in detail.lower():
-              raise SystemExit(f"Unverified OrbStack endpoint {endpoint} / {detail}")
-          record = {"first_cli_to_docker_info_ms": ready_ms, "identity": detail,
-                    "endpoint": endpoint.replace(str(pathlib.Path.home()), "~")}
+          detail = {key: engine.get(key) for key in
+                    ["OperatingSystem", "Name", "KernelVersion", "Architecture", "ServerVersion", "NCPU", "MemTotal"]}
+          if "orbstack" not in str(detail).lower():
+              raise SystemExit(f"Unverified OrbStack engine {detail}")
+          record = {"first_cli_to_docker_info_ms": ready_ms, "identity": detail, "endpoint": "~/.orbstack/run/docker.sock"}
           path.write_text(json.dumps(record, indent=2) + "\n")
           print(json.dumps(record))
           PY
-          docker --context orbstack buildx version
-          docker --context orbstack compose version
+          if ! docker context inspect orbstack >/dev/null 2>&1; then
+            docker context create orbstack --docker "host=unix://$HOME/.orbstack/run/docker.sock"
+          fi
       - name: Build, run and scale validated containers
         run: |
           python3 scripts/qualification/engine.py --context orbstack --clients 1 4 8 16 --rounds 7 \
@@ -92,6 +96,17 @@ jobs:
                   print("SAMPLE", json.dumps(record, separators=(",", ":")))
               print("FIXTURE", result.get("guest_sha256"), result.get("image_config_sha256"))
           PY
+      - name: Capture startup diagnostics
+        if: failure()
+        run: |
+          ls -ld "$HOME/.orbstack/run" "$HOME/.orbstack/run/docker.sock" || true
+          ls "$HOME/.orbstack/log" || true
+          for name in vmgr.log vm.log docker.log; do
+            logfile="$HOME/.orbstack/log/$name"
+            if [[ -f "$logfile" ]]; then
+              tail -n 30 "$logfile"
+            fi
+          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:
