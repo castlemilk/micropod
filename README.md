@@ -733,6 +733,7 @@ Host src  ──FSEvents──►  Daemon  ──clonefile/ chunk──►  View
 #### Benchmarking
 
 `task bench` covers the core runtime and `task bench-shim` covers the Docker shim.
+[End-to-end qualification and scaling](scripts/qualification/README.md) covers the shipped CLI and daemon, Docker, Buildx, Compose, and the Linux reference runtime.
 The native view benchmark reports successful clone calls, fallback payload
 bytes, elapsed time and process peak RSS. Pass a source containing a
 `.syncignore` to exercise per-file cloning. Each destination must be new.

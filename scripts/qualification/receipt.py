@@ -1,4 +1,5 @@
 """First-attempt qualification receipts. Timings use a monotonic clock in milliseconds."""
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -50,13 +51,14 @@ def require(value, message):
 class Receipt:
     def __init__(self, path, lane):
         self.path = Path(path)
-        self.data = {'schema': 1, 'lane': lane, 'host_os': platform.system(),
+        self.data = {'schema': 1, 'lane': lane, 'started_at': datetime.now(timezone.utc).isoformat(),
+                     'host_os': platform.system(),
                      'host_release': platform.release(), 'host_arch': platform.machine(),
                      'checkout': os.environ.get('GITHUB_SHA') or run(['git', 'rev-parse', 'HEAD'], cwd=ROOT).stdout.strip(),
                      'samples': []}
 
     def record(self, name, fn, **dimensions):
-        sample = dict(case=name, **dimensions)
+        sample = dict(case=name, load_start=os.getloadavg(), **dimensions)
         start = time.perf_counter()
         try:
             result = fn()

@@ -31,6 +31,26 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - name: Fast native storage integration
+        id: storage
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [[ "$EVENT_NAME" == pull_request ]] && git diff --quiet HEAD^1 HEAD -- \
+            Sources/MicropodSharedFS scripts/bench_sharedfs_view.swift scripts/qualification .github/workflows/ci.yml; then
+            exit 0
+          fi
+          echo "ran=true" >> "$GITHUB_OUTPUT"
+          python3 scripts/qualification/storage.py --profile smoke --rounds 1 --json "$RUNNER_TEMP/storage-smoke.json"
+      - name: Publish storage smoke receipt
+        if: always() && steps.storage.outputs.ran == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-storage-smoke
+          path: ${{ runner.temp }}/storage-smoke.json
+          if-no-files-found: warn
       - name: Lint workflows
         run: |
           brew install actionlint

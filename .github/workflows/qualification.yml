@@ -12,6 +12,14 @@ on:
         description: Run repeated engine bursts and the larger macOS storage matrix
         type: boolean
         default: true
+      extended_storage:
+        description: Also measure the 50,000-file and 1 GiB fixtures
+        type: boolean
+        default: false
+      product_mac:
+        description: Run all three product endpoints on a registered, dedicated Apple Silicon qualification runner
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -43,17 +51,47 @@ jobs:
           if-no-files-found: error
 
   storage-scale:
-    if: github.event_name == 'workflow_dispatch' && inputs.scale
+    if: github.event_name == 'workflow_dispatch' && (inputs.scale || inputs.extended_storage)
     runs-on: macos-26
-    timeout-minutes: 30
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v7
       - name: Compare APFS clones, copy fallback, rsync and chunk encodings
         run: python3 scripts/qualification/storage.py --json "$RUNNER_TEMP/storage.json"
+      - name: Compare extended storage sizes
+        if: always() && inputs.extended_storage
+        run: python3 scripts/qualification/storage.py --profile extended --rounds 3 --json "$RUNNER_TEMP/storage-extended.json"
       - name: Publish first-attempt receipt
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: macos-storage-receipt
-          path: ${{ runner.temp }}/storage.json
+          path: ${{ runner.temp }}/storage*.json
+          if-no-files-found: error
+
+  product-macos:
+    if: github.event_name == 'workflow_dispatch' && inputs.product_mac
+    runs-on: [self-hosted, macOS, ARM64, micropod-qualification]
+    timeout-minutes: 30
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        product: [micropod, orbstack, desktop-linux]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Exercise the selected installed engine
+        env:
+          PRODUCT: ${{ matrix.product }}
+        run: |
+          endpoint=(--context "$PRODUCT")
+          if [[ "$PRODUCT" == micropod ]]; then endpoint=(--host "unix://$HOME/.micropod/docker.sock"); fi
+          python3 scripts/qualification/engine.py "${endpoint[@]}" --clients 1 4 8 --rounds 5 \
+            --json "$RUNNER_TEMP/$PRODUCT.json"
+      - name: Publish first-attempt receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: product-${{ matrix.product }}-receipt
+          path: ${{ runner.temp }}/${{ matrix.product }}.json
           if-no-files-found: error
