@@ -284,11 +284,26 @@ def reference_times(files, sample, clients, rounds):
     return references
 
 
+def on_worker(args, row):
+    binary = Path(args.worker_cli).resolve(strict=True)
+    def status():
+        return json.loads(subprocess.check_output([str(binary), "ci", "status"], text=True, timeout=10))
+    before = status()
+    require(before["endpoint"].startswith("unix:///"), "Expected a local Micropod socket")
+    args.socket = before["endpoint"][7:]
+    row["micropod_worker"] = dict(worker=before["worker"], instance=before["instance"],
+                                  executable_sha256=hashlib.sha256(binary.read_bytes()).hexdigest())
+    measure(args, row, read_parent=lambda: fingerprint(status()["boot"]))
+    after = status()
+    require(before == after and before["daemon"] == row["server"]["ID"], "Micropod worker changed during the block")
+
+
 def paired(args, receipt):
     require(platform.system() == "Darwin" and platform.machine() == "arm64", "Run on an Apple Silicon Mac")
     require(args.clock == "client", "All engines use the requesting Mac's clock")
     sockets = {"orbstack": args.orbstack_socket, "docker-desktop": args.desktop_socket, "colima": args.colima_socket}
-    engines = ["micropod", *[name for name, path in sockets.items() if path]]
+    primary = "micropod-worker" if args.worker_cli else "micropod"
+    engines = [primary, *[name for name, path in sockets.items() if path]]
     receipt.update(macos=platform.mac_ver()[0], engines=engines, workload=WORKLOAD)
     hardware = json.loads(subprocess.check_output(
         ["/usr/sbin/system_profiler", "SPHardwareDataType", "-json"], text=True, timeout=30))["SPHardwareDataType"][0]
@@ -308,7 +323,9 @@ def paired(args, receipt):
             current.clients = args.clients[offset:] + args.clients[:offset]
             row = dict(engine=engine, block=block + 1)
             rows.append(row)
-            if engine == "micropod":
+            if engine == "micropod-worker":
+                on_worker(current, row)
+            elif engine == "micropod":
                 in_allocation(current, row)
             else:
                 current.socket = sockets[engine]
@@ -330,6 +347,12 @@ def paired(args, receipt):
     }
     receipt["engine_resources"] = {r["engine"]: {key: r["server"][key] for key in ("NCPU", "MemTotal")}
                                    for r in first}
+    if args.worker_cli and args.orbstack_socket:
+        base, peer = receipt["engine_resources"][primary], receipt["engine_resources"]["orbstack"]
+        require(base["NCPU"] == peer["NCPU"] and abs(base["MemTotal"] / peer["MemTotal"] - 1) <= .05,
+                "Worker and OrbStack need equal vCPU counts and RAM within 5%")
+        receipt["worker_over_orbstack"] = {n: round(t / receipt["p50_seconds"]["orbstack"][n], 4)
+                                          for n, t in receipt["p50_seconds"][primary].items()}
     if args.package_image:
         package_ids = {(r["package_caches"]["image_id"], r["package_caches"]["script_sha256"]) for r in rows}
         require(len(package_ids) == 1, "Package toolchain or workload differed between engines")
@@ -359,6 +382,7 @@ def main():
     p.add_argument("--socket", required=True, help="Docker Unix socket in the measured environment")
     p.add_argument("--clock", choices=["client", "guest"], default="client",
                    help="Time from the invoking client, or inside an owned Micropod allocation")
+    p.add_argument("--worker-cli", help="Compare an active Micropod CI worker on its own native socket")
     p.add_argument("--orbstack-socket", help="Mac-local OrbStack socket for an interleaved physical rig comparison")
     p.add_argument("--desktop-socket", help="Local Docker Desktop socket for the physical rig matrix")
     p.add_argument("--colima-socket", help="Local Colima socket for the physical rig matrix")
@@ -378,7 +402,9 @@ def main():
     if args.expected_revision and (args.engine not in {"rig-pair", "rig-matrix", "micropod"}
                                    or not re.fullmatch(r"[0-9a-fA-F]{40}", args.expected_revision)):
         p.error("Use --expected-revision with a Micropod profile and a full commit SHA")
-    if args.engine in {"rig-pair", "rig-matrix", "micropod"} and not (args.api and args.allocation):
+    if args.worker_cli and (args.engine not in {"rig-pair", "rig-matrix"} or args.api or args.allocation or args.expected_revision):
+        p.error("Select a worker CLI or a qualified allocation for a rig comparison")
+    if args.engine in {"rig-pair", "rig-matrix", "micropod"} and not args.worker_cli and not (args.api and args.allocation):
         p.error("Micropod requires --api and --allocation")
     if args.engine == "rig-pair" and not args.orbstack_socket:
         p.error("A physical pair requires --orbstack-socket")

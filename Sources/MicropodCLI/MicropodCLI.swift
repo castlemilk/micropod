@@ -58,6 +58,9 @@ struct MicropodCLI {
             let json = args.contains("--json")
             exit(await StorageCommands.main(Array(args.dropFirst()).filter { $0 != "--json" }, json: json))
         }
+        if args.first == "ci" {
+            exit(await CICommands.main(Array(args.dropFirst())))
+        }
         if args.first == "sandbox" {
             exit(await SandboxCommands.main(Array(args.dropFirst())))
         }
@@ -167,6 +170,9 @@ struct MicropodCLI {
         micropod — CLI for the Apple container runtime
 
         Usage: micropod <command> [flags] [args]
+
+        CI worker:
+          ci start|endpoint|status|run|stop  one Linux kernel for this account’s trusted Docker jobs
 
         Containers:
           ps [-a] [-s] [--json]              list containers (add -a for stopped, -s for stats)
