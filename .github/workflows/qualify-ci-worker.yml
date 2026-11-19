@@ -26,7 +26,7 @@ jobs:
   guest:
     if: github.event_name == 'push' || inputs.suite == 'ubuntu-guest'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
         with:
@@ -34,7 +34,7 @@ jobs:
       - name: Exercise the pinned guest engine and retained storage
         shell: bash
         run: |
-          args=(--pipelines --rounds 1 --clients 1 4)
+          args=(--packages --pipelines)
           if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
             args=(--packages --pipelines)
           fi
