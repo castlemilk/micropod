@@ -8,7 +8,20 @@ if [[ $# -eq 2 ]]; then
     # Qualification passes the selected guest or native engine's explicit socket.
     endpoint="$2"
 else
-    micropod="${MICROPOD_BIN:-micropod}"
+    if [[ -n "${MICROPOD_BIN:-}" ]]; then
+        micropod="$MICROPOD_BIN"
+    elif command -v micropod >/dev/null && micropod ci help >/dev/null 2>&1; then
+        micropod=micropod
+    else
+        (cd "$root" && swift build --product micropod >&2)
+        micropod="$root/.build/debug/micropod"
+        if ! codesign -d --entitlements - "$micropod" 2>/dev/null | python3 -c '
+import plistlib,sys
+data = sys.stdin.buffer.read()
+sys.exit(0 if data and plistlib.loads(data).get("com.apple.security.virtualization") else 1)'; then
+            codesign -f -s - --entitlements "$root/signing/micropod-cli.entitlements" "$micropod"
+        fi
+    fi
     endpoint="$("$micropod" ci endpoint)"
 fi
 [[ "$endpoint" == unix:///* ]] || { echo "expected a local worker socket" >&2; exit 1; }
@@ -23,37 +36,60 @@ cleanup() {
 }
 trap cleanup EXIT
 
-go_job() {
-    local app="$root/ci/samples/go-app"
-    docker build -f "$app/Dockerfile.checks" -t "$id:checks" "$app"
-    docker run --rm --network host \
+stage() {
+    local name="$1"
+    shift
+    if [[ -z "${MICROPOD_CI_STAGE_TIMINGS:-}" ]]; then "$@"; return; fi
+    python3 -c '
+import json, subprocess, sys, time
+start = time.perf_counter()
+code = subprocess.call(sys.argv[3:])
+with open(sys.argv[1], "a") as output:
+    output.write(json.dumps([sys.argv[2], round(time.perf_counter() - start, 3), code]) + "\n")
+sys.exit(code)' "$MICROPOD_CI_STAGE_TIMINGS" "$name" "$@"
+}
+parallel_jobs() {
+    local first second result=0
+    "$1" & first=$!
+    "$2" & second=$!
+    wait "$first" || result=1
+    wait "$second" || result=1
+    return "$result"
+}
+
+# Unique job tags keep concurrent revisions usable. These four shared tags keep
+# the most recent exports unpacked across jobs, with one copy of each layer.
+cache_image="micropod-internal/ci-samples"
+go_postgres() {
+    stage postgres docker run --rm --network host \
         -v /var/run/docker.sock:/var/run/docker.sock \
         -e TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock \
         -e TESTCONTAINERS_HOST_OVERRIDE=127.0.0.1 \
         --entrypoint /out/postgres-test "$id:checks" -test.v
-    docker build -t "$id:go" "$app"
+}
+go_service() {
+    stage go-image docker build -t "$id:go" -t "$cache_image:go" "$root/ci/samples/go-app"
     docker run -d --name "$id-go" "$id:go" >/dev/null
     docker exec "$id-go" sh -ec 'for x in 1 2 3 4 5; do if wget -qO- http://localhost:8080/healthz; then exit 0; fi; sleep 1; done; exit 1'
+}
+go_job() {
+    local app="$root/ci/samples/go-app"
+    stage go-checks docker build -f "$app/Dockerfile.checks" -t "$id:checks" -t "$cache_image:checks" "$app"
+    parallel_jobs go_postgres go_service
 }
 npm_job() {
     local app="$tmp/node"
     mkdir "$app"
     cp "$root/ci/samples/node-app/"{Dockerfile,package.json,package-lock.json} "$app/"
     cp -R "$root/ci/samples/node-app/"{src,test} "$app/"
-    docker build -t "$id:node" "$app"
+    stage node-image docker build -t "$id:node" -t "$cache_image:node" "$app"
     [[ "$(docker run --rm "$id:node" ada)" == 'hello, ada' ]]
     echo "console.log('source edit reached the guest')" >> "$app/src/index.js"
-    docker build -t "$id:node" "$app"
+    stage node-edit docker build -t "$id:node" -t "$cache_image:node-edited" "$app"
     docker run --rm "$id:node" ada | grep -Fx 'source edit reached the guest'
 }
 case "$profile" in
     go) go_job ;;
     npm) npm_job ;;
-    all)
-        go_job & go_pid=$!
-        npm_job & npm_pid=$!
-        result=0
-        wait "$go_pid" || result=1
-        wait "$npm_pid" || result=1
-        exit "$result" ;;
+    all) parallel_jobs go_job npm_job ;;
 esac

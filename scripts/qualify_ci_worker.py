@@ -233,7 +233,13 @@ def qualify(args, result, home):
             for phase, order in [("first", engines), ("warm", list(reversed(engines)))]:
                 for name, endpoint in order:
                     started = time.perf_counter()
-                    command("bash", str(ROOT / "ci/worker-pipeline.sh"), "all", endpoint, env=env, timeout=600)
+                    phase_log = home / (name + "-" + phase + ".jsonl")
+                    command("bash", str(ROOT / "ci/worker-pipeline.sh"), "all", endpoint,
+                            env=dict(env, MICROPOD_CI_STAGE_TIMINGS=str(phase_log)), timeout=600)
+                    stages = [json.loads(line) for line in phase_log.read_text().splitlines()]
+                    require(len(stages) == 5 and all(code == 0 for _, _, code in stages), "Incomplete pipeline stages")
+                    result.setdefault("pipeline_stages_seconds", {}).setdefault(name, {})[phase] = {
+                        stage: seconds for stage, seconds, _ in stages}
                     timings[name][phase] = round(time.perf_counter() - started, 3)
                     print(f"{name} {phase} Go and npm pipelines: {timings[name][phase]:.3f}s", file=sys.stderr, flush=True)
             result["pipelines"] = ["Go vet, race and Testcontainers PostgreSQL", "npm tests, source edit and rebuild"]
