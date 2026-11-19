@@ -8,24 +8,29 @@ on:
       runner:
         description: Intel macOS host image
         type: choice
-        default: macos-26-intel
+        default: macos-15-intel
         options: [macos-26-intel, macos-15-intel]
       release:
         description: Signed OrbStack installer
         type: choice
-        default: '2.2.5'
+        default: '1.5.1'
         options: ['2.2.5', '1.5.1']
+      colima:
+        description: Rotate OrbStack and Colima container bursts on one host
+        type: boolean
+        default: true
 
 permissions:
   contents: read
 
 jobs:
   orbstack:
-    runs-on: ${{ inputs.runner || 'macos-26-intel' }}
+    runs-on: ${{ inputs.runner || 'macos-15-intel' }}
     timeout-minutes: 30
     env:
       ORB_APP: /Applications/OrbStack.app
-      ORB_RELEASE: ${{ inputs.release || '2.2.5' }}
+      COMPARE_COLIMA: ${{ github.event_name == 'push' || inputs.colima }}
+      ORB_RELEASE: ${{ inputs.release || '1.5.1' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -104,14 +109,33 @@ jobs:
         with:
           go-version: '1.26.1'
           cache: false
+      - name: Start the Colima peer on the same Mac
+        if: env.COMPARE_COLIMA == 'true'
+        id: peer
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+          HOMEBREW_NO_INSTALL_CLEANUP: '1'
+        run: |
+          brew install colima
+          colima version
+          colima start --runtime docker --vm-type vz --mount-type virtiofs --cpu 4 --memory 5 --disk 10
+          for context in orbstack colima; do
+            docker --context "$context" info --format '{{.OperatingSystem}}|{{.Name}}|{{.KernelVersion}}|{{.Architecture}}|{{.ServerVersion}}|{{.NCPU}}|{{.MemTotal}}'
+          done
       - name: Build, run and scale validated containers
+        if: always() && steps.orbready.outcome == 'success'
         env:
           TMPDIR: ${{ runner.temp }}
+          PEER_READY: ${{ steps.peer.outcome }}
         run: |
-          python3 scripts/qualification/engine.py --context orbstack --clients 1 4 8 16 --rounds 7 \
+          peer=()
+          if [[ "$PEER_READY" == success ]]; then
+            peer=(--peer-context colima)
+          fi
+          python3 scripts/qualification/engine.py --context orbstack "${peer[@]}" --clients 1 4 8 16 --rounds 5 \
             --json "$RUNNER_TEMP/orb-engine.json"
       - name: Compare bind and volume reads of the same SharedFS view
-        if: always() && steps.orbready.outcome == 'success'
+        if: always() && steps.orbready.outcome == 'success' && env.COMPARE_COLIMA != 'true'
         env:
           TMPDIR: ${{ runner.temp }}
         run: python3 scripts/qualification/orbstack_files.py --json "$RUNNER_TEMP/orb-files.json"
