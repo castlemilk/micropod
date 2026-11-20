@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -73,37 +74,40 @@ func (c dockerConfig) requestedPorts() (portMap, error) {
 type publishedPort struct {
 	listener *net.TCPListener
 	lease    io.Closer
+	mapping  *portMapping
 	cancel   context.CancelFunc
 	wg       sync.WaitGroup
 }
 
-func (p *publishedPort) close() {
+func (p *publishedPort) close() error {
 	if p.cancel != nil {
 		p.cancel()
 	}
-	p.lease.Close()
+	var err error
+	if p.lease != nil {
+		err = p.lease.Close()
+	}
 	if p.listener != nil {
 		p.listener.Close()
 	}
 	p.wg.Wait()
+	if p.mapping != nil {
+		return p.mapping.close()
+	}
+	return err
 }
 
 // Only the guest NIC accepts a forwarded connection. The Mac owns the actual
 // loopback port and releases it when the private vsock lease closes.
-func openPublishedPort(ctx context.Context, ip, target string, host uint16) (*publishedPort, uint16, error) {
-	l, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.ParseIP(ip)})
-	if err != nil {
-		return nil, 0, err
-	}
+func reserveMacPort(ctx context.Context, host, guest uint16) (net.Conn, uint16, error) {
 	var dial net.Dialer
 	control, err := dial.DialContext(ctx, "unix", "/var/lib/micropod/ports.sock")
 	if err != nil {
-		l.Close()
 		return nil, 0, err
 	}
 	var req [4]byte
 	binary.BigEndian.PutUint16(req[:2], host)
-	binary.BigEndian.PutUint16(req[2:], uint16(l.Addr().(*net.TCPAddr).Port))
+	binary.BigEndian.PutUint16(req[2:], guest)
 	control.SetDeadline(time.Now().Add(5 * time.Second))
 	_, err = control.Write(req[:])
 	if err == nil {
@@ -111,10 +115,26 @@ func openPublishedPort(ctx context.Context, ip, target string, host uint16) (*pu
 	}
 	if err != nil {
 		control.Close()
-		l.Close()
 		return nil, 0, fmt.Errorf("reserve Mac loopback port %d: %w", host, err)
 	}
 	control.SetDeadline(time.Time{})
+	return control, binary.BigEndian.Uint16(req[:2]), nil
+}
+
+func openPublishedPort(ctx context.Context, ip, target string, host uint16) (*publishedPort, uint16, error) {
+	if kernelPublishedPorts() {
+		return openKernelPort(ctx, ip, target, host)
+	}
+	l, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.ParseIP(ip)})
+	if err != nil {
+		return nil, 0, err
+	}
+	control, port, err := reserveMacPort(ctx, host, uint16(l.Addr().(*net.TCPAddr).Port))
+	if err != nil {
+		l.Close()
+		return nil, 0, err
+	}
+	var dial net.Dialer
 	// The setup deadline ends when crun starts. Established listeners live
 	// until the container releases its port, including across long SQL sessions.
 	relayCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
@@ -146,7 +166,7 @@ func openPublishedPort(ctx context.Context, ip, target string, host uint16) (*pu
 			}()
 		}
 	}()
-	return p, binary.BigEndian.Uint16(req[:2]), nil
+	return p, port, nil
 }
 func guestIPv4() (string, error) {
 	iface, err := net.InterfaceByName("eth0")
@@ -205,7 +225,9 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 		return nil, nil
 	}
 	var ip string
-	if !privateRootless() {
+	if kernelPublishedPorts() {
+		ip = os.Getenv("MICROPOD_PUBLISH_IPV4")
+	} else if !privateRootless() {
 		ip, err = guestIPv4()
 		if err != nil {
 			return nil, err
@@ -226,12 +248,20 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 				p, n, err = openPublishedPort(ctx, ip, net.JoinHostPort(target, strconv.Itoa(int(port))), request)
 			}
 			if err != nil {
-				for _, other := range open {
-					other.close()
+				if p != nil {
+					open = append(open, p)
 				}
-				return nil, err
+				return open, err
 			}
 			open = append(open, p)
+			switch {
+			case p.mapping != nil:
+				s.metrics.networks.kernelPorts.Add(1)
+			case p.listener != nil:
+				s.metrics.networks.relayPorts.Add(1)
+			default:
+				s.metrics.networks.rootlessPorts.Add(1)
+			}
 			actual[key] = append(actual[key], portBinding{HostIP: "127.0.0.1", HostPort: strconv.Itoa(int(n))})
 		}
 	}

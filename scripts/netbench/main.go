@@ -13,10 +13,12 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"os"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -30,6 +32,8 @@ func main() {
 	marker := flag.String("marker", "ok", "expected server identity")
 	rounds := flag.Int("requests", 200, "number of small requests")
 	streams := flag.Int("streams", 0, "simultaneous bulk TCP transfers")
+	bursts := flag.Int("bursts", 1, "number of parallel transfer batches")
+	barrier := flag.Bool("stream-barrier", false, "wait for every response to begin before draining the parallel streams")
 	dns := flag.Int("lookups", 0, "number of single-family service DNS lookups")
 	dnsClients := flag.Int("dns-clients", 1, "independent resolvers issuing parallel service lookups")
 	flag.Parse()
@@ -41,14 +45,19 @@ func main() {
 		})
 		log.Fatal((&http.Server{Addr: *listen, Handler: mux, ReadHeaderTimeout: 5 * time.Second}).ListenAndServe())
 	}
-	if *target == "" || *rounds < 2 || *streams < 0 || *streams > 128 || *dns < 0 || *dns > 10000 || *dnsClients < 1 || *dnsClients > 128 {
+	if *target == "" || *rounds < 2 || *streams < 0 || *streams > 128 || *bursts < 1 || *bursts > 100 || *dns < 0 || *dns > 10000 || *dnsClients < 1 || *dnsClients > 128 {
 		flag.Usage()
 		os.Exit(2)
 	}
 	tr := &http.Transport{DialContext: (&net.Dialer{Timeout: 3 * time.Second}).DialContext}
 	client := &http.Client{Transport: tr, Timeout: 15 * time.Second}
-	get := func(path string, w io.Writer) int64 {
-		r, e := client.Get(*target + path)
+	ctx := context.Background()
+	get := func(ctx context.Context, path string, w io.Writer) int64 {
+		req, e := http.NewRequestWithContext(ctx, http.MethodGet, *target+path, nil)
+		if e != nil {
+			log.Fatal(e)
+		}
+		r, e := client.Do(req)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -62,57 +71,104 @@ func main() {
 		}
 		return n
 	}
-	id := func() {
+	id := func(ctx context.Context) {
 		var b bytes.Buffer
-		get("/id", &b)
+		get(ctx, "/id", &b)
 		if b.String() != *marker {
 			log.Fatalf("unexpected service identity %q", b.String())
 		}
 	}
-	id()
+	id(ctx)
 	sum := sha256.New()
-	if get("/data", sum) != size || !bytes.Equal(sum.Sum(nil), hashPayload()) {
+	if get(ctx, "/data", sum) != size || !bytes.Equal(sum.Sum(nil), hashPayload()) {
 		log.Fatal("bulk response integrity")
 	}
 	result := map[string]any{"requests": *rounds, "bulk_bytes": 8 * size}
 	for _, mode := range []string{"keepalive", "fresh"} {
 		samples := make([]int64, *rounds)
+		connect, response := make([]int64, *rounds), make([]int64, *rounds)
 		for i := range samples {
+			reqCtx := ctx
+			var connected, firstByte time.Time
 			if mode == "fresh" {
 				tr.CloseIdleConnections()
+				reqCtx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+					GotConn: func(c httptrace.GotConnInfo) {
+						if c.Reused {
+							log.Fatal("fresh request reused a connection")
+						}
+						connected = time.Now()
+					},
+					GotFirstResponseByte: func() { firstByte = time.Now() },
+				})
 			}
 			start := time.Now()
-			id()
+			id(reqCtx)
 			samples[i] = time.Since(start).Microseconds()
+			if mode == "fresh" {
+				connect[i] = connected.Sub(start).Microseconds()
+				response[i] = firstByte.Sub(connected).Microseconds()
+			}
 		}
 		slices.Sort(samples)
 		result[mode+"_p50_us"] = samples[len(samples)/2]
 		result[mode+"_p95_us"] = samples[(len(samples)*95-1)/100]
+		result[mode+"_p99_us"] = samples[(len(samples)*99-1)/100]
+		if mode == "fresh" {
+			slices.Sort(connect)
+			slices.Sort(response)
+			result["fresh_connect_p50_us"] = connect[len(connect)/2]
+			result["fresh_connected_to_first_byte_p50_us"] = response[len(response)/2]
+		}
 	}
 	start := time.Now()
 	for range 8 {
-		if get("/data", io.Discard) != size {
+		if get(ctx, "/data", io.Discard) != size {
 			log.Fatal("short bulk response")
 		}
 	}
 	result["bulk_mib_s"] = float64(8*size) / (1 << 20) / time.Since(start).Seconds()
 	if *streams > 0 {
-		var group sync.WaitGroup
-		gate := make(chan struct{})
-		tr.CloseIdleConnections()
-		for range *streams {
-			group.Go(func() {
-				<-gate
-				if get("/data", io.Discard) != size {
-					log.Fatal("short parallel response")
-				}
-			})
+		rates := make([]float64, *bursts)
+		for i := range rates {
+			tr.CloseIdleConnections()
+			batch, cancel := context.WithTimeout(ctx, client.Timeout)
+			if *barrier {
+				var arrivals atomic.Int32
+				ready := make(chan struct{})
+				batch = httptrace.WithClientTrace(batch, &httptrace.ClientTrace{GotFirstResponseByte: func() {
+					if arrivals.Add(1) == int32(*streams) {
+						close(ready)
+					}
+					select {
+					case <-ready:
+					case <-batch.Done():
+						log.Fatal("parallel response barrier timed out")
+					}
+				}})
+			}
+			var group sync.WaitGroup
+			gate := make(chan struct{})
+			for range *streams {
+				group.Go(func() {
+					<-gate
+					if get(batch, "/data", io.Discard) != size {
+						log.Fatal("short parallel response")
+					}
+				})
+			}
+			start = time.Now()
+			close(gate)
+			group.Wait()
+			rates[i] = float64(*streams*size) / (1 << 20) / time.Since(start).Seconds()
+			cancel()
 		}
-		start = time.Now()
-		close(gate)
-		group.Wait()
 		result["parallel_streams"] = *streams
-		result["parallel_mib_s"] = float64(*streams*size) / (1 << 20) / time.Since(start).Seconds()
+		result["parallel_bursts_mib_s"] = rates
+		result["parallel_barrier"] = *barrier
+		ordered := slices.Clone(rates)
+		slices.Sort(ordered)
+		result["parallel_mib_s"] = ordered[len(ordered)/2]
 	}
 	if *dns > 0 {
 		address, err := url.Parse(*target)

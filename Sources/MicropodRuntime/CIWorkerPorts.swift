@@ -41,7 +41,10 @@ private final class NativePortLease: ChannelInboundHandler, @unchecked Sendable 
         }
         submitted = true
         let owner = context.channel
-        SandboxForwarding.relay(on: "127.0.0.1", port: host, to: guest, port: port).whenComplete { result in
+        let clients = NativePortClients()
+        owner.closeFuture.whenComplete { _ in clients.close() }
+        SandboxForwarding.relay(on: "127.0.0.1", port: host, to: guest, port: port, clients: clients).whenComplete {
+            result in
             guard case .success(let listener) = result else {
                 owner.close(promise: nil)
                 return
@@ -55,5 +58,35 @@ private final class NativePortLease: ChannelInboundHandler, @unchecked Sendable 
             reply.writeInteger(port)
             owner.writeAndFlush(reply, promise: nil)
         }
+    }
+}
+
+/// Each incoming and guest-side socket lives at most as long as the lease.
+/// Accept and revoke may race on different NIO event loops.
+final class NativePortClients: @unchecked Sendable {
+    private let lock = NSLock()
+    private var open: [ObjectIdentifier: Channel] = [:]
+    private var revoked = false
+
+    func track(_ channel: Channel) -> Bool {
+        let key = ObjectIdentifier(channel)
+        let accepted = lock.withLock {
+            guard !revoked else { return false }
+            open[key] = channel
+            return true
+        }
+        if accepted {
+            channel.closeFuture.whenComplete { _ in self.lock.withLock { _ = self.open.removeValue(forKey: key) } }
+        }
+        return accepted
+    }
+
+    func close() {
+        let channels = lock.withLock {
+            revoked = true
+            defer { open.removeAll() }
+            return open
+        }
+        for channel in channels.values { channel.close(promise: nil) }
     }
 }

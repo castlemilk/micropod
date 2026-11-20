@@ -41,6 +41,39 @@ echo 1 > /proc/sys/net/ipv4/ip_forward
 # The VM owns a single uplink. One subnet rule amortizes NAT setup across jobs.
 iptables -w 5 -t nat -C POSTROUTING -s 10.88.0.0/16 -o eth0 -j MASQUERADE 2>/dev/null ||
     iptables -w 5 -t nat -A POSTROUTING -s 10.88.0.0/16 -o eth0 -j MASQUERADE
+# The broker connects from the vmnet gateway to this VM's own address. Only
+# this tuple can enter a published mapping. SNAT also gives internal networks,
+# which have no default route, a return path through their own gateway.
+gateway=$(ip -4 route show default dev eth0 | awk '$1=="default" && $2=="via" { print $3; exit }')
+address=$(ip -4 addr show dev eth0 | awk '$1=="inet" { sub(/\/.*/, "", $2); print $2; exit }')
+ensure_nat_hook() {
+    chain=$1
+    shift
+    iptables -w 5 -t nat -C "$chain" "$@" 2>/dev/null || iptables -w 5 -t nat -I "$chain" "$@"
+}
+setup_published_ports() {
+    [ -n "$gateway" ] && [ -n "$address" ] || return 1
+    iptables-restore -w 5 --noflush <<EOF || return 1
+*filter
+:MP-PUB-GATE - [0:0]
+-F MP-PUB-GATE
+-A MP-PUB-GATE -i eth0 -p tcp -m conntrack --ctstate DNAT --ctdir ORIGINAL --ctorigsrc $gateway --ctorigdst $address -j ACCEPT
+-A MP-PUB-GATE -o eth0 -p tcp -m conntrack --ctstate DNAT --ctdir REPLY --ctorigsrc $gateway --ctorigdst $address -j ACCEPT
+-A MP-PUB-GATE -j DROP
+COMMIT
+*nat
+:MP-PUB-IN - [0:0]
+-F MP-PUB-IN
+COMMIT
+EOF
+    ensure_nat_hook PREROUTING -i eth0 -s "$gateway" -d "$address" -p tcp -j MP-PUB-IN &&
+        ensure_nat_hook POSTROUTING -s "$gateway" -p tcp -m conntrack --ctstate DNAT --ctdir ORIGINAL --ctorigdst "$address" -j MASQUERADE
+}
+if setup_published_ports; then
+    export MICROPOD_PUBLISH_IPV4="$address"
+else
+    echo "Kernel port forwarding unavailable; using the guest TCP relay" >&2
+fi
 # The snapshotter creates each container root with mode 0755. An inherited
 # 0077 umask makes / unsearchable after the image switches to a non-root UID.
 (umask 022; exec containerd --config "$tools/runner/containerd.toml") &

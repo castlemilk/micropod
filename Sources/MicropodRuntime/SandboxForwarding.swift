@@ -71,30 +71,50 @@ public final class SandboxForwarding: @unchecked Sendable {
         }
     }
 
-    static func relay(on listenHost: String, port listenPort: UInt16, to targetHost: String, port targetPort: UInt16)
+    static func relay(
+        on listenHost: String, port listenPort: UInt16, to targetHost: String, port targetPort: UInt16,
+        clients: NativePortClients? = nil
+    )
         -> EventLoopFuture<Channel>
     {
         let group = MultiThreadedEventLoopGroup.singleton
         // The native broker already verified the VM's numeric address. Reuse
         // it for every incoming connection on this listener.
         let numericTarget = try? SocketAddress(ipAddress: targetHost, port: Int(targetPort))
+        let allocator = AdaptiveRecvByteBufferAllocator(minimum: 1024, initial: 4096, maximum: 262144)
+        let watermark = ChannelOptions.Types.WriteBufferWaterMark(low: 131072, high: 524288)
         let bootstrap = ServerBootstrap(group: group)
             .serverChannelOption(.socketOption(.so_reuseaddr), value: 1)
             .childChannelOption(.allowRemoteHalfClosure, value: true)
             .childChannelInitializer { inbound in
+                guard clients?.track(inbound) != false else {
+                    return inbound.eventLoop.makeFailedFuture(ChannelError.ioOnClosedChannel)
+                }
                 // Runs before the accepted channel is registered, so no byte
                 // is read until the glue is in place. A refused upstream (the
                 // guest isn't listening) fails the future, closing the client.
                 let client = ClientBootstrap(group: inbound.eventLoop)
                     .channelOption(.allowRemoteHalfClosure, value: true)
+                if clients != nil {
+                    _ = client.channelOption(.recvAllocator, value: allocator)
+                        .channelOption(.writeBufferWaterMark, value: watermark)
+                }
                 let connection =
                     numericTarget.map { client.connect(to: $0) }
                     ?? client.connect(host: targetHost, port: Int(targetPort))
                 return connection.flatMap { outbound in
+                    guard clients?.track(outbound) != false else {
+                        outbound.close(promise: nil)
+                        return inbound.eventLoop.makeFailedFuture(ChannelError.ioOnClosedChannel)
+                    }
                     let (a, b) = GlueHandler.matchedPair()
                     return inbound.pipeline.addHandler(a).and(outbound.pipeline.addHandler(b)).map { _ in }
                 }
             }
+        if clients != nil {
+            _ = bootstrap.childChannelOption(.recvAllocator, value: allocator)
+                .childChannelOption(.writeBufferWaterMark, value: watermark)
+        }
         return bootstrap.bind(host: listenHost, port: Int(listenPort))
     }
 

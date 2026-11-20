@@ -1,0 +1,126 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log"
+	"net"
+	"net/netip"
+	"os"
+	"os/exec"
+	"strconv"
+	"sync"
+	"time"
+
+	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
+)
+
+func kernelPublishedPorts() bool {
+	return !privateRootless() && os.Getenv("MICROPOD_PUBLISH_IPV4") != ""
+}
+
+// A bound, non-listening socket reserves the guest port while netfilter routes
+// packets. No userspace process accepts connections or copies application data.
+type portMapping struct {
+	mu      sync.Mutex
+	fd      int
+	port    uint16
+	guestIP net.IP
+	target  netip.AddrPort
+}
+
+func reserveGuestPort(address string) (int, uint16, error) {
+	ip, err := netip.ParseAddr(address)
+	if err != nil || !ip.Is4() {
+		return -1, 0, fmt.Errorf("invalid worker IPv4 address %q", address)
+	}
+	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_STREAM|unix.SOCK_CLOEXEC, unix.IPPROTO_TCP)
+	if err != nil {
+		return -1, 0, err
+	}
+	if err = unix.Bind(fd, &unix.SockaddrInet4{Addr: ip.As4()}); err != nil {
+		unix.Close(fd)
+		return -1, 0, err
+	}
+	bound, err := unix.Getsockname(fd)
+	if err != nil {
+		unix.Close(fd)
+		return -1, 0, err
+	}
+	return fd, uint16(bound.(*unix.SockaddrInet4).Port), nil
+}
+
+func (m *portMapping) args() []string {
+	return []string{"-p", "tcp", "--dport", strconv.Itoa(int(m.port)), "-j", "DNAT", "--to-destination", m.target.String()}
+}
+
+// Netfilter remembers translations for established streams after rule removal.
+// Match both ends of this lease before either endpoint can be recycled.
+func (m *portMapping) MatchConntrackFlow(f *netlink.ConntrackFlow) bool {
+	return f.Forward.Protocol == unix.IPPROTO_TCP && f.Forward.DstPort == m.port &&
+		f.Forward.DstIP.Equal(m.guestIP) && f.Reverse.SrcPort == m.target.Port() &&
+		f.Reverse.SrcIP.Equal(net.IP(m.target.Addr().AsSlice()))
+}
+
+func (m *portMapping) close() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.fd < 0 {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+	defer cancel()
+	// Also reconciles an interrupted iptables add that committed in the kernel.
+	if err := rule(ctx, "nat", "MP-PUB-IN", false, m.args()...); err != nil {
+		return err
+	}
+	for {
+		_, err := netlink.ConntrackDeleteFilters(netlink.ConntrackTable, netlink.FAMILY_V4, m)
+		if !errors.Is(err, netlink.ErrDumpInterrupted) {
+			if err != nil {
+				return fmt.Errorf("retire published flows: %w", err)
+			}
+			break
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+	}
+	err := unix.Close(m.fd)
+	m.fd = -1
+	return err
+}
+
+func openKernelPort(ctx context.Context, ip, target string, host uint16) (*publishedPort, uint16, error) {
+	endpoint, err := netip.ParseAddrPort(target)
+	if err != nil || !endpoint.Addr().Is4() || endpoint.Port() == 0 {
+		return nil, 0, fmt.Errorf("invalid published container endpoint %q", target)
+	}
+	fd, guest, err := reserveGuestPort(ip)
+	if err != nil {
+		return nil, 0, err
+	}
+	m := &portMapping{fd: fd, port: guest, guestIP: net.ParseIP(ip), target: endpoint}
+	p := &publishedPort{mapping: m}
+	args := append([]string{"-w", "5", "-t", "nat", "-A", "MP-PUB-IN"}, m.args()...)
+	if out, err := exec.CommandContext(ctx, "iptables", args...).CombinedOutput(); err != nil {
+		return p, 0, fmt.Errorf("add published port: %w: %.512s", err, out)
+	}
+	owner, port, err := reserveMacPort(ctx, host, guest)
+	if err != nil {
+		return p, 0, err
+	}
+	p.lease = owner
+	p.wg.Go(func() {
+		// Revocation also works if the Mac broker loses this lease while the
+		// container is still running. The broker sends no data after its reply.
+		var b [1]byte
+		_, _ = owner.Read(b[:])
+		if err := m.close(); err != nil {
+			log.Printf("release published port %d: %v", guest, err)
+		}
+	})
+	return p, port, nil
+}

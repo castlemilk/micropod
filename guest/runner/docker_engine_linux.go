@@ -7,10 +7,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -19,6 +22,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
@@ -185,6 +189,19 @@ func serveEngine(ctx context.Context, n node) error {
 	defer owner.Close()
 	if err := syscall.Flock(int(owner.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		return errors.New("Docker API already has an owner")
+	}
+	if kernelPublishedPorts() {
+		// The exclusive API owner recovers interrupted jobs below. Discard their
+		// mappings before either a pod address or a guest port can be reused.
+		if out, err := exec.CommandContext(ctx, "iptables", "-w", "5", "-t", "nat", "-F", "MP-PUB-IN").CombinedOutput(); err != nil {
+			return fmt.Errorf("recover published ports: %w: %.512s", err, out)
+		}
+		if _, err := netlink.ConntrackTableList(netlink.ConntrackTable, netlink.FAMILY_V4); err != nil && !errors.Is(err, netlink.ErrDumpInterrupted) {
+			log.Printf("published flows unavailable, using guest TCP relay: %v", err)
+			if err := os.Unsetenv("MICROPOD_PUBLISH_IPV4"); err != nil {
+				return err
+			}
+		}
 	}
 	g, err := os.OpenFile(engineGate, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
@@ -434,6 +451,13 @@ func (s *dockerEngine) start(c *dockerContainer) (startErr error) {
 		defer releaseStart()
 		j := job{Trust: "trusted", Image: c.ImageID}
 		res, runErr := s.node.runProcess(ctx, j, "crun", processHooks{
+			retire: func() error {
+				var err error
+				for _, p := range forwards {
+					err = errors.Join(err, p.close())
+				}
+				return err
+			},
 			configure: func(startCtx context.Context, podID string, cfg *cri.ContainerConfig) error {
 				if s.startSlots != nil {
 					begin := time.Now()
@@ -492,9 +516,6 @@ func (s *dockerEngine) start(c *dockerContainer) (startErr error) {
 				return nil
 			},
 		})
-		for _, p := range forwards {
-			p.close()
-		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if n := s.namedNetworks[c.NetworkID]; n != nil {

@@ -266,6 +266,7 @@ func kataPrerequisites() error {
 
 type processHooks struct {
 	configure func(context.Context, string, *cri.ContainerConfig) error
+	retire    func() error
 	started   func(string)
 	output    outputSink
 }
@@ -298,7 +299,16 @@ func (n node) runProcess(ctx context.Context, j job, handler string, hooks proce
 	res.Pod = p.pod
 	res.Prepared = prepared
 	res.PodMS = time.Since(setup).Milliseconds()
-	defer func() { err = errors.Join(err, n.cleanup(p.id)) }()
+	defer func() {
+		// Revoke published routes before CNI can recycle the pod address.
+		if hooks.retire != nil {
+			if e := hooks.retire(); e != nil {
+				err = errors.Join(err, e)
+				return
+			}
+		}
+		err = errors.Join(err, n.cleanup(p.id))
+	}()
 	dir := filepath.Join(dataRoot, "jobs", p.id)
 	pod, container, err := config(p.id, dir, image, j)
 	if err != nil {

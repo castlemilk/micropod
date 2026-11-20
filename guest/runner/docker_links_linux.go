@@ -56,11 +56,15 @@ func rule(ctx context.Context, table, chain string, add bool, args ...string) er
 // firewall subprocess and no per-container NAT rule.
 func (n *workerNetwork) firewall(ctx context.Context, add bool) error {
 	link := n.gatewayLink()
-	if err := rule(ctx, "filter", "FORWARD", add, "!", "-i", link, "-o", link, "-m", "conntrack", "--ctstate", "NEW,INVALID", "-j", "DROP"); err != nil {
+	drop := "DROP"
+	if kernelPublishedPorts() {
+		drop = "MP-PUB-GATE"
+	}
+	if err := rule(ctx, "filter", "FORWARD", add, "!", "-i", link, "-o", link, "-m", "conntrack", "--ctstate", "NEW,INVALID", "-j", drop); err != nil {
 		return err
 	}
 	if n.Internal {
-		return rule(ctx, "filter", "FORWARD", add, "-i", link, "!", "-o", link, "-j", "DROP")
+		return rule(ctx, "filter", "FORWARD", add, "-i", link, "!", "-o", link, "-j", drop)
 	}
 	if err := rule(ctx, "filter", "FORWARD", add, "-i", link, "-o", "mpci0", "-j", "DROP"); err != nil {
 		return err
