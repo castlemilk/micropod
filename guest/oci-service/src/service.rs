@@ -4,6 +4,7 @@ use std::{
     collections::BTreeMap,
     fs::{self, File, OpenOptions},
     io::{BufReader, Read, Write},
+    os::fd::{AsRawFd, OwnedFd},
     os::unix::{
         fs::{MetadataExt, OpenOptionsExt, PermissionsExt},
         net::{UnixListener, UnixStream},
@@ -353,7 +354,7 @@ fn execute_session(
     registry: &Registry,
 ) -> Result<()> {
     let id = uid()?;
-    let rt = v["runtime"].as_str().unwrap_or("runc");
+    let rt = v["runtime"].as_str().unwrap_or(super::DEFAULT_RUNTIME);
     // Youki is an explicit bundle qualification option: its fresh netns leaves lo down.
     if !matches!(rt, "runc" | "crun") && !(bundle && rt == "youki") {
         return Err("unsupported OCI runtime".into());
@@ -449,6 +450,71 @@ fn execute_session(
     }
     Ok(())
 }
+const JOB: &str = "/opt/micropod-oci/runner/bin/job";
+
+fn runner_status() -> Result<Value> {
+    let result = Command::new(JOB).arg("status").output()?;
+    if !result.status.success() {
+        return Err("containerd is unavailable".into());
+    }
+    let mut node: Value = serde_json::from_slice(&result.stdout)?;
+    let kernel = kernel_metrics();
+    node["worker"] = std::env::var("MICROPOD_CI_WORKER_ID")?.into();
+    node["instance"] = std::env::var("MICROPOD_CI_INSTANCE")?.into();
+    node["boot"] = kernel["boot"].clone();
+    node["memory_bytes"] = kernel["memory_bytes"].clone();
+    Ok(node)
+}
+
+fn scheduler_job(sock: &UnixStream, args: &[&str], spec: Option<&Value>) -> Result<()> {
+    let bytes = spec
+        .map(serde_json::to_vec)
+        .transpose()?
+        .unwrap_or_default();
+    if bytes.len() >= 128 << 10 {
+        return Err("job request is too large".into());
+    }
+    let mut cmd = Command::new(JOB);
+    cmd.args(args);
+    cmd.stdin(Stdio::piped())
+        .stdout(Stdio::from(OwnedFd::from(sock.try_clone()?)));
+    let parent = std::process::id() as i32;
+    unsafe {
+        cmd.pre_exec(move || {
+            if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM) < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            if libc::getppid() != parent {
+                return Err(std::io::Error::from_raw_os_error(libc::ECANCELED));
+            }
+            Ok(())
+        });
+    }
+    let mut child = cmd.spawn()?;
+    let sent = child.stdin.take().unwrap().write_all(&bytes);
+    // poll for a lost scheduler connection while the helper owns and cleans up this pod.
+    let mut fd = libc::pollfd {
+        fd: sock.as_raw_fd(),
+        events: libc::POLLIN | libc::POLLRDHUP,
+        revents: 0,
+    };
+    while child.try_wait()?.is_none() {
+        let n = unsafe { libc::poll(&mut fd, 1, 100) };
+        if n < 0 && std::io::Error::last_os_error().kind() == std::io::ErrorKind::Interrupted {
+            continue;
+        }
+        if n != 0 || sent.is_err() {
+            unsafe {
+                libc::kill(child.id() as i32, libc::SIGTERM);
+            }
+            child.wait()?;
+            break;
+        }
+    }
+    sent?;
+    Ok(())
+}
+
 fn serve_one(mut sock: UnixStream, r: &Registry) -> Result<()> {
     sock.set_read_timeout(Some(Duration::from_secs(10)))?;
     let mut reader = BufReader::new(sock.try_clone()?);
@@ -473,6 +539,18 @@ fn serve_one(mut sock: UnixStream, r: &Registry) -> Result<()> {
             .trim_start_matches('/');
         let (code, body) = match (request.split_whitespace().next(), route) {
             (Some("GET"), "status" | "oci/v1/status") => (200, status(r)),
+            (Some("GET"), "oci/v1/runner") => match runner_status() {
+                Ok(node) => (200, node),
+                Err(e) => (503, json!({"error":e.to_string()})),
+            },
+            (Some("GET"), "oci/v1/identity") => (
+                200,
+                json!({
+                    "worker": std::env::var("MICROPOD_CI_WORKER_ID")?,
+                    "instance": std::env::var("MICROPOD_CI_INSTANCE")?,
+                    "boot": fs::read_to_string("/proc/sys/kernel/random/boot_id")?.trim(),
+                }),
+            ),
             (Some("GET"), "kernel" | "oci/v1/kernel") => (200, kernel_metrics()),
             (Some("POST"), route) if route.starts_with("oci/v1/go-suites/") => {
                 match route["oci/v1/go-suites/".len()..].split_once('/') {
@@ -520,6 +598,19 @@ fn serve_one(mut sock: UnixStream, r: &Registry) -> Result<()> {
     let op = v["op"].as_str().unwrap_or("");
     if op == "status" {
         return send(&mut sock, &status(r));
+    }
+    if op == "runner-prime" {
+        let count = v["count"]
+            .as_u64()
+            .filter(|n| (1..=32).contains(n))
+            .ok_or("expected 1 through 32 standby pods")?
+            .to_string();
+        let _admitted = Admission::new(r, false)?;
+        return scheduler_job(&sock, &["prime", &count], None);
+    }
+    if op == "job" {
+        let _admitted = Admission::new(r, true)?;
+        return scheduler_job(&sock, &[], Some(&v["job"]));
     }
     let k = v["key"].as_str().ok_or("missing handle")?;
     if let Some(selector) = k.strip_prefix("bundle:") {

@@ -39,14 +39,8 @@ if jq -e --arg p "$dst" '.runtimes["micropod-crun"].path == $p' "$tmp/base" >/de
     echo "Verified micropod-crun $version on worker $worker."
     exit 0
 fi
-if [[ -n "${MICROPOD_CRUN_FILE:-}" ]]; then
-    binary="$MICROPOD_CRUN_FILE"
-else
-    binary="$tmp/crun"
-    curl --fail --location --silent --show-error --retry 2 \
-        "https://github.com/containers/crun/releases/download/$version/crun-$version-linux-arm64" -o "$binary"
-fi
-[[ "$(shasum -a 256 "$binary" | cut -d' ' -f1)" == "$expected" ]] || { echo 'crun checksum mismatch' >&2; exit 1; }
+binary="$tmp/crun"
+bash "$root/ci/fetch-crun.sh" "$binary"
 # Stage the digest-checked binary atomically. Running containers keep their runtime inode.
 "${docker[@]}" "${guest[@]}" -i "$helper" sh -ec '
     f=$(mktemp /oci/.crun.XXXXXX)

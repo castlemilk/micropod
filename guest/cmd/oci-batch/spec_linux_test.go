@@ -16,7 +16,8 @@ func TestNativeRuntimeSelection(t *testing.T) {
 	t.Cleanup(func() { native = previous })
 	for name, path := range map[string]string{
 		"runc":  "/usr/local/bin/runc",
-		"crun":  "/var/lib/micropod/oci/crun-1.31-arm64",
+		"crun":  "/opt/micropod-oci/crun-1.31-arm64",
+		"":      "/opt/micropod-oci/crun-1.31-arm64",
 		"youki": "/var/lib/micropod/oci/youki-0.7.0-arm64",
 	} {
 		t.Setenv("MICROPOD_JOB_RUNTIME", name)

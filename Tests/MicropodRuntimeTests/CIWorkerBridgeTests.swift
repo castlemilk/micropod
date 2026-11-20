@@ -16,7 +16,7 @@ final class CIWorkerBridgeTests: XCTestCase {
         let worker = CIWorker(environment: ["MICROPOD_CI_HOME": home.path])
         try worker.prepareDirectory()
         let id = UUID()
-        var options = SandboxVM.Options(base: .image(CIWorker.image))
+        var options = SandboxVM.Options(base: .image(CIWorker.dockerImage))
         options.network = true
         options.env = ["MICROPOD_CI_WORKER_ID=" + id.uuidString, "MICROPOD_CI_INSTANCE=" + id.uuidString]
         options.entrypoint = ["/bin/sh", "-c"]

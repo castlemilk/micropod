@@ -471,7 +471,7 @@ def main():
         metavar="2..64",
         default=4,
     )
-    p.add_argument("--runtime", choices=("runc", "crun", "youki"), default="runc")
+    p.add_argument("--runtime", choices=("runc", "crun", "youki"), default="crun")
     p.add_argument("--micropod", type=Path, default=ROOT / ".build/release/micropod")
     p.add_argument("--out", type=Path, required=True)
     p.add_argument("--database", type=Path, default=DEFAULT_DB)

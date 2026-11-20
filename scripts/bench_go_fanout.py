@@ -116,6 +116,7 @@ def parse_job(output, seconds, *, raw=False):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     runtime = p.add_mutually_exclusive_group(required=True)
+    runtime.add_argument("--runner", help="Micropod CLI submitting trusted jobs through the native worker")
     runtime.add_argument("--endpoint", help="Docker Unix socket URI")
     runtime.add_argument(
         "--bundle", help="Published 64-hex OCI bundle ID on the native guest"
@@ -132,7 +133,7 @@ def main():
     p.add_argument(
         "--runtime",
         choices=("runc", "crun", "youki"),
-        default="runc",
+        default=None,
         help="Executable selected for a native session",
     )
     p.add_argument("--clients", type=int, default=20)
@@ -162,6 +163,7 @@ def main():
         p.error("Expected 1–64 clients and a valid cache scope")
     if args.active and (
         args.ubuntu
+        or args.runner
         or args.handle
         or args.bundle
         or not 1 <= args.active <= args.clients
@@ -173,11 +175,13 @@ def main():
         not re.fullmatch("[a-f0-9]{64}", args.bundle) or not args.same or args.warm_cli
     ):
         p.error("--bundle requires a valid ID and --same")
+    if args.runtime is None:
+        args.runtime = "crun" if args.bundle or args.handle else "runc"
     if args.runtime != "runc" and not (args.bundle or args.handle):
         p.error("--runtime selects the OCI executable for --bundle or --handle")
     if (
-        (args.warm_cli and (args.ubuntu or args.prime))
-        or (args.endpoint and not args.image)
+        (args.warm_cli and (args.ubuntu or args.runner or args.prime))
+        or ((args.endpoint or args.runner) and not args.image)
         or (args.ubuntu and not args.workspace)
     ):
         p.error(
@@ -215,6 +219,35 @@ def main():
         ]
         usage = lines[1 + 2 * n :]
         session_s = None
+    elif args.runner:
+        command = [args.runner, "ci", "job", "trusted", args.image, "/bin/sh", "-ec"]
+        environment = {**os.environ, "MICROPOD_CI_CACHE_SCOPE": args.scope, "MICROPOD_OCI_TRACE": "1"}
+
+        def native(script, *argv):
+            proc = subprocess.run([*command, 'export GOFLAGS="-trimpath -p=2"\n' + script, "sh", *argv],
+                                  env=environment, capture_output=True, text=True, timeout=360)
+            if proc.returncode:
+                raise RuntimeError(proc.stderr[-3400:] + proc.stdout[-600:])
+            trace = next(line.removeprefix("micropod-job ") for line in reversed(proc.stderr.splitlines())
+                         if line.startswith("micropod-job "))
+            return proc.stdout.strip(), json.loads(trace)
+
+        def job(i):
+            begin = time.monotonic()
+            output, trace = native(JOB, f"r{0 if args.same else i:02}")
+            row = parse_job(output, time.monotonic() - begin)
+            row["cri"] = trace
+            return row
+
+        session_s = None
+        start = time.monotonic()
+        if args.prime:
+            native("go test -c -o /dev/null ./... >/dev/null && go vet ./...")
+        primed = time.monotonic()
+        with ThreadPoolExecutor(max_workers=n) as executor:
+            jobs = list(executor.map(job, range(n)))
+        stop = time.monotonic()
+        usage = native('du -sB1 "$GOCACHE" "$GOMODCACHE"; du -sb "$GOCACHE" "$GOMODCACHE"')[0].splitlines()
     else:
         engine = ["docker", "--host", args.endpoint]
         mounts = []
@@ -371,6 +404,8 @@ def main():
         "usage": usage,
         "jobs": jobs,
     }
+    if args.runner:
+        record["runtime"] = "containerd-crun"
     if args.bundle or args.handle:
         record.update(bundle=args.bundle, runtime=args.runtime)
     args.output.write_text(json.dumps(record, indent=2) + "\n")

@@ -1,5 +1,40 @@
 # Persistent Linux worker for CI
 
+## Running CI without dockerd
+
+`micropod ci job` is the scheduler entry point. On a Mac, a trusted job uses the persistent containerd worker and crun. An untrusted job gets its own Apple Virtualization.framework VM by default. The host scheduler selects the trust class and approves the image digest before submitting a job. Only the scheduler account can open the worker socket. A process that has the socket can administer the node, so keep it out of runner workspaces, workflow environments and container mounts.
+
+| Job | Kernel and writable state | Caches and networking |
+| --- | --- | --- |
+| Trusted | One warm worker kernel and containerd. A fresh crun pod and writable root per invocation. | Containerd shares immutable image layers. `MICROPOD_CI_CACHE_SCOPE` mounts Go modules, Go build objects and npm data for that trust domain. The pod has its own network namespace with egress. |
+| Untrusted on macOS | A new sibling Apple VM and a copy-on-write clone of the approved image. The VM is retired at exit. | The read-only base image is reusable. Only loopback is available. The job receives no shared writable cache, host directory or runtime socket. |
+| Untrusted with Kata | One Kata pod VM per allocation on a node with KVM, the Kata v2 shim and the private CNI configuration. Selection is explicit. | Containerd reuses immutable image content. Private-mode macvlan on a disconnected parent provides an isolated interface without an uplink. The job cannot request mounts or runtime annotations. |
+
+```sh
+bash ci/build-runner-tools.sh .build/oci-tools
+export MICROPOD_CI_OCI_TOOLS="$PWD/.build/oci-tools/guest"
+export MICROPOD_OCI_CLIENT="$PWD/.build/oci-tools/client"
+micropod ci runner-start
+micropod ci runner-prime 16
+MICROPOD_CI_CACHE_SCOPE=repo-main-go126 MICROPOD_OCI_TRACE=1 \
+  micropod ci job trusted "$CI_IMAGE" sh -ec 'go vet ./... && go test ./...'
+micropod ci job untrusted "$APPROVED_IMAGE_DIGEST" /bin/sh -c 'make test'
+micropod ci runner-stop
+```
+
+For a fleet that opts into Kata, provision its verified QEMU tools with `ci/install-kata-tools.sh DIRECTORY`. Use the printed path as `MICROPOD_CI_KATA_TOOLS` when provisioning a new native node. Set `MICROPOD_CI_UNTRUSTED_RUNTIME=kata` in the scheduler to require that runtime. A missing KVM device, shim or failed pod launch returns an error. Gamma's stock Micropod kernel and the Ubuntu nested-KVM node have different device support. Use the hardware qualification for the actual worker kernel. [Gamma isolation measurements](benchmarks/2026-11-20/runner-isolation.md)
+
+An idle scheduler can call `ci runner-prime COUNT` ahead of a known trusted burst. It opens up to 32 empty crun pods. Claiming a pod atomically consumes its single-use entry and rechecks its identity, owner and runtime with containerd. Workload containers are created after dispatch. Each pod is destroyed after its job, including its network namespace and writable state. An untrusted job always gets a fresh VM. The scheduler can omit priming to avoid the idle footprint or charge it to batch time when work is already queued.
+
+The job subprocess receives the supplied argument vector. The native service streams the completed job's CRI log records to the matching stdout and stderr, and returns the process exit code. The worker caps job logs at 8 MiB, applies a 1 GiB memory limit and 1 CPU, and records image lookup, pod creation, container creation and start durations with `MICROPOD_OCI_TRACE=1`. At startup it reconciles pods against durable per-job ownership records. Shutdown refuses active work. The Apple VM path has its own VM memory and disk limits.
+
+Keep a trusted GitHub runner controller or Cuttlefish agent on the scheduler side. For arbitrary pull requests, the allocation should include the whole job, its services and its workspace within one hardware boundary. The current CLI runs one foreground container. Supporting GitHub's job containers, service containers and container actions through this path also needs allocation-scoped prepare, exec and cleanup operations, a workspace shared only inside that allocation, and the four GitHub runner hooks. Cuttlefish’s current GitHub allocation driver still requests a private rootless Docker engine. Preserve its reservation, owner identity and retirement checks when connecting those lifecycle operations. [Cuttlefish allocation driver](https://github.com/skunkworq/cuttlefish/blob/e259da023a2842fac8f20a8c9e9c27aa5427ff03/internal/runnerallocation/micropod.go)
+
+In Kubernetes the corresponding control is an admission-enforced RuntimeClass assigned by namespace policy. A workload that can choose its own class or open containerd's socket could bypass that policy. [GitHub runner container hooks](https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/customize-containers) · [Kubernetes RuntimeClass](https://kubernetes.io/docs/concepts/containers/runtime-class/)
+
+## Docker-compatible worker
+
+
 A trusted runner account can keep one Linux kernel running on Apple Silicon. The `micropod ci serve` process owns the Virtualization.framework VM and its writable ext4 disk. Docker Engine 29.9.3, containerd, runc and BuildKit run inside that VM. Each job gets a fresh Linux container. Layers, build cache and named volumes live on the same disk across jobs and clean worker restarts.
 
 ## Run a job

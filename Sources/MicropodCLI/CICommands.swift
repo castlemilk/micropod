@@ -5,6 +5,10 @@ import MicropodRuntime
 
 enum CICommands {
     static let help = """
+        micropod ci job TRUST IMAGE COMMAND [ARG ...]   submit a trusted crun or VM-isolated job
+        micropod ci runner-prime COUNT   prepare up to 32 single-use pods for trusted jobs
+        micropod ci runner-start | runner-status | runner-stop | runner-endpoint
+                                          control the dedicated containerd worker
         micropod ci start                 start or join this account's Linux worker
         micropod ci endpoint              ensure readiness and print the Docker socket URI
         micropod ci status                print worker, kernel boot and daemon identities as JSON
@@ -27,17 +31,21 @@ enum CICommands {
         """
 
     static func main(_ args: [String]) async -> Int32 {
-        let worker = CIWorker()
         guard let command = args.first else {
             print(help)
             return 2
         }
+        let runnerCommands = ["job", "runner-prime", "runner-start", "runner-status", "runner-stop", "runner-endpoint"]
+        var environment = ProcessInfo.processInfo.environment
+        if runnerCommands.contains(command) { environment["MICROPOD_CI_ENGINE"] = "containerd" }
+        let worker = CIWorker(environment: environment)
         if ["--help", "-h", "help"].contains(command) {
             print(help)
             return 0
         }
         guard
-            ["run", "create", "docker", "snapshot", "warm-go"].contains(command) || args == ["metrics", "--usage"]
+            ["run", "create", "docker", "snapshot", "warm-go", "job", "runner-prime"].contains(command)
+                || args == ["metrics", "--usage"]
                 || args == ["metrics", "--kernel"]
                 || args.count == 1
         else {
@@ -46,6 +54,61 @@ enum CICommands {
         }
         do {
             switch command {
+            case "runner-status": try printStatus(await worker.status())
+            case "runner-stop": try await worker.stop()
+            case "job", "runner-prime", "runner-start", "runner-endpoint":
+                guard let executable = Bundle.main.executableURL else {
+                    throw MicropodError.message("Missing CLI executable")
+                }
+                guard command != "job" || args.count >= 4 && ["trusted", "untrusted"].contains(args[1]) else {
+                    print(help)
+                    return 2
+                }
+                if command == "runner-start" {
+                    try printStatus(await worker.start(executable: executable))
+                    return 0
+                }
+                if command == "runner-endpoint" {
+                    print(try await worker.runEndpoint(executable: executable))
+                    return 0
+                }
+                if command == "runner-prime" {
+                    guard args.count == 2, let count = Int(args[1]), (1...32).contains(count) else {
+                        print(help)
+                        return 2
+                    }
+                }
+                if command == "job" && args[1] == "untrusted" {
+                    guard environment["MICROPOD_CI_CACHE_SCOPE", default: ""].isEmpty else {
+                        throw MicropodError.message("Untrusted jobs cannot open a shared writable cache")
+                    }
+                    guard args[2].wholeMatch(of: #/[^\s@]+@sha256:[0-9a-f]{64}/#) != nil else {
+                        throw MicropodError.message("An untrusted job needs a scheduler-approved image digest")
+                    }
+                    switch environment["MICROPOD_CI_UNTRUSTED_RUNTIME"] ?? "apple-vm" {
+                    case "apple-vm":
+                        return try await SandboxVM.isolatedCIJob(image: args[2], arguments: Array(args.dropFirst(3)))
+                    case "kata": break
+                    default: throw MicropodError.message("MICROPOD_CI_UNTRUSTED_RUNTIME must select apple-vm or kata")
+                    }
+                }
+                _ = try await worker.runEndpoint(executable: executable)
+                let bin = executable.resolvingSymlinksInPath().deletingLastPathComponent()
+                let clients = [
+                    environment["MICROPOD_OCI_CLIENT"], bin.appendingPathComponent("micropod-oci").path,
+                    bin.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(
+                        "oci-tools/client"
+                    ).path,
+                ]
+                guard
+                    let client = clients.compactMap({ $0 }).first(where: {
+                        FileManager.default.isExecutableFile(atPath: $0)
+                    })
+                else { throw MicropodError.message("Install the native client or set MICROPOD_OCI_CLIENT") }
+                let argv = ([client, worker.socket.path] + args).map { strdup($0) } + [nil]
+                defer { argv.forEach { free($0) } }
+                _ = argv.withUnsafeBufferPointer { execv(client, $0.baseAddress!) }
+                throw MicropodError.message("Could not start the native client")
             case "serve": return try await worker.serve()
             case "uninstall-service": try await worker.uninstallService()
             case "install-service", "launch-agent":
@@ -73,6 +136,9 @@ enum CICommands {
                     case "snapshot": options = try snapshotArguments(args.dropFirst())
                     case "warm-go": options = try warmGoArguments(args.dropFirst())
                     default: options = Array(args.dropFirst())
+                    }
+                    guard !worker.isNativeRunner else {
+                        throw MicropodError.message("Use ci job to submit work to the native runner")
                     }
                     let endpoint = try await worker.runEndpoint(executable: executable)
                     let recipe = command == "snapshot" ? Pipe() : nil

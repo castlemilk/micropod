@@ -68,6 +68,8 @@ public enum SandboxVM {
         public var guestTool: URL?
         var ciWorkspace: String?
         var ciOCITools: URL?
+        var ciKataTools: URL?
+        var isolatedCIJob = false
         var ciExt4MaxBatchUS: Int?
         public var rootlessDocker = false
         public var tmpfsTmp = true
@@ -177,7 +179,10 @@ public enum SandboxVM {
         let image: Containerization.Image
         let rootfsPath: URL
         if let ciWorker {
-            imageRef = try normalize(CIWorker.image)
+            guard case .image(let ref) = options.base else {
+                throw MicropodError.message("CI worker requires an image")
+            }
+            imageRef = try normalize(ref)
             diskBytes = options.diskBytes
             do {
                 image = try await store.get(reference: imageRef)
@@ -274,6 +279,10 @@ public enum SandboxVM {
         var template = imageConfig.map { LinuxProcessConfiguration(from: $0) } ?? LinuxProcessConfiguration()
         template.environmentVariables = mergeEnv(mergeEnv(template.environmentVariables, egressEnv), options.env)
         if let workdir = options.workdir { template.workingDirectory = workdir }
+        if options.isolatedCIJob {
+            template.noNewPrivileges = true
+            template.capabilities = .init(capabilities: [])
+        }
         let process = template
         template.arguments = []
 
@@ -305,6 +314,10 @@ public enum SandboxVM {
                             source: URL(fileURLWithPath: CIWorker.guestOCI),
                             destination: ciWorker.ociSocket, permissions: [.ownerRead, .ownerWrite], direction: .outOf))
                 }
+                if let kata = options.ciKataTools {
+                    cfg.virtualization = true
+                    cfg.mounts.append(.share(source: kata.path, destination: "/opt/kata", options: ["ro"]))
+                }
                 cfg.cpuOverhead = 0
                 cfg.memoryOverhead = 0
                 cfg.process.capabilities = .allCapabilities
@@ -314,10 +327,12 @@ public enum SandboxVM {
                         type: "tmpfs", source: "tmpfs", destination: "/run", options: ["nosuid", "nodev", "mode=0755"]))
                 cfg.maskedPaths = []
                 cfg.readonlyPaths = []
-                cfg.sockets.append(
-                    UnixSocketConfiguration(
-                        source: URL(fileURLWithPath: CIWorker.guestSocket), destination: ciWorker.socket,
-                        permissions: [.ownerRead, .ownerWrite], direction: .outOf))
+                if !ciWorker.isNativeRunner {
+                    cfg.sockets.append(
+                        UnixSocketConfiguration(
+                            source: URL(fileURLWithPath: CIWorker.guestSocket), destination: ciWorker.socket,
+                            permissions: [.ownerRead, .ownerWrite], direction: .outOf))
+                }
             }
             if let path = ProcessInfo.processInfo.environment["MICROPOD_SANDBOX_BOOTLOG"] {
                 cfg.bootLog = .file(path: URL(fileURLWithPath: path), append: false)
@@ -472,6 +487,22 @@ public enum SandboxVM {
     static func launch(_ prepared: Prepared) async throws {
         try await openForwards(prepared)
         try await prepared.container.start()
+    }
+
+    /// One disposable Apple VM per allocation, with a cloned root disk and no workload NIC or host shares.
+    public static func isolatedCIJob(image: String, arguments: [String]) async throws -> Int32 {
+        guard let command = arguments.first, !command.isEmpty else {
+            throw MicropodError.message("Missing job command")
+        }
+        var options = Options(base: .image(image))
+        options.isolatedCIJob = true
+        options.entrypoint = [command]
+        options.arguments = Array(arguments.dropFirst())
+        options.cpus = 1
+        options.memoryMiB = 1024
+        options.diskBytes = 4 << 30
+        options.timeoutSeconds = 6 * 60 * 60
+        return try await run(options) { message in FileHandle.standardError.write(Data((message + "\n").utf8)) }
     }
 
     /// Boot, run `options.arguments`, tear down. Returns the guest exit code.

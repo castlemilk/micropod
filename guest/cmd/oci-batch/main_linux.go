@@ -33,8 +33,8 @@ var nextCPU int
 func runtimeBinary() string {
 	if native {
 		switch os.Getenv("MICROPOD_JOB_RUNTIME") {
-		case "crun":
-			return "/var/lib/micropod/oci/crun-1.31-arm64"
+		case "", "crun":
+			return "/opt/micropod-oci/crun-1.31-arm64"
 		case "youki":
 			return "/var/lib/micropod/oci/youki-0.7.0-arm64"
 		}

@@ -13,6 +13,7 @@ mod service;
 #[cfg_attr(all(test, not(target_os = "linux")), allow(dead_code))]
 mod suite;
 
+const DEFAULT_RUNTIME: &str = "crun";
 const ENV_KEYS: &[&str] = &[
     "GOENV",
     "GOTOOLCHAIN",
@@ -68,6 +69,52 @@ fn client(args: &[String]) -> Result<i32> {
             println!("{}", response(&mut r)?);
             Ok(0)
         }
+        "runner-prime" => {
+            let [count] = tail else {
+                return Err("expected standby pod count".into());
+            };
+            send(&mut sock, &json!({"op":op,"count":count.parse::<u32>()?}))?;
+            println!("{}", response(&mut r)?);
+            Ok(0)
+        }
+        "job" => {
+            let [trust, image, argv @ ..] = tail else {
+                return Err("expected trust, image and command".into());
+            };
+            if !matches!(trust.as_str(), "trusted" | "untrusted") || argv.is_empty() {
+                return Err("expected trusted or untrusted, image and command".into());
+            }
+            send(
+                &mut sock,
+                &json!({"op":"job","job":{"trust":trust,"image":image,"args":argv,
+                "cache_scope":env::var("MICROPOD_CI_CACHE_SCOPE").unwrap_or_default()}}),
+            )?;
+            loop {
+                let frame = response(&mut r)?;
+                match frame["type"].as_str() {
+                    Some(stream @ ("stdout" | "stderr")) => {
+                        let bytes =
+                            STANDARD.decode(frame["data"].as_str().ok_or("missing log data")?)?;
+                        if stream == "stdout" {
+                            io::stdout().write_all(&bytes)?;
+                        } else {
+                            io::stderr().write_all(&bytes)?;
+                        }
+                    }
+                    Some("done") => {
+                        let code = frame["exit_code"]
+                            .as_u64()
+                            .and_then(|v| u8::try_from(v).ok())
+                            .ok_or("invalid job exit")?;
+                        if env::var("MICROPOD_OCI_TRACE").as_deref() == Ok("1") {
+                            eprintln!("micropod-job {frame}");
+                        }
+                        return Ok(i32::from(code));
+                    }
+                    _ => return Err("invalid job frame".into()),
+                }
+            }
+        }
         "session" | "run" => {
             let vars: serde_json::Map<_, _> = ENV_KEYS
                 .iter()
@@ -75,7 +122,7 @@ fn client(args: &[String]) -> Result<i32> {
                 .collect();
             send(
                 &mut sock,
-                &json!({"op":"session","key":key,"runtime":env::var("MICROPOD_OCI_RUNTIME").unwrap_or_else(|_|"runc".into()),"policy":env::var("MICROPOD_OCI_POLICY").unwrap_or_else(|_|"default".into()),"env":vars}),
+                &json!({"op":"session","key":key,"runtime":env::var("MICROPOD_OCI_RUNTIME").unwrap_or_else(|_|DEFAULT_RUNTIME.into()),"policy":env::var("MICROPOD_OCI_POLICY").unwrap_or_else(|_|"default".into()),"env":vars}),
             )?;
             let ready = response(&mut r)?;
             if ready["type"] != "ready" {

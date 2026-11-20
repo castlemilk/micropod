@@ -186,12 +186,15 @@ echo "==> CLI + MCP server bundled (micropod-cli, MicropodMCP)"
 oci_tools="$ROOT/.build/oci-tools"
 oci_archive=()
 if command -v rustup >/dev/null && command -v go >/dev/null && rustup target list --installed | grep -qx aarch64-unknown-linux-musl; then
-    bash ci/build-oci-service.sh "$oci_tools"
+    bash ci/build-runner-tools.sh "$oci_tools"
 fi
-if [[ -x "$oci_tools/client" && -x "$oci_tools/guest/service" && -x "$oci_tools/guest/executor" ]]; then
+if [[ -x "$oci_tools/client" && -x "$oci_tools/guest/service" && -x "$oci_tools/guest/runner/bin/job" ]]; then
     for dir in "$APP_BUNDLE/Contents/Resources/micropod-oci-tools" "$DIST/micropod-oci-tools"; do
         mkdir -p "$dir"
-        install -m 755 "$oci_tools/guest/service" "$oci_tools/guest/executor" "$dir/"
+        install -m 755 "$oci_tools/guest/service" "$oci_tools/guest/executor" "$oci_tools/guest/crun-1.31-arm64" "$dir/"
+        rm -rf "$dir/runner"
+        mkdir -p "$dir/runner"
+        cp -R "$oci_tools/guest/runner/." "$dir/runner/"
     done
     for client in "$APP_BUNDLE/Contents/MacOS/micropod-oci" "$DIST/micropod-oci"; do
         install -m 755 "$oci_tools/client" "$client"

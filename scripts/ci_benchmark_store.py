@@ -140,6 +140,19 @@ def store(path, run, kind, record):
                        (SELECT sum(w.value->>'compile') FROM json_each(b.value,'$.warm') w) AS producer_compiles,
                        (SELECT sum(w.value->>'vet') FROM json_each(b.value,'$.warm') w) AS producer_vet
                 FROM measurements, json_each(receipt,'$.batches') b WHERE kind='go-cache-fanout';
+            CREATE VIEW IF NOT EXISTS runner_isolation_batches AS
+                SELECT run, b.value->>'series' AS series, b.value->>'engine' AS engine,
+                       b.value->>'round' AS round, b.value->>'clients' AS clients,
+                       b.value->>'seconds' AS seconds, b.value->>'prepare_seconds' AS prepare_seconds,
+                       b.value AS batch
+                FROM measurements, json_each(receipt,'$.batches') b WHERE kind='runner-isolation';
+            CREATE VIEW IF NOT EXISTS runner_job_stages AS
+                SELECT run, series, engine, round, clients, j.value->>'$.cri.container_id' AS container_id,
+                       j.value->>'$.cri.image_cache_hit' AS image_cache_hit, j.value->>'$.cri.prepared_pod' AS prepared_pod,
+                       j.value->>'$.cri.image_ms' AS image_ms, j.value->>'$.cri.pod_ms' AS pod_ms,
+                       j.value->>'$.cri.create_ms' AS create_ms, j.value->>'$.cri.start_ms' AS start_ms,
+                       j.value->>'$.cri.setup_ms' AS setup_ms
+                FROM runner_isolation_batches, json_each(batch,'$.jobs') j WHERE json_type(j.value,'$.cri')='object';
             CREATE VIEW IF NOT EXISTS raw_oci_batches AS
                 SELECT run, b.value->>'engine' AS engine, b.value->>'series' AS series, b.value->>'round' AS round,
                        b.value->>'clients' AS clients, b.value->>'jobs_s' AS seconds,
