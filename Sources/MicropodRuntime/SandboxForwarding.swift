@@ -75,6 +75,9 @@ public final class SandboxForwarding: @unchecked Sendable {
         -> EventLoopFuture<Channel>
     {
         let group = MultiThreadedEventLoopGroup.singleton
+        // The native broker already verified the VM's numeric address. Reuse
+        // it for every incoming connection on this listener.
+        let numericTarget = try? SocketAddress(ipAddress: targetHost, port: Int(targetPort))
         let bootstrap = ServerBootstrap(group: group)
             .serverChannelOption(.socketOption(.so_reuseaddr), value: 1)
             .childChannelOption(.allowRemoteHalfClosure, value: true)
@@ -82,13 +85,15 @@ public final class SandboxForwarding: @unchecked Sendable {
                 // Runs before the accepted channel is registered, so no byte
                 // is read until the glue is in place. A refused upstream (the
                 // guest isn't listening) fails the future, closing the client.
-                ClientBootstrap(group: inbound.eventLoop)
+                let client = ClientBootstrap(group: inbound.eventLoop)
                     .channelOption(.allowRemoteHalfClosure, value: true)
-                    .connect(host: targetHost, port: Int(targetPort))
-                    .flatMap { outbound in
-                        let (a, b) = GlueHandler.matchedPair()
-                        return inbound.pipeline.addHandler(a).and(outbound.pipeline.addHandler(b)).map { _ in }
-                    }
+                let connection =
+                    numericTarget.map { client.connect(to: $0) }
+                    ?? client.connect(host: targetHost, port: Int(targetPort))
+                return connection.flatMap { outbound in
+                    let (a, b) = GlueHandler.matchedPair()
+                    return inbound.pipeline.addHandler(a).and(outbound.pipeline.addHandler(b)).map { _ in }
+                }
             }
         return bootstrap.bind(host: listenHost, port: Int(listenPort))
     }
