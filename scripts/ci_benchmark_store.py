@@ -82,6 +82,19 @@ def store(path, run, kind, record):
                        j.value->>'$.cgroup.io_pressure_usec'/1e6 AS io_stall_s,
                        j.value->>'$.cgroup.throttled_usec'/1e6 AS throttled_s
                 FROM startup_batches,json_each(batch,'$.jobs') j WHERE series='direct-trace';
+            CREATE VIEW IF NOT EXISTS native_oci_jobs AS
+                SELECT run,series,engine,round,clients,seconds AS batch_s,
+                       j.value->>'container' AS container,j.value->>'link' AS links,
+                       coalesce(j.value->>'$.lifecycle.queue_ns',0)/1e6 AS admission_ms,
+                       ((j.value->>'$.lifecycle.setup_ns')-coalesce(j.value->>'$.lifecycle.queue_ns',0))/1e6 AS setup_ms,
+                       ((j.value->>'entry')-(j.value->>'$.lifecycle.begin_ns')-(j.value->>'$.lifecycle.setup_ns'))/1e6 AS runtime_to_entry_ms,
+                       j.value->>'$.cgroup.cpu_pressure_usec'/1e3 AS cpu_stall_ms,
+                       j.value->>'$.cgroup.io_pressure_usec'/1e3 AS io_stall_ms,
+                       j.value->>'$.cgroup.usage_usec'/1e3 AS cpu_ms,
+                       j.value->>'$.cgroup.nr_throttled' AS throttled,j.value->>'cpuset' AS cpuset,
+                       j.value->>'scheduler' AS scheduler,j.value->>'$.lifecycle.cleanup_ns'/1e6 AS cleanup_ms
+                FROM startup_batches,json_each(batch,'$.jobs') j
+                WHERE passed AND series IN ('native-tune','native-paired') AND engine LIKE 'direct-%';
             CREATE VIEW IF NOT EXISTS kernel_batches AS
                 SELECT run, round, mode, clients, seconds, batch->>'$.kernel_delta.sampled_s' AS sampled_s,
                        batch->>'$.kernel_delta.tracepoints.ext4_sync_file_enter' AS ext4_syncs,
@@ -99,6 +112,14 @@ def store(path, run, kind, record):
                        s.value->>'scope' AS scope, s.value->>'store' AS store,
                        s.value->>'activeContainers' AS active_containers, s.value->>'bytes' AS bytes
                 FROM measurements, json_each(receipt, '$.cacheStores') s WHERE kind='worker-metrics';
+            CREATE VIEW IF NOT EXISTS native_oci_cache AS
+                SELECT run,receipt->>'timestamp' AS sampled,receipt->>'boot' AS boot,
+                       receipt->>'$.nativeOCI.openedSessions' AS session_requests,
+                       receipt->>'$.nativeOCI.activeSessions' AS active_sessions,
+                       receipt->>'$.nativeOCI.prepareHits' AS warm_prepares,
+                       receipt->>'$.nativeOCI.prepareLoads' AS cold_prepares,
+                       receipt->'$.nativeOCI.sessionsByScope' AS active_by_scope
+                FROM measurements WHERE kind='worker-metrics' AND json_type(receipt,'$.nativeOCI')='object';
             CREATE VIEW IF NOT EXISTS build_steps AS
                 SELECT run, s.value->>'digest' AS digest, s.value->>'position' AS position,
                        s.value->>'operation' AS operation, s.value->>'outcome' AS outcome,

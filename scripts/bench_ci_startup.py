@@ -69,6 +69,16 @@ CGROUP_SAMPLE = r"""
 while read -r name value; do
     case "$name" in usage_usec|nr_throttled|throttled_usec) printf '%s %s\n' "$name" "$value" ;; esac
 done < /sys/fs/cgroup/cpu.stat
+cpus=unknown
+if [ -r /sys/fs/cgroup/cpuset.cpus.effective ]; then IFS= read -r cpus < /sys/fs/cgroup/cpuset.cpus.effective; fi
+printf 'cpuset %s\n' "$cpus"
+scheduler=-1
+if [ -r "/proc/$$/sched" ]; then
+    while IFS=: read -r label number; do
+        case "$label" in policy*) scheduler=$((number+0)); break ;; esac
+    done < "/proc/$$/sched"
+fi
+printf 'scheduler %d\n' "$scheduler"
 for name in cpu io; do
     while read -r kind avg10 avg60 avg300 total; do
         if [ "$kind" = some ]; then printf '%s_pressure_usec %s\n' "$name" "${total#total=}"; break; fi
@@ -267,9 +277,13 @@ def docker_batch(e, source, n, rep, *, timed=False):
 
 
 class WarmSession:
-    def __init__(self, cli, handle, runtime, stack):
+    def __init__(self, cli, handle, runtime, stack, *, backend=None, policy=None):
         self.runtime = runtime
         env = dict(os.environ, **GO_ENV, MICROPOD_BIN=cli, MICROPOD_OCI_RUNTIME=runtime)
+        if backend:
+            env["MICROPOD_OCI_BACKEND"] = backend
+        if policy:
+            env["MICROPOD_OCI_POLICY"] = policy
         self.errors = stack.enter_context(tempfile.TemporaryFile())  # noqa: SIM115 - owned by the session ExitStack
         self.messages = queue.Queue()
         self.proc = subprocess.Popen(
@@ -338,7 +352,10 @@ class WarmSession:
             if trace:
                 proof, *lines = o.splitlines()
                 row = parse_job(proof)
-                counters = {k: int(v) for k, v in (line.split() for line in lines)}
+                values = dict(line.split() for line in lines)
+                row["cpuset"] = values.pop("cpuset")
+                row["scheduler"] = int(values.pop("scheduler"))
+                counters = {k: int(v) for k, v in values.items()}
                 require(
                     set(counters)
                     == {
@@ -351,7 +368,10 @@ class WarmSession:
                     "Incomplete per-job cgroup counters",
                 )
                 start = result["begin_ns"] + result["setup_ns"]
-                require(start <= row["entry"] <= start + result["runtime_ns"], "Inconsistent guest clocks")
+                require(
+                    start <= row["entry"] <= start + result["runtime_ns"],
+                    "Inconsistent guest clocks",
+                )
                 row["cgroup"] = counters
             else:
                 row = parse_job(o.strip()) if probe else timed_product(o, err)
@@ -360,7 +380,9 @@ class WarmSession:
                 "OCI identity mismatch",
             )
             row.update(
-                container=result["id"], lifecycle=result, first_stdout_s=streams[j].get("first_stdout_s")
+                container=result["id"],
+                lifecycle=result,
+                first_stdout_s=streams[j].get("first_stdout_s"),
             )
             rows.append(row)
         return {
@@ -373,12 +395,39 @@ class WarmSession:
         }
 
 
+def native_client(cli):
+    if path := os.getenv("MICROPOD_OCI_CLIENT"):
+        return Path(path)
+    local = ROOT / ".build/oci-tools/client"
+    return local if local.is_file() else Path(cli).resolve().with_name("micropod-oci")
+
+
+def warm_preparations(helper, img, tag, scope, handle, env):
+    def reuse(ref):
+        begin = time.monotonic()
+        found = execute([helper, "prepare", ref, scope], env=env).stdout.strip()
+        require(found == handle, "Warm preparation duplicated a handle")
+        return time.monotonic() - begin
+
+    samples = {img: [], tag: []}
+    for i in range(5):
+        for ref in (img, tag) if i % 2 else (tag, img):
+            samples[ref].append(reuse(ref))
+    out = {"native_warm_handle_s": samples[img], "native_tag_handle_s": samples[tag]}
+    for name, ref in (("native_concurrent", img), ("native_tag_concurrent", tag)):
+        begin = time.monotonic()
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            out[name + "_handle_s"] = list(pool.map(reuse, [ref] * 8))
+        out[name + "_wall_s"] = time.monotonic() - begin
+    return out
+
+
 def run(args, r, directory):
     cli = str(args.micropod.resolve())
     status = json.loads(execute([cli, "ci", "status"]).stdout)
     mic = Engine("micropod", status["endpoint"], cli, r["run"])
     engines = [mic]
-    if args.mode == "paired":
+    if args.mode in ("paired", "native-paired"):
         engines += [Engine("orbstack", "unix://" + str(args.orbstack.resolve()), cli, r["run"])]
     r.update(
         worker=status,
@@ -417,8 +466,54 @@ def run(args, r, directory):
         observer = CtrEvents(mic, stack) if args.mode == "trace" else None
         kernel = KernelTrace(mic, args.image, stack) if observer else None
         sessions = {}
-        arms = [e.name for e in engines] if args.mode in ("paired", "trace") else []
-        if args.mode != "trace":
+        arms = [e.name for e in engines] if args.mode in ("paired", "native-paired", "trace") else []
+        if args.mode.startswith("native-"):
+            variants = [("native", args.policies)]
+            if args.mode == "native-paired":
+                variants.insert(0, ("docker", ["parallel"]))
+            for backend, policies in variants:
+                begin = time.monotonic()
+                helper = str(ROOT / "ci/oci-batch.sh")
+                environment = dict(os.environ, MICROPOD_BIN=cli, MICROPOD_OCI_BACKEND=backend)
+                handle = execute([helper, "prepare", img, mic.scope], env=environment).stdout.strip()
+                stack.callback(execute, [helper, "forget", handle], env=environment)
+                r["prep"][backend + "_handle_s"] = time.monotonic() - begin
+                if args.mode == "native-paired":
+                    opens = []
+                    for _ in range(7):
+                        with ExitStack() as probe_stack:
+                            begin = time.monotonic()
+                            WarmSession(cli, handle, "runc", probe_stack, backend=backend)
+                            opens.append(time.monotonic() - begin)
+                    r["prep"][backend + "_warm_session_s"] = opens
+                    if backend == "native":
+                        r["prep"].update(warm_preparations(helper, img, tag, mic.scope, handle, environment))
+                for policy in policies:
+                    name = backend + "-" + policy
+                    begin = time.monotonic()
+                    session = WarmSession(cli, handle, "runc", stack, backend=backend, policy=policy)
+                    r["prep"][name + "_session_s"] = time.monotonic() - begin
+                    sessions[name] = session
+                    proof = session.batch(1, 0, probe=True)["jobs"][0]
+                    require(
+                        proof["sha256"] == r["engines"]["micropod"]["product"] and proof["boot"] == mic.boot,
+                        "Native or control product/worker differs",
+                    )
+                    r["engines"]["direct-" + name] = {
+                        "product": proof["sha256"],
+                        "boot": proof["boot"],
+                    }
+                    arms.append("direct-" + name)
+            tools = Path(os.environ.get("MICROPOD_CI_OCI_TOOLS", ROOT / ".build/oci-tools/guest"))
+            r["native_binary_sha256"] = {
+                p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                for p in (
+                    tools / "service",
+                    tools / "executor",
+                    native_client(cli),
+                )
+            }
+        elif args.mode != "trace":
             begin = time.monotonic()
             handle = execute(
                 [str(ROOT / "ci/oci-batch.sh"), "prepare", img, mic.scope],
@@ -435,7 +530,10 @@ def run(args, r, directory):
                 sessions[runtime] = WarmSession(cli, handle, runtime, stack)
                 r["prep"][runtime + "_session_s"] = time.monotonic() - begin
                 proof = sessions[runtime].batch(1, 0, probe=True)
-                r["engines"]["direct-" + runtime] = {"product": proof["jobs"][0]["sha256"], "boot": mic.boot}
+                r["engines"]["direct-" + runtime] = {
+                    "product": proof["jobs"][0]["sha256"],
+                    "boot": mic.boot,
+                }
                 require(
                     proof["jobs"][0]["sha256"] == r["engines"]["micropod"]["product"],
                     "OCI prime product changed",
@@ -469,11 +567,33 @@ def run(args, r, directory):
                         }
                     elif arm.startswith("direct-"):
                         b = sessions[arm.removeprefix("direct-")].batch(
-                            n, rep, trace=args.mode == "direct-trace"
+                            n, rep, trace=args.mode in ("direct-trace", "native-tune")
                         )
                     else:
                         e = next(e for e in engines if e.name == arm)
-                        b = docker_batch(e, tag, n, rep, timed=args.mode == "paired")
+                        b = docker_batch(
+                            e,
+                            tag,
+                            n,
+                            rep,
+                            timed=args.mode in ("paired", "native-paired"),
+                        )
+                    b["engine"] = arm
+                    if args.mode == "native-tune":
+                        policy = arm.removeprefix("direct-native-")
+                        if policy != "default":
+                            require(
+                                all(j["scheduler"] == (3 if "batch" in policy else 0) for j in b["jobs"]),
+                                "Guest scheduling class differs from the requested policy",
+                            )
+                        if "affinity" in policy:
+                            cpus = {j["cpuset"] for j in b["jobs"]}
+                            require(
+                                all(cpu.isdecimal() for cpu in cpus)
+                                and len(cpus) == min(n, mic.info["NCPU"]),
+                                "Guest CPU placement differs from the requested policy",
+                            )
+                    b["host_load"] = os.getloadavg()
                     r["batches"].append(b)
                     print(rep, n, arm, round(b["seconds"], 3), flush=True)
         kernel_result = kernel.finish() if kernel else {}
@@ -500,7 +620,10 @@ def run(args, r, directory):
                             docker_create=j["lifecycle_ns"]["create"],
                             entry=j["entry"],
                         )
-                        require(all(k in j["phases_ns"] for k in STAGES), str(j["phases_ns"]))
+                        require(
+                            all(k in j["phases_ns"] for k in STAGES),
+                            str(j["phases_ns"]),
+                        )
                         j["runc"] = [c for c in kernel_result["calls"] if c["container"] == j["container"]]
         if observer:
             require(not observer.errors, str(observer.errors))
@@ -516,7 +639,10 @@ def run(args, r, directory):
             and all(j["product"] == TOKEN and j["boot"] == mic.boot for j in direct),
             "Direct jobs differed or were reused",
         )
-        require(json.loads(execute([cli, "ci", "status"]).stdout) == status, "Worker identity changed")
+        require(
+            json.loads(execute([cli, "ci", "status"]).stdout) == status,
+            "Worker identity changed",
+        )
     r["passed"] = True
 
 
@@ -552,9 +678,23 @@ def export_timeline(receipt, path):
                 start = min(start, call["begin_ns"])
                 end = max(end, call["end_ns"])
         name = f"{batch['engine']} / {batch['clients']} jobs / round {batch['round']}"
-        events.append({"ph": "M", "name": "process_name", "pid": pid, "tid": 0, "args": {"name": name}})
+        events.append(
+            {
+                "ph": "M",
+                "name": "process_name",
+                "pid": pid,
+                "tid": 0,
+                "args": {"name": name},
+            }
+        )
         for tid, (job, stamps) in enumerate(tracks, 1):
             for name, ns in stamps.items():
+                details = {"container": job["container"]}
+                if name == "OCI runtime":
+                    details["admission_wait_ns"] = job["lifecycle"].get("queue_ns", 0)
+                if name == "removed" and "cgroup" in job:
+                    details.update(job["cgroup"])
+                    details.update(cpuset=job.get("cpuset"), scheduler=job.get("scheduler"))
                 events.append(
                     {
                         "ph": "i",
@@ -563,7 +703,7 @@ def export_timeline(receipt, path):
                         "pid": pid,
                         "tid": tid,
                         "ts": cursor + (ns - start) // 1000,
-                        "args": {"container": job["container"]},
+                        "args": details,
                     }
                 )
             for call in job.get("runc", []):
@@ -586,7 +726,34 @@ def export_timeline(receipt, path):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--mode", choices=("trace", "direct-trace", "paired", "fanout"), required=True)
+    p.add_argument(
+        "--mode",
+        choices=(
+            "trace",
+            "direct-trace",
+            "paired",
+            "fanout",
+            "native-tune",
+            "native-paired",
+        ),
+        required=True,
+    )
+    p.add_argument(
+        "--policies",
+        choices=(
+            "parallel",
+            "single",
+            "window4",
+            "window8",
+            "window16",
+            "affinity",
+            "batch",
+            "batch-affinity",
+            "default",
+        ),
+        nargs="+",
+        default=["default"],
+    )
     p.add_argument("--image", required=True)
     p.add_argument("--clients", nargs="+", type=int, default=[16, 32])
     p.add_argument("--rounds", type=int, default=5)

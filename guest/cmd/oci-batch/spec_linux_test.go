@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 
@@ -58,5 +60,64 @@ func TestJobSpecPreservesPolicyAndRejectsSharedNamespaces(t *testing.T) {
 				t.Fatal("lost the image user, kernel policy or private cgroup")
 			}
 		})
+	}
+}
+
+func BenchmarkPreparedDockerPolicy(b *testing.B) {
+	path := os.Getenv("MICROPOD_BENCH_SPEC")
+	if path == "" {
+		b.Skip("set MICROPOD_BENCH_SPEC to the stock Docker OCI specification")
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		b.Fatal(err)
+	}
+	id := strings.Repeat("a", 64)
+	var reference []byte
+	for _, cached := range []bool{false, true} {
+		template, err := prepareTemplate(raw, cached)
+		if err != nil {
+			b.Fatal(err)
+		}
+		name := "decode-each-job"
+		if cached {
+			name = "prepared"
+		}
+		build := func() []byte {
+			s, e := template.spec("/run/job", id, []string{"go", "build", "."})
+			if e != nil {
+				b.Fatal(e)
+			}
+			wire, e := json.Marshal(s)
+			if e != nil {
+				b.Fatal(e)
+			}
+			return wire
+		}
+		wire := build()
+		if reference != nil && !bytes.Equal(wire, reference) {
+			b.Fatal("cached policy changes config bytes")
+		}
+		reference = wire
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				build()
+			}
+		})
+	}
+}
+
+func TestWorkerPolicyWithinMeasuredAllocation(t *testing.T) {
+	oldNative, oldCPUs := native, allocationCPUs
+	t.Cleanup(func() { native, allocationCPUs = oldNative, oldCPUs })
+	native = true
+	t.Setenv("MICROPOD_JOB_RUNTIME", "runc")
+	for _, tc := range []struct{ cpus, jobs, scheduler int }{{4, 16, 0}, {4, 32, 3}, {8, 32, 0}} {
+		allocationCPUs = make([]int, tc.cpus)
+		p, err := policyFor("default", tc.jobs)
+		if err != nil || p.batch != (tc.scheduler == 3) || p.window != 0 || p.affinity {
+			t.Fatalf("unexpected default for %d CPUs and %d jobs: %+v %v", tc.cpus, tc.jobs, p, err)
+		}
 	}
 }

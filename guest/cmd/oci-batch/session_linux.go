@@ -13,6 +13,7 @@ import (
 
 // A runner-owned stdin/stdout connection. Jobs have separate, binary-safe output frames and receive no control descriptors.
 type request struct {
+	Op      string   `json:"op,omitempty"`
 	ID      string   `json:"id"`
 	Clients int      `json:"clients"`
 	Args    []string `json:"args"`
@@ -54,7 +55,7 @@ func (s stream) Write(p []byte) (int, error) {
 	}
 	return len(p), nil
 }
-func serve(parent context.Context, template []byte) error {
+func serve(parent context.Context, template jobTemplate) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	wire := encoder{out: json.NewEncoder(os.Stdout), cancel: cancel}
@@ -68,6 +69,10 @@ func serve(parent context.Context, template []byte) error {
 			var req request
 			if err := json.Unmarshal(sc.Bytes(), &req); err != nil {
 				end <- err
+				return
+			}
+			if req.Op == "close" {
+				end <- nil
 				return
 			}
 			if len(req.ID) == 0 || len(req.ID) > 128 || req.Clients < 1 || req.Clients > 64 || len(req.Args) == 0 || req.Args[0] == "" {

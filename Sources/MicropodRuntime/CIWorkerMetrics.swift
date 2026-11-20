@@ -26,6 +26,17 @@ extension CIWorker {
         public let cacheStores: [CacheStoreMetrics]
         public let buildCache: BuildCacheMetrics?
         public let lastNetworkRepair: NetworkRepair?
+        public let nativeOCI: NativeOCIMetrics?
+    }
+
+    public struct NativeOCIMetrics: Codable, Sendable {
+        public let pid: Int
+        public let activeSessions: Int
+        public let openedSessions: Int
+        public let draining: Bool
+        public let prepareHits: Int?
+        public let prepareLoads: Int?
+        public let sessionsByScope: [String: Int]?
     }
 
     static func cacheStore(_ name: String, activeContainers: Int, bytes: Int64? = nil) -> CacheStoreMetrics? {
@@ -52,7 +63,8 @@ extension CIWorker {
             "GET", includeUsage ? "/system/df" : "/volumes",
             query: includeUsage ? ["type": "volume"] : [:], timeout: includeUsage ? .seconds(120) : .seconds(5))
         async let jobsRequest = api.request("GET", "/containers/json", timeout: .seconds(5))
-        let (volumes, jobs) = try await (volumesRequest, jobsRequest)
+        async let ociRequest = nativeMetrics()
+        let (volumes, jobs, oci) = try await (volumesRequest, jobsRequest, ociRequest)
         struct VolumeList: Decodable {
             struct Volume: Decodable {
                 struct Usage: Decodable { let Size: Int64 }
@@ -100,7 +112,7 @@ extension CIWorker {
         return Metrics(
             worker: current.worker, boot: current.boot, timestamp: Date(), runningContainers: running.count,
             cacheStores: stores, buildCache: buildCache,
-            lastNetworkRepair: repair?.instance == current.instance ? repair : nil)
+            lastNetworkRepair: repair?.instance == current.instance ? repair : nil, nativeOCI: oci)
     }
 
     private static func buildCacheMetrics(_ api: DockerClient) async throws -> BuildCacheMetrics {

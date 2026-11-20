@@ -1,0 +1,15 @@
+[package]
+name = "micropod-oci"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+publish = false
+
+[dependencies]
+base64 = "0.22.1"
+serde_json = "1.0.154"
+libc = "0.2.189"
+
+[profile.release]
+strip = true
+lto = "thin"

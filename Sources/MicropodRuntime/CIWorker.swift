@@ -12,6 +12,8 @@ public struct CIWorker: Sendable {
     public let directory: URL
     let resourceEnvironment: [String: String]
     public var socket: URL { directory.appendingPathComponent("docker.sock") }
+    var ociSocket: URL { directory.appendingPathComponent("oci.sock") }
+    static let guestOCI = "/var/lib/micropod/oci.sock"
     public var endpoint: String { "unix://" + socket.path }
     var disk: URL { directory.appendingPathComponent("worker.ext4") }
     var log: URL { directory.appendingPathComponent("worker.log") }
@@ -21,7 +23,7 @@ public struct CIWorker: Sendable {
     public init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         let resourceKeys = [
             "MICROPOD_CI_CPUS", "MICROPOD_CI_MEMORY_MIB", "MICROPOD_CI_DISK_GIB", "MICROPOD_CI_WORKSPACE",
-            "MICROPOD_CI_EXT4_MAX_BATCH_US",
+            "MICROPOD_CI_EXT4_MAX_BATCH_US", "MICROPOD_CI_OCI_TOOLS",
         ]
         resourceEnvironment = environment.filter { resourceKeys.contains($0.key) }
         directory =
@@ -47,6 +49,7 @@ public struct CIWorker: Sendable {
         var started = false
         var readySocket: ReadySocket?
         var supportsNetworkRepair: Bool?
+        var nativeOCI: Bool?
     }
 
     struct ReadySocket: Codable, Equatable {
@@ -200,6 +203,9 @@ public struct CIWorker: Sendable {
         mkdir -p /var/lib/micropod
         if [ -S /var/lib/micropod/docker.sock ]; then rm /var/lib/micropod/docker.sock; fi
         ln -sf /var/lib/micropod/docker.sock /var/run/docker.sock
+        if [ "${MICROPOD_NATIVE_OCI:-0}" = 1 ]; then
+            /opt/micropod-oci/service serve &
+        fi
         exec /usr/local/bin/dockerd-entrypoint.sh dockerd \
           --host=unix:///var/lib/micropod/docker.sock --data-root=/var/lib/docker --exec-opt=native.cgroupdriver=cgroupfs \
           --label="io.micropod.ci.worker=$MICROPOD_CI_WORKER_ID" \
@@ -385,6 +391,57 @@ public struct CIWorker: Sendable {
         throw MicropodError.message("Timed out waiting for CI network repair")
     }
 
+    @discardableResult
+    func nativeControl(_ path: String, method: String = "GET") async throws -> Data {
+        let api = DockerClient(endpoint: .unix(ociSocket.path), version: "oci/v1")
+        let reply = try await api.request(method, path, timeout: .seconds(3))
+        guard reply.status == 200 else { throw MicropodError.message("Native OCI service: \(reply.message)") }
+        return reply.body
+    }
+
+    func nativeMetrics() async throws -> NativeOCIMetrics? {
+        guard try liveSession()?.nativeOCI == true else { return nil }
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try await decoder.decode(NativeOCIMetrics.self, from: nativeControl("/status"))
+    }
+
+    /// The dedicated read-only share contains only the ARM64 service and its OCI executor.
+    func nativeTools() throws -> URL? {
+        let dir: URL
+        if let explicit = resourceEnvironment["MICROPOD_CI_OCI_TOOLS"] {
+            dir = URL(fileURLWithPath: explicit)
+        } else {
+            guard let bin = Bundle.main.executableURL?.resolvingSymlinksInPath().deletingLastPathComponent() else {
+                return nil
+            }
+            var candidates = [bin.appendingPathComponent("micropod-oci-tools")]
+            if bin.lastPathComponent == "MacOS" {
+                candidates.append(
+                    bin.deletingLastPathComponent().appendingPathComponent("Resources/micropod-oci-tools"))
+            }
+            let build = bin.deletingLastPathComponent().deletingLastPathComponent()
+            if build.lastPathComponent == ".build" {
+                candidates.append(build.appendingPathComponent("oci-tools/guest"))
+            }
+            guard let installed = candidates.first(where: { FileManager.default.fileExists(atPath: $0.path) }) else {
+                return nil
+            }
+            dir = installed
+        }
+        for name in ["service", "executor"] {
+            let f = dir.appendingPathComponent(name)
+            guard FileManager.default.isExecutableFile(atPath: f.path),
+                let file = try? FileHandle(forReadingFrom: f)
+            else { throw MicropodError.message("Missing native OCI guest tool: \(f.path)") }
+            defer { try? file.close() }
+            guard let header = try file.read(upToCount: 20), header.count == 20,
+                header.starts(with: [0x7f, 0x45, 0x4c, 0x46, 2, 1]), header[18] == 183, header[19] == 0
+            else { throw MicropodError.message("Expected a Linux ARM64 executable at \(f.path)") }
+        }
+        return dir.standardizedFileURL
+    }
+
     private func checkIdle(using endpoint: URL) async throws {
         let api = DockerClient(endpoint: .unix(endpoint.path), version: "v1.47")
         let response = try await api.request("GET", "/containers/json", timeout: .seconds(3))
@@ -435,6 +492,7 @@ public struct CIWorker: Sendable {
         guard rename(socket.path, paused.path) == 0 else { throw POSIXError(.init(rawValue: errno) ?? .EIO) }
         do {
             try await checkIdle(using: paused)
+            if active.nativeOCI == true { try await nativeControl("/drain", method: "POST") }
         } catch {
             guard rename(paused.path, socket.path) == 0 else { throw POSIXError(.init(rawValue: errno) ?? .EIO) }
             try FileManager.default.removeItem(at: stopFile(active))
@@ -495,6 +553,8 @@ public struct CIWorker: Sendable {
         options.network = true
         options.hostname = "micropod-ci"
         options.ciWorkspace = config.workspace
+        options.ciOCITools = try nativeTools()
+        active.nativeOCI = options.ciOCITools != nil
         options.ciExt4MaxBatchUS = config.ext4MaxBatchUS
         options.cpus = config.cpus
         options.memoryMiB = UInt64(config.memoryMiB)
@@ -502,6 +562,7 @@ public struct CIWorker: Sendable {
         options.env = [
             "MICROPOD_CI_WORKER_ID=" + config.worker.uuidString, "MICROPOD_CI_INSTANCE=" + active.instance.uuidString,
         ]
+        if active.nativeOCI == true { options.env.append("MICROPOD_NATIVE_OCI=1") }
         options.entrypoint = ["/bin/sh", "-c"]
         options.arguments = [Self.bootstrap]
 
@@ -512,6 +573,9 @@ public struct CIWorker: Sendable {
         do {
             try await prepared.container.create()
             guard chmod(socket.path, 0o600) == 0 else { throw POSIXError(.init(rawValue: errno) ?? .EIO) }
+            if active.nativeOCI == true, chmod(ociSocket.path, 0o600) != 0 {
+                throw POSIXError(.init(rawValue: errno) ?? .EIO)
+            }
             try await prepared.container.start()
             active.guestAddress = prepared.guestIP
             let readyBy = ContinuousClock.now + .seconds(40)
@@ -520,6 +584,19 @@ public struct CIWorker: Sendable {
                     throw MicropodError.message("Guest Docker API did not become ready after boot")
                 }
                 try await Task.sleep(for: .milliseconds(150))
+            }
+            if active.nativeOCI == true {
+                while true {
+                    do {
+                        try await nativeControl("/status")
+                        break
+                    } catch {
+                        if ContinuousClock.now >= readyBy {
+                            throw MicropodError.message("Native OCI guest socket did not become ready: \(error)")
+                        }
+                        try await Task.sleep(for: .milliseconds(150))
+                    }
+                }
             }
             active.readySocket = ReadySocket(at: socket, worker: config.worker)
             active.started = true

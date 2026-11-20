@@ -8,7 +8,9 @@ covers the native app's CPU, memory, responsiveness, bounded streaming and
 inventory-model benchmarks. Guest VM and runtime measurements below have a
 different scope.
 
-The same-Mac OCI startup study traces the snapshotter, containerd and runc, then compares fresh source-only Docker jobs with a persistent direct OCI launcher. [Docker startup, OCI sessions and raw Ubuntu](benchmarks/2026-11-20/oci-startup.md)
+Gamma's Rust guest service accepts CI jobs over vsock. The same-Mac evaluation measures fresh 16- and 32-job Go batches, session startup, cache reuse and per-job CPU wait alongside OrbStack and native Ubuntu. [Native OCI service and Linux scheduling results](benchmarks/2026-11-20/native-vsock.md)
+
+The preceding OCI startup study traces the snapshotter, containerd and runc, then compares fresh source-only Docker jobs with a Docker-launched OCI executor. [Docker startup, OCI sessions and raw Ubuntu](benchmarks/2026-11-20/oci-startup.md)
 
 Gamma also has a direct Go comparison at 16 and 32 concurrent jobs against OrbStack and a stock Ubuntu VM on the same Apple Silicon. Both source-only builds and builds with a current executable include byte-identical Go output checks. [Fresh Go jobs, native Ubuntu and Docker startup](benchmarks/2026-11-20/fresh-go.md)
 

@@ -67,6 +67,7 @@ public enum SandboxVM {
         /// ``SandboxGuestTool/guestDirectory`` (SandboxService sandboxes).
         public var guestTool: URL?
         var ciWorkspace: String?
+        var ciOCITools: URL?
         var ciExt4MaxBatchUS: Int?
         public var rootlessDocker = false
         public var tmpfsTmp = true
@@ -296,6 +297,13 @@ public enum SandboxVM {
                 // The configured resources are the whole VM's budget, including the guest agent.
                 if let path = options.ciWorkspace {
                     cfg.mounts.append(.share(source: path, destination: path))
+                }
+                if let tools = options.ciOCITools {
+                    cfg.mounts.append(.share(source: tools.path, destination: "/opt/micropod-oci", options: ["ro"]))
+                    cfg.sockets.append(
+                        UnixSocketConfiguration(
+                            source: URL(fileURLWithPath: CIWorker.guestOCI),
+                            destination: ciWorker.ociSocket, permissions: [.ownerRead, .ownerWrite], direction: .outOf))
                 }
                 cfg.cpuOverhead = 0
                 cfg.memoryOverhead = 0

@@ -182,6 +182,25 @@ codesign --force --sign - --entitlements signing/micropod-cli.entitlements "$APP
 codesign --force --sign - "$APP_BUNDLE/Contents/MacOS/MicropodMCP"
 echo "==> CLI + MCP server bundled (micropod-cli, MicropodMCP)"
 
+# The ARM Linux executables are read-only VM resources. The Mac client stays beside the CLI.
+oci_tools="$ROOT/.build/oci-tools"
+oci_archive=()
+if command -v rustup >/dev/null && command -v go >/dev/null && rustup target list --installed | grep -qx aarch64-unknown-linux-musl; then
+    bash ci/build-oci-service.sh "$oci_tools"
+fi
+if [[ -x "$oci_tools/client" && -x "$oci_tools/guest/service" && -x "$oci_tools/guest/executor" ]]; then
+    for dir in "$APP_BUNDLE/Contents/Resources/micropod-oci-tools" "$DIST/micropod-oci-tools"; do
+        mkdir -p "$dir"
+        install -m 755 "$oci_tools/guest/service" "$oci_tools/guest/executor" "$dir/"
+    done
+    for client in "$APP_BUNDLE/Contents/MacOS/micropod-oci" "$DIST/micropod-oci"; do
+        install -m 755 "$oci_tools/client" "$client"
+        codesign --force --sign - "$client"
+    done
+    oci_archive=(micropod-oci micropod-oci-tools)
+    echo "==> Native CI guest service and client bundled"
+fi
+
 # The in-VM helper for sandbox file operations, watches and idle sandboxes
 # (a static linux/arm64 ELF — sealed as a resource, not signed as code).
 # The API finds it at ../Resources relative to its executable.
@@ -228,6 +247,6 @@ chmod +x "$DIST/micropod"
 codesign --force --sign - --entitlements signing/micropod-cli.entitlements "$DIST/micropod"
 
 echo "==> Staging tarball"
-tar -czf "$DIST/Micropod.$VERSION.tgz" -C "$DIST" "$APP_NAME.app" micropod-mcp micropod-mcp-bin micropod
+tar -czf "$DIST/Micropod.$VERSION.tgz" -C "$DIST" "$APP_NAME.app" micropod-mcp micropod-mcp-bin micropod ${oci_archive[@]+"${oci_archive[@]}"}
 ls -lh "$DIST"
 echo "Done. Install: cp -R $APP_BUNDLE /Applications/"
