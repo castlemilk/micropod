@@ -28,7 +28,7 @@ Stock Docker CLI jobs fetched a per-run token from an existing HTTP service usin
 | Micropod bridge | 1.18 s | 2.44 s |
 | OrbStack | 2.42 s | 4.01 s |
 
-The next experiment used two same-named services on distinct internal networks. Each client verified its own server identity, downloaded a checksum-verified payload, then measured DNS, HTTP latency and data transfer. These are medians of six samples per row in the matched four-vCPU VMs. Ubuntu used two processes on loopback. Bytes stayed inside each guest. Published ports, host-to-guest transfers and external NIC throughput require separate measurements. [Traffic probe](../../../scripts/netbench/main.go) · [Docker network qualification](../../../scripts/qualify_native_network.sh)
+The next experiment used two same-named services on distinct internal networks. Each client verified its own server identity, downloaded a checksum-verified payload, then measured DNS, HTTP latency and data transfer. These are medians of six samples per row in the matched four-vCPU VMs. Ubuntu used two processes on loopback. Bytes stayed inside each guest. The published-port experiment below crosses the Mac/guest boundary. External NIC throughput remains unmeasured. [Traffic probe](../../../scripts/netbench/main.go) · [Docker network qualification](../../../scripts/qualify_native_network.sh)
 
 | Data path | Service DNS p50, µs | Fresh HTTP p50, µs | Keep-alive p50, µs | Single stream, MiB/s | 32 streams, MiB/s |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -49,9 +49,24 @@ Fourteen paired rounds compared the installed per-network DNS implementation wit
 | 16 | 79,026 | 57,281 | 387 µs | 691 µs |
 | 32 | 71,353 | 68,698 | 711 µs | 1,188 µs |
 
-Three candidate implementations ran alongside the two controls. Answering locally on the receive goroutine reduced the matched 32-client rate from 60.4k to 53.4k queries/s. A single reader using Linux `recvmmsg` and `sendmmsg` improved its one-client p50 from 61 to 29 µs, while its 32-client rate fell from 74.5k to 63.2k. Two batched readers delivered 62.0k against the paired control's 70.3k at 32. The installed implementation therefore retains bounded concurrent handling with per-network name lookup. Host load varied across experiments. The 3.9% difference in median throughput between Micropod and OrbStack at 32 is smaller than the run-to-run variation.
+Three candidate implementations ran alongside the two controls. Answering locally on the receive goroutine reduced the matched 32-client rate from 60.4k to 53.4k queries/s. A single reader using Linux `recvmmsg` and `sendmmsg` improved its one-client p50 from 61 to 29 µs, while its 32-client rate fell from 74.5k to 63.2k. Two batched readers delivered 62.0k against the paired control's 70.3k at 32. The installed implementation therefore retains bounded concurrent handling with per-network name lookup. Host load varied across experiments. The 3.9% difference in median throughput between Micropod and OrbStack at 32 is smaller than the run-to-run variation. Micropod had lower p95 latency in all fourteen paired 32-client rounds.
 
 Set `MICROPOD_BENCH_DNS_CLIENTS` and `MICROPOD_BENCH_DNS_LOOKUPS` when running the network qualification script with the current probe image. The raw receipt includes each candidate round and both controls. A separate test on the installed worker reconnected its virtual uplink in **1.23 s**. The same running container resolved its network alias and the public npm registry before and after repair. Its kernel boot ID and process start time stayed identical.
+
+## Mac clients and published ports
+
+For a database or test service reached from macOS, the host forwards a loopback listener to the VM, and the guest forwards to the pod. The relay previously passed the same numeric VM address through SwiftNIO's hostname connection path for every accepted connection. Micropod now parses that address once per listener and connects directly to the socket address. Hostname targets retain their existing resolution behavior. [Mac relay](../../../Sources/MicropodRuntime/SandboxForwarding.swift)
+
+Seven paired rounds alternated the old relay, the direct-address relay and OrbStack. Each sample included 400 fresh and 400 keep-alive HTTP requests plus bulk transfers. Fresh HTTP p50 fell from **1,927 to 1,601 µs** with the direct-address relay, which won six of seven paired rounds. Fresh p95 fell from **8,293 to 6,465 µs**, winning five. The parallel-throughput result favored the direct-address relay in only one paired round. The optimization targets connection establishment. An earlier partial series encountered an OrbStack port before the service was ready. The timed crossover began after verifying the service token and retained the earlier measurements separately. [Individual port measurements and failure](native-ports.json.gz)
+
+The installed worker then ran five further paired rounds against OrbStack. The Mac client verified the same Linux image config, root filesystem, server identity, payload checksum and transfer sizes. The table reports medians from those five rounds. System load shifted substantially across experiments, so the within-round crossover provides the before/after comparison.
+
+| Published TCP port | Fresh HTTP p50 | Keep-alive p50 | Single stream | 32 streams |
+| --- | ---: | ---: | ---: | ---: |
+| Micropod | 845 µs | 369 µs | 1,326 MiB/s | 4,055 MiB/s |
+| OrbStack | 537 µs | 171 µs | 2,922 MiB/s | 4,611 MiB/s |
+
+To reproduce, publish the probe with `-p 127.0.0.1::8080` through each selected engine. Run the macOS build of `scripts/netbench/main.go` against the address printed by `docker port`, using `-streams 32` and a distinct `-marker` for each server. The SQLite receipt uses kind `published_ports`.
 
 ## Source-only Go CI
 
