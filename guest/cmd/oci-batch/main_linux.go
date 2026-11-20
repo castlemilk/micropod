@@ -32,8 +32,11 @@ var nextCPU int
 
 func runtimeBinary() string {
 	if native {
-		if os.Getenv("MICROPOD_JOB_RUNTIME") == "crun" {
+		switch os.Getenv("MICROPOD_JOB_RUNTIME") {
+		case "crun":
 			return "/var/lib/micropod/oci/crun-1.31-arm64"
+		case "youki":
+			return "/var/lib/micropod/oci/youki-0.7.0-arm64"
 		}
 		return "/usr/local/bin/runc"
 	}
@@ -54,7 +57,7 @@ func readSpec(data []byte) (*specs.Spec, error) {
 	}
 	if s.Process == nil || s.Root == nil || s.Linux == nil || s.Hooks != nil || s.Linux.Seccomp == nil ||
 		s.Linux.Seccomp.DefaultAction == specs.ActAllow || len(s.Linux.NetDevices) != 0 {
-		return nil, errors.New("expected stock isolated Linux Docker spec with seccomp")
+		return nil, errors.New("expected isolated Linux OCI spec with seccomp")
 	}
 	res := s.Linux.Resources
 	if res == nil || res.CPU == nil || res.CPU.Quota == nil || res.CPU.Period == nil ||
@@ -385,6 +388,7 @@ func batch() (int, error) {
 			return 2, errors.New("expected 1–64 clients")
 		}
 	}
+	configFile := "template.json"
 	if sid := os.Getenv("MICROPOD_NATIVE_SESSION"); sid != "" {
 		key, scope := os.Getenv("MICROPOD_NATIVE_HANDLE"), os.Getenv("MICROPOD_NATIVE_SCOPE")
 		if !validToken(sid, 32) || !validToken(key, 64) || !validScope(scope) {
@@ -395,12 +399,20 @@ func batch() (int, error) {
 		nextCPU = int(seed)
 		base := "/run/micropod-oci/sessions/" + sid
 		state, jobsRoot, diskRoot = base+"/state", base+"/jobs", "/var/lib/micropod/oci-native/jobs/"+sid
-		configDir, lower = "/var/lib/micropod/oci-native/handles/"+key, "/run/micropod-oci/lowers/"+key
-		volume := "/var/lib/docker/volumes/micropod-ci-scoped-" + scope
-		mods, builds, cgPrefix = volume+"-gomod/_data", volume+"-gobuild/_data", "/micropod-oci/"+sid
+		cgPrefix = "/micropod-oci/" + sid
+		if os.Getenv("MICROPOD_NATIVE_BUNDLE") == "1" {
+			configDir = "/var/lib/micropod/oci-native/bundles/" + key
+			configFile, lower = "config.json", configDir+"/rootfs"
+			stores := "/var/lib/micropod/oci-native/scopes/" + scope
+			mods, builds = stores+"/gomod", stores+"/gobuild"
+		} else {
+			configDir, lower = "/var/lib/micropod/oci-native/handles/"+key, "/run/micropod-oci/lowers/"+key
+			volume := "/var/lib/docker/volumes/micropod-ci-scoped-" + scope
+			mods, builds = volume+"-gomod/_data", volume+"-gobuild/_data"
+		}
 		defer os.Remove("/sys/fs/cgroup" + cgPrefix)
 	}
-	raw, err := os.ReadFile(configDir + "/template.json")
+	raw, err := os.ReadFile(filepath.Join(configDir, configFile))
 	if err != nil {
 		return 1, err
 	}

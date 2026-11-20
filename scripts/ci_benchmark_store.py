@@ -140,6 +140,15 @@ def store(path, run, kind, record):
                        (SELECT sum(w.value->>'compile') FROM json_each(b.value,'$.warm') w) AS producer_compiles,
                        (SELECT sum(w.value->>'vet') FROM json_each(b.value,'$.warm') w) AS producer_vet
                 FROM measurements, json_each(receipt,'$.batches') b WHERE kind='go-cache-fanout';
+            CREATE VIEW IF NOT EXISTS raw_oci_batches AS
+                SELECT run, b.value->>'engine' AS engine, b.value->>'series' AS series, b.value->>'round' AS round,
+                       b.value->>'clients' AS clients, b.value->>'jobs_s' AS seconds,
+                       b.value->>'session_s' AS session_s, b.value AS batch
+                FROM measurements, json_each(receipt,'$.batches') b WHERE kind='raw-oci-runtimes';
+            CREATE VIEW IF NOT EXISTS docker_engine_cases AS
+                SELECT run, c.key AS name, c.value->>'comparison' AS comparison,
+                       c.value->'observed' AS observed, c.value->>'error' AS error
+                FROM measurements, json_each(receipt,'$.candidate') c WHERE kind='docker-engine-contract';
             CREATE VIEW IF NOT EXISTS go_suite_batches AS
                 SELECT run, receipt->>'passed' AS passed, b.value->>'round' AS round, b.value->>'engine' AS engine,
                        b.value->>'mode' AS mode, b.value->>'clients' AS clients, b.value->>'seconds' AS seconds,

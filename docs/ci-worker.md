@@ -155,6 +155,19 @@ On a four-vCPU worker the default runc policy selects Linux `SCHED_BATCH` for ba
 
 Once sessions exit, `ci/oci-batch.sh forget "$handle"` releases the native image view, Docker references and prepared policy. The scoped cache volumes remain available for other jobs. Docker services, Compose, builds, published ports and interactive containers use the same VM through `micropod ci docker`. [Native worker measurements and Docker replay](benchmarks/2026-11-20/native-vsock.md)
 
+### Run a published OCI bundle directly
+
+A runner owner can provision an unpacked Linux ARM64 OCI bundle on the guest disk and use the existing private OCI socket. The service opens the bundle and two cache directories and launches the selected OCI runtime. This path needs a kernel with OverlayFS and cgroup v2, one runtime executable, and Micropod's service and executor. The native Mac client is sufficient to submit work.
+
+Place `rootfs/`, `config.json` and `resolv.conf` under `/var/lib/micropod/oci-native/bundles/<64-hex-id>/`. The ID identifies a provisioner-owned immutable bundle. The provisioner verifies its inputs and publishes new revisions under fresh IDs. Supply the same isolated offline OCI policy that the executor validates, including namespaces, seccomp, limits and both cache mounts. Under `/var/lib/micropod/oci-native/scopes/<scope>/`, provision `gomod/` and `gobuild/`. These can be bind mounts of existing Linux stores. Jobs in a scope share those exact files and write their workspaces into individual overlay upper directories. Keep the bundle, its configuration and the top-level scope directories root-owned with write permission restricted to the owner. To retire or replace a published directory, take an exclusive flock on the directory before changing its name. A running session holds shared locks on the bundle and scope.
+
+```sh
+selector="bundle:$BUNDLE_ID:$CACHE_SCOPE"
+ci/oci-batch.sh run "$selector" 16 sh -ec 'go vet ./... && go test -count=1 ./...'
+```
+
+The native service defaults to `/usr/local/bin/runc`. Select an installed crun with `MICROPOD_OCI_RUNTIME=crun` and the ARM64 binary at `/var/lib/micropod/oci/crun-1.31-arm64`. Published bundles additionally accept `MICROPOD_OCI_RUNTIME=youki` for qualification, using `/var/lib/micropod/oci/youki-0.7.0-arm64`. Youki 0.7.0 leaves loopback down on this policy. Workloads that start a local TCP service require loopback up. The published-bundle interface runs offline commands. The current public Docker API has its own object lifecycle and uses the worker's existing engine. [Runtime comparison and API migration](benchmarks/2026-11-20/raw-oci-runtimes.md)
+
 ## Network recovery and profiling
 
 The supervisor checks for the worker's local IPv4 gateway on macOS every five seconds and periodically probes the first hop from Linux. When that link disappears, it reconnects the worker's virtual network device, restores the guest route and checks the gateway with ARP. The guest keeps its addresses, processes, Docker socket and disk. Failed repairs retry with a delay up to one minute. A runner operator can request an immediate reconnect with `micropod ci repair-network`.

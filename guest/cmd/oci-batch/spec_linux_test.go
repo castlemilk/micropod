@@ -10,6 +10,22 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
+func TestNativeRuntimeSelection(t *testing.T) {
+	previous := native
+	native = true
+	t.Cleanup(func() { native = previous })
+	for name, path := range map[string]string{
+		"runc":  "/usr/local/bin/runc",
+		"crun":  "/var/lib/micropod/oci/crun-1.31-arm64",
+		"youki": "/var/lib/micropod/oci/youki-0.7.0-arm64",
+	} {
+		t.Setenv("MICROPOD_JOB_RUNTIME", name)
+		if got := runtimeBinary(); got != path {
+			t.Errorf("runtimeBinary for %s = %q, want %q", name, got, path)
+		}
+	}
+}
+
 func TestJobSpecPreservesPolicyAndRejectsSharedNamespaces(t *testing.T) {
 	q, period, memory := int64(100000), uint64(100000), int64(1<<30)
 	base := specs.Spec{Version: "1.3.0", Process: &specs.Process{Cwd: "/workspace", User: specs.User{UID: 1000}},

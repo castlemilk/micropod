@@ -118,6 +118,9 @@ def main():
     runtime = p.add_mutually_exclusive_group(required=True)
     runtime.add_argument("--endpoint", help="Docker Unix socket URI")
     runtime.add_argument(
+        "--bundle", help="Published 64-hex OCI bundle ID on the native guest"
+    )
+    runtime.add_argument(
         "--ubuntu", help="Lima instance with the identical Linux Go toolchain"
     )
     p.add_argument(
@@ -126,6 +129,12 @@ def main():
     )
     p.add_argument("--image", help="Immutable Docker fixture ID")
     p.add_argument("--scope", required=True)
+    p.add_argument(
+        "--runtime",
+        choices=("runc", "crun", "youki"),
+        default="runc",
+        help="Executable selected for a native session",
+    )
     p.add_argument("--clients", type=int, default=20)
     p.add_argument(
         "--active",
@@ -152,11 +161,20 @@ def main():
     ):
         p.error("Expected 1–64 clients and a valid cache scope")
     if args.active and (
-        args.ubuntu or args.handle or not 1 <= args.active <= args.clients
+        args.ubuntu
+        or args.handle
+        or args.bundle
+        or not 1 <= args.active <= args.clients
     ):
         p.error("--active requires Docker and a limit within the batch size")
     if args.handle and (not args.endpoint or not args.same):
         p.error("--handle requires a worker --endpoint and --same")
+    if args.bundle and (
+        not re.fullmatch("[a-f0-9]{64}", args.bundle) or not args.same or args.warm_cli
+    ):
+        p.error("--bundle requires a valid ID and --same")
+    if args.runtime != "runc" and not (args.bundle or args.handle):
+        p.error("--runtime selects the OCI executable for --bundle or --handle")
     if (
         (args.warm_cli and (args.ubuntu or args.prime))
         or (args.endpoint and not args.image)
@@ -240,12 +258,16 @@ def main():
 
         session_s = None
         with ExitStack() as stack:
-            if args.handle:
+            if args.handle or args.bundle:
                 from bench_ci_startup import WarmSession
 
                 begin = time.monotonic()
+                handle = args.handle or f"bundle:{args.bundle}:{args.scope}"
                 session = WarmSession(
-                    os.environ["MICROPOD_BIN"], args.handle, "runc", stack
+                    os.environ.get("MICROPOD_BIN", "micropod"),
+                    handle,
+                    args.runtime,
+                    stack,
                 )
                 session_s = time.monotonic() - begin
             start = time.monotonic()
@@ -264,19 +286,35 @@ def main():
                 )
                 warm = [json.loads(line) for line in out.splitlines()]
             elif args.prime:
-                call(
-                    [
-                        *base,
-                        *image,
-                        "go test -c -o /dev/null ./... >/dev/null && go vet ./...",
-                    ]
-                )
+                prime = "go test -c -o /dev/null ./... >/dev/null && go vet ./..."
+                if args.bundle:
+                    data, streams, _ = session.request(1, ["sh", "-ec", prime])
+                    if data["exit"]:
+                        raise RuntimeError(
+                            str((data["results"], streams[0]["stderr"][-500:]))
+                        )
+                else:
+                    call([*base, *image, prime])
             primed = time.monotonic()
-            if args.handle:
+            if args.handle or args.bundle:
                 result, streams, _ = session.request(n, ["sh", "-ec", JOB, "sh", "r00"])
                 if result["exit"] or len(result["results"]) != n:
-                    raise RuntimeError(str([s["stderr"][-400:] for s in streams][:3]))
+                    raise RuntimeError(
+                        str(
+                            (
+                                result["results"][:3],
+                                [s["stderr"][-400:] for s in streams][:3],
+                            )
+                        )
+                    )
                 jobs = [parse_job(s["stdout"].decode(), None) for s in streams]
+                for job, lifecycle in zip(jobs, result["results"], strict=True):
+                    if (
+                        not lifecycle["id"].startswith(job["container"])
+                        or lifecycle["exit"]
+                    ):
+                        raise ValueError("Native job did not match its OCI lifecycle")
+                    job["lifecycle"] = lifecycle
             else:
                 try:
                     with ThreadPoolExecutor(max_workers=args.active or n) as executor:
@@ -296,13 +334,16 @@ def main():
                         )
                     raise
             stop = time.monotonic()
-        usage = call(
-            [
-                *base,
-                *image,
-                'du -sB1 "$GOCACHE" "$GOMODCACHE"; du -sb "$GOCACHE" "$GOMODCACHE"',
-            ]
-        ).splitlines()
+            accounting = (
+                'du -sB1 "$GOCACHE" "$GOMODCACHE"; du -sb "$GOCACHE" "$GOMODCACHE"'
+            )
+            if args.bundle:
+                data, streams, _ = session.request(1, ["sh", "-ec", accounting])
+                if data["exit"]:
+                    raise RuntimeError(str(data["results"]))
+                usage = streams[0]["stdout"].decode().splitlines()
+            else:
+                usage = call([*base, *image, accounting]).splitlines()
 
     for field, expected in (
         ("product", 1 if args.same else n),
@@ -330,6 +371,8 @@ def main():
         "usage": usage,
         "jobs": jobs,
     }
+    if args.bundle or args.handle:
+        record.update(bundle=args.bundle, runtime=args.runtime)
     args.output.write_text(json.dumps(record, indent=2) + "\n")
     print(
         json.dumps(

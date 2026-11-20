@@ -18,6 +18,11 @@ case "${MICROPOD_OCI_BACKEND:-auto}" in
     docker) ;;
     *) usage ;;
 esac
+if [[ "$1" == bundle:* ]]; then
+    [[ "${MICROPOD_OCI_BACKEND:-auto}" != docker && ( "$verb" == run || "$verb" == session ) ]] || usage
+    [[ "$1" =~ ^bundle:[a-f0-9]{64}:[a-z0-9][a-z0-9_-]{0,62}$ ]] || usage
+    native=true
+fi
 native_key() {
     local epoch
     epoch="$(jq -er '.instance' "$worker/session.json")" || return 1

@@ -8,6 +8,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import shlex
 import subprocess
 import tarfile
@@ -60,6 +61,78 @@ def adapter(path, cmd):
     lines += ['*) echo "Unknown qualification case" >&2; exit 2 ;;', "esac"]
     path.write_text("\n".join(lines) + "\n")
     path.chmod(0o700)
+
+
+def cancel_active(session):
+    request = {"id": "cancel", "clients": 2, "args": ["sh", "-ec", "echo active; exec sleep 90"]}
+    session.proc.stdin.write((json.dumps(request) + "\n").encode())
+    session.proc.stdin.flush()
+    jobs = set()
+    while len(jobs) < 2:
+        frame = session.receive()
+        require(
+            frame["type"] == "stdout" and base64.b64decode(frame["data"]) == b"active\n",
+            "Unexpected cancellation probe",
+        )
+        jobs.add(frame["job"])
+    begin = time.monotonic()
+    session.close()
+    elapsed = time.monotonic() - begin
+    require(elapsed < 15, "Cancellation did not terminate active payloads")
+    return elapsed
+
+
+def replay_bundle(args, record):
+    """Replay the same checked-in bytes with no Docker engine or recorder installed."""
+    import tomllib
+
+    selector = f"bundle:{args.bundle}:{args.scope}"
+    record.update(
+        bundle=args.bundle, scope=args.scope, corpus_sha256=hashlib.sha256(args.corpus.read_bytes()).hexdigest()
+    )
+    cases = record["replay"] = {}
+    with ExitStack() as stack:
+        archive = stack.enter_context(tarfile.open(args.corpus, "r:gz"))
+        session = WarmSession(str(args.micropod), selector, args.runtime, stack)
+        for name, command in CASES.items():
+            expected = {}
+            for ext in ("stdout", "stderr", "toml"):
+                member = archive.getmember(f"rust/app-cases/{name}.{ext}")
+                require(member.isfile() and member.size <= 65536, "Invalid case member")
+                expected[ext] = archive.extractfile(member).read()
+            status = tomllib.loads(expected["toml"].decode())["status"]["code"]
+            result, streams, _ = session.request(1, ["sh", "-ec", command, "sh", "two words", "--literal"])
+            cases[name] = {
+                "exit": result["exit"],
+                "expected_exit": status,
+                "stdout_matches": streams[0]["stdout"] == expected["stdout"],
+                "stderr_matches": streams[0]["stderr"] == expected["stderr"],
+            }
+        n = args.isolation_clients
+        barrier = record["run"]
+        try:
+            data, streams, _ = session.request(n, ["sh", "-ec", PROOF, "sh", barrier, str(n)])
+            rows = [v["stdout"].decode().split() for v in streams]
+            require(data["exit"] == 0 and all(len(row) == 8 for row in rows), "Incomplete namespace proof")
+            require(
+                all(len({row[i] for row in rows}) == n for i in range(7)), "Jobs shared identity or namespace"
+            )
+            require(len({row[-1] for row in rows}) == 1, "Jobs used different module archives")
+            record["simultaneous"] = rows
+        finally:
+            done, _, _ = session.request(
+                1, ["sh", "-ec", 'rm -r -- "$GOMODCACHE/.oci-proof-$1"', "sh", barrier]
+            )
+            require(done["exit"] == 0, "Could not retire the qualification barrier")
+        record["cancel_s"] = cancel_active(session)
+    require(
+        all(
+            c["stdout_matches"] and c["stderr_matches"] and c["exit"] == c["expected_exit"]
+            for c in cases.values()
+        ),
+        "Recorded Docker results differ",
+    )
+    record["passed"] = True
 
 
 def run(args, r, temp):
@@ -352,25 +425,7 @@ def run(args, r, temp):
                 "Service restarted or opened an extra session",
             )
         r["warm_session_matches"] = len(CASES)
-        req = {
-            "id": "cancel",
-            "clients": 2,
-            "args": ["sh", "-ec", "echo active; exec sleep 90"],
-        }
-        session.proc.stdin.write((json.dumps(req) + "\n").encode())
-        session.proc.stdin.flush()
-        observed = set()
-        while len(observed) < 2:
-            f = session.receive()
-            require(
-                f["type"] == "stdout" and base64.b64decode(f["data"]) == b"active\n",
-                "Unexpected cancellation probe",
-            )
-            observed.add(f["job"])
-        begin = time.monotonic()
-        session.close()
-        r["cancel_s"] = time.monotonic() - begin
-        require(r["cancel_s"] < 15, "Cancellation did not terminate active payloads")
+        r["cancel_s"] = cancel_active(session)
         remain = execute(
             e.docker
             + [
@@ -403,8 +458,11 @@ def run(args, r, temp):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--image", required=True)
-    p.add_argument("--rust-anything", type=Path, required=True)
+    source = p.add_mutually_exclusive_group(required=True)
+    source.add_argument("--image")
+    source.add_argument("--bundle", help="Published native OCI bundle containing the recorded fixture")
+    p.add_argument("--scope", help="Published cache scope for --bundle")
+    p.add_argument("--rust-anything", type=Path)
     p.add_argument("--corpus", type=Path, help="Replay a previously recorded Docker case archive")
     p.add_argument(
         "--isolation-clients",
@@ -413,22 +471,36 @@ def main():
         metavar="2..64",
         default=4,
     )
-    p.add_argument("--runtime", choices=("runc", "crun"), default="runc")
+    p.add_argument("--runtime", choices=("runc", "crun", "youki"), default="runc")
     p.add_argument("--micropod", type=Path, default=ROOT / ".build/release/micropod")
     p.add_argument("--out", type=Path, required=True)
+    p.add_argument("--database", type=Path, default=DEFAULT_DB)
     args = p.parse_args()
+    if args.image and not args.rust_anything:
+        p.error("--image needs --rust-anything to run the recorder")
+    if args.image and args.runtime == "youki":
+        p.error("youki qualification requires --bundle")
+    if args.bundle and (
+        not args.corpus
+        or not re.fullmatch("[0-9a-f]{64}", args.bundle)
+        or not re.fullmatch("[a-z0-9][a-z0-9_-]{0,62}", args.scope or "")
+    ):
+        p.error("--bundle needs an immutable bundle ID, --corpus and --scope")
     r = {"run": uuid.uuid4().hex, "runtime": args.runtime, "passed": False}
     try:
-        with tempfile.TemporaryDirectory() as d:
-            run(args, r, Path(d))
+        if args.bundle:
+            replay_bundle(args, r)
+        else:
+            with tempfile.TemporaryDirectory() as d:
+                run(args, r, Path(d))
     except BaseException as err:
         r["error"] = str(err)
         raise
     finally:
         args.out.parent.mkdir(exist_ok=True, parents=True)
         args.out.write_bytes(gzip.compress(json.dumps(r).encode(), mtime=0))
-        store(DEFAULT_DB, r["run"], "oci-replay", r)
-        if r["passed"]:
+        store(args.database, r["run"], "oci-replay", r)
+        if r["passed"] and not args.bundle:
             buf = io.BytesIO()
             with tarfile.open(fileobj=buf, mode="w") as tar:
                 for name, value in r["cases"].items():

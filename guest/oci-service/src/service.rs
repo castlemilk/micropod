@@ -5,7 +5,7 @@ use std::{
     fs::{self, File, OpenOptions},
     io::{BufReader, Read, Write},
     os::unix::{
-        fs::PermissionsExt,
+        fs::{MetadataExt, OpenOptionsExt, PermissionsExt},
         net::{UnixListener, UnixStream},
         process::CommandExt,
     },
@@ -290,9 +290,72 @@ fn session(sock: &UnixStream, k: &str, v: &Value, registry: &Registry) -> Result
     if !mounted(&lower(k))? {
         return Err("handle released during session open".into());
     }
+    let scope = cfg["scope"].as_str().ok_or("invalid scope")?;
+    execute_session(sock, k, scope, false, v, registry)
+}
+
+// A provisioner publishes immutable OCI bundles and named cache scopes under DATA.
+// Readers share the directory locks with one another. A provisioner retiring either
+// directory must hold its exclusive lock until it has removed the published name.
+fn lock_directory(path: &Path) -> Result<File> {
+    let dir = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_DIRECTORY)
+        .open(path)?;
+    dir.lock_shared()?;
+    let opened = dir.metadata()?;
+    let current = fs::symlink_metadata(path)?;
+    if opened.uid() != 0
+        || opened.mode() & 0o022 != 0
+        || (opened.dev(), opened.ino()) != (current.dev(), current.ino())
+    {
+        return Err("expected a published, root-owned worker directory".into());
+    }
+    Ok(dir)
+}
+
+fn bundle_session(sock: &UnixStream, selector: &str, v: &Value, registry: &Registry) -> Result<()> {
+    let (bundle, sc) = selector
+        .split_once(':')
+        .ok_or("expected a bundle ID and cache scope")?;
+    if !key(bundle) || !scope(sc) {
+        return Err("invalid bundle ID or cache scope".into());
+    }
+    let bundle_dir = Path::new(DATA).join("bundles").join(bundle);
+    let scope_dir = Path::new(DATA).join("scopes").join(sc);
+    let _bundle = lock_directory(&bundle_dir)?;
+    let _scope = lock_directory(&scope_dir)?;
+    for (dir, entries) in [
+        (&bundle_dir, &["rootfs"][..]),
+        (&scope_dir, &["gomod", "gobuild"][..]),
+    ] {
+        for entry in entries {
+            if !fs::symlink_metadata(dir.join(entry))?.is_dir() {
+                return Err(format!("expected directory {entry}").into());
+            }
+        }
+    }
+    for name in ["config.json", "resolv.conf"] {
+        let meta = fs::symlink_metadata(bundle_dir.join(name))?;
+        if !meta.is_file() || meta.uid() != 0 || meta.mode() & 0o022 != 0 {
+            return Err(format!("invalid bundle file {name}").into());
+        }
+    }
+    execute_session(sock, bundle, sc, true, v, registry)
+}
+
+fn execute_session(
+    sock: &UnixStream,
+    k: &str,
+    scope: &str,
+    bundle: bool,
+    v: &Value,
+    registry: &Registry,
+) -> Result<()> {
     let id = uid()?;
     let rt = v["runtime"].as_str().unwrap_or("runc");
-    if !matches!(rt, "runc" | "crun") {
+    // Youki is an explicit bundle qualification option: its fresh netns leaves lo down.
+    if !matches!(rt, "runc" | "crun") && !(bundle && rt == "youki") {
         return Err("unsupported OCI runtime".into());
     }
     let policy = v["policy"].as_str().unwrap_or("default");
@@ -310,7 +373,6 @@ fn session(sock: &UnixStream, k: &str, v: &Value, registry: &Registry) -> Result
     ) {
         return Err("unknown OCI scheduling policy".into());
     }
-    let scope = cfg["scope"].as_str().ok_or("invalid scope")?;
     let mut child = Command::new("/opt/micropod-oci/executor");
     child
         .arg("session")
@@ -324,6 +386,9 @@ fn session(sock: &UnixStream, k: &str, v: &Value, registry: &Registry) -> Result
         .env("MICROPOD_NATIVE_SCOPE", scope)
         .env("MICROPOD_JOB_RUNTIME", rt)
         .env("MICROPOD_NATIVE_POLICY", policy);
+    if bundle {
+        child.env("MICROPOD_NATIVE_BUNDLE", "1");
+    }
     if let Some(vars) = v["env"].as_object() {
         for (name, value) in vars {
             if !ENV_KEYS.contains(&name.as_str()) {
@@ -457,6 +522,13 @@ fn serve_one(mut sock: UnixStream, r: &Registry) -> Result<()> {
         return send(&mut sock, &status(r));
     }
     let k = v["key"].as_str().ok_or("missing handle")?;
+    if let Some(selector) = k.strip_prefix("bundle:") {
+        if op != "session" {
+            return Err("a published bundle is opened directly as a session".into());
+        }
+        let _admitted = Admission::new(r, true)?;
+        return bundle_session(&sock, selector, &v, r);
+    }
     if !key(k) {
         return Err("invalid handle".into());
     }

@@ -19,8 +19,8 @@ final class ShimServerTests: XCTestCase {
 
     func testPingAndVersionAndInfo() throws {
         let client = shim.raw()
-        XCTAssertEqual(try client.request("GET", "/_ping").body, Data("OK\n".utf8))
-        XCTAssertEqual(try client.request("GET", "/_ping").headers["content-type"], "text/plain")
+        XCTAssertEqual(try client.request("GET", "/_ping").body, Data("OK".utf8))
+        XCTAssertEqual(try client.request("GET", "/_ping").headers["content-type"], "text/plain; charset=utf-8")
 
         let version =
             try JSONSerialization.jsonObject(with: client.request("GET", "/version").body)
@@ -573,7 +573,7 @@ final class ShimServerTests: XCTestCase {
         XCTAssertEqual(
             text.components(separatedBy: "HTTP/1.1 200 OK").count - 1, 3,
             "expected three responses: \(text.prefix(400))")
-        let firstPingBody = text.range(of: "\r\nOK\n")
+        let firstPingBody = text.range(of: "\r\nOK")
             .map { text.distance(from: text.startIndex, to: $0.lowerBound) }
         let versionAt = text.range(of: "27.3.1")
             .map { text.distance(from: text.startIndex, to: $0.lowerBound) }
