@@ -1,0 +1,32 @@
+{
+  "passed": true,
+  "boot": "76CB2D71-45C6-4EA4-A3E1-E927EF7E41E8",
+  "instance": "7AC9F524-57FD-4AE8-B7D0-C8F31FA8EE67",
+  "daemon": "508f6284-2d6d-458c-a053-c1cd3ea891bd",
+  "native_jobs": 32,
+  "tests_per_job": 7,
+  "native_seconds": 0.45059858297463506,
+  "native_interval_ns": [
+    1795159226581781592,
+    1795159227031484508
+  ],
+  "postgres_id": "aef90f6d7c21fa884a6c5dc391090f110db4a630be1a051ef29bc0ecf7a983e2",
+  "postgres_lifecycle": [
+    [
+      "start",
+      1795159226580224092,
+      null
+    ],
+    [
+      "die",
+      1795159227793181425,
+      "0"
+    ],
+    [
+      "destroy",
+      1795159227812848675,
+      null
+    ]
+  ],
+  "overlap_seconds": 0.449702916
+}
