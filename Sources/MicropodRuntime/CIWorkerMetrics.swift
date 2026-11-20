@@ -18,6 +18,21 @@ extension CIWorker {
         public let sharedRecordBytes: Int64
     }
 
+    public struct KernelMetrics: Codable, Sendable {
+        public struct Pressure: Codable, Sendable {
+            public let someUsec: UInt64?
+            public let fullUsec: UInt64?
+        }
+        public let boot: UUID
+        public let uptimeSeconds: Double?
+        public let availableBytes: UInt64?
+        public let memoryBytes: UInt64?
+        public let oomKills: UInt64?
+        public let cpu: Pressure
+        public let memory: Pressure
+        public let io: Pressure
+    }
+
     public struct Metrics: Codable, Sendable {
         public let worker: UUID
         public let boot: UUID

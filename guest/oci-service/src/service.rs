@@ -65,6 +65,40 @@ fn status(r: &Registry) -> Value {
         "draining":c.draining,"prepare_hits":c.prepare_hits,"prepare_loads":c.prepare_loads,
         "sessions_by_scope":c.sessions_by_scope})
 }
+// Keep this path independent of Docker, containerd and the session registry. It must
+// stay usable when a cold burst is waiting on memory reclaim or container creation.
+fn kernel_metrics() -> Value {
+    let read = |path| fs::read_to_string(path).unwrap_or_default();
+    let fields = |text: &str, name: &str| -> Option<u64> {
+        text.lines().find_map(|line| {
+            let mut words = line.split_whitespace();
+            if words.next()? != name {
+                return None;
+            }
+            words.next()?.parse().ok()
+        })
+    };
+    let pressure = |path| {
+        let text = read(path);
+        let total = |kind| -> Option<u64> {
+            let row = text
+                .lines()
+                .find(|line| line.split_whitespace().next() == Some(kind))?;
+            row.split_whitespace()
+                .find_map(|word| word.strip_prefix("total=")?.parse().ok())
+        };
+        json!({"some_usec":total("some"),"full_usec":total("full")})
+    };
+    let memory = read("/proc/meminfo");
+    json!({
+        "boot":read("/proc/sys/kernel/random/boot_id").trim(),
+        "uptime_seconds":read("/proc/uptime").split_whitespace().next().and_then(|s| s.parse::<f64>().ok()),
+        "available_bytes":fields(&memory,"MemAvailable:").and_then(|n| n.checked_mul(1024)),
+        "memory_bytes":fields(&memory,"MemTotal:").and_then(|n| n.checked_mul(1024)),
+        "oom_kills":fields(&read("/proc/vmstat"),"oom_kill"),
+        "cpu":pressure("/proc/pressure/cpu"),"memory":pressure("/proc/pressure/memory"),"io":pressure("/proc/pressure/io")
+    })
+}
 fn key(v: &str) -> bool {
     v.len() == 64
         && v.bytes()
@@ -373,7 +407,7 @@ fn serve_one(mut sock: UnixStream, r: &Registry) -> Result<()> {
             .unwrap_or("")
             .trim_start_matches('/');
         let code = match (request.split_whitespace().next(), route) {
-            (Some("GET"), "status" | "oci/v1/status") => 200,
+            (Some("GET"), "status" | "oci/v1/status" | "kernel" | "oci/v1/kernel") => 200,
             (Some("POST"), "drain" | "oci/v1/drain") => {
                 let mut c = r.lock().unwrap();
                 if c.servicing != 0 {
@@ -385,7 +419,12 @@ fn serve_one(mut sock: UnixStream, r: &Registry) -> Result<()> {
             }
             _ => 404,
         };
-        let body = status(r).to_string();
+        let body = if code == 200 && matches!(route, "kernel" | "oci/v1/kernel") {
+            kernel_metrics()
+        } else {
+            status(r)
+        }
+        .to_string();
         write!(
             sock,
             "HTTP/1.1 {code} {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",

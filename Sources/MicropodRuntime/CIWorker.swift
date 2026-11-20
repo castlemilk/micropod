@@ -399,6 +399,15 @@ public struct CIWorker: Sendable {
         return reply.body
     }
 
+    public func kernelMetrics() async throws -> KernelMetrics {
+        guard try liveSession()?.nativeOCI == true else {
+            throw MicropodError.message("Kernel metrics require a running native CI worker")
+        }
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try await decoder.decode(KernelMetrics.self, from: nativeControl("/kernel"))
+    }
+
     func nativeMetrics() async throws -> NativeOCIMetrics? {
         guard try liveSession()?.nativeOCI == true else { return nil }
         let decoder = JSONDecoder()

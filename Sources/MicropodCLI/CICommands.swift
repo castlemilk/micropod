@@ -11,10 +11,13 @@ enum CICommands {
         micropod ci docker [arguments]    run the stock Docker CLI or a plugin against this worker
         micropod ci snapshot BASE_IMAGE [DIRECTORY]
                                           put a checkout in a reusable job image and print its local ID
+        micropod ci warm-go --cache-scope NAME [--offline] [--trace-tools] SOURCE_IMAGE_ID [PACKAGE ...]
+                                          warm shared Go compile and vet caches before concurrent jobs
         micropod ci run [--scratch-mib N] [--cache npm|go|python] [--cache-scope NAME] [docker options] IMAGE [command...]
                                           run a container with persistent package caches
         micropod ci create [options]      prepare a fresh job with the same cache options and Docker create flags
         micropod ci metrics [--usage]     print active cache mounts, optional sizes and BuildKit usage as JSON
+        micropod ci metrics --kernel      read memory, OOM and stall counters directly from the Linux kernel
         micropod ci repair-network        reconnect the private network while containers keep running
         micropod ci stop                  stop the idle worker and retain its disk and caches
         micropod ci serve                 supervise the worker in the foreground
@@ -34,7 +37,8 @@ enum CICommands {
             return 0
         }
         guard
-            ["run", "create", "docker", "snapshot"].contains(command) || args == ["metrics", "--usage"]
+            ["run", "create", "docker", "snapshot", "warm-go"].contains(command) || args == ["metrics", "--usage"]
+                || args == ["metrics", "--kernel"]
                 || args.count == 1
         else {
             print(help)
@@ -53,19 +57,21 @@ enum CICommands {
                 } else {
                     try printStatus(await worker.installService(executable: executable))
                 }
+            case "metrics" where args.last == "--kernel": try printStatus(await worker.kernelMetrics())
             case "metrics": try printStatus(await worker.metrics(includeUsage: args.count == 2))
             case "repair-network": try printStatus(await worker.repairNetwork())
             case "stop": try await worker.stop()
             case "status": try printStatus(await worker.status())
-            case "start", "endpoint", "run", "create", "docker", "snapshot":
+            case "start", "endpoint", "run", "create", "docker", "snapshot", "warm-go":
                 guard let executable = Bundle.main.executableURL else {
                     throw MicropodError.message("Cannot locate micropod executable")
                 }
-                if ["run", "create", "docker", "snapshot"].contains(command) {
+                if ["run", "create", "docker", "snapshot", "warm-go"].contains(command) {
                     let options: [String]
                     switch command {
                     case "run", "create": options = try [command, "--rm"] + runArguments(args.dropFirst())
                     case "snapshot": options = try snapshotArguments(args.dropFirst())
+                    case "warm-go": options = try warmGoArguments(args.dropFirst())
                     default: options = Array(args.dropFirst())
                     }
                     let endpoint = try await worker.runEndpoint(executable: executable)

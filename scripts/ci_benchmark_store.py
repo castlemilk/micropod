@@ -131,6 +131,15 @@ def store(path, run, kind, record):
                        s.key AS stage, s.value AS stage_s
                 FROM measurements, json_each(receipt,'$.batches') b, json_each(b.value,'$.stages') s
                 WHERE kind='full-ci-pipeline';
+            CREATE VIEW IF NOT EXISTS go_cache_fanout AS
+                SELECT run, b.value->>'trial' AS trial, b.value->>'engine' AS engine,
+                       b.value->>'clients' AS clients, b.value->>'active' AS active,
+                       b.value->>'seconds' AS seconds, b.value->>'warm_s' AS warm_s,
+                       (SELECT sum(j.value->>'compile') FROM json_each(b.value,'$.jobs') j) AS job_compiles,
+                       (SELECT sum(j.value->>'vet') FROM json_each(b.value,'$.jobs') j) AS job_vet,
+                       (SELECT sum(w.value->>'compile') FROM json_each(b.value,'$.warm') w) AS producer_compiles,
+                       (SELECT sum(w.value->>'vet') FROM json_each(b.value,'$.warm') w) AS producer_vet
+                FROM measurements, json_each(receipt,'$.batches') b WHERE kind='go-cache-fanout';
             CREATE VIEW IF NOT EXISTS go_suite_batches AS
                 SELECT run, receipt->>'passed' AS passed, b.value->>'round' AS round, b.value->>'engine' AS engine,
                        b.value->>'mode' AS mode, b.value->>'clients' AS clients, b.value->>'seconds' AS seconds,

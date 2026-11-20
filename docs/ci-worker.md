@@ -59,6 +59,25 @@ Existing workers reopen their original disk and retain its filesystem format. Th
 
 The trust boundary is the runner account and its dedicated VM. Docker clients can administer the guest, including its shared cache. Place mutually untrusted repositories in isolated sandboxes. The guest exports its own engine socket. Docker bind sources resolve inside Linux. Stream checkouts as build contexts or copy them into a container. Published ports bind inside the worker VM and its guest IP is available in the status output. For Compose projects with bind mounts, set `MICROPOD_CI_WORKSPACE` to a checkout root under `/Users`, `/Volumes` or `/private/tmp` when provisioning the worker. Linux sees that tree at the same physical path as macOS, so relative Compose binds work and edits are visible in both directions. Every Docker administrator of that worker can read and write the shared directory. Use a Docker named volume for the package stores so compiled objects and dependency archives stay on native ext4. Clients on macOS reach a published TCP port at the guest IP from `ci status`.
 
+## Sharing a Go toolchain across parallel CI jobs
+
+Pin one Linux Go image by digest and give related, trusted jobs a stable cache scope. Put the Go version, target and build flags in that image. A typical pure-Go profile uses `GOTOOLCHAIN=local` and `GOFLAGS=-trimpath`. Twenty containers can share the immutable toolchain layers, the module download and extraction directory, and the compiler's content-addressed object store. Each container keeps its own writable checkout. Go selects which objects are valid for each source revision, target, build tag and compiler. [Go module cache](https://go.dev/ref/mod#module-cache) · [Go build cache](https://pkg.go.dev/cmd/go#hdr-Build_and_test_caching)
+
+For a new or evicted cache, prime a representative source snapshot before dispatching the group. The example runs in the working directory set by `ci snapshot`. Use the same scope and compatible Go settings on subsequent jobs.
+
+```sh
+source_id=$(micropod ci snapshot "$PINNED_GO_IMAGE" "$CHECKOUT")
+micropod ci warm-go --cache-scope backend "$source_id"
+micropod ci run --cache go --cache-scope backend --network none \
+  --entrypoint sh "$source_id" -ec 'go vet ./... && go test -count=1 ./... && go build ./...'
+```
+
+The warm-up compiles tests to `/dev/null` and primes both the test-time and full vet checks. Optional package arguments select a subset. Pass `--offline` before the image ID to use a populated module store, vendored inputs or a local proxy. The default uses the image's Go proxy and checksum configuration. Pass `--trace-tools` for counts of actual compiler, vet and linker invocations. Standard output carries JSON events with the request key, worker uptime and container CPU consumption. A later invocation consults Go again after cache eviction.
+
+With `flock` in the image, a cache scope admits one producer at a time. Overlapping requests for the same immutable input can join its successful completion. A killed producer releases its kernel lock and the next waiter checks the cache. Images without `flock` emit `uncoordinated` and still populate the same Go stores. Pinning a different source snapshot always gives the request its own identity. For repeated jobs on exactly the same snapshot, the prepared suite below also shares linked products while each job executes its own tests.
+
+The native worker exposes `micropod ci metrics --kernel` over its control socket. Sample it twice on the same boot to calculate changes in CPU, memory and I/O pressure or OOM kills. This read works independently of Docker and the cache size scan. [Twenty-job Gamma measurements](benchmarks/2026-11-20/go-cache-fanout.md) · [Linux pressure accounting](https://docs.kernel.org/accounting/psi.html)
+
 ## Fresh Go jobs from a prepared checkout
 
 `micropod ci snapshot BASE_IMAGE DIRECTORY` loads the checkout into the worker's image store and prints an immutable local image ID. BuildKit applies the checkout's `.dockerignore`. Prepare it once per revision. A fresh container sees its own writable layer at `/workspace`, while the lower source layer is shared. File access follows the image user's normal Linux permissions. An edit or build in one job is private to that job. [Docker build contexts](https://docs.docker.com/build/concepts/context/)

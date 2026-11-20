@@ -48,6 +48,28 @@ final class CICommandsTests: XCTestCase {
         }
     }
 
+    func testGoWarmUsesThePinnedImageAndTheJobsOwnCacheVolumes() throws {
+        let image = "sha256:" + String(repeating: "a", count: 64)
+        let base = ["--cache-scope", "team"]
+        let args = try CICommands.warmGoArguments(
+            ArraySlice(base + ["--offline", "--trace-tools", image, "./cmd/..."]))
+        XCTAssertEqual(Array(args.prefix(2)), ["run", "--rm"])
+        XCTAssertTrue(args.contains("type=volume,src=micropod-ci-scoped-team-gomod,dst=/cache/gomod,volume-nocopy"))
+        XCTAssertTrue(args.contains("type=volume,src=micropod-ci-scoped-team-gobuild,dst=/cache/gobuild,volume-nocopy"))
+        XCTAssertTrue(args.contains("--pull=never"))
+        XCTAssertTrue(args.contains("none"))
+        XCTAssertTrue(args.contains(image))
+        XCTAssertEqual(Array(args.suffix(2)), ["1", "./cmd/..."])
+        let defaults = try CICommands.warmGoArguments(ArraySlice(base + [image]))
+        XCTAssertEqual(Array(defaults.suffix(2)), ["0", "./..."])
+        for invalid in [
+            base + ["floating:latest"], ["--cache-scope", "../tenant", image], base + [image, "-exec=x"],
+            base + ["--offline", "--offline", image], [image],
+        ] {
+            XCTAssertThrowsError(try CICommands.warmGoArguments(ArraySlice(invalid)))
+        }
+    }
+
     func testInvalidCachePrefixFailsBeforeStartingAWorker() {
         for args in [
             ["--scratch-mib", "0", "alpine"], ["--scratch-mib", "1", "--scratch-mib", "2", "alpine"],
