@@ -8,6 +8,8 @@ covers the native app's CPU, memory, responsiveness, bounded streaming and
 inventory-model benchmarks. Guest VM and runtime measurements below have a
 different scope.
 
+Gamma's native worker attaches 32 service endpoints in 36.0 ms, compared with 84.6 ms for Netavark on the same Linux bridge. The report also compares local DNS under concurrency, TCP throughput, fresh service jobs and offline Go builds with OrbStack and raw Ubuntu. [Native networking and cache measurements](benchmarks/2026-11-21/native-network.md)
+
 Gamma’s full CI comparison measures source edits and repeated runs through Go, npm, image builds and PostgreSQL. A second workload compares 16 and 32 fresh Go lint, test and build jobs with OrbStack and raw Ubuntu, including the first submission of a new revision. [Full CI measurements and traces](benchmarks/2026-11-20/full-ci.md)
 
 Gamma's Rust guest service accepts CI jobs over vsock. The same-Mac evaluation measures fresh 16- and 32-job Go batches, session startup, cache reuse and per-job CPU wait alongside OrbStack and native Ubuntu. [Native OCI service and Linux scheduling results](benchmarks/2026-11-20/native-vsock.md)
