@@ -111,7 +111,9 @@ func openPublishedPort(ctx context.Context, ip, target string, host uint16) (*pu
 		return nil, 0, fmt.Errorf("reserve Mac loopback port %d: %w", host, err)
 	}
 	control.SetDeadline(time.Time{})
-	relayCtx, cancel := context.WithCancel(ctx)
+	// The setup deadline ends when crun starts. Established listeners live
+	// until the container releases its port, including across long SQL sessions.
+	relayCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	p := &publishedPort{listener: l, lease: control, cancel: cancel}
 	p.wg.Add(1)
 	go func() {

@@ -54,7 +54,11 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 		writeJSON(w, 200, map[string]any{"Version": "micropod", "ApiVersion": dockerAPI, "MinAPIVersion": "1.44", "Os": "linux", "Arch": "arm64", "Platform": map[string]string{"Name": "Micropod"}})
 		return nil
 	case path == "micropod/metrics" && method == "GET":
-		writeJSON(w, 200, s.metrics.snapshot())
+		metrics := s.metrics.snapshot()
+		metrics["start_parallelism_limit"] = cap(s.startSlots)
+		metrics["setup_slots_in_use"] = len(s.startSlots)
+		metrics["setup_wait_usec_total"] = s.metrics.setupWaitUS.Load()
+		writeJSON(w, 200, metrics)
 		return nil
 	case path == "micropod/storage" && method == "GET":
 		// All snapshots, writable layers and caches live on this ext4 disk.

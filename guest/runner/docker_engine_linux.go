@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -45,6 +46,7 @@ type dockerContainer struct {
 	removed           bool
 }
 type dockerEngine struct {
+	startSlots chan struct{}
 	metrics    dockerMetrics
 	node       node
 	workspace  string
@@ -183,6 +185,15 @@ func serveEngine(ctx context.Context, n node) error {
 	}
 	g.Close()
 	s := &dockerEngine{node: n, workspace: os.Getenv("MICROPOD_ENGINE_WORKSPACE"), containers: make(map[string]*dockerContainer), execs: make(map[string]*dockerExec)}
+	if raw := os.Getenv("MICROPOD_CI_MAX_STARTING"); raw != "" {
+		limit, err := strconv.Atoi(raw)
+		if err != nil || limit < 0 || limit > 32 {
+			return errors.New("invalid native container start limit")
+		}
+		if limit > 0 {
+			s.startSlots = make(chan struct{}, limit)
+		}
+	}
 	if err := s.recover(); err != nil {
 		return err
 	}
@@ -395,17 +406,36 @@ func (s *dockerEngine) start(c *dockerContainer) (startErr error) {
 		defer cancel()
 		var forwards []*publishedPort
 		launched := false
+		var slotHeld bool
+		releaseStart := func() {
+			if slotHeld {
+				<-s.startSlots
+				slotHeld = false
+			}
+		}
+		defer releaseStart()
 		j := job{Trust: "trusted", Image: c.ImageID}
 		res, runErr := s.node.runProcess(ctx, j, "crun", processHooks{
-			configure: func(podID string, cfg *cri.ContainerConfig) error {
+			configure: func(startCtx context.Context, podID string, cfg *cri.ContainerConfig) error {
+				if s.startSlots != nil {
+					begin := time.Now()
+					select {
+					case s.startSlots <- struct{}{}:
+						slotHeld = true
+						s.metrics.setupWaitUS.Add(time.Since(begin).Microseconds())
+					case <-startCtx.Done():
+						return startCtx.Err()
+					}
+				}
 				var err error
-				forwards, err = s.publish(ctx, c, podID)
+				forwards, err = s.publish(startCtx, c, podID)
 				if err != nil {
 					return err
 				}
 				return c.Config.configure(cfg, mounts)
 			},
 			started: func(id string) {
+				releaseStart()
 				s.mu.Lock()
 				c.RuntimeID = id
 				c.Started = time.Now().UTC()

@@ -60,6 +60,8 @@ The stock CLI speaks to this endpoint without changing the active Docker context
 
 A bind source must resolve beneath the configured exchange directory. The guest pins its opened inode during launch. The trust boundary is the worker account. Select a sibling Apple VM or qualified Kata node for untrusted job code. Trace trusted scheduler jobs with `MICROPOD_OCI_TRACE=1`. On the native Docker socket, `GET /micropod/metrics` reports boot-scoped image hits, scoped cache attachments, prepared pod use and cumulative create/start timings. `GET /micropod/storage` reads ext4 capacity in constant time. `docker stats` reads CRI CPU and memory plus kernel PID, network and block I/O counters. Logs have an 8 MiB per-container limit. Exceeding that limit ends the job with an engine error.
 
+For a dedicated rig that repeatedly receives 32-job bursts, set `MICROPOD_CI_MAX_STARTING=8` before starting its native worker. This limits simultaneous Docker container setup through crun start. Jobs release the slot as soon as their process starts. All 32 can run at once. The default is unrestricted. The variable accepts 0–32, with zero selecting the default. An idle restart applies the setting on the same disk and preserves the caches. The metrics endpoint reports the active limit, occupied slots and cumulative queue wait. The 16-job measurements favored the default.
+
 Run `scripts/qualify_native_worker.sh` to exercise stock clients. Pass `--restart` with an explicit qualification worker home to also check shutdown under load and durable state after reboot. The dated Gamma receipt includes the matched Go runs and independent Cuttlefish checks. [Gamma results](benchmarks/2026-11-21/native-worker.md)
 
 ## Full Docker Engine worker

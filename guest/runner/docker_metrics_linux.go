@@ -4,6 +4,7 @@ import "sync/atomic"
 
 // Boot-scoped totals avoid per-container and per-image metric cardinality.
 type dockerMetrics struct {
+	setupWaitUS                                                       atomic.Int64
 	creates, completions, failures, imageHits, prepared, sharedMounts atomic.Uint64
 	podMS, createMS, startMS                                          atomic.Int64
 }

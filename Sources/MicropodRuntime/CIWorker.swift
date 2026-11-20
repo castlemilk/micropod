@@ -41,6 +41,7 @@ public struct CIWorker: Sendable {
         let resourceKeys = [
             "MICROPOD_CI_CPUS", "MICROPOD_CI_MEMORY_MIB", "MICROPOD_CI_DISK_GIB", "MICROPOD_CI_WORKSPACE",
             "MICROPOD_CI_EXT4_MAX_BATCH_US", "MICROPOD_CI_OCI_TOOLS", "MICROPOD_CI_ENGINE", "MICROPOD_CI_KATA_TOOLS",
+            "MICROPOD_CI_MAX_STARTING",
         ]
         resourceEnvironment = environment.filter { resourceKeys.contains($0.key) }
         directory =
@@ -679,6 +680,12 @@ public struct CIWorker: Sendable {
         if active.nativeOCI == true { options.env.append("MICROPOD_NATIVE_OCI=1") }
         if config.engine == .containerd {
             options.env.append("MICROPOD_ENGINE_API=1")
+            if let raw = resourceEnvironment["MICROPOD_CI_MAX_STARTING"] {
+                guard let limit = Int(raw), (0...32).contains(limit) else {
+                    throw MicropodError.message("MICROPOD_CI_MAX_STARTING must be between 0 and 32")
+                }
+                options.env.append("MICROPOD_CI_MAX_STARTING=" + String(limit))
+            }
             if let workspace = config.workspace { options.env.append("MICROPOD_ENGINE_WORKSPACE=" + workspace) }
         }
         options.entrypoint = ["/bin/sh", "-c"]

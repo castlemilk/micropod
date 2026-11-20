@@ -265,7 +265,7 @@ func kataPrerequisites() error {
 }
 
 type processHooks struct {
-	configure func(string, *cri.ContainerConfig) error
+	configure func(context.Context, string, *cri.ContainerConfig) error
 	started   func(string)
 	output    outputSink
 }
@@ -304,22 +304,25 @@ func (n node) runProcess(ctx context.Context, j job, handler string, hooks proce
 	if err != nil {
 		return res, err
 	}
+	startCtx, finishSetup := context.WithTimeout(ctx, 3*time.Minute)
+	defer finishSetup()
 	if hooks.configure != nil {
-		if err := hooks.configure(p.pod, container); err != nil {
+		if err := hooks.configure(startCtx, p.pod, container); err != nil {
 			return res, err
 		}
 	}
 	create := time.Now()
-	c, err := n.runtime.CreateContainer(ctx, &cri.CreateContainerRequest{PodSandboxId: res.Pod, Config: container, SandboxConfig: pod})
+	c, err := n.runtime.CreateContainer(startCtx, &cri.CreateContainerRequest{PodSandboxId: res.Pod, Config: container, SandboxConfig: pod})
 	if err != nil {
 		return res, err
 	}
 	res.Container = c.ContainerId
 	res.CreateMS = time.Since(create).Milliseconds()
 	start := time.Now()
-	if _, err = n.runtime.StartContainer(ctx, &cri.StartContainerRequest{ContainerId: res.Container}); err != nil {
+	if _, err = n.runtime.StartContainer(startCtx, &cri.StartContainerRequest{ContainerId: res.Container}); err != nil {
 		return res, err
 	}
+	finishSetup()
 	res.StartMS = time.Since(start).Milliseconds()
 	res.SetupMS = time.Since(setup).Milliseconds()
 	if hooks.started != nil {
