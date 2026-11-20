@@ -406,25 +406,38 @@ fn serve_one(mut sock: UnixStream, r: &Registry) -> Result<()> {
             .nth(1)
             .unwrap_or("")
             .trim_start_matches('/');
-        let code = match (request.split_whitespace().next(), route) {
-            (Some("GET"), "status" | "oci/v1/status" | "kernel" | "oci/v1/kernel") => 200,
+        let (code, body) = match (request.split_whitespace().next(), route) {
+            (Some("GET"), "status" | "oci/v1/status") => (200, status(r)),
+            (Some("GET"), "kernel" | "oci/v1/kernel") => (200, kernel_metrics()),
+            (Some("POST"), route) if route.starts_with("oci/v1/go-suites/") => {
+                match route["oci/v1/go-suites/".len()..].split_once('/') {
+                    Some((suite, compiler)) if key(suite) && key(compiler) => {
+                        match Admission::new(r, false) {
+                            Ok(_active) => match super::suite::publish(suite, compiler) {
+                                Ok(Some(publication)) => (200, publication),
+                                Ok(None) => (415, json!({"error":"unsupported parent manifest"})),
+                                Err(e) => (500, json!({"error":e.to_string()})),
+                            },
+                            Err(e) => (409, json!({"error":e.to_string()})),
+                        }
+                    }
+                    _ => (400, json!({"error":"expected a suite key and compiler ID"})),
+                }
+            }
             (Some("POST"), "drain" | "oci/v1/drain") => {
                 let mut c = r.lock().unwrap();
-                if c.servicing != 0 {
+                let code = if c.servicing != 0 {
                     409
                 } else {
                     c.draining = true;
                     200
-                }
+                };
+                drop(c);
+                (code, status(r))
             }
-            _ => 404,
+            _ => (404, status(r)),
         };
-        let body = if code == 200 && matches!(route, "kernel" | "oci/v1/kernel") {
-            kernel_metrics()
-        } else {
-            status(r)
-        }
-        .to_string();
+        let body = body.to_string();
         write!(
             sock,
             "HTTP/1.1 {code} {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",

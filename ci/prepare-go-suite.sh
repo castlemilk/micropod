@@ -20,10 +20,22 @@ envs=(GOENV=off GOTOOLCHAIN=local GOWORK=off 'GOFLAGS=-trimpath -p=2' CGO_ENABLE
       GOTELEMETRY=off GOPROXY=off GOSUMDB=off)
 flags=()
 for setting in "${envs[@]}"; do flags+=(-e "$setting"); done
-key=$( { printf '%s\0' go-suite-v1 "$source_id" "$scope" "$main" "${envs[@]}"; cat "$0" "$suite"; } | shasum -a 256 | cut -d' ' -f1)
+# shellcheck disable=SC2016
+compile='
+    test ! -e /micropod-ci-suite && test ! -L /micropod-ci-suite || { echo "CI output path already exists" >&2; exit 1; }
+    test "$(go list -f "{{.Name}}" "$1")" = main || { echo "Expected exactly one main package" >&2; exit 1; }
+    out=/tmp/micropod-ci-suite
+    mkdir -m 755 "$out"
+    cat > "$out/suite.sh"
+    sh "$out/suite.sh" compile "$out"
+    go build -trimpath -buildvcs=false -o "$out/product" "$1"
+    chmod -R a+rX "$out"
+'
+key=$( { printf '%s\0' go-suite-v2 "$source_id" "$scope" "$main" "${envs[@]}" "$compile"; cat "$suite"; } | shasum -a 256 | cut -d' ' -f1)
 tag="micropod-internal/ci-go-suite:$key"
+publication=null
 result() {
-    printf '{"event":"ci.go.suite","cache":"%s","key":"%s","image":"%s"}\n' "$1" "$key" "$2" >&2
+    printf '{"event":"ci.go.suite","cache":"%s","key":"%s","image":"%s","publication":%s}\n' "$1" "$key" "$2" "$publication" >&2
     printf '%s\n' "$2"
 }
 reuse() {
@@ -40,36 +52,42 @@ exec 9>"$locks/${key:0:3}"
 /usr/bin/lockf -s 9
 reuse && exit 0
 
-# Compile on the named Go stores. BuildKit copies only the products into the original image.
-# Both steps stay in the guest, including the executable bytes.
-volumes=$("${docker[@]}" image inspect --format '{{json .Config.Volumes}}' "$source_id")
-jq -e '(. // {} | keys) | all(. != "/" and . != "/tmp" and . != "/micropod-ci-suite" and
-        (startswith("/micropod-ci-suite/") | not) and (startswith("/tmp/micropod-ci-suite") | not))' <<< "$volumes" >/dev/null || {
+# The compiler and both publication paths run inside the persistent worker.
+info=$("${docker[@]}" image inspect --format '{{json .}}' "$source_id")
+jq -e '(.Config.Volumes // {} | keys) | all(. != "/" and . != "/tmp" and . != "/micropod-ci-suite" and
+        (startswith("/micropod-ci-suite/") | not) and (startswith("/tmp/micropod-ci-suite") | not))' <<< "$info" >/dev/null || {
     echo 'The image declares a volume over a CI output directory' >&2; exit 1;
 }
 compiler=""
-stage="micropod-internal/ci-go-suite-stage:$key"
+stage=""
 parent="micropod-internal/ci-workspace:${source_id#sha256:}"
 cleanup() {
     if [[ -n "$compiler" ]]; then "${docker[@]}" rm -fv "$compiler" >/dev/null || true; fi
-    "${docker[@]}" image rm "$stage" >/dev/null 2>&1 || true
+    if [[ -n "$stage" ]]; then "${docker[@]}" image rm "$stage" >/dev/null 2>&1 || true; fi
 }
 trap cleanup EXIT
-# The shell program and its arguments below run inside the guest.
-# shellcheck disable=SC2016
 compiler=$("$cli" ci create --cache go --cache-scope "$scope" --rm=false --pull=never --network none -i "${flags[@]}" \
-    --entrypoint /bin/sh "$source_id" -ec '
-    test ! -e /micropod-ci-suite && test ! -L /micropod-ci-suite || { echo "CI output path already exists" >&2; exit 1; }
-    test "$(go list -f "{{.Name}}" "$1")" = main || { echo "Expected exactly one main package" >&2; exit 1; }
-    out=/tmp/micropod-ci-suite
-    mkdir -m 755 "$out"
-    cat > "$out/suite.sh"
-    sh "$out/suite.sh" compile "$out"
-    go build -trimpath -buildvcs=false -o "$out/product" "$1"
-    chmod -R a+rX "$out"
-' sh "$main")
+    --label "io.micropod.ci.go-suite.compiler=$key" --entrypoint /bin/sh "$source_id" -ec "$compile" sh "$main")
 "${docker[@]}" start -ai "$compiler" < "$suite" >&2
 [[ "$("${docker[@]}" inspect --format '{{.State.Status}} {{.State.ExitCode}}' "$compiler")" == "exited 0" ]]
+socket="$(dirname "${endpoint#unix://}")/oci.sock"
+if [[ -S "$socket" ]] && jq -e '.Descriptor.mediaType == "application/vnd.oci.image.manifest.v1+json" and
+    .Descriptor.digest == .Id' <<< "$info" >/dev/null; then
+    reply=$(curl -sS --unix-socket "$socket" -X POST -w '\n%{http_code}' "http://localhost/oci/v1/go-suites/$key/$compiler")
+    body=${reply%$'\n'*}
+    case "${reply##*$'\n'}" in
+        200)
+            publication=$(jq -ce 'select(.method == "oci-layer" and (.image | test("^sha256:[0-9a-f]{64}$")))' <<< "$body")
+            image_id=$("${docker[@]}" image inspect --format '{{.Id}} {{index .Config.Labels "io.micropod.ci.go-suite"}}' "$tag")
+            [[ "$image_id" == "$(jq -r '.image' <<< "$publication") $key" ]] || { echo 'Published suite identity mismatch' >&2; exit 1; }
+            result miss "${image_id%% *}"
+            exit 0 ;;
+        404|415) ;; # Previous worker version or an unsupported manifest.
+        *) echo "Suite publication failed: $body" >&2; exit 1 ;;
+    esac
+fi
+stage="micropod-internal/ci-go-suite-stage:$key"
+publication='{"method":"buildkit"}'
 "${docker[@]}" commit "$compiler" "$stage" >/dev/null
 "${docker[@]}" image tag "$source_id" "$parent"
 "${docker[@]}" buildx build --builder default --load --quiet --provenance=false --tag "$tag" \

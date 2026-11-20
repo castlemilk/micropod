@@ -145,6 +145,16 @@ def store(path, run, kind, record):
                        b.value->>'mode' AS mode, b.value->>'clients' AS clients, b.value->>'seconds' AS seconds,
                        b.value AS batch
                 FROM measurements, json_each(receipt,'$.batches') b WHERE kind='go-ci-suite';
+            CREATE VIEW IF NOT EXISTS go_suite_layer_publications AS
+                SELECT run, p.value->>'trial' AS trial, p.value->>'mode' AS publisher,
+                       p.value->>'cache' AS cache, p.value->>'wall_s' AS seconds,
+                       p.value->>'source' AS source, p.value->>'image' AS image,
+                       p.value->>'$.publication.layer' AS layer, p.value->>'$.publication.layer_reused' AS reused,
+                       p.value->>'$.publication.blob_bytes_sent' AS blob_bytes_sent,
+                       p.value->>'$.publication.import_bytes' AS import_bytes,
+                       p.value->>'$.publication.copy_ms' AS copy_ms, p.value->>'$.publication.canonical_ms' AS canonical_ms,
+                       p.value->>'$.publication.compress_ms' AS compress_ms, p.value->>'$.publication.load_ms' AS load_ms
+                FROM measurements, json_each(receipt,'$.preparations') p WHERE kind='go-suite-layer';
             CREATE VIEW IF NOT EXISTS go_suite_jobs AS
                 SELECT run, engine, mode, round, clients, seconds AS batch_s, j.value->>'job' AS job,
                        j.value->>'tests' AS tests, j.value->>'sha256' AS product,

@@ -9,6 +9,9 @@ use std::{
 };
 #[cfg(target_os = "linux")]
 mod service;
+#[cfg(any(target_os = "linux", test))]
+#[cfg_attr(all(test, not(target_os = "linux")), allow(dead_code))]
+mod suite;
 
 const ENV_KEYS: &[&str] = &[
     "GOENV",

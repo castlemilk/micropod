@@ -55,6 +55,7 @@ def compare(args, result, checkout):
                     )
                     source = source.strip()
                     image, prep = source, 0
+                    publication = None
                     if mode == "suite":
                         p, prep = measure(
                             subprocess.run,
@@ -74,11 +75,10 @@ def compare(args, result, checkout):
                                 f"Expected one new revision preparation: {events}"
                             )
                         image = p.stdout.strip()
-                        tags += [
-                            "micropod-internal/ci-go-suite:" + events[0]["key"],
-                            "micropod-internal/ci-workspace:"
-                            + source.removeprefix("sha256:"),
-                        ]
+                        publication = events[0].get("publication") or {"method": "buildkit"}
+                        tags.append("micropod-internal/ci-go-suite:" + events[0]["key"])
+                        if publication["method"] == "buildkit":
+                            tags.append("micropod-internal/ci-workspace:" + source.removeprefix("sha256:"))
                     handle, handle_s = measure(
                         call, [str(script), "prepare", image, args.scope]
                     )
@@ -127,6 +127,7 @@ def compare(args, result, checkout):
                                 "seconds": total,
                                 "snapshot_s": snapshot,
                                 "prepare_s": prep,
+                                "publication": publication,
                                 "handle_s": handle_s,
                                 "session_s": opened,
                                 "jobs_s": wall,
