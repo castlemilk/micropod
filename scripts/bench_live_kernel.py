@@ -258,7 +258,7 @@ def measure(args, receipt, runner=None, read_parent=None):
         from guest_cache_workload import measure_packages
         receipt["package_caches"] = {}
         measure_packages(cmd, args.package_image, info["Architecture"], kernel, fingerprint, args.clients, args.rounds,
-                         receipt["package_caches"])
+                         receipt["package_caches"], warm_bytecode=getattr(args, "warm_bytecode", False))
         if canonical:
             packages = receipt["package_caches"]
             local_id = packages["image_id"]
@@ -429,10 +429,13 @@ def main():
     p.add_argument("--allocation", help="ID of an existing Micropod rootless Docker sandbox")
     p.add_argument("--image", default="alpine:3.20", help="Already-pulled native Alpine image or digest")
     p.add_argument("--package-image", help="Preloaded native OCI image with Go, npm, Node and Python for offline container jobs")
+    p.add_argument("--warm-bytecode", action="store_true", help="Prime and retain the Python harness bytecode on both engines")
     p.add_argument("--clients", nargs="+", type=int, default=[1, 4, 8, 16])
     p.add_argument("--rounds", type=int, default=5)
     p.add_argument("--json", type=Path)
     args = p.parse_args()
+    if args.warm_bytecode and (not args.package_image or args.engine not in {"rig-pair", "rig-matrix", "micropod-worker", "orbstack", "linux-docker"}):
+        p.error("--warm-bytecode requires a local package workload")
     if not (1 <= args.rounds <= 50 and all(1 <= n <= 64 for n in args.clients) and len(set(args.clients)) == len(args.clients)):
         p.error("Rounds must be 1..50 and distinct client levels 1..64")
     if args.expected_revision and (args.engine not in {"rig-pair", "rig-matrix", "micropod"}
@@ -466,8 +469,13 @@ def main():
         record["passed"] = True
     except Exception as exc:
         record.update(passed=False, error=str(exc))
-    if args.json:
-        args.json.write_text(json.dumps(record, indent=2) + "\n")
+    if args.json or args.engine in {"rig-pair", "rig-matrix"}:
+        data = (json.dumps(record, indent=2) + "\n").encode()
+        if args.json:
+            args.json.write_bytes(data)
+        if args.engine in {"rig-pair", "rig-matrix"}:
+            from ci_benchmark_store import DEFAULT_DB, store_receipt
+            store_receipt(DEFAULT_DB, "apple-pair", data)
     print(json.dumps(record, separators=(",", ":")))
     # The outer Micropod client needs a failed inner receipt as well.
     return 0 if record["passed"] or args.engine == "inner" else 1

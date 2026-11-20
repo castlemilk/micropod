@@ -66,6 +66,8 @@ public enum SandboxVM {
         /// Host directory holding `micropod-guest`, shared read-only at
         /// ``SandboxGuestTool/guestDirectory`` (SandboxService sandboxes).
         public var guestTool: URL?
+        var ciWorkspace: String?
+        var ciExt4MaxBatchUS: Int?
         public var rootlessDocker = false
         public var tmpfsTmp = true
         public var tmpSizeMiB: UInt64?
@@ -192,11 +194,17 @@ public enum SandboxVM {
             try clone(baseDisk, to: rootfsPath)
         }
         let imageConfig = try await image.config(for: .current).config
-        let rootfs = Containerization.Mount.block(format: "ext4", source: rootfsPath.path, destination: "/")
+        // Adaptive batching is the mixed CI default. Dedicated workers can tune the fsync wait
+        // while retaining ext4 write barriers and ordered journaling on their journaled disks.
+        let rootfs = Containerization.Mount.block(
+            format: "ext4", source: rootfsPath.path, destination: "/",
+            options: options.ciExt4MaxBatchUS.map { ["max_batch_time=\($0)"] } ?? [])
         trace.mark("clone")
 
         var kernel = Kernel(path: try kernelURL(), platform: .linuxArm)
         kernel.commandLine.kernelArgs += kernelArgs
+        // The Apple guest kernel builds PSI with CONFIG_PSI_DEFAULT_DISABLED.
+        if ciWorker != nil { kernel.commandLine.kernelArgs.append("psi=1") }
         if let extra = ProcessInfo.processInfo.environment["MICROPOD_SANDBOX_KERNEL_ARGS"] {
             kernel.commandLine.kernelArgs += extra.split(separator: " ").map(String.init)
         }
@@ -208,12 +216,15 @@ public enum SandboxVM {
         // One vmnet network per sandbox. Host mode (published ports or
         // exposed host ports without --allow-net) reaches the host and
         // nothing else.
-        let vmnet = try options.networkMode.map {
-            try SandboxNetwork(mode: $0, pinBridge: options.rootlessDocker || ciWorker != nil)
-        }
-        if let vmnet {
-            await didOwnNetwork(vmnet)
-            try vmnet.waitUntilReady()
+        let vmnet: SandboxNetwork?
+        if ciWorker != nil, let mode = options.networkMode {
+            vmnet = try await SandboxNetwork.workerNetwork(mode: mode)
+        } else {
+            vmnet = try options.networkMode.map { try SandboxNetwork(mode: $0, pinBridge: options.rootlessDocker) }
+            if let vmnet {
+                await didOwnNetwork(vmnet)
+                try vmnet.waitUntilReady()
+            }
         }
         let network = vmnet.map { (interface: $0.interface, gateway: $0.gateway.description) }
         if vmnet != nil { trace.mark("network") }
@@ -281,8 +292,11 @@ public enum SandboxVM {
             }
             if let ciWorker {
                 // The upstream engine administers its own dedicated Linux VM. Its only integration
-                // with macOS is this outbound socket. No host files or devices are shared.
+                // with macOS by default is this outbound socket. A configured checkout is shared at its Mac path.
                 // The configured resources are the whole VM's budget, including the guest agent.
+                if let path = options.ciWorkspace {
+                    cfg.mounts.append(.share(source: path, destination: path))
+                }
                 cfg.cpuOverhead = 0
                 cfg.memoryOverhead = 0
                 cfg.process.capabilities = .allCapabilities

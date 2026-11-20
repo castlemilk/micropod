@@ -22,7 +22,7 @@ On a self-hosted runner, install the signed binary at a stable path and run `mic
 
 `task ci-go` runs vet, race tests, Testcontainers with PostgreSQL and the built HTTP service. `task ci-npm` builds, tests, runs and changes a staged copy of the Node app. `task ci` runs both pipelines concurrently. `task ci-shim` runs the existing Apple shim integration.
 
-For the Micropod CLI, SDK or API, start the worker under the account serving the request and enable the `ci` runtime. Use `micropod runtime enable ci` and `micropod run --runtime ci nginx`. A rig can select `MICROPOD_DEFAULT_RUNTIME=ci` for its Micropod service. The Micropod runtime selector routes container operations. Use the Docker endpoint for builds, image management, networks, volumes and Compose. Stock clients can reuse `DOCKER_HOST` throughout a pipeline.
+For the Micropod CLI, SDK or API, start the worker under the account serving the request and enable the `ci` runtime. Use `micropod runtime enable ci` and `micropod run --runtime ci nginx`. A rig can select `MICROPOD_DEFAULT_RUNTIME=ci` for its Micropod service. The Micropod runtime selector routes container operations. Use the Docker endpoint for builds, image management, networks, volumes and Compose. Stock clients can reuse `DOCKER_HOST` throughout a pipeline. `micropod ci docker` sends the stock Docker CLI and its plugins to the worker without changing the Mac's active Docker context. For example, `micropod ci docker compose up -d`, `micropod ci docker buildx ls` and `micropod ci docker events` all use the worker endpoint.
 
 ## Storage and trust
 
@@ -32,6 +32,8 @@ For the Micropod CLI, SDK or API, start the worker under the account serving the
 | `MICROPOD_CI_CPUS` | 4 | VM vCPUs |
 | `MICROPOD_CI_MEMORY_MIB` | 4096 | VM memory in MiB |
 | `MICROPOD_CI_DISK_GIB` | 32 | Logical guest ext4 capacity in GiB |
+| `MICROPOD_CI_EXT4_MAX_BATCH_US` | Adaptive (15,000 µs) | Maximum ext4 wait for synchronous writers to share a commit. A dedicated worker can select zero for immediate writes. |
+| `MICROPOD_CI_WORKSPACE` | Unset | Optional checkout directory shared read/write at its absolute path with VirtioFS. Select it before first boot. |
 
 Set resources before first boot. Later starts reuse the recorded configuration. `micropod ci status` returns the boot UUID, worker and supervisor IDs, Docker daemon ID, guest IP, cgroup driver and memory. Pause runner intake and finish active builds before `micropod ci stop`. The worker checks for running containers and closes the public socket to new connections during shutdown.
 
@@ -51,15 +53,55 @@ micropod ci run --cache go --cache-scope backend -e GOFLAGS=-trimpath golang:1.2
 
 Preserve `-trimpath` alongside any other Go build flags when checkouts have different absolute paths. For an image that runs as UID 1000, initialize its new scope once with the same cache flags and run `chown 1000:1000 /cache/npm` as root. For Go, set the owner of both `/cache/gomod` and `/cache/gobuild`. Use a consistent job UID for each scope.
 
-New worker disks use ordered ext4 journaling. Existing workers reopen their original disk and retain its filesystem format. The first cold start fetches the native Linux image and prepares the disk once. Warm launches use the socket verified for the live supervisor. The CPU and memory settings cover the whole VM, including its guest agent.
+New worker disks use ordered ext4 journaling and adaptive synchronous write batching. On Gamma, immediate writes improved two direct-shell Go trials, while adaptive batching had lower Go and npm medians in a matched mixed-package trial. To provision a dedicated worker with immediate writes, set `MICROPOD_CI_EXT4_MAX_BATCH_US=0` before first boot. Both settings retain ordered writes and flush barriers on journaled disks. [Linux ext4 mount options](https://docs.kernel.org/admin-guide/ext4.html)
 
-The trust boundary is the runner account and its dedicated VM. Docker clients can administer the guest, including its shared cache. Place mutually untrusted repositories in isolated sandboxes. The guest exports its own engine socket. Docker bind sources resolve inside Linux. Stream checkouts as build contexts or copy them into a container. Published ports bind inside the worker VM and its guest IP is available in the status output. Automatic macOS loopback forwarding, arbitrary host-path binds and desktop distribution management remain open parity work.
+Existing workers reopen their original disk and retain its filesystem format. The first cold start fetches the native Linux image and prepares the disk once. Warm launches use the socket verified for the live supervisor. The CPU and memory settings cover the whole VM, including its guest agent.
+
+The trust boundary is the runner account and its dedicated VM. Docker clients can administer the guest, including its shared cache. Place mutually untrusted repositories in isolated sandboxes. The guest exports its own engine socket. Docker bind sources resolve inside Linux. Stream checkouts as build contexts or copy them into a container. Published ports bind inside the worker VM and its guest IP is available in the status output. For Compose projects with bind mounts, set `MICROPOD_CI_WORKSPACE` to a checkout root under `/Users`, `/Volumes` or `/private/tmp` when provisioning the worker. Linux sees that tree at the same physical path as macOS, so relative Compose binds work and edits are visible in both directions. Every Docker administrator of that worker can read and write the shared directory. Use a Docker named volume for the package stores so compiled objects and dependency archives stay on native ext4. Clients on macOS reach a published TCP port at the guest IP from `ci status`.
+
+## Network recovery and profiling
+
+The supervisor checks for the worker's local IPv4 gateway on macOS every five seconds and periodically probes the first hop from Linux. When that link disappears, it reconnects the worker's virtual network device, restores the guest route and checks the gateway with ARP. The guest keeps its addresses, processes, Docker socket and disk. Failed repairs retry with a delay up to one minute. A runner operator can request an immediate reconnect with `micropod ci repair-network`.
+
+`micropod ci metrics` reads the Docker inventory and reports active containers per cache volume, scope, boot ID and the latest network repair. `micropod ci metrics --usage` also asks Docker for volume bytes and BuildKit's record and use counts. Shared and private BuildKit bytes are reported separately. A mounted volume measures attachment. The offline benchmarks verify reuse by checking package output, compiler invocations and stable payload inodes.
+
+Docker Buildx also records cache hits for individual Dockerfile steps. To inspect an existing build, use its reference from `micropod ci docker buildx history ls`. The importer retains each distinct Dockerfile step’s position, digest, timestamps and whether it ran, hit the cache, failed or is pending. Dockerfile commands, console logs, base resolution and image exports stay outside the step counts. The local Apple qualification checks a cold build, an unchanged repeat and a changed source file against actual BuildKit events. [Docker build progress formats](https://docs.docker.com/reference/cli/docker/buildx/build/#set-type-of-progress-output---progress)
+
+```sh
+micropod ci docker buildx history logs --progress rawjson "$BUILD_REF" 2>&1 | \
+  python3 scripts/ci_benchmark_store.py buildkit-trace -
+sqlite3 "$HOME/.micropod/benchmarks/measurements.sqlite3" \
+  'SELECT run, operation, outcome, count(*) FROM build_steps GROUP BY run, operation, outcome'
+```
+
+For disposable work files, `micropod ci run --scratch-mib 256 ...` mounts a size-limited tmpfs at `/tmp`. Files use the job's memory budget and disappear on exit. A job that relies on files already in its image's `/tmp` should use the ordinary writable layer. For CI scripts driven by CPython, `--cache python --cache-scope NAME` keeps compiled imports in one guest volume using `PYTHONPYCACHEPREFIX`. Use a scope dedicated to the trusted source revision and pinned toolchain. Reusing bytecode reduces repeated import work. The measured end-to-end benefit varied across runs. The Go, npm and Python stores can be selected together. [Python bytecode configuration](https://docs.python.org/3/using/cmdline.html#envvar-PYTHONPYCACHEPREFIX)
+
+The local profiler compares fresh OCI containers on overlayfs, tmpfs scratch, shared Python bytecode and already-prepared Go processes inside the same VM. It keeps the Go command, module and build caches fixed. The JSON records include Docker lifecycle events, guest job phases, cgroup CPU throttling, pressure stall times, page faults, disk sectors, flushes and package cache inventories. `--kernel-trace` adds a privileged observer inside the trusted VM and records aggregate tracepoints in a dedicated tracefs instance. The observer removes its instance on exit. Timed comparisons against other engines run separately from this instrumentation. [Linux pressure stall counters](https://docs.kernel.org/accounting/psi.html)
+
+```sh
+python3 scripts/profile_ci_worker.py --image "$PACKAGE_IMAGE" --clients 1 4 8 16 32 \
+  --rounds 5 --kernel-trace --out "$HOME/.micropod/benchmarks/profiles"
+python3 scripts/ci_benchmark_store.py apple-pair path/to/paired.json
+python3 scripts/ci_benchmark_store.py go-kernel-profile path/to/profile.json.gz
+micropod ci metrics --usage | python3 scripts/ci_benchmark_store.py worker-metrics -
+sqlite3 "$HOME/.micropod/benchmarks/measurements.sqlite3" \
+  'SELECT cache_workload, engine, workload, round(seconds,3) FROM paired_batches JOIN paired_runs USING(run) WHERE clients=16'
+```
+
+Use the native ARM64 image from the Ubuntu benchmark artifact or build `scripts/bench_cache_image` once. Each run appends a receipt to the local SQLite store and writes its raw JSON and Perfetto/Chrome trace. The database views `go_batches`, `go_phases`, `kernel_samples` and `paired_batches` retain the run ID for comparisons across revisions. `kernel_batches` reports flushes, write bytes, ext4 syncs and stall time between counter samples inside each timed batch. Batches shorter than two sample intervals can have missing deltas. `cache_stores` exposes the observed live volume sizes and attachment counts. `pipeline_stages` holds per-engine application stage times. The macOS benchmark flag `--warm-bytecode` primes the same Python cache on each engine and checks the identities and sizes of its retained files.
+
+To repeat the filesystem trial, run the following on a physical Mac with a signed CLI. It alternates the two mount settings in its own qualification VM, runs direct-shell Go and the same offline Go/npm workload used in the OrbStack comparison, and restores the initial setting. Add `--repair-network` to exercise automatic route recovery while Docker Compose serves a named volume through a published port and writes back to a shared Mac checkout.
+
+```sh
+python3 scripts/qualify_ci_worker.py apple-worker --packages --profile-ext4 --clients 16 \
+  --rounds 7 --micropod "$MICROPOD_BIN" --json /tmp/micropod-ext4.json
+```
 
 ## Qualification
 
-Gamma's same-Mac results include warm launches, concurrent npm and Go jobs, the complete application pipeline and recovery of a persistent worker disk. [Apple Silicon and raw Ubuntu comparison](benchmarks/2026-11-20/gamma-ci-worker.md)
+Gamma’s latest run measures DNS recovery with running containers, the ext4 tuning, cache reuse, the same-Mac OrbStack comparison and a kernel profile through 32 concurrent jobs. [Results and trace](benchmarks/2026-11-20/worker-profile.md) · [Earlier Apple Silicon and raw Ubuntu comparison](benchmarks/2026-11-20/gamma-ci-worker.md)
 
-PRs touching the worker run one short Linux guest integration alongside the existing checks. The manual qualification runs five rounds at 1, 4, 8 and 16 clients. It verifies guest-versus-container boot IDs, distinct PID and mount namespaces, actual CPU and memory quotas, both streams and exit codes, bridge DNS, package payload inodes, and image, volume and offline BuildKit cache reuse after restart. The native Ubuntu Docker run uses the same GitHub allocation and exported package image. Manual qualifications also copy those Go, Node and npm binaries out of the image and run the offline workspaces as ordinary Ubuntu processes. The raw process clock measures the package command. Its fixture setup and product verification run outside that clock. Container timings also include the Docker client, container launch, checkout creation, output verification and teardown. The full pipeline records per-stage wall times and alternates engine order across three warm passes.
+The worker qualification workflow runs only when explicitly dispatched. Local Apple comparisons and qualification runs append their receipts to the runner’s SQLite database. The full qualification runs five rounds at 1, 4, 8 and 16 clients. It verifies guest-versus-container boot IDs, distinct PID and mount namespaces, actual CPU and memory quotas, both streams and exit codes, bridge DNS, package payload inodes, and image, volume and offline BuildKit cache reuse after restart. The native Ubuntu Docker run uses the same GitHub allocation and exported package image. Manual qualifications also copy those Go, Node and npm binaries out of the image and run the offline workspaces as ordinary Ubuntu processes. The raw process clock measures the package command. Its fixture setup and product verification run outside that clock. Container timings also include the Docker client, container launch, checkout creation, output verification and teardown. The full pipeline records per-stage wall times and alternates engine order across three warm passes.
 
 On 20 November 2026, the Micropod guest fixture ran Docker 29.9.3 on a GitHub-hosted four-vCPU ARM64 Ubuntu 24.04.5 VM with the Azure kernel. The same allocation ran native Docker 28.0.4 and bare npm and Go. Each value is the median elapsed time for a whole batch over five rounds. Every package job created a fresh workspace and used its engine's warm offline cache. All three paths used Node 24.22.3, npm 11.19.1 and Go 1.26.11 from the same ARM64 image.
 

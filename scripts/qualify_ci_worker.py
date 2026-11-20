@@ -3,6 +3,7 @@
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
+import io
 import json
 import os
 from pathlib import Path
@@ -104,29 +105,105 @@ def bare_packages(host, package, home, env, args, expected):
     return record
 
 
+def qualify_network_recovery(cli, docker, service, initial):
+    # This caller owns a disposable VM, its host network namespace and the sentinel container.
+    cid = docker("inspect", "--format", "{{.Id}}", service).stdout.strip()
+    gateway = initial["guestAddress"].rsplit(".", 1)[0] + ".1"
+    probe = ["exec", service, "sh", "-ec", "timeout 4 nslookup registry-1.docker.io >/dev/null; "
+             "timeout 6 wget -qO /dev/null https://example.org; cat /proc/sys/kernel/random/boot_id"]
+    require(docker(*probe).stdout.strip().lower() == initial["boot"].lower(), "Initial DNS/HTTPS probe failed")
+    previous = json.loads(cli("metrics").stdout).get("lastNetworkRepair")
+    docker("run", "--rm", "--pull=never", "--network", "host", "--cap-add", "NET_ADMIN", ALPINE,
+           "ip", "route", "del", "default", "via", gateway)
+    start = time.monotonic()
+    require(docker(*probe, check=False).returncode != 0, "Injected route loss did not interrupt egress")
+    deadline = start + 100
+    while time.monotonic() < deadline:
+        metrics = json.loads(cli("metrics").stdout)
+        repair = metrics.get("lastNetworkRepair") or {}
+        if (repair != previous and repair.get("instance") == initial["instance"]
+                and repair.get("cause") in ("guest-link-unreachable", "host-gateway-missing", "retry")
+                and not repair.get("error") and docker(*probe, check=False).returncode == 0):
+            break
+        time.sleep(1)
+    else:
+        raise ValueError("The worker did not restore DNS and HTTPS automatically")
+    seconds = round(time.monotonic() - start, 3)
+    manual = json.loads(cli("repair-network").stdout)
+    require(docker(*probe).stdout.strip().lower() == initial["boot"].lower()
+            and json.loads(cli("status").stdout) == initial
+            and docker("inspect", "--format", "{{.Id}}", service).stdout.strip() == cid,
+            "A network repair changed the container, supervisor, daemon or kernel")
+    return dict(seconds=seconds, automatic=repair, requested=manual, container=cid, same_kernel=True)
+
+
+def qualify_compose_recovery(cli, docker, checkout, token, worker):
+    # The Mac and Compose see the same checkout path. The token also travels through
+    # a Docker volume, which lives in the worker and backs the published HTTP response.
+    value = uuid.uuid4().hex
+    (checkout / "input").write_text(value)
+    serve = ("set -eu; cp /src/input /data/value; cp /src/input /src/output; "
+             "while :; do { printf 'HTTP/1.0 200 OK\\r\\nContent-Length: 32\\r\\n\\r\\n'; "
+             "cat /data/value; } | nc -l -p 8080; done")
+    project = checkout / "compose.yaml"
+    project.write_text(json.dumps({"services": {"web": {"image": ALPINE, "command": ["sh", "-ec", serve],
+        "volumes": [".:/src", "state:/data"], "ports": ["0:8080"]}}, "volumes": {"state": {}}}))
+
+    def compose(*args):
+        return cli("docker", "compose", "--project-name", token, "--file", str(project), *args)
+
+    def verify_files_and_port():
+        port = compose("port", "web", "8080").stdout.splitlines()[0].rsplit(":", 1)[1]
+        body = command("curl", "--noproxy", "*", "--retry", "4", "--retry-connrefused", "--max-time", "6",
+                       "-fsS", f"http://{worker['guestAddress']}:{port}/value").stdout
+        require(body == value and (checkout / "output").read_text() == value,
+                "The shared checkout, named volume or Mac-to-guest published port failed")
+
+    try:
+        compose("up", "-d", "--pull", "never")
+        cid = compose("ps", "-q", "web").stdout.strip()
+        require(cid, "Compose did not start the service")
+        verify_files_and_port()
+        record = qualify_network_recovery(cli, docker, cid, worker)
+        verify_files_and_port()
+        require(compose("ps", "-q", "web").stdout.strip() == cid, "Compose service changed during repair")
+        return dict(record, compose_volume=True, host_bind_roundtrip=True, host_to_published_port=True)
+    finally:
+        compose("down", "--volumes")
+
+
+def pipeline_phase(name, endpoint, phase, result, home, env, token):
+    phase_log = home / (name + "-" + phase + ".jsonl")
+    started = time.perf_counter()
+    output = command("bash", str(ROOT / "ci/worker-pipeline.sh"), "all", endpoint,
+                     env=dict(env, MICROPOD_CI_STAGE_TIMINGS=str(phase_log),
+                              MICROPOD_CI_SAMPLE_IMAGE=token + "-samples"), timeout=600, check=False)
+    seconds = round(time.perf_counter() - started, 3)
+    stages = [json.loads(line) for line in phase_log.read_text().splitlines()] if phase_log.exists() else []
+    if output.returncode or len(stages) != 5 or any(code for _, _, code in stages):
+        failed = dict(engine=name, phase=phase, seconds=seconds, exit=output.returncode, stages=stages,
+                      stdout=output.stdout[-2500:], stderr=output.stderr[-1200:])
+        result.setdefault("pipeline_failures", []).append(failed)
+        raise ValueError(f"{name} {phase} pipeline failed: {failed}")
+    result.setdefault("pipeline_stages_seconds", {}).setdefault(name, {})[phase] = {
+        stage: wall for stage, wall, _ in stages}
+    print(f"{name} {phase} Go and npm pipelines: {seconds:.3f}s", file=sys.stderr, flush=True)
+    return seconds
+
+
 def run_pipelines(engines, rounds, result, home, env, token):
     timings = result["pipeline_seconds"] = {name: {} for name, _ in engines}
     for index in range(rounds + 1):
         phase = "first" if index == 0 else f"warm_{index}"
         order = engines if index % 2 == 0 else reversed(engines)
         for name, endpoint in order:
-            started = time.perf_counter()
-            phase_log = home / (name + "-" + phase + ".jsonl")
-            command("bash", str(ROOT / "ci/worker-pipeline.sh"), "all", endpoint,
-                    env=dict(env, MICROPOD_CI_STAGE_TIMINGS=str(phase_log),
-                             MICROPOD_CI_SAMPLE_IMAGE=token + "-samples"), timeout=600)
-            stages = [json.loads(line) for line in phase_log.read_text().splitlines()]
-            require(len(stages) == 5 and all(code == 0 for _, _, code in stages), "Incomplete pipeline stages")
-            result.setdefault("pipeline_stages_seconds", {}).setdefault(name, {})[phase] = {
-                stage: seconds for stage, seconds, _ in stages}
-            timings[name][phase] = round(time.perf_counter() - started, 3)
-            print(f"{name} {phase} Go and npm pipelines: {timings[name][phase]:.3f}s", file=sys.stderr, flush=True)
+            timings[name][phase] = pipeline_phase(name, endpoint, phase, result, home, env, token)
     for series in timings.values():
         series["warm"] = statistics.median(series[f"warm_{n}"] for n in range(1, rounds + 1))
     result["pipelines"] = ["Go vet, race and Testcontainers PostgreSQL", "npm tests, source edit and rebuild"]
 
 
-def qualify(args, result, home):
+def qualify(args, result, home, checkout=None):
     token = "mp-ci-" + uuid.uuid4().hex
     outer = token + "-guest"
     disk = token + "-disk"
@@ -137,6 +214,8 @@ def qualify(args, result, home):
     env = dict(os.environ, MICROPOD_CI_HOME=str(home))
     for key in ("DOCKER_CONTEXT", "DOCKER_CERT_PATH", "DOCKER_TLS_VERIFY", "BUILDX_BUILDER"):
         env.pop(key, None)
+    if checkout is not None:
+        env["MICROPOD_CI_WORKSPACE"] = str(checkout)
     apple = args.profile == "apple-worker"
     if apple:
         require(platform.system() == "Darwin" and platform.machine() == "arm64", "Expected Apple Silicon")
@@ -296,6 +375,10 @@ def qualify(args, result, home):
 
         if apple and opts.package_image:
             result["cli_caches"] = warm_cli_caches(cli, opts.package_image, token, max(args.clients), first["boot"])
+            if args.profile_ext4:
+                from ci_worker_ext4_profile import profile_ext4
+                result["ext4"] = profile_ext4(cli, docker, ALPINE, opts.package_image, token,
+                    result["cli_caches"]["seed"]["lock"], home, first, max(args.clients), args.rounds)
         require(identity()["instance"] == first["instance"], "The supervisor restarted during the warm batches")
 
         # A user-defined bridge and a fresh container resolving the service name exercise guest DNS.
@@ -304,6 +387,8 @@ def qualify(args, result, home):
                r"""while :; do printf 'HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nready' | nc -l -p 8080; done""")
         require(docker("run", "--rm", "--network", net, ALPINE, "wget", "-qO-", "http://" + service + ":8080/").stdout.strip() == "ready",
                 "The service was unreachable")
+        if apple and args.repair_network:
+            result["network_recovery"] = qualify_compose_recovery(cli, docker, checkout, token, first)
         if apple:
             require(cli("stop", check=False).returncode != 0, "Stopped a worker with an active service")
         docker("rm", "-f", service)
@@ -317,13 +402,25 @@ def qualify(args, result, home):
             f"RUN --network=none --mount=type=cache,id={token},target=/cache "
             f"if grep -qx seed /revision; then echo {token} > /cache/proof; "
             f"else grep -qx {token} /cache/proof; fi\n")
-        def build(revision):
+        def build(revision, phase):
             (context / "revision").write_text(revision + "\n")
-            docker("build", "-t", tag, str(context))
+            if apple:
+                from ci_benchmark_store import DEFAULT_DB, read_buildkit_trace, store
+                output = cli("docker", "buildx", "build", "--load", "--progress=rawjson", "-t", tag, str(context))
+                run, trace = read_buildkit_trace(io.BytesIO((output.stderr or output.stdout).encode()))
+                store(DEFAULT_DB, run, "buildkit-trace", trace)
+                result.setdefault("build_traces", {})[phase] = dict(run=run, **trace)
+                expected = "cached" if phase == "repeat" else "executed"
+                require(any(s["operation"] == "RUN" and s["outcome"] == expected for s in trace["steps"]),
+                        f"Expected a {expected} RUN step in the {phase} build")
+            else:
+                docker("build", "-t", tag, str(context))
             require(docker("run", "--rm", tag, "cat", "/revision").stdout.strip() == revision,
                     "The build returned a stale layer")
 
-        build("seed")
+        build("seed", "seed")
+        if apple:
+            build("seed", "repeat")
         stop()
         started = time.perf_counter()
         second = start()
@@ -340,7 +437,7 @@ def qualify(args, result, home):
             cache["restart_reused_payloads"] = True
         require(docker("run", "--rm", "--pull=never", "-v", volume + ":/cache:ro", ALPINE, "cat", "/cache/proof").stdout.strip() == token,
                 "Image or named volume did not survive restart")
-        build("changed")
+        build("changed", "edit")
         if args.pipelines:
             engines = [("worker", uri)]
             if peer_uri:
@@ -410,6 +507,8 @@ def main():
     p.add_argument("--package-image")
     p.add_argument("--packages", action="store_true", help="Build one shared offline toolchain for guest and native Ubuntu")
     p.add_argument("--orbstack-socket")
+    p.add_argument("--profile-ext4", action="store_true", help="Compare ext4 journal batching in the disposable Apple worker")
+    p.add_argument("--repair-network", action="store_true", help="Exercise live route recovery in the disposable Apple worker")
     p.add_argument("--ubuntu-bundle", type=Path,
                    help="Write the native reference and package image on Ubuntu, or use them for an Apple pair")
     p.add_argument("--pipelines", action="store_true", help="Run the normal Go and npm CI entry points")
@@ -417,6 +516,10 @@ def main():
                    help="Warm passes of the full application pipelines per engine")
     p.add_argument("--json", required=True, type=Path)
     args = p.parse_args()
+    if args.profile_ext4 and (args.profile != "apple-worker" or not (args.packages or args.package_image or args.orbstack_socket)):
+        p.error("--profile-ext4 requires an Apple worker and its package toolchain")
+    if args.repair_network and args.profile != "apple-worker":
+        p.error("--repair-network requires a disposable Apple worker")
     if args.ubuntu_bundle and not ((args.profile == "linux-guest" and args.packages) or
                                   (args.profile == "apple-worker" and args.orbstack_socket)):
         p.error("--ubuntu-bundle requires --packages on Ubuntu or --orbstack-socket on the Mac")
@@ -428,6 +531,9 @@ def main():
         try:
             if args.profile == "orbstack-only":
                 qualify_orbstack(args, record, home)
+            elif args.repair_network:
+                with tempfile.TemporaryDirectory(prefix="mp-checkout-", dir="/tmp") as checkout:
+                    qualify(args, record, home, Path(checkout).resolve())
             else:
                 qualify(args, record, home)
         except Exception:
@@ -442,7 +548,11 @@ def main():
         record["passed"] = True
     except Exception as exc:
         record.update(passed=False, error=str(exc))
-    args.json.write_text(json.dumps(record, indent=2) + "\n")
+    data = (json.dumps(record, indent=2) + "\n").encode()
+    args.json.write_bytes(data)
+    if args.profile == "apple-worker":
+        from ci_benchmark_store import DEFAULT_DB, store_receipt
+        store_receipt(DEFAULT_DB, "apple-qualification", data)
     print(json.dumps(record, separators=(",", ":")))
     return 0 if record["passed"] else 1
 

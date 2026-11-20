@@ -19,7 +19,10 @@ public struct CIWorker: Sendable {
     private var session: URL { directory.appendingPathComponent("session.json") }
 
     public init(environment: [String: String] = ProcessInfo.processInfo.environment) {
-        let resourceKeys = ["MICROPOD_CI_CPUS", "MICROPOD_CI_MEMORY_MIB", "MICROPOD_CI_DISK_GIB"]
+        let resourceKeys = [
+            "MICROPOD_CI_CPUS", "MICROPOD_CI_MEMORY_MIB", "MICROPOD_CI_DISK_GIB", "MICROPOD_CI_WORKSPACE",
+            "MICROPOD_CI_EXT4_MAX_BATCH_US",
+        ]
         resourceEnvironment = environment.filter { resourceKeys.contains($0.key) }
         directory =
             environment["MICROPOD_CI_HOME"].map { URL(fileURLWithPath: $0).standardizedFileURL }
@@ -33,6 +36,8 @@ public struct CIWorker: Sendable {
         let cpus: Int
         let memoryMiB: Int
         let diskGiB: Int
+        let workspace: String?
+        let ext4MaxBatchUS: Int?
     }
 
     struct Session: Codable, Equatable {
@@ -41,6 +46,7 @@ public struct CIWorker: Sendable {
         var guestAddress: String?
         var started = false
         var readySocket: ReadySocket?
+        var supportsNetworkRepair: Bool?
     }
 
     struct ReadySocket: Codable, Equatable {
@@ -111,11 +117,20 @@ public struct CIWorker: Sendable {
             }
             return value
         }
+        let workspace: String?
+        let requested = resourceEnvironment["MICROPOD_CI_WORKSPACE"]
+        if let path = requested ?? existing?.workspace, requested != nil || create {
+            workspace = try Self.workspacePath(path, excluding: directory)
+        } else {
+            workspace = existing?.workspace
+        }
+        let batchUS = try resource("EXT4_MAX_BATCH_US", existing?.ext4MaxBatchUS ?? 15000, 0...Int(Int32.max))
         let config = try Configuration(
             schema: 1, image: Self.image, worker: existing?.worker ?? UUID(),
             cpus: resource("CPUS", existing?.cpus ?? 4, 1...64),
             memoryMiB: resource("MEMORY_MIB", existing?.memoryMiB ?? 4096, 1024...262144),
-            diskGiB: resource("DISK_GIB", existing?.diskGiB ?? 32, 4...1024))
+            diskGiB: resource("DISK_GIB", existing?.diskGiB ?? 32, 4...1024), workspace: workspace,
+            ext4MaxBatchUS: batchUS == 15000 ? nil : batchUS)
         if let existing {
             guard config == existing else {
                 throw MicropodError.message(
@@ -126,6 +141,33 @@ public struct CIWorker: Sendable {
             try JSONEncoder().encode(config).write(to: manifest, options: .atomic)
         }
         return config
+    }
+
+    static func workspacePath(_ raw: String, excluding state: URL? = nil) throws -> String {
+        let fm = FileManager.default
+        guard raw.hasPrefix("/"), let resolved = realpath(raw, nil) else {
+            throw MicropodError.message("CI workspace must be an existing absolute directory")
+        }
+        defer { free(resolved) }
+        let path = String(cString: resolved)
+        var isDirectory: ObjCBool = false
+        guard fm.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue,
+            ["/Users/", "/Volumes/", "/private/tmp/"].contains(where: { path.hasPrefix($0) })
+        else {
+            throw MicropodError.message(
+                "CI workspace must be an existing absolute directory under /Users, /Volumes or /private/tmp")
+        }
+        if let state {
+            guard let resolvedState = realpath(state.path, nil) else {
+                throw POSIXError(.init(rawValue: errno) ?? .EIO)
+            }
+            defer { free(resolvedState) }
+            let statePath = String(cString: resolvedState)
+            guard path != statePath, !path.hasPrefix(statePath + "/"), !statePath.hasPrefix(path + "/") else {
+                throw MicropodError.message("The shared checkout and the worker disk directory must be separate")
+            }
+        }
+        return path
     }
 
     // Called under the supervisor's lifetime lock. Never open an incompletely unpacked image.
@@ -310,6 +352,39 @@ public struct CIWorker: Sendable {
         directory.appendingPathComponent("stop-" + value.instance.uuidString)
     }
 
+    private func networkRequest(_ active: Session) -> URL {
+        directory.appendingPathComponent("network-repair-" + active.instance.uuidString)
+    }
+
+    public func repairNetwork() async throws -> NetworkRepair {
+        try prepareDirectory()
+        guard let active = try liveSession(), active.started, active.supportsNetworkRepair == true else {
+            throw MicropodError.message("Network recovery needs a running worker with live repair support")
+        }
+        guard let lock = try acquire("network-request.lock") else {
+            throw MicropodError.message("A network repair request is already pending")
+        }
+        defer { try? lock.close() }
+        let token = UUID()
+        let file = networkRequest(active)
+        try JSONEncoder().encode(token).write(to: file, options: .atomic)
+        defer { try? FileManager.default.removeItem(at: file) }
+        let receipt = directory.appendingPathComponent("network.json")
+        let deadline = ContinuousClock.now + .seconds(45)
+        while ContinuousClock.now < deadline {
+            if let data = try? Data(contentsOf: receipt),
+                let value = try? JSONDecoder().decode(NetworkRepair.self, from: data),
+                value.request == token, value.instance == active.instance
+            {
+                if let error = value.error { throw MicropodError.message(error) }
+                return value
+            }
+            if try active.owner.hasExited() { throw MicropodError.message("CI worker exited during network repair") }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        throw MicropodError.message("Timed out waiting for CI network repair")
+    }
+
     private func checkIdle(using endpoint: URL) async throws {
         let api = DockerClient(endpoint: .unix(endpoint.path), version: "v1.47")
         let response = try await api.request("GET", "/containers/json", timeout: .seconds(3))
@@ -370,7 +445,7 @@ public struct CIWorker: Sendable {
     }
 
     private enum Event: Sendable {
-        case maintenance, terminate, timedOut
+        case maintenance, checkNetwork, terminate, timedOut
         case exited(String)
     }
 
@@ -388,11 +463,12 @@ public struct CIWorker: Sendable {
         guard let owner = try RuntimeProcessBirth.read(getpid()) else {
             throw MicropodError.message("Missing supervisor identity")
         }
-        var active = Session(owner: owner, instance: UUID())
+        var active = Session(owner: owner, instance: UUID(), supportsNetworkRepair: true)
         try JSONEncoder().encode(active).write(to: session, options: .atomic)
         defer {
             try? FileManager.default.removeItem(at: session)
             try? FileManager.default.removeItem(at: stopFile(active))
+            try? FileManager.default.removeItem(at: networkRequest(active))
         }
 
         let (events, stream) = AsyncStream<Event>.makeStream()
@@ -418,6 +494,8 @@ public struct CIWorker: Sendable {
         var options = SandboxVM.Options(base: .image(Self.image))
         options.network = true
         options.hostname = "micropod-ci"
+        options.ciWorkspace = config.workspace
+        options.ciExt4MaxBatchUS = config.ext4MaxBatchUS
         options.cpus = config.cpus
         options.memoryMiB = UInt64(config.memoryMiB)
         options.diskBytes = UInt64(config.diskGiB) << 30
@@ -452,8 +530,16 @@ public struct CIWorker: Sendable {
                     stream.yield(.exited("exit \(status.exitCode)"))
                 } catch { stream.yield(.exited(error.localizedDescription)) }
             }
+            let health = Task {
+                while !Task.isCancelled {
+                    do { try await Task.sleep(for: .seconds(5)) } catch { return }
+                    stream.yield(.checkNetwork)
+                }
+            }
+            var networkWatch = NetworkWatch()
             var shutdownTimer: Task<Void, Never>?
             defer {
+                health.cancel()
                 wait.cancel()
                 shutdownTimer?.cancel()
             }
@@ -463,7 +549,30 @@ public struct CIWorker: Sendable {
                     guard shutdownTimer != nil else { throw MicropodError.message("CI engine stopped: \(reason)") }
                     break lifecycle
                 case .timedOut: throw MicropodError.message("Guest Docker shutdown timed out")
-                case .maintenance:
+                case .maintenance, .checkNetwork:
+                    if shutdownTimer == nil, !FileManager.default.fileExists(atPath: stopFile(active).path),
+                        let gateway = prepared.gateway
+                    {
+                        let requestFile = networkRequest(active)
+                        let token = (try? Data(contentsOf: requestFile)).flatMap {
+                            try? JSONDecoder().decode(UUID.self, from: $0)
+                        }
+                        if let receipt = await networkWatch.inspect(
+                            prepared, gateway: gateway, instance: active.instance, request: token)
+                        {
+                            do {
+                                try JSONEncoder().encode(receipt).write(
+                                    to: directory.appendingPathComponent("network.json"), options: .atomic)
+                            } catch {
+                                SecretSource.stderrLog(
+                                    "Could not record CI network repair: \(error.localizedDescription)")
+                            }
+                            if token != nil { try? FileManager.default.removeItem(at: requestFile) }
+                            SecretSource.stderrLog(
+                                "CI network repair (\(receipt.cause ?? "requested")): "
+                                    + (receipt.error ?? "gateway restored"))
+                        }
+                    }
                     guard shutdownTimer == nil, FileManager.default.fileExists(atPath: stopFile(active).path),
                         try await drain(active)
                     else { continue }

@@ -8,6 +8,8 @@ covers the native app's CPU, memory, responsiveness, bounded streaming and
 inventory-model benchmarks. Guest VM and runtime measurements below have a
 different scope.
 
+The persistent CI worker has a separate same-Mac comparison against OrbStack, an archived ARM Ubuntu control and a Linux kernel profile at 1–32 concurrent Go jobs. [Worker timings, cache measurements and traces](benchmarks/2026-11-20/worker-profile.md)
+
 ## Methodology
 
 Same machine, both runtimes warm, `alpine:3.20` pre-pulled on both engines.

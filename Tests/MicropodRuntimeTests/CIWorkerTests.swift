@@ -38,6 +38,31 @@ final class CIWorkerTests: XCTestCase {
         }
     }
 
+    func testNetworkProbeRequiresAnAddressOnTheMac() throws {
+        XCTAssertTrue(try CIWorker.hasLocalGateway("127.0.0.1"))
+        XCTAssertFalse(try CIWorker.hasLocalGateway("192.0.2.254"))
+        XCTAssertFalse(try CIWorker.hasLocalGateway("example.org"))
+    }
+
+    func testMetricsGroupsOverlappingScopeAndStoreNames() throws {
+        XCTAssertNil(CIWorker.cacheStore("unrelated-gobuild", activeContainers: 5))
+        XCTAssertNil(CIWorker.cacheStore("micropod-ci-scoped--npm", activeContainers: 0))
+        let cache = try XCTUnwrap(CIWorker.cacheStore("micropod-ci-scoped-team-go-gobuild", activeContainers: 4))
+        XCTAssertEqual(cache.store, "gobuild")
+        XCTAssertEqual(cache.scope, "team-go")
+        XCTAssertEqual(cache.activeContainers, 4)
+    }
+
+    func testWorkspaceUsesTheSamePhysicalPathAsDockerBindSources() throws {
+        let directory = URL(fileURLWithPath: "/tmp/mp-share-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        XCTAssertEqual(try CIWorker.workspacePath(directory.path), "/private/tmp/" + directory.lastPathComponent)
+        XCTAssertThrowsError(try CIWorker.workspacePath(directory.path, excluding: directory))
+        XCTAssertThrowsError(try CIWorker.workspacePath("/"))
+        XCTAssertThrowsError(try CIWorker.workspacePath("relative"))
+    }
+
     func testLaunchAgentRunsTheStableBinaryInTheSpecifiedWorkerDirectory() throws {
         let root = URL(fileURLWithPath: "/Volumes/CI/Worker directory")
         let worker = CIWorker(environment: [

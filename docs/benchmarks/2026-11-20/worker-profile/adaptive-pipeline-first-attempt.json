@@ -1,0 +1,64 @@
+{
+  "worker": {
+    "boot": "9766C3AB-C139-4627-9D71-934E70289868",
+    "cgroupDriver": "cgroupfs",
+    "cpus": 4,
+    "daemon": "aa96fe61-8027-4457-910d-8bf51b22dc36",
+    "endpoint": "unix:///Users/benebsworth/.micropod/ci/docker.sock",
+    "engineVersion": "29.9.3",
+    "guestAddress": "192.168.69.2",
+    "instance": "B41DFA75-4766-4213-9855-97ABF67A5C04",
+    "memoryBytes": 4118708224,
+    "storageDriver": "overlayfs",
+    "worker": "52A19168-0202-4593-A1DC-E4FB227CAFC3"
+  },
+  "sha256": "68c53cb50b0453309cd3db97473a87e393f7bc1b2920a57ca312f98934548d69",
+  "passed": false,
+  "pipeline_seconds": {
+    "micropod": {
+      "first": 14.167
+    },
+    "orbstack": {}
+  },
+  "pipeline_stages_seconds": {
+    "micropod": {
+      "first": {
+        "node-image": 0.387,
+        "node-edit": 0.336,
+        "go-checks": 2.186,
+        "go-image": 2.942,
+        "postgres": 11.714
+      }
+    }
+  },
+  "failed_stages": [
+    [
+      "node-image",
+      17.112,
+      0
+    ],
+    [
+      "go-checks",
+      34.657,
+      0
+    ],
+    [
+      "node-edit",
+      19.013,
+      0
+    ],
+    [
+      "go-image",
+      22.331,
+      0
+    ],
+    [
+      "postgres",
+      31.414,
+      1
+    ]
+  ],
+  "failed_engine": "orbstack",
+  "failed_phase": "first",
+  "diagnostic": "The first-harness output retained the final image export lines. PostgreSQL exited 1."
+}

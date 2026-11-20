@@ -23,9 +23,23 @@ final class CICommandsTests: XCTestCase {
         XCTAssertEqual(try CICommands.runArguments(ArraySlice(job)), job)
     }
 
+    func testScratchIsSizedAndPythonBytecodeIsScoped() throws {
+        let argv = try CICommands.runArguments([
+            "--scratch-mib", "128", "--cache", "python", "--cache-scope", "pinned", "build",
+        ])
+        XCTAssertTrue(argv.contains("/tmp:rw,exec,nosuid,nodev,size=128m,mode=1777"))
+        XCTAssertTrue(
+            argv.contains("type=volume,src=micropod-ci-scoped-pinned-pycache,dst=/cache/pycache,volume-nocopy"))
+        XCTAssertTrue(argv.contains("PYTHONPYCACHEPREFIX=/cache/pycache"))
+        XCTAssertEqual(
+            try CICommands.runArguments(["image", "--scratch-mib", "bad"]), ["image", "--scratch-mib", "bad"])
+    }
+
     func testInvalidCachePrefixFailsBeforeStartingAWorker() {
         for args in [
-            ["--cache-scope", "team", "alpine"], ["--cache", "go"], ["--cache", "unknown", "alpine"],
+            ["--scratch-mib", "0", "alpine"], ["--scratch-mib", "1", "--scratch-mib", "2", "alpine"],
+            ["--cache", "python", "alpine"], ["--cache-scope", "team", "alpine"], ["--cache", "go"],
+            ["--cache", "unknown", "alpine"],
             ["--cache", "npm", "--cache-scope", "../other", "alpine"],
             ["--cache", "npm", "--cache-scope", "x,dst=/elsewhere", "alpine"],
             ["--cache", "npm", "--cache-scope", "one", "--cache-scope", "two", "alpine"],

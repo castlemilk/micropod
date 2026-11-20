@@ -8,8 +8,11 @@ enum CICommands {
         micropod ci start                 start or join this account's Linux worker
         micropod ci endpoint              ensure readiness and print the Docker socket URI
         micropod ci status                print worker, kernel boot and daemon identities as JSON
-        micropod ci run [--cache npm|go] [--cache-scope NAME] [docker options] IMAGE [command...]
+        micropod ci docker [arguments]    run the stock Docker CLI or a plugin against this worker
+        micropod ci run [--scratch-mib N] [--cache npm|go|python] [--cache-scope NAME] [docker options] IMAGE [command...]
                                           run a container with persistent package caches
+        micropod ci metrics [--usage]     print active cache mounts, optional sizes and BuildKit usage as JSON
+        micropod ci repair-network        reconnect the private network while containers keep running
         micropod ci stop                  stop the idle worker and retain its disk and caches
         micropod ci serve                 supervise the worker in the foreground
         micropod ci install-service       run the worker under launchd across CI job lifetimes
@@ -27,7 +30,7 @@ enum CICommands {
             print(help)
             return 0
         }
-        guard command == "run" || args.count == 1 else {
+        guard command == "run" || command == "docker" || args == ["metrics", "--usage"] || args.count == 1 else {
             print(help)
             return 2
         }
@@ -44,18 +47,23 @@ enum CICommands {
                 } else {
                     try printStatus(await worker.installService(executable: executable))
                 }
+            case "metrics": try printStatus(await worker.metrics(includeUsage: args.count == 2))
+            case "repair-network": try printStatus(await worker.repairNetwork())
             case "stop": try await worker.stop()
             case "status": try printStatus(await worker.status())
-            case "start", "endpoint", "run":
+            case "start", "endpoint", "run", "docker":
                 guard let executable = Bundle.main.executableURL else {
                     throw MicropodError.message("Cannot locate micropod executable")
                 }
-                if command == "run" {
-                    let options = try runArguments(args.dropFirst())
+                if command == "run" || command == "docker" {
+                    let options =
+                        command == "run"
+                        ? try ["run", "--rm"] + runArguments(args.dropFirst()) : Array(args.dropFirst())
                     let endpoint = try await worker.runEndpoint(executable: executable)
                     // Replace the CLI so job streams, signals and exit status belong to Docker.
-                    let arguments = ["docker", "--host", endpoint, "run", "--rm"] + options
+                    let arguments = ["docker", "--host", endpoint] + options
                     for key in ["DOCKER_CONTEXT", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH"] { unsetenv(key) }
+                    setenv("DOCKER_HOST", endpoint, 1)
                     let argv = arguments.map { strdup($0) } + [nil]
                     defer { argv.forEach { free($0) } }
                     _ = execvp("docker", argv)
@@ -82,11 +90,17 @@ enum CICommands {
         var job = arguments
         var caches = Set<String>()
         var scope: String?
-        while let option = job.first, option == "--cache" || option == "--cache-scope" {
+        var scratchMiB: Int?
+        while let option = job.first, ["--cache", "--cache-scope", "--scratch-mib"].contains(option) {
             let value = job.dropFirst().first
-            if option == "--cache" {
-                guard let value, ["npm", "go"].contains(value) else {
-                    throw UsageError(message: "--cache accepts npm or go")
+            if option == "--scratch-mib" {
+                guard scratchMiB == nil, let value, let size = Int(value), (1...262144).contains(size) else {
+                    throw UsageError(message: "--scratch-mib needs one size from 1 to 262144 MiB")
+                }
+                scratchMiB = size
+            } else if option == "--cache" {
+                guard let value, ["npm", "go", "python"].contains(value) else {
+                    throw UsageError(message: "--cache accepts npm, go or python")
                 }
                 caches.insert(value)
             } else {
@@ -100,6 +114,10 @@ enum CICommands {
         guard !job.isEmpty else { throw UsageError(message: "ci run requires an image") }
         guard scope == nil || !caches.isEmpty else { throw UsageError(message: "--cache-scope requires --cache") }
 
+        if caches.contains("python"), scope == nil {
+            throw UsageError(
+                message: "--cache python requires --cache-scope for the trusted source and pinned toolchain")
+        }
         let prefix = scope.map { "micropod-ci-scoped-" + $0 } ?? "micropod-ci"
         func mount(_ store: String, _ variable: String) -> [String] {
             let path = "/cache/" + store
@@ -110,15 +128,20 @@ enum CICommands {
             ]
         }
         var options: [String] = []
+        if let scratchMiB {
+            options += ["--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=\(scratchMiB)m,mode=1777"]
+        }
         if caches.contains("npm") { options += mount("npm", "npm_config_cache") }
+        if caches.contains("python") { options += mount("pycache", "PYTHONPYCACHEPREFIX") }
         if caches.contains("go") {
             options += mount("gomod", "GOMODCACHE") + mount("gobuild", "GOCACHE")
         }
         return options + job
     }
 
-    private static func printStatus(_ status: CIWorker.Status) throws {
+    private static func printStatus(_ status: some Encodable) throws {
         let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         print(String(decoding: try encoder.encode(status), as: UTF8.self))
     }
