@@ -670,6 +670,7 @@ def export_timeline(receipt, path):
                 }
                 if "entry" in job:
                     stamps["first timestamp in job"] = job["entry"]
+                stamps.update(job.get("ci_phases_ns", {}))
             tracks.append((job, stamps))
         start = min(min(stamps.values()) for _, stamps in tracks)
         end = max(max(stamps.values()) for _, stamps in tracks)

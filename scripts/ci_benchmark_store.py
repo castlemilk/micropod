@@ -125,6 +125,40 @@ def store(path, run, kind, record):
                        s.value->>'operation' AS operation, s.value->>'outcome' AS outcome,
                        s.value->>'started' AS started, s.value->>'completed' AS completed
                 FROM measurements, json_each(receipt, '$.steps') s WHERE kind='buildkit-trace';
+            CREATE VIEW IF NOT EXISTS full_ci_stages AS
+                SELECT run, receipt->>'passed' AS passed, b.value->>'round' AS round, b.value->>'engine' AS engine,
+                       b.value->>'revision' AS revision, b.value->>'mode' AS mode, b.value->>'seconds' AS batch_s,
+                       s.key AS stage, s.value AS stage_s
+                FROM measurements, json_each(receipt,'$.batches') b, json_each(b.value,'$.stages') s
+                WHERE kind='full-ci-pipeline';
+            CREATE VIEW IF NOT EXISTS go_suite_batches AS
+                SELECT run, receipt->>'passed' AS passed, b.value->>'round' AS round, b.value->>'engine' AS engine,
+                       b.value->>'mode' AS mode, b.value->>'clients' AS clients, b.value->>'seconds' AS seconds,
+                       b.value AS batch
+                FROM measurements, json_each(receipt,'$.batches') b WHERE kind='go-ci-suite';
+            CREATE VIEW IF NOT EXISTS go_suite_jobs AS
+                SELECT run, engine, mode, round, clients, seconds AS batch_s, j.value->>'job' AS job,
+                       j.value->>'tests' AS tests, j.value->>'sha256' AS product,
+                       j.value->>'$.phase_s.vet' AS vet_s, j.value->>'$.phase_s.tests' AS tests_s,
+                       j.value->>'$.phase_s.build' AS build_s, j.value->>'$.phase_s.verified' AS verify_s,
+                       j.value->>'$.lifecycle.setup_ns'/1e6 AS setup_ms,
+                       j.value->>'$.lifecycle.cleanup_ns'/1e6 AS cleanup_ms
+                FROM go_suite_batches, json_each(batch,'$.jobs') j WHERE passed;
+            CREATE VIEW IF NOT EXISTS go_suite_first_revisions AS
+                SELECT run, b.value->>'round' AS round, b.value->>'mode' AS mode, b.value->>'clients' AS clients,
+                       b.value->>'seconds' AS total_s, b.value->>'snapshot_s' AS snapshot_s,
+                       b.value->>'prepare_s' AS prepare_s, b.value->>'handle_s' AS handle_s,
+                       b.value->>'session_s' AS session_s, b.value->>'jobs_s' AS jobs_s
+                FROM measurements, json_each(receipt,'$.batches') b
+                WHERE kind='go-ci-first-revision' AND receipt->>'passed';
+            CREATE VIEW IF NOT EXISTS go_suite_kernel_jobs AS
+                SELECT run, b.value->>'mode' AS mode, b.value->>'clients' AS clients, j.value->>'job' AS job,
+                       j.value->>'$.cgroup.scheduler' AS scheduler, j.value->>'$.cgroup.usage_usec'/1e3 AS cpu_ms,
+                       j.value->>'$.cgroup.cpu_pressure_usec'/1e3 AS cpu_stall_ms,
+                       j.value->>'$.cgroup.io_pressure_usec'/1e3 AS io_stall_ms,
+                       j.value->>'$.cgroup.nr_throttled' AS quota_throttles
+                FROM measurements, json_each(receipt,'$.traces') b, json_each(b.value,'$.jobs') j
+                WHERE kind='go-ci-first-revision' AND receipt->>'passed';
             CREATE VIEW IF NOT EXISTS pipeline_stages AS
                 SELECT run, engine.key AS engine, phase.key AS phase, stage.key AS stage, stage.value AS seconds
                 FROM measurements, json_each(receipt, '$.pipeline_stages_seconds') engine,

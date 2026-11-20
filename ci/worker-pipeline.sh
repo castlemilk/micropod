@@ -70,12 +70,29 @@ go_postgres() {
 go_service() {
     stage go-image docker build -t "$id:go" -t "$cache_image:go" "$root/ci/samples/go-app"
     docker run -d --name "$id-go" "$id:go" >/dev/null
-    docker exec "$id-go" sh -ec 'for x in 1 2 3 4 5; do if wget -qO- http://localhost:8080/healthz; then exit 0; fi; sleep 1; done; exit 1'
+    # shellcheck disable=SC2016
+    docker exec "$id-go" sh -ec '
+        for attempt in 1 2 3 4 5; do
+            if wget -qO- http://localhost:8080/healthz &&
+               greeting=$(wget -qO- "http://localhost:8080/?name=ada") &&
+               [ "$greeting" = "hello, ada" ]; then
+                exit 0
+            fi
+            sleep 1
+        done
+        exit 1
+    '
 }
-go_job() {
+go_unit() {
+    stage go-unit docker run --rm --network none --entrypoint /bin/sh "$id:checks" ci-suite.sh test /out
+}
+go_checks() {
     local app="$root/ci/samples/go-app"
     stage go-checks docker build -f "$app/Dockerfile.checks" -t "$id:checks" -t "$cache_image:checks" "$app"
-    parallel_jobs go_postgres go_service
+    parallel_jobs go_unit go_postgres
+}
+go_job() {
+    parallel_jobs go_checks go_service
 }
 npm_job() {
     local app="$tmp/node"
@@ -83,7 +100,13 @@ npm_job() {
     cp "$root/ci/samples/node-app/"{Dockerfile,package.json,package-lock.json} "$app/"
     cp -R "$root/ci/samples/node-app/"{src,test} "$app/"
     stage node-image docker build -t "$id:node" -t "$cache_image:node" "$app"
-    [[ "$(docker run --rm "$id:node" ada)" == 'hello, ada' ]]
+    # Check the guest's output and execute the suite even when BuildKit reuses the image.
+    # shellcheck disable=SC2016
+    stage node-unit docker run --rm --network none --entrypoint sh "$id:node" -ec '
+        npm test
+        greeting=$(node src/index.js ada)
+        [ "$greeting" = "hello, ada" ]
+    '
     echo "console.log('source edit reached the guest')" >> "$app/src/index.js"
     stage node-edit docker build -t "$id:node" -t "$cache_image:node-edited" "$app"
     docker run --rm "$id:node" ada | grep -Fx 'source edit reached the guest'

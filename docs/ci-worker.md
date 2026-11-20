@@ -80,6 +80,26 @@ image="$(ci/prepare-go-workspace.sh golang:1.26 . app ./cmd/service)"
   'go build -trimpath -buildvcs=false -o app ./cmd/service && ./app'
 ```
 
+### Lint, test and build fan-out
+
+For jobs that test the same immutable Go revision, lint the module and compile its test executables and application once. Each job then runs every test in its package directory with its own writable checkout. The application is available at `/micropod-ci-suite/product`. The ordinary Docker endpoint and the native OCI worker can both consume the same image.
+
+```sh
+export MICROPOD_BIN="$PWD/.build/release/micropod"
+scope=project-go
+src=$("$MICROPOD_BIN" ci snapshot golang:1.26 ./checkout)
+suite=$(ci/prepare-go-suite.sh "$src" "$scope" ./cmd/service)
+handle=$(ci/oci-batch.sh prepare "$suite" "$scope")
+ci/oci-batch.sh run "$handle" 16 sh /micropod-ci-suite/suite.sh test /micropod-ci-suite
+ci/oci-batch.sh forget "$handle"
+```
+
+Use a Go module with vendored dependencies or warm its scoped module store first. Preparation runs offline with the image's local Go toolchain, CGO disabled and `-trimpath -p=2`. It runs `go vet ./...`, discovers internal and external test packages with `go list`, compiles their test binaries and builds the selected main package. The normal Go build and module stores are mounted throughout compilation. BuildKit copies the finished executables from a temporary compiler image into one layer on the immutable source. The final image inherits the source image's user, environment, working directory and launch command.
+
+Prepare again after changing the source, dependencies, test fixtures or toolchain image. Jobs that generate source during execution, use different build tags, or collect coverage should run their own Go commands. The Go and npm demonstration pipeline (`task ci`) uses the Docker endpoint for image builds, race-enabled Go tests, live npm tests, an HTTP service, Ryuk and PostgreSQL. Each PostgreSQL test checks a write and read over TCP before teardown.
+
+The preparer emits a `ci.go.suite` JSON event with the cache key, image ID and hit or miss. Its key covers the source image, scope, main package, fixed profile and preparation scripts. Concurrent requests for a new key share the build. A vet or compiler failure prevents publication. A failing test returns a failed job each time it runs. To retire an output after its handles are released, remove its `micropod-internal/ci-go-suite:KEY` tag. [Gamma pipeline and fan-out measurements](benchmarks/2026-11-20/full-ci.md)
+
 The original offline benchmark used Python inside each measured container to create a temporary Go and npm fixture and check its output. Direct Go jobs use the Go toolchain and their entrypoint. In the direct benchmarks, setup and measurement orchestration run on the Mac. Only the explicitly named legacy control starts Python in each timed container.
 
 The experimental supervisor-sharing series uses one explicit anchor container on each engine. Its job group joins the same containerd shim while retaining separate PID and mount namespaces and cgroups. An unanchored 32-job burst lost the shim during task creation. Ordinary jobs use Docker's usual supervisor lifecycle. [containerd runtime grouping](https://github.com/containerd/containerd/blob/main/docs/runtime-v2.md)

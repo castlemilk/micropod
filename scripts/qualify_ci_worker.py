@@ -180,7 +180,9 @@ def pipeline_phase(name, endpoint, phase, result, home, env, token):
                               MICROPOD_CI_SAMPLE_IMAGE=token + "-samples"), timeout=600, check=False)
     seconds = round(time.perf_counter() - started, 3)
     stages = [json.loads(line) for line in phase_log.read_text().splitlines()] if phase_log.exists() else []
-    if output.returncode or len(stages) != 5 or any(code for _, _, code in stages):
+    expected = {"go-checks", "go-unit", "go-image", "postgres", "node-image", "node-unit", "node-edit"}
+    completed = {stage for stage, _, code in stages if code == 0}
+    if output.returncode or len(stages) != len(expected) or completed != expected:
         failed = dict(engine=name, phase=phase, seconds=seconds, exit=output.returncode, stages=stages,
                       stdout=output.stdout[-2500:], stderr=output.stderr[-1200:])
         result.setdefault("pipeline_failures", []).append(failed)
