@@ -63,6 +63,25 @@ def store(path, run, kind, record):
                        b.value->>'repeat_s' AS repeat_s, json_array_length(b.value,'$.creates') AS builds,
                        b.value->>'$.jobs[0].image' AS image
                 FROM measurements, json_each(receipt, '$.batches') b WHERE kind='go-output-preparation';
+            CREATE VIEW IF NOT EXISTS startup_batches AS
+                SELECT run,receipt->>'mode' AS series,receipt->>'passed' AS passed,b.value->>'engine' AS engine,
+                       b.value->>'round' AS round,b.value->>'clients' AS clients,b.value->>'seconds' AS seconds,b.value AS batch
+                FROM measurements,json_each(receipt,'$.batches') b WHERE kind='source-startup';
+            CREATE VIEW IF NOT EXISTS startup_jobs AS
+                SELECT run,series,passed,engine,round,clients,j.value->>'container' AS container,j.value->>'link' AS links,
+                       ((j.value->>'$.phases_ns.task_create')-(j.value->>'$.phases_ns.metadata'))/1e9 AS metadata_to_task_s,
+                       ((j.value->>'$.phases_ns.task_start')-(j.value->>'$.phases_ns.task_create'))/1e9 AS task_start_s,
+                       j.value->>'$.lifecycle.setup_ns'/1e9 AS oci_setup_s,j.value->>'$.lifecycle.runtime_ns'/1e9 AS oci_runtime_and_job_s,
+                       j.value->>'$.lifecycle.cleanup_ns'/1e9 AS oci_cleanup_s,j.value->'$.runc' AS sampled_runc
+                FROM startup_batches,json_each(batch,'$.jobs') j;
+            CREATE VIEW IF NOT EXISTS direct_oci_profile AS
+                SELECT run,round,clients,j.value->>'container' AS container,
+                       ((j.value->>'entry')-(j.value->>'$.lifecycle.begin_ns')-(j.value->>'$.lifecycle.setup_ns'))/1e9 AS runtime_to_entry_s,
+                       j.value->>'$.cgroup.usage_usec'/1e6 AS cpu_s,
+                       j.value->>'$.cgroup.cpu_pressure_usec'/1e6 AS cpu_stall_s,
+                       j.value->>'$.cgroup.io_pressure_usec'/1e6 AS io_stall_s,
+                       j.value->>'$.cgroup.throttled_usec'/1e6 AS throttled_s
+                FROM startup_batches,json_each(batch,'$.jobs') j WHERE series='direct-trace';
             CREATE VIEW IF NOT EXISTS kernel_batches AS
                 SELECT run, round, mode, clients, seconds, batch->>'$.kernel_delta.sampled_s' AS sampled_s,
                        batch->>'$.kernel_delta.tracepoints.ext4_sync_file_enter' AS ext4_syncs,

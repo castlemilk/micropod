@@ -88,6 +88,23 @@ The experimental supervisor-sharing series uses one explicit anchor container on
 
 The default OCI runtime is runc. `ci/install-crun.sh` registers a digest-checked ARM64 crun binary with the worker's live Docker daemon. The installer requires the Docker CLI, curl and jq on the Mac. Select it per job with the stock `--runtime micropod-crun` Docker option after any Micropod cache flags. The comparison records both runtimes. [Pinned crun release](https://github.com/containers/crun/releases/tag/1.31) · [Docker runtime registration](https://docs.docker.com/reference/cli/dockerd/#configure-container-runtimes)
 
+## Direct OCI batches in the shared worker
+
+For trusted, non-interactive jobs with networking disabled, `ci/oci-batch.sh` runs fresh OCI containers inside the existing Linux VM. The checkout image needs a shell and `sleep` for the preparation probe. Use scoped Go stores already seeded for this image. The fixed starting allocation is one CPU and 1 GiB per job.
+
+```sh
+export MICROPOD_BIN="$PWD/.build/release/micropod"
+image="$("$MICROPOD_BIN" ci snapshot "$TOOLCHAIN_IMAGE" "$CHECKOUT")"
+handle="$(ci/oci-batch.sh prepare "$image" project-go)"
+ci/oci-batch.sh run "$handle" 16 sh -ec 'go build -trimpath -buildvcs=false -o app . && ./app'
+```
+
+Preparation obtains the image user, capabilities, seccomp profile, device policy, namespaces and resource limits from the worker's stock Docker/containerd stack. The control image contains a separate trusted executable and a validated OCI configuration. Docker mounts the source image read-only and attaches the same named Go volumes to the launcher. Each job gets an overlay with a private ext4-backed upper directory, fresh Linux namespaces and a child cgroup. The management container runs privileged to set these up. Workloads receive the ordinary job policy. The launcher has a private network and cgroup namespace and accepts requests only through its attached streams.
+
+A scheduler can open `ci/oci-batch.sh session "$handle"` once to keep the launcher warm. After it receives the JSON `ready` frame, it sends one newline-delimited request per batch. For example, `{"id":"build-1","clients":16,"args":["go","build","-trimpath","-buildvcs=false","-o","app","."]}` runs 16 independent links. The scheduler keeps stdin open, reads interleaved `stdout` and `stderr` frames by request ID and job index, and decodes their base64 data. A `done` frame carries each job's OCI ID, exit code and measured setup, runtime and cleanup times. Docker inventory counts the attached launcher as one cache user. Use the session frames or the benchmark database for individual OCI job counts. Send the next batch after `done`. Closing stdin cancels outstanding work and releases the launcher's private filesystem. One-shot `run` writes ordinary job streams and returns the first nonzero status in job order.
+
+The default is the worker's runc. After `ci/install-crun.sh`, select crun with `MICROPOD_OCI_RUNTIME=crun`. Set `MICROPOD_OCI_TRACE=1` for per-job timing on one-shot runs. Once all sessions exit, `ci/oci-batch.sh forget "$handle"` releases this handle's two image tags. Docker services, Compose, image builds, published ports and interactive containers continue through `micropod ci docker`. [Gamma timings, internal startup trace and Docker behavior replay](benchmarks/2026-11-20/oci-startup.md)
+
 ## Network recovery and profiling
 
 The supervisor checks for the worker's local IPv4 gateway on macOS every five seconds and periodically probes the first hop from Linux. When that link disappears, it reconnects the worker's virtual network device, restores the guest route and checks the gateway with ARP. The guest keeps its addresses, processes, Docker socket and disk. Failed repairs retry with a delay up to one minute. A runner operator can request an immediate reconnect with `micropod ci repair-network`.

@@ -21,7 +21,7 @@ def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def run(out, levels, rounds):
+def run(out, levels, rounds, modes):
     release = platform.freedesktop_os_release()
     if release["ID"] != "ubuntu" or platform.machine() != "aarch64" or Path("/.dockerenv").exists():
         raise ValueError("Run directly on an ARM64 Ubuntu VM or physical machine")
@@ -95,7 +95,7 @@ exec "$@"
 
         for rep in range(rounds):
             for n in levels if rep % 2 == 0 else levels[::-1]:
-                for mode in ["source", "output"] if rep % 2 == 0 else ["output", "source"]:
+                for mode in modes if rep % 2 == 0 else modes[::-1]:
                     start = time.monotonic()
                     work = [fixture.workspace(f"{rep}-{n}-{mode}-{i}") for i in range(n)]
                     if mode == "output":
@@ -134,7 +134,7 @@ exec "$@"
                 )
                 for n in levels
             }
-            for mode in ("source", "output")
+            for mode in modes
         }
         out["passed"] = True
 
@@ -143,6 +143,7 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--clients", type=int, nargs="+", default=[16, 32])
     p.add_argument("--rounds", type=int, default=5)
+    p.add_argument("--modes", choices=["source", "output"], nargs="+", default=["source", "output"])
     args = p.parse_args()
     if (
         not 1 <= args.rounds <= 50
@@ -152,6 +153,6 @@ if __name__ == "__main__":
         p.error("Use unique concurrency levels from 1 to 64 and 1–50 rounds")
     receipt = {"passed": False}
     try:
-        run(receipt, args.clients, args.rounds)
+        run(receipt, args.clients, args.rounds, args.modes)
     finally:
         print(json.dumps(receipt))

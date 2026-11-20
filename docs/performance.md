@@ -8,6 +8,8 @@ covers the native app's CPU, memory, responsiveness, bounded streaming and
 inventory-model benchmarks. Guest VM and runtime measurements below have a
 different scope.
 
+The same-Mac OCI startup study traces the snapshotter, containerd and runc, then compares fresh source-only Docker jobs with a persistent direct OCI launcher. [Docker startup, OCI sessions and raw Ubuntu](benchmarks/2026-11-20/oci-startup.md)
+
 Gamma also has a direct Go comparison at 16 and 32 concurrent jobs against OrbStack and a stock Ubuntu VM on the same Apple Silicon. Both source-only builds and builds with a current executable include byte-identical Go output checks. [Fresh Go jobs, native Ubuntu and Docker startup](benchmarks/2026-11-20/fresh-go.md)
 
 The persistent CI worker has a separate same-Mac comparison against OrbStack, an archived ARM Ubuntu control and a Linux kernel profile at 1–32 concurrent Go jobs. [Worker timings, cache measurements and traces](benchmarks/2026-11-20/worker-profile.md)
