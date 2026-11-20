@@ -7,10 +7,31 @@ import os
 from pathlib import Path
 import re
 import select
+import shlex
 import sys
 import tempfile
 import subprocess
 from contextlib import contextmanager
+
+
+def go_tools(stderr):
+    """Count actual command lines from go build -x, including environment-prefixed link commands."""
+    counts = dict(compile=0, asm=0, link=0)
+    for line in stderr.splitlines():
+        if not re.search(r"/(?:compile|asm|link)['\"]?[ \t]", line):
+            continue
+        try:
+            argv = shlex.split(line)
+        except ValueError:
+            continue  # A diagnostic containing a tool path may contain unmatched quotes.
+        while argv and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", argv[0]):
+            argv.pop(0)
+        if len(argv) < 2 or not argv[0].startswith("/") or argv[1].split("=")[0] == "-V":
+            continue
+        tool = os.path.basename(argv[0])
+        if tool in counts:
+            counts[tool] += 1
+    return counts
 
 
 def fields(path):
@@ -125,8 +146,9 @@ def job(op, fixture_source, lock, count):
             cpu_before = fields("/sys/fs/cgroup/cpu.stat")
             def build(path):
                 proc, elapsed = ns["command"](fixture.argv("go"), path, env)
-                compiler = len(ns["COMPILER"].findall(proc.stderr))
-                links = len(re.findall(r'(?m)^\S*/link (?!-V)', proc.stderr))
+                tools = go_tools(proc.stderr)
+                compiler = tools["compile"] + tools["asm"]
+                links = tools["link"]
                 if compiler:
                     raise ValueError("Warm offline job invoked the Go compiler")
                 return {"seconds": elapsed, "compiler": compiler, "linker": links}

@@ -38,6 +38,31 @@ def store(path, run, kind, record):
                        detail->>'$.engine_phase_s.die_to_destroy' AS remove_s,
                        detail->>'$.cpu_stat.throttled_usec' AS build_throttled_us
                 FROM go_jobs;
+            CREATE VIEW IF NOT EXISTS fresh_go_runs AS
+                SELECT run, captured_utc, receipt->>'passed' AS passed, receipt->>'error' AS error,
+                       coalesce(receipt->>'suite','oci') AS suite, receipt->>'cli_sha256' AS cli_sha256
+                FROM measurements WHERE kind='fresh-go';
+            CREATE VIEW IF NOT EXISTS fresh_go_batches AS
+                SELECT run, b.value->>'engine' AS engine, b.value->>'mode' AS mode, b.value->>'round' AS round,
+                       b.value->>'clients' AS clients, b.value->>'seconds' AS seconds,
+                       b.value->>'host_wall_s' AS host_wall_s, b.value AS batch
+                FROM measurements, json_each(receipt, '$.batches') b WHERE kind='fresh-go';
+            CREATE VIEW IF NOT EXISTS fresh_go_jobs AS
+                SELECT run, engine, mode, round, clients, j.value->>'container' AS container,
+                       j.value->>'client_s' AS client_s, j.value->>'link' AS linker_invocations,
+                       ((j.value->>'$.lifecycle_ns.start') - (j.value->>'$.lifecycle_ns.create'))/1e9 AS create_start_s,
+                       ((j.value->>'$.lifecycle_ns.die') - (j.value->>'$.lifecycle_ns.start'))/1e9 AS running_s,
+                       ((j.value->>'$.lifecycle_ns.destroy') - (j.value->>'$.lifecycle_ns.die'))/1e9 AS remove_s
+                FROM fresh_go_batches, json_each(batch,'$.jobs') j;
+            CREATE VIEW IF NOT EXISTS native_go_batches AS
+                SELECT run, b.value->>'mode' AS mode, b.value->>'round' AS round, b.value->>'clients' AS clients,
+                       b.value->>'seconds' AS seconds, b.value->>'prepare_s' AS prepare_s, b.value->>'links' AS links
+                FROM measurements, json_each(receipt, '$.batches') b WHERE kind='fresh-go-ubuntu';
+            CREATE VIEW IF NOT EXISTS go_preparation_batches AS
+                SELECT run, b.value->>'round' AS round, b.value->>'clients' AS clients, b.value->>'seconds' AS seconds,
+                       b.value->>'repeat_s' AS repeat_s, json_array_length(b.value,'$.creates') AS builds,
+                       b.value->>'$.jobs[0].image' AS image
+                FROM measurements, json_each(receipt, '$.batches') b WHERE kind='go-output-preparation';
             CREATE VIEW IF NOT EXISTS kernel_batches AS
                 SELECT run, round, mode, clients, seconds, batch->>'$.kernel_delta.sampled_s' AS sampled_s,
                        batch->>'$.kernel_delta.tracepoints.ext4_sync_file_enter' AS ext4_syncs,

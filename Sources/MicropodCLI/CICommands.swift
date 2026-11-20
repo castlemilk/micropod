@@ -9,8 +9,11 @@ enum CICommands {
         micropod ci endpoint              ensure readiness and print the Docker socket URI
         micropod ci status                print worker, kernel boot and daemon identities as JSON
         micropod ci docker [arguments]    run the stock Docker CLI or a plugin against this worker
+        micropod ci snapshot BASE_IMAGE [DIRECTORY]
+                                          put a checkout in a reusable job image and print its local ID
         micropod ci run [--scratch-mib N] [--cache npm|go|python] [--cache-scope NAME] [docker options] IMAGE [command...]
                                           run a container with persistent package caches
+        micropod ci create [options]      prepare a fresh job with the same cache options and Docker create flags
         micropod ci metrics [--usage]     print active cache mounts, optional sizes and BuildKit usage as JSON
         micropod ci repair-network        reconnect the private network while containers keep running
         micropod ci stop                  stop the idle worker and retain its disk and caches
@@ -30,7 +33,10 @@ enum CICommands {
             print(help)
             return 0
         }
-        guard command == "run" || command == "docker" || args == ["metrics", "--usage"] || args.count == 1 else {
+        guard
+            ["run", "create", "docker", "snapshot"].contains(command) || args == ["metrics", "--usage"]
+                || args.count == 1
+        else {
             print(help)
             return 2
         }
@@ -51,22 +57,37 @@ enum CICommands {
             case "repair-network": try printStatus(await worker.repairNetwork())
             case "stop": try await worker.stop()
             case "status": try printStatus(await worker.status())
-            case "start", "endpoint", "run", "docker":
+            case "start", "endpoint", "run", "create", "docker", "snapshot":
                 guard let executable = Bundle.main.executableURL else {
                     throw MicropodError.message("Cannot locate micropod executable")
                 }
-                if command == "run" || command == "docker" {
-                    let options =
-                        command == "run"
-                        ? try ["run", "--rm"] + runArguments(args.dropFirst()) : Array(args.dropFirst())
+                if ["run", "create", "docker", "snapshot"].contains(command) {
+                    let options: [String]
+                    switch command {
+                    case "run", "create": options = try [command, "--rm"] + runArguments(args.dropFirst())
+                    case "snapshot": options = try snapshotArguments(args.dropFirst())
+                    default: options = Array(args.dropFirst())
+                    }
                     let endpoint = try await worker.runEndpoint(executable: executable)
+                    let recipe = command == "snapshot" ? Pipe() : nil
+                    if let recipe {
+                        try recipe.fileHandleForWriting.write(contentsOf: Data(snapshotDockerfile.utf8))
+                        try recipe.fileHandleForWriting.close()
+                        guard dup2(recipe.fileHandleForReading.fileDescriptor, STDIN_FILENO) != -1,
+                            fcntl(STDIN_FILENO, F_SETFD, 0) != -1
+                        else {
+                            throw POSIXError(.init(rawValue: errno) ?? .EIO)
+                        }
+                        // The Mac's selected Buildx builder can point to another engine.
+                        unsetenv("BUILDX_BUILDER")
+                    }
                     // Replace the CLI so job streams, signals and exit status belong to Docker.
                     let arguments = ["docker", "--host", endpoint] + options
                     for key in ["DOCKER_CONTEXT", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH"] { unsetenv(key) }
                     setenv("DOCKER_HOST", endpoint, 1)
                     let argv = arguments.map { strdup($0) } + [nil]
                     defer { argv.forEach { free($0) } }
-                    _ = execvp("docker", argv)
+                    _ = withExtendedLifetime(recipe) { execvp("docker", argv) }
                     throw MicropodError.message("Cannot execute docker: \(String(cString: strerror(errno)))")
                 }
                 let current = try await worker.start(executable: executable)
@@ -83,6 +104,29 @@ enum CICommands {
             FileHandle.standardError.write(Data(("micropod ci: " + error.localizedDescription + "\n").utf8))
             return 1
         }
+    }
+
+    // BuildKit applies the checkout's .dockerignore and shares the immutable layer among jobs.
+    static let snapshotDockerfile = """
+        ARG BASE_IMAGE
+        FROM ${BASE_IMAGE}
+        COPY . /workspace/
+        WORKDIR /workspace
+
+        """
+
+    static func snapshotArguments(_ arguments: ArraySlice<String>) throws -> [String] {
+        guard (1...2).contains(arguments.count), let base = arguments.first, !base.isEmpty,
+            !base.hasPrefix("-"), !base.contains(where: { $0.isWhitespace || $0.isNewline })
+        else { throw UsageError(message: "ci snapshot requires BASE_IMAGE [DIRECTORY]") }
+        let directory = URL(fileURLWithPath: arguments.dropFirst().first ?? ".", isDirectory: true).standardizedFileURL
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: directory.path, isDirectory: &isDirectory), isDirectory.boolValue
+        else { throw UsageError(message: "ci snapshot requires an existing checkout directory") }
+        return [
+            "buildx", "build", "--builder", "default", "--load", "--quiet", "--provenance=false",
+            "--build-arg", "BASE_IMAGE=" + base, "--file", "-", directory.path,
+        ]
     }
 
     // Consume only the Micropod prefix. Leave Docker options and the image's argv intact.
@@ -111,7 +155,7 @@ enum CICommands {
             }
             job = job.dropFirst(2)
         }
-        guard !job.isEmpty else { throw UsageError(message: "ci run requires an image") }
+        guard !job.isEmpty else { throw UsageError(message: "a CI job requires an image") }
         guard scope == nil || !caches.isEmpty else { throw UsageError(message: "--cache-scope requires --cache") }
 
         if caches.contains("python"), scope == nil {

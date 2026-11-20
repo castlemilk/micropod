@@ -35,6 +35,19 @@ final class CICommandsTests: XCTestCase {
             try CICommands.runArguments(["image", "--scratch-mib", "bad"]), ["image", "--scratch-mib", "bad"])
     }
 
+    func testSnapshotUsesTheWorkerBuilderAndLocalCheckout() throws {
+        let directory = FileManager.default.temporaryDirectory
+        let args = try CICommands.snapshotArguments(["toolchain:ci", directory.path])
+        XCTAssertEqual(Array(args.prefix(4)), ["buildx", "build", "--builder", "default"])
+        XCTAssertTrue(args.contains("--load"))
+        XCTAssertTrue(args.contains("BASE_IMAGE=toolchain:ci"))
+        XCTAssertEqual(args.last, directory.standardizedFileURL.path)
+        XCTAssertTrue(CICommands.snapshotDockerfile.contains("COPY . /workspace/"))
+        for invalid in [[], ["-"], ["image\nFROM other"], ["image", "/missing-setup-\(UUID())"], ["a", ".", "."]] {
+            XCTAssertThrowsError(try CICommands.snapshotArguments(ArraySlice(invalid)))
+        }
+    }
+
     func testInvalidCachePrefixFailsBeforeStartingAWorker() {
         for args in [
             ["--scratch-mib", "0", "alpine"], ["--scratch-mib", "1", "--scratch-mib", "2", "alpine"],

@@ -19,7 +19,7 @@ The PostgreSQL Testcontainers stage took 10.995 s on the shipping worker and ove
 
 ## Why fresh Go jobs take longer
 
-On the shipping kernel, 16 prepared Go commands finished in **0.396 s**. All 732 timed Go builds produced the expected executable with zero compiler, assembler and linker runs. The isolated offline fixture retained one npm payload, one Go module archive and 438 compiled-cache files (33,085,592 bytes). Their payload inodes and cache sizes matched before and after the run.
+On the shipping kernel, 16 prepared Go commands finished in **0.396 s**. All 732 timed Go builds produced the expected executable using warm compiled packages. The original linker counter missed commands prefixed by a Go environment assignment. Its zero-link counts are invalid. The direct follow-up verified real linker invocations on Ubuntu and measured identical executables on Gamma. The isolated offline fixture retained one npm payload, one Go module archive and 438 compiled-cache files (33,085,592 bytes). Their payload inodes and cache sizes matched before and after the run. [Corrected Go comparison](fresh-go.md)
 
 | Shipping worker, 16 jobs | Batch wall time | Last job’s Python setup and workspace | Last job’s Go build | Guest writes |
 | --- | ---: | ---: | ---: | ---: |

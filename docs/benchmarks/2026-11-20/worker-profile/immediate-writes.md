@@ -36,7 +36,7 @@ The shared Mac showed considerable run-to-run variation. Individual 16-Go batche
 
 ## Where the 16-job Go time goes
 
-In the Micropod worker, 16 prepared Go processes completed in **0.656 s**, compared with **0.712 s** in the archived raw Ubuntu run. All 1,220 Go builds in the scale profile produced the expected binary with zero compiler, assembler or linker executions. The harness and Docker lifecycle account for much of the remaining fresh-container wall time. The toolchain image ships Python source and the harness imports it separately for each fresh container. A cache dedicated to this source and toolchain allows the jobs to reuse compiled imports.
+In the Micropod worker, 16 prepared Go processes completed in **0.656 s**, compared with **0.712 s** in the archived raw Ubuntu run. All 1,220 Go builds in the scale profile produced the expected binary using warm compiled packages. The original counter missed environment-prefixed linker commands, so its linker counts are invalid. The harness and Docker lifecycle account for much of the remaining fresh-container wall time. The toolchain image ships Python source and the harness imports it separately for each fresh container. A cache dedicated to this source and toolchain allows the jobs to reuse compiled imports. [Corrected Go comparison](../fresh-go.md)
 
 | 16-job profile, five-round medians | Whole batch | Last job’s Python setup and workspace | Last job’s Go build | Guest disk writes | Guest ext4 sync entries |
 | --- | ---: | ---: | ---: | ---: | ---: |

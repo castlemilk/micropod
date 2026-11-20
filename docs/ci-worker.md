@@ -59,6 +59,35 @@ Existing workers reopen their original disk and retain its filesystem format. Th
 
 The trust boundary is the runner account and its dedicated VM. Docker clients can administer the guest, including its shared cache. Place mutually untrusted repositories in isolated sandboxes. The guest exports its own engine socket. Docker bind sources resolve inside Linux. Stream checkouts as build contexts or copy them into a container. Published ports bind inside the worker VM and its guest IP is available in the status output. For Compose projects with bind mounts, set `MICROPOD_CI_WORKSPACE` to a checkout root under `/Users`, `/Volumes` or `/private/tmp` when provisioning the worker. Linux sees that tree at the same physical path as macOS, so relative Compose binds work and edits are visible in both directions. Every Docker administrator of that worker can read and write the shared directory. Use a Docker named volume for the package stores so compiled objects and dependency archives stay on native ext4. Clients on macOS reach a published TCP port at the guest IP from `ci status`.
 
+## Fresh Go jobs from a prepared checkout
+
+`micropod ci snapshot BASE_IMAGE DIRECTORY` loads the checkout into the worker's image store and prints an immutable local image ID. BuildKit applies the checkout's `.dockerignore`. Prepare it once per revision. A fresh container sees its own writable layer at `/workspace`, while the lower source layer is shared. File access follows the image user's normal Linux permissions. An edit or build in one job is private to that job. [Docker build contexts](https://docs.docker.com/build/concepts/context/)
+
+```sh
+image="$(micropod ci snapshot golang:1.26 .)"
+micropod ci run --cache go --cache-scope project-go "$image" go build -trimpath -buildvcs=false -o app .
+```
+
+For a fan-out that builds the same main package, `ci/prepare-go-workspace.sh BASE_IMAGE DIRECTORY RELATIVE_OUTPUT [MAIN_PACKAGE]` links the output once using the normal scoped Go stores. It adds just that executable to the checkout in a separate image layer. Each job still runs its usual `go build`. Go checks the installed build ID and relinks when an input changes. The preparation uses the Go settings exported to the script, including `CGO_ENABLED`, `GOFLAGS` and `GOEXPERIMENT`. Use the same settings in the jobs that should reuse the output.
+
+Requests for the same immutable source image, cache scope, output path, package and build settings share a completed image. Concurrent requests for a new key elect one builder on the Mac. On a miss, the helper streams the executable through a private temporary file into BuildKit. Hits return the existing image. Each caller receives the immutable image ID on stdout and a `ci.go.prepare` JSON event on stderr with its key, binary SHA-256 and cache hit or miss. The worker stores the reusable tag as `micropod-internal/ci-go-output:KEY`. A workflow that retires a revision can remove its specific output tag with `micropod ci docker image rm "micropod-internal/ci-go-output:$key"`. The package caches live in separate named volumes.
+
+```sh
+export MICROPOD_BIN="$PWD/.build/release/micropod"
+export MICROPOD_CI_GO_SCOPE=project-go
+image="$(ci/prepare-go-workspace.sh golang:1.26 . app ./cmd/service)"
+"$MICROPOD_BIN" ci run --cache go --cache-scope project-go "$image" sh -ec \
+  'go build -trimpath -buildvcs=false -o app ./cmd/service && ./app'
+```
+
+The original offline benchmark used Python inside each measured container to create a temporary Go and npm fixture and check its output. Direct Go jobs use the Go toolchain and their entrypoint. In the direct benchmarks, setup and measurement orchestration run on the Mac. Only the explicitly named legacy control starts Python in each timed container.
+
+The experimental supervisor-sharing series uses one explicit anchor container on each engine. Its job group joins the same containerd shim while retaining separate PID and mount namespaces and cgroups. An unanchored 32-job burst lost the shim during task creation. Ordinary jobs use Docker's usual supervisor lifecycle. [containerd runtime grouping](https://github.com/containerd/containerd/blob/main/docs/runtime-v2.md)
+
+`micropod ci create` takes Micropod’s cache and scratch options followed by Docker’s create flags, image and command. It creates the Docker container without starting a process. A workflow that knows the job specification while waiting for an upstream stage can prepare it then. Start it with `micropod ci docker start --attach "$id"`. Each container runs once and is removed on exit. Use `micropod ci docker rm "$id"` for a cancelled job that never started. The staged comparison charges creation and dispatch separately and reports their combined wall time.
+
+The default OCI runtime is runc. `ci/install-crun.sh` registers a digest-checked ARM64 crun binary with the worker's live Docker daemon. The installer requires the Docker CLI, curl and jq on the Mac. Select it per job with the stock `--runtime micropod-crun` Docker option after any Micropod cache flags. The comparison records both runtimes. [Pinned crun release](https://github.com/containers/crun/releases/tag/1.31) · [Docker runtime registration](https://docs.docker.com/reference/cli/dockerd/#configure-container-runtimes)
+
 ## Network recovery and profiling
 
 The supervisor checks for the worker's local IPv4 gateway on macOS every five seconds and periodically probes the first hop from Linux. When that link disappears, it reconnects the worker's virtual network device, restores the guest route and checks the gateway with ARP. The guest keeps its addresses, processes, Docker socket and disk. Failed repairs retry with a delay up to one minute. A runner operator can request an immediate reconnect with `micropod ci repair-network`.
@@ -97,9 +126,21 @@ python3 scripts/qualify_ci_worker.py apple-worker --packages --profile-ext4 --cl
   --rounds 7 --micropod "$MICROPOD_BIN" --json /tmp/micropod-ext4.json
 ```
 
+The direct Go comparison stores Docker create, start, exit and removal events for every measured container. It checks the actual products, fresh container IDs, unchanged worker boots, and the native OCI digests on both engines. The reusable-output control must recompile and relink after a source edit. The stock Ubuntu control also counts real linker process executions using Go's `-toolexec` option. Each Linux worker needs the same local package image.
+
+```sh
+ci/install-crun.sh
+python3 scripts/bench_fresh_go.py --image "$PACKAGE_IMAGE" --clients 16 32 --rounds 5 --out gamma.json.gz
+python3 scripts/bench_fresh_go.py --suite group --image "$PACKAGE_IMAGE" --clients 16 32 --rounds 5 --out grouped.json.gz
+python3 scripts/bench_fresh_go.py --suite staged --image "$PACKAGE_IMAGE" --clients 16 32 --rounds 3 --out staged.json.gz
+python3 scripts/bench_fresh_go.py --suite preparation --image "$PACKAGE_IMAGE" --clients 16 32 --rounds 3 --out preparation.json.gz
+sqlite3 "$HOME/.micropod/benchmarks/measurements.sqlite3" \
+  'SELECT engine,mode,clients,round,round(seconds,3) FROM fresh_go_batches JOIN fresh_go_runs USING(run) WHERE clients=32 AND passed=1'
+```
+
 ## Qualification
 
-Gamma’s latest run measures DNS recovery with running containers, the ext4 tuning, cache reuse, the same-Mac OrbStack comparison and a kernel profile through 32 concurrent jobs. [Results and trace](benchmarks/2026-11-20/worker-profile.md) · [Earlier Apple Silicon and raw Ubuntu comparison](benchmarks/2026-11-20/gamma-ci-worker.md)
+Gamma’s qualifications cover DNS recovery with running containers, ext4 tuning, cache reuse, fresh-job startup and kernel profiling through 32 concurrent jobs. [Fresh Go, OrbStack and raw Ubuntu](benchmarks/2026-11-20/fresh-go.md) [Results and trace](benchmarks/2026-11-20/worker-profile.md) · [Earlier Apple Silicon and raw Ubuntu comparison](benchmarks/2026-11-20/gamma-ci-worker.md)
 
 The worker qualification workflow runs only when explicitly dispatched. Local Apple comparisons and qualification runs append their receipts to the runner’s SQLite database. The full qualification runs five rounds at 1, 4, 8 and 16 clients. It verifies guest-versus-container boot IDs, distinct PID and mount namespaces, actual CPU and memory quotas, both streams and exit codes, bridge DNS, package payload inodes, and image, volume and offline BuildKit cache reuse after restart. The native Ubuntu Docker run uses the same GitHub allocation and exported package image. Manual qualifications also copy those Go, Node and npm binaries out of the image and run the offline workspaces as ordinary Ubuntu processes. The raw process clock measures the package command. Its fixture setup and product verification run outside that clock. Container timings also include the Docker client, container launch, checkout creation, output verification and teardown. The full pipeline records per-stage wall times and alternates engine order across three warm passes.
 
