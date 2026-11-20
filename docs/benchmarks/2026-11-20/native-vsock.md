@@ -1,6 +1,10 @@
 # Fresh CI containers over vsock on Gamma
 
-On Gamma, Micropod's Rust guest service finished 16 fresh source-only Go jobs in **0.934 s** and 32 in **1.840 s**. It beat OrbStack and ordinary Micropod Docker in all ten paired batches. Raw warm Ubuntu finished in **0.650 s** and **1.263 s**, leaving gaps of 0.285 s and 0.577 s. Replacing the Docker bootstrap had its largest effect on opening a session. Once open, the two direct-runc executors had similar batch times. [Matched engine receipts](native-vsock/paired.json.gz) · [Ubuntu before](native-vsock/ubuntu-before.json) · [Ubuntu after](native-vsock/ubuntu-after.json)
+On Gamma, Micropod's Rust guest service finished 16 fresh source-only Go jobs in **0.934 s** and 32 in **1.840 s**. It beat OrbStack and ordinary Micropod Docker in all ten paired batches. Raw warm Ubuntu finished in **0.650 s** and **1.263 s**, leaving gaps of about 0.28 s and 0.58 s. Replacing the Docker bootstrap had its largest effect on opening a session. Once open, the two direct-runc executors had similar batch times. [Matched engine receipts](native-vsock/paired.json.gz) · [Ubuntu before](native-vsock/ubuntu-before.json) · [Ubuntu after](native-vsock/ubuntu-after.json)
+
+## Benchmark prompt
+
+> On Gamma, reduce the time from submitting 16 or 32 source-only Go jobs to receiving all verified results. Give every job a fresh isolated filesystem and its original CPU, memory and security policy. Move session startup into a Rust service over vsock and preserve the shared Go stores. Replay the archived Docker cases. Trace admission wait, OCI entry, kernel CPU pressure and cleanup. Select tuning by whole-batch wall time. Compare the result with the previous launcher, ordinary Docker, OrbStack and raw warm Ubuntu at the same VM budget. Report setup separately, archive the raw receipts and keep GitHub tests off.
 
 ## Comparison
 
