@@ -224,8 +224,15 @@ final class Router: @unchecked Sendable {
         switch (request.method, segments.first ?? "") {
 
         // MARK: System
-        case (_, "_ping"):
-            return .raw(200, [("Content-Type", "text/plain")], Data("OK\n".utf8))
+        case ("HEAD", "_ping") where segments.count == 1, ("GET", "_ping") where segments.count == 1:
+            // Docker negotiates on the unversioned ping before it sends any versioned request.
+            // The shim accepts classic build requests. BuildKit session upgrades are a separate contract.
+            let headers = [
+                ("API-Version", config.apiVersion), ("OSType", "linux"), ("Builder-Version", "1"),
+                ("Content-Type", "text/plain; charset=utf-8"), ("Cache-Control", "no-cache, no-store, must-revalidate"),
+                ("Pragma", "no-cache"),
+            ]
+            return .raw(200, headers, request.method == "HEAD" ? Data() : Data("OK".utf8))
         case ("GET", "version"):
             return try await version()
         case ("GET", "info"):

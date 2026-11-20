@@ -111,7 +111,7 @@ final class ShimHijackAfterCloseTests: XCTestCase {
         var out = Data()
         let deadline = Date().addingTimeInterval(5)
         var buffer = [UInt8](repeating: 0, count: 4096)
-        while Date() < deadline, !String(decoding: out, as: UTF8.self).hasSuffix("OK\n") {
+        while Date() < deadline, !String(decoding: out, as: UTF8.self).hasSuffix("OK") {
             var poller = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
             guard poll(&poller, 1, 50) > 0 else { continue }
             let n = recv(fd, &buffer, buffer.count, 0)

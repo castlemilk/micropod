@@ -1,18 +1,5 @@
 name: Qualify the persistent CI worker
 on:
-  pull_request:
-    paths:
-      - 'Sources/MicropodRuntime/CIWorker*.swift'
-      - 'Sources/MicropodRuntime/SandboxVM.swift'
-      - 'Sources/MicropodCLI/CICommands.swift'
-      - 'ci/worker-pipeline.sh'
-      - 'scripts/qualify_ci_worker.py'
-      - 'scripts/bench_live_kernel.py'
-      - 'scripts/bench_ci_apple.sh'
-      - 'scripts/bench_package_caches.py'
-      - 'scripts/bench_cache_image/**'
-      - 'ci/samples/**'
-      - '.github/workflows/qualify-ci-worker.yml'
   workflow_dispatch:
     inputs:
       suite:
@@ -24,14 +11,10 @@ on:
         description: Label for the physical Apple Silicon benchmark rig
         type: string
         default: macOS
-concurrency:
-  group: micropod-worker-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:
   guest:
-    if: github.event_name == 'pull_request' || inputs.suite == 'ubuntu-guest'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
@@ -41,21 +24,25 @@ jobs:
       - name: Exercise the pinned guest engine and retained storage
         shell: bash
         run: |
-          args=(--rounds 1 --clients 1 4)
-          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
-            args=(--packages --pipelines)
-          fi
-          python3 scripts/qualify_ci_worker.py linux-guest "${args[@]}" --json "$RUNNER_TEMP/guest.json"
+          python3 scripts/qualify_ci_worker.py linux-guest --packages --pipelines \
+            --ubuntu-bundle "$RUNNER_TEMP/ubuntu-bundle" --json "$RUNNER_TEMP/guest.json"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: arm64-ci-guest
           path: ${{ runner.temp }}/guest.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: arm64-warm-ubuntu
+          path: ${{ runner.temp }}/ubuntu-bundle/
+          compression-level: 1
+          retention-days: 3
 
   apple:
+    needs: guest
     if: inputs.suite == 'apple-pair'
     runs-on: [self-hosted, ARM64, "${{ inputs.apple_runner || 'macOS' }}"]
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
@@ -69,8 +56,12 @@ jobs:
         run: |
           swift build -c release --product micropod
           codesign -f -s - --entitlements signing/micropod-cli.entitlements .build/release/micropod
+      - uses: actions/download-artifact@v8
+        with:
+          name: arm64-warm-ubuntu
+          path: ${{ runner.temp }}/ubuntu-bundle
       - name: Verify lifecycle and compare warm jobs on this Mac
-        run: MICROPOD_BENCH_BIN="$PWD/.build/release/micropod" bash scripts/bench_ci_apple.sh "$RUNNER_TEMP/apple-bench"
+        run: MICROPOD_BENCH_BIN="$PWD/.build/release/micropod" bash scripts/bench_ci_apple.sh "$RUNNER_TEMP/apple-bench" --ubuntu-bundle "$RUNNER_TEMP/ubuntu-bundle"
       - uses: actions/upload-artifact@v7
         if: always()
         with:

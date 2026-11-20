@@ -9,7 +9,7 @@ import time
 import uuid
 
 
-def measure_packages(command, image_ref, architecture, boot, fingerprint, clients, rounds, result):
+def measure_packages(command, image_ref, architecture, boot, fingerprint, clients, rounds, result, warm_bytecode=False):
     script = Path(__file__).with_name("bench_package_caches.py").read_text()
     image = json.loads(command(["image", "inspect", image_ref]).stdout)[0]
     if image["Architecture"] != architecture or image.get("Os") != "linux":
@@ -17,6 +17,8 @@ def measure_packages(command, image_ref, architecture, boot, fingerprint, client
     result.update(workload="offline-npm-go-oci-v1", architecture=architecture, image_id=image["Id"],
                   script_sha256=hashlib.sha256(script.encode()).hexdigest(), resource_contract="1 CPU / 1 GiB",
                   clients=clients, blocks=[])
+    if warm_bytecode:
+        result["workload"] = "offline-npm-go-oci-warm-bytecode-v1"
     cohort = "mp-cache-" + uuid.uuid4().hex
     label = "io.micropod.cache-bench=" + cohort
 
@@ -39,16 +41,39 @@ def measure_packages(command, image_ref, architecture, boot, fingerprint, client
         record = {"batches": [], "round": block + 1}
         result["blocks"].append(record)
         try:
-            for kind in ("npm-cache", "go-mod-cache", "go-build-cache"):
+            stores = ["npm-cache", "go-mod-cache", "go-build-cache"]
+            if warm_bytecode:
+                stores.append("python-bytecode")
+            for kind in stores:
                 name = f"{cohort}-{block}-{kind}"
                 if command(["volume", "create", "--label", label, name]).stdout.strip() != name:
                     raise ValueError(f"Docker did not create the requested {kind} volume")
                 names.append(name)
                 mounts.extend(["--mount", f"type=volume,src={name},dst=/caches/{kind}"])
+            if warm_bytecode:
+                mounts.extend(["-e", "PYTHONPYCACHEPREFIX=/caches/python-bytecode"])
             seed = run("seed", None, mounts)
             lock = seed["lock"]
             record.update(cold=seed["cold"], versions=seed["versions"], before=seed["cache_sizes"], lock=lock)
             run("empty", lock, ["--tmpfs", "/caches"])
+            if warm_bytecode:
+                # Populate lazy imports once on each engine, outside the client clock.
+                for op in ("go", "npm", "audit"):
+                    run(op, lock, mounts)
+
+                def bytecode_inventory():
+                    audit = """from pathlib import Path
+import hashlib, json
+root = Path('/caches/python-bytecode')
+files = sorted((str(p.relative_to(root)), p.stat().st_ino, p.stat().st_size) for p in root.rglob('*.pyc'))
+assert files
+print(json.dumps(dict(files=len(files), bytes=sum(f[2] for f in files),
+    fingerprint=hashlib.sha256(json.dumps(files).encode()).hexdigest())))"""
+                    argv = ["run", "--rm", "--pull=never", "--network", "none", "--label", label,
+                            "--mount", f"type=volume,src={names[-1]},dst=/caches/python-bytecode,readonly",
+                            image["Id"], "python3", "-B", "-c", audit]
+                    return json.loads(command(argv).stdout)
+                record["bytecode_before"] = bytecode_inventory()
             for i in range(len(clients)):
                 n = clients[(block + i) % len(clients)]
                 tools = ("npm", "go") if (i + block) % 2 == 0 else ("go", "npm")
@@ -64,6 +89,10 @@ def measure_packages(command, image_ref, architecture, boot, fingerprint, client
             after = run("audit", lock, mounts)
             if after["payload_inodes"] != seed["payload_inodes"]:
                 raise ValueError("The shared npm or Go module payload changed inode")
+            if warm_bytecode:
+                record["bytecode_after"] = bytecode_inventory()
+                if record["bytecode_before"] != record["bytecode_after"]:
+                    raise ValueError("Bytecode was replaced or duplicated during the warm jobs")
             record.update(after=after["cache_sizes"], same_payload_inodes=True, empty_offline_controls=True)
         finally:
             if names:

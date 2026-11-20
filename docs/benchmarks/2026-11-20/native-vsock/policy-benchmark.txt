@@ -1,0 +1,61 @@
+
+running 1 test
+test service::tests::bounded_paths ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/ordinary
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/shared_PID_namespace
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/unknown_bind
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/missing_seccomp
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/missing_memory_limit
+--- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces (0.00s)
+    --- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/ordinary (0.00s)
+    --- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/shared_PID_namespace (0.00s)
+    --- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/unknown_bind (0.00s)
+    --- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/missing_seccomp (0.00s)
+    --- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/missing_memory_limit (0.00s)
+=== RUN   TestWorkerPolicyWithinMeasuredAllocation
+--- PASS: TestWorkerPolicyWithinMeasuredAllocation (0.00s)
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/ordinary
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/shared_PID_namespace
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/unknown_bind
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/missing_seccomp
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/missing_memory_limit
+--- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces (0.00s)
+    --- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/ordinary (0.00s)
+    --- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/shared_PID_namespace (0.00s)
+    --- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/unknown_bind (0.00s)
+    --- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/missing_seccomp (0.00s)
+    --- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/missing_memory_limit (0.00s)
+=== RUN   TestWorkerPolicyWithinMeasuredAllocation
+--- PASS: TestWorkerPolicyWithinMeasuredAllocation (0.00s)
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/ordinary
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/shared_PID_namespace
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/unknown_bind
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/missing_seccomp
+=== RUN   TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/missing_memory_limit
+--- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces (0.00s)
+    --- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/ordinary (0.00s)
+    --- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/shared_PID_namespace (0.00s)
+    --- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/unknown_bind (0.00s)
+    --- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/missing_seccomp (0.00s)
+    --- PASS: TestJobSpecPreservesPolicyAndRejectsSharedNamespaces/missing_memory_limit (0.00s)
+=== RUN   TestWorkerPolicyWithinMeasuredAllocation
+--- PASS: TestWorkerPolicyWithinMeasuredAllocation (0.00s)
+goos: linux
+goarch: arm64
+pkg: github.com/castlemilk/micropod/guest/cmd/oci-batch
+BenchmarkPreparedDockerPolicy
+BenchmarkPreparedDockerPolicy/decode-each-job
+BenchmarkPreparedDockerPolicy/decode-each-job-4         	    3492	    134509 ns/op	  120980 B/op	     601 allocs/op
+BenchmarkPreparedDockerPolicy/decode-each-job-4         	    3273	    141625 ns/op	  120794 B/op	     601 allocs/op
+BenchmarkPreparedDockerPolicy/decode-each-job-4         	    3127	    159373 ns/op	  120978 B/op	     602 allocs/op
+BenchmarkPreparedDockerPolicy/prepared
+BenchmarkPreparedDockerPolicy/prepared-4                	   17535	     27078 ns/op	   13516 B/op	      15 allocs/op
+BenchmarkPreparedDockerPolicy/prepared-4                	   18553	     26129 ns/op	   13509 B/op	      15 allocs/op
+BenchmarkPreparedDockerPolicy/prepared-4                	   18363	     26062 ns/op	   13509 B/op	      15 allocs/op
+PASS

@@ -1,0 +1,110 @@
+{
+  "passed": true,
+  "original": {
+    "seconds": 0.075750749965664,
+    "event": {
+      "event": "ci.go.suite",
+      "cache": "hit",
+      "key": "05c78661c54ffe8d548b0f5c3737b30b5bec8120d09d51b1b8c6a54facfd5111",
+      "image": "sha256:d173321237230b95cce8492af3548ec2f0760785e42275535bbac2708d3c2481"
+    },
+    "image": "sha256:d173321237230b95cce8492af3548ec2f0760785e42275535bbac2708d3c2481",
+    "exit": 0,
+    "detail": ""
+  },
+  "changed_snapshot_seconds": 0.31578808301128447,
+  "concurrent_changed_prepares": [
+    {
+      "seconds": 3.8230618750094436,
+      "event": {
+        "event": "ci.go.suite",
+        "cache": "hit",
+        "key": "012649ba89d529283b59cfa87dab559a859fd30942eface515222a2247a040fc",
+        "image": "sha256:3fc8f7f0c0fd10d5cb160946d3e8b3d32814df36e6829e035aca053313edf374"
+      },
+      "image": "sha256:3fc8f7f0c0fd10d5cb160946d3e8b3d32814df36e6829e035aca053313edf374",
+      "exit": 0,
+      "detail": ""
+    },
+    {
+      "seconds": 3.7411553749698214,
+      "event": {
+        "event": "ci.go.suite",
+        "cache": "miss",
+        "key": "012649ba89d529283b59cfa87dab559a859fd30942eface515222a2247a040fc",
+        "image": "sha256:3fc8f7f0c0fd10d5cb160946d3e8b3d32814df36e6829e035aca053313edf374"
+      },
+      "image": "sha256:3fc8f7f0c0fd10d5cb160946d3e8b3d32814df36e6829e035aca053313edf374",
+      "exit": 0,
+      "detail": ""
+    },
+    {
+      "seconds": 3.7655029160086997,
+      "event": {
+        "event": "ci.go.suite",
+        "cache": "hit",
+        "key": "012649ba89d529283b59cfa87dab559a859fd30942eface515222a2247a040fc",
+        "image": "sha256:3fc8f7f0c0fd10d5cb160946d3e8b3d32814df36e6829e035aca053313edf374"
+      },
+      "image": "sha256:3fc8f7f0c0fd10d5cb160946d3e8b3d32814df36e6829e035aca053313edf374",
+      "exit": 0,
+      "detail": ""
+    },
+    {
+      "seconds": 3.7909840409993194,
+      "event": {
+        "event": "ci.go.suite",
+        "cache": "hit",
+        "key": "012649ba89d529283b59cfa87dab559a859fd30942eface515222a2247a040fc",
+        "image": "sha256:3fc8f7f0c0fd10d5cb160946d3e8b3d32814df36e6829e035aca053313edf374"
+      },
+      "image": "sha256:3fc8f7f0c0fd10d5cb160946d3e8b3d32814df36e6829e035aca053313edf374",
+      "exit": 0,
+      "detail": ""
+    }
+  ],
+  "changed_live_job": {
+    "seconds": 0.15794654202181846,
+    "exit": 0,
+    "fixture": true,
+    "failure": false
+  },
+  "changed_product": [
+    "revision-b",
+    "ab835cd1301afbef642676f3925dc552979a39020e916e2afe46e43d4177498b  /micropod-ci-suite/product"
+  ],
+  "original_product": "51b1896898856067459ab1bc2aca459184968c3c48d5cbaa33c2ec727ec0a57b",
+  "failing_test_preparation": {
+    "seconds": 3.1472553749918006,
+    "event": {
+      "event": "ci.go.suite",
+      "cache": "miss",
+      "key": "309366b4f7c60bd6861dd13f19fe0b36a46001f9cc88c71db68856e62352fdeb",
+      "image": "sha256:8e50c030bb1a2300d840ab3f892af7413589f78df5cff11c0c6c94a49343e4d6"
+    },
+    "image": "sha256:8e50c030bb1a2300d840ab3f892af7413589f78df5cff11c0c6c94a49343e4d6",
+    "exit": 0,
+    "detail": ""
+  },
+  "failed_live_jobs": [
+    {
+      "seconds": 0.1688824159791693,
+      "exit": 1,
+      "fixture": false,
+      "failure": true
+    },
+    {
+      "seconds": 0.129646125016734,
+      "exit": 1,
+      "fixture": false,
+      "failure": true
+    }
+  ],
+  "failed_vet": {
+    "seconds": 0.3402241669828072,
+    "event": null,
+    "image": "",
+    "exit": 1,
+    "detail": "vet_failure.go:3:32: fmt.Printf format %d has arg \"text\" of wrong type string\n"
+  }
+}

@@ -143,8 +143,13 @@ def image_config_digest(socket_path, image_id, architecture):
 def measure(args, receipt, runner=None, read_parent=None):
     require(args.socket.startswith("/"), "The Docker socket must be an absolute path")
     docker = ["docker", "--host", "unix://" + args.socket]
+    worker_cli = args.worker_cli if args.engine == "micropod-worker" else None
+    receipt["timed_client"] = "micropod ci run" if worker_cli else "docker run --rm"
     def cmd(argv, check=True):
-        command = [*docker, *argv]
+        if worker_cli and argv[:2] == ["run", "--rm"]:
+            command = [worker_cli, "ci", "run", *argv[2:]]
+        else:
+            command = [*docker, *argv]
         r = runner(command) if runner else subprocess.run(command, capture_output=True, text=True, timeout=90)
         if check and r.returncode:
             raise ValueError(f"docker {argv[0]} exited {r.returncode}: {r.stderr[-350:]}")
@@ -238,7 +243,7 @@ def measure(args, receipt, runner=None, read_parent=None):
             samples.append(dict(round=block+1, clients=n, seconds=round(time.perf_counter()-start, 6),
                                 passed=n-len(errors), errors=errors))
             if args.engine != "inner":
-                print(f"{args.engine} block {block+1} clients {n}: {n-len(errors)}/{n} "
+                print(f"{args.engine} block {receipt.get('block', block + 1)} clients {n}: {n-len(errors)}/{n} "
                       f"in {samples[-1]['seconds']:.3f}s", file=sys.stderr, flush=True)
     receipt["p50_seconds"] = {str(n): statistics.median(complete) for n in args.clients
                               if (complete := [s["seconds"] for s in samples if s["clients"] == n and not s["errors"]])}
@@ -253,7 +258,7 @@ def measure(args, receipt, runner=None, read_parent=None):
         from guest_cache_workload import measure_packages
         receipt["package_caches"] = {}
         measure_packages(cmd, args.package_image, info["Architecture"], kernel, fingerprint, args.clients, args.rounds,
-                         receipt["package_caches"])
+                         receipt["package_caches"], warm_bytecode=getattr(args, "warm_bytecode", False))
         if canonical:
             packages = receipt["package_caches"]
             local_id = packages["image_id"]
@@ -350,7 +355,8 @@ def paired(args, receipt):
             current.engine, current.rounds = engine, 1
             offset = block % len(args.clients)
             current.clients = args.clients[offset:] + args.clients[:offset]
-            row = dict(engine=engine, block=block + 1)
+            row = dict(engine=engine, block=block + 1, host_load_before=os.getloadavg(),
+                       started_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
             rows.append(row)
             if engine == "micropod-worker":
                 on_worker(current, row)
@@ -362,6 +368,7 @@ def paired(args, receipt):
             identity = (row["boot_sha256"], row["server"]["ID"], row["image_id"], row["server"]["NCPU"],
                         row.get("micropod_server", {}).get("sourceRevision"))
             require(identity == identities.setdefault(engine, identity), f"{engine} kernel, daemon, build, CPU count or image changed")
+            row["host_load_after"] = os.getloadavg()
             row["passed"] = True
     first = rows[:len(engines)]
     require(all(row["architecture"] == "arm64" and row["image_id"] == first[0]["image_id"] for row in first),
@@ -407,7 +414,7 @@ def paired(args, receipt):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--engine", choices=["rig-matrix", "rig-pair", "micropod", "linux-docker", *MAC_PEERS, "inner"], required=True)
+    p.add_argument("--engine", choices=["rig-matrix", "rig-pair", "micropod-worker", "micropod", "linux-docker", *MAC_PEERS, "inner"], required=True)
     p.add_argument("--socket", required=True, help="Docker Unix socket in the measured environment")
     p.add_argument("--clock", choices=["client", "guest"], default="client",
                    help="Time from the invoking client, or inside an owned Micropod allocation")
@@ -422,16 +429,21 @@ def main():
     p.add_argument("--allocation", help="ID of an existing Micropod rootless Docker sandbox")
     p.add_argument("--image", default="alpine:3.20", help="Already-pulled native Alpine image or digest")
     p.add_argument("--package-image", help="Preloaded native OCI image with Go, npm, Node and Python for offline container jobs")
+    p.add_argument("--warm-bytecode", action="store_true", help="Prime and retain the Python harness bytecode on both engines")
     p.add_argument("--clients", nargs="+", type=int, default=[1, 4, 8, 16])
     p.add_argument("--rounds", type=int, default=5)
     p.add_argument("--json", type=Path)
     args = p.parse_args()
+    if args.warm_bytecode and (not args.package_image or args.engine not in {"rig-pair", "rig-matrix", "micropod-worker", "orbstack", "linux-docker"}):
+        p.error("--warm-bytecode requires a local package workload")
     if not (1 <= args.rounds <= 50 and all(1 <= n <= 64 for n in args.clients) and len(set(args.clients)) == len(args.clients)):
         p.error("Rounds must be 1..50 and distinct client levels 1..64")
     if args.expected_revision and (args.engine not in {"rig-pair", "rig-matrix", "micropod"}
                                    or not re.fullmatch(r"[0-9a-fA-F]{40}", args.expected_revision)):
         p.error("Use --expected-revision with a Micropod profile and a full commit SHA")
-    if args.worker_cli and (args.engine not in {"rig-pair", "rig-matrix"} or args.api or args.allocation or args.expected_revision):
+    if args.engine == "micropod-worker" and (not args.worker_cli or any((args.orbstack_socket, args.desktop_socket, args.colima_socket))):
+        p.error("A standalone worker requires --worker-cli and its own socket")
+    if args.worker_cli and (args.engine not in {"rig-pair", "rig-matrix", "micropod-worker"} or args.api or args.allocation or args.expected_revision):
         p.error("Select a worker CLI or a qualified allocation for a rig comparison")
     if args.engine in {"rig-pair", "rig-matrix", "micropod"} and not args.worker_cli and not (args.api and args.allocation):
         p.error("Micropod requires --api and --allocation")
@@ -439,7 +451,7 @@ def main():
         p.error("A physical pair requires --orbstack-socket")
     if args.engine == "rig-matrix" and not any((args.orbstack_socket, args.desktop_socket, args.colima_socket)):
         p.error("Supply at least one peer socket for the Apple Silicon matrix")
-    if args.ubuntu_reference and args.engine not in {"rig-pair", "rig-matrix"}:
+    if args.ubuntu_reference and args.engine not in {"rig-pair", "rig-matrix", "micropod-worker"}:
         p.error("Use Ubuntu references with the physical rig matrix")
     if args.package_image and args.clock == "guest":
         p.error("Package workspaces use the client clock")
@@ -448,7 +460,7 @@ def main():
     record = dict(profile=args.engine, workload=WORKLOAD, measured_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                   system=platform.system(), arch=platform.machine(), clock=args.clock, image=args.image, rounds=args.rounds)
     try:
-        if args.engine in {"rig-pair", "rig-matrix"}:
+        if args.engine in {"rig-pair", "rig-matrix", "micropod-worker"}:
             paired(args, record)
         elif args.engine == "micropod":
             in_allocation(args, record)
@@ -457,8 +469,13 @@ def main():
         record["passed"] = True
     except Exception as exc:
         record.update(passed=False, error=str(exc))
-    if args.json:
-        args.json.write_text(json.dumps(record, indent=2) + "\n")
+    if args.json or args.engine in {"rig-pair", "rig-matrix"}:
+        data = (json.dumps(record, indent=2) + "\n").encode()
+        if args.json:
+            args.json.write_bytes(data)
+        if args.engine in {"rig-pair", "rig-matrix"}:
+            from ci_benchmark_store import DEFAULT_DB, store_receipt
+            store_receipt(DEFAULT_DB, "apple-pair", data)
     print(json.dumps(record, separators=(",", ":")))
     # The outer Micropod client needs a failed inner receipt as well.
     return 0 if record["passed"] or args.engine == "inner" else 1

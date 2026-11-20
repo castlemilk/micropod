@@ -66,6 +66,11 @@ public enum SandboxVM {
         /// Host directory holding `micropod-guest`, shared read-only at
         /// ``SandboxGuestTool/guestDirectory`` (SandboxService sandboxes).
         public var guestTool: URL?
+        var ciWorkspace: String?
+        var ciOCITools: URL?
+        var ciKataTools: URL?
+        var isolatedCIJob = false
+        var ciExt4MaxBatchUS: Int?
         public var rootlessDocker = false
         public var tmpfsTmp = true
         public var tmpSizeMiB: UInt64?
@@ -174,9 +179,17 @@ public enum SandboxVM {
         let image: Containerization.Image
         let rootfsPath: URL
         if let ciWorker {
-            imageRef = try normalize(CIWorker.image)
+            guard case .image(let ref) = options.base else {
+                throw MicropodError.message("CI worker requires an image")
+            }
+            imageRef = try normalize(ref)
             diskBytes = options.diskBytes
-            image = try await store.get(reference: imageRef, pull: true)
+            do {
+                image = try await store.get(reference: imageRef)
+            } catch let error as ContainerizationError where error.code == .notFound {
+                progress("Pulling the Linux ARM64 CI worker image")
+                image = try await store.pull(reference: imageRef, platform: .current)
+            }
             rootfsPath = try await ciWorker.openDisk(image: image, bytes: diskBytes, progress: progress)
         } else {
             let baseDisk: URL
@@ -187,11 +200,17 @@ public enum SandboxVM {
             try clone(baseDisk, to: rootfsPath)
         }
         let imageConfig = try await image.config(for: .current).config
-        let rootfs = Containerization.Mount.block(format: "ext4", source: rootfsPath.path, destination: "/")
+        // Adaptive batching is the mixed CI default. Dedicated workers can tune the fsync wait
+        // while retaining ext4 write barriers and ordered journaling on their journaled disks.
+        let rootfs = Containerization.Mount.block(
+            format: "ext4", source: rootfsPath.path, destination: "/",
+            options: options.ciExt4MaxBatchUS.map { ["max_batch_time=\($0)"] } ?? [])
         trace.mark("clone")
 
         var kernel = Kernel(path: try kernelURL(), platform: .linuxArm)
         kernel.commandLine.kernelArgs += kernelArgs
+        // The Apple guest kernel builds PSI with CONFIG_PSI_DEFAULT_DISABLED.
+        if ciWorker != nil { kernel.commandLine.kernelArgs.append("psi=1") }
         if let extra = ProcessInfo.processInfo.environment["MICROPOD_SANDBOX_KERNEL_ARGS"] {
             kernel.commandLine.kernelArgs += extra.split(separator: " ").map(String.init)
         }
@@ -203,12 +222,15 @@ public enum SandboxVM {
         // One vmnet network per sandbox. Host mode (published ports or
         // exposed host ports without --allow-net) reaches the host and
         // nothing else.
-        let vmnet = try options.networkMode.map {
-            try SandboxNetwork(mode: $0, pinBridge: options.rootlessDocker || ciWorker != nil)
-        }
-        if let vmnet {
-            await didOwnNetwork(vmnet)
-            try vmnet.waitUntilReady()
+        let vmnet: SandboxNetwork?
+        if ciWorker != nil, let mode = options.networkMode {
+            vmnet = try await SandboxNetwork.workerNetwork(mode: mode)
+        } else {
+            vmnet = try options.networkMode.map { try SandboxNetwork(mode: $0, pinBridge: options.rootlessDocker) }
+            if let vmnet {
+                await didOwnNetwork(vmnet)
+                try vmnet.waitUntilReady()
+            }
         }
         let network = vmnet.map { (interface: $0.interface, gateway: $0.gateway.description) }
         if vmnet != nil { trace.mark("network") }
@@ -257,6 +279,10 @@ public enum SandboxVM {
         var template = imageConfig.map { LinuxProcessConfiguration(from: $0) } ?? LinuxProcessConfiguration()
         template.environmentVariables = mergeEnv(mergeEnv(template.environmentVariables, egressEnv), options.env)
         if let workdir = options.workdir { template.workingDirectory = workdir }
+        if options.isolatedCIJob {
+            template.noNewPrivileges = true
+            template.capabilities = .init(capabilities: [])
+        }
         let process = template
         template.arguments = []
 
@@ -276,7 +302,24 @@ public enum SandboxVM {
             }
             if let ciWorker {
                 // The upstream engine administers its own dedicated Linux VM. Its only integration
-                // with macOS is this outbound socket. No host files or devices are shared.
+                // with macOS by default is this outbound socket. A configured checkout is shared at its Mac path.
+                // The configured resources are the whole VM's budget, including the guest agent.
+                if let path = options.ciWorkspace {
+                    cfg.mounts.append(.share(source: path, destination: path))
+                }
+                if let tools = options.ciOCITools {
+                    cfg.mounts.append(.share(source: tools.path, destination: "/opt/micropod-oci", options: ["ro"]))
+                    cfg.sockets.append(
+                        UnixSocketConfiguration(
+                            source: URL(fileURLWithPath: CIWorker.guestOCI),
+                            destination: ciWorker.ociSocket, permissions: [.ownerRead, .ownerWrite], direction: .outOf))
+                }
+                if let kata = options.ciKataTools {
+                    cfg.virtualization = true
+                    cfg.mounts.append(.share(source: kata.path, destination: "/opt/kata", options: ["ro"]))
+                }
+                cfg.cpuOverhead = 0
+                cfg.memoryOverhead = 0
                 cfg.process.capabilities = .allCapabilities
                 // Retain images and volumes on ext4. Recreate daemon PID and runtime files on every boot.
                 cfg.mounts.append(
@@ -284,10 +327,12 @@ public enum SandboxVM {
                         type: "tmpfs", source: "tmpfs", destination: "/run", options: ["nosuid", "nodev", "mode=0755"]))
                 cfg.maskedPaths = []
                 cfg.readonlyPaths = []
-                cfg.sockets.append(
-                    UnixSocketConfiguration(
-                        source: URL(fileURLWithPath: CIWorker.guestSocket), destination: ciWorker.socket,
-                        permissions: [.ownerRead, .ownerWrite], direction: .outOf))
+                if !ciWorker.isNativeRunner {
+                    cfg.sockets.append(
+                        UnixSocketConfiguration(
+                            source: URL(fileURLWithPath: CIWorker.guestSocket), destination: ciWorker.socket,
+                            permissions: [.ownerRead, .ownerWrite], direction: .outOf))
+                }
             }
             if let path = ProcessInfo.processInfo.environment["MICROPOD_SANDBOX_BOOTLOG"] {
                 cfg.bootLog = .file(path: URL(fileURLWithPath: path), append: false)
@@ -442,6 +487,22 @@ public enum SandboxVM {
     static func launch(_ prepared: Prepared) async throws {
         try await openForwards(prepared)
         try await prepared.container.start()
+    }
+
+    /// One disposable Apple VM per allocation, with a cloned root disk and no workload NIC or host shares.
+    public static func isolatedCIJob(image: String, arguments: [String]) async throws -> Int32 {
+        guard let command = arguments.first, !command.isEmpty else {
+            throw MicropodError.message("Missing job command")
+        }
+        var options = Options(base: .image(image))
+        options.isolatedCIJob = true
+        options.entrypoint = [command]
+        options.arguments = Array(arguments.dropFirst())
+        options.cpus = 1
+        options.memoryMiB = 1024
+        options.diskBytes = 4 << 30
+        options.timeoutSeconds = 6 * 60 * 60
+        return try await run(options) { message in FileHandle.standardError.write(Data((message + "\n").utf8)) }
     }
 
     /// Boot, run `options.arguments`, tear down. Returns the guest exit code.

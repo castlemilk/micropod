@@ -130,60 +130,72 @@ func TestMkdirRemoveRenameCopyChmod(t *testing.T) {
 	}
 }
 
-// watchEvents runs a recursive watch on dir while act mutates it, returning
-// the events seen (after "ready").
-func watchEvents(t *testing.T, dir string, act func()) []string {
-	t.Helper()
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	go func() { _ = run([]string{"watch", dir, "--recursive"}, strings.NewReader(""), w) }()
-	lines := make(chan string, 1024)
-	go func() {
-		sc := bufio.NewScanner(r)
-		for sc.Scan() {
-			lines <- sc.Text()
-		}
-	}()
-	select {
-	case line := <-lines:
-		if line != `{"event":"ready"}` {
-			t.Fatalf("first event %s", line)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("no ready")
-	}
-	act()
-	var events []string
-	deadline := time.After(700 * time.Millisecond)
-	for {
-		select {
-		case line := <-lines:
-			var e struct{ Event, Path string }
-			_ = json.Unmarshal([]byte(line), &e)
-			events = append(events, e.Event+" "+strings.TrimPrefix(e.Path, dir))
-		case <-deadline:
-			r.Close()
-			return events
-		}
-	}
-}
-
 func TestWatchReportsChangesRecursivelyAndFast(t *testing.T) {
 	dir := t.TempDir()
-	events := watchEvents(t, dir, func() {
-		_ = os.WriteFile(filepath.Join(dir, "a.txt"), []byte("1"), 0o644)
-		// Two writes within one second: a stat poll can't tell them apart.
-		_ = os.WriteFile(filepath.Join(dir, "a.txt"), []byte("2"), 0o644)
-		// A new directory with a file created before its watch can exist.
-		_ = os.MkdirAll(filepath.Join(dir, "d/e"), 0o755)
-		_ = os.WriteFile(filepath.Join(dir, "d/e/deep.txt"), []byte("x"), 0o644)
-		time.Sleep(100 * time.Millisecond)
-		_ = os.WriteFile(filepath.Join(dir, "d/e/later.txt"), []byte("y"), 0o644)
-		_ = os.Rename(filepath.Join(dir, "a.txt"), filepath.Join(dir, "d/b.txt"))
-		_ = os.Remove(filepath.Join(dir, "d/b.txt"))
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	r, w, err := os.Pipe()
+	must(err)
+	done := make(chan error, 1)
+	go func() {
+		err := run([]string{"watch", dir, "--recursive"}, strings.NewReader(""), w)
+		_ = w.Close()
+		done <- err
+	}()
+	t.Cleanup(func() {
+		_ = r.Close()
+		// Wake the inotify read so the watcher observes the closed output pipe.
+		if err := os.WriteFile(filepath.Join(dir, ".stop"), nil, 0o600); err != nil {
+			t.Error(err)
+		}
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Error(err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Error("watcher did not stop")
+		}
 	})
+
+	must(r.SetReadDeadline(time.Now().Add(5 * time.Second)))
+	scanner := bufio.NewScanner(r)
+	if !scanner.Scan() || scanner.Text() != `{"event":"ready"}` {
+		t.Fatalf("first watch event %q, error %v", scanner.Text(), scanner.Err())
+	}
+	var events []string
+	waitFor := func(want string) {
+		t.Helper()
+		for scanner.Scan() {
+			var e struct{ Event, Path string }
+			must(json.Unmarshal(scanner.Bytes(), &e))
+			event := e.Event + " " + strings.TrimPrefix(e.Path, dir)
+			events = append(events, event)
+			if event == want {
+				return
+			}
+		}
+		t.Fatalf("watch ended before %q, error %v, events %v", want, scanner.Err(), events)
+	}
+	a := filepath.Join(dir, "a.txt")
+	must(os.WriteFile(a, []byte("1"), 0o644))
+	must(os.WriteFile(a, []byte("2"), 0o644))
+	nested := filepath.Join(dir, "d", "e")
+	must(os.MkdirAll(nested, 0o755))
+	must(os.WriteFile(filepath.Join(nested, "deep.txt"), []byte("x"), 0o644))
+	// Once the watcher reports this file its parent watch is installed.
+	waitFor("create /d/e/deep.txt")
+	must(os.WriteFile(filepath.Join(nested, "later.txt"), []byte("y"), 0o644))
+	moved := filepath.Join(dir, "d", "b.txt")
+	must(os.Rename(a, moved))
+	must(os.Remove(moved))
+	// The same inotify queue delivers this marker after all preceding filesystem operations.
+	must(os.Mkdir(filepath.Join(dir, ".complete"), 0o700))
+	waitFor("create /.complete")
 	for _, want := range []string{
 		"create /a.txt", "modify /a.txt", "create /d", "create /d/e/deep.txt", "create /d/e/later.txt",
 		"rename /a.txt", "rename /d/b.txt", "delete /d/b.txt",

@@ -22,19 +22,20 @@ final class ShimHeadMethodTests: XCTestCase {
             "HEAD must not carry a body; got \(response.body.count) bytes")
     }
 
-    /// The Content-Length must still describe what a GET would return.
-    func testHeadPingKeepsGetContentLength() throws {
-        let get = try shim.raw().request("GET", "/_ping")
-        let head = try shim.raw().request("HEAD", "/_ping")
-        XCTAssertFalse(get.body.isEmpty)
-        XCTAssertEqual(
-            head.headers["content-length"], String(get.body.count),
-            "HEAD headers must match the GET response")
+    func testNegotiationAdvertisesTheVersionServedByTheShim() throws {
+        let client = shim.raw()
+        let version = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: client.request("GET", "/version").body) as? [String: Any])
+        for method in ["HEAD", "GET"] {
+            let ping = try client.request(method, "/_ping")
+            XCTAssertEqual(ping.headers["api-version"], version["ApiVersion"] as? String)
+            XCTAssertEqual(ping.headers["ostype"], version["Os"] as? String)
+            XCTAssertEqual(ping.headers["builder-version"], "1")
+            XCTAssertEqual(ping.headers["content-length"], method == "HEAD" ? "0" : "2")
+        }
+        XCTAssertEqual(try client.request("POST", "/_ping").status, 404)
+        XCTAssertEqual(try client.request("GET", "/_ping/extra").status, 404)
     }
-
-    /// Only `_ping` is routed method-agnostically (`case (_, "_ping")`), which
-    /// matches what the docker CLI actually probes. Other routes stay GET-only,
-    /// so there is no HEAD-with-body exposure on them to test.
 
     /// The connection must stay usable — that is the whole point.
     func testConnectionStaysCleanAfterHead() throws {
@@ -42,6 +43,6 @@ final class ShimHeadMethodTests: XCTestCase {
         _ = try client.request("HEAD", "/_ping")
         let next = try client.request("GET", "/_ping")
         XCTAssertEqual(next.status, 200)
-        XCTAssertEqual(String(decoding: next.body, as: UTF8.self), "OK\n")
+        XCTAssertEqual(String(decoding: next.body, as: UTF8.self), "OK")
     }
 }

@@ -1,0 +1,96 @@
+{
+  "wall_s": 3.98403104202589,
+  "source": "sha256:44a930ab39f5585c2487aeddec7d6a40050ac99403da7c667e1b0e09910a2878",
+  "cache_event": {
+    "event": "ci.go.suite",
+    "cache": "miss",
+    "key": "ef2f259d916c5db00bec968dfa083773198ba25f2971aee4c06d1bbdfbb12513",
+    "image": "sha256:ebb31f818d3f4495bd17fb53d3b0982c30a6c4d92e25fa143c57f8ec1955bfec"
+  },
+  "operations": [
+    {
+      "cmd": "image inspect",
+      "start_ns": 349626502926291,
+      "end_ns": 349626522146375,
+      "seconds": 0.019220084,
+      "exit": 1
+    },
+    {
+      "cmd": "image inspect",
+      "start_ns": 349626568101916,
+      "end_ns": 349626584671166,
+      "seconds": 0.01656925,
+      "exit": 1
+    },
+    {
+      "cmd": "image inspect",
+      "start_ns": 349626617974375,
+      "end_ns": 349626641121708,
+      "seconds": 0.023147333,
+      "exit": 0
+    },
+    {
+      "cmd": "create",
+      "start_ns": 349626696310583,
+      "end_ns": 349626736403791,
+      "seconds": 0.040093208,
+      "exit": 0
+    },
+    {
+      "cmd": "start",
+      "start_ns": 349626770755375,
+      "end_ns": 349627486864666,
+      "seconds": 0.716109291,
+      "exit": 0
+    },
+    {
+      "cmd": "inspect",
+      "start_ns": 349627520604000,
+      "end_ns": 349627534599541,
+      "seconds": 0.013995541,
+      "exit": 0
+    },
+    {
+      "cmd": "commit",
+      "start_ns": 349627566011750,
+      "end_ns": 349628968650750,
+      "seconds": 1.402639,
+      "exit": 0
+    },
+    {
+      "cmd": "image tag",
+      "start_ns": 349629009126166,
+      "end_ns": 349629033214166,
+      "seconds": 0.024088,
+      "exit": 0
+    },
+    {
+      "cmd": "buildx build",
+      "start_ns": 349629070184416,
+      "end_ns": 349630060392166,
+      "seconds": 0.99020775,
+      "exit": 0
+    },
+    {
+      "cmd": "image inspect",
+      "start_ns": 349630108479458,
+      "end_ns": 349630177445750,
+      "seconds": 0.068966292,
+      "exit": 0
+    },
+    {
+      "cmd": "rm",
+      "start_ns": 349630230537250,
+      "end_ns": 349630280193833,
+      "seconds": 0.049656583,
+      "exit": 0
+    },
+    {
+      "cmd": "image rm",
+      "start_ns": 349630344300791,
+      "end_ns": 349630393960250,
+      "seconds": 0.049659459,
+      "exit": 0
+    }
+  ]
+}

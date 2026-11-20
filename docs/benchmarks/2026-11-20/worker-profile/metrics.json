@@ -1,0 +1,40 @@
+{
+  "boot": "9766C3AB-C139-4627-9D71-934E70289868",
+  "buildCache": {
+    "inUseRecords": 0,
+    "privateRecordBytes": 585938652,
+    "records": 35,
+    "sharedRecordBytes": 957084687,
+    "useCount": 142
+  },
+  "cacheStores": [
+    {
+      "activeContainers": 2,
+      "bytes": 48809095,
+      "store": "gobuild",
+      "volume": "micropod-ci-gobuild"
+    },
+    {
+      "activeContainers": 2,
+      "bytes": 110496,
+      "store": "gomod",
+      "volume": "micropod-ci-gomod"
+    },
+    {
+      "activeContainers": 2,
+      "bytes": 8613,
+      "store": "npm",
+      "volume": "micropod-ci-npm"
+    }
+  ],
+  "lastNetworkRepair": {
+    "cause": "host-gateway-missing",
+    "gateway": "192.168.69.1",
+    "instance": "B41DFA75-4766-4213-9855-97ABF67A5C04",
+    "seconds": 2.131799042,
+    "timestamp": "2026-11-20T00:15:35Z"
+  },
+  "runningContainers": 2,
+  "timestamp": "2026-11-20T00:19:08Z",
+  "worker": "52A19168-0202-4593-A1DC-E4FB227CAFC3"
+}

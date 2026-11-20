@@ -1,0 +1,230 @@
+{
+  "worker_before": {
+    "boot": "E4E5CEA0-51DF-4397-A8D1-71576213B65C",
+    "cgroupDriver": "cgroupfs",
+    "cpus": 4,
+    "daemon": "aa96fe61-8027-4457-910d-8bf51b22dc36",
+    "engineVersion": "29.9.3",
+    "guestAddress": "192.168.69.2",
+    "instance": "337849CE-7C74-4FAE-89F7-8F75E07C6548",
+    "memoryBytes": 4118708224,
+    "storageDriver": "overlayfs",
+    "worker": "52A19168-0202-4593-A1DC-E4FB227CAFC3"
+  },
+  "recovered_worker": {
+    "worker": "52A19168-0202-4593-A1DC-E4FB227CAFC3",
+    "boot": "E4E5CEA0-51DF-4397-A8D1-71576213B65C",
+    "timestamp": "2026-11-20T06:53:17Z",
+    "lastNetworkRepair": {
+      "cause": "host-gateway-missing",
+      "gateway": "192.168.69.1",
+      "instance": "337849CE-7C74-4FAE-89F7-8F75E07C6548",
+      "seconds": 1.318040167,
+      "timestamp": "2026-11-20T06:51:11Z"
+    }
+  },
+  "cache_before": {
+    "boot": "76CB2D71-45C6-4EA4-A3E1-E927EF7E41E8",
+    "buildCache": {
+      "inUseRecords": 0,
+      "privateRecordBytes": 20096411,
+      "records": 17,
+      "sharedRecordBytes": 1137590798,
+      "useCount": 51
+    },
+    "cacheStores": [
+      {
+        "activeContainers": 0,
+        "bytes": 60073692,
+        "scope": "full-ci-j9zbkh",
+        "store": "gobuild",
+        "volume": "micropod-ci-scoped-full-ci-j9zbkh-gobuild"
+      },
+      {
+        "activeContainers": 0,
+        "bytes": 0,
+        "scope": "full-ci-j9zbkh",
+        "store": "gomod",
+        "volume": "micropod-ci-scoped-full-ci-j9zbkh-gomod"
+      }
+    ],
+    "nativeOCI": {
+      "activeSessions": 0,
+      "draining": false,
+      "openedSessions": 2,
+      "pid": 4,
+      "prepareHits": 0,
+      "prepareLoads": 2,
+      "sessionsByScope": {}
+    },
+    "runningContainers": 0,
+    "timestamp": "2026-11-20T06:50:02Z",
+    "worker": "C9B0697A-E649-4FC4-8AEF-FF82BE4E11B3"
+  },
+  "cache_after": {
+    "boot": "76CB2D71-45C6-4EA4-A3E1-E927EF7E41E8",
+    "buildCache": {
+      "inUseRecords": 0,
+      "privateRecordBytes": 937388647,
+      "records": 139,
+      "sharedRecordBytes": 1338085650,
+      "useCount": 853
+    },
+    "cacheStores": [
+      {
+        "activeContainers": 0,
+        "bytes": 84810242,
+        "scope": "full-ci-j9zbkh",
+        "store": "gobuild",
+        "volume": "micropod-ci-scoped-full-ci-j9zbkh-gobuild"
+      },
+      {
+        "activeContainers": 0,
+        "bytes": 0,
+        "scope": "full-ci-j9zbkh",
+        "store": "gomod",
+        "volume": "micropod-ci-scoped-full-ci-j9zbkh-gomod"
+      }
+    ],
+    "nativeOCI": {
+      "activeSessions": 0,
+      "draining": false,
+      "openedSessions": 49,
+      "pid": 4,
+      "prepareHits": 0,
+      "prepareLoads": 43,
+      "sessionsByScope": {}
+    },
+    "runningContainers": 0,
+    "timestamp": "2026-11-20T07:20:25Z",
+    "worker": "C9B0697A-E649-4FC4-8AEF-FF82BE4E11B3"
+  },
+  "worker_after": {
+    "boot": "E4E5CEA0-51DF-4397-A8D1-71576213B65C",
+    "cgroupDriver": "cgroupfs",
+    "cpus": 4,
+    "daemon": "aa96fe61-8027-4457-910d-8bf51b22dc36",
+    "engineVersion": "29.9.3",
+    "guestAddress": "192.168.69.2",
+    "instance": "337849CE-7C74-4FAE-89F7-8F75E07C6548",
+    "memoryBytes": 4118708224,
+    "storageDriver": "overlayfs",
+    "worker": "52A19168-0202-4593-A1DC-E4FB227CAFC3"
+  },
+  "earlier_incomplete_series": {
+    "run": "3eb2e73ab82f4a6a9b1011f0815db218",
+    "completed_batches": 16,
+    "engine": "micropod",
+    "variant": "baseline",
+    "phase": "round 2, edited source",
+    "cause": "DNS: transient error fetching Alpine APKINDEX",
+    "dns_after": "dl-cdn.alpinelinux.org resolved via 192.168.69.1"
+  },
+  "before_postgres_events": [
+    {
+      "id": "015010474b0d0b6ca08a3c77a38a77916aa30c4b289ab4b0c12b1d284bc3d082",
+      "action": "create",
+      "ns": 1795156246619046178,
+      "image": "postgres:16",
+      "signal": null,
+      "code": null
+    },
+    {
+      "id": "51e6ffbbc1604756f4bea8954325680a43fd7e2deef5527ed8325ea9dea79d8f",
+      "action": "create",
+      "ns": 1795156246663341970,
+      "image": "testcontainers/ryuk:0.13.0",
+      "signal": null,
+      "code": null
+    },
+    {
+      "id": "51e6ffbbc1604756f4bea8954325680a43fd7e2deef5527ed8325ea9dea79d8f",
+      "action": "start",
+      "ns": 1795156246787484220,
+      "image": "testcontainers/ryuk:0.13.0",
+      "signal": null,
+      "code": null
+    },
+    {
+      "id": "015010474b0d0b6ca08a3c77a38a77916aa30c4b289ab4b0c12b1d284bc3d082",
+      "action": "start",
+      "ns": 1795156246877603512,
+      "image": "postgres:16",
+      "signal": null,
+      "code": null
+    },
+    {
+      "id": "015010474b0d0b6ca08a3c77a38a77916aa30c4b289ab4b0c12b1d284bc3d082",
+      "action": "kill",
+      "ns": 1795156247603763762,
+      "image": "postgres:16",
+      "signal": "2",
+      "code": null
+    },
+    {
+      "id": "015010474b0d0b6ca08a3c77a38a77916aa30c4b289ab4b0c12b1d284bc3d082",
+      "action": "kill",
+      "ns": 1795156257606057710,
+      "image": "postgres:16",
+      "signal": "9",
+      "code": null
+    },
+    {
+      "id": "015010474b0d0b6ca08a3c77a38a77916aa30c4b289ab4b0c12b1d284bc3d082",
+      "action": "die",
+      "ns": 1795156257674611085,
+      "image": "postgres:16",
+      "signal": null,
+      "code": "137"
+    },
+    {
+      "id": "015010474b0d0b6ca08a3c77a38a77916aa30c4b289ab4b0c12b1d284bc3d082",
+      "action": "destroy",
+      "ns": 1795156257690635960,
+      "image": "postgres:16",
+      "signal": null,
+      "code": null
+    },
+    {
+      "id": "51e6ffbbc1604756f4bea8954325680a43fd7e2deef5527ed8325ea9dea79d8f",
+      "action": "die",
+      "ns": 1795156267752851215,
+      "image": "testcontainers/ryuk:0.13.0",
+      "signal": null,
+      "code": "0"
+    },
+    {
+      "id": "51e6ffbbc1604756f4bea8954325680a43fd7e2deef5527ed8325ea9dea79d8f",
+      "action": "destroy",
+      "ns": 1795156267764283340,
+      "image": "testcontainers/ryuk:0.13.0",
+      "signal": null,
+      "code": null
+    }
+  ],
+  "matched_linux_binaries": {
+    "micropod": [
+      "51b1896898856067459ab1bc2aca459184968c3c48d5cbaa33c2ec727ec0a57b  product",
+      "7e426fed49870c80b2b6358668da3be8b75a1ae35d1f892f449e313b1bf3f509  tests/1/test",
+      "ff2339665986f4313e2517261ffba5973d062f7c53ab0c4832578f30b09397e8  tests/2/test"
+    ],
+    "orbstack": [
+      "51b1896898856067459ab1bc2aca459184968c3c48d5cbaa33c2ec727ec0a57b  product",
+      "7e426fed49870c80b2b6358668da3be8b75a1ae35d1f892f449e313b1bf3f509  tests/1/test",
+      "ff2339665986f4313e2517261ffba5973d062f7c53ab0c4832578f30b09397e8  tests/2/test"
+    ],
+    "ubuntu": [
+      "51b1896898856067459ab1bc2aca459184968c3c48d5cbaa33c2ec727ec0a57b  product",
+      "7e426fed49870c80b2b6358668da3be8b75a1ae35d1f892f449e313b1bf3f509  tests/1/test",
+      "ff2339665986f4313e2517261ffba5973d062f7c53ab0c4832578f30b09397e8  tests/2/test"
+    ]
+  },
+  "watch_stress_passes": 384,
+  "physical_host": {
+    "soc": "Apple M5 Max",
+    "macos": "26.5.1",
+    "orbstack": "Version: 2.2.5 (2020500)",
+    "memory_bytes": 137438953472,
+    "cpus": 18
+  }
+}

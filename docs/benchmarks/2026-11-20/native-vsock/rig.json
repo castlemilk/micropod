@@ -1,0 +1,119 @@
+{
+  "soc": "Apple M5 Max",
+  "host_cpus": 18,
+  "host_memory_bytes": 137438953472,
+  "macos": "26.5.1",
+  "orbstack": "2.2.5",
+  "cache_inode": 811027,
+  "boot_before": "3486a251-7664-47be-9a52-bde8980d00bc",
+  "boot_after": "24a2e062-f686-4e3b-8e29-5ed0828ee541",
+  "worker_before": {
+    "boot": "3486A251-7664-47BE-9A52-BDE8980D00BC",
+    "cgroupDriver": "cgroupfs",
+    "cpus": 4,
+    "daemon": "579d3be4-2ba6-462f-a30b-51be051c807f",
+    "endpoint": "unix:///tmp/micropod-vsock.N41n0F/worker/docker.sock",
+    "engineVersion": "29.9.3",
+    "guestAddress": "192.168.70.2",
+    "instance": "BF92009B-D2AD-419D-AF27-70FF7E12DD06",
+    "memoryBytes": 4118708224,
+    "storageDriver": "overlayfs",
+    "worker": "B858F49C-6DFA-4712-B70B-E5F5B7D3F2CC"
+  },
+  "worker_after": {
+    "boot": "24A2E062-F686-4E3B-8E29-5ED0828EE541",
+    "cgroupDriver": "cgroupfs",
+    "cpus": 4,
+    "daemon": "579d3be4-2ba6-462f-a30b-51be051c807f",
+    "endpoint": "unix:///tmp/micropod-vsock.N41n0F/worker/docker.sock",
+    "engineVersion": "29.9.3",
+    "guestAddress": "192.168.70.2",
+    "instance": "2395918F-876D-447D-A284-00C0C523B4D9",
+    "memoryBytes": 4118708224,
+    "storageDriver": "overlayfs",
+    "worker": "B858F49C-6DFA-4712-B70B-E5F5B7D3F2CC"
+  },
+  "source_policy_bytes": 20850,
+  "disconnect": {
+    "before": {
+      "active_sessions": 1,
+      "draining": false,
+      "opened_sessions": 2,
+      "pid": 4,
+      "prepare_hits": 0,
+      "prepare_loads": 1,
+      "sessions_by_scope": {
+        "native-resume-n41": 1
+      },
+      "version": 1
+    },
+    "after": {
+      "active_sessions": 0,
+      "draining": false,
+      "opened_sessions": 2,
+      "pid": 4,
+      "prepare_hits": 0,
+      "prepare_loads": 1,
+      "sessions_by_scope": {},
+      "version": 1
+    },
+    "seconds": 0.16589699999894947,
+    "binary_stdout": "00ff01",
+    "binary_stderr": "02fe",
+    "exit": 41
+  },
+  "automatic_discovery": {
+    "boot": "FE59CD25-5440-4E1D-99EA-C91FF3C77755",
+    "cacheStores": [
+      {
+        "activeContainers": 0,
+        "scope": "native-forget-n41",
+        "store": "gobuild",
+        "volume": "micropod-ci-scoped-native-forget-n41-gobuild"
+      },
+      {
+        "activeContainers": 0,
+        "scope": "native-forget-n41",
+        "store": "gomod",
+        "volume": "micropod-ci-scoped-native-forget-n41-gomod"
+      },
+      {
+        "activeContainers": 0,
+        "scope": "native-resume-n41",
+        "store": "gobuild",
+        "volume": "micropod-ci-scoped-native-resume-n41-gobuild"
+      },
+      {
+        "activeContainers": 0,
+        "scope": "native-resume-n41",
+        "store": "gomod",
+        "volume": "micropod-ci-scoped-native-resume-n41-gomod"
+      }
+    ],
+    "nativeOCI": {
+      "activeSessions": 0,
+      "draining": false,
+      "openedSessions": 0,
+      "pid": 4,
+      "prepareHits": 0,
+      "prepareLoads": 0,
+      "sessionsByScope": {}
+    },
+    "runningContainers": 0,
+    "timestamp": "2026-11-20T05:48:47Z",
+    "worker": "B858F49C-6DFA-4712-B70B-E5F5B7D3F2CC"
+  },
+  "original_worker": {
+    "boot": "E4E5CEA0-51DF-4397-A8D1-71576213B65C",
+    "cgroupDriver": "cgroupfs",
+    "cpus": 4,
+    "daemon": "aa96fe61-8027-4457-910d-8bf51b22dc36",
+    "endpoint": "unix:///Users/benebsworth/.micropod/ci/docker.sock",
+    "engineVersion": "29.9.3",
+    "guestAddress": "192.168.69.2",
+    "instance": "337849CE-7C74-4FAE-89F7-8F75E07C6548",
+    "memoryBytes": 4118708224,
+    "storageDriver": "overlayfs",
+    "worker": "52A19168-0202-4593-A1DC-E4FB227CAFC3"
+  }
+}
