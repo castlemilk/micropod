@@ -27,6 +27,7 @@ public struct CIWorker: Sendable {
     let resourceEnvironment: [String: String]
     public var isNativeRunner: Bool { resourceEnvironment["MICROPOD_CI_ENGINE"] == "containerd" }
     public var socket: URL { directory.appendingPathComponent(isNativeRunner ? "oci.sock" : "docker.sock") }
+    var buildkitSocket: URL { directory.appendingPathComponent("buildkit.sock") }
     var portSocket: URL { directory.appendingPathComponent("ports.sock") }
     var dockerSocket: URL { directory.appendingPathComponent("docker.sock") }
     var ociSocket: URL { directory.appendingPathComponent("oci.sock") }
@@ -343,6 +344,16 @@ public struct CIWorker: Sendable {
             (info["Labels"] as? [String])?.contains("io.micropod.instance=" + active.instance.uuidString) == true
         else { throw MicropodError.message("Native Docker API did not identify the active worker") }
         return "unix://" + dockerSocket.path
+    }
+
+    public func nativeBuildKitEndpoint(executable: URL) async throws -> String {
+        _ = try await nativeDockerEndpoint(executable: executable)
+        let api = DockerClient(endpoint: .unix(dockerSocket.path), version: Self.apiVersion)
+        let reply = try await api.request("GET", "/micropod/buildkit", timeout: .seconds(5))
+        guard reply.status == 200, FileManager.default.fileExists(atPath: buildkitSocket.path) else {
+            throw MicropodError.message("The active worker needs a native tool bundle with BuildKit")
+        }
+        return "unix://" + buildkitSocket.path
     }
 
     public func start(executable: URL) async throws -> Status {
@@ -701,7 +712,10 @@ public struct CIWorker: Sendable {
             }
             try await prepared.container.create()
             guard chmod(socket.path, 0o600) == 0 else { throw POSIXError(.init(rawValue: errno) ?? .EIO) }
-            if chmod(dockerSocket.path, 0o600) != 0 || active.nativeOCI == true && chmod(ociSocket.path, 0o600) != 0 {
+            if chmod(dockerSocket.path, 0o600) != 0
+                || active.nativeOCI == true
+                    && (chmod(ociSocket.path, 0o600) != 0 || chmod(buildkitSocket.path, 0o600) != 0)
+            {
                 throw POSIXError(.init(rawValue: errno) ?? .EIO)
             }
             try await prepared.container.start()
@@ -724,6 +738,23 @@ public struct CIWorker: Sendable {
                         }
                         try await Task.sleep(for: .milliseconds(150))
                     }
+                }
+            }
+            if config.engine == .containerd {
+                let api = DockerClient(endpoint: .unix(dockerSocket.path), version: Self.apiVersion)
+                while true {
+                    if let reply = try? await api.request("GET", "/info", timeout: .seconds(2)),
+                        reply.status == 200, let info = try? reply.json() as? [String: Any],
+                        info["ID"] as? String == config.worker.uuidString,
+                        (info["Labels"] as? [String])?.contains("io.micropod.instance=" + active.instance.uuidString)
+                            == true
+                    {
+                        break
+                    }
+                    guard ContinuousClock.now < readyBy else {
+                        throw MicropodError.message("The native Docker API did not recover on this worker boot")
+                    }
+                    try await Task.sleep(for: .milliseconds(150))
                 }
             }
             active.readySocket = ReadySocket(at: socket, worker: config.worker)

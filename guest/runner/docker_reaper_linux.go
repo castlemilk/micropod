@@ -94,7 +94,7 @@ func (p *cleanupAPI) handle(w http.ResponseWriter, r *http.Request) error {
 	}
 	if r.Method == "GET" {
 		switch path {
-		case "containers/json", "volumes":
+		case "containers/json", "volumes", "networks":
 			filters, err := dockerFilters(r.URL.Query().Get("filters"), "label")
 			if err != nil {
 				return err
@@ -114,7 +114,7 @@ func (p *cleanupAPI) handle(w http.ResponseWriter, r *http.Request) error {
 				return p.engine.volumes(w, r, "")
 			}
 			return p.engine.list(w, r)
-		case "networks", "images/json":
+		case "images/json":
 			// Both built-in networks and all image layers are owned by the worker.
 			writeJSON(w, 200, []any{})
 			return nil
@@ -140,6 +140,15 @@ func (p *cleanupAPI) handle(w http.ResponseWriter, r *http.Request) error {
 			if err := p.engine.remove(r.Context(), c, truth(r.URL.Query().Get("force"))); err != nil {
 				return err
 			}
+		case "networks":
+			p.engine.mu.Lock()
+			n := p.engine.findNetwork(key)
+			owned := n != nil && n.ID == key && p.owns(n.Labels)
+			p.engine.mu.Unlock()
+			if !owned {
+				return fail(404, "unknown session network")
+			}
+			return p.engine.deleteNetwork(w, key)
 		case "volumes":
 			if !dockerName.MatchString(key) {
 				return fail(404, "unknown session volume")

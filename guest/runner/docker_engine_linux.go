@@ -28,6 +28,7 @@ const engineGate = "/run/micropod-oci/engine.lock"
 const dockerAPI = "1.47"
 
 type dockerRecord struct {
+	NetworkID, NetworkIP                         string
 	OOMKilled                                    bool
 	ID, Name, ImageID, Phase, RuntimeID, Failure string
 	Created, Started, Finished                   time.Time
@@ -46,13 +47,15 @@ type dockerContainer struct {
 	removed           bool
 }
 type dockerEngine struct {
-	startSlots chan struct{}
-	metrics    dockerMetrics
-	node       node
-	workspace  string
-	mu         sync.Mutex
-	containers map[string]*dockerContainer
-	execs      map[string]*dockerExec
+	networkMu     sync.Mutex
+	namedNetworks map[string]*workerNetwork
+	startSlots    chan struct{}
+	metrics       dockerMetrics
+	node          node
+	workspace     string
+	mu            sync.Mutex
+	containers    map[string]*dockerContainer
+	execs         map[string]*dockerExec
 }
 
 func engineID() string                 { var id [32]byte; rand.Read(id[:]); return hex.EncodeToString(id[:]) }
@@ -166,6 +169,10 @@ func (s *dockerEngine) recover() error {
 	return nil
 }
 func serveEngine(ctx context.Context, n node) error {
+	if privateRootless() && !inAllocationUserNS() {
+		return errors.New("private engine requires the allocation user namespace")
+	}
+	dockerSocket := clientSocket(dockerSocket, "docker.sock")
 	for _, d := range []string{filepath.Join(engineRoot, "containers"), filepath.Join(engineRoot, "volumes"), filepath.Join(engineRoot, "volume-meta"), filepath.Join(engineRoot, "retired"), filepath.Dir(engineGate)} {
 		if err := os.MkdirAll(d, 0700); err != nil {
 			return err
@@ -194,6 +201,10 @@ func serveEngine(ctx context.Context, n node) error {
 			s.startSlots = make(chan struct{}, limit)
 		}
 	}
+	s.namedNetworks = make(map[string]*workerNetwork)
+	if err := s.recoverNetworks(ctx); err != nil {
+		return err
+	}
 	if err := s.recover(); err != nil {
 		return err
 	}
@@ -209,6 +220,9 @@ func serveEngine(ctx context.Context, n node) error {
 	}
 	defer l.Close()
 	if err := os.Chmod(dockerSocket, 0600); err != nil {
+		return err
+	}
+	if err := serveBuildKit(ctx); err != nil {
 		return err
 	}
 	server := &http.Server{Handler: s, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10}
@@ -284,12 +298,16 @@ func (s *dockerEngine) create(ctx context.Context, spec dockerConfig, name strin
 			return nil, fail(409, "container name is in use")
 		}
 	}
+	network, ip, err := s.selectNetwork(&spec)
+	if err != nil {
+		return nil, err
+	}
 	files, _, err := s.openMounts(spec, true, "")
 	if err != nil {
 		return nil, fail(400, err.Error())
 	}
 	closeMounts(files)
-	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, ImageID: img.Image.Id, Phase: "created", Created: time.Now().UTC(), Config: spec}, changed: make(chan struct{})}
+	c := &dockerContainer{dockerRecord: dockerRecord{ID: id, Name: name, NetworkID: network, NetworkIP: ip, ImageID: img.Image.Id, Phase: "created", Created: time.Now().UTC(), Config: spec}, changed: make(chan struct{})}
 	if err := os.Mkdir(c.dir(), 0700); err != nil {
 		return nil, err
 	}
@@ -432,6 +450,9 @@ func (s *dockerEngine) start(c *dockerContainer) (startErr error) {
 				if err != nil {
 					return err
 				}
+				if c.NetworkID != "" {
+					mounts = append(mounts, &cri.Mount{HostPath: filepath.Join(engineRoot, "networks", c.NetworkID, "resolv.conf"), ContainerPath: "/etc/resolv.conf", Readonly: true})
+				}
 				return c.Config.configure(cfg, mounts)
 			},
 			started: func(id string) {
@@ -440,6 +461,9 @@ func (s *dockerEngine) start(c *dockerContainer) (startErr error) {
 				c.RuntimeID = id
 				c.Started = time.Now().UTC()
 				c.Phase = "running"
+				if n := s.namedNetworks[c.NetworkID]; n != nil {
+					n.services.publish(c, true)
+				}
 				// A durable start intent already exists. Recovery treats both starting
 				// and running as interrupted if there is no committed exit status.
 				c.signal()
@@ -473,6 +497,9 @@ func (s *dockerEngine) start(c *dockerContainer) (startErr error) {
 		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
+		if n := s.namedNetworks[c.NetworkID]; n != nil {
+			n.services.publish(c, false)
+		}
 		c.IP = ""
 		c.Ports = nil
 		c.Finished = time.Now().UTC()
@@ -576,16 +603,16 @@ func readBody(w http.ResponseWriter, r *http.Request) ([]byte, error) {
 }
 func formatTime(t time.Time) string { return t.UTC().Format(time.RFC3339Nano) }
 func (c *dockerContainer) inspect() map[string]any {
-	network := "bridge"
-	if c.Config.HostConfig.NetworkMode == "none" {
-		network = "none"
-	}
+	network := networkName(c.Config.HostConfig.NetworkMode)
 	return map[string]any{"Id": c.ID, "Name": "/" + c.Name, "Created": formatTime(c.Created), "Image": c.ImageID, "Config": c.Config, "HostConfig": c.Config.HostConfig, "Driver": "overlayfs", "Platform": "linux",
 		"State":           map[string]any{"Status": c.Phase, "Running": c.Phase == "running", "Dead": c.Phase == "dead", "OOMKilled": c.OOMKilled, "ExitCode": c.Exit, "StartedAt": formatTime(c.Started), "FinishedAt": formatTime(c.Finished), "Error": c.Failure},
-		"NetworkSettings": map[string]any{"Ports": c.Ports, "IPAddress": c.IP, "Networks": map[string]any{network: map[string]any{"IPAddress": c.IP}}}}
+		"NetworkSettings": map[string]any{"Ports": c.Ports, "IPAddress": c.IP, "Networks": map[string]any{network: map[string]any{"IPAddress": c.IP, "NetworkID": c.NetworkID, "Aliases": c.Config.Aliases}}}}
 }
 func (s *dockerEngine) info() map[string]any {
 	info := map[string]any{"ID": os.Getenv("MICROPOD_CI_WORKER_ID"), "Name": "micropod", "OSType": "linux", "Architecture": "aarch64", "Driver": "overlayfs", "CgroupDriver": "cgroupfs", "CgroupVersion": "2", "DefaultRuntime": "crun", "ServerVersion": "micropod", "NCPU": runtime.NumCPU(), "Labels": []string{"io.micropod.instance=" + os.Getenv("MICROPOD_CI_INSTANCE")}}
+	if privateRootless() {
+		info["SecurityOptions"] = []string{"name=rootless", "name=no-new-privileges", "name=seccomp,profile=builtin"}
+	}
 	var sys unix.Sysinfo_t
 	if unix.Sysinfo(&sys) == nil {
 		info["MemTotal"] = sys.Totalram * uint64(sys.Unit)

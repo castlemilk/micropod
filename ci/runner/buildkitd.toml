@@ -1,0 +1,23 @@
+root = "/var/lib/micropod/buildkit"
+
+[grpc]
+  address = ["unix:///run/containerd/buildkitd.sock"]
+
+[worker.oci]
+  enabled = false
+
+[worker.containerd]
+  enabled = true
+  address = "/run/containerd/containerd.sock"
+  namespace = "k8s.io"
+  snapshotter = "overlayfs"
+  networkMode = "cni"
+  cniConfigPath = "/etc/cni/net.d/10-micropod.conflist"
+  cniBinaryPath = "/opt/micropod-oci/runner/cni"
+  cniPoolSize = 0
+
+[worker.containerd.runtime]
+  name = "io.containerd.runc.v2"
+
+[worker.containerd.runtime.options]
+  BinaryName = "/opt/micropod-oci/crun-1.31-arm64"

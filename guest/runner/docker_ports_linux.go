@@ -72,15 +72,19 @@ func (c dockerConfig) requestedPorts() (portMap, error) {
 
 type publishedPort struct {
 	listener *net.TCPListener
-	lease    net.Conn
+	lease    io.Closer
 	cancel   context.CancelFunc
 	wg       sync.WaitGroup
 }
 
 func (p *publishedPort) close() {
-	p.cancel()
+	if p.cancel != nil {
+		p.cancel()
+	}
 	p.lease.Close()
-	p.listener.Close()
+	if p.listener != nil {
+		p.listener.Close()
+	}
 	p.wg.Wait()
 }
 
@@ -167,13 +171,30 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 		return nil, err
 	}
 	if c.Config.HostConfig.NetworkMode == "none" {
-		return nil, s.node.disconnectPod(ctx, podID)
+		return nil, configurePodNetwork(ctx, s.node, podID, nil, "")
 	}
-	pod, err := s.node.runtime.PodSandboxStatus(ctx, &cri.PodSandboxStatusRequest{PodSandboxId: podID})
-	if err != nil {
-		return nil, err
+	var target string
+	if c.NetworkID != "" {
+		s.mu.Lock()
+		n := s.namedNetworks[c.NetworkID]
+		s.mu.Unlock()
+		if n == nil {
+			return nil, errors.New("container network no longer exists")
+		}
+		start := time.Now()
+		err := configurePodNetwork(ctx, s.node, podID, n, c.NetworkIP)
+		s.metrics.networks.attachment(n.Driver, start, err)
+		if err != nil {
+			return nil, err
+		}
+		target = c.NetworkIP
+	} else {
+		pod, err := s.node.runtime.PodSandboxStatus(ctx, &cri.PodSandboxStatusRequest{PodSandboxId: podID})
+		if err != nil {
+			return nil, err
+		}
+		target = pod.GetStatus().GetNetwork().GetIp()
 	}
-	target := pod.GetStatus().GetNetwork().GetIp()
 	if net.ParseIP(target) == nil {
 		return nil, errors.New("container has no network address")
 	}
@@ -183,9 +204,12 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 	if len(ports) == 0 {
 		return nil, nil
 	}
-	ip, err := guestIPv4()
-	if err != nil {
-		return nil, err
+	var ip string
+	if !privateRootless() {
+		ip, err = guestIPv4()
+		if err != nil {
+			return nil, err
+		}
 	}
 	actual := portMap{}
 	var open []*publishedPort
@@ -193,7 +217,14 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 		port, _ := tcpPort(key)
 		for _, b := range bindings {
 			request, _ := requestedPort(b)
-			p, n, err := openPublishedPort(ctx, ip, net.JoinHostPort(target, strconv.Itoa(int(port))), request)
+			var p *publishedPort
+			var n uint16
+			var err error
+			if privateRootless() {
+				p, n, err = publishRootless(ctx, target, port, request)
+			} else {
+				p, n, err = openPublishedPort(ctx, ip, net.JoinHostPort(target, strconv.Itoa(int(port))), request)
+			}
 			if err != nil {
 				for _, other := range open {
 					other.close()

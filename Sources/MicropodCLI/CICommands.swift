@@ -6,6 +6,7 @@ import MicropodRuntime
 enum CICommands {
     static let help = """
         micropod ci job TRUST IMAGE COMMAND [ARG ...]   submit a trusted crun or VM-isolated job
+        micropod ci runner-buildkit-endpoint print the native worker’s BuildKit socket for Buildx
         micropod ci runner-docker-endpoint   print the native worker’s Docker-compatible socket
         micropod ci runner-prime COUNT   prepare up to 32 single-use pods for trusted jobs
         micropod ci runner-start | runner-status | runner-stop | runner-endpoint
@@ -38,7 +39,7 @@ enum CICommands {
         }
         let runnerCommands = [
             "job", "runner-prime", "runner-start", "runner-status", "runner-stop", "runner-endpoint",
-            "runner-docker-endpoint",
+            "runner-docker-endpoint", "runner-buildkit-endpoint",
         ]
         var environment = ProcessInfo.processInfo.environment
         if runnerCommands.contains(command) { environment["MICROPOD_CI_ENGINE"] = "containerd" }
@@ -60,7 +61,8 @@ enum CICommands {
             switch command {
             case "runner-status": try printStatus(await worker.status())
             case "runner-stop": try await worker.stop()
-            case "job", "runner-prime", "runner-start", "runner-endpoint", "runner-docker-endpoint":
+            case "job", "runner-prime", "runner-start", "runner-endpoint", "runner-docker-endpoint",
+                "runner-buildkit-endpoint":
                 guard let executable = Bundle.main.executableURL else {
                     throw MicropodError.message("Missing CLI executable")
                 }
@@ -70,6 +72,10 @@ enum CICommands {
                 }
                 if command == "runner-start" {
                     try printStatus(await worker.start(executable: executable))
+                    return 0
+                }
+                if command == "runner-buildkit-endpoint" {
+                    print(try await worker.nativeBuildKitEndpoint(executable: executable))
                     return 0
                 }
                 if command == "runner-docker-endpoint" {
@@ -138,17 +144,31 @@ enum CICommands {
                     throw MicropodError.message("Cannot locate micropod executable")
                 }
                 if ["run", "create", "docker", "snapshot", "warm-go"].contains(command) {
-                    let options: [String]
+                    var options: [String]
                     switch command {
                     case "run", "create": options = try [command, "--rm"] + runArguments(args.dropFirst())
                     case "snapshot": options = try snapshotArguments(args.dropFirst())
                     case "warm-go": options = try warmGoArguments(args.dropFirst())
                     default: options = Array(args.dropFirst())
                     }
-                    guard !worker.isNativeRunner else {
-                        throw MicropodError.message("Use ci job to submit work to the native runner")
+                    let endpoint =
+                        try await worker.isNativeRunner
+                        ? worker.nativeDockerEndpoint(executable: executable)
+                        : worker.runEndpoint(executable: executable)
+                    if worker.isNativeRunner
+                        && (command == "snapshot" || options.first == "build"
+                            || options.starts(with: ["buildx", "build"]))
+                    {
+                        if command == "snapshot"
+                            || !(options.contains("--builder")
+                                || options.contains(where: { $0.hasPrefix("--builder=") }))
+                        {
+                            let address = try await worker.nativeBuildKitEndpoint(executable: executable)
+                            let instance = try await worker.status().worker
+                            let name = try nativeBuilder(worker: instance, endpoint: endpoint, buildkit: address)
+                            if command == "snapshot" { options[3] = name } else { setenv("BUILDX_BUILDER", name, 1) }
+                        }
                     }
-                    let endpoint = try await worker.runEndpoint(executable: executable)
                     let recipe = command == "snapshot" ? Pipe() : nil
                     if let recipe {
                         try recipe.fileHandleForWriting.write(contentsOf: Data(snapshotDockerfile.utf8))
@@ -171,7 +191,13 @@ enum CICommands {
                     throw MicropodError.message("Cannot execute docker: \(String(cString: strerror(errno)))")
                 }
                 let current = try await worker.start(executable: executable)
-                if command == "endpoint" { print(current.endpoint) } else { try printStatus(current) }
+                if command == "endpoint" && worker.isNativeRunner {
+                    print(try await worker.nativeDockerEndpoint(executable: executable))
+                } else if command == "endpoint" {
+                    print(current.endpoint)
+                } else {
+                    try printStatus(current)
+                }
             default:
                 print(help)
                 return 2
@@ -184,6 +210,54 @@ enum CICommands {
             FileHandle.standardError.write(Data(("micropod ci: " + error.localizedDescription + "\n").utf8))
             return 1
         }
+    }
+
+    // Buildx keeps named builders in the Docker client's own configuration. This
+    // registers only this worker; it never selects or modifies a global context.
+    static func nativeBuilder(worker: UUID, endpoint: String, buildkit: String) throws -> String {
+        let name = "micropod-" + worker.uuidString.lowercased()
+        func buildx(_ args: [String]) throws -> (Int32, String) {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            process.arguments = ["docker", "--host", endpoint, "buildx"] + args
+            var env = ProcessInfo.processInfo.environment
+            for key in ["DOCKER_CONTEXT", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH", "BUILDX_BUILDER"] {
+                env.removeValue(forKey: key)
+            }
+            env["DOCKER_HOST"] = endpoint
+            process.environment = env
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = pipe
+            try process.run()
+            let out = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            return (
+                process.terminationStatus,
+                String(decoding: out, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+        }
+        func matches() throws -> Bool {
+            let (status, text) = try buildx(["inspect", name])
+            guard status == 0 else { return false }
+            let fields = text.split(separator: "\n").compactMap { line -> (String, String)? in
+                let parts = line.split(separator: ":", maxSplits: 1)
+                guard parts.count == 2 else { return nil }
+                return (
+                    String(parts[0]).trimmingCharacters(in: .whitespaces),
+                    String(parts[1]).trimmingCharacters(in: .whitespaces)
+                )
+            }
+            return fields.filter { $0.0 == "Driver" }.map { $0.1 } == ["remote"]
+                && fields.filter { $0.0 == "Endpoint" }.map { $0.1 } == [buildkit]
+        }
+        if try matches() { return name }
+        let created = try buildx(["create", "--name", name, "--driver", "remote", buildkit])
+        // A concurrent client can win registration. Verify the identity in both cases.
+        guard try matches() else {
+            throw MicropodError.message("Cannot verify the Buildx builder for this worker. " + created.1)
+        }
+        return name
     }
 
     // BuildKit applies the checkout's .dockerignore and shares the immutable layer among jobs.

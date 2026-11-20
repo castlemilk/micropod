@@ -334,6 +334,11 @@ public enum SandboxVM {
                 if ciWorker.isNativeRunner {
                     cfg.sockets.append(
                         UnixSocketConfiguration(
+                            source: URL(fileURLWithPath: "/var/lib/micropod/buildkit.sock"),
+                            destination: ciWorker.buildkitSocket, permissions: [.ownerRead, .ownerWrite],
+                            direction: .outOf))
+                    cfg.sockets.append(
+                        UnixSocketConfiguration(
                             source: ciWorker.portSocket,
                             destination: URL(fileURLWithPath: "/var/lib/micropod/ports.sock"),
                             permissions: [.ownerRead, .ownerWrite], direction: .into))

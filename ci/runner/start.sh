@@ -38,6 +38,9 @@ for controller in cpu memory pids; do
     echo "+$controller" > "$cg/cgroup.subtree_control"
 done
 echo 1 > /proc/sys/net/ipv4/ip_forward
+# The VM owns a single uplink. One subnet rule amortizes NAT setup across jobs.
+iptables -w 5 -t nat -C POSTROUTING -s 10.88.0.0/16 -o eth0 -j MASQUERADE 2>/dev/null ||
+    iptables -w 5 -t nat -A POSTROUTING -s 10.88.0.0/16 -o eth0 -j MASQUERADE
 # The snapshotter creates each container root with mode 0755. An inherited
 # 0077 umask makes / unsearchable after the image switches to a non-root UID.
 (umask 022; exec containerd --config "$tools/runner/containerd.toml") &

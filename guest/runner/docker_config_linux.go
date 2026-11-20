@@ -34,6 +34,9 @@ type dockerHost struct {
 	CapDrop                               []string
 }
 type dockerConfig struct {
+	Aliases                           []string `json:"MicropodAliases,omitempty"`
+	EndpointName                      string   `json:"MicropodEndpointName,omitempty"`
+	EndpointID                        string   `json:"MicropodEndpointID,omitempty"`
 	ExposedPorts                      map[string]struct{}
 	Image, WorkingDir, User, Hostname string
 	Entrypoint, Cmd, Env              []string
@@ -85,27 +88,46 @@ func parseDockerConfig(body []byte) (dockerConfig, error) {
 	if err := json.Unmarshal(body, &raw); err != nil {
 		return spec, err
 	}
-	if err := supportedOptions(raw, "ExposedPorts Image WorkingDir User Entrypoint Cmd Env Labels HostConfig AttachStdout AttachStderr NetworkingConfig"); err != nil {
+	if err := supportedOptions(raw, "ExposedPorts Image WorkingDir User Entrypoint Cmd Env Labels HostConfig AttachStdout AttachStderr Hostname NetworkingConfig"); err != nil {
 		return spec, err
 	}
 	if netcfg, ok := raw["NetworkingConfig"].(map[string]any); ok {
 		if err := supportedOptions(netcfg, "EndpointsConfig"); err != nil {
 			return spec, err
 		}
-		for name, endpoint := range obj(netcfg["EndpointsConfig"]) {
-			if name == "default" {
-				name = "bridge"
-			}
-			selected := "bridge"
-			if spec.HostConfig.NetworkMode == "none" {
-				selected = "none"
-			}
+		endpoints := obj(netcfg["EndpointsConfig"])
+		if len(endpoints) > 1 {
+			return spec, errors.New("multiple endpoint attachments are unavailable")
+		}
+		for name, endpoint := range endpoints {
+			selected := networkName(spec.HostConfig.NetworkMode)
 			fields := obj(endpoint)
-			if id, ok := fields["NetworkID"].(string); ok && id == networkID(selected) {
-				delete(fields, "NetworkID")
+			if err := supportedOptions(fields, "NetworkID Aliases"); err != nil {
+				return spec, err
 			}
-			if name != selected || !emptyOption(endpoint) {
-				return spec, errors.New("custom endpoint configuration is unavailable")
+			id, _ := fields["NetworkID"].(string)
+			spec.EndpointName = name
+			if builtinNetwork(selected) && networkName(name) != selected && id != selected {
+				return spec, errors.New("endpoint does not match selected network")
+			}
+			if builtinNetwork(selected) && id != "" && id != networkID(selected) {
+				return spec, errors.New("endpoint identity differs")
+			}
+			spec.EndpointID = id
+			if list, ok := fields["Aliases"].([]any); ok {
+				if builtinNetwork(selected) && len(list) > 0 {
+					return spec, errors.New("aliases require a named network")
+				}
+				if len(list) > 64 {
+					return spec, errors.New("too many network aliases")
+				}
+				for _, v := range list {
+					alias, ok := v.(string)
+					if !ok || !dockerName.MatchString(alias) {
+						return spec, errors.New("invalid network alias")
+					}
+					spec.Aliases = append(spec.Aliases, alias)
+				}
 			}
 		}
 	}
@@ -146,8 +168,8 @@ func parseDockerConfig(body []byte) (dockerConfig, error) {
 		return spec, errors.New("image is required")
 	}
 	h := spec.HostConfig
-	if h.NetworkMode != "" && h.NetworkMode != "default" && h.NetworkMode != "bridge" && h.NetworkMode != "none" {
-		return spec, errors.New("only bridge or none networking is available")
+	if !dockerName.MatchString(networkName(h.NetworkMode)) || h.NetworkMode == "host" {
+		return spec, errors.New("invalid network mode")
 	}
 	for _, cap := range h.CapDrop {
 		if !strings.EqualFold(cap, "all") {
@@ -283,6 +305,10 @@ func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanup
 	var files []*os.File
 	var mounts []*cri.Mount
 	for _, m := range requests {
+		if privateRootless() && m.Type == "bind" && (m.Source == "/var/run/docker.sock" || m.Source == "/run/docker.sock") && m.Target == "/var/run/docker.sock" {
+			mounts = append(mounts, &cri.Mount{HostPath: clientSocket(dockerSocket, "docker.sock"), ContainerPath: m.Target, Readonly: m.ReadOnly})
+			continue
+		}
 		if spec.cleanupMount(m) {
 			if !createVolumes && cleanupSocket == "" {
 				err = errors.New("missing session cleanup socket")
@@ -294,6 +320,9 @@ func (s *dockerEngine) openMounts(spec dockerConfig, createVolumes bool, cleanup
 			continue
 		}
 		root, source := s.workspace, m.Source
+		if privateRootless() && m.Type == "bind" && m.Source == "/runner/externals" && m.ReadOnly {
+			root = "/runner/externals"
+		}
 		if m.Type == "volume" {
 			root = filepath.Join(engineRoot, "volumes")
 			source = filepath.Join(root, m.Source)

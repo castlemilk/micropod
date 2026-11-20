@@ -53,8 +53,15 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 	case path == "version" && method == "GET":
 		writeJSON(w, 200, map[string]any{"Version": "micropod", "ApiVersion": dockerAPI, "MinAPIVersion": "1.44", "Os": "linux", "Arch": "arm64", "Platform": map[string]string{"Name": "Micropod"}})
 		return nil
+	case path == "micropod/buildkit" && method == "GET":
+		if _, err := os.Stat(buildkitBinary); err != nil {
+			return fail(503, "BuildKit is unavailable")
+		}
+		writeJSON(w, 200, map[string]string{"worker": "containerd", "runtime": "crun"})
+		return nil
 	case path == "micropod/metrics" && method == "GET":
 		metrics := s.metrics.snapshot()
+		metrics["network"] = s.metrics.networks.snapshot()
 		metrics["start_parallelism_limit"] = cap(s.startSlots)
 		metrics["setup_slots_in_use"] = len(s.startSlots)
 		metrics["setup_wait_usec_total"] = s.metrics.setupWaitUS.Load()
@@ -84,7 +91,7 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 		defer lease.Close()
 	}
 	switch {
-	case method == "GET" && (path == "networks" || strings.HasPrefix(path, "networks/")):
+	case path == "networks" || strings.HasPrefix(path, "networks/"):
 		return s.networks(w, r, strings.TrimPrefix(path, "networks"))
 	case strings.HasPrefix(path, "images/"):
 		return s.images(w, r, strings.TrimPrefix(path, "images/"))
@@ -438,6 +445,12 @@ func (s *dockerEngine) images(w http.ResponseWriter, r *http.Request, path strin
 		return map[string]any{"Id": i.Id, "RepoTags": i.RepoTags, "RepoDigests": i.RepoDigests, "Size": i.Size, "Os": "linux", "Architecture": "arm64"}
 	}
 	switch {
+	case path == "load" && r.Method == "POST":
+		return importImages(w, r)
+	case path == "get" && r.Method == "GET":
+		return exportImages(w, r, q["names"])
+	case strings.HasSuffix(path, "/get") && r.Method == "GET":
+		return exportImages(w, r, []string{strings.TrimSuffix(path, "/get")})
 	case path == "json" && r.Method == "GET":
 		res, err := s.node.images.ListImages(r.Context(), &cri.ListImagesRequest{})
 		if err != nil {

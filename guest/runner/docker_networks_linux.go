@@ -1,93 +1,399 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
+	"net/netip"
 	"os"
+	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
+	"time"
 )
 
-// These are the two network modes the worker actually implements. Obtain
-// bridge settings from the same CNI configuration that containerd loads.
+type workerNetwork struct {
+	Name, ID, Driver     string
+	Subnet               netip.Prefix
+	MTU                  int
+	Internal, Attachable bool
+	Labels               map[string]string
+	Created              time.Time
+	dns                  *networkDNS
+	services             serviceDirectory
+	deleting             bool
+}
+
 func networkID(name string) string {
 	hash := sha256.Sum256([]byte(os.Getenv("MICROPOD_CI_WORKER_ID") + "/" + name))
 	return hex.EncodeToString(hash[:])
 }
+func networkName(name string) string {
+	if name == "" || name == "default" {
+		return "bridge"
+	}
+	return name
+}
+func builtinNetwork(name string) bool { return name == "bridge" || name == "none" }
+func (n *workerNetwork) dir() string  { return filepath.Join(engineRoot, "networks", n.ID) }
+func (s *dockerEngine) findNetwork(key string) *workerNetwork {
+	for _, n := range s.namedNetworks {
+		if !n.deleting && (n.Name == key || n.ID == key) {
+			return n
+		}
+	}
+	return nil
+}
 
-func (s *dockerEngine) networks(w http.ResponseWriter, r *http.Request, path string) error {
-	filters, err := dockerFilters(r.URL.Query().Get("filters"), "name", "id", "driver")
+func (s *dockerEngine) selectNetwork(spec *dockerConfig) (id, address string, err error) {
+	name := networkName(spec.HostConfig.NetworkMode)
+	if builtinNetwork(name) {
+		return "", "", nil
+	}
+	n := s.findNetwork(name)
+	if n == nil {
+		return "", "", fail(404, "no such network: "+name)
+	}
+	if spec.EndpointName != "" && spec.EndpointName != n.Name && spec.EndpointName != n.ID || spec.EndpointID != "" && spec.EndpointID != n.ID {
+		return "", "", fail(400, "endpoint network identity differs")
+	}
+	spec.HostConfig.NetworkMode = n.Name
+	used := map[string]bool{}
+	for _, c := range s.containers {
+		if c.NetworkID == n.ID {
+			used[c.NetworkIP] = true
+		}
+	}
+	for ip := n.gateway().Next(); ip.IsValid() && n.Subnet.Contains(ip.Next()); ip = ip.Next() {
+		if !used[ip.String()] {
+			return n.ID, ip.String(), nil
+		}
+	}
+	return "", "", fail(409, "network has no free addresses")
+}
+
+func (s *dockerEngine) startNetwork(ctx context.Context, n *workerNetwork) error {
+	if err := n.setup(ctx); err != nil {
+		return err
+	}
+	dns, err := s.listenDNS(n)
+	if err != nil {
+		return errors.Join(err, n.teardown())
+	}
+	n.dns = dns
+	return nil
+}
+func (s *dockerEngine) recoverNetworks(ctx context.Context) error {
+	dir := filepath.Join(engineRoot, "networks")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return err
+	}
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return err
 	}
-	var cni struct {
-		Plugins []struct {
-			Bridge string
-			IPAM   struct{ Ranges [][]struct{ Subnet string } }
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
 		}
+		p := filepath.Join(dir, e.Name())
+		b, err := os.ReadFile(filepath.Join(p, "network.json"))
+		if errors.Is(err, os.ErrNotExist) {
+			if err = os.RemoveAll(p); err != nil {
+				return err
+			}
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		n := new(workerNetwork)
+		if json.Unmarshal(b, n) != nil || n.ID != e.Name() || len(n.ID) != 64 || !dockerName.MatchString(n.Name) || !n.Subnet.IsValid() || (n.Driver != "bridge" && n.Driver != "ipvlan" && n.Driver != "macvlan") {
+			return errors.New("invalid saved network")
+		}
+		if _, e := os.Stat(filepath.Join(p, "removing")); e == nil {
+			if err := n.teardown(); err != nil {
+				return err
+			}
+			if err := os.RemoveAll(p); err != nil {
+				return err
+			}
+			continue
+		} else if !errors.Is(e, os.ErrNotExist) {
+			return e
+		}
+		if err := os.Chmod(filepath.Join(p, "resolv.conf"), 0644); err != nil {
+			return err
+		}
+		if err := s.startNetwork(ctx, n); err != nil {
+			return err
+		}
+		s.namedNetworks[n.ID] = n
 	}
-	b, err := os.ReadFile("/etc/cni/net.d/10-micropod.conflist")
+	return nil
+}
+func (s *dockerEngine) createNetwork(w http.ResponseWriter, r *http.Request) error {
+	b, err := readBody(w, r)
 	if err != nil {
 		return err
 	}
-	if err := json.Unmarshal(b, &cni); err != nil {
-		return err
-	}
-	key := strings.TrimPrefix(path, "/")
-	var list []map[string]any
-	for _, name := range []string{"bridge", "none"} {
-		id := networkID(name)
-		driver := "bridge"
-		options := map[string]string{}
-		var ranges []map[string]string
-		if name == "none" {
-			driver = "null"
-		} else {
-			for _, plugin := range cni.Plugins {
-				if plugin.Bridge == "" {
-					continue
-				}
-				options["com.docker.network.bridge.name"] = plugin.Bridge
-				for _, group := range plugin.IPAM.Ranges {
-					for _, subnet := range group {
-						ranges = append(ranges, map[string]string{"Subnet": subnet.Subnet})
-					}
-				}
+	var raw map[string]any
+	var req struct {
+		Name, Driver, Scope  string
+		Internal, Attachable bool
+		Labels, Options      map[string]string
+		IPAM                 struct {
+			Driver  string
+			Options map[string]string
+			Config  []struct {
+				Subnet, Gateway, IPRange string
+				AuxAddress               map[string]string
 			}
 		}
-		details := map[string]any{"Name": name, "Id": id, "Driver": driver, "Scope": "local", "EnableIPv4": true, "Options": options, "IPAM": map[string]any{"Driver": "default", "Config": ranges}}
-		if key != "" && (key == name || key == id) {
-			members := map[string]any{}
-			s.mu.Lock()
-			for _, c := range s.containers {
-				if c.Phase == "running" && (c.Config.HostConfig.NetworkMode == "none") == (name == "none") {
-					members[c.ID] = map[string]string{"Name": c.Name, "IPv4Address": c.IP}
-				}
+	}
+	if json.Unmarshal(b, &req) != nil || json.Unmarshal(b, &raw) != nil || !dockerName.MatchString(req.Name) || builtinNetwork(req.Name) || req.Name == "default" || req.Name == "host" {
+		return fail(400, "invalid network name or configuration")
+	}
+	if err = supportedOptions(raw, "Name Driver Scope Internal Labels Options IPAM CheckDuplicate Attachable EnableIPv4"); err != nil {
+		return fail(400, err.Error())
+	}
+	if req.Scope != "" && req.Scope != "local" || raw["EnableIPv4"] == false {
+		return fail(400, "network needs local IPv4 scope")
+	}
+	if req.Driver == "" {
+		req.Driver = "bridge"
+	}
+	if req.Driver != "bridge" && req.Driver != "ipvlan" && req.Driver != "macvlan" {
+		return fail(400, "supported network drivers are bridge, macvlan and ipvlan")
+	}
+	mtu := 1500
+	for k, v := range req.Options {
+		if k != "com.docker.network.driver.mtu" {
+			return fail(400, "unsupported network option "+k)
+		}
+		mtu, err = strconv.Atoi(v)
+		if err != nil || mtu < 576 || mtu > 9000 {
+			return fail(400, "invalid MTU")
+		}
+	}
+	if req.IPAM.Driver != "" && req.IPAM.Driver != "default" || len(req.IPAM.Options) != 0 || len(req.IPAM.Config) > 1 {
+		return fail(400, "unsupported IPAM configuration")
+	}
+	n := &workerNetwork{Name: req.Name, ID: engineID(), Driver: req.Driver, Internal: req.Internal, Attachable: req.Attachable, Labels: req.Labels, Created: time.Now().UTC(), MTU: mtu}
+	s.networkMu.Lock()
+	defer s.networkMu.Unlock()
+	s.mu.Lock()
+	exists := false
+	for _, other := range s.namedNetworks {
+		if other.Name == n.Name {
+			exists = true
+			break
+		}
+	}
+	s.mu.Unlock()
+	if exists {
+		return fail(409, "network name in use")
+	}
+	if len(req.IPAM.Config) > 0 {
+		cfg := req.IPAM.Config[0]
+		n.Subnet, err = netip.ParsePrefix(cfg.Subnet)
+		if err != nil || !n.Subnet.Addr().Is4() || !n.Subnet.Addr().IsPrivate() || n.Subnet != n.Subnet.Masked() || n.Subnet.Bits() < 16 || n.Subnet.Bits() > 29 || (cfg.Gateway != "" && cfg.Gateway != n.gateway().String()) || cfg.IPRange != "" || len(cfg.AuxAddress) > 0 {
+			return fail(400, "expected a private IPv4 subnet with the first usable address as gateway")
+		}
+		if !routeAvailable(n.Subnet) {
+			return fail(409, "subnet overlaps a worker route")
+		}
+	} else {
+		for i := 0; i < 256; i++ {
+			p := netip.PrefixFrom(netip.AddrFrom4([4]byte{10, 90, byte(i), 0}), 24)
+			if routeAvailable(p) {
+				n.Subnet = p
+				break
 			}
+		}
+		if !n.Subnet.IsValid() {
+			return fail(409, "no free network subnet")
+		}
+	}
+	if err = os.Mkdir(n.dir(), 0700); err != nil {
+		return err
+	}
+	resolver := filepath.Join(n.dir(), "resolv.conf")
+	if err = os.WriteFile(resolver, []byte("nameserver "+n.gateway().String()+"\noptions ndots:1\n"), 0644); err == nil {
+		err = os.Chmod(resolver, 0644)
+	}
+	if err != nil {
+		return errors.Join(err, os.RemoveAll(n.dir()))
+	}
+	// Commit ownership before creating links. Startup can finish an interrupted
+	// operation using the same ID; incomplete catalog writes own no interfaces.
+	payload, _ := json.Marshal(n)
+	f, err := os.OpenFile(filepath.Join(n.dir(), "network.tmp"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err == nil {
+		_, err = f.Write(payload)
+		if err == nil {
+			err = f.Sync()
+		}
+		err = errors.Join(err, f.Close())
+	}
+	if err == nil {
+		err = os.Rename(filepath.Join(n.dir(), "network.tmp"), filepath.Join(n.dir(), "network.json"))
+	}
+	if err == nil {
+		err = errors.Join(syncDir(n.dir()), syncDir(filepath.Dir(n.dir())))
+	}
+	if err != nil {
+		return errors.Join(err, os.RemoveAll(n.dir()))
+	}
+	if err = s.startNetwork(r.Context(), n); err != nil {
+		// Any partial start has its own rollback. Keep a removal intent until
+		// a subsequent boot can finish cleanup if a firewall or unlink failed.
+		if mark := os.WriteFile(filepath.Join(n.dir(), "removing"), nil, 0600); mark != nil {
+			return errors.Join(err, mark)
+		}
+		if clean := n.teardown(); clean != nil {
+			return errors.Join(err, clean)
+		}
+		return errors.Join(err, os.RemoveAll(n.dir()), syncDir(filepath.Dir(n.dir())))
+	}
+	s.mu.Lock()
+	s.namedNetworks[n.ID] = n
+	s.mu.Unlock()
+	writeJSON(w, 201, map[string]string{"Id": n.ID, "Warning": ""})
+	return nil
+}
+func (s *dockerEngine) deleteNetwork(w http.ResponseWriter, key string) error {
+	s.networkMu.Lock()
+	defer s.networkMu.Unlock()
+	s.mu.Lock()
+	var n *workerNetwork
+	for _, candidate := range s.namedNetworks {
+		if candidate.Name == key || candidate.ID == key {
+			n = candidate
+			break
+		}
+	}
+	if n == nil {
+		s.mu.Unlock()
+		return fail(404, "no such network")
+	}
+	for _, c := range s.containers {
+		if c.NetworkID == n.ID {
 			s.mu.Unlock()
+			return fail(409, "network has container endpoints")
+		}
+	}
+	n.deleting = true
+	s.mu.Unlock()
+	if err := os.WriteFile(filepath.Join(n.dir(), "removing"), nil, 0600); err != nil {
+		return err
+	}
+	if err := syncDir(n.dir()); err != nil {
+		return err
+	}
+	if n.dns != nil {
+		n.dns.close()
+		n.dns = nil
+	}
+	if err := n.teardown(); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(n.dir()); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	delete(s.namedNetworks, n.ID)
+	s.mu.Unlock()
+	if err := syncDir(filepath.Dir(n.dir())); err != nil {
+		return err
+	}
+	w.WriteHeader(204)
+	return nil
+}
+func (s *dockerEngine) networks(w http.ResponseWriter, r *http.Request, path string) error {
+	key := strings.TrimPrefix(path, "/")
+	if r.Method == "POST" && key == "create" {
+		return s.createNetwork(w, r)
+	}
+	if r.Method == "DELETE" && key != "" {
+		return s.deleteNetwork(w, key)
+	}
+	if r.Method != "GET" {
+		return fail(501, "unsupported network operation")
+	}
+	filters, err := dockerFilters(r.URL.Query().Get("filters"), "name", "id", "driver", "label", "type", "scope")
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	defaults := []*workerNetwork{{Name: "bridge", ID: networkID("bridge"), Driver: "bridge", Subnet: netip.MustParsePrefix("10.88.0.0/16")}, {Name: "none", ID: networkID("none"), Driver: "null"}}
+	nets := defaults
+	for _, n := range s.namedNetworks {
+		if !n.deleting {
+			nets = append(nets, n)
+		}
+	}
+	list := []map[string]any{}
+	for _, n := range nets {
+		if key != "" && key != n.Name && key != n.ID {
+			continue
+		}
+		typ := "custom"
+		if builtinNetwork(n.Name) {
+			typ = "builtin"
+		}
+		match := matchesLabels(n.Labels, filters["label"])
+		for field, values := range filters {
+			if field == "label" || len(values) == 0 {
+				continue
+			}
+			found := false
+			for _, v := range values {
+				found = found || field == "name" && strings.Contains(n.Name, v) || field == "id" && strings.HasPrefix(n.ID, v) || field == "driver" && n.Driver == v || field == "type" && typ == v || field == "scope" && v == "local"
+			}
+			match = match && found
+		}
+		if !match && key == "" {
+			continue
+		}
+		ranges := []map[string]string{}
+		opts := map[string]string{}
+		if n.Subnet.IsValid() {
+			ranges = append(ranges, map[string]string{"Subnet": n.Subnet.String(), "Gateway": n.gateway().String()})
+			if n.Name == "bridge" {
+				opts["com.docker.network.bridge.name"] = "mpci0"
+			} else if n.Driver == "bridge" {
+				opts["com.docker.network.bridge.name"] = n.linkName()
+			}
+		}
+		details := map[string]any{"Name": n.Name, "Id": n.ID, "Driver": n.Driver, "Scope": "local", "Internal": n.Internal, "Attachable": n.Attachable, "Labels": n.Labels, "Created": n.Created, "EnableIPv4": true, "Options": opts, "IPAM": map[string]any{"Driver": "default", "Config": ranges}}
+		if key != "" {
+			members := map[string]any{}
+			for _, c := range s.containers {
+				if c.Phase == "running" && networkName(c.Config.HostConfig.NetworkMode) == n.Name {
+					addr := c.IP
+					if addr != "" && n.Subnet.IsValid() {
+						addr = fmt.Sprintf("%s/%d", addr, n.Subnet.Bits())
+					}
+					members[c.ID] = map[string]string{"Name": c.Name, "IPv4Address": addr}
+				}
+			}
 			details["Containers"] = members
 			writeJSON(w, 200, details)
 			return nil
 		}
-		match := true
-		for field, values := range filters {
-			ok := len(values) == 0
-			for _, v := range values {
-				ok = ok || field == "name" && strings.Contains(name, v) || field == "id" && strings.HasPrefix(id, v) || field == "driver" && driver == v
-			}
-			match = match && ok
-		}
-		if match {
-			list = append(list, details)
-		}
+		list = append(list, details)
 	}
 	if key != "" {
 		return fail(404, "no such network")
 	}
-	if list == nil {
-		list = []map[string]any{}
-	}
+	slices.SortFunc(list, func(a, b map[string]any) int { return strings.Compare(a["Name"].(string), b["Name"].(string)) })
 	writeJSON(w, 200, list)
 	return nil
 }
