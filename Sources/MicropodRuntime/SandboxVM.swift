@@ -327,11 +327,16 @@ public enum SandboxVM {
                         type: "tmpfs", source: "tmpfs", destination: "/run", options: ["nosuid", "nodev", "mode=0755"]))
                 cfg.maskedPaths = []
                 cfg.readonlyPaths = []
-                if !ciWorker.isNativeRunner {
+                cfg.sockets.append(
+                    UnixSocketConfiguration(
+                        source: URL(fileURLWithPath: CIWorker.guestSocket), destination: ciWorker.dockerSocket,
+                        permissions: [.ownerRead, .ownerWrite], direction: .outOf))
+                if ciWorker.isNativeRunner {
                     cfg.sockets.append(
                         UnixSocketConfiguration(
-                            source: URL(fileURLWithPath: CIWorker.guestSocket), destination: ciWorker.socket,
-                            permissions: [.ownerRead, .ownerWrite], direction: .outOf))
+                            source: ciWorker.portSocket,
+                            destination: URL(fileURLWithPath: "/var/lib/micropod/ports.sock"),
+                            permissions: [.ownerRead, .ownerWrite], direction: .into))
                 }
             }
             if let path = ProcessInfo.processInfo.environment["MICROPOD_SANDBOX_BOOTLOG"] {

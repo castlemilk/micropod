@@ -64,6 +64,16 @@ public final class SandboxForwarding: @unchecked Sendable {
     /// `targetHost:targetPort`. Throws when the address can't be bound
     /// (port in use, address not configured).
     func listen(on listenHost: String, _ listenPort: UInt16, to targetHost: String, _ targetPort: UInt16) throws {
+        do {
+            track(try Self.relay(on: listenHost, port: listenPort, to: targetHost, port: targetPort).wait())
+        } catch {
+            throw MicropodError.message("unavailable: listening on \(listenHost):\(listenPort): \(error)")
+        }
+    }
+
+    static func relay(on listenHost: String, port listenPort: UInt16, to targetHost: String, port targetPort: UInt16)
+        -> EventLoopFuture<Channel>
+    {
         let group = MultiThreadedEventLoopGroup.singleton
         let bootstrap = ServerBootstrap(group: group)
             .serverChannelOption(.socketOption(.so_reuseaddr), value: 1)
@@ -80,12 +90,7 @@ public final class SandboxForwarding: @unchecked Sendable {
                         return inbound.pipeline.addHandler(a).and(outbound.pipeline.addHandler(b)).map { _ in }
                     }
             }
-        do {
-            let channel = try bootstrap.bind(host: listenHost, port: Int(listenPort)).wait()
-            lock.withLock { listeners.append(channel) }
-        } catch {
-            throw MicropodError.message("unavailable: listening on \(listenHost):\(listenPort): \(error)")
-        }
+        return bootstrap.bind(host: listenHost, port: Int(listenPort))
     }
 
     /// Close `channel` with the rest on `stop()`.

@@ -3,7 +3,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -15,7 +14,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -191,6 +189,7 @@ func config(id, dir, image string, j job) (*cri.PodSandboxConfig, *cri.Container
 }
 
 type result struct {
+	Reason    string `json:"exit_reason,omitempty"`
 	Type      string `json:"type"`
 	ExitCode  int32  `json:"exit_code"`
 	Runtime   string `json:"runtime"`
@@ -204,40 +203,6 @@ type result struct {
 	PodMS     int64  `json:"pod_ms"`
 	CreateMS  int64  `json:"create_ms"`
 	StartMS   int64  `json:"start_ms"`
-}
-
-func logs(path string, out *json.Encoder) error {
-	f, err := os.Open(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	s := bufio.NewScanner(f)
-	s.Buffer(make([]byte, 32768), 1<<20)
-	for s.Scan() {
-		parts := strings.SplitN(s.Text(), " ", 4)
-		if len(parts) != 4 || (parts[1] != "stdout" && parts[1] != "stderr") {
-			return errors.New("invalid CRI log record")
-		}
-		body := parts[3]
-		switch parts[2] {
-		case "F":
-			body += "\n"
-		case "P":
-		default:
-			return errors.New("invalid CRI log fragment")
-		}
-		if err := out.Encode(struct {
-			Type string `json:"type"`
-			Data []byte `json:"data"`
-		}{parts[1], []byte(body)}); err != nil {
-			return err
-		}
-	}
-	return s.Err()
 }
 
 // Only the scheduler can create these durable ownership records. Never enumerate or
@@ -299,11 +264,21 @@ func kataPrerequisites() error {
 	return nil
 }
 
-func (n node) run(ctx context.Context, j job, out *json.Encoder) (res result, err error) {
+type processHooks struct {
+	configure func(string, *cri.ContainerConfig) error
+	started   func(string)
+	output    outputSink
+}
+
+func (n node) run(ctx context.Context, j job, hooks processHooks) (res result, err error) {
 	handler, err := j.handler()
 	if err != nil {
 		return res, err
 	}
+	return n.runProcess(ctx, j, handler, hooks)
+}
+
+func (n node) runProcess(ctx context.Context, j job, handler string, hooks processHooks) (res result, err error) {
 	if handler == "kata" {
 		if err := kataPrerequisites(); err != nil {
 			return res, err
@@ -329,6 +304,11 @@ func (n node) run(ctx context.Context, j job, out *json.Encoder) (res result, er
 	if err != nil {
 		return res, err
 	}
+	if hooks.configure != nil {
+		if err := hooks.configure(p.pod, container); err != nil {
+			return res, err
+		}
+	}
 	create := time.Now()
 	c, err := n.runtime.CreateContainer(ctx, &cri.CreateContainerRequest{PodSandboxId: res.Pod, Config: container, SandboxConfig: pod})
 	if err != nil {
@@ -342,30 +322,11 @@ func (n node) run(ctx context.Context, j job, out *json.Encoder) (res result, er
 	}
 	res.StartMS = time.Since(start).Milliseconds()
 	res.SetupMS = time.Since(setup).Milliseconds()
-	interval := 5 * time.Millisecond
-	for {
-		st, err := n.runtime.ContainerStatus(ctx, &cri.ContainerStatusRequest{ContainerId: res.Container})
-		if err != nil {
-			return res, err
-		}
-		if st.GetStatus().GetState() == cri.ContainerState_CONTAINER_EXITED {
-			if st.Status.FinishedAt == 0 {
-				return res, errors.New("runtime has no recorded exit")
-			}
-			res.ExitCode = st.Status.ExitCode
-			logPath := filepath.Join(dir, "job.log")
-			if stat, e := os.Stat(logPath); e == nil && stat.Size() >= (8<<20)-4096 {
-				return res, errors.New("job log exceeded the 8 MiB limit")
-			}
-			return res, logs(logPath, out)
-		}
-		select {
-		case <-ctx.Done():
-			return res, ctx.Err()
-		case <-time.After(interval):
-		}
-		interval = min(interval*2, 250*time.Millisecond)
+	if hooks.started != nil {
+		hooks.started(res.Container)
 	}
+	res.ExitCode, res.Reason, err = n.follow(ctx, res.Container, filepath.Join(dir, "job.log"), hooks.output)
+	return res, err
 }
 
 func decodeJob(r io.Reader) (job, error) {
@@ -391,6 +352,9 @@ func run() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	out := json.NewEncoder(os.Stdout)
+	if len(os.Args) == 2 && os.Args[1] == "engine" {
+		return serveEngine(ctx, n)
+	}
 	if len(os.Args) == 3 && os.Args[1] == "prime" {
 		count, err := strconv.Atoi(os.Args[2])
 		if err != nil {
@@ -436,7 +400,7 @@ func run() error {
 	}
 	ctx, end := context.WithTimeout(ctx, 6*time.Hour)
 	defer end()
-	res, err := n.run(ctx, j, out)
+	res, err := n.run(ctx, j, processHooks{output: jsonOutput(out)})
 	if err != nil {
 		return err
 	}

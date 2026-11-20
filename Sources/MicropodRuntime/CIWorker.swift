@@ -27,6 +27,8 @@ public struct CIWorker: Sendable {
     let resourceEnvironment: [String: String]
     public var isNativeRunner: Bool { resourceEnvironment["MICROPOD_CI_ENGINE"] == "containerd" }
     public var socket: URL { directory.appendingPathComponent(isNativeRunner ? "oci.sock" : "docker.sock") }
+    var portSocket: URL { directory.appendingPathComponent("ports.sock") }
+    var dockerSocket: URL { directory.appendingPathComponent("docker.sock") }
     var ociSocket: URL { directory.appendingPathComponent("oci.sock") }
     static let guestOCI = "/var/lib/micropod/oci.sock"
     public var endpoint: String { "unix://" + socket.path }
@@ -328,6 +330,18 @@ public struct CIWorker: Sendable {
             return endpoint
         }
         return try await start(executable: executable).endpoint
+    }
+
+    /// Verify that the API on the second socket belongs to the running native worker.
+    public func nativeDockerEndpoint(executable: URL) async throws -> String {
+        let active = try await start(executable: executable)
+        let api = DockerClient(endpoint: .unix(dockerSocket.path), version: Self.apiVersion)
+        let reply = try await api.request("GET", "/info", timeout: .seconds(3))
+        guard reply.status == 200, let info = try reply.json() as? [String: Any],
+            info["ID"] as? String == active.worker.uuidString,
+            (info["Labels"] as? [String])?.contains("io.micropod.instance=" + active.instance.uuidString) == true
+        else { throw MicropodError.message("Native Docker API did not identify the active worker") }
+        return "unix://" + dockerSocket.path
     }
 
     public func start(executable: URL) async throws -> Status {
@@ -663,6 +677,10 @@ public struct CIWorker: Sendable {
             "MICROPOD_CI_WORKER_ID=" + config.worker.uuidString, "MICROPOD_CI_INSTANCE=" + active.instance.uuidString,
         ]
         if active.nativeOCI == true { options.env.append("MICROPOD_NATIVE_OCI=1") }
+        if config.engine == .containerd {
+            options.env.append("MICROPOD_ENGINE_API=1")
+            if let workspace = config.workspace { options.env.append("MICROPOD_ENGINE_WORKSPACE=" + workspace) }
+        }
         options.entrypoint = ["/bin/sh", "-c"]
         options.arguments = [config.engine == .containerd ? "exec /opt/micropod-oci/runner/start.sh" : Self.bootstrap]
 
@@ -671,9 +689,12 @@ public struct CIWorker: Sendable {
             stdout: FileHandleWriter(.standardOutput), stderr: FileHandleWriter(.standardError),
             progress: { FileHandle.standardError.write(Data(($0 + "\n").utf8)) }, ciWorker: self)
         do {
+            if config.engine == .containerd, let guest = prepared.guestIP {
+                try await prepared.forwarding.openNativePortBroker(at: portSocket, guest: guest)
+            }
             try await prepared.container.create()
             guard chmod(socket.path, 0o600) == 0 else { throw POSIXError(.init(rawValue: errno) ?? .EIO) }
-            if active.nativeOCI == true, chmod(ociSocket.path, 0o600) != 0 {
+            if chmod(dockerSocket.path, 0o600) != 0 || active.nativeOCI == true && chmod(ociSocket.path, 0o600) != 0 {
                 throw POSIXError(.init(rawValue: errno) ?? .EIO)
             }
             try await prepared.container.start()

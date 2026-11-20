@@ -146,6 +146,11 @@ def store(path, run, kind, record):
                        b.value->>'seconds' AS seconds, b.value->>'prepare_seconds' AS prepare_seconds,
                        b.value AS batch
                 FROM measurements, json_each(receipt,'$.batches') b WHERE kind='runner-isolation';
+            CREATE VIEW IF NOT EXISTS native_worker_batches AS
+                SELECT run, b.value->>'engine' AS engine, b.value->>'round' AS round,
+                       b.value->>'clients' AS clients, b.value->>'jobs_s' AS seconds,
+                       b.value->>'prepare_seconds' AS prepare_seconds, b.value AS batch
+                FROM measurements, json_each(receipt,'$.batches') b WHERE kind='native-worker';
             CREATE VIEW IF NOT EXISTS runner_job_stages AS
                 SELECT run, series, engine, round, clients, j.value->>'$.cri.container_id' AS container_id,
                        j.value->>'$.cri.image_cache_hit' AS image_cache_hit, j.value->>'$.cri.prepared_pod' AS prepared_pod,

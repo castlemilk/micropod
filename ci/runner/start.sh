@@ -38,10 +38,13 @@ for controller in cpu memory pids; do
     echo "+$controller" > "$cg/cgroup.subtree_control"
 done
 echo 1 > /proc/sys/net/ipv4/ip_forward
-containerd --config "$tools/runner/containerd.toml" &
+# The snapshotter creates each container root with mode 0755. An inherited
+# 0077 umask makes / unsearchable after the image switches to a non-root UID.
+(umask 022; exec containerd --config "$tools/runner/containerd.toml") &
 engine=$!
 service=
-trap 'kill "$engine" ${service:+"$service"} 2>/dev/null || true' EXIT
+api=
+trap 'kill "$engine" ${service:+"$service"} ${api:+"$api"} 2>/dev/null || true' EXIT
 trap 'exit 0' TERM INT
 attempts=60
 until "$tools/runner/bin/job" status >/dev/null; do
@@ -51,7 +54,9 @@ until "$tools/runner/bin/job" status >/dev/null; do
     sleep 1
 done
 "$tools/runner/bin/job" recover
+"$tools/runner/bin/job" engine &
+api=$!
 "$tools/service" serve &
 service=$!
 # BusyBox ash waits for either critical process. The supervisor observes its exit.
-wait -n "$engine" "$service"
+wait -n "$engine" "$service" "$api"

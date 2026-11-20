@@ -6,6 +6,7 @@ import MicropodRuntime
 enum CICommands {
     static let help = """
         micropod ci job TRUST IMAGE COMMAND [ARG ...]   submit a trusted crun or VM-isolated job
+        micropod ci runner-docker-endpoint   print the native worker’s Docker-compatible socket
         micropod ci runner-prime COUNT   prepare up to 32 single-use pods for trusted jobs
         micropod ci runner-start | runner-status | runner-stop | runner-endpoint
                                           control the dedicated containerd worker
@@ -35,7 +36,10 @@ enum CICommands {
             print(help)
             return 2
         }
-        let runnerCommands = ["job", "runner-prime", "runner-start", "runner-status", "runner-stop", "runner-endpoint"]
+        let runnerCommands = [
+            "job", "runner-prime", "runner-start", "runner-status", "runner-stop", "runner-endpoint",
+            "runner-docker-endpoint",
+        ]
         var environment = ProcessInfo.processInfo.environment
         if runnerCommands.contains(command) { environment["MICROPOD_CI_ENGINE"] = "containerd" }
         let worker = CIWorker(environment: environment)
@@ -56,7 +60,7 @@ enum CICommands {
             switch command {
             case "runner-status": try printStatus(await worker.status())
             case "runner-stop": try await worker.stop()
-            case "job", "runner-prime", "runner-start", "runner-endpoint":
+            case "job", "runner-prime", "runner-start", "runner-endpoint", "runner-docker-endpoint":
                 guard let executable = Bundle.main.executableURL else {
                     throw MicropodError.message("Missing CLI executable")
                 }
@@ -66,6 +70,10 @@ enum CICommands {
                 }
                 if command == "runner-start" {
                     try printStatus(await worker.start(executable: executable))
+                    return 0
+                }
+                if command == "runner-docker-endpoint" {
+                    print(try await worker.nativeDockerEndpoint(executable: executable))
                     return 0
                 }
                 if command == "runner-endpoint" {

@@ -40,8 +40,10 @@ def call(cmd, *, timeout=360):
         cmd, capture_output=True, text=True, timeout=timeout, check=False
     )
     if proc.returncode:
+        failures = [line for line in proc.stderr.splitlines() if "FAIL" in line or ".go:" in line or "error:" in line]
         raise RuntimeError(
-            f"{cmd[0]} exited {proc.returncode}: {proc.stderr[-3400:]} {proc.stdout[-600:]}"
+            f"{cmd[0]} exited {proc.returncode}\n" + "\n".join(failures[-20:]) +
+            f"\n{proc.stderr[-3400:]} {proc.stdout[-600:]}"
         )
     return proc.stdout.strip()
 
@@ -79,6 +81,8 @@ du -sB1 "$GOCACHE" "$GOMODCACHE"; du -sb "$GOCACHE" "$GOMODCACHE"
 
 
 def parse_job(output, seconds, *, raw=False):
+    if len(output.split()) != 14:
+        raise ValueError(f"expected the 14-field Go workload receipt, received {output[:800]!r}")
     (
         rev,
         host,
@@ -227,7 +231,8 @@ def main():
             proc = subprocess.run([*command, 'export GOFLAGS="-trimpath -p=2"\n' + script, "sh", *argv],
                                   env=environment, capture_output=True, text=True, timeout=360)
             if proc.returncode:
-                raise RuntimeError(proc.stderr[-3400:] + proc.stdout[-600:])
+                errors = [line for line in proc.stderr.splitlines() if "FAIL" in line or ".go:" in line or "error:" in line]
+                raise RuntimeError("\n".join(errors[-20:]) + "\n" + proc.stderr[-3400:] + proc.stdout[-600:])
             trace = next(line.removeprefix("micropod-job ") for line in reversed(proc.stderr.splitlines())
                          if line.startswith("micropod-job "))
             return proc.stdout.strip(), json.loads(trace)

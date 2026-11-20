@@ -25,6 +25,7 @@ struct Counts {
     opened: u64,
     servicing: usize,
     draining: bool,
+    engine_drain: Option<File>,
     prepare_hits: u64,
     prepare_loads: u64,
     sessions_by_scope: BTreeMap<String, usize>,
@@ -569,11 +570,27 @@ fn serve_one(mut sock: UnixStream, r: &Registry) -> Result<()> {
             }
             (Some("POST"), "drain" | "oci/v1/drain") => {
                 let mut c = r.lock().unwrap();
-                let code = if c.servicing != 0 {
+                let gate = || -> std::io::Result<Option<File>> {
+                    if std::env::var_os("MICROPOD_ENGINE_API").is_none() {
+                        return Ok(None);
+                    }
+                    let f = File::open(format!("{RUN}/engine.lock"))?;
+                    f.try_lock()?;
+                    Ok(Some(f))
+                };
+                let code = if c.draining {
+                    200
+                } else if c.servicing != 0 {
                     409
                 } else {
-                    c.draining = true;
-                    200
+                    match gate() {
+                        Ok(lease) => {
+                            c.engine_drain = lease;
+                            c.draining = true;
+                            200
+                        }
+                        Err(_) => 409,
+                    }
                 };
                 drop(c);
                 (code, status(r))

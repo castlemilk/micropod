@@ -26,13 +26,45 @@ For a fleet that opts into Kata, provision its verified QEMU tools with `ci/inst
 
 An idle scheduler can call `ci runner-prime COUNT` ahead of a known trusted burst. It opens up to 32 empty crun pods. Claiming a pod atomically consumes its single-use entry and rechecks its identity, owner and runtime with containerd. Workload containers are created after dispatch. Each pod is destroyed after its job, including its network namespace and writable state. An untrusted job always gets a fresh VM. The scheduler can omit priming to avoid the idle footprint or charge it to batch time when work is already queued.
 
-The job subprocess receives the supplied argument vector. The native service streams the completed job's CRI log records to the matching stdout and stderr, and returns the process exit code. The worker caps job logs at 8 MiB, applies a 1 GiB memory limit and 1 CPU, and records image lookup, pod creation, container creation and start durations with `MICROPOD_OCI_TRACE=1`. At startup it reconciles pods against durable per-job ownership records. Shutdown refuses active work. The Apple VM path has its own VM memory and disk limits.
+The job subprocess receives the supplied argument vector. The native service streams the job's CRI log records as they arrive to the matching stdout and stderr, and returns the process exit code. The worker caps job logs at 8 MiB, applies a 1 GiB memory limit and 1 CPU, and records image lookup, pod creation, container creation and start durations with `MICROPOD_OCI_TRACE=1`. At startup it reconciles pods against durable per-job ownership records. Shutdown refuses active work. The Apple VM path has its own VM memory and disk limits.
 
 Keep a trusted GitHub runner controller or Cuttlefish agent on the scheduler side. For arbitrary pull requests, the allocation should include the whole job, its services and its workspace within one hardware boundary. The current CLI runs one foreground container. Supporting GitHub's job containers, service containers and container actions through this path also needs allocation-scoped prepare, exec and cleanup operations, a workspace shared only inside that allocation, and the four GitHub runner hooks. Cuttlefish’s current GitHub allocation driver still requests a private rootless Docker engine. Preserve its reservation, owner identity and retirement checks when connecting those lifecycle operations. [Cuttlefish allocation driver](https://github.com/skunkworq/cuttlefish/blob/e259da023a2842fac8f20a8c9e9c27aa5427ff03/internal/runnerallocation/micropod.go)
 
 In Kubernetes the corresponding control is an admission-enforced RuntimeClass assigned by namespace policy. A workload that can choose its own class or open containerd's socket could bypass that policy. [GitHub runner container hooks](https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/customize-containers) · [Kubernetes RuntimeClass](https://kubernetes.io/docs/concepts/containers/runtime-class/)
 
-## Docker-compatible worker
+## Native worker for Cuttlefish and local Docker clients
+
+The scheduler socket and the Docker-compatible socket belong to the same persistent VM. The native guest handles Docker API versions 1.44–1.47 through containerd's CRI and crun. Image layers, the Go toolchain and scoped Go/npm cache entries are shared by both entry points. Each workload gets its own writable root and network namespace. The Mac client can hold an open port, read output as it arrives, and collect process status while other clients start jobs.
+
+```sh
+# Select the rig account's private exchange directory before provisioning this disk.
+export MICROPOD_CI_WORKSPACE="$HOME/.micropod/cuttle-workspace"
+install -d -m 700 "$MICROPOD_CI_WORKSPACE"
+micropod ci runner-start
+endpoint=$(micropod ci runner-docker-endpoint)
+docker --host "$endpoint" run --rm --network none alpine:3.23 echo ready
+docker --host "$endpoint" volume create --label owner=cuttle cuttle-workspace
+```
+
+The stock CLI speaks to this endpoint without changing the active Docker context. The native endpoint verifies both the disk's worker identity and the live supervisor instance. To supervise this worker across logins, point `MICROPOD_CI_OCI_TOOLS` at a durably installed guest tool bundle and run `MICROPOD_CI_ENGINE=containerd micropod ci install-service` on the rig account after stopping its standalone worker. The existing launch agent supports one registered worker directory per account.
+
+| Workload | Native behavior |
+| --- | --- |
+| Trusted Cuttlefish attempts | Set `RUNNER_PREFER_MICROPOD=true` and `RUNNER_MICROPOD_TRANSPORT=worker`. Set `TMPDIR` and `CUTTLE_RUNNER_TMP_HOST_PREFIX` to the configured exchange directory, and `CUTTLE_DOCKER_MOUNT_WORKDIR=1`. Separate stages can use the same labeled workspace volume. The agent checks both sockets before intake and reads capacity on the VM disk. |
+| Foreground and detached containers | Create, start, wait, inspect, list, stop, kill, remove, logs and noninteractive exec. Output preserves stdout/stderr and the process exit code. A retained container's exit, logs, and named volumes survive a clean reboot. An interrupted start with an unknown exit is marked dead. |
+| Local databases and servers | TCP publishing leases a fixed or dynamically assigned Mac loopback port. The lease ends with the pod. Numeric users, image-default users, read-only mounts, bridge networking, offline networking, and CPU/memory/PID limits are supported. |
+| Go or npm fan-out | Use a scheduler cache scope, or mount the corresponding Docker volume names `micropod-ci-scoped-SCOPE-gomod`, `-gobuild` and `-npm`. Set `GOMODCACHE`, `GOCACHE` and `npm_config_cache` to their mount points. Keep `-trimpath` in `GOFLAGS`. Removing a Docker cache reference preserves scheduler-owned cache data. |
+| Testcontainers | The standard Ryuk helper receives its own Unix socket. It can enumerate and remove containers and volumes labeled for its test session. Worker image layers, other sessions, and both owner sockets stay private. |
+| Builds, Compose and interactive development | BuildKit/buildx, custom networks and aliases, interactive stdin/TTY, archive copy and full Compose semantics still need the separate full Docker Engine worker. The native API returns an error for unsupported operations. |
+| GitHub runner allocations | The existing Cuttlefish GitHub driver provisions a private rootless engine inside its allocated VM. Migration still requires a private allocation API for workspace, job containers, service discovery, exec and cleanup. |
+
+A bind source must resolve beneath the configured exchange directory. The guest pins its opened inode during launch. The trust boundary is the worker account. Select a sibling Apple VM or qualified Kata node for untrusted job code. Trace trusted scheduler jobs with `MICROPOD_OCI_TRACE=1`. On the native Docker socket, `GET /micropod/metrics` reports boot-scoped image hits, scoped cache attachments, prepared pod use and cumulative create/start timings. `GET /micropod/storage` reads ext4 capacity in constant time. `docker stats` reads CRI CPU and memory plus kernel PID, network and block I/O counters. Logs have an 8 MiB per-container limit. Exceeding that limit ends the job with an engine error.
+
+Run `scripts/qualify_native_worker.sh` to exercise stock clients. Pass `--restart` with an explicit qualification worker home to also check shutdown under load and durable state after reboot. The dated Gamma receipt includes the matched Go runs and independent Cuttlefish checks. [Gamma results](benchmarks/2026-11-21/native-worker.md)
+
+## Full Docker Engine worker
+
+
 
 
 A trusted runner account can keep one Linux kernel running on Apple Silicon. The `micropod ci serve` process owns the Virtualization.framework VM and its writable ext4 disk. Docker Engine 29.9.3, containerd, runc and BuildKit run inside that VM. Each job gets a fresh Linux container. Layers, build cache and named volumes live on the same disk across jobs and clean worker restarts.
