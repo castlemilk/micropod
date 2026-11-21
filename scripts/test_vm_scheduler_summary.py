@@ -35,6 +35,27 @@ class SchedulerSummaryTests(unittest.TestCase):
         self.assertEqual(result["threads"]["vcpu"]["cpu_fraction_by_level"], [0.25, 0.75])
         self.assertEqual(result["matched_thread_cpu_fraction"], 1)
 
+    def test_sleeping_thread_keeps_its_last_priority(self):
+        data = self.trace()
+        data[0]["resource_coalition"] = 42
+        for i, row in enumerate(data[1:]):
+            row["threads"][0].update(policy=1, base_priority=31, priority=20 if i == 0 else 31,
+                                     state=3 if i == 0 else 1)
+        result = summarize(self.lines(data))
+        self.assertEqual(result["resource_coalition"], 42)
+        self.assertEqual(result["threads"]["vcpu"]["below_base_runnable_fraction"], 0)
+        self.assertAlmostEqual(result["threads"]["vcpu"]["below_base_fraction"], 1 / 6)
+
+    def test_policy_time_weights_each_side_of_a_transition(self):
+        records = self.trace()
+        for sample in records[1:]:
+            sample["threads"][0].update(policy=1, priority=27, base_priority=31)
+        records[-1]["threads"][0].update(policy=2, priority=31)
+        vcpu = summarize(self.lines(records))["threads"]["vcpu"]
+        self.assertAlmostEqual(vcpu["policy_fractions"]["1"], 5 / 6)
+        self.assertAlmostEqual(vcpu["policy_fractions"]["2"], 1 / 6)
+        self.assertAlmostEqual(vcpu["below_base_fraction"], 5 / 6)
+
     def test_reused_pid_and_empty_window(self):
         records = self.trace()
         with self.assertRaisesRegex(ValueError, "no complete sample"):

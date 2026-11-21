@@ -22,6 +22,8 @@ typedef struct {
 mp_tcp_relay *mp_tcp_relay_create(const char *guest);
 // A data owner receives accepted streams from a separate listener owner.
 mp_tcp_relay *mp_tcp_relay_create_data(const char *guest);
+// Configure before event processing starts. Applies only to newly dialed guest sockets.
+void mp_tcp_relay_bound_guest_window(mp_tcp_relay *relay);
 int mp_tcp_relay_scope(mp_tcp_relay *relay, const char *gateway);
 // Release each target on its owner, sequentially, before releasing its parent.
 typedef void (*mp_tcp_handoff)(void *owner, int client, uint64_t accepted_at);

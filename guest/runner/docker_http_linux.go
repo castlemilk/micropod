@@ -64,6 +64,9 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 		network := s.metrics.networks.snapshot()
 		if s.direct != nil {
 			network["macvlan_quarantined_ports"] = s.direct.quarantined()
+			if counts := s.direct.linkCounters(); counts != nil {
+				network["published_link"] = counts
+			}
 		}
 		metrics["network"] = network
 		metrics["start_parallelism_limit"] = cap(s.startSlots)

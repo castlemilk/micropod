@@ -16,7 +16,8 @@
 
 // Some macOS SDKs only publish these proc_pidinfo flavors in XNU's
 // bsd/sys/proc_info_private.h. Check the response layout on every call.
-enum { list_thread_ids = 28, thread_counts = 34 };
+enum { coalition_info = 20, list_thread_ids = 28, thread_counts = 34 };
+struct coalition_ids { uint64_t resource, jetsam, reserved[3]; };
 struct level_counts {
     uint64_t instructions, cycles, user_ticks, system_ticks, energy;
 };
@@ -91,7 +92,12 @@ static int trace(pid_t pid, int samples, int interval_ms) {
             fputs("null", stdout);
         else printf("\"%s\"", name);
     }
-    fputs("]}\n", stdout);
+    fputc(']', stdout);
+    struct coalition_ids groups = {0};
+    if (proc_pidinfo(pid, coalition_info, 0, &groups, sizeof(groups)) == sizeof(groups))
+        printf(",\"resource_coalition\":%" PRIu64 ",\"jetsam_coalition\":%" PRIu64,
+               groups.resource, groups.jetsam);
+    fputs("}\n", stdout);
     for (int i = 0; i < samples; i++) {
         uint64_t at = clock_gettime_nsec_np(CLOCK_REALTIME), monotonic = clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW);
         struct rusage_info_v6 usage = {0};
@@ -125,9 +131,9 @@ static int trace(pid_t pid, int samples, int interval_ms) {
                 counts->length != levels) continue;
             info.pth_name[sizeof(info.pth_name) - 1] = '\0';
             printf("%s{\"id\":%" PRIu64 ",\"group\":\"%s\",\"state\":%d,\"priority\":%d,"
-                   "\"base_priority\":%d,\"level_cpu_ticks\":[",
+                   "\"base_priority\":%d,\"policy\":%d,\"max_priority\":%d,\"cpu_usage\":%d,\"level_cpu_ticks\":[",
                    seen++ ? "," : "", ids[t], thread_group(info.pth_name), info.pth_run_state,
-                   info.pth_curpri, info.pth_priority);
+                   info.pth_curpri, info.pth_priority, info.pth_policy, info.pth_maxpriority, info.pth_cpu_usage);
             for (uint32_t level = 0; level < levels; level++) {
                 const struct level_counts *c = &counts->levels[level];
                 printf("%s%" PRIu64, level ? "," : "", c->user_ticks + c->system_ticks);

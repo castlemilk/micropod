@@ -682,7 +682,8 @@ public struct CIWorker: Sendable {
         options.network = true
         options.hostname = config.engine == .containerd ? Self.hostname(active.instance) : "micropod-ci"
         let portRelay = resourceEnvironment["MICROPOD_CI_PORT_RELAY"]
-        if config.publishedPath == "macvlan", let portRelay, !["kqueue", "kqueue-throughput"].contains(portRelay) {
+        let parallelRelay = portRelay == "kqueue-throughput" || portRelay == "kqueue-interactive"
+        if config.publishedPath == "macvlan", let portRelay, portRelay != "kqueue", !parallelRelay {
             throw MicropodError.message("Direct published ports require the native kqueue relay")
         }
         options.ciWorkspace = config.workspace
@@ -713,7 +714,7 @@ public struct CIWorker: Sendable {
         if config.engine == .containerd {
             options.env.append("MICROPOD_ENGINE_API=1")
             if let path = config.publishedPath { options.env.append("MICROPOD_CI_PUBLISHED_PATH=" + path) }
-            if portRelay == "kqueue-throughput" { options.env.append("MICROPOD_CI_PORT_THROUGHPUT=1") }
+            if parallelRelay { options.env.append("MICROPOD_CI_PORT_THROUGHPUT=1") }
             if let raw = resourceEnvironment["MICROPOD_CI_MAX_STARTING"] {
                 guard let limit = Int(raw), (0...32).contains(limit) else {
                     throw MicropodError.message("MICROPOD_CI_MAX_STARTING must be between 0 and 32")

@@ -62,7 +62,22 @@ extension CIWorker {
         }
     }
 
+    struct PublishedLinkFailure {
+        private var firstMiss: ContinuousClock.Instant?
+
+        mutating func clear() { firstMiss = nil }
+
+        mutating func confirmed(at now: ContinuousClock.Instant) -> Bool {
+            guard let firstMiss else {
+                self.firstMiss = now
+                return false
+            }
+            return now >= firstMiss + .seconds(6)
+        }
+    }
+
     actor NetworkWatch {
+        private var publishedFailure = PublishedLinkFailure()
         private var retry = false
         private var delay = 0
         private var nextCheck = ContinuousClock.now
@@ -85,6 +100,7 @@ extension CIWorker {
             // Guest application bytes prove that the published data path is working.
             // Keep checking the host gateway, explicit requests and new handshake failures.
             if publishedRelay?.takeGuestTraffic() == true {
+                publishedFailure.clear()
                 retry = false
                 delay = 0
                 if !failedHandshake { nextGuestCheck = .now + .seconds(20) }
@@ -99,7 +115,10 @@ extension CIWorker {
             } else if ContinuousClock.now >= nextGuestCheck {
                 nextGuestCheck = .now + .seconds(20)
                 let ok = try? await CIWorker.guestLink(prepared.container, network: network, link: link, mode: .check)
-                guard ok == false else { return nil }
+                guard ok == false else {
+                    if ok == true { publishedFailure.clear() }
+                    return nil
+                }
                 cause = "guest-link-unreachable"
             } else {
                 return nil
@@ -118,15 +137,31 @@ extension CIWorker {
                 } else if cause == "guest-link-unreachable", publishedRelay?.takeGuestTraffic() == true,
                     (try? CIWorker.hasLocalGateway(gateway)) == true
                 {
+                    publishedFailure.clear()
                     // Fresh data arrived during the failed probes. Leave the NIC
                     // attached and recheck soon in case new handshakes still fail.
                     nextGuestCheck = .now + .seconds(3)
                     return nil
+                } else if cause == "guest-link-unreachable", link == .published,
+                    publishedRelay != nil, (try? CIWorker.hasLocalGateway(gateway)) == true,
+                    !publishedFailure.confirmed(at: .now)
+                {
+                    // Replacing a busy VZ endpoint can interrupt the whole link
+                    // for seconds. Require another failed probe after the grace
+                    // interval. Incoming application bytes clear the suspicion.
+                    nextGuestCheck = .now + .seconds(1)
+                    return nil
+                } else if cause == "guest-link-unreachable", link == .published,
+                    (try? CIWorker.hasLocalGateway(gateway)) == true,
+                    (try? await CIWorker.replacePublishedAttachment(prepared, network: network)) == true
+                {
+                    cause = "published-attachment-restored"
                 } else {
                     try await CIWorker.reconnect(prepared, link: link)
                 }
             } catch { failure = error.localizedDescription }
             let elapsed = start.duration(to: .now).components
+            publishedFailure.clear()
             retry = failure != nil
             delay = retry ? min(max(1, delay * 2), 30) : 0
             nextCheck = .now + .seconds(max(1, delay))
@@ -135,6 +170,22 @@ extension CIWorker {
                 instance: instance, request: request, gateway: gateway, timestamp: Date(),
                 seconds: Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18, error: failure, cause: cause)
         }
+    }
+
+    /// The guest's virtio queue can stall while the host bridge and egress
+    /// still work. Replace just the dedicated endpoint on the pinned network.
+    private static func replacePublishedAttachment(_ prepared: SandboxVM.Prepared, network: SandboxNetwork) async throws
+        -> Bool
+    {
+        try await prepared.container.withVirtualMachineInstance { instance in
+            guard let vm = instance as? VZVirtualMachineInstance else {
+                throw MicropodError.message("Expected an Apple virtual machine")
+            }
+            try await attachNIC(true, vm: vm, network: network, link: .published)
+        }
+        // Require fresh ARP evidence after installing the new attachment.
+        return try await guestLink(prepared.container, network: network, link: .published, mode: .restoreRoute)
+            && (try hasLocalGateway(network.gateway.description))
     }
 
     static func reconnect(_ prepared: SandboxVM.Prepared, link: WorkerLink = .egress) async throws {

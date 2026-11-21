@@ -10,10 +10,13 @@ extension SandboxForwarding {
         -> NativeLoopbackRelay?
     {
         // A native published lease must originate from its worker gateway.
-        let parallel = mode == "kqueue-throughput"
+        let interactive = mode == "kqueue-interactive"
+        let parallel = interactive || mode == "kqueue-throughput"
         let relay =
             mode == nil || mode == "kqueue" || parallel
-            ? try NativeLoopbackRelay(guest: guest, gateway: gateway, parallel: parallel, profile: profile) : nil
+            ? try NativeLoopbackRelay(
+                guest: guest, gateway: gateway, parallel: parallel, boundedGuestWindow: interactive, profile: profile)
+            : nil
         let channel = try await ServerBootstrap(group: MultiThreadedEventLoopGroup.singleton)
             .childChannelInitializer { channel in
                 channel.pipeline.addHandler(NativePortLease(guest: guest, gateway: gateway, relay: relay))

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/binary"
@@ -12,6 +13,8 @@ import (
 	"net/netip"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -180,6 +183,44 @@ func (c *directControl) Close() error {
 	}
 	<-c.done
 	return nil
+}
+
+// A scrape reads the live kernel counters for this worker's published NIC.
+func (d *directNetwork) linkCounters() map[string]uint64 {
+	parent := d.parent.Attrs()
+	link, err := netlink.LinkByIndex(parent.Index)
+	if err != nil {
+		return nil
+	}
+	attrs := link.Attrs()
+	if attrs.Name != parent.Name || !bytes.Equal(attrs.HardwareAddr, parent.HardwareAddr) || attrs.Statistics == nil {
+		return nil
+	}
+	stats := attrs.Statistics
+	counts := map[string]uint64{
+		"rx_bytes": stats.RxBytes, "tx_bytes": stats.TxBytes,
+		"rx_dropped": stats.RxDropped, "tx_dropped": stats.TxDropped,
+		"rx_errors": stats.RxErrors, "tx_errors": stats.TxErrors,
+	}
+	// A driver may report other TX errors. Linux counts watchdog expirations
+	// separately for every TX queue. Omit an incomplete sum during teardown.
+	if attrs.NumTxQueues > 0 {
+		var timeouts uint64
+		for i := 0; i < attrs.NumTxQueues; i++ {
+			path := filepath.Join("/sys/class/net", attrs.Name, "queues", fmt.Sprintf("tx-%d", i), "tx_timeout")
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				return counts
+			}
+			value, err := strconv.ParseUint(strings.TrimSpace(string(raw)), 10, 64)
+			if err != nil {
+				return counts
+			}
+			timeouts += value
+		}
+		counts["tx_queue_timeouts"] = timeouts
+	}
+	return counts
 }
 
 func (d *directNetwork) quarantined() int {

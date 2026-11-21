@@ -14,11 +14,14 @@ extension CIWorker {
     public func launchAgent(executable: URL) throws -> Data {
         var environment = resourceEnvironment
         environment["MICROPOD_CI_HOME"] = directory.path
-        let plist: [String: Any] = [
+        var plist: [String: Any] = [
             "Label": Self.agentLabel, "ProgramArguments": [executable.path, "ci", "serve"],
             "EnvironmentVariables": environment, "RunAtLoad": true, "KeepAlive": ["Crashed": true],
             "StandardOutPath": log.path, "StandardErrorPath": log.path,
         ]
+        if isNativeRunner && environment["MICROPOD_CI_PORT_RELAY"] == "kqueue-interactive" {
+            plist["ProcessType"] = "Interactive"
+        }
         return try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
     }
 

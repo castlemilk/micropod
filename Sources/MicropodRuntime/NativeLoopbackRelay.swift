@@ -26,8 +26,12 @@ final class NativeLoopbackRelay: @unchecked Sendable {
         let queue: DispatchQueue
         let source: DispatchSourceRead
 
-        init(guest: String, gateway: String?, name: String, dedicatedDataOwner: Bool = false) throws {
+        init(
+            guest: String, gateway: String?, name: String, dedicatedDataOwner: Bool = false,
+            boundedGuestWindow: Bool = false
+        ) throws {
             let backend = try Backend(guest: guest, gateway: gateway, dedicatedDataOwner: dedicatedDataOwner)
+            if boundedGuestWindow { mp_tcp_relay_bound_guest_window(backend.handle) }
             self.backend = backend
             queue = DispatchQueue(label: "dev.micropod.published-tcp." + name, qos: .userInitiated)
             source = DispatchSource.makeReadSource(
@@ -95,10 +99,15 @@ final class NativeLoopbackRelay: @unchecked Sendable {
 
     private static func posixError() -> POSIXError { POSIXError(.init(rawValue: errno) ?? .EIO) }
 
-    init(guest: String, gateway: String? = nil, parallel: Bool = true, profile: Bool = false) throws {
+    init(
+        guest: String, gateway: String? = nil, parallel: Bool = true, boundedGuestWindow: Bool = false,
+        profile: Bool = false
+    ) throws {
         accept = try Owner(guest: guest, gateway: parallel ? nil : gateway, name: "accept")
         workers = try (0..<(parallel ? 2 : 0)).map {
-            try Owner(guest: guest, gateway: gateway, name: "io." + String($0), dedicatedDataOwner: true)
+            try Owner(
+                guest: guest, gateway: gateway, name: "io." + String($0), dedicatedDataOwner: true,
+                boundedGuestWindow: boundedGuestWindow)
         }
         self.profile = profile
     }

@@ -48,6 +48,17 @@ def summarize(stream, begin_ns=None, end_ns=None):
             # TH_STATE_RUNNING includes running and runnable threads. Integrating
             # sampled state estimates eligibility; CPU residence uses kernel counters.
             group["eligible"] += elapsed * ((old["state"] == 1) + (new["state"] == 1)) / 2
+            # Integrate both endpoints so an observed transition splits the interval.
+            # Older captures have no policy field. Retain their original summary.
+            for sample in (old, new):
+                if "policy" in sample:
+                    group["observed"] += elapsed / 2
+                    below = sample["priority"] < sample["base_priority"]
+                    group["below_base"] += below * elapsed / 2
+                    if sample["state"] == 1:
+                        group["policy_runnable"] += elapsed / 2
+                        group["below_base_runnable"] += below * elapsed / 2
+                    group[("policy", sample["policy"])] += elapsed / 2
             first_levels, last_levels = old["level_cpu_ticks"], new["level_cpu_ticks"]
             if len(first_levels) != header["levels"] or len(last_levels) != header["levels"]:
                 raise ValueError("CPU-level count changed during capture")
@@ -66,9 +77,18 @@ def summarize(stream, begin_ns=None, end_ns=None):
             "estimated_wait_s_per_s": (group["eligible"] - cpu) / seconds,
             "cpu_fraction_by_level": [s / cpu if cpu else None for s in level_seconds],
         }
+        if group["observed"]:
+            observed = group["observed"]
+            result[name]["below_base_fraction"] = group["below_base"] / observed
+            runnable = group["policy_runnable"]
+            result[name]["below_base_runnable_fraction"] = group["below_base_runnable"] / runnable if runnable else None
+            result[name]["policy_fractions"] = {
+                str(key[1]): value / observed for key, value in group.items() if isinstance(key, tuple)
+            }
     qos = {k: v / process["cpu"] if process["cpu"] else None for k, v in process.items() if k not in ("cpu", "runnable")}
     return {
         "pid": header["pid"],
+        **{key: header[key] for key in ("resource_coalition", "jetsam_coalition") if key in header},
         "level_names": header["level_names"],
         "intervals": intervals,
         "seconds": seconds,

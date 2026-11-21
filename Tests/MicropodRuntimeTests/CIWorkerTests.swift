@@ -82,6 +82,27 @@ final class CIWorkerTests: XCTestCase {
         XCTAssertThrowsError(try CIWorker.workspacePath("relative"))
     }
 
+    func testPublishedLinkNeedsContinuouslyFailedProbesBeforeReplacingTheNIC() {
+        var failure = CIWorker.PublishedLinkFailure()
+        let start = ContinuousClock.now
+        XCTAssertFalse(failure.confirmed(at: start))
+        XCTAssertFalse(failure.confirmed(at: start + .seconds(5)))
+        failure.clear()
+        XCTAssertFalse(failure.confirmed(at: start + .seconds(6)))
+        XCTAssertTrue(failure.confirmed(at: start + .seconds(12)))
+    }
+
+    func testInteractiveNativeAgentUsesInteractiveLaunchType() throws {
+        let worker = CIWorker(environment: [
+            "MICROPOD_CI_ENGINE": "containerd", "MICROPOD_CI_PORT_RELAY": "kqueue-interactive",
+        ])
+        let data = try worker.launchAgent(executable: URL(fileURLWithPath: "/bin/micropod"))
+        let plist = try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+        XCTAssertEqual(plist["ProcessType"] as? String, "Interactive")
+        XCTAssertEqual(
+            (plist["EnvironmentVariables"] as? [String: String])?["MICROPOD_CI_PORT_RELAY"], "kqueue-interactive")
+    }
+
     func testLaunchAgentRunsTheStableBinaryInTheSpecifiedWorkerDirectory() throws {
         let root = URL(fileURLWithPath: "/Volumes/CI/Worker directory")
         let worker = CIWorker(environment: [
@@ -98,6 +119,7 @@ final class CIWorkerTests: XCTestCase {
                 "MICROPOD_CI_HOME": root.path, "MICROPOD_CI_CPUS": "6",
                 "MICROPOD_CI_PORT_RELAY": "kqueue", "MICROPOD_CI_PORT_PROFILE": "1",
             ])
+        XCTAssertNil(plist["ProcessType"])
         XCTAssertEqual(plist["RunAtLoad"] as? Bool, true)
         XCTAssertEqual(plist["KeepAlive"] as? [String: Bool], ["Crashed": true])
     }

@@ -34,6 +34,7 @@ struct mp_tcp_relay {
     struct watch bulk;
     struct in_addr guest, gateway;
     unsigned ifindex;
+    int guest_receive_buffer;
     atomic_bool path_failure, guest_data;
     uint64_t interface_checked;
     struct pair *retired;
@@ -133,6 +134,12 @@ static mp_tcp_relay *create_relay(const char *guest, bool data_only) {
 mp_tcp_relay *mp_tcp_relay_create(const char *guest) { return create_relay(guest, false); }
 
 mp_tcp_relay *mp_tcp_relay_create_data(const char *guest) { return create_relay(guest, true); }
+
+void mp_tcp_relay_bound_guest_window(mp_tcp_relay *r) {
+    // Keep macOS receive autotuning from admitting several MiB per stream
+    // into the same guest virtio TX queue when many downloads start together.
+    r->guest_receive_buffer = 512 * 1024;
+}
 
 int mp_tcp_relay_scope(mp_tcp_relay *r, const char *gateway) {
     struct in_addr address;
@@ -407,6 +414,8 @@ static int dial_guest(struct pair *p, int timeout_seconds) {
     p->guest.close_fflags = 0;
     p->guest.close_data = 0;
     if (fd < 0 || prepare(fd) < 0 || scope_guest(r, fd) < 0 ||
+        (r->guest_receive_buffer && setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &r->guest_receive_buffer,
+                                               sizeof(r->guest_receive_buffer)) < 0) ||
         setsockopt(fd, IPPROTO_TCP, TCP_CONNECTIONTIMEOUT, &timeout_seconds, sizeof(timeout_seconds)) < 0) return -1;
     int rc = connect(fd, (struct sockaddr *)&l->target, sizeof(l->target));
     if (rc < 0 && errno != EINPROGRESS && errno != EINTR) return -1;
