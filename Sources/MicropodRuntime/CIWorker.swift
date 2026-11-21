@@ -42,7 +42,7 @@ public struct CIWorker: Sendable {
         let resourceKeys = [
             "MICROPOD_CI_CPUS", "MICROPOD_CI_MEMORY_MIB", "MICROPOD_CI_DISK_GIB", "MICROPOD_CI_WORKSPACE",
             "MICROPOD_CI_EXT4_MAX_BATCH_US", "MICROPOD_CI_OCI_TOOLS", "MICROPOD_CI_ENGINE", "MICROPOD_CI_KATA_TOOLS",
-            "MICROPOD_CI_MAX_STARTING",
+            "MICROPOD_CI_MAX_STARTING", "MICROPOD_CI_PORT_RELAY", "MICROPOD_CI_PORT_PROFILE",
         ]
         resourceEnvironment = environment.filter { resourceKeys.contains($0.key) }
         directory =
@@ -708,7 +708,9 @@ public struct CIWorker: Sendable {
             progress: { FileHandle.standardError.write(Data(($0 + "\n").utf8)) }, ciWorker: self)
         do {
             if config.engine == .containerd, let guest = prepared.guestIP {
-                try await prepared.forwarding.openNativePortBroker(at: portSocket, guest: guest)
+                try await prepared.forwarding.openNativePortBroker(
+                    at: portSocket, guest: guest, useKqueue: resourceEnvironment["MICROPOD_CI_PORT_RELAY"] == "kqueue",
+                    profile: resourceEnvironment["MICROPOD_CI_PORT_PROFILE"] == "1")
             }
             try await prepared.container.create()
             guard chmod(socket.path, 0o600) == 0 else { throw POSIXError(.init(rawValue: errno) ?? .EIO) }

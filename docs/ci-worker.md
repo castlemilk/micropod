@@ -68,6 +68,8 @@ Run `scripts/qualify_native_worker.sh` to exercise stock clients. Pass `--restar
 
 The network benchmark compares direct netlink with standalone Netavark on the same kernel, and service traffic with OrbStack. [Gamma network measurements](benchmarks/2026-11-21/native-network.md)
 
+The native worker uses SwiftNIO for Mac loopback port forwarding by default. To try the lower-CPU kqueue relay, set `MICROPOD_CI_PORT_RELAY=kqueue` when starting the worker or installing its launch agent. Add `MICROPOD_CI_PORT_PROFILE=1` to log per-port connection times, bytes, blocked writes and handshake retries when the port is released. An extended Gamma run saw a guest connection exhaust its retry budget. [Published-port profiles and OrbStack comparison](benchmarks/2026-11-21/gamma-published-profile.md)
+
 ## Full Docker Engine worker
 
 

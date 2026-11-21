@@ -34,6 +34,7 @@ func main() {
 	streams := flag.Int("streams", 0, "simultaneous bulk TCP transfers")
 	bursts := flag.Int("bursts", 1, "number of parallel transfer batches")
 	barrier := flag.Bool("stream-barrier", false, "wait for every response to begin before draining the parallel streams")
+	profile := flag.String("profile", "", "isolate fresh requests or sustained bulk streams for profiling (fresh or bulk)")
 	dns := flag.Int("lookups", 0, "number of single-family service DNS lookups")
 	dnsClients := flag.Int("dns-clients", 1, "independent resolvers issuing parallel service lookups")
 	flag.Parse()
@@ -53,30 +54,26 @@ func main() {
 	client := &http.Client{Transport: tr, Timeout: 15 * time.Second}
 	ctx := context.Background()
 	get := func(ctx context.Context, path string, w io.Writer) int64 {
-		req, e := http.NewRequestWithContext(ctx, http.MethodGet, *target+path, nil)
-		if e != nil {
-			log.Fatal(e)
-		}
-		r, e := client.Do(req)
-		if e != nil {
-			log.Fatal(e)
-		}
-		defer r.Body.Close()
-		if r.StatusCode != 200 {
-			log.Fatal(r.Status)
-		}
-		n, e := io.Copy(w, r.Body)
-		if e != nil {
-			log.Fatal(e)
-		}
-		return n
+		return requestBody(client, *target, ctx, path, w)
 	}
-	id := func(ctx context.Context) {
-		var b bytes.Buffer
-		get(ctx, "/id", &b)
-		if b.String() != *marker {
-			log.Fatalf("unexpected service identity %q", b.String())
+	id := func(ctx context.Context) { verifyID(client, *target, *marker, ctx) }
+	if *profile != "" {
+		var result map[string]any
+		switch *profile {
+		case "fresh":
+			result = profileFresh(client, id, *rounds)
+		case "bulk":
+			if *streams == 0 {
+				log.Fatal("bulk profiling needs at least one stream")
+			}
+			result = profileBulk(*target, *marker, *streams, *bursts)
+		default:
+			log.Fatalf("unknown profile %q", *profile)
 		}
+		if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
+			log.Fatal(err)
+		}
+		return
 	}
 	id(ctx)
 	sum := sha256.New()
@@ -210,3 +207,113 @@ func main() {
 	}
 }
 func hashPayload() []byte { h := sha256.Sum256(payload); return h[:] }
+
+func requestBody(client *http.Client, target string, ctx context.Context, path string, w io.Writer) int64 {
+	req, e := http.NewRequestWithContext(ctx, http.MethodGet, target+path, nil)
+	if e != nil {
+		log.Fatal(e)
+	}
+	r, e := client.Do(req)
+	if e != nil {
+		log.Fatal(e)
+	}
+	defer r.Body.Close()
+	if r.StatusCode != 200 {
+		log.Fatal(r.Status)
+	}
+	n, e := io.Copy(w, r.Body)
+	if e != nil {
+		log.Fatal(e)
+	}
+	return n
+}
+
+func verifyID(client *http.Client, target, marker string, ctx context.Context) {
+	var b bytes.Buffer
+	requestBody(client, target, ctx, "/id", &b)
+	if b.String() != marker {
+		log.Fatalf("unexpected service identity %q", b.String())
+	}
+}
+
+func profileFresh(client *http.Client, verify func(context.Context), requests int) map[string]any {
+	result := map[string]any{"mode": "fresh", "iterations": requests}
+	phases := make(map[string][]int64)
+	incomplete := 0
+	begin := time.Now()
+	for range requests {
+		client.CloseIdleConnections()
+		var connected, written, first atomic.Int64
+		start := time.Now()
+		ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+			GotConn: func(c httptrace.GotConnInfo) {
+				if c.Reused {
+					log.Fatal("fresh request reused a connection")
+				}
+				connected.Store(time.Since(start).Nanoseconds())
+			},
+			WroteRequest: func(w httptrace.WroteRequestInfo) {
+				if w.Err == nil {
+					written.Store(time.Since(start).Nanoseconds())
+				}
+			},
+			GotFirstResponseByte: func() { first.Store(time.Since(start).Nanoseconds()) },
+		})
+		verify(ctx)
+		phases["complete_ns"] = append(phases["complete_ns"], time.Since(start).Nanoseconds())
+		c, w, f := connected.Load(), written.Load(), first.Load()
+		// HTTP trace callbacks can run on different goroutines. Count an
+		// overlapped or missing callback instead of reporting a negative phase.
+		if c <= 0 || w < c || f < w {
+			incomplete++
+			continue
+		}
+		phases["connect_ns"] = append(phases["connect_ns"], c)
+		phases["write_ns"] = append(phases["write_ns"], w-c)
+		phases["written_to_first_byte_ns"] = append(phases["written_to_first_byte_ns"], f-w)
+	}
+	result["elapsed_s"] = time.Since(begin).Seconds()
+	result["incomplete_phase_samples"] = incomplete
+	for name, samples := range phases {
+		slices.Sort(samples)
+		result[name] = map[string]int64{"p50": samples[(len(samples)-1)/2], "p95": samples[(len(samples)*95-1)/100], "p99": samples[(len(samples)*99-1)/100]}
+	}
+	return result
+}
+
+func profileBulk(target, marker string, streams, transfers int) map[string]any {
+	var ready, done sync.WaitGroup
+	var newConnections atomic.Int32
+	gate := make(chan struct{})
+	ready.Add(streams)
+	for range streams {
+		done.Go(func() {
+			tr := &http.Transport{DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext, MaxIdleConnsPerHost: 1}
+			defer tr.CloseIdleConnections()
+			client := &http.Client{Transport: tr, Timeout: 30 * time.Second}
+			verifyID(client, target, marker, context.Background())
+			ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+				GotConn: func(c httptrace.GotConnInfo) {
+					if !c.Reused {
+						newConnections.Add(1)
+					}
+				},
+			})
+			ready.Done()
+			<-gate
+			for range transfers {
+				if requestBody(client, target, ctx, "/data", io.Discard) != size {
+					log.Fatal("short bulk response")
+				}
+			}
+		})
+	}
+	ready.Wait()
+	start := time.Now()
+	close(gate)
+	done.Wait()
+	elapsed := time.Since(start).Seconds()
+	total := int64(streams) * int64(transfers) * size
+	return map[string]any{"mode": "bulk", "iterations": transfers, "streams": streams, "bytes": total,
+		"elapsed_s": elapsed, "mib_s": float64(total) / (1 << 20) / elapsed, "reopened_connections": newConnections.Load()}
+}

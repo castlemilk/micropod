@@ -38,6 +38,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-crypto.git", from: "3.15.0"),
     ],
     targets: [
+        .target(name: "CPublishedTCP", publicHeadersPath: "include"),
         .target(
             name: "CPtyShim",
             publicHeadersPath: "include"
@@ -75,6 +76,7 @@ let package = Package(
         .target(
             name: "MicropodRuntime",
             dependencies: [
+                "CPublishedTCP",
                 "MicropodCore",
                 .product(name: "Containerization", package: "containerization"),
                 .product(name: "ContainerizationOS", package: "containerization"),

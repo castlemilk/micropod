@@ -67,6 +67,7 @@ final class CIWorkerTests: XCTestCase {
         let root = URL(fileURLWithPath: "/Volumes/CI/Worker directory")
         let worker = CIWorker(environment: [
             "MICROPOD_CI_HOME": root.path, "MICROPOD_CI_CPUS": "6", "CI_JOB_ID": "example",
+            "MICROPOD_CI_PORT_RELAY": "kqueue", "MICROPOD_CI_PORT_PROFILE": "1",
         ])
         let binary = URL(fileURLWithPath: "/Applications/Micropod.app/Contents/MacOS/micropod")
         let data = try worker.launchAgent(executable: binary)
@@ -74,7 +75,10 @@ final class CIWorkerTests: XCTestCase {
         XCTAssertEqual(plist["ProgramArguments"] as? [String], [binary.path, "ci", "serve"])
         XCTAssertEqual(
             plist["EnvironmentVariables"] as? [String: String],
-            ["MICROPOD_CI_HOME": root.path, "MICROPOD_CI_CPUS": "6"])
+            [
+                "MICROPOD_CI_HOME": root.path, "MICROPOD_CI_CPUS": "6",
+                "MICROPOD_CI_PORT_RELAY": "kqueue", "MICROPOD_CI_PORT_PROFILE": "1",
+            ])
         XCTAssertEqual(plist["RunAtLoad"] as? Bool, true)
         XCTAssertEqual(plist["KeepAlive"] as? [String: Bool], ["Crashed": true])
     }
