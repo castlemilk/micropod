@@ -61,7 +61,11 @@ func (s *dockerEngine) dispatch(w http.ResponseWriter, r *http.Request) error {
 		return nil
 	case path == "micropod/metrics" && method == "GET":
 		metrics := s.metrics.snapshot()
-		metrics["network"] = s.metrics.networks.snapshot()
+		network := s.metrics.networks.snapshot()
+		if s.direct != nil {
+			network["macvlan_quarantined_ports"] = s.direct.quarantined()
+		}
+		metrics["network"] = network
 		metrics["start_parallelism_limit"] = cap(s.startSlots)
 		metrics["setup_slots_in_use"] = len(s.startSlots)
 		metrics["setup_wait_usec_total"] = s.metrics.setupWaitUS.Load()

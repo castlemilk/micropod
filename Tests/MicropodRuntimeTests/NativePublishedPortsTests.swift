@@ -107,6 +107,58 @@ final class NativePublishedPortsTests: XCTestCase {
         relay.release(port)
     }
 
+    func testBrokerConfirmsGuestPortRevocationBeforeReuse() async throws {
+        let forwarding = SandboxForwarding()
+        let socket = FileManager.default.temporaryDirectory.appendingPathComponent("mp-" + UUID().uuidString.prefix(8))
+        _ = try await forwarding.openNativePortBroker(
+            at: socket, guest: "127.0.0.1", gateway: "127.0.0.1", mode: "kqueue-throughput", profile: false)
+        defer { forwarding.stop() }
+        func openControl() throws -> FileHandle {
+            let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
+            guard fd >= 0 else { throw POSIXError(.EIO) }
+            let file = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
+            let address = try SocketAddress(unixDomainSocketPath: socket.path)
+            guard address.withSockAddr({ Darwin.connect(fd, $0, socklen_t($1)) }) == 0 else {
+                throw POSIXError(.ECONNREFUSED)
+            }
+            var timeout = timeval(tv_sec: 2, tv_usec: 0)
+            setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout.size(ofValue: timeout)))
+            return file
+        }
+        // A zero guest port denotes the read-only fence for the other field.
+        func query() throws -> Data? {
+            let ctl = try openControl()
+            try ctl.write(contentsOf: Data([0x84, 0x12, 0, 0]))
+            return try ctl.read(upToCount: 1)
+        }
+        let owner = try openControl()
+        // Fragment the preparation frame. A second connection must observe
+        // the pending owner even before the first one sends its bind request.
+        try owner.write(contentsOf: Data([0x84, 0x12]))
+        try owner.write(contentsOf: Data([0, 1]))
+        XCTAssertEqual(try owner.read(upToCount: 1), Data([0x50]))
+        XCTAssertEqual(try query(), Data([0]))
+        try owner.write(contentsOf: Data([0, 0]))
+        let port = try XCTUnwrap(owner.read(upToCount: 2))
+        XCTAssertEqual(port.count, 2)
+        XCTAssertEqual(try query(), Data([0]))
+        try owner.write(contentsOf: Data([0x52]))
+        XCTAssertEqual(try owner.read(upToCount: 1), Data([0x52]))
+        XCTAssertEqual(try query(), Data([0x52]))
+        let next = try openControl()
+        try next.write(contentsOf: Data([0x84, 0x12, 0, 1]))
+        XCTAssertEqual(try next.read(upToCount: 1), Data([0x50]))
+        try next.write(contentsOf: port)
+        XCTAssertEqual(try next.read(upToCount: 2), port)
+        XCTAssertEqual(try query(), Data([0]))
+        try next.close()
+        for _ in 0..<100 {
+            if try query() == Data([0x52]) { return }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTFail("Broker did not retire the disconnected owner")
+    }
+
     func testRevocationIsExclusiveAndOnlyClosesOwnedStreams() throws {
         let upstream = try server()
         defer { try? upstream.close().wait() }

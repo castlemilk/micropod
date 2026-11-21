@@ -38,6 +38,25 @@ final class CIWorkerTests: XCTestCase {
         }
     }
 
+    func testWorkerPersistsItsKernelAndPublishedNetworkChoice() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("ci-" + UUID().uuidString.prefix(8))
+        let base = ["MICROPOD_CI_HOME": root.path, "MICROPOD_CI_ENGINE": "containerd"]
+        var env = base
+        env["MICROPOD_CI_KERNEL"] = "/kernels/7.3.5/Image"
+        env["MICROPOD_CI_PUBLISHED_PATH"] = "macvlan"
+        let worker = CIWorker(environment: env)
+        try worker.prepareDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let config = try worker.configuration(create: true)
+        XCTAssertEqual(config.kernel, env["MICROPOD_CI_KERNEL"])
+        XCTAssertEqual(config.publishedPath, "macvlan")
+        XCTAssertEqual(try CIWorker(environment: base).configuration(), config)
+        env["MICROPOD_CI_PUBLISHED_PATH"] = "bridge"
+        XCTAssertThrowsError(try CIWorker(environment: env).configuration())
+        env["MICROPOD_CI_PUBLISHED_PATH"] = "unknown"
+        XCTAssertThrowsError(try CIWorker(environment: env).configuration())
+    }
+
     func testNetworkProbeRequiresAnAddressOnTheMac() throws {
         XCTAssertTrue(try CIWorker.hasLocalGateway("127.0.0.1"))
         XCTAssertFalse(try CIWorker.hasLocalGateway("192.0.2.254"))

@@ -5,7 +5,18 @@ umask 077
 tools=/opt/micropod-oci
 export PATH="$tools/runner/bin:/opt/kata/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 mkdir -p /run/containerd /var/lib/micropod /etc/cni/net.d /etc/cni/micropod-private
-if ! command -v iptables >/dev/null; then apk add --no-cache iptables; fi
+packages=
+command -v iptables >/dev/null || packages=iptables
+if [ "${MICROPOD_CI_PUBLISHED_PATH:-}" = macvlan ] && ! command -v nft >/dev/null; then
+    packages="$packages nftables"
+fi
+if [ -n "$packages" ]; then
+    if [ -d "$tools/runner/network-apks" ]; then
+        apk --repositories-file /dev/null add --no-network "$tools"/runner/network-apks/*.apk
+    else
+        apk add --no-cache $packages
+    fi
+fi
 ln -sf "$tools/runner/10-micropod.conflist" /etc/cni/net.d/10-micropod.conflist
 ln -sf "$tools/runner/10-micropod-private.conflist" /etc/cni/micropod-private/10-micropod.conflist
 if [ -x /opt/kata/bin/containerd-shim-kata-v2 ]; then

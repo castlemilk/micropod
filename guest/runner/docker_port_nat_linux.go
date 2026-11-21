@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/netip"
@@ -56,11 +57,13 @@ func paceDefaultQueue(handle *netlink.Handle, link netlink.Link, initial string)
 // A bound, non-listening socket reserves the guest port while netfilter routes
 // packets. No userspace process accepts connections or copies application data.
 type portMapping struct {
-	mu      sync.Mutex
-	fd      int
-	port    uint16
-	guestIP net.IP
-	target  netip.AddrPort
+	mu          sync.Mutex
+	fd          int
+	port        uint16
+	guestIP     net.IP
+	target      netip.AddrPort
+	direct      *directEndpoint
+	unconfirmed bool
 }
 
 func reserveGuestPort(address string) (int, uint16, error) {
@@ -105,11 +108,19 @@ func (m *portMapping) close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
 	defer cancel()
 	// Also reconciles an interrupted iptables add that committed in the kernel.
-	if err := rule(ctx, "nat", "MP-PUB-IN", false, m.args()...); err != nil {
+	if m.direct != nil {
+		if err := m.direct.revoke(ctx, m.port); err != nil {
+			return err
+		}
+	} else if err := rule(ctx, "nat", "MP-PUB-IN", false, m.args()...); err != nil {
 		return err
 	}
 	for {
-		_, err := netlink.ConntrackDeleteFilters(netlink.ConntrackTable, netlink.FAMILY_V4, m)
+		remove := netlink.ConntrackDeleteFilters
+		if m.direct != nil {
+			remove = m.direct.pod.ConntrackDeleteFilters
+		}
+		_, err := remove(netlink.ConntrackTable, netlink.FAMILY_V4, m)
 		if !errors.Is(err, netlink.ErrDumpInterrupted) {
 			if err != nil {
 				return fmt.Errorf("retire published flows: %w", err)
@@ -120,12 +131,20 @@ func (m *portMapping) close() error {
 			return ctx.Err()
 		}
 	}
+	// A broken control connection cannot prove the old Mac listener stopped
+	// accepting. Keep this non-listening reservation until the broker confirms revocation
+	// after removing the routes, so an old listener can never reach a new owner.
+	if m.unconfirmed {
+		m.direct.network.quarantine(m.port, m.fd)
+		m.fd = -1
+		return nil
+	}
 	err := unix.Close(m.fd)
 	m.fd = -1
 	return err
 }
 
-func openKernelPort(ctx context.Context, ip, target string, host uint16) (*publishedPort, uint16, error) {
+func openKernelPort(ctx context.Context, ip, target string, host uint16, direct *directEndpoint) (*publishedPort, uint16, error) {
 	endpoint, err := netip.ParseAddrPort(target)
 	if err != nil || !endpoint.Addr().Is4() || endpoint.Port() == 0 {
 		return nil, 0, fmt.Errorf("invalid published container endpoint %q", target)
@@ -134,11 +153,39 @@ func openKernelPort(ctx context.Context, ip, target string, host uint16) (*publi
 	if err != nil {
 		return nil, 0, err
 	}
-	m := &portMapping{fd: fd, port: guest, guestIP: net.ParseIP(ip), target: endpoint}
+	m := &portMapping{fd: fd, port: guest, guestIP: net.ParseIP(ip), target: endpoint, direct: direct}
 	p := &publishedPort{mapping: m}
-	args := append([]string{"-w", "5", "-t", "nat", "-A", "MP-PUB-IN"}, m.args()...)
-	if out, err := exec.CommandContext(ctx, "iptables", args...).CombinedOutput(); err != nil {
-		return p, 0, fmt.Errorf("add published port: %w: %.512s", err, out)
+	if direct != nil {
+		if err := direct.grant(ctx, m.port, endpoint.Port()); err != nil {
+			return p, 0, err
+		}
+	} else {
+		args := append([]string{"-w", "5", "-t", "nat", "-A", "MP-PUB-IN"}, m.args()...)
+		if out, err := exec.CommandContext(ctx, "iptables", args...).CombinedOutput(); err != nil {
+			return p, 0, fmt.Errorf("add published port: %w: %.512s", err, out)
+		}
+	}
+	if direct != nil {
+		owner, port, uncertain, err := reserveDirectMacPort(ctx, host, guest)
+		if err != nil {
+			m.unconfirmed = uncertain
+			return p, 0, err
+		}
+		lease := &directControl{Conn: owner, done: make(chan struct{})}
+		p.lease = lease
+		p.wg.Go(func() {
+			var ack [1]byte
+			_, err := io.ReadFull(owner, ack[:])
+			m.mu.Lock()
+			m.unconfirmed = err != nil || ack[0] != revokePort
+			m.mu.Unlock()
+			if err := m.close(); err != nil {
+				log.Printf("release direct published port %d: %v", guest, err)
+			}
+			owner.Close()
+			close(lease.done)
+		})
+		return p, port, nil
 	}
 	owner, port, err := reserveMacPort(ctx, host, guest)
 	if err != nil {
@@ -146,8 +193,6 @@ func openKernelPort(ctx context.Context, ip, target string, host uint16) (*publi
 	}
 	p.lease = owner
 	p.wg.Go(func() {
-		// Revocation also works if the Mac broker loses this lease while the
-		// container is still running. The broker sends no data after its reply.
 		var b [1]byte
 		_, _ = owner.Read(b[:])
 		if err := m.close(); err != nil {

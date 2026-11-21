@@ -43,6 +43,7 @@ public struct CIWorker: Sendable {
             "MICROPOD_CI_CPUS", "MICROPOD_CI_MEMORY_MIB", "MICROPOD_CI_DISK_GIB", "MICROPOD_CI_WORKSPACE",
             "MICROPOD_CI_EXT4_MAX_BATCH_US", "MICROPOD_CI_OCI_TOOLS", "MICROPOD_CI_ENGINE", "MICROPOD_CI_KATA_TOOLS",
             "MICROPOD_CI_MAX_STARTING", "MICROPOD_CI_PORT_RELAY", "MICROPOD_CI_PORT_PROFILE",
+            "MICROPOD_CI_KERNEL", "MICROPOD_CI_PUBLISHED_PATH",
         ]
         resourceEnvironment = environment.filter { resourceKeys.contains($0.key) }
         directory =
@@ -61,6 +62,8 @@ public struct CIWorker: Sendable {
         let workspace: String?
         let ext4MaxBatchUS: Int?
         let kataTools: String?
+        var kernel: String? = nil
+        var publishedPath: String? = nil
 
         var engine: Engine { image == CIWorker.dockerImage ? .docker : .containerd }
     }
@@ -161,13 +164,22 @@ public struct CIWorker: Sendable {
             workspace = existing?.workspace
         }
         let batchUS = try resource("EXT4_MAX_BATCH_US", existing?.ext4MaxBatchUS ?? 15000, 0...Int(Int32.max))
+        let publishedPath = resourceEnvironment["MICROPOD_CI_PUBLISHED_PATH"] ?? existing?.publishedPath
+        if let publishedPath, engine != .containerd || !["bridge", "macvlan"].contains(publishedPath) {
+            throw MicropodError.message("MICROPOD_CI_PUBLISHED_PATH must select bridge or macvlan on a native worker")
+        }
+        let kernel = resourceEnvironment["MICROPOD_CI_KERNEL"] ?? existing?.kernel
+        if let kernel, !kernel.hasPrefix("/") {
+            throw MicropodError.message("MICROPOD_CI_KERNEL requires an absolute Linux ARM64 Image path")
+        }
         let config = try Configuration(
             schema: 1, image: engine.image, worker: existing?.worker ?? UUID(),
             cpus: resource("CPUS", existing?.cpus ?? 4, 1...64),
             memoryMiB: resource("MEMORY_MIB", existing?.memoryMiB ?? 4096, 1024...262144),
             diskGiB: resource("DISK_GIB", existing?.diskGiB ?? 32, 4...1024), workspace: workspace,
             ext4MaxBatchUS: batchUS == 15000 ? nil : batchUS,
-            kataTools: resourceEnvironment["MICROPOD_CI_KATA_TOOLS"] ?? existing?.kataTools)
+            kataTools: resourceEnvironment["MICROPOD_CI_KATA_TOOLS"] ?? existing?.kataTools,
+            kernel: kernel, publishedPath: publishedPath == "bridge" ? nil : publishedPath)
         if let existing {
             guard config == existing else {
                 throw MicropodError.message(
@@ -670,7 +682,11 @@ public struct CIWorker: Sendable {
         options.network = true
         options.hostname = config.engine == .containerd ? Self.hostname(active.instance) : "micropod-ci"
         let portRelay = resourceEnvironment["MICROPOD_CI_PORT_RELAY"]
+        if config.publishedPath == "macvlan", let portRelay, !["kqueue", "kqueue-throughput"].contains(portRelay) {
+            throw MicropodError.message("Direct published ports require the native kqueue relay")
+        }
         options.ciWorkspace = config.workspace
+        options.ciKernel = config.kernel.map { URL(fileURLWithPath: $0) }
         if let path = config.kataTools {
             guard config.engine == .containerd, VZGenericPlatformConfiguration.isNestedVirtualizationSupported,
                 FileManager.default.isExecutableFile(atPath: path + "/bin/containerd-shim-kata-v2")
@@ -696,6 +712,7 @@ public struct CIWorker: Sendable {
         if active.nativeOCI == true { options.env.append("MICROPOD_NATIVE_OCI=1") }
         if config.engine == .containerd {
             options.env.append("MICROPOD_ENGINE_API=1")
+            if let path = config.publishedPath { options.env.append("MICROPOD_CI_PUBLISHED_PATH=" + path) }
             if portRelay == "kqueue-throughput" { options.env.append("MICROPOD_CI_PORT_THROUGHPUT=1") }
             if let raw = resourceEnvironment["MICROPOD_CI_MAX_STARTING"] {
                 guard let limit = Int(raw), (0...32).contains(limit) else {
@@ -761,9 +778,12 @@ public struct CIWorker: Sendable {
                     if let reply = try? await api.request("GET", "/info", timeout: .seconds(2)),
                         reply.status == 200, let info = try? reply.json() as? [String: Any],
                         info["ID"] as? String == config.worker.uuidString,
-                        (info["Labels"] as? [String])?.contains("io.micropod.instance=" + active.instance.uuidString)
-                            == true
+                        let labels = info["Labels"] as? [String],
+                        labels.contains("io.micropod.instance=" + active.instance.uuidString)
                     {
+                        if config.publishedPath == "macvlan", !labels.contains("io.micropod.published-path=macvlan") {
+                            throw MicropodError.message("The installed guest tools did not enable direct macvlan ports")
+                        }
                         break
                     }
                     guard ContinuousClock.now < readyBy else {

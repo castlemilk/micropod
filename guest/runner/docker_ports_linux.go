@@ -17,6 +17,8 @@ import (
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
+const portBrokerSocket = "/var/lib/micropod/ports.sock"
+
 type portBinding struct {
 	HostIP   string `json:"HostIp"`
 	HostPort string
@@ -75,12 +77,16 @@ func (c dockerConfig) requestedPorts() (portMap, error) {
 type publishedPort struct {
 	listener *net.TCPListener
 	lease    io.Closer
+	endpoint *directEndpoint
 	mapping  *portMapping
 	cancel   context.CancelFunc
 	wg       sync.WaitGroup
 }
 
 func (p *publishedPort) close() error {
+	if p.endpoint != nil {
+		return p.endpoint.close()
+	}
 	if p.cancel != nil {
 		p.cancel()
 	}
@@ -102,7 +108,7 @@ func (p *publishedPort) close() error {
 // loopback port and releases it when the private vsock lease closes.
 func reserveMacPort(ctx context.Context, host, guest uint16) (net.Conn, uint16, error) {
 	var dial net.Dialer
-	control, err := dial.DialContext(ctx, "unix", "/var/lib/micropod/ports.sock")
+	control, err := dial.DialContext(ctx, "unix", portBrokerSocket)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -122,9 +128,9 @@ func reserveMacPort(ctx context.Context, host, guest uint16) (net.Conn, uint16, 
 	return control, binary.BigEndian.Uint16(req[:2]), nil
 }
 
-func openPublishedPort(ctx context.Context, ip, target string, host uint16) (*publishedPort, uint16, error) {
+func openPublishedPort(ctx context.Context, ip, target string, host uint16, direct *directEndpoint) (*publishedPort, uint16, error) {
 	if kernelPublishedPorts() {
-		return openKernelPort(ctx, ip, target, host)
+		return openKernelPort(ctx, ip, target, host, direct)
 	}
 	l, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.ParseIP(ip)})
 	if err != nil {
@@ -232,9 +238,19 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 		return nil, nil
 	}
 	var ip string
+	var direct *directEndpoint
+	var open []*publishedPort
 	if kernelPublishedPorts() {
 		ip = os.Getenv("MICROPOD_PUBLISH_IPV4")
-		if os.Getenv("MICROPOD_CI_PORT_THROUGHPUT") == "1" && (network == nil || network.Driver == "bridge") {
+		if s.direct != nil && (network == nil || network.Driver == "bridge") {
+			direct, err = s.direct.attach(ctx, s.node, podID, target)
+			if direct != nil {
+				open = append(open, &publishedPort{endpoint: direct})
+			}
+			if err != nil {
+				return open, err
+			}
+		} else if os.Getenv("MICROPOD_CI_PORT_THROUGHPUT") == "1" && (network == nil || network.Driver == "bridge") {
 			if err := s.node.preferLocalCongestionControl(ctx, podID, target, network); err != nil {
 				// The published mapping and normal routing still work when an
 				// installed kernel lacks the optional route metric.
@@ -248,7 +264,6 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 		}
 	}
 	actual := portMap{}
-	var open []*publishedPort
 	for key, bindings := range ports {
 		port, _ := tcpPort(key)
 		for _, b := range bindings {
@@ -259,7 +274,7 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 			if privateRootless() {
 				p, n, err = publishRootless(ctx, target, port, request)
 			} else {
-				p, n, err = openPublishedPort(ctx, ip, net.JoinHostPort(target, strconv.Itoa(int(port))), request)
+				p, n, err = openPublishedPort(ctx, ip, net.JoinHostPort(target, strconv.Itoa(int(port))), request, direct)
 			}
 			if err != nil {
 				if p != nil {
@@ -269,6 +284,8 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 			}
 			open = append(open, p)
 			switch {
+			case direct != nil:
+				s.metrics.networks.directPorts.Add(1)
 			case p.mapping != nil:
 				s.metrics.networks.kernelPorts.Add(1)
 			case p.listener != nil:

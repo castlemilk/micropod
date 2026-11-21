@@ -53,7 +53,7 @@ func (d *serviceDirectory) lookup(name string) []netip.Addr {
 
 // Counts are boot scoped and aggregate across network names, aliases and jobs.
 type networkMetrics struct {
-	kernelPorts, relayPorts, rootlessPorts                      atomic.Uint64
+	kernelPorts, directPorts, relayPorts, rootlessPorts         atomic.Uint64
 	dnsLocal, dnsMissing, dnsForwarded, dnsFailures, dnsDropped atomic.Uint64
 	attachCount, attachFailures, attachUS                       [3]atomic.Uint64
 }
@@ -74,7 +74,7 @@ func (m *networkMetrics) attachment(driver string, start time.Time, err error) {
 }
 func (m *networkMetrics) snapshot() map[string]any {
 	result := map[string]any{"dns_local_answers": m.dnsLocal.Load(), "dns_name_misses": m.dnsMissing.Load(), "dns_forwarded": m.dnsForwarded.Load(), "dns_upstream_failures": m.dnsFailures.Load(), "dns_overload_drops": m.dnsDropped.Load()}
-	result["published_tcp"] = map[string]uint64{"kernel_leases": m.kernelPorts.Load(), "relay_leases": m.relayPorts.Load(), "rootless_leases": m.rootlessPorts.Load()}
+	result["published_tcp"] = map[string]uint64{"kernel_leases": m.kernelPorts.Load(), "macvlan_leases": m.directPorts.Load(), "relay_leases": m.relayPorts.Load(), "rootless_leases": m.rootlessPorts.Load()}
 	for i, driver := range []string{"bridge", "macvlan", "ipvlan"} {
 		result[driver] = map[string]uint64{"attach_attempts": m.attachCount[i].Load(), "attach_errors": m.attachFailures[i].Load(), "attach_usec_total": m.attachUS[i].Load()}
 	}

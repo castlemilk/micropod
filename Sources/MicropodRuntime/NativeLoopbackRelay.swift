@@ -62,10 +62,14 @@ final class NativeLoopbackRelay: @unchecked Sendable {
     // The accept queue owns the port and issues every handoff in order.
     private final class Lease {
         let listener: OpaquePointer
+        let guestPort: UInt16
         var targets: [Target] = []
         private var next = 0
 
-        init(listener: OpaquePointer) { self.listener = listener }
+        init(listener: OpaquePointer, guestPort: UInt16) {
+            self.listener = listener
+            self.guestPort = guestPort
+        }
 
         func adopt(_ fd: Int32, accepted: UInt64) {
             targets[next].adopt(fd, accepted: accepted)
@@ -86,6 +90,7 @@ final class NativeLoopbackRelay: @unchecked Sendable {
     private let workers: [Owner]
     private let profile: Bool
     private var listeners: [UInt16: Lease] = [:]
+    private var pending = Set<UInt16>()
     private var stopped = false
 
     private static func posixError() -> POSIXError { POSIXError(.init(rawValue: errno) ?? .EIO) }
@@ -107,7 +112,7 @@ final class NativeLoopbackRelay: @unchecked Sendable {
             guard let listener = mp_tcp_listen(accept.backend.handle, host, guest, &selected, profile ? 1 : 0) else {
                 throw Self.posixError()
             }
-            let lease = Lease(listener: listener)
+            let lease = Lease(listener: listener, guestPort: guest)
             do {
                 for owner in workers { lease.targets.append(try Target(owner: owner, parent: listener)) }
             } catch {
@@ -124,6 +129,21 @@ final class NativeLoopbackRelay: @unchecked Sendable {
             listeners[selected] = lease
             return selected
         }
+    }
+
+    // Register an intent before the guest can send a bind request. A fence
+    // on a second control connection must also see a delayed bind in flight.
+    func prepare(guest port: UInt16) -> Bool {
+        accept.queue.sync {
+            !stopped && !listeners.values.contains { $0.guestPort == port } && pending.insert(port).inserted
+        }
+    }
+
+    func finishPreparation(guest port: UInt16) { accept.queue.sync { _ = pending.remove(port) } }
+
+    // The accept queue retires the targets before it answers this fence.
+    func hasReleased(guest port: UInt16) -> Bool {
+        accept.queue.sync { !pending.contains(port) && !listeners.values.contains { $0.guestPort == port } }
     }
 
     func release(_ port: UInt16) { accept.queue.sync { releaseOnQueue(port) } }

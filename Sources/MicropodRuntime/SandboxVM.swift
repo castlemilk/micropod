@@ -66,6 +66,7 @@ public enum SandboxVM {
         /// Host directory holding `micropod-guest`, shared read-only at
         /// ``SandboxGuestTool/guestDirectory`` (SandboxService sandboxes).
         public var guestTool: URL?
+        var ciKernel: URL?
         var ciWorkspace: String?
         var ciOCITools: URL?
         var ciKataTools: URL?
@@ -209,7 +210,14 @@ public enum SandboxVM {
             options: options.ciExt4MaxBatchUS.map { ["max_batch_time=\($0)"] } ?? [])
         trace.mark("clone")
 
-        var kernel = Kernel(path: try kernelURL(), platform: .linuxArm)
+        let bootKernel = try options.ciKernel ?? kernelURL()
+        if options.ciKernel != nil {
+            guard (try bootKernel.resourceValues(forKeys: [.isRegularFileKey])).isRegularFile == true else {
+                throw MicropodError.message("Worker kernel must be a regular Linux ARM64 Image")
+            }
+            progress("Worker kernel: " + bootKernel.path)
+        }
+        var kernel = Kernel(path: bootKernel, platform: .linuxArm)
         kernel.commandLine.kernelArgs += kernelArgs
         // The Apple guest kernel builds PSI with CONFIG_PSI_DEFAULT_DISABLED.
         if ciWorker != nil { kernel.commandLine.kernelArgs.append("psi=1") }

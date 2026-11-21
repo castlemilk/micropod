@@ -35,6 +35,7 @@ private final class NativePortLease: ChannelInboundHandler, @unchecked Sendable 
     private var selected: UInt16?
     private var request = ByteBuffer()
     private var submitted = false
+    private var pendingGuest: UInt16?
 
     init(guest: String, gateway: String, relay: NativeLoopbackRelay?) {
         self.guest = guest
@@ -44,17 +45,66 @@ private final class NativePortLease: ChannelInboundHandler, @unchecked Sendable 
 
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         var bytes = unwrapInboundIn(data)
-        guard !submitted, request.readableBytes + bytes.readableBytes <= 4 else {
+        if submitted {
+            // Direct publication waits for this acknowledgement before recycling the
+            // guest port. release() drains every previously accepted stream owner.
+            guard bytes.readableBytes == 1, bytes.readInteger(as: UInt8.self) == 0x52,
+                let selected, let relay
+            else {
+                context.close(promise: nil)
+                return
+            }
+            relay.release(selected)
+            self.selected = nil
+            let channel = context.channel
+            var ack = channel.allocator.buffer(capacity: 1)
+            ack.writeInteger(UInt8(0x52))
+            channel.writeAndFlush(ack).whenComplete { _ in channel.close(promise: nil) }
+            return
+        }
+        let length = pendingGuest == nil ? 4 : 2
+        guard request.readableBytes + bytes.readableBytes <= length else {
             context.close(promise: nil)
             return
         }
         request.writeBuffer(&bytes)
-        guard request.readableBytes == 4, let host = request.readInteger(as: UInt16.self),
-            let port = request.readInteger(as: UInt16.self), port >= 1024
-        else {
-            if request.readableBytes == 0 { context.close(promise: nil) }
+        guard request.readableBytes == length, let host = request.readInteger(as: UInt16.self) else { return }
+        if let pendingGuest, let relay {
+            bind(context: context, host: host, port: pendingGuest)
+            relay.finishPreparation(guest: pendingGuest)
+            self.pendingGuest = nil
             return
         }
+        guard let port = request.readInteger(as: UInt16.self) else { return }
+        if port == 1, host >= 1024, let relay {
+            guard relay.prepare(guest: host) else {
+                context.close(promise: nil)
+                return
+            }
+            pendingGuest = host
+            var ready = context.channel.allocator.buffer(capacity: 1)
+            ready.writeInteger(UInt8(0x50))
+            context.writeAndFlush(wrapOutboundOut(ready), promise: nil)
+            return
+        }
+        // Reserved query frame for a guest that lost the original revocation
+        // response. The guest still holds the TCP port, excluding any new owner.
+        if port == 0, host >= 1024, let relay {
+            submitted = true
+            let channel = context.channel
+            var reply = channel.allocator.buffer(capacity: 1)
+            reply.writeInteger(UInt8(relay.hasReleased(guest: host) ? 0x52 : 0))
+            channel.writeAndFlush(reply).whenComplete { _ in channel.close(promise: nil) }
+            return
+        }
+        guard port >= 1024 else {
+            context.close(promise: nil)
+            return
+        }
+        bind(context: context, host: host, port: port)
+    }
+
+    private func bind(context: ChannelHandlerContext, host: UInt16, port: UInt16) {
         submitted = true
         if let relay {
             do {
@@ -90,7 +140,9 @@ private final class NativePortLease: ChannelInboundHandler, @unchecked Sendable 
     }
 
     func handlerRemoved(context: ChannelHandlerContext) {
+        if let pendingGuest { relay?.finishPreparation(guest: pendingGuest) }
         if let selected { relay?.release(selected) }
+        pendingGuest = nil
         selected = nil
     }
 }

@@ -78,6 +78,29 @@ A backend TCP reset before its first response byte reaches the Mac client as a r
 
 Native Docker services inherit a one-CPU quota, 1 GiB of memory and 512 PIDs by default. Use `--cpus 4` to give a service four CPUs or `--cpu-quota=-1` to let it use the CPU time available to its parent. The published-port benchmark can verify these limits inside each service before timing. [Matched benchmarks and guest packet timings](benchmarks/2026-11-21/gamma-published-scheduling.md)
 
+### Direct TCP ports on a native Mac worker
+
+A worker can deliver a published connection from the host-only virtio NIC directly to its owning container. Set the following when creating a separate worker home. Supply a signed Micropod CLI and matching guest tools from this revision. `MICROPOD_CI_KERNEL` takes an absolute path to an uncompressed ARM64 Linux `Image`. The worker records that path and the publication mode in its manifest. Keep the selected image at that path for subsequent starts.
+
+```sh
+export MICROPOD_CI_HOME="$HOME/.micropod/ci-direct"
+export MICROPOD_CI_ENGINE=containerd
+export MICROPOD_CI_KERNEL="$HOME/.micropod/kernels/7.3.5-micropod-7e3713940eec/Image"
+export MICROPOD_CI_PUBLISHED_PATH=macvlan
+export MICROPOD_CI_PORT_RELAY=kqueue-throughput
+micropod ci runner-start
+export DOCKER_HOST="unix://$MICROPOD_CI_HOME/docker.sock"
+unset DOCKER_CONTEXT
+docker info --format '{{.KernelVersion}} {{json .Labels}}'
+```
+
+The Mac owns each loopback listener. Linux reserves a guest TCP port and maps it to one private macvlan interface in the container’s network namespace. A worker-owned nftables table steers traffic on the dedicated NIC. Inside the namespace, a second table admits the leased TCP flow, translates it to the service’s ordinary Docker address and port, and permits replies. Multiple bindings share one interface. The interface has no IP addresses or default route. An application can bind to its Docker IP. Named bridges, DNS and internal-network policy still use its original interface. Native bridge containers use this path for IPv4 TCP. Rootless allocations and other network drivers use their existing publication mechanisms.
+
+The guest registers its intent with the Mac before it asks the Mac to bind. On removal the Mac closes the listener and its accepted connections before acknowledging release. The guest withdraws the lease and its connection-tracking state. If a bind or release reply is lost, it holds the guest port and asks the broker whether the owner has retired. An unreadable broker keeps that port reserved. Inspect `network.published_tcp.macvlan_leases` (cumulative) and `network.macvlan_quarantined_ports` (current) in `GET /micropod/metrics`. The Docker info label `io.micropod.published-path=macvlan` confirms the running worker installed the direct policy.
+
+Build the pinned kernel on ARM64 Linux with `ci/build-worker-kernel.sh linux-7.3.5.tar.xz apple.config OUT full`. The base config must support the Apple guest devices and filesystem. The optional `lazy` profile changes kernel preemption. Both profiles build virtio-net, macvlan, nftables ingress/egress and fair queuing into the kernel. Select a separate home to compare images on the same Mac. The standard worker uses the provisioned Apple kernel and bridge. The direct worker installs nftables at boot if needed. An offline rig can ship its matching signed Alpine APKs and dependencies in `runner/network-apks/` inside the tools bundle. Micropod runs nftables on port setup and teardown. Bulk traffic stays in the guest kernel after the Mac relay. [Gamma kernel comparison and ownership checks](benchmarks/2026-11-21/gamma-direct-macvlan.md)
+
+
 ## Full Docker Engine worker
 
 

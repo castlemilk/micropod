@@ -51,6 +51,7 @@ type dockerContainer struct {
 	removed           bool
 }
 type dockerEngine struct {
+	direct        *directNetwork
 	networkMu     sync.Mutex
 	namedNetworks map[string]*workerNetwork
 	startSlots    chan struct{}
@@ -214,6 +215,12 @@ func serveEngine(ctx context.Context, n node) error {
 	}
 	g.Close()
 	s := &dockerEngine{node: n, workspace: os.Getenv("MICROPOD_ENGINE_WORKSPACE"), containers: make(map[string]*dockerContainer), execs: make(map[string]*dockerExec)}
+	if !privateRootless() && os.Getenv("MICROPOD_CI_PUBLISHED_PATH") == "macvlan" {
+		s.direct, err = newDirectNetwork(ctx)
+		if err != nil {
+			return fmt.Errorf("initialize direct published ports: %w", err)
+		}
+	}
 	if raw := os.Getenv("MICROPOD_CI_MAX_STARTING"); raw != "" {
 		limit, err := strconv.Atoi(raw)
 		if err != nil || limit < 0 || limit > 32 {
@@ -458,8 +465,8 @@ func (s *dockerEngine) start(c *dockerContainer) (startErr error) {
 		res, runErr := s.node.runProcess(ctx, j, "crun", processHooks{
 			retire: func() error {
 				var err error
-				for _, p := range forwards {
-					err = errors.Join(err, p.close())
+				for i := len(forwards) - 1; i >= 0; i-- {
+					err = errors.Join(err, forwards[i].close())
 				}
 				return err
 			},
@@ -635,7 +642,14 @@ func (c *dockerContainer) inspect() map[string]any {
 		"NetworkSettings": map[string]any{"Ports": c.Ports, "IPAddress": c.IP, "Networks": map[string]any{network: map[string]any{"IPAddress": c.IP, "NetworkID": c.NetworkID, "Aliases": c.Config.Aliases}}}}
 }
 func (s *dockerEngine) info() map[string]any {
-	info := map[string]any{"ID": os.Getenv("MICROPOD_CI_WORKER_ID"), "Name": "micropod", "OSType": "linux", "Architecture": "aarch64", "Driver": "overlayfs", "CgroupDriver": "cgroupfs", "CgroupVersion": "2", "DefaultRuntime": "crun", "ServerVersion": "micropod", "NCPU": runtime.NumCPU(), "Labels": []string{"io.micropod.instance=" + os.Getenv("MICROPOD_CI_INSTANCE")}}
+	labels := []string{"io.micropod.instance=" + os.Getenv("MICROPOD_CI_INSTANCE")}
+	if s.direct != nil {
+		labels = append(labels, "io.micropod.published-path=macvlan")
+	}
+	info := map[string]any{"ID": os.Getenv("MICROPOD_CI_WORKER_ID"), "Name": "micropod", "OSType": "linux", "Architecture": "aarch64", "Driver": "overlayfs", "CgroupDriver": "cgroupfs", "CgroupVersion": "2", "DefaultRuntime": "crun", "ServerVersion": "micropod", "NCPU": runtime.NumCPU(), "Labels": labels}
+	if release, err := os.ReadFile("/proc/sys/kernel/osrelease"); err == nil {
+		info["KernelVersion"] = strings.TrimSpace(string(release))
+	}
 	if privateRootless() {
 		info["SecurityOptions"] = []string{"name=rootless", "name=no-new-privileges", "name=seccomp,profile=builtin"}
 	}
