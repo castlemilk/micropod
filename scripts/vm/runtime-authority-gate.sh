@@ -133,7 +133,7 @@ vm_guard() {
 # the agent and its runtime, a supervised GitHub runner, a runner pool. The
 # cuttle CLI driving the gate is none of them.
 rig_busy() {
-  pgrep -fl '/CuttlefishAgent\.app/Contents/|/Cuttlefish Agent\.app/Contents/|/\.cuttlefish/github-runners/|/\.cuttlefish/bin/cuttle-gha-pool-' 2>/dev/null |
+  pgrep -fl '/CuttlefishAgent\.app/Contents/|/Cuttlefish Agent\.app/Contents/|/\.cuttlefish/github-runners/|/\.cuttlefish/bin/cuttle-gha-pool|agent github-runner pool' 2>/dev/null |
     head -3 | tr '\n' ' '
 }
 
