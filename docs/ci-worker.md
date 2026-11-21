@@ -140,13 +140,18 @@ For the Micropod CLI, SDK or API, start the worker under the account serving the
 | Setting | Default | Purpose |
 | --- | --- | --- |
 | `MICROPOD_CI_HOME` | `~/.micropod/ci` | Private directory for the socket, manifest and sparse disk. A directory on a Micropod development volume also works. |
-| `MICROPOD_CI_CPUS` | 4 | VM vCPUs |
+| `MICROPOD_CI_CPUS` | 4 | Fixed VM vCPUs, or `auto` to select the fastest physical core tier at each boot. |
+| `MICROPOD_CI_TRUSTED_JOB_CPUS` | 1 | CPU quota for a submitted `ci job trusted`, in whole CPUs from 1 to 64. Requires the updated OCI client and runner tools. Docker containers accept their own `--cpus` value. |
 | `MICROPOD_CI_MEMORY_MIB` | 4096 | VM memory in MiB |
 | `MICROPOD_CI_DISK_GIB` | 32 | Logical guest ext4 capacity in GiB |
 | `MICROPOD_CI_EXT4_MAX_BATCH_US` | Adaptive (15,000 µs) | Maximum ext4 wait for synchronous writers to share a commit. A dedicated worker can select zero for immediate writes. |
 | `MICROPOD_CI_WORKSPACE` | Unset | Optional checkout directory shared read/write at its absolute path with VirtioFS. Select it before first boot. |
 
 Set resources before first boot. Later starts reuse the recorded configuration. `micropod ci status` returns the boot UUID, worker and supervisor IDs, Docker daemon ID, guest IP, cgroup driver and memory. Pause runner intake and finish active builds before `micropod ci stop`. The worker checks for running containers and closes the public socket to new connections during shutdown.
+
+`micropod ci cpu-plan` previews the next boot. To change a provisioned worker, select its engine and home, drain it, stop it, then use `micropod ci set-cpus auto` or a fixed count. This edits only the CPU field of the stopped worker's manifest. A registered launch agent that pins a conflicting count must be uninstalled while idle and registered again with the new policy. An agent with no CPU override can reuse the manifest. The CPU count is fixed for the lifetime of a VM. Status reports the boot allocation and its source.
+
+Set `MICROPOD_CI_POSTGRES_PATH=bridge` for the sample CI pipeline to run a PostgreSQL server and its SQL client on a per-run guest network. The default path continues to exercise Testcontainers and Ryuk. The bridge mode runs a different integration check and should be compared on both engines. [Gamma sizing, scheduler and storage qualification](benchmarks/2026-11-21/gamma-worker-sizing.md)
 
 ```sh
 micropod ci run --cache npm node:24-alpine npm cache verify

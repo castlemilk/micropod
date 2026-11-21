@@ -56,7 +56,7 @@ public struct CIWorker: Sendable {
         let schema: Int
         let image: String
         let worker: UUID
-        let cpus: Int
+        let cpus: CIWorkerCPUCount
         let memoryMiB: Int
         let diskGiB: Int
         let workspace: String?
@@ -77,6 +77,7 @@ public struct CIWorker: Sendable {
         var readySocket: ReadySocket?
         var supportsNetworkRepair: Bool?
         var nativeOCI: Bool?
+        var cpuAllocation: CIWorkerCPUCount.Allocation?
     }
 
     struct ReadySocket: Codable, Equatable {
@@ -106,6 +107,7 @@ public struct CIWorker: Sendable {
         public let guestAddress: String?
         public var publishedAddress: String? = nil
         public let cpus: Int
+        public var cpuSizingSource: String? = nil
         public let memoryBytes: UInt64
         public let storageDriver: String
         public var kataPrerequisitesPresent: Bool? = nil
@@ -129,20 +131,77 @@ public struct CIWorker: Sendable {
         }
     }
 
-    func configuration(create: Bool = false) throws -> Configuration {
+    private func cpuPolicy(existing: Configuration?) throws -> CIWorkerCPUCount {
+        try resourceEnvironment["MICROPOD_CI_CPUS"].map(CIWorkerCPUCount.init) ?? existing?.cpus ?? .fixed(4)
+    }
+
+    public func cpuPlan() throws -> some Encodable {
+        let policy: CIWorkerCPUCount
+        if FileManager.default.fileExists(atPath: manifest.path) {
+            policy = try configuration().cpus
+        } else {
+            policy = try cpuPolicy(existing: nil)
+        }
+        return try policy.resolveForBoot()
+    }
+
+    private func selectedEngine() throws -> Engine {
         let selection = resourceEnvironment["MICROPOD_CI_ENGINE"] ?? "docker"
         guard let engine = Engine(rawValue: selection) else {
             throw MicropodError.message("MICROPOD_CI_ENGINE must select containerd or docker")
         }
+        return engine
+    }
+
+    private func decodeManifest(_ data: Data, engine: Engine) throws -> Configuration {
+        let config = try JSONDecoder().decode(Configuration.self, from: data)
+        guard config.schema == 1, config.image == engine.image else {
+            throw MicropodError.message(
+                "This CI disk belongs to another engine or schema. Use a fresh MICROPOD_CI_HOME for \(engine.rawValue). "
+                    + "An existing Docker disk can be reopened with MICROPOD_CI_ENGINE=docker.")
+        }
+        return config
+    }
+
+    /// Change the next boot's CPU policy while retaining the worker identity, disk and package caches.
+    public func setCPUs(_ setting: String) throws -> some Encodable {
+        let policy = try CIWorkerCPUCount(setting)
+        let allocation = try policy.resolveForBoot()
+        guard FileManager.default.fileExists(atPath: manifest.path) else {
+            throw MicropodError.message("Set MICROPOD_CI_CPUS before provisioning a new worker")
+        }
+        try prepareDirectory()
+        guard let election = try acquire("start.lock") else { throw MicropodError.message("CI worker is starting") }
+        defer { try? election.close() }
+        guard let owner = try acquire() else {
+            throw MicropodError.message("Drain and stop the CI worker before changing its vCPUs")
+        }
+        defer { try? owner.close() }
+        let data = try Data(contentsOf: manifest)
+        let current = try decodeManifest(data, engine: selectedEngine())
+        if let override = resourceEnvironment["MICROPOD_CI_CPUS"], try CIWorkerCPUCount(override) != policy {
+            throw MicropodError.message("MICROPOD_CI_CPUS conflicts with the requested worker CPU policy")
+        }
+        try verifyServiceCPU(policy)
+        if current.cpus != policy {
+            // Preserve extensions from other schema-1 binaries when editing the one requested field.
+            guard var fields = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                throw MicropodError.message("Invalid worker manifest")
+            }
+            fields["cpus"] = try JSONSerialization.jsonObject(
+                with: JSONEncoder().encode(policy), options: .fragmentsAllowed)
+            try JSONSerialization.data(withJSONObject: fields, options: .sortedKeys).write(
+                to: manifest, options: .atomic)
+        }
+        return allocation
+    }
+
+    func configuration(create: Bool = false) throws -> Configuration {
+        let engine = try selectedEngine()
         let fm = FileManager.default
         let existing: Configuration?
         if fm.fileExists(atPath: manifest.path) {
-            existing = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: manifest))
-            guard existing?.schema == 1, existing?.image == engine.image else {
-                throw MicropodError.message(
-                    "This CI disk belongs to another engine or schema. Use a fresh MICROPOD_CI_HOME for \(selection). "
-                        + "An existing Docker disk can be reopened with MICROPOD_CI_ENGINE=docker.")
-            }
+            existing = try decodeManifest(Data(contentsOf: manifest), engine: engine)
         } else {
             guard create, !fm.fileExists(atPath: disk.path) else {
                 throw MicropodError.message("Missing CI disk manifest at \(manifest.path)")
@@ -174,7 +233,7 @@ public struct CIWorker: Sendable {
         }
         let config = try Configuration(
             schema: 1, image: engine.image, worker: existing?.worker ?? UUID(),
-            cpus: resource("CPUS", existing?.cpus ?? 4, 1...64),
+            cpus: cpuPolicy(existing: existing),
             memoryMiB: resource("MEMORY_MIB", existing?.memoryMiB ?? 4096, 1024...262144),
             diskGiB: resource("DISK_GIB", existing?.diskGiB ?? 32, 4...1024), workspace: workspace,
             ext4MaxBatchUS: batchUS == 15000 ? nil : batchUS,
@@ -303,10 +362,19 @@ public struct CIWorker: Sendable {
             guard identity.worker == config.worker, identity.instance == active.instance,
                 identity.engine == "containerd"
             else { throw MicropodError.message("The native endpoint did not identify the active runner") }
+            let count: Int
+            if let allocation = active.cpuAllocation {
+                count = allocation.count
+            } else if case .fixed(let previous) = config.cpus {
+                count = previous  // Session from a supervisor predating boot-time sizing.
+            } else {
+                throw MicropodError.message("The active runner has no boot CPU allocation")
+            }
             return Status(
                 endpoint: endpoint, worker: config.worker, boot: identity.boot, instance: active.instance,
                 engine: "containerd", daemon: identity.engine, engineVersion: identity.version,
-                guestAddress: active.guestAddress, publishedAddress: active.publishedAddress, cpus: config.cpus,
+                guestAddress: active.guestAddress, publishedAddress: active.publishedAddress, cpus: count,
+                cpuSizingSource: active.cpuAllocation?.source.rawValue,
                 memoryBytes: identity.memory_bytes,
                 storageDriver: "overlayfs", kataPrerequisitesPresent: identity.kata_prerequisites_present,
                 cgroupDriver: "cgroupfs")
@@ -314,6 +382,9 @@ public struct CIWorker: Sendable {
         let response = try await client.request("GET", "/info", timeout: .seconds(2))
         guard response.status == 200 else { throw MicropodError.message("CI engine: \(response.message)") }
         let info = try JSONDecoder().decode(Info.self, from: response.body)
+        if let expected = active.cpuAllocation?.count, info.NCPU != expected {
+            throw MicropodError.message("Docker reports \(info.NCPU) CPUs on a worker booted with \(expected)")
+        }
         let boot: UUID
         do {
             let labels = info.Labels ?? []
@@ -332,6 +403,7 @@ public struct CIWorker: Sendable {
             engine: config.engine.rawValue,
             daemon: info.ID, engineVersion: info.ServerVersion, guestAddress: active.guestAddress,
             publishedAddress: active.publishedAddress, cpus: info.NCPU,
+            cpuSizingSource: active.cpuAllocation?.source.rawValue,
             memoryBytes: info.MemTotal, storageDriver: info.Driver,
             cgroupDriver: info.CgroupDriver)
     }
@@ -650,7 +722,8 @@ public struct CIWorker: Sendable {
         guard let owner = try RuntimeProcessBirth.read(getpid()) else {
             throw MicropodError.message("Missing supervisor identity")
         }
-        var active = Session(owner: owner, instance: UUID(), supportsNetworkRepair: true)
+        let cpuAllocation = try config.cpus.resolveForBoot()
+        var active = Session(owner: owner, instance: UUID(), supportsNetworkRepair: true, cpuAllocation: cpuAllocation)
         try JSONEncoder().encode(active).write(to: session, options: .atomic)
         defer {
             try? FileManager.default.removeItem(at: session)
@@ -704,7 +777,7 @@ public struct CIWorker: Sendable {
         }
         active.nativeOCI = options.ciOCITools != nil
         options.ciExt4MaxBatchUS = config.ext4MaxBatchUS
-        options.cpus = config.cpus
+        options.cpus = cpuAllocation.count
         options.memoryMiB = UInt64(config.memoryMiB)
         options.diskBytes = UInt64(config.diskGiB) << 30
         options.env = [
@@ -782,6 +855,10 @@ public struct CIWorker: Sendable {
                         let labels = info["Labels"] as? [String],
                         labels.contains("io.micropod.instance=" + active.instance.uuidString)
                     {
+                        guard info["NCPU"] as? Int == cpuAllocation.count else {
+                            throw MicropodError.message(
+                                "Native Docker API CPU count differs from the worker boot allocation")
+                        }
                         if config.publishedPath == "macvlan", !labels.contains("io.micropod.published-path=macvlan") {
                             throw MicropodError.message("The installed guest tools did not enable direct macvlan ports")
                         }

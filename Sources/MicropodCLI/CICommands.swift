@@ -14,6 +14,8 @@ enum CICommands {
         micropod ci start                 start or join this account's Linux worker
         micropod ci endpoint              ensure readiness and print the Docker socket URI
         micropod ci status                print worker, kernel boot and daemon identities as JSON
+        micropod ci cpu-plan              show the vCPU count and source for the next boot
+        micropod ci set-cpus COUNT|auto   change a stopped worker's CPU policy and reuse its disk
         micropod ci docker [arguments]    run the stock Docker CLI or a plugin against this worker
         micropod ci snapshot BASE_IMAGE [DIRECTORY]
                                           put a checkout in a reusable job image and print its local ID
@@ -52,6 +54,7 @@ enum CICommands {
             ["run", "create", "docker", "snapshot", "warm-go", "job", "runner-prime"].contains(command)
                 || args == ["metrics", "--usage"]
                 || args == ["metrics", "--kernel"]
+                || (command == "set-cpus" && args.count == 2)
                 || args.count == 1
         else {
             print(help)
@@ -59,6 +62,13 @@ enum CICommands {
         }
         do {
             switch command {
+            case "cpu-plan": try printStatus(worker.cpuPlan())
+            case "set-cpus":
+                guard args.count == 2 else {
+                    print(help)
+                    return 2
+                }
+                try printStatus(worker.setCPUs(args[1]))
             case "runner-status": try printStatus(await worker.status())
             case "runner-stop": try await worker.stop()
             case "job", "runner-prime", "runner-start", "runner-endpoint", "runner-docker-endpoint",

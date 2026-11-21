@@ -1,0 +1,271 @@
+{
+  "base_commit": "ad0646d6292076b6ddf7647f2dc806d785d8f8fb",
+  "recorded_utc": "2026-11-21T12:35:17.981653+00:00",
+  "host": {
+    "cpu_levels": [
+      "Super",
+      "Performance"
+    ],
+    "host_cores": 18,
+    "host_os": "26.5.1",
+    "rig": "Gamma",
+    "soc": "Apple M5 Max"
+  },
+  "boot_cpu_plan": {
+    "auto": {
+      "count": 6,
+      "source": "hw.perflevel0.physicalcpu"
+    },
+    "4": {
+      "count": 4,
+      "source": "fixed"
+    }
+  },
+  "apfs_fixture": {
+    "primitive": "clonefile",
+    "host_os": "26.5.1",
+    "base_bytes": 536870912,
+    "base_payload_bytes": 33554432,
+    "private_write_bytes": 4096,
+    "rounds": [
+      {
+        "clone_us": 221.958,
+        "private_write_fsync_us": 21911.334
+      },
+      {
+        "clone_us": 245.375,
+        "private_write_fsync_us": 31098.167
+      },
+      {
+        "clone_us": 176.334,
+        "private_write_fsync_us": 25743.125
+      },
+      {
+        "clone_us": 177.625,
+        "private_write_fsync_us": 26646.083
+      },
+      {
+        "clone_us": 198.375,
+        "private_write_fsync_us": 37698.125
+      },
+      {
+        "clone_us": 155.5,
+        "private_write_fsync_us": 29436.042
+      },
+      {
+        "clone_us": 168.792,
+        "private_write_fsync_us": 31820.958
+      },
+      {
+        "clone_us": 162.708,
+        "private_write_fsync_us": 32739.834
+      },
+      {
+        "clone_us": 311.375,
+        "private_write_fsync_us": 33270.042
+      },
+      {
+        "clone_us": 180.542,
+        "private_write_fsync_us": 26396.583
+      },
+      {
+        "clone_us": 268.75,
+        "private_write_fsync_us": 28333.584
+      },
+      {
+        "clone_us": 234.167,
+        "private_write_fsync_us": 23908.208
+      },
+      {
+        "clone_us": 147.958,
+        "private_write_fsync_us": 51614.417
+      },
+      {
+        "clone_us": 287.167,
+        "private_write_fsync_us": 32551.25
+      },
+      {
+        "clone_us": 372.958,
+        "private_write_fsync_us": 27664.125
+      },
+      {
+        "clone_us": 148.959,
+        "private_write_fsync_us": 22878.541
+      }
+    ],
+    "median_clone_us": 189.45850000000002,
+    "median_private_write_fsync_us": 28884.813000000002,
+    "base_and_sibling_markers_verified": true
+  },
+  "installed_kernel_config": {
+    "sha256": "a0da9a6ab98e69e253f2e8a27664bdb23f08ab4cef1dd66178c38c26d0035c9c",
+    "selection": [
+      "# CONFIG_SCHED_CLASS_EXT is not set",
+      "CONFIG_MEMCG=y",
+      "CONFIG_CFS_BANDWIDTH=y",
+      "CONFIG_CGROUP_PIDS=y",
+      "CONFIG_DEBUG_INFO_BTF=y"
+    ]
+  },
+  "previous_confirmation": {
+    "receipt": "gamma-vcpu-priority.json.gz",
+    "sha256": "066cd4071f3f926a228d87310f6d7b6f361c38f07c7a8240aa09a57f03f201e4",
+    "paired": {
+      "attempts": 16,
+      "interval": [
+        0.7090052427711508,
+        1.2586594205448958
+      ],
+      "lat_ratio": 0.11887052869685236,
+      "p95_ms": 33.456,
+      "pairs": 15,
+      "rate": 2854.0611513491435,
+      "ratio": 0.8540445809525004,
+      "ref_attempts": 16,
+      "ref_p95_ms": 220.325,
+      "ref_rate": 3010.383519887246,
+      "ref_valid": 15,
+      "rounds": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        13,
+        14,
+        15,
+        16
+      ],
+      "valid": 16,
+      "wins": 7
+    },
+    "scheduler_traces": {
+      "micropod": [
+        {
+          "trace": "1-confirm-micropod",
+          "clean": true,
+          "level_names": [
+            "Super",
+            "Performance"
+          ],
+          "cpu_fraction_by_level": [
+            0.302093007050188,
+            0.6979069929498121
+          ],
+          "below_base_runnable_fraction": 0.0,
+          "estimated_wait_thread_s_per_s": 1.3076409589219535
+        },
+        {
+          "trace": "2-confirm-micropod",
+          "clean": true,
+          "level_names": [
+            "Super",
+            "Performance"
+          ],
+          "cpu_fraction_by_level": [
+            0.35369318801753025,
+            0.6463068119824698
+          ],
+          "below_base_runnable_fraction": 0.0,
+          "estimated_wait_thread_s_per_s": 1.3239804771289794
+        },
+        {
+          "trace": "3-confirm-micropod",
+          "clean": true,
+          "level_names": [
+            "Super",
+            "Performance"
+          ],
+          "cpu_fraction_by_level": [
+            0.34806860490406866,
+            0.6519313950959313
+          ],
+          "below_base_runnable_fraction": 0.0,
+          "estimated_wait_thread_s_per_s": 1.3999812880489932
+        },
+        {
+          "trace": "4-confirm-micropod",
+          "clean": true,
+          "level_names": [
+            "Super",
+            "Performance"
+          ],
+          "cpu_fraction_by_level": [
+            0.40133939177972694,
+            0.5986606082202731
+          ],
+          "below_base_runnable_fraction": 0.0,
+          "estimated_wait_thread_s_per_s": 1.165591317132295
+        }
+      ],
+      "orb": [
+        {
+          "trace": "1-confirm-orb",
+          "clean": true,
+          "level_names": [
+            "Super",
+            "Performance"
+          ],
+          "cpu_fraction_by_level": [
+            0.19834801023621199,
+            0.801651989763788
+          ],
+          "below_base_runnable_fraction": 0.0,
+          "estimated_wait_thread_s_per_s": 1.6439589299775315
+        },
+        {
+          "trace": "2-confirm-orb",
+          "clean": false,
+          "level_names": [
+            "Super",
+            "Performance"
+          ],
+          "cpu_fraction_by_level": [
+            0.20043892004822314,
+            0.7995610799517768
+          ],
+          "below_base_runnable_fraction": 0.0,
+          "estimated_wait_thread_s_per_s": 1.5348008625623506
+        },
+        {
+          "trace": "3-confirm-orb",
+          "clean": true,
+          "level_names": [
+            "Super",
+            "Performance"
+          ],
+          "cpu_fraction_by_level": [
+            0.20296739319096974,
+            0.7970326068090303
+          ],
+          "below_base_runnable_fraction": 0.0,
+          "estimated_wait_thread_s_per_s": 1.2937554362507413
+        },
+        {
+          "trace": "4-confirm-orb",
+          "clean": true,
+          "level_names": [
+            "Super",
+            "Performance"
+          ],
+          "cpu_fraction_by_level": [
+            0.3078827365293789,
+            0.6921172634706211
+          ],
+          "below_base_runnable_fraction": 0.0,
+          "estimated_wait_thread_s_per_s": 1.915858137391017
+        }
+      ]
+    }
+  },
+  "six_vcpu_peer_run": {
+    "status": "unmeasured",
+    "reason": "local Docker client was denied access to the OrbStack Unix socket"
+  }
+}

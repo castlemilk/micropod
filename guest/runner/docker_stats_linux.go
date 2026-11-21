@@ -41,6 +41,9 @@ func (s *dockerEngine) kernelStats(r *http.Request, id string, sample map[string
 	if !ok || !filepath.IsAbs(cg) || filepath.Base(cg) != id || filepath.Clean(cg) != cg {
 		return
 	}
+	if r.URL.Query().Get("micropod-cgroup") == "1" {
+		sample["micropod_cgroup"] = cg
+	}
 	root := filepath.Join("/sys/fs/cgroup", cg)
 	if b, err := os.ReadFile(filepath.Join(root, "pids.current")); err == nil {
 		if n, err := strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64); err == nil {

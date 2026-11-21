@@ -84,11 +84,19 @@ fn client(args: &[String]) -> Result<i32> {
             if !matches!(trust.as_str(), "trusted" | "untrusted") || argv.is_empty() {
                 return Err("expected trusted or untrusted, image and command".into());
             }
-            send(
-                &mut sock,
-                &json!({"op":"job","job":{"trust":trust,"image":image,"args":argv,
-                "cache_scope":env::var("MICROPOD_CI_CACHE_SCOPE").unwrap_or_default()}}),
-            )?;
+            let mut job = json!({"trust":trust,"image":image,"args":argv,
+                "cache_scope":env::var("MICROPOD_CI_CACHE_SCOPE").unwrap_or_default()});
+            if trust == "trusted"
+                && let Some(setting) = env::var_os("MICROPOD_CI_TRUSTED_JOB_CPUS")
+            {
+                let count = setting
+                    .to_str()
+                    .and_then(|v| v.parse::<u32>().ok())
+                    .filter(|n| (1..=64).contains(n))
+                    .ok_or("MICROPOD_CI_TRUSTED_JOB_CPUS must be an integer from 1 to 64")?;
+                job["cpus"] = count.into();
+            }
+            send(&mut sock, &json!({"op":"job","job":job}))?;
             loop {
                 let frame = response(&mut r)?;
                 match frame["type"].as_str() {

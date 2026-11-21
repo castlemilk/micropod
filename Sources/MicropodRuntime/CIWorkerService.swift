@@ -25,15 +25,28 @@ extension CIWorker {
         return try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
     }
 
-    private func registeredDirectory() throws -> String? {
+    private func registeredEnvironment() throws -> [String: String]? {
         guard FileManager.default.fileExists(atPath: agentFile.path) else { return nil }
         let data = try Data(contentsOf: agentFile)
         guard let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
             plist["Label"] as? String == Self.agentLabel,
             let environment = plist["EnvironmentVariables"] as? [String: String],
-            let path = environment["MICROPOD_CI_HOME"]
+            environment["MICROPOD_CI_HOME"] != nil
         else { throw MicropodError.message("Unrecognized CI launch agent at \(agentFile.path)") }
-        return path
+        return environment
+    }
+
+    private func registeredDirectory() throws -> String? {
+        try registeredEnvironment()?["MICROPOD_CI_HOME"]
+    }
+
+    func verifyServiceCPU(_ policy: CIWorkerCPUCount) throws {
+        guard let env = try registeredEnvironment(), env["MICROPOD_CI_HOME"] == directory.path,
+            let pinned = env["MICROPOD_CI_CPUS"], try CIWorkerCPUCount(pinned) != policy
+        else { return }
+        throw MicropodError.message(
+            "The registered launch agent pins MICROPOD_CI_CPUS=\(pinned). Uninstall the idle service before changing that policy."
+        )
     }
 
     private func launchctl(_ args: [String]) throws -> Int32 {

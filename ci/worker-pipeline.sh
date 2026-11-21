@@ -4,6 +4,8 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 profile="${1:-all}"
 case "$profile" in go|npm|all) ;; *) echo "expected go, npm, or all" >&2; exit 2 ;; esac
+postgres_path=${MICROPOD_CI_POSTGRES_PATH:-testcontainers}
+case "$postgres_path" in testcontainers|bridge) ;; *) echo "expected testcontainers or bridge for MICROPOD_CI_POSTGRES_PATH" >&2; exit 2 ;; esac
 if [[ $# -eq 2 ]]; then
     # Qualification passes the selected guest or native engine's explicit socket.
     endpoint="$2"
@@ -61,6 +63,10 @@ parallel_jobs() {
 # the most recent exports unpacked across jobs, with one copy of each layer.
 cache_image="${MICROPOD_CI_SAMPLE_IMAGE:-micropod-internal/ci-samples}"
 go_postgres() {
+    if [[ "$postgres_path" == bridge ]]; then
+        stage postgres bash "$root/ci/worker-postgres-bridge.sh"
+        return
+    fi
     stage postgres docker run --rm --network host \
         -v /var/run/docker.sock:/var/run/docker.sock \
         -e TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock \

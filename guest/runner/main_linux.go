@@ -35,9 +35,13 @@ type job struct {
 	Image   string   `json:"image"`
 	Command []string `json:"args"`
 	Cache   string   `json:"cache_scope,omitempty"`
+	CPUs    *int64   `json:"cpus,omitempty"`
 }
 
 func (j job) handler() (string, error) {
+	if j.CPUs != nil && (j.Trust != "trusted" || *j.CPUs < 1 || *j.CPUs > 64) {
+		return "", errors.New("only trusted jobs may request a CPU count from 1 to 64")
+	}
 	if j.Image == "" || len(j.Command) == 0 || j.Command[0] == "" {
 		return "", errors.New("a job needs an image and a command")
 	}
@@ -169,6 +173,9 @@ func config(id, dir, image string, j job) (*cri.PodSandboxConfig, *cri.Container
 		Linux: &cri.LinuxContainerConfig{Resources: &cri.LinuxContainerResources{CpuQuota: 100000, CpuPeriod: 100000, MemoryLimitInBytes: 1 << 30, Unified: map[string]string{"pids.max": "512"}},
 			SecurityContext: &cri.LinuxContainerSecurityContext{NoNewPrivs: true, Seccomp: profile, Capabilities: &cri.Capability{DropCapabilities: []string{"ALL"}}}}}
 	if j.Trust == "trusted" {
+		if j.CPUs != nil {
+			container.Linux.Resources.CpuQuota = *j.CPUs * container.Linux.Resources.CpuPeriod
+		}
 		// CI packaging preserves an existing file's set-ID bits across writes. no_new_privs
 		// still prevents acquiring privilege by executing that file.
 		container.Linux.SecurityContext.Capabilities.AddCapabilities = []string{"FSETID"}
