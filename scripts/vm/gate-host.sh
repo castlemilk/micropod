@@ -16,6 +16,7 @@
 #   bash gate-host.sh stop <vm>
 #   bash gate-host.sh rm <vm>
 #   bash gate-host.sh matrix               G3 on clones of gate-legacy-base
+#   bash gate-host.sh need                 GB the gate needs free (number)
 #   bash gate-host.sh space                disk left, gate VMs
 #   bash gate-host.sh results              the guests' PASS/FAIL table
 #   bash gate-host.sh cleanup              stop and delete everything
@@ -45,9 +46,30 @@ TART_TEAM=9M2P8L4D89
 # macos-tahoe-vanilla 26.6.2: SIP on, user admin/admin, 50 GB sparse disk.
 IMAGE=ghcr.io/cirruslabs/macos-tahoe-vanilla
 IMAGE=$IMAGE@sha256:eeec54bfe1f076e27786c5d92b89187a05b1d109b5071eb2dcdf02d596e34640
+# Disk the gate needs, in GB. IMAGE_GB is the image's blocks once pulled: a
+# 22 GB download into a 50 GB sparse disk, whose manifest bounds the written
+# blocks between 23 and 47 GB (estimated at about 30). It counts only until
+# the image is in tart's cache. WORK_GB is the clones' own writes and logs.
+IMAGE_GB=35
+WORK_GB=12
 
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 need_tart() { [ -x "$TART" ] || die "run: bash $0 tart"; }
+
+# has_vm <source> <name>: tart has it (false while tart is not installed).
+has_vm() {
+  [ -x "$TART" ] && "$TART" list --source "$1" --quiet 2>/dev/null | grep -qxF "$2"
+}
+
+# need_gb: GB that must be free for the rest of the gate. The image counts
+# until it is pulled (in tart's cache, or already cloned as gate-base).
+need_gb() {
+  if has_vm oci "$IMAGE" || has_vm local gate-base; then
+    printf '%s\n' "$WORK_GB"
+  else
+    printf '%s\n' "$((IMAGE_GB + WORK_GB))"
+  fi
+}
 
 # preflight [wait]: no virtual machine runs on this Mac. With "wait", gives
 # a VM this script just stopped up to a minute to exit.
@@ -125,7 +147,9 @@ case "${1:-help}" in
   base)
     need_tart
     free=$(df -g "$HOME" | awk 'NR == 2 { print $4 }')
-    [ "$free" -ge 60 ] || die "only ${free} GB free; the image needs about 30 GB plus headroom"
+    need=$(need_gb)
+    [ "$free" -ge "$need" ] ||
+      die "only ${free} GB free; the gate needs ${need} GB (the image ${IMAGE_GB} GB until it is pulled, then ${WORK_GB} GB for clones and logs)"
     "$TART" clone "$IMAGE" gate-base || exit 1
     "$TART" set gate-base --cpu 4 --memory 8192
     "$TART" list
@@ -188,8 +212,14 @@ case "${1:-help}" in
       "$(grep -c '  PASS ' "$log")" "$(grep -c '  FAIL ' "$log")" "$log"
     ! grep -q '  FAIL ' "$log"
     ;;
+  need)
+    # GB the rest of the gate needs free on this disk (cuttle checks it
+    # before it stops anything).
+    need_gb
+    ;;
   space)
     df -h "$HOME" | awk 'NR == 2 { print "free on this disk: " $4 }'
+    printf 'the gate needs: %s GB\n' "$(need_gb)"
     du -sh "$HOME_DIR" 2>/dev/null
     [ -x "$TART" ] && "$TART" list
     ;;
