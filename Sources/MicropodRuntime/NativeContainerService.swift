@@ -775,6 +775,12 @@ public struct NativeContainerService: ContainerServing {
         let operations = NativeLifecycleOperations.shared
         try await operations.perform(id, kind: .deleting) { claim in
             try await operations.dispatch(claim)
+            // The apiserver removes the bundle under its containers lock,
+            // and a job's dirtied rootfs is most of what that costs: with a
+            // second name for it the removal only drops a name, and the
+            // reclaimer frees the image afterwards, off the lock.
+            let rootfs = api.rootfsImagePath(id: id).flatMap { PayloadReclaimer.shared.stage($0) }
+            defer { if let rootfs { PayloadReclaimer.shared.settle(rootfs) } }
             try await api.delete(id: id, force: force)
             await exitCodes.forget(id: id)
             await UnstartedCreates.shared.remove(id)

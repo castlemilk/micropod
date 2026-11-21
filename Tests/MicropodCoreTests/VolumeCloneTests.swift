@@ -14,9 +14,16 @@ final class VolumeCloneTests: XCTestCase {
         dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("volume-clone-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // Commits and replacing clones hand what they free to the shared
+        // PayloadReclaimer. Its names go beside this test's directory, so
+        // the listings below still see only what they expect.
+        setenv("MICROPOD_RECLAIM_ROOT", dir.path + "-reclaim", 1)
     }
 
     override func tearDownWithError() throws {
+        PayloadReclaimer.shared.drain()
+        unsetenv("MICROPOD_RECLAIM_ROOT")
+        try? FileManager.default.removeItem(atPath: dir.path + "-reclaim")
         try? FileManager.default.removeItem(at: dir)
     }
 
@@ -123,6 +130,33 @@ final class VolumeCloneTests: XCTestCase {
         XCTAssertEqual(
             try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted(), ["clones", "golden.img"],
             "no temp file may survive a commit")
+    }
+
+    /// The golden a commit replaces is freed by the reclaimer, not inside
+    /// the rename (which runs under the volume's lock): it is staged, then
+    /// queued once the rename has taken its name.
+    func testCommitHandsThePreviousGoldenToTheReclaimer() throws {
+        try payload(seed: 5).write(to: URL(fileURLWithPath: path("golden.img")))
+        try FileManager.default.createDirectory(atPath: path("clones/job-2"), withIntermediateDirectories: true)
+        try payload(seed: 6).write(to: URL(fileURLWithPath: path("clones/job-2/golden.img")))
+        PayloadReclaimer.shared.drain()
+        let before = PayloadReclaimer.shared.snapshot()
+
+        _ = try VolumeClone.commit(clonePath: path("clones/job-2/golden.img"), goldenPath: path("golden.img"))
+        PayloadReclaimer.shared.drain()
+
+        let after = PayloadReclaimer.shared.snapshot()
+        XCTAssertEqual(after.queued - before.queued, 1, "the replaced golden went to the queue")
+        XCTAssertEqual(after.freed - before.freed, 1)
+        XCTAssertEqual((try? FileManager.default.contentsOfDirectory(atPath: dir.path + "-reclaim")) ?? [], [])
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: path("golden.img"))), payload(seed: 6))
+    }
+
+    func testFlushIsBestEffort() throws {
+        VolumeClone.flush(path("missing.img"))
+        try payload(seed: 7).write(to: URL(fileURLWithPath: path("clone.img")))
+        VolumeClone.flush(path("clone.img"))
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: path("clone.img"))), payload(seed: 7))
     }
 
     func testCommitMissingCloneThrowsAndLeavesGoldenUntouched() throws {
