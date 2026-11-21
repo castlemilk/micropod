@@ -1,0 +1,716 @@
+{
+  "system": "Darwin",
+  "machine": "arm64",
+  "release": "25.5.0",
+  "cpus": 18,
+  "load_before": [
+    11.10986328125,
+    15.82177734375,
+    20.37060546875
+  ],
+  "rounds": 5,
+  "profile": "package-manager-offline",
+  "measured_at": "2026-11-19T12:40:38Z",
+  "versions": {
+    "go": "go version go1.27.2 darwin/arm64",
+    "npm": "11.19.1",
+    "node": "v24.22.2"
+  },
+  "seed": {
+    "npm_cache_add_seconds": 0.29730137501610443,
+    "go_download_seconds": 0.04879574995720759,
+    "go_cold_build_seconds": 3.430911000003107,
+    "go_cold_compiler_or_assembler_invocations": 106
+  },
+  "independent_seed": {
+    "npm_cache_add_seconds": 0.13676070899236947,
+    "go_download_seconds": 0.008048832998611033,
+    "go_cold_build_seconds": 2.7439791669603437,
+    "go_cold_compiler_or_assembler_invocations": 106
+  },
+  "independent_store": {
+    "npm_content": {
+      "files": 1,
+      "logical_bytes": 229
+    },
+    "go_modules": {
+      "files": 8,
+      "logical_bytes": 626
+    },
+    "go_build": {
+      "files": 410,
+      "logical_bytes": 36805525
+    }
+  },
+  "before": {
+    "npm_content": {
+      "files": 1,
+      "logical_bytes": 229
+    },
+    "go_modules": {
+      "files": 9,
+      "logical_bytes": 626
+    },
+    "go_build": {
+      "files": 410,
+      "logical_bytes": 36805525
+    }
+  },
+  "batches": [
+    {
+      "round": 1,
+      "tool": "npm",
+      "clients": 1,
+      "seconds": 0.174196,
+      "client_seconds": [
+        0.173863
+      ]
+    },
+    {
+      "round": 1,
+      "tool": "go",
+      "clients": 1,
+      "seconds": 0.105799,
+      "client_seconds": [
+        0.105351
+      ]
+    },
+    {
+      "round": 1,
+      "tool": "npm",
+      "clients": 4,
+      "seconds": 0.22877,
+      "client_seconds": [
+        0.228055,
+        0.227333,
+        0.226858,
+        0.223374
+      ]
+    },
+    {
+      "round": 1,
+      "tool": "go",
+      "clients": 4,
+      "seconds": 0.151105,
+      "client_seconds": [
+        0.143076,
+        0.141485,
+        0.144949,
+        0.142345
+      ]
+    },
+    {
+      "round": 1,
+      "tool": "npm",
+      "clients": 8,
+      "seconds": 0.519939,
+      "client_seconds": [
+        0.504272,
+        0.511325,
+        0.498428,
+        0.493987,
+        0.50887,
+        0.487394,
+        0.495702,
+        0.493781
+      ]
+    },
+    {
+      "round": 1,
+      "tool": "go",
+      "clients": 8,
+      "seconds": 0.224505,
+      "client_seconds": [
+        0.223855,
+        0.223124,
+        0.208615,
+        0.201657,
+        0.202922,
+        0.198937,
+        0.196417,
+        0.188367
+      ]
+    },
+    {
+      "round": 1,
+      "tool": "npm",
+      "clients": 16,
+      "seconds": 0.639754,
+      "client_seconds": [
+        0.595754,
+        0.606015,
+        0.590999,
+        0.601325,
+        0.598556,
+        0.576562,
+        0.591491,
+        0.585951,
+        0.5958,
+        0.582962,
+        0.59197,
+        0.579641,
+        0.591764,
+        0.560142,
+        0.562662,
+        0.553871
+      ]
+    },
+    {
+      "round": 1,
+      "tool": "go",
+      "clients": 16,
+      "seconds": 0.30242,
+      "client_seconds": [
+        0.268465,
+        0.23986,
+        0.292194,
+        0.25213,
+        0.246116,
+        0.236751,
+        0.279482,
+        0.245543,
+        0.240807,
+        0.272213,
+        0.218995,
+        0.22669,
+        0.218177,
+        0.255572,
+        0.257712,
+        0.209108
+      ]
+    },
+    {
+      "round": 2,
+      "tool": "go",
+      "clients": 4,
+      "seconds": 0.205529,
+      "client_seconds": [
+        0.198853,
+        0.200645,
+        0.200784,
+        0.194263
+      ]
+    },
+    {
+      "round": 2,
+      "tool": "npm",
+      "clients": 4,
+      "seconds": 0.393578,
+      "client_seconds": [
+        0.386054,
+        0.386884,
+        0.381689,
+        0.387887
+      ]
+    },
+    {
+      "round": 2,
+      "tool": "go",
+      "clients": 8,
+      "seconds": 0.216595,
+      "client_seconds": [
+        0.216075,
+        0.214042,
+        0.20608,
+        0.20115,
+        0.200355,
+        0.205098,
+        0.201746,
+        0.193575
+      ]
+    },
+    {
+      "round": 2,
+      "tool": "npm",
+      "clients": 8,
+      "seconds": 0.321162,
+      "client_seconds": [
+        0.317759,
+        0.31963,
+        0.317055,
+        0.31411,
+        0.313995,
+        0.310691,
+        0.308733,
+        0.306655
+      ]
+    },
+    {
+      "round": 2,
+      "tool": "go",
+      "clients": 16,
+      "seconds": 0.304883,
+      "client_seconds": [
+        0.252976,
+        0.260703,
+        0.196499,
+        0.254747,
+        0.19102,
+        0.189165,
+        0.286257,
+        0.288713,
+        0.288921,
+        0.282475,
+        0.285189,
+        0.281314,
+        0.267951,
+        0.265157,
+        0.269282,
+        0.261323
+      ]
+    },
+    {
+      "round": 2,
+      "tool": "npm",
+      "clients": 16,
+      "seconds": 0.446935,
+      "client_seconds": [
+        0.397007,
+        0.402453,
+        0.403532,
+        0.394809,
+        0.381429,
+        0.39161,
+        0.39505,
+        0.418167,
+        0.403125,
+        0.379862,
+        0.387982,
+        0.390871,
+        0.379966,
+        0.390006,
+        0.419798,
+        0.400889
+      ]
+    },
+    {
+      "round": 2,
+      "tool": "go",
+      "clients": 1,
+      "seconds": 0.12103,
+      "client_seconds": [
+        0.120728
+      ]
+    },
+    {
+      "round": 2,
+      "tool": "npm",
+      "clients": 1,
+      "seconds": 0.205395,
+      "client_seconds": [
+        0.205128
+      ]
+    },
+    {
+      "round": 3,
+      "tool": "npm",
+      "clients": 8,
+      "seconds": 0.234713,
+      "client_seconds": [
+        0.231372,
+        0.233839,
+        0.229654,
+        0.231274,
+        0.22932,
+        0.230826,
+        0.22658,
+        0.222405
+      ]
+    },
+    {
+      "round": 3,
+      "tool": "go",
+      "clients": 8,
+      "seconds": 0.151207,
+      "client_seconds": [
+        0.150714,
+        0.136233,
+        0.133135,
+        0.132534,
+        0.1309,
+        0.141937,
+        0.128861,
+        0.126859
+      ]
+    },
+    {
+      "round": 3,
+      "tool": "npm",
+      "clients": 16,
+      "seconds": 0.431658,
+      "client_seconds": [
+        0.420077,
+        0.387451,
+        0.390348,
+        0.422693,
+        0.424148,
+        0.420308,
+        0.418206,
+        0.420141,
+        0.414218,
+        0.417033,
+        0.412139,
+        0.410824,
+        0.40461,
+        0.402148,
+        0.402986,
+        0.392387
+      ]
+    },
+    {
+      "round": 3,
+      "tool": "go",
+      "clients": 16,
+      "seconds": 0.240934,
+      "client_seconds": [
+        0.23659,
+        0.236897,
+        0.233996,
+        0.233309,
+        0.232731,
+        0.233206,
+        0.232143,
+        0.227707,
+        0.200089,
+        0.219559,
+        0.217662,
+        0.209676,
+        0.208066,
+        0.202432,
+        0.198959,
+        0.193204
+      ]
+    },
+    {
+      "round": 3,
+      "tool": "npm",
+      "clients": 1,
+      "seconds": 0.166492,
+      "client_seconds": [
+        0.166094
+      ]
+    },
+    {
+      "round": 3,
+      "tool": "go",
+      "clients": 1,
+      "seconds": 0.119697,
+      "client_seconds": [
+        0.119395
+      ]
+    },
+    {
+      "round": 3,
+      "tool": "npm",
+      "clients": 4,
+      "seconds": 0.197271,
+      "client_seconds": [
+        0.197003,
+        0.195789,
+        0.193998,
+        0.192673
+      ]
+    },
+    {
+      "round": 3,
+      "tool": "go",
+      "clients": 4,
+      "seconds": 0.130317,
+      "client_seconds": [
+        0.129597,
+        0.129784,
+        0.128624,
+        0.128487
+      ]
+    },
+    {
+      "round": 4,
+      "tool": "go",
+      "clients": 16,
+      "seconds": 0.240659,
+      "client_seconds": [
+        0.212885,
+        0.201206,
+        0.20104,
+        0.193107,
+        0.199352,
+        0.206804,
+        0.195496,
+        0.192353,
+        0.227181,
+        0.198231,
+        0.214681,
+        0.210959,
+        0.187571,
+        0.174617,
+        0.201613,
+        0.195483
+      ]
+    },
+    {
+      "round": 4,
+      "tool": "npm",
+      "clients": 16,
+      "seconds": 0.589615,
+      "client_seconds": [
+        0.509235,
+        0.57041,
+        0.551083,
+        0.583103,
+        0.48671,
+        0.492469,
+        0.551111,
+        0.564424,
+        0.572125,
+        0.574334,
+        0.564122,
+        0.479948,
+        0.480407,
+        0.558485,
+        0.554241,
+        0.556077
+      ]
+    },
+    {
+      "round": 4,
+      "tool": "go",
+      "clients": 1,
+      "seconds": 0.147672,
+      "client_seconds": [
+        0.147064
+      ]
+    },
+    {
+      "round": 4,
+      "tool": "npm",
+      "clients": 1,
+      "seconds": 0.202127,
+      "client_seconds": [
+        0.201797
+      ]
+    },
+    {
+      "round": 4,
+      "tool": "go",
+      "clients": 4,
+      "seconds": 0.15825,
+      "client_seconds": [
+        0.155162,
+        0.153554,
+        0.154663,
+        0.142619
+      ]
+    },
+    {
+      "round": 4,
+      "tool": "npm",
+      "clients": 4,
+      "seconds": 0.23349,
+      "client_seconds": [
+        0.233165,
+        0.231093,
+        0.22909,
+        0.227101
+      ]
+    },
+    {
+      "round": 4,
+      "tool": "go",
+      "clients": 8,
+      "seconds": 0.141626,
+      "client_seconds": [
+        0.135342,
+        0.139801,
+        0.133369,
+        0.137194,
+        0.12847,
+        0.127477,
+        0.129758,
+        0.125899
+      ]
+    },
+    {
+      "round": 4,
+      "tool": "npm",
+      "clients": 8,
+      "seconds": 0.270685,
+      "client_seconds": [
+        0.267467,
+        0.265722,
+        0.265675,
+        0.262271,
+        0.262924,
+        0.259505,
+        0.258469,
+        0.258145
+      ]
+    },
+    {
+      "round": 5,
+      "tool": "npm",
+      "clients": 1,
+      "seconds": 0.370112,
+      "client_seconds": [
+        0.369742
+      ]
+    },
+    {
+      "round": 5,
+      "tool": "go",
+      "clients": 1,
+      "seconds": 0.168825,
+      "client_seconds": [
+        0.168362
+      ]
+    },
+    {
+      "round": 5,
+      "tool": "npm",
+      "clients": 4,
+      "seconds": 0.248615,
+      "client_seconds": [
+        0.248043,
+        0.246207,
+        0.245794,
+        0.243662
+      ]
+    },
+    {
+      "round": 5,
+      "tool": "go",
+      "clients": 4,
+      "seconds": 0.171971,
+      "client_seconds": [
+        0.171689,
+        0.170183,
+        0.168349,
+        0.166743
+      ]
+    },
+    {
+      "round": 5,
+      "tool": "npm",
+      "clients": 8,
+      "seconds": 0.609802,
+      "client_seconds": [
+        0.575148,
+        0.605949,
+        0.606348,
+        0.597009,
+        0.594706,
+        0.598015,
+        0.579229,
+        0.586096
+      ]
+    },
+    {
+      "round": 5,
+      "tool": "go",
+      "clients": 8,
+      "seconds": 0.302749,
+      "client_seconds": [
+        0.275733,
+        0.246203,
+        0.27254,
+        0.293798,
+        0.266979,
+        0.291169,
+        0.264051,
+        0.28425
+      ]
+    },
+    {
+      "round": 5,
+      "tool": "npm",
+      "clients": 16,
+      "seconds": 0.505011,
+      "client_seconds": [
+        0.4728,
+        0.475732,
+        0.496622,
+        0.450113,
+        0.464847,
+        0.460522,
+        0.456338,
+        0.466226,
+        0.472921,
+        0.480854,
+        0.469779,
+        0.4725,
+        0.455943,
+        0.464638,
+        0.441011,
+        0.439687
+      ]
+    },
+    {
+      "round": 5,
+      "tool": "go",
+      "clients": 16,
+      "seconds": 0.351435,
+      "client_seconds": [
+        0.343007,
+        0.339865,
+        0.340321,
+        0.334323,
+        0.335924,
+        0.33547,
+        0.325878,
+        0.32382,
+        0.319675,
+        0.317348,
+        0.313117,
+        0.295194,
+        0.310674,
+        0.283011,
+        0.273509,
+        0.277861
+      ]
+    }
+  ],
+  "after": {
+    "npm_content": {
+      "files": 1,
+      "logical_bytes": 229
+    },
+    "go_modules": {
+      "files": 9,
+      "logical_bytes": 626
+    },
+    "go_build": {
+      "files": 410,
+      "logical_bytes": 36805525
+    }
+  },
+  "offline_negative_controls": [
+    "npm",
+    "go"
+  ],
+  "npm_integrity": "sha512-PLdJ9DTAgFj13A+TYbX7LhpRzYlOb0JeVPt4wAxOLziHt1vPAnYzYqqYSWJvOLZZlLXE4hwjpYiarpY/5NzqFw==",
+  "go_sum": [
+    "example.test/shared v1.0.0 h1:SUh8FXQkzG2Eyft/tsgx9FthiQGaP1vUedbaTJLRWWY=",
+    "example.test/shared v1.0.0/go.mod h1:EazEgfmYsFYbznxLMACijtdxme13u0P8vqrI2V8H9oo="
+  ],
+  "go_zip_sha256": "e041f386e6efd6fc684a55c480f196d64edc6fc83888ca259605a0d3eefbabb3",
+  "warm_compiler_or_assembler_invocations": 0,
+  "median_seconds": {
+    "npm": {
+      "1": 0.202127,
+      "4": 0.23349,
+      "8": 0.321162,
+      "16": 0.505011
+    },
+    "go": {
+      "1": 0.12103,
+      "4": 0.15825,
+      "8": 0.216595,
+      "16": 0.30242
+    }
+  },
+  "passed": true,
+  "load_after": [
+    11.26806640625,
+    15.408203125,
+    20.0625
+  ]
+}

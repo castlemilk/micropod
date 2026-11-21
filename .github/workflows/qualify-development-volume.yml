@@ -1,0 +1,252 @@
+name: Qualify development volume and warm runtimes
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Qualification to run
+        type: choice
+        options: [storage, storage-scale, apple-rig, linux, packages, orbstack, all]
+        default: storage
+      apple_runner:
+        description: Registered Apple Silicon runner label for the apple-rig suite
+        type: string
+        default: micropod-benchmark
+      orbstack_release:
+        description: OrbStack installer for the hosted Intel Mac
+        type: choice
+        options: [runner-compatible, current]
+        default: runner-compatible
+permissions:
+  contents: read
+jobs:
+  apfs:
+    if: inputs.suite == 'storage' || inputs.suite == 'storage-scale' || inputs.suite == 'all'
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Read the Swift toolchain fingerprint
+        run: echo "SWIFT_FINGERPRINT=$(swift --version 2>&1 | shasum | cut -c1-12)" >> "$GITHUB_ENV"
+      - name: Identify SDK build
+        id: sdk
+        run: echo "build=$(xcrun --sdk macosx --show-sdk-build-version)" >> "$GITHUB_OUTPUT"
+      - name: Restore the production CLI
+        id: cli
+        uses: actions/cache/restore@v4
+        with:
+          path: .qualification-bin/micropod
+          key: volume-cli-${{ runner.arch }}-${{ env.SWIFT_FINGERPRINT }}-${{ steps.sdk.outputs.build }}-${{ hashFiles('Package.swift', 'Package.resolved', 'Sources/**') }}
+      - uses: actions/cache/restore@v4
+        if: steps.cli.outputs.cache-hit != 'true'
+        with:
+          path: .build
+          key: swiftpm-debug-${{ runner.os }}-${{ runner.arch }}-${{ env.SWIFT_FINGERPRINT }}-${{ hashFiles('Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            swiftpm-debug-${{ runner.os }}-${{ runner.arch }}-${{ env.SWIFT_FINGERPRINT }}-${{ hashFiles('Package.resolved') }}-
+      - name: Build Micropod CLI
+        if: steps.cli.outputs.cache-hit != 'true'
+        run: |
+          swift build --product micropod
+          mkdir -p .qualification-bin
+          cp .build/debug/micropod .qualification-bin/micropod
+      - name: Cache the built CLI
+        if: steps.cli.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .qualification-bin/micropod
+          key: ${{ steps.cli.outputs.cache-primary-key }}
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: .go-version
+          cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify concurrent package cache binds over the production Unix socket
+        run: |
+          swiftc -O -parse-as-library Sources/MicropodSharedFS/*.swift scripts/bench_cache_bind.swift -o "$RUNNER_TEMP/bind-bench"
+          python3 scripts/bench_package_caches.py --rounds 3 --bind-binary "$RUNNER_TEMP/bind-bench" --transport unix --parent /tmp --json "$RUNNER_TEMP/binds.json"
+          jq -c . "$RUNNER_TEMP/binds.json" | sed 's/^/CACHE_BIND_RECEIPT /'
+      - name: Migrate and remount a disposable APFS volume
+        env:
+          METADATA_ROUNDS: ${{ (inputs.suite == 'storage-scale' || inputs.suite == 'all') && '4' || '0' }}
+        run: python3 scripts/qualify_dev_volume.py --binary .qualification-bin/micropod --metadata-rounds "$METADATA_ROUNDS" --json "$RUNNER_TEMP/volume.json"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: development-volume
+          path: |
+            ${{ runner.temp }}/volume.json
+            ${{ runner.temp }}/binds.json
+
+  apple-rig:
+    if: github.event_name == 'workflow_dispatch' && inputs.suite == 'apple-rig'
+    runs-on: [self-hosted, macOS, ARM64, "${{ inputs.apple_runner }}"]
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Compare physical Apple runtimes and the matched warm Ubuntu workload
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(--engine rig-matrix --api "${MICROPOD_BENCH_API:?Expected local Micropod endpoint}"
+            --allocation "${MICROPOD_BENCH_ALLOCATION:?Expected running rootless allocation}"
+            --socket "${MICROPOD_BENCH_SOCKET:?Expected inner Docker socket}"
+            --package-image "${MICROPOD_BENCH_PACKAGE_IMAGE:-micropod-offline-cache:bench}"
+            --image alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+            --json "$RUNNER_TEMP/apple-rig.json")
+          if [[ -n "${MICROPOD_BENCH_ORBSTACK_SOCKET:-}" ]]; then args+=(--orbstack-socket "$MICROPOD_BENCH_ORBSTACK_SOCKET"); fi
+          if [[ -n "${MICROPOD_BENCH_DESKTOP_SOCKET:-}" ]]; then args+=(--desktop-socket "$MICROPOD_BENCH_DESKTOP_SOCKET"); fi
+          if [[ -n "${MICROPOD_BENCH_COLIMA_SOCKET:-}" ]]; then args+=(--colima-socket "$MICROPOD_BENCH_COLIMA_SOCKET"); fi
+          if [[ -n "${MICROPOD_BENCH_REVISION:-}" ]]; then args+=(--expected-revision "$MICROPOD_BENCH_REVISION"); fi
+          refs=docs/benchmarks/2026-11-19
+          for ref in live-kernel-arm64 live-kernel-arm64-repeat package-containers-ubuntu-arm64; do
+            args+=(--ubuntu-reference "$refs/$ref.json")
+          done
+          python3 scripts/bench_live_kernel.py "${args[@]}"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: physical-apple-warm-matrix
+          path: ${{ runner.temp }}/apple-rig.json
+
+  warm-linux:
+    if: inputs.suite == 'linux' || inputs.suite == 'all'
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04-arm, ubuntu-24.04]
+    runs-on: ${{ matrix.runner }}
+    env:
+      IMAGE: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+      - name: Pull native Alpine
+        run: docker pull "$IMAGE"
+      - name: Verify the running kernel and measure 1, 4, 8 and 16 clients
+        run: python3 scripts/bench_live_kernel.py --engine linux-docker --image "$IMAGE" --socket /var/run/docker.sock --json "$RUNNER_TEMP/kernel.json"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: live-kernel-${{ matrix.runner }}
+          path: ${{ runner.temp }}/kernel.json
+
+  package-reference:
+    if: inputs.suite == 'packages' || inputs.suite == 'all'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 16
+    env:
+      IMAGE: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+      TOOLCHAIN: micropod-offline-cache:bench
+    steps:
+      - uses: actions/checkout@v7
+      - name: Prepare the package toolchain and kernel fixture
+        run: |
+          docker pull "$IMAGE"
+          docker build --build-arg SOURCE_DATE_EPOCH=0 -t "$TOOLCHAIN" scripts/bench_cache_image
+      - name: Verify offline installs in fresh containers on the warm kernel
+        run: |
+          python3 scripts/bench_live_kernel.py --engine linux-docker --image "$IMAGE" --socket /var/run/docker.sock --package-image "$TOOLCHAIN" --json "$RUNNER_TEMP/packages.json"
+      - name: Export the exact ARM64 comparison image
+        run: docker save "$TOOLCHAIN" | gzip -1 > "$RUNNER_TEMP/package-fixture.tar.gz"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: arm64-offline-package-reference
+          path: |
+            ${{ runner.temp }}/packages.json
+            ${{ runner.temp }}/package-fixture.tar.gz
+          retention-days: 7
+          compression-level: 0
+
+  warm-orbstack:
+    if: inputs.suite == 'orbstack' || inputs.suite == 'all'
+    runs-on: macos-26-intel
+    timeout-minutes: 22
+    env:
+      ORB_APP: /Applications/OrbStack.app
+      ORB_RELEASE: ${{ inputs.orbstack_release || 'runner-compatible' }}
+      IMAGE: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Record host and check virtualization
+        run: |
+          sw_vers
+          uname -m
+          sysctl machdep.cpu.brand_string machdep.cpu.family machdep.cpu.model machdep.cpu.stepping hw.ncpu hw.memsize kern.hv_support
+          test "$(uname -m)" = x86_64
+          test "$(sysctl -n kern.hv_support)" = 1
+      - name: Install and verify the selected Intel version
+        run: |
+          fixture=scripts/orbstack-benchmark-installer.json
+          if [[ "$ORB_RELEASE" == "runner-compatible" ]]; then fixture=scripts/bench_orb_transport/installer.json; fi
+          url=$(jq -er '.url' "$fixture")
+          sha=$(jq -er '.sha256' "$fixture")
+          dmg="$RUNNER_TEMP/OrbStack.dmg"
+          mount="$RUNNER_TEMP/orb-installer"
+          mkdir "$mount"
+          curl --fail --location --retry 2 --max-time 120 --output "$dmg" "$url"
+          echo "$sha  $dmg" | shasum -a 256 --check
+          hdiutil attach -readonly -nobrowse -mountpoint "$mount" "$dmg"
+          ditto "$mount/OrbStack.app" "$ORB_APP"
+          hdiutil detach "$mount"
+          codesign --verify --strict "$ORB_APP"
+          version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$ORB_APP/Contents/Info.plist")
+          build=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$ORB_APP/Contents/Info.plist")
+          test "$version" = "$(jq -er '.version' "$fixture")"
+          test "$build" = "$(jq -er '.build' "$fixture")"
+          echo "OrbStack $version (build $build)"
+          printf '%s\n' "$ORB_APP/Contents/MacOS/bin" "$ORB_APP/Contents/MacOS/xbin" "$HOME/.orbstack/bin" >> "$GITHUB_PATH"
+      - name: Start OrbStack and verify its local Docker endpoint
+        id: orbready
+        run: |
+          mkdir -p "$HOME/.docker/cli-plugins"
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess, time
+          path = pathlib.Path(os.environ["RUNNER_TEMP"]) / "orb-start.json"
+          started = time.monotonic()
+          subprocess.run(["orb", "config", "set", "setup.use_admin", "false"], check=True, timeout=120)
+          subprocess.run(["orb", "start"], check=True, timeout=120)
+          socket = pathlib.Path.home() / ".orbstack/run/docker.sock"
+          last = ""
+          while time.monotonic() - started < 200:
+              health = subprocess.run(["curl", "--silent", "--show-error", "--fail", "--max-time", "4",
+                                       "--unix-socket", str(socket), "http://localhost/info"],
+                                      capture_output=True, text=True)
+              if health.returncode == 0:
+                  engine = json.loads(health.stdout)
+                  break
+              last = health.stderr.strip()
+              if int(time.monotonic() - started) % 12 < 5:
+                  print(f"Waiting for Docker API ({time.monotonic()-started:.0f}s): {last}", flush=True)
+              time.sleep(1)
+          else:
+              raise SystemExit("OrbStack API readiness deadline: " + last)
+          ready_ms = round((time.monotonic() - started) * 1000, 2)
+          detail = {key: engine.get(key) for key in
+                    ["OperatingSystem", "Name", "KernelVersion", "Architecture", "ServerVersion", "NCPU", "MemTotal"]}
+          if "orbstack" not in str(detail).lower():
+              raise SystemExit(f"Unverified OrbStack engine {detail}")
+          record = {"first_cli_to_docker_info_ms": ready_ms, "identity": detail, "endpoint": "~/.orbstack/run/docker.sock"}
+          path.write_text(json.dumps(record, indent=2) + "\n")
+          print(json.dumps(record))
+          PY
+          if ! docker context inspect orbstack >/dev/null 2>&1; then
+            docker context create orbstack --docker "host=unix://$HOME/.orbstack/run/docker.sock"
+          fi
+      - name: Pull matching native Alpine
+        run: docker --host "unix://$HOME/.orbstack/run/docker.sock" pull "$IMAGE"
+      - name: Verify the running kernel and measure 1, 4, 8 and 16 clients
+        run: python3 scripts/bench_live_kernel.py --engine orbstack --image "$IMAGE" --socket "$HOME/.orbstack/run/docker.sock" --json "$RUNNER_TEMP/kernel.json"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: orbstack-amd64-live-kernel
+          path: |
+            ${{ runner.temp }}/kernel.json
+            ${{ runner.temp }}/orb-start.json

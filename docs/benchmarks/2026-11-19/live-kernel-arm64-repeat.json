@@ -1,0 +1,191 @@
+{
+  "profile": "linux-docker",
+  "measured_at": "2026-11-19T11:54:41Z",
+  "system": "Linux",
+  "arch": "aarch64",
+  "clock": "client",
+  "image": "alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+  "rounds": 5,
+  "server": {
+    "ID": "9ee1f823-cfe1-4d8d-96bc-e33b1fff3662",
+    "Name": "runnervmnfvap",
+    "OperatingSystem": "Ubuntu 24.04.5 LTS",
+    "Architecture": "aarch64",
+    "ServerVersion": "28.0.4",
+    "KernelVersion": "7.0.0-1017-azure",
+    "NCPU": 4,
+    "MemTotal": 16715923456,
+    "SecurityOptions": [
+      "name=apparmor",
+      "name=seccomp,profile=builtin",
+      "name=cgroupns"
+    ]
+  },
+  "image_id": "sha256:ab3fe4defd29ba6231229a4d41440ac8bde8218e85870e53876277faa24b35c4",
+  "architecture": "arm64",
+  "image_digests": [
+    "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+  ],
+  "boot_sha256": "2c999b94500014c9245d8cc399a1ade12731fd5cb3ce4e026a118ad533f2a1d2",
+  "namespaces": [
+    [
+      "pid:[4026532266]",
+      "mnt:[4026532263]"
+    ],
+    [
+      "pid:[4026532331]",
+      "mnt:[4026532328]"
+    ]
+  ],
+  "resource_contract": "1 CPU / 256 MiB",
+  "ownership_check": "Linux parent and overlapping containers",
+  "batches": [
+    {
+      "round": 1,
+      "clients": 1,
+      "seconds": 0.121041,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 1,
+      "clients": 4,
+      "seconds": 0.201231,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 1,
+      "clients": 8,
+      "seconds": 0.414397,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 1,
+      "clients": 16,
+      "seconds": 0.564126,
+      "passed": 16,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 4,
+      "seconds": 0.184628,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 8,
+      "seconds": 0.33184,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 16,
+      "seconds": 0.580835,
+      "passed": 16,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 1,
+      "seconds": 0.129307,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 8,
+      "seconds": 0.339916,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 16,
+      "seconds": 0.600022,
+      "passed": 16,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 1,
+      "seconds": 0.11129,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 4,
+      "seconds": 0.204704,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 4,
+      "clients": 16,
+      "seconds": 0.597848,
+      "passed": 16,
+      "errors": []
+    },
+    {
+      "round": 4,
+      "clients": 1,
+      "seconds": 0.128206,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 4,
+      "clients": 4,
+      "seconds": 0.200717,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 4,
+      "clients": 8,
+      "seconds": 0.333499,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 5,
+      "clients": 1,
+      "seconds": 0.126606,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 5,
+      "clients": 4,
+      "seconds": 0.175454,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 5,
+      "clients": 8,
+      "seconds": 0.340869,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 5,
+      "clients": 16,
+      "seconds": 0.590286,
+      "passed": 16,
+      "errors": []
+    }
+  ],
+  "p50_seconds": {
+    "1": 0.126606,
+    "4": 0.200717,
+    "8": 0.339916,
+    "16": 0.590286
+  },
+  "passed": true
+}

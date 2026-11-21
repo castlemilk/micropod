@@ -1,0 +1,193 @@
+{
+  "profile": "orbstack",
+  "measured_at": "2026-11-19T11:28:52Z",
+  "system": "Darwin",
+  "arch": "x86_64",
+  "image": "alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+  "rounds": 5,
+  "server": {
+    "ID": "46910219-441f-4277-9a64-b8370d605572",
+    "Name": "orbstack",
+    "OperatingSystem": "OrbStack",
+    "Architecture": "x86_64",
+    "ServerVersion": "25.0.5",
+    "KernelVersion": "6.7.11-orbstack-00143-ge6b82e26cd22",
+    "NCPU": 4,
+    "MemTotal": 4800720896,
+    "SecurityOptions": [
+      "name=seccomp,profile=builtin",
+      "name=cgroupns"
+    ]
+  },
+  "image_id": "sha256:bf8527eb54c3680e728d5b4b383a8ba730d72dae7236fbc8dff97ed6b224a731",
+  "architecture": "amd64",
+  "image_digests": [
+    "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+  ],
+  "boot_sha256": "72009aa700fca6abfe46337c48e8d1b981f7cacef4a2bc497d0fa7d515126e1d",
+  "namespaces": [
+    [
+      "pid:[4026532536]",
+      "mnt:[4026532533]"
+    ],
+    [
+      "pid:[4026532656]",
+      "mnt:[4026532653]"
+    ]
+  ],
+  "resource_contract": "1 CPU / 256 MiB",
+  "ownership_check": "overlapping OrbStack containers",
+  "batches": [
+    {
+      "round": 1,
+      "clients": 1,
+      "seconds": 4.742252,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 1,
+      "clients": 4,
+      "seconds": 16.901137,
+      "passed": 2,
+      "errors": [
+        "exit code or output streams differed",
+        "exit code or output streams differed"
+      ]
+    },
+    {
+      "round": 1,
+      "clients": 8,
+      "seconds": 38.164055,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 1,
+      "clients": 16,
+      "seconds": 65.048757,
+      "passed": 16,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 4,
+      "seconds": 22.222728,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 8,
+      "seconds": 42.682871,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 16,
+      "seconds": 68.003143,
+      "passed": 16,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 1,
+      "seconds": 7.189414,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 8,
+      "seconds": 36.772045,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 16,
+      "seconds": 56.566907,
+      "passed": 16,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 1,
+      "seconds": 6.809887,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 4,
+      "seconds": 20.436875,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 4,
+      "clients": 16,
+      "seconds": 59.747,
+      "passed": 16,
+      "errors": []
+    },
+    {
+      "round": 4,
+      "clients": 1,
+      "seconds": 9.310057,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 4,
+      "clients": 4,
+      "seconds": 15.728196,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 4,
+      "clients": 8,
+      "seconds": 33.929796,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 5,
+      "clients": 1,
+      "seconds": 6.668333,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 5,
+      "clients": 4,
+      "seconds": 18.375238,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 5,
+      "clients": 8,
+      "seconds": 33.878247,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 5,
+      "clients": 16,
+      "seconds": 69.310348,
+      "passed": 16,
+      "errors": []
+    }
+  ],
+  "p50_seconds": {
+    "1": 6.809887,
+    "4": 19.4060565,
+    "8": 36.772045,
+    "16": 65.048757
+  },
+  "passed": false,
+  "error": "Some measured containers failed validation"
+}

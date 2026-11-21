@@ -278,6 +278,18 @@ public actor SharedFSDaemon: SharedFSClient {
     }
 
     public func mountShared(src: URL, readonly: Bool) async throws -> MountInfo {
+        let view = try await acquireSharedView(src)
+        return MountInfo(
+            id: view.id, src: view.source.path, viewPath: view.root.path,
+            sizeBytes: view.size(), readonly: readonly, createdAt: view.createdAt)
+    }
+
+    public func bindShared(src: URL, readonly: Bool) async throws -> SharedBind {
+        let view = try await acquireSharedView(src)
+        return SharedBind(id: view.id, viewPath: view.root.path)
+    }
+
+    private func acquireSharedView(_ src: URL) async throws -> SharedView {
         // Enforce storage cap before next mount (synchronous, no du)
         _ = await enforceStorageCapIfNeeded()
         let normalized = src.resolvingSymlinksInPath().standardizedFileURL
@@ -285,10 +297,7 @@ public actor SharedFSDaemon: SharedFSClient {
         if let existing = sharedViews[key] {
             sharedRefCounts[key, default: 1] += 1
             fputs("[sharedfs] mountShared reuse \(key) -> \(existing.root.path)\n", stderr)
-            return MountInfo(
-                id: existing.id, src: key, viewPath: existing.root.path,
-                sizeBytes: existing.size(), readonly: readonly,
-                createdAt: existing.createdAt)
+            return existing
         }
         // Deterministic ID for shared view (so restarts can re-derive).
         let hash = (try? ChunkHash.compute(Data(key.utf8)))?.value.prefix(12) ?? Substring(UUID().uuidString.prefix(12))
@@ -307,9 +316,7 @@ public actor SharedFSDaemon: SharedFSClient {
         views[id] = view
         startSharedWatchers(src: normalized, view: view)
         fputs("[sharedfs] mountShared \(key) -> \(viewRoot.path)\n", stderr)
-        return MountInfo(
-            id: id, src: key, viewPath: viewRoot.path,
-            sizeBytes: view.size(), readonly: readonly, createdAt: view.createdAt)
+        return view
     }
 
     /// Rebuild the view from the live source. Called explicitly by clients

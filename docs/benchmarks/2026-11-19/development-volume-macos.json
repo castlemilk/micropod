@@ -1,0 +1,223 @@
+{
+  "volume_uuid": "8153D418-9DCA-4D23-BC7B-9FECEC9D9758",
+  "checks": [
+    "plan",
+    "own-apfs-volume",
+    "idempotent-create",
+    "persistent-log-marker",
+    "spotlight-marker",
+    "working-directory-guard",
+    "live-holder-guard",
+    "atomic-migration",
+    "hardlinks",
+    "xattr",
+    "mode",
+    "dangling-symlink",
+    "git-directory",
+    "pnpm-store-hardlink",
+    "existing-cross-tree-hardlinks",
+    "restore-cross-tree-hardlinks",
+    "repair",
+    "uuid-remount",
+    "restore-latest",
+    "repeat-migration"
+  ],
+  "spotlight_seed": "/System/Volumes/Data/Volumes/Seed-fdf68c6d0094:\n\tIndexing disabled.",
+  "spotlight_development": "/System/Volumes/Data/Volumes/MicropodDev-CB17BA03-20EF-4A9A-A037-DFA374DEB96C:\n\tIndexing and searching disabled.",
+  "physical_host_claim": false,
+  "samples": [
+    {
+      "round": 1,
+      "clients": 1,
+      "location": "seed",
+      "seconds": 0.053969
+    },
+    {
+      "round": 1,
+      "clients": 1,
+      "location": "development",
+      "seconds": 0.029363
+    },
+    {
+      "round": 1,
+      "clients": 4,
+      "location": "development",
+      "seconds": 0.095483
+    },
+    {
+      "round": 1,
+      "clients": 4,
+      "location": "seed",
+      "seconds": 0.089452
+    },
+    {
+      "round": 1,
+      "clients": 8,
+      "location": "seed",
+      "seconds": 0.188128
+    },
+    {
+      "round": 1,
+      "clients": 8,
+      "location": "development",
+      "seconds": 0.248872
+    },
+    {
+      "round": 1,
+      "clients": 16,
+      "location": "development",
+      "seconds": 0.482939
+    },
+    {
+      "round": 1,
+      "clients": 16,
+      "location": "seed",
+      "seconds": 0.366307
+    },
+    {
+      "round": 2,
+      "clients": 1,
+      "location": "development",
+      "seconds": 0.023088
+    },
+    {
+      "round": 2,
+      "clients": 1,
+      "location": "seed",
+      "seconds": 0.021554
+    },
+    {
+      "round": 2,
+      "clients": 4,
+      "location": "seed",
+      "seconds": 0.102676
+    },
+    {
+      "round": 2,
+      "clients": 4,
+      "location": "development",
+      "seconds": 0.119588
+    },
+    {
+      "round": 2,
+      "clients": 8,
+      "location": "development",
+      "seconds": 0.999665
+    },
+    {
+      "round": 2,
+      "clients": 8,
+      "location": "seed",
+      "seconds": 0.405295
+    },
+    {
+      "round": 2,
+      "clients": 16,
+      "location": "seed",
+      "seconds": 0.515813
+    },
+    {
+      "round": 2,
+      "clients": 16,
+      "location": "development",
+      "seconds": 0.357218
+    },
+    {
+      "round": 3,
+      "clients": 1,
+      "location": "seed",
+      "seconds": 0.018462
+    },
+    {
+      "round": 3,
+      "clients": 1,
+      "location": "development",
+      "seconds": 0.018336
+    },
+    {
+      "round": 3,
+      "clients": 4,
+      "location": "development",
+      "seconds": 0.072429
+    },
+    {
+      "round": 3,
+      "clients": 4,
+      "location": "seed",
+      "seconds": 0.072681
+    },
+    {
+      "round": 3,
+      "clients": 8,
+      "location": "seed",
+      "seconds": 0.133203
+    },
+    {
+      "round": 3,
+      "clients": 8,
+      "location": "development",
+      "seconds": 0.118568
+    },
+    {
+      "round": 3,
+      "clients": 16,
+      "location": "development",
+      "seconds": 0.291062
+    },
+    {
+      "round": 3,
+      "clients": 16,
+      "location": "seed",
+      "seconds": 0.452133
+    },
+    {
+      "round": 4,
+      "clients": 1,
+      "location": "development",
+      "seconds": 0.03069
+    },
+    {
+      "round": 4,
+      "clients": 1,
+      "location": "seed",
+      "seconds": 0.025639
+    },
+    {
+      "round": 4,
+      "clients": 4,
+      "location": "seed",
+      "seconds": 0.135764
+    },
+    {
+      "round": 4,
+      "clients": 4,
+      "location": "development",
+      "seconds": 0.096627
+    },
+    {
+      "round": 4,
+      "clients": 8,
+      "location": "development",
+      "seconds": 0.205977
+    },
+    {
+      "round": 4,
+      "clients": 8,
+      "location": "seed",
+      "seconds": 0.15763
+    },
+    {
+      "round": 4,
+      "clients": 16,
+      "location": "seed",
+      "seconds": 0.318952
+    },
+    {
+      "round": 4,
+      "clients": 16,
+      "location": "development",
+      "seconds": 0.357975
+    }
+  ],
+  "passed": true
+}

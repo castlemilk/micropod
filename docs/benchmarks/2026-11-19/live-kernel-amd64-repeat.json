@@ -1,0 +1,191 @@
+{
+  "profile": "linux-docker",
+  "measured_at": "2026-11-19T11:54:48Z",
+  "system": "Linux",
+  "arch": "x86_64",
+  "clock": "client",
+  "image": "alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+  "rounds": 5,
+  "server": {
+    "ID": "1aa92226-258c-4db5-8d0c-78884a2760b5",
+    "Name": "ip-10-0-138-112",
+    "OperatingSystem": "Ubuntu 24.04.5 LTS",
+    "Architecture": "x86_64",
+    "ServerVersion": "28.0.4",
+    "KernelVersion": "7.0.0-1014-aws",
+    "NCPU": 4,
+    "MemTotal": 16464297984,
+    "SecurityOptions": [
+      "name=apparmor",
+      "name=seccomp,profile=builtin",
+      "name=cgroupns"
+    ]
+  },
+  "image_id": "sha256:bf8527eb54c3680e728d5b4b383a8ba730d72dae7236fbc8dff97ed6b224a731",
+  "architecture": "amd64",
+  "image_digests": [
+    "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+  ],
+  "boot_sha256": "ffb04652faf62c3f4aeba1e53505a93e77baac25cec410f83bd410b95445e9a2",
+  "namespaces": [
+    [
+      "pid:[4026532754]",
+      "mnt:[4026532751]"
+    ],
+    [
+      "pid:[4026532825]",
+      "mnt:[4026532822]"
+    ]
+  ],
+  "resource_contract": "1 CPU / 256 MiB",
+  "ownership_check": "Linux parent and overlapping containers",
+  "batches": [
+    {
+      "round": 1,
+      "clients": 1,
+      "seconds": 0.083283,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 1,
+      "clients": 4,
+      "seconds": 0.133265,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 1,
+      "clients": 8,
+      "seconds": 0.251561,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 1,
+      "clients": 16,
+      "seconds": 0.481491,
+      "passed": 16,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 4,
+      "seconds": 0.133684,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 8,
+      "seconds": 0.247101,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 16,
+      "seconds": 0.482525,
+      "passed": 16,
+      "errors": []
+    },
+    {
+      "round": 2,
+      "clients": 1,
+      "seconds": 0.083334,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 8,
+      "seconds": 0.243031,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 16,
+      "seconds": 0.488722,
+      "passed": 16,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 1,
+      "seconds": 0.080534,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 3,
+      "clients": 4,
+      "seconds": 0.12621,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 4,
+      "clients": 16,
+      "seconds": 0.479164,
+      "passed": 16,
+      "errors": []
+    },
+    {
+      "round": 4,
+      "clients": 1,
+      "seconds": 0.082559,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 4,
+      "clients": 4,
+      "seconds": 0.132126,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 4,
+      "clients": 8,
+      "seconds": 0.242238,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 5,
+      "clients": 1,
+      "seconds": 0.085744,
+      "passed": 1,
+      "errors": []
+    },
+    {
+      "round": 5,
+      "clients": 4,
+      "seconds": 0.128325,
+      "passed": 4,
+      "errors": []
+    },
+    {
+      "round": 5,
+      "clients": 8,
+      "seconds": 0.242467,
+      "passed": 8,
+      "errors": []
+    },
+    {
+      "round": 5,
+      "clients": 16,
+      "seconds": 0.49208,
+      "passed": 16,
+      "errors": []
+    }
+  ],
+  "p50_seconds": {
+    "1": 0.083283,
+    "4": 0.132126,
+    "8": 0.243031,
+    "16": 0.482525
+  },
+  "passed": true
+}

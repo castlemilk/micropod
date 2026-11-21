@@ -1,0 +1,212 @@
+{
+  "system": "Darwin",
+  "machine": "arm64",
+  "release": "25.6.0",
+  "cpus": 3,
+  "load_before": [
+    49.14111328125,
+    27.07421875,
+    11.25634765625
+  ],
+  "rounds": 3,
+  "profile": "micropod-shared-cache-bind",
+  "measured_at": "2026-11-19T13:06:55Z",
+  "versions": {
+    "go": "go version go1.27.4 darwin/arm64",
+    "npm": "11.19.1",
+    "node": "v24.22.3"
+  },
+  "seed": {
+    "npm_cache_add_seconds": 0.46581895799999984,
+    "go_download_seconds": 0.025950500000007537,
+    "go_cold_build_seconds": 4.403597542,
+    "go_cold_compiler_or_assembler_invocations": 106
+  },
+  "cache_sizes": {
+    "npm_content": {
+      "files": 1,
+      "logical_bytes": 229
+    },
+    "go_modules": {
+      "files": 9,
+      "logical_bytes": 626
+    },
+    "go_build": {
+      "files": 410,
+      "logical_bytes": 36791857
+    }
+  },
+  "batches": [
+    {
+      "clients": 1,
+      "mode": "size-and-bind",
+      "round": 1,
+      "seconds": 0.012511417
+    },
+    {
+      "clients": 1,
+      "mode": "bind",
+      "round": 1,
+      "seconds": 0.001802083
+    },
+    {
+      "clients": 4,
+      "mode": "bind",
+      "round": 1,
+      "seconds": 0.004156583
+    },
+    {
+      "clients": 4,
+      "mode": "size-and-bind",
+      "round": 1,
+      "seconds": 0.030046709
+    },
+    {
+      "clients": 8,
+      "mode": "size-and-bind",
+      "round": 1,
+      "seconds": 0.060697375
+    },
+    {
+      "clients": 8,
+      "mode": "bind",
+      "round": 1,
+      "seconds": 0.007723667
+    },
+    {
+      "clients": 16,
+      "mode": "bind",
+      "round": 1,
+      "seconds": 0.018433417
+    },
+    {
+      "clients": 16,
+      "mode": "size-and-bind",
+      "round": 1,
+      "seconds": 0.125031
+    },
+    {
+      "clients": 4,
+      "mode": "bind",
+      "round": 2,
+      "seconds": 0.004361625
+    },
+    {
+      "clients": 4,
+      "mode": "size-and-bind",
+      "round": 2,
+      "seconds": 0.037172042
+    },
+    {
+      "clients": 8,
+      "mode": "size-and-bind",
+      "round": 2,
+      "seconds": 0.062334459
+    },
+    {
+      "clients": 8,
+      "mode": "bind",
+      "round": 2,
+      "seconds": 0.007022541
+    },
+    {
+      "clients": 16,
+      "mode": "bind",
+      "round": 2,
+      "seconds": 0.013223042
+    },
+    {
+      "clients": 16,
+      "mode": "size-and-bind",
+      "round": 2,
+      "seconds": 0.121541834
+    },
+    {
+      "clients": 1,
+      "mode": "size-and-bind",
+      "round": 2,
+      "seconds": 0.010779625
+    },
+    {
+      "clients": 1,
+      "mode": "bind",
+      "round": 2,
+      "seconds": 0.0017295
+    },
+    {
+      "clients": 8,
+      "mode": "size-and-bind",
+      "round": 3,
+      "seconds": 0.0607505
+    },
+    {
+      "clients": 8,
+      "mode": "bind",
+      "round": 3,
+      "seconds": 0.00864125
+    },
+    {
+      "clients": 16,
+      "mode": "bind",
+      "round": 3,
+      "seconds": 0.016408958
+    },
+    {
+      "clients": 16,
+      "mode": "size-and-bind",
+      "round": 3,
+      "seconds": 0.121733958
+    },
+    {
+      "clients": 1,
+      "mode": "size-and-bind",
+      "round": 3,
+      "seconds": 0.010230125
+    },
+    {
+      "clients": 1,
+      "mode": "bind",
+      "round": 3,
+      "seconds": 0.001761542
+    },
+    {
+      "clients": 4,
+      "mode": "bind",
+      "round": 3,
+      "seconds": 0.003862417
+    },
+    {
+      "clients": 4,
+      "mode": "size-and-bind",
+      "round": 3,
+      "seconds": 0.031738875
+    }
+  ],
+  "build": "optimized",
+  "passed": true,
+  "sources": [
+    "npm-cache",
+    "go-mod-cache",
+    "go-build-cache"
+  ],
+  "transport": "unix",
+  "median_seconds": {
+    "size-and-bind": {
+      "1": 0.010779625,
+      "4": 0.031738875,
+      "8": 0.0607505,
+      "16": 0.121733958
+    },
+    "bind": {
+      "1": 0.001761542,
+      "4": 0.004156583,
+      "8": 0.007723667,
+      "16": 0.016408958
+    }
+  },
+  "load_after": [
+    42.37353515625,
+    26.34765625,
+    11.1826171875
+  ]
+}

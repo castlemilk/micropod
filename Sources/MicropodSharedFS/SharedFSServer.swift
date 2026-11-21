@@ -104,6 +104,12 @@ public final class SharedFSServer: @unchecked Sendable {
                 }
                 let url = URL(fileURLWithPath: src)
                 let readonly = (params["readonly"]?.value as? Bool) ?? false
+                if params["bindOnly"]?.value as? Bool == true {
+                    let bind = try await daemon.bindShared(src: url, readonly: readonly)
+                    return .init(
+                        id: req.id, ok: true,
+                        result: AnyCodable(["id": bind.id.value, "viewPath": bind.viewPath]), error: nil)
+                }
                 let info = try await daemon.mountShared(src: url, readonly: readonly)
                 return .init(
                     id: req.id, ok: true,

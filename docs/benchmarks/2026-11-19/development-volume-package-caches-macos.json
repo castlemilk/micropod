@@ -1,0 +1,56 @@
+{
+  "package_seed": {
+    "npm_cache_add_seconds": 0.4065748749999898,
+    "go_download_seconds": 0.021097583999988956,
+    "go_cold_build_seconds": 4.451146457999982,
+    "go_cold_compiler_or_assembler_invocations": 106
+  },
+  "different_project": {
+    "offline": true,
+    "compiled_packages": [
+      "main"
+    ],
+    "same_dependency_inodes": true
+  },
+  "volume_uuid": "98F1D926-BE1F-4FF2-89F0-6D81DC3CBF55",
+  "checks": [
+    "plan",
+    "own-apfs-volume",
+    "idempotent-create",
+    "persistent-log-marker",
+    "spotlight-marker",
+    "working-directory-guard",
+    "live-holder-guard",
+    "atomic-migration",
+    "hardlinks",
+    "xattr",
+    "mode",
+    "dangling-symlink",
+    "git-directory",
+    "pnpm-store-hardlink",
+    "existing-cross-tree-hardlinks",
+    "restore-cross-tree-hardlinks",
+    "preserve-identical-apfs-clones",
+    "clone-specific-metadata",
+    "diverged-clones",
+    "restore-copy-on-write",
+    "repair",
+    "encrypted-create-lock-unlock",
+    "uuid-remount",
+    "restore-latest",
+    "repeat-migration",
+    "enroll-existing-volume",
+    "coalesce-nested-cache",
+    "retry-cache-enrollment",
+    "npm-offline-after-remount-and-restore",
+    "go-offline-after-remount-and-restore",
+    "go-zero-warm-compiles",
+    "changed-project-reuses-dependencies"
+  ],
+  "spotlight_seed": "/System/Volumes/Data/Volumes/Seed-97292629bed5:\n\tIndexing disabled.",
+  "spotlight_development": "/System/Volumes/Data/Volumes/MicropodDev-130EC6BC-48F0-4B3D-9B11-AB10E67C5051:\n\tIndexing and searching disabled.",
+  "physical_host_claim": false,
+  "metadata_rounds": 0,
+  "samples": [],
+  "passed": true
+}

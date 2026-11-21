@@ -26,6 +26,16 @@ public final class UnixSocketClient: SharedFSClient, @unchecked Sendable {
         return MountInfo(dictionary: result as? [String: Any] ?? [:])
     }
 
+    public func bindShared(src: URL, readonly: Bool) async throws -> SharedBind {
+        // Older servers ignore bindOnly and return a full MountInfo with the same id and path.
+        let result = try await call(
+            method: "mountShared", params: ["src": src.path, "readonly": readonly, "bindOnly": true])
+        guard let fields = result as? [String: Any], let id = fields["id"] as? String, !id.isEmpty,
+            let path = fields["viewPath"] as? String, path.hasPrefix("/")
+        else { throw SharedFSError.daemonUnavailable }
+        return SharedBind(id: ViewID(id), viewPath: path)
+    }
+
     public func unmount(id: ViewID) async throws {
         _ = try await call(method: "unmount", params: ["id": id.value])
     }
