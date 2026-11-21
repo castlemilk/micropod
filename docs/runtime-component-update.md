@@ -459,12 +459,19 @@ reboot and an on-demand lookup of its Mach service (G4).
 
 ### VM release gate
 
-No release ships the authority until these nine tests pass on a throwaway
-macOS 26 VM with SIP on and the production Developer ID build (a draft
-qualification candidate). `scripts/vm/runtime-authority-gate.sh` runs them
-inside the VM and prints PASS/FAIL per check; `scripts/vm/gate-host.sh`
-creates the VM with tart and runs the kill matrix on clones;
-docs/vm-release-gate.md has the exact commands.
+No release ships the authority until these nine tests pass with SIP on and
+the production Developer ID build (a draft qualification candidate), either
+on real rigs or on a throwaway macOS 26 VM.
+
+- **On rigs (the default).** A rig without Micropod runs G1, G2, G5, G6, G7
+  and G8. A 0.13.3 rig runs G3, with one real kill at `neutralized`, plus G9
+  and G4. `MICROPOD_GATE_RIG=1`; RuntimeAuthorityMigrationTests covers the
+  rest of the kill matrix.
+- **On a VM.** `scripts/vm/gate-host.sh` creates the VM with tart and runs the
+  kill matrix on clones.
+
+`scripts/vm/runtime-authority-gate.sh` runs the tests and prints PASS/FAIL per
+check. docs/vm-release-gate.md has the exact commands.
 
 0. **Harden** (`harden`, `harden matrix`). Every step refuses outside a
    hypervisor guest carrying the gate's root-owned marker, or next to any

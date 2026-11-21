@@ -1,8 +1,57 @@
-# Runtime-authority VM release gate
+# Runtime-authority release gate
 
 The nine tests in docs/runtime-component-update.md ("VM release gate") run
-in a throwaway macOS 26 VM. This page is the procedure for one Apple Silicon
-host (written for HN91XC4WQ9: 32 GB RAM, about 72 GB free).
+either on real rigs ([On a rig](#on-a-rig), the default) or in a throwaway
+macOS 26 VM (the rest of this page, written for HN91XC4WQ9: 32 GB RAM, about
+72 GB free).
+
+## On a rig
+
+No VM and no image: each rig runs the tests for the upgrade it really takes
+and ends upgraded to candidate A, the release under test.
+
+| Track | Rig | Tests | Reboots |
+| --- | --- | --- | --- |
+| fresh | no Micropod runtime yet (HN91XC4WQ9) | G1, G2, G5, G6, G7, G8 | none |
+| legacy | 0.13.3 with its SMAppService helper (Gamma-128) | G3 (one kill), G9, G4 | two |
+
+```sh
+cuttle micropod gate run --candidate <A-tag> --floor-candidate <B-tag>
+```
+
+`cuttle` picks the track from the rig's state (`rig-begin`). It pauses, drains
+and stops the Cuttlefish agent and its GitHub runners, and asks before quitting
+Docker Desktop, exactly as for the VM. It then runs the runner on the rig
+itself with `MICROPOD_GATE_RIG=1`. sudo asks for your password in that
+terminal; cuttle never reads it.
+
+What rig mode does differently:
+
+- **The account is never changed.** `harden` does not run: no password, ssh or
+  sudo change. Neither do `prepare-legacy` or `g4-before`, which plants code
+  that runs as root at boot.
+- **The marker.** Every step requires the root-owned marker
+  `/var/db/micropod-gate-rig` that `rig-begin` writes. Every step also refuses
+  while the Cuttlefish agent, a GitHub runner or Docker Desktop runs.
+- **The fresh track returns to A after each B test.** One rig plays every
+  clone. After each test that moved it to B (whose security floor is B),
+  `rig-reset` does three things:
+  1. puts root's saved high-water marks for A back (`rig-save`, right after
+     `g1`);
+  2. reinstalls A's app;
+  3. rolls the runtime back to A.
+
+  A failed `rig-reset` ends the run, because later results would not be
+  about A.
+- **The legacy track has one kill, not twelve.** A rig has one 0.13.3 install,
+  so G3 is a single real kill at `neutralized`, followed by a reboot (`g3-kill`,
+  then `g3-check neutralized rebooted`). RuntimeAuthorityMigrationTests covers
+  the other eleven cases. `g9` and `g4-after` share one reboot.
+- **It ends on A.** `rig-end` removes the gate's own files and leaves the
+  installed release in place.
+
+`cuttle micropod release publish` takes both rigs' verdicts (`--evidence`
+twice): together they must pass G1 to G9.
 
 Ground rules:
 
