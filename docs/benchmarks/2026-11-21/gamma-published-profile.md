@@ -1,5 +1,7 @@
 # Gamma published TCP profile
 
+These runs used each engine’s container defaults. A later probe inside the same service image found a one-CPU quota in Micropod and an unlimited CPU quota in OrbStack, on four-vCPU VMs. The follow-up measures the engines with equal CPU, memory and PID limits. [Matched Gamma measurements](gamma-published-scheduling.md)
+
 Against the previous Micropod release, median fresh-request latency changed by **-15.4%** and 32-stream throughput by **+51.2%**. Against OrbStack the changes were **+5.6% in latency** and **-22.2% in throughput**. These measurements cover a Mac client using a published TCP port on the same M5 Max. The faster relay is opt-in with `MICROPOD_CI_PORT_RELAY=kqueue` in the worker environment. One naturally occurring guest handshake exhausted both connection attempts. [Measurements, unsuccessful attempts, CPU stacks and raw counters](gamma-published-profile.json.gz)
 
 | Mac client measurement | Previous Micropod | Micropod with kqueue | OrbStack | Kqueue wins vs previous |

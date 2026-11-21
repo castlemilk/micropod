@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http/httptest"
 	"os"
@@ -11,6 +12,44 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestDockerCPUQuotaPreservesDefaultsAndExplicitLimits(t *testing.T) {
+	for _, tc := range []struct {
+		host    string
+		want    int64
+		invalid bool
+	}{
+		{`{}`, 100000, false},
+		{`{"CpuQuota":-1}`, -1, false},
+		{`{"CpuQuota":50000}`, 50000, false},
+		{`{"NanoCpus":4000000000}`, 400000, false},
+		{`{"CpuQuota":-2}`, 0, true},
+		{`{"NanoCpus":4000000000,"CpuQuota":-1}`, 0, true},
+	} {
+		t.Run(tc.host, func(t *testing.T) {
+			spec, err := parseDockerConfig([]byte(fmt.Sprintf(`{"Image":"qa","HostConfig":%s}`, tc.host)))
+			if tc.invalid {
+				if err == nil {
+					t.Fatal("accepted invalid resources")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, c, err := config("cpu-test", t.TempDir(), "qa", job{Trust: "trusted", Command: []string{"true"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := spec.configure(c, nil); err != nil {
+				t.Fatal(err)
+			}
+			if got := c.Linux.Resources; got.CpuQuota != tc.want || got.CpuPeriod != 100000 || got.MemoryLimitInBytes != 1<<30 || got.Unified["pids.max"] != "512" {
+				t.Fatalf("unexpected resources %+v", got)
+			}
+		})
+	}
+}
 
 func TestDockerOptionsAndMounts(t *testing.T) {
 	for _, raw := range []string{`{"label":{"cuttle.test=x":true}}`, `{"label":["cuttle.test=x"]}`} {

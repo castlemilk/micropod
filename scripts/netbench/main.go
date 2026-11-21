@@ -16,7 +16,9 @@ import (
 	"net/http/httptrace"
 	"net/url"
 	"os"
+	"runtime"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -34,10 +36,26 @@ func main() {
 	streams := flag.Int("streams", 0, "simultaneous bulk TCP transfers")
 	bursts := flag.Int("bursts", 1, "number of parallel transfer batches")
 	barrier := flag.Bool("stream-barrier", false, "wait for every response to begin before draining the parallel streams")
-	profile := flag.String("profile", "", "isolate fresh requests or sustained bulk streams for profiling (fresh or bulk)")
+	profile := flag.String("profile", "", "profile fresh requests, sustained bulk streams, or fresh requests during continuous downloads (fresh, bulk, or mixed)")
+	freshURL := flag.String("fresh-url", "", "mixed profile only: send fresh requests to a second URL serving the same marker")
+	cgroupInfo := flag.Bool("cgroup-info", false, "print the actual cgroup v2 limits seen inside this Linux container")
 	dns := flag.Int("lookups", 0, "number of single-family service DNS lookups")
 	dnsClients := flag.Int("dns-clients", 1, "independent resolvers issuing parallel service lookups")
 	flag.Parse()
+	if *cgroupInfo {
+		limits := map[string]any{"visible_cpus": runtime.NumCPU(), "gomaxprocs": runtime.GOMAXPROCS(0)}
+		for _, name := range []string{"cpu.max", "cpuset.cpus.effective", "memory.max", "pids.max", "cpu.stat"} {
+			value, err := os.ReadFile("/sys/fs/cgroup/" + name)
+			if err != nil {
+				log.Fatal(err)
+			}
+			limits[name] = strings.TrimSpace(string(value))
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(limits); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	if *listen != "" {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/id", func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, *marker) })
@@ -49,6 +67,9 @@ func main() {
 	if *target == "" || *rounds < 2 || *streams < 0 || *streams > 128 || *bursts < 1 || *bursts > 100 || *dns < 0 || *dns > 10000 || *dnsClients < 1 || *dnsClients > 128 {
 		flag.Usage()
 		os.Exit(2)
+	}
+	if *freshURL != "" && *profile != "mixed" {
+		log.Fatal("-fresh-url is only used with -profile mixed")
 	}
 	tr := &http.Transport{DialContext: (&net.Dialer{Timeout: 3 * time.Second}).DialContext}
 	client := &http.Client{Transport: tr, Timeout: 15 * time.Second}
@@ -67,6 +88,14 @@ func main() {
 				log.Fatal("bulk profiling needs at least one stream")
 			}
 			result = profileBulk(*target, *marker, *streams, *bursts)
+		case "mixed":
+			if *streams == 0 {
+				log.Fatal("mixed profiling needs at least one stream")
+			}
+			if *freshURL == "" {
+				*freshURL = *target
+			}
+			result = profileMixed(*target, *freshURL, *marker, *streams, *rounds)
 		default:
 			log.Fatalf("unknown profile %q", *profile)
 		}
@@ -281,24 +310,29 @@ func profileFresh(client *http.Client, verify func(context.Context), requests in
 	return result
 }
 
+func downloadClient(target, marker string, reopened *atomic.Int64) (*http.Client, context.Context) {
+	tr := &http.Transport{DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext, MaxIdleConnsPerHost: 1}
+	client := &http.Client{Transport: tr, Timeout: 30 * time.Second}
+	verifyID(client, target, marker, context.Background())
+	ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+		GotConn: func(c httptrace.GotConnInfo) {
+			if !c.Reused {
+				reopened.Add(1)
+			}
+		},
+	})
+	return client, ctx
+}
+
 func profileBulk(target, marker string, streams, transfers int) map[string]any {
 	var ready, done sync.WaitGroup
-	var newConnections atomic.Int32
+	var newConnections atomic.Int64
 	gate := make(chan struct{})
 	ready.Add(streams)
 	for range streams {
 		done.Go(func() {
-			tr := &http.Transport{DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext, MaxIdleConnsPerHost: 1}
-			defer tr.CloseIdleConnections()
-			client := &http.Client{Transport: tr, Timeout: 30 * time.Second}
-			verifyID(client, target, marker, context.Background())
-			ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
-				GotConn: func(c httptrace.GotConnInfo) {
-					if !c.Reused {
-						newConnections.Add(1)
-					}
-				},
-			})
+			client, ctx := downloadClient(target, marker, &newConnections)
+			defer client.CloseIdleConnections()
 			ready.Done()
 			<-gate
 			for range transfers {
@@ -316,4 +350,72 @@ func profileBulk(target, marker string, streams, transfers int) map[string]any {
 	total := int64(streams) * int64(transfers) * size
 	return map[string]any{"mode": "bulk", "iterations": transfers, "streams": streams, "bytes": total,
 		"elapsed_s": elapsed, "mib_s": float64(total) / (1 << 20) / elapsed, "reopened_connections": newConnections.Load()}
+}
+
+// Each downloader uses one verified connection. Counters are per stream so
+// measuring the offered load does not add a shared lock to every socket read.
+type downloadCounter struct {
+	bytes atomic.Int64
+}
+
+func (c *downloadCounter) Write(p []byte) (int, error) {
+	c.bytes.Add(int64(len(p)))
+	return len(p), nil
+}
+
+func profileMixed(bulkURL, freshURL, marker string, streams, requests int) map[string]any {
+	var ready, done sync.WaitGroup
+	var reopened atomic.Int64
+	counters := make([]downloadCounter, streams)
+	stop := make(chan struct{})
+	ready.Add(streams)
+	for i := range counters {
+		done.Go(func() {
+			client, ctx := downloadClient(bulkURL, marker, &reopened)
+			defer client.CloseIdleConnections()
+			// Finish one complete transfer before counting this stream as warm.
+			for first := true; ; first = false {
+				if requestBody(client, bulkURL, ctx, "/data", &counters[i]) != size {
+					log.Fatal("short mixed-load transfer")
+				}
+				if first {
+					ready.Done()
+				}
+				select {
+				case <-stop:
+					return
+				default:
+				}
+			}
+		})
+	}
+	ready.Wait()
+	tr := &http.Transport{DialContext: (&net.Dialer{Timeout: 3 * time.Second}).DialContext}
+	defer tr.CloseIdleConnections()
+	client := &http.Client{Transport: tr, Timeout: 15 * time.Second}
+	before := make([]int64, streams)
+	perStream := make([]int64, streams)
+	for i := range counters {
+		before[i] = counters[i].bytes.Load()
+	}
+	begin := time.Now()
+	var elapsed time.Duration
+	var total int64
+	remaining := requests
+	fresh := profileFresh(client, func(ctx context.Context) {
+		verifyID(client, freshURL, marker, ctx)
+		remaining--
+		if remaining == 0 {
+			elapsed = time.Since(begin)
+			for i := range counters {
+				perStream[i] = counters[i].bytes.Load() - before[i]
+				total += perStream[i]
+			}
+			close(stop)
+		}
+	}, requests)
+	done.Wait()
+	return map[string]any{"mode": "mixed", "fresh": fresh, "streams": streams,
+		"overlap_s": elapsed.Seconds(), "overlap_bytes": total, "overlap_bytes_per_stream": perStream,
+		"overlap_mib_s": float64(total) / (1 << 20) / elapsed.Seconds(), "reopened_connections": reopened.Load()}
 }

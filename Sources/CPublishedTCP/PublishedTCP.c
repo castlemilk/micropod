@@ -15,14 +15,16 @@
 // One scratch buffer per worker. Only a short write needs per-stream storage.
 #define CHUNK (256 * 1024)
 #define EVENTS_PER_TURN 128
+#define BULK_BATCH 2
 #define LARGE_READ (16 * 1024)
 
-enum event_kind { ACCEPT, STREAM };
+enum event_kind { ACCEPT, STREAM, BULK_READY };
 struct watch { enum event_kind kind; int fd; };
 struct pair;
 
 struct mp_tcp_relay {
     int kq;
+    struct watch bulk;
     struct in_addr guest;
     struct pair *retired;
     char scratch[CHUNK];
@@ -41,7 +43,7 @@ struct mp_tcp_listener {
 struct endpoint {
     struct watch watch;
     struct pair *pair;
-    bool connecting, eof;
+    bool connecting, eof, bulk_read;
     char *pending;
     size_t offset, length;
 };
@@ -50,16 +52,30 @@ struct pair {
     mp_tcp_listener *listener;
     struct pair *prev, *next;
     struct endpoint client, guest;
-    bool large_transfer, retried;
-    uint64_t accepted_at, connected_at;
+    bool retried;
+    uint64_t accepted_at, connected_at, first_request_write_at;
 };
 
-static int watch_fd(mp_tcp_relay *r, struct watch *w, int16_t filter, uint16_t flags) {
+static int change_watch(int kq, struct watch *w, int16_t filter, uint16_t flags) {
     struct kevent change;
     EV_SET(&change, w->fd, filter, flags, 0, 0, w);
     int status;
-    do { status = kevent(r->kq, &change, 1, NULL, 0, NULL); } while (status < 0 && errno == EINTR);
+    do { status = kevent(kq, &change, 1, NULL, 0, NULL); } while (status < 0 && errno == EINTR);
     return status;
+}
+
+static struct endpoint *opposite(struct endpoint *e) {
+    return e == &e->pair->client ? &e->pair->guest : &e->pair->client;
+}
+
+static int watch_fd(mp_tcp_relay *r, struct watch *w, int16_t filter, uint16_t flags) {
+    int q = r->kq;
+    if (w->kind == STREAM) {
+        struct endpoint *e = (struct endpoint *)w;
+        // READ consumes this direction; WRITE flushes its peer's pending bytes.
+        if ((filter == EVFILT_READ ? e : opposite(e))->bulk_read) q = r->bulk.fd;
+    }
+    return change_watch(q, w, filter, flags);
 }
 
 static int prepare(int fd) {
@@ -77,9 +93,12 @@ mp_tcp_relay *mp_tcp_relay_create(const char *guest) {
     if (!r) return NULL;
     r->guest = address;
     r->kq = kqueue();
-    if (r->kq < 0 || fcntl(r->kq, F_SETFD, FD_CLOEXEC) < 0) {
+    r->bulk = (struct watch){ BULK_READY, kqueue() };
+    if (r->kq < 0 || r->bulk.fd < 0 || fcntl(r->kq, F_SETFD, FD_CLOEXEC) < 0 ||
+        fcntl(r->bulk.fd, F_SETFD, FD_CLOEXEC) < 0 || watch_fd(r, &r->bulk, EVFILT_READ, EV_ADD) < 0) {
         int err = errno;
         if (r->kq >= 0) close(r->kq);
+        if (r->bulk.fd >= 0) close(r->bulk.fd);
         free(r);
         errno = err;
         return NULL;
@@ -162,6 +181,7 @@ void mp_tcp_release(mp_tcp_listener *l, mp_tcp_stats *stats) {
 
 void mp_tcp_relay_destroy(mp_tcp_relay *r) {
     close(r->kq);
+    close(r->bulk.fd);
     free(r);
 }
 
@@ -250,9 +270,19 @@ static void pump(struct endpoint *src, struct endpoint *dst) {
             return;
         }
         count = (size_t)got;
-        if (count >= LARGE_READ) p->large_transfer = true;
+        if (!src->bulk_read && count >= LARGE_READ) {
+            // Both queues have one serial owner. No bulk event can run until
+            // this pump returns; closing the fd removes it from both queues.
+            if (change_watch(r->bulk.fd, &src->watch, EVFILT_READ, EV_ADD) < 0 ||
+                change_watch(r->kq, &src->watch, EVFILT_READ, EV_DELETE) < 0) { retire(p); return; }
+            src->bulk_read = true;
+            if (l->profile) ++l->stats.bulk_directions;
+        }
         if (l->profile && src == &p->guest && p->connected_at) {
-            observe(l->stats.first_byte_us, clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - p->connected_at);
+            uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+            observe(l->stats.first_byte_us, now - p->connected_at);
+            if (p->first_request_write_at)
+                observe(l->stats.request_to_first_guest_byte_us, now - p->first_request_write_at);
             p->connected_at = 0;
         }
     }
@@ -265,6 +295,10 @@ static void pump(struct endpoint *src, struct endpoint *dst) {
     if (l->profile) {
         if (src == &p->client) l->stats.upload_bytes += (size_t)sent;
         else l->stats.download_bytes += (size_t)sent;
+        if (sent > 0 && src == &p->client && p->connected_at && !p->first_request_write_at) {
+            p->first_request_write_at = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+            observe(l->stats.first_request_write_us, p->first_request_write_at - p->connected_at);
+        }
     }
     if ((size_t)sent < count) {
         if (l->profile) ++l->stats.blocked_writes;
@@ -345,40 +379,45 @@ static void accept_ready(mp_tcp_listener *l, int16_t filter) {
     }
 }
 
-void mp_tcp_relay_drain(mp_tcp_relay *r) {
-    struct kevent batch[EVENTS_PER_TURN];
-    struct timespec now = {0};
-    int n = kevent(r->kq, NULL, 0, batch, EVENTS_PER_TURN, &now);
-    // Every event in this bounded batch is serviced. Preserve kernel order
-    // within each class and take a snapshot before reads change a pair's class.
-    int ready[EVENTS_PER_TURN], transfers[EVENTS_PER_TURN];
-    int ready_count = 0, transfer_count = 0;
-    for (int i = 0; i < n; ++i) {
-        struct watch *w = batch[i].udata;
-        if (w->kind == STREAM && ((struct endpoint *)w)->pair->large_transfer)
-            transfers[transfer_count++] = i;
-        else
-            ready[ready_count++] = i;
+static void service_event(const struct kevent *event) {
+    struct watch *w = event->udata;
+    if (w->kind == ACCEPT) {
+        accept_ready((mp_tcp_listener *)w, event->filter);
+        return;
     }
-    memcpy(ready + ready_count, transfers, (size_t)transfer_count * sizeof(*transfers));
-    for (int pos = 0; pos < n; ++pos) {
-        int i = ready[pos];
-        struct watch *w = batch[i].udata;
-        if (w->kind == ACCEPT) {
-            accept_ready((mp_tcp_listener *)w, batch[i].filter);
-            continue;
+    struct endpoint *e = (struct endpoint *)w;
+    struct pair *p = e->pair;
+    if (!p->listener) return;
+    struct endpoint *peer = opposite(e);
+    if (p->guest.connecting) {
+        if (e == &p->guest && event->filter == EVFILT_WRITE) finish_connect(p);
+    } else if (event->filter == EVFILT_WRITE) {
+        if (e->length) pump(peer, e);
+    } else if (!e->eof && !peer->length) {
+        pump(e, peer);
+    }
+}
+
+void mp_tcp_relay_drain(mp_tcp_relay *r) {
+    struct kevent events[EVENTS_PER_TURN];
+    struct timespec now = {0};
+    // Recheck new and interactive sockets between groups of bulk reads. A
+    // bounded callback also leaves the serial owner free for lease revocation.
+    int serviced = 0;
+    while (serviced < EVENTS_PER_TURN) {
+        int n = kevent(r->kq, NULL, 0, events, EVENTS_PER_TURN, &now);
+        if (n <= 0) break;
+        bool bulk_ready = false;
+        for (int i = 0; i < n; ++i) {
+            if (events[i].udata == &r->bulk) { bulk_ready = true; continue; }
+            service_event(&events[i]);
+            ++serviced;
         }
-        struct endpoint *e = (struct endpoint *)w;
-        struct pair *p = e->pair;
-        if (!p->listener) continue;
-        struct endpoint *peer = e == &p->client ? &p->guest : &p->client;
-        if (p->guest.connecting) {
-            if (e == &p->guest && batch[i].filter == EVFILT_WRITE) finish_connect(p);
-        } else if (batch[i].filter == EVFILT_WRITE) {
-            if (e->length) pump(peer, e);
-        } else if (!e->eof && !peer->length) {
-            pump(e, peer);
-        }
+        if (!bulk_ready) break;
+        n = kevent(r->bulk.fd, NULL, 0, events, BULK_BATCH, &now);
+        if (n <= 0) break;
+        for (int i = 0; i < n; ++i) service_event(&events[i]);
+        serviced += n;
     }
     reap(r);
 }

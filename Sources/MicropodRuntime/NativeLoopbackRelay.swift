@@ -81,8 +81,11 @@ final class NativeLoopbackRelay: @unchecked Sendable {
             "recovered": stats.recovered, "peak_active": stats.peak_active,
             "upload_bytes": stats.upload_bytes, "download_bytes": stats.download_bytes,
             "reads": stats.reads, "writes": stats.writes, "blocked_writes": stats.blocked_writes,
+            "bulk_directions": stats.bulk_directions,
             "accept_to_connect_us": buckets(stats.connect_us),
             "connect_to_first_guest_byte_us": buckets(stats.first_byte_us),
+            "connect_to_first_request_write_us": buckets(stats.first_request_write_us),
+            "first_request_write_to_guest_byte_us": buckets(stats.request_to_first_guest_byte_us),
         ]
         if let data = try? JSONSerialization.data(withJSONObject: event, options: [.sortedKeys]) {
             SecretSource.stderrLog("published TCP profile " + String(decoding: data, as: UTF8.self))

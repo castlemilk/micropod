@@ -179,7 +179,7 @@ func parseDockerConfig(body []byte) (dockerConfig, error) {
 	if spec.WorkingDir != "" && !filepath.IsAbs(spec.WorkingDir) {
 		return spec, errors.New("working directory must be absolute")
 	}
-	if h.Memory < 0 || h.NanoCpus < 0 || h.NanoCpus > 1e12 || h.CpuQuota < 0 || h.CpuPeriod < 0 || h.PidsLimit != nil && *h.PidsLimit < 0 || h.NanoCpus != 0 && (h.CpuQuota != 0 || h.CpuPeriod != 0) {
+	if h.Memory < 0 || h.NanoCpus < 0 || h.NanoCpus > 1e12 || h.CpuQuota < -1 || h.CpuPeriod < 0 || h.PidsLimit != nil && *h.PidsLimit < 0 || h.NanoCpus != 0 && (h.CpuQuota != 0 || h.CpuPeriod != 0) {
 		return spec, errors.New("invalid requested resources")
 	}
 	for _, kv := range spec.Env {
@@ -387,7 +387,9 @@ func (s dockerConfig) configure(c *cri.ContainerConfig, mounts []*cri.Mount) err
 	if h.CpuPeriod > 0 {
 		r.CpuPeriod = h.CpuPeriod
 	}
-	if h.CpuQuota > 0 {
+	// Docker's explicit -1 removes the child quota. Zero inherits the job
+	// default; the VM and ancestor cgroups bound both cases.
+	if h.CpuQuota != 0 {
 		r.CpuQuota = h.CpuQuota
 	}
 	if h.NanoCpus > 0 {

@@ -70,6 +70,8 @@ The network benchmark compares direct netlink with standalone Netavark on the sa
 
 The native worker uses SwiftNIO for Mac loopback port forwarding by default. To try the lower-CPU kqueue relay, set `MICROPOD_CI_PORT_RELAY=kqueue` when starting the worker or installing its launch agent. Add `MICROPOD_CI_PORT_PROFILE=1` to log per-port connection times, bytes, blocked writes and handshake retries when the port is released. An extended Gamma run saw a guest connection exhaust its retry budget. [Published-port profiles and OrbStack comparison](benchmarks/2026-11-21/gamma-published-profile.md)
 
+The kqueue relay checks for new connections between pairs of bulk socket events. Its per-port profile counts directions carrying bulk traffic and times the first request write and first guest response separately. Native Docker services inherit a one-CPU quota, 1 GiB of memory and 512 PIDs by default. Use `--cpus 4` to give a service four CPUs or `--cpu-quota=-1` to let it use the CPU time available to its parent. The published-port benchmark can verify these limits inside each service before timing. [Matched benchmarks and guest packet timings](benchmarks/2026-11-21/gamma-published-scheduling.md)
+
 ## Full Docker Engine worker
 
 

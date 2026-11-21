@@ -36,6 +36,44 @@ final class NativePublishedPortsTests: XCTestCase {
             .bind(host: "127.0.0.1", port: 0).wait()
     }
 
+    private final class Echo: ChannelInboundHandler {
+        typealias InboundIn = ByteBuffer
+        typealias OutboundOut = ByteBuffer
+
+        func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+            context.writeAndFlush(wrapOutboundOut(unwrapInboundIn(data)), promise: nil)
+        }
+
+        func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
+            if let event = event as? ChannelEvent, case .inputClosed = event {
+                let channel = context.channel
+                context.writeAndFlush(wrapOutboundOut(ByteBuffer())).whenComplete { _ in channel.close(promise: nil) }
+            }
+        }
+    }
+
+    func testFullDuplexBulkPreservesBytesAndHalfClose() async throws {
+        let upstream = try await ServerBootstrap(group: MultiThreadedEventLoopGroup.singleton)
+            .childChannelOption(.allowRemoteHalfClosure, value: true)
+            .childChannelInitializer { $0.pipeline.addHandler(Echo()) }
+            .bind(host: "127.0.0.1", port: 0).get()
+        defer { upstream.close(promise: nil) }
+        let relay = try NativeLoopbackRelay(guest: "127.0.0.1")
+        defer { relay.stop() }
+        let port = try relay.bind(host: 0, guest: UInt16(try XCTUnwrap(upstream.localAddress?.port)))
+        let client = try connect(port)
+        let pattern = Data((0...255).map(UInt8.init))
+        var data = Data()
+        for _ in 0..<65536 { data.append(pattern) }
+        let payload = data
+        let writer = Task.detached {
+            try client.write(contentsOf: payload)
+            if shutdown(client.fileDescriptor, SHUT_WR) < 0 { throw POSIXError(.EIO) }
+        }
+        XCTAssertEqual(try client.readToEnd(), payload)
+        try await writer.value
+    }
+
     private func connect(_ port: UInt16) throws -> FileHandle {
         let fd = Darwin.socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
         guard fd >= 0 else { throw POSIXError(.EIO) }
