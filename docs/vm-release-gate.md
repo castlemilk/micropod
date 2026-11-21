@@ -46,8 +46,9 @@ cuttle micropod gate run --candidate <A-tag> --floor-candidate <B-tag>
 
 It follows the same rules as the manual run:
 
-- **Preflight.** cuttle checks that the host is Apple Silicon, that 60 GB is
-  free for `base`, and that `gh` has push access. It stops and explains if
+- **Preflight.** cuttle checks that the host is Apple Silicon and that the
+  disk has what `gate-host.sh need` asks for (47 GB before the image is
+  pulled, 12 GB after). It stops and explains if
   the `pgrep` above shows any VM that is not the gate's own; it never stops
   one. It asks before quitting Docker Desktop. It also asks before stopping
   the Cuttlefish agent, which it pauses first and stops only once no attempt
@@ -148,7 +149,9 @@ bash ~/micropod-rc/gate-host.sh key
 `key` makes the ssh key the VMs accept and puts its public half in
 `~/micropod-rc/gate_key.pub`, where `harden` picks it up.
 
-`base` refuses to start with less than 60 GB free.
+`base` refuses to start without the space `bash ~/micropod-rc/gate-host.sh need`
+prints: the image (35 GB) until it is in tart's cache, plus 12 GB for the
+clones and logs.
 
 ## 3. The release candidates
 
