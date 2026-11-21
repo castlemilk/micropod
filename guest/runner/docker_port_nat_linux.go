@@ -22,6 +22,37 @@ func kernelPublishedPorts() bool {
 	return !privateRootless() && os.Getenv("MICROPOD_PUBLISH_IPV4") != ""
 }
 
+// Pace flows before the single virtio transmit queue. This interface only
+// carries Mac published ports. An explicitly configured discipline takes precedence.
+func pacePublishedLink() error {
+	handle, err := netlink.NewHandle(unix.NETLINK_ROUTE)
+	if err != nil {
+		return err
+	}
+	defer handle.Close()
+	link, err := handle.LinkByName("eth1")
+	if err != nil {
+		return err
+	}
+	return paceDefaultQueue(handle, link, "pfifo_fast")
+}
+
+func paceDefaultQueue(handle *netlink.Handle, link netlink.Link, initial string) error {
+	queues, err := handle.QdiscList(link)
+	if err != nil {
+		return err
+	}
+	for _, q := range queues {
+		if q.Attrs().Parent != netlink.HANDLE_ROOT {
+			continue
+		}
+		if q.Attrs().Handle == 0 && q.Type() == initial {
+			return handle.QdiscReplace(netlink.NewFq(netlink.QdiscAttrs{LinkIndex: link.Attrs().Index, Parent: netlink.HANDLE_ROOT}))
+		}
+	}
+	return nil
+}
+
 // A bound, non-listening socket reserves the guest port while netfilter routes
 // packets. No userspace process accepts connections or copies application data.
 type portMapping struct {
@@ -176,6 +207,13 @@ func (n node) preferLocalCongestionControl(ctx context.Context, podID, address s
 	}
 	for _, address := range addrs {
 		if source != nil && gateway != nil && address.IP.Equal(source) && address.IPNet.Contains(gateway) {
+			// At the service veth, fq can still pace individual sending sockets.
+			// Only change the implicit noqueue discipline on this new published pod.
+			if os.Getenv("MICROPOD_CI_PUBLISH_IPV4") != "" {
+				if err := paceDefaultQueue(pod, link, "noqueue"); err != nil {
+					log.Printf("published service fair queuing on %.12s: %v", podID, err)
+				}
+			}
 			// Do not replace an explicit application route or a prior successful installation.
 			dst := &net.IPNet{IP: gateway, Mask: net.CIDRMask(32, 32)}
 			// Shorten the minimum loss-recovery delay on this private

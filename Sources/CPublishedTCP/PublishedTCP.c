@@ -19,7 +19,8 @@
 // One scratch buffer per worker. Only a short write needs per-stream storage.
 #define CHUNK (256 * 1024)
 #define EVENTS_PER_TURN 128
-#define BULK_BATCH 2
+#define INTERACTIVE_BULK_BATCH 2
+#define THROUGHPUT_BULK_BATCH 12
 #define LARGE_READ (16 * 1024)
 
 enum event_kind { ACCEPT, STREAM, BULK_READY, RETRY_GUEST };
@@ -31,6 +32,7 @@ struct mp_tcp_relay {
     struct watch bulk;
     struct in_addr guest, gateway;
     unsigned ifindex;
+    atomic_bool path_failure;
     uint64_t interface_checked;
     struct pair *retired;
     char scratch[CHUNK];
@@ -105,6 +107,7 @@ mp_tcp_relay *mp_tcp_relay_create(const char *guest) {
     mp_tcp_relay *r = calloc(1, sizeof(*r));
     if (!r) return NULL;
     r->guest = address;
+    atomic_init(&r->path_failure, false);
     r->kq = kqueue();
     r->bulk = (struct watch){ BULK_READY, kqueue() };
     if (r->kq < 0 || r->bulk.fd < 0 || fcntl(r->kq, F_SETFD, FD_CLOEXEC) < 0 ||
@@ -153,6 +156,10 @@ static int scope_guest(mp_tcp_relay *r, int fd) {
     if (setsockopt(fd, IPPROTO_IP, IP_BOUND_IF, &r->ifindex, sizeof(r->ifindex)) < 0 ||
         bind(fd, (struct sockaddr *)&source, sizeof(source)) < 0) { r->ifindex = 0; return -1; }
     return 0;
+}
+
+int mp_tcp_take_path_failure(mp_tcp_relay *r) {
+    return atomic_exchange_explicit(&r->path_failure, false, memory_order_relaxed);
 }
 
 int mp_tcp_relay_descriptor(const mp_tcp_relay *r) { return r->kq; }
@@ -325,6 +332,10 @@ static bool retry_guest(struct pair *p, int error) {
         case ETIMEDOUT: case EHOSTUNREACH: case ENETUNREACH: case EADDRNOTAVAIL:
         case ENETDOWN: case ENXIO: break;
         default: return false;
+    }
+    if (!p->retried) {
+        mp_tcp_listener *owner = p->listener->parent ? p->listener->parent : p->listener;
+        atomic_store_explicit(&owner->relay->path_failure, true, memory_order_relaxed);
     }
     if (error == ETIMEDOUT) ++p->listener->stats.handshake_timeouts;
     else ++p->listener->stats.route_waits;
@@ -548,7 +559,9 @@ static void service_event(const struct kevent *event) {
     }
 }
 
-void mp_tcp_relay_drain(mp_tcp_relay *r) {
+void mp_tcp_relay_drain(mp_tcp_relay *r, int dedicated_data_owner) {
+    // The dedicated accept queue stays responsive during larger data batches.
+    const int batch = dedicated_data_owner ? THROUGHPUT_BULK_BATCH : INTERACTIVE_BULK_BATCH;
     struct kevent events[EVENTS_PER_TURN];
     struct timespec now = {0};
     // Recheck new and interactive sockets between groups of bulk reads. A
@@ -564,7 +577,7 @@ void mp_tcp_relay_drain(mp_tcp_relay *r) {
             ++serviced;
         }
         if (!bulk_ready) break;
-        n = kevent(r->bulk.fd, NULL, 0, events, BULK_BATCH, &now);
+        n = kevent(r->bulk.fd, NULL, 0, events, batch, &now);
         if (n <= 0) break;
         for (int i = 0; i < n; ++i) service_event(&events[i]);
         serviced += n;

@@ -190,6 +190,11 @@ func serveEngine(ctx context.Context, n node) error {
 	if err := syscall.Flock(int(owner.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		return errors.New("Docker API already has an owner")
 	}
+	if kernelPublishedPorts() && os.Getenv("MICROPOD_CI_PUBLISH_IPV4") != "" && os.Getenv("MICROPOD_CI_PORT_THROUGHPUT") == "1" {
+		if err := pacePublishedLink(); err != nil {
+			log.Printf("published interface fair queuing: %v", err)
+		}
+	}
 	if kernelPublishedPorts() {
 		// The exclusive API owner recovers interrupted jobs below. Discard their
 		// mappings before either a pod address or a guest port can be reused.

@@ -154,14 +154,16 @@ final class NativePublishedPortsTests: XCTestCase {
         let client = try connect(port)
         try client.write(contentsOf: Data("once".utf8))
         XCTAssertEqual(shutdown(client.fileDescriptor, SHUT_WR), 0)
-        mp_tcp_relay_drain(relay)
+        mp_tcp_relay_drain(relay, 0)
+        XCTAssertEqual(mp_tcp_take_path_failure(relay), 1)
+        XCTAssertEqual(mp_tcp_take_path_failure(relay), 0)
         var event = pollfd(fd: client.fileDescriptor, events: Int16(POLLIN), revents: 0)
         XCTAssertEqual(poll(&event, 1, 180), 0)
         XCTAssertEqual(mp_tcp_relay_scope(relay, "127.0.0.1"), 0)
         let deadline = ContinuousClock.now + .seconds(3)
         var received = Data()
         while ContinuousClock.now < deadline && received.count < 9 {
-            mp_tcp_relay_drain(relay)
+            mp_tcp_relay_drain(relay, 0)
             if poll(&event, 1, 5) > 0 {
                 // Drive the relay on this thread. Consume only bytes already
                 // available so a partial response cannot block the next drain.

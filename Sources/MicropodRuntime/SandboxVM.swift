@@ -133,6 +133,7 @@ public enum SandboxVM {
         let imageRef: String
         let diskBytes: UInt64
         let network: SandboxNetwork?
+        let publishedNetwork: SandboxNetwork?
         let guestIP: String?
         let gateway: String?
         let ports: [PortForward]
@@ -153,6 +154,7 @@ public enum SandboxVM {
             // A late vmnet callback may settle an earlier ambiguous result.
             // Recheck it without replaying the VM stop mutation.
             try network?.stop()
+            try publishedNetwork?.stop()
             forwarding.stop()
         }
 
@@ -232,6 +234,16 @@ public enum SandboxVM {
                 try vmnet.waitUntilReady()
             }
         }
+        // A host-only second interface keeps Mac listeners connected while the
+        // egress bridge is recovering. Older runner bundles use the primary link.
+        let publishedNetwork: SandboxNetwork?
+        if ciWorker?.isNativeRunner == true, let tools = options.ciOCITools,
+            FileManager.default.fileExists(atPath: tools.appendingPathComponent("runner/published-ports.sh").path)
+        {
+            publishedNetwork = try await SandboxNetwork.workerNetwork(mode: .VMNET_HOST_MODE)
+        } else {
+            publishedNetwork = nil
+        }
         let network = vmnet.map { (interface: $0.interface, gateway: $0.gateway.description) }
         if vmnet != nil { trace.mark("network") }
         var shares: [Containerization.Mount] = []
@@ -278,6 +290,12 @@ public enum SandboxVM {
         // only), without the run's env or proxy settings.
         var template = imageConfig.map { LinuxProcessConfiguration(from: $0) } ?? LinuxProcessConfiguration()
         template.environmentVariables = mergeEnv(mergeEnv(template.environmentVariables, egressEnv), options.env)
+        if let publishedNetwork {
+            template.environmentVariables += [
+                "MICROPOD_CI_PUBLISH_IPV4=" + publishedNetwork.interface.ipv4Address.address.description,
+                "MICROPOD_CI_PUBLISH_GATEWAY=" + publishedNetwork.gateway.description,
+            ]
+        }
         if let workdir = options.workdir { template.workingDirectory = workdir }
         if options.isolatedCIJob {
             template.noNewPrivileges = true
@@ -374,6 +392,7 @@ public enum SandboxVM {
             cfg.mounts.append(contentsOf: shares)
             if let network {
                 cfg.interfaces = [network.interface]
+                if let publishedNetwork { cfg.interfaces.append(publishedNetwork.interface) }
                 cfg.dns = DNS(
                     nameservers: options.dnsResolvers.isEmpty ? [network.gateway] : options.dnsResolvers)
                 if !options.exposeHost.isEmpty {
@@ -386,7 +405,7 @@ public enum SandboxVM {
         }
         return Prepared(
             id: id, container: container, rootfsPath: rootfsPath, imageRef: imageRef,
-            diskBytes: diskBytes, network: vmnet,
+            diskBytes: diskBytes, network: vmnet, publishedNetwork: publishedNetwork,
             guestIP: network.map { $0.interface.ipv4Address.address.description },
             gateway: network?.gateway, ports: options.ports, exposeHost: options.exposeHost, egress: egress,
             processTemplate: template, hasGuestTool: options.guestTool != nil)

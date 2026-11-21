@@ -41,6 +41,7 @@ extension CIWorker {
         public let cacheStores: [CacheStoreMetrics]
         public let buildCache: BuildCacheMetrics?
         public let lastNetworkRepair: NetworkRepair?
+        public let lastPublishedNetworkRepair: NetworkRepair?
         public let nativeOCI: NativeOCIMetrics?
     }
 
@@ -73,7 +74,7 @@ extension CIWorker {
     /// on the job launch path. A volume attachment and a package-manager hit are separate measurements.
     public func metrics(includeUsage: Bool = false) async throws -> Metrics {
         let current = try await status()
-        let api = DockerClient(endpoint: .unix(socket.path))
+        let api = DockerClient(endpoint: .unix(dockerSocket.path), version: Self.apiVersion)
         async let volumesRequest = api.request(
             "GET", includeUsage ? "/system/df" : "/volumes",
             query: includeUsage ? ["type": "volume"] : [:], timeout: includeUsage ? .seconds(120) : .seconds(5))
@@ -117,8 +118,11 @@ extension CIWorker {
                     volume.Name, activeContainers: attachments[volume.Name, default: 0], bytes: bytes)
             }
             .sorted { $0.volume < $1.volume }
-        let repair = (try? Data(contentsOf: directory.appendingPathComponent("network.json"))).flatMap {
-            try? decoder.decode(NetworkRepair.self, from: $0)
+        func lastRepair(_ file: String) -> NetworkRepair? {
+            guard let data = try? Data(contentsOf: directory.appendingPathComponent(file)),
+                let receipt = try? decoder.decode(NetworkRepair.self, from: data), receipt.instance == current.instance
+            else { return nil }
+            return receipt
         }
         let buildCache = includeUsage ? try await Self.buildCacheMetrics(api) : nil
         guard try await status().instance == current.instance else {
@@ -127,7 +131,9 @@ extension CIWorker {
         return Metrics(
             worker: current.worker, boot: current.boot, timestamp: Date(), runningContainers: running.count,
             cacheStores: stores, buildCache: buildCache,
-            lastNetworkRepair: repair?.instance == current.instance ? repair : nil, nativeOCI: oci)
+            lastNetworkRepair: lastRepair("network.json"),
+            lastPublishedNetworkRepair: lastRepair("published-network.json"),
+            nativeOCI: oci)
     }
 
     private static func buildCacheMetrics(_ api: DockerClient) async throws -> BuildCacheMetrics {

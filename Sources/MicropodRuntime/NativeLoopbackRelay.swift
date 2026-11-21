@@ -25,13 +25,13 @@ final class NativeLoopbackRelay: @unchecked Sendable {
         let queue: DispatchQueue
         let source: DispatchSourceRead
 
-        init(guest: String, gateway: String?, name: String) throws {
+        init(guest: String, gateway: String?, name: String, dedicatedDataOwner: Bool = false) throws {
             let backend = try Backend(guest: guest, gateway: gateway)
             self.backend = backend
             queue = DispatchQueue(label: "dev.micropod.published-tcp." + name, qos: .userInitiated)
             source = DispatchSource.makeReadSource(
                 fileDescriptor: mp_tcp_relay_descriptor(backend.handle), queue: queue)
-            source.setEventHandler { mp_tcp_relay_drain(backend.handle) }
+            source.setEventHandler { mp_tcp_relay_drain(backend.handle, dedicatedDataOwner ? 1 : 0) }
             source.setCancelHandler { withExtendedLifetime(backend) {} }
             source.activate()
         }
@@ -92,10 +92,12 @@ final class NativeLoopbackRelay: @unchecked Sendable {
     init(guest: String, gateway: String? = nil, parallel: Bool = true, profile: Bool = false) throws {
         accept = try Owner(guest: guest, gateway: parallel ? nil : gateway, name: "accept")
         workers = try (0..<(parallel ? 2 : 0)).map {
-            try Owner(guest: guest, gateway: gateway, name: "io." + String($0))
+            try Owner(guest: guest, gateway: gateway, name: "io." + String($0), dedicatedDataOwner: true)
         }
         self.profile = profile
     }
+
+    func takePathFailure() -> Bool { mp_tcp_take_path_failure(accept.backend.handle) != 0 }
 
     func bind(host: UInt16, guest: UInt16) throws -> UInt16 {
         try accept.queue.sync {

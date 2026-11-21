@@ -170,7 +170,11 @@ func openPublishedPort(ctx context.Context, ip, target string, host uint16) (*pu
 	return p, port, nil
 }
 func guestIPv4() (string, error) {
-	iface, err := net.InterfaceByName("eth0")
+	dev := "eth0"
+	if os.Getenv("MICROPOD_CI_PUBLISH_IPV4") != "" {
+		dev = "eth1"
+	}
+	iface, err := net.InterfaceByName(dev)
 	if err != nil {
 		return "", err
 	}

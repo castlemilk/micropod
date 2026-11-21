@@ -26,8 +26,10 @@ mp_tcp_listener *mp_tcp_target(mp_tcp_relay *relay, mp_tcp_listener *parent);
 void mp_tcp_set_handoff(mp_tcp_listener *listener, mp_tcp_handoff handler, void *owner);
 // Takes ownership of the client descriptor, including on failure.
 void mp_tcp_adopt(mp_tcp_listener *target, int client, uint64_t accepted_at);
+// Thread-safe, coalescing signal for a new handshake that lost the worker path.
+int mp_tcp_take_path_failure(mp_tcp_relay *accept_relay);
 int mp_tcp_relay_descriptor(const mp_tcp_relay *relay);
-void mp_tcp_relay_drain(mp_tcp_relay *relay);
+void mp_tcp_relay_drain(mp_tcp_relay *relay, int dedicated_data_owner);
 void mp_tcp_relay_destroy(mp_tcp_relay *relay);
 
 // Binds exactly 127.0.0.1. Returns NULL and sets errno on failure.

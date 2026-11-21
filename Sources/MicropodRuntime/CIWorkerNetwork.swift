@@ -35,30 +35,53 @@ extension CIWorker {
         return false
     }
 
-    static func attachNIC(_ attach: Bool, vm: VZVirtualMachineInstance, network: SandboxNetwork) async throws {
+    enum WorkerLink: Int, Sendable {
+        case egress, published
+
+        var device: String { self == .egress ? "eth0" : "eth1" }
+
+        func network(in prepared: SandboxVM.Prepared) -> SandboxNetwork? {
+            self == .egress ? prepared.network : prepared.publishedNetwork
+        }
+    }
+
+    static func attachNIC(
+        _ attach: Bool, vm: VZVirtualMachineInstance, network: SandboxNetwork, link: WorkerLink = .egress
+    ) async throws {
         try await withCheckedThrowingContinuation { (done: CheckedContinuation<Void, Error>) in
             vm.vmQueue.async {
                 do {
                     let devices = vm.vzVirtualMachine.networkDevices
-                    guard devices.count == 1 else { throw MicropodError.message("Expected one CI network interface") }
-                    devices[0].attachment = attach ? try network.interface.device().attachment : nil
+                    guard devices.indices.contains(link.rawValue) else {
+                        throw MicropodError.message("Missing CI interface " + link.device)
+                    }
+                    devices[link.rawValue].attachment = attach ? try network.interface.device().attachment : nil
                     done.resume()
                 } catch { done.resume(throwing: error) }
             }
         }
     }
 
-    struct NetworkWatch {
+    actor NetworkWatch {
         private var retry = false
-        private var delay = 5
+        private var delay = 0
         private var nextCheck = ContinuousClock.now
+        private var nextFailureProbe = ContinuousClock.now
         private var nextGuestCheck = ContinuousClock.now + .seconds(20)
 
-        mutating func inspect(_ prepared: SandboxVM.Prepared, gateway: String, instance: UUID, request: UUID?) async
-            -> NetworkRepair?
-        {
+        func inspect(
+            _ prepared: SandboxVM.Prepared, gateway: String, instance: UUID, request: UUID?, link: WorkerLink = .egress,
+            failedHandshake: Bool = false
+        ) async -> NetworkRepair? {
+            // A real handshake can detect a broken guest link between idle ARP checks.
+            // Coalesce retries across all leases and preserve backoff after a failed repair.
+            if failedHandshake && ContinuousClock.now >= nextFailureProbe {
+                nextGuestCheck = .now
+                nextFailureProbe = .now + .seconds(3)
+            }
             guard request != nil || ContinuousClock.now >= nextCheck else { return nil }
-            nextCheck = .now + .seconds(5)
+            guard let network = link.network(in: prepared) else { return nil }
+            nextCheck = .now + .seconds(1)
             var cause: String
             if request != nil {
                 cause = "requested"
@@ -68,7 +91,7 @@ extension CIWorker {
                 cause = "host-gateway-missing"
             } else if ContinuousClock.now >= nextGuestCheck {
                 nextGuestCheck = .now + .seconds(20)
-                let ok = try? await CIWorker.guestLink(prepared.container, gateway: gateway, mode: .check)
+                let ok = try? await CIWorker.guestLink(prepared.container, network: network, link: link, mode: .check)
                 guard ok == false else { return nil }
                 cause = "guest-link-unreachable"
             } else {
@@ -80,18 +103,19 @@ extension CIWorker {
                 // Under load a single missed ARP reply can coexist with live TCP streams.
                 // Recover a missing guest route without taking those streams off the NIC.
                 if cause == "guest-link-unreachable", (try? CIWorker.hasLocalGateway(gateway)) == true,
-                    (try? await CIWorker.guestLink(prepared.container, gateway: gateway, mode: .restoreRoute)) == true,
+                    (try? await CIWorker.guestLink(
+                        prepared.container, network: network, link: link, mode: .restoreRoute)) == true,
                     (try? CIWorker.hasLocalGateway(gateway)) == true
                 {
                     cause = "guest-link-restored"
                 } else {
-                    try await CIWorker.reconnect(prepared)
+                    try await CIWorker.reconnect(prepared, link: link)
                 }
             } catch { failure = error.localizedDescription }
             let elapsed = start.duration(to: .now).components
             retry = failure != nil
-            delay = retry ? min(delay * 2, 60) : 5
-            nextCheck = .now + .seconds(delay)
+            delay = retry ? min(max(1, delay * 2), 30) : 0
+            nextCheck = .now + .seconds(max(1, delay))
             nextGuestCheck = .now + .seconds(20)
             return NetworkRepair(
                 instance: instance, request: request, gateway: gateway, timestamp: Date(),
@@ -99,23 +123,23 @@ extension CIWorker {
         }
     }
 
-    static func reconnect(_ prepared: SandboxVM.Prepared) async throws {
-        guard let network = prepared.network, let gateway = prepared.gateway else {
+    static func reconnect(_ prepared: SandboxVM.Prepared, link: WorkerLink = .egress) async throws {
+        guard let network = link.network(in: prepared) else {
             throw MicropodError.message("CI worker has no network")
         }
         try await prepared.container.withVirtualMachineInstance { instance in
             guard let vm = instance as? VZVirtualMachineInstance else {
                 throw MicropodError.message("Expected an Apple virtual machine")
             }
-            try await attachNIC(false, vm: vm, network: network)
+            try await attachNIC(false, vm: vm, network: network, link: link)
             do { try network.renewAnchor() } catch {
-                try? await attachNIC(true, vm: vm, network: network)
+                try? await attachNIC(true, vm: vm, network: network, link: link)
                 throw error
             }
-            try await attachNIC(true, vm: vm, network: network)
+            try await attachNIC(true, vm: vm, network: network, link: link)
         }
-        guard try await guestLink(prepared.container, gateway: gateway, mode: .reconnected),
-            try hasLocalGateway(gateway)
+        guard try await guestLink(prepared.container, network: network, link: link, mode: .reconnected),
+            try hasLocalGateway(network.gateway.description)
         else {
             throw MicropodError.message("The CI gateway did not answer after reconnecting")
         }
@@ -123,35 +147,39 @@ extension CIWorker {
 
     private enum LinkProbe { case check, restoreRoute, reconnected }
 
-    private static func guestLink(_ container: LinuxContainer, gateway: String, mode: LinkProbe) async throws -> Bool {
-        // ARP tests our own first hop even when the upstream Internet or the public DNS is down.
+    private static func guestLink(
+        _ container: LinuxContainer, network: SandboxNetwork, link: WorkerLink, mode: LinkProbe
+    ) async throws -> Bool {
+        // The host-only peer is connected directly and must never become a default route.
+        let routeCheck =
+            link == .egress
+            ? #"ip route show default | grep -Fq "via $1 dev $2""#
+            : #"ip -4 route get "$1" | grep -Fq "dev $2 ""#
+        let restore = """
+            ip link set "$2" up
+            ip -o -4 addr show dev "$2" | grep -Fq " $3 " || ip addr replace "$3" dev "$2"
+            """
+        let routeRestore =
+            link == .egress ? routeCheck + #" || ip route replace default via "$1" dev "$2""# : routeCheck
+        let probePeer = #"arping -f -q -I "$2" -c 1 -w 1 "$1""#
         let script: String
         switch mode {
         case .check:
-            script = """
-                ip route show default | grep -Fq "via $1 dev eth0"
-                arping -q -I eth0 -c 1 -w 2 "$1"
-                """
+            script = routeCheck + "\n" + #"ip neigh show to "$1" dev "$2" | grep -qw REACHABLE || "# + probePeer
         case .restoreRoute:
-            script = """
-                ip link set eth0 up
-                ip route show default | grep -Fq "via $1 dev eth0" || ip route replace default via "$1" dev eth0
-                arping -q -I eth0 -c 1 -w 2 "$1"
-                """
+            script = [restore, routeRestore, probePeer].joined(separator: "\n")
         case .reconnected:
-            script = """
-                ip link set eth0 up
-                ip route replace default via "$1" dev eth0
-                ip neigh del "$1" dev eth0 2>/dev/null || true
-                for i in 1 2 3; do
-                    if arping -q -I eth0 -c 1 -w 2 "$1"; then exit 0; fi
-                done
-                exit 1
-                """
+            script = [
+                restore, routeRestore, #"ip neigh del "$1" dev "$2" 2>/dev/null || true"#,
+                "for i in 1 2 3; do " + probePeer + " && exit 0; done", "exit 1",
+            ].joined(separator: "\n")
         }
         let probe = try await container.exec(UUID().uuidString) { cfg in
             cfg.capabilities = .allCapabilities
-            cfg.arguments = ["/bin/sh", "-ec", script, "sh", gateway]
+            cfg.arguments = [
+                "/bin/sh", "-ec", script, "sh", network.gateway.description, link.device,
+                network.interface.ipv4Address.description,
+            ]
         }
         let ok: Bool
         do {

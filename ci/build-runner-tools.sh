@@ -29,7 +29,7 @@ tar -xzf "$bundle" -C "$stage" "${members[@]}"
 install -m 0755 "$stage"/bin/* "$runner/bin/"
 install -m 0755 "$stage"/libexec/cni/* "$runner/cni/"
 install -m 0644 "$root"/ci/runner/*.toml "$root"/ci/runner/*.conflist "$runner/"
-install -m 0755 "$root/ci/runner/start.sh" "$root/ci/runner/rootless.sh" "$runner/"
+install -m 0755 "$root/ci/runner/start.sh" "$root/ci/runner/published-ports.sh" "$root/ci/runner/rootless.sh" "$runner/"
 (cd "$root/guest/runner" && env -u GOROOT GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o "$runner/bin/job" .)
 # Replace the generated directory so older tool or config files cannot leak into the bundle.
 mkdir -p "$out/guest"

@@ -67,7 +67,7 @@ final class CIWorkerBridgeTests: XCTestCase {
                 throw MicropodError.message("The physical fault did not remove the worker's gateway")
             }
             _ = try await shell("if " + probe + "; then exit 1; fi")
-            var watch = CIWorker.NetworkWatch()
+            let watch = CIWorker.NetworkWatch()
             let repair = await watch.inspect(prepared, gateway: gateway, instance: id, request: nil)
             let result = try XCTUnwrap(repair)
             XCTAssertEqual(result.cause, "host-gateway-missing")
@@ -85,6 +85,124 @@ final class CIWorkerBridgeTests: XCTestCase {
             try JSONSerialization.data(withJSONObject: record, options: [.prettyPrinted, .sortedKeys])
                 .write(to: URL(fileURLWithPath: output), options: .atomic)
             _ = try await shell("docker rm -f sentinel && sync")
+        } catch {
+            try await prepared.stop()
+            try FileManager.default.removeItem(at: home)
+            throw error
+        }
+        try await prepared.stop()
+        try FileManager.default.removeItem(at: home)
+    }
+
+    /// Keep a fresh, working published connection available for longer than the relay's
+    /// handshake deadline while the worker's private egress bridge is physically absent.
+    func testPublishedLinkSurvivesMissingEgressBridge() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let output = env["MICROPOD_CI_PUBLISHED_LINK_RECEIPT"], let tools = env["MICROPOD_CI_OCI_TOOLS"],
+            let fixture = env["MICROPOD_CI_NETBENCH_LINUX"]
+        else {
+            throw XCTSkip("Requires native runner tools, Linux netbench and a signed physical Mac test host")
+        }
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "mp-links-" + UUID().uuidString.prefix(8))
+        let worker = CIWorker(environment: ["MICROPOD_CI_HOME": home.path, "MICROPOD_CI_ENGINE": "containerd"])
+        try worker.prepareDirectory()
+        let id = UUID()
+        var options = SandboxVM.Options(base: .image(CIWorker.Engine.containerd.image))
+        options.network = true
+        options.cpus = 4
+        options.memoryMiB = 4096
+        options.ciOCITools = URL(fileURLWithPath: tools)
+        let binary = URL(fileURLWithPath: fixture)
+        options.mounts = [binary.deletingLastPathComponent().path + ":/mp-fixture:ro"]
+        options.entrypoint = ["/mp-fixture/" + binary.lastPathComponent]
+        options.arguments = ["-listen", ":38085", "-marker", id.uuidString]
+        let prepared = try await SandboxVM.prepare(
+            options, id: "ci-link-" + id.uuidString.lowercased(), runDir: home,
+            stdout: FileHandleWriter(.standardError),
+            stderr: FileHandleWriter(.standardError), progress: { _ in }, ciWorker: worker)
+        do {
+            let primary = try XCTUnwrap(prepared.network)
+            let data = try XCTUnwrap(prepared.publishedNetwork)
+            let gateway = primary.gateway.description
+            let peer = data.gateway.description
+            XCTAssertNotEqual(gateway, peer)
+            let relay = try NativeLoopbackRelay(guest: data.interface.ipv4Address.address.description, gateway: peer)
+            defer { relay.stop() }
+            let port = try relay.bind(host: 0, guest: 38085)
+            let url = try XCTUnwrap(URL(string: "http://127.0.0.1:\(port)/id"))
+            let session = URLSession(configuration: .ephemeral)
+            defer { session.invalidateAndCancel() }
+            func marker() async throws {
+                var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 4)
+                request.setValue("close", forHTTPHeaderField: "Connection")
+                let (body, response) = try await session.data(for: request)
+                guard (response as? HTTPURLResponse)?.statusCode == 200, body == Data(id.uuidString.utf8)
+                else { throw MicropodError.message("Wrong service on published link") }
+            }
+            try await prepared.container.create()
+            try await prepared.container.start()
+            let readyBy = ContinuousClock.now + .seconds(10)
+            while (try? await marker()) == nil {
+                guard ContinuousClock.now < readyBy else {
+                    throw MicropodError.message("Published HTTP fixture did not start")
+                }
+                try await Task.sleep(for: .milliseconds(150))
+            }
+            // An external client can establish its streams before the fault
+            // and verify their identities and byte counts through recovery.
+            let loadDir = env["MICROPOD_CI_PUBLISHED_LOAD_DIR"].map { URL(fileURLWithPath: $0) }
+            defer {
+                if let loadDir { try? Data().write(to: loadDir.appendingPathComponent("finish"), options: .atomic) }
+            }
+            func waitForClient(_ file: URL) async throws {
+                let deadline = ContinuousClock.now + .seconds(40)
+                while !FileManager.default.fileExists(atPath: file.path) {
+                    guard ContinuousClock.now < deadline else {
+                        throw MicropodError.message("Load client timed out waiting for " + file.lastPathComponent)
+                    }
+                    try await Task.sleep(for: .milliseconds(50))
+                }
+            }
+            if let loadDir {
+                let endpoint = ["url": "http://127.0.0.1:\(port)", "marker": id.uuidString]
+                try JSONEncoder().encode(endpoint).write(
+                    to: loadDir.appendingPathComponent("endpoint.json"), options: .atomic)
+                try await waitForClient(loadDir.appendingPathComponent("ready"))
+            }
+            try await prepared.container.withVirtualMachineInstance { instance in
+                let vm = try XCTUnwrap(instance as? VZVirtualMachineInstance)
+                try await CIWorker.attachNIC(false, vm: vm, network: primary)
+            }
+            try primary.stop()
+            let absentBy = ContinuousClock.now + .seconds(10)
+            while try CIWorker.hasLocalGateway(gateway), ContinuousClock.now < absentBy {
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            let start = ContinuousClock.now
+            var count = 0
+            repeat {
+                guard try !CIWorker.hasLocalGateway(gateway), try CIWorker.hasLocalGateway(peer) else {
+                    throw MicropodError.message("Physical egress outage was not isolated")
+                }
+                try await marker()
+                count += 1
+                try await Task.sleep(for: .milliseconds(100))
+            } while ContinuousClock.now < start + .seconds(32)
+            let held = start.duration(to: .now).components
+            try await CIWorker.reconnect(prepared)
+            try await marker()
+            if let loadDir {
+                try Data().write(to: loadDir.appendingPathComponent("finish"), options: .atomic)
+                try await waitForClient(loadDir.appendingPathComponent("drained"))
+            }
+            let record: [String: Any] = [
+                "egress_gateway": gateway, "published_gateway": peer,
+                "absence_seconds": Double(held.seconds) + Double(held.attoseconds) / 1e18,
+                "fresh_requests_during_absence": count, "marker": id.uuidString,
+            ]
+            try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys]).write(
+                to: URL(fileURLWithPath: output))
         } catch {
             try await prepared.stop()
             try FileManager.default.removeItem(at: home)

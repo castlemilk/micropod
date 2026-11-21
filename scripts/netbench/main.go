@@ -37,6 +37,7 @@ func main() {
 	bursts := flag.Int("bursts", 1, "number of parallel transfer batches")
 	barrier := flag.Bool("stream-barrier", false, "wait for every response to begin before draining the parallel streams")
 	profile := flag.String("profile", "", "profile fresh requests, sustained bulk streams, or fresh requests during continuous downloads (fresh, bulk, mixed, burst-fresh, or burst-warm)")
+	traceMixed := flag.Bool("trace-mixed", false, "sample per-stream bytes and fresh HTTP phase timestamps around the mixed interval")
 	freshURL := flag.String("fresh-url", "", "mixed profile only: send fresh requests to a second URL serving the same marker")
 	netInfo := flag.Bool("net-info", false, "snapshot Linux network-namespace and cgroup counters")
 	cgroupInfo := flag.Bool("cgroup-info", false, "print the actual cgroup v2 limits seen inside this Linux container")
@@ -92,6 +93,9 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
+	if *traceMixed && *profile != "mixed" {
+		log.Fatal("-trace-mixed requires -profile mixed")
+	}
 	if *freshURL != "" && *profile != "mixed" {
 		log.Fatal("-fresh-url is only used with -profile mixed")
 	}
@@ -106,7 +110,7 @@ func main() {
 		var result map[string]any
 		switch *profile {
 		case "fresh":
-			result = profileFresh(client, id, *rounds)
+			result = profileFresh(client, *target, *marker, *rounds, time.Now(), nil)
 		case "burst-fresh", "burst-warm":
 			if *streams == 0 {
 				log.Fatal("burst profiling needs at least one stream")
@@ -124,7 +128,7 @@ func main() {
 			if *freshURL == "" {
 				*freshURL = *target
 			}
-			result = profileMixed(*target, *freshURL, *marker, *streams, *rounds)
+			result = profileMixed(*target, *freshURL, *marker, *streams, *rounds, *traceMixed)
 		default:
 			log.Fatalf("unknown profile %q", *profile)
 		}
@@ -266,42 +270,56 @@ func main() {
 }
 func hashPayload() []byte { h := sha256.Sum256(payload); return h[:] }
 
-func requestBody(client *http.Client, target string, ctx context.Context, path string, w io.Writer) int64 {
-	req, e := http.NewRequestWithContext(ctx, http.MethodGet, target+path, nil)
-	if e != nil {
-		log.Fatal(e)
+func readBody(client *http.Client, target string, ctx context.Context, path string, w io.Writer) (int64, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target+path, nil)
+	if err != nil {
+		return 0, err
 	}
-	r, e := client.Do(req)
-	if e != nil {
-		log.Fatal(e)
+	r, err := client.Do(req)
+	if err != nil {
+		return 0, err
 	}
 	defer r.Body.Close()
-	if r.StatusCode != 200 {
-		log.Fatal(r.Status)
+	if r.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("GET %s returned %s", path, r.Status)
 	}
-	n, e := io.Copy(w, r.Body)
-	if e != nil {
-		log.Fatal(e)
+	return io.Copy(w, r.Body)
+}
+
+func requestBody(client *http.Client, target string, ctx context.Context, path string, w io.Writer) int64 {
+	n, err := readBody(client, target, ctx, path, w)
+	if err != nil {
+		log.Fatalf("GET %s after %d bytes: %v", path, n, err)
 	}
 	return n
 }
 
-func verifyID(client *http.Client, target, marker string, ctx context.Context) {
+func checkID(client *http.Client, target, marker string, ctx context.Context) error {
 	var b bytes.Buffer
-	requestBody(client, target, ctx, "/id", &b)
+	if _, err := readBody(client, target, ctx, "/id", &b); err != nil {
+		return err
+	}
 	if b.String() != marker {
-		log.Fatalf("unexpected service identity %q", b.String())
+		return fmt.Errorf("unexpected service identity %q", b.String())
+	}
+	return nil
+}
+
+func verifyID(client *http.Client, target, marker string, ctx context.Context) {
+	if err := checkID(client, target, marker, ctx); err != nil {
+		log.Fatal(err)
 	}
 }
 
-func profileFresh(client *http.Client, verify func(context.Context), requests int) map[string]any {
+func profileFresh(client *http.Client, target, marker string, requests int, origin time.Time, completed func(freshArrival)) map[string]any {
 	result := map[string]any{"mode": "fresh", "iterations": requests}
 	phases := make(map[string][]int64)
 	incomplete := 0
 	begin := time.Now()
-	for range requests {
+	for i := range requests {
 		client.CloseIdleConnections()
 		var connected, written, first atomic.Int64
+		var local atomic.Pointer[net.TCPAddr]
 		start := time.Now()
 		ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
 			GotConn: func(c httptrace.GotConnInfo) {
@@ -309,6 +327,8 @@ func profileFresh(client *http.Client, verify func(context.Context), requests in
 					log.Fatal("fresh request reused a connection")
 				}
 				connected.Store(time.Since(start).Nanoseconds())
+				addr, _ := c.Conn.LocalAddr().(*net.TCPAddr)
+				local.Store(addr)
 			},
 			WroteRequest: func(w httptrace.WroteRequestInfo) {
 				if w.Err == nil {
@@ -317,9 +337,25 @@ func profileFresh(client *http.Client, verify func(context.Context), requests in
 			},
 			GotFirstResponseByte: func() { first.Store(time.Since(start).Nanoseconds()) },
 		})
-		verify(ctx)
-		phases["complete_ns"] = append(phases["complete_ns"], time.Since(start).Nanoseconds())
+		err := checkID(client, target, marker, ctx)
+		end := time.Now()
 		c, w, f := connected.Load(), written.Load(), first.Load()
+		if completed != nil || err != nil {
+			offset := start.Sub(origin)
+			arrival := freshArrival{Start: offset.Microseconds(), Done: end.Sub(origin).Microseconds()}
+			if w > 0 {
+				arrival.Written = (offset + time.Duration(w)).Microseconds()
+			}
+			if f > 0 {
+				arrival.First = (offset + time.Duration(f)).Microseconds()
+			}
+			if err != nil {
+				log.Fatalf("fresh request %d/%d local=%v origin_unix_us=%d start_us=%d written_us=%d first_byte_us=%d failed_us=%d: %v",
+					i+1, requests, local.Load(), origin.UnixMicro(), arrival.Start, arrival.Written, arrival.First, arrival.Done, err)
+			}
+			completed(arrival)
+		}
+		phases["complete_ns"] = append(phases["complete_ns"], end.Sub(start).Nanoseconds())
 		// HTTP trace callbacks can run on different goroutines. Count an
 		// overlapped or missing callback instead of reporting a negative phase.
 		if c <= 0 || w < c || f < w {
@@ -474,7 +510,7 @@ func (c *downloadCounter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func profileMixed(bulkURL, freshURL, marker string, streams, requests int) map[string]any {
+func profileMixed(bulkURL, freshURL, marker string, streams, requests int, trace bool) map[string]any {
 	var ready, done sync.WaitGroup
 	var reopened atomic.Int64
 	counters := make([]downloadCounter, streams)
@@ -503,6 +539,38 @@ func profileMixed(bulkURL, freshURL, marker string, streams, requests int) map[s
 	}
 	ready.Wait()
 	warmupTime := time.Since(warmup)
+	// Trace runs include equal bulk-only windows on either side. Leave the
+	// qualification workload and hot read path identical when tracing is off.
+	var samples []mixedSample
+	var arrivals []freshArrival
+	var omitted int
+	traceDone := make(chan struct{})
+	stopTrace := make(chan struct{})
+	origin := time.Now()
+	if trace {
+		go func() {
+			defer close(traceDone)
+			timer := time.NewTicker(5 * time.Millisecond)
+			defer timer.Stop()
+			for {
+				if len(samples) < 24000 {
+					row := mixedSample{AtUS: time.Since(origin).Microseconds(), Bytes: make([]int64, streams)}
+					for i := range counters {
+						row.Bytes[i] = counters[i].bytes.Load()
+					}
+					samples = append(samples, row)
+				} else {
+					omitted++
+				}
+				select {
+				case <-timer.C:
+				case <-stopTrace:
+					return
+				}
+			}
+		}()
+		time.Sleep(400 * time.Millisecond)
+	}
 	warmupReopens := reopened.Load()
 	tr := &http.Transport{DialContext: (&net.Dialer{Timeout: 3 * time.Second}).DialContext}
 	defer tr.CloseIdleConnections()
@@ -516,8 +584,10 @@ func profileMixed(bulkURL, freshURL, marker string, streams, requests int) map[s
 	var elapsed time.Duration
 	var total, endReopens int64
 	remaining := requests
-	fresh := profileFresh(client, func(ctx context.Context) {
-		verifyID(client, freshURL, marker, ctx)
+	fresh := profileFresh(client, freshURL, marker, requests, origin, func(arrival freshArrival) {
+		if trace {
+			arrivals = append(arrivals, arrival)
+		}
 		remaining--
 		if remaining == 0 {
 			elapsed = time.Since(begin)
@@ -526,13 +596,39 @@ func profileMixed(bulkURL, freshURL, marker string, streams, requests int) map[s
 				perStream[i] = counters[i].bytes.Load() - before[i]
 				total += perStream[i]
 			}
-			close(stop)
+			if !trace {
+				close(stop)
+			}
 		}
-	}, requests)
+	})
+	if trace {
+		time.Sleep(400 * time.Millisecond)
+		close(stopTrace)
+		<-traceDone
+		close(stop)
+	}
 	done.Wait()
-	return map[string]any{"mode": "mixed", "fresh": fresh, "streams": streams,
+	result := map[string]any{"mode": "mixed", "fresh": fresh, "streams": streams,
 		"warmup_s": warmupTime.Seconds(), "warmup_reopens": warmupReopens,
 		"overlap_reopens": endReopens - warmupReopens, "drain_reopens": reopened.Load() - endReopens,
 		"overlap_s": elapsed.Seconds(), "overlap_bytes": total, "overlap_bytes_per_stream": perStream,
 		"overlap_mib_s": float64(total) / (1 << 20) / elapsed.Seconds(), "reopened_connections": reopened.Load()}
+	if trace {
+		result["trace"] = map[string]any{"origin_unix_us": origin.UnixMicro(), "sample_period_us": 5000,
+			"samples": samples, "omitted_samples": omitted,
+			"fresh": arrivals, "overlap_start_us": begin.Sub(origin).Microseconds(), "overlap_end_us": begin.Add(elapsed).Sub(origin).Microseconds()}
+	}
+	return result
+}
+
+type mixedSample struct {
+	AtUS  int64   `json:"at_us"`
+	Bytes []int64 `json:"cumulative_bytes"`
+}
+
+type freshArrival struct {
+	Start   int64 `json:"start_us"`
+	Written int64 `json:"written_us"`
+	First   int64 `json:"first_byte_us"`
+	Done    int64 `json:"done_us"`
 }

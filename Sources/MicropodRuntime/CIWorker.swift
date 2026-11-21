@@ -69,6 +69,7 @@ public struct CIWorker: Sendable {
         let owner: RuntimeProcessBirth
         let instance: UUID
         var guestAddress: String?
+        var publishedAddress: String?
         var started = false
         var readySocket: ReadySocket?
         var supportsNetworkRepair: Bool?
@@ -100,6 +101,7 @@ public struct CIWorker: Sendable {
         public let daemon: String
         public let engineVersion: String
         public let guestAddress: String?
+        public var publishedAddress: String? = nil
         public let cpus: Int
         public let memoryBytes: UInt64
         public let storageDriver: String
@@ -292,7 +294,8 @@ public struct CIWorker: Sendable {
             return Status(
                 endpoint: endpoint, worker: config.worker, boot: identity.boot, instance: active.instance,
                 engine: "containerd", daemon: identity.engine, engineVersion: identity.version,
-                guestAddress: active.guestAddress, cpus: config.cpus, memoryBytes: identity.memory_bytes,
+                guestAddress: active.guestAddress, publishedAddress: active.publishedAddress, cpus: config.cpus,
+                memoryBytes: identity.memory_bytes,
                 storageDriver: "overlayfs", kataPrerequisitesPresent: identity.kata_prerequisites_present,
                 cgroupDriver: "cgroupfs")
         }
@@ -315,7 +318,8 @@ public struct CIWorker: Sendable {
         return Status(
             endpoint: endpoint, worker: config.worker, boot: boot, instance: active.instance,
             engine: config.engine.rawValue,
-            daemon: info.ID, engineVersion: info.ServerVersion, guestAddress: active.guestAddress, cpus: info.NCPU,
+            daemon: info.ID, engineVersion: info.ServerVersion, guestAddress: active.guestAddress,
+            publishedAddress: active.publishedAddress, cpus: info.NCPU,
             memoryBytes: info.MemTotal, storageDriver: info.Driver,
             cgroupDriver: info.CgroupDriver)
     }
@@ -709,10 +713,17 @@ public struct CIWorker: Sendable {
             stdout: FileHandleWriter(.standardOutput), stderr: FileHandleWriter(.standardError),
             progress: { FileHandle.standardError.write(Data(($0 + "\n").utf8)) }, ciWorker: self)
         do {
+            let nativeRelay: NativeLoopbackRelay?
             if config.engine == .containerd, let guest = prepared.guestIP, let gateway = prepared.gateway {
-                try await prepared.forwarding.openNativePortBroker(
-                    at: portSocket, guest: guest, gateway: gateway, mode: portRelay,
+                let link = prepared.publishedNetwork
+                active.publishedAddress = link?.interface.ipv4Address.address.description
+                nativeRelay = try await prepared.forwarding.openNativePortBroker(
+                    at: portSocket, guest: active.publishedAddress ?? guest,
+                    gateway: link?.gateway.description ?? gateway,
+                    mode: portRelay,
                     profile: resourceEnvironment["MICROPOD_CI_PORT_PROFILE"] == "1")
+            } else {
+                nativeRelay = nil
             }
             try await prepared.container.create()
             guard chmod(socket.path, 0o600) == 0 else { throw POSIXError(.init(rawValue: errno) ?? .EIO) }
@@ -772,11 +783,13 @@ public struct CIWorker: Sendable {
             }
             let health = Task {
                 while !Task.isCancelled {
-                    do { try await Task.sleep(for: .seconds(5)) } catch { return }
+                    do { try await Task.sleep(for: .seconds(1)) } catch { return }
                     stream.yield(.checkNetwork)
                 }
             }
-            var networkWatch = NetworkWatch()
+            let instanceID = active.instance
+            let networkWatch = NetworkWatch()
+            let publishedWatch = NetworkWatch()
             var shutdownTimer: Task<Void, Never>?
             defer {
                 health.cancel()
@@ -797,8 +810,17 @@ public struct CIWorker: Sendable {
                         let token = (try? Data(contentsOf: requestFile)).flatMap {
                             try? JSONDecoder().decode(UUID.self, from: $0)
                         }
+                        // Egress repair may wait on vmnet. Check the independent
+                        // published link concurrently, including during explicit repairs.
+                        let failedHandshake = nativeRelay?.takePathFailure() == true
+                        let dedicatedLink = prepared.publishedNetwork != nil
+                        async let published = publishedWatch.inspect(
+                            prepared, gateway: prepared.publishedNetwork?.gateway.description ?? gateway,
+                            instance: instanceID, request: nil, link: .published,
+                            failedHandshake: dedicatedLink && failedHandshake)
                         if let receipt = await networkWatch.inspect(
-                            prepared, gateway: gateway, instance: active.instance, request: token)
+                            prepared, gateway: gateway, instance: active.instance, request: token,
+                            failedHandshake: !dedicatedLink && failedHandshake)
                         {
                             do {
                                 try JSONEncoder().encode(receipt).write(
@@ -811,6 +833,13 @@ public struct CIWorker: Sendable {
                             SecretSource.stderrLog(
                                 "CI network repair (\(receipt.cause ?? "requested")): "
                                     + (receipt.error ?? "gateway restored"))
+                        }
+                        if let receipt = await published {
+                            do {
+                                try JSONEncoder().encode(receipt).write(
+                                    to: directory.appendingPathComponent("published-network.json"), options: .atomic)
+                            } catch { SecretSource.stderrLog("Could not record published network repair: \(error)") }
+                            SecretSource.stderrLog("Published network repair: " + (receipt.error ?? "gateway restored"))
                         }
                     }
                     guard shutdownTimer == nil, FileManager.default.fileExists(atPath: stopFile(active).path),

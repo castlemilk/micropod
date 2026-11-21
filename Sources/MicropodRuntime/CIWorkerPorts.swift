@@ -7,6 +7,7 @@ extension SandboxForwarding {
     /// Each private guest connection leases one Mac loopback listener. The four-byte
     /// request contains the requested Mac port and the port on this VM's own NIC.
     func openNativePortBroker(at socket: URL, guest: String, gateway: String, mode: String?, profile: Bool) async throws
+        -> NativeLoopbackRelay?
     {
         // A native published lease must originate from its worker gateway.
         let parallel = mode == "kqueue-throughput"
@@ -21,6 +22,7 @@ extension SandboxForwarding {
         if let relay { channel.closeFuture.whenComplete { _ in relay.stop() } }
         track(channel)
         guard chmod(socket.path, 0o600) == 0 else { throw POSIXError(.init(rawValue: errno) ?? .EIO) }
+        return relay
     }
 }
 
