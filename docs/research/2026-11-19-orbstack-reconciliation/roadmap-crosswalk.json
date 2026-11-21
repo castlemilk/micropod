@@ -1,0 +1,2483 @@
+{
+  "schema_version": 2,
+  "audit_date": "2026-11-19",
+  "source_commit": "54980012eb47b458a7f7e1def616d3fa95c970a2",
+  "original_row_count": 86,
+  "filed_issue_count": 40,
+  "new_issue_count": 14,
+  "original_rows": [
+    {
+      "original_id": "VIRT-001",
+      "original_title": "Define VM backend interface",
+      "original_priority": "P0",
+      "owners": [
+        136
+      ],
+      "status": "Existing interfaces; extension needed",
+      "remaining": "Retain RuntimeEngine, EngineRegistry and RuntimeServices; distinguish execution engine, VM topology and native/CLI/managed-gateway transport. Specify capability, ownership, state and failure behavior for any optional shared-kernel engine.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/136"
+      ]
+    },
+    {
+      "original_id": "VIRT-002",
+      "original_title": "vfkit prototype backend",
+      "original_priority": "P0",
+      "owners": [
+        137
+      ],
+      "status": "Direct Swift VZ exists; optional reference experiment",
+      "remaining": "Keep open only as a bounded external reference experiment. Micropod already boots direct Swift VZ sandbox VMs; vfkit is not a prerequisite or a proposed production dependency.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/137"
+      ]
+    },
+    {
+      "original_id": "VIRT-003",
+      "original_title": "Native Swift VZ backend",
+      "original_priority": "P0",
+      "owners": [
+        138
+      ],
+      "status": "Native Swift VZ implemented in sandbox",
+      "remaining": "Extend SandboxVM and existing ownership/cleanup machinery only where the chosen topology requires it. Preserve direct VZ and Apple Containerization integration rather than building another boot path.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/138"
+      ]
+    },
+    {
+      "original_id": "VIRT-004",
+      "original_title": "Build minimal ARM64 kernel",
+      "original_priority": "P0",
+      "owners": [
+        139
+      ],
+      "status": "Apple kernel consumed; custom build absent",
+      "remaining": "Make custom kernel ownership conditional on a required guest feature or a measured boot/footprint improvement. Current SandboxVM already consumes the installed Apple kernel and sets boot optimization arguments.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/139"
+      ]
+    },
+    {
+      "original_id": "VIRT-005",
+      "original_title": "Tiny guest init",
+      "original_priority": "P0",
+      "owners": [
+        140
+      ],
+      "status": "Apple vminitd exists; shared supervisor absent",
+      "remaining": "Reuse the pinned Apple vminitd contract for current VMs. Design additional guest supervision only for a selected shared-kernel/system-distribution mode, including its service and trust boundaries.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/140"
+      ]
+    },
+    {
+      "original_id": "VIRT-006",
+      "original_title": "vsock control protocol",
+      "original_priority": "P0",
+      "owners": [
+        141
+      ],
+      "status": "Guest gRPC/vsock and duplex bridge implemented",
+      "remaining": "Extend the existing vminitd gRPC client, generated protocols and vsock bridge with explicit compatibility, authorization, cancellation and bounded lifecycle behavior. Coordinate abandoned unary-call handling with PR #176.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/141"
+      ]
+    },
+    {
+      "original_id": "VIRT-007",
+      "original_title": "Memory balloon/reclaim experiments",
+      "original_priority": "P1",
+      "owners": [
+        142
+      ],
+      "status": "Per-VM limits exist; reclaim controls unqualified",
+      "remaining": "Investigate supported Virtualization.framework and Containerization reclaim controls rather than assuming ballooning exists. Separate configured capacity, guest RSS/page cache and actual host physical footprint.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/142"
+      ]
+    },
+    {
+      "original_id": "VIRT-008",
+      "original_title": "Rosetta integration",
+      "original_priority": "P1",
+      "owners": [
+        143
+      ],
+      "status": "Automatic Rosetta selection implemented",
+      "remaining": "Turn existing native automatic Rosetta selection into a supported compatibility and performance matrix across CLI, API, shim and build paths.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/143"
+      ]
+    },
+    {
+      "original_id": "VIRT-009",
+      "original_title": "Intel VZ compatibility",
+      "original_priority": "P1",
+      "owners": [
+        144
+      ],
+      "status": "ARM-specific sandbox; Intel support not qualified",
+      "remaining": "Resolve product and dependency feasibility before promising Intel execution. Package requires macOS 26 and SandboxVM selects ARM kernel/init paths; translation support does not establish Intel host support.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/144"
+      ]
+    },
+    {
+      "original_id": "VIRT-010",
+      "original_title": "Dedicated isolated-VM mode",
+      "original_priority": "P2",
+      "owners": [
+        145
+      ],
+      "status": "Isolated sandbox VM already implemented",
+      "remaining": "Preserve and qualify the current per-sandbox VM boundary while defining any shared-kernel alternative. Treat dedicated macOS service-account isolation as a separate layer.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/145"
+      ]
+    },
+    {
+      "original_id": "RUN-001",
+      "original_title": "Bundle/version Moby, containerd and runc",
+      "original_priority": "P0",
+      "owners": [
+        146
+      ],
+      "status": "Linux OCI stack is core to full runtime equivalence",
+      "remaining": "Integrate qualified upstream containerd/runc inside explicit trusted builder, project or isolated-job Linux domains under #146/#202. A global shared-distro engine is not a prerequisite; preserve Apple and isolated adapters with explicit capability matrices.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/146"
+      ],
+      "initial_reconciliation": {
+        "status": "New daemon stack only relevant to selected shared engine",
+        "remaining": "Keep the default Apple and sandbox engines independent of a new Moby/containerd/runc bundle. Scope guest Docker integration to an explicitly selected optional shared-kernel engine."
+      }
+    },
+    {
+      "original_id": "RUN-002",
+      "original_title": "Forward Docker Unix socket to macOS",
+      "original_priority": "P0",
+      "owners": [
+        147
+      ],
+      "status": "Socket exists; Docker semantics remain incomplete",
+      "remaining": "Extend #147 through #201\u2013207 to cover known API fields, process control, lifecycle, resources, mounts/security and real-client conformance. Retain deliberate engine routing and prevent forwarding loops.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/147"
+      ],
+      "initial_reconciliation": {
+        "status": "Docker Unix socket and shim implemented",
+        "remaining": "Harden the existing shim and Unix socket instead of creating them again. Maintain deliberate Apple-engine routing to prevent loops through the external Docker adapter."
+      }
+    },
+    {
+      "original_id": "RUN-003",
+      "original_title": "Docker context installer",
+      "original_priority": "P0",
+      "owners": [
+        148
+      ],
+      "status": "DOCKER_HOST documented; reversible installer absent in reviewed paths",
+      "remaining": "Install and select an opt-in Docker context for the existing shim socket without taking over other runtime contexts.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/148"
+      ]
+    },
+    {
+      "original_id": "RUN-004",
+      "original_title": "BuildKit integration",
+      "original_priority": "P0",
+      "owners": [
+        149
+      ],
+      "status": "BuildKit-backed CLI exists; complete build service and compatibility missing",
+      "remaining": "Extend #149 through #195\u2013200 and #208: native jobs, supported builder integration, Buildx/Compose/Bake protocols, source identity, sessions, exporters, cache lifecycle and measured worker optimization.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/149"
+      ],
+      "initial_reconciliation": {
+        "status": "Legacy build delegation exists; Buildx session gap",
+        "remaining": "Preserve current POST /build and context caching while choosing and implementing a complete builder/session strategy. Current shim requires the legacy Docker build path and does not proxy Buildx gRPC sessions."
+      }
+    },
+    {
+      "original_id": "RUN-005",
+      "original_title": "containerd image store mode",
+      "original_priority": "P1",
+      "owners": [
+        150
+      ],
+      "status": "Build-to-run image interoperability is core",
+      "remaining": "Extend #150 with #199/#212/#213 to preserve OCI content/index/config/attestations, verified unpacked snapshots and live references across build/load/run. Inventory existing stores and adapt owners instead of requiring a global store replacement.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/150"
+      ],
+      "initial_reconciliation": {
+        "status": "Apple image store exists; optional containerd mode absent",
+        "remaining": "Scope containerd storage to an optional selected engine and explicit interoperability requirements rather than replacing the existing Apple image store by default."
+      }
+    },
+    {
+      "original_id": "RUN-006",
+      "original_title": "registry credential bridge",
+      "original_priority": "P1",
+      "owners": [
+        151
+      ],
+      "status": "Registry operations exist; helper interoperability unqualified",
+      "remaining": "Extend existing registry list/login/logout ownership and investigate Apple and Docker helper APIs before introducing another credential store.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/151"
+      ]
+    },
+    {
+      "original_id": "RUN-007",
+      "original_title": "lazy service activation",
+      "original_priority": "P1",
+      "owners": [
+        152
+      ],
+      "status": "Durable lifecycle and manual-stop state exist",
+      "remaining": "Integrate demand-driven startup with existing lifecycle, maintenance and admission state. A read such as docker ps must not override an explicit user stop.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/152"
+      ]
+    },
+    {
+      "original_id": "RUN-008",
+      "original_title": "direct containerd/nerdctl profile",
+      "original_priority": "P2",
+      "owners": [
+        153
+      ],
+      "status": "Existing engines independent of Docker; nerdctl profile absent",
+      "remaining": "Document current Apple/sandbox Docker independence and add a nerdctl profile only if it solves a concrete selected-engine need.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/153"
+      ]
+    },
+    {
+      "original_id": "MACH-001",
+      "original_title": "System-container supervisor",
+      "original_priority": "P0",
+      "owners": [
+        154,
+        183
+      ],
+      "status": "New architecture; gated",
+      "remaining": "Optional shared-kernel supervisor after the trust-domain ADR; retain independent-VM mode.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/154",
+        "https://github.com/castlemilk/micropod/issues/183"
+      ]
+    },
+    {
+      "original_id": "MACH-002",
+      "original_title": "Ubuntu/Debian rootfs importer",
+      "original_priority": "P0",
+      "owners": [
+        155
+      ],
+      "status": "Generic machine creation exists; distro profiles incomplete",
+      "remaining": "Verified Ubuntu/Debian rootfs import, provenance, init, users and package management.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/155"
+      ]
+    },
+    {
+      "original_id": "MACH-003",
+      "original_title": "Alpine/OpenRC support",
+      "original_priority": "P1",
+      "owners": [
+        156
+      ],
+      "status": "Profile qualification remains",
+      "remaining": "Alpine/OpenRC qualification; the filed issue additionally includes Arch, which was not this original report row.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/156"
+      ]
+    },
+    {
+      "original_id": "MACH-004",
+      "original_title": "Fedora/RHEL-family support",
+      "original_priority": "P1",
+      "owners": [
+        155,
+        159
+      ],
+      "status": "Not lost; added as explicit profile decision",
+      "remaining": "Evaluate Fedora/RHEL-family image provenance, package manager and supported init/security policy; declare support or defer with evidence. Filed MACH-004 #157 is lifecycle, not this row.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/155",
+        "https://github.com/castlemilk/micropod/issues/159"
+      ]
+    },
+    {
+      "original_id": "MACH-005",
+      "original_title": "UID/GID and home mapping",
+      "original_priority": "P0",
+      "owners": [
+        165
+      ],
+      "status": "Mapping qualification remains",
+      "remaining": "UID/GID, home and supplementary-group contract. Filed MACH-005 #158 is quota work.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/165"
+      ]
+    },
+    {
+      "original_id": "MACH-006",
+      "original_title": "Per-machine network namespace",
+      "original_priority": "P0",
+      "owners": [
+        154,
+        173,
+        74
+      ],
+      "status": "Existing VM networking; shared-distro namespace new",
+      "remaining": "Namespace/veth/IPAM ownership, deterministic ranges, collision recovery and API network selection. Filed MACH-006 #159 is init work.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/154",
+        "https://github.com/castlemilk/micropod/issues/173",
+        "https://github.com/castlemilk/micropod/issues/74"
+      ]
+    },
+    {
+      "original_id": "MACH-007",
+      "original_title": "CPU/RAM/process limits",
+      "original_priority": "P1",
+      "owners": [
+        158
+      ],
+      "status": "VM limits exist; shared cgroups new",
+      "remaining": "CPU/memory/pids/pressure controls and supervisor survival under peer pressure.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/158"
+      ]
+    },
+    {
+      "original_id": "MACH-008",
+      "original_title": "distro create/delete/clone",
+      "original_priority": "P1",
+      "owners": [
+        157,
+        172
+      ],
+      "status": "Machine CLI and disk clones exist",
+      "remaining": "Complete distro lifecycle/import/export and COW clone contract without duplicating current commands.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/157",
+        "https://github.com/castlemilk/micropod/issues/172"
+      ]
+    },
+    {
+      "original_id": "MACH-009",
+      "original_title": "systemd/OpenRC/runit validation matrix",
+      "original_priority": "P1",
+      "owners": [
+        159
+      ],
+      "status": "Compatibility matrix incomplete",
+      "remaining": "systemd/OpenRC/runit support decision, user managers, shutdown/reboot and cgroup delegation.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/159"
+      ]
+    },
+    {
+      "original_id": "MACH-010",
+      "original_title": "privileged/kernel-feature compatibility suite",
+      "original_priority": "P2",
+      "owners": [
+        154,
+        145
+      ],
+      "status": "Gated compatibility/security lane",
+      "remaining": "Declare Docker-in-machine, VPN, eBPF and FUSE support per trust profile; no implicit privilege escalation.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/154",
+        "https://github.com/castlemilk/micropod/issues/145"
+      ]
+    },
+    {
+      "original_id": "FS-001",
+      "original_title": "Mac\u2192guest VirtioFS mounts",
+      "original_priority": "P0",
+      "owners": [
+        160
+      ],
+      "status": "Implemented; qualify",
+      "remaining": "Direct VirtioFS, SharedFS views and overlay semantics need distinct correctness and performance receipts.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/160"
+      ]
+    },
+    {
+      "original_id": "FS-002",
+      "original_title": "inotify/FSEvents correctness suite",
+      "original_priority": "P0",
+      "owners": [
+        93,
+        161
+      ],
+      "status": "Existing watcher and open defect owner",
+      "remaining": "Live notification loss/recovery, actual cross-boundary inotify and broader filesystem semantics; #162 is a duplicate, not the original FS-003 cache experiment.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/93",
+        "https://github.com/castlemilk/micropod/issues/161"
+      ]
+    },
+    {
+      "original_id": "FS-003",
+      "original_title": "cache-mode experimentation",
+      "original_priority": "P1",
+      "owners": [
+        163,
+        167
+      ],
+      "status": "Capability/profile experiment",
+      "remaining": "Identify real cache knobs, coherent metadata and safe policy defaults before optimization.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/163",
+        "https://github.com/castlemilk/micropod/issues/167"
+      ]
+    },
+    {
+      "original_id": "FS-004",
+      "original_title": "guest filesystem RPC",
+      "original_priority": "P0",
+      "owners": [
+        164,
+        141
+      ],
+      "status": "New reverse-filesystem transport",
+      "remaining": "Versioned authenticated guest filesystem operations, bounded requests, disconnect/replay and metadata semantics. Filed FS-004 #163 is a different cache issue.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/164",
+        "https://github.com/castlemilk/micropod/issues/141"
+      ]
+    },
+    {
+      "original_id": "FS-005",
+      "original_title": "macOS `~/Product` filesystem frontend",
+      "original_priority": "P0",
+      "owners": [
+        164
+      ],
+      "status": "New mounted reverse view",
+      "remaining": "Finder/shell frontend, supported OS/install model and guest-root access policy.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/164"
+      ]
+    },
+    {
+      "original_id": "FS-006",
+      "original_title": "reverse-share metadata cache/invalidation",
+      "original_priority": "P1",
+      "owners": [
+        164,
+        163
+      ],
+      "status": "Depends on reverse view",
+      "remaining": "Reverse metadata invalidation and 50k-file traversal at correct consistency; filed FS-006 #165 is UID/path mapping.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/164",
+        "https://github.com/castlemilk/micropod/issues/163"
+      ]
+    },
+    {
+      "original_id": "STOR-001",
+      "original_title": "sparse VM data image creation",
+      "original_priority": "P0",
+      "owners": [
+        168
+      ],
+      "status": "Images and COW exist",
+      "remaining": "Capacity/accounting and optional shared-image topology; 8 TB logical size is not a requirement.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/168"
+      ]
+    },
+    {
+      "original_id": "STOR-002",
+      "original_title": "ext4 grow/discard/fstrim",
+      "original_priority": "P0",
+      "owners": [
+        169,
+        170
+      ],
+      "status": "Unqualified backend capabilities",
+      "remaining": "Safe online/offline grow and guest-to-host discard. Growth and reclamation are separate operations.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/169",
+        "https://github.com/castlemilk/micropod/issues/170"
+      ]
+    },
+    {
+      "original_id": "STOR-003",
+      "original_title": "storage corruption/recovery tests",
+      "original_priority": "P1",
+      "owners": [
+        171,
+        172
+      ],
+      "status": "Recovery semantics incomplete",
+      "remaining": "Owned crash/interruption/fsync/corrupt-image recovery fixtures and documented consistency; filed STOR-003 #170 is TRIM.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/171",
+        "https://github.com/castlemilk/micropod/issues/172"
+      ]
+    },
+    {
+      "original_id": "STOR-004",
+      "original_title": "APFS COW snapshots/clones",
+      "original_priority": "P1",
+      "owners": [
+        172,
+        171
+      ],
+      "status": "APFS cloning and disk checkpoints exist",
+      "remaining": "Disk/metadata atomicity, compatible rollback, quiescence and backup separation; filed STOR-004 #171 is backup.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/172",
+        "https://github.com/castlemilk/micropod/issues/171"
+      ]
+    },
+    {
+      "original_id": "STOR-005",
+      "original_title": "ASIF evaluation",
+      "original_priority": "P2",
+      "owners": [
+        168
+      ],
+      "status": "Optional format evaluation",
+      "remaining": "ASIF versus existing RAW/APFS sparse/clones: framework/OS support, allocation, copy/move, migration and measured value; filed STOR-005 #172 is snapshots.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/168"
+      ]
+    },
+    {
+      "original_id": "NET-001",
+      "original_title": "Bootstrap NAT with gvproxy or equivalent",
+      "original_priority": "P0",
+      "owners": [
+        173
+      ],
+      "status": "NAT/vmnet implemented",
+      "remaining": "Qualify current backend before considering gvproxy or a replacement.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/173"
+      ]
+    },
+    {
+      "original_id": "NET-002",
+      "original_title": "Linux unified bridge/IPAM",
+      "original_priority": "P0",
+      "owners": [
+        173,
+        154,
+        74
+      ],
+      "status": "Existing subnet allocator; shared topology gated",
+      "remaining": "Shared engine bridge/IPAM design must not merge isolation domains; filed NET-002 #174 is port forwarding.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/173",
+        "https://github.com/castlemilk/micropod/issues/154",
+        "https://github.com/castlemilk/micropod/issues/74"
+      ]
+    },
+    {
+      "original_id": "NET-003",
+      "original_title": "Docker-event port listener",
+      "original_priority": "P0",
+      "owners": [
+        174,
+        147
+      ],
+      "status": "Events and published ports exist",
+      "remaining": "Lifecycle reconciliation for requested ports; distinguish automatic listener discovery. Filed NET-003 #175 is host gateway.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/174",
+        "https://github.com/castlemilk/micropod/issues/147"
+      ]
+    },
+    {
+      "original_id": "NET-004",
+      "original_title": "TCP/UDP forwarder",
+      "original_priority": "P0",
+      "owners": [
+        174
+      ],
+      "status": "TCP forwarding exists; protocol gaps",
+      "remaining": "Sandbox UDP and IPv6 bind support/gating, bind defaults, churn, backpressure and recovery.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/174"
+      ]
+    },
+    {
+      "original_id": "NET-005",
+      "original_title": "custom high-throughput host path",
+      "original_priority": "P1",
+      "owners": [
+        173,
+        182
+      ],
+      "status": "Profile-first; no replacement mandated",
+      "remaining": "Custom packet path only if measured end-to-end benefit exceeds the retained baseline after correctness.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/173",
+        "https://github.com/castlemilk/micropod/issues/182"
+      ]
+    },
+    {
+      "original_id": "NET-006",
+      "original_title": "host-resolver DNS proxy",
+      "original_priority": "P0",
+      "owners": [
+        185
+      ],
+      "status": "Host resolver qualification/new integration",
+      "remaining": "Scoped macOS/VPN/split DNS behavior; guest hosts files are not host DNS integration.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/185"
+      ]
+    },
+    {
+      "original_id": "NET-007",
+      "original_title": "automatic container/machine domains",
+      "original_priority": "P1",
+      "owners": [
+        185
+      ],
+      "status": "New host-side local domains",
+      "remaining": "Lifecycle-managed names and reconciliation with containers, machines and Kubernetes.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/185"
+      ]
+    },
+    {
+      "original_id": "NET-008",
+      "original_title": "macOS host-reachable container IPs",
+      "original_priority": "P1",
+      "owners": [
+        173,
+        74
+      ],
+      "status": "Existing addresses; qualify per engine",
+      "remaining": "Host-reachable direct IPs, fixed network selection, route/VPN collisions and denied reachability.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/173",
+        "https://github.com/castlemilk/micropod/issues/74"
+      ]
+    },
+    {
+      "original_id": "NET-009",
+      "original_title": "proxy settings bridge",
+      "original_priority": "P1",
+      "owners": [
+        185
+      ],
+      "status": "Separate proxy integration",
+      "remaining": "HTTP/HTTPS/SOCKS/NO_PROXY support contract and safe change propagation; not the outbound secrets proxy.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/185"
+      ]
+    },
+    {
+      "original_id": "TLS-001",
+      "original_title": "local CA and Keychain storage",
+      "original_priority": "P1",
+      "owners": [
+        186
+      ],
+      "status": "New integrated local HTTPS",
+      "remaining": "Owned CA/Keychain, scoped certificate issuance and reverse routing are checklists in one cohesive feature; unrelated sandbox CA is not parity.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/186"
+      ]
+    },
+    {
+      "original_id": "TLS-002",
+      "original_title": "service certificate issuer",
+      "original_priority": "P1",
+      "owners": [
+        186
+      ],
+      "status": "New integrated local HTTPS",
+      "remaining": "Owned CA/Keychain, scoped certificate issuance and reverse routing are checklists in one cohesive feature; unrelated sandbox CA is not parity.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/186"
+      ]
+    },
+    {
+      "original_id": "TLS-003",
+      "original_title": "reverse proxy and port discovery",
+      "original_priority": "P1",
+      "owners": [
+        186
+      ],
+      "status": "New integrated local HTTPS",
+      "remaining": "Owned CA/Keychain, scoped certificate issuance and reverse routing are checklists in one cohesive feature; unrelated sandbox CA is not parity.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/186"
+      ]
+    },
+    {
+      "original_id": "KUBE-001",
+      "original_title": "Integrate pinned K3s",
+      "original_priority": "P1",
+      "owners": [
+        179,
+        188
+      ],
+      "status": "k3s implemented; readiness defect",
+      "remaining": "Fix NotReady substring parsing, then qualify pinned cluster/components with complete readiness.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/179",
+        "https://github.com/castlemilk/micropod/issues/188"
+      ]
+    },
+    {
+      "original_id": "KUBE-002",
+      "original_title": "host kubeconfig/context",
+      "original_priority": "P1",
+      "owners": [
+        187,
+        188
+      ],
+      "status": "Host kubeconfig implemented",
+      "remaining": "Preserve unrelated contexts and validate endpoint/certificate/address changes through persistent lifecycle.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/187",
+        "https://github.com/castlemilk/micropod/issues/188"
+      ]
+    },
+    {
+      "original_id": "KUBE-003",
+      "original_title": "Kubernetes DNS/network bridge",
+      "original_priority": "P1",
+      "owners": [
+        188
+      ],
+      "status": "Networking components exist; qualify",
+      "remaining": "Pod/service/CoreDNS/host network fixtures and failure/restart receipts.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/188"
+      ]
+    },
+    {
+      "original_id": "KUBE-004",
+      "original_title": "LoadBalancer/Ingress host integration",
+      "original_priority": "P1",
+      "owners": [
+        188,
+        185,
+        186
+      ],
+      "status": "MetalLB/Traefik exist; domain/TLS gap",
+      "remaining": "Join existing ingress to local DNS/HTTPS with owned ports and backend support.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/188",
+        "https://github.com/castlemilk/micropod/issues/185",
+        "https://github.com/castlemilk/micropod/issues/186"
+      ]
+    },
+    {
+      "original_id": "KUBE-005",
+      "original_title": "local-path storage + Mac bind mounts",
+      "original_priority": "P1",
+      "owners": [
+        187,
+        188,
+        160
+      ],
+      "status": "Durable cluster contract incomplete",
+      "remaining": "Persistent data/PVC lifecycle plus qualified Mac bind semantics; current down deletes state.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/187",
+        "https://github.com/castlemilk/micropod/issues/188",
+        "https://github.com/castlemilk/micropod/issues/160"
+      ]
+    },
+    {
+      "original_id": "KUBE-006",
+      "original_title": "Kubernetes GUI objects/logs",
+      "original_priority": "P2",
+      "owners": [
+        190
+      ],
+      "status": "Kubernetes UI scope to qualify/extend",
+      "remaining": "Reuse native resource UI; add honest pod/service/ingress/storage/log journeys where absent.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/190"
+      ]
+    },
+    {
+      "original_id": "KUBE-007",
+      "original_title": "kind/multi-node compatibility",
+      "original_priority": "P2",
+      "owners": [
+        188
+      ],
+      "status": "Optional unqualified capability",
+      "remaining": "Two/three-node kind lane is a separate go/no-go; single-node k3s is not this acceptance.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/188"
+      ]
+    },
+    {
+      "original_id": "CLI-001",
+      "original_title": "CLI command model",
+      "original_priority": "P0",
+      "owners": [
+        190,
+        157
+      ],
+      "status": "Substantial CLI exists",
+      "remaining": "Stable output/error/capability model across current engines; extend missing operations only.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/190",
+        "https://github.com/castlemilk/micropod/issues/157"
+      ]
+    },
+    {
+      "original_id": "CLI-002",
+      "original_title": "machine shell/exec",
+      "original_priority": "P0",
+      "owners": [
+        157,
+        190,
+        66
+      ],
+      "status": "Machine execution exists",
+      "remaining": "Preserve cwd/env/TTY/signals/known exits, existing shim exit-status issue retains ownership.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/157",
+        "https://github.com/castlemilk/micropod/issues/190",
+        "https://github.com/castlemilk/micropod/issues/66"
+      ]
+    },
+    {
+      "original_id": "SSH-001",
+      "original_title": "built-in SSH proxy",
+      "original_priority": "P1",
+      "owners": [
+        189
+      ],
+      "status": "Dedicated SSH integration gap",
+      "remaining": "Machine identity, transport, OpenSSH config ownership and host keys.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/189"
+      ]
+    },
+    {
+      "original_id": "SSH-002",
+      "original_title": "SSH-agent forwarding",
+      "original_priority": "P1",
+      "owners": [
+        189
+      ],
+      "status": "Opt-in integration gap",
+      "remaining": "Scoped forwarding lifetime and agent revocation; no key copying.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/189"
+      ]
+    },
+    {
+      "original_id": "GUI-001",
+      "original_title": "native SwiftUI menu/status app",
+      "original_priority": "P1",
+      "owners": [
+        190
+      ],
+      "status": "Native UI exists; qualify/extend",
+      "remaining": "Source/UI journey matrix, honest runtime state, bounded logs and measured idle polling; do not rebuild the app.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/190"
+      ]
+    },
+    {
+      "original_id": "GUI-002",
+      "original_title": "container/image/volume browser",
+      "original_priority": "P1",
+      "owners": [
+        190
+      ],
+      "status": "Native UI exists; qualify/extend",
+      "remaining": "Source/UI journey matrix, honest runtime state, bounded logs and measured idle polling; do not rebuild the app.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/190"
+      ]
+    },
+    {
+      "original_id": "GUI-003",
+      "original_title": "terminal/log viewer",
+      "original_priority": "P2",
+      "owners": [
+        190
+      ],
+      "status": "Native UI exists; qualify/extend",
+      "remaining": "Source/UI journey matrix, honest runtime state, bounded logs and measured idle polling; do not rebuild the app.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/190"
+      ]
+    },
+    {
+      "original_id": "PKG-001",
+      "original_title": "signed/notarised `.pkg`/app bundle",
+      "original_priority": "P0",
+      "owners": [
+        89,
+        190
+      ],
+      "status": "Existing signed release pipeline",
+      "remaining": "Keep completed managed installation closed; link exact signed release and fresh-host receipt in capability docs, not another installer implementation.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/89",
+        "https://github.com/castlemilk/micropod/issues/190"
+      ]
+    },
+    {
+      "original_id": "PKG-002",
+      "original_title": "first-run entitlement/helper setup",
+      "original_priority": "P0",
+      "owners": [
+        89,
+        190
+      ],
+      "status": "Managed setup completed in existing owner",
+      "remaining": "Preserve #89 final acceptance; qualify changed first-run flows through existing release workflow.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/89",
+        "https://github.com/castlemilk/micropod/issues/190"
+      ]
+    },
+    {
+      "original_id": "UPD-001",
+      "original_title": "atomic application updater",
+      "original_priority": "P1",
+      "owners": [
+        90,
+        178
+      ],
+      "status": "Existing continuity owner and open component PR",
+      "remaining": "Application continuity acceptance remains #90; PR #178 component update is not merged/installed proof.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/90",
+        "https://github.com/castlemilk/micropod/pull/178"
+      ]
+    },
+    {
+      "original_id": "UPD-002",
+      "original_title": "guest component A/B update",
+      "original_priority": "P1",
+      "owners": [
+        180,
+        90,
+        178
+      ],
+      "status": "Partial; guest A/B rollback not established",
+      "remaining": "Track explicit guest kernel/init/rootfs compatibility and last-known-good boot semantics after current component-update work. Do not equate helper rollback with full guest A/B recovery.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/180",
+        "https://github.com/castlemilk/micropod/issues/90",
+        "https://github.com/castlemilk/micropod/pull/178"
+      ]
+    },
+    {
+      "original_id": "MIG-001",
+      "original_title": "Docker Desktop migration importer",
+      "original_priority": "P2",
+      "owners": [
+        192
+      ],
+      "status": "Complete migration workflow not found",
+      "remaining": "Selected verified image/volume import, capacity/checksum/consistency and recoverable staging.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/192"
+      ]
+    },
+    {
+      "original_id": "OBS-001",
+      "original_title": "structured host/guest logging",
+      "original_priority": "P0",
+      "owners": [
+        191
+      ],
+      "status": "Collectors/logs exist; end-to-end evidence incomplete",
+      "remaining": "Inventory and extend correlation, precise resource accounting, component identity and redacted support bundles.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/191"
+      ]
+    },
+    {
+      "original_id": "OBS-002",
+      "original_title": "CPU/RAM/disk/network metrics",
+      "original_priority": "P1",
+      "owners": [
+        191
+      ],
+      "status": "Collectors/logs exist; end-to-end evidence incomplete",
+      "remaining": "Inventory and extend correlation, precise resource accounting, component identity and redacted support bundles.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/191"
+      ]
+    },
+    {
+      "original_id": "OBS-003",
+      "original_title": "diagnostic bundle with redaction",
+      "original_priority": "P1",
+      "owners": [
+        191
+      ],
+      "status": "Collectors/logs exist; end-to-end evidence incomplete",
+      "remaining": "Inventory and extend correlation, precise resource accounting, component identity and redacted support bundles.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/191"
+      ]
+    },
+    {
+      "original_id": "SEC-001",
+      "original_title": "threat model",
+      "original_priority": "P0",
+      "owners": [
+        183
+      ],
+      "status": "Architecture gate",
+      "remaining": "Trust-domain threat model and invariants for current and optional shared engines.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/183"
+      ]
+    },
+    {
+      "original_id": "SEC-002",
+      "original_title": "authenticated vsock RPC",
+      "original_priority": "P0",
+      "owners": [
+        141
+      ],
+      "status": "Existing vsock; authorization qualification",
+      "remaining": "Versioned capability, per-VM identity, bounded messages, replay/cancellation and unauthorized request tests.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/141"
+      ]
+    },
+    {
+      "original_id": "SEC-003",
+      "original_title": "host mount policy",
+      "original_priority": "P0",
+      "owners": [
+        160,
+        165
+      ],
+      "status": "Mount validation exists; qualify",
+      "remaining": "Explicit allowed roots, read-only policy, ownership and path/symlink escape behavior.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/160",
+        "https://github.com/castlemilk/micropod/issues/165"
+      ]
+    },
+    {
+      "original_id": "SEC-004",
+      "original_title": "system-container capability/seccomp profile",
+      "original_priority": "P1",
+      "owners": [
+        154,
+        183
+      ],
+      "status": "New shared-mode controls",
+      "remaining": "Capability/seccomp/cgroup/device policy with shared-kernel limitation stated.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/154",
+        "https://github.com/castlemilk/micropod/issues/183"
+      ]
+    },
+    {
+      "original_id": "SEC-005",
+      "original_title": "isolated-VM security profile",
+      "original_priority": "P1",
+      "owners": [
+        145
+      ],
+      "status": "Independent microVM already exists",
+      "remaining": "Qualify existing default mount/network/agent/secrets grants and isolation; dedicated host account is another boundary.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/145"
+      ]
+    },
+    {
+      "original_id": "BENCH-001",
+      "original_title": "benchmark schema/runner",
+      "original_priority": "P0",
+      "owners": [
+        182
+      ],
+      "status": "Harness exists; extend and repair",
+      "remaining": "See the distinct suite/checklist in benchmark-plan.md; all raw receipts required before complete coverage or superiority claims.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/182"
+      ]
+    },
+    {
+      "original_id": "BENCH-002",
+      "original_title": "OrbStack/Colima/Docker/Rancher adapters",
+      "original_priority": "P0",
+      "owners": [
+        182
+      ],
+      "status": "Harness exists; extend and repair",
+      "remaining": "See the distinct suite/checklist in benchmark-plan.md; all raw receipts required before complete coverage or superiority claims.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/182"
+      ]
+    },
+    {
+      "original_id": "BENCH-003",
+      "original_title": "start/runtime/idle suite",
+      "original_priority": "P0",
+      "owners": [
+        182
+      ],
+      "status": "Harness exists; extend and repair",
+      "remaining": "See the distinct suite/checklist in benchmark-plan.md; all raw receipts required before complete coverage or superiority claims.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/182"
+      ]
+    },
+    {
+      "original_id": "BENCH-004",
+      "original_title": "filesystem suite",
+      "original_priority": "P0",
+      "owners": [
+        182
+      ],
+      "status": "Harness exists; extend and repair",
+      "remaining": "See the distinct suite/checklist in benchmark-plan.md; all raw receipts required before complete coverage or superiority claims.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/182"
+      ]
+    },
+    {
+      "original_id": "BENCH-005",
+      "original_title": "networking suite",
+      "original_priority": "P0",
+      "owners": [
+        182
+      ],
+      "status": "Harness exists; extend and repair",
+      "remaining": "See the distinct suite/checklist in benchmark-plan.md; all raw receipts required before complete coverage or superiority claims.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/182"
+      ]
+    },
+    {
+      "original_id": "BENCH-006",
+      "original_title": "BuildKit suite",
+      "original_priority": "P1",
+      "owners": [
+        182
+      ],
+      "status": "Harness exists; extend and repair",
+      "remaining": "See the distinct suite/checklist in benchmark-plan.md; all raw receipts required before complete coverage or superiority claims.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/182"
+      ]
+    },
+    {
+      "original_id": "BENCH-007",
+      "original_title": "Kubernetes readiness suite",
+      "original_priority": "P1",
+      "owners": [
+        182
+      ],
+      "status": "Harness exists; extend and repair",
+      "remaining": "See the distinct suite/checklist in benchmark-plan.md; all raw receipts required before complete coverage or superiority claims.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/182"
+      ]
+    },
+    {
+      "original_id": "BENCH-008",
+      "original_title": "power/energy suite",
+      "original_priority": "P1",
+      "owners": [
+        182
+      ],
+      "status": "Harness exists; extend and repair",
+      "remaining": "See the distinct suite/checklist in benchmark-plan.md; all raw receipts required before complete coverage or superiority claims.",
+      "owner_urls": [
+        "https://github.com/castlemilk/micropod/issues/182"
+      ]
+    }
+  ],
+  "filed_issue_dispositions": [
+    {
+      "number": 136,
+      "status": "Existing interfaces; extension needed",
+      "title": "[VIRT-001] Extend runtime engine contracts for shared and isolated execution",
+      "scope": "Retain RuntimeEngine, EngineRegistry and RuntimeServices; distinguish execution engine, VM topology and native/CLI/managed-gateway transport. Specify capability, ownership, state and failure behavior for any optional shared-kernel engine.",
+      "acceptance": [
+        "Publish an ADR mapping apple, docker, sandbox and proposed shared-kernel execution to existing interfaces and explicitly document their isolation boundaries.",
+        "Add contract fixtures proving engine-qualified object ownership, capability errors and routing remain correct across backend transport changes.",
+        "Specify lifecycle states and cleanup ownership for boot failure, cancellation, reconnect and service restart before adding a new engine.",
+        "Existing Apple, external Docker and sandbox APIs retain their documented behavior and generated-client compatibility."
+      ],
+      "evidence_keys": [
+        "E02",
+        "E03"
+      ],
+      "dependencies": [],
+      "disposition": "extend"
+    },
+    {
+      "number": 137,
+      "status": "Direct Swift VZ exists; optional reference experiment",
+      "title": "[VIRT-002] Gate vfkit reference experiment on a concrete comparison",
+      "scope": "Keep open only as a bounded external reference experiment. Micropod already boots direct Swift VZ sandbox VMs; vfkit is not a prerequisite or a proposed production dependency.",
+      "acceptance": [
+        "State the question that vfkit answers beyond the existing SandboxVM backend and the measurement that would change an architecture decision.",
+        "If the experiment proceeds, pin vfkit, guest kernel, rootfs, CPU, memory, mounts and networking to an equivalent comparison configuration.",
+        "Record boot readiness, lifecycle failures and resource measurements with raw samples and environment metadata.",
+        "Conclude adopt, retain only as benchmark, or reject with evidence; do not mark the existing native backend as missing or gate current releases on this prototype."
+      ],
+      "evidence_keys": [
+        "E04",
+        "E05",
+        "E24"
+      ],
+      "dependencies": [
+        136
+      ],
+      "disposition": "gate"
+    },
+    {
+      "number": 138,
+      "status": "Native Swift VZ implemented in sandbox",
+      "title": "[VIRT-003] Qualify and extend the existing Swift VZ backend",
+      "scope": "Extend SandboxVM and existing ownership/cleanup machinery only where the chosen topology requires it. Preserve direct VZ and Apple Containerization integration rather than building another boot path.",
+      "acceptance": [
+        "Document existing kernel, initfs, block, share, network and guest-agent ownership across successful and failed boots.",
+        "Exercise cancellation and failures before VM creation, during guest readiness and during stop; each owned resource must be released or reported as unconfirmed.",
+        "Attach physical Mac receipts for repeat boot, stop and restart cycles using the pinned dependency and guest artifacts.",
+        "Any shared-VM extension conforms to the runtime contract and preserves the isolated sandbox mode."
+      ],
+      "evidence_keys": [
+        "E03",
+        "E04",
+        "E05",
+        "E06"
+      ],
+      "dependencies": [
+        136,
+        176
+      ],
+      "disposition": "extend"
+    },
+    {
+      "number": 139,
+      "status": "Apple kernel consumed; custom build absent",
+      "title": "[VIRT-004] Evaluate a reproducible kernel build against the existing kernel",
+      "scope": "Make custom kernel ownership conditional on a required guest feature or a measured boot/footprint improvement. Current SandboxVM already consumes the installed Apple kernel and sets boot optimization arguments.",
+      "acceptance": [
+        "Inventory the existing kernel configuration and required namespace, cgroup, filesystem, networking, eBPF and virtio features for each supported engine.",
+        "If a custom build is justified, publish reproducible source/config/toolchain hashes, license/SBOM data, signing or verification policy and update ownership.",
+        "Compare boot phases, idle footprint and workload correctness against the existing kernel on the same Mac and guest configuration.",
+        "Demonstrate failed-update recovery and rollback to a previously bootable kernel before enabling the custom artifact by default."
+      ],
+      "evidence_keys": [
+        "E04",
+        "E05",
+        "E24"
+      ],
+      "dependencies": [
+        136
+      ],
+      "disposition": "gate"
+    },
+    {
+      "number": 140,
+      "status": "Apple vminitd exists; shared supervisor absent",
+      "title": "[VIRT-005] Define guest init and supervisor composition",
+      "scope": "Reuse the pinned Apple vminitd contract for current VMs. Design additional guest supervision only for a selected shared-kernel/system-distribution mode, including its service and trust boundaries.",
+      "acceptance": [
+        "Document the currently selected vminit image, version matching and fallback behavior with source and compatibility fixtures.",
+        "For shared mode, specify who owns PID1, reaping, cgroup delegation, distro service shutdown and control-plane recovery.",
+        "Test guest-service crash, orphan process cleanup, shutdown timeout and agent reconnection without silently reporting completed cleanup.",
+        "Pin any new guest component and provide upgrade/rollback handling while keeping the existing per-VM init path compatible."
+      ],
+      "evidence_keys": [
+        "E05",
+        "E06",
+        "E07"
+      ],
+      "dependencies": [
+        136
+      ],
+      "disposition": "gate"
+    },
+    {
+      "number": 141,
+      "status": "Guest gRPC/vsock and duplex bridge implemented",
+      "title": "[VIRT-006] Harden existing guest protocol versioning and lifecycle",
+      "scope": "Extend the existing vminitd gRPC client, generated protocols and vsock bridge with explicit compatibility, authorization, cancellation and bounded lifecycle behavior. Coordinate abandoned unary-call handling with PR #176.",
+      "acceptance": [
+        "Publish a protocol compatibility matrix covering host SDK, guest init and supported installed Apple runtime versions.",
+        "Test unauthorized operations, malformed messages, bounded payloads, connection loss, half-close, reconnect and per-VM identity separation.",
+        "Verify a cancelled or timed-out caller cannot enqueue a late operation after its admission or resource ownership has ended.",
+        "Retain protocol fixtures and generated-client drift checks so an incompatible dependency change fails before release."
+      ],
+      "evidence_keys": [
+        "E03",
+        "E05",
+        "E06"
+      ],
+      "dependencies": [
+        176
+      ],
+      "disposition": "extend"
+    },
+    {
+      "number": 142,
+      "status": "Per-VM limits exist; reclaim controls unqualified",
+      "title": "[VIRT-007] Measure memory reclaim capabilities and pressure behavior",
+      "scope": "Investigate supported Virtualization.framework and Containerization reclaim controls rather than assuming ballooning exists. Separate configured capacity, guest RSS/page cache and actual host physical footprint.",
+      "acceptance": [
+        "Record which reclaim controls are publicly available on every supported OS/runtime combination and explicitly identify unavailable mechanisms.",
+        "Capture allocate/free, guest-cache growth, idle recovery and host-pressure workloads with guest and host memory metrics.",
+        "Measure tail latency, OOM behavior and reclaim time alongside footprint for repeated equivalent runs.",
+        "Adopt a supported policy only after workload integrity and pressure tests pass; retain a documented safe fallback when reclaim is unsupported."
+      ],
+      "evidence_keys": [
+        "E04",
+        "E07",
+        "E24"
+      ],
+      "dependencies": [
+        138
+      ],
+      "disposition": "gate"
+    },
+    {
+      "number": 143,
+      "status": "Automatic Rosetta selection implemented",
+      "title": "[VIRT-008] Qualify existing Rosetta and amd64 execution paths",
+      "scope": "Turn existing native automatic Rosetta selection into a supported compatibility and performance matrix across CLI, API, shim and build paths.",
+      "acceptance": [
+        "Report Rosetta availability and installation requirements with a clear diagnostic when translation cannot be used.",
+        "Verify arm64 and amd64 image selection, exec, exit status, bind mounts and networking through the native API and Docker shim.",
+        "Include representative amd64 workloads and documented unsupported-instruction behavior rather than only architecture-printing smoke tests.",
+        "Publish translated and native benchmark cohorts separately with the same guest limits and explicit image digests."
+      ],
+      "evidence_keys": [
+        "E07",
+        "E09",
+        "E24"
+      ],
+      "dependencies": [],
+      "disposition": "extend"
+    },
+    {
+      "number": 144,
+      "status": "ARM-specific sandbox; Intel support not qualified",
+      "title": "[VIRT-009] Decide and validate Intel Mac support boundaries",
+      "scope": "Resolve product and dependency feasibility before promising Intel execution. Package requires macOS 26 and SandboxVM selects ARM kernel/init paths; translation support does not establish Intel host support.",
+      "acceptance": [
+        "Document which supported Intel Mac and macOS combinations can run each selected dependency and execution engine.",
+        "Decide supported, limited to external Docker, experimental or unsupported status for each Intel engine path.",
+        "If native support is selected, implement architecture-specific artifact selection and attach physical Intel boot and Docker compatibility receipts.",
+        "Unsupported combinations fail with actionable diagnostics without downloading or booting the wrong architecture artifacts."
+      ],
+      "evidence_keys": [
+        "E01",
+        "E04",
+        "E05",
+        "E07"
+      ],
+      "dependencies": [
+        136
+      ],
+      "disposition": "gate"
+    },
+    {
+      "number": 145,
+      "status": "Isolated sandbox VM already implemented",
+      "title": "[VIRT-010] Qualify the existing isolated VM security profile",
+      "scope": "Preserve and qualify the current per-sandbox VM boundary while defining any shared-kernel alternative. Treat dedicated macOS service-account isolation as a separate layer.",
+      "acceptance": [
+        "Document default host-share, socket, network, port, secret and checkpoint policies for the isolated profile.",
+        "Test that denied host resources cannot be introduced through alternate CLI, API, mount or rootless nested-Docker paths.",
+        "Verify failed or cancelled workloads retain cleanup ownership until VM and network teardown is confirmed.",
+        "The UI and API clearly distinguish independent-kernel isolation from shared-kernel distributions and from managed host-account isolation."
+      ],
+      "evidence_keys": [
+        "E02",
+        "E03",
+        "E04",
+        "E20"
+      ],
+      "dependencies": [
+        136
+      ],
+      "disposition": "extend"
+    },
+    {
+      "number": 146,
+      "status": "Core-platform follow-up; implementation and qualification remain open",
+      "title": "[RUN-001] Complete a qualified Linux containerd/runc execution profile",
+      "scope": "Complete a maintained Linux containerd/runc profile inside explicit trusted builder, project or isolated-job domains, independent of a global shared-distribution engine.",
+      "acceptance": [
+        "#201: required semantic fields, capabilities and requested/effective configuration.",
+        "#202: maintained Linux guest runtime, task service and explicit domain ownership.",
+        "#203: process identity, exec, signals and terminal/stdio behavior.",
+        "#204: durable task outcomes, lifecycle recovery and ordered events; retain #66 ownership.",
+        "#205: enforceable cgroup resources and live updates.",
+        "#206: mounts, namespaces, security, devices and rootless behavior.",
+        "#207: differential qualification against pinned references.",
+        "Required lifecycle, process, resource, mount, namespace and security fixtures pass on the selected Linux profile. Unsupported required behavior remains a release blocker; silent field loss and successful no-ops fail qualification.",
+        "Linux host namespace sharing is confined to the declared Linux domain. Host shares, credentials, devices and control-plane authority require explicit grants; independent CI jobs cannot silently share a kernel or mutable state.",
+        "Transport loss, guest/service restart, cancelled creation and teardown preserve authoritative task identity, exit status and storage references. Reuse #141, #176 and #66 instead of competing implementations.",
+        "Pin component provenance, SBOM, update/rollback ownership and state compatibility. Failed updates cannot silently migrate or discard another engine's workloads.",
+        "Record reproducible native receipts and comparable resource/performance measurements after correctness. Inspected source and upstream reuse are not conformance evidence."
+      ],
+      "evidence_keys": [
+        "E02",
+        "E05",
+        "E08"
+      ],
+      "dependencies": [
+        154
+      ],
+      "disposition": "extend",
+      "initial_reconciliation": {
+        "number": 146,
+        "status": "New daemon stack only relevant to selected shared engine",
+        "title": "[RUN-001] Gate a pinned Moby stack on the shared-engine decision",
+        "scope": "Keep the default Apple and sandbox engines independent of a new Moby/containerd/runc bundle. Scope guest Docker integration to an explicitly selected optional shared-kernel engine.",
+        "acceptance": [
+          "Publish a decision explaining why Docker daemon semantics are required beyond the existing shim and external Docker adapter.",
+          "If selected, pin guest components, provenance, licenses, SBOM and vulnerability/update owners independently from the host application.",
+          "Verify container lifecycle, named volumes, networks, restart behavior and daemon recovery in the shared engine.",
+          "Upgrade and rollback cannot silently migrate or corrupt existing Apple-engine images, volumes or contexts."
+        ],
+        "evidence_keys": [
+          "E02",
+          "E05",
+          "E08"
+        ],
+        "dependencies": [
+          154
+        ],
+        "disposition": "gate"
+      },
+      "acceptance_issue_url": "https://github.com/castlemilk/micropod/issues/146"
+    },
+    {
+      "number": 147,
+      "status": "Core-platform follow-up; implementation and qualification remain open",
+      "title": "[RUN-002] Complete Docker API semantics and client compatibility",
+      "scope": "Complete known Docker API semantics, real client workflows, process/lifecycle/resource/security translation and differential qualification.",
+      "acceptance": [
+        "#201: inventory every known field/operation in the selected API profile; preserve requested/effective values through adapters.",
+        "#203: exec identity, attach stdin/EOF, TTY/resize/detach and requested signals.",
+        "#204: lifecycle outcomes, wait/inspect/events and reconnect recovery.",
+        "#205 and #206: enforce resource, mount, namespace and security requests at the selected execution boundary.",
+        "#207: unmodified client and API differential fixtures, including error behavior.",
+        "Integrate #149 and build children #195\u2013200 for build sessions, outputs and cache operations; Buildx compatibility is not implied by legacy POST /build delegation.",
+        "Version negotiation, endpoint behavior, defaults, validation and error classes match the pinned reference for the required Docker CLI/Compose workflows. Cover images, containers, exec, logs, networks, volumes, events and build integration.",
+        "Known security/resource/namespace fields cannot disappear silently. Interim explicit failure is preferable to misleading success but does not complete a required feature. Truly unknown extension properties follow the selected API's forward-compatibility rules.",
+        "Interactive and noninteractive execution preserves UID/GID, argv/env/cwd, stream framing, half-close, backpressure, terminal state and nonzero/signal exits across concurrent clients and reconnects.",
+        "Pause/unpause, update, resize, wait and signal operations have real backend behavior or remain visible release blockers. Advertised routes and empty successful prune responses do not satisfy acceptance.",
+        "Restart and stale-socket tests preserve another live service's resources; event ordering and unknown outcomes remain authoritative. Native Mac receipts include cleanup and first-attempt failures."
+      ],
+      "evidence_keys": [
+        "E02",
+        "E08",
+        "E09"
+      ],
+      "dependencies": [
+        131,
+        176
+      ],
+      "disposition": "extend",
+      "initial_reconciliation": {
+        "number": 147,
+        "status": "Docker Unix socket and shim implemented",
+        "title": "[RUN-002] Qualify Docker socket compatibility and ownership",
+        "scope": "Harden the existing shim and Unix socket instead of creating them again. Maintain deliberate Apple-engine routing to prevent loops through the external Docker adapter.",
+        "acceptance": [
+          "Run a versioned Docker CLI and Compose compatibility suite covering lifecycle, logs, exec, attach, errors and API negotiation.",
+          "Test socket ownership, stale socket cleanup, concurrent startup, service restart and client reconnection without deleting another live service socket.",
+          "Verify half-close, cancellation, stalled clients and concurrent requests release only resources owned by the shim.",
+          "Document supported and unsupported Docker API endpoints and retain the no-recursive-Docker-routing invariant."
+        ],
+        "evidence_keys": [
+          "E02",
+          "E08",
+          "E09"
+        ],
+        "dependencies": [
+          131,
+          176
+        ],
+        "disposition": "extend"
+      },
+      "acceptance_issue_url": "https://github.com/castlemilk/micropod/issues/147"
+    },
+    {
+      "number": 148,
+      "status": "DOCKER_HOST documented; reversible installer absent in reviewed paths",
+      "title": "[RUN-003] Add a reversible Docker context installer",
+      "scope": "Install and select an opt-in Docker context for the existing shim socket without taking over other runtime contexts.",
+      "acceptance": [
+        "Create a uniquely named context with the actual configured socket and preserve all existing contexts.",
+        "Repeated installation is idempotent; selecting the new context records the previous selection for explicit restoration.",
+        "Uninstall and rollback restore the previous valid context without deleting user-created configurations.",
+        "Test custom socket locations, missing Docker CLI, renamed contexts and interaction with Docker Desktop and OrbStack contexts."
+      ],
+      "evidence_keys": [
+        "E08"
+      ],
+      "dependencies": [
+        147
+      ],
+      "disposition": "extend"
+    },
+    {
+      "number": 149,
+      "status": "Core-platform follow-up; implementation and qualification remain open",
+      "title": "[Build platform] Deliver native build ownership and full Buildx workflow compatibility",
+      "scope": "Deliver native BuildService ownership, qualified BuildKit integration, Buildx/Compose/Bake, sources, sessions, outputs, caches and measured worker experiments.",
+      "acceptance": [
+        "Native API/UI/CLI/MCP and unmodified supported clients select the same owned service without a legacy-builder environment override.",
+        "Every required compatibility row passes: sources/frontends, private sessions, cache modes, platforms, outputs, progress, cancellation and restart. Unsupported required rows remain open blockers.",
+        "Loaded and registry-exported results run correctly; actual descriptors and authoritative failures survive the complete request-to-output path.",
+        "Concurrent builds, slow subscribers, disk-full, cancellation and uncertain exports retain bounded resources and correct ownership.",
+        "[#182](https://github.com/castlemilk/micropod/issues/182) measures matched cold/no-change/incremental/concurrent workloads with independent cache states. Native executor changes also satisfy [#207](https://github.com/castlemilk/micropod/issues/207)."
+      ],
+      "evidence_keys": [
+        "E09",
+        "E10",
+        "E24"
+      ],
+      "dependencies": [
+        147
+      ],
+      "disposition": "extend",
+      "initial_reconciliation": {
+        "number": 149,
+        "status": "Legacy build delegation exists; Buildx session gap",
+        "title": "[RUN-004] Add Buildx interoperability to existing build support",
+        "scope": "Preserve current POST /build and context caching while choosing and implementing a complete builder/session strategy. Current shim requires the legacy Docker build path and does not proxy Buildx gRPC sessions.",
+        "acceptance": [
+          "Document the selected BuildKit topology and ownership of builder lifecycle, cache, image store and credentials.",
+          "Verify Buildx build, session authentication, secrets, SSH forwarding, cancellation and supported exporters with stock clients.",
+          "Measure cold, warm-cache, multi-stage and multi-platform builds using fixed contexts and image digests.",
+          "Builder restart preserves declared caches and current legacy build behavior remains available during migration."
+        ],
+        "evidence_keys": [
+          "E09",
+          "E10",
+          "E24"
+        ],
+        "dependencies": [
+          147
+        ],
+        "disposition": "extend"
+      },
+      "acceptance_issue_url": "https://github.com/castlemilk/micropod/issues/149"
+    },
+    {
+      "number": 150,
+      "status": "Core-platform follow-up; implementation and qualification remain open",
+      "title": "[Images] Complete build-to-run OCI content and image-store interoperability",
+      "scope": "Complete build-to-run OCI content, image index/attestation, verified snapshot and reference interoperability across supported stores.",
+      "acceptance": [
+        "Native and Buildx builds load into the selected Micropod engine and run; registry pushes can be independently pulled and run by immutable digest.",
+        "Multi-platform indexes select the correct qualified runtime, and promised SBOM/provenance survives every advertised import/export route.",
+        "OCI archive round trips preserve required content/config semantics; stale tags cannot substitute for a validated descriptor.",
+        "Concurrent import, tag replacement, deletion, snapshot preparation and pruning retain live parents and outputs, including after cancellation or restart.",
+        "Disk-full, corruption and interrupted publication never publish an incomplete reusable object. Migration is resumable and preserves the original until verified.",
+        "Measure duplicate allocation, unpack cost, clone cost and actual reclaim separately; physical deduplication remains subordinate to provenance and access control."
+      ],
+      "evidence_keys": [
+        "E02",
+        "E05",
+        "E09",
+        "E17"
+      ],
+      "dependencies": [
+        146
+      ],
+      "disposition": "extend",
+      "initial_reconciliation": {
+        "number": 150,
+        "status": "Apple image store exists; optional containerd mode absent",
+        "title": "[RUN-005] Decide containerd image-store interoperability",
+        "scope": "Scope containerd storage to an optional selected engine and explicit interoperability requirements rather than replacing the existing Apple image store by default.",
+        "acceptance": [
+          "Specify authoritative image stores and namespace/refcount ownership for Apple, shared Docker, Kubernetes and any nerdctl profile.",
+          "Test OCI indexes, multiple platforms, tag updates, shared layer retention and concurrent import/delete behavior.",
+          "Provide checksum-verified import/export or migration with recoverable interruption and no implicit deletion of the original store.",
+          "Measure actual duplicate disk allocation and migration cost before selecting a shared-store optimization."
+        ],
+        "evidence_keys": [
+          "E02",
+          "E05",
+          "E09",
+          "E17"
+        ],
+        "dependencies": [
+          146
+        ],
+        "disposition": "gate"
+      },
+      "acceptance_issue_url": "https://github.com/castlemilk/micropod/issues/150"
+    },
+    {
+      "number": 151,
+      "status": "Registry operations exist; helper interoperability unqualified",
+      "title": "[RUN-006] Qualify Keychain and registry credential interoperability",
+      "scope": "Extend existing registry list/login/logout ownership and investigate Apple and Docker helper APIs before introducing another credential store.",
+      "acceptance": [
+        "Document which process/account owns credentials for native Apple operations, Docker shim builds, external Docker and any shared guest daemon.",
+        "Verify private-registry login, pull, build and logout with supported macOS credential helpers and the managed runtime account.",
+        "Test locked Keychain, denied access, expired credentials and helper failure with actionable redacted errors.",
+        "No password or long-lived token appears in logs, process arguments, exported diagnostics or unapproved guest plaintext persistence."
+      ],
+      "evidence_keys": [
+        "E03",
+        "E09",
+        "E10"
+      ],
+      "dependencies": [],
+      "disposition": "extend"
+    },
+    {
+      "number": 152,
+      "status": "Durable lifecycle and manual-stop state exist",
+      "title": "[RUN-007] Add bounded activation while respecting manual stop",
+      "scope": "Integrate demand-driven startup with existing lifecycle, maintenance and admission state. A read such as docker ps must not override an explicit user stop.",
+      "acceptance": [
+        "Define which requests may activate a stopped runtime and distinguish automatic idle shutdown from user-paused startup.",
+        "Coalesce concurrent activation requests and propagate cancellation or startup failure without creating late workloads.",
+        "Verify manual stop, draining, update, repair and recovery states prevent unauthorized automatic restart.",
+        "Measure idle CPU/wakeups and cold first-request latency with retained lifecycle receipts for every transition."
+      ],
+      "evidence_keys": [
+        "E03",
+        "E11",
+        "E24"
+      ],
+      "dependencies": [
+        176
+      ],
+      "disposition": "extend"
+    },
+    {
+      "number": 153,
+      "status": "Existing engines independent of Docker; nerdctl profile absent",
+      "title": "[RUN-008] Gate an optional containerd and nerdctl profile",
+      "scope": "Document current Apple/sandbox Docker independence and add a nerdctl profile only if it solves a concrete selected-engine need.",
+      "acceptance": [
+        "State user workflows requiring nerdctl beyond current CLI, shim and external Docker support.",
+        "If selected, define containerd endpoint, namespaces, image ownership, network plugin and volume semantics explicitly.",
+        "Verify Docker-daemon-disabled behavior without breaking Kubernetes or workloads in other profiles.",
+        "Profile enable, disable and removal preserve unrelated images, networks and user contexts."
+      ],
+      "evidence_keys": [
+        "E02",
+        "E05",
+        "E23"
+      ],
+      "dependencies": [
+        146,
+        150
+      ],
+      "disposition": "gate"
+    },
+    {
+      "number": 154,
+      "status": "Shared-kernel distribution supervisor is new",
+      "title": "[MACH-001] Design an optional shared-kernel distribution engine",
+      "scope": "Implement a new explicitly selected execution/trust profile behind existing engines if measured density requirements justify it. Current Apple machines and sandboxes have different isolation and lifecycle semantics.",
+      "acceptance": [
+        "Publish an ADR covering shared-kernel failure radius, namespaces, cgroup2 delegation, privileged operations and separation of distro workloads from the trusted supervisor.",
+        "Verify create, boot, stop, delete and supervisor restart recover correct ownership without leaking processes, mounts, network state or cgroups.",
+        "Test one distro exhausting CPU, memory or process limits without breaking the control plane or unrelated distros.",
+        "Compare equivalent workload density, startup and physical memory against existing microVMs and preserve isolated VM mode."
+      ],
+      "evidence_keys": [
+        "E02",
+        "E04",
+        "E12",
+        "E24"
+      ],
+      "dependencies": [
+        136,
+        140,
+        141
+      ],
+      "disposition": "gate"
+    },
+    {
+      "number": 155,
+      "status": "Generic image machines exist; curated distro lifecycle absent",
+      "title": "[MACH-002] Add verified Ubuntu and Debian distribution profiles",
+      "scope": "Build curated system-distribution import and lifecycle on the selected supervisor while reusing existing image/machine services where applicable.",
+      "acceptance": [
+        "Pin and verify rootfs provenance, digest, architecture and license metadata before import.",
+        "Boot each supported release to its documented init target and verify package management, user creation, home directories and DNS.",
+        "Define update and reboot behavior with recovery from interrupted import or first boot.",
+        "Tests distinguish a complete system distribution from simply launching a shell in an OCI image."
+      ],
+      "evidence_keys": [
+        "E05",
+        "E12"
+      ],
+      "dependencies": [
+        154
+      ],
+      "disposition": "extend"
+    },
+    {
+      "number": 156,
+      "status": "Generic machines exist; Arch and Alpine profiles absent",
+      "title": "[MACH-003] Add validated Arch and Alpine distribution profiles",
+      "scope": "Extend the curated distro profile mechanism with explicit rolling-release and OpenRC/init compatibility contracts.",
+      "acceptance": [
+        "Pin supported rootfs artifacts and document Arch update cadence and Alpine release support.",
+        "Verify init/service startup, package installation, reboot and user-shell behavior for each profile.",
+        "Exercise profile update failure and restore a bootable previous state without affecting other distributions.",
+        "Publish a distro compatibility matrix and reuse common supervisor tests instead of duplicating lifecycle code."
+      ],
+      "evidence_keys": [
+        "E05",
+        "E12"
+      ],
+      "dependencies": [
+        154,
+        155
+      ],
+      "disposition": "extend"
+    },
+    {
+      "number": 157,
+      "status": "Machine lifecycle service and CLI substantially implemented",
+      "title": "[MACH-004] Extend machine CLI consistency across execution engines",
+      "scope": "Reuse existing machine list/create/remove/stop/run/logs/stats/properties behavior, adding missing operations and optional shared-distribution routing consistently.",
+      "acceptance": [
+        "Publish a command/API matrix showing existing Apple machine operations and supported operations for each new engine.",
+        "Add missing start, restart, status or inspect commands where supported with consistent machine IDs and structured errors.",
+        "Verify shell/exec preserves cwd, environment, TTY, signals and exit status across engines.",
+        "Test deleted/stale machine IDs, interrupted lifecycle calls and command completion without changing existing script behavior unexpectedly."
+      ],
+      "evidence_keys": [
+        "E02",
+        "E12"
+      ],
+      "dependencies": [
+        154
+      ],
+      "disposition": "extend"
+    },
+    {
+      "number": 158,
+      "status": "Per-VM resource limits exist; per-distro cgroups new",
+      "title": "[MACH-005] Add shared-distribution resource controls",
+      "scope": "Keep existing VM CPU/memory controls distinct from shared-kernel per-distribution cgroup limits and pressure reporting.",
+      "acceptance": [
+        "Specify supported CPU, memory.high, memory.max, pids and optional IO controls per engine.",
+        "Verify configured limits under contention and report guest and host measurements with the correct accounting scope.",
+        "A distro hitting a limit cannot kill or indefinitely stall the supervisor or unrelated distributions.",
+        "Resource-limit changes and restarts preserve policy, and unsupported controls produce explicit capability errors."
+      ],
+      "evidence_keys": [
+        "E04",
+        "E07",
+        "E12"
+      ],
+      "dependencies": [
+        154
+      ],
+      "disposition": "extend"
+    },
+    {
+      "number": 159,
+      "status": "Shared-distribution init and user-manager integration absent",
+      "title": "[MACH-006] Validate system and user services in distributions",
+      "scope": "Add systemd/OpenRC and user-service integration to the selected distro engine without assuming a replacement for the existing per-VM Apple init.",
+      "acceptance": [
+        "Publish supported distro/init combinations and verify multi-user startup, service logs, signals and clean shutdown.",
+        "Test user-manager startup, login/logout, linger policy and persistent user services with documented defaults.",
+        "Validate cgroup delegation, reaping and guest reboot requests without allowing a distro to control the global supervisor.",
+        "Service or init failures remain diagnosable and recoverable through machine CLI and API lifecycle operations."
+      ],
+      "evidence_keys": [
+        "E05",
+        "E06",
+        "E12"
+      ],
+      "dependencies": [
+        154,
+        155,
+        158
+      ],
+      "disposition": "extend"
+    },
+    {
+      "number": 160,
+      "status": "Core-platform follow-up; implementation and qualification remain open",
+      "title": "[FS-001] Deliver correct and fast host\u2013guest filesystem paths",
+      "scope": "Qualify correct and fast direct VirtioFS, SharedFS, immutable-source and guest-native writable paths with explicit ownership and comparable workloads.",
+      "acceptance": [
+        "Qualify the same source tree through supported direct binds, SharedFS, sandbox ro/rw/overlay paths and guest-native volumes. Verify granted roots, read-only enforcement, UID/mode behavior, links and teardown.",
+        "Integrate clone repair [#210](https://github.com/castlemilk/micropod/issues/210) and the metadata/invalidation implementation [#215](https://github.com/castlemilk/micropod/issues/215) against #161's correctness suite; retain #93 as the notification-repair owner.",
+        "Profile metadata requests, data transfer, hashing/copying, dirty writes, flushes and notification latency separately. Record supported host/runtime/kernel/backend identities and actual controls.",
+        "Publish no-change, one-file-change, large-tree, small-file, sequential and durable-write results under #182. Separate source/solver/package and host/guest page-cache warmth; count failures and include post-burst resource reclamation.",
+        "Require an end-to-end build or workload gain at equivalent coherence and durability before recommending a policy. A faster stale read or ignored chmod is a failed result."
+      ],
+      "evidence_keys": [
+        "E13",
+        "E14",
+        "E24"
+      ],
+      "dependencies": [],
+      "disposition": "extend",
+      "initial_reconciliation": {
+        "number": 160,
+        "status": "VirtioFS and sandbox share mounts implemented",
+        "title": "[FS-001] Qualify existing host mount paths and policies",
+        "scope": "Baseline direct VirtioFS, SharedFS cached views and sandbox APFS overlay separately; reuse existing mount parsing and ownership checks.",
+        "acceptance": [
+          "Run the same mount fixture through direct Apple binds, sandbox ro/rw mounts, SharedFS and overlay views.",
+          "Verify allowed roots, path normalization, missing paths, read-only enforcement, symlink handling and mount teardown.",
+          "Document each path\u2019s coherence, ownership and durability semantics rather than presenting them as interchangeable caches.",
+          "Attach reproducible correctness and representative metadata/read/write measurements for supported runtime versions."
+        ],
+        "evidence_keys": [
+          "E13",
+          "E14",
+          "E24"
+        ],
+        "dependencies": [],
+        "disposition": "extend"
+      },
+      "acceptance_issue_url": "https://github.com/castlemilk/micropod/issues/160"
+    },
+    {
+      "number": 161,
+      "status": "Core-platform follow-up; implementation and qualification remain open",
+      "title": "[FS-002] Qualify shared filesystem semantics, integrity and recovery",
+      "scope": "Gate filesystem optimization on metadata, links, events, integrity, concurrent-edit, visibility/durability and interruption/recovery fixtures.",
+      "acceptance": [
+        "Exercise dotfiles, empty files/directories, executable-mode and ownership changes, links, xattrs/ACL policy, byte/Unicode names and case behavior. Compare supported results with the declared Linux/filesystem reference.",
+        "Cover open descriptors across rename/unlink, conflicting host/guest edits, directory replacement, rename/delete storms and metadata-only changes. State ordering and conflict rules before asserting outcomes.",
+        "Inject chunk read/write failures, concurrent source mutation and corrupted plain/compressed objects. A successful manifest must describe complete verified bytes; failed replacement preserves its previous target. Include raw MCZ1 payloads below and at/above the eight-byte framing threshold.",
+        "Verify clone success, forced failure and cross-filesystem fallback preserve the declared metadata contract. Successful clone paths must avoid fallback read/write I/O.",
+        "Inject watcher startup failure, missing/overflowed events, stale asynchronous completion, sleep and service restart. Recover via bounded rescan when required; unknown state cannot be treated as synchronized.",
+        "Define visibility versus persistence and test fsync, directory publication, low disk and interruption at the relevant owner boundary. Do not equate every backend's guarantees."
+      ],
+      "evidence_keys": [
+        "E13",
+        "E14",
+        "E15",
+        "E16"
+      ],
+      "dependencies": [
+        160,
+        93
+      ],
+      "disposition": "extend",
+      "initial_reconciliation": {
+        "number": 161,
+        "status": "Race tests exist; broader filesystem semantics need coverage",
+        "title": "[FS-002] Expand file-sharing correctness and recovery coverage",
+        "scope": "Preserve existing delayed-event echo protections and establish a correctness gate before optimizing caches or write throughput.",
+        "acceptance": [
+          "Cover dotfiles, symlinks, hardlinks, empty directories, metadata-only changes, xattrs and rename/delete storms in both propagation directions.",
+          "Test conflicting host/guest writes, watcher-registration races and stale notifications against declared conflict semantics.",
+          "Inject lost-event indications and watcher startup/restart failures and verify bounded rescan/recovery without data loss.",
+          "Validate actual host-originated guest inotify behavior and record engine-specific limitations explicitly."
+        ],
+        "evidence_keys": [
+          "E13",
+          "E14",
+          "E15",
+          "E16"
+        ],
+        "dependencies": [
+          160,
+          93
+        ],
+        "disposition": "extend"
+      },
+      "acceptance_issue_url": "https://github.com/castlemilk/micropod/issues/161"
+    },
+    {
+      "number": 162,
+      "status": "Existing watchers and active defect owner #93",
+      "title": "[FS-003] Track live filesystem event repair in #93",
+      "scope": "Consolidate implementation and physical qualification into existing issue #93. Preserve this roadmap item as a cross-reference; do not create a second owner or claim the source observations prove the reported production root cause.",
+      "acceptance": [
+        "Transfer relevant acceptance to #93: preserve event flags/IDs, handle event loss and rescan, and report watcher start failures.",
+        "Link existing echo-race tests and add a reproduction for the actual reported failing host/guest workload.",
+        "Require a physical Mac verification receipt for the repaired event path and an explicit account of remaining limitations.",
+        "Close this issue as duplicate of #93 while retaining its legacy ID and roadmap cross-reference."
+      ],
+      "evidence_keys": [
+        "E15",
+        "E16"
+      ],
+      "dependencies": [
+        93
+      ],
+      "disposition": "duplicate"
+    },
+    {
+      "number": 163,
+      "status": "Core-platform follow-up; implementation and qualification remain open",
+      "title": "[FS-004] Implement typed metadata indexing and bounded invalidation",
+      "scope": "Implement a versioned typed metadata index with incremental bounded invalidation, generation fencing and event-gap recovery.",
+      "acceptance": [
+        "Preserve entry kinds and declared metadata across initial indexing, changes and restart; a chmod-only edit invalidates metadata despite unchanged file bytes.",
+        "Consume qualified event IDs/flags from #93. Coalesce paths within bounded windows, invalidate changed subtrees, and perform a recovery scan after gaps, root replacement or overflow. Do not assume FSEvents automatically produces guest inotify.",
+        "Fence asynchronous hash/copy work by generation so old work cannot overwrite newer state. Define host-originated and guest-originated ordering/conflict handling and cancellation.",
+        "Demonstrate that a small supported edit avoids rehashing unrelated files; separately measure cold scans, indexed traversal, rename storms and recovery scans on 50k-file and larger trees.",
+        "Report stat/readdir/open/rename latency, hashes and bytes read, queue depth, CPU, memory and stale-read failures under #182; pass #161 before promoting an optimization."
+      ],
+      "evidence_keys": [
+        "E14",
+        "E15",
+        "E16",
+        "E24"
+      ],
+      "dependencies": [
+        161,
+        93
+      ],
+      "disposition": "extend",
+      "initial_reconciliation": {
+        "number": 163,
+        "status": "SharedFS cache exists; low-level VirtioFS controls unproven",
+        "title": "[FS-004] Profile metadata paths and validate cache controls",
+        "scope": "Identify real tuning surfaces in runtime VirtioFS and user-space SharedFS before implementing cache policy. Avoid attributing user-space view behavior to an unimplemented virtiofs device backend.",
+        "acceptance": [
+          "Document supported cache controls and the layer owning each knob on every supported runtime version.",
+          "Profile stat, readdir, open and rename workloads across small and large trees with direct and cached mount paths.",
+          "Investigate full-tree scans and content hashing only where traces show material cost.",
+          "Any optimization must pass the file-sharing correctness/recovery suite and publish warm/cold results with stale-read failures counted."
+        ],
+        "evidence_keys": [
+          "E14",
+          "E15",
+          "E16",
+          "E24"
+        ],
+        "dependencies": [
+          161,
+          93
+        ],
+        "disposition": "gate"
+      },
+      "acceptance_issue_url": "https://github.com/castlemilk/micropod/issues/163"
+    },
+    {
+      "number": 164,
+      "status": "Mounted reverse Linux filesystem frontend not evidenced",
+      "title": "[FS-005] Design a mounted Linux filesystem view for macOS",
+      "scope": "Add an actual Finder/shell-visible reverse filesystem for selected guest machines and volumes, with explicit frontend, permissions and coherence semantics.",
+      "acceptance": [
+        "Select a supported macOS frontend and document its install, entitlement, trust and OS compatibility requirements.",
+        "Define stat/read/write/readdir/rename/xattr/locking behavior and authorization for each exposed guest root.",
+        "Verify Finder and shell workflows, concurrent mutation, disconnect/reconnect and offline error behavior with bounded caches.",
+        "Do not label existing copy operations or file-browser UI as a mounted reverse filesystem; gate rollout on the filesystem matrix."
+      ],
+      "evidence_keys": [
+        "E06",
+        "E13",
+        "E14",
+        "E16"
+      ],
+      "dependencies": [
+        141,
+        161
+      ],
+      "disposition": "gate"
+    },
+    {
+      "number": 165,
+      "status": "Path normalization exists; ownership mapping needs qualification",
+      "title": "[FS-006] Define path and ownership mapping across shared mounts",
+      "scope": "Characterize current native mappings and design explicit per-share UID/GID behavior for shared distributions and managed host-account operation.",
+      "acceptance": [
+        "Publish mapping rules for host paths, guest mount paths, UID/GID, supplementary groups and unsupported ownership changes.",
+        "Verify host-created and guest-created files retain the documented access and ownership behavior across restart.",
+        "Test chmod/chown, symlinks, paths outside the user home and paths denied to the dedicated runtime account.",
+        "Migration between mount modes cannot silently broaden host access or remap existing files to unintended users."
+      ],
+      "evidence_keys": [
+        "E03",
+        "E07",
+        "E13"
+      ],
+      "dependencies": [
+        160,
+        161
+      ],
+      "disposition": "extend"
+    },
+    {
+      "number": 166,
+      "status": "Core-platform follow-up; implementation and qualification remain open",
+      "title": "[FS-007] Eliminate redundant copying and optimize durable write paths",
+      "scope": "Fix successful-clone fallthrough and replace avoidable copying with bounded I/O before profiling durable writes and supported backend optimizations.",
+      "acceptance": [
+        "Inject clone success/failure and prove success performs no fallback data read/write. Qualify APFS, cross-volume and unsupported-filesystem fallback, preserving the metadata contract from #161.",
+        "Replace avoidable whole-file buffering with bounded streaming where cloning is unavailable; propagate read/write/flush failures and cancellation without publishing partial targets. Coordinate verified materialization [#209](https://github.com/castlemilk/micropod/issues/209).",
+        "Measure sequential, random, small-file and fsync-heavy work at equivalent durability. Record throughput, p50/p95 completion and flush latency, dirty-memory bounds, bytes read/written and host allocation.",
+        "Define visible acknowledgement versus durable completion, including directory publication. Crash/restart and low-space fixtures must meet that contract; delayed writeback cannot silently weaken it.",
+        "Prevent large transfers or cleanup from starving small control/metadata requests. Profile bounded batching/parallelism and memory-pressure recovery before adopting them."
+      ],
+      "evidence_keys": [
+        "E13",
+        "E14",
+        "E16",
+        "E17",
+        "E24"
+      ],
+      "dependencies": [
+        161,
+        163
+      ],
+      "disposition": "extend",
+      "initial_reconciliation": {
+        "number": 166,
+        "status": "Several write paths already exist; performance unqualified here",
+        "title": "[FS-007] Optimize measured bind-mount write bottlenecks",
+        "scope": "Use profiles to improve the existing direct, SharedFS and overlay paths while preserving declared coherence and durability.",
+        "acceptance": [
+          "Benchmark sequential, random, small-file and fsync-heavy workloads on equivalent data and mount configurations.",
+          "Attribute bottlenecks to hashing, copying, queueing, virtual filesystem or guest work before changing implementation.",
+          "Record flush latency, dirty-data behavior, host allocation and failure rates alongside throughput.",
+          "Optimizations pass crash/recovery and correctness checks and never compare nosync behavior to a durable competitor configuration without explicit separation."
+        ],
+        "evidence_keys": [
+          "E13",
+          "E14",
+          "E16",
+          "E17",
+          "E24"
+        ],
+        "dependencies": [
+          161,
+          163
+        ],
+        "disposition": "extend"
+      },
+      "acceptance_issue_url": "https://github.com/castlemilk/micropod/issues/166"
+    },
+    {
+      "number": 167,
+      "status": "Core-platform follow-up; implementation and qualification remain open",
+      "title": "[FS-008] Expose coherent, capability-checked per-share cache policies",
+      "scope": "Expose qualified coherent per-share policies with actual backend capability evidence, ownership, pressure and dirty-data behavior.",
+      "acceptance": [
+        "Integrate typed metadata/invalidation [#215](https://github.com/castlemilk/micropod/issues/215) and #93 notification recovery. Define how policy changes handle in-flight operations, open files and dirty data; test mixed-policy mounts, sleep, restart and teardown.",
+        "Make immutable inputs stable for their accepted build lifetime while live shares follow declared update rules. Verify metadata-only edits, renames, dropped events and simultaneous writers under #161.",
+        "Coordinate leases [#212](https://github.com/castlemilk/micropod/issues/212) and accounting [#211](https://github.com/castlemilk/micropod/issues/211); policy eviction must not delete active data or treat unknown ownership as unreferenced. Bound memory and dirty-write queues under pressure.",
+        "Keep mutable package-cache behavior with [#214](https://github.com/castlemilk/micropod/issues/214): shared/private/locked semantics remain upstream-compatible, and failed/cancelled builds may retain writes. Atomic export/golden publication does not imply rollback of all mutable caches.",
+        "Publish workload guidance from #160/#166 measurements with correctness failures visible. Report host and guest page-cache states separately; unsupported DAX/zero-copy optimizations cannot become defaults or marketing claims."
+      ],
+      "evidence_keys": [
+        "E13",
+        "E14",
+        "E15",
+        "E16"
+      ],
+      "dependencies": [
+        161,
+        163
+      ],
+      "disposition": "extend",
+      "initial_reconciliation": {
+        "number": 167,
+        "status": "Mount strategies exist; validated policy contract incomplete",
+        "title": "[FS-008] Expose validated per-share cache policies",
+        "scope": "Present existing direct, shared/per-container view and overlay choices as explicit policies only after their correctness and tuning controls are validated.",
+        "acceptance": [
+          "Define safe defaults and document coherence, conflict and durability semantics for each supported policy.",
+          "Expose only controls supported by the selected engine and reject unavailable low-level VirtioFS options clearly.",
+          "Test mixed-policy mounts, policy changes, restart and cleanup without stale reads or unexpected host mutations.",
+          "Publish workload guidance based on measured results and keep correctness failures visible in benchmark reports."
+        ],
+        "evidence_keys": [
+          "E13",
+          "E14",
+          "E15",
+          "E16"
+        ],
+        "dependencies": [
+          161,
+          163
+        ],
+        "disposition": "extend"
+      },
+      "acceptance_issue_url": "https://github.com/castlemilk/micropod/issues/167"
+    },
+    {
+      "number": 168,
+      "status": "Core-platform follow-up; implementation and qualification remain open",
+      "title": "[STOR-001] Reconcile storage ownership, exact capacity and truthful allocation",
+      "scope": "Inventory store ownership and reconcile exact realization capacity, byte-accounting basis, leases, allocation and actual reclamation.",
+      "acceptance": [
+        "Publish ownership, reference dependencies, format/version and capacity for each store. Distinguish compressed blobs, DiffIDs/chains, unpacked roots, logical capacities and mutable references.",
+        "Use one documented cap basis consistently through insertion, replacement, eviction and restart. Test repeated-content paths, sidecars, concurrent updates and failed deletes; unreclaimed storage cannot be counted as reclaimed.",
+        "Report path-logical bytes, distinct content, stored representations, allocated blocks, clone-shared extents and observed host reclamation separately. Mark unavailable attribution explicitly; overlapping APFS allocation is not additive unique usage.",
+        "Distinguish accepted byte-capacity requests that collide within a MiB; verify migration, actual realized capacity and incomplete-publication recovery. Coalesce concurrent first realization and retain live references across restart/cancellation.",
+        "Preserve unknown-owner retention protections, namespace authorization and active-task leases during GC. Under pressure reject/queue new work when safe reclaim is insufficient."
+      ],
+      "evidence_keys": [
+        "E05",
+        "E17",
+        "E18"
+      ],
+      "dependencies": [
+        136
+      ],
+      "disposition": "extend",
+      "initial_reconciliation": {
+        "number": 168,
+        "status": "Ext4 base images and CoW storage already exist",
+        "title": "[STOR-001] Reconcile disk topology and allocation accounting",
+        "scope": "Document existing per-VM ext4/base images and named-volume clones; decide separately whether a shared engine needs a single sparse data image.",
+        "acceptance": [
+          "Publish storage ownership and layout for base images, VM writable disks, named volumes, clones and checkpoints.",
+          "Report logical capacity, allocated blocks and clone-shared extents without adding overlapping allocations as unique physical use.",
+          "Verify disk creation, insufficient-space handling, interrupted placement and cleanup on supported host filesystems.",
+          "Adopt a different shared-image topology only with capacity, performance, corruption-scope and migration evidence."
+        ],
+        "evidence_keys": [
+          "E05",
+          "E17",
+          "E18"
+        ],
+        "dependencies": [
+          136
+        ],
+        "disposition": "gate"
+      },
+      "acceptance_issue_url": "https://github.com/castlemilk/micropod/issues/168"
+    },
+    {
+      "number": 169,
+      "status": "Complete online resize path not found",
+      "title": "[STOR-002] Qualify safe disk expansion capabilities",
+      "scope": "Investigate virtual block capacity changes and filesystem growth before committing to online expansion; provide a safe offline path when the backend cannot resize live.",
+      "acceptance": [
+        "Document backend and guest support for live block capacity change and filesystem growth per runtime version.",
+        "Verify growth preserves file checksums, mounts and declared volume identity under active workloads.",
+        "Test host disk full, guest disk full, interruption and restart at each resize stage with recoverable state.",
+        "Unsupported online growth uses a clearly communicated safe offline procedure rather than silently risking attached disks."
+      ],
+      "evidence_keys": [
+        "E05",
+        "E17",
+        "E18"
+      ],
+      "dependencies": [
+        168
+      ],
+      "disposition": "gate"
+    },
+    {
+      "number": 170,
+      "status": "GC and allocation reporting exist; end-to-end discard unqualified",
+      "title": "[STOR-003] Validate end-to-end discard and host-space reclamation",
+      "scope": "Trace guest filesystem discard through the virtual block backend to host sparse/APFS allocation and account correctly for shared clone extents.",
+      "acceptance": [
+        "Measure host allocation before writes, after guest deletion and after discard for standalone and cloned disks.",
+        "Identify which filesystems, block backends and runtime versions actually release host storage.",
+        "Test active and stopped volumes, throttling, cancellation and concurrent clone/commit operations without corruption.",
+        "Expose reclaimed bytes and unsupported cases honestly; do not equate deleting guest files or cache entries with host disk reclamation."
+      ],
+      "evidence_keys": [
+        "E14",
+        "E17",
+        "E18"
+      ],
+      "dependencies": [
+        168
+      ],
+      "disposition": "extend"
+    },
+    {
+      "number": 171,
+      "status": "CoW clone and guarded promotion exist; portable backup absent",
+      "title": "[STOR-004] Add verifiable volume backup and restore",
+      "scope": "Build portable, checksum-verified backup and restore above existing clone/commit primitives with explicit quiescence and application-consistency requirements.",
+      "acceptance": [
+        "Define a versioned backup manifest containing volume identity, format, checksums, permissions and compatibility requirements.",
+        "Enforce the documented consistency policy and refuse unsafe live-writer snapshots unless an application-consistent mechanism is available.",
+        "Restore to a separate destination and verify checksums before replacing any existing volume.",
+        "Exercise interrupted export/import, corrupt archives, insufficient space and cross-version restore with the original data preserved on failure."
+      ],
+      "evidence_keys": [
+        "E17",
+        "E18"
+      ],
+      "dependencies": [
+        168
+      ],
+      "disposition": "extend"
+    },
+    {
+      "number": 172,
+      "status": "Disk checkpoints exist; full VM-state snapshots absent",
+      "title": "[STOR-005] Define and harden checkpoint and snapshot semantics",
+      "scope": "Differentiate existing disk checkpoints from memory/device-state snapshots and decide which product guarantee is required before implementation.",
+      "acceptance": [
+        "Document whether each snapshot captures disk only, application-consistent state or complete VM memory/device state.",
+        "Harden disk and metadata publication/recovery so interruption cannot silently select mismatched checkpoint components.",
+        "Verify checkpoint clone, restore, deletion, version compatibility and rollback with data checksums.",
+        "Any full VM-state mode requires confirmed public framework support and physical validation; unsupported cases retain disk-only semantics."
+      ],
+      "evidence_keys": [
+        "E04",
+        "E17",
+        "E18"
+      ],
+      "dependencies": [
+        168
+      ],
+      "disposition": "gate"
+    },
+    {
+      "number": 173,
+      "status": "vmnet, native network and subnet allocation implemented",
+      "title": "[NET-001] Qualify the existing network and resolver baseline",
+      "scope": "Extend the current vmnet/native paths and deterministic shim subnet allocator with an engine-specific reliability matrix rather than adding a bootstrap stack by default.",
+      "acceptance": [
+        "Verify outbound TCP, UDP, DNS, IPv4 and supported IPv6 behavior for every supported engine and network mode.",
+        "Test VPN and split DNS transitions, sleep/wake, MTU changes, host subnet collisions and runtime restart.",
+        "Exercise repeated network allocation and ambiguous teardown without reusing resources whose cleanup is unconfirmed.",
+        "Publish supported direct-IP, host-only and isolation behavior and retain raw failures and environment metadata in network benchmarks."
+      ],
+      "evidence_keys": [
+        "E19",
+        "E21",
+        "E22",
+        "E24"
+      ],
+      "dependencies": [],
+      "disposition": "extend"
+    },
+    {
+      "number": 174,
+      "status": "Published ports exist; sandbox UDP/IPv6 bind gaps",
+      "title": "[NET-002] Complete port-forwarding parity and lifecycle behavior",
+      "scope": "Extend existing native published ports and sandbox TCP relays, explicitly resolving differing bind defaults and unsupported sandbox protocols.",
+      "acceptance": [
+        "Document and test default bind scope and explicit loopback, IPv4 and supported IPv6 addresses across engines.",
+        "Add or explicitly capability-gate sandbox UDP and IPv6 forwarding with protocol-specific correctness tests.",
+        "Verify port conflicts, thousands of connection churn operations, backpressure, half-close and cancellation without leaks.",
+        "Test sleep/restart rebind and distinguish explicitly published Docker ports from any future automatic discovery of guest listeners."
+      ],
+      "evidence_keys": [
+        "E19",
+        "E20",
+        "E21"
+      ],
+      "dependencies": [
+        173
+      ],
+      "disposition": "extend"
+    },
+    {
+      "number": 175,
+      "status": "Sandbox host.micropod.internal alias exists",
+      "title": "[NET-003] Standardize host gateway names across engines",
+      "scope": "Reuse the existing sandbox alias and define supported host-access semantics for Apple, sandbox, external Docker and optional shared-kernel modes.",
+      "acceptance": [
+        "Publish the stable supported host name and address behavior per engine and network mode.",
+        "Verify resolution and reachability under IPv4, supported IPv6, VPN transitions and host-only networks.",
+        "Ensure disabled networking or denied host access cannot be bypassed by selecting the gateway alias.",
+        "Test restart and network replacement without stale aliases, and document when an external Docker engine retains its own host-name conventions."
+      ],
+      "evidence_keys": [
+        "E19",
+        "E20",
+        "E22"
+      ],
+      "dependencies": [
+        173
+      ],
+      "disposition": "extend"
+    }
+  ],
+  "new_issue_refs": {
+    "KUBE_READY": 179,
+    "RECON": 180,
+    "CRAFT": 181,
+    "BENCH": 182,
+    "ARCH": 183,
+    "RUST": 184,
+    "DNS": 185,
+    "TLS": 186,
+    "KUBE_LIFECYCLE": 187,
+    "KUBE_INTEGRATION": 188,
+    "SSH": 189,
+    "UX": 190,
+    "OBS": 191,
+    "MIGRATION": 192
+  },
+  "existing_owner_refs": {
+    "runtime_component_update": {
+      "number": 178,
+      "kind": "pull_request",
+      "state": "open",
+      "head_sha": "9888b3fd1346ccc86f1fca4fafa8e6154ef5b7ec",
+      "includes_pull_request": 193
+    },
+    "stopped_runtime_recovery": {
+      "number": 193,
+      "kind": "pull_request",
+      "state": "closed",
+      "merged": false,
+      "folded_into": 178
+    },
+    "workload_continuity": {
+      "number": 90,
+      "kind": "issue"
+    },
+    "live_notifications": {
+      "number": 93,
+      "kind": "issue"
+    }
+  },
+  "new_issue_count_scope": "Initial reconciliation only; follow-up core issue count is separate",
+  "follow_up_core_issue_count": 21,
+  "total_new_issue_count": 35,
+  "core_issue_refs": {
+    "BUILD_SERVICE": 195,
+    "BUILD_PROTOCOL": 196,
+    "BUILD_CONTEXT": 197,
+    "BUILD_SESSION": 198,
+    "BUILD_OUTPUT": 199,
+    "BUILD_CACHE_PROTOCOL": 200,
+    "RT_CONTRACT": 201,
+    "RT_GUEST": 202,
+    "RT_PROCESS": 203,
+    "RT_LIFECYCLE": 204,
+    "RT_RESOURCES": 205,
+    "RT_ISOLATION": 206,
+    "RT_CONFORMANCE": 207,
+    "BUILD_WORKER": 208,
+    "CACHE_INTEGRITY": 209,
+    "CACHE_CLONES": 210,
+    "CACHE_ACCOUNTING": 211,
+    "CACHE_LEASES": 212,
+    "CACHE_SNAPSHOTS": 213,
+    "CACHE_MOUNTS": 214,
+    "FS_INDEX": 215
+  },
+  "core_backlog_file": "core-backlog.json",
+  "priority_order": [
+    "semantic_foundations",
+    "build_to_run",
+    "full_compatibility_matrix",
+    "measured_filesystem_cache_worker_performance",
+    "downstream_integrations"
+  ],
+  "filed_issue_disposition_counts_scope": "Counts 25 extend / 14 gate / 1 duplicate in prose describe the initial reconciliation. Follow-up overrides are recorded per affected issue with the prior snapshot retained.",
+  "core_parent_updates": [
+    {
+      "number": 149,
+      "title": "[Build platform] Deliver native build ownership and full Buildx workflow compatibility",
+      "url": "https://github.com/castlemilk/micropod/issues/149"
+    },
+    {
+      "number": 150,
+      "title": "[Images] Complete build-to-run OCI content and image-store interoperability",
+      "url": "https://github.com/castlemilk/micropod/issues/150"
+    },
+    {
+      "number": 181,
+      "title": "[Research] Investigate build, runtime and filesystem behavior with Craft Anything",
+      "url": "https://github.com/castlemilk/micropod/issues/181"
+    },
+    {
+      "number": 182,
+      "title": "[Performance] Qualify build, OCI/runtime and cache behavior before matched product benchmarks",
+      "url": "https://github.com/castlemilk/micropod/issues/182"
+    },
+    {
+      "number": 184,
+      "title": "[Performance] Repair core paths, then evaluate a profiled Rust component with rust-anything",
+      "url": "https://github.com/castlemilk/micropod/issues/184"
+    },
+    {
+      "number": 146,
+      "title": "[RUN-001] Complete a qualified Linux containerd/runc execution profile",
+      "url": "https://github.com/castlemilk/micropod/issues/146"
+    },
+    {
+      "number": 147,
+      "title": "[RUN-002] Complete Docker API semantics and client compatibility",
+      "url": "https://github.com/castlemilk/micropod/issues/147"
+    },
+    {
+      "number": 183,
+      "title": "[Architecture] Select execution domains and workers for core compatibility",
+      "url": "https://github.com/castlemilk/micropod/issues/183"
+    },
+    {
+      "number": 160,
+      "title": "[FS-001] Deliver correct and fast host\u2013guest filesystem paths",
+      "url": "https://github.com/castlemilk/micropod/issues/160"
+    },
+    {
+      "number": 161,
+      "title": "[FS-002] Qualify shared filesystem semantics, integrity and recovery",
+      "url": "https://github.com/castlemilk/micropod/issues/161"
+    },
+    {
+      "number": 163,
+      "title": "[FS-004] Implement typed metadata indexing and bounded invalidation",
+      "url": "https://github.com/castlemilk/micropod/issues/163"
+    },
+    {
+      "number": 166,
+      "title": "[FS-007] Eliminate redundant copying and optimize durable write paths",
+      "url": "https://github.com/castlemilk/micropod/issues/166"
+    },
+    {
+      "number": 167,
+      "title": "[FS-008] Expose coherent, capability-checked per-share cache policies",
+      "url": "https://github.com/castlemilk/micropod/issues/167"
+    },
+    {
+      "number": 168,
+      "title": "[STOR-001] Reconcile storage ownership, exact capacity and truthful allocation",
+      "url": "https://github.com/castlemilk/micropod/issues/168"
+    },
+    {
+      "number": 180,
+      "title": "[Roadmap] Deliver the core build, runtime and filesystem platform",
+      "url": "https://github.com/castlemilk/micropod/issues/180"
+    },
+    {
+      "number": 179,
+      "title": "[Kubernetes] Parse node conditions instead of matching Ready inside NotReady",
+      "url": "https://github.com/castlemilk/micropod/issues/179"
+    },
+    {
+      "number": 187,
+      "title": "[Kubernetes] Separate stop from reset and preserve cluster data across lifecycle changes",
+      "url": "https://github.com/castlemilk/micropod/issues/187"
+    },
+    {
+      "number": 188,
+      "title": "[Kubernetes] Qualify existing networking, ingress, image and storage integration",
+      "url": "https://github.com/castlemilk/micropod/issues/188"
+    }
+  ]
+}

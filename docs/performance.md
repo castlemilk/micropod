@@ -1,7 +1,13 @@
 # Performance
 
-How Micropod is measured against Docker Desktop, current numbers, and how to
-reproduce or extend them.
+Historical Micropod measurements against Docker Desktop, with the methodology
+and limitations of those runs. The figures below are not a current matched
+OrbStack comparison or proof of performance on an installed release.
+
+The [19 November source audit and benchmark plan](research/2026-11-19-orbstack-reconciliation/benchmark-plan.md)
+identifies measurement repairs required before new comparative claims, including
+first-attempt failure accounting, complete resource scopes, consistent readiness
+and run-owned cleanup. Preserve the dated results below as historical evidence.
 
 The [desktop UI evaluation from 1 October 2026](design/2026-10-01-micropod/performance.md)
 covers the native app's CPU, memory, responsiveness, bounded streaming and
@@ -260,3 +266,4 @@ After the bench: **237 hits / 38 misses (86%)**, `image list` spawns 111→6,
   changes are caught by the EventsHub poll + 1 s TTL bound.
 - `MICROPOD_SHIM_CACHE_DISABLE=1` and `MICROPOD_SHIM_CACHE_TTL_MS` control the
   cache; run the bench with it disabled to measure the cacheless floor.
+
