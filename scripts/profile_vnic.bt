@@ -1,0 +1,27 @@
+// Run in the private benchmark VM. Pass the service port and the guest uplink network namespace inode.
+// The NIC counters include all traffic on eth0. TCP events match the service port across the private VM.
+BEGIN { printf("vnic profile ready\n"); }
+tracepoint:net:net_dev_start_xmit
+/str(args.name) == "eth0" && ((struct sk_buff *)args.skbaddr)->dev->nd_net.net->ns.inum == $2/
+{
+    @tx_calls[cpu] = count();
+    @tx_bytes[cpu] = sum(args.len);
+    @tx_segments[cpu] = sum(args.gso_segs > 0 ? args.gso_segs : 1);
+    @tx_size = hist(args.len);
+}
+tracepoint:net:netif_receive_skb
+/str(args.name) == "eth0" && ((struct sk_buff *)args.skbaddr)->dev->nd_net.net->ns.inum == $2/
+{
+    @rx_calls[cpu] = count();
+    @rx_bytes[cpu] = sum(args.len);
+}
+tracepoint:tcp:tcp_retransmit_skb
+/args.sport == $1 || args.dport == $1/
+{ @tcp_retransmits = count(); }
+// This kernel exposes sockaddr unions on the send-reset tracepoint.
+tracepoint:tcp:tcp_send_reset
+/(args.saddr[2] * 256 + args.saddr[3]) == $1 || (args.daddr[2] * 256 + args.daddr[3]) == $1/
+{ @tcp_resets_sent[args.reason] = count(); }
+tracepoint:tcp:tcp_receive_reset
+/args.sport == $1 || args.dport == $1/
+{ @tcp_resets_received = count(); }

@@ -36,12 +36,31 @@ func main() {
 	streams := flag.Int("streams", 0, "simultaneous bulk TCP transfers")
 	bursts := flag.Int("bursts", 1, "number of parallel transfer batches")
 	barrier := flag.Bool("stream-barrier", false, "wait for every response to begin before draining the parallel streams")
-	profile := flag.String("profile", "", "profile fresh requests, sustained bulk streams, or fresh requests during continuous downloads (fresh, bulk, or mixed)")
+	profile := flag.String("profile", "", "profile fresh requests, sustained bulk streams, or fresh requests during continuous downloads (fresh, bulk, mixed, burst-fresh, or burst-warm)")
 	freshURL := flag.String("fresh-url", "", "mixed profile only: send fresh requests to a second URL serving the same marker")
+	netInfo := flag.Bool("net-info", false, "snapshot Linux network-namespace and cgroup counters")
 	cgroupInfo := flag.Bool("cgroup-info", false, "print the actual cgroup v2 limits seen inside this Linux container")
 	dns := flag.Int("lookups", 0, "number of single-family service DNS lookups")
 	dnsClients := flag.Int("dns-clients", 1, "independent resolvers issuing parallel service lookups")
 	flag.Parse()
+	if *netInfo {
+		files := []string{"/proc/net/snmp", "/proc/net/netstat", "/proc/net/sockstat", "/proc/net/dev", "/proc/net/stat/nf_conntrack",
+			"/proc/sys/net/netfilter/nf_conntrack_count", "/proc/sys/net/netfilter/nf_conntrack_max",
+			"/sys/fs/cgroup/cpu.stat", "/sys/fs/cgroup/cpu.pressure", "/sys/fs/cgroup/memory.events"}
+		values := map[string]string{}
+		for _, path := range files {
+			if b, err := os.ReadFile(path); err == nil {
+				values[path] = strings.TrimSpace(string(b))
+			}
+		}
+		if _, ok := values["/proc/net/netstat"]; !ok {
+			log.Fatal("missing Linux network counters")
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(values); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	if *cgroupInfo {
 		limits := map[string]any{"visible_cpus": runtime.NumCPU(), "gomaxprocs": runtime.GOMAXPROCS(0)}
 		for _, name := range []string{"cpu.max", "cpuset.cpus.effective", "memory.max", "pids.max", "cpu.stat"} {
@@ -64,7 +83,12 @@ func main() {
 		})
 		log.Fatal((&http.Server{Addr: *listen, Handler: mux, ReadHeaderTimeout: 5 * time.Second}).ListenAndServe())
 	}
-	if *target == "" || *rounds < 2 || *streams < 0 || *streams > 128 || *bursts < 1 || *bursts > 100 || *dns < 0 || *dns > 10000 || *dnsClients < 1 || *dnsClients > 128 {
+	maxBursts := 100
+	if *profile == "bulk" {
+		// Keep established streams alive across the worker's network health interval.
+		maxBursts = 1024
+	}
+	if *target == "" || *rounds < 2 || *streams < 0 || *streams > 128 || *bursts < 1 || *bursts > maxBursts || *dns < 0 || *dns > 10000 || *dnsClients < 1 || *dnsClients > 128 {
 		flag.Usage()
 		os.Exit(2)
 	}
@@ -83,6 +107,11 @@ func main() {
 		switch *profile {
 		case "fresh":
 			result = profileFresh(client, id, *rounds)
+		case "burst-fresh", "burst-warm":
+			if *streams == 0 {
+				log.Fatal("burst profiling needs at least one stream")
+			}
+			result = profileBurst(*target, *marker, *streams, *bursts, *profile == "burst-warm", *barrier)
 		case "bulk":
 			if *streams == 0 {
 				log.Fatal("bulk profiling needs at least one stream")
@@ -324,6 +353,88 @@ func downloadClient(target, marker string, reopened *atomic.Int64) (*http.Client
 	return client, ctx
 }
 
+// Keep body bytes, stream count and start gate identical. The optional header
+// barrier releases every first response together. Each stream owns its verified
+// connection so net/http cannot silently share or pool sockets between streams.
+func profileBurst(target, marker string, streams, transfers int, warm, barrier bool) map[string]any {
+	type sample struct {
+		Connected int64 `json:"connected_us"`
+		Written   int64 `json:"request_written_us"`
+		First     int64 `json:"first_header_us"`
+		FirstDone int64 `json:"first_body_complete_us"`
+		Done      int64 `json:"complete_us"`
+	}
+	phases := make([]sample, streams)
+	var ready, done sync.WaitGroup
+	var mismatch, arrivals, reopened atomic.Int64
+	startGate, headerGate := make(chan struct{}), make(chan struct{})
+	var begin time.Time
+	ready.Add(streams)
+	for i := range streams {
+		done.Go(func() {
+			client, next := downloadClient(target, marker, &reopened)
+			defer client.CloseIdleConnections()
+			if !warm {
+				client.CloseIdleConnections()
+			}
+			ready.Done()
+			<-startGate
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			var connected, written, first atomic.Int64
+			ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+				GotConn: func(info httptrace.GotConnInfo) {
+					if info.Reused != warm {
+						mismatch.Add(1)
+					}
+					connected.Store(time.Since(begin).Microseconds())
+				},
+				WroteRequest: func(info httptrace.WroteRequestInfo) {
+					if info.Err == nil {
+						written.Store(time.Since(begin).Microseconds())
+					}
+				},
+				GotFirstResponseByte: func() {
+					first.Store(time.Since(begin).Microseconds())
+					if barrier {
+						if arrivals.Add(1) == int64(streams) {
+							close(headerGate)
+						}
+						select {
+						case <-headerGate:
+						case <-ctx.Done():
+							log.Fatal("first-response barrier timed out")
+						}
+					}
+				},
+			})
+			if requestBody(client, target, ctx, "/data", io.Discard) != size {
+				log.Fatal("short first transfer")
+			}
+			firstDone := time.Since(begin).Microseconds()
+			for j := 1; j < transfers; j++ {
+				if requestBody(client, target, next, "/data", io.Discard) != size {
+					log.Fatal("short subsequent transfer")
+				}
+			}
+			phases[i] = sample{connected.Load(), written.Load(), first.Load(), firstDone, time.Since(begin).Microseconds()}
+		})
+	}
+	ready.Wait()
+	begin = time.Now()
+	close(startGate)
+	done.Wait()
+	// End the transfer at the last complete body, excluding transport cleanup.
+	var elapsed int64
+	for _, phase := range phases {
+		elapsed = max(elapsed, phase.Done)
+	}
+	total := int64(streams) * int64(transfers) * size
+	return map[string]any{"warm": warm, "first_response_barrier": barrier, "streams": streams, "transfers_per_stream": transfers,
+		"bytes": total, "elapsed_us": elapsed, "mib_s": float64(total) / (1 << 20) / (float64(elapsed) / 1e6), "initial_connection_mismatches": mismatch.Load(),
+		"unexpected_reconnects": reopened.Load(), "stream_phases": phases}
+}
+
 func profileBulk(target, marker string, streams, transfers int) map[string]any {
 	var ready, done sync.WaitGroup
 	var newConnections atomic.Int64
@@ -368,6 +479,7 @@ func profileMixed(bulkURL, freshURL, marker string, streams, requests int) map[s
 	var reopened atomic.Int64
 	counters := make([]downloadCounter, streams)
 	stop := make(chan struct{})
+	warmup := time.Now()
 	ready.Add(streams)
 	for i := range counters {
 		done.Go(func() {
@@ -390,6 +502,8 @@ func profileMixed(bulkURL, freshURL, marker string, streams, requests int) map[s
 		})
 	}
 	ready.Wait()
+	warmupTime := time.Since(warmup)
+	warmupReopens := reopened.Load()
 	tr := &http.Transport{DialContext: (&net.Dialer{Timeout: 3 * time.Second}).DialContext}
 	defer tr.CloseIdleConnections()
 	client := &http.Client{Transport: tr, Timeout: 15 * time.Second}
@@ -400,13 +514,14 @@ func profileMixed(bulkURL, freshURL, marker string, streams, requests int) map[s
 	}
 	begin := time.Now()
 	var elapsed time.Duration
-	var total int64
+	var total, endReopens int64
 	remaining := requests
 	fresh := profileFresh(client, func(ctx context.Context) {
 		verifyID(client, freshURL, marker, ctx)
 		remaining--
 		if remaining == 0 {
 			elapsed = time.Since(begin)
+			endReopens = reopened.Load()
 			for i := range counters {
 				perStream[i] = counters[i].bytes.Load() - before[i]
 				total += perStream[i]
@@ -416,6 +531,8 @@ func profileMixed(bulkURL, freshURL, marker string, streams, requests int) map[s
 	}, requests)
 	done.Wait()
 	return map[string]any{"mode": "mixed", "fresh": fresh, "streams": streams,
+		"warmup_s": warmupTime.Seconds(), "warmup_reopens": warmupReopens,
+		"overlap_reopens": endReopens - warmupReopens, "drain_reopens": reopened.Load() - endReopens,
 		"overlap_s": elapsed.Seconds(), "overlap_bytes": total, "overlap_bytes_per_stream": perStream,
 		"overlap_mib_s": float64(total) / (1 << 20) / elapsed.Seconds(), "reopened_connections": reopened.Load()}
 }

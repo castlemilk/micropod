@@ -3,8 +3,12 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <ifaddrs.h>
+#include <net/if.h>
 #include <netinet/tcp.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/event.h>
@@ -18,14 +22,16 @@
 #define BULK_BATCH 2
 #define LARGE_READ (16 * 1024)
 
-enum event_kind { ACCEPT, STREAM, BULK_READY };
+enum event_kind { ACCEPT, STREAM, BULK_READY, RETRY_GUEST };
 struct watch { enum event_kind kind; int fd; };
 struct pair;
 
 struct mp_tcp_relay {
     int kq;
     struct watch bulk;
-    struct in_addr guest;
+    struct in_addr guest, gateway;
+    unsigned ifindex;
+    uint64_t interface_checked;
     struct pair *retired;
     char scratch[CHUNK];
 };
@@ -35,7 +41,12 @@ struct mp_tcp_listener {
     mp_tcp_relay *relay;
     struct sockaddr_in target;
     struct pair *head;
+    mp_tcp_handoff handoff;
+    void *owner;
+    mp_tcp_listener *parent;
+    atomic_uint group_active, group_peak;
     unsigned active;
+    uint64_t last_error_at;
     bool profile, retry_accept;
     mp_tcp_stats stats;
 };
@@ -52,7 +63,9 @@ struct pair {
     mp_tcp_listener *listener;
     struct pair *prev, *next;
     struct endpoint client, guest;
-    bool retried;
+    struct watch retry;
+    bool retry_pending, retried;
+    uint64_t deadline;
     uint64_t accepted_at, connected_at, first_request_write_at;
 };
 
@@ -106,19 +119,75 @@ mp_tcp_relay *mp_tcp_relay_create(const char *guest) {
     return r;
 }
 
+int mp_tcp_relay_scope(mp_tcp_relay *r, const char *gateway) {
+    struct in_addr address;
+    if (inet_pton(AF_INET, gateway, &address) != 1 || !address.s_addr) { errno = EINVAL; return -1; }
+    r->gateway = address;
+    r->ifindex = 0;
+    r->interface_checked = 0;
+    return 0;
+}
+
+// The ifindex can change when vmnet rematerializes a worker's bridge. Cache
+// successful lookups briefly; bind the source address on every connection.
+static int scope_guest(mp_tcp_relay *r, int fd) {
+    if (!r->gateway.s_addr) return 0;
+    uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+    uint64_t ttl = r->ifindex ? 1000000000ULL : 100000000ULL;
+    if (!r->interface_checked || now - r->interface_checked >= ttl) {
+        struct ifaddrs *all;
+        if (getifaddrs(&all) < 0) return -1;
+        r->ifindex = 0;
+        for (struct ifaddrs *a = all; a; a = a->ifa_next) {
+            if (a->ifa_addr && a->ifa_addr->sa_family == AF_INET && (a->ifa_flags & IFF_UP) &&
+                ((struct sockaddr_in *)a->ifa_addr)->sin_addr.s_addr == r->gateway.s_addr) {
+                r->ifindex = if_nametoindex(a->ifa_name);
+                break;
+            }
+        }
+        freeifaddrs(all);
+        r->interface_checked = now;
+    }
+    if (!r->ifindex) { errno = EADDRNOTAVAIL; return -1; }
+    struct sockaddr_in source = { .sin_len = sizeof(source), .sin_family = AF_INET, .sin_addr = r->gateway };
+    if (setsockopt(fd, IPPROTO_IP, IP_BOUND_IF, &r->ifindex, sizeof(r->ifindex)) < 0 ||
+        bind(fd, (struct sockaddr *)&source, sizeof(source)) < 0) { r->ifindex = 0; return -1; }
+    return 0;
+}
+
 int mp_tcp_relay_descriptor(const mp_tcp_relay *r) { return r->kq; }
 
-mp_tcp_listener *mp_tcp_listen(mp_tcp_relay *r, uint16_t host, uint16_t guest,
-                               uint16_t *selected, int profile) {
+static mp_tcp_listener *new_listener(mp_tcp_relay *r, uint16_t guest, int profile) {
     if (guest < 1024) { errno = EINVAL; return NULL; }
     mp_tcp_listener *l = calloc(1, sizeof(*l));
     if (!l) return NULL;
-    int fd = socket(AF_INET, SOCK_STREAM, 0);
-    l->watch = (struct watch){ ACCEPT, fd };
+    atomic_init(&l->group_active, 0);
+    atomic_init(&l->group_peak, 0);
+    l->watch = (struct watch){ ACCEPT, -1 };
     l->relay = r;
     l->profile = profile != 0;
     l->target = (struct sockaddr_in){ .sin_len = sizeof(l->target), .sin_family = AF_INET,
         .sin_port = htons(guest), .sin_addr = r->guest };
+    return l;
+}
+
+mp_tcp_listener *mp_tcp_target(mp_tcp_relay *r, mp_tcp_listener *parent) {
+    mp_tcp_listener *l = new_listener(r, ntohs(parent->target.sin_port), parent->profile);
+    if (l) l->parent = parent;
+    return l;
+}
+
+void mp_tcp_set_handoff(mp_tcp_listener *l, mp_tcp_handoff handler, void *owner) {
+    l->handoff = handler;
+    l->owner = owner;
+}
+
+mp_tcp_listener *mp_tcp_listen(mp_tcp_relay *r, uint16_t host, uint16_t guest,
+                               uint16_t *selected, int profile) {
+    mp_tcp_listener *l = new_listener(r, guest, profile);
+    if (!l) return NULL;
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    l->watch.fd = fd;
     struct sockaddr_in local = { .sin_len = sizeof(local), .sin_family = AF_INET,
         .sin_port = htons(host), .sin_addr.s_addr = htonl(INADDR_LOOPBACK) };
     socklen_t size = sizeof(local);
@@ -139,8 +208,11 @@ mp_tcp_listener *mp_tcp_listen(mp_tcp_relay *r, uint16_t host, uint16_t guest,
 
 // A second event for this pair may already be in the current batch.
 static void close_pair(mp_tcp_relay *relay, struct pair *p) {
+    if (p->retry_pending) change_watch(relay->kq, &p->retry, EVFILT_TIMER, EV_DELETE);
     close(p->client.watch.fd);
     if (p->guest.watch.fd >= 0) close(p->guest.watch.fd);
+    if (p->listener->parent && p->listener->profile)
+        atomic_fetch_sub_explicit(&p->listener->parent->group_active, 1, memory_order_relaxed);
     p->listener = NULL;
     p->next = relay->retired;
     relay->retired = p;
@@ -168,13 +240,43 @@ static void reap(mp_tcp_relay *r) {
 void mp_tcp_release(mp_tcp_listener *l, mp_tcp_stats *stats) {
     // Timer registrations use an identifier, not a descriptor, and survive close(2).
     if (l->retry_accept) watch_fd(l->relay, &l->watch, EVFILT_TIMER, EV_DELETE);
-    close(l->watch.fd);
+    if (l->watch.fd >= 0) close(l->watch.fd);
     while (l->head) {
         struct pair *p = l->head;
         l->head = p->next;
         close_pair(l->relay, p);
     }
     reap(l->relay);
+    // The accept owner joins each target's queue in sequence at revocation.
+    // All target updates have completed before the parent is released.
+    if (l->parent) {
+        mp_tcp_stats *sum = &l->parent->stats, *one = &l->stats;
+        sum->accepted += one->accepted;
+        sum->connected += one->connected;
+        sum->connect_errors += one->connect_errors;
+        sum->connect_retries += one->connect_retries;
+        sum->recovered += one->recovered;
+        sum->upload_bytes += one->upload_bytes;
+        sum->download_bytes += one->download_bytes;
+        sum->reads += one->reads;
+        sum->writes += one->writes;
+        sum->blocked_writes += one->blocked_writes;
+        sum->bulk_directions += one->bulk_directions;
+        sum->route_waits += one->route_waits;
+        sum->handshake_timeouts += one->handshake_timeouts;
+        if (l->last_error_at > l->parent->last_error_at) {
+            l->parent->last_error_at = l->last_error_at;
+            sum->last_connect_error = one->last_connect_error;
+        }
+        for (unsigned i = 0; i < 12; ++i) {
+            sum->connect_us[i] += one->connect_us[i];
+            sum->first_byte_us[i] += one->first_byte_us[i];
+            sum->first_request_write_us[i] += one->first_request_write_us[i];
+            sum->request_to_first_guest_byte_us[i] += one->request_to_first_guest_byte_us[i];
+        }
+    } else if (l->handoff) {
+        l->stats.peak_active = atomic_load_explicit(&l->group_peak, memory_order_relaxed);
+    }
     if (stats) *stats = l->stats;
     free(l);
 }
@@ -206,7 +308,7 @@ static int dial_guest(struct pair *p, int timeout_seconds) {
     mp_tcp_relay *r = l->relay;
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     p->guest.watch.fd = fd;
-    if (fd < 0 || prepare(fd) < 0 ||
+    if (fd < 0 || prepare(fd) < 0 || scope_guest(r, fd) < 0 ||
         setsockopt(fd, IPPROTO_TCP, TCP_CONNECTIONTIMEOUT, &timeout_seconds, sizeof(timeout_seconds)) < 0) return -1;
     int rc = connect(fd, (struct sockaddr *)&l->target, sizeof(l->target));
     if (rc < 0 && errno != EINPROGRESS && errno != EINTR) return -1;
@@ -218,8 +320,46 @@ static int dial_guest(struct pair *p, int timeout_seconds) {
     return 0;
 }
 
-static void start(mp_tcp_listener *l, int client) {
-    uint64_t accepted_at = l->profile ? clock_gettime_nsec_np(CLOCK_UPTIME_RAW) : 0;
+static bool retry_guest(struct pair *p, int error) {
+    switch (error) {
+        case ETIMEDOUT: case EHOSTUNREACH: case ENETUNREACH: case EADDRNOTAVAIL:
+        case ENETDOWN: case ENXIO: break;
+        default: return false;
+    }
+    if (error == ETIMEDOUT) ++p->listener->stats.handshake_timeouts;
+    else ++p->listener->stats.route_waits;
+    uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+    if (now >= p->deadline) return false;
+    if (p->guest.watch.fd >= 0) close(p->guest.watch.fd);
+    p->guest.watch.fd = -1;
+    p->guest.connecting = true;
+    p->listener->relay->ifindex = 0;
+    struct kevent timer;
+    EV_SET(&timer, p->retry.fd, EVFILT_TIMER, EV_ADD | EV_ONESHOT, 0, 125, &p->retry);
+    if (kevent(p->listener->relay->kq, &timer, 1, NULL, 0, NULL) < 0) return false;
+    p->retry_pending = p->retried = true;
+    ++p->listener->stats.connect_retries;
+    return true;
+}
+
+static void failed_handshake(struct pair *p, int error) {
+    p->listener->last_error_at = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+    p->listener->stats.last_connect_error = (unsigned)error;
+    ++p->listener->stats.connect_errors;
+    retire(p);
+}
+
+static void attempt_guest(struct pair *p) {
+    int error = ETIMEDOUT;
+    if (clock_gettime_nsec_np(CLOCK_UPTIME_RAW) < p->deadline) {
+        if (dial_guest(p, 1) == 0) return;
+        error = errno;
+        if (retry_guest(p, error)) return;
+    }
+    failed_handshake(p, error);
+}
+
+void mp_tcp_adopt(mp_tcp_listener *l, int client, uint64_t accepted_at) {
     if (l->profile) ++l->stats.accepted;
     struct pair *p = calloc(1, sizeof(*p));
     if (!p || prepare(client) < 0) {
@@ -230,17 +370,26 @@ static void start(mp_tcp_listener *l, int client) {
     }
     p->listener = l;
     p->accepted_at = accepted_at;
+    p->deadline = accepted_at + 10000000000ULL;
+    p->retry = (struct watch){ RETRY_GUEST, client };
     p->client = (struct endpoint){ .watch = { STREAM, client }, .pair = p };
     p->guest = (struct endpoint){ .watch = { STREAM, -1 }, .pair = p };
     p->next = l->head;
     if (p->next) p->next->prev = p;
     l->head = p;
     ++l->active;
-    if (l->profile && l->active > l->stats.peak_active) l->stats.peak_active = l->active;
-    if (watch_fd(l->relay, &p->client.watch, EVFILT_READ, EV_ADD | EV_DISABLE) < 0 || dial_guest(p, 1) < 0) {
+    if (l->profile && l->parent) {
+        unsigned active = atomic_fetch_add_explicit(&l->parent->group_active, 1, memory_order_relaxed) + 1;
+        unsigned peak = atomic_load_explicit(&l->parent->group_peak, memory_order_relaxed);
+        while (peak < active && !atomic_compare_exchange_weak_explicit(&l->parent->group_peak, &peak, active,
+               memory_order_relaxed, memory_order_relaxed)) {}
+    } else if (l->profile && l->active > l->stats.peak_active) l->stats.peak_active = l->active;
+    if (watch_fd(l->relay, &p->client.watch, EVFILT_READ, EV_ADD | EV_DISABLE) < 0) {
         ++l->stats.connect_errors;
         retire(p);
+        return;
     }
+    attempt_guest(p);
 }
 
 // Read directly into the worker scratch and immediately write to the peer.
@@ -331,17 +480,8 @@ static void finish_connect(struct pair *p) {
     mp_tcp_relay *r = p->listener->relay;
     if (getsockopt(p->guest.watch.fd, SOL_SOCKET, SO_ERROR, &error, &length) < 0) error = errno;
     if (error) {
-        // A timed-out SYN to this local VM can coexist with healthy streams.
-        // Give a new socket the remaining nine seconds of the original budget.
-        if (error == ETIMEDOUT && !p->retried) {
-            p->retried = true;
-            ++p->listener->stats.connect_retries;
-            close(p->guest.watch.fd);
-            p->guest.watch.fd = -1;
-            if (dial_guest(p, 9) == 0) return;
-        }
-        ++p->listener->stats.connect_errors;
-        retire(p);
+        if (retry_guest(p, error)) return;
+        failed_handshake(p, error);
         return;
     }
     p->guest.connecting = false;
@@ -364,7 +504,9 @@ static void accept_ready(mp_tcp_listener *l, int16_t filter) {
     for (int j = 0; j < 32; ++j) {
         int fd = accept(l->watch.fd, NULL, NULL);
         if (fd >= 0) {
-            start(l, fd);
+            uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+            if (l->handoff) l->handoff(l->owner, fd, now);
+            else mp_tcp_adopt(l, fd, now);
             continue;
         }
         if (errno == EMFILE || errno == ENFILE || errno == ENOBUFS || errno == ENOMEM) {
@@ -383,6 +525,14 @@ static void service_event(const struct kevent *event) {
     struct watch *w = event->udata;
     if (w->kind == ACCEPT) {
         accept_ready((mp_tcp_listener *)w, event->filter);
+        return;
+    }
+    if (w->kind == RETRY_GUEST) {
+        struct pair *p = (struct pair *)((char *)w - offsetof(struct pair, retry));
+        if (p->listener && p->retry_pending) {
+            p->retry_pending = false;
+            attempt_guest(p);
+        }
         return;
     }
     struct endpoint *e = (struct endpoint *)w;

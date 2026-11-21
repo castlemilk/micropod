@@ -1,3 +1,4 @@
+import CPublishedTCP
 import MicropodCore
 import NIOCore
 import NIOPosix
@@ -130,11 +131,99 @@ final class NativePublishedPortsTests: XCTestCase {
         XCTAssertThrowsError(try relay.bind(host: 0, guest: target))
     }
 
+    func testGuestHandshakeWaitsForItsInterfaceAndForwardsBufferedBytesOnce() throws {
+        let server = try server()
+        defer { try? server.close().wait() }
+        let relay = try XCTUnwrap(mp_tcp_relay_create("127.0.0.1"))
+        defer { mp_tcp_relay_destroy(relay) }
+        // This documentation address is absent from the test Mac. The target
+        // still answers over loopback, so an unscoped dial would be observable.
+        XCTAssertEqual(mp_tcp_relay_scope(relay, "192.0.2.253"), 0)
+        var port: UInt16 = 0
+        let listener = try XCTUnwrap(
+            mp_tcp_listen(relay, 0, UInt16(try XCTUnwrap(server.localAddress?.port)), &port, 1))
+        var stats = mp_tcp_stats()
+        defer {
+            mp_tcp_release(listener, &stats)
+            XCTAssertEqual(stats.accepted, 1)
+            XCTAssertEqual(stats.connected, 1)
+            XCTAssertEqual(stats.recovered, 1)
+            XCTAssertGreaterThan(stats.route_waits, 0)
+            XCTAssertEqual(stats.connect_errors, 0)
+        }
+        let client = try connect(port)
+        try client.write(contentsOf: Data("once".utf8))
+        XCTAssertEqual(shutdown(client.fileDescriptor, SHUT_WR), 0)
+        mp_tcp_relay_drain(relay)
+        var event = pollfd(fd: client.fileDescriptor, events: Int16(POLLIN), revents: 0)
+        XCTAssertEqual(poll(&event, 1, 180), 0)
+        XCTAssertEqual(mp_tcp_relay_scope(relay, "127.0.0.1"), 0)
+        let deadline = ContinuousClock.now + .seconds(3)
+        var received = Data()
+        while ContinuousClock.now < deadline && received.count < 9 {
+            mp_tcp_relay_drain(relay)
+            if poll(&event, 1, 5) > 0 {
+                // Drive the relay on this thread. Consume only bytes already
+                // available so a partial response cannot block the next drain.
+                var bytes = [UInt8](repeating: 0, count: 32)
+                let count = recv(client.fileDescriptor, &bytes, bytes.count, MSG_DONTWAIT)
+                if count > 0 {
+                    received.append(contentsOf: bytes.prefix(count))
+                } else if count == 0 {
+                    break
+                } else if errno != EAGAIN && errno != EINTR {
+                    throw POSIXError(.init(rawValue: errno) ?? .EIO)
+                }
+            }
+        }
+        XCTAssertEqual(received, Data("readyonce".utf8))
+    }
+
+    func testReleaseCancelsAllPendingRetriesAcrossWorkers() throws {
+        let server = try server()
+        defer { try? server.close().wait() }
+        let relay = try NativeLoopbackRelay(guest: "127.0.0.1", gateway: "192.0.2.253")
+        defer { relay.stop() }
+        let target = UInt16(try XCTUnwrap(server.localAddress?.port))
+        let port = try relay.bind(host: 0, guest: target)
+        let clients = try (0..<32).map { _ in try connect(port) }
+        var event = pollfd(fd: clients[0].fileDescriptor, events: Int16(POLLIN), revents: 0)
+        XCTAssertEqual(poll(&event, 1, 160), 0)
+        relay.release(port)
+        XCTAssertEqual(try relay.bind(host: port, guest: target), port)
+        for client in clients {
+            var event = pollfd(fd: client.fileDescriptor, events: Int16(POLLIN), revents: 0)
+            XCTAssertGreaterThan(poll(&event, 1, 1000), 0)
+            XCTAssertTrue(try client.read(upToCount: 1)?.isEmpty ?? true)
+        }
+        relay.release(port)
+    }
+
+    func testNIORollbackBindsPrivateSource() async throws {
+        let upstream = try server()
+        defer { upstream.close(promise: nil) }
+        let target = UInt16(try XCTUnwrap(upstream.localAddress?.port))
+        let clients = NativePortClients()
+        defer { clients.close() }
+        let listener = try await SandboxForwarding.relay(
+            on: "127.0.0.1", port: 0, to: "127.0.0.1", port: target, clients: clients, source: "127.0.0.1"
+        ).get()
+        defer { listener.close(promise: nil) }
+        let socket = try connect(UInt16(try XCTUnwrap(listener.localAddress?.port)))
+        XCTAssertEqual(try socket.read(upToCount: 5), Data("ready".utf8))
+        let missing = try await SandboxForwarding.relay(
+            on: "127.0.0.1", port: 0, to: "127.0.0.1", port: target, clients: clients, source: "192.0.2.253"
+        ).get()
+        defer { missing.close(promise: nil) }
+        let rejected = try connect(UInt16(try XCTUnwrap(missing.localAddress?.port)))
+        XCTAssertTrue(try rejected.read(upToCount: 1)?.isEmpty ?? true)
+    }
+
     func testRefusedGuestClosesClient() throws {
         let upstream = try server()
         let target = UInt16(try XCTUnwrap(upstream.localAddress?.port))
         try upstream.close().wait()
-        let relay = try NativeLoopbackRelay(guest: "127.0.0.1")
+        let relay = try NativeLoopbackRelay(guest: "127.0.0.1", gateway: "127.0.0.1", parallel: false)
         let port = try relay.bind(host: 0, guest: target)
         let client = try connect(port)
         XCTAssertTrue(try client.read(upToCount: 1)?.isEmpty ?? true)

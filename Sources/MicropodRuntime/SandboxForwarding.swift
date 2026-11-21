@@ -73,7 +73,7 @@ public final class SandboxForwarding: @unchecked Sendable {
 
     static func relay(
         on listenHost: String, port listenPort: UInt16, to targetHost: String, port targetPort: UInt16,
-        clients: NativePortClients? = nil
+        clients: NativePortClients? = nil, source: String? = nil
     )
         -> EventLoopFuture<Channel>
     {
@@ -81,6 +81,10 @@ public final class SandboxForwarding: @unchecked Sendable {
         // The native broker already verified the VM's numeric address. Reuse
         // it for every incoming connection on this listener.
         let numericTarget = try? SocketAddress(ipAddress: targetHost, port: Int(targetPort))
+        let sourceAddress: SocketAddress?
+        do { sourceAddress = try source.map { try SocketAddress(ipAddress: $0, port: 0) } } catch {
+            return group.next().makeFailedFuture(error)
+        }
         let allocator = AdaptiveRecvByteBufferAllocator(minimum: 1024, initial: 4096, maximum: 262144)
         let watermark = ChannelOptions.Types.WriteBufferWaterMark(low: 131072, high: 524288)
         let bootstrap = ServerBootstrap(group: group)
@@ -95,6 +99,7 @@ public final class SandboxForwarding: @unchecked Sendable {
                 // guest isn't listening) fails the future, closing the client.
                 let client = ClientBootstrap(group: inbound.eventLoop)
                     .channelOption(.allowRemoteHalfClosure, value: true)
+                if let sourceAddress { _ = client.bind(to: sourceAddress) }
                 if clients != nil {
                     _ = client.channelOption(.recvAllocator, value: allocator)
                         .channelOption(.writeBufferWaterMark, value: watermark)

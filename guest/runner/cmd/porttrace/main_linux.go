@@ -29,7 +29,7 @@ type tap struct {
 	in, out string
 }
 
-func headerFilter(address uint32, port uint16) []bpf.Instruction {
+func headerFilter(address uint32, port uint16, handshakes bool) []bpf.Instruction {
 	// A failed predicate returns immediately. Both branches of the address
 	// match converge before calculating how many header bytes to return.
 	require := func(load bpf.Instruction, condition bpf.JumpTest, value uint32) []bpf.Instruction {
@@ -38,7 +38,9 @@ func headerFilter(address uint32, port uint16) []bpf.Instruction {
 	p := require(bpf.LoadAbsolute{Off: 12, Size: 2}, bpf.JumpEqual, unix.ETH_P_IP)
 	p = append(p, require(bpf.LoadAbsolute{Off: 23, Size: 1}, bpf.JumpEqual, unix.IPPROTO_TCP)...)
 	p = append(p, require(bpf.LoadAbsolute{Off: 20, Size: 2}, bpf.JumpBitsNotSet, 0x3fff)...)
-	p = append(p, require(bpf.LoadAbsolute{Off: 16, Size: 2}, bpf.JumpLessOrEqual, 512)...)
+	if !handshakes {
+		p = append(p, require(bpf.LoadAbsolute{Off: 16, Size: 2}, bpf.JumpLessOrEqual, 512)...)
+	}
 	p = append(p, bpf.LoadMemShift{Off: 14}) // X = length of the IPv4 header
 	destination := require(bpf.LoadAbsolute{Off: 30, Size: 4}, bpf.JumpEqual, address)
 	destination = append(destination, require(bpf.LoadIndirect{Off: 16, Size: 2}, bpf.JumpEqual, uint32(port))...)
@@ -47,25 +49,31 @@ func headerFilter(address uint32, port uint16) []bpf.Instruction {
 		bpf.LoadIndirect{Off: 14, Size: 2},
 		bpf.JumpIf{Cond: bpf.JumpEqual, Val: uint32(port), SkipTrue: uint8(len(destination))})
 	p = append(p, destination...)
-	return append(p,
+	if handshakes {
+		p = append(p, require(bpf.LoadIndirect{Off: 27, Size: 1}, bpf.JumpBitsSet, 0x06)...) // SYN or RST
+	}
+	p = append(p,
 		bpf.LoadIndirect{Off: 26, Size: 1}, // TCP data offset
 		bpf.ALUOpConstant{Op: bpf.ALUOpAnd, Val: 0xf0},
 		bpf.ALUOpConstant{Op: bpf.ALUOpShiftRight, Val: 2},
 		bpf.ALUOpX{Op: bpf.ALUOpAdd},
-		bpf.StoreScratch{Src: bpf.RegA, N: 0}, // IPv4 + TCP header lengths
-		bpf.LoadIndirect{Off: 27, Size: 1},
-		bpf.JumpIf{Cond: bpf.JumpBitsSet, Val: 2, SkipTrue: 4}, // retain SYNs
-		bpf.LoadScratch{Dst: bpf.RegX, N: 0},
-		bpf.LoadAbsolute{Off: 16, Size: 2},
-		bpf.JumpIfX{Cond: bpf.JumpGreaterThan, SkipTrue: 1}, // retain data, exclude pure ACKs
-		bpf.RetConstant{Val: 0},
-		bpf.LoadScratch{Dst: bpf.RegA, N: 0},
+		bpf.StoreScratch{Src: bpf.RegA, N: 0}) // IPv4 + TCP header lengths
+	if !handshakes {
+		p = append(p,
+			bpf.LoadIndirect{Off: 27, Size: 1},
+			bpf.JumpIf{Cond: bpf.JumpBitsSet, Val: 2, SkipTrue: 4}, // retain SYNs
+			bpf.LoadScratch{Dst: bpf.RegX, N: 0},
+			bpf.LoadAbsolute{Off: 16, Size: 2},
+			bpf.JumpIfX{Cond: bpf.JumpGreaterThan, SkipTrue: 1}, // retain data, exclude pure ACKs
+			bpf.RetConstant{Val: 0})
+	}
+	return append(p, bpf.LoadScratch{Dst: bpf.RegA, N: 0},
 		bpf.ALUOpConstant{Op: bpf.ALUOpAdd, Val: 14},
 		bpf.RetA{}) // Ethernet + IPv4 + TCP headers, independent of payload size
 }
 
-func socketFilter(address uint32, port uint16) ([]unix.SockFilter, error) {
-	raw, err := bpf.Assemble(headerFilter(address, port))
+func socketFilter(address uint32, port uint16, handshakes bool) ([]unix.SockFilter, error) {
+	raw, err := bpf.Assemble(headerFilter(address, port, handshakes))
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +84,7 @@ func socketFilter(address uint32, port uint16) ([]unix.SockFilter, error) {
 	return filters, nil
 }
 
-func openTap(name, ip string, port int, incoming, outgoing string) (tap, error) {
+func openTap(name, ip string, port int, incoming, outgoing string, handshakes bool) (tap, error) {
 	a, err := netip.ParseAddr(ip)
 	if err != nil || !a.Is4() || port < 1 || port > 65535 {
 		return tap{}, fmt.Errorf("invalid IPv4 service %s port %d", ip, port)
@@ -87,7 +95,7 @@ func openTap(name, ip string, port int, incoming, outgoing string) (tap, error) 
 	}
 	octets := a.As4()
 	address := binary.BigEndian.Uint32(octets[:])
-	filter, err := socketFilter(address, uint16(port))
+	filter, err := socketFilter(address, uint16(port), handshakes)
 	if err != nil {
 		return tap{}, err
 	}
@@ -118,12 +126,16 @@ func openTap(name, ip string, port int, incoming, outgoing string) (tap, error) 
 }
 
 type packet struct {
-	Stage    string `json:"stage"`
-	TimeNS   int64  `json:"ns"`
-	Sequence uint32 `json:"seq"`
-	Ack      uint32 `json:"ack"`
-	Bytes    int    `json:"bytes"`
-	Flags    byte   `json:"flags"`
+	SourceIP        netip.Addr `json:"src"`
+	DestinationIP   netip.Addr `json:"dst"`
+	SourcePort      uint16     `json:"sport"`
+	DestinationPort uint16     `json:"dport"`
+	Stage           string     `json:"stage"`
+	TimeNS          int64      `json:"ns"`
+	Sequence        uint32     `json:"seq"`
+	Ack             uint32     `json:"ack"`
+	Bytes           int        `json:"bytes"`
+	Flags           byte       `json:"flags"`
 }
 
 func (t tap) capture(ctx context.Context, events chan<- any) error {
@@ -167,7 +179,12 @@ func (t tap) capture(ctx context.Context, events chan<- any) error {
 		if timestamp.Sec == 0 {
 			return fmt.Errorf("missing kernel timestamp on %s", t.name)
 		}
-		events <- packet{Stage: stage, TimeNS: timestamp.Nano(), Sequence: binary.BigEndian.Uint32(hdr[tcp+4 : tcp+8]), Ack: binary.BigEndian.Uint32(hdr[tcp+8 : tcp+12]), Bytes: size, Flags: hdr[tcp+13]}
+		events <- packet{
+			SourceIP: netip.AddrFrom4([4]byte(hdr[26:30])), DestinationIP: netip.AddrFrom4([4]byte(hdr[30:34])),
+			SourcePort: binary.BigEndian.Uint16(hdr[tcp:]), DestinationPort: binary.BigEndian.Uint16(hdr[tcp+2:]),
+			Stage: stage, TimeNS: timestamp.Nano(), Sequence: binary.BigEndian.Uint32(hdr[tcp+4 : tcp+8]),
+			Ack: binary.BigEndian.Uint32(hdr[tcp+8 : tcp+12]), Bytes: size, Flags: hdr[tcp+13],
+		}
 	}
 	stats, err := unix.GetsockoptTpacketStats(t.fd, unix.SOL_PACKET, unix.PACKET_STATISTICS)
 	if err != nil {
@@ -184,17 +201,18 @@ func main() {
 	podPort := flag.Int("pod-port", 8080, "container service port")
 	nic := flag.String("nic", "eth0", "guest NIC")
 	bridge := flag.String("bridge", "mpci0", "container bridge")
+	handshakes := flag.Bool("handshakes", false, "capture only SYN and RST headers for matching flows across the two interfaces")
 	duration := flag.Duration("duration", 6*time.Second, "capture interval")
 	flag.Parse()
 	if *duration <= 0 {
 		log.Fatal("duration must be positive")
 	}
-	outer, err := openTap(*nic, *guest, *guestPort, "guest-in", "guest-out")
+	outer, err := openTap(*nic, *guest, *guestPort, "guest-in", "guest-out", *handshakes)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer unix.Close(outer.fd)
-	inner, err := openTap(*bridge, *pod, *podPort, "to-container", "from-container")
+	inner, err := openTap(*bridge, *pod, *podPort, "to-container", "from-container", *handshakes)
 	if err != nil {
 		log.Fatal(err)
 	}

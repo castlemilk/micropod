@@ -15,6 +15,8 @@ record_failures=${BENCH_RECORD_FAILURES:-0}
 max_time_wait=${BENCH_MAX_TIME_WAIT:-0}
 container_cpus=${BENCH_CONTAINER_CPUS:-}
 probe_dir=${BENCH_GUEST_PROBE_DIR:-}
+network_counters=${BENCH_NETWORK_COUNTERS:-0}
+[[ $network_counters =~ ^[01]$ && ( $network_counters == 0 || -n "$probe_dir" ) ]]
 run_args=(--pull=never)
 if [[ -n "$container_cpus" ]]; then
     if [[ "$container_cpus" == max ]]; then
@@ -82,6 +84,14 @@ for e in "${engines[@]}"; do
     for _ in {1..100}; do [[ $(curl -fsS --max-time 1 "$url" 2>/dev/null || true) == "$name" ]] && break; sleep .05; done
     [[ $(curl -fsS --max-time 2 "$url") == "$name" ]]
 done
+snapshot_network() {
+    (( network_counters == 1 )) || return 0
+    local stage=$1 engine
+    for engine in "${engines[@]}"; do
+        docker --host "$(socket "$engine")" exec "$prefix-$engine" /mpcheck/netbench -net-info > "$out/$engine.network-$stage.json"
+    done
+}
+snapshot_network before
 set_order() {
     case $(( ($1-1) % 6 )) in
         0) order=(baseline candidate orbstack);; 1) order=(candidate orbstack baseline);; 2) order=(orbstack baseline candidate);;
@@ -106,6 +116,12 @@ record_failure() {
     local block=$1 engine=$2 status=$3 logfile=$4
     printf '%s\t%s\t%s\n' "$block" "$engine" "$status" >> "$out/failed-blocks.tsv"
     cat "$logfile" >&2
+    if (( network_counters == 1 )); then
+        local counts="$out/$block-$engine.network-error"
+        if ! docker --host "$(socket "$engine")" exec "$prefix-$engine" /mpcheck/netbench -net-info > "$counts.json" 2>"$counts.stderr"; then
+            echo "Could not read $engine service counters after $block" >&2
+        fi
+    fi
     (( record_failures == 1 )) || exit "$status"
 }
 for ((r=1;r<=rounds;r++)); do
@@ -169,10 +185,18 @@ for ((r=1;r<=overlap;r++)); do
         else
             status=1
         fi
+        if (( status == 0 )) && ! jq -e '
+            .reopened_connections == 0 and
+            (.overlap_bytes_per_stream | length == 32 and all(.[]; . > 0))
+        ' "$dest.json" >/dev/null; then
+            echo "A bulk connection reopened or failed to transfer bytes during the mixed benchmark" >> "$dest.error"
+            status=1
+        fi
         if (( status != 0 )); then
             record_failure "overlap-$r" "$e" "$status" "$dest.error"
         fi
     done
 done
+snapshot_network after
 date -u '+%Y-%m-%dT%H:%M:%SZ' > "$out/finished.utc"
 [[ ! -s "$out/failed-blocks.tsv" ]]

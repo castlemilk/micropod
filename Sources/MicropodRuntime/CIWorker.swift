@@ -665,6 +665,7 @@ public struct CIWorker: Sendable {
         var options = SandboxVM.Options(base: .image(config.image))
         options.network = true
         options.hostname = config.engine == .containerd ? Self.hostname(active.instance) : "micropod-ci"
+        let portRelay = resourceEnvironment["MICROPOD_CI_PORT_RELAY"]
         options.ciWorkspace = config.workspace
         if let path = config.kataTools {
             guard config.engine == .containerd, VZGenericPlatformConfiguration.isNestedVirtualizationSupported,
@@ -691,6 +692,7 @@ public struct CIWorker: Sendable {
         if active.nativeOCI == true { options.env.append("MICROPOD_NATIVE_OCI=1") }
         if config.engine == .containerd {
             options.env.append("MICROPOD_ENGINE_API=1")
+            if portRelay == "kqueue-throughput" { options.env.append("MICROPOD_CI_PORT_THROUGHPUT=1") }
             if let raw = resourceEnvironment["MICROPOD_CI_MAX_STARTING"] {
                 guard let limit = Int(raw), (0...32).contains(limit) else {
                     throw MicropodError.message("MICROPOD_CI_MAX_STARTING must be between 0 and 32")
@@ -707,9 +709,9 @@ public struct CIWorker: Sendable {
             stdout: FileHandleWriter(.standardOutput), stderr: FileHandleWriter(.standardError),
             progress: { FileHandle.standardError.write(Data(($0 + "\n").utf8)) }, ciWorker: self)
         do {
-            if config.engine == .containerd, let guest = prepared.guestIP {
+            if config.engine == .containerd, let guest = prepared.guestIP, let gateway = prepared.gateway {
                 try await prepared.forwarding.openNativePortBroker(
-                    at: portSocket, guest: guest, useKqueue: resourceEnvironment["MICROPOD_CI_PORT_RELAY"] == "kqueue",
+                    at: portSocket, guest: guest, gateway: gateway, mode: portRelay,
                     profile: resourceEnvironment["MICROPOD_CI_PORT_PROFILE"] == "1")
             }
             try await prepared.container.create()

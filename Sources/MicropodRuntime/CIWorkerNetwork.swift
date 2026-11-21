@@ -59,7 +59,7 @@ extension CIWorker {
         {
             guard request != nil || ContinuousClock.now >= nextCheck else { return nil }
             nextCheck = .now + .seconds(5)
-            let cause: String
+            var cause: String
             if request != nil {
                 cause = "requested"
             } else if retry {
@@ -68,7 +68,7 @@ extension CIWorker {
                 cause = "host-gateway-missing"
             } else if ContinuousClock.now >= nextGuestCheck {
                 nextGuestCheck = .now + .seconds(20)
-                let ok = try? await CIWorker.guestLink(prepared.container, gateway: gateway, repair: false)
+                let ok = try? await CIWorker.guestLink(prepared.container, gateway: gateway, mode: .check)
                 guard ok == false else { return nil }
                 cause = "guest-link-unreachable"
             } else {
@@ -76,7 +76,18 @@ extension CIWorker {
             }
             let start = ContinuousClock.now
             var failure: String?
-            do { try await CIWorker.reconnect(prepared) } catch { failure = error.localizedDescription }
+            do {
+                // Under load a single missed ARP reply can coexist with live TCP streams.
+                // Recover a missing guest route without taking those streams off the NIC.
+                if cause == "guest-link-unreachable", (try? CIWorker.hasLocalGateway(gateway)) == true,
+                    (try? await CIWorker.guestLink(prepared.container, gateway: gateway, mode: .restoreRoute)) == true,
+                    (try? CIWorker.hasLocalGateway(gateway)) == true
+                {
+                    cause = "guest-link-restored"
+                } else {
+                    try await CIWorker.reconnect(prepared)
+                }
+            } catch { failure = error.localizedDescription }
             let elapsed = start.duration(to: .now).components
             retry = failure != nil
             delay = retry ? min(delay * 2, 60) : 5
@@ -103,29 +114,41 @@ extension CIWorker {
             }
             try await attachNIC(true, vm: vm, network: network)
         }
-        guard try await guestLink(prepared.container, gateway: gateway, repair: true), try hasLocalGateway(gateway)
+        guard try await guestLink(prepared.container, gateway: gateway, mode: .reconnected),
+            try hasLocalGateway(gateway)
         else {
             throw MicropodError.message("The CI gateway did not answer after reconnecting")
         }
     }
 
-    private static func guestLink(_ container: LinuxContainer, gateway: String, repair: Bool) async throws -> Bool {
+    private enum LinkProbe { case check, restoreRoute, reconnected }
+
+    private static func guestLink(_ container: LinuxContainer, gateway: String, mode: LinkProbe) async throws -> Bool {
         // ARP tests our own first hop even when the upstream Internet or the public DNS is down.
-        let script =
-            repair
-            ? """
-            ip link set eth0 up
-            ip route replace default via "$1" dev eth0
-            ip neigh del "$1" dev eth0 2>/dev/null || true
-            for i in 1 2 3; do
-                if arping -q -I eth0 -c 1 -w 2 "$1"; then exit 0; fi
-            done
-            exit 1
-            """
-            : """
-            ip route show default | grep -Fq "via $1 dev eth0"
-            arping -q -I eth0 -c 1 -w 2 "$1"
-            """
+        let script: String
+        switch mode {
+        case .check:
+            script = """
+                ip route show default | grep -Fq "via $1 dev eth0"
+                arping -q -I eth0 -c 1 -w 2 "$1"
+                """
+        case .restoreRoute:
+            script = """
+                ip link set eth0 up
+                ip route show default | grep -Fq "via $1 dev eth0" || ip route replace default via "$1" dev eth0
+                arping -q -I eth0 -c 1 -w 2 "$1"
+                """
+        case .reconnected:
+            script = """
+                ip link set eth0 up
+                ip route replace default via "$1" dev eth0
+                ip neigh del "$1" dev eth0 2>/dev/null || true
+                for i in 1 2 3; do
+                    if arping -q -I eth0 -c 1 -w 2 "$1"; then exit 0; fi
+                done
+                exit 1
+                """
+        }
         let probe = try await container.exec(UUID().uuidString) { cfg in
             cfg.capabilities = .allCapabilities
             cfg.arguments = ["/bin/sh", "-ec", script, "sh", gateway]

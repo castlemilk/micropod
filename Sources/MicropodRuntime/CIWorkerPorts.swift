@@ -6,13 +6,16 @@ import NIOPosix
 extension SandboxForwarding {
     /// Each private guest connection leases one Mac loopback listener. The four-byte
     /// request contains the requested Mac port and the port on this VM's own NIC.
-    func openNativePortBroker(at socket: URL, guest: String, useKqueue: Bool, profile: Bool) async throws {
-        // Keep the established transport as the default while the new path is
-        // qualified under sustained connection churn on shared Macs.
-        let relay = useKqueue ? try NativeLoopbackRelay(guest: guest, profile: profile) : nil
+    func openNativePortBroker(at socket: URL, guest: String, gateway: String, mode: String?, profile: Bool) async throws
+    {
+        // A native published lease must originate from its worker gateway.
+        let parallel = mode == "kqueue-throughput"
+        let relay =
+            mode == nil || mode == "kqueue" || parallel
+            ? try NativeLoopbackRelay(guest: guest, gateway: gateway, parallel: parallel, profile: profile) : nil
         let channel = try await ServerBootstrap(group: MultiThreadedEventLoopGroup.singleton)
             .childChannelInitializer { channel in
-                channel.pipeline.addHandler(NativePortLease(guest: guest, relay: relay))
+                channel.pipeline.addHandler(NativePortLease(guest: guest, gateway: gateway, relay: relay))
             }
             .bind(unixDomainSocketPath: socket.path, cleanupExistingSocketFile: true).get()
         if let relay { channel.closeFuture.whenComplete { _ in relay.stop() } }
@@ -25,13 +28,15 @@ private final class NativePortLease: ChannelInboundHandler, @unchecked Sendable 
     typealias InboundIn = ByteBuffer
     typealias OutboundOut = ByteBuffer
     private let guest: String
+    private let gateway: String
     private let relay: NativeLoopbackRelay?
     private var selected: UInt16?
     private var request = ByteBuffer()
     private var submitted = false
 
-    init(guest: String, relay: NativeLoopbackRelay?) {
+    init(guest: String, gateway: String, relay: NativeLoopbackRelay?) {
         self.guest = guest
+        self.gateway = gateway
         self.relay = relay
     }
 
@@ -64,21 +69,22 @@ private final class NativePortLease: ChannelInboundHandler, @unchecked Sendable 
         let owner = context.channel
         let clients = NativePortClients()
         owner.closeFuture.whenComplete { _ in clients.close() }
-        SandboxForwarding.relay(on: "127.0.0.1", port: host, to: guest, port: port, clients: clients).whenComplete {
-            result in
-            guard case .success(let listener) = result else {
-                owner.close(promise: nil)
-                return
+        SandboxForwarding.relay(on: "127.0.0.1", port: host, to: guest, port: port, clients: clients, source: gateway)
+            .whenComplete {
+                result in
+                guard case .success(let listener) = result else {
+                    owner.close(promise: nil)
+                    return
+                }
+                owner.closeFuture.whenComplete { _ in listener.close(promise: nil) }
+                guard let selected = listener.localAddress?.port, let port = UInt16(exactly: selected) else {
+                    owner.close(promise: nil)
+                    return
+                }
+                var reply = owner.allocator.buffer(capacity: 2)
+                reply.writeInteger(port)
+                owner.writeAndFlush(reply, promise: nil)
             }
-            owner.closeFuture.whenComplete { _ in listener.close(promise: nil) }
-            guard let selected = listener.localAddress?.port, let port = UInt16(exactly: selected) else {
-                owner.close(promise: nil)
-                return
-            }
-            var reply = owner.allocator.buffer(capacity: 2)
-            reply.writeInteger(port)
-            owner.writeAndFlush(reply, promise: nil)
-        }
     }
 
     func handlerRemoved(context: ChannelHandlerContext) {

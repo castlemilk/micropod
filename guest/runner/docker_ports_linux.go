@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"strconv"
@@ -194,6 +195,7 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 		return nil, configurePodNetwork(ctx, s.node, podID, nil, "")
 	}
 	var target string
+	var network *workerNetwork
 	if c.NetworkID != "" {
 		s.mu.Lock()
 		n := s.namedNetworks[c.NetworkID]
@@ -207,6 +209,7 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 		if err != nil {
 			return nil, err
 		}
+		network = n
 		target = c.NetworkIP
 	} else {
 		pod, err := s.node.runtime.PodSandboxStatus(ctx, &cri.PodSandboxStatusRequest{PodSandboxId: podID})
@@ -227,6 +230,13 @@ func (s *dockerEngine) publish(ctx context.Context, c *dockerContainer, podID st
 	var ip string
 	if kernelPublishedPorts() {
 		ip = os.Getenv("MICROPOD_PUBLISH_IPV4")
+		if os.Getenv("MICROPOD_CI_PORT_THROUGHPUT") == "1" && (network == nil || network.Driver == "bridge") {
+			if err := s.node.preferLocalCongestionControl(ctx, podID, target, network); err != nil {
+				// The published mapping and normal routing still work when an
+				// installed kernel lacks the optional route metric.
+				log.Printf("published TCP return route on pod %.12s: %v", podID, err)
+			}
+		}
 	} else if !privateRootless() {
 		ip, err = guestIPv4()
 		if err != nil {

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 )
 
@@ -123,4 +124,76 @@ func openKernelPort(ctx context.Context, ip, target string, host uint16) (*publi
 		}
 	})
 	return p, port, nil
+}
+
+// Guest SNAT presents a host-published connection to the service as its local
+// bridge gateway. Give just that directly connected /32 a congestion-control
+// preference. Applications may override it and other destinations keep their
+// normal policy. The route belongs to this single-use pod network namespace.
+func (n node) preferLocalCongestionControl(ctx context.Context, podID, address string, network *workerNetwork) error {
+	ns, err := n.podNetwork(ctx, podID)
+	if err != nil {
+		return err
+	}
+	defer ns.Close()
+	pod, err := netlink.NewHandleAt(netns.NsHandle(ns.Fd()), unix.NETLINK_ROUTE)
+	if err != nil {
+		return err
+	}
+	defer pod.Close()
+	link, err := pod.LinkByName("eth0")
+	if err != nil {
+		return err
+	}
+	if link.Type() != "veth" {
+		return nil
+	}
+
+	source := net.ParseIP(address).To4()
+	addrs, err := pod.AddrList(link, netlink.FAMILY_V4)
+	if err != nil {
+		return err
+	}
+	var gateway net.IP
+	if network != nil {
+		gateway = net.IP(network.gateway().AsSlice())
+	} else {
+		routes, err := pod.RouteList(link, netlink.FAMILY_V4)
+		if err != nil {
+			return err
+		}
+		for _, route := range routes {
+			defaultRoute := route.Dst == nil
+			if route.Dst != nil {
+				prefix, bits := route.Dst.Mask.Size()
+				defaultRoute = prefix == 0 && bits == 32
+			}
+			if defaultRoute && route.Gw.To4() != nil {
+				gateway = route.Gw.To4()
+				break
+			}
+		}
+	}
+	for _, address := range addrs {
+		if source != nil && gateway != nil && address.IP.Equal(source) && address.IPNet.Contains(gateway) {
+			// Do not replace an explicit application route or a prior successful installation.
+			dst := &net.IPNet{IP: gateway, Mask: net.CIDRMask(32, 32)}
+			// Shorten the minimum loss-recovery delay on this private
+			// hop. The congestion controller remains application-selectable.
+			err := pod.RouteAdd(&netlink.Route{
+				LinkIndex:  link.Attrs().Index,
+				Dst:        dst,
+				Src:        source,
+				Scope:      netlink.SCOPE_LINK,
+				Congctl:    "reno",
+				RtoMin:     20, // Linux route metric in milliseconds.
+				RtoMinLock: true,
+			})
+			if errors.Is(err, unix.EEXIST) {
+				return nil
+			}
+			return err
+		}
+	}
+	return fmt.Errorf("cannot verify on-link gateway for %s", source)
 }

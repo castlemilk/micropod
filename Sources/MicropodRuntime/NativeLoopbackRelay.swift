@@ -2,68 +2,141 @@ import CPublishedTCP
 import Foundation
 import MicropodCore
 
-/// One readiness queue serves every published TCP lease on this worker.
+/// Accept once on loopback. Each established stream stays with a single I/O owner.
 final class NativeLoopbackRelay: @unchecked Sendable {
     private final class Backend: @unchecked Sendable {
         let handle: OpaquePointer
 
-        init(guest: String) throws {
-            guard let handle = mp_tcp_relay_create(guest) else { throw Self.posixError() }
+        init(guest: String, gateway: String?) throws {
+            guard let handle = mp_tcp_relay_create(guest) else { throw NativeLoopbackRelay.posixError() }
+            if let gateway, mp_tcp_relay_scope(handle, gateway) < 0 {
+                let error = NativeLoopbackRelay.posixError()
+                mp_tcp_relay_destroy(handle)
+                throw error
+            }
             self.handle = handle
         }
-
-        static func posixError() -> POSIXError { POSIXError(.init(rawValue: errno) ?? .EIO) }
 
         deinit { mp_tcp_relay_destroy(handle) }
     }
 
-    private let backend: Backend
-    private let queue = DispatchQueue(label: "dev.micropod.published-tcp", qos: .userInitiated)
-    private let source: DispatchSourceRead
+    private final class Owner: @unchecked Sendable {
+        let backend: Backend
+        let queue: DispatchQueue
+        let source: DispatchSourceRead
+
+        init(guest: String, gateway: String?, name: String) throws {
+            let backend = try Backend(guest: guest, gateway: gateway)
+            self.backend = backend
+            queue = DispatchQueue(label: "dev.micropod.published-tcp." + name, qos: .userInitiated)
+            source = DispatchSource.makeReadSource(
+                fileDescriptor: mp_tcp_relay_descriptor(backend.handle), queue: queue)
+            source.setEventHandler { mp_tcp_relay_drain(backend.handle) }
+            source.setCancelHandler { withExtendedLifetime(backend) {} }
+            source.activate()
+        }
+
+        deinit { source.cancel() }
+    }
+
+    private final class Target: @unchecked Sendable {
+        let owner: Owner
+        let handle: OpaquePointer
+
+        init(owner: Owner, parent: OpaquePointer) throws {
+            self.owner = owner
+            guard let handle = mp_tcp_target(owner.backend.handle, parent) else {
+                throw NativeLoopbackRelay.posixError()
+            }
+            self.handle = handle
+        }
+
+        func adopt(_ fd: Int32, accepted: UInt64) {
+            owner.queue.async { mp_tcp_adopt(self.handle, fd, accepted) }
+        }
+
+        func release() { owner.queue.sync { mp_tcp_release(handle, nil) } }
+    }
+
+    // The accept queue owns the port and issues every handoff in order.
+    private final class Lease {
+        let listener: OpaquePointer
+        var targets: [Target] = []
+        private var next = 0
+
+        init(listener: OpaquePointer) { self.listener = listener }
+
+        func adopt(_ fd: Int32, accepted: UInt64) {
+            targets[next].adopt(fd, accepted: accepted)
+            next = (next + 1) % targets.count
+        }
+
+        func release() -> mp_tcp_stats {
+            // Accept cannot race this function. Each queue drains its previous
+            // handoffs before its target closes. Only then can the port be reused.
+            for target in targets { target.release() }
+            var stats = mp_tcp_stats()
+            mp_tcp_release(listener, &stats)
+            return stats
+        }
+    }
+
+    private let accept: Owner
+    private let workers: [Owner]
     private let profile: Bool
-    // Touched only on queue, including synchronous revocation.
-    private var listeners: [UInt16: OpaquePointer] = [:]
+    private var listeners: [UInt16: Lease] = [:]
     private var stopped = false
 
-    init(guest: String, profile: Bool = false) throws {
-        let backend = try Backend(guest: guest)
-        self.backend = backend
+    private static func posixError() -> POSIXError { POSIXError(.init(rawValue: errno) ?? .EIO) }
+
+    init(guest: String, gateway: String? = nil, parallel: Bool = true, profile: Bool = false) throws {
+        accept = try Owner(guest: guest, gateway: parallel ? nil : gateway, name: "accept")
+        workers = try (0..<(parallel ? 2 : 0)).map {
+            try Owner(guest: guest, gateway: gateway, name: "io." + String($0))
+        }
         self.profile = profile
-        source = DispatchSource.makeReadSource(fileDescriptor: mp_tcp_relay_descriptor(backend.handle), queue: queue)
-        source.setEventHandler { mp_tcp_relay_drain(backend.handle) }
-        // The descriptor must stay open until libdispatch removes its watch.
-        source.setCancelHandler { withExtendedLifetime(backend) {} }
-        source.activate()
     }
 
     func bind(host: UInt16, guest: UInt16) throws -> UInt16 {
-        try queue.sync {
+        try accept.queue.sync {
             guard !stopped else { throw POSIXError(.ECANCELED) }
             var selected: UInt16 = 0
-            guard let listener = mp_tcp_listen(backend.handle, host, guest, &selected, profile ? 1 : 0) else {
-                throw Backend.posixError()
+            guard let listener = mp_tcp_listen(accept.backend.handle, host, guest, &selected, profile ? 1 : 0) else {
+                throw Self.posixError()
             }
-            listeners[selected] = listener
+            let lease = Lease(listener: listener)
+            do {
+                for owner in workers { lease.targets.append(try Target(owner: owner, parent: listener)) }
+            } catch {
+                _ = lease.release()
+                throw error
+            }
+            if !workers.isEmpty {
+                mp_tcp_set_handoff(
+                    listener,
+                    { owner, fd, timestamp in
+                        Unmanaged<Lease>.fromOpaque(owner!).takeUnretainedValue().adopt(fd, accepted: timestamp)
+                    }, Unmanaged.passUnretained(lease).toOpaque())
+            }
+            listeners[selected] = lease
             return selected
         }
     }
 
-    func release(_ port: UInt16) {
-        queue.sync { releaseOnQueue(port) }
-    }
+    func release(_ port: UInt16) { accept.queue.sync { releaseOnQueue(port) } }
 
     func stop() {
-        queue.sync {
+        accept.queue.sync {
             stopped = true
             for port in Array(listeners.keys) { releaseOnQueue(port) }
         }
-        source.cancel()
+        accept.source.cancel()
+        for worker in workers { worker.source.cancel() }
     }
 
     private func releaseOnQueue(_ port: UInt16) {
-        guard let listener = listeners.removeValue(forKey: port) else { return }
-        var stats = mp_tcp_stats()
-        mp_tcp_release(listener, &stats)
+        guard let lease = listeners.removeValue(forKey: port) else { return }
+        let stats = lease.release()
         guard profile else {
             if stats.connect_retries > 0 {
                 SecretSource.stderrLog(
@@ -78,7 +151,9 @@ final class NativeLoopbackRelay: @unchecked Sendable {
         let event: [String: Any] = [
             "port": port, "accepted": stats.accepted, "connected": stats.connected,
             "connect_errors": stats.connect_errors, "connect_retries": stats.connect_retries,
-            "recovered": stats.recovered, "peak_active": stats.peak_active,
+            "route_waits": stats.route_waits, "handshake_timeouts": stats.handshake_timeouts,
+            "last_connect_errno": stats.last_connect_error, "recovered": stats.recovered,
+            "peak_active": stats.peak_active,
             "upload_bytes": stats.upload_bytes, "download_bytes": stats.download_bytes,
             "reads": stats.reads, "writes": stats.writes, "blocked_writes": stats.blocked_writes,
             "bulk_directions": stats.bulk_directions,
