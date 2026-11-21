@@ -165,9 +165,11 @@ rig_needs() {
 
 # rig_stamp: before a reboot, root records this boot; rig_rebooted: the
 # machine booted again since. Only root can write the stamp.
-rig_stamp() { sysctl -n kern.boottime | sudo tee "$RIG_DIR/boot" >/dev/null; }
+# kern.bootsessionuuid is new on every boot (kern.boottime moves when the
+# clock is stepped).
+rig_stamp() { sysctl -n kern.bootsessionuuid | sudo tee "$RIG_DIR/boot" >/dev/null; }
 rig_rebooted() {
-  sudo test -s "$RIG_DIR/boot" && [ "$(sysctl -n kern.boottime)" != "$(sudo cat "$RIG_DIR/boot")" ]
+  sudo test -s "$RIG_DIR/boot" && [ "$(sysctl -n kern.bootsessionuuid)" != "$(sudo cat "$RIG_DIR/boot")" ]
 }
 rig_after_reboot() {
   [ -z "$RIG" ] || rig_rebooted || die "this Mac has not rebooted since the step that asked for it: reboot first (sudo shutdown -r now)"
@@ -198,19 +200,22 @@ marks_match() {
 }
 
 # rig_undo_attack: what an attack that should have failed moved, back where
-# it was (a rig has no clone to throw away). Only what is really gone is put
-# back, so nothing an admin process left in $GATE can replace a root file.
+# it was (a rig has no clone to throw away). Only root's own files are put
+# back: no admin process can create a root-owned file, so nothing it left in
+# $GATE can stand in for the plist, the support folder or the legacy bundle.
 rig_undo_attack() {
   [ -n "$RIG" ] || return 0
   local moved="$GATE/attack-moved" support="/Library/Application Support/Micropod"
-  if present "$moved/p" && ! present "$PLIST"; then sudo mv "$moved/p" "$PLIST"; fi
-  if present "$moved/m" && ! present "$support"; then sudo mv "$moved/m" "$support"; fi
-  if present "$moved/l.app" && ! present "$LEGACY_APP"; then sudo mv "$moved/l.app" "$LEGACY_APP"; fi
-  if present "$GATE/moved.app" && ! legacy_immutable; then
-    sudo rm -rf "$LEGACY_APP"
-    sudo mv "$GATE/moved.app" "$LEGACY_APP"
+  root_owned() { present "$1" && [ ! -L "$1" ] && [ "$(stat -f %u "$1")" = 0 ]; }
+  if root_owned "$moved/p" && ! present "$PLIST"; then sudo mv "$moved/p" "$PLIST"; fi
+  if root_owned "$moved/m" && ! present "$support"; then sudo mv "$moved/m" "$support"; fi
+  if root_owned "$moved/l.app" && ! present "$LEGACY_APP"; then sudo mv "$moved/l.app" "$LEGACY_APP"; fi
+  if present "$GATE/planted" && root_owned "$GATE/moved.app"; then
+    # The planter moved the real bundle aside and put its own in place:
+    # move that one aside too (never rm -rf through it), then restore.
+    sudo mv "$LEGACY_APP" "$GATE/planted.app" && sudo mv "$GATE/moved.app" "$LEGACY_APP"
   fi
-  sudo rm -rf "$moved" "$GATE/moved.app"
+  sudo rm -rf "$moved" "$GATE/moved.app" "$GATE/planted.app"
 }
 
 # allow_identity: the runtime the gate just installed may exist from now on.
@@ -386,10 +391,21 @@ r2_cli() {
   sudo rm -rf "$R2_DIR"
   sudo install -d -o root -g wheel -m 0755 "$R2_DIR" || return 1
   sudo ditto --noextattr --noacl "$src/micropod" "$R2_DIR/micropod" || return 1
-  sudo codesign --verify --strict -R="$REQ" "$R2_DIR/micropod" >&2 || return 1
-  sudo chown "$GATE_USER" "$R2_DIR/micropod" && sudo chmod 0755 "$R2_DIR/micropod" &&
+  # Immutable before it is checked: from here no process of the user's can
+  # change the bytes root will run.
+  sudo chown "$GATE_USER" "$R2_DIR/micropod" && sudo chmod 0555 "$R2_DIR/micropod" &&
     sudo chflags schg "$R2_DIR/micropod" || return 1
+  sudo codesign --verify --strict -R="$REQ" "$R2_DIR/micropod" >&2 || return 1
   printf '%s\n' "$R2_DIR/micropod"
+}
+
+# r2_refused <cli> <app>: install-authority, run as root from a CLI the
+# administrator owns, refuses for that reason (not merely fails).
+r2_refused() {
+  local out
+  out=$(sudo "$1" runtime install-authority --app "$2" --confirm x 2>&1) && return 1
+  printf '%s\n' "$out"
+  printf '%s\n' "$out" | grep -q 'is not owned by root'
 }
 
 cdhash12() {
@@ -754,8 +770,7 @@ case "$STEP" in
       spctl -a -t exec "$app"
     r2=$(r2_cli) || r2=/nonexistent/micropod
     check "the R2 copy is A's signed CLI, owned by $GATE_USER and immutable" test "$r2" = "$R2_DIR/micropod"
-    check "a user-owned CLI is refused as root (R2)" refuse sudo \
-      "$r2" runtime install-authority --app "$app" --confirm x
+    check "a user-owned CLI is refused as root, for being user-owned (R2)" r2_refused "$r2" "$app"
     check "nothing was installed by the refused run" test ! -e "$PLIST"
     check "install-authority from the root-only copy" install_authority A
     finished A
@@ -1110,8 +1125,7 @@ case "$STEP" in
     app="$(unpack A)/Micropod.app"
     r2=$(r2_cli) || r2=/nonexistent/micropod
     check "the R2 copy is A's signed CLI, owned by $GATE_USER and immutable" test "$r2" = "$R2_DIR/micropod"
-    check "a user-owned CLI is refused as root (R2)" refuse sudo \
-      "$r2" runtime install-authority --app "$app" --confirm x
+    check "a user-owned CLI is refused as root, for being user-owned (R2)" r2_refused "$r2" "$app"
     check "install-authority from the root-only copy" install_authority A
     finished A
     check "the legacy bundle is a sealed immutable copy" legacy_immutable
