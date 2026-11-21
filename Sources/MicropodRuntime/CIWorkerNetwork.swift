@@ -71,7 +71,7 @@ extension CIWorker {
 
         func inspect(
             _ prepared: SandboxVM.Prepared, gateway: String, instance: UUID, request: UUID?, link: WorkerLink = .egress,
-            failedHandshake: Bool = false
+            failedHandshake: Bool = false, publishedRelay: NativeLoopbackRelay? = nil
         ) async -> NetworkRepair? {
             // A real handshake can detect a broken guest link between idle ARP checks.
             // Coalesce retries across all leases and preserve backoff after a failed repair.
@@ -82,6 +82,13 @@ extension CIWorker {
             guard request != nil || ContinuousClock.now >= nextCheck else { return nil }
             guard let network = link.network(in: prepared) else { return nil }
             nextCheck = .now + .seconds(1)
+            // Guest application bytes prove that the published data path is working.
+            // Keep checking the host gateway, explicit requests and new handshake failures.
+            if publishedRelay?.takeGuestTraffic() == true {
+                retry = false
+                delay = 0
+                if !failedHandshake { nextGuestCheck = .now + .seconds(20) }
+            }
             var cause: String
             if request != nil {
                 cause = "requested"
@@ -108,6 +115,13 @@ extension CIWorker {
                     (try? CIWorker.hasLocalGateway(gateway)) == true
                 {
                     cause = "guest-link-restored"
+                } else if cause == "guest-link-unreachable", publishedRelay?.takeGuestTraffic() == true,
+                    (try? CIWorker.hasLocalGateway(gateway)) == true
+                {
+                    // Fresh data arrived during the failed probes. Leave the NIC
+                    // attached and recheck soon in case new handshakes still fail.
+                    nextGuestCheck = .now + .seconds(3)
+                    return nil
                 } else {
                     try await CIWorker.reconnect(prepared, link: link)
                 }

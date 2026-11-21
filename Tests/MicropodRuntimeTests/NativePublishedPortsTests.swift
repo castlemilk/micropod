@@ -95,6 +95,7 @@ final class NativePublishedPortsTests: XCTestCase {
         let upstream = try server()
         defer { try? upstream.close().wait() }
         let relay = try NativeLoopbackRelay(guest: "127.0.0.1", profile: true)
+        XCTAssertFalse(relay.takeGuestTraffic())
         let port = try relay.bind(host: 0, guest: UInt16(try XCTUnwrap(upstream.localAddress?.port)))
         let client = try connect(port)
         XCTAssertEqual(try client.read(upToCount: 5), Data("ready".utf8))
@@ -105,6 +106,8 @@ final class NativePublishedPortsTests: XCTestCase {
         XCTAssertEqual(shutdown(client.fileDescriptor, SHUT_WR), 0)
         XCTAssertEqual(try client.readToEnd(), payload)
         relay.release(port)
+        XCTAssertTrue(relay.takeGuestTraffic())
+        XCTAssertFalse(relay.takeGuestTraffic())
     }
 
     func testBrokerConfirmsGuestPortRevocationBeforeReuse() async throws {
@@ -362,6 +365,7 @@ final class NativePublishedPortsTests: XCTestCase {
         mp_tcp_relay_drain(relay, 0)
         XCTAssertEqual(mp_tcp_take_path_failure(relay), 1)
         XCTAssertEqual(mp_tcp_take_path_failure(relay), 0)
+        XCTAssertEqual(mp_tcp_take_guest_data(relay), 0)
         var event = pollfd(fd: client.fileDescriptor, events: Int16(POLLIN), revents: 0)
         XCTAssertEqual(poll(&event, 1, 180), 0)
         XCTAssertEqual(mp_tcp_relay_scope(relay, "127.0.0.1"), 0)
@@ -384,6 +388,8 @@ final class NativePublishedPortsTests: XCTestCase {
             }
         }
         XCTAssertEqual(received, Data("readyonce".utf8))
+        XCTAssertEqual(mp_tcp_take_guest_data(relay), 1)
+        XCTAssertEqual(mp_tcp_take_guest_data(relay), 0)
     }
 
     func testReleaseCancelsAllPendingRetriesAcrossWorkers() throws {

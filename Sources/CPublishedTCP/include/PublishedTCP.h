@@ -31,6 +31,8 @@ void mp_tcp_set_handoff(mp_tcp_listener *listener, mp_tcp_handoff handler, void 
 void mp_tcp_adopt(mp_tcp_listener *target, int client, uint64_t accepted_at);
 // Thread-safe, coalescing signal for a new handshake that lost the worker path.
 int mp_tcp_take_path_failure(mp_tcp_relay *accept_relay);
+// Reports newly received guest payload since the previous observation on this I/O owner.
+int mp_tcp_take_guest_data(mp_tcp_relay *relay);
 int mp_tcp_relay_descriptor(const mp_tcp_relay *relay);
 void mp_tcp_relay_drain(mp_tcp_relay *relay, int dedicated_data_owner);
 void mp_tcp_relay_destroy(mp_tcp_relay *relay);

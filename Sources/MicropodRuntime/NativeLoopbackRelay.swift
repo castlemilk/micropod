@@ -105,6 +105,14 @@ final class NativeLoopbackRelay: @unchecked Sendable {
 
     func takePathFailure() -> Bool { mp_tcp_take_path_failure(accept.backend.handle) != 0 }
 
+    func takeGuestTraffic() -> Bool {
+        var received = mp_tcp_take_guest_data(accept.backend.handle) != 0
+        for worker in workers {
+            if mp_tcp_take_guest_data(worker.backend.handle) != 0 { received = true }
+        }
+        return received
+    }
+
     func bind(host: UInt16, guest: UInt16) throws -> UInt16 {
         try accept.queue.sync {
             guard !stopped else { throw POSIXError(.ECANCELED) }

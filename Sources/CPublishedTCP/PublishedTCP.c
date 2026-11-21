@@ -34,7 +34,7 @@ struct mp_tcp_relay {
     struct watch bulk;
     struct in_addr guest, gateway;
     unsigned ifindex;
-    atomic_bool path_failure;
+    atomic_bool path_failure, guest_data;
     uint64_t interface_checked;
     struct pair *retired;
     char scratch[CHUNK];
@@ -114,6 +114,7 @@ static mp_tcp_relay *create_relay(const char *guest, bool data_only) {
     if (!r) return NULL;
     r->guest = address;
     atomic_init(&r->path_failure, false);
+    atomic_init(&r->guest_data, false);
     r->kq = kqueue();
     r->bulk = (struct watch){ BULK_READY, data_only ? -1 : kqueue() };
     if (r->kq < 0 || fcntl(r->kq, F_SETFD, FD_CLOEXEC) < 0 ||
@@ -171,6 +172,10 @@ static int scope_guest(mp_tcp_relay *r, int fd) {
 
 int mp_tcp_take_path_failure(mp_tcp_relay *r) {
     return atomic_exchange_explicit(&r->path_failure, false, memory_order_relaxed);
+}
+
+int mp_tcp_take_guest_data(mp_tcp_relay *r) {
+    return atomic_exchange_explicit(&r->guest_data, false, memory_order_relaxed);
 }
 
 int mp_tcp_relay_descriptor(const mp_tcp_relay *r) { return r->kq; }
@@ -532,7 +537,13 @@ static void pump(struct endpoint *src, struct endpoint *dst) {
             return;
         }
         count = (size_t)got;
-        if (src == &p->guest) p->guest_replied = true;
+        if (src == &p->guest) {
+            p->guest_replied = true;
+            // One notification per data owner between watchdog polls. Counting only
+            // bytes from the guest excludes accepts, writes and unanswered handshakes.
+            if (!atomic_load_explicit(&r->guest_data, memory_order_relaxed))
+                atomic_store_explicit(&r->guest_data, true, memory_order_relaxed);
+        }
         if (!src->bulk_read && count >= LARGE_READ) {
             // Both queues have one serial owner. No bulk event can run until
             // this pump returns; closing the fd removes it from both queues.

@@ -101,6 +101,10 @@ The guest registers its intent with the Mac before it asks the Mac to bind. On r
 Build the pinned kernel on ARM64 Linux with `ci/build-worker-kernel.sh linux-7.3.5.tar.xz apple.config OUT full`. The base config must support the Apple guest devices and filesystem. The optional `lazy` profile changes kernel preemption. Both profiles build virtio-net, macvlan, nftables ingress/egress and fair queuing into the kernel. Select a separate home to compare images on the same Mac. The standard worker uses the provisioned Apple kernel and bridge. The direct worker installs nftables at boot if needed. An offline rig can ship its matching signed Alpine APKs and dependencies in `runner/network-apks/` inside the tools bundle. Micropod runs nftables on port setup and teardown. Bulk traffic stays in the guest kernel after the Mac relay. [Gamma kernel comparison and ownership checks](benchmarks/2026-11-21/gamma-direct-macvlan.md)
 
 
+The optional `full-cubic` kernel profile adds built-in CUBIC to the same full-preemption image. On Gamma, an accepted-socket and interrupt-deferral trial qualified Reno with the existing polling settings for this workload. [Matched scheduling and TCP results](benchmarks/2026-11-21/gamma-vm-scheduling.md)
+
+The native watchdog treats TCP payload received from the guest as evidence that the published link is live. It still checks that the Mac owns the gateway. Handshake failures advance the guest probe. If the guest answers during an unsuccessful route and ARP check, the worker schedules another check before detaching the NIC. This preserves established downloads when a busy VM misses the ARP probe.
+
 ## Full Docker Engine worker
 
 

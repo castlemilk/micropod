@@ -834,10 +834,11 @@ public struct CIWorker: Sendable {
                         // published link concurrently, including during explicit repairs.
                         let failedHandshake = nativeRelay?.takePathFailure() == true
                         let dedicatedLink = prepared.publishedNetwork != nil
+                        let publishedRelay = nativeRelay
                         async let published = publishedWatch.inspect(
                             prepared, gateway: prepared.publishedNetwork?.gateway.description ?? gateway,
                             instance: instanceID, request: nil, link: .published,
-                            failedHandshake: dedicatedLink && failedHandshake)
+                            failedHandshake: dedicatedLink && failedHandshake, publishedRelay: publishedRelay)
                         if let receipt = await networkWatch.inspect(
                             prepared, gateway: gateway, instance: active.instance, request: token,
                             failedHandshake: !dedicatedLink && failedHandshake)
