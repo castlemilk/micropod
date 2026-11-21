@@ -137,7 +137,9 @@ public struct NativeContainerService: ContainerServing {
         } catch {
             // An uncertain dispatched start retains its claim; deletion
             // refuses it instead of racing late bootstrap or waiting forever.
-            try? await delete(id, force: true)
+            // The cleanup runs as its own task: a caller that hung up
+            // cancelled this one, and the created container must still go.
+            await Task { try? await self.delete(id, force: true) }.value
             throw error
         }
         return id
@@ -353,6 +355,10 @@ public struct NativeContainerService: ContainerServing {
         // container mutation. A fence acquired during lookup wins here.
         let admission = try admissionGate.claim("native.create", container: id)
         defer { withExtendedLifetime(admission) {} }
+        // Set immediately before `containerCreate` is sent: until then the
+        // runtime cannot hold this container, so any failure — a cancelled
+        // caller included — settles the receipt definitively.
+        let dispatched = DispatchFlag()
         let result: String
         do {
             result = try await InFlightCreates.shared.withExclusive(id) {
@@ -360,7 +366,7 @@ public struct NativeContainerService: ContainerServing {
                 do {
                     let created = try await createNativeInner(
                         request, id: id, placed: &placed, sysConfig: sysConfig, platform: platform, image: image,
-                        parsedMounts: parsedMounts)
+                        parsedMounts: parsedMounts, dispatched: dispatched)
                     // Publish never-started state before releasing the create
                     // claim, leaving no stopped/terminal observation window.
                     await UnstartedCreates.shared.record(created)
@@ -372,8 +378,9 @@ public struct NativeContainerService: ContainerServing {
             }
         } catch {
             // An answered failure settles the receipt; a deadline, transport
-            // loss or cancellation leaves it uncertain.
-            try? admission?.settle(after: error)
+            // loss or cancellation leaves it uncertain — once the create was
+            // sent. Before that, nothing of it can land.
+            try? admission?.settle(after: error, reachedRuntime: dispatched.isSet)
             throw error
         }
         try admission?.completed()
@@ -423,7 +430,7 @@ public struct NativeContainerService: ContainerServing {
     private func createNativeInner(
         _ request: ContainerRunRequest, id: String, placed: inout [String],
         sysConfig: NativeConfigBuilder.SystemConfig, platform: JSONValue, image: ResolvedImage,
-        parsedMounts: [NativeConfigBuilder.ParsedMount]
+        parsedMounts: [NativeConfigBuilder.ParsedMount], dispatched: DispatchFlag = DispatchFlag()
     ) async throws -> String {
         let imageDescription = image.description
         let imageConfig = image.config
@@ -632,6 +639,10 @@ public struct NativeContainerService: ContainerServing {
 
         let kernel = try await api.getDefaultKernel(
             systemPlatform: NativeConfigBuilder.systemPlatform())
+        // The last point a caller that gave up can stop this create: after
+        // the send the apiserver runs it whether or not anyone waits.
+        try Task.checkCancellation()
+        dispatched.set()
         try await api.create(
             configJSON: .object(config),
             kernel: kernel,
@@ -995,7 +1006,7 @@ public struct NativeContainerService: ContainerServing {
 
 /// Set once a start has dispatched to the runtime: before that, any failure
 /// is definitive — nothing reached Apple's apiserver.
-private final class DispatchFlag: Sendable {
+final class DispatchFlag: Sendable {
     private let value = Mutex(false)
     var isSet: Bool { value.withLock { $0 } }
     func set() { value.withLock { $0 = true } }

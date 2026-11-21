@@ -87,6 +87,14 @@ final class APIHandlers: Sendable {
         Task { _ = await runtime.refreshIfNeeded(force: true) }
     }
 
+    /// Whether `request`'s handler ends with its client (``UnaryCancellation``):
+    /// unary Connect calls answered here. Not while every request is relayed
+    /// to the dedicated runtime — the relay reads the client connection
+    /// itself, and forwards a hangup to the API that runs the call.
+    func cancelsWithItsClient(_ request: HTTPRequest) -> Bool {
+        !client.usesIsolatedTransport && UnaryCancellation.applies(request)
+    }
+
     func handle(_ request: HTTPRequest) async -> HTTPResponse {
         if ProcessInfo.processInfo.environment["MICROPOD_ISOLATED_RUNTIME"] == "1",
             !IsolatedRuntimeRequestPolicy.allows(request.path)

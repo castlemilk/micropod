@@ -90,7 +90,7 @@ struct MicropodAPI {
             compose: ComposeService(client: client),
             runtime: holder)
 
-        let server = HTTPServer(port: port, handler: api.handle)
+        let server = HTTPServer(port: port, cancellable: api.cancelsWithItsClient, handler: api.handle)
         do {
             if let identity {
                 let gateway = IsolatedRuntimeGateway(identity: identity)
@@ -151,9 +151,20 @@ enum HTTPResponse {
 final class HTTPServer: @unchecked Sendable {
     let port: UInt16
     let handler: (HTTPRequest) async -> HTTPResponse
+    /// Whether a request's handler runs as its own task, cancelled when the
+    /// client hangs up or its `Connect-Timeout-Ms` passes
+    /// (``UnaryCancellation``). Only unary calls this process answers
+    /// itself qualify: a relayed or bridged request reads the connection
+    /// after the handler returns, and a hangup watch would take its bytes.
+    let cancellable: @Sendable (HTTPRequest) -> Bool
 
-    init(port: UInt16, handler: @escaping (HTTPRequest) async -> HTTPResponse) {
+    init(
+        port: UInt16,
+        cancellable: @escaping @Sendable (HTTPRequest) -> Bool = UnaryCancellation.applies,
+        handler: @escaping (HTTPRequest) async -> HTTPResponse
+    ) {
         self.port = port
+        self.cancellable = cancellable
         self.handler = handler
     }
 
@@ -405,7 +416,20 @@ final class HTTPServer: @unchecked Sendable {
                     completion: .contentProcessed { _ in connection.cancel() })
                 return
             }
-            let response = await handler(request)
+            let answer = cancellable(request) ? await UnaryCancellation.run(request, on: connection, server: self) : nil
+            let response: HTTPResponse
+            if let answer { response = answer.response } else { response = await handler(request) }
+            if let answer, answer.early {
+                // Answered at the deadline; the cancelled handler may still
+                // be finishing, and its admission claim lasts until it has.
+                connection.send(
+                    content: Self.serialize(response, extraHeaders: cors),
+                    completion: .contentProcessed { _ in connection.cancel() })
+                await answer.finished.value
+                try? claim?.completed()
+                withExtendedLifetime(claim) {}
+                return
+            }
             switch response {
             case .relay(let forward):
                 await forward(connection)
