@@ -3,19 +3,45 @@ import MicropodCore
 import NIOCore
 import NIOPosix
 
+struct CIWorkerPortRelay {
+    static let parallelWorkers = 1...4
+    let usesKqueue: Bool
+    let boundedGuestWindow: Bool
+    let dataWorkers: Int
+
+    init(mode: String?, workers: String? = nil) throws {
+        boundedGuestWindow = mode == "kqueue-interactive"
+        let parallel = boundedGuestWindow || mode == "kqueue-throughput"
+        usesKqueue = mode == nil || mode == "kqueue" || parallel
+        if let workers {
+            guard parallel else {
+                throw MicropodError.message(
+                    "MICROPOD_CI_PORT_RELAY_WORKERS requires kqueue-throughput or kqueue-interactive")
+            }
+            guard let count = Int(workers), Self.parallelWorkers.contains(count) else {
+                throw MicropodError.message("MICROPOD_CI_PORT_RELAY_WORKERS must be between 1 and 4")
+            }
+            dataWorkers = count
+        } else {
+            dataWorkers = parallel ? 2 : 0
+        }
+    }
+}
+
 extension SandboxForwarding {
     /// Each private guest connection leases one Mac loopback listener. The four-byte
     /// request contains the requested Mac port and the port on this VM's own NIC.
-    func openNativePortBroker(at socket: URL, guest: String, gateway: String, mode: String?, profile: Bool) async throws
+    func openNativePortBroker(
+        at socket: URL, guest: String, gateway: String, relayConfig: CIWorkerPortRelay, profile: Bool
+    ) async throws
         -> NativeLoopbackRelay?
     {
         // A native published lease must originate from its worker gateway.
-        let interactive = mode == "kqueue-interactive"
-        let parallel = interactive || mode == "kqueue-throughput"
         let relay =
-            mode == nil || mode == "kqueue" || parallel
+            relayConfig.usesKqueue
             ? try NativeLoopbackRelay(
-                guest: guest, gateway: gateway, parallel: parallel, boundedGuestWindow: interactive, profile: profile)
+                guest: guest, gateway: gateway, dataWorkers: relayConfig.dataWorkers,
+                boundedGuestWindow: relayConfig.boundedGuestWindow, profile: profile)
             : nil
         let channel = try await ServerBootstrap(group: MultiThreadedEventLoopGroup.singleton)
             .childChannelInitializer { channel in

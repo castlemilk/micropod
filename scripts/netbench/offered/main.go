@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,19 +10,58 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptrace"
+	"net/url"
 	"os"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
+type service struct{ url, marker string }
+
+func readServices(args []string) ([]service, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("usage: offered URL MARKER | offered --targets 32-port.tsv")
+	}
+	if args[0] != "--targets" {
+		return []service{{args[0], args[1]}}, nil
+	}
+	file, err := os.Open(args[1])
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	var services []service
+	hosts, markers := map[string]bool{}, map[string]bool{}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		address, marker, ok := strings.Cut(scanner.Text(), "\t")
+		target, err := url.Parse(address)
+		if !ok || err != nil || target.Scheme != "http" || target.Host == "" || target.Port() == "" ||
+			target.Path != "" || target.RawQuery != "" || target.Fragment != "" || target.User != nil ||
+			marker == "" || strings.ContainsRune(marker, '\t') || hosts[target.Host] || markers[marker] {
+			return nil, fmt.Errorf("invalid or duplicate published endpoint on line %d", len(services)+1)
+		}
+		hosts[target.Host], markers[marker] = true, true
+		services = append(services, service{address, marker})
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	if len(services) != 32 {
+		return nil, fmt.Errorf("expected 32 distinct published ports, found %d", len(services))
+	}
+	return services, nil
+}
+
 func main() {
-	if len(os.Args) != 3 {
-		fmt.Fprintln(os.Stderr, "usage: offered URL MARKER")
+	services, err := readServices(os.Args[1:])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	u, id := os.Args[1], os.Args[2]
 
 	var bytes [32]atomic.Int64
 	var reopens atomic.Int64
@@ -36,10 +76,11 @@ func main() {
 		jobs.Add(1)
 		go func(i int) {
 			defer jobs.Done()
+			target := services[i%len(services)]
 			tr := &http.Transport{DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext, MaxIdleConnsPerHost: 1}
 			defer tr.CloseIdleConnections()
 			client := &http.Client{Transport: tr, Timeout: 30 * time.Second}
-			if e := identity(client, u, id); e != nil {
+			if e := identity(client, target.url, target.marker); e != nil {
 				report(e)
 				ready.Done()
 				return
@@ -56,7 +97,7 @@ func main() {
 				}
 			}()
 			for {
-				req, _ := http.NewRequestWithContext(ctx, "GET", u+"/data", nil)
+				req, _ := http.NewRequestWithContext(ctx, "GET", target.url+"/data", nil)
 				r, e := client.Do(req)
 				if e != nil {
 					report(e)
@@ -102,7 +143,8 @@ func main() {
 		go func(i int) {
 			defer fresh.Done()
 			delays[i] = time.Since(target).Microseconds()
-			if e := identity(client, u, id); e != nil {
+			service := services[i%len(services)]
+			if e := identity(client, service.url, service.marker); e != nil {
 				report(e)
 				return
 			}
@@ -128,8 +170,9 @@ func main() {
 			report(fmt.Errorf("no bytes on stream %d in the offered window", stream))
 		}
 	}
-	err := json.NewEncoder(os.Stdout).Encode(map[string]any{
-		"streams": 32, "arrivals": count, "period_us": gap.Microseconds(), "window_s": elapsed.Seconds(),
+	err = json.NewEncoder(os.Stdout).Encode(map[string]any{
+		"published_ports": len(services),
+		"streams":         32, "arrivals": count, "period_us": gap.Microseconds(), "window_s": elapsed.Seconds(),
 		"bytes": total, "per_stream_bytes": delta, "mib_s": float64(total) / (1 << 20) / elapsed.Seconds(),
 		"fresh_p95_us": results[227], "fresh_p99_us": results[237],
 		"dispatch_p95_us": delays[227], "dispatch_max_us": delays[239],

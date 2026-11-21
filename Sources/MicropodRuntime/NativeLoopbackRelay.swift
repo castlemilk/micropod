@@ -27,16 +27,16 @@ final class NativeLoopbackRelay: @unchecked Sendable {
         let source: DispatchSourceRead
 
         init(
-            guest: String, gateway: String?, name: String, dedicatedDataOwner: Bool = false,
+            guest: String, gateway: String?, name: String, dataWorkers: Int = 0,
             boundedGuestWindow: Bool = false
         ) throws {
-            let backend = try Backend(guest: guest, gateway: gateway, dedicatedDataOwner: dedicatedDataOwner)
+            let backend = try Backend(guest: guest, gateway: gateway, dedicatedDataOwner: dataWorkers > 0)
             if boundedGuestWindow { mp_tcp_relay_bound_guest_window(backend.handle) }
             self.backend = backend
             queue = DispatchQueue(label: "dev.micropod.published-tcp." + name, qos: .userInitiated)
             source = DispatchSource.makeReadSource(
                 fileDescriptor: mp_tcp_relay_descriptor(backend.handle), queue: queue)
-            source.setEventHandler { mp_tcp_relay_drain(backend.handle, dedicatedDataOwner ? 1 : 0) }
+            source.setEventHandler { mp_tcp_relay_drain(backend.handle, Int32(dataWorkers)) }
             source.setCancelHandler { withExtendedLifetime(backend) {} }
             source.activate()
         }
@@ -68,7 +68,6 @@ final class NativeLoopbackRelay: @unchecked Sendable {
         let listener: OpaquePointer
         let guestPort: UInt16
         var targets: [Target] = []
-        private var next = 0
 
         init(listener: OpaquePointer, guestPort: UInt16) {
             self.listener = listener
@@ -76,8 +75,8 @@ final class NativeLoopbackRelay: @unchecked Sendable {
         }
 
         func adopt(_ fd: Int32, accepted: UInt64) {
-            targets[next].adopt(fd, accepted: accepted)
-            next = (next + 1) % targets.count
+            let index = mp_tcp_next_worker(listener, UInt32(targets.count))
+            targets[Int(index)].adopt(fd, accepted: accepted)
         }
 
         func release() -> mp_tcp_stats {
@@ -92,6 +91,7 @@ final class NativeLoopbackRelay: @unchecked Sendable {
 
     private let accept: Owner
     private let workers: [Owner]
+    var dataWorkerCount: Int { workers.count }
     private let profile: Bool
     private var listeners: [UInt16: Lease] = [:]
     private var pending = Set<UInt16>()
@@ -100,13 +100,16 @@ final class NativeLoopbackRelay: @unchecked Sendable {
     private static func posixError() -> POSIXError { POSIXError(.init(rawValue: errno) ?? .EIO) }
 
     init(
-        guest: String, gateway: String? = nil, parallel: Bool = true, boundedGuestWindow: Bool = false,
+        guest: String, gateway: String? = nil, dataWorkers: Int = 2, boundedGuestWindow: Bool = false,
         profile: Bool = false
     ) throws {
-        accept = try Owner(guest: guest, gateway: parallel ? nil : gateway, name: "accept")
-        workers = try (0..<(parallel ? 2 : 0)).map {
+        guard dataWorkers == 0 || CIWorkerPortRelay.parallelWorkers.contains(dataWorkers) else {
+            throw POSIXError(.EINVAL)
+        }
+        accept = try Owner(guest: guest, gateway: dataWorkers > 0 ? nil : gateway, name: "accept")
+        workers = try (0..<dataWorkers).map {
             try Owner(
-                guest: guest, gateway: gateway, name: "io." + String($0), dedicatedDataOwner: true,
+                guest: guest, gateway: gateway, name: "io." + String($0), dataWorkers: dataWorkers,
                 boundedGuestWindow: boundedGuestWindow)
         }
         self.profile = profile

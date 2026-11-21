@@ -114,7 +114,8 @@ final class NativePublishedPortsTests: XCTestCase {
         let forwarding = SandboxForwarding()
         let socket = FileManager.default.temporaryDirectory.appendingPathComponent("mp-" + UUID().uuidString.prefix(8))
         _ = try await forwarding.openNativePortBroker(
-            at: socket, guest: "127.0.0.1", gateway: "127.0.0.1", mode: "kqueue-throughput", profile: false)
+            at: socket, guest: "127.0.0.1", gateway: "127.0.0.1",
+            relayConfig: CIWorkerPortRelay(mode: "kqueue-throughput", workers: "4"), profile: false)
         defer { forwarding.stop() }
         func openControl() throws -> FileHandle {
             let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
@@ -436,7 +437,7 @@ final class NativePublishedPortsTests: XCTestCase {
         let upstream = try server()
         let target = UInt16(try XCTUnwrap(upstream.localAddress?.port))
         try upstream.close().wait()
-        let relay = try NativeLoopbackRelay(guest: "127.0.0.1", gateway: "127.0.0.1", parallel: false)
+        let relay = try NativeLoopbackRelay(guest: "127.0.0.1", gateway: "127.0.0.1", dataWorkers: 0)
         let port = try relay.bind(host: 0, guest: target)
         let client = try connect(port)
         XCTAssertTrue(try client.read(upToCount: 1)?.isEmpty ?? true)

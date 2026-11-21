@@ -9,7 +9,9 @@ import sys
 def summary(directory, rounds):
     engines = ("baseline", "candidate", "orbstack")
     samples = {}
-    result = {"scored_rounds": rounds, "engines": {}, "paired": {}}
+    ports = directory / "offered-ports"
+    result = {"scored_rounds": rounds, "published_ports": int(ports.read_text()) if ports.exists() else 1,
+              "engines": {}, "paired": {}}
     for engine in engines:
         rows = {}
         failed = []

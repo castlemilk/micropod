@@ -11,6 +11,7 @@ pause=${BENCH_ROUND_PAUSE:-8}
 mixed=${BENCH_MIXED_ROUNDS:-0}
 overlap=${BENCH_OVERLAP_ROUNDS:-0}
 offered=${BENCH_OFFERED_ROUNDS:-0}
+offered_ports=${BENCH_OFFERED_PORTS:-1}
 record_failures=${BENCH_RECORD_FAILURES:-0}
 max_time_wait=${BENCH_MAX_TIME_WAIT:-0}
 container_cpus=${BENCH_CONTAINER_CPUS:-}
@@ -40,6 +41,8 @@ if [[ -n "$probe_dir" ]]; then
 fi
 [[ "$rounds" =~ ^(0|[1-9][0-9]*)$ && "$mixed" =~ ^(0|[1-9][0-9]*)$ && "$overlap" =~ ^(0|[1-9][0-9]*)$ ]]
 [[ "$offered" =~ ^(0|[1-9][0-9]*)$ ]]
+[[ "$offered_ports" == 1 || ( "$offered_ports" == 32 && "$offered" != 0 ) ]] || {
+    echo "BENCH_OFFERED_PORTS must be 1, or 32 with an offered-load run" >&2; exit 2; }
 (( rounds > 0 || mixed > 0 || overlap > 0 || offered > 0 ))
 if (( rounds + mixed + overlap > 0 )); then : "${NETBENCH:?set the path to the Mac scripts/netbench executable}"; fi
 if (( offered > 0 )); then
@@ -56,6 +59,7 @@ fi
 [[ "$pause" =~ ^[0-9]+$ ]]
 [[ "$record_failures" =~ ^[01]$ && "$max_time_wait" =~ ^(0|[1-9][0-9]*)$ ]]
 mkdir "$out"
+if (( offered > 0 )); then echo "$offered_ports" > "$out/offered-ports"; fi
 date -u '+%Y-%m-%dT%H:%M:%SZ' > "$out/started.utc"
 sysctl -n machdep.cpu.brand_string hw.physicalcpu hw.memsize > "$out/hardware"
 sw_vers > "$out/macos"
@@ -71,6 +75,12 @@ cleanup() {
     for e in "${engines[@]}"; do docker --host "$(socket "$e")" rm -f "$prefix-$e" >/dev/null 2>&1 || true; done
 }
 trap cleanup EXIT
+listen_addresses=
+for ((i=0;i<offered_ports;i++)); do
+    port=$((8080+i))
+    run_args+=(-p "127.0.0.1::$port")
+    listen_addresses="${listen_addresses:+$listen_addresses,}:$port"
+done
 index=0
 for e in "${engines[@]}"; do
     sock=$(socket "$e")
@@ -90,7 +100,7 @@ for e in "${engines[@]}"; do
     rm "$out/$e.tar"
     cmp "$out/baseline.config-sha256" "$out/$e.config-sha256"
     cmp "$out/baseline.rootfs" "$out/$e.rootfs"
-    docker --host "$sock" run "${run_args[@]}" -d --rm --name "$name" -p 127.0.0.1::8080 "$image" -listen :8080 -marker "$name" >/dev/null
+    docker --host "$sock" run "${run_args[@]}" -d --rm --name "$name" "$image" -listen "$listen_addresses" -marker "$name" >/dev/null
     docker --host "$sock" inspect "$name" --format '{{json .HostConfig}}' |
         jq '{NanoCpus, CpuQuota, CpuPeriod, Memory, PidsLimit}' > "$out/$e.requested-limits"
     if [[ -n "$probe_dir" ]]; then
@@ -108,6 +118,18 @@ for e in "${engines[@]}"; do
     url=http://$(cat "$out/$e.addr")/id
     for _ in {1..100}; do [[ $(curl -fsS --max-time 1 "$url" 2>/dev/null || true) == "$name" ]] && break; sleep .05; done
     [[ $(curl -fsS --max-time 2 "$url") == "$name" ]]
+    if (( offered_ports > 1 )); then
+        printf 'http://%s\t%s\n' "$(cat "$out/$e.addr")" "$name" > "$out/$e.targets"
+        for ((i=1;i<offered_ports;i++)); do
+            port=$((8080+i))
+            address=$(docker --host "$sock" port "$name" "$port/tcp")
+            [[ "$address" =~ ^127\.0\.0\.1:[1-9][0-9]*$ ]] || { echo "Invalid $e port $port" >&2; exit 1; }
+            [[ $(curl -fsS --max-time 2 "http://$address/id") == "$name-$port" ]] || {
+                echo "Wrong service identity for $e port $port" >&2; exit 1; }
+            printf 'http://%s\t%s\n' "$address" "$name-$port" >> "$out/$e.targets"
+        done
+        [[ $(cut -f1 "$out/$e.targets" | sort -u | wc -l) -eq $offered_ports ]]
+    fi
 done
 if (( offered > 0 )); then
     [[ $(sort -u "$out"/*.engine-id | wc -l) -eq 3 ]] || { echo "Use three distinct engines" >&2; exit 1; }
@@ -243,13 +265,19 @@ if (( offered > 0 )); then
                 status=0
                 if wait_for_ports "$dest"; then
                     sysctl -n vm.loadavg > "$dest.load"
-                    "$BENCH_OFFERED_CLIENT" "http://$(cat "$out/$e.addr")" "$prefix-$e" \
+                    if (( offered_ports > 1 )); then
+                        client_args=(--targets "$out/$e.targets")
+                    else
+                        client_args=("http://$(cat "$out/$e.addr")" "$prefix-$e")
+                    fi
+                    "$BENCH_OFFERED_CLIENT" "${client_args[@]}" \
                         > "$dest.json" 2> "$dest.error" || status=$?
                 else
                     status=1
                 fi
-                if (( status == 0 )) && ! jq -se '
+                if (( status == 0 )) && ! jq -se --argjson ports "$offered_ports" '
                     length == 1 and (.[0] |
+                    (.published_ports // 1) == $ports and
                     .streams == 32 and .arrivals == 240 and .period_us == 25000 and .reopened == 0 and
                     has("errors") and (.errors == null or .errors == []) and
                     (.mib_s | type == "number" and . > 0) and (.fresh_p95_us | type == "number" and . > 0) and

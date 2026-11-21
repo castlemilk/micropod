@@ -186,12 +186,36 @@ final class CIWorkerTests: XCTestCase {
     func testInteractiveNativeAgentUsesInteractiveLaunchType() throws {
         let worker = CIWorker(environment: [
             "MICROPOD_CI_ENGINE": "containerd", "MICROPOD_CI_PORT_RELAY": "kqueue-interactive",
+            "MICROPOD_CI_PORT_RELAY_WORKERS": "4",
         ])
         let data = try worker.launchAgent(executable: URL(fileURLWithPath: "/bin/micropod"))
         let plist = try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
         XCTAssertEqual(plist["ProcessType"] as? String, "Interactive")
         XCTAssertEqual(
             (plist["EnvironmentVariables"] as? [String: String])?["MICROPOD_CI_PORT_RELAY"], "kqueue-interactive")
+        XCTAssertEqual((plist["EnvironmentVariables"] as? [String: String])?["MICROPOD_CI_PORT_RELAY_WORKERS"], "4")
+    }
+
+    func testPublishedRelayWorkerCountFollowsTheSelectedMode() throws {
+        for mode in [nil, "kqueue", "nio"] as [String?] {
+            let config = try CIWorkerPortRelay(mode: mode)
+            XCTAssertEqual(config.dataWorkers, 0)
+            XCTAssertEqual(config.usesKqueue, mode != "nio")
+            XCTAssertThrowsError(try CIWorkerPortRelay(mode: mode, workers: "4"))
+        }
+        for mode in ["kqueue-interactive", "kqueue-throughput"] {
+            XCTAssertEqual(try CIWorkerPortRelay(mode: mode).dataWorkers, 2)
+            for count in 1...4 {
+                let config = try CIWorkerPortRelay(mode: mode, workers: String(count))
+                XCTAssertTrue(config.usesKqueue)
+                XCTAssertEqual(config.boundedGuestWindow, mode == "kqueue-interactive")
+                let relay = try NativeLoopbackRelay(guest: "127.0.0.1", dataWorkers: config.dataWorkers)
+                XCTAssertEqual(relay.dataWorkerCount, count)
+            }
+            for invalid in ["0", "5", "-1", "", "auto"] {
+                XCTAssertThrowsError(try CIWorkerPortRelay(mode: mode, workers: invalid))
+            }
+        }
     }
 
     func testLaunchAgentRunsTheStableBinaryInTheSpecifiedWorkerDirectory() throws {

@@ -43,6 +43,7 @@ public struct CIWorker: Sendable {
             "MICROPOD_CI_CPUS", "MICROPOD_CI_MEMORY_MIB", "MICROPOD_CI_DISK_GIB", "MICROPOD_CI_WORKSPACE",
             "MICROPOD_CI_EXT4_MAX_BATCH_US", "MICROPOD_CI_OCI_TOOLS", "MICROPOD_CI_ENGINE", "MICROPOD_CI_KATA_TOOLS",
             "MICROPOD_CI_MAX_STARTING", "MICROPOD_CI_PORT_RELAY", "MICROPOD_CI_PORT_PROFILE",
+            "MICROPOD_CI_PORT_RELAY_WORKERS",
             "MICROPOD_CI_KERNEL", "MICROPOD_CI_PUBLISHED_PATH",
         ]
         resourceEnvironment = environment.filter { resourceKeys.contains($0.key) }
@@ -78,6 +79,7 @@ public struct CIWorker: Sendable {
         var supportsNetworkRepair: Bool?
         var nativeOCI: Bool?
         var cpuAllocation: CIWorkerCPUCount.Allocation?
+        var publishedRelayWorkers: Int?
     }
 
     struct ReadySocket: Codable, Equatable {
@@ -106,6 +108,7 @@ public struct CIWorker: Sendable {
         public let engineVersion: String
         public let guestAddress: String?
         public var publishedAddress: String? = nil
+        public var publishedRelayWorkers: Int? = nil
         public let cpus: Int
         public var cpuSizingSource: String? = nil
         public let memoryBytes: UInt64
@@ -373,7 +376,8 @@ public struct CIWorker: Sendable {
             return Status(
                 endpoint: endpoint, worker: config.worker, boot: identity.boot, instance: active.instance,
                 engine: "containerd", daemon: identity.engine, engineVersion: identity.version,
-                guestAddress: active.guestAddress, publishedAddress: active.publishedAddress, cpus: count,
+                guestAddress: active.guestAddress, publishedAddress: active.publishedAddress,
+                publishedRelayWorkers: active.publishedRelayWorkers, cpus: count,
                 cpuSizingSource: active.cpuAllocation?.source.rawValue,
                 memoryBytes: identity.memory_bytes,
                 storageDriver: "overlayfs", kataPrerequisitesPresent: identity.kata_prerequisites_present,
@@ -402,7 +406,8 @@ public struct CIWorker: Sendable {
             endpoint: endpoint, worker: config.worker, boot: boot, instance: active.instance,
             engine: config.engine.rawValue,
             daemon: info.ID, engineVersion: info.ServerVersion, guestAddress: active.guestAddress,
-            publishedAddress: active.publishedAddress, cpus: info.NCPU,
+            publishedAddress: active.publishedAddress, publishedRelayWorkers: active.publishedRelayWorkers,
+            cpus: info.NCPU,
             cpuSizingSource: active.cpuAllocation?.source.rawValue,
             memoryBytes: info.MemTotal, storageDriver: info.Driver,
             cgroupDriver: info.CgroupDriver)
@@ -754,9 +759,10 @@ public struct CIWorker: Sendable {
         var options = SandboxVM.Options(base: .image(config.image))
         options.network = true
         options.hostname = config.engine == .containerd ? Self.hostname(active.instance) : "micropod-ci"
-        let portRelay = resourceEnvironment["MICROPOD_CI_PORT_RELAY"]
-        let parallelRelay = portRelay == "kqueue-throughput" || portRelay == "kqueue-interactive"
-        if config.publishedPath == "macvlan", let portRelay, portRelay != "kqueue", !parallelRelay {
+        let portRelay = try CIWorkerPortRelay(
+            mode: resourceEnvironment["MICROPOD_CI_PORT_RELAY"],
+            workers: resourceEnvironment["MICROPOD_CI_PORT_RELAY_WORKERS"])
+        if config.publishedPath == "macvlan", !portRelay.usesKqueue {
             throw MicropodError.message("Direct published ports require the native kqueue relay")
         }
         options.ciWorkspace = config.workspace
@@ -787,7 +793,7 @@ public struct CIWorker: Sendable {
         if config.engine == .containerd {
             options.env.append("MICROPOD_ENGINE_API=1")
             if let path = config.publishedPath { options.env.append("MICROPOD_CI_PUBLISHED_PATH=" + path) }
-            if parallelRelay { options.env.append("MICROPOD_CI_PORT_THROUGHPUT=1") }
+            if portRelay.dataWorkers > 0 { options.env.append("MICROPOD_CI_PORT_THROUGHPUT=1") }
             if let raw = resourceEnvironment["MICROPOD_CI_MAX_STARTING"] {
                 guard let limit = Int(raw), (0...32).contains(limit) else {
                     throw MicropodError.message("MICROPOD_CI_MAX_STARTING must be between 0 and 32")
@@ -811,8 +817,9 @@ public struct CIWorker: Sendable {
                 nativeRelay = try await prepared.forwarding.openNativePortBroker(
                     at: portSocket, guest: active.publishedAddress ?? guest,
                     gateway: link?.gateway.description ?? gateway,
-                    mode: portRelay,
+                    relayConfig: portRelay,
                     profile: resourceEnvironment["MICROPOD_CI_PORT_PROFILE"] == "1")
+                active.publishedRelayWorkers = nativeRelay?.dataWorkerCount
             } else {
                 nativeRelay = nil
             }

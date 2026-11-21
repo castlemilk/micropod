@@ -34,6 +34,7 @@ struct mp_tcp_relay {
     struct watch bulk;
     struct in_addr guest, gateway;
     unsigned ifindex;
+    unsigned next_first_worker;
     int guest_receive_buffer;
     atomic_bool path_failure, guest_data;
     uint64_t interface_checked;
@@ -51,8 +52,9 @@ struct mp_tcp_listener {
     mp_tcp_listener *parent;
     atomic_uint group_active, group_peak;
     unsigned active;
+    unsigned next_worker;
     uint64_t last_error_at;
-    bool profile, retry_accept;
+    bool profile, retry_accept, assigned_worker;
     mp_tcp_stats stats;
 };
 
@@ -210,6 +212,20 @@ mp_tcp_listener *mp_tcp_target(mp_tcp_relay *r, mp_tcp_listener *parent) {
 void mp_tcp_set_handoff(mp_tcp_listener *l, mp_tcp_handoff handler, void *owner) {
     l->handoff = handler;
     l->owner = owner;
+}
+
+unsigned mp_tcp_next_worker(mp_tcp_listener *l, unsigned workers) {
+    if (!workers) return 0;
+    // Stagger the first connection across active leases. Later connections
+    // on each port rotate independently, even when two ports accept in lockstep.
+    if (!l->assigned_worker) {
+        l->next_worker = l->relay->next_first_worker;
+        l->relay->next_first_worker = (l->next_worker + 1) % workers;
+        l->assigned_worker = true;
+    }
+    unsigned selected = l->next_worker;
+    l->next_worker = (selected + 1) % workers;
+    return selected;
 }
 
 mp_tcp_listener *mp_tcp_listen(mp_tcp_relay *r, uint16_t host, uint16_t guest,
@@ -696,12 +712,12 @@ static void service_event(const struct kevent *event) {
 // A dedicated data owner already has a separate accept queue. Read each
 // ready set once, service handshakes and small flows first, then service every
 // bulk event returned by the kernel. Bound the callback to allow revocation.
-static void drain_data(mp_tcp_relay *r) {
+static void drain_data(mp_tcp_relay *r, int budget) {
     struct kevent events[DATA_READY_BATCH];
     const struct timespec now = {0};
     int serviced = 0;
-    while (serviced < EVENTS_PER_TURN) {
-        int limit = EVENTS_PER_TURN - serviced;
+    while (serviced < budget) {
+        int limit = budget - serviced;
         int n = kevent(r->kq, NULL, 0, events, limit < DATA_READY_BATCH ? limit : DATA_READY_BATCH, &now);
         if (n <= 0) break;
         bool bulk[DATA_READY_BATCH] = {0};
@@ -718,14 +734,16 @@ static void drain_data(mp_tcp_relay *r) {
     }
 }
 
-void mp_tcp_relay_drain(mp_tcp_relay *r, int dedicated_data_owner) {
+void mp_tcp_relay_drain(mp_tcp_relay *r, int data_workers) {
     if (r->bulk.fd < 0) {
-        drain_data(r);
+        // Handoffs and revocations share this dispatch queue with the drain.
+        // Wider groups can copy concurrently, so yield each owner sooner.
+        drain_data(r, data_workers > 2 ? DATA_READY_BATCH : EVENTS_PER_TURN);
         reap(r);
         return;
     }
     // The dedicated accept queue stays responsive during larger data batches.
-    const int batch = dedicated_data_owner ? THROUGHPUT_BULK_BATCH : INTERACTIVE_BULK_BATCH;
+    const int batch = data_workers ? THROUGHPUT_BULK_BATCH : INTERACTIVE_BULK_BATCH;
     struct kevent events[EVENTS_PER_TURN];
     struct timespec now = {0};
     // Recheck new and interactive sockets between groups of bulk reads. A
