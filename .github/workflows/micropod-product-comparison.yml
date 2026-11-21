@@ -1,0 +1,119 @@
+name: Micropod and OrbStack product comparison
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: macos-26-intel
+    timeout-minutes: 40
+    env:
+      ORB_APP: /Applications/OrbStack.app
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Record host and check virtualization
+        run: |
+          sw_vers
+          uname -m
+          sysctl machdep.cpu.brand_string machdep.cpu.family machdep.cpu.model machdep.cpu.stepping hw.ncpu hw.memsize kern.hv_support
+          test "$(uname -m)" = x86_64
+          test "$(sysctl -n kern.hv_support)" = 1
+      - name: Install and verify the selected Intel version
+        run: |
+          fixture=scripts/bench_orb_transport/installer.json
+          url=$(jq -er '.url' "$fixture")
+          sha=$(jq -er '.sha256' "$fixture")
+          dmg="$RUNNER_TEMP/OrbStack.dmg"
+          mount="$RUNNER_TEMP/orb-installer"
+          mkdir "$mount"
+          curl --fail --location --retry 2 --max-time 120 --output "$dmg" "$url"
+          echo "$sha  $dmg" | shasum -a 256 --check
+          hdiutil attach -readonly -nobrowse -mountpoint "$mount" "$dmg"
+          ditto "$mount/OrbStack.app" "$ORB_APP"
+          hdiutil detach "$mount"
+          codesign --verify --strict "$ORB_APP"
+          version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$ORB_APP/Contents/Info.plist")
+          build=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$ORB_APP/Contents/Info.plist")
+          test "$version" = "$(jq -er '.version' "$fixture")"
+          test "$build" = "$(jq -er '.build' "$fixture")"
+          echo "OrbStack $version (build $build)"
+          printf '%s\n' "$ORB_APP/Contents/MacOS/bin" "$ORB_APP/Contents/MacOS/xbin" "$HOME/.orbstack/bin" >> "$GITHUB_PATH"
+      - name: Start OrbStack and verify its local Docker endpoint
+        id: orbready
+        run: |
+          mkdir -p "$HOME/.docker/cli-plugins"
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess, time
+          path = pathlib.Path(os.environ["RUNNER_TEMP"]) / "orb-start.json"
+          started = time.monotonic()
+          subprocess.run(["orb", "config", "set", "setup.use_admin", "false"], check=True, timeout=120)
+          subprocess.run(["orb", "start"], check=True, timeout=120)
+          socket = pathlib.Path.home() / ".orbstack/run/docker.sock"
+          last = ""
+          while time.monotonic() - started < 200:
+              health = subprocess.run(["curl", "--silent", "--show-error", "--fail", "--max-time", "4",
+                                       "--unix-socket", str(socket), "http://localhost/info"],
+                                      capture_output=True, text=True)
+              if health.returncode == 0:
+                  engine = json.loads(health.stdout)
+                  break
+              last = health.stderr.strip()
+              if int(time.monotonic() - started) % 12 < 5:
+                  print(f"Waiting for Docker API ({time.monotonic()-started:.0f}s): {last}", flush=True)
+              time.sleep(1)
+          else:
+              raise SystemExit("OrbStack API readiness deadline: " + last)
+          ready_ms = round((time.monotonic() - started) * 1000, 2)
+          detail = {key: engine.get(key) for key in
+                    ["OperatingSystem", "Name", "KernelVersion", "Architecture", "ServerVersion", "NCPU", "MemTotal"]}
+          if "orbstack" not in str(detail).lower():
+              raise SystemExit(f"Unverified OrbStack engine {detail}")
+          record = {"first_cli_to_docker_info_ms": ready_ms, "identity": detail, "endpoint": "~/.orbstack/run/docker.sock"}
+          path.write_text(json.dumps(record, indent=2) + "\n")
+          print(json.dumps(record))
+          PY
+          if ! docker context inspect orbstack >/dev/null 2>&1; then
+            docker context create orbstack --docker "host=unix://$HOME/.orbstack/run/docker.sock"
+          fi
+      - name: Measure the production HTTP transport against real OrbStack guests
+        timeout-minutes: 8
+        env:
+          BENCH_BUILD: optimized production DockerClient source
+        run: |
+          sh scripts/bench_orb_transport/build.sh "$RUNNER_TEMP/transport"
+          python3 scripts/bench_orb_adapter.py --client micropod-transport --micropod "$RUNNER_TEMP/transport/transport" --socket "$HOME/.orbstack/run/docker.sock" --json "$RUNNER_TEMP/transport.json" --rounds 3 --clients 1 4 8
+      - name: Identify the Swift compiler and SDK
+        id: toolchain
+        run: |
+          { swift --version; xcrun --sdk macosx --show-sdk-build-version; } | shasum -a 256 | awk '{print "key=" $1}' >> "$GITHUB_OUTPUT"
+      - name: Restore the compiled benchmark CLI
+        id: compiled
+        uses: actions/cache@v4
+        with:
+          path: .bench-bin/micropod
+          key: product-cli-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('Package.swift', 'Package.resolved', 'Sources/**') }}
+      - name: Build the production Micropod CLI
+        if: steps.compiled.outputs.cache-hit != 'true'
+        timeout-minutes: 24
+        run: |
+          swift --version
+          swift build --disable-automatic-resolution -c debug --product micropod -j 4 > "$RUNNER_TEMP/adapter-build.log" 2>&1 || { tail -80 "$RUNNER_TEMP/adapter-build.log"; exit 1; }
+          mkdir -p .bench-bin
+          cp .build/debug/micropod .bench-bin/micropod
+      - name: Run and verify both clients on one OrbStack engine
+        timeout-minutes: 9
+        env:
+          BENCH_BUILD: production CLI, Swift debug
+        run: |
+          python3 scripts/bench_orb_adapter.py --micropod "$PWD/.bench-bin/micropod" --socket "$HOME/.orbstack/run/docker.sock" --json "$RUNNER_TEMP/adapter.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: micropod-orbstack-product-evidence
+          path: |
+            ${{ runner.temp }}/orb-start.json
+            ${{ runner.temp }}/transport.json
+            ${{ runner.temp }}/adapter.json
+            ${{ runner.temp }}/adapter-build.log

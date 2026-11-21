@@ -1,0 +1,50 @@
+name: Linux guest workload comparison
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  guests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Seed one identical local image in both engines
+        run: |
+          set -o pipefail
+          sudo docker pull alpine:3.20
+          sudo docker save alpine:3.20 | sudo podman load
+          docker_id=$(sudo docker image inspect alpine:3.20 --format '{{.Id}}')
+          podman_id=$(sudo podman image inspect alpine:3.20 --format '{{.Id}}')
+          test "${docker_id#sha256:}" = "${podman_id#sha256:}"
+          echo "GUEST_IMAGE $docker_id"
+      - name: Verify lifecycle, gzip and bind writes at 1, 4, 8 and 16 clients
+        run: |
+          sudo python3 scripts/bench_guest_matrix.py --engines docker-engine podman --rounds 5 --clients 1 4 8 16 --json "$RUNNER_TEMP/guests.json"
+      - name: Report complete matched samples
+        if: always()
+        run: |
+          python3 - <<'PYTHON'
+          import hashlib, json, os, pathlib
+          p = pathlib.Path(os.environ["RUNNER_TEMP"]) / "guests.json"
+          d = json.loads(p.read_text())
+          print("GUEST_IDENTITIES", json.dumps(d["engines"]))
+          print("GUEST_SUMMARY", json.dumps(d["summary"]))
+          print("GUEST_BLOCKS", json.dumps([[r["engine"],r["case"],r["clients"],r["block"],r["passed"],r["wall_s"]] for r in d["blocks"]]))
+          print("GUEST_STREAMS", json.dumps([sum(j.get("separate_streams") is True for r in d["blocks"] for j in r["jobs"]), sum(r["clients"] for r in d["blocks"])]))
+          print("GUEST_SHA256", hashlib.sha256(p.read_bytes()).hexdigest())
+          for value in d["engines"].values():
+              contract = value["contracts"]
+              assert contract["readonly_bind"] and contract["writable_bind"] and contract["uid"] == "0"
+              assert contract["one_cpu_cgroup"] and contract["256_mib_cgroup"], contract
+          assert all(j["separate_streams"] for r in d["blocks"] for j in r["jobs"])
+          if set(d["engines"]) != {"podman","docker-engine"} or len(d["guest_groups"]) != 1 or len(next(iter(d["guest_groups"].values()))) != 2 or len(d["blocks"]) != 120 or len(d["summary"]) != 24 or any("p50_wall_s" not in s for s in d["summary"]):
+              raise SystemExit("unmatched or incomplete matrix")
+          PYTHON
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-guest-workload-receipt
+          path: ${{ runner.temp }}/guests.json

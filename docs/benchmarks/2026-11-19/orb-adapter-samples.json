@@ -1,0 +1,2029 @@
+{
+  "audit_run": 44500509192,
+  "audit_job": 135478725040,
+  "archives": [
+    {
+      "run": 44494549893,
+      "artifact": 14516431396,
+      "digest": "sha256:09ab768c004283dd273277edb716ea1170b953875596e6079699d454dffbc1cd"
+    },
+    {
+      "run": 44497227398,
+      "artifact": 14516189820,
+      "digest": "sha256:1bfaff211587e896fe60441ea47c00394aec342fcc73dddc00506797f9ba6a6a"
+    }
+  ],
+  "runs": {
+    "44494549893": {
+      "host": {
+        "first_cli_to_docker_info_ms": 40387.39,
+        "identity": {
+          "OperatingSystem": "OrbStack",
+          "Name": "orbstack",
+          "KernelVersion": "6.7.11-orbstack-00143-ge6b82e26cd22",
+          "Architecture": "x86_64",
+          "ServerVersion": "25.0.5",
+          "NCPU": 4,
+          "MemTotal": 4800724992
+        },
+        "endpoint": "~/.orbstack/run/docker.sock"
+      },
+      "files": {
+        "adapter.json": {
+          "metadata": {
+            "run": 44494549893,
+            "filename": "adapter.json",
+            "sha256": "5eea0f8aefee811a8dbbe551e59f1e34bded9765e7f41be1a7502f400456beae",
+            "engine": {
+              "OperatingSystem": "OrbStack",
+              "Architecture": "x86_64",
+              "NCPU": 4,
+              "MemTotal": 4800724992,
+              "ServerVersion": "25.0.5"
+            },
+            "image_id": "sha256:66ba00ad3de8677a3fa4bc4ea0fc46ebca0f14db46ca365e7f60833068dd0148",
+            "image": "ghcr.io/containerd/busybox:1.36@sha256:907ca53d7e2947e849b839b1cd258c98fd3916c60f2e6e70c30edbf741ab6754",
+            "commit": "19b1001dc19483e3f18f568b22825651a60d1862",
+            "build": "swift debug"
+          },
+          "warmups": [
+            {
+              "client": "docker",
+              "clients": 1,
+              "wall_s": 9.730422,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 5.503059,
+                  "remove_s": 0.263623
+                }
+              ]
+            },
+            {
+              "client": "micropod",
+              "clients": 1,
+              "wall_s": 0.698027,
+              "passed": 0,
+              "jobs": [
+                {
+                  "error": "micropod run: exit 2 usage: run: unknown flag -c\n"
+                }
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "client": "docker",
+              "clients": 1,
+              "wall_s": 5.936626,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 3.718152,
+                  "remove_s": 0.348513
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "docker",
+              "clients": 1,
+              "wall_s": 6.336577,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 3.370098,
+                  "remove_s": 0.35612
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "docker",
+              "clients": 1,
+              "wall_s": 5.054495,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 3.236221,
+                  "remove_s": 0.200477
+                }
+              ],
+              "block": 3
+            },
+            {
+              "client": "docker",
+              "clients": 4,
+              "wall_s": 18.151249,
+              "passed": 2,
+              "jobs": [
+                {
+                  "launch_s": 11.282478,
+                  "remove_s": 1.792678
+                },
+                {
+                  "error": "Docker CLI exit 125 starting or creating the guest. Original stderr is retained in the linked artifact."
+                },
+                {
+                  "launch_s": 10.863762,
+                  "remove_s": 1.827192
+                },
+                {
+                  "error": "Docker CLI exit 125 starting or creating the guest. Original stderr is retained in the linked artifact."
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "docker",
+              "clients": 4,
+              "wall_s": 30.187675,
+              "passed": 4,
+              "jobs": [
+                {
+                  "launch_s": 18.789647,
+                  "remove_s": 1.09255
+                },
+                {
+                  "launch_s": 13.14857,
+                  "remove_s": 2.285391
+                },
+                {
+                  "launch_s": 20.018789,
+                  "remove_s": 0.781142
+                },
+                {
+                  "launch_s": 18.913919,
+                  "remove_s": 0.725875
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "docker",
+              "clients": 4,
+              "wall_s": 17.74869,
+              "passed": 4,
+              "jobs": [
+                {
+                  "launch_s": 10.701061,
+                  "remove_s": 1.509046
+                },
+                {
+                  "launch_s": 12.806481,
+                  "remove_s": 0.433055
+                },
+                {
+                  "launch_s": 12.253129,
+                  "remove_s": 0.234495
+                },
+                {
+                  "launch_s": 13.219492,
+                  "remove_s": 0.402213
+                }
+              ],
+              "block": 3
+            },
+            {
+              "client": "docker",
+              "clients": 8,
+              "wall_s": 36.156329,
+              "passed": 7,
+              "jobs": [
+                {
+                  "launch_s": 21.177244,
+                  "remove_s": 0.841459
+                },
+                {
+                  "error": "Docker CLI exit 125 starting or creating the guest. Original stderr is retained in the linked artifact."
+                },
+                {
+                  "launch_s": 17.840399,
+                  "remove_s": 1.013297
+                },
+                {
+                  "launch_s": 24.737157,
+                  "remove_s": 1.306277
+                },
+                {
+                  "launch_s": 23.892637,
+                  "remove_s": 1.412162
+                },
+                {
+                  "launch_s": 25.739491,
+                  "remove_s": 1.901443
+                },
+                {
+                  "launch_s": 11.014236,
+                  "remove_s": 1.666251
+                },
+                {
+                  "launch_s": 24.669539,
+                  "remove_s": 2.129703
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "docker",
+              "clients": 8,
+              "wall_s": 36.795621,
+              "passed": 8,
+              "jobs": [
+                {
+                  "launch_s": 10.511132,
+                  "remove_s": 2.225483
+                },
+                {
+                  "launch_s": 14.788417,
+                  "remove_s": 2.320825
+                },
+                {
+                  "launch_s": 24.478461,
+                  "remove_s": 0.83993
+                },
+                {
+                  "launch_s": 25.523839,
+                  "remove_s": 0.771084
+                },
+                {
+                  "launch_s": 15.278093,
+                  "remove_s": 1.787473
+                },
+                {
+                  "launch_s": 19.899446,
+                  "remove_s": 2.739366
+                },
+                {
+                  "launch_s": 20.708781,
+                  "remove_s": 1.973624
+                },
+                {
+                  "launch_s": 13.157751,
+                  "remove_s": 1.848295
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "docker",
+              "clients": 8,
+              "wall_s": 32.435625,
+              "passed": 8,
+              "jobs": [
+                {
+                  "launch_s": 21.825225,
+                  "remove_s": 1.077408
+                },
+                {
+                  "launch_s": 9.632989,
+                  "remove_s": 0.451197
+                },
+                {
+                  "launch_s": 17.871246,
+                  "remove_s": 0.594006
+                },
+                {
+                  "launch_s": 15.624651,
+                  "remove_s": 1.753497
+                },
+                {
+                  "launch_s": 19.900434,
+                  "remove_s": 1.119438
+                },
+                {
+                  "launch_s": 17.818475,
+                  "remove_s": 1.123832
+                },
+                {
+                  "launch_s": 19.394092,
+                  "remove_s": 1.575699
+                },
+                {
+                  "launch_s": 18.405261,
+                  "remove_s": 1.524668
+                }
+              ],
+              "block": 3
+            },
+            {
+              "client": "docker",
+              "clients": 16,
+              "wall_s": 90.763222,
+              "passed": 16,
+              "jobs": [
+                {
+                  "launch_s": 33.480951,
+                  "remove_s": 0.953898
+                },
+                {
+                  "launch_s": 43.297233,
+                  "remove_s": 1.489907
+                },
+                {
+                  "launch_s": 81.030915,
+                  "remove_s": 1.195128
+                },
+                {
+                  "launch_s": 70.732616,
+                  "remove_s": 0.877609
+                },
+                {
+                  "launch_s": 84.197722,
+                  "remove_s": 0.649735
+                },
+                {
+                  "launch_s": 60.847977,
+                  "remove_s": 1.025766
+                },
+                {
+                  "launch_s": 32.505738,
+                  "remove_s": 1.68017
+                },
+                {
+                  "launch_s": 27.940443,
+                  "remove_s": 1.091795
+                },
+                {
+                  "launch_s": 37.266107,
+                  "remove_s": 1.090816
+                },
+                {
+                  "launch_s": 28.898008,
+                  "remove_s": 0.563631
+                },
+                {
+                  "launch_s": 47.651457,
+                  "remove_s": 1.049645
+                },
+                {
+                  "launch_s": 63.753004,
+                  "remove_s": 1.047213
+                },
+                {
+                  "launch_s": 52.438516,
+                  "remove_s": 0.78157
+                },
+                {
+                  "launch_s": 83.983731,
+                  "remove_s": 0.854705
+                },
+                {
+                  "launch_s": 38.06873,
+                  "remove_s": 1.202594
+                },
+                {
+                  "launch_s": 43.575834,
+                  "remove_s": 1.131654
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "docker",
+              "clients": 16,
+              "wall_s": 75.180467,
+              "passed": 16,
+              "jobs": [
+                {
+                  "launch_s": 69.234657,
+                  "remove_s": 0.777212
+                },
+                {
+                  "launch_s": 37.009112,
+                  "remove_s": 1.043158
+                },
+                {
+                  "launch_s": 40.666221,
+                  "remove_s": 0.52531
+                },
+                {
+                  "launch_s": 50.099044,
+                  "remove_s": 2.227284
+                },
+                {
+                  "launch_s": 33.169074,
+                  "remove_s": 1.0686
+                },
+                {
+                  "launch_s": 52.986436,
+                  "remove_s": 1.822587
+                },
+                {
+                  "launch_s": 52.197385,
+                  "remove_s": 0.78541
+                },
+                {
+                  "launch_s": 40.672207,
+                  "remove_s": 1.237218
+                },
+                {
+                  "launch_s": 51.646433,
+                  "remove_s": 2.251912
+                },
+                {
+                  "launch_s": 40.351324,
+                  "remove_s": 1.158063
+                },
+                {
+                  "launch_s": 32.805746,
+                  "remove_s": 0.578634
+                },
+                {
+                  "launch_s": 49.642435,
+                  "remove_s": 2.91942
+                },
+                {
+                  "launch_s": 69.981622,
+                  "remove_s": 0.999382
+                },
+                {
+                  "launch_s": 48.013703,
+                  "remove_s": 2.814779
+                },
+                {
+                  "launch_s": 47.583384,
+                  "remove_s": 0.438793
+                },
+                {
+                  "launch_s": 69.914572,
+                  "remove_s": 1.028853
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "docker",
+              "clients": 16,
+              "wall_s": 84.519912,
+              "passed": 16,
+              "jobs": [
+                {
+                  "launch_s": 37.760375,
+                  "remove_s": 1.465283
+                },
+                {
+                  "launch_s": 74.677823,
+                  "remove_s": 0.402135
+                },
+                {
+                  "launch_s": 52.690627,
+                  "remove_s": 2.674771
+                },
+                {
+                  "launch_s": 38.29433,
+                  "remove_s": 2.2686
+                },
+                {
+                  "launch_s": 57.756978,
+                  "remove_s": 2.338132
+                },
+                {
+                  "launch_s": 31.846512,
+                  "remove_s": 2.734323
+                },
+                {
+                  "launch_s": 56.852041,
+                  "remove_s": 1.916685
+                },
+                {
+                  "launch_s": 49.74953,
+                  "remove_s": 1.344456
+                },
+                {
+                  "launch_s": 32.616112,
+                  "remove_s": 1.210529
+                },
+                {
+                  "launch_s": 52.465564,
+                  "remove_s": 1.168218
+                },
+                {
+                  "launch_s": 78.897521,
+                  "remove_s": 0.741739
+                },
+                {
+                  "launch_s": 46.062202,
+                  "remove_s": 1.755425
+                },
+                {
+                  "launch_s": 50.475432,
+                  "remove_s": 0.91929
+                },
+                {
+                  "launch_s": 40.420492,
+                  "remove_s": 1.060337
+                },
+                {
+                  "launch_s": 33.351564,
+                  "remove_s": 1.441393
+                },
+                {
+                  "launch_s": 33.784957,
+                  "remove_s": 0.728501
+                }
+              ],
+              "block": 3
+            }
+          ]
+        }
+      }
+    },
+    "44497227398": {
+      "host": {
+        "first_cli_to_docker_info_ms": 24458.07,
+        "identity": {
+          "OperatingSystem": "OrbStack",
+          "Name": "orbstack",
+          "KernelVersion": "6.7.11-orbstack-00143-ge6b82e26cd22",
+          "Architecture": "x86_64",
+          "ServerVersion": "25.0.5",
+          "NCPU": 4,
+          "MemTotal": 4800716800
+        },
+        "endpoint": "~/.orbstack/run/docker.sock"
+      },
+      "files": {
+        "transport.json": {
+          "metadata": {
+            "run": 44497227398,
+            "filename": "transport.json",
+            "sha256": "4f9b30e6e5be8b52c89f4cd1aa6690e8705210e17c019630c7ae7be5063e5ee4",
+            "engine": {
+              "OperatingSystem": "OrbStack",
+              "Architecture": "x86_64",
+              "NCPU": 4,
+              "MemTotal": 4800716800,
+              "ServerVersion": "25.0.5"
+            },
+            "image_id": "sha256:66ba00ad3de8677a3fa4bc4ea0fc46ebca0f14db46ca365e7f60833068dd0148",
+            "image": "ghcr.io/containerd/busybox:1.36@sha256:907ca53d7e2947e849b839b1cd258c98fd3916c60f2e6e70c30edbf741ab6754",
+            "commit": "984779140e32128637e60285e973a98b168f3f67",
+            "build": "optimized production DockerClient source"
+          },
+          "warmups": [
+            {
+              "client": "docker",
+              "clients": 1,
+              "wall_s": 3.97717,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 2.614243,
+                  "remove_s": 0.347395
+                }
+              ]
+            },
+            {
+              "client": "micropod-transport",
+              "clients": 1,
+              "wall_s": 4.991421,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 3.620682,
+                  "remove_s": 0.112386
+                }
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "client": "docker",
+              "clients": 1,
+              "wall_s": 4.797661,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 2.858923,
+                  "remove_s": 0.343608
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "micropod-transport",
+              "clients": 1,
+              "wall_s": 3.845772,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 1.699132,
+                  "remove_s": 0.070223
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "micropod-transport",
+              "clients": 1,
+              "wall_s": 2.589867,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 1.746077,
+                  "remove_s": 0.069131
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "docker",
+              "clients": 1,
+              "wall_s": 2.63822,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 1.627603,
+                  "remove_s": 0.144434
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "docker",
+              "clients": 1,
+              "wall_s": 1.963272,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 1.116802,
+                  "remove_s": 0.099965
+                }
+              ],
+              "block": 3
+            },
+            {
+              "client": "micropod-transport",
+              "clients": 1,
+              "wall_s": 1.866694,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 1.18703,
+                  "remove_s": 0.063735
+                }
+              ],
+              "block": 3
+            },
+            {
+              "client": "docker",
+              "clients": 4,
+              "wall_s": 8.588633,
+              "passed": 4,
+              "jobs": [
+                {
+                  "launch_s": 5.496538,
+                  "remove_s": 0.264348
+                },
+                {
+                  "launch_s": 3.560442,
+                  "remove_s": 0.454922
+                },
+                {
+                  "launch_s": 4.806117,
+                  "remove_s": 0.505867
+                },
+                {
+                  "launch_s": 5.487464,
+                  "remove_s": 0.25911
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "micropod-transport",
+              "clients": 4,
+              "wall_s": 7.553108,
+              "passed": 4,
+              "jobs": [
+                {
+                  "launch_s": 4.666196,
+                  "remove_s": 0.436732
+                },
+                {
+                  "launch_s": 3.927717,
+                  "remove_s": 0.34767
+                },
+                {
+                  "launch_s": 4.380895,
+                  "remove_s": 0.309564
+                },
+                {
+                  "launch_s": 4.242041,
+                  "remove_s": 0.288426
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "docker",
+              "clients": 4,
+              "wall_s": 9.500082,
+              "passed": 4,
+              "jobs": [
+                {
+                  "launch_s": 6.682815,
+                  "remove_s": 0.132587
+                },
+                {
+                  "launch_s": 5.933815,
+                  "remove_s": 0.15847
+                },
+                {
+                  "launch_s": 4.320095,
+                  "remove_s": 0.512011
+                },
+                {
+                  "launch_s": 5.060416,
+                  "remove_s": 0.455597
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "micropod-transport",
+              "clients": 4,
+              "wall_s": 8.494061,
+              "passed": 4,
+              "jobs": [
+                {
+                  "launch_s": 3.530222,
+                  "remove_s": 0.192889
+                },
+                {
+                  "launch_s": 5.581182,
+                  "remove_s": 0.476884
+                },
+                {
+                  "launch_s": 5.414277,
+                  "remove_s": 0.142456
+                },
+                {
+                  "launch_s": 5.546702,
+                  "remove_s": 0.252923
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "docker",
+              "clients": 4,
+              "wall_s": 7.629909,
+              "passed": 4,
+              "jobs": [
+                {
+                  "launch_s": 3.116737,
+                  "remove_s": 0.844868
+                },
+                {
+                  "launch_s": 5.555875,
+                  "remove_s": 0.284795
+                },
+                {
+                  "launch_s": 5.09136,
+                  "remove_s": 0.730012
+                },
+                {
+                  "launch_s": 3.584535,
+                  "remove_s": 0.313099
+                }
+              ],
+              "block": 3
+            },
+            {
+              "client": "micropod-transport",
+              "clients": 4,
+              "wall_s": 10.576776,
+              "passed": 4,
+              "jobs": [
+                {
+                  "launch_s": 4.767209,
+                  "remove_s": 0.343654
+                },
+                {
+                  "launch_s": 6.178236,
+                  "remove_s": 0.909418
+                },
+                {
+                  "launch_s": 5.137867,
+                  "remove_s": 1.07779
+                },
+                {
+                  "launch_s": 5.8982,
+                  "remove_s": 0.708877
+                }
+              ],
+              "block": 3
+            },
+            {
+              "client": "micropod-transport",
+              "clients": 8,
+              "wall_s": 15.105916,
+              "passed": 8,
+              "jobs": [
+                {
+                  "launch_s": 7.910474,
+                  "remove_s": 0.69638
+                },
+                {
+                  "launch_s": 11.019997,
+                  "remove_s": 0.172401
+                },
+                {
+                  "launch_s": 7.885355,
+                  "remove_s": 0.321036
+                },
+                {
+                  "launch_s": 6.121762,
+                  "remove_s": 0.323776
+                },
+                {
+                  "launch_s": 8.823983,
+                  "remove_s": 0.36357
+                },
+                {
+                  "launch_s": 11.44746,
+                  "remove_s": 0.51524
+                },
+                {
+                  "launch_s": 9.567516,
+                  "remove_s": 0.385072
+                },
+                {
+                  "launch_s": 8.853076,
+                  "remove_s": 0.116872
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "docker",
+              "clients": 8,
+              "wall_s": 19.631675,
+              "passed": 8,
+              "jobs": [
+                {
+                  "launch_s": 15.075342,
+                  "remove_s": 0.495135
+                },
+                {
+                  "launch_s": 11.815186,
+                  "remove_s": 0.518982
+                },
+                {
+                  "launch_s": 15.464754,
+                  "remove_s": 0.388629
+                },
+                {
+                  "launch_s": 12.665706,
+                  "remove_s": 0.324452
+                },
+                {
+                  "launch_s": 11.509948,
+                  "remove_s": 0.451514
+                },
+                {
+                  "launch_s": 12.908306,
+                  "remove_s": 0.230027
+                },
+                {
+                  "launch_s": 10.17977,
+                  "remove_s": 0.552378
+                },
+                {
+                  "launch_s": 11.987214,
+                  "remove_s": 0.508733
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "micropod-transport",
+              "clients": 8,
+              "wall_s": 20.757247,
+              "passed": 8,
+              "jobs": [
+                {
+                  "launch_s": 11.459582,
+                  "remove_s": 0.864984
+                },
+                {
+                  "launch_s": 16.092201,
+                  "remove_s": 0.687132
+                },
+                {
+                  "launch_s": 11.43268,
+                  "remove_s": 0.152318
+                },
+                {
+                  "launch_s": 16.066293,
+                  "remove_s": 0.359695
+                },
+                {
+                  "launch_s": 13.123279,
+                  "remove_s": 0.194978
+                },
+                {
+                  "launch_s": 11.386589,
+                  "remove_s": 0.381567
+                },
+                {
+                  "launch_s": 9.240482,
+                  "remove_s": 0.262395
+                },
+                {
+                  "launch_s": 13.346988,
+                  "remove_s": 0.877427
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "docker",
+              "clients": 8,
+              "wall_s": 13.428393,
+              "passed": 8,
+              "jobs": [
+                {
+                  "launch_s": 8.58921,
+                  "remove_s": 0.353632
+                },
+                {
+                  "launch_s": 6.55509,
+                  "remove_s": 0.336725
+                },
+                {
+                  "launch_s": 3.968768,
+                  "remove_s": 0.55283
+                },
+                {
+                  "launch_s": 8.723915,
+                  "remove_s": 0.273339
+                },
+                {
+                  "launch_s": 8.765476,
+                  "remove_s": 0.156861
+                },
+                {
+                  "launch_s": 7.756493,
+                  "remove_s": 0.518604
+                },
+                {
+                  "launch_s": 8.70021,
+                  "remove_s": 0.331635
+                },
+                {
+                  "launch_s": 5.787616,
+                  "remove_s": 0.413653
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "docker",
+              "clients": 8,
+              "wall_s": 15.339651,
+              "passed": 8,
+              "jobs": [
+                {
+                  "launch_s": 5.254767,
+                  "remove_s": 2.80385
+                },
+                {
+                  "launch_s": 8.625473,
+                  "remove_s": 0.281572
+                },
+                {
+                  "launch_s": 12.411337,
+                  "remove_s": 0.440097
+                },
+                {
+                  "launch_s": 8.594013,
+                  "remove_s": 0.610545
+                },
+                {
+                  "launch_s": 11.940842,
+                  "remove_s": 0.546359
+                },
+                {
+                  "launch_s": 8.629367,
+                  "remove_s": 0.617231
+                },
+                {
+                  "launch_s": 12.431877,
+                  "remove_s": 0.332271
+                },
+                {
+                  "launch_s": 12.356258,
+                  "remove_s": 0.246694
+                }
+              ],
+              "block": 3
+            },
+            {
+              "client": "micropod-transport",
+              "clients": 8,
+              "wall_s": 16.61265,
+              "passed": 8,
+              "jobs": [
+                {
+                  "launch_s": 8.766329,
+                  "remove_s": 0.389874
+                },
+                {
+                  "launch_s": 8.888814,
+                  "remove_s": 0.429179
+                },
+                {
+                  "launch_s": 9.317078,
+                  "remove_s": 0.160441
+                },
+                {
+                  "launch_s": 9.821922,
+                  "remove_s": 0.157422
+                },
+                {
+                  "launch_s": 11.156913,
+                  "remove_s": 0.249684
+                },
+                {
+                  "launch_s": 7.135397,
+                  "remove_s": 1.574808
+                },
+                {
+                  "launch_s": 11.351157,
+                  "remove_s": 0.212551
+                },
+                {
+                  "launch_s": 12.243121,
+                  "remove_s": 0.525941
+                }
+              ],
+              "block": 3
+            }
+          ]
+        },
+        "adapter.json": {
+          "metadata": {
+            "run": 44497227398,
+            "filename": "adapter.json",
+            "sha256": "c1574abd7b8153c4f1fb713eb21f8f363ffb3e3abbe1a7191ee25f821e94bac3",
+            "engine": {
+              "OperatingSystem": "OrbStack",
+              "Architecture": "x86_64",
+              "NCPU": 4,
+              "MemTotal": 4800716800,
+              "ServerVersion": "25.0.5"
+            },
+            "image_id": "sha256:66ba00ad3de8677a3fa4bc4ea0fc46ebca0f14db46ca365e7f60833068dd0148",
+            "image": "ghcr.io/containerd/busybox:1.36@sha256:907ca53d7e2947e849b839b1cd258c98fd3916c60f2e6e70c30edbf741ab6754",
+            "commit": "984779140e32128637e60285e973a98b168f3f67",
+            "build": "production CLI, Swift debug"
+          },
+          "warmups": [
+            {
+              "client": "docker",
+              "clients": 1,
+              "wall_s": 1.847099,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 1.166542,
+                  "remove_s": 0.085368
+                }
+              ]
+            },
+            {
+              "client": "micropod",
+              "clients": 1,
+              "wall_s": 1.817139,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 1.093688,
+                  "remove_s": 0.119754
+                }
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "client": "docker",
+              "clients": 1,
+              "wall_s": 1.944654,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 1.237312,
+                  "remove_s": 0.145483
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "micropod",
+              "clients": 1,
+              "wall_s": 2.695083,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 1.236553,
+                  "remove_s": 0.282983
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "micropod",
+              "clients": 1,
+              "wall_s": 3.032327,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 2.169178,
+                  "remove_s": 0.132035
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "docker",
+              "clients": 1,
+              "wall_s": 2.260741,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 1.016978,
+                  "remove_s": 0.089484
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "docker",
+              "clients": 1,
+              "wall_s": 1.523165,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 0.993428,
+                  "remove_s": 0.088607
+                }
+              ],
+              "block": 3
+            },
+            {
+              "client": "micropod",
+              "clients": 1,
+              "wall_s": 2.015906,
+              "passed": 1,
+              "jobs": [
+                {
+                  "launch_s": 1.050558,
+                  "remove_s": 0.122495
+                }
+              ],
+              "block": 3
+            },
+            {
+              "client": "docker",
+              "clients": 4,
+              "wall_s": 10.396793,
+              "passed": 4,
+              "jobs": [
+                {
+                  "launch_s": 6.738912,
+                  "remove_s": 0.414809
+                },
+                {
+                  "launch_s": 8.397137,
+                  "remove_s": 0.510598
+                },
+                {
+                  "launch_s": 4.75712,
+                  "remove_s": 0.15321
+                },
+                {
+                  "launch_s": 6.404305,
+                  "remove_s": 0.310278
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "micropod",
+              "clients": 4,
+              "wall_s": 9.213505,
+              "passed": 4,
+              "jobs": [
+                {
+                  "launch_s": 4.737124,
+                  "remove_s": 0.653666
+                },
+                {
+                  "launch_s": 4.670609,
+                  "remove_s": 0.303752
+                },
+                {
+                  "launch_s": 3.583211,
+                  "remove_s": 0.35176
+                },
+                {
+                  "launch_s": 4.671793,
+                  "remove_s": 0.369844
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "docker",
+              "clients": 4,
+              "wall_s": 10.960936,
+              "passed": 4,
+              "jobs": [
+                {
+                  "launch_s": 6.051929,
+                  "remove_s": 0.864447
+                },
+                {
+                  "launch_s": 5.532884,
+                  "remove_s": 0.775331
+                },
+                {
+                  "launch_s": 5.410996,
+                  "remove_s": 0.434023
+                },
+                {
+                  "launch_s": 5.87801,
+                  "remove_s": 0.389893
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "micropod",
+              "clients": 4,
+              "wall_s": 11.75684,
+              "passed": 4,
+              "jobs": [
+                {
+                  "launch_s": 5.076367,
+                  "remove_s": 0.358615
+                },
+                {
+                  "launch_s": 5.663878,
+                  "remove_s": 1.352792
+                },
+                {
+                  "launch_s": 5.584496,
+                  "remove_s": 0.750117
+                },
+                {
+                  "launch_s": 5.459575,
+                  "remove_s": 0.193166
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "docker",
+              "clients": 4,
+              "wall_s": 10.105005,
+              "passed": 4,
+              "jobs": [
+                {
+                  "launch_s": 5.180523,
+                  "remove_s": 0.637895
+                },
+                {
+                  "launch_s": 5.714806,
+                  "remove_s": 0.611705
+                },
+                {
+                  "launch_s": 5.550619,
+                  "remove_s": 0.423717
+                },
+                {
+                  "launch_s": 5.287298,
+                  "remove_s": 0.515296
+                }
+              ],
+              "block": 3
+            },
+            {
+              "client": "micropod",
+              "clients": 4,
+              "wall_s": 9.629256,
+              "passed": 4,
+              "jobs": [
+                {
+                  "launch_s": 7.112747,
+                  "remove_s": 0.952954
+                },
+                {
+                  "launch_s": 6.955793,
+                  "remove_s": 0.762059
+                },
+                {
+                  "launch_s": 5.83151,
+                  "remove_s": 0.776075
+                },
+                {
+                  "launch_s": 4.97786,
+                  "remove_s": 0.210228
+                }
+              ],
+              "block": 3
+            },
+            {
+              "client": "micropod",
+              "clients": 8,
+              "wall_s": 14.312056,
+              "passed": 8,
+              "jobs": [
+                {
+                  "launch_s": 8.488596,
+                  "remove_s": 0.367733
+                },
+                {
+                  "launch_s": 12.04554,
+                  "remove_s": 0.342858
+                },
+                {
+                  "launch_s": 8.241032,
+                  "remove_s": 0.996736
+                },
+                {
+                  "launch_s": 10.920205,
+                  "remove_s": 0.260471
+                },
+                {
+                  "launch_s": 8.20662,
+                  "remove_s": 1.280987
+                },
+                {
+                  "launch_s": 11.81244,
+                  "remove_s": 0.448461
+                },
+                {
+                  "launch_s": 9.265256,
+                  "remove_s": 0.394328
+                },
+                {
+                  "launch_s": 11.784028,
+                  "remove_s": 0.388943
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "docker",
+              "clients": 8,
+              "wall_s": 27.341996,
+              "passed": 8,
+              "jobs": [
+                {
+                  "launch_s": 17.686623,
+                  "remove_s": 0.810002
+                },
+                {
+                  "launch_s": 15.296903,
+                  "remove_s": 0.593542
+                },
+                {
+                  "launch_s": 15.510851,
+                  "remove_s": 0.658435
+                },
+                {
+                  "launch_s": 15.752558,
+                  "remove_s": 0.267803
+                },
+                {
+                  "launch_s": 12.490469,
+                  "remove_s": 0.852259
+                },
+                {
+                  "launch_s": 16.631054,
+                  "remove_s": 0.868394
+                },
+                {
+                  "launch_s": 8.307439,
+                  "remove_s": 1.826045
+                },
+                {
+                  "launch_s": 10.59373,
+                  "remove_s": 2.2811
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "micropod",
+              "clients": 8,
+              "wall_s": 15.988015,
+              "passed": 8,
+              "jobs": [
+                {
+                  "launch_s": 10.547781,
+                  "remove_s": 0.589426
+                },
+                {
+                  "launch_s": 11.677437,
+                  "remove_s": 0.321465
+                },
+                {
+                  "launch_s": 8.634053,
+                  "remove_s": 0.468422
+                },
+                {
+                  "launch_s": 10.198031,
+                  "remove_s": 0.921153
+                },
+                {
+                  "launch_s": 6.829192,
+                  "remove_s": 1.312653
+                },
+                {
+                  "launch_s": 10.669673,
+                  "remove_s": 0.261514
+                },
+                {
+                  "launch_s": 6.006611,
+                  "remove_s": 0.776572
+                },
+                {
+                  "launch_s": 10.97271,
+                  "remove_s": 1.451234
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "docker",
+              "clients": 8,
+              "wall_s": 15.307998,
+              "passed": 8,
+              "jobs": [
+                {
+                  "launch_s": 7.199203,
+                  "remove_s": 0.395275
+                },
+                {
+                  "launch_s": 9.710293,
+                  "remove_s": 0.339246
+                },
+                {
+                  "launch_s": 9.716842,
+                  "remove_s": 0.255711
+                },
+                {
+                  "launch_s": 9.702712,
+                  "remove_s": 1.138399
+                },
+                {
+                  "launch_s": 10.943157,
+                  "remove_s": 0.173059
+                },
+                {
+                  "launch_s": 7.211357,
+                  "remove_s": 0.677482
+                },
+                {
+                  "launch_s": 5.818027,
+                  "remove_s": 0.472103
+                },
+                {
+                  "launch_s": 8.243676,
+                  "remove_s": 0.24647
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "docker",
+              "clients": 8,
+              "wall_s": 14.462863,
+              "passed": 8,
+              "jobs": [
+                {
+                  "launch_s": 8.822793,
+                  "remove_s": 0.533868
+                },
+                {
+                  "launch_s": 10.235215,
+                  "remove_s": 0.579681
+                },
+                {
+                  "launch_s": 7.664657,
+                  "remove_s": 0.785109
+                },
+                {
+                  "launch_s": 10.16392,
+                  "remove_s": 0.333701
+                },
+                {
+                  "launch_s": 8.855415,
+                  "remove_s": 0.399722
+                },
+                {
+                  "launch_s": 7.613031,
+                  "remove_s": 0.494614
+                },
+                {
+                  "launch_s": 11.360566,
+                  "remove_s": 0.209747
+                },
+                {
+                  "launch_s": 10.969588,
+                  "remove_s": 0.428338
+                }
+              ],
+              "block": 3
+            },
+            {
+              "client": "micropod",
+              "clients": 8,
+              "wall_s": 19.396184,
+              "passed": 8,
+              "jobs": [
+                {
+                  "launch_s": 14.042239,
+                  "remove_s": 1.36394
+                },
+                {
+                  "launch_s": 9.289045,
+                  "remove_s": 1.197638
+                },
+                {
+                  "launch_s": 11.041988,
+                  "remove_s": 0.219222
+                },
+                {
+                  "launch_s": 11.543147,
+                  "remove_s": 0.470412
+                },
+                {
+                  "launch_s": 12.147592,
+                  "remove_s": 0.497805
+                },
+                {
+                  "launch_s": 12.357216,
+                  "remove_s": 0.519929
+                },
+                {
+                  "launch_s": 14.101166,
+                  "remove_s": 1.161278
+                },
+                {
+                  "launch_s": 9.339604,
+                  "remove_s": 0.834462
+                }
+              ],
+              "block": 3
+            },
+            {
+              "client": "micropod",
+              "clients": 16,
+              "wall_s": 42.599976,
+              "passed": 16,
+              "jobs": [
+                {
+                  "launch_s": 11.207528,
+                  "remove_s": 0.502702
+                },
+                {
+                  "launch_s": 12.273273,
+                  "remove_s": 0.614985
+                },
+                {
+                  "launch_s": 8.613024,
+                  "remove_s": 0.407457
+                },
+                {
+                  "launch_s": 12.846817,
+                  "remove_s": 0.979597
+                },
+                {
+                  "launch_s": 14.308186,
+                  "remove_s": 1.062493
+                },
+                {
+                  "launch_s": 33.139046,
+                  "remove_s": 2.124017
+                },
+                {
+                  "launch_s": 21.850704,
+                  "remove_s": 1.706027
+                },
+                {
+                  "launch_s": 29.596079,
+                  "remove_s": 2.731798
+                },
+                {
+                  "launch_s": 34.076076,
+                  "remove_s": 0.855051
+                },
+                {
+                  "launch_s": 29.563814,
+                  "remove_s": 2.583833
+                },
+                {
+                  "launch_s": 12.240915,
+                  "remove_s": 0.461351
+                },
+                {
+                  "launch_s": 19.904716,
+                  "remove_s": 1.158909
+                },
+                {
+                  "launch_s": 15.547746,
+                  "remove_s": 0.421853
+                },
+                {
+                  "launch_s": 18.442088,
+                  "remove_s": 2.340268
+                },
+                {
+                  "launch_s": 14.930617,
+                  "remove_s": 1.232636
+                },
+                {
+                  "launch_s": 28.615458,
+                  "remove_s": 1.681778
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "docker",
+              "clients": 16,
+              "wall_s": 65.797419,
+              "passed": 16,
+              "jobs": [
+                {
+                  "launch_s": 19.675506,
+                  "remove_s": 0.434931
+                },
+                {
+                  "launch_s": 36.938759,
+                  "remove_s": 1.248355
+                },
+                {
+                  "launch_s": 24.566906,
+                  "remove_s": 1.667792
+                },
+                {
+                  "launch_s": 30.860301,
+                  "remove_s": 2.136301
+                },
+                {
+                  "launch_s": 62.299663,
+                  "remove_s": 0.493504
+                },
+                {
+                  "launch_s": 28.548586,
+                  "remove_s": 1.303019
+                },
+                {
+                  "launch_s": 49.899683,
+                  "remove_s": 1.831971
+                },
+                {
+                  "launch_s": 32.574845,
+                  "remove_s": 3.203364
+                },
+                {
+                  "launch_s": 38.42421,
+                  "remove_s": 1.530819
+                },
+                {
+                  "launch_s": 62.088003,
+                  "remove_s": 0.61223
+                },
+                {
+                  "launch_s": 61.920565,
+                  "remove_s": 0.493435
+                },
+                {
+                  "launch_s": 31.696018,
+                  "remove_s": 2.550373
+                },
+                {
+                  "launch_s": 54.73201,
+                  "remove_s": 2.590308
+                },
+                {
+                  "launch_s": 53.306284,
+                  "remove_s": 0.802927
+                },
+                {
+                  "launch_s": 41.82287,
+                  "remove_s": 0.857633
+                },
+                {
+                  "launch_s": 24.473203,
+                  "remove_s": 2.237049
+                }
+              ],
+              "block": 1
+            },
+            {
+              "client": "micropod",
+              "clients": 16,
+              "wall_s": 55.260141,
+              "passed": 16,
+              "jobs": [
+                {
+                  "launch_s": 23.762067,
+                  "remove_s": 1.784295
+                },
+                {
+                  "launch_s": 20.354407,
+                  "remove_s": 1.417432
+                },
+                {
+                  "launch_s": 35.621158,
+                  "remove_s": 4.358461
+                },
+                {
+                  "launch_s": 34.848246,
+                  "remove_s": 1.274912
+                },
+                {
+                  "launch_s": 49.361892,
+                  "remove_s": 0.664316
+                },
+                {
+                  "launch_s": 27.346059,
+                  "remove_s": 1.477433
+                },
+                {
+                  "launch_s": 17.724221,
+                  "remove_s": 2.014285
+                },
+                {
+                  "launch_s": 25.943863,
+                  "remove_s": 0.953079
+                },
+                {
+                  "launch_s": 28.131416,
+                  "remove_s": 3.044018
+                },
+                {
+                  "launch_s": 36.826299,
+                  "remove_s": 0.970388
+                },
+                {
+                  "launch_s": 39.273177,
+                  "remove_s": 1.021395
+                },
+                {
+                  "launch_s": 16.411846,
+                  "remove_s": 1.283752
+                },
+                {
+                  "launch_s": 37.23697,
+                  "remove_s": 1.192636
+                },
+                {
+                  "launch_s": 50.891428,
+                  "remove_s": 0.220018
+                },
+                {
+                  "launch_s": 23.496928,
+                  "remove_s": 1.266611
+                },
+                {
+                  "launch_s": 53.311088,
+                  "remove_s": 0.411848
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "docker",
+              "clients": 16,
+              "wall_s": 40.719531,
+              "passed": 16,
+              "jobs": [
+                {
+                  "launch_s": 9.623307,
+                  "remove_s": 0.329881
+                },
+                {
+                  "launch_s": 14.771303,
+                  "remove_s": 3.507448
+                },
+                {
+                  "launch_s": 19.393424,
+                  "remove_s": 0.867046
+                },
+                {
+                  "launch_s": 10.889442,
+                  "remove_s": 0.167151
+                },
+                {
+                  "launch_s": 14.392628,
+                  "remove_s": 2.510988
+                },
+                {
+                  "launch_s": 12.577338,
+                  "remove_s": 0.844239
+                },
+                {
+                  "launch_s": 35.686608,
+                  "remove_s": 0.634685
+                },
+                {
+                  "launch_s": 7.399925,
+                  "remove_s": 0.400812
+                },
+                {
+                  "launch_s": 35.111581,
+                  "remove_s": 0.485067
+                },
+                {
+                  "launch_s": 9.056948,
+                  "remove_s": 0.317511
+                },
+                {
+                  "launch_s": 17.987022,
+                  "remove_s": 1.573498
+                },
+                {
+                  "launch_s": 19.950435,
+                  "remove_s": 1.384164
+                },
+                {
+                  "launch_s": 23.791774,
+                  "remove_s": 1.883983
+                },
+                {
+                  "launch_s": 27.595202,
+                  "remove_s": 0.91176
+                },
+                {
+                  "launch_s": 14.156267,
+                  "remove_s": 3.431585
+                },
+                {
+                  "launch_s": 17.827057,
+                  "remove_s": 1.094818
+                }
+              ],
+              "block": 2
+            },
+            {
+              "client": "docker",
+              "clients": 16,
+              "wall_s": 62.885958,
+              "passed": 16,
+              "jobs": [
+                {
+                  "launch_s": 37.39594,
+                  "remove_s": 0.827619
+                },
+                {
+                  "launch_s": 20.218631,
+                  "remove_s": 0.492171
+                },
+                {
+                  "launch_s": 20.187101,
+                  "remove_s": 0.652117
+                },
+                {
+                  "launch_s": 41.031312,
+                  "remove_s": 1.849567
+                },
+                {
+                  "launch_s": 32.467521,
+                  "remove_s": 1.251637
+                },
+                {
+                  "launch_s": 51.339872,
+                  "remove_s": 0.5951
+                },
+                {
+                  "launch_s": 30.551257,
+                  "remove_s": 1.636045
+                },
+                {
+                  "launch_s": 55.096682,
+                  "remove_s": 0.779518
+                },
+                {
+                  "launch_s": 33.662177,
+                  "remove_s": 0.938468
+                },
+                {
+                  "launch_s": 39.052544,
+                  "remove_s": 0.64459
+                },
+                {
+                  "launch_s": 30.478599,
+                  "remove_s": 1.527462
+                },
+                {
+                  "launch_s": 56.142542,
+                  "remove_s": 0.966088
+                },
+                {
+                  "launch_s": 33.475917,
+                  "remove_s": 1.593054
+                },
+                {
+                  "launch_s": 53.260805,
+                  "remove_s": 0.851012
+                },
+                {
+                  "launch_s": 37.241659,
+                  "remove_s": 0.949997
+                },
+                {
+                  "launch_s": 51.811836,
+                  "remove_s": 0.948031
+                }
+              ],
+              "block": 3
+            },
+            {
+              "client": "micropod",
+              "clients": 16,
+              "wall_s": 71.911188,
+              "passed": 16,
+              "jobs": [
+                {
+                  "launch_s": 45.578544,
+                  "remove_s": 1.110765
+                },
+                {
+                  "launch_s": 55.667626,
+                  "remove_s": 1.411846
+                },
+                {
+                  "launch_s": 37.845669,
+                  "remove_s": 2.994013
+                },
+                {
+                  "launch_s": 35.747606,
+                  "remove_s": 0.54296
+                },
+                {
+                  "launch_s": 56.18103,
+                  "remove_s": 0.975782
+                },
+                {
+                  "launch_s": 23.189542,
+                  "remove_s": 1.354399
+                },
+                {
+                  "launch_s": 67.716219,
+                  "remove_s": 0.864967
+                },
+                {
+                  "launch_s": 40.299529,
+                  "remove_s": 1.153323
+                },
+                {
+                  "launch_s": 42.485376,
+                  "remove_s": 1.781412
+                },
+                {
+                  "launch_s": 23.387864,
+                  "remove_s": 1.911247
+                },
+                {
+                  "launch_s": 67.179793,
+                  "remove_s": 1.691885
+                },
+                {
+                  "launch_s": 58.699538,
+                  "remove_s": 1.515214
+                },
+                {
+                  "launch_s": 20.748374,
+                  "remove_s": 1.323433
+                },
+                {
+                  "launch_s": 62.745543,
+                  "remove_s": 0.399993
+                },
+                {
+                  "launch_s": 20.681559,
+                  "remove_s": 2.103217
+                },
+                {
+                  "launch_s": 32.582887,
+                  "remove_s": 0.930292
+                }
+              ],
+              "block": 3
+            }
+          ]
+        }
+      }
+    }
+  },
+  "note": "All per-job launch/remove times and original block wall times are in seconds. The three failed Docker starts on the preliminary run retain their exit code here. The verified original archive contains the complete diagnostic strings."
+}

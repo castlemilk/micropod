@@ -1,0 +1,1164 @@
+{
+  "macos": "26.5.1",
+  "hardware": "Mac17,6",
+  "chip": "Apple M5 Max",
+  "arch": "arm64",
+  "cpu": 18,
+  "memory": "128 GB",
+  "rsync": "openrsync: protocol version 29",
+  "swift": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)",
+  "sources": {
+    "micropod": {
+      "SharedView.swift": "383a1ac61ae490fdc4eb9382cfd29565193e8cc004820e6b609d6f2a56d19d2e",
+      "ChunkHash.swift": "66499dd6f8aa4c73a0ba3b06829b424b2445558df466b0549014d661ef88ae00"
+    },
+    "candidate": {
+      "SharedView.swift": "b4bd6e63117bb11149971c5c88c4e22ad1262c689c28868ed2875a9e8d5cabb7",
+      "SharedFSStaging.swift": "d6c47b557eabcde460ba4afc17adde6cfb3fe7f7f35eb9cca40647581cf07cc3",
+      "ChunkHash.swift": "9aabd781df9b44b239f0a8e6981b543fea9d43945c54089785822a9b3ded72f1"
+    }
+  },
+  "rounds": 5,
+  "seed": 20261119,
+  "warmups": [
+    {
+      "seconds": 0.129776,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "rsync",
+      "filtered": false
+    },
+    {
+      "seconds": 0.008363,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "micropod",
+      "filtered": false
+    },
+    {
+      "seconds": 0.007601,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "candidate",
+      "filtered": false
+    },
+    {
+      "seconds": 0.082089,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "rsync",
+      "filtered": true
+    },
+    {
+      "seconds": 0.209161,
+      "first_errors": [
+        "missing:link",
+        "extra:omitted",
+        "extra:omitted/sentinel",
+        "mtime",
+        "xattr"
+      ],
+      "verified": 0,
+      "clients": 1,
+      "engine": "micropod",
+      "filtered": true
+    },
+    {
+      "seconds": 0.033378,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "candidate",
+      "filtered": true
+    }
+  ],
+  "blocks": [
+    {
+      "seconds": 0.00998,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 1
+    },
+    {
+      "seconds": 0.077192,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 1
+    },
+    {
+      "seconds": 0.008442,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 1
+    },
+    {
+      "seconds": 0.006426,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 2
+    },
+    {
+      "seconds": 0.072172,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 2
+    },
+    {
+      "seconds": 0.00803,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 2
+    },
+    {
+      "seconds": 0.005991,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 3
+    },
+    {
+      "seconds": 0.061603,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 3
+    },
+    {
+      "seconds": 0.006922,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 3
+    },
+    {
+      "seconds": 0.006721,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 4
+    },
+    {
+      "seconds": 0.007289,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 4
+    },
+    {
+      "seconds": 0.061823,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 4
+    },
+    {
+      "seconds": 0.058171,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 5
+    },
+    {
+      "seconds": 0.005549,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 5
+    },
+    {
+      "seconds": 0.005561,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 5
+    },
+    {
+      "seconds": 0.00918,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 1
+    },
+    {
+      "seconds": 0.095699,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 1
+    },
+    {
+      "seconds": 0.009033,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 1
+    },
+    {
+      "seconds": 0.011818,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 2
+    },
+    {
+      "seconds": 0.1056,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 2
+    },
+    {
+      "seconds": 0.013213,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 2
+    },
+    {
+      "seconds": 0.013583,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 3
+    },
+    {
+      "seconds": 0.098277,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 3
+    },
+    {
+      "seconds": 0.010173,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 3
+    },
+    {
+      "seconds": 0.010693,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 4
+    },
+    {
+      "seconds": 0.09811,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 4
+    },
+    {
+      "seconds": 0.010164,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 4
+    },
+    {
+      "seconds": 0.013184,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 5
+    },
+    {
+      "seconds": 0.011193,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 5
+    },
+    {
+      "seconds": 0.135108,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 5
+    },
+    {
+      "seconds": 0.019967,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 1
+    },
+    {
+      "seconds": 0.17643,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 1
+    },
+    {
+      "seconds": 0.032648,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 1
+    },
+    {
+      "seconds": 0.172328,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 2
+    },
+    {
+      "seconds": 0.022367,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 2
+    },
+    {
+      "seconds": 0.020565,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 2
+    },
+    {
+      "seconds": 0.021191,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 3
+    },
+    {
+      "seconds": 0.171064,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 3
+    },
+    {
+      "seconds": 0.019474,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 3
+    },
+    {
+      "seconds": 0.019804,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 4
+    },
+    {
+      "seconds": 0.174269,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 4
+    },
+    {
+      "seconds": 0.020183,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 4
+    },
+    {
+      "seconds": 0.017841,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 5
+    },
+    {
+      "seconds": 0.018862,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 5
+    },
+    {
+      "seconds": 0.198999,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 5
+    },
+    {
+      "seconds": 0.033156,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 1
+    },
+    {
+      "seconds": 0.03166,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 1
+    },
+    {
+      "seconds": 0.317906,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 1
+    },
+    {
+      "seconds": 0.30382,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 2
+    },
+    {
+      "seconds": 0.031579,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 2
+    },
+    {
+      "seconds": 0.028761,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 2
+    },
+    {
+      "seconds": 0.029745,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 3
+    },
+    {
+      "seconds": 0.031538,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 3
+    },
+    {
+      "seconds": 0.23122,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 3
+    },
+    {
+      "seconds": 0.040175,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 4
+    },
+    {
+      "seconds": 0.035925,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 4
+    },
+    {
+      "seconds": 0.267972,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 4
+    },
+    {
+      "seconds": 0.271472,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "rsync",
+      "filtered": false,
+      "block": 5
+    },
+    {
+      "seconds": 0.03823,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "candidate",
+      "filtered": false,
+      "block": 5
+    },
+    {
+      "seconds": 0.03559,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "micropod",
+      "filtered": false,
+      "block": 5
+    },
+    {
+      "seconds": 0.07929,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 1
+    },
+    {
+      "seconds": 0.030865,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 1
+    },
+    {
+      "seconds": 0.031222,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 2
+    },
+    {
+      "seconds": 0.077415,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 2
+    },
+    {
+      "seconds": 0.03017,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 3
+    },
+    {
+      "seconds": 0.071511,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 3
+    },
+    {
+      "seconds": 0.073681,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 4
+    },
+    {
+      "seconds": 0.02683,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 4
+    },
+    {
+      "seconds": 0.027926,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 5
+    },
+    {
+      "seconds": 0.070187,
+      "first_errors": [],
+      "verified": 1,
+      "clients": 1,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 5
+    },
+    {
+      "seconds": 0.041158,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 1
+    },
+    {
+      "seconds": 0.103334,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 1
+    },
+    {
+      "seconds": 0.128942,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 2
+    },
+    {
+      "seconds": 0.048301,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 2
+    },
+    {
+      "seconds": 0.079709,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 3
+    },
+    {
+      "seconds": 0.124819,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 3
+    },
+    {
+      "seconds": 0.130424,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 4
+    },
+    {
+      "seconds": 0.046426,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 4
+    },
+    {
+      "seconds": 0.173853,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 5
+    },
+    {
+      "seconds": 0.050704,
+      "first_errors": [],
+      "verified": 4,
+      "clients": 4,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 5
+    },
+    {
+      "seconds": 0.088911,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 1
+    },
+    {
+      "seconds": 0.161715,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 1
+    },
+    {
+      "seconds": 0.077729,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 2
+    },
+    {
+      "seconds": 0.194938,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 2
+    },
+    {
+      "seconds": 0.063089,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 3
+    },
+    {
+      "seconds": 0.156048,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 3
+    },
+    {
+      "seconds": 0.159947,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 4
+    },
+    {
+      "seconds": 0.064749,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 4
+    },
+    {
+      "seconds": 0.147364,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 5
+    },
+    {
+      "seconds": 0.063426,
+      "first_errors": [],
+      "verified": 8,
+      "clients": 8,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 5
+    },
+    {
+      "seconds": 0.259894,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 1
+    },
+    {
+      "seconds": 0.24456,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 1
+    },
+    {
+      "seconds": 0.623308,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 2
+    },
+    {
+      "seconds": 0.669714,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 2
+    },
+    {
+      "seconds": 0.540728,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 3
+    },
+    {
+      "seconds": 0.118351,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 3
+    },
+    {
+      "seconds": 0.113951,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 4
+    },
+    {
+      "seconds": 0.257457,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 4
+    },
+    {
+      "seconds": 0.238574,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "candidate",
+      "filtered": true,
+      "block": 5
+    },
+    {
+      "seconds": 0.280114,
+      "first_errors": [],
+      "verified": 16,
+      "clients": 16,
+      "engine": "rsync",
+      "filtered": true,
+      "block": 5
+    }
+  ],
+  "summary": [
+    {
+      "engine": "rsync",
+      "filtered": false,
+      "clients": 1,
+      "p50_s": 0.061823,
+      "min_s": 0.058171,
+      "max_s": 0.077192,
+      "verified_views": 5
+    },
+    {
+      "engine": "candidate",
+      "filtered": false,
+      "clients": 1,
+      "p50_s": 0.006922,
+      "min_s": 0.005549,
+      "max_s": 0.00998,
+      "verified_views": 5
+    },
+    {
+      "engine": "micropod",
+      "filtered": false,
+      "clients": 1,
+      "p50_s": 0.006426,
+      "min_s": 0.005561,
+      "max_s": 0.008442,
+      "verified_views": 5
+    },
+    {
+      "engine": "candidate",
+      "filtered": false,
+      "clients": 4,
+      "p50_s": 0.010173,
+      "min_s": 0.00918,
+      "max_s": 0.013184,
+      "verified_views": 20
+    },
+    {
+      "engine": "micropod",
+      "filtered": false,
+      "clients": 4,
+      "p50_s": 0.011193,
+      "min_s": 0.009033,
+      "max_s": 0.013583,
+      "verified_views": 20
+    },
+    {
+      "engine": "rsync",
+      "filtered": false,
+      "clients": 4,
+      "p50_s": 0.098277,
+      "min_s": 0.095699,
+      "max_s": 0.135108,
+      "verified_views": 20
+    },
+    {
+      "engine": "micropod",
+      "filtered": false,
+      "clients": 8,
+      "p50_s": 0.020183,
+      "min_s": 0.017841,
+      "max_s": 0.021191,
+      "verified_views": 40
+    },
+    {
+      "engine": "candidate",
+      "filtered": false,
+      "clients": 8,
+      "p50_s": 0.019804,
+      "min_s": 0.018862,
+      "max_s": 0.032648,
+      "verified_views": 40
+    },
+    {
+      "engine": "rsync",
+      "filtered": false,
+      "clients": 8,
+      "p50_s": 0.174269,
+      "min_s": 0.171064,
+      "max_s": 0.198999,
+      "verified_views": 40
+    },
+    {
+      "engine": "rsync",
+      "filtered": false,
+      "clients": 16,
+      "p50_s": 0.271472,
+      "min_s": 0.23122,
+      "max_s": 0.317906,
+      "verified_views": 80
+    },
+    {
+      "engine": "candidate",
+      "filtered": false,
+      "clients": 16,
+      "p50_s": 0.033156,
+      "min_s": 0.028761,
+      "max_s": 0.03823,
+      "verified_views": 80
+    },
+    {
+      "engine": "micropod",
+      "filtered": false,
+      "clients": 16,
+      "p50_s": 0.03166,
+      "min_s": 0.029745,
+      "max_s": 0.040175,
+      "verified_views": 80
+    },
+    {
+      "engine": "candidate",
+      "filtered": true,
+      "clients": 1,
+      "p50_s": 0.03017,
+      "min_s": 0.02683,
+      "max_s": 0.031222,
+      "verified_views": 5
+    },
+    {
+      "engine": "rsync",
+      "filtered": true,
+      "clients": 1,
+      "p50_s": 0.073681,
+      "min_s": 0.070187,
+      "max_s": 0.07929,
+      "verified_views": 5
+    },
+    {
+      "engine": "rsync",
+      "filtered": true,
+      "clients": 4,
+      "p50_s": 0.128942,
+      "min_s": 0.103334,
+      "max_s": 0.173853,
+      "verified_views": 20
+    },
+    {
+      "engine": "candidate",
+      "filtered": true,
+      "clients": 4,
+      "p50_s": 0.048301,
+      "min_s": 0.041158,
+      "max_s": 0.079709,
+      "verified_views": 20
+    },
+    {
+      "engine": "rsync",
+      "filtered": true,
+      "clients": 8,
+      "p50_s": 0.159947,
+      "min_s": 0.147364,
+      "max_s": 0.194938,
+      "verified_views": 40
+    },
+    {
+      "engine": "candidate",
+      "filtered": true,
+      "clients": 8,
+      "p50_s": 0.064749,
+      "min_s": 0.063089,
+      "max_s": 0.088911,
+      "verified_views": 40
+    },
+    {
+      "engine": "candidate",
+      "filtered": true,
+      "clients": 16,
+      "p50_s": 0.238574,
+      "min_s": 0.113951,
+      "max_s": 0.623308,
+      "verified_views": 80
+    },
+    {
+      "engine": "rsync",
+      "filtered": true,
+      "clients": 16,
+      "p50_s": 0.280114,
+      "min_s": 0.257457,
+      "max_s": 0.669714,
+      "verified_views": 80
+    }
+  ],
+  "start_utc": "2026-11-19T09:16:41Z"
+}
