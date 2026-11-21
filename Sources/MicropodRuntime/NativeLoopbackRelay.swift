@@ -7,8 +7,9 @@ final class NativeLoopbackRelay: @unchecked Sendable {
     private final class Backend: @unchecked Sendable {
         let handle: OpaquePointer
 
-        init(guest: String, gateway: String?) throws {
-            guard let handle = mp_tcp_relay_create(guest) else { throw NativeLoopbackRelay.posixError() }
+        init(guest: String, gateway: String?, dedicatedDataOwner: Bool) throws {
+            let handle = dedicatedDataOwner ? mp_tcp_relay_create_data(guest) : mp_tcp_relay_create(guest)
+            guard let handle else { throw NativeLoopbackRelay.posixError() }
             if let gateway, mp_tcp_relay_scope(handle, gateway) < 0 {
                 let error = NativeLoopbackRelay.posixError()
                 mp_tcp_relay_destroy(handle)
@@ -26,7 +27,7 @@ final class NativeLoopbackRelay: @unchecked Sendable {
         let source: DispatchSourceRead
 
         init(guest: String, gateway: String?, name: String, dedicatedDataOwner: Bool = false) throws {
-            let backend = try Backend(guest: guest, gateway: gateway)
+            let backend = try Backend(guest: guest, gateway: gateway, dedicatedDataOwner: dedicatedDataOwner)
             self.backend = backend
             queue = DispatchQueue(label: "dev.micropod.published-tcp." + name, qos: .userInitiated)
             source = DispatchSource.makeReadSource(
@@ -155,6 +156,9 @@ final class NativeLoopbackRelay: @unchecked Sendable {
             "connect_errors": stats.connect_errors, "connect_retries": stats.connect_retries,
             "route_waits": stats.route_waits, "handshake_timeouts": stats.handshake_timeouts,
             "last_connect_errno": stats.last_connect_error, "recovered": stats.recovered,
+            "setup_closes": stats.setup_closes, "closes_before_response": stats.closes_before_response,
+            "idle_guest_closes": stats.idle_guest_closes,
+            "stream_errors": stats.stream_errors, "resets_forwarded": stats.resets_forwarded,
             "peak_active": stats.peak_active,
             "upload_bytes": stats.upload_bytes, "download_bytes": stats.download_bytes,
             "reads": stats.reads, "writes": stats.writes, "blocked_writes": stats.blocked_writes,

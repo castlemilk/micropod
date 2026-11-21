@@ -14,11 +14,14 @@ typedef struct {
     // 16384 microseconds, followed by overflow.
     uint64_t connect_us[12], first_byte_us[12];
     uint64_t first_request_write_us[12], request_to_first_guest_byte_us[12];
+    uint64_t setup_closes, closes_before_response, idle_guest_closes, stream_errors, resets_forwarded;
 } mp_tcp_stats;
 
 // A single serial owner must call these functions. The returned kqueue is
 // readable whenever drain can make progress. Destroy after closing listeners.
 mp_tcp_relay *mp_tcp_relay_create(const char *guest);
+// A data owner receives accepted streams from a separate listener owner.
+mp_tcp_relay *mp_tcp_relay_create_data(const char *guest);
 int mp_tcp_relay_scope(mp_tcp_relay *relay, const char *gateway);
 // Release each target on its owner, sequentially, before releasing its parent.
 typedef void (*mp_tcp_handoff)(void *owner, int client, uint64_t accepted_at);

@@ -10,6 +10,7 @@
 #include <stddef.h>
 #include <stdatomic.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/event.h>
 #include <sys/socket.h>
@@ -21,6 +22,7 @@
 #define EVENTS_PER_TURN 128
 #define INTERACTIVE_BULK_BATCH 2
 #define THROUGHPUT_BULK_BATCH 12
+#define DATA_READY_BATCH 24
 #define LARGE_READ (16 * 1024)
 
 enum event_kind { ACCEPT, STREAM, BULK_READY, RETRY_GUEST };
@@ -57,6 +59,9 @@ struct endpoint {
     struct watch watch;
     struct pair *pair;
     bool connecting, eof, bulk_read;
+    uint16_t close_flags;
+    uint32_t close_fflags;
+    int64_t close_data;
     char *pending;
     size_t offset, length;
 };
@@ -66,7 +71,8 @@ struct pair {
     struct pair *prev, *next;
     struct endpoint client, guest;
     struct watch retry;
-    bool retry_pending, retried;
+    bool retry_pending, retried, early_close_seen, guest_replied;
+    uint16_t client_port;
     uint64_t deadline;
     uint64_t accepted_at, connected_at, first_request_write_at;
 };
@@ -85,7 +91,7 @@ static struct endpoint *opposite(struct endpoint *e) {
 
 static int watch_fd(mp_tcp_relay *r, struct watch *w, int16_t filter, uint16_t flags) {
     int q = r->kq;
-    if (w->kind == STREAM) {
+    if (r->bulk.fd >= 0 && w->kind == STREAM) {
         struct endpoint *e = (struct endpoint *)w;
         // READ consumes this direction; WRITE flushes its peer's pending bytes.
         if ((filter == EVFILT_READ ? e : opposite(e))->bulk_read) q = r->bulk.fd;
@@ -101,7 +107,7 @@ static int prepare(int fd) {
     return 0;
 }
 
-mp_tcp_relay *mp_tcp_relay_create(const char *guest) {
+static mp_tcp_relay *create_relay(const char *guest, bool data_only) {
     struct in_addr address;
     if (inet_pton(AF_INET, guest, &address) != 1) { errno = EINVAL; return NULL; }
     mp_tcp_relay *r = calloc(1, sizeof(*r));
@@ -109,9 +115,10 @@ mp_tcp_relay *mp_tcp_relay_create(const char *guest) {
     r->guest = address;
     atomic_init(&r->path_failure, false);
     r->kq = kqueue();
-    r->bulk = (struct watch){ BULK_READY, kqueue() };
-    if (r->kq < 0 || r->bulk.fd < 0 || fcntl(r->kq, F_SETFD, FD_CLOEXEC) < 0 ||
-        fcntl(r->bulk.fd, F_SETFD, FD_CLOEXEC) < 0 || watch_fd(r, &r->bulk, EVFILT_READ, EV_ADD) < 0) {
+    r->bulk = (struct watch){ BULK_READY, data_only ? -1 : kqueue() };
+    if (r->kq < 0 || fcntl(r->kq, F_SETFD, FD_CLOEXEC) < 0 ||
+        (!data_only && (r->bulk.fd < 0 || fcntl(r->bulk.fd, F_SETFD, FD_CLOEXEC) < 0 ||
+                        watch_fd(r, &r->bulk, EVFILT_READ, EV_ADD) < 0))) {
         int err = errno;
         if (r->kq >= 0) close(r->kq);
         if (r->bulk.fd >= 0) close(r->bulk.fd);
@@ -121,6 +128,10 @@ mp_tcp_relay *mp_tcp_relay_create(const char *guest) {
     }
     return r;
 }
+
+mp_tcp_relay *mp_tcp_relay_create(const char *guest) { return create_relay(guest, false); }
+
+mp_tcp_relay *mp_tcp_relay_create_data(const char *guest) { return create_relay(guest, true); }
 
 int mp_tcp_relay_scope(mp_tcp_relay *r, const char *gateway) {
     struct in_addr address;
@@ -225,13 +236,79 @@ static void close_pair(mp_tcp_relay *relay, struct pair *p) {
     relay->retired = p;
 }
 
+static unsigned socket_port(int fd, bool peer) {
+    struct sockaddr_in a = {0};
+    socklen_t len = sizeof(a);
+    int rc = peer ? getpeername(fd, (struct sockaddr *)&a, &len) : getsockname(fd, (struct sockaddr *)&a, &len);
+    return rc == 0 && a.sin_family == AF_INET ? ntohs(a.sin_port) : 0;
+}
+
+// SO_ERROR consumes the pending socket error. Read it only on a terminal
+// path, after the final read or write and after capturing its errno.
+static int socket_error(const struct endpoint *e) {
+    int error = 0;
+    socklen_t len = sizeof(error);
+    return e->watch.fd >= 0 && getsockopt(e->watch.fd, SOL_SOCKET, SO_ERROR, &error, &len) == 0 ? error : 0;
+}
+
+static int event_error(const struct endpoint *e) {
+    if (e->close_flags & EV_ERROR) return (int)e->close_data;
+    return (e->close_flags & EV_EOF) ? (int)e->close_fflags : 0;
+}
+
+static void observe_close(struct pair *p, const char *reason, int error, bool setup) {
+    mp_tcp_listener *l = p->listener;
+    if (!l->profile || (p->early_close_seen && !error)) return;
+    bool idle_fin = p->connected_at && !p->first_request_write_at && p->guest.eof;
+    if (!error && !setup && !idle_fin && (!p->connected_at || !p->first_request_write_at)) return;
+    bool first = !p->early_close_seen;
+    p->early_close_seen = true;
+    uint64_t count = 0;
+    if (setup) count = ++l->stats.setup_closes;
+    else if (idle_fin && first) count = ++l->stats.idle_guest_closes;
+    else if (first && !p->guest_replied && p->first_request_write_at) count = ++l->stats.closes_before_response;
+    if (error && !setup) ++l->stats.stream_errors;
+    if (!error && count > 8) return;
+    struct tcp_connection_info tcp = {0};
+    socklen_t size = sizeof(tcp);
+    int measured = p->guest.watch.fd >= 0 &&
+        getsockopt(p->guest.watch.fd, IPPROTO_TCP, TCP_CONNECTION_INFO, &tcp, &size) == 0;
+    fprintf(stderr, "published TCP close reason=%s errno=%d epoch_us=%llu age_us=%llu "
+            "client_port=%u published_port=%u guest_source_port=%u guest_port=%u "
+            "client_flags=%u client_fflags=%u client_data=%lld client_so_error=%d "
+            "guest_flags=%u guest_fflags=%u guest_data=%lld guest_so_error=%d "
+            "client_fin=%d guest_fin=%d guest_replied=%d pending_request=%zu pending_reply=%zu "
+            "tcp_info=%d guest_state=%u sent=%llu received=%llu retransmitted=%llu\n",
+            reason, error, clock_gettime_nsec_np(CLOCK_REALTIME) / 1000,
+            (clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - p->accepted_at) / 1000,
+            (unsigned)p->client_port, socket_port(p->client.watch.fd, false),
+            socket_port(p->guest.watch.fd, false), ntohs(l->target.sin_port),
+            p->client.close_flags, p->client.close_fflags, (long long)p->client.close_data, error ? socket_error(&p->client) : -1,
+            p->guest.close_flags, p->guest.close_fflags, (long long)p->guest.close_data, error ? socket_error(&p->guest) : -1,
+            p->client.eof, p->guest.eof, p->guest_replied, p->guest.length, p->client.length,
+            measured, tcp.tcpi_state, tcp.tcpi_txbytes, tcp.tcpi_rxbytes, tcp.tcpi_txretransmitbytes);
+}
+
 static void retire(struct pair *p) {
     mp_tcp_listener *l = p->listener;
+    observe_close(p, "relay_close", 0, false);
     if (p->prev) p->prev->next = p->next;
     else l->head = p->next;
     if (p->next) p->next->prev = p->prev;
     --l->active;
     close_pair(l->relay, p);
+}
+
+static void stream_failed(struct pair *p, struct endpoint *where, const char *reason, int error) {
+    observe_close(p, reason, error, false);
+    // A backend reset before its first byte must reach a waiting client as a
+    // reset. A graceful FIN can still carry a reply in the other direction.
+    if (where == &p->guest && !p->guest_replied && error == ECONNRESET) {
+        const struct linger abortive = { .l_onoff = 1, .l_linger = 0 };
+        if (setsockopt(p->client.watch.fd, SOL_SOCKET, SO_LINGER, &abortive, sizeof(abortive)) == 0 &&
+            p->listener->profile) ++p->listener->stats.resets_forwarded;
+    }
+    retire(p);
 }
 
 static void reap(mp_tcp_relay *r) {
@@ -251,6 +328,7 @@ void mp_tcp_release(mp_tcp_listener *l, mp_tcp_stats *stats) {
     while (l->head) {
         struct pair *p = l->head;
         l->head = p->next;
+        observe_close(p, "lease_release", 0, false);
         close_pair(l->relay, p);
     }
     reap(l->relay);
@@ -261,6 +339,11 @@ void mp_tcp_release(mp_tcp_listener *l, mp_tcp_stats *stats) {
         sum->accepted += one->accepted;
         sum->connected += one->connected;
         sum->connect_errors += one->connect_errors;
+        sum->idle_guest_closes += one->idle_guest_closes;
+        sum->stream_errors += one->stream_errors;
+        sum->resets_forwarded += one->resets_forwarded;
+        sum->setup_closes += one->setup_closes;
+        sum->closes_before_response += one->closes_before_response;
         sum->connect_retries += one->connect_retries;
         sum->recovered += one->recovered;
         sum->upload_bytes += one->upload_bytes;
@@ -290,7 +373,7 @@ void mp_tcp_release(mp_tcp_listener *l, mp_tcp_stats *stats) {
 
 void mp_tcp_relay_destroy(mp_tcp_relay *r) {
     close(r->kq);
-    close(r->bulk.fd);
+    if (r->bulk.fd >= 0) close(r->bulk.fd);
     free(r);
 }
 
@@ -315,6 +398,9 @@ static int dial_guest(struct pair *p, int timeout_seconds) {
     mp_tcp_relay *r = l->relay;
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     p->guest.watch.fd = fd;
+    p->guest.close_flags = 0;
+    p->guest.close_fflags = 0;
+    p->guest.close_data = 0;
     if (fd < 0 || prepare(fd) < 0 || scope_guest(r, fd) < 0 ||
         setsockopt(fd, IPPROTO_TCP, TCP_CONNECTIONTIMEOUT, &timeout_seconds, sizeof(timeout_seconds)) < 0) return -1;
     int rc = connect(fd, (struct sockaddr *)&l->target, sizeof(l->target));
@@ -354,6 +440,7 @@ static bool retry_guest(struct pair *p, int error) {
 }
 
 static void failed_handshake(struct pair *p, int error) {
+    observe_close(p, "guest_connect", error, true);
     p->listener->last_error_at = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
     p->listener->stats.last_connect_error = (unsigned)error;
     ++p->listener->stats.connect_errors;
@@ -381,6 +468,8 @@ void mp_tcp_adopt(mp_tcp_listener *l, int client, uint64_t accepted_at) {
     }
     p->listener = l;
     p->accepted_at = accepted_at;
+    // getpeername can fail after the peer has disconnected.
+    if (l->profile) p->client_port = (uint16_t)socket_port(client, true);
     p->deadline = accepted_at + 10000000000ULL;
     p->retry = (struct watch){ RETRY_GUEST, client };
     p->client = (struct endpoint){ .watch = { STREAM, client }, .pair = p };
@@ -420,21 +509,35 @@ static void pump(struct endpoint *src, struct endpoint *dst) {
         ssize_t got = read(src->watch.fd, data, CHUNK);
         if (l->profile) ++l->stats.reads;
         if (got < 0) {
-            if (errno != EAGAIN && errno != EINTR) retire(p);
+            if (errno != EAGAIN && errno != EINTR) {
+                stream_failed(p, src, src == &p->guest ? "guest_read" : "client_read", errno);
+            }
             return;
         }
         if (got == 0) {
+            int error = event_error(src);
+            if (error) {
+                stream_failed(p, src, src == &p->guest ? "guest_read" : "client_read", error);
+                return;
+            }
             src->eof = true;
-            if (watch_fd(r, &src->watch, EVFILT_READ, EV_DISABLE) < 0 ||
-                shutdown(dst->watch.fd, SHUT_WR) < 0 || dst->eof) retire(p);
+            if (src == &p->guest) observe_close(p, "guest_fin", 0, false);
+            if (watch_fd(r, &src->watch, EVFILT_READ, EV_DISABLE) < 0) { retire(p); return; }
+            // A disconnected write half may still have received bytes queued.
+            if (shutdown(dst->watch.fd, SHUT_WR) < 0 && errno != ENOTCONN && errno != EPIPE) {
+                stream_failed(p, dst, "shutdown_write", errno);
+                return;
+            }
+            if (dst->eof) retire(p);
             return;
         }
         count = (size_t)got;
+        if (src == &p->guest) p->guest_replied = true;
         if (!src->bulk_read && count >= LARGE_READ) {
             // Both queues have one serial owner. No bulk event can run until
             // this pump returns; closing the fd removes it from both queues.
-            if (change_watch(r->bulk.fd, &src->watch, EVFILT_READ, EV_ADD) < 0 ||
-                change_watch(r->kq, &src->watch, EVFILT_READ, EV_DELETE) < 0) { retire(p); return; }
+            if (r->bulk.fd >= 0 && (change_watch(r->bulk.fd, &src->watch, EVFILT_READ, EV_ADD) < 0 ||
+                change_watch(r->kq, &src->watch, EVFILT_READ, EV_DELETE) < 0)) { retire(p); return; }
             src->bulk_read = true;
             if (l->profile) ++l->stats.bulk_directions;
         }
@@ -449,7 +552,10 @@ static void pump(struct endpoint *src, struct endpoint *dst) {
     ssize_t sent = write(dst->watch.fd, data, count);
     if (l->profile) ++l->stats.writes;
     if (sent < 0) {
-        if (errno != EAGAIN && errno != EINTR) { retire(p); return; }
+        if (errno != EAGAIN && errno != EINTR) {
+            stream_failed(p, dst, dst == &p->guest ? "guest_write" : "client_write", errno);
+            return;
+        }
         sent = 0;
     }
     if (l->profile) {
@@ -490,6 +596,7 @@ static void finish_connect(struct pair *p) {
     socklen_t length = sizeof(error);
     mp_tcp_relay *r = p->listener->relay;
     if (getsockopt(p->guest.watch.fd, SOL_SOCKET, SO_ERROR, &error, &length) < 0) error = errno;
+    if (!error) error = event_error(&p->guest);
     if (error) {
         if (retry_guest(p, error)) return;
         failed_handshake(p, error);
@@ -548,7 +655,14 @@ static void service_event(const struct kevent *event) {
     }
     struct endpoint *e = (struct endpoint *)w;
     struct pair *p = e->pair;
-    if (!p->listener) return;
+    // A second event from the returned batch can outlive its connection.
+    // Retired endpoints retain their storage until the whole drain finishes.
+    if (!p->listener || p->retry_pending || event->ident != (uintptr_t)e->watch.fd) return;
+    if (event->flags & (EV_EOF | EV_ERROR)) {
+        e->close_flags = event->flags;
+        e->close_fflags = event->fflags;
+        e->close_data = event->data;
+    }
     struct endpoint *peer = opposite(e);
     if (p->guest.connecting) {
         if (e == &p->guest && event->filter == EVFILT_WRITE) finish_connect(p);
@@ -559,7 +673,37 @@ static void service_event(const struct kevent *event) {
     }
 }
 
+// A dedicated data owner already has a separate accept queue. Read each
+// ready set once, service handshakes and small flows first, then service every
+// bulk event returned by the kernel. Bound the callback to allow revocation.
+static void drain_data(mp_tcp_relay *r) {
+    struct kevent events[DATA_READY_BATCH];
+    const struct timespec now = {0};
+    int serviced = 0;
+    while (serviced < EVENTS_PER_TURN) {
+        int limit = EVENTS_PER_TURN - serviced;
+        int n = kevent(r->kq, NULL, 0, events, limit < DATA_READY_BATCH ? limit : DATA_READY_BATCH, &now);
+        if (n <= 0) break;
+        bool bulk[DATA_READY_BATCH] = {0};
+        for (int i = 0; i < n; ++i) {
+            struct watch *w = events[i].udata;
+            if (w->kind == STREAM) {
+                struct endpoint *e = (struct endpoint *)w;
+                bulk[i] = (events[i].filter == EVFILT_READ ? e : opposite(e))->bulk_read;
+            }
+            if (!bulk[i]) service_event(&events[i]);
+        }
+        for (int i = 0; i < n; ++i) if (bulk[i]) service_event(&events[i]);
+        serviced += n;
+    }
+}
+
 void mp_tcp_relay_drain(mp_tcp_relay *r, int dedicated_data_owner) {
+    if (r->bulk.fd < 0) {
+        drain_data(r);
+        reap(r);
+        return;
+    }
     // The dedicated accept queue stays responsive during larger data batches.
     const int batch = dedicated_data_owner ? THROUGHPUT_BULK_BATCH : INTERACTIVE_BULK_BATCH;
     struct kevent events[EVENTS_PER_TURN];

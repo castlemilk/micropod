@@ -131,6 +131,159 @@ final class NativePublishedPortsTests: XCTestCase {
         XCTAssertThrowsError(try relay.bind(host: 0, guest: target))
     }
 
+    private final class CloseOnRequest: ChannelInboundHandler {
+        typealias InboundIn = ByteBuffer
+
+        func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+            context.close(promise: nil)
+        }
+    }
+
+    func testGuestFINBeforeFirstReplyIsCountedOnceWithoutReplayingRequest() throws {
+        let upstream = try ServerBootstrap(group: MultiThreadedEventLoopGroup.singleton)
+            .childChannelInitializer { $0.pipeline.addHandler(CloseOnRequest()) }
+            .bind(host: "127.0.0.1", port: 0).wait()
+        defer { try? upstream.close().wait() }
+        let relay = try XCTUnwrap(mp_tcp_relay_create_data("127.0.0.1"))
+        defer { mp_tcp_relay_destroy(relay) }
+        var port: UInt16 = 0
+        let listener = try XCTUnwrap(
+            mp_tcp_listen(relay, 0, UInt16(try XCTUnwrap(upstream.localAddress?.port)), &port, 1))
+        var stats = mp_tcp_stats()
+        defer {
+            mp_tcp_release(listener, &stats)
+            XCTAssertEqual(stats.accepted, 1)
+            XCTAssertEqual(stats.connected, 1)
+            XCTAssertEqual(stats.upload_bytes, 4)
+            XCTAssertEqual(stats.download_bytes, 0)
+            XCTAssertEqual(stats.connect_retries, 0)
+            XCTAssertEqual(stats.setup_closes, 0)
+            XCTAssertEqual(stats.closes_before_response, 1)
+        }
+        let client = try connect(port)
+        try client.write(contentsOf: Data("once".utf8))
+        var ready = pollfd(fd: client.fileDescriptor, events: Int16(POLLIN), revents: 0)
+        let deadline = ContinuousClock.now + .seconds(3)
+        while ContinuousClock.now < deadline {
+            mp_tcp_relay_drain(relay, 1)
+            if poll(&ready, 1, 5) > 0 {
+                XCTAssertTrue(try client.read(upToCount: 1)?.isEmpty ?? true)
+                return
+            }
+        }
+        XCTFail("Client did not receive the upstream FIN")
+    }
+
+    func testBackendResetBeforeFirstByteReachesClientAndNextConnectionCanReply() throws {
+        let fd = Darwin.socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
+        guard fd >= 0 else { throw POSIXError(.EIO) }
+        defer { Darwin.close(fd) }
+        var address = sockaddr_in()
+        address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_addr.s_addr = inet_addr("127.0.0.1")
+        let size = socklen_t(MemoryLayout<sockaddr_in>.size)
+        try withUnsafeMutablePointer(to: &address) { ptr in
+            try ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                var length = size
+                guard Darwin.bind(fd, $0, size) == 0, listen(fd, 8) == 0, getsockname(fd, $0, &length) == 0
+                else { throw POSIXError(.EIO) }
+            }
+        }
+        let relay = try XCTUnwrap(mp_tcp_relay_create_data("127.0.0.1"))
+        defer { mp_tcp_relay_destroy(relay) }
+        var port: UInt16 = 0
+        let listener = try XCTUnwrap(mp_tcp_listen(relay, 0, UInt16(bigEndian: address.sin_port), &port, 1))
+        var stats = mp_tcp_stats()
+        defer {
+            mp_tcp_release(listener, &stats)
+            XCTAssertEqual(stats.accepted, 16)
+            XCTAssertEqual(stats.resets_forwarded, 8)
+            XCTAssertEqual(stats.stream_errors, 8)
+            XCTAssertEqual(stats.closes_before_response, 8)
+            XCTAssertEqual(stats.connect_retries, 0)
+        }
+        func waitReadable(_ socket: Int32) throws {
+            var f = pollfd(fd: socket, events: Int16(POLLIN), revents: 0)
+            let limit = ContinuousClock.now + .seconds(2)
+            while ContinuousClock.now < limit {
+                mp_tcp_relay_drain(relay, 1)
+                if poll(&f, 1, 2) > 0 { return }
+            }
+            throw POSIXError(.ETIMEDOUT)
+        }
+        for i in 0..<16 {
+            let client = try connect(port)
+            try client.write(contentsOf: Data([UInt8(i)]))
+            try waitReadable(fd)
+            let upstream = accept(fd, nil, nil)
+            guard upstream >= 0 else { throw POSIXError(.EIO) }
+            do {
+                let server = FileHandle(fileDescriptor: upstream, closeOnDealloc: true)
+                defer { try? server.close() }
+                try waitReadable(upstream)
+                XCTAssertEqual(try server.read(upToCount: 1), Data([UInt8(i)]))
+                if i.isMultiple(of: 2) {
+                    var abortive = linger(l_onoff: 1, l_linger: 0)
+                    XCTAssertEqual(
+                        setsockopt(upstream, SOL_SOCKET, SO_LINGER, &abortive, socklen_t(MemoryLayout<linger>.size)), 0)
+                } else {
+                    try server.write(contentsOf: Data([UInt8(i)]))
+                    XCTAssertEqual(shutdown(upstream, SHUT_WR), 0)
+                }
+            }
+            try waitReadable(client.fileDescriptor)
+            var byte: UInt8 = 0
+            let count = recv(client.fileDescriptor, &byte, 1, 0)
+            if i.isMultiple(of: 2) {
+                let error = errno
+                XCTAssertEqual(count, -1)
+                XCTAssertEqual(error, ECONNRESET)
+            } else {
+                XCTAssertEqual(count, 1)
+                XCTAssertEqual(byte, UInt8(i))
+            }
+            try client.close()
+            mp_tcp_relay_drain(relay, 1)
+        }
+    }
+
+    private final class CloseOnAccept: ChannelInboundHandler {
+        typealias InboundIn = ByteBuffer
+
+        func channelActive(context: ChannelHandlerContext) { context.close(promise: nil) }
+    }
+
+    func testIdleGuestFINIsDistinctFromAFailureAfterRequestWrite() throws {
+        let upstream = try ServerBootstrap(group: MultiThreadedEventLoopGroup.singleton)
+            .childChannelInitializer { $0.pipeline.addHandler(CloseOnAccept()) }
+            .bind(host: "127.0.0.1", port: 0).wait()
+        defer { try? upstream.close().wait() }
+        let relay = try XCTUnwrap(mp_tcp_relay_create_data("127.0.0.1"))
+        defer { mp_tcp_relay_destroy(relay) }
+        var port: UInt16 = 0
+        let listener = try XCTUnwrap(
+            mp_tcp_listen(relay, 0, UInt16(try XCTUnwrap(upstream.localAddress?.port)), &port, 1))
+        var stats = mp_tcp_stats()
+        defer {
+            mp_tcp_release(listener, &stats)
+            XCTAssertEqual(stats.idle_guest_closes, 1)
+            XCTAssertEqual(stats.closes_before_response, 0)
+            XCTAssertEqual(stats.stream_errors, 0)
+        }
+        let client = try connect(port)
+        var readable = pollfd(fd: client.fileDescriptor, events: Int16(POLLIN), revents: 0)
+        let deadline = ContinuousClock.now + .seconds(3)
+        while ContinuousClock.now < deadline {
+            mp_tcp_relay_drain(relay, 1)
+            if poll(&readable, 1, 5) > 0 {
+                XCTAssertTrue(try client.read(upToCount: 1)?.isEmpty ?? true)
+                return
+            }
+        }
+        XCTFail("Client did not see the idle guest close")
+    }
+
     func testGuestHandshakeWaitsForItsInterfaceAndForwardsBufferedBytesOnce() throws {
         let server = try server()
         defer { try? server.close().wait() }
